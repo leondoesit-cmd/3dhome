@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { sourceFunctionText } from './helpers/source_function.mjs';
 import * as THREE from '../vendor/three/three.core.js';
 import { KEY_TOOL, KEY_VIEW } from '../js/modeler_commands.js';
 const source = name => readFileSync(new URL('../js/' + name + '.js', import.meta.url), 'utf8');
 function extract(file, name, bindings = {}) {
-  const indent = file === 'modeler_drawing' ? '  ' : '';
-  const text = source(file).match(new RegExp('(?:export )?function ' + name + '\\([^]*?\\n' + indent + '\\}\\n'))[0];
-  return Function(...Object.keys(bindings), 'return (' + text.replace(/^export /, '') + ')')(...Object.values(bindings));
+  const text = sourceFunctionText(source(file), name);
+  return Function(...Object.keys(bindings), 'return (' + text + ')')(...Object.values(bindings));
 }
 function keyboard(E, extra = {}) {
   return extract('modeler', 'onKey', {
@@ -17,6 +17,16 @@ function keyboard(E, extra = {}) {
   });
 }
 const editor = () => ({open:true, mode:'3d', docType:'part', def:{parts:[]}});
+test('modeler ignores keydown events that identify no key before any editor action', () => {
+  const E = {...editor(), cutPending:true};
+  let actions = 0;
+  const key = keyboard(E, {modelerDecisionOpen:()=>{actions++; return false;}});
+  for (const event of [undefined, null, {}, {key:undefined}, {key:null}, {key:42}, {key:''}]) {
+    assert.doesNotThrow(()=>key(event));
+  }
+  assert.equal(actions,0);
+  assert.deepEqual(E,{...editor(),cutPending:true});
+});
 test('stale Delete selection leaves bodies and undo history untouched', () => {
   const E=editor(), body={id:'keep'}; E.def.parts=[body]; E.sel={id:'stale'};
   keyboard(E)({key:'Delete',preventDefault:()=>assert.fail('must be a no-op')});

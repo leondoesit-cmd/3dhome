@@ -286,14 +286,40 @@ var ribbon = null;
 function renderGroups(tabIndex) {
   fillRibbon(ribbon, "plan", tabIndex, LS_TAB);
 }
+function wireRibbonTabs(host, editor, selectTab) {
+  var panel = host.querySelector(".pr-groups");
+  var tabs = Array.from(host.querySelectorAll(".pr-tab"));
+  panel.id = "pr-panel-" + editor;
+  panel.setAttribute("role", "tabpanel");
+  panel.tabIndex = 0;
+  tabs.forEach(function (tab, i) {
+    tab.id = "pr-tab-" + editor + "-" + i;
+    tab.setAttribute("aria-controls", panel.id);
+    tab.addEventListener("click", function () { selectTab(i); });
+    tab.addEventListener("keydown", function (event) {
+      var next = i;
+      var rtl = getComputedStyle(tab).direction === "rtl";
+      if (event.key === "ArrowRight") next = (i + (rtl ? -1 : 1) + tabs.length) % tabs.length;
+      else if (event.key === "ArrowLeft") next = (i + (rtl ? 1 : -1) + tabs.length) % tabs.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = tabs.length - 1;
+      else return;
+      event.preventDefault();
+      selectTab(next);
+      tabs[next].focus();
+    });
+  });
+}
 function fillRibbon(host, editor, tabIndex, key) {
   var tabs = PRO_CATALOG[editor].tabs;
   var i = Math.max(0, Math.min(tabs.length - 1, tabIndex));
   host.querySelectorAll(".pr-tab").forEach(function (t, j) {
     t.classList.toggle("on", j === i);
     t.setAttribute("aria-selected", j === i ? "true" : "false");
+    t.tabIndex = j === i ? 0 : -1;
   });
   var body = host.querySelector(".pr-groups");
+  body.setAttribute("aria-labelledby", "pr-tab-" + editor + "-" + i);
   body.innerHTML = "";
   tabs[i][1].forEach(function (group) {
     var g = document.createElement("div");
@@ -309,6 +335,7 @@ function fillRibbon(host, editor, tabIndex, key) {
     body.appendChild(g);
   });
   store(key, String(i));
+  host.querySelector(".pr-tab.on").scrollIntoView({ block: "nearest", inline: "nearest" });
   syncActive();
   if (host.classList.contains("pr-editor-ribbon")) fitEditorRows(host);
 }
@@ -345,9 +372,7 @@ function mountEditorRibbon(editor, root) {
     '</div><button type="button" class="pr-every pr-every-ed"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><span>' + M("every") + "</span><kbd>" + (isMac() ? "⌘K" : "Ctrl K") + "</kbd></button></div>" +
     '<div class="pr-groups"></div>';
   head.after(el);
-  el.querySelectorAll(".pr-tab").forEach(function (t) {
-    t.addEventListener("click", function () { fillRibbon(el, editor, +t.dataset.proTab, key); });
-  });
+  wireRibbonTabs(el, editor, function (i) { fillRibbon(el, editor, i, key); });
   // "Every command": the editor's own command search
   el.querySelector(".pr-every-ed").addEventListener("click", function () {
     if (document.body.classList.contains("pro-skin")) { openEveryPanel(editor); return; }
@@ -448,9 +473,7 @@ function buildRibbon() {
     '<div class="pr-groups"></div>';
   var top = document.getElementById("topbar");
   top.parentNode.insertBefore(ribbon, top.nextSibling);
-  ribbon.querySelectorAll(".pr-tab").forEach(function (t) {
-    t.addEventListener("click", function () { setCollapsed(false); renderGroups(+t.dataset.proTab); });
-  });
+  wireRibbonTabs(ribbon, "plan", function (i) { setCollapsed(false); renderGroups(i); });
   wireEditorSwitch(ribbon);
   mountPlannerShell();
   ribbon.querySelector(".pr-collapse").addEventListener("click", function () { setCollapsed(!ribbon.classList.contains("collapsed")); });

@@ -5,6 +5,8 @@ import vm from 'node:vm';
 import { addSmartDimension } from '../js/sketch_dimensions.js';
 import { solveSketch } from '../js/sketch_solver.js';
 import { evaluateFeatureNumber } from '../js/modeler_feature_form.js';
+import {dimensionUnit} from '../js/sketch_equations.js';
+import {parseSketchDimensionEntry} from '../js/core/sketch_dimension_entry.js';
 
 const source = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
 function load(name, context) {
@@ -14,6 +16,18 @@ function load(name, context) {
 }
 
 const near = (a, b, tol = 1e-9) => assert.ok(Math.abs(a - b) < tol, `${a} != ${b}`);
+
+test('circular sketch pattern rotation values display and edit in degrees in an inch document',()=>{
+  const rotation={type:'rotation',value:90};
+  assert.equal(dimensionUnit(rotation),'angle');
+  const unit=load('dimensionEditorUnit',{dimensionUnit,E:{def:{context:{units:{length:'in'}}}}});
+  assert.equal(unit(rotation),'°');
+  const caption=load('constraintKindCaption',{dimensionUnit,modelLengthText:value=>String(value/2.54),modelLengthUnit:()=> 'in'});
+  assert.equal(caption(rotation),'90°');
+  assert.equal(parseSketchDimensionEntry('90',rotation,'in').value,90);
+  assert.equal(parseSketchDimensionEntry('180 / 2',rotation,'in').value,90);
+  assert.equal(parseSketchDimensionEntry('90deg',rotation,'in').value,90);
+});
 
 test('a smart dimension on a full circle is a diameter; on an arc it stays a radius', () => {
   const sketch = {
@@ -32,17 +46,17 @@ test('a smart dimension on a full circle is a diameter; on an arc it stays a rad
   near(sketch.entities[0].r, 5.5565, 1e-6);
 });
 
-function editor(text, constraint) {
+function editor(text, constraint, unit = 'cm') {
   const controls = new Map();
   const root = { querySelector: (key) => {
     if (!controls.has(key)) controls.set(key, { value: '', focus() {}, select() {} });
     return controls.get(key);
   } };
   const E = {};
-  const base = { root, E, Number, String, hideDimensionEditor() { E.dimEditor = null; }, dimensionEditorUnit: () => 'cm', positionDimensionEditor() {}, requestAnimationFrame: (fn) => fn() };
+  const base = { root, E, Number, String, hideDimensionEditor() { E.dimEditor = null; }, dimensionEditorUnit: () => unit, positionDimensionEditor() {}, requestAnimationFrame: (fn) => fn() };
   load('showDimensionEditor', base)({}, constraint);
   controls.get('#mdDimValue').value = text;
-  return load('applyDimensionEditor', { ...base, fin: Number.isFinite, evaluateFeatureNumber, nameAvailable: () => true, pushUndo() {}, activateDrawingSketch() {}, resolveSketch: () => true, refreshAll() {}, H: { discard() {} }, flash() {}, t: (k) => k, constraintMeasure: () => 0 });
+  return load('applyDimensionEditor', { ...base, dimensionUnit, fin: Number.isFinite, evaluateFeatureNumber, nameAvailable: () => true, pushUndo() {}, activateDrawingSketch() {}, resolveSketch: () => true, refreshAll() {}, H: { discard() {} }, flash() {}, t: (k) => k, constraintMeasure: () => 0 });
 }
 
 test('the dimension editor hides float noise but keeps the stored value when accepted unchanged', () => {
@@ -69,4 +83,19 @@ test('the dimension editor accepts unit suffixes and arithmetic instead of readi
   assert.equal(bad.value, 5);
   const wrongUnit = { id: 'a', type: 'angle', value: 10 };
   assert.equal(editor('5mm', wrongUnit)(), false);
+});
+
+test('Smart Dimension displays and applies bare inches while storing centimetres', () => {
+  const constraint = { id: 'd', type: 'distance', value: 10.16 };
+  const controls = new Map();
+  const root = { querySelector: key => {
+    if (!controls.has(key)) controls.set(key, { value: '', focus() {}, select() {} });
+    return controls.get(key);
+  } };
+  const E = {};
+  load('showDimensionEditor', { root, E, Number, String, hideDimensionEditor() {}, dimensionEditorUnit: () => 'in', positionDimensionEditor() {}, requestAnimationFrame: fn => fn() })({}, constraint);
+  assert.equal(controls.get('#mdDimValue').value, '4');
+  assert.equal(controls.get('#mdDimUnit').textContent, 'in');
+  assert.equal(editor('2.0', constraint, 'in')(), true);
+  near(constraint.value, 5.08);
 });

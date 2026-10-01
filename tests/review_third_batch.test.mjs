@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { sourceFunctionText } from './helpers/source_function.mjs';
 import { mateResidual,topologyReference } from '../js/cad_mate_model.js';
 import { solveTopologyMates } from '../js/cad_mates.js';
 import { auditStandardParts,involuteGearOutline } from '../js/cad_standards.js';
@@ -37,7 +38,7 @@ test('mate residuals still reject displacement in constrained directions',()=>{
 });
 test('angle arc and label follow the minor angle across the atan2 branch cut',()=>{
  const source=readFileSync(new URL('../js/cad_sheet.js',import.meta.url),'utf8');
- const fn=source.match(/function dimensionItems\([^]*?\n\}\n/)[0];
+ const fn=sourceFunctionText(source,'dimensionItems');
  const dimension=Function('num','dimensionText','measureDim','TEXT_SIZES','LINE_STYLES','text','arrowHead','return ('+fn+')')((v,d)=>v??d,()=>'',()=>0,{dim:3},{dim:{color:'#000'}},(x,y)=>({type:'text',x,y}),(x,y)=>({type:'arrow',x,y}));
  const items=dimension({type:'angle',refs:[{u:-10,v:1},{u:0,v:0},{u:-10,v:-1}]},{toSheet:p=>({x:p.u,y:p.v})},{});
  const arc=items.find(i=>i.type==='arc');assert.ok(arc.a1-arc.a0<.21);

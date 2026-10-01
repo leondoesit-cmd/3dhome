@@ -32,6 +32,12 @@ test('drawing while a datum sketch is open keeps using it instead of adding a pr
   assert.equal(h.def.sketches.length, 1);
 });
 
+test('an open principal-plane sketch also owns subsequent drawing when the camera view differs', () => {
+  const h=harness('sketch');delete h.def.sketches[0].frameSpace;
+  assert.equal(h.context.sketchForView().id,'battery');
+  assert.equal(h.added,0);assert.equal(h.def.activeSketch,'battery');
+});
+
 test('outside a sketch session a view still adopts or creates its own principal sketch', () => {
   const h = harness('model');
   assert.equal(h.context.sketchForView().plane, 'top');

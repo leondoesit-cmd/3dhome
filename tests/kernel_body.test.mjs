@@ -29,7 +29,7 @@ import { computeMassProperties } from "../js/cad_interference.js";
 
 const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
-const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
+const partGeometry = (await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
 /* The editor's [he, en] table lives in js/modeler_strings.js. */
 const modelerStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 const interference = await readFile(new URL("../js/cad_interference.js", import.meta.url), "utf8");

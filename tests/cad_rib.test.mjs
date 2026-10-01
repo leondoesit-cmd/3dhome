@@ -202,9 +202,9 @@ test("rib declares exactly the parameters the kernel reads", () => {
   const spec = featureSpec("rib");
   assert.ok(spec);
   assert.deepEqual(Object.keys(featureDefaults("rib")).sort(),
-    ["depth", "direction", "draftAngle", "extent", "side", "thickness"]);
+    ["depth", "direction", "draftAngle", "extent", "growthDirection", "orientation", "side", "thickness"]);
   const fields = spec.editor.groups.flatMap((group) => group.fields).map((field) => field.key);
-  assert.deepEqual(fields.slice().sort(), ["depth", "direction", "draftAngle", "extent", "side", "thickness"]);
+  assert.deepEqual(fields.slice().sort(), ["depth", "direction", "draftAngle", "extent", "growthDirection", "orientation", "side", "thickness"]);
   fields.forEach((key) => assert.ok(spec.parameters[key], key + " is a declared parameter"));
 });
 
@@ -276,7 +276,8 @@ test("rib reaches the ribbon, the command handler and the apply path", () => {
 
 test("every rib string the form can show exists in both languages", () => {
   const keys = ["ribOp", "ribFail", "ribNeedLine", "cmdNeedOpenLine", "fcFeatRib", "fcGrpWebDefinition",
-    "fcFldThicknessSide", "fcOptBothSides", "fcOptLeftOfLine", "fcOptRightOfLine", "fcOptUpToBody"];
+    "fcFldThicknessSide", "fcOptBothSides", "fcOptLeftOfLine", "fcOptRightOfLine", "fcOptUpToBody",
+    "fcFldRibOrientation", "fcOptRibPerpendicular", "fcOptRibParallel", "fcFldRibGrowth", "fcOptRibDown", "fcOptRibUp", "fcOptRibLeft", "fcOptRibRight"];
   keys.forEach((key) => {
     const match = modelerStrings.match(new RegExp("\\n  " + key + ': \\["([^"]+)", "([^"]+)"\\]'));
     assert.ok(match, key + " has a [he, en] pair in TXT");

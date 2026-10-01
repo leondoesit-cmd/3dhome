@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "issues": [],
+  "compileIssues": [],
+  "elapsedMs": 5329,
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 14.215816313955022,
+    "maxToleranceCm": 1.0000000366207974e-7
+  }
+}

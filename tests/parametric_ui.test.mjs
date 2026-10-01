@@ -148,8 +148,21 @@ test("topology selection is visible and finish operations preview exact geometry
 });
 
 test("a cut invalidates a cached exact mesh, including Cut after Fillet", () => {
-  assert.match(modelerSource, /function invalidatePartMeshAfterEdit\(p\)/);
-  assert.match(modelerSource, /delete p\.meshData;[\s\S]*if \(partNeedsExactMesh\(p\)\) scheduleExactMesh\(p\);/);
+  const invalidation = modelerSource.match(/function invalidatePartMeshAfterEdit\(p, schedule=true\)[\s\S]*?\n\}/)[0];
+  const scheduled = [];
+  const invalidate = new Function('isKernelBody', 'partNeedsExactMesh', 'scheduleExactMesh', `${invalidation}; return invalidatePartMeshAfterEdit;`)(p => p.kind === 'kernel', p => p.needsExact, p => scheduled.push(p));
+  const part = {kind: 'kernel', needsExact: true, meshData: {stale: true}, bounds: {stale: true}, exactPending: true, exactError: 'old failure'};
+  invalidate(part);
+  assert.equal(part.meshData, undefined);
+  assert.equal(part.bounds, undefined);
+  assert.equal(part.exactPending, false);
+  assert.equal(part.exactError, null);
+  assert.deepEqual(scheduled, [part]);
+  const deferred = {...part, meshData: {stale: true}, bounds: {stale: true}};
+  invalidate(deferred, false);
+  assert.equal(deferred.meshData, undefined);
+  assert.equal(deferred.bounds, undefined);
+  assert.equal(scheduled.length, 1, 'an authoritative rebuild can defer redundant mesh work');
   assert.match(modelerSource, /p\.holes\.push\([\s\S]*invalidatePartMeshAfterEdit\(p\);/);
 });
 

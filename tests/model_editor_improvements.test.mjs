@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
+import { runInNewContext } from "node:vm";
 
 const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
@@ -107,7 +108,9 @@ test("a cut measures the bodies under it in the cut's own space", () => {
   // not partUV(): that reads the active sketch frame, which Finish sketch has
   // already cleared by the time the cut runs
   assert.match(modeler, /var footprint=cutFootprint\(p, frame, ax\)/);
-  assert.match(partGeometry, /return cutScopeFootprint\(part, partBounds\(part\), frame, axisName/);
+  // Pending merged stock uses its full envelope, not just the original profile.
+  // cut_scope and merged_cut_scope exercise both paths in an off-origin frame.
+  assert.match(partGeometry, /return cutScopeFootprint\(candidate, partBounds\(part\), frame, axisName/);
   assert.doesNotMatch(modeler, /var footprint=partUV\(p\)/);
 });
 
@@ -171,11 +174,27 @@ test("Measure ships on Evaluate and picks through the topology picker", () => {
 test("Angle is a mate the palette offers and the ribbon's PropertyManager can build", () => {
   const code = stripComments(modeler);
   assert.match(code, /\["angle", "ph-angle", "angleMate"\]/);
-  assert.match(code, /value: type === "angle" \? clampMateAngle\(value\) : 0/);
+  assert.match(code, /value: type === "angle" \? clampMateAngle\(value\) : type === "distance" \? Number\(value\) : 0/);
   assert.match(code, /id === "mates"\) openMatePropertyManager\(\)/);
   assert.match(code, /function openMatePropertyManager\(\)/);
   // the Ops palette keeps working: the PropertyManager is an extra door
   assert.match(code, /function assemblyMateInspector\(\)/);
   assert.match(code, /MATE_PALETTE\.forEach/);
   assert.match(styles, /\.md-mate-value/);
+  // Exercise the actual creation/clamp functions without loading the WebGL
+  // editor. Adding planar distances must not change the angle's degree range.
+  const source=code.slice(code.indexOf('function addTopologyMate('),code.indexOf('function openMateAngleForm('));
+  const a={componentId:'anchor',frame:{surface:'plane',origin:{x:0,y:0,z:0},normal:{x:0,y:0,z:1}}};
+  const b={componentId:'moving',frame:{surface:'plane',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}}};
+  const environment={E:{assembly:{topologyMates:[]}},fin:Number.isFinite,
+    mateTypeFits:()=>({ok:true}),assemblyPickedRefs:()=>({a,b}),mateReferenceFromPick:pick=>pick,
+    mateHolderById:id=>({id,grounded:id==='anchor'}),pushUndo:()=>{},t:key=>key,flash:()=>{},
+    uid:()=>String(environment.E.assembly.topologyMates.length),solveAssembly:()=>{},refreshAll:()=>{}};
+  runInNewContext(source+';this.createMate=addTopologyMate;',environment);
+  for(const [input,expected] of [[-20,0],[181,180],[45,45],['90',90],[NaN,0],[Infinity,0]]){
+    assert.equal(environment.createMate('angle',input),true);
+    const mate=environment.E.assembly.topologyMates.at(-1);
+    assert.equal(mate.type,'angle');assert.equal(mate.value,expected);
+    assert.equal(mate.a.componentId,'anchor');assert.equal(mate.b.componentId,'moving');
+  }
 });

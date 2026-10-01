@@ -110,7 +110,8 @@ export function publishRebuildStatus(document, run) {
     const sketchIssues = issuesByTarget.get(sketch.id) || [];
     sketch.diagnostics = sketchIssues;
     const warning = sketchIssues.find((issue) => issue.code === "under-constrained-sketch");
-    sketch.status = sketchIssues.some((issue) => issue.severity === "error") ? "conflicting" : warning
+    const redundant = sketchIssues.some((issue) => issue.code === "over-constrained-sketch" && issue.severity === "warning");
+    sketch.status = sketchIssues.some((issue) => issue.severity === "error") ? "conflicting" : redundant ? "over-defined" : warning
       ? (sketch.constraints || []).some((constraint) => !constraint.suppressed ? true : false) ? "partially-defined" : "under-defined"
       : "fully-defined";
   });

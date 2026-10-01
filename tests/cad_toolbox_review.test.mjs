@@ -132,7 +132,7 @@ test("validator requires a complete declaration and the installed edition", () =
   assert.equal(ok.ok, true);
 });
 
-test("every toolbox family audits as compliant or explicitly not-audited", () => {
+test("every toolbox family audits as compliant or explicitly not-audited/representative", () => {
   const failures = [];
   TOOLBOX_KINDS.forEach((kind) => {
     const pick = firstSize(kind);
@@ -154,7 +154,7 @@ test("every toolbox family audits as compliant or explicitly not-audited", () =>
     if (!audit.ok) failures.push(kind + " audit: " + JSON.stringify(audit.blocking));
     const statuses = new Set(audit.results.map((row) => row.status));
     statuses.forEach((status) => {
-      if (status !== "compliant" && status !== "not-audited") {
+      if (status !== "compliant" && status !== "not-audited" && status !== "representative") {
         failures.push(kind + " status " + status);
       }
     });

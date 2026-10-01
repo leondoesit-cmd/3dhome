@@ -12,13 +12,14 @@
  */
 
 import {
-  buildSheetScene, createProjector, createSheetDoc, createView, sceneToSvg,
+  buildSheetScene, createProjector, createSheetDoc, createView, ensureSheetDoc, sceneToSvg,
 } from "./cad_sheet.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 import { calloutText, calloutTextById, holeCallouts, holeLeaderForViews } from "./core/hole_callout.js";
 import { sheetTitleText } from "./core/custom_properties.js";
 import { drawingMaterialName } from "./cad_appearances.js";
+import { configuredBodiesForView } from "./cad_configured_drawing.js";
 
 /* The title block's TITLE is the Description property, as a SOLIDWORKS sheet
    format links it; the model name is only the fallback. */
@@ -64,6 +65,9 @@ function standardSheet(def, options, bodies) {
     size: options.size || "A3",
     units: options.units || def?.context?.units?.length || "cm",
     projection: options.projection,
+    scale: options.scale,
+    draftingStandard: options.draftingStandard,
+    orientation: options.orientation,
     views: options.views || ["front", "top", "right", "iso"],
     title: {
       title: options.title || sheetTitle(def),
@@ -126,12 +130,29 @@ function calloutNotes(doc, callouts) {
   });
 }
 
+/* Item balloons for an assembly sheet: each numbered target point is projected
+   into the pictorial view and gets a leader that ends on it. */
+function balloonNotes(doc, targets) {
+  const view = doc.views.find((item) => /^iso/.test(item.dir || item.view?.dir || "")) || doc.views[doc.views.length - 1];
+  if (!view) return;
+  const basis = viewBasis(view.dir || view.view?.dir);
+  const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+  targets.forEach((target, index) => {
+    doc.notes.push({
+      id: uid("n"), balloon: true, text: String(target.item),
+      dx: index % 2 ? -16 : 16, dy: -10 - (index % 3) * 6,
+      leader: { viewId: view.id, u: dot(target.point, basis.right), v: dot(target.point, basis.up) },
+    });
+  });
+}
+
 export function buildDrawingScene(def, options = {}) {
   const bodies = tessellateParts(def?.parts);
-  const doc = options.doc || (def?.drawing && options.useStored !== false ? def.drawing : standardSheet(def, options, bodies));
-  const project = createProjector(doc, bodies);
-  if (!doc.dims?.length) autoOverallDims(doc, project);
+  const doc = options.doc || (def?.drawing && options.useStored !== false ? ensureSheetDoc(def) : standardSheet(def, options, bodies));
+  const project = createProjector(doc, bodies, { bodiesForView: view => configuredBodiesForView(def, view, bodies) });
+  if (options.overallDimensions !== false && !doc.dims?.length) autoOverallDims(doc, project);
   if (options.holeCallouts !== false && !doc.notes?.length) calloutNotes(doc, collectHoleCallouts(def));
+  if (options.balloonTargets?.length) balloonNotes(doc, options.balloonTargets);
   const balloons = Array.isArray(options.balloons) ? options.balloons
     : options.balloons === false ? []
       : (options.balloons === true || def?.kind === "assembly" ? collectBalloons(def) : []);
@@ -139,7 +160,8 @@ export function buildDrawingScene(def, options = {}) {
     projection: project,
     callouts: calloutTextById(def),
     meta: { title: options.title || sheetTitle(def, doc) },
-    bom: balloons.map((row) => ({ item: row.item, qty: row.qty, name: row.name, material: row.material })),
+    properties: def?.customProperties || {},
+    bom: balloons.map((row) => ({ item: row.item, qty: row.qty, name: row.name, description: row.description, partNumber: row.partNumber, material: row.material })),
   });
 }
 

@@ -39,7 +39,7 @@
 // a reference component is never dragged around by something mated to it.
 
 import {
-  axisAngleMatrix, createFrameResolver, mateFrameSupports, mateRequirementFor, mateResidual,
+  axisAngleMatrix, captureGearPhase, captureLockPose, lockTarget, createFrameResolver, mateFrameSupports, mateFramesSupport, mateRequirementFor, mateResidual,
   mateResidualVector, mateTarget, matrixEuler, mul, normalizePose, normalizeQuat, quatMatrix,
   rotationFromTo, rotationOf, rotationVectorMatrix, setRotation, FRAME_ISSUE,
 } from "./cad_mate_model.js";
@@ -115,19 +115,35 @@ function acceptMates(assembly, entries, byId, resolvedFrame, issues) {
     if (b.grounded) { issues.push({ mate: entry.id, code: "grounded-target" }); continue; }
     normalizeTransform(a); normalizeTransform(b);
     if (entry.legacy) { accepted.push({ ...entry, a, b, width: 1 }); continue; }
+    if(mate.type==='lock'){
+      captureLockPose(mate,a,b);accepted.push({...entry,a,b,width:12});continue;
+    }
     const fa = resolvedFrame(mate.a, a, entry.id, true), fb = resolvedFrame(mate.b, b, entry.id, true);
     if (!fa || !fb) { issues.push({ mate: entry.id, code: "unresolved-topology" }); continue; }
+    /* A symmetric mate also reads a third reference: the plane it mirrors
+       across. It belongs to a component (or the assembly origin) that the mate
+       reads but never moves. */
+    let c = null, fc = null;
+    if (mate.type === "symmetric") {
+      c = byId.get(mate.c?.componentId);
+      if (!c) { issues.push({ mate: entry.id, code: "missing-component" }); continue; }
+      normalizeTransform(c);
+      fc = resolvedFrame(mate.c, c, entry.id, true);
+      if (!fc) { issues.push({ mate: entry.id, code: "unresolved-topology" }); continue; }
+      if (!mateFrameSupports("planar", fc)) { issues.push({ mate: entry.id, code: FRAME_ISSUE.planar }); continue; }
+    }
     /* Both references must carry what this kind of mate needs. The solver and
        the editor's mate buttons ask the same question, so a mate the buttons
        refuse cannot be built by SmartMate and then placed as something else. */
     const requirement = mateRequirementFor(mate.type);
-    if (!mateFrameSupports(requirement, fa) || !mateFrameSupports(requirement, fb)) {
+    if (!mateFramesSupport(mate.type, fa, fb)) {
       issues.push({ mate: entry.id, code: FRAME_ISSUE[requirement] || "invalid-face-frame" });
       continue;
     }
-    const rows = mateResidualVector(mate, fa, fb, b);
+    if (mate.type === "gear") captureGearPhase(mate, fa, fb, a, b);
+    const rows = mateResidualVector(mate, fa, fb, b, { fc, reader: a });
     if (!rows) { issues.push({ mate: entry.id, code: "unresolved-topology" }); continue; }
-    accepted.push({ ...entry, a, b, width: rows.length });
+    accepted.push({ ...entry, a, b, c, width: rows.length });
   }
   return accepted;
 }
@@ -157,6 +173,7 @@ function decompose(accepted) {
   const edges = new Map([...movable.keys()].map((id) => [id, []]));
   for (const mate of accepted) {
     if (movable.has(mate.a.id) && mate.a.id !== mate.b.id) edges.get(mate.a.id).push(mate.b.id);
+    if (mate.c && movable.has(mate.c.id) && mate.c.id !== mate.b.id) edges.get(mate.c.id).push(mate.b.id);
   }
 
   const index = new Map(), low = new Map(), onStack = new Set(), stack = [], groups = [];
@@ -238,7 +255,7 @@ function runCluster(cluster, resolvedFrame, settings) {
 
   const rowsOf = (entry) => entry.legacy ? legacyRows(entry) : mateResidualVector(entry.mate,
     resolvedFrame(entry.mate.a, entry.a, entry.id, false),
-    resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b);
+    resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b, mateContext(entry, resolvedFrame));
 
   const residualsOf = () => {
     const out = [];
@@ -262,9 +279,10 @@ function runCluster(cluster, resolvedFrame, settings) {
   let offset = 0;
   for (const entry of cluster.mates) {
     const rows = { entry, offset };
-    const a = index.get(entry.a.id), b = index.get(entry.b.id);
+    const a = index.get(entry.a.id), b = index.get(entry.b.id), c = entry.c ? index.get(entry.c.id) : undefined;
     if (a !== undefined) touching[a].push(rows);
     if (b !== undefined && b !== a) touching[b].push(rows);
+    if (c !== undefined && c !== a && c !== b) touching[c].push(rows);
     offset += entry.width;
   }
 
@@ -384,12 +402,47 @@ function seedCluster(cluster, resolvedFrame) {
     resolvedFrame(entry.mate.a, entry.a, entry.id, false),
     resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b);
   const movable=new Set(cluster.components.map(c=>c.id));
+  const heldDirections=new Map();
   for (const entry of cluster.mates) {
     if (entry.legacy || !movable.has(entry.b.id)) continue;
+    if(entry.mate.type==='lock'){
+      const target=lockTarget(entry.mate,entry.a);
+      if(target){Object.assign(entry.b.transform,target.position);setRotation(entry.b.transform,target.rotation);}
+      continue;
+    }
     const target = targetFor(entry);
     if (!target || !target.direction) continue;
     const swing = rotationFromTo(target.actualDirection, target.direction);
+    // An angle's azimuth is free, but a preceding hinge axis is not. At
+    // parallel/opposed plane normals the generic azimuth seed can tilt that
+    // axis and strand Newton at a half turn. Seed around the held hinge instead.
+    if (target.angle !== undefined) {
+      const dot3 = (a,b) => a.x*b.x+a.y*b.y+a.z*b.z;
+      const anchor=(heldDirections.get(entry.b.id)||[]).find(direction =>
+        Math.abs(dot3(direction,target.fixedDirection))<1e-6 &&
+        Math.abs(dot3(direction,target.actualDirection))<1e-6);
+      if (anchor) {
+        const a=target.fixedDirection, b=target.actualDirection;
+        const cross={x:a.y*b.z-a.z*b.y,y:a.z*b.x-a.x*b.z,z:a.x*b.y-a.y*b.x};
+        const current=Math.atan2(dot3(anchor,cross),dot3(a,b));
+        swing.axis=anchor;
+        swing.angle=(current<0?-1:1)*target.desiredAngle-current;
+      }
+    }
+    /* A half turn has infinitely many valid axes. If an earlier mate already
+       aligned a perpendicular direction on this component, use that direction
+       as the axis: it stays fixed while the new one flips. The arbitrary first
+       axis otherwise breaks the earlier mate and can leave Newton at another
+       exact half turn with zero slope. This occurs when an assembly was saved
+       after a conflicting face mate and that mate is later removed or flipped. */
+    if (Math.abs(swing.angle - Math.PI) < 1e-7) {
+      const anchor=(heldDirections.get(entry.b.id)||[]).find((direction) =>
+        Math.abs(direction.x*target.direction.x + direction.y*target.direction.y + direction.z*target.direction.z) < 1e-6);
+      if (anchor) swing.axis=anchor;
+    }
     turn(entry.b, swing.axis, swing.angle);
+    if (!heldDirections.has(entry.b.id)) heldDirections.set(entry.b.id, []);
+    heldDirections.get(entry.b.id).push(target.direction);
     if(entry.mate.type==="tangent" && !target.tangentPlane){
       const fa=resolvedFrame(entry.mate.a,entry.a,entry.id,false), fb=resolvedFrame(entry.mate.b,entry.b,entry.id,false);
       const axis=target.direction, delta={x:fb.origin.x-fa.origin.x,y:fb.origin.y-fa.origin.y,z:fb.origin.z-fa.origin.z};
@@ -420,7 +473,17 @@ function measure(entry, resolvedFrame) {
   if (entry.legacy) return { linear: Math.abs(legacyRows(entry)[0]), angular: 0 };
   return mateResidual(entry.mate,
     resolvedFrame(entry.mate.a, entry.a, entry.id, false),
-    resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b);
+    resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b, mateContext(entry, resolvedFrame));
+}
+
+/* What a mate reads besides its two references: the mirror plane of a symmetric
+   mate, and the driving component of a gear mate (whose roll is a property of
+   the component rather than of a face). */
+function mateContext(entry, resolvedFrame) {
+  return {
+    reader: entry.a,
+    fc: entry.c ? resolvedFrame(entry.mate.c, entry.c, entry.id, false) : null,
+  };
 }
 
 /* Which mates the poses on the table do not honour. Measured from the frames as
@@ -442,15 +505,31 @@ function violations(mates, resolvedFrame, settings) {
    The rank of the Jacobian counts the freedoms the mates take away; a
    component's own share is what the rank loses when its six columns go. */
 function analyzeFreedom(cluster, run) {
-  const rank = run.jacobian.length ? rankOf(run.jacobian) : 0;
+  // A travel stop rejects an overshoot but still permits returning into the
+  // interval. Its positional residual is needed for solving, not an equality
+  // that removes sliding freedom. Retain its orientation rows and retain all
+  // rows when the two stops coincide (a fixed distance).
+  const boundedRows=new Set();
+  let offset=0;
+  for(const entry of cluster.mates){
+    const mate=entry.mate;
+    if(!entry.legacy && mate.type==='limit' && Number(mate.min)<Number(mate.max))
+      for(let row=0;row<Math.min(3,entry.width);row++)boundedRows.add(offset+row);
+    // An angle range is the same inequality: it removes no freedom inside its interval.
+    if(!entry.legacy && mate.type==='angle' && Number(mate.angleMin)<Number(mate.angleMax))
+      for(let row=0;row<entry.width;row++)boundedRows.add(offset+row);
+    offset+=entry.width;
+  }
+  const jacobian=run.jacobian.filter((_row,index)=>!boundedRows.has(index));
+  const rank = jacobian.length ? rankOf(jacobian) : 0;
   const report = {
     components: cluster.components.map((component) => component.id),
     variableCount: run.variables, rank, degreesOfFreedom: Math.max(0, run.variables - rank),
     iterations: run.iterations, converged: run.converged, perComponent: {},
   };
-  if (run.variables && run.variables <= 60 && run.jacobian.length) {
+  if (run.variables && run.variables <= 60 && jacobian.length) {
     cluster.components.forEach((component, index) => {
-      const without = run.jacobian.map((row) => row.filter((_, column) => column < index * 6 || column >= index * 6 + 6));
+      const without = jacobian.map((row) => row.filter((_, column) => column < index * 6 || column >= index * 6 + 6));
       report.perComponent[component.id] = Math.max(0, 6 - (rank - rankOf(without)));
     });
   }
@@ -485,7 +564,11 @@ function solveCluster(cluster, resolvedFrame, settings) {
     seedCluster(system, resolvedFrame);
     const run = runCluster(system, resolvedFrame, settings);
     const broken = violations(mates, resolvedFrame, settings);
-    return { system, run, accepted: run.converged && !broken.length };
+    // Quantized saved poses can stall below the physical mate tolerances while
+    // remaining above the optimizer's much smaller objective threshold. A
+    // measured, settled answer is usable; an exhausted search still is not.
+    const accepted = !broken.length && (run.converged || run.outcome === "stalled");
+    return { system, run, accepted };
   };
 
   let final = tryMates(cluster.mates);
@@ -527,7 +610,7 @@ export function solveAssemblyMates(assembly, options = {}) {
   /* The assembly's own Front, Top and Right planes (book steps 162–166): a
      grounded frame at the origin, added only when a mate names it, and always
      the side a mate reads rather than the side it moves. */
-  if ((assembly.topologyMates || []).some((mate) => mate?.a?.componentId === ASSEMBLY_ORIGIN_ID || mate?.b?.componentId === ASSEMBLY_ORIGIN_ID)) {
+  if ((assembly.topologyMates || []).some((mate) => mate?.a?.componentId === ASSEMBLY_ORIGIN_ID || mate?.b?.componentId === ASSEMBLY_ORIGIN_ID || mate?.c?.componentId === ASSEMBLY_ORIGIN_ID)) {
     byId.set(ASSEMBLY_ORIGIN_ID, assemblyOriginComponent());
   }
   components.forEach(normalizeTransform);

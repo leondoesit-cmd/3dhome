@@ -1,0 +1,9 @@
+{
+  "source": "WEIGHT-LINK8.2-final-browser-2026-09-28.mforge",
+  "workflow": "Read-only createCadWorkerExecutor interference replay of the actual Chrome-authored assembly",
+  "leafSolidCount": 4,
+  "pairCount": 6,
+  "requestBytes": 60327,
+  "interferences": [],
+  "browserAcceptance": "Pending at worker preparation; cancellation and duplicate-job guard verified through Chrome UI"
+}

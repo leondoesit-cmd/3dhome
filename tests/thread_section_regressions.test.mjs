@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import {runInNewContext} from 'node:vm';
 
 const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
 const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
@@ -39,10 +40,39 @@ test("Force Rebuild invalidates derived bodies and re-resolves sketch dependenci
   assert.match(rebuild, /exactBuildToken=\(part\.exactBuildToken \|\| 0\)\+1/);
   assert.match(rebuild, /delete part\.meshData/);
   assert.match(rebuild, /releaseExactRun\(\)/);
-  assert.match(rebuild, /regenerateExactModel\(true\)/);
+  assert.match(rebuild, /regenerateExactModel\(true,\{restoreMode:'mesh'\}\)/);
   assert.match(modeler, /id === "regen"\) regenerateExactModel\("force"\)/);
   assert.match(modeler, /chord === "b"\)[^\n]+regenerateExactModel\("force"\)/);
   assert.match(commands, /id:"regen"[\s\S]{0,320}?available:function\(\)\{ return partDoc\(\) && !E\.kernelBusy; \}/);
+});
+
+test('Force Rebuild clears stale derived output before requesting current exact display',async()=>{
+  const body=modeler.slice(modeler.indexOf('async function forceRebuildDocument'),modeler.indexOf('async function regenerateExactModelNow'));
+  for(const canonical of [true,false]){
+    const parts=[{id:'linked',sketchDriven:true,meshData:{stale:true},exactBuildToken:2},
+      {id:'native',kernel:true,meshData:{stale:true},bounds:{stale:true}},
+      {id:'frozen',meshData:{source:true}}];
+    const E={docType:'part',def:{parts},coreRun:{stale:true}},timer={},timers=new Map([[parts[1],timer]]),events=[];
+    const exact={ok:true},context={E,coreRunFresh:true,cancelledExactPreview:{stale:true},exactBuildTimers:timers,
+      activeParts:doc=>doc.parts,isCanonicalAuthoring:()=>canonical,isKernelBody:part=>!!part.kernel,
+      t:key=>key,flash:message=>events.push(['flash',message]),clearTimeout:value=>events.push(['clearTimer',value]),
+      syncSketchDrivenParts:()=>events.push(['resolveSources']),clearTopologyCache:part=>events.push(['clearTopology',part.id]),
+      refreshChangedPart:part=>events.push(['refreshPart',part.id]),releaseExactRun:()=>events.push(['release']),refreshAll:()=>events.push(['refresh']),
+      regenerateExactModel:async(rebuild,options)=>{
+        assert.equal(E.coreRun,null);assert.equal(context.coreRunFresh,false);
+        assert.equal(parts[0].meshData,undefined);assert.equal(parts[1].meshData,undefined);assert.equal(parts[1].bounds,undefined);
+        assert.equal(timers.size,0);assert.equal(context.cancelledExactPreview,null);
+        events.push(['regenerate',rebuild,options.restoreMode]);return exact;
+      }};
+    runInNewContext(body+'\nthis.force=forceRebuildDocument;',context);
+    assert.equal(await context.force(),exact);
+    assert.equal(parts[0].exactBuildToken,3);
+    assert.deepEqual(events.filter(event=>event[0]==='regenerate'),[['regenerate',true,'mesh']]);
+    assert.equal(events[0][0],'resolveSources');
+    assert.ok(events.findIndex(event=>event[0]==='release')<events.findIndex(event=>event[0]==='regenerate'));
+    if(canonical)assert.equal(parts[2].meshData,undefined);
+    else assert.deepEqual(parts[2].meshData,{source:true},'a frozen imported mesh is authoring source, not a derived cache');
+  }
 });
 
 test("a driving circle dimension severs its converted-edge snapshot before rebuild", () => {

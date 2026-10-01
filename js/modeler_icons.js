@@ -894,6 +894,14 @@ export const CAD_ICONS = {
       colorPath("M10 8 L10 1 M7.5 3.5 L10 1 L12.5 3.5", "none", "#17834f", 1.65)
     );
   },
+  stlout: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.18, 1.25) +
+      l("M10 4 L10 17 M3 7.5 L10 11 L17 7.5", 1.15) +
+      colorPath("M10 8 L10 1 M7.5 3.5 L10 1 L12.5 3.5", "none", "#9b5de5", 1.65) +
+      colorPath("M4.5 12 L10 14.5 L15.5 12", "none", "#9b5de5", 0.9, ' stroke-dasharray="1.3 1"')
+    );
+  },
 
   // ==========================================
   // 4. ASSEMBLY TOOLS (SolidWorks Assembly)
@@ -967,6 +975,21 @@ export const CAD_ICONS = {
       // Bottom right exploded part & path
       p("M13 16.5 L15.5 17.5 L18 16.5 L18 15 L15.5 14 L13 15 Z", 0.25, 1.1) +
       colorPath("M12 11 L15 14", "none", "#e89a24", 1.2, ' stroke-dasharray="1.8 1.5"')
+    );
+  },
+
+  // Explode step: one part slides off its neighbour along a dashed chain leader
+  explodestep: function () {
+    return (
+      // Fixed part
+      p("M2 11 L4.5 12.2 L7 11 L7 8.8 L4.5 7.6 L2 8.8 Z", 0.6, 1.1) +
+      // Moved part
+      p("M12 11 L14.5 12.2 L17 11 L17 8.8 L14.5 7.6 L12 8.8 Z", 0.25, 1.1) +
+      // Dashed leader and arrow head showing the step
+      colorPath("M7 10 L11 10", "none", "#e89a24", 1.3, ' stroke-dasharray="1.8 1.4"') +
+      colorPath("M10 8 L12.4 10 L10 12", "none", "#e89a24", 1.3) +
+      // Step number tick
+      colorPath("M4.5 14.5 L4.5 17.5 M2.9 16 L4.5 14.5 L6.1 16", "none", "currentColor", 1.1)
     );
   },
 
@@ -1330,6 +1353,7 @@ export const ICON_ALIASES = {
   "ph-link": "mates",
   "ph-cube-focus": "partdoc",
   "ph-arrows-out": "explode",
+  "ph-arrows-out-line-horizontal": "explodestep",
   "ph-play-circle": "motion",
   "ph-table": "bom",
   "ph-eye": "isolate",

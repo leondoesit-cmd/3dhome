@@ -2,6 +2,15 @@
 // feature history. A recipe stored at creation time is not a fixed workplane.
 import { alignExtrusionToSupport } from '../cad_feature_tree.js';
 
+export function extrusionPreviewDirection(sketch,axis,direction) {
+  // Local frame coordinates already carry their oriented normal. World-axis
+  // sketches use the support normal, or their principal plane's positive axis.
+  // The previous interval is output; using its sign makes Reverse sticky.
+  const normal=sketch?.frame?.normal;
+  const principal=axis==='frame' || !normal ? 1 : Math.sign(normal[axis] || 1);
+  return (direction==='reverse'?-1:1)*principal;
+}
+
 export function synchronizeExtrusionProjections(document, compiled, run) {
   const dirty=[];
   for (const part of document.parts || []) {

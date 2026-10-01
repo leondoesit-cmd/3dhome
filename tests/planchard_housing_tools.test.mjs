@@ -56,7 +56,7 @@ test("a through-vertex plane follows the box corner it was bound to", async () =
 test("pattern seed only of a rib is a 3x3 geometry copy, not nine up-to-body rebuilds", async () => {
   const document = {
     sketches: [{
-      id: "s1", referenceId: "plane:top",
+      id: "s1", referenceId: "plane:top", plane: "top", offset: 2,
       points: [{ id: "a", x: 5, y: 2, fixed: true }, { id: "b", x: 5, y: 4, fixed: true }],
       entities: [{ id: "line", type: "line", a: "a", b: "b" }], constraints: [],
     }],
@@ -105,5 +105,41 @@ test("feature Mirror keeps the original and produces a reflected copy", async ()
     const mirrored = await shapeMassProperties(run.results.get("mirror"));
     assert.ok(Math.abs(mirrored.volume - 2 * seed.volume) < 1e-6);
     assert.ok(mirrored.bounds.min.x < -1.9 && mirrored.bounds.max.x > 1.9);
+  } finally { releaseRegeneration(run); }
+});
+
+test("Features to Mirror: a seed rib is reflected about the Right Plane and fused, and only the rib moves", async () => {
+  const document = {
+    sketches: [{
+      id: "s1", referenceId: "plane:top", plane: "top", offset: 2,
+      points: [{ id: "a", x: 5, y: 2, fixed: true }, { id: "b", x: 5, y: 4, fixed: true }],
+      entities: [{ id: "line", type: "line", a: "a", b: "b" }], constraints: [],
+    }],
+    features: [
+      { id: "b1", type: "box", name: "Plate", inputs: [], params: { x: -20, y: 0, z: 0, w: 40, h: 2, d: 40 } },
+      {
+        id: "r1", type: "rib", name: "Rib2", inputs: ["b1"],
+        references: { features: ["b1"], sketches: ["s1"] },
+        params: { ...featureDefaults("rib"), thickness: 1, extent: "blind", depth: 5, axis: "y", from: 2, points: [{ u: 5, v: 2 }, { u: 5, v: 4 }] },
+      },
+      {
+        id: "m1", type: "mirror", name: "Mirror1", inputs: ["r1"],
+        references: { features: ["r1"], references: ["plane:right"] },
+        params: { ...featureDefaults("mirror"), scope: "feature", seedFeatureId: "r1" },
+      },
+    ],
+  };
+  const compiled = compileKernelFeatureTree(document);
+  assert.equal(compiled.ok, true, JSON.stringify(compiled.issues));
+  const run = await regenerateFeatures({ ...compiled.document, features: compiled.features });
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    const plate = await shapeMassProperties(run.results.get("b1"));
+    const ribbed = await shapeMassProperties(run.results.get("r1"));
+    const mirrored = await shapeMassProperties(run.results.get("m1"));
+    const web = ribbed.volume - plate.volume;
+    assert.ok(web > 1, "the seed rib adds a web: " + web);
+    assert.ok(Math.abs(mirrored.volume - (plate.volume + 2 * web)) < 1e-2, "plate plus the web and exactly one reflected web: " + mirrored.volume);
+    assert.ok(mirrored.bounds.min.x > -20 - 1e-6 && mirrored.bounds.max.x < 20 + 1e-6, "the plate is not mirrored");
   } finally { releaseRegeneration(run); }
 });

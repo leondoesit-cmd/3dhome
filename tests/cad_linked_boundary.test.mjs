@@ -28,6 +28,14 @@ test('a plate with a through hole keeps outer and inner loops on a linked inset'
   assert.equal(resolved.params.holes.length,1);
   assert.ok(resolved.params.points.length>=4);
   assert.equal(resolved.sketch.boundaryCopies[0].loopCount,2);
+  // A second exact rebuild reuses the generated IDs. It must replace those
+  // points rather than append another set with the same IDs each time.
+  const params={...resolved.params,profileEntityIds:resolved.newEntityIds};
+  const again=resolveAssociativeBoundary(resolved.sketch,params,new Map([['plate',plate]]));
+  assert.equal(again.sketch.points.length,resolved.sketch.points.length);
+  assert.equal(new Set(again.sketch.points.map(p=>p.id)).size,again.sketch.points.length);
+  assert.deepEqual(again.sketch.points,resolved.sketch.points);
+  assert.deepEqual(again.sketch.entities,resolved.sketch.entities);
  }finally{disposeBrep(plate);}
 });
 

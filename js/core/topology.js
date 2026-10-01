@@ -14,6 +14,21 @@ const finite = (value) => typeof value === "number" && Number.isFinite(value);
 const q = (value) => Math.round((Number(value) || 0) * 1000) / 1000;
 const clone = (value) => value == null ? value : typeof structuredClone === "function" ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 
+// Older mixed-arc profiles named walls by tessellation sample position. Those
+// aliases can move to a different real corner when the arc's span changes.
+// Retain actual entity names and generated native names; let old sampled names
+// migrate through their stored geometric descriptors instead of trusting IDs.
+export function analyticProfileTopologyHints(hints, params = {}, signature = '') {
+  if (!params.analyticProfileTopologyRevision) return hints;
+  const ids = new Set((params.segments || []).map(s => String(s.sourceEntityId)));
+  const current = String(signature).includes('"analyticProfileTopologyRevision":"'+params.analyticProfileTopologyRevision+'"');
+  return hints.filter(item => {
+    const semantic = item.semantic || item.descriptor?.semantic || item.persistentId?.split(':').slice(-2).join(':') || '';
+    const token = /^(?:side|depth|profile):([^:]+)/.exec(semantic)?.[1];
+    return token == null || (current && ids.has(token));
+  });
+}
+
 function point(x = 0, y = 0, z = 0) { return { x: Number(x) || 0, y: Number(y) || 0, z: Number(z) || 0 }; }
 function vector(x = 0, y = 0, z = 0) { return point(x, y, z); }
 function distance(a, b) { return Math.hypot((a?.x || 0) - (b?.x || 0), (a?.y || 0) - (b?.y || 0), (a?.z || 0) - (b?.z || 0)); }
@@ -180,7 +195,21 @@ function extrusionTopology(feature, params = {}) {
     const p = points[((index % count) + count) % count];
     return { u:Number(p.u) || 0, v:Number(p.v) || 0 };
   };
-  const tokenAt = (index) => params.profileEntityIds?.[index] || String(index + 1);
+  // Analytic profiles contain many sampled points per real arc. A chord index
+  // must never be mistaken for the next sketch entity's ID: changing arc span
+  // changes that index and silently binds an existing fillet to another edge.
+  const analytic=params.segments?.length>1&&params.segments.every(s=>s.sourceEntityId!=null&&s.from);
+  const pointEntityIds=analytic?new Array(count):null;
+  if(analytic){
+    for(const segment of params.segments){
+      const first=points.findIndex(p=>Math.hypot(p.u-segment.from.u,p.v-segment.from.v)<1e-6);
+      const last=points.findIndex(p=>Math.hypot(p.u-segment.to.u,p.v-segment.to.v)<1e-6);
+      if(first<0||last<0)throw new Error('Analytic profile endpoint is missing from its topology samples');
+      for(let i=first;i!==last;i=(i+1)%count)pointEntityIds[i]=segment.sourceEntityId;
+    }
+    if(Array.from(pointEntityIds).some(id=>id==null))throw new Error('Analytic profile topology samples are incomplete');
+  }
+  const tokenAt = (index) => pointEntityIds?.[index] ?? params.profileEntityIds?.[index] ?? String(index + 1);
   const segments = points.map((_, index) => {
     const a = at(index), b = at(index + 1), du = b.u - a.u, dv = b.v - a.v;
     const measure = Math.hypot(du, dv) || 1e-9;
@@ -197,6 +226,7 @@ function extrusionTopology(feature, params = {}) {
   const sameEntity = Array.isArray(params.profileEntityIds) && params.profileEntityIds.length === count;
   const corner = (index) => {
     const previous = segments[(index - 1 + count) % count], current = segments[index];
+    if(pointEntityIds)return pointEntityIds[(index-1+count)%count]!==pointEntityIds[index];
     if (sameEntity && params.profileEntityIds[(index - 1 + count) % count] !== params.profileEntityIds[index]) return true;
     return Math.acos(Math.max(-1, Math.min(1, previous.ux * current.ux + previous.uy * current.uy))) > TANGENT;
   };
@@ -1320,6 +1350,8 @@ function ribTopology(feature, params = {}) {
      have, and a wall named at the wrong depth would mis-bind. */
   const line = params.points || params.line || [];
   const thickness = Math.abs(Number(params.thickness) || 0);
+  // Parallel webs terminate on an exact body face resolved by the kernel.
+  if(params.orientation === "parallel")return [];
   if (line.length < 2 || !(thickness > 1e-9) || params.extent !== "blind") return [];
   const depth = Math.abs(Number(params.depth) || 0);
   if (!(depth > 1e-9)) return [];
@@ -1449,6 +1481,17 @@ function descriptorScore(wanted, candidate) {
   }
   if (wantedDir && candDir) score += 1 - Math.abs(dot(wantedDir, candDir));
   if (finite(Number(wanted.measure)) && finite(Number(descriptor.measure))) score += Math.abs(Number(wanted.measure) - Number(descriptor.measure)) / Math.max(1, Math.abs(Number(wanted.measure)));
+  // Two planar faces can share plane, centre, normal and area while enclosing
+  // different regions. Their exact bounds distinguish them on a rebuild.
+  if (wanted.bounds?.min && wanted.bounds?.max && descriptor.bounds?.min && descriptor.bounds?.max) {
+    let difference = 0, complete = true;
+    for (const side of ["min", "max"]) for (const axis of ["x", "y", "z"]) {
+      const a = Number(wanted.bounds[side][axis]), b = Number(descriptor.bounds[side][axis]);
+      if (!finite(a) || !finite(b)) complete = false;
+      else difference += Math.abs(a - b);
+    }
+    if (complete) score += Math.min(0.2, difference / (6 * scale) * 0.3);
+  }
   return score;
 }
 
@@ -1457,16 +1500,29 @@ export function resolveTopologyReference(reference, registry, options = {}) {
   const exact = source.byPersistentId.get(reference?.persistentId);
   if (exact && (!reference.kind || exact.kind === reference.kind)) return { status: "exact", reference, topology: exact, score: 0 };
   let candidates = source.list.filter((item) => !reference?.kind || item.kind === reference.kind);
-  if (reference?.ownerFeatureId) {
+  // A lowered cut or boss can publish edges under `feature:tool` while its
+  // authored reference names `feature` as owner for dependency ordering. The
+  // persistent ID still records the actual producing shape; search that shape
+  // first when an ordinal generated name changes.
+  const marker = reference?.kind && ":" + reference.kind + ":";
+  const markerAt = marker && reference?.persistentId?.lastIndexOf(marker);
+  const producingOwner = markerAt > 0 ? reference.persistentId.slice(0, markerAt) : null;
+  const produced = producingOwner ? candidates.filter((item) => item.ownerFeatureId === producingOwner) : [];
+  if (produced.length) candidates = produced;
+  else if (reference?.ownerFeatureId) {
     const owned = candidates.filter((item) => item.ownerFeatureId === reference.ownerFeatureId);
     if (owned.length) candidates = owned;
   }
-  if (reference?.semantic) {
+  // `generated-7` is an extraction ordinal, not a geometric role. A changed
+  // explorer order must be matched by geometry rather than that old number.
+  const generatedSemantic = /^generated-\d+$/.test(reference?.semantic || "");
+  if (reference?.semantic && !generatedSemantic) {
     const semantic = candidates.filter((item) => item.semantic === reference.semantic);
     if (semantic.length === 1) return { status: "rebound", reference, topology: semantic[0], score: 0, reason: "semantic-role" };
     if (semantic.length) candidates = semantic;
   }
-  const wanted = fallbackDescriptor(reference);
+  const fallback = fallbackDescriptor(reference);
+  const wanted = generatedSemantic && fallback ? { ...fallback, semantic: undefined } : fallback;
   if (!wanted || !candidates.length) return { status: "missing", reference, topology: null, reason: candidates.length ? "missing-fallback" : "no-candidates" };
   const ranked = candidates.map((item) => ({ item, score: descriptorScore(wanted, item) })).sort((a, b) => a.score - b.score || a.item.persistentId.localeCompare(b.item.persistentId));
   const threshold = finite(options.threshold) ? options.threshold : 0.45;

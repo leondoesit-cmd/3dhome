@@ -171,6 +171,7 @@ body.compact-nav #modeler .md-rail-end {
   align-items: flex-end; justify-content: space-between; gap: 12px;
 }
 #modeler .md-eval-card {
+  box-sizing: border-box; min-width: 0;
   width: 320px; max-width: 100%; max-height: min(60vh,520px); overflow: auto;
   display: grid; gap: 8px; padding: 10px; border: 1px solid color-mix(in srgb,var(--accent) 38%,var(--border-color));
   border-radius: 11px; background: color-mix(in srgb,var(--bg-panel) 95%,transparent);
@@ -181,10 +182,10 @@ body.compact-nav #modeler .md-rail-end {
 #modeler .md-eval-head small { color: var(--text-muted); font-size: max(10px, var(--fs-floor, 0px)); letter-spacing: .08em; text-transform: uppercase; }
 #modeler .md-eval-head b { flex: 1; font-size: 13px; }
 #modeler .md-eval-head button { width: 28px; height: 28px; padding: 0; flex: none; }
-#modeler .md-eval-body { display: grid; gap: 5px; font-size: max(11.5px, var(--fs-floor, 0px)); }
-#modeler .md-eval-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 5px 7px; border-radius: 7px; background: var(--input-bg); }
-#modeler .md-eval-row > span { color: var(--text-muted); white-space: nowrap; }
-#modeler .md-eval-row > b { font-variant-numeric: tabular-nums; text-align: end; }
+#modeler .md-eval-body { display: grid; min-width: 0; gap: 5px; font-size: max(11.5px, var(--fs-floor, 0px)); }
+#modeler .md-eval-row { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr); align-items: baseline; gap: 10px; padding: 5px 7px; border-radius: 7px; background: var(--input-bg); }
+#modeler .md-eval-row > span { min-width: 0; color: var(--text-muted); overflow-wrap: anywhere; }
+#modeler .md-eval-row > b { min-width: 0; font-variant-numeric: tabular-nums; text-align: end; overflow-wrap: anywhere; }
 #modeler .md-eval-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 #modeler .md-eval-actions[hidden] { display: none; }
 #modeler .md-eval-actions button { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; font-size: max(11px, var(--fs-floor, 0px)); }
@@ -193,7 +194,7 @@ body.compact-nav #modeler .md-rail-end {
 #modeler table.md-bom th { padding: 4px 6px; border-bottom: 1px solid var(--separator); color: var(--text-muted); font-weight: 600; text-align: start; }
 #modeler table.md-bom td { padding: 4px 6px; border-bottom: 1px solid color-mix(in srgb,var(--separator) 55%,transparent); text-align: start; }
 #modeler table.md-bom .md-bom-item,#modeler table.md-bom .md-bom-qty { font-variant-numeric: tabular-nums; width: 1%; white-space: nowrap; }
-/* An angle mate carries a number, so its row carries a field for it. */
+/* Numbered mates keep their value editable in the mate list. */
 #modeler .md-mate-value { display: inline-flex; align-items: center; gap: 3px; flex: none; }
 #modeler .md-mate-value input { width: 54px; min-height: 26px; padding: 2px 5px; font-size: max(11px, var(--fs-floor, 0px)); text-align: end; font-variant-numeric: tabular-nums; }
 #modeler .md-mate-value b { color: var(--text-muted); font-size: max(11px, var(--fs-floor, 0px)); }
@@ -204,10 +205,13 @@ body.compact-nav #modeler .md-rail-end {
   position: absolute; z-index: 3; inset-inline-end: 4px; top: 50%; transform: translateY(-50%);
   display: flex; align-items: center; gap: 1px; padding-inline-start: 22px;
   background: linear-gradient(to right,transparent,var(--bg-panel) 20px);
-  opacity: 0; pointer-events: none; transition: opacity .12s ease;
+  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .12s ease;
 }
 #modeler .md-parametric-node:hover .md-history-actions,
-#modeler .md-parametric-node:focus-within .md-history-actions { opacity: 1; pointer-events: auto; }
+#modeler .md-parametric-node:focus-within .md-history-actions,
+#modeler .md-tree-row:hover .md-history-actions,
+#modeler .md-tree-row:focus-within .md-history-actions,
+#modeler .md-tree-row.on .md-history-actions { opacity: 1; visibility: visible; pointer-events: auto; }
 #modeler .md-history-actions .md-part-x { flex: none; }
 html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to left,transparent,var(--bg-panel) 20px); }
 #modeler .md-parametric-node.md-dependency-focus { box-shadow: inset 3px 0 var(--warn); background: color-mix(in srgb,var(--warn) 13%,var(--btn-bg)); }
@@ -5535,6 +5539,7 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-insert-component button:disabled { opacity: .45; cursor: not-allowed; }
 #modeler .md-component { grid-template-columns: auto minmax(0, 1fr) auto auto; }
 #modeler .md-mate-row { display: flex !important; flex-direction: row !important; align-items: center; gap: 6px; justify-content: space-between; min-height: 32px; padding: 4px 7px; border: 1px solid var(--btn-border); border-radius: 6px; }
+#modeler .md-mate-row .md-mate-align { flex: none; min-height: 25px; padding: 2px 6px; font-size: max(10px, var(--fs-floor, 0px)); }
 #modeler .md-mate-row > span:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A mate the solver could not honour has to look different from one that
    holds, or the assembly reads as fine while a component sits loose. */
@@ -5549,6 +5554,9 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-mate-pick.b { border-color: var(--warn); color: var(--warn); }
 #modeler .md-mate-pick.a::before { content: "A"; font-weight: 700; }
 #modeler .md-mate-pick.b::before { content: "B"; font-weight: 700; }
+#modeler .md-mate-face-chooser { display: grid; gap: 6px; margin: 8px 0; }
+#modeler .md-mate-face-row { display: grid; gap: 3px; min-width: 0; font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-mate-face-row select { min-width: 0; width: 100%; color: var(--text); background: var(--input-bg, var(--btn-bg)); border: 1px solid var(--btn-border); border-radius: 5px; padding: 5px; }
 /* Nothing in an assembly is sketched, so the pane and its tab step out. */
 #modeler.md-assembly [data-tab="sketch"],
 #modeler.md-assembly #mdCanvas,
@@ -5916,6 +5924,13 @@ body.compact-nav #modeler .md-quick-field select {
   box-sizing: border-box;
 }
 #modeler .md-quick-field.type-boolean { grid-template-columns: minmax(0,1fr) 34px; cursor: pointer; }
+#modeler .md-quick-field.type-helix-regions { display: block; grid-column: 1 / -1; }
+#modeler .md-helix-regions { overflow-x: auto; }
+#modeler .md-helix-regions table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-helix-regions th,#modeler .md-helix-regions td { padding: 3px; text-align: start; }
+#modeler .md-helix-regions input { min-width: 48px; padding: 5px 4px; }
+#modeler .md-helix-regions output { display: block; min-width: 54px; color: var(--text-main); }
+#modeler .md-helix-regions button { padding: 5px 8px; border: 1px solid var(--input-border); border-radius: 6px; background: var(--input-bg); color: var(--text-main); }
 #modeler .md-quick-field.type-boolean input { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 #modeler .md-quick-field.type-boolean .md-feature-field-label,#modeler .md-quick-field.type-boolean .md-feature-switch { pointer-events: none; }
 #modeler .md-feature-switch { position: relative; width: 32px; height: 18px; border-radius: 999px; background: color-mix(in srgb,var(--text-muted) 28%,var(--input-bg)); transition: .16s ease; }
@@ -5973,6 +5988,13 @@ body.compact-nav #modeler .md-quick-field select {
 #modeler .md-feature-form-title span,#modeler .md-feature-form-title b,#modeler .md-feature-form-title small { display: block; min-width: 0; }
 #modeler .md-feature-form-title b { color: var(--text-main); font-size: max(11.5px, var(--fs-floor, 0px)); }
 #modeler .md-feature-form-title small { margin-top: 3px; color: var(--text-muted); font-size: max(8.5px, var(--fs-floor, 0px)); }
+#modeler .md-contour-picker { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 8px; border: 1px solid var(--separator); border-radius: 8px; background: var(--input-bg); }
+#modeler .md-contour-picker legend { padding: 0 3px; color: var(--text-main); font-size: max(10px, var(--fs-floor, 0px)); font-weight: 650; }
+#modeler .md-contour-picker small { color: var(--text-muted); font-size: max(9px, var(--fs-floor, 0px)); line-height: 1.35; }
+#modeler .md-contour-choices { display: flex; flex-wrap: wrap; gap: 5px; }
+#modeler .md-contour-choice { padding: 5px 8px; border: 1px solid var(--btn-border); border-radius: 7px; background: var(--btn-bg); color: var(--text-main); cursor: pointer; font-size: max(9px, var(--fs-floor, 0px)); }
+#modeler .md-contour-choice[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb,var(--accent) 18%,var(--input-bg)); color: var(--text-main); }
+#modeler .md-contour-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #modeler .md-feature-selection-note { padding: 7px; border-radius: 7px; background: color-mix(in srgb,var(--accent) 7%,var(--input-bg)); color: var(--text-muted); font-size: max(9px, var(--fs-floor, 0px)); line-height: 1.45; }
 #modeler .md-feature-selection-note.ready { border: 1px solid color-mix(in srgb, var(--success) 35%, transparent); background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); font-weight: 650; }
 /* Draft's Neutral Plane box: the label says what the next face click fills. */
@@ -6019,7 +6041,7 @@ body.compact-nav #modeler .md-quick-field select {
 #modeler.md-isdrawing .md-hint { top: auto; bottom: 12px; }
 #modeler.md-isdrawing .md-docmodes,
 #modeler.md-isdrawing .md-head-inputs,
-#modeler.md-isdrawing .md-head-actions button:not(#mdClose):not(#mdDrawing):not(#mdSave) { pointer-events: none; opacity: .48; }
+#modeler.md-isdrawing .md-head-actions button:not(#mdClose):not(#mdDrawing):not(#mdSave):not(#mdUndo):not(#mdRedo) { pointer-events: none; opacity: .48; }
 
 #modeler .md-hint {
   font-size: 12px; font-weight: 500; padding: 7px 15px; border-radius: 20px;
@@ -6402,6 +6424,10 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 }
 #modeler .md-status b { color: var(--text-main); font-weight: 600; }
 #modeler .md-status i { font-size: 12px; vertical-align: -1px; }
+#modeler .md-status > .md-exact-activity,
+body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inline-flex; align-items:center; gap:8px; flex:0 1 auto; min-width:0; max-width:100%; pointer-events:auto; }
+#modeler .md-exact-activity-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#modeler .md-exact-activity .md-cancel-exact { flex:none; pointer-events:auto; }
 #modeler .md-st-sep { width: 1px; height: 11px; background: var(--separator); }
 #modeler .md-status .md-st-dirty { color: var(--accent); }
 

@@ -1,4 +1,5 @@
 import {resolveOffsetPlanes} from './offset_planes.js';
+import {supportReferenceResolutionRevision} from './support_reference_lookup.js';
 import { revolveRecipe } from "./revolve_geometry.js";
 // Integration boundary between authoring intent and the existing exact kernel
 // feature executor.  No UI module should translate gestures directly into
@@ -10,6 +11,7 @@ import { endConditionHidesDepth } from "./extrude_extent.js";
 import { analyzeParametricHistory, ensureParametricDocument, historyEntryRolled } from "./parametric_document.js";
 import { circularPatternStepDegrees, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform } from "./pattern_geometry.js";
 import { holeWizardSolids } from "../cad_hole_wizard.js";
+import { cylindricalHolePlacement } from './cylindrical_hole_placement.js';
 import { generateToolboxPart } from "../toolbox/generate.js";
 
 export const FEATURE_PATTERN_SEED_TYPES = ["extrudeCut", "revolveCut", "sweepCut", "hole", "extrude", "revolve", "rib"];
@@ -94,21 +96,27 @@ function lowerExtrudeParams(feature, document) {
   // never recorded a depth.
   const useStoredSpan = hasStoredSpan && (endConditionHidesDepth(feature.params?.endCondition) || !hasTypedDepth);
   const planeOffset = sketch?.frame ? 0 : Number(sketch?.offset) || 0;
-  const start = planeOffset + offset;
-  const from = useStoredSpan ? storedFrom : (symmetric ? start - depth / 2 : start);
-  const to = useStoredSpan ? storedTo : (symmetric ? start + depth / 2 : start + reverse * depth);
+  // Start offset follows the selected extrusion direction, just like the UI
+  // preview. A reverse cut with offset +1 must begin one unit behind its plane.
+  const start = planeOffset + reverse * offset;
+  const from = useStoredSpan ? storedFrom : (symmetric ? start - reverse * depth / 2 : start);
+  const to = useStoredSpan ? storedTo : (symmetric ? start + reverse * depth / 2 : start + reverse * depth);
   const target = feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
   const params = {
     ...cloneDomain(feature.params),
     sketchId,
     profileEntityIds: cloneDomain(feature.params?.profileEntityIds || feature.references?.profileEntityIds || []),
-    axis: feature.params?.axis || (sketch?.plane === "front" ? "z" : sketch?.plane === "side" ? "x" : "y"),
+    // A sketch plane edit moves its extrusion too. The persisted feature axis
+    // is a compiled snapshot and only owns direction for sketchless features.
+    axis: sketch ? (sketch.plane === "front" ? "z" : sketch.plane === "side" ? "x" : "y") : feature.params?.axis || "y",
     from,
     to,
   };
   if (target) params.targetFeatureId = target;
   if (sketch?.frame) { params.axis = "frame"; params.frame = cloneDomain(sketch.frame); if (sketch.frameAnchor) params.frameAnchor = sketch.frameAnchor; }
-  if (sketch?.support) { params.support = cloneDomain(sketch.support); params.baseOffset = offset; params.depth = depth || Math.abs(to - from); }
+  if (sketch?.support) { params.support = cloneDomain(sketch.support); params.supportOffset=Number(sketch.supportOffset)||0; params.baseOffset = offset; params.depth = depth || Math.abs(to - from); }
+  if(sketch?.boundaryCopies?.some(copy=>copy.associative&&copy.entityIds.some(id=>sketch.entities.some(e=>e.id===id))&&copy.entityIds.some(id=>!sketch.entities.some(e=>e.id===id))))params.trimmedBoundaryFollowRevision='1';
+  if(sketch?.entities?.some(e=>e.type==='arc')&&sketch.entities.some(e=>e.type==='line'))params.analyticProfileTopologyRevision='3';
   return params;
 }
 
@@ -176,6 +184,7 @@ function loweredFeature(feature, document) {
     const sketchId = sketchInput(feature);
     const sketch = (document.sketches || []).find((item) => item.id === sketchId);
     const params = cloneDomain(feature.params);
+    if(sketch)params.sketchId=sketchId;
     if (sketch?.frame) { params.axis = "frame"; params.frame = cloneDomain(sketch.frame); params.sketchId = sketchId; }
     return [{ ...base, type: "rib", params }];
   }
@@ -224,7 +233,62 @@ function loweredFeature(feature, document) {
     const offsets=linearPatternOffsets(feature.params,count).map(({x,y,z})=>({x,y,z}));
     return [{...base,type:"linearGridPattern",params:{offsets}}];
   }
-  if (feature.type === "mirror") return [{ ...base, type: "mirror", params: { ...cloneDomain(feature.params), plane: cloneDomain(feature.params?.plane ?? feature.params?.planeReference ?? feature.references?.plane ?? feature.references?.references?.[0]) } }];
+  if (feature.type === "mirror") {
+    const plane = cloneDomain(feature.params?.plane ?? feature.params?.planeReference ?? feature.references?.plane ?? feature.references?.references?.[0]);
+    /* Feature mirrors reflect only the seed's addition or cutting tool. The
+       current host keeps all intervening edits and never becomes a body copy. */
+    if (feature.params?.scope === "feature") {
+      const seedIds=Array.from(new Set(feature.params.seedFeatureIds?.length ? feature.params.seedFeatureIds : [feature.params.seedFeatureId].filter(Boolean)));
+      if(seedIds.length>1){
+        const seeds=document.features.filter(item=>seedIds.includes(item.id));
+        if(seeds.length!==seedIds.length)throw new Error("A selected mirror feature is missing");
+        const ancestors=new Set();let pending=[feature.inputs[0]];
+        while(pending.length){const id=pending.pop();if(ancestors.has(id))continue;ancestors.add(id);pending.push(...(document.features.find(item=>item.id===id)?.inputs || []));}
+        const rows=[];let previous=feature.inputs[0];
+        seeds.forEach((seed,index)=>{
+          if(!seed.inputs?.[0] || !FEATURE_PATTERN_SEED_TYPES.includes(seed.type) || !ancestors.has(seed.id))throw new Error("Mirror features must belong to the current source body");
+          const prefix=feature.id+":seed:"+(index+1);
+          if(["extrudeCut","revolveCut","sweepCut","hole"].includes(seed.type)){
+            const tools=loweredFeature(seed,document).filter(row=>["extrude","revolve","sweep","holeTool"].includes(row.type));
+            if(!tools.length)throw new Error("The cutting feature has no mirrorable tool");
+            tools.forEach((tool,toolIndex)=>{
+              const copy=prefix+":reflection:"+(toolIndex+1), id=index===seeds.length-1 && toolIndex===tools.length-1 ? feature.id : prefix+":cut:"+(toolIndex+1);
+              rows.push({...base,id:copy,type:"mirror",inputs:[tool.id],params:{keepOriginal:false,plane}});
+              rows.push({...base,id,type:"subtract",inputs:[previous,copy],params:{}});previous=id;
+            });
+          }else{
+            const delta=prefix+":delta",copy=prefix+":reflection",id=index===seeds.length-1?feature.id:prefix+":union";
+            rows.push({...base,id:delta,type:"subtract",inputs:[seed.id,seed.inputs[0]],params:{}});
+            rows.push({...base,id:copy,type:"mirror",inputs:[delta],params:{keepOriginal:false,plane}});
+            rows.push({...base,id,type:"union",inputs:[previous,copy],params:{}});previous=id;
+          }
+        });
+        return rows;
+      }
+      const seed = document.features.find(item => item.id === seedIds[0]);
+      if (!seed?.inputs?.[0] || !FEATURE_PATTERN_SEED_TYPES.includes(seed.type)) throw new Error("Select an additive or cutting feature with a source body to mirror");
+      if(["extrudeCut","revolveCut","sweepCut","hole"].includes(seed.type)){
+        const tools=loweredFeature(seed,document).filter(row=>["extrude","revolve","sweep","holeTool"].includes(row.type));
+        if(!tools.length)throw new Error("The cutting feature has no mirrorable tool");
+        const rows=[];let previous=feature.inputs[0];
+        tools.forEach((tool,index)=>{
+          const copy=feature.id+":reflection:"+(index+1);
+          rows.push({...base,id:copy,type:"mirror",inputs:[tool.id],params:{keepOriginal:false,plane}});
+          const id=index===tools.length-1?feature.id:feature.id+":cut:"+(index+1);
+          rows.push({...base,id,type:"subtract",inputs:[previous,copy],params:{}});
+          previous=id;
+        });
+        return rows;
+      }
+      const delta = feature.id + ":delta", copy = feature.id + ":reflection";
+      return [
+        { ...base, id: delta, type: "subtract", inputs: [seed.id, seed.inputs[0]], params: {} },
+        { ...base, id: copy, type: "mirror", inputs: [delta], params: { keepOriginal: false, plane } },
+        { ...base, type: "union", inputs: [feature.inputs[0], copy], params: {} },
+      ];
+    }
+    return [{ ...base, type: "mirror", params: { ...cloneDomain(feature.params), plane } }];
+  }
   if (feature.type === "boolean") return [{ ...base, type: feature.params?.operation || "union", params: { keepTools: !!feature.params?.keepTools, tolerance: feature.params?.tolerance } }];
   if (feature.type === "toolbox") return lowerToolboxFeature(feature);
   if (["helix", "thread", "knurl", "insert"].includes(feature.type)) {
@@ -237,7 +301,7 @@ function loweredFeature(feature, document) {
 
 function lowerHoleFeature(feature, document, base, target) {
   if(!target)throw new Error("Hole requires a target body");
-  const sketchParams=lowerExtrudeParams(feature,document),wizard=holeWizardSolids(feature.params||{});
+  const sketchParams=feature.params?.cylindricalSource ? {...feature.params,...cylindricalHolePlacement(feature.params,document)} : lowerExtrudeParams(feature,document),wizard=holeWizardSolids(feature.params||{});
   const compiled=[];let lastId=target;
   wizard.solids.forEach((solid,index)=>{
     const suffix=wizard.solids.length===1?"":":"+solid.role;
@@ -272,5 +336,9 @@ export function compileKernelFeatureTree(source) {
       }
     }
   });
+  for(const feature of compiled){
+    const revision=supportReferenceResolutionRevision(document,feature.params?.sketchId);
+    if(revision)feature.params.supportReferenceResolutionRevision=revision;
+  }
   return { ok: !issues.some((issue) => issue.severity === "error"), document, features: compiled, issues };
 }

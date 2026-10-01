@@ -120,11 +120,21 @@ var FORCE_WEBGL =
  * @param {boolean} [opts.preferWebGL]  Use the WebGL2 backend even when WebGPU
  *   is available. Worth it for small offscreen/preview canvases: WebGPU buys
  *   them nothing, its init is slower, and its readback (toDataURL) is async.
+ * @param {boolean} [opts.classicWebGL] Use the GLSL WebGLRenderer directly.
+ *   Editor previews use this to avoid node graph conversion of CAD materials.
  */
 export function createRenderer(opts) {
-  opts = opts || {};
+  opts = Object.assign({}, opts || {});
+  var classicWebGL = !!opts.classicWebGL;
+  delete opts.classicWebGL;
   var preferWebGL = !!opts.preferWebGL;
   delete opts.preferWebGL;
+  if (classicWebGL) {
+    var classic = new THREE.WebGLRenderer(opts);
+    classic.initialized = true;
+    classic._readyPromise = Promise.resolve(classic);
+    return classic;
+  }
   opts.forceWebGL = FORCE_WEBGL || preferWebGL;
   var r = new THREE.WebGPURenderer(opts);
   // Kick init immediately so it overlaps with the caller's scene building.

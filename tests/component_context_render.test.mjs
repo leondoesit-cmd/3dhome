@@ -1,0 +1,81 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+function fn(name,next){return source.slice(source.indexOf('function '+name+'('),source.indexOf('\nfunction '+next+'(',source.indexOf('function '+name+'(')));}
+class Group {
+  constructor(){this.userData={};this.children=[];this.matrix={copy(){return this;},invert(){return this;}};this.position={set:(...values)=>this.xyz=values};this.rotation={set:(...values)=>this.euler=values};}
+  updateMatrix(){this.updated=true;}
+  add(child){this.children.push(child);}
+  traverse(visit){visit(this);this.children.forEach(child=>child.traverse?.(visit));}
+}
+
+test('local component Undo snapshots exclude unchanged parent native geometry while assembly transactions still include it',()=>{
+  const E={def:{features:[{id:'rib',params:{thickness:.19}}]},contextEdit:{componentId:12}};
+  Object.defineProperty(E,'assembly',{get(){throw new Error('local component history must not traverse parent native geometry');},configurable:true});
+  const declaration=source.slice(source.indexOf('function snapDoc()'),source.indexOf('\nconst H =',source.indexOf('function snapDoc()')));
+  const snap=new Function('E',declaration+';return snapDoc;')(E);
+  assert.deepEqual(JSON.parse(snap()),{d:E.def,contextComponentId:12});
+  Object.defineProperty(E,'assembly',{value:{components:[{id:12,def:{features:[{id:'old'}]}}]},configurable:true});
+  E.contextEdit=null;
+  assert.deepEqual(JSON.parse(snap()).a,E.assembly);
+});
+
+test('restoring local component Undo retains parent assembly identity and restores only the working recipe',()=>{
+  const parent={components:[{id:12,def:{features:[{id:'unchanged-parent-rib'}]}}]};
+  const E={docType:'part',contextEdit:{componentId:12},assembly:parent,def:{features:[{id:'new-rib'}]}};
+  const start=source.indexOf('const H = createHistory('),end=source.indexOf('\n/* ---- what is inside a document',start);
+  const noop=()=>{};
+  let restoredName;
+  const restore=new Function('E','createHistory','closeEvalCard','invalidateDrawing','invalidateInterference','resolveSketch','refreshAll','syncSheetPanel','scanDoc','docSubtree','syncUndoButtons','syncHead','function snapDoc(){return null;}'+source.slice(start,end)+';return H.set;')(E,options=>options,noop,noop,noop,noop,noop,noop,noop,noop,noop,()=>{restoredName=E.def.name;});
+  restore(JSON.stringify({d:{name:'Original component',features:[{id:'prior-rib',params:{draftAngle:1}}]},contextComponentId:12}));
+  assert.equal(restoredName,'Original component');
+  assert.equal(E.assembly,parent);
+  assert.equal(E.def.features[0].id,'prior-rib');
+  assert.equal(parent.components[0].def.features[0].id,'unchanged-parent-rib');
+  E.contextEdit=null;E.docType='assembly';
+  const historicalAssembly={components:[{id:12,def:{features:[{id:'before-component-commit'}]}}]};
+  restore(JSON.stringify({d:{features:[]},a:historicalAssembly}));
+  assert.deepEqual(E.assembly,historicalAssembly);
+});
+
+test('context ghosts read edited component pose without building its geometry, and other bodies use presentation-only rendering',()=>{
+  const current={id:1,transform:{x:3,y:4,z:5,rx:10,ry:20,rz:30},explodedOffset:{x:2}},other={id:2};
+  Object.defineProperty(current,'def',{get(){throw new Error('current geometry must not be built for placement');}});
+  const E={contextEdit:{componentId:1},assembly:{components:[current,other]}};
+  const calls=[],groups=[];
+  class TrackedGroup extends Group {constructor(){super();groups.push(this);}}
+  const run=new Function('E','THREE','assemblyComponentById','normalizeTransform','buildComponentGroup',fn('addAssemblyContextGhosts','refreshComponents')+';return addAssemblyContextGhosts;')(E,{Group:TrackedGroup},()=>current,c=>c.transform,(...args)=>{calls.push(args);return new Group();});
+  const parent=new Group();run(parent);
+  assert.deepEqual(calls,[[other,null,'',true]]);
+  assert.deepEqual(groups[0].xyz,[5,4,5]);
+  assert.deepEqual(groups[0].euler,[10,20,30].map(n=>n*Math.PI/180));
+  assert.equal(parent.children[0].userData.cadAssemblyContext,true);
+  assert.equal(parent.children[0].children[0].userData.cadOverlay,true);
+});
+
+test('presentation-only flag reaches every body in nested component rendering without changing ordinary selectable bodies',()=>{
+  const body={id:8},leaf={id:2,def:{parts:[body]}},assembly={id:1,asm:{components:[leaf]}};
+  const E={displayStyle:'solid'},calls=[];
+  const run=new Function('E','THREE','normalizeTransform','isSubassembly','componentDef','activeParts','buildPart',fn('buildComponentGroup','addInterferenceVisuals')+';return buildComponentGroup;')(E,{Group},()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0}),c=>!!c.asm,c=>c.def,d=>d.parts,(...args)=>calls.push(args));
+  run(assembly,null,'',true);
+  assert.equal(calls[0][3],true);
+  assert.equal(calls[0][1],body);
+  run(leaf,null,'');
+  assert.equal(calls[1][3],false);
+  assert.equal(E.buildComponent,null);
+});
+
+test('assembly insertion choices use catalog metadata without copying mesh or topology payloads',()=>{
+  const models=[{key:'fresh',name:'Fresh part'}],assemblies=[];
+  Object.defineProperty(models[0],'meshData',{get(){throw new Error('choice population must not read geometry');}});
+  const host={querySelector(){return null;},appendChild(){}},select={options:[],setAttribute(){},appendChild(o){this.options.push(o);}};
+  const element=()=>({appendChild(){},setAttribute(){}});
+  const prefix=fn('refreshComponents','refreshParts');
+  const setup=prefix.slice(0,prefix.indexOf('  var count ='))+'\n}';
+  new Function('root','addFeatureFilter','modelLibraryCache','assemblyLibraryCache','el','document','btn','E','containsAssembly','t','insertAssemblyComponent','openNewContextPart','startTour','selectTourTrack',setup+';refreshComponents();')({querySelector:()=>host},()=>{},models,assemblies,(tag)=>tag==='select'?select:element(),{createElement:()=>element()},()=>element(),{assembly:{key:'current'}},()=>false,x=>x,()=>{},()=>{},()=>{},()=>{});
+  assert.equal(select.options[0].value,'fresh');
+  assert.equal(select.options[0].textContent,'Fresh part');
+});
+

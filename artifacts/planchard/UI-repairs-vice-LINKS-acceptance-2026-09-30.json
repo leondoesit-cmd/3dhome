@@ -1,0 +1,234 @@
+{
+  "date": "2026-09-30",
+  "method": "Actual desktop Chrome UI; all new part geometry authored from blank with tools, dimensions and point coordinate fields.",
+  "vice": {
+    "base": {
+      "key": "cm_munf3dso",
+      "volumeCm3": 238.5416,
+      "massKg": 1.872552,
+      "protected": "VICE-base-corrected-browser-2026-09-30.mforge"
+    },
+    "screw": {
+      "key": "cm_munfmczw",
+      "volumeCm3": 13.31573,
+      "massKg": 0.1045285,
+      "protected": "VICE-screw-corrected-browser-2026-09-30.mforge"
+    },
+    "assembly": {
+      "clearance": "No interference detected",
+      "protected": "VICE-assembly-corrected-browser-2026-09-30.mforge"
+    }
+  },
+  "flatbar": {
+    "key": "cm_munm4oro",
+    "configurations": [
+      "3HOLES",
+      "5HOLES",
+      "7HOLES"
+    ],
+    "plane": "Front; both outline and seed sketches in every saved configuration",
+    "material": "Aluminum 1060",
+    "thicknessMm": 1.524,
+    "holeDiameterMm": 4.826,
+    "volumesCm3": {
+      "3HOLES": 0.6010358,
+      "5HOLES": 1.036893,
+      "7HOLES": 1.472751
+    },
+    "sevenHoleNativeBoundsMm": [
+      88.9,
+      12.7,
+      1.524
+    ],
+    "protected": "FLATBAR-named-configurations-Front-final-browser-2026-09-30.mforge"
+  },
+  "links": {
+    "components": 4,
+    "mates": 8,
+    "remainingDof": 1,
+    "unresolvedMates": 0,
+    "coldLibraryReopen": "Accepted through Chrome",
+    "clearance": "No interference detected",
+    "configurationPartKey": "cm_munm4oro",
+    "compactBundleBytes": 1481989,
+    "protected": "LINKS-named-configurations-compact-final-browser-2026-09-30.mforge",
+    "proof": "LINKS-named-configurations-clearance-browser-2026-09-30.png"
+  },
+  "repairs": [
+    "Independent named generic configurations with geometry/material capture",
+    "Component replacement and selected configuration retention",
+    "Rebuild selected occurrence configuration on library update",
+    "Driving sketch plane takes precedence over stale compiled extrusion axis",
+    "Screw mate opposed axes with pitch motion retained",
+    "Angle and rotation dimensions display and edit in degrees in inch documents",
+    "Inactive thin feature thickness does not reject ordinary extrusion edits",
+    "Datum row replaces old model face selection",
+    "Fillet edge browser retains expanded state",
+    "Compact JSON project export",
+    "Optional upstream topology snapshot budget for export and assembly occurrence clones",
+    "Native subtractive feature mirrors with named seed picker",
+    "Document transitions cancel queued native jobs and immediately release idle WASM workers",
+    "Confirmation-corner Cancel dismisses quick form and retains active sketch"
+  ],
+  "cacheBudget": {
+    "bytes": 8388608,
+    "retains": [
+      "Final surviving body topology",
+      "Explicit associative support owner topology",
+      "Authored feature and sketch history",
+      "Authoritative final mesh"
+    ],
+    "standaloneLibraryPartCache": "Unchanged",
+    "largeGearReadOnly": {
+      "oldPrettyBytes": 126762930,
+      "compactBytes": 53090818,
+      "budgetedCompactAssemblyBytes": 36562311,
+      "brepAttachments": 0
+    },
+    "browserAcceptance": "Actual Chrome 617 gear Project bundle export accepted by book_current: 36,565,640 bytes versus previous 126,762,930 bytes; five parts and three mates preserved."
+  },
+  "limitations": [
+    "Housing queued preview plus mass still repeated expensive Shell across cold reload in earlier acceptance; do not claim fully repaired",
+    "Generic configuration drawing generation beyond assembly occurrence rendering not yet qualified",
+    "Large gear optional cache budget needs actual browser cold import/export acceptance",
+    "Draft target and neutral face edit controls owned by plane_alignment"
+  ],
+  "mirror": {
+    "nativeRegression": "PASS: mirrored cutter retains intervening notch; volume 6.9; export-valid solid",
+    "cutFamilies": [
+      "extrudeCut",
+      "revolveCut",
+      "sweepCut",
+      "multi-stage hole"
+    ],
+    "rootBrowserAcceptance": "Q3 Cut2 mirror to Top committed 8 history steps, 1 native solid",
+    "proof": "ADVANCED-Q3-cut-mirror-browser-2026-09-30.jpg"
+  },
+  "quickFormCancel": {
+    "browserAcceptance": "Fresh blank circle sketch, centre coordinate form opened, confirmation-corner Cancel closes form while Finish sketch and DOF1 remain active",
+    "proof": "Sketch-quick-form-cancel-retains-sketch-browser-2026-09-30.png"
+  },
+  "workerCleanup": {
+    "tests": "Five focused cancellation/worker transition regressions passed",
+    "policy": "Global document reset releases idle worker immediately; scoped cancel retains unrelated warm work; 120s normal idle policy unchanged"
+  },
+  "q4Step": {
+    "status": "Native final fillet exceeds export tolerance; persistent failure reporting and direct native worker STEP path implemented",
+    "actualToleranceCm": 0.020843673178183104,
+    "maximumToleranceCm": 0.001,
+    "followupOwner": "plane_alignment",
+    "browserProof": "CSWA-Q4-STEP-tolerance-report-browser-2026-09-30.png",
+    "browserAcceptance": "Actual Chrome export failure now stays visible with exact tolerance diagnosis"
+  },
+  "throughAllDepthHandle": {
+    "status": "Removed nonpersistent numeric depth handle for automatic extents; focused test passed; root browser acceptance pending"
+  },
+  "mateTopologyMemo": {
+    "status": "Identity-based final topology reuse; focused invalidation test passed; gear dropdown browser acceptance pending",
+    "browserAcceptance": "book_current confirms first A shoulder dropdown now rerenders full chooser; second B blocked by extension timeout, native UI continuation planned"
+  },
+  "lockMate": {
+    "status": "Actual Chrome 694 accepted two fresh task-created components; Lock committed and follower fully constrained; normal UI Project bundle exported",
+    "components": 2,
+    "mates": 1,
+    "bundleBytes": 540948,
+    "proof": "LOCK-mate-browser-acceptance-2026-09-30.png",
+    "bundle": "LOCK-mate-browser-acceptance-2026-09-30.mforge",
+    "tests": "15 mechanical solver regressions passed, including six relative freedoms and moving reader after JSON reopen"
+  },
+  "finishEditor": {
+    "status": "Upstream exact edge browser and multiple-radius rerender fixed; two focused tests passed; root browser acceptance pending",
+    "browserAcceptance": "Actual Chrome 716 Q4 existing Fillet1: Browse65 upstream edges; Multiple radius produces six per-edge Start(mm) inputs; cancelled without geometry changes",
+    "proof": "FILLET-edit-multiple-radius-browser-2026-09-30.png",
+    "suppressedRefresh": "Root Q3 Chrome accepted exact upstream Refresh, edge48 centre(2.5,-6,50), Finish valid; native :tool owner no longer leaks into history."
+  },
+  "mateReferencePriority": {
+    "status": "Actual Chrome709 accepted cylinder-first driver/follower picks and Gear mate enabled; 3200-side-face regression passes, all choices retained."
+  },
+  "parallelRibDraft": {
+    "status": "Actual Chrome fresh QA part accepted outward one-degree native taper, Save completed and normal Project bundle downloaded; 11 focused native/form tests pass",
+    "browserVolumeCm3": 4264.937,
+    "browserAnalyticAgreement": "32 cm path, 2 cm thickness, 4 cm reach: added volume 32*(8+16*tan(1 degree)); base4000cm3",
+    "proof": "Parallel-Rib-draft-native-mass-browser-2026-09-30.png",
+    "bundle": "Parallel-Rib-draft-native-browser-2026-09-30.mforge",
+    "bundleBytes": 65214,
+    "neutralPlane": "Plane perpendicular to in-plane growth through the outermost profile coordinate",
+    "scope": "Both sides and one-sided fixed wall; planar and curved/multiple native stopping faces",
+    "units": "Angle in degrees",
+    "tests": "Analytic one-degree outward added volume, closed one-solid export validation, floor+curved-boss stop"
+  },
+  "viewportQueueCoalescing": {
+    "status": "Five worker bootstrap tests pass; latest explicitly tagged preview per body skips obsolete queued snapshots, active jobs and untagged Save/Mass/export stay intact",
+    "browserAcceptance": "Root committed heavy housing job preserved; new worker behavior requires subsequent reload"
+  },
+  "signedDatumOffset": {
+    "status": "Negative offset input silently becoming positive reproduced in fresh QA; signed helper now preserves typed direction and Flip reverses it; three tests pass",
+    "browserAcceptance": "Actual Chrome reopened QA, typed -25cm without Flip, Apply regenerated correct unchanged4264.937cm3/COMX-25cm; Save completed",
+    "proof": "Signed-datum-offset-native-browser-2026-09-30.png"
+  },
+  "sketchPlaneDisplay": {
+    "status": "Face attachment and explicit local frame override legacy principal plane in inspector; principal caption reads stored sketch plane rather than camera view",
+    "tests": "Four plane display/reassignment tests pass; gates611modules and1490source assertions pass",
+    "browserAcceptance": "Fresh tapered-face sketch circle: inspector, chip and working-plane caption all show same Face; Top camera retains attachment; NormalTo aligns circle on rib face. Saved five steps, cold reload/library reopen retains same Face and circle frame; QA tab closed after proof",
+    "proof": "Face-sketch-support-caption-browser-2026-09-30.png",
+    "normalToProof": "Face-sketch-normal-split-browser-2026-09-30.png",
+    "coldReopenProof": "Face-sketch-cold-reopen-browser-2026-09-30.png"
+  },
+  "sketchRebuildStatus": {
+    "status": "Core diagnostics recognize actual solver status strings: solved redundancy remains buildable, publishes warning and Overdefined; genuine conflict reports error and Conflicting",
+    "tests": "Two real solver/publication regressions and41production/diagnostic plus11workflow tests pass",
+    "browserAcceptance": "Actual fresh Chrome728 human QA: redundant fixed endpoints plus length displays Over-defined in tree/status/inspector; unequal fixed Y coordinates plus Horizontal displays Conflicting everywhere with actionable diagnostics. Restored valid sketch by suppressing Horizontal; Save completed clean.",
+    "proofs": [
+      "Sketch-overdefined-diagnostic-browser-2026-09-30.png",
+      "Sketch-conflicting-diagnostic-browser-2026-09-30.png"
+    ]
+  },
+  "componentContextResponsiveness": {
+    "status": "Targeted main-thread work reductions; overall heavy flashlight latency is not claimed solved",
+    "fixes": [
+      "Assembly choice panel reads saved catalog names/keys without cloning all geometry",
+      "Edited component ghost placement reads pose without building and discarding duplicate body",
+      "Transparent context ghosts skip topology picker/highlight/temporary-axis decorations",
+      "Local component Undo snapshots omit unchanged parent assembly and retain parent identity on restore",
+      "Undo synchronizes metadata form so stale undone name cannot overwrite next Save"
+    ],
+    "tests": "Seven production-function/component transaction regressions pass; gates613modules1490assertions pass",
+    "browserAcceptance": "Chrome747 Edit component, transparent ghost placement, Finish component and clean Save accepted for fresh task-created two-component Lock QA. Chrome757 temporary component rename/Undo retained original parent and Lock fully-constrained result; Cancel preserved canonical assembly. Chrome767 blank rename/Undo restored visible name field to New model.",
+    "proofs": [
+      "Component-context-ghost-browser-2026-09-30.png",
+      "Component-finish-saved-browser-2026-09-30.png",
+      "Component-local-undo-parent-preserved-browser-2026-09-30.png",
+      "Document-metadata-undo-field-browser-2026-09-30.png"
+    ],
+    "limitation": "Native input dispatch delays and an AX10second timeout still occurred; root heavy743 requires independent current-source acceptance",
+    "cleanup": "Closed only own completed747757767; root live tabs untouched"
+  },
+  "exactMateReferenceRefresh": {
+    "status": "Chrome accepted on independent fresh task-created two-component Lock QA; root also accepted CAPANDLENS native refresh",
+    "source": "js/modeler.js",
+    "tests": "4 focused tests pass; npm run check 613 modules /1490 assertions pass",
+    "guards": [
+      "No stale cached face IDs when canonical final topology is unavailable",
+      "Native per-leaf replay with assembly identity and authoring intent guards",
+      "Failed or delayed stale results never replace verified saved topology"
+    ],
+    "browserProof": "Exact-mate-reference-refresh-browser-2026-09-30.png",
+    "actual": "Base top planar face and screw hub start face selected; UI shows 2 Picked references and Coincident faces enabled using picked references. Existing Lock mate retained. No new mate or authored geometry."
+  },
+  "generatedSupportPlaneColdRepair": {
+    "status": "Native cold and warm accepted; final Chrome Housing acceptance pending parent",
+    "report": "HOUSING-generated-support-plane-cold-repair-2026-09-30.md",
+    "coldVolumeCm3": 216.73581748469144,
+    "warmVolumeCm3": 216.73581748467305,
+    "tests": "13 support/offset PASS; full source gates614/1490 PASS",
+    "revision": "descriptor-support-1 only on affected compiled consumers"
+  },
+  "planeAxisCoincident": {
+    "status": "Actual Chrome saved and cold-reopened acceptance",
+    "report": "Plane-axis-Coincident-acceptance-2026-09-30.md",
+    "bundle": "Plane-axis-Coincident-fresh-browser-2026-09-30.mforge",
+    "proof": "Plane-axis-Coincident-cold-reopen-browser-2026-09-30.png",
+    "actual": "2components1mate4DOF; saved native cylinder source identity; no mate issues",
+    "tests": "47production/nested/solver +10chooser/plane-axis PASS; source614/1490PASS"
+  }
+}

@@ -1,4 +1,5 @@
 import {shellMeridian} from './core/shell_meridian.js';
+import { repairFilletCornerPatches } from './core/fillet_corner_repair.js';
 import {restoreProfileCurve} from './cad_profile_serialization.js';
 import {circularPatternPivot} from "./core/pattern_geometry.js";
 import { holeToolPlacements } from "./core/hole_geometry.js";
@@ -16,7 +17,7 @@ import {
 } from "./core/topology.js";
 import { framePoint } from "./core/frame.js";
 import { isSegmentProfile, pathFrames, segmentProfilePoints } from "./core/profile_curves.js";
-import { ribDraftedLoop, ribLoop } from "./core/rib_profile.js";
+import { ribDraftedLoop, ribGrowthVector, ribLoop, ribOffsets, ribWebLoop } from "./core/rib_profile.js";
 import { extrusionAxisVector, UP_TO_FACE_MISSED } from "./core/extrude_extent.js";
 
 let kernelPromise = null;
@@ -40,7 +41,7 @@ export function loadCadKernel() {
     const attempt = kernelLoadAttempt++;
     const browserModule = new URL("../node_modules/opencascade.js/dist/opencascade.full.js", import.meta.url);
     if (attempt) browserModule.searchParams.set("retry", String(attempt));
-    kernelPromise = typeof window === "undefined"
+    kernelPromise = typeof window === "undefined" && typeof self === "undefined"
       ? import("opencascade.js/dist/node.js").then(({ default: factory }) => factory())
       : import(browserModule.href).then(({default:factory})=>
         compressedBrowserKernel(factory).catch(()=>factory({locateFile(path){if(path.endsWith(".wasm"))return new URL("../node_modules/opencascade.js/dist/opencascade.full.wasm",import.meta.url).href;return path;}})));
@@ -85,9 +86,51 @@ function shapeBounds(oc, shape, useShapeTolerance = true) {
     oc.BRepBndLib.AddOptimal(shape, box, false, useShapeTolerance);
     if (box.IsVoid()) return null;
     const min = box.CornerMin(), max = box.CornerMax();
-    try { return { min: pointOf(min), max: pointOf(max) }; }
+    try {
+      const bounds={ min: pointOf(min), max: pointOf(max) };
+      return useShapeTolerance ? bounds : trimmedSplineBounds(oc,shape,bounds);
+    }
     finally { min.delete(); max.delete(); }
   } finally { box.delete(); }
+}
+
+// AddOptimal bounds the parameter rectangle of a spline face. A trimmed
+// corner can therefore report control-surface material outside the solid.
+// Distance to an external plane gives the true support coordinate: the plane
+// rectangle covers the entire original box's orthogonal projection.
+function trimmedSplineBounds(oc,shape,bounds) {
+  const explorer=new oc.TopExp_Explorer_2(shape,oc.TopAbs_ShapeEnum.TopAbs_FACE,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+  let spline=false;
+  try {
+    while(explorer.More()) {
+      const face=oc.TopoDS.Face_1(explorer.Current()),surface=new oc.BRepAdaptor_Surface_2(face,true);
+      try {const name=surfaceName(oc,surface.GetType());if(name==='bspline'||name==='bezier'){spline=true;break;}}
+      finally {surface.delete();face.delete();}
+      explorer.Next();
+    }
+  } finally {explorer.delete();}
+  if(!spline)return bounds;
+  const axes=['x','y','z'],center=axes.map(axis=>(bounds.min[axis]+bounds.max[axis])/2);
+  const reach=Math.max(1,Math.hypot(...axes.map(axis=>bounds.max[axis]-bounds.min[axis])));
+  const refined={min:{...bounds.min},max:{...bounds.max}},tolerance=Math.max(1e-6,reach*1e-8);
+  try {
+    for(let index=0;index<3;index++)for(const side of ['min','max']) {
+      const owned=[],keep=value=>(owned.push(value),value),axis=axes[index],sign=side==='min'?-1:1;
+      try {
+        const location=center.slice();location[index]=bounds[side][axis]+sign*reach;
+        const point=keep(new oc.gp_Pnt_3(...location)),direction=[0,0,0];direction[index]=1;
+        const normal=keep(new oc.gp_Dir_4(...direction)),plane=keep(new oc.gp_Pln_3(point,normal));
+        const maker=keep(new oc.BRepBuilderAPI_MakeFace_9(plane,-reach*2,reach*2,-reach*2,reach*2)),face=keep(maker.Face());
+        const distance=keep(new oc.BRepExtrema_DistShapeShape_1()),progress=keep(new oc.Message_ProgressRange_1());
+        distance.LoadS1(face);distance.LoadS2(shape);distance.Perform(progress);
+        if(!distance.IsDone()||distance.NbSolution()<1)throw new Error('Unresolved support plane');
+        const hit=keep(distance.PointOnShape2(1)),coordinate=[hit.X(),hit.Y(),hit.Z()][index];
+        if(!Number.isFinite(coordinate)||coordinate<bounds.min[axis]-tolerance||coordinate>bounds.max[axis]+tolerance||Math.abs(Math.abs(coordinate-location[index])-distance.Value())>tolerance)throw new Error('Unverified support plane');
+        refined[side][axis]=coordinate;
+      } finally {disposeAll(owned);}
+    }
+    return refined;
+  } catch (_) {return bounds;}
 }
 
 function normalizedVector(value) {
@@ -157,6 +200,26 @@ function faceDescriptor(oc, face) {
         descriptor.minorRadius = torus.MinorRadius();
         descriptor.radius = descriptor.majorRadius;
       } finally { location.delete(); direction.delete(); axis.delete(); torus.delete(); }
+    } else if (surface === "revolution") {
+      // OCCT can retain a circular sweep as a surface of revolution rather
+      // than reduce it to Geom_ToroidalSurface. Identify the exact generating
+      // circle, so a hook's upper loop has usable analytic mating geometry.
+      const basis=adaptor.BasisCurve(),curve=basis.get();
+      try {
+        if(curve.GetType().value===oc.GeomAbs_CurveType.GeomAbs_Circle.value){
+          const circle=curve.Circle(),axis=adaptor.AxeOfRevolution(),location=axis.Location(),direction=axis.Direction(),center=circle.Location(),circleAxis=circle.Axis(),circleNormal=circleAxis.Direction();
+          try {
+            const n=normalizedVector(vectorOf(direction)),base=pointOf(location),c=pointOf(center);
+            const delta={x:c.x-base.x,y:c.y-base.y,z:c.z-base.z},along=delta.x*n.x+delta.y*n.y+delta.z*n.z;
+            const origin={x:base.x+n.x*along,y:base.y+n.y*along,z:base.z+n.z*along};
+            const major=Math.hypot(c.x-origin.x,c.y-origin.y,c.z-origin.z),minor=circle.Radius();
+            const cn=normalizedVector(vectorOf(circleNormal));
+            const perpendicular=Math.abs(cn.x*n.x+cn.y*n.y+cn.z*n.z)<1e-7;
+            const radialInPlane=Math.abs(cn.x*(c.x-origin.x)+cn.y*(c.y-origin.y)+cn.z*(c.z-origin.z))<1e-7;
+            if(major>minor && perpendicular && radialInPlane){Object.assign(descriptor,{surface:"torus",underlyingSurface:"revolution",axis:n,origin,center:origin,majorRadius:major,minorRadius:minor,radius:major});}
+          }finally{circleNormal.delete();circleAxis.delete();center.delete();direction.delete();location.delete();axis.delete();circle.delete();}
+        }
+      }finally{basis.delete();}
     }
     return descriptor;
   } finally { p.delete(); du.delete(); dv.delete(); adaptor.delete(); props.delete(); }
@@ -289,15 +352,18 @@ export function extractBrepTopology(brep, options = {}) {
   const oc = brep.oc, featureId = options.ownerFeatureId || "kernel";
   const raw = [];
   const collect = (kind, shapeType, cast, describe) => {
+    const buckets=new Map();let ordinal=0;
     const explorer = new oc.TopExp_Explorer_2(brep.shape, shapeType, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
     try {
       while (explorer.More()) {
         const shape = cast(explorer.Current());
-        const duplicate = raw.some((item) => item.kind === kind && item.shape.IsSame(shape));
+        const hash=shape.HashCode(2147483647),bucket=buckets.get(hash) || [];
+        const duplicate = bucket.some((item) => item.IsSame(shape));
         if (duplicate) { shape.delete(); explorer.Next(); continue; }
+        bucket.push(shape);buckets.set(hash,bucket);
         try {
           const descriptor = describe(oc, shape);
-          raw.push({ ownerFeatureId: featureId, kind, persistentId: "__kernel:" + kind + ":" + raw.length, semantic: null, descriptor, signature: topologyDescriptorSignature(descriptor), shape });
+          raw.push({ ownerFeatureId: featureId, kind, transportOrdinal:ordinal++, persistentId: "__kernel:" + kind + ":" + raw.length, semantic: null, descriptor, signature: topologyDescriptorSignature(descriptor), shape });
         } catch (error) { shape.delete(); throw error; }
         explorer.Next();
       }
@@ -345,6 +411,37 @@ export function extractBrepTopology(brep, options = {}) {
   brep.topology = raw.map(({ shape, ...item }) => item);
   brep.subshapes = new Map(raw.map((item) => [item.persistentId, { kind: item.kind, shape: item.shape, descriptor: item.descriptor }]));
   return { topology: brep.topology, subshapes: brep.subshapes };
+}
+
+// This path is only for the topology shipped with these exact serialized BREP
+// bytes by the CAD worker. It never names changed geometry by enumeration order.
+// BREP roundtrips preserve traversal order; every kind/count/ordinal is checked
+// before binding native handles. Older payloads use geometric extraction.
+export function hydrateSerializedBrepTopology(brep,expected,options={}){
+  if(!Array.isArray(expected) || expected.some(item=>!['face','edge'].includes(item.kind) || !Number.isInteger(item.transportOrdinal)))return extractBrepTopology(brep,{...options,expectedTopology:expected});
+  const oc=brep.oc,collected=[],groups=new Map();
+  try{
+    for(const [kind,type,cast] of [['face',oc.TopAbs_ShapeEnum.TopAbs_FACE,shape=>oc.TopoDS.Face_1(shape)],['edge',oc.TopAbs_ShapeEnum.TopAbs_EDGE,shape=>oc.TopoDS.Edge_1(shape)]]){
+      const items=[],buckets=new Map(),explorer=new oc.TopExp_Explorer_2(brep.shape,type,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+      try{while(explorer.More()){
+        const shape=cast(explorer.Current()),hash=shape.HashCode(2147483647),bucket=buckets.get(hash) || [];
+        if(bucket.some(item=>item.IsSame(shape)))shape.delete();
+        else{bucket.push(shape);buckets.set(hash,bucket);items.push(shape);collected.push(shape);}
+        explorer.Next();
+      }}finally{explorer.delete();}
+      groups.set(kind,items);
+    }
+    const names=new Set(),ordinals=new Set();
+    if(expected.length!==collected.length || expected.some(item=>{
+      const ordinal=item.kind+':'+item.transportOrdinal;
+      if(names.has(item.persistentId) || ordinals.has(ordinal) || item.transportOrdinal<0 || item.transportOrdinal>=groups.get(item.kind).length)return true;
+      names.add(item.persistentId);ordinals.add(ordinal);return false;
+    }))throw new Error('Serialized BREP topology does not match its transport map');
+    clearBrepTopology(brep);
+    brep.topology=structuredClone(expected);
+    brep.subshapes=new Map(expected.map(item=>[item.persistentId,{kind:item.kind,shape:groups.get(item.kind)[item.transportOrdinal],descriptor:structuredClone(item.descriptor)}]));
+    return {topology:brep.topology,subshapes:brep.subshapes};
+  }catch(error){collected.forEach(shape=>shape.delete());throw error;}
 }
 
 export function resolveBrepSubshape(brep, persistentId, kind) {
@@ -585,6 +682,34 @@ export function rayHitsBrepFace(oc, origin, direction, face, skipNear = 1e-4) {
   } finally { inter.delete(); line.delete(); d.delete(); p.delete(); }
 }
 
+export function brepFaceLineIntersections(brep, reference, origin, direction) {
+  const oc=brep?.oc;
+  if(!oc || !brep.shape)throw new Error('Exact surface body is unavailable');
+  const resolved=resolveTopologyReference(reference,createTopologyRegistry(brep.topology || []));
+  if(!resolved.topology || resolved.status==='missing' || resolved.status==='ambiguous')throw new Error('The section surface reference is unavailable');
+  const face=resolveBrepSubshape(brep,resolved.topology.persistentId,'face');
+  if(!face)throw new Error('The native section surface is unavailable');
+  if(!(Math.hypot(direction.x,direction.y,direction.z)>1e-9))throw new Error('The section intersection line is degenerate');
+  const owned=[];
+  try {
+    const point=new oc.gp_Pnt_3(origin.x,origin.y,origin.z);owned.push(point);
+    const axis=new oc.gp_Dir_4(direction.x,direction.y,direction.z);owned.push(axis);
+    const line=new oc.gp_Lin_3(point,axis);owned.push(line);
+    const inter=new oc.BRepIntCurveSurface_Inter();owned.push(inter);
+    inter.Init_2(face,line,1e-7);
+    const hits=[];
+    while(inter.More()) {
+      if(isOnOrIn(oc,inter.State())) {
+        const p=inter.Pnt();
+        try {const hit=pointOf(p);if(Object.values(hit).every(Number.isFinite)&&!hits.some(other=>Math.hypot(other.x-hit.x,other.y-hit.y,other.z-hit.z)<1e-7))hits.push(hit);}
+        finally {p.delete();}
+      }
+      inter.Next();
+    }
+    return hits;
+  }finally{disposeAll(owned);}
+}
+
 export function rayHitsExtendedBrepFace(oc, origin, direction, face, skipNear = 1e-4) {
   const bounded = rayHitsBrepFace(oc, origin, direction, face, skipNear);
   if (bounded != null) return bounded;
@@ -757,14 +882,27 @@ export async function makeBrepExtrusion(spec) {
     const place = (q) => mapPoint(q.u, q.v, spec.from || 0);
     const wireFor = (loop, reverse = false) => profileWire(oc, owned, loop, place, axis, { reverse });
     const outerLoop = spec.segments ? { points: spec.points, segments: spec.segments } : spec.points;
-    const signedArea = (loop) => loop.reduce((sum, point, index) => {
-      const next = loop[(index + 1) % loop.length];
-      return sum + Number(point.u || 0) * Number(next.v || 0) - Number(next.u || 0) * Number(point.v || 0);
-    }, 0);
     // Winding has to be read off whatever actually becomes the wire: a typed
     // chain may be ordered differently from the analyzer's sampled points, and
     // a hole's reversal is decided against the outline's direction.
-    const winding = (loop) => signedArea(loopSegments(loop) ? segmentProfilePoints(loopSegments(loop)) : loopPoints(loop));
+    /* A typed circle or ellipse is built counter-clockwise about the profile
+       normal whatever order its samples come in, and on a plane whose (u, v)
+       axes are mirrored against the normal (Top: u->x, v->z, normal y) the
+       samples run the other way round. Reading their (u, v) winding then
+       leaves a circular hole with the outline's own direction, so the face
+       maker treats it as a second boss and the "hole" adds volume instead of
+       removing it. Compare directions as they land in the world instead. */
+    const winding = (loop) => {
+      const typed = loopSegments(loop);
+      if (typed && typed.length === 1 && (typed[0].type === "circle" || typed[0].type === "ellipse")) return 1;
+      const world = (typed ? segmentProfilePoints(typed) : loopPoints(loop)).map(place);
+      let sx = 0, sy = 0, sz = 0;
+      world.forEach((p, index) => {
+        const q = world[(index + 1) % world.length];
+        sx += p.y * q.z - p.z * q.y; sy += p.z * q.x - p.x * q.z; sz += p.x * q.y - p.y * q.x;
+      });
+      return sx * (axis.x || 0) + sy * (axis.y || 0) + sz * (axis.z || 0);
+    };
     const outerArea = winding(outerLoop);
     const faceMaker = new oc.BRepBuilderAPI_MakeFace_15(wireFor(outerLoop), true); owned.push(faceMaker);
     // OpenCascade uses opposite wire orientation to distinguish islands from
@@ -1176,31 +1314,44 @@ function filletEdgeRadius(edge, overrides, base, options = {}) {
 // selected together.  OpenCascade owns that topology operation here.
 // Three-face full round for a constant-width planar land. The two rolling
 // fillets meet within the kernel's linear tolerance; the sub-tolerance retreat
-// avoids OCCT rejecting two contours at an exactly coincident seam.
+// avoids OCCT rejecting two contours at an exactly coincident seam. Straight
+// parallel boundaries cover a rectangular or rounded-rectangle rim; concentric
+// circular boundaries cover the annular rim between two cylindrical walls.
 export function fullRoundFilletDefinition(brep, faceIds) {
   if(!Array.isArray(faceIds) || faceIds.length!==3 || new Set(faceIds).size!==3)throw new Error("Full round needs three faces: side 1, center, side 2 (received "+(faceIds?.length || 0)+")");
   const entries=faceIds.map(id=>brep.subshapes?.get(id));
-  if(entries.some(entry=>entry?.kind!=="face" || entry.descriptor?.surface!=="plane"))throw new Error("Full round currently needs a planar center and two planar side faces");
+  if(entries.some(entry=>entry?.kind!=="face") || entries[1].descriptor?.surface!=="plane")throw new Error("Full round needs a planar center face");
   const [side1,center,side2]=entries,oc=brep.oc;
+  const sideTypes=[side1.descriptor.surface,side2.descriptor.surface];
+  if(!sideTypes.every(type=>type==="plane")&&!sideTypes.every(type=>type==="cylinder"))throw new Error("Full round needs two planar walls or two cylindrical walls around the center face");
   const common=side=>Array.from(brep.subshapes).filter(([,entry])=>entry.kind==='edge'&&edgeOnAnyFace(oc,entry.shape,[center.shape])&&edgeOnAnyFace(oc,entry.shape,[side.shape]));
   const first=common(side1),second=common(side2);
   if(!first.length||!second.length)throw new Error("Both side faces must border the center face");
   const normal=center.descriptor.normal;
   const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
-  const tangent=side=>Math.tan(Math.acos(Math.max(-1,Math.min(1,dot(normal,side.descriptor.normal))))/2);
+  const tangent=side=>side.descriptor.surface==="cylinder" ? 1 : Math.tan(Math.acos(Math.max(-1,Math.min(1,dot(normal,side.descriptor.normal))))/2);
   const denominator=tangent(side1)+tangent(side2);
   const pairs=[];
   for(const a of first)for(const b of second){
     const x=a[1].descriptor,y=b[1].descriptor;
-    if(x.curve!=='line'||y.curve!=='line'||!x.axis||!y.axis||Math.abs(dot(x.axis,y.axis))<.999999)continue;
-    const delta={x:y.origin.x-x.origin.x,y:y.origin.y-x.origin.y,z:y.origin.z-x.origin.z};
-    const along=dot(delta,x.axis);
-    const width=Math.sqrt(Math.max(0,dot(delta,delta)-along*along));
+    let width=0;
+    if(sideTypes[0]==="plane" && x.curve==='line'&&y.curve==='line'&&x.axis&&y.axis&&Math.abs(dot(x.axis,y.axis))>.999999){
+      const delta={x:y.origin.x-x.origin.x,y:y.origin.y-x.origin.y,z:y.origin.z-x.origin.z};
+      const along=dot(delta,x.axis);
+      width=Math.sqrt(Math.max(0,dot(delta,delta)-along*along));
+    }else if(sideTypes[0]==="cylinder" && x.curve==='circle'&&y.curve==='circle'&&x.axis&&y.axis&&Math.abs(dot(x.axis,y.axis))>.999999){
+      const delta={x:y.origin.x-x.origin.x,y:y.origin.y-x.origin.y,z:y.origin.z-x.origin.z};
+      if(Math.hypot(delta.x,delta.y,delta.z)<1e-5)width=Math.abs(x.radius-y.radius);
+    }
     if(width>1e-6)pairs.push({ids:[a[0],b[0]],width});
   }
-  if(pairs.length!==1||!(denominator>1e-6))throw new Error("Full round needs one pair of parallel boundaries on the selected center face");
+  if(pairs.length!==1||!(denominator>1e-6))throw new Error("Full round needs one pair of parallel straight or concentric circular boundaries on the selected center face");
   const radius=pairs[0].width/denominator;
-  return {radius:radius-1e-8,nominalRadius:radius,edgePersistentIds:pairs[0].ids};
+  // Two closed circular contours need slightly more separation than two open
+  // straight contours for OCCT to sew their toroidal meeting seam reliably.
+  const retreat=sideTypes[0]==="cylinder" ? 1e-5 : 1e-8;
+  if(radius<=retreat)throw new Error("Full round land is too narrow for a stable fillet");
+  return {radius:radius-retreat,nominalRadius:radius,edgePersistentIds:pairs[0].ids};
 }
 
 export async function filletBrep(brep, radius, options = {}) {
@@ -1233,6 +1384,7 @@ export async function filletBrep(brep, radius, options = {}) {
   const overrides = filletRadiusOverrides(brep, options);
   const baseRadius = Math.max(1e-6, Number(radius) || 0);
   const seenEdges = [];
+  const targetEdges = [];
   let added = 0;
   try {
     /* OCCT fillets are already tangent to the support faces. Asking for C1
@@ -1250,6 +1402,7 @@ export async function filletBrep(brep, radius, options = {}) {
       seenEdges.push(edge);
       const selectedById = edgeIsFinishTarget(brep, edge, finish);
       if (selectedById && (!options.filter || options.filter(count, explorer.Current()))) {
+        targetEdges.push(edge);
         /* Add_3(R1, R2, E) is the variable-radius overload: R1 lands on the
            contour's first vertex, R2 on its last, and OCCT interpolates a linear
            law between them along the contour the edge grows into. Equal ends
@@ -1289,7 +1442,42 @@ export async function filletBrep(brep, radius, options = {}) {
     if (!added) throw new Error("Fillet has no resolved edges");
     maker.Build(progress);
     if (maker.HasErrors?.() || !maker.IsDone?.()) throw new Error("OpenCascade fillet failed");
-    return { oc, shape: maker.Shape(), kind: "solid", operation: "fillet" };
+    let shape=maker.Shape();
+    // IsDone only reports that OCCT built a result. Interacting contours can
+    // still leave an open or invalid shell, which cannot represent this solid
+    // feature or supply exact mass properties.
+    const props=new oc.GProp_GProps_1();
+    try {
+      oc.BRepGProp.VolumeProperties_1(shape, props, true, false, false);
+      if(!shapeHasSolid(oc,shape) || !shapeIsValid(oc,shape) || !(props.Mass()>0)) {
+        shape.delete?.();
+        // Coplanar boundaries left by a Boolean can make interacting contours
+        // build an invalid shell. Remove only redundant face boundaries and
+        // retry when every chosen edge is still the identical kernel edge.
+        // A filter on the retry prevents contour selection from widening.
+        if(!options.filter && targetEdges.length) {
+          const unified=await unifyBrepFaces(brep);
+          const walker=new oc.TopExp_Explorer_2(unified.shape,oc.TopAbs_ShapeEnum.TopAbs_EDGE,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+          const retained=new Set();
+          try {
+            while(walker.More()) {
+              const candidate=walker.Current();
+              try {targetEdges.forEach((target,index)=>{if(target.IsSame(candidate))retained.add(index);});}
+              finally {candidate.delete?.();}
+              walker.Next();
+            }
+            const originalVolume=shapeVolume(oc,brep.shape),unifiedVolume=shapeVolume(oc,unified.shape);
+            if(retained.size===targetEdges.length && shapeIsValid(oc,unified.shape) && Math.abs(originalVolume-unifiedVolume)<=Math.max(1e-8,Math.abs(originalVolume)*1e-9)) {
+              return await filletBrep({...brep,shape:unified.shape},radius,{...options,propagation:"feature",filter:(_index,candidate)=>targetEdges.some(target=>target.IsSame(candidate))});
+            }
+          } finally {walker.delete();unified.shape.delete?.();}
+        }
+        throw new Error("Fillet did not produce a valid closed solid; change the selected edges or split the fillet into separate features");
+      }
+    } finally {props.delete();}
+    const repaired = repairFilletCornerPatches(oc, shape);
+    if (repaired) { shape.delete(); shape = repaired; }
+    return { oc, shape, kind: "solid", operation: "fillet" };
   } finally {
     disposeAll(seenEdges);
     explorer.delete(); progress.delete(); maker.delete();
@@ -1724,7 +1912,16 @@ async function shellByJunctionBisectors(brep, removed, thickness, options = {}) 
      kept, so neither is chosen blind. */
   const tightUnion = async (label, a, b) => {
     const candidates = [];
-    try { const plain = track(await booleanBrep("union", { oc, shape: a, kind: "solid" }, { oc, shape: b, kind: "solid" })); if (shapeIsValid(oc, plain.shape)) candidates.push({ how: "plain", shape: plain.shape, tolerance: maxTolerance(plain.shape) }); } catch (_) {}
+    /* These cavity pieces already meet on their bisector surfaces. The generic
+       union helper's loose-overlap repair (a union after an extra subtraction)
+       intersects those coincident spline surfaces again and can run for many
+       minutes. Here the plain/fuzzy comparison is the repair, so build the
+       plain union once and keep the same material, validity and tolerance gates. */
+    try {
+      const plain = track({ oc, shape: buildBoolean(oc, "union", a, b), kind: "solid" });
+      if (!booleanVolumePlausible("union", Math.abs(volumeOf(a)), Math.abs(volumeOf(b)), Math.abs(volumeOf(plain.shape)))) throw new Error("A junction shell cavity fuse lost material");
+      if (shapeIsValid(oc, plain.shape)) candidates.push({ how: "plain", shape: plain.shape, tolerance: maxTolerance(plain.shape) });
+    } catch (_) {}
     const plainTight = candidates.length && candidates[0].tolerance <= 2.5e-4 * F;
     if (!plainTight) { try { const fuzzy = fuzzyFuse(a, b); if (shapeIsValid(oc, fuzzy)) candidates.push({ how: "fuzzy", shape: fuzzy, tolerance: maxTolerance(fuzzy) }); } catch (_) {} }
     if (!candidates.length) throw new Error("A junction shell could not join its cavity pieces");
@@ -2518,6 +2715,7 @@ export async function ribBrep(brep, params = {}) {
   if (!(thickness > 1e-6)) throw new Error("Rib needs a non-zero thickness");
   const bounds = shapeBounds(oc, brep.shape);
   if (!bounds) throw new Error("Rib body has no measurable bounds");
+  if(params.orientation === "parallel")return parallelRibBrep(brep,params,line,thickness,oc);
 
   const frame = params.frame || null;
   const axisName = params.axis === "x" ? "x" : params.axis === "z" ? "z" : "y";
@@ -2536,7 +2734,7 @@ export async function ribBrep(brep, params = {}) {
   if (!(depth > 1e-6)) throw new Error("The rib runs away from the body it braces, so it never reaches it");
 
   const near = ribLoop(line, thickness, params.side);
-  const draftAngle = Number(params.draftAngle) || 0;
+  const draftAngle = (Number(params.draftAngle) || 0)*(params.draftOutward?-1:1);
   const far = draftAngle ? ribDraftedLoop(line, thickness, params.side, depth, draftAngle) : near;
   const place = (loop, w) => loop.map((q) => (frame ? framePoint(frame, q.u, q.v, w) : mapSketchPoint(axisName, q.u, q.v, w)));
 
@@ -2574,6 +2772,148 @@ export async function ribBrep(brep, params = {}) {
     if (clip) disposeBrep(clip);
     if (trimmed) disposeBrep(trimmed);
   }
+}
+
+/* Grow an open profile in its own plane, then give the resulting web thickness
+   across that plane. The stopping plane comes from exact first-hit body faces,
+   never the body's bounding box. A curved first-hit surface trims an oversize
+   web with the exact face; only pieces connected to the outside profile remain. */
+async function parallelRibBrep(brep,params,line,thickness,oc) {
+  if(params.extent === "blind")throw new Error("Parallel-to-sketch Rib requires Up to the body");
+  const frame=params.frame || null;
+  const axis=params.axis === "x" ? "x" : params.axis === "z" ? "z" : "y";
+  const base=Number(params.from)||0,growth=ribGrowthVector(params.growthDirection);
+  const place=(q,w)=>frame ? framePoint(frame,q.u,q.v,w) : mapSketchPoint(axis,q.u,q.v,w);
+  const origin=place({u:0,v:0},0),uPoint=place({u:1,v:0},0),vPoint=place({u:0,v:1},0);
+  const uAxis={x:uPoint.x-origin.x,y:uPoint.y-origin.y,z:uPoint.z-origin.z};
+  const vAxis={x:vPoint.x-origin.x,y:vPoint.y-origin.y,z:vPoint.z-origin.z};
+  const worldGrowth={x:uAxis.x*growth.u+vAxis.x*growth.v,y:uAxis.y*growth.u+vAxis.y*growth.v,z:uAxis.z*growth.u+vAxis.z*growth.v};
+  const offsets=ribOffsets(thickness,params.side),from=base-offsets.right,to=base+offsets.left;
+  const sketchNormal=frame?.normal || {x:axis==='x'?1:0,y:axis==='y'?1:0,z:axis==='z'?1:0};
+  const neutralCoordinate=Math.min(...line.map(q=>q.u*growth.u+q.v*growth.v));
+  const neutralOrigin=place({u:growth.u*neutralCoordinate,v:growth.v*neutralCoordinate},base);
+  const taper=async shape=>{
+    if(!Number(params.draftAngle))return shape;
+    try{return await draftParallelRibWeb(shape,params,sketchNormal,worldGrowth,neutralOrigin);}
+    finally{disposeBrep(shape);}
+  };
+  const faces=[],explorer=new oc.TopExp_Explorer_2(brep.shape,oc.TopAbs_ShapeEnum.TopAbs_FACE,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+  let web=null,fused=null;const extras=[];
+  try{
+    while(explorer.More()){faces.push(oc.TopoDS.Face_1(explorer.Current()));explorer.Next();}
+    const samples=[];
+    for(let i=0;i<line.length-1;i++)for(const fraction of [0,.25,.5,.75,1])samples.push({u:line[i].u+(line[i+1].u-line[i].u)*fraction,v:line[i].v+(line[i+1].v-line[i].v)*fraction});
+    let stop=null,stopFace=null,single=true;const contacts=[];
+    for(const w of [from,(from+to)/2,to])for(const q of samples){
+      const point=place(q,w);
+      if(solidContainsPoint(oc,brep.shape,point,1e-6))continue;
+      let hit=null,hitFace=null;
+      for(const face of faces){const distance=rayHitsBrepFace(oc,point,worldGrowth,face,-1e-7);if(distance!=null && (hit==null || distance<hit)){hit=distance;hitFace=face;}}
+      if(!hitFace)throw new Error("The rib profile does not reach the body in the chosen in-plane direction at sketch ("+q.u.toFixed(6)+", "+q.v.toFixed(6)+") and thickness offset "+w.toFixed(6));
+      const descriptor=faceDescriptor(oc,hitFace);
+      contacts.push({q,w,hit});
+      if(!stop){stop=descriptor;stopFace=hitFace;}
+      else if(stop.surface!=="plane" || descriptor.surface!=="plane"){
+        if(!stopFace.IsSame(hitFace))single=false;
+      }
+      else{
+        const dot=stop.normal.x*descriptor.normal.x+stop.normal.y*descriptor.normal.y+stop.normal.z*descriptor.normal.z;
+        const offset=(descriptor.origin.x-stop.origin.x)*stop.normal.x+(descriptor.origin.y-stop.origin.y)*stop.normal.y+(descriptor.origin.z-stop.origin.z)*stop.normal.z;
+        if(Math.abs(Math.abs(dot)-1)>1e-6 || Math.abs(offset)>1e-5)single=false;
+      }
+    }
+    if(!stop)throw new Error("The rib profile is already inside the body and adds no web");
+    /* A profile that meets several surfaces (HOUSING Rib2: its line meets the
+       wall, its arc the loft and the boss) grows an oversize slab and takes only
+       what the body leaves free that is connected to the profile. Nothing
+       guesses a floor: whatever first surfaces the growth meets bound the web,
+       and the pieces beyond the walls are disconnected from the profile. */
+    if(!single){
+      const bounds=shapeBounds(oc,brep.shape),reach=Math.hypot(bounds.max.x-bounds.min.x,bounds.max.y-bounds.min.y,bounds.max.z-bounds.min.z)+Math.max(thickness,1);
+      const projected=line.map(q=>q.u*growth.u+q.v*growth.v),coordinate=Math.max(...projected)+reach;
+      const loop=ribWebLoop(line,growth,{u:growth.u*coordinate,v:growth.v*coordinate,normal:growth});
+      const slab=await taper(await makeBrepExtrusion({axis,frame,from,to,points:loop}));extras.push(slab);
+      const free=await booleanBrep("subtract",slab,brep);extras.push(free);
+      const seeds=contacts.map(contact=>place({u:contact.q.u+growth.u*Math.min(contact.hit/2,1e-3),v:contact.q.v+growth.v*Math.min(contact.hit/2,1e-3)},contact.w));
+      const kept=solidPieces(oc,free.shape).filter(piece=>seeds.some(seed=>solidContainsPoint(oc,piece.shape,seed,1e-6)));
+      if(!kept.length)throw new Error("The rib profile does not reach the body in the chosen in-plane direction");
+      fused=brep;
+      for(const piece of kept){
+        const part={oc,shape:piece.shape,kind:"solid"};
+        const next=await booleanBrep("union",fused,part);
+        if(fused!==brep)disposeBrep(fused);
+        fused=next;
+      }
+      if(shapeVolume(oc,fused.shape)<=shapeVolume(oc,brep.shape)+1e-8)throw new Error("The rib profile adds no material to the body");
+      fused.operation="rib";
+      const result=fused;fused=null;return result;
+    }
+    if(stop.surface!=="plane"){
+      const run=Math.max(...contacts.map(contact=>contact.hit))+Math.max(thickness,1e-3);
+      const projected=line.map(q=>q.u*growth.u+q.v*growth.v),coordinate=Math.max(...projected)+run;
+      const loop=ribWebLoop(line,growth,{u:growth.u*coordinate,v:growth.v*coordinate,normal:growth});
+      web=await taper(await makeBrepExtrusion({axis,frame,from,to,points:loop}));
+      const trimmed=trimParallelRibToFace(oc,web.shape,stopFace,contacts.map(contact=>place({u:contact.q.u+growth.u*Math.min(contact.hit/2,1e-3),v:contact.q.v+growth.v*Math.min(contact.hit/2,1e-3)},contact.w)));
+      disposeBrep(web);web={oc,shape:trimmed,kind:"solid"};
+    }else{
+    const section=w=>{
+      const localOrigin=place({u:0,v:0},w),n=stop.normal;
+      const normal={u:n.x*uAxis.x+n.y*uAxis.y+n.z*uAxis.z,v:n.x*vAxis.x+n.y*vAxis.y+n.z*vAxis.z};
+      const rhs=n.x*(stop.origin.x-localOrigin.x)+n.y*(stop.origin.y-localOrigin.y)+n.z*(stop.origin.z-localOrigin.z);
+      const length2=normal.u*normal.u+normal.v*normal.v;
+      return ribWebLoop(line,growth,{u:normal.u*rhs/length2,v:normal.v*rhs/length2,normal});
+    };
+    const near=section(from),far=section(to);
+    const identical=near.length===far.length && near.every((q,i)=>Math.hypot(q.u-far[i].u,q.v-far[i].v)<1e-8);
+    web=identical ? await makeBrepExtrusion({axis,frame,from,to,points:near})
+      : await makeBrepLoft({sections:[near.map(q=>place(q,from)),far.map(q=>place(q,to))],solid:true,ruled:true});
+    }
+    if(stop.surface==="plane")web=await taper(web);
+    fused=await booleanBrep("union",brep,web);
+    if(shapeVolume(oc,fused.shape)<=shapeVolume(oc,brep.shape)+1e-8)throw new Error("The rib profile adds no material to the body");
+    fused.operation="rib";
+    const result=fused;fused=null;return result;
+  }finally{explorer.delete();faces.forEach(face=>face.delete());if(web)disposeBrep(web);if(fused && fused!==brep)disposeBrep(fused);extras.forEach(item=>disposeBrep(item));}
+}
+
+// Tilt only thickness walls about the outer profile plane perpendicular to
+// growth. The body's exact stopping faces still trim the drafted web.
+async function draftParallelRibWeb(web,params,normal,growth,origin){
+  const oc=web.oc,owned=[],faces=[];
+  const explorer=new oc.TopExp_Explorer_2(web.shape,oc.TopAbs_ShapeEnum.TopAbs_FACE,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);owned.push(explorer);
+  try{
+    while(explorer.More()){
+      const face=oc.TopoDS.Face_1(explorer.Current());owned.push(face);
+      const descriptor=faceDescriptor(oc,face),n=descriptor.normal;
+      const atBase=descriptor.origin && Math.abs((descriptor.origin.x-origin.x)*normal.x+(descriptor.origin.y-origin.y)*normal.y+(descriptor.origin.z-origin.z)*normal.z)<1e-7;
+      if(descriptor.surface==='plane' && n && Math.abs(n.x*normal.x+n.y*normal.y+n.z*normal.z)>1-1e-7 && !(params.side!=='both' && atBase))faces.push(face);
+      explorer.Next();
+    }
+    if(!faces.length)throw new Error('Rib draft has no planar thickness walls');
+    const point=new oc.gp_Pnt_3(origin.x,origin.y,origin.z),direction=new oc.gp_Dir_4(growth.x,growth.y,growth.z);owned.push(point,direction);
+    const plane=new oc.gp_Pln_3(point,direction),maker=new oc.BRepOffsetAPI_DraftAngle_2(web.shape),progress=new oc.Message_ProgressRange_1();owned.push(plane,maker,progress);
+    const angle=Number(params.draftAngle)*Math.PI/180*(params.draftOutward?-1:1);
+    faces.forEach(face=>maker.Add(face,direction,angle,plane,true));
+    if(!maker.AddDone())throw new Error('Rib draft cannot tilt its thickness walls');
+    maker.Build(progress);if(!maker.IsDone?.())throw new Error('Rib draft failed');
+    return {oc,shape:maker.Shape(),kind:'solid',operation:'rib-draft'};
+  }finally{disposeAll(owned);}
+}
+
+function trimParallelRibToFace(oc,shape,face,seeds) {
+  const owned=[];let pieces=[],keep=[];
+  try{
+    const bounds=shapeBounds(oc,shape),reach=Math.hypot(bounds.max.x-bounds.min.x,bounds.max.y-bounds.min.y,bounds.max.z-bounds.min.z)+1;
+    const cutter=enlargeFaceForSplit(oc,owned,face,reach);if(cutter!==face)owned.push(cutter);
+    const splitter=new oc.BRepAlgoAPI_Splitter_1(),args=new oc.TopTools_ListOfShape_1(),tools=new oc.TopTools_ListOfShape_1(),progress=new oc.Message_ProgressRange_1();owned.push(splitter,args,tools,progress);
+    args.Append_1(shape);tools.Append_1(cutter);splitter.SetArguments(args);splitter.SetTools(tools);splitter.SetNonDestructive?.(true);splitter.Build(progress);
+    if(splitter.HasErrors?.())throw new Error("Parallel Rib cannot trim the web to its curved stopping surface");
+    pieces=solidPieces(oc,splitter.Shape());
+    if(pieces.length<2)throw new Error("Parallel Rib curved stopping surface did not divide the web");
+    keep=pieces.filter(piece=>seeds.some(seed=>solidContainsPoint(oc,piece.shape,seed,1e-6)));
+    if(keep.length!==1)throw new Error("Parallel Rib curved stop leaves ambiguous disconnected webs; split the profile into separate ribs");
+    const result=keep[0].shape;keep=[];pieces=pieces.filter(piece=>piece.shape!==result);return result;
+  }finally{pieces.forEach(piece=>piece.shape.delete?.());disposeAll(owned);}
 }
 
 /* The (u,v) a world point has on the rib's sketch plane — the inverse of the
@@ -2701,6 +3041,9 @@ export async function draftBrep(brep, angleDegrees, options = {}) {
 // result survives save/load without retaining WASM handles.
 export async function shapeToMeshData(brep, options = {}) {
   if (!brep?.shape) throw new Error("Meshing needs a BREP shape");
+  // The worker already meshed this unchanged exact body. A coarser requested
+  // display can use that result; finer manufacturing meshes still rebuild.
+  if(brep.workerMeshData && (Number(options.deflection)||.35)>=.24 && (Number(options.angle)||.22)>=.16)return structuredClone(brep.workerMeshData);
   const oc = brep.oc || await loadCadKernel();
   const deflection = Math.max(0.02, Number(options.deflection) || 0.35);
   const mesher = new oc.BRepMesh_IncrementalMesh_2(
@@ -2889,7 +3232,7 @@ export async function unifyBrepFaces(brep) {
 export async function brepMaterialIntersection(left,right,tolerance=1e-10){
   if(!left?.shape||!right?.shape)throw new Error("Exact intersection requires two solids");
   let common;
-  try{common=await booleanBrep("intersect",left,right);const volume=shapeHasSolid(common.oc,common.shape)?Math.abs(shapeVolume(common.oc,common.shape)):0;return {intersects:volume>tolerance,volume};}
+  try{common=await booleanBrep("intersect",left,right);const volume=shapeHasSolid(common.oc,common.shape)?Math.abs(shapeVolume(common.oc,common.shape)):0;return {intersects:volume>tolerance,volume,bounds:volume>tolerance?shapeBounds(common.oc,common.shape,false):null};}
   finally{if(common)disposeBrep(common);}
 }
 
@@ -3078,7 +3421,14 @@ export async function validateBrepForExport(brep, options = {}) {
   try {
     if (!analyzer.IsValid_2()) throw new Error("Export blocked: invalid BREP topology or geometry; repair the body first");
     const actualTolerance = tolerance.Tolerance(brep.shape, 1, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
-    if (!Number.isFinite(actualTolerance) || actualTolerance > maximumTolerance) throw new Error("Export blocked: body tolerance exceeds " + maximumTolerance + " cm");
+    // OCCT can promote a requested edge tolerance to a vertex by two double
+    // ULPs (e.g. .001 -> .0010000000000000005). Accept only rounding at the
+    // nominal limit; this does not add a geometric tolerance allowance.
+    // Rebuilt bodies (a thin extruded cover on the LENS) carry .001 cm plus about
+    // 1e-12 of accumulated round-off, a few thousand ULPs. A relative 1e-8 of the
+    // limit (1e-11 cm) accepts that noise and nothing geometric.
+    const roundingAllowance = Math.max(4 * Math.max(Number.MIN_VALUE, 2 ** (Math.floor(Math.log2(maximumTolerance)) - 52)), maximumTolerance * 1e-8);
+    if (!Number.isFinite(actualTolerance) || actualTolerance - maximumTolerance > roundingAllowance) throw new Error("Export blocked: body tolerance exceeds " + maximumTolerance + " cm (actual " + actualTolerance + " cm)");
     pieces.push(...solidPieces(oc, brep.shape));
     if (!pieces.length && !options.allowSurfaces) throw new Error("Export blocked: no closed solid; use surface exchange for an intentional sheet body");
     for (const piece of pieces) {

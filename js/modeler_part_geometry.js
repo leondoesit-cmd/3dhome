@@ -100,7 +100,16 @@ export function basePartBounds(p) {
 }
 
 export function partBounds(p) {
-  return rotatedPatternBounds(basePartBounds(p), partPatternRotations(p));
+  var bounds=basePartBounds(p);
+  // Until the exact merged mesh arrives, the base prism is only one piece of
+  // the authored stock. Include recorded additive prisms in its conservative
+  // envelope so a cut into a raised boss is not rejected below that boss.
+  if(!p.meshData)for(const merge of p.merges3d || []){
+    if(merge.suppressed || merge.kind || (merge.loop || []).length<3 || !Number.isFinite(merge.from) || !Number.isFinite(merge.to))continue;
+    var addition=basePartBounds({kind:'ext',axis:merge.axis,frame:merge.frame,pts:merge.loop,from:merge.from,to:merge.to});
+    bounds={x0:Math.min(bounds.x0,addition.x0),x1:Math.max(bounds.x1,addition.x1),y0:Math.min(bounds.y0,addition.y0),y1:Math.max(bounds.y1,addition.y1),z0:Math.min(bounds.z0,addition.z0),z1:Math.max(bounds.z1,addition.z1)};
+  }
+  return rotatedPatternBounds(bounds, partPatternRotations(p));
 }
 
 /* Which bodies the exact kernel can rebuild from their own definition — and so
@@ -621,7 +630,10 @@ export function footprintPoint(footprint) {
 /* Which bodies a cut passes through, measured in the cut's own space — see
    core/cut_scope.js for why that space is the cut's and not the viewport's. */
 export function cutFootprint(part, frame, axisName) {
-  return cutScopeFootprint(part, partBounds(part), frame, axisName, function (hole) { return holeLoop(hole); });
+  // The base profile cannot describe a boss extending beyond it. The envelope
+  // is only a broad-phase candidate; exactCutIntersection still proves contact.
+  var candidate=!part.meshData && (part.merges3d || []).some(function(merge){return !merge.suppressed;})?{}:part;
+  return cutScopeFootprint(candidate, partBounds(part), frame, axisName, function (hole) { return holeLoop(hole); });
 }
 
 /* ---- revolve (lathe) & loft solids ---- */

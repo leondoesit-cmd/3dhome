@@ -5,11 +5,14 @@ import { evaluateExpression, expandUnitLiterals } from "./sketch_equations.js";
 import { featureEditorGroups } from "./core/feature_catalog.js";
 import { endConditionHidesDepth, isUpToFace } from "./core/extrude_extent.js";
 import { linearPatternAxisDefinitions, linearPatternDirection, patternAxisEnabled } from "./core/pattern_geometry.js";
-import { holeTableRow } from "./cad_hole_wizard.js";
+import { holeTableRow, holeWizardSizeChoices } from "./cad_hole_wizard.js";
 import { toolboxFamily } from "./cad_toolbox.js";
 import {formatDocumentLength,lengthFromDocument,documentLengthUnit} from './core/document_length_units.js';
+import {createHelixRegionEditor} from './helix_region_form.js';
 
 export function featureControlValue(control) {
+  if(control.field.type==='feature-seeds')return control.input.getSeedIds();
+  if(control.field.type==='helix-regions')return control.input.getRegionRows();
   if (control.field.type === "boolean") return !!control.input.checked;
   if (control.field.type === "number") {
     try { return evaluateFeatureNumber(control.input.value, control.field); }
@@ -41,6 +44,8 @@ export function validateFeatureInputs(host) {
   const inputs = Array.from(host.querySelectorAll('input[data-parameter-type="number"]'));
   for (const input of inputs) {
     if (input.closest('.parameter-hidden, .parameter-inactive')) continue;
+    const thin = host.querySelector('input[data-parameter="thinFeature"]');
+    if(thin && !thin.checked && ['thickness','thinMode'].includes(input.dataset.parameter)) continue;
     if (input._validateFeatureValue) input._validateFeatureValue();
     if (!input.checkValidity()) {
       const group = input.closest('details'); if (group) group.open = true;
@@ -56,7 +61,7 @@ export function featureReferenceValue(feature, type) {
   var refs = feature && feature.references && feature.references.references || [];
   var found = refs.find(function (reference) {
     var id = typeof reference === "string" ? reference : reference && reference.id;
-    return type === "axis-reference" ? String(id || "").indexOf("axis:") === 0 : String(id || "").indexOf("plane:") === 0;
+    return type === "axis-reference" ? /^axis[:_]/.test(String(id || "")) : /^plane[:_]/.test(String(id || ""));
   });
   if (found) return typeof found === "string" ? found : found.id;
   return type === "axis-reference" ? "axis:y" : "plane:right";
@@ -66,13 +71,19 @@ export function readFeatureParameterForm(controls, baseParams) {
   var params = { ...(baseParams || {}) }, references = {}, valid = true;
   controls.forEach(function (control) {
     if (control.input.closest && control.input.closest(".parameter-hidden, .parameter-inactive")) return;
+    var thin=controls.find(function(item){return item.field.key==='thinFeature';});
+    if(thin && !thin.input.checked && ['thickness','thinMode'].includes(control.field.key))return;
     var value = featureControlValue(control);
     if (typeof value === "number" && !Number.isFinite(value)) { valid = false; return; }
     if (control.field.key === "$axisReference") references.axis = value;
     else if (control.field.key === "$planeReference") references.plane = value;
     else params[control.field.key] = value;
   });
+  if (Array.isArray(params.seedFeatureIds)) params.seedFeatureId=params.seedFeatureIds[0] || "";
   if (params.endCondition === "mid-plane") params.symmetric = true;
+  if(params.orientation === "parallel" && params.growthDirection){
+    params.extent="up-to-body";
+  }
   if (["axisX", "axisY", "axisZ"].some(function (key) { return Object.prototype.hasOwnProperty.call(params, key); }) || params.directionAxis) {
     params.direction = linearPatternDirection(params);
   }
@@ -84,7 +95,7 @@ var expressionFieldId = 0;
 export function featureField(host, field, value, options) {
   options = options || {};
   var el = options.el;
-  var wrap = el("label", "md-quick-field type-" + field.type);
+  var wrap = el(["helix-regions","feature-seeds"].includes(field.type)?"div":"label", "md-quick-field type-" + field.type);
   wrap.dataset.parameter = field.key;
   var caption = el("span", "md-feature-field-label", field.label);
   if (field.unit) {
@@ -93,7 +104,19 @@ export function featureField(host, field, value, options) {
   }
   wrap.appendChild(caption);
   var input;
-  if (field.type === "boolean") {
+  if(field.type==='feature-seeds'){
+    input=el("div","md-feature-seed-collector");
+    var selected=new Set(Array.isArray(value)?value:[]);
+    (field.choices || []).filter(function(choice){return !!choice.value;}).forEach(function(choice){
+      var row=el("label","md-feature-seed-row"), check=el("input");
+      check.type="checkbox";check.value=choice.value;check.checked=selected.has(choice.value);
+      row.appendChild(check);row.appendChild(el("span","",choice.label));input.appendChild(row);
+    });
+    input.getSeedIds=function(){return Array.from(input.querySelectorAll('input:checked')).map(function(check){return check.value;});};
+    wrap.appendChild(input);
+  } else if(field.type==='helix-regions'){
+    input=createHelixRegionEditor(value,{...options,evaluateNumber:evaluateFeatureNumber});wrap.appendChild(input);
+  } else if (field.type === "boolean") {
     input = el("input"); input.type = "checkbox"; input.checked = !!value;
     wrap.appendChild(input); wrap.appendChild(el("span", "md-feature-switch", "<i></i>"));
   } else if (field.type === "select" || field.type === "axis-reference" || field.type === "plane-reference" || field.type === "helix-reference") {
@@ -171,7 +194,43 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     });
   }
   function syncConditionalFields(changedKey) {
+    if(type==='mirror'){
+      var mirrorScope=controls.find(function(item){return item.field.key==='scope';});
+      controls.filter(function(item){return ['seedFeatureId','seedFeatureIds'].includes(item.field.key);}).forEach(function(item){
+        item.input.closest('.md-quick-field').classList.toggle('parameter-hidden',mirrorScope?.input.value!=='feature');
+      });
+    }
+    var thinControl=controls.find(function(item){return item.field.key==='thinFeature';});
+    if(thinControl)controls.filter(function(item){return ['thickness','thinMode'].includes(item.field.key);}).forEach(function(item){
+      var wrap=item.input.closest('.md-quick-field');if(wrap)wrap.classList.toggle('parameter-inactive',!thinControl.input.checked);
+    });
+    if(type==='helix'){
+      const variable=controls.find(item=>item.field.key==='pitchMode')?.input.value==='variable';
+      controls.forEach(item=>{
+        const key=item.field.key,wrap=item.input.closest('.md-quick-field');
+        if(key==='pitchRegions')wrap.classList.toggle('parameter-hidden',!variable);
+        else if(['definition','radius','pitch','turns','height','taper','taperMode','taperAngle','taperOutward'].includes(key))wrap.classList.toggle('parameter-hidden',variable);
+      });
+    }
+    if(type === "rib") {
+      var ribOrientation=controls.find(function(item){return item.field.key === "orientation";});
+      var parallel=ribOrientation?.input.value === "parallel";
+      if(parallel && changedKey === "orientation"){
+        var ribExtent=controls.find(function(item){return item.field.key === "extent";});
+        if(ribExtent)ribExtent.input.value="up-to-body";
+      }
+      controls.forEach(function(item){
+        var key=item.field.key,wrap=item.input.closest(".md-quick-field");
+        var hide=key === "growthDirection" ? !parallel : ["extent","depth","direction"].includes(key) && parallel;
+        if(wrap)wrap.classList.toggle("parameter-hidden",hide);
+      });
+    }
     if (type === "thread") {
+      if(changedKey === "threadPreset") {
+        var preset=controls.find(function(item){return item.field.key==="threadPreset";})?.input.value;
+        var presetValues=preset === "inch-die-8-36" ? {diameterMm:4.1656,pitchMm:25.4/36,toleranceClass:"2A"} : preset === "unc-quarter-20" ? {diameterMm:6.35,pitchMm:1.27,toleranceClass:"2A",mode:"cosmetic"} : {toleranceClass:"6g"};
+        Object.entries(presetValues).forEach(function(entry){var control=controls.find(function(item){return item.field.key===entry[0];});if(control)control.input.value=String(entry[1]);});
+      }
       var enabled=controls.find(function(item){return item.field.key==="useFitLimits";});
       controls.filter(function(item){return ["fitSource","majorMinMm","majorMaxMm","pitchMinMm","pitchMaxMm","minorMinMm","minorMaxMm"].includes(item.field.key);}).forEach(function(item){
         item.input.closest(".md-quick-field").classList.toggle("parameter-hidden",!enabled?.input.checked);
@@ -297,11 +356,40 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       });
     }
     if (type === "hole") {
+      var standard = controls.find(function (item) { return item.field.key === "standard"; });
       var size = controls.find(function (item) { return item.field.key === "standardSize"; });
       var holeType = controls.find(function (item) { return item.field.key === "holeType"; });
+      var fastenerType = controls.find(function (item) { return item.field.key === "fastenerType"; });
+      if (standard && size) {
+        var isTap = String(holeType?.input.value).startsWith("tap");
+        if ((changedKey === "holeType" || !changedKey) && isTap && standard.input.value === "ISO 273") standard.input.value = "ISO 262:2023";
+        if (changedKey === "holeType" && !isTap && standard.input.value === "ISO 262:2023") standard.input.value = "ISO 273";
+        // Existing inch holes created before the Standard selector was added
+        // still need to reopen with their saved size visible.
+        if (!changedKey && (size.input.value === "1/2" || size.input.value === "1/4-20")) standard.input.value = "ANSI Inch";
+        var choices = holeWizardSizeChoices(standard.input.value, holeType && holeType.input.value, fastenerType && fastenerType.input.value);
+        var current = size.input.value;
+        if (changedKey === "standard" || changedKey === "holeType" || changedKey === "fastenerType" || Array.from(size.input.options).some(function (option) { return !choices.includes(option.value); })) {
+          size.input.innerHTML = "";
+          choices.forEach(function (value) {
+            var label = value === "custom" ? "Custom · enter mm or in" : value === "1/4-20" ? "1/4-20 UNC · #7 tap drill" : value === "1/2" ? "1/2 in · Hex Bolt" : value === "7/16-drill" ? "7/16 in · Fractional Drill" : value === "3/8-hex" ? "3/8 in · Hex Bolt (reference clearance)" : value === "3/8-flat" ? "3/8 in · Flat Head Machine Screw" : value;
+            var option = el("option", "", label); option.value = value; size.input.appendChild(option);
+          });
+          size.input.value = choices.includes(current) ? current : standard.input.value === "ANSI Inch" ? (String(holeType?.input.value).startsWith("tap") ? "1/4-20" : choices[1]) : "M6";
+          if (!choices.includes(current)) changedKey = "standardSize";
+        }
+      }
       var row = size && holeTableRow(size.input.value);
-      if (row && ["standardSize", "holeType", "fit"].indexOf(changedKey) >= 0) {
-        var fit = (controls.find(function (item) { return item.field.key === "fit"; }) || {}).input;
+      var fitControl = controls.find(function (item) { return item.field.key === "fit"; });
+      if (fitControl && row) {
+        Array.from(fitControl.input.options).forEach(function (option) {
+          var column=option.value==="close"?"closeMm":option.value==="loose"?"looseMm":"normalMm";
+          option.disabled=!Number.isFinite(row[column]);
+        });
+        if (Array.from(fitControl.input.options).some(function(option){return option.value===fitControl.input.value && option.disabled;})) { fitControl.input.value = "normal"; changedKey = "fit"; }
+      }
+      if (row && ["standardSize", "holeType", "fit", "standard"].indexOf(changedKey) >= 0) {
+        var fit = fitControl && fitControl.input;
         var fitKey = fit && fit.value === "close" ? "closeMm" : fit && fit.value === "loose" ? "looseMm" : "normalMm";
         /* Millimetres from the standards table become the centimetre field the
            form edits. Rounding the MILLIMETRE value first quantised the whole
@@ -313,10 +401,11 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
           if (control && Number.isFinite(mm))
             control.input.value = formatDocumentLength(mm / 10, control.field.inputUnit);
         };
-        setNum("diameter", row[fitKey] || row.diameterMm);
+        setNum("diameter", isTap && row.tapDrillMm ? row.tapDrillMm : row[fitKey] || row.normalMm || row.diameterMm);
         setNum("cboreDiameter", row.cboreDiaMm);
         setNum("cboreDepth", row.cboreDepthMm);
         setNum("countersinkDiameter", row.csinkDiaMm);
+        if(row.csinkAngle){var angleControl=controls.find(function(item){return item.field.key==="csinkAngle";});if(angleControl)angleControl.input.value=String(row.csinkAngle);}
       }
       var tapped = holeType && String(holeType.input.value).indexOf("tap") === 0;
       var cbore = holeType && (holeType.input.value === "counterbore" || holeType.input.value === "tap-counterbore" || holeType.input.value === "spotface");
@@ -338,10 +427,10 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       var layoutValue = holeLayout && holeLayout.input.value;
       controls.forEach(function (control) {
         var key = control.field.key, hidden;
-        if (key === "depth") hidden = holeEnd && holeEnd.input.value === "through-all";
-        else if (key === "fit") hidden = size && size.input.value === "custom";
+        if (key === "depth" || key === "drillPointAngle") hidden = holeEnd && holeEnd.input.value === "through-all";
+        else if (key === "fit") hidden = tapped || size && (size.input.value === "custom" || size.input.value === "7/16-drill");
         else if (["countX","countY","spacingX","spacingY"].includes(key)) hidden = layoutValue !== "linear";
-        else if (["count","radius"].includes(key)) hidden = layoutValue !== "circular";
+        else if (["count","radius","startAngle"].includes(key)) hidden = layoutValue !== "circular";
         else return;
         var wrap = control.input.closest(".md-quick-field");
         if (wrap) wrap.classList.toggle("parameter-hidden", !!hidden);
@@ -349,6 +438,8 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     }
   }
   groups.forEach(function (group) {
+    if(type==='hole' && group.id==='cylindricalPosition' && !state.params?.cylindricalSource)return;
+    if(type==='hole' && group.id==='layout' && state.params?.cylindricalSource)return;
     var section = el("details", "md-feature-group");
     section.open = true;
     var primaryFields = group.fields.filter(function (item) { return !item.advanced; });
@@ -372,6 +463,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     }
     group.fields.forEach(function (sourceField) {
       var field = { ...sourceField };
+      if(field.dynamicChoices==="feature-seed")field.choices=[{value:"",label:"Select a feature"},...(options.featureSeeds || [])];
       if (type === "toolbox" && field.dynamicChoices === "toolbox-size") {
         var initialFamily = toolboxFamily(state.params && state.params.kind);
         field.choices = (initialFamily && initialFamily.sizes || []).map(function (row) { return { value:row.key || row.size, label:row.label || row.size || row.key }; });
@@ -379,6 +471,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       var value = field.key === "$axisReference" ? featureReferenceValue(state, "axis-reference")
         : field.key === "$planeReference" ? featureReferenceValue(state, "plane-reference")
         : ["axisX", "axisY", "axisZ"].includes(field.key) ? patternAxisEnabled(state.params, field.key.slice(-1).toLowerCase())
+        : field.key==="seedFeatureIds" ? (state.params?.seedFeatureIds?.length ? state.params.seedFeatureIds : state.params?.seedFeatureId ? [state.params.seedFeatureId] : [])
         : state.params && state.params[field.key];
       if(type==="thread" && value==null && state.params?.fitLimits){
         var limits=state.params.fitLimits;
@@ -390,7 +483,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         }
       }
       if (field.unit === 'length') field = {...field, inputUnit:documentLengthUnit(options.units?.length)};
-      var input = featureField(hostForField(field), field, value, options);
+      var input = featureField(hostForField(field), field, value, {...options,radius:state.params?.radius,pitch:state.params?.pitch,turns:state.params?.turns});
       var control = { field: field, input: input };
       controls.push(control);
       var live = function () {

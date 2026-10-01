@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import {initialMaterialProfile,assignMaterialProfile} from '../js/engineering_materials.js';
 import {evaluateMassProperties} from '../js/cad_mass_properties.js';
 const box=()=>({id:'body',kind:'box',x0:0,x1:2,y0:0,y1:2,z0:0,z1:2,density:7.85});
+test('PBT stock assignment replaces stale steel density and preserves reference in saved exact mass',async()=>{
+ const part=box(),def={parts:[part]},profile=initialMaterialProfile('stock:pbtGeneralPurpose','pbt');
+ assignMaterialProfile(def,part,profile);
+ const saved=JSON.parse(JSON.stringify(def));
+ assert.equal(saved.parts[0].materialName,'PBT General Purpose (unfilled reference)');
+ assert.match(saved.parts[0].densitySource,/Celanese.*2002/);
+ assert.match(saved.parts[0].densitySource,/not the SOLIDWORKS library value/);
+ const mass=await evaluateMassProperties(saved);
+ assert.equal(mass.accuracy,'exact');
+ assert.ok(Math.abs(mass.massG-10.48)<1e-8);
+});
 test('1060 assignment replaces stale density and survives library serialization in exact mass',async()=>{
  const part=box(),def={parts:[part]},profile=initialMaterialProfile('stock:aluminum1060','profile');
  assignMaterialProfile(def,part,profile);

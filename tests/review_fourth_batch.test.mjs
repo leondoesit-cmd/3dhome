@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import { sourceFunctionText } from './helpers/source_function.mjs';
 import {computeMassProperties,componentBounds} from '../js/cad_interference.js';
 import {involuteGearOutline} from '../js/cad_standards.js';
 import {knurlBandMesh} from '../js/cad_knurl.js';
@@ -63,13 +64,15 @@ test('hole wizard cuts exact blind, through, stepped and countersunk holes witho
  for(const params of [
   {holeType:'simple',diameter:1,depth:2,endCondition:'blind'},
   {holeType:'simple',diameter:1,depth:.1,endCondition:'through-all'},
-  {holeType:'simple',diameter:1,depth:2,endCondition:'blind',direction:'reverse',offset:10},
+  // Offset is measured along the pull direction: -10 places the reverse
+  // cutter at the upper Y10 face before it drills back into the stock.
+  {holeType:'simple',diameter:1,depth:2,endCondition:'blind',direction:'reverse',offset:-10},
   {holeType:'counterbore',diameter:1,depth:2,endCondition:'blind',cboreDiameter:2,cboreDepth:1},
   {holeType:'countersink',diameter:1,depth:2,endCondition:'blind',csinkDiameter:2,csinkAngle:90},
  ]){
   const doc={kind:'part',features:[{id:'stock',type:'box',inputs:[],params:{w:4,h:10,d:4}},{id:'hole',type:'hole',inputs:['stock'],references:{features:['stock']},params:{axis:'y',origin:{u:2,v:2},...params}}],history:[{id:'hs',kind:'feature',targetId:'stock'},{id:'hh',kind:'feature',targetId:'hole'}]};
   const compiled=compileKernelFeatureTree(doc);assert.equal(compiled.ok,true,JSON.stringify(compiled.issues));const run=await regenerateFeatures({...doc,features:compiled.features});
-  try{assert.equal(run.ok,true,JSON.stringify(run.issues));const mass=nativeMass(run.finalShape);let removed=Math.PI*.25*(params.endCondition==='through-all'?10:2);
+  try{assert.equal(run.ok,true,JSON.stringify({params,issues:run.issues}));const mass=nativeMass(run.finalShape);let removed=Math.PI*.25*(params.endCondition==='through-all'?10:2);
    if(params.holeType==='counterbore')removed+=Math.PI*.75;
    if(params.holeType==='countersink')removed+=Math.PI*.5*(1+.5+.25)/3-Math.PI*.25*.5;
    near(mass.volume,160-removed);await validateBrepForExport(run.finalShape);
@@ -78,7 +81,7 @@ test('hole wizard cuts exact blind, through, stepped and countersunk holes witho
 });
 
 test('dimension text stays on its exterior side in local text coordinates and SVG',async()=>{
- const source=readFileSync(new URL('../js/cad_sheet.js',import.meta.url),'utf8'),fn=source.match(/function dimensionItems\([^]*?\n\}\n/)[0];
+ const source=readFileSync(new URL('../js/cad_sheet.js',import.meta.url),'utf8'),fn=sourceFunctionText(source,'dimensionItems');
  const text=(x,y,text,opts)=>({type:'text',x,y,text,...opts}),line=(x1,y1,x2,y2,style)=>({type:'line',x1,y1,x2,y2,style});
  const dimension=Function('num','dimensionText','measureDim','TEXT_SIZES','LINE_STYLES','text','line','arrowHead','ARROW_LENGTH','return ('+fn+')')((v,d)=>v??d,()=>'20',()=>20,{dim:2.5},{dim:{color:'#000'}},text,line,()=>({type:'arrow'}),3.2);
  const {sceneToSvg}=await import('../js/cad_sheet.js');
@@ -90,7 +93,7 @@ test('dimension text stays on its exterior side in local text coordinates and SV
  }
 });
 test('section arrows agree with projection sight after the sheet Y inversion',()=>{
- const source=readFileSync(new URL('../js/cad_sheet.js',import.meta.url),'utf8'),fn=source.match(/function sectionMarker\([^]*?\n\}\n/)[0];
+ const source=readFileSync(new URL('../js/cad_sheet.js',import.meta.url),'utf8'),fn=sourceFunctionText(source,'sectionMarker');
  const marker=Function('num','line','arrowHead','text','TEXT_SIZES','return ('+fn+')')((v,d)=>v??d,()=>({type:'line'}),(x,y,dx,dy)=>({type:'arrow',dx,dy}),()=>({type:'text'}),{view:3});
  for(const flip of [false,true])for(const axis of ['horizontal','vertical']){
   const arrows=marker({parent:'p',section:{axis,flip,at:0}},[{id:'p',box:{x:0,y:0,w:20,h:20},centre:{u:0,v:0},toSheet:p=>({x:p.u,y:-p.v})}],{}).filter(i=>i.type==='arrow');

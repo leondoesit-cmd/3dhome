@@ -198,3 +198,24 @@ test("a swept or lofted circle is round in the exact body too", async () => {
     assert.ok(Math.abs(await volume(lofted) - await volume(sampledLoft)) < 1e-6, "and both are the exact cone");
   } finally { [swept, lofted, sampledLoft, facetedLoft].forEach(disposeBrep); }
 });
+
+test("typed circle holes cut a Top-plane slot instead of adding volume (mirrored u,v against the normal)", async () => {
+  const sketch = {
+    points: [{ id: "a1", x: -40, y: 30 }, { id: "a2", x: 40, y: 30 }, { id: "b1", x: 40, y: -30 }, { id: "b2", x: -40, y: -30 },
+      { id: "cl", x: -40, y: 0 }, { id: "cr", x: 40, y: 0 }],
+    entities: [
+      { id: "top", type: "line", a: "a1", b: "a2" }, { id: "right", type: "arc", c: "cr", a: "b1", b: "a2" },
+      { id: "bot", type: "line", a: "b1", b: "b2" }, { id: "left", type: "arc", c: "cl", a: "a1", b: "b2" },
+      { id: "h1", type: "circle", c: "cl", r: 10 }, { id: "h2", type: "circle", c: "cr", r: 10 },
+    ],
+  };
+  const segments = sketchProfileSegments(sketch, ["top", "right", "bot", "left"]);
+  const hole = (id) => ({ points: segmentProfilePoints(sketchProfileSegments(sketch, [id])), segments: sketchProfileSegments(sketch, [id]) });
+  for (const axis of ["y", "z"]) {
+    const brep = await makeBrepExtrusion({ axis, from: 0, to: 14, points: segmentProfilePoints(segments), segments, holes: [hole("h1"), hole("h2")] });
+    try {
+      const expected = (60 * 80 + Math.PI * 900 - 2 * Math.PI * 100) * 14;
+      assert.ok(Math.abs(await volume(brep) - expected) < 1, "axis " + axis + " keeps the holes empty");
+    } finally { disposeBrep(brep); }
+  }
+});

@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  ASSEMBLY_ORIGIN_ID, componentTopology, composePlacement, containsAssembly, flattenAssembly,
-  resolveComponentPath, subassemblyComponent,
+  ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, composePlacement, containsAssembly, flattenAssembly,
+  refreshSubassemblyFromRecord, resolveComponentPath, subassemblyComponent,
 } from "../js/core/assembly_structure.js";
 import { solveAssemblyMates } from "../js/cad_mate_solver.js";
 import { topologyReference, worldFrame } from "../js/cad_mate_model.js";
@@ -93,4 +93,43 @@ test("flattening lists every part occurrence with its composed placement; nestin
   lab.visible = false;
   assert.deepEqual(flattenAssembly(capAndLens, { visibleOnly: true }).map((row) => row.component.id), ["cap"]);
   assert.equal(composePlacement([]).origin.x, 0);
+});
+
+test("refreshing a nested assembly keeps its parent occurrence and mate references", () => {
+  const saved = lensAndBulb();
+  const sub = subassemblyComponent(saved, { id: "lab", transform: { x: 12, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } });
+  const parentMate = coincident("m", plane("cap", "plane:right", { x: 1, y: 0, z: 0 }), plane("lab", "plane:right", { x: 1, y: 0, z: 0 }));
+  const parent = { components: [part("cap", { grounded: true }), sub], topologyMates: [parentMate] };
+  const revised = structuredClone(saved);
+  revised.components[1].topology[0].descriptor.origin.z = 2;
+  refreshSubassemblyFromRecord(sub, revised);
+  assert.equal(parent.components[1], sub);
+  assert.equal(sub.id, "lab");
+  assert.equal(sub.transform.x, 12);
+  assert.equal(parent.topologyMates[0].b.componentId, "lab");
+  assert.equal(componentTopology(sub, (c) => c.topology).find((e) => e.persistentId === "bulb/face:front").descriptor.origin.x, 7);
+  assert.equal(saved.components[1].topology[0].descriptor.origin.z, 1, "saved source stays untouched");
+  assert.equal(solveAssemblyMates(parent).ok, true);
+});
+
+test("a picked saved mesh face resolves exactly through a nested component path", () => {
+  const face = (id, z) => ({ persistentId: id, kind: "face", descriptor: { surface: "plane", origin: { x: 0, y: 0, z }, normal: { x: 0, y: 0, z: 1 } } });
+  const child = { id: "lens", name: "lens", transform: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }, def: { parts: [{ meshData: { topology: [face("shell:face:1", 0), face("shell:face:2", 0)] } }] } };
+  const nested = subassemblyComponent({ key: "saved", name: "saved", components: [child] }, { id: "nested", transform: { x: 0, y: 0, z: 5, rx: 0, ry: 0, rz: 0 } });
+  const cap = part("cap", { grounded: true });
+  const mate = alignedPlanes("exact", topologyReference("cap", "face", "face:front", cap.topology[0].descriptor), topologyReference("nested", "face", "lens/shell:face:2", face("shell:face:2", 0).descriptor));
+  const result = solveAssemblyMates({ components: [cap, nested], topologyMates: [mate] });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.deepEqual(result.issues, []);
+  assert.ok(Math.abs(nested.transform.z - 1) < 1e-6, JSON.stringify(nested.transform));
+});
+
+test("nested leaf bounds use the fully composed rigid placement for interference", () => {
+  const child = part("bulb", { transform: { x: 2, y: 0, z: 0, rx: 0, ry: 90, rz: 0 } });
+  const nested = subassemblyComponent({ key: "lab", components: [child] }, { id: "lab", transform: { x: 10, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } });
+  const occurrence = flattenAssembly({ components: [nested] })[0];
+  const bounds = boundsAtPlacement({ x0: -1, x1: 1, y0: -1, y1: 1, z0: 0, z1: 3 }, occurrence.placement);
+  assert.ok(Math.abs(bounds.x0 - 12) < 1e-9, JSON.stringify(bounds));
+  assert.ok(Math.abs(bounds.x1 - 15) < 1e-9, JSON.stringify(bounds));
+  assert.deepEqual(occurrence.path, ["lab", "bulb"]);
 });

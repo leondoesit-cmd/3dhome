@@ -75,7 +75,7 @@ export function pasteSketchGeometry(clip, makeId) {
     keys.forEach((key) => { if (copy[key] != null && ids.has(copy[key])) copy[key] = ids.get(copy[key]); });
     return copy;
   };
-  const entityKeys = ["a", "b", "c", "center", "p1", "p2", "p3"];
+  const entityKeys = ["a", "b", "c", "center", "p", "h1", "h2", "p1", "p2", "p3"];
   const entities = clone(clip.entities).map((entity) => {
     const copy = remapObject(entity, entityKeys);
     copy.id = fresh(entity.id);

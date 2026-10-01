@@ -146,18 +146,29 @@ export function pointToLineDistance(point, a, b) {
   return Math.abs((point.u - a.u) * dy - (point.v - a.v) * dx) / span;
 }
 
-export function inferTangentCircle(line, circles) {
+export function inferTangentCircle(line, circles, options = {}) {
   if (!line || !line.a || !line.b) return null;
-  var best = null, bestErr = 0.45;
+  var dx=line.b.u-line.a.u,dy=line.b.v-line.a.v,length2=dx*dx+dy*dy;
+  if(length2<1e-12)return null;
+  var best = null, bestErr = Infinity;
   (circles || []).forEach(function (circle) {
     if (!circle || !(circle.r > 0) || !circle.center) return;
+    var tolerance=Math.min((Number(options.pixelTolerance)||4)/Math.max(1,Number(options.scale)||100),circle.r*.03);
     /* A line that starts or ends ON the circle is not a tangent request: the
        HOUSING top line leaves the quadrant and is later dimensioned below it
        (step 330), which an inferred tangent would refuse. */
     var onCircle = function (p) { return Math.abs(hypot(p.u - circle.center.u, p.v - circle.center.v) - circle.r) < 1e-4 * Math.max(1, circle.r); };
     if (onCircle(line.a) || onCircle(line.b)) return;
-    var err = Math.abs(pointToLineDistance(circle.center, line.a, line.b) - circle.r);
-    if (err < bestErr) { bestErr = err; best = circle; }
+    var parameter=((circle.center.u-line.a.u)*dx+(circle.center.v-line.a.v)*dy)/length2;
+    if(parameter<0 || parameter>1)return;
+    var contact={u:line.a.u+parameter*dx,v:line.a.v+parameter*dy};
+    if(circle.type==='arc'){
+      var tau=2*Math.PI,angle=Math.atan2(contact.v-circle.center.v,contact.u-circle.center.u);
+      var sweep=(circle.endAngle-circle.startAngle+tau)%tau,relative=(angle-circle.startAngle+tau)%tau;
+      if(!Number.isFinite(relative) || relative>sweep+1e-8)return;
+    }
+    var err = Math.abs(hypot(contact.u-circle.center.u,contact.v-circle.center.v)-circle.r);
+    if (err <= tolerance && err < bestErr) { bestErr = err; best = circle; }
   });
   return best;
 }

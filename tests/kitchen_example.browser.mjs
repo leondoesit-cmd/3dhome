@@ -7,6 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 
 const chrome = await findChrome();
@@ -14,7 +15,7 @@ const opts = chrome
   ? { timeout: 180000 }
   : { skip: "no Chrome found (set CHROME_PATH)", timeout: 180000 };
 
-const SHOTS = new URL("../scratch/apartment/", import.meta.url).pathname;
+const SHOTS = fileURLToPath(new URL("../scratch/apartment/", import.meta.url));
 
 async function bootPlanner(page) {
   await page.eval(async () => {

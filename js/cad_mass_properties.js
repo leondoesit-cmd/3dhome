@@ -26,7 +26,7 @@ export async function evaluateMassProperties(def, options = {}) {
     let solid;
     try {
       solid = await (options.buildSolid || exactBrepForPart)(part);
-      const props = await shapeMassProperties(solid);
+      const props = solid.workerMassProperties || await shapeMassProperties(solid);
       rows.push({partId:part.id, accuracy:'exact', ...props, density, massKg:props.volume*density/1000,
         materialName:part.materialName || stockMaterialForPart(part)?.name || null,
         materialCatalogId:part.materialCatalogId || null});
@@ -53,4 +53,12 @@ export async function evaluateMassProperties(def, options = {}) {
   return {bounds, volumeCm3, massKg, massG:massKg*1000, density:densities.length===1?densities[0]:null,
     densities, centerOfMass, inertiaKgM2, accuracy,
     unmeasured:rows.filter(row=>row.accuracy==='unavailable').length, bodies:rows};
+}
+
+/* Centre of mass expressed in a user coordinate system: the offset from its
+   origin projected on each (possibly reversed) axis. Units follow the inputs. */
+export function centerOfMassInSystem(com, system) {
+  const d = { x: com.x - (system.origin?.x || 0), y: com.y - (system.origin?.y || 0), z: com.z - (system.origin?.z || 0) };
+  const along = (axis = {}) => d.x * (axis.x || 0) + d.y * (axis.y || 0) + d.z * (axis.z || 0);
+  return { x: along(system.xAxis), y: along(system.yAxis), z: along(system.zAxis) };
 }

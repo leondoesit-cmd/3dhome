@@ -5,6 +5,7 @@ import { resolveProfilePoints, solveSketch } from "../sketch_solver.js";
 import { buildDependencyGraph, featureDependencies, stableStringify } from "./dependency_graph.js";
 import { validateDefinition } from "./schema.js";
 import { faceFrameOrigin, realignFrame } from "./frame.js";
+import {offsetSketchFrame} from './sketch_offset.js';
 import { aabbFromBox, aabbFromTopology, resolveExtrudeExtent, resolvedEndFace } from "./extrude_extent.js";
 import { supportsSurfaceUV } from "./surface_uv.js";
 import {
@@ -106,14 +107,16 @@ export function sketchDiagnostics(definition, parameters) {
       const valid = vectors.every((vector) => vector && [vector.x, vector.y, vector.z].every(Number.isFinite));
       if (!valid) issues.push({ severity:"error", code:"invalid-sketch-frame", sketchId:sketch.id, message:(sketch.name || sketch.id) + " has an invalid local support frame" });
     }
-    if (support && !(definition.features || []).some((feature) => feature.id === support.ownerFeatureId))
+    if (support && !(definition.features || []).some((feature) => feature.id === support.ownerFeatureId || feature.id + ':tool' === support.ownerFeatureId))
       issues.push({ severity: "error", code: "missing-sketch-support-feature", sketchId: sketch.id, reference: support.persistentId, message: (sketch.name || sketch.id) + " is attached to a missing feature" });
     else if (!support && reference && !(definition.references || []).some((item) => item.id === reference))
       issues.push({ severity: "error", code: "missing-sketch-reference", sketchId: sketch.id, reference, message: (sketch.name || sketch.id) + " is attached to a missing reference" });
     try {
       const result = solveSketch(sketch);
-      if (result.status === "conflict" || result.ok === false)
+      if (result.status === "conflict" || result.status === "conflicting" || result.ok === false)
         issues.push({ severity: "error", code: "over-constrained-sketch", sketchId: sketch.id, constraints: result.conflicts || [], message: (sketch.name || sketch.id) + " is over-constrained" });
+      else if(result.status === "over-constrained")
+        issues.push({severity:"warning",code:"over-constrained-sketch",sketchId:sketch.id,constraints:result.repeated || [],message:(sketch.name || sketch.id)+" is over-defined by redundant constraints"});
       else {
         const dof = Number(result.degreesOfFreedom ?? result.dof);
         if (dof > 0) issues.push({
@@ -138,7 +141,8 @@ function alignExtrusionToResolvedSupport(params, resolutions = []) {
   if (params.frame) {
     const baseOffset = Number(params.baseOffset) || 0;
     const depth = Math.max(1e-6, Math.abs(Number(params.depth) || Math.abs(Number(params.to) - Number(params.from))));
-    return { ...params, frame: realignFrame(params.frame, faceFrameOrigin(descriptor,params.frameAnchor), descriptor.normal), from: symmetric ? baseOffset-depth/2 : baseOffset, to: symmetric ? baseOffset+depth/2 : baseOffset+reversed*depth };
+    const base=faceFrameOrigin(descriptor,params.frameAnchor),frame=offsetSketchFrame(realignFrame(params.frame,base,descriptor.normal),base,descriptor.normal,params.supportOffset);
+    return { ...params, frame, from: symmetric ? reversed*(baseOffset-depth/2) : reversed*baseOffset, to: symmetric ? reversed*(baseOffset+depth/2) : reversed*(baseOffset+depth) };
   }
   const axis = params.axis || "y";
   const coordinate = Number(descriptor.origin[axis]) || 0;
@@ -272,6 +276,10 @@ const NON_BODY_RESULTS = new Set(["sketch", "helix", "knurl"]);
    way when the part the row was cut from — the one whose featureId starts the
    row's input chain — does not record the row. */
 export function leavesInputStanding(definition, feature) {
+  // A separately extruded/revolved body can still depend on its support's
+  // geometry. That dependency does not consume the existing support body.
+  if (["extrude", "revolve", "sweep", "loft"].includes(feature?.type)
+    && (feature.params?.mergeResult === false || feature.params?.operation === "new-body")) return true;
   if (feature?.type !== "moveBody") return false;
   const parts = Array.isArray(definition?.parts) ? definition.parts : [];
   if (parts.some((part) => part?.derivedFeatureId === feature.id)) return true;

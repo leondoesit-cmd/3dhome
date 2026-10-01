@@ -13,6 +13,15 @@ test('centre-point arc keeps a coincident snapped endpoint without adopting an o
   assert.ok(Math.abs(Math.hypot(offCircle.u,offCircle.v)-1.5)<1e-12);
 });
 
+test('centre-start-end arc keeps the first click as centre and the second as radius',()=>{
+  const centre={u:2,v:-3};
+  const start={u:5,v:-3};
+  const end=radialArcEndpoint(centre,start,{u:2,v:6});
+  assert.ok(Math.abs(end.u-centre.u)<1e-12);
+  assert.ok(Math.abs(end.v-0)<1e-12);
+  assert.ok(Math.abs(Math.hypot(end.u-centre.u,end.v-centre.v)-3)<1e-12);
+});
+
 test('three-point arc preserves snapped endpoints and selects the requested side',()=>{
   const start={u:-1,v:0,pointId:'left'},end={u:1,v:0,pointId:'right'};
   const upper=threePointArc(start,end,{u:0,v:1});

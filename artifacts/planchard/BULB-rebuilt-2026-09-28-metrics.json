@@ -1,0 +1,28 @@
+{
+  "source": "BULB-final-axis-corrected-2026-09-28.mforge",
+  "exact": true,
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "under-constrained-sketch",
+      "sketchId": "sk_1pvfl",
+      "dof": 10,
+      "message": "Right Plane sketch has 10 degrees of freedom"
+    }
+  ],
+  "volumeCm3": 2.459667191704738,
+  "boundsCm": {
+    "min": {
+      "x": -0.7371731049532207,
+      "y": -0.7371731049532207,
+      "z": -1.4000001
+    },
+    "max": {
+      "x": 0.7371731049532207,
+      "y": 0.7371731049532207,
+      "z": 1.524
+    }
+  },
+  "stlBytes": 688984,
+  "stepBytes": 189229
+}

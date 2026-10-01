@@ -1,10 +1,28 @@
 import { cylinderAxis } from './cylinder_axis.js';
 import { framePoint, frameFromPlane } from './frame.js';
 import { holeLayoutPoints, holeWizardSolids } from '../cad_hole_wizard.js';
+import { cylindricalHolePlacement } from './cylindrical_hole_placement.js';
 
-export function holeCutRecords(params, sketch, entityIds) {
+// Explicit sketch Point entities are Hole Wizard positions. Curve endpoints
+// and rectangle centres must not silently become extra holes.
+export function holePositionPointIds(sketch) {
+  const points=new Map((sketch?.points || []).map(point=>[point.id,point]));
+  return [...new Set((sketch?.entities || []).filter(entity=>entity.type==='point' && !entity.construction)
+    .map(entity=>entity.p).filter(id=>{
+      const point=points.get(id);
+      return point && Number.isFinite(point.x) && Number.isFinite(point.y);
+    }))];
+}
+
+export function holeCutRecords(params, sketch, entityIds, document) {
+  if(params.cylindricalSource){
+    const placement=cylindricalHolePlacement(params,document);
+    return holeWizardSolids(params).solids.map(solid=>({kind:'hole',params:{...params,...solid,...placement,diameter:solid.diameter || solid.diameter1,requireIntersection:true}}));
+  }
   let centres=holeLayoutPoints(params);
   if (!params.layout || params.layout==='sketch') {
+    if(params.holePositionPointIds?.length)centres=holeLayoutPoints(params,sketch);
+    else {
     const circles=(sketch?.entities || []).filter(e=>e.type==='circle' && !e.construction && (!entityIds?.length || entityIds.includes(e.id)));
     if (!circles.length) throw new Error('Hole placement requires a circular sketch');
     centres=circles.map(circle=>{
@@ -12,6 +30,7 @@ export function holeCutRecords(params, sketch, entityIds) {
       if(!point)throw new Error('Hole centre is missing');
       return {u:point.x,v:point.y};
     });
+    }
   }
   const axis=sketch?.plane==='front'?'z':sketch?.plane==='side'?'x':'y';
   return holeWizardSolids(params).solids.map(solid=>({kind:'hole',params:{...params,...solid,
@@ -22,11 +41,11 @@ export function holeCutRecords(params, sketch, entityIds) {
 // The feature tree is authoritative, but the viewport also keeps lightweight
 // cut records for compatibility rendering. Re-anchor those records whenever a
 // driving placement sketch or its support frame changes.
-export function syncHoleCutPlacement(part, feature, sketch) {
-  if (!part?.cuts3d?.length || feature?.type !== 'hole' || !sketch) return false;
+export function syncHoleCutPlacement(part, feature, sketch, document) {
+  if (!part?.cuts3d?.length || feature?.type !== 'hole' || (!sketch && !feature.params?.cylindricalSource)) return false;
   const existing=part.cuts3d.filter(record=>record?.featureId===feature.id);
   if (!existing.length) return false;
-  const refreshed=holeCutRecords(feature.params || {},sketch,feature.params?.profileEntityIds);
+  const refreshed=holeCutRecords(feature.params || {},sketch,feature.params?.profileEntityIds,document);
   if (existing.length!==refreshed.length) return false;
   let changed=false;
   existing.forEach((record,index)=>{
@@ -61,6 +80,8 @@ export function holeToolPlacements(params, bounds) {
     else if(params.axis==='x')origin={x:from,y:centre.v,z:centre.u};
     else if(params.axis==='z')origin={x:centre.u,y:centre.v,z:from};
     else origin={x:centre.u,y:from,z:centre.v};
+    const startDepth=Number(params.startDepth)||0;
+    if(startDepth){origin={x:origin.x+axis.x*startDepth,y:origin.y+axis.y*startDepth,z:origin.z+axis.z*startDepth};}
     let depth=Number(params.depth);
     if(params.endCondition==='through-all'){
       if(!bounds)throw new Error('Through-all hole requires target body bounds');

@@ -1,7 +1,39 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {coneSilhouette,detachDrivenSketchDimension,detachLinkedSketchEntity,updateSilhouetteSketch} from '../js/core/cone_silhouette.js';
+import {coneSilhouette,detachDrivenSketchDimension,detachLinkedSketchEntity,updateSilhouetteSketch,retargetConvertedCircle,retargetSilhouetteLine} from '../js/core/cone_silhouette.js';
 import {makeBrepExtrusion,extractBrepTopology,disposeBrep} from '../js/cad_kernel.js';
+
+test('replacing a consumed manual BackCut line preserves ids and follows the trimmed draft silhouette',()=>{
+ const face={ownerFeatureId:'base',persistentId:'base-cone',kind:'face',descriptor:{surface:'cone',referenceOrigin:{x:0,y:0,z:0},axis:{x:0,y:0,z:-1},axisRange:[0,4.3815],radius:6.223,angle:Math.PI/36}};
+ const sketch={plane:'right',points:[{id:'a',x:-3.773,y:6.599},{id:'b',x:-4.408,y:6.606}],entities:[{id:200,type:'line',a:'a',b:'b'}],constraints:[{id:'length',type:'distance',entity:200,value:.635}]};
+ let next=0;retargetSilhouetteLine(sketch,200,face,{side:'normal',fromEnd:'upper',length:.635},()=>`fix-${++next}`);
+ assert.deepEqual(sketch.entities,[{id:200,type:'line',a:'a',b:'b'}]);
+ assert.equal(sketch.constraints.find(c=>c.id==='length').driven,true);
+ assert.equal(sketch.silhouetteCopies[0].entityId,200);
+ const [a,b]=sketch.points;assert.ok(Math.abs(a.x+4.3815)<1e-10);assert.ok(Math.abs(Math.hypot(b.x-a.x,b.y-a.y)-.635)<1e-10);
+ assert.ok(Math.abs((b.y-a.y)/(b.x-a.x)+Math.tan(Math.PI/36))<1e-10);
+ const changed=structuredClone(face);changed.descriptor.radius+=.1;changed.descriptor.angle=Math.PI/30;
+ const updated=updateSilhouetteSketch(sketch,()=>changed);
+ assert.equal(updated.entities[0].id,200);assert.ok(Math.abs(Math.hypot(updated.points[1].x-updated.points[0].x,updated.points[1].y-updated.points[0].y)-.635)<1e-10);
+ assert.ok(Math.abs((updated.points[1].y-updated.points[0].y)/(updated.points[1].x-updated.points[0].x)+Math.tan(Math.PI/30))<1e-10);
+ for(const constraint of updated.constraints.filter(c=>c.type==='fixed'))assert.equal(constraint.y,updated.points.find(p=>p.id===constraint.point).y);
+ const before=structuredClone(sketch);assert.throws(()=>retargetSilhouetteLine(sketch,200,face,{length:99}),/exceeds/);assert.deepEqual(sketch,before);
+});
+
+test('explicit circle-source repair preserves consumed entity ids and linked offsets',()=>{
+ const edge=(id,r,z)=>({kind:'edge',persistentId:id,descriptor:{curve:'circle',radius:r,measure:2*Math.PI*r,origin:{x:0,y:0,z},axis:{x:0,y:0,z:1}}});
+ const old=edge('old-circle',5.30225,0),fresh=edge('front-inner',5.30225,3.302);
+ const sketch={plane:'front',offset:0,points:[{id:'p',x:0,y:0},{id:'q',x:0,y:0}],entities:[{id:'inner',type:'circle',c:'p',r:5.30225},{id:'offset',type:'circle',c:'q',r:5.40225}],constraints:[{type:'fixed',point:'p',x:0,y:0},{type:'diameter',entity:'inner',value:10.6045},{type:'diameter',entity:'offset',value:10.8045},{type:'offset',a:'inner',b:'offset',value:.1}],circleCopies:[{source:old,entityId:'inner'},{source:old,entityId:'offset',offsetFrom:'inner',offset:.1}]};
+ const consumedHoleIds=['inner'];
+ retargetConvertedCircle(sketch,'inner',fresh);
+ assert.deepEqual(sketch.entities.map(e=>e.id),['inner','offset']);assert.equal(consumedHoleIds[0],sketch.entities[0].id);
+ assert.ok(sketch.circleCopies.every(copy=>copy.source.persistentId==='front-inner'));
+ const thicker=edge('front-inner',5.1,3.302),updated=updateSilhouetteSketch(sketch,ref=>ref.persistentId===thicker.persistentId?thicker:null);
+ assert.equal(updated.entities[0].r,5.1);assert.ok(Math.abs(updated.entities[1].r-5.2)<1e-9);
+ const before=structuredClone(sketch);
+ assert.throws(()=>retargetConvertedCircle(sketch,'inner',{descriptor:{curve:'line'}}),/complete circular edge/);
+ assert.deepEqual(sketch,before,'an invalid source cannot partially change the saved association');
+});
 test('converted draft silhouette keeps its exact slope and follows a changed source',async()=>{
  const body=await makeBrepExtrusion({points:[{u:6.223,v:0},{u:0,v:6.223},{u:-6.223,v:0},{u:0,v:-6.223}],segments:[{type:'circle',center:{u:0,v:0},radius:6.223}],from:0,to:-4.3815,axis:'z',draftAngle:5,draftOutward:true});
  try{

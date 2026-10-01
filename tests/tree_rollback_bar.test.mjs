@@ -59,3 +59,12 @@ test('no rollback: the bar closes the history', () => {
   assert.equal(model.rollbackAt, 6);
   assert.equal(model.historyCount, 6);
 });
+
+test('absorbed sketches retain their precise rollback boundary before their feature',()=>{
+  const model=buildTreeModel(doc(),{authoringSystem:'parametric-v1',rollbackIndex:3});
+  const loft=model.nodes.find(n=>n.id==='section:history').children.find(n=>n.targetId==='Loft');
+  assert.equal(loft.rolled,true);
+  assert.equal(loft.children[0].index,2);
+  assert.equal(loft.children[0].rolled,false,'the sketch is built before its rolled-out feature');
+  assert.equal(loft.children[0].can.rollback,true,'its menu can roll back before the sketch itself');
+});

@@ -28,7 +28,7 @@ const MODEL = {
 let shared = null;
 test.after(async () => { if (shared) await shared.close(); });
 
-async function editor() {
+async function editor(model = MODEL) {
   if (!chrome) return null;
   if (!shared) shared = await openPage({ width: 1280, height: 800, lang: "en", mobile: false, touch: false });
   const page = shared;
@@ -42,7 +42,7 @@ async function editor() {
     localStorage.removeItem("home3d_assemblies");
     localStorage.removeItem("home3d_modeler_draft");
     localStorage.removeItem("home3d_modeler_prefs");
-  }, [MODEL]);
+  }, [model]);
   await page.goto("/");
   await page.waitForBoot();
   await page.eval(() => { window.confirm = () => true; });
@@ -62,9 +62,9 @@ async function editor() {
   await page.waitUntil(() => typeof window.cadFinishPreviewSnapshot === "function", { what: "the editor test hooks" });
   await page.eval(() => document.querySelector('#modeler [data-tab="lib"]').click());
   await page.waitUntil(() => [...document.querySelectorAll("#mdLib .md-card")]
-    .some((card) => card.querySelector(".nm")?.textContent === "Variable model"), { what: "the seeded model card" });
+    .some((card) => card.querySelector(".nm")?.textContent === model.name), { what: "the seeded model card" });
   await page.eval(() => [...document.querySelectorAll("#mdLib .md-card")]
-    .find((card) => card.querySelector(".nm")?.textContent === "Variable model").click());
+    .find((card) => card.querySelector(".nm")?.textContent === model.name).click());
   await page.waitUntil(() => window.cadSelectionSnapshot?.().mode === "3d", { what: "the loaded model" });
   return page;
 }
@@ -145,6 +145,23 @@ test("a per-edge radius typed into the edge list reaches the feature parameters"
   assert.equal(trimmed[0].radius, undefined, "the start radius fell back to the feature's own");
   assert.equal(trimmed[0].endRadius, 2.4);
   await page.eval(() => window.cadCloseFeatureForm());
+});
+
+test("multiple-radius edge fields use the document length unit", opts, async () => {
+  const page = await editor({ ...MODEL, name: "Inch fillet model", context: { units: { length: "in", angle: "deg", mass: "kg", precision: 3 } } });
+  assert.equal(await pickEdge(page), true, "could not pick an edge");
+  assert.equal(await page.eval(() => window.cadOpenFeatureForm("fillet")), true);
+  assert.equal(await set(page, '#mdQuickSettings input[data-parameter="multipleRadius"]', true), true);
+  const selector = '#mdQuickSettings input[data-edge-radius="radius"]';
+  assert.equal(await set(page, selector, "0.060"), true);
+  const state = await page.eval((css) => ({
+    stored: window.cadFinishPreviewSnapshot().params.edgeRadii[0]?.radius,
+    label: document.querySelector(css)?.parentElement?.textContent,
+    value: document.querySelector(css)?.value,
+  }), selector);
+  assert.ok(Math.abs(state.stored - 0.1524) < 1e-10, "0.060 in must be stored as 0.1524 cm");
+  assert.match(state.label, /in/);
+  assert.equal(state.value, "0.060", "editing must keep the visible input in inches");
 });
 
 test("the pattern form offers a curve layout and activates only its own group", opts, async () => {

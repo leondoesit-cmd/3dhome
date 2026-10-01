@@ -7,6 +7,7 @@ export const SELECTION_FILTERS = ["all", "face", "edge", "vertex", "sketch", "bo
 export const VIEW_PRESETS = [
   { id: "front", az: 0, el: 0.05, shortcut: "5" },
   { id: "top", az: 0, el: 1.5, shortcut: "4" },
+  { id: "bottom", az: 0, el: -1.5, shortcut: "" },
   { id: "right", az: Math.PI / 2, el: 0.05, shortcut: "6" },
   // The far sides of Front and Right: a part's back or left face (LENSCAP's
   // ThreadPlane face) is otherwise reachable only by hand orbit.

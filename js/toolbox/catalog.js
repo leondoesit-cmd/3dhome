@@ -1,4 +1,5 @@
 // Hierarchical toolbox catalog for the picker, search, and BOM.
+import { ANSI_TYPE_A_NARROW, ANSI_HEX_MACHINE_NUT, ANSI_PAN_CROSS, ANSI_MACHINE_LENGTHS_MM } from "./ansi_machine_tables.js";
 
 import {
   ISO4762_SHCS, ISO4017_HEX, ISO4032_NUT, ISO4035_JAM, ISO7040_NYLOC, ISO4161_FLANGE,
@@ -48,7 +49,7 @@ const LENGTH_IMP = IMPERIAL_LENGTHS_MM;
 function family(kind, label, standard, table, extra = {}) {
   const sizes = extra.sizes || (table ? sizesOf(table) : [{ size: extra.defaultSize || "", lengthMm: extra.defaultLength || null, label: extra.defaultSize || label }]);
   let lengthOptions = extra.lengthOptions ? extra.lengthOptions.slice() : null;
-  if (sizes.some((row) => row.imperial) && extra.hasLength !== false) {
+  if (sizes.some((row) => row.imperial) && extra.hasLength !== false && !extra.exactImperialLengths) {
     lengthOptions = lengthOptions || LENGTH_SCREW.slice();
     LENGTH_IMP.forEach((mm) => { if (lengthOptions.indexOf(mm) < 0) lengthOptions.push(mm); });
   }
@@ -64,10 +65,14 @@ function family(kind, label, standard, table, extra = {}) {
     defaultSize: extra.defaultSize || (sizes[0] && (sizes[0].key || sizes[0].size)),
     defaultLength: extra.defaultLength || null,
     sizesBySeries: extra.sizesBySeries || null,
+    exactImperialLengths: !!extra.exactImperialLengths,
   };
 }
 
 export const TOOLBOX_FAMILIES = Object.freeze([
+  family("ansi-pan-cross", "ANSI pan cross-head machine screw", "ASME B18.6.3", ANSI_PAN_CROSS, {hasLength:true,lengthOptions:ANSI_MACHINE_LENGTHS_MM,exactImperialLengths:true,defaultSize:"5/16",defaultLength:19.05}),
+  family("ansi-hex-machine-nut", "ANSI hex machine screw nut", "ASME B18.6.3", ANSI_HEX_MACHINE_NUT, {hasLength:false,defaultSize:"5/16"}),
+  family("ansi-washer-narrow", "ANSI Type A Narrow flat washer", "ASME B18.21.1", ANSI_TYPE_A_NARROW, {hasLength:false,defaultSize:"5/16"}),
   family("shcs", "ISO 4762 SHCS", "ISO 4762:2018 / ASME B18.3", ISO4762_SHCS, { hasLength: true, lengthOptions: LENGTH_SCREW.concat(LENGTH_IMP), defaultSize: "M8" }),
   family("hex-screw", "ISO 4017 hex screw", "ISO 4017:2022 / DIN 933", ISO4017_HEX, { hasLength: true, lengthOptions: LENGTH_SCREW, defaultSize: "M8" }),
   family("hex-bolt", "ISO 4014 hex bolt", "ISO 4014:2022 / DIN 931", ISO4017_HEX, { hasLength: true, lengthOptions: LENGTH_SCREW, defaultSize: "M8" }),
@@ -176,6 +181,7 @@ export function toolboxFamily(kind) {
 
 export function lengthOptionsForSize(fam, size) {
   const opts = (fam && fam.lengthOptions) || [];
+  if (fam?.exactImperialLengths) return opts.slice();
   if (!opts.length) return opts.slice();
   const row = (fam.sizes || []).find((item) => item.size === size || item.key === size);
   const key = String(size || "");

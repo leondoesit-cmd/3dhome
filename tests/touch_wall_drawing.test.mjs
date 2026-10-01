@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const interactionSource = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
-const plan2dSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
+const plan2dSource = (await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8")).replace(/\r\n/g,"\n");
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 
 test("planner: touchContact and drawTouchGuide are wired in interaction.js and plan2d.js", () => {
@@ -64,7 +64,7 @@ test("planner: narrow CAD instruction clears the top plan controls", () => {
 });
 
 test("modeler: expanded height does not carry over to the next sheet", async () => {
-  const src = await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8");
+  const src = (await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8")).replace(/\r\n/g,"\n");
   // showSheet() clears the tall state before building the new panel
   assert.match(src, /release\(\);\n(?:\s*\/\*[\s\S]*?\*\/\n)?\s*setSheetTall\(false\);/);
   assert.match(src, /function setSheetTall\(on\) \{[\s\S]*?sheet\.classList\.toggle\("tall", !!on\);/);

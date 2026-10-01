@@ -2,10 +2,33 @@
 // layoutCab / BOM / checks stay in cabinet.js so Node tests can run them
 // without a WebGL renderer.
 import { THREE } from "./three_lazy.js";
-import { CAB, TOP, STEEL, DARK, GLASS, WOOD, FABRIC } from "./state.js";
+import { S, CAB, TOP, STEEL, DARK, GLASS, WOOD, FABRIC } from "./state.js";
 import { box, cyl, sph, applyTextureToMaterial } from "./primitives.js";
 import { layoutCab, HW, FINISH } from "./cabinet.js";
 import { slabWithHoles } from "./furniture_helpers.js";
+import { cabinetRuntimeMeshKey, placeCabinetUnit } from "./core/cabinet_mesh_reuse.js";
+
+const runtimeMeshes = new WeakMap();
+let runtimeMeshRevision = 0;
+if (typeof window !== "undefined") {
+  for (const event of ["catalogUpdated", "customTextureLoaded"]) window.addEventListener(event, () => { runtimeMeshRevision++; });
+}
+
+// Reuse only a mesh built from the same complete structural input. Runtime
+// thresholds may reveal garments or other parts, so compare the fresh layout
+// as well as the item. Unready/custom textures retain the normal rebuild path.
+export function updateCabinetRuntimeMesh(group, item) {
+  const cached = runtimeMeshes.get(group);
+  if (!cached || cached.revision !== runtimeMeshRevision || item.tex || Object.values(item.texParts || {}).some(Boolean)) return false;
+  if (group.children.length !== cached.children.length || group.children.some((child, index) => child !== cached.children[index])) return false;
+  const layout = layoutCab(item), key = cabinetRuntimeMeshKey(item, layout, S.parametric?.definitions?.[item.definitionId]);
+  if (!key || key !== cached.key) return false;
+  for (const [index, pivot] of Object.entries(cached.groups)) {
+    if (!layout.units[index] || pivot.parent !== group) return false;
+  }
+  for (const [index, pivot] of Object.entries(cached.groups)) placeCabinetUnit(pivot, layout.units[index], layout.sp.elev || 0);
+  return true;
+}
 
 /* ========================= 3D ========================= */
 
@@ -94,8 +117,7 @@ export function buildCab(g, it) {
     if (groups[p.unit]) return groups[p.unit];
     var u = L.units[p.unit],
       gr = new THREE.Group();
-    gr.position.set((u.px || 0) + (u.tx || 0), yo + (u.py || 0) + (u.ty || 0), (u.pz || 0) + (u.tz || 0));
-    if (u.rot) gr.rotation[u.rot] = u.ang || 0;
+    placeCabinetUnit(gr, u, yo);
     g.add(gr);
     groups[p.unit] = gr;
     return gr;
@@ -154,4 +176,5 @@ export function buildCab(g, it) {
       sph(gr, p.x - o.x, p.y - o.y + dy, p.z - o.z, p.r, m.col, opt);
     }
   });
+  runtimeMeshes.set(g, { key: cabinetRuntimeMeshKey(it, L, S.parametric?.definitions?.[it.definitionId]), groups, children: g.children.slice(), revision: runtimeMeshRevision });
 }

@@ -1,0 +1,210 @@
+{
+  "components": [
+    {
+      "id": 2124,
+      "grounded": true,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 2125,
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 1.8,
+        "z": 0,
+        "rx": -90,
+        "ry": 0,
+        "rz": -180,
+        "q": {
+          "x": 0,
+          "y": 0.707106781187,
+          "z": 0.707106781187,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 2134,
+      "grounded": false,
+      "transform": {
+        "x": 1.737181062,
+        "y": 0,
+        "z": -0.805744457,
+        "rx": -89.99999999999999,
+        "ry": 0,
+        "rz": 148.23621460572596,
+        "q": {
+          "x": -0.19350349283610027,
+          "y": 0.6801149889983525,
+          "z": 0.6801149889983525,
+          "w": 0.19350349283610027
+        }
+      }
+    }
+  ],
+  "topologyMates": [
+    {
+      "id": 2126,
+      "type": "concentric",
+      "a": {
+        "componentId": 2124,
+        "kind": "face",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "cylinder",
+          "origin": {
+            "x": 0,
+            "y": 2,
+            "z": 0
+          },
+          "normal": {
+            "x": 1.2246467991473532e-16,
+            "y": 0,
+            "z": -1
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "radius": 0.4
+        }
+      },
+      "b": {
+        "componentId": 2125,
+        "kind": "face",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "cylinder",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0.2
+          },
+          "normal": {
+            "x": 1,
+            "y": -1.2246467991473532e-16,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "radius": 0.42000000000000004
+        }
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 2127,
+      "type": "distance",
+      "a": {
+        "componentId": 2124,
+        "kind": "face",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 2125,
+        "kind": "face",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        }
+      },
+      "aligned": true,
+      "value": 1.8
+    },
+    {
+      "id": 2135,
+      "type": "concentric",
+      "a": {
+        "componentId": 2125,
+        "kind": "face",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "cylinder",
+          "origin": {
+            "x": 0,
+            "y": 2,
+            "z": 0.2
+          },
+          "normal": {
+            "x": 1,
+            "y": -1.2246467991473532e-16,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "radius": 0.42000000000000004
+        }
+      },
+      "b": {
+        "componentId": 2134,
+        "kind": "face",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "cylinder",
+          "origin": {
+            "x": 0,
+            "y": 3.3,
+            "z": 0.6
+          },
+          "normal": {
+            "x": -1,
+            "y": 1.2246467991473532e-16,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "radius": 0.6
+        }
+      },
+      "aligned": false,
+      "value": 0
+    }
+  ]
+}

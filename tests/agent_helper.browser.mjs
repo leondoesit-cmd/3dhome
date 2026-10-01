@@ -67,20 +67,12 @@ test("helper settings opens the agent tab and LM Studio streams visible progress
       const encoder = new TextEncoder();
       const originalFetch = window.fetch;
       let requestBody;
+      let streamController;
       window.fetch = async (_url, options) => {
         requestBody = JSON.parse(options.body);
         return { ok: true, status: 200, body: new ReadableStream({
           start(controller) {
-            setTimeout(() => controller.enqueue(encoder.encode(
-              'data: {"choices":[{"delta":{"role":"assistant","content":"Ready"}}]}\n\n'
-            )), 60);
-            setTimeout(() => {
-              controller.enqueue(encoder.encode(
-                'data: {"choices":[],"usage":{"prompt_tokens":40,"completion_tokens":4,"total_tokens":44}}\n\n' +
-                'data: [DONE]\n\n'
-              ));
-              controller.close();
-            }, 130);
+            streamController = controller;
           },
         }) };
       };
@@ -88,10 +80,21 @@ test("helper settings opens the agent tab and LM Studio streams visible progress
         const input = document.getElementById("agentInput");
         input.value = "hello";
         document.getElementById("agentSend").click();
-        await new Promise((resolve) => setTimeout(resolve, 25));
+        for (let i = 0; i < 100 && !streamController; i++)
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        if (!streamController) throw new Error("Streaming request did not start");
         const promptPhase = document.getElementById("agentProgress").dataset.phase;
-        await new Promise((resolve) => setTimeout(resolve, 65));
+        streamController.enqueue(encoder.encode(
+          'data: {"choices":[{"delta":{"role":"assistant","content":"Ready"}}]}\n\n'
+        ));
+        for (let i = 0; i < 100 && document.getElementById("agentProgress").dataset.phase !== "generating"; i++)
+          await new Promise((resolve) => setTimeout(resolve, 10));
         const generatingPhase = document.getElementById("agentProgress").dataset.phase;
+        streamController.enqueue(encoder.encode(
+          'data: {"choices":[],"usage":{"prompt_tokens":40,"completion_tokens":4,"total_tokens":44}}\n\n' +
+          'data: [DONE]\n\n'
+        ));
+        streamController.close();
         for (let i = 0; i < 100 && document.getElementById("agentProgress").dataset.phase !== "complete"; i++)
           await new Promise((resolve) => setTimeout(resolve, 10));
         const progress = document.getElementById("agentProgress");

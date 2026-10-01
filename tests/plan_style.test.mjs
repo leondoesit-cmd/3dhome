@@ -42,7 +42,7 @@ test("plan style: every new string exists in both locales", () => {
 test("presentation plan: room layer keyed on style, knockout replaced, sprites repaint", async () => {
   const p = await src("js/plan2d.js");
   assert.match(p, /"\|" \+ planStyle\(\) \+ "\|"/);
-  assert.match(p, /if \(isPresentation\(\)\) \{\n\s+\/\*[^]*?\*\/\n\s+var pth = planTheme\(\)/);
+  assert.match(p, /if \(isPresentation\(\)\) \{\r?\n\s+\/\*[^]*?\*\/\r?\n\s+var pth = planTheme\(\)/);
   assert.match(p, /addEventListener\("planSpritesReady"/);
   assert.match(p, /clipOutsideOpenings\(list\)/);
 });

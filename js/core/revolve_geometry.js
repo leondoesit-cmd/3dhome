@@ -3,6 +3,14 @@ import { framePoint } from "./frame.js";
 // angle zero is +Z (Y axis), +Z (X axis), or +Y (Z axis).
 export const REVOLVE_AXIS_CROSSING = "The revolve profile crosses the axis";
 
+// The PropertyManager keeps a newly chosen axis in references until Finish;
+// params.axis can still contain the default Y axis while the preview is live.
+export function revolvePreviewAxis(params, references) {
+  const chosen = typeof references?.axis === "string" ? references.axis.split(":")[1] : references?.axis?.id?.split(":")[1];
+  if (["x", "y", "z"].includes(chosen)) return chosen;
+  return ["x", "y", "z"].includes(params?.axis) ? params.axis : "y";
+}
+
 export function assertRevolveProfile(points) {
   let side = 0;
   for (const point of points || []) {

@@ -120,7 +120,7 @@ function filletLineArcCorner(sketch, corner, radius, options, id) {
   if (!best) throw new Error("The radius is too large for this line and arc");
 
   const related = (sketch.constraints || []).filter((constraint) => constraintRefs(constraint, corner.vertexId));
-  const keep = options.keepConstrainedCorners !== false && related.length > 0;
+  const keep = options.keepConstrainedCorners !== false && (vertex.fixed || related.length > 0);
   const savedPoint = keep ? { ...vertex, virtualSharp: true } : null;
   const p1 = addPoint(sketch, best.t1.x, best.t1.y, id);
   const p2 = addPoint(sketch, best.t2.x, best.t2.y, id);
@@ -201,7 +201,7 @@ export function filletSketchCorner(sketch, options = {}, id = uid) {
     y: vertex.y + (dirA.y + dirB.y) / bisectLen * reach,
   };
   const keep = options.keepConstrainedCorners !== false
-    && (sketch.constraints || []).some((constraint) => constraintRefs(constraint, corner.vertexId));
+    && (vertex.fixed || (sketch.constraints || []).some((constraint) => constraintRefs(constraint, corner.vertexId)));
   const farAId = otherEnd(lineA, corner.vertexId);
   const farBId = otherEnd(lineB, corner.vertexId);
   const lengthDims = (sketch.constraints || []).filter((constraint) => (
@@ -214,14 +214,14 @@ export function filletSketchCorner(sketch, options = {}, id = uid) {
     constraint.a = far;
     constraint.b = corner.vertexId;
   }
-  if (lengthDims.length) {
+  if (keep || lengthDims.length) {
     for (const line of [lineA, lineB]) {
       const extra = { id: id(), type: "pointOnLine", point: corner.vertexId, entity: line.id };
       sketch.constraints.push(extra);
       savedCorner.push(extra);
     }
   }
-  const savedPoint = (keep || lengthDims.length) ? { ...vertex } : null;
+  const savedPoint = (keep || lengthDims.length) ? { ...vertex, virtualSharp: true } : null;
   const savedConstraints = keep
     ? (sketch.constraints || []).filter((constraint) => constraintRefs(constraint, corner.vertexId))
     : [];

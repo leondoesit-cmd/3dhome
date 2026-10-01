@@ -332,7 +332,7 @@ test("the cabinet designer's split view keeps the drawing editable beside the li
   assert.match(view, /setMode\(E\.split \? "split" : "2d"\);/);
   assert.match(view, /if \(restoreMode === "split"\) setMode\("2d"\);/);
   // A new home is a new size for the renderer, in every editor that swaps it.
-  assert.match(src("editor_view.js"), /if \(view\.invalidateSize\) view\.invalidateSize\(\);\s*view\.setBig\(big\);/);
+  assert.match(src("editor_view.js"), /if \(view\.invalidateSize\) view\.invalidateSize\(\);\s*view\.setBig\(big, !\(options && options\.render === false\)\);/);
   // Phones have no room for two views: no button, and a split falls back to the drawing.
   assert.match(src("ui_cabinet_mobile.js"), /if \(on && E\.split\) setMode\("2d"\);/);
   assert.match(src("ui_cabinet.js"), /<button data-mode="split" title="' \+ T\("vSplitTip"\)/);
@@ -346,7 +346,7 @@ test("the model editor's split view: the sketch beside a model that draws the sk
   assert.match(md, /if\(mode==="split"\)\{if\(isCanonicalAuthoring\(\)&&E\.authoring\.phase!=="sketch"\)beginSketchWorkflow\(\);setMode\("split"\);\}/);
   // E.mode stays 2D; leaving for the model, the sheet, an assembly or a phone drops it.
   assert.match(md, /if \(m !== "2d" \|\| E\.docType !== "part" \|\| document\.body\.classList\.contains\("compact-nav"\)\) E\.split = false;/);
-  assert.match(md, /swapView\(m === "3d" \|\| split, E\.pv\);/);
+  assert.match(md, /swapView\(m === "3d" \|\| split, E\.pv, \{ render: m !== "drawing" \}\);/);
   assert.match(md, /if \(E\.split && document\.body\.classList\.contains\("compact-nav"\)\) \{ setMode\("2d"\); return; \}/);
   // The model half draws every sketch on its own plane, rebuilt only when it changed.
   assert.match(md, /function drawSketch\(\) \{[^}]*?if \(!E\.open \|\| !E\.def\) return;\s*syncSplitSketch3D\(\);/);

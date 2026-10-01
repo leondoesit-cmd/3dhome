@@ -188,8 +188,12 @@ test("extrusion direction and mid-plane intent lower into exact ranges", () => {
     params:{depth:20,offset:5,direction:"reverse",endCondition:"blind"},
   });
   let compiled = compileKernelFeatureTree(document).features.find((feature) => feature.id === "feature:reverse");
+  assert.equal(compiled.params.from, -5, 'start offset follows the reverse pull direction');
+  assert.equal(compiled.params.to, -25);
+  updateFeatureDefinition(document, "feature:reverse", { params:{symmetric:true,endCondition:"mid-plane"} });
+  compiled = compileKernelFeatureTree(document).features.find((feature) => feature.id === "feature:reverse");
   assert.equal(compiled.params.from, 5);
-  assert.equal(compiled.params.to, -15);
+  assert.equal(compiled.params.to, -15, 'reverse mid-plane is centered at the reverse start offset');
   updateFeatureDefinition(document, "feature:reverse", { params:{direction:"forward",symmetric:true,endCondition:"mid-plane"} });
   compiled = compileKernelFeatureTree(document).features.find((feature) => feature.id === "feature:reverse");
   assert.equal(compiled.params.from, -5);

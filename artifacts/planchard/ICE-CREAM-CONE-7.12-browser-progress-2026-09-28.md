@@ -1,0 +1,7 @@
+# Exercise7.12 — fresh ribbed ice cream cone designer example
+
+Source PDF376–377 / printed7-68–69: create one's own traditional/nontraditional cone, ANSI-IPS, structural ribs, deliberately no dimensions. New blank desktop Chrome dark-theme inch document. Chosen tapered cup3in high, lowerØ1in, upperØ2in, radialwall.06in, floor.06in. Six-entity Front profile points(in): (0,0),(.5,0),(1,3),(.94,3),(.45,.06),(0,.06),close. Fully defined with five driving lengths, one reference length, horizontal/vertical/fixed-origin relations and parallel walls. Revolve360° aboutY; two steps, one open-top solid, clean actual library Save accepted.
+
+Fresh separate Front sketch: open line(.62,.12)→(1.06,2.76)in, both endpoint anchors fixed through UI, reference length2.676415513in. Fully defined. Actual Rib orientationParallelToSketch, growthLeft−U, thickness.06in BothSides, UpToBody. Native commit fails: 'Parallel Rib requires a planar stopping face; the first body surface is curved'. This is a concrete app gap; UI agent assigned real curved stopping-surface support and native regression. No script-authored replacement geometry.
+
+Four-step80,067,402-byte actual browser bundle protected as ICE-CREAM-CONE-7.12-rib-gap-browser-checkpoint-2026-09-28.mforge. Root Chrome270 preserved for continuation. Circular rib pattern, reinforced rim, final material, ANSI drawingsettings, exact mass, Save/reopen/STEP and upstream edit acceptance remain pending. The current failed Rib is not counted as a completed model.

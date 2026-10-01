@@ -143,6 +143,15 @@ export function convexHull(points) {
 }
 
 export function cutFootprint(part, bounds, frame, axisName, holeLoop = (hole) => hole) {
+  // A merged boss extends the stock beyond the original part's profile. Use
+  // the complete body's conservative envelope here; native intersection below
+  // still decides whether the cutter actually removes material.
+  if ((part?.merges3d || []).some((merge) => !merge.suppressed)) {
+    if (frame) return boundsInFrame(bounds, frame);
+    if (axisName === "y") return { u0: bounds.x0, u1: bounds.x1, v0: bounds.z0, v1: bounds.z1 };
+    if (axisName === "z") return { u0: bounds.x0, u1: bounds.x1, v0: bounds.y0, v1: bounds.y1 };
+    return { u0: bounds.z0, u1: bounds.z1, v0: bounds.y0, v1: bounds.y1 };
+  }
   if(part?.kind==="cyl"){
     const axis=cylinderAxis(part.axis),origin={x:Number(part.x)||0,y:Number(part.y)||0,z:Number(part.z)||0};
     const ownFrame=frameFromPlane(origin,axis),points=[],count=96;

@@ -1,17 +1,21 @@
 import {pierceSketchToHelix} from './core/sketch_pierce.js';
+import {isWorkerCacheBody} from './core/worker_body_cache.js';
 import {helixFromSketch} from './core/sketch_helix.js';
+import {offsetSketchFrame} from './core/sketch_offset.js';
+import {holeLayoutPoints} from './cad_hole_wizard.js';
 import {isThroughVertexPlane,resolveOffsetSketch} from './core/offset_planes.js';
+import {lookupSupportReference} from './core/support_reference_lookup.js';
 import {linkedEdgeLookup,updateSilhouetteSketch} from './core/cone_silhouette.js';
-import {bindIntersectionTargets,bindModelEdgeTargets,bindPierceTargets} from './sketch_intersection.js';
-import {revolveThinProfile} from './core/thin_profile.js';
-import {resolveAssociativeBoundary,updateCircularBoundarySketch} from './cad_associative_boundary.js';
+import {relationSourceSketchIds,resolveSketchRelationSources} from './core/sketch_relation_sources.js';
+import {revolveThinProfile,thinSketchProfile} from './core/thin_profile.js';
+import {resolveAssociativeBoundary,updateCircularBoundarySketch,updateTrimmedBoundarySketch} from './cad_associative_boundary.js';
 import {resolveSketchSources,sketchWorldPoint} from "./core/swept_sources.js";
 import { buildDependencyGraph, featureDependencies, datumReferenceIds } from "./core/dependency_graph.js";
-import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, rayHitsBrepFace, rayHitsExtendedBrepFace, resolveBrepSubshape, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
+import { booleanBrep, brepFaceLineIntersections, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, rayHitsBrepFace, rayHitsExtendedBrepFace, resolveBrepSubshape, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
 import {resolveProfilePoints, solveSketch} from "./sketch_solver.js";
+import { analyzeSketchChains } from "./sketch_profiles.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
-import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
-import { vertexEntriesFrom } from "./core/topology_selection.js";
+import { analyticProfileTopologyHints, createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
 import { faceFrameOrigin, realignFrame } from "./core/frame.js";
 import { aabbFromTopology, extrusionAxisVector, extrusionMapPoint, isUpToFace, profileBoundarySamples, resolveExtrudeExtent, resolvedEndFace, UP_TO_FACE_MISSING, UP_TO_FACE_MISSED, UP_TO_NEXT_MISSED } from "./core/extrude_extent.js";
 import { resolveParameters, sketchDiagnostics } from "./core/rebuild.js";
@@ -66,12 +70,16 @@ export function reorderFeature(def, featureId, targetIndex) {
   return true;
 }
 
-function resolvedSubshapeIds(resolutions, kind) {
+export function resolvedSubshapeIds(resolutions, kind) {
   const ids = [];
   (resolutions || []).forEach((entry) => {
     if (entry.reference?.kind !== kind && entry.topology?.kind !== kind) return;
     if (entry.topology?.persistentId) ids.push(entry.topology.persistentId);
-    const members = entry.reference?.memberPersistentIds || entry.topology?.memberPersistentIds;
+    // A merged circle may store its original chord IDs. After a rebound those
+    // chords are stale, even if an older body still publishes the same names.
+    const members = entry.status === "rebound"
+      ? entry.topology?.memberPersistentIds
+      : entry.reference?.memberPersistentIds || entry.topology?.memberPersistentIds;
     if (Array.isArray(members) && members.length) ids.push(...members);
   });
   return [...new Set(ids)];
@@ -116,6 +124,7 @@ export async function regenerateFeatures(def, options = {}) {
   for (const feature of ordered) {
     if (options.signal?.aborted) throw new DOMException("Regeneration cancelled", "AbortError");
     if (feature.suppressed || invalid.has(feature.id)) continue;
+    options.onProgress?.({featureId:feature.id, name:feature.name || feature.type, stage:"rebuild"});
     let result = null;
     try {
       for (const id of featureDependencies(feature)) {
@@ -137,14 +146,19 @@ export async function regenerateFeatures(def, options = {}) {
       const topologyLookup=ref=>{
         if(!ref)return null;
         const topology=results.get(ref.ownerFeatureId)?.topology || [];
-        return topology.find(item=>item.persistentId===ref.persistentId)
-          || (ref.semantic ? topology.find(item=>item.kind===(ref.kind||"edge")&&item.semantic===ref.semantic) : null)
-          || vertexEntriesFrom(topology).find(item=>item.persistentId===ref.persistentId);
+        return lookupSupportReference(ref,topology);
       };
       if(linkedSketch){const moved=resolveOffsetSketch(linkedSketch,executionDef.references,topologyLookup);
         if(moved!==linkedSketch){linkedSketch=moved;executionDef.sketches[sketchIndex]=moved;boundaryUpdates.set(moved.id,{sketch:moved,oldEntityIds:[],newEntityIds:[]});}
         if(feature.type==="rib" && moved.frame)effectiveParams={...effectiveParams,frame:moved.frame,axis:"frame"};}
 
+      const trimmedBoundary=updateTrimmedBoundarySketch(linkedSketch,effectiveParams,results);
+      if(trimmedBoundary){
+        const report=solveSketch(trimmedBoundary);
+        if(!report.converged)throw new Error('Trimmed linked boundary relations could not follow the source');
+        linkedSketch=trimmedBoundary;executionDef.sketches[sketchIndex]=trimmedBoundary;
+        boundaryUpdates.set(trimmedBoundary.id,{sketch:trimmedBoundary,oldEntityIds:[],newEntityIds:[]});
+      }
       const circularBoundary=updateCircularBoundarySketch(linkedSketch,results);
       if(circularBoundary){
         const report=solveSketch(circularBoundary);
@@ -164,22 +178,32 @@ export async function regenerateFeatures(def, options = {}) {
         const ids=[...(updated.silhouetteCopies || []),...(updated.circleCopies || [])].map(c=>c.entityId);boundaryUpdates.set(updated.id,{sketch:updated,oldEntityIds:ids,newEntityIds:ids});
         linkedSketch=updated;
       }
-      if(linkedSketch?.constraints?.some(constraint=>(constraint.type==="intersection"&&constraint.edgeA)||constraint.type==="onModelEdge"||constraint.type==="pierce")){
-        const updated=structuredClone(linkedSketch);
+      {
         const edgeLookup=ref=>{
           const topology=results.get(ref.ownerFeatureId)?.topology || [];
           return topology.find(item=>item.persistentId===ref.persistentId)
             || (ref.semantic ? topology.find(item=>item.kind==="edge"&&item.semantic===ref.semantic) : null);
         };
-        bindIntersectionTargets(updated,edgeLookup);
-        bindModelEdgeTargets(updated,edgeLookup);
-        bindPierceTargets(updated,executionDef.sketches || [],sketchWorldPoint);
-        const report=solveSketch(updated);
-        if(!report.converged)throw new Error("A relation to model edges or another sketch could not follow its source");
-        executionDef.sketches[sketchIndex]=updated;
-        boundaryUpdates.set(updated.id,{sketch:updated,oldEntityIds:[],newEntityIds:[]});
+        for(const updated of resolveSketchRelationSources(executionDef,relationSourceSketchIds(feature,sketchId),edgeLookup,(ref,origin,direction)=>brepFaceLineIntersections(results.get(ref.ownerFeatureId),ref,origin,direction)))
+          boundaryUpdates.set(updated.id,{sketch:updated,oldEntityIds:[],newEntityIds:[]});
       }
-      if (feature.type === "box") result = await makeBrepPrimitive({ type: "box", ...effectiveParams });
+      // A worker can provide an exact body only after matching its complete
+      // upstream geometry/parameters. It owns an independent restored BREP whose
+      // verified face and edge names travel with it: re-deriving them from the
+      // lightweight analytic hints renamed a coplanar face (LENS: plane:1 became
+      // plane:3) and every reference to the old name went missing. The issue
+      // gates below still apply.
+      let restoredTopology = null, fromWorkerCache = false, keepRestoredNames = false;
+      if (isWorkerCacheBody(feature.type) && options.cachedResults?.has(feature.id)) {
+        result = options.cachedResults.get(feature.id);
+        restoredTopology = result.topology || [];
+        /* A Shell restored from the finish-preview cache still carries its
+           preview names; only a body cached under its own feature keeps them. */
+        keepRestoredNames = restoredTopology.length > 0 && restoredTopology.every(item => !String(item.ownerFeatureId || "").startsWith("preview:"));
+        fromWorkerCache = true;
+      }
+      if (fromWorkerCache) { /* restored cached body: skip the builders below */ }
+      else if (feature.type === "box") result = await makeBrepPrimitive({ type: "box", ...effectiveParams });
       else if (feature.type === "cylinder") result = await makeBrepPrimitive({ type: "cylinder", ...effectiveParams });
       else if (feature.type === "sphere") result = await makeBrepPrimitive({ type: "sphere", ...effectiveParams });
       else if (feature.type === "import") {
@@ -204,9 +228,9 @@ export async function regenerateFeatures(def, options = {}) {
         // A circular sketch supplies its centre, not the cutter's polygon.
         if(params.sketchId && (!params.layout || params.layout==="sketch")){
           const sketch=(def.sketches||[]).find(s=>s.id===params.sketchId)||def.sketch;
-          const circles=(sketch?.entities||[]).filter(e=>e.type==="circle"&&!e.construction&&(!params.profileEntityIds?.length||params.profileEntityIds.includes(e.id)));
-          if(!circles.length)throw new Error("Hole placement sketch requires a circle");
-          params={...params,centres:circles.map(circle=>{const point=sketch.points.find(p=>p.id===circle.c);if(!point)throw new Error("Hole centre is missing");return {u:point.x,v:point.y};})};
+          const centres=holeLayoutPoints(params,sketch);
+          if(!centres.length)throw new Error("Hole placement sketch requires a centre");
+          params={...params,centres};
         }
         result=await makeBrepHoleTool(params,results.get(params.targetFeatureId || feature.inputs[0]));
       }
@@ -364,6 +388,13 @@ export async function regenerateFeatures(def, options = {}) {
       else if (feature.type === "rib") {
         const source = results.get(feature.inputs[0]);
         if (!source?.shape) throw new Error("Rib input is unavailable");
+        if(linkedSketch){
+          const selectedIds=effectiveParams.chainEntityIds || [],chains=analyzeSketchChains(linkedSketch,{selectedIds}).chains;
+          const chain=selectedIds.length ? chains.find(item=>selectedIds.every(id=>item.entityIds.includes(id))) : chains.length===1 ? chains[0] : null;
+          if(!chain)throw new Error("Rib driving sketch must contain one selected open chain");
+          effectiveParams={...effectiveParams,points:chain.points};
+          if(!linkedSketch.frame)effectiveParams={...effectiveParams,axis:linkedSketch.plane==="front"?"z":linkedSketch.plane==="side"?"x":"y",from:Number(linkedSketch.offset)||0};
+        }
         result = await ribBrep(source, effectiveParams);
       }
       else if (feature.type === "thicken") {
@@ -408,13 +439,13 @@ export async function regenerateFeatures(def, options = {}) {
         throw new Error("Unsupported feature type: " + feature.type);
       }
       const inputResults = (feature.inputs || []).map((id) => results.get(id)).filter(Boolean);
-      result.topology = topologyForFeature(feature, effectiveParams, inputResults) || [];
-      if (result.shape) result.topology = extractBrepTopology(result, {
+      result.topology = keepRestoredNames ? restoredTopology : topologyForFeature(feature, effectiveParams, inputResults) || [];
+      if (result.shape && !keepRestoredNames) result.topology = extractBrepTopology(result, {
         ownerFeatureId: feature.id,
         // Preserve the last verified exact names before assigning lightweight
         // analytic names.  Generated fillet/offset edges do not exist in the
         // lightweight topology and must get first choice of the raw subshapes.
-        expectedTopology: (topologyHints.get(feature.id) || []).concat(result.topology),
+        expectedTopology: analyticProfileTopologyHints(topologyHints.get(feature.id) || [], effectiveParams, def.exactTopologyCache?.[feature.id]?.signature).concat(result.topology),
       }).topology || [];
       (result.topology || []).forEach((item) => {
         if (!topology.byPersistentId.has(item.persistentId)) topology.list.push(item);
@@ -437,9 +468,7 @@ export async function regenerateFeatures(def, options = {}) {
   const lookup = (ref) => {
     if (!ref) return null;
     const topology = results.get(ref.ownerFeatureId)?.topology || [];
-    return topology.find((item) => item.persistentId === ref.persistentId)
-      || (ref.semantic ? topology.find((item) => item.kind === (ref.kind || "edge") && item.semantic === ref.semantic) : null)
-      || vertexEntriesFrom(topology).find((item) => item.persistentId === ref.persistentId);
+    return lookupSupportReference(ref,topology);
   };
   const helixUpdates = (executionDef.referenceGeometry || []).filter((r) => r.featureId && results.has(r.featureId));
   const planeDisplays = [];
@@ -469,20 +498,32 @@ export function releaseRegeneration(run) {
 // Resolve a sketch-backed extrusion at regeneration time so editing the source
 // sketch updates the solid without rebuilding a disconnected copy of the profile.
 export function resolveSketchExtrusion(def, params) {
-  if (!params?.profileEntityIds?.length) return params;
+  if (!params?.profileEntityIds?.length && !params?.regionProfileEntityIds?.some(ids=>ids?.length)) return params;
   // A profile belongs to one named sketch. Older documents carried a single
   // plane-less `def.sketch`, so fall back to it and then to the first sketch.
   const sketches = Array.isArray(def.sketches) ? def.sketches : [];
   const sketch = (params.sketchId && sketches.find((s) => s.id === params.sketchId))
     || def.sketch || sketches[0] || null;
   if (!sketch) throw new Error("Sketch profile is missing its sketch");
+  if(params.thinFeature){
+    const thin=thinSketchProfile(sketch,params.profileEntityIds,params.thickness,params.thinMode);
+    return {...params,points:thin.points,segments:thin.segments,holes:[],regions:[]};
+  }
   // Same resolver the live mesh uses, so the exact solid and the drawn one
   // cannot disagree about what the feature currently is.
-  const points = resolveProfilePoints(sketch, params.profileEntityIds);
+  const points = params.profileEntityIds?.length ? resolveProfilePoints(sketch, params.profileEntityIds) : params.points;
   if (!points) throw new Error("Sketch profile is missing, open or unsupported");
   const holes = Array.isArray(params.holeProfileEntityIds) && params.holeProfileEntityIds.length
     ? params.holeProfileEntityIds.map(ids=>{const loop=resolveProfilePoints(sketch,ids);if(!loop)throw new Error("Inner profile is missing or open");return loop;}) : params.holes;
-  return withProfileSegments({ ...params, points, holes }, sketch, params.profileEntityIds);
+  const regions = Array.isArray(params.regionProfileEntityIds)
+    ? params.regionProfileEntityIds.map((ids,index)=>{
+      if(!ids?.length)return params.regions?.[index];
+      const loop=resolveProfilePoints(sketch,ids);
+      if(!loop)throw new Error("Additional sketch profile is missing or open");
+      const segments=sketchProfileSegments(sketch,ids);
+      return segments ? {points:loop,segments} : loop;
+    }) : params.regions;
+  return withProfileSegments({ ...params, points, holes, regions }, sketch, params.profileEntityIds);
 }
 
 /* The sampled points are what the mesh draws; the typed segments are what the
@@ -491,7 +532,7 @@ export function resolveSketchExtrusion(def, params) {
    disagree about how many faces a round wall has. A sketch we cannot describe
    exactly just keeps the points. */
 function withProfileSegments(params, sketch, entityIds) {
-  const segments = sketchProfileSegments(sketch, entityIds);
+  const segments = sketchProfileSegments(sketch, entityIds,0.05,{includeEntityIds:true});
   const holeIds = Array.isArray(params.holeProfileEntityIds) ? params.holeProfileEntityIds : null;
   const holes = holeIds && Array.isArray(params.holes)
     ? params.holes.map((hole, index) => {
@@ -530,7 +571,8 @@ export function alignExtrusionToSupport(params, resolutions = []) {
   if (params.frame) {
     const baseOffset = Number(params.baseOffset) || 0;
     const depth = Math.max(1e-6, Math.abs(Number(params.depth) || Math.abs(Number(params.to) - Number(params.from))));
-    return { ...params, frame: realignFrame(params.frame, faceFrameOrigin(descriptor,params.frameAnchor), descriptor.normal), from: symmetric ? baseOffset-depth/2 : baseOffset, to: symmetric ? baseOffset+depth/2 : baseOffset+reversed*depth };
+    const base=faceFrameOrigin(descriptor,params.frameAnchor),frame=offsetSketchFrame(realignFrame(params.frame,base,descriptor.normal),base,descriptor.normal,params.supportOffset);
+    return { ...params, frame, from: symmetric ? reversed*(baseOffset-depth/2) : reversed*baseOffset, to: symmetric ? reversed*(baseOffset+depth/2) : reversed*(baseOffset+depth) };
   }
   const axis = params.axis || "y";
   const coordinate = Number(descriptor.origin[axis]) || 0;

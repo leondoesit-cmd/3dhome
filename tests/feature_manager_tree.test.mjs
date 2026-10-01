@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import {
-  buildTreeModel, flattenTree, findTreeNode, predictedBodies,
+  buildTreeModel, flattenTree, findTreeNode, folderMemberIds, predictedBodies,
   friendlyTreeName, sketchOwnership, sketchReferenceIds, treeMode, CANONICAL, LEGACY,
 } from "../js/core/tree_model.js";
 import {
@@ -199,6 +199,20 @@ test("a folder groups history rows without reordering the build", () => {
   assert.equal(history.children[0].detail, "2");
   // The document itself is untouched — folders are presentation only.
   assert.deepEqual(doc.history.map((entry) => entry.targetId), ["s1", "f1", "s2", "f2"]);
+});
+
+test("folder creation saves only the contiguous top level selection", () => {
+  const doc = canonicalDoc();
+  const model = buildTreeModel(doc);
+  // The browser's FilletFolder case had two selected features and an owned
+  // sketch left selected by the preceding boss. That sketch is a child row.
+  assert.deepEqual(folderMemberIds(model, ["f1", "f2", "s1"], "f2"), ["f1", "f2"]);
+  assert.deepEqual(folderMemberIds(model, ["s1"], "s1"), []);
+
+  doc.features.push({ id: "f3", name: "Fillet", type: "fillet", inputs: ["f2"] });
+  doc.history.push({ id: "h:f3", kind: "feature", targetId: "f3" });
+  const later = buildTreeModel(doc);
+  assert.deepEqual(folderMemberIds(later, ["f1", "f3"], "f3"), ["f3"]);
 });
 
 test("collapse state hides children from navigation as well as from the page", () => {

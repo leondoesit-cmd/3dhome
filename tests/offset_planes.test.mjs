@@ -4,6 +4,18 @@ import {resolveOffsetPlanes, resolveOffsetSketch, offsetPlaneOwners, throughVert
 import {topologyForFeature} from '../js/core/topology.js';
 
 function fixture(){return {references:[{id:'top',type:'plane',origin:{x:0,y:0,z:0},normal:{x:0,y:1,z:0}},{id:'p1',type:'plane',baseReferenceId:'top',offset:1.27},{id:'p2',type:'plane',baseReferenceId:'p1',offset:1.27}],sketches:[{id:'middle',referenceId:'p1'},{id:'upper',referenceId:'p2'}]};}
+test('reparenting a face offset synchronizes its geometry twin',()=>{
+ const support={persistentId:'base:start',descriptor:{surface:'plane',origin:{x:0,y:0,z:0},normal:{x:0,y:0,z:-1}}};
+ const doc={references:[{id:'loft',type:'plane',support,offset:3.302}],referenceGeometry:[{id:'loft',type:'reference_plane',support:{persistentId:'base:end'}}],sketches:[{id:'square',referenceId:'loft'}]};
+ assert.equal(resolveOffsetPlanes(doc).ok,true);
+ assert.equal(doc.sketches[0].frame.origin.z,-3.302);
+ assert.equal(doc.referenceGeometry[0].support.persistentId,'base:start');
+ assert.equal(doc.referenceGeometry[0].origin.z,-3.302);
+ doc.references[0].baseReferenceId='principal';delete doc.references[0].support;
+ doc.references.push({id:'principal',type:'plane',origin:{x:0,y:0,z:1},normal:{x:0,y:0,z:1}});
+ assert.equal(resolveOffsetPlanes(doc).ok,true);
+ assert.equal(doc.referenceGeometry[0].support,undefined);
+});
 test('dependent offset planes move attached sketches after parent edits and serialization',()=>{
  let doc=fixture();assert.equal(resolveOffsetPlanes(doc).ok,true);assert.equal(doc.sketches[1].frame.origin.y,2.54);
  doc=JSON.parse(JSON.stringify(doc));doc.references[1].offset=.3175;assert.equal(resolveOffsetPlanes(doc).ok,true);

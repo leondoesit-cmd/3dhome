@@ -11,6 +11,18 @@ function load(name, context) {
   const end=source.indexOf('\n}',start)+2;
   return vm.runInNewContext(`(${source.slice(start,end)})`,context);
 }
+
+test('camera view changes preserve an active principal-plane model sketch',()=>{
+ const cameraViews=[];
+ const E={mode:'3d',modelPlaneActive:true,view:'side',def:{activeSketch:'offset-right'},
+  authoring:{phase:'sketch',sketchId:'offset-right'},pv:{clearFixedFrame(){},orbitTo(az,el){cameraViews.push([az,el]);}}};
+ const presets=[{id:'front',az:0,el:.05},{id:'top',az:0,el:1.5},{id:'right',az:Math.PI/2,el:.05}];
+ const setView=load('setView',{E,CAMERA_ONLY_VIEWS:['iso','back','left'],VIEW_PRESETS:presets,
+  adoptSketchForView(){throw new Error('Camera changes must not adopt another sketch');},drawSketch(){}});
+ setView('front');setView('top');setView('side');
+ assert.equal(E.view,'side');assert.equal(E.def.activeSketch,'offset-right');
+ assert.equal(E.authoring.sketchId,'offset-right');assert.equal(cameraViews.length,3);
+});
 test('face-local extrusion previews agree with exact support direction on reversed and oblique faces',()=>{
  for(const normal of [{x:0,y:0,z:-1},{x:0,y:-1,z:0},{x:-1,y:0,z:0},{x:0,y:0,z:1},{x:-.6,y:0,z:-.8}]) {
   const frame=frameFromPlane({x:2,y:3,z:4},normal);
@@ -108,6 +120,10 @@ test('editing an offset plane keeps its parent despite a retained face selection
  assert.equal(field('parent').value,'plane:top');
  assert.equal(field('mode').value,'offset');
  assert.ok(!field('parent').choices.some(choice=>choice.value==='selected-face'));
+ assert.ok(field('parent').choices.some(choice=>choice.value==='replacement-face'), 'changing support remains an explicit choice');
+ open({id:'plane1',type:'plane',name:'Plane1',refType:'offset',support:{kind:'face',persistentId:'original-cap',descriptor:{surface:'plane'}},offset:1.27});
+ assert.equal(field('parent').value,'selected-face', 'the existing face still remains selected');
+ assert.ok(field('parent').choices.some(choice=>choice.value==='replacement-face'));
  open();
  assert.equal(field('parent').value,'selected-face');
 });
@@ -126,7 +142,7 @@ test('Copy face boundary prefers the selected circular edge over a planar face',
  const other={kind:'edge',persistentId:'front-circle',descriptor:{curve:'circle',radius:1,origin:{z:0}}};
  let form;
  const open=load('openCircularConversion',{
-  E:{def:{parts:[{}]}},topologyEntriesForPart:()=>[other,edge],
+  E:{def:{parts:[{}]}},selCircles:()=>[],topologyEntriesForPart:()=>[other,edge],
   projectCircularEdge:()=>({x:0,y:0,radius:1}),openQuickForm:config=>{form=config;},
  });
  edge.descriptor.radius=1;edge.descriptor.origin={z:0};
@@ -135,7 +151,7 @@ test('Copy face boundary prefers the selected circular edge over a planar face',
  const partial={kind:'edge',persistentId:'split-arc',descriptor:{curve:'circle',radius:1.05,origin:{z:0}}};
  const complete={kind:'edge',persistentId:'near-full-rim',descriptor:{curve:'circle',radius:1.08,origin:{z:0}}};
  const fallback=load('openCircularConversion',{
-  E:{def:{parts:[{}]}},topologyEntriesForPart:()=>[other,complete],
+  E:{def:{parts:[{}]}},selCircles:()=>[],topologyEntriesForPart:()=>[other,complete],
   projectCircularEdge:(_sketch,item)=>{if(item===partial)throw Error('Select a complete circular edge');return {x:0,y:0,radius:item.descriptor.radius};},
   openQuickForm:config=>{form=config;},
  });

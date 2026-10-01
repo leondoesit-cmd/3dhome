@@ -171,8 +171,8 @@ const INSTRUMENT = [
   },
   {
     file: "/js/modeler.js",
-    needle: "function refreshAll() {",
-    inject: "function refreshAll() { if (window.__perf) window.__perf.mdRefreshAll++;",
+    needle: "function refreshAll(options = {}) {",
+    inject: "function refreshAll(options = {}) { if (window.__perf) window.__perf.mdRefreshAll++;",
   },
   {
     file: "/js/core/parametric_rebuild.js",

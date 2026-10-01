@@ -63,7 +63,12 @@ export function triangulatePolygon(outer, holes = []) {
       let clean = true;
       for (let k = 0; k < indices.length && clean; k++) {
         if (k === i || k === (i - 1 + indices.length) % indices.length || k === (i + 1) % indices.length) continue;
-        if (pointInTriangle(ring[indices[k]], prev, ear, next)) clean = false;
+        const point = ring[indices[k]];
+        // A doubled bridge repeats its endpoint under a different index. It
+        // is an ear corner, not an interior blocker. Keep boundary tests for
+        // other vertices so collinear diagonals cannot cross the outline.
+        if (samePoint(point, prev) || samePoint(point, ear) || samePoint(point, next)) continue;
+        if (pointInTriangle(point, prev, ear, next)) clean = false;
       }
       if (!clean) continue;
       triangles.push([prev, ear, next]);
@@ -78,6 +83,7 @@ export function triangulatePolygon(outer, holes = []) {
 }
 
 const cross2 = (a, b, c) => (b.u - a.u) * (c.v - a.v) - (b.v - a.v) * (c.u - a.u);
+const samePoint = (a, b) => Math.abs(a.u - b.u) < 1e-12 && Math.abs(a.v - b.v) < 1e-12;
 
 function pointInTriangle(point, a, b, c) {
   const d1 = cross2(a, b, point), d2 = cross2(b, c, point), d3 = cross2(c, a, point);

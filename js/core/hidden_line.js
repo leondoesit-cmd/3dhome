@@ -337,9 +337,9 @@ function spansToSegments(group, spans, minimum) {
   return out;
 }
 
-export function consolidateSegments(visible, hidden, tolerance) {
+export function consolidateSegments(visible, hidden, tolerance, minimumLength) {
   const tol = tolerance > 0 ? tolerance : 1e-4;
-  const minimum = tol * 2;
+  const minimum = Number.isFinite(minimumLength) ? Math.max(0, minimumLength) : tol * 2;
   const visibleGroups = groupSegments(visible, tol);
   const hiddenGroups = groupSegments(hidden, tol);
   const outVisible = [], outHidden = [];
@@ -376,6 +376,49 @@ function bodyCircles(body) {
   try { circles = meshFeatureEdges(body).circles || []; } catch { circles = []; }
   featureCache.set(body, circles);
   return circles;
+}
+
+// Two closed coaxial rims of equal radius identify a cylindrical wall. Its
+// long edges are tessellation seams, even when a coarse mesh exceeds the
+// normal crease angle. Keep their silhouette, and keep every cap/rim crease.
+function bodyCylinders(body, tolerance) {
+  const circles = bodyCircles(body).filter(circle => circle.closed && circle.origin && circle.radius > 0);
+  const cylinders = [];
+  for (let i = 0; i < circles.length; i++) for (let j = i + 1; j < circles.length; j++) {
+    const a = circles[i], b = circles[j], axis = unit(a.axis || v3(0,1,0));
+    if (Math.abs(dot(axis, unit(b.axis || v3(0,1,0)))) < 1 - 1e-6 || Math.abs(a.radius - b.radius) > tolerance) continue;
+    const delta = {x:b.origin.x-a.origin.x,y:b.origin.y-a.origin.y,z:b.origin.z-a.origin.z};
+    const height = dot(delta, axis);
+    if (Math.abs(height) <= tolerance) continue;
+    if (Math.hypot(delta.x-axis.x*height, delta.y-axis.y*height, delta.z-axis.z*height) > tolerance) continue;
+    cylinders.push({origin:a.origin,axis,radius:a.radius,from:Math.min(0,height),to:Math.max(0,height)});
+  }
+  return cylinders;
+}
+
+function cylindricalSeam(edge, faces, cylinders, tolerance) {
+  const direction = unit({x:edge.b.x-edge.a.x,y:edge.b.y-edge.a.y,z:edge.b.z-edge.a.z});
+  for (const cylinder of cylinders) {
+    if (Math.abs(dot(direction,cylinder.axis)) < 1-1e-6 || faces.some(normal=>Math.abs(dot(normal,cylinder.axis))>1e-5)) continue;
+    let matches = true;
+    for (const point of [edge.a,edge.b]) {
+      const relative={x:point.x-cylinder.origin.x,y:point.y-cylinder.origin.y,z:point.z-cylinder.origin.z};
+      const along=dot(relative,cylinder.axis);
+      const radial=Math.hypot(relative.x-cylinder.axis.x*along,relative.y-cylinder.axis.y*along,relative.z-cylinder.axis.z*along);
+      if (along<cylinder.from-tolerance || along>cylinder.to+tolerance || Math.abs(radial-cylinder.radius)>tolerance) {matches=false;break;}
+    }
+    if(matches) return cylinder;
+  }
+  return null;
+}
+
+function cylinderSilhouette(point, cylinder, forward) {
+  const direction=unit(cross(cylinder.axis,forward));
+  const relative={x:point.x-cylinder.origin.x,y:point.y-cylinder.origin.y,z:point.z-cylinder.origin.z};
+  const along=dot(relative,cylinder.axis), sign=dot(relative,direction)<0?-1:1;
+  return {x:cylinder.origin.x+cylinder.axis.x*along+direction.x*cylinder.radius*sign,
+    y:cylinder.origin.y+cylinder.axis.y*along+direction.y*cylinder.radius*sign,
+    z:cylinder.origin.z+cylinder.axis.z*along+direction.z*cylinder.radius*sign};
 }
 
 /* A hole rim is worth more to the reader than the ring it draws: seen down its
@@ -540,12 +583,17 @@ export function projectSolid(bodies, view = "front", options = {}) {
   const visible = [], hidden = [];
   const normals = new Array(store.count);
   const normalOf = (tri) => (normals[tri] !== undefined ? normals[tri] : (normals[tri] = triangleNormal(store.points, tri)));
+  const bodyList = Array.isArray(bodies) ? bodies : [bodies];
+  const cylinders = bodyList.map(body=>bodyCylinders(body,weld*2));
 
   for (const edge of buildEdges(store, weld)) {
     const faces = edge.tris.map(normalOf).filter(Boolean);
     if (!faces.length) continue;
     let candidate = edge.tris.length === 1;                       // an open boundary
-    if (!candidate) {
+    const owner = store.owner[edge.tris[0]];
+    const cylinder = edge.tris.length > 1 && edge.tris.every(tri=>store.owner[tri]===owner)
+      ? cylindricalSeam(edge,faces,cylinders[owner],weld*2) : null;
+    if (!candidate && !cylinder) {
       for (let a = 0; a < faces.length && !candidate; a++) {
         for (let b = a + 1; b < faces.length; b++) {
           if (dot(faces[a], faces[b]) < creaseCos) { candidate = true; break; }   // a real crease
@@ -569,14 +617,18 @@ export function projectSolid(bodies, view = "front", options = {}) {
       candidate = (front && back) || (tangent && (front || back));
     }
     if (!candidate) continue;
+    // The fitted radius locates the true support line rather than a chord's
+    // nearest vertex, keeping side-view diameters exact on odd facet counts.
+    const start = cylinder ? cylinderSilhouette(edge.a,cylinder,basis.forward) : edge.a;
+    const end = cylinder ? cylinderSilhouette(edge.b,cylinder,basis.forward) : edge.b;
     const a = {
-      u: dot(edge.a, basis.right), v: dot(edge.a, basis.up), w: dot(edge.a, basis.forward),
+      u: dot(start, basis.right), v: dot(start, basis.up), w: dot(start, basis.forward),
     };
     const b = {
-      u: dot(edge.b, basis.right), v: dot(edge.b, basis.up), w: dot(edge.b, basis.forward),
+      u: dot(end, basis.right), v: dot(end, basis.up), w: dot(end, basis.forward),
     };
     const length = Math.hypot(b.u - a.u, b.v - a.v);
-    if (length < span2d * 5e-4) continue;                         // shorter than a pen width
+    if (length < 1e-9) continue;
     const samples = Math.max(4, Math.min(48, Math.ceil(length / (span2d * 0.02))));
     for (const run of splitEdge(grid, a, b, slack, samples)) {
       if (!run.visible && !wantHidden) continue;
@@ -597,8 +649,17 @@ export function projectSolid(bodies, view = "front", options = {}) {
     visibleRound.forEach((circle) => { if (circle.absorbed) circle.drawn = "visible"; });
     inkHidden = absorbCircleChords(hiddenRound, inkHidden, span2d * 2e-3);
     hiddenRound.forEach((circle) => { if (circle.absorbed) circle.drawn = "hidden"; });
+    // A rear rim can coincide with the already visible front rim. Its hidden
+    // chords must yield to the continuous circle, as straight segments do.
+    const visibleInk = visibleRound.filter(circle=>circle.drawn === "visible");
+    inkHidden = absorbCircleChords(visibleInk, inkHidden, span2d * 2e-3);
+    hiddenRound.forEach(circle=>{
+      if(visibleInk.some(front=>Math.hypot(front.u-circle.u,front.v-circle.v)<span2d*2e-3 && Math.abs(front.radius-circle.radius)<span2d*2e-3)) delete circle.drawn;
+    });
   }
-  const merged = consolidateSegments(inkVisible, inkHidden, span2d * 1.5e-3);
+  // Small oblique rims remain tessellated ellipses. Removing each short chord
+  // by pen width erases the entire hole, even though their complete loop is large.
+  const merged = consolidateSegments(inkVisible, inkHidden, span2d * 1.5e-3, 1e-9);
   const cuts = (options.cuts || []).map((cut) => ({
     a: { u: dot(cut.a, basis.right), v: dot(cut.a, basis.up) },
     b: { u: dot(cut.b, basis.right), v: dot(cut.b, basis.up) },
@@ -613,7 +674,32 @@ export function projectSolid(bodies, view = "front", options = {}) {
       exactBounds.v0=Math.min(exactBounds.v0,v);exactBounds.v1=Math.max(exactBounds.v1,v);
     }
   }
-  return { visible: merged.visible, hidden: merged.hidden, circles, cuts, bounds: grid.bounds, exactBounds, basis, view };
+  const surfaces = options.shaded ? shadedSurfaces(store, basis) : [];
+  return { visible: merged.visible, hidden: merged.hidden, circles, cuts, surfaces, bounds: grid.bounds, exactBounds, basis, view };
+}
+
+/* Surface ink comes from the same rebuilt triangle soup as HLR, including
+   holes and fillets. Orthographic depth ordering keeps the far facets behind
+   near ones; back-facing facets never fill a through-hole. No viewport image
+   is embedded in a sheet, so exported shaded views remain vector geometry. */
+function shadedSurfaces(store, basis) {
+  const light = unit({x:basis.forward.x + basis.up.x*.6 - basis.right.x*.4,
+    y:basis.forward.y + basis.up.y*.6 - basis.right.y*.4,
+    z:basis.forward.z + basis.up.z*.6 - basis.right.z*.4});
+  const surfaces=[];
+  for(let tri=0;tri<store.count;tri++) {
+    const normal=triangleNormal(store.points,tri);
+    if(!normal || dot(normal,basis.forward)<=1e-8) continue;
+    const points=[];
+    for(let vertex=0;vertex<3;vertex++) {
+      const i=tri*9+vertex*3,p={x:store.points[i],y:store.points[i+1],z:store.points[i+2]};
+      points.push({u:dot(p,basis.right),v:dot(p,basis.up),w:dot(p,basis.forward)});
+    }
+    const tone=Math.round(255*(.42+.5*Math.max(0,dot(normal,light))));
+    const hex=tone.toString(16).padStart(2,"0");
+    surfaces.push({points,fill:"#"+hex+hex+hex,depth:points.reduce((sum,p)=>sum+p.w,0)/3});
+  }
+  return surfaces.sort((a,b)=>a.depth-b.depth);
 }
 
 /* Which standard view looks along a given direction of sight. A section is
@@ -651,9 +737,28 @@ export function cropProjection(projection, circle) {
     cuts: clip(projection.cuts),
     circles: (projection.circles || []).filter((entry) =>
       Math.hypot(entry.u - circle.u, entry.v - circle.v) <= radius + entry.radius),
+    surfaces: (projection.surfaces || []).map(surface=>({...surface,points:clipSurfaceToCircle(surface.points,circle)})).filter(surface=>surface.points.length>=3),
     bounds: { u0: circle.u - radius, u1: circle.u + radius, v0: circle.v - radius, v1: circle.v + radius },
     crop: { u: circle.u, v: circle.v, radius },
   };
+}
+
+function clipSurfaceToCircle(points,circle) {
+  // Convex 128-sided clipping boundary shares the exact detail centre/radius.
+  let result=points;
+  for(let i=0;i<128 && result.length;i++) {
+    const a={u:circle.u+circle.radius*Math.cos(i*Math.PI/64),v:circle.v+circle.radius*Math.sin(i*Math.PI/64)};
+    const b={u:circle.u+circle.radius*Math.cos((i+1)*Math.PI/64),v:circle.v+circle.radius*Math.sin((i+1)*Math.PI/64)};
+    const side=p=>(b.u-a.u)*(p.v-a.v)-(b.v-a.v)*(p.u-a.u);
+    const next=[];
+    for(let j=0;j<result.length;j++) {
+      const p=result[j],q=result[(j+1)%result.length],sp=side(p),sq=side(q);
+      if(sp>=-1e-10)next.push(p);
+      if((sp>=0)!==(sq>=0)) {const t=sp/(sp-sq);next.push({u:p.u+(q.u-p.u)*t,v:p.v+(q.v-p.v)*t,w:p.w+(q.w-p.w)*t});}
+    }
+    result=next;
+  }
+  return result;
 }
 
 function clipSegmentToCircle(a, b, cu, cv, radius) {

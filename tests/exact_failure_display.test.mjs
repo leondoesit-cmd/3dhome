@@ -15,7 +15,12 @@ const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
 const fnSource = (name) => {
   const start = src.indexOf(name + '(');
   assert.ok(start >= 0, name + ' exists in modeler.js');
-  let depth = 0, end = src.indexOf('{', start);
+  let parameters = 0, bodyStart = src.indexOf('(', start);
+  for (let i = bodyStart; i < src.length; i++) {
+    if (src[i] === '(') parameters++;
+    else if (src[i] === ')' && --parameters === 0) { bodyStart = src.indexOf('{', i); break; }
+  }
+  let depth = 0, end = bodyStart;
   for (let i = end; i < src.length; i++) {
     if (src[i] === '{') depth++;
     else if (src[i] === '}' && --depth === 0) { end = i + 1; break; }
@@ -79,6 +84,40 @@ test('a successful run still publishes the head and clears the error', async () 
   await context.publishExactBodies(doc.parts, run, doc, meshOf);
   assert.equal(part.meshData.from, idOf(doc, 'Extrude / Boss 3'));
   assert.equal(part.exactError, null);
+});
+
+test('a document change during mesh transfer cannot publish obsolete geometry', async () => {
+  const doc = record(), part = doc.parts[0], before = staleRing();
+  part.meshData = before;
+  const run = failedBoss3Run(doc, ['Base Extrude', 'Boss-Loft1', 'Boss-Battery', 'Shell1', 'Extrude / Boss 3']);
+  run.ok = true;
+  let current = true;
+  const changed = await context.publishExactBodies(doc.parts, run, doc, async body => {
+    current = false;
+    return meshOf(body);
+  }, () => current);
+  assert.equal(changed.length, 0);
+  assert.equal(part.meshData, before);
+});
+
+test('save publishes verified worker meshes without native BREP handles',async()=>{
+ const doc=record(),part=doc.parts[0],head=idOf(doc,'Extrude / Boss 3');
+ const mesh={positions:[0,0,0,1,0,0,0,1,0],topology:[]};
+ const body={verifiedSerializedExact:true,workerMeshData:mesh};
+ const run={ok:true,issues:[],results:new Map([[head,body]])};
+ const changed=await context.publishExactBodies(doc.parts,run,doc,async result=>{
+   assert.equal(result.shape,undefined);return result.workerMeshData;
+ });
+ assert.equal(changed.length,1);assert.equal(part.meshData,mesh);assert.equal(part.exactError,null);
+});
+
+test('an obsolete worker mesh cannot replace the current document display',async()=>{
+ const doc=record(),part=doc.parts[0],head=idOf(doc,'Extrude / Boss 3'),before=staleRing();
+ part.meshData=before;
+ const run={ok:true,issues:[],results:new Map([[head,{verifiedSerializedExact:true,workerMeshData:{positions:[0,0,0]}}]])};
+ let current=true;
+ const changed=await context.publishExactBodies(doc.parts,run,doc,async result=>{current=false;return result.workerMeshData;},()=>current);
+ assert.equal(changed.length,0);assert.equal(part.meshData,before);
 });
 
 test('a kernel regeneration failure fails the rebuild status, the tree row and the status bar count', () => {

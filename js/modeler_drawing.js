@@ -20,8 +20,40 @@ import {
   scaleLabel, scaleValue, sceneToSvg, sheetDimIssues, sheetPaper, topologyAnchors, topologyCrossings,
 } from "./cad_sheet.js";
 import { isOrthoView, projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
+import { planModelItems } from "./core/model_items.js";
 
 export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail"];
+
+/** Axis-aligned picks have only one meaningful projected measurement.
+ * Moving its label past an endpoint must not turn that measurement into zero. */
+export function linearDimensionPreview(draft, place, cursor) {
+  if (!cursor || draft.refs?.length !== 2) return null;
+  const [first, second] = draft.refs;
+  const du = Math.abs(second.u - first.u), dv = Math.abs(second.v - first.v);
+  const tolerance = 1e-8 * Math.max(1, du, dv);
+  if (Math.max(du, dv) <= tolerance) return null;
+  const a = place.toSheet(first), b = place.toSheet(second);
+  const mid = {x:(a.x+b.x)/2, y:(a.y+b.y)/2};
+  const type = draft.aligned ? "aligned" : du <= tolerance ? "vertical"
+    : dv <= tolerance ? "horizontal"
+      : Math.abs(cursor.y-mid.y) >= Math.abs(cursor.x-mid.x) ? "horizontal" : "vertical";
+  const dx=b.x-a.x, dy=b.y-a.y, length=Math.hypot(dx,dy);
+  const offset = type === "horizontal" ? mid.y-cursor.y
+    : type === "vertical" ? cursor.x-mid.x
+      : ((cursor.x-a.x)*(-dy)+(cursor.y-a.y)*dx)/length;
+  return {type, refs:draft.refs.slice(), viewId:draft.viewId, offset};
+}
+
+/** The book permits dimensions to hidden edges when a visible view cannot
+ * express them. Offer their real segment endpoints only while those edges
+ * are actually displayed on this view. */
+export function drawingSnapSegments(place, doc) {
+  const view=place.view || {};
+  const shaded=["shaded","shadedEdges"].includes(view.displayStyle);
+  const hidden=!shaded && (view.hidden != null ? !!view.hidden
+    : (isOrthoView(view.dir) || view.section) && doc.showHidden !== false);
+  return (place.projection?.visible || []).concat(hidden ? place.projection?.hidden || [] : []);
+}
 
 /* null is "the layout has not placed this yet", and Number(null) is 0 — which is
    a real coordinate on the sheet, and the reason a dragged view used to jump to
@@ -57,7 +89,8 @@ export function createDrawingController(host) {
     const token = host.bodiesToken();
     if (token !== projectionToken || !projector) {
       projectionToken = token;
-      projector = createProjector(host.doc(), host.bodies() || []);
+      const bodies = host.bodies() || [];
+      projector = createProjector(host.doc(), bodies, { bodiesForView: host.bodiesForView ? view => host.bodiesForView(view, bodies) : undefined });
     }
     return projector(view);
   }
@@ -84,10 +117,10 @@ export function createDrawingController(host) {
     let hash = 2166136261;
     for (const value of [doc.size, doc.orientation, doc.projection, doc.units, doc.draftingStandard, doc.secondaryUnits, doc.secondaryPrecision, doc.precision, doc.trailingZeros, doc.scale,
       doc.showHidden, doc.showCenters, doc.showZones, doc.title,
-      host.bodiesToken(), state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
+      host.bodiesToken(), host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
-        view.parent, view.hidden, view.centers, view.labelled, view.section, view.detail]) hash = fold(hash, value);
+        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.configurationId, view.configurationName]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
@@ -97,7 +130,7 @@ export function createDrawingController(host) {
       }
     }
     for (const note of doc.notes || []) {
-      for (const value of [note.id, note.text, note.x, note.y, note.size, note.leader, note.feature]) hash = fold(hash, value);
+      for (const value of [note.id, note.text, note.x, note.y, note.size, note.leader, note.feature, note.modelLink]) hash = fold(hash, value);
     }
     return String(hash);
   }
@@ -111,6 +144,7 @@ export function createDrawingController(host) {
       topology: host.topology ? host.topology() : null,
       callouts: host.callouts ? host.callouts() : null,
       meta: host.meta ? host.meta() : null,
+      properties: host.model?.()?.customProperties || {},
       bom: host.bom ? host.bom() : null,
     }, { selectedDim: state.selection?.kind === "dim" ? state.selection.id : null });
     state.sceneKey = key;
@@ -180,12 +214,18 @@ export function createDrawingController(host) {
     }
     if (item.type === "poly") {
       c.beginPath();
-      item.pts.forEach((point, index) => {
-        const screen = toScreen(point);
-        if (index) c.lineTo(screen.x, screen.y); else c.moveTo(screen.x, screen.y);
-      });
-      if (item.closed) c.closePath();
-      if (item.fill) { c.fillStyle = item.fill; c.fill(); }
+      for(const points of item.paths || [item.pts]) {
+        points.forEach((point, index) => {
+          const screen = toScreen(point);
+          if (index) c.lineTo(screen.x, screen.y); else c.moveTo(screen.x, screen.y);
+        });
+        if (item.closed) c.closePath();
+      }
+      if (item.fill) {
+        c.fillStyle = item.fill; c.fill();
+        // Cover subpixel antialias seams between adjacent tessellation facets.
+        if(item.shaded){c.strokeStyle=item.fill;c.lineWidth=.035*state.zoom;c.setLineDash([]);c.stroke();}
+      }
       else { strokeStyleFor(c, item.style); c.stroke(); }
       return;
     }
@@ -377,7 +417,7 @@ export function createDrawingController(host) {
     const points = [];
     const projection = place.projection;
     const push = (u, v, kind) => points.push({ u, v, kind });
-    for (const segment of projection?.visible || []) {
+    for (const segment of drawingSnapSegments(place, host.doc())) {
       push(segment.a.u, segment.a.v, "end");
       push(segment.b.u, segment.b.v, "end");
       push((segment.a.u + segment.b.u) / 2, (segment.a.v + segment.b.v) / 2, "mid");
@@ -519,14 +559,7 @@ export function createDrawingController(host) {
       return { type: "angle", viewId: draft.viewId, offset: 12, refs: draft.refs.concat([{ u: third.u, v: third.v }]) };
     }
     if (draft.refs.length < 2) return null;
-    const a = place.toSheet(draft.refs[0]), b = place.toSheet(draft.refs[1]);
-    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    const dx = Math.abs(cursor.x - mid.x), dy = Math.abs(cursor.y - mid.y);
-    const type = draft.aligned ? "aligned" : dy >= dx ? "horizontal" : "vertical";
-    const offset = type === "horizontal" ? mid.y - cursor.y
-      : type === "vertical" ? cursor.x - mid.x
-        : signedOffset(a, b, cursor);
-    return { type, refs: draft.refs.slice(), viewId: draft.viewId, offset };
+    return linearDimensionPreview(draft, place, cursor);
   }
 
   function signedOffset(a, b, cursor) {
@@ -1000,14 +1033,27 @@ export function createDrawingController(host) {
   }
 
   async function placeNote(draft) {
-    const text = await host.prompt(host.t("drawNoteTitle"), "");
+    const properties=Object.keys(host.model?.()?.customProperties || {});
+    const depths = (host.model?.()?.features || []).filter(feature => !feature.suppressed
+      && feature.type === "extrude" && feature.params?.operation !== "subtract");
+    const answer = host.promptFields && (depths.length || properties.length)
+      ? await host.promptFields(host.t("drawNoteTitle"), [
+        {key:"text",label:"Note text",value:""},
+        {key:"depth",label:"Link to model",type:"select",value:"",choices:[
+          {value:"",label:"Plain text"},...depths.map(feature=>({value:feature.id,label:(feature.name || "Extrusion")+" · depth"})),
+          ...properties.map(key=>({value:"property:"+key,label:key+" · custom property"})),
+        ]},
+      ]) : await host.prompt(host.t("drawNoteTitle"), "").then(text=>text===null?null:{text});
     state.draft = null;
-    if (!text) { host.refresh(); return; }
+    if (!answer || (!answer.text && !answer.depth)) { host.refresh(); return; }
+    const property=answer.depth?.startsWith("property:") ? answer.depth.slice(9) : null;
+    const text = answer.text || (property ? "" : "MATERIAL THICKNESS");
     const doc = host.doc();
     host.pushUndo(host.t("opAddNote"));
     const note = {
       id: "n" + Math.random().toString(36).slice(2, 9),
       x: draft.at.x + 6, y: draft.at.y - 6, text,
+      ...(answer.depth ? {modelLink:property ? {kind:"property",key:property} : {kind:"extrudeDepth",featureId:answer.depth}} : {}),
       leader: draft.anchor ? { viewId: draft.viewId, u: draft.anchor.u, v: draft.anchor.v } : null,
     };
     doc.notes.push(note);
@@ -1034,7 +1080,8 @@ export function createDrawingController(host) {
     const current = dim.text || measured;
     const answer = host.promptFields
       ? await host.promptFields(host.t("drawDimTextTitle"), [
-        { key: "text", label: host.t("drawDimTextLabel"), value: current },
+        { key: "text", label: host.t("drawDimTextLabel"), value: current, hint: "Use <> for the live measured value, for example Ø<>. Plain numbers override it." },
+        { key: "quantity", label: "Quantity", value: String(dim.quantity || 1) },
         { key: "reference", label: host.t("drawDimReference"), type:"boolean", value: !!dim.reference },
         { key: "tolerance", label: host.t("drawDimTolLabel"), value: dim.tolerance || "", hint: host.t("drawDimTolHint") },
       ])
@@ -1044,6 +1091,8 @@ export function createDrawingController(host) {
     const next = String(answer.text ?? "").trim();
     dim.text = next && next !== measured ? next : "";
     dim.tolerance = String(answer.tolerance ?? "").trim();
+    if(answer.quantity !== undefined && Number.isInteger(Number(answer.quantity)) && Number(answer.quantity)>0)
+      dim.quantity=Number(answer.quantity);
     if(answer.reference !== undefined)dim.reference=!!answer.reference;
     host.markDirty();
   }
@@ -1094,6 +1143,26 @@ export function createDrawingController(host) {
     host.markDirty();
   }
 
+  function duplicateSelectedView() {
+    const doc = host.doc();
+    const source = state.selection?.kind === "view" ? doc.views.find(view => view.id === state.selection.id) : null;
+    if (!source) return null;
+    host.pushUndo(host.t("opAddView"));
+    const copy = addViewToSheet(doc, source.dir, {
+      ...source, id: undefined, label: source.label, primary: false,
+      x: Number.isFinite(source.x) ? source.x + 80 : null,
+      y: Number.isFinite(source.y) ? source.y : null,
+      configurationId: source.configurationId,
+    });
+    for (const dimension of doc.dims.filter(item => item.viewId === source.id)) {
+      doc.dims.push({ ...structuredClone(dimension), id: "d" + Math.random().toString(36).slice(2, 9), viewId: copy.id });
+    }
+    state.selection = { kind: "view", id: copy.id };
+    invalidate();
+    host.markDirty();
+    return copy;
+  }
+
   /* Hole callouts, read off the FEATURE TREE rather than typed. Each note names
      the hole it came from, so its text is re-derived on every build (see
      resolveNote) — a leader that still says M6 after the wizard was changed to
@@ -1104,13 +1173,13 @@ export function createDrawingController(host) {
      text is bound and the position is not, and a note that points at nothing is
      honest about that where an arrow aimed at the nearest circle would not
      be. */
-  function addHoleCallouts() {
+  function addHoleCallouts(options = {}) {
     const doc = host.doc();
     const rows = host.holeCallouts ? host.holeCallouts() || [] : [];
-    if (!rows.length) { host.flash(host.t("drawNoHoles")); return; }
+    if (!rows.length) { if (!options.quiet) host.flash(host.t("drawNoHoles")); return 0; }
     const built = scene();
     const place = built.views.find((entry) => entry.id === built.primaryId) || built.views[0];
-    if (!place) { host.flash(host.t("drawNoGeometry")); return; }
+    if (!place) { if (!options.quiet) host.flash(host.t("drawNoGeometry")); return 0; }
     const basis = place.projection?.basis || null;
     const plans=rows.map((row,index)=>{
       const existing=(doc.notes || []).find(note=>note.feature===row.id);
@@ -1122,8 +1191,8 @@ export function createDrawingController(host) {
       return {row,index,existing,chosen,from,leader,changed:!existing || JSON.stringify(existing.leader)!==JSON.stringify(leader)};
     });
     const pending=plans.filter(plan=>plan.changed);
-    if (!pending.length) { host.flash(host.t("drawCalloutsDone")); return; }
-    host.pushUndo(host.t("opAddCallout"));
+    if (!pending.length) { if (!options.quiet) host.flash(host.t("drawCalloutsDone")); return 0; }
+    if (!options.undoStarted) host.pushUndo(host.t("opAddCallout"));
     let unbound = 0;
     pending.forEach(({row,index,existing,chosen,from,leader})=>{
       if (!leader) unbound++;
@@ -1147,6 +1216,21 @@ export function createDrawingController(host) {
     invalidate();
     host.markDirty();
     if (unbound) host.flash(host.t("drawCalloutUnbound"));
+    return pending.length;
+  }
+
+  function insertModelItems() {
+    const doc = host.doc(), planned = planModelItems(host.model?.() || {}, doc, scene());
+    if (planned.length) {
+      host.pushUndo(host.t("drawModelItems"));
+      doc.dims.push(...planned.map(dim => ({ ...dim, id:"d" + Math.random().toString(36).slice(2, 9) })));
+      state.selection = { kind:"dim", id:doc.dims[doc.dims.length - 1].id };
+      invalidate();
+      host.markDirty();
+    }
+    const callouts = addHoleCallouts({ quiet:true, undoStarted:planned.length>0 });
+    if (!planned.length && !callouts) host.flash(host.t("drawModelItemsDone"));
+    return planned.length + callouts;
   }
 
   /* Automatic overall dimensions: the two sizes every drawing carries, placed
@@ -1203,9 +1287,16 @@ export function createDrawingController(host) {
     else if (key === "viewScale" && state.selection?.kind === "view") {
       const view = doc.views.find((entry) => entry.id === state.selection.id);
       if (view) view.scale = value === "sheet" ? null : value;
+    } else if (key === "viewDisplayStyle" && state.selection?.kind === "view") {
+      const view=doc.views.find(entry=>entry.id===state.selection.id);
+      if(view)view.displayStyle=["shaded","shadedEdges"].includes(value)?value:"edges";
     } else if (key === "viewHidden" && state.selection?.kind === "view") {
       const view = doc.views.find((entry) => entry.id === state.selection.id);
       if (view) view.hidden = value === "sheet" ? null : !!value;
+    } else if (key === "viewConfiguration" && state.selection?.kind === "view") {
+      const view = doc.views.find((entry) => entry.id === state.selection.id);
+      if (view) view.configurationId = value === "active" ? null : value;
+      invalidate();
     }
     state.scene = null;
     if (key === "size" || key === "orientation") fit();
@@ -1282,7 +1373,7 @@ export function createDrawingController(host) {
     selection: () => state.selection,
     select: (value) => { state.selection = value; state.scene = null; host.refresh(); },
     pointerDown, pointerMove, pointerUp, doubleClick, wheel, keyDown,
-    deleteSelection, addView, autoDimension, addHoleCallouts, setSheetOption, relayout, editDim,
+    deleteSelection, addView, duplicateSelectedView, autoDimension, insertModelItems, addHoleCallouts, setSheetOption, relayout, editDim,
     danglingDims: () => sheetDimIssues(scene()),
     document: () => host.doc(),
     availableViews: () => availableViewDirs(host.doc()),

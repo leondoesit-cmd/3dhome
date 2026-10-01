@@ -11,7 +11,7 @@ import { makeBrepPrimitive,disposeBrep } from '../js/cad_kernel.js';
 import { regenerateFeatures,releaseRegeneration,addFeature } from '../js/cad_feature_tree.js';
 const source=file=>readFileSync(new URL('../js/'+file+'.js',import.meta.url),'utf8');
 function extract(file,name,bindings={}){
- const text=source(file).match(new RegExp('(?:export )?function '+name+'\\([^]*?\\n\\}\\n'))[0];
+ const text=source(file).match(new RegExp('(?:export )?function '+name+'\\([^]*?\\r?\\n\\}\\r?\\n'))[0];
  return Function(...Object.keys(bindings),'return ('+text.replace(/^export /,'')+')')(...Object.values(bindings));
 }
 test('SmartMate does not offer concentric for a plane and a straight edge',()=>{
@@ -41,7 +41,7 @@ test('assembly autosave reaches the writer without a part definition',()=>{
  let saved;
  const E={open:true,docType:'assembly',def:null,assembly:{name:'assembly',components:[]}};
  const flush=extract('modeler','flushModelerDraft',{
-   E,draftSaveTimer:0,draftFailureReported:false,modelerDraftStorage:()=>({}),
+   E,draftSaveTimer:0,draftRevision:0,modelerDraftOwnerId:'tab-a',libraryOpenBaseline:null,assemblyOpenBaseline:null,draftFailureReported:false,modelerDraftStorage:()=>({}),
    parseModelerDraft:d=>d,serializeModelerDraft:p=>p,MODELER_DRAFT_KEY:'k',
    saveModelerDraftRecord:d=>{saved=d;return {then(){return {catch(){}};}};},
    writeModelerDraft:()=>false,syncDraftStatus:()=>{},

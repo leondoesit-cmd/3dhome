@@ -118,7 +118,7 @@ test("a 3D cut through a swept body removes exactly the tool", async () => {
 
 const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
-const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
+const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("partSupportsExactMesh tells the truth about a kernel body", () => {
   const body = partGeometry.match(/function partSupportsExactMesh\(p\)[\s\S]*?\n\}/)[0];
@@ -158,6 +158,6 @@ test("one builder, not two: a cut kernel body rebuilds through the exact path", 
   assert.match(exact, /if \(isKernelBody\(p\)\) \{ delete p\.meshData; delete p\.bounds;/, "no ghost body while it builds or after it fails");
   assert.match(exact, /delete meshData\.normals; delete meshData\.colors;/, "typed buffers never reach JSON.stringify");
   assert.match(exact, /p\.bounds = meshData\.bounds;/);
-  const invalidate = modeler.match(/function invalidatePartMeshAfterEdit\(p\)[\s\S]*?\n\}\n/)[0];
+  const invalidate = modeler.match(/function invalidatePartMeshAfterEdit\(p, schedule=true\)[\s\S]*?\n\}\n/)[0];
   assert.match(invalidate, /if \(isKernelBody\(p\)\) delete p\.bounds;/);
 });

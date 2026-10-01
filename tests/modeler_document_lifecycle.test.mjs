@@ -9,6 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import vm from "node:vm";
 
 const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
 /* The editor's [he, en] table lives in js/modeler_strings.js. */
@@ -56,6 +57,20 @@ test("a cached exact solid is exported only for the document and revision it cam
   assert.match(body("regenerateExactModelNow"), /E\.brepStamp = null/);
 });
 
+test("a current display mesh cannot be reused as a native export solid", () => {
+  const E={brepRun:{finalShape:{verifiedSerializedExact:true}},brepStamp:{doc:'housing',node:11}};
+  let stamp={doc:'housing',node:11};
+  const context={E,exactRunStamp:()=>stamp};
+  vm.runInNewContext(body('exactRunIsCurrent')+'\nthis.current=exactRunIsCurrent;',context);
+  assert.equal(context.current(false),true,'current display proof is usable for drawing');
+  assert.equal(context.current(),false,'default callers require native BREP');
+  E.brepRun.finalShape.shape={};
+  assert.equal(context.current(),true);
+  stamp={doc:'housing',node:12};
+  assert.equal(context.current(false),false,'mesh proof also expires after an edit');
+  assert.equal(context.current(),false);
+});
+
 test("the exact run is released by every path that stops using it", () => {
   // Native OpenCascade handles: dropping the reference is not freeing it.
   const release = body("releaseExactRun");
@@ -72,15 +87,15 @@ test("the exact run is released by every path that stops using it", () => {
 
 test("a save reports failure instead of announcing one that did not happen", () => {
   // The assembly store answers whether the write landed, exactly as saveLib does.
-  assert.match(body("saveAssemblies"), /return true/);
-  assert.match(body("saveAssemblies"), /catch \(e\) \{ return false; \}/);
+  assert.match(body("saveAssemblies"), /return !!result\.ok/);
+  assert.match(body("saveAssemblies"), /catch \(e\) \{ lastAssemblySaveConflict=false; return false; \}/);
 
   // And the save path acts on that answer before it claims success.
   const save = body("saveAssemblyDocument");
-  assert.match(save, /if \(!await saveAssemblies\(list\)\) \{[\s\S]*?return;/);
+  assert.match(save, /if \(!await saveAssemblies\(saved,\{expected:assemblyOpenBaseline\}\)\) \{[\s\S]*?return;/);
   // The success tail must come after the guard, never before it.
-  assert.ok(save.indexOf("if (!await saveAssemblies(list))") < callAt(save, "markDocumentClean"));
-  assert.ok(save.indexOf("if (!await saveAssemblies(list))") < callAt(save, "discardModelerDraft"));
+  assert.ok(save.indexOf("if (!await saveAssemblies(saved,{expected:assemblyOpenBaseline}))") < callAt(save, "markDocumentClean"));
+  assert.ok(save.indexOf("if (!await saveAssemblies(saved,{expected:assemblyOpenBaseline}))") < callAt(save, "discardModelerDraft"));
 
   // The crash-recovery draft is just as silent when storage refuses it.
   assert.match(draftSource, /export function writeModelerDraft[\s\S]*?return false;/);

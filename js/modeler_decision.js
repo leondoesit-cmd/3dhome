@@ -32,6 +32,11 @@ export function askModelerDecision(host, options) {
       dismiss.dataset.decision = 'dismiss'; dismiss.textContent = options.dismiss;
       dismiss.addEventListener('click', () => finish(null)); actions.appendChild(dismiss);
     }
+    if (options.alternate) {
+      const alternate = document.createElement('button'); alternate.type = 'button';
+      alternate.dataset.decision = 'alternate'; alternate.textContent = options.alternate;
+      alternate.addEventListener('click', () => finish('alternate')); actions.appendChild(alternate);
+    }
     pendingDecision = finish;
     cancel.addEventListener('click', () => finish(false));
     accept.addEventListener('click', () => finish(true));

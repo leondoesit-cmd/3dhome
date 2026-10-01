@@ -77,9 +77,10 @@ export function threadProfilePoints(spec) {
 }
 
 export function normalizeThreadSpec(spec = {}) {
-  const unified=spec.threadPreset === "unc-quarter-20";
-  const diameterMm = unified ? 6.35 : spec.diameterMm != null ? Number(spec.diameterMm) : cmToMm(Number(spec.diameter ?? 0));
-  const pitchMm = unified ? 1.27 : spec.pitchMm != null ? Number(spec.pitchMm) : cmToMm(Number(spec.pitch ?? 0));
+  const quarter=spec.threadPreset === "unc-quarter-20", inchDie=spec.threadPreset === "inch-die-8-36";
+  const unified=quarter || inchDie;
+  const diameterMm = quarter ? 6.35 : spec.diameterMm != null ? Number(spec.diameterMm) : inchDie ? 4.1656 : cmToMm(Number(spec.diameter ?? 0));
+  const pitchMm = quarter ? 1.27 : inchDie ? 25.4/36 : spec.pitchMm != null ? Number(spec.pitchMm) : cmToMm(Number(spec.pitch ?? 0));
   // The editable document length is authoritative; normalized records also carry
   // a derived millimetre value which can be stale after a history edit.
   const lengthMm = spec.length != null ? cmToMm(Number(spec.length)) : spec.lengthMm != null ? Number(spec.lengthMm) : cmToMm(Number(spec.height ?? 0));
@@ -90,9 +91,9 @@ export function normalizeThreadSpec(spec = {}) {
   const axis = spec.axis || { x: 0, y: 1, z: 0 };
   const turns = pitchMm > 0 ? lengthMm / pitchMm : 0;
   const standard = {
-    threadPreset: unified ? "unc-quarter-20" : "iso-metric",
+    threadPreset: quarter ? "unc-quarter-20" : inchDie ? "inch-die-8-36" : "iso-metric",
     family: unified ? "unified-thread" : "metric-thread",
-    standard: unified ? "UNC" : spec.standard || "ISO 262:2023",
+    standard: quarter ? "UNC" : inchDie ? "UNF basic 60-degree inch die" : spec.standard || "ISO 262:2023",
     diameterMm,
     pitchMm,
     flankAngleDeg: 60,
@@ -121,7 +122,7 @@ export function normalizeThreadSpec(spec = {}) {
     axis,
     turns,
     startAngle: Number(spec.startAngle) || 0,
-    designation: unified ? "1/4-20 UNC " + standard.toleranceClass + (handedness === "lh" ? " LH" : "") : threadDesignation(diameterMm, pitchMm, {
+    designation: unified ? (quarter ? "1/4-20 UNC " : "#8-36 UNF ") + standard.toleranceClass + (handedness === "lh" ? " LH" : "") : threadDesignation(diameterMm, pitchMm, {
       handedness,
       toleranceClass: standard.toleranceClass,
       series: standard.series,
@@ -132,14 +133,15 @@ export function normalizeThreadSpec(spec = {}) {
 export function validateThreadFeature(spec) {
   const thread = normalizeThreadSpec(spec);
   const unified=thread.family === "unified-thread";
-  const report = unified ? {issues:[],computed:{nominalDiameterMm:6.35,threadsPerInch:20,pitchMm:1.27}} : validateMetricThread(thread);
+  const report = unified ? {issues:[],computed:{nominalDiameterMm:thread.threadPreset === "inch-die-8-36" ? 4.1656 : 6.35,threadsPerInch:thread.threadPreset === "inch-die-8-36" ? 36 : 20,pitchMm:thread.pitchMm}} : validateMetricThread(thread);
   const issues = report.issues.slice();
   if (!Number.isFinite(thread.lengthMm) || !(thread.lengthMm > 0)) issues.push({ code: "thread-length", message: "Thread length must be positive", field: "lengthMm", severity: "error" });
   if (!THREAD_SIDES.includes(thread.side)) issues.push({ code: "thread-side", message: "Thread side must be external or internal", field: "side", severity: "error" });
   const fail=(code,message,field)=>issues.push({code,message,field,severity:"error"});
   if(spec.side!=null&&!THREAD_SIDES.includes(spec.side))fail("thread-side","Unknown thread side","side");
   if(![thread.origin.x,thread.origin.y,thread.origin.z,thread.axis.x,thread.axis.y,thread.axis.z].every(Number.isFinite)||Math.hypot(thread.axis.x,thread.axis.y,thread.axis.z)<1e-12)fail("thread-axis","Thread placement requires finite coordinates and a nonzero axis","axis");
-  if(unified && thread.mode !== "cosmetic")fail("unified-mode","The 1/4-20 UNC preset supports cosmetic threads; modeled Unified profiles are not installed","mode");
+  if(thread.threadPreset === "unc-quarter-20" && thread.mode !== "cosmetic")fail("unified-mode","The 1/4-20 UNC preset supports cosmetic threads; modeled Unified profiles are not installed","mode");
+  if(![thread.diameterMm,thread.pitchMm].every(n=>Number.isFinite(n)&&n>0))fail("thread-dimensions","Thread diameter and pitch must be positive","diameterMm");
   if(unified && thread.fitLimits)fail("unified-fit","Unified fit-limit validation is not installed","fitLimits");
   const classPattern=unified ? (thread.side==="internal"?/^[123]B$/:/^[123]A$/) : thread.side==="internal"?/^(?:[3-9][GH]){1,2}$/:/^(?:[3-9][efgh]){1,2}$/;
   if(!classPattern.test(thread.toleranceClass))fail("thread-class-side","Tolerance class must match the internal or external thread side","toleranceClass");
@@ -268,7 +270,7 @@ export function modeledThreadSolid(spec, options = {}) {
       rootForm:"flat",
       approximation:{method:"ruled-helical-sections",segmentsPerTurn:perTurn,radialDeflectionCm:maximumRadius*(1-Math.cos(Math.PI*thread.turns*maxStep))},
       mode: "modeled",
-      profile: "ISO-metric-60",
+      profile: thread.family === "unified-thread" ? "Unified-basic-60-flat-root" : "ISO-metric-60",
       pitchMm: thread.pitchMm,
       flankAngleDeg: 60,
       toleranceClass: thread.toleranceClass,

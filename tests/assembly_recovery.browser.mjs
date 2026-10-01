@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { openPage,findChrome } from '../tools/browser_harness.mjs';
+import {installModelerDraftFixture,recoverLegacyModelerDraftFixture} from './browser_modeler_fixture.mjs';
 const chrome=await findChrome();
 test('assembly recovery, editing, autosave and a second browser reload preserve components and mates',chrome?{timeout:60000}:{skip:'Chrome unavailable'},async()=>{
  const page=await openPage({width:1280,height:800,lang:'en'});
@@ -14,26 +15,28 @@ test('assembly recovery, editing, autosave and a second browser reload preserve 
    const mate={id:'recovery-mate',type:'coincident',aligned:true,a:topologyReference('component-a','face','fa',plane),b:topologyReference('component-b','face','fb',plane)};
    writeModelerDraft(localStorage,{docType:'assembly',assembly:{id:'recovery-assembly',name:'Recovered assembly',components:[component,second],topologyMates:[mate],mates:[]}});
   });
-  const recover=async()=>{
+  const recover=async(legacy=false)=>{
    await page.goto('/');
+   await installModelerDraftFixture(page);
    await page.eval(async()=>{const {openModeler}=await import('/js/modeler.js');openModeler();});
+   if(legacy)await recoverLegacyModelerDraftFixture(page);
    await page.waitUntil(()=>!!document.querySelector('#mdDecision [data-decision="accept"]'));
    await page.eval(()=>document.querySelector('#mdDecision [data-decision="accept"]').click());
    await page.waitUntil(()=>document.querySelector('#modeler')?.classList.contains('md-assembly'));
   };
-  await recover();
+  await recover(true);
   assert.equal(await page.eval(()=>document.querySelector('#mdName').value),'Recovered assembly');
   await page.eval(()=>{const name=document.querySelector('#mdName');name.value='Assembly after recovery';name.dispatchEvent(new Event('change',{bubbles:true}));});
-  await page.waitUntil(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')||'null')?.assembly?.name==='Assembly after recovery');
-  const before=await page.eval(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')).assembly);
+  await page.waitUntil(async()=>(await window.currentModelerDraftForTest())?.assembly?.name==='Assembly after recovery');
+  const before=await page.eval(async()=>(await window.currentModelerDraftForTest()).assembly);
   assert.equal(before.components[0].id,'component-a');assert.equal(before.components[0].transform.x,12);
   assert.equal(before.topologyMates[0].id,'recovery-mate');
   await recover();
   assert.equal(await page.eval(()=>document.querySelector('#mdName').value),'Assembly after recovery');
   // A second actual edit proves the restored assembly is live, not just text.
   await page.eval(()=>{const name=document.querySelector('#mdName');name.value='Assembly after second reload';name.dispatchEvent(new Event('change',{bubbles:true}));});
-  await page.waitUntil(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')||'null')?.assembly?.name==='Assembly after second reload');
-  const after=await page.eval(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')).assembly);
+  await page.waitUntil(async()=>(await window.currentModelerDraftForTest())?.assembly?.name==='Assembly after second reload');
+  const after=await page.eval(async()=>(await window.currentModelerDraftForTest()).assembly);
   assert.deepEqual(after.components,before.components);assert.deepEqual(after.topologyMates,before.topologyMates);
  }finally{await page.close();}
 });

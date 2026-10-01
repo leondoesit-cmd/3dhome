@@ -101,7 +101,7 @@ const MODEL = [
   ]],
   ["Assembly", [
     ["Parts", [T("Assembly", "ph-puzzle-piece", "mcmd:assembly"), T("Components", "ph-cube-focus", "mcmd:components"), T("Mates", "ph-link", "mcmd:mates"), T("Screw mate", "ph-nut", "mcmd:screwmate"), T("Part document", "ph-file", "mcmd:partdoc"), T("Smart mates", "ph-magnet", "mcmd:smartmates")]],
-    ["Study", [T("Exploded view", "ph-arrows-out", "mcmd:explode"), T("Motion study", "ph-play", "mcmd:motion"), T("Interference", "ph-warning", "mcmd:interference"), T("Isolate", "ph-eye", "mcmd:isolate")]],
+    ["Study", [T("Exploded view", "ph-arrows-out", "mcmd:explode"), T("Explode step", "ph-arrows-out-line-horizontal", "mcmd:explodestep"), T("Motion study", "ph-play", "mcmd:motion"), T("Interference", "ph-warning", "mcmd:interference"), T("Isolate", "ph-eye", "mcmd:isolate")]],
   ]],
   ["Evaluate", [
     ["Measure", [T("Measure", "ph-ruler", "mcmd:measure"), T("Mass props", "ph-scales", "mcmd:mass"), T("Section view", "ph-knife", "mcmd:section"), T("Fit check", "ph-arrows-in", "mcmd:fitcheck"), T("Fit view", "ph-frame-corners", "mcmd:fit"), T("Split", "ph-columns", "mclick:#mdModeSplit")]],
@@ -118,8 +118,8 @@ const MODEL = [
     ["Look", [T("Paint", "ph-paint-bucket", "mcmd:paint"), T("Finish preview", "ph-eye", "mcmd:finishpreview")]],
   ]],
   ["Output", [
-    ["Use", [T("Save to library", "ph-floppy-disk", "mclick:#mdSave"), T("Model library", "ph-books", "mclick:#mdLib"), T("Branch", "ph-git-branch", "mcmd:branch"), T("Export GLB", "ph-cube", "mcmd:exportglb")]],
-    ["Exchange", [T("Project bundle", "ph-package", "mcmd:bundle"), T("Open bundle", "ph-folder-open", "mcmd:bundlein"), T("Import STEP", "ph-download-simple", "mcmd:stepin"), T("Export STEP", "ph-export", "mcmd:stepout"), T("Export IGES", "ph-export", "mcmd:igesout")]],
+    ["Use", [T("Save to library", "ph-floppy-disk", "mclick:#mdSave"), T("Model library", "ph-books", "mclick:#mdLib"), T("Branch", "ph-git-branch", "mcmd:branch"), T("Print setup", "ph-printer", "mcmd:printsetup"), T("Export GLB", "ph-cube", "mcmd:exportglb")]],
+    ["Exchange", [T("Project bundle", "ph-package", "mcmd:bundle"), T("Open bundle", "ph-folder-open", "mcmd:bundlein"), T("Import STEP", "ph-download-simple", "mcmd:stepin"), T("Export STEP", "ph-export", "mcmd:stepout"), T("Export IGES", "ph-export", "mcmd:igesout"), T("Export STL", "ph-export", "mcmd:stlout"), T("Export 3MF", "ph-printer", "mcmd:3mfout"), T("Export AMF", "ph-printer", "mcmd:amfout")]],
   ]],
 ];
 
@@ -215,11 +215,11 @@ export const PRO_HE = {
   "Direct": "ישיר", "Box": "תיבה", "Cylinder": "גליל", "Sphere": "כדור", "Prism": "מנסרה",
   "Reference": "ייחוס", "Geometry": "גאומטריה", "Plane": "מישור", "Axis": "ציר", "Coordinate sys": "מערכת צירים", "Setup": "הגדרות", "Configurations": "תצורות", "Standards": "תקנים", "Rebuild": "בנה מחדש",
   "Assembly": "הרכבה", "Parts": "חלקים", "Components": "רכיבים", "Mates": "התאמות", "Screw mate": "התאמת בורג", "Part document": "מסמך חלק",
-  "Study": "ניתוח תנועה", "Exploded view": "מבט מפורק", "Motion study": "סימולציית תנועה", "Interference": "התנגשויות", "Isolate": "בודד",
+  "Study": "ניתוח תנועה", "Exploded view": "מבט מפורק", "Explode step": "שלב פירוק", "Motion study": "סימולציית תנועה", "Interference": "התנגשויות", "Isolate": "בודד",
   "Evaluate": "הערכה", "Measure": "מדידה", "Mass props": "תכונות מסה", "Section view": "מבט חתך", "Fit check": "בדיקת התאמה", "Fit view": "התאם תצוגה",
   "Toolbox": "ארגז כלים", "Standard parts": "חלקים תקניים", "Std screw": "בורג תקני", "Std gear": "גלגל שיניים תקני",
   "Drawing": "שרטוט", "Sheet": "גיליון", "BOM": "רשימת חלקים", "Note": "הערה", "Appearance": "מראה", "Look": "מראה", "Paint": "צביעה",
-  "Exchange": "החלפת קבצים", "Project bundle": "חבילת פרויקט", "Open bundle": "פתח חבילה", "Import STEP": "ייבוא STEP", "Export STEP": "ייצוא STEP", "Export IGES": "ייצוא IGES",
+  "Exchange": "החלפת קבצים", "Project bundle": "חבילת פרויקט", "Open bundle": "פתח חבילה", "Import STEP": "ייבוא STEP", "Export STEP": "ייצוא STEP", "Export IGES": "ייצוא IGES", "Export STL": "ייצוא STL",
   "Design": "עיצוב", "Start": "התחלה", "Families": "משפחות", "Presets": "תבניות", "Blank carcass": "גוף ריק",
   "Horizontal partition": "מחיצה אופקית", "Vertical partition": "מחיצה אנכית", "Erase partition": "מחק מחיצה",
   "Inspector": "מאפיינים", "Fronts & look": "חזיתות ומראה", "Hardware": "פרזול", "History": "היסטוריה",

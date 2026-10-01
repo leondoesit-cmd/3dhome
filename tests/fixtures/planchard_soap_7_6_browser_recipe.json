@@ -1,0 +1,728 @@
+{
+  "schemaVersion": 8,
+  "id": "cm_mukyjsfk",
+  "name": "Planchard Exercise 7.6 - soap case example - fresh 2026-09-28",
+  "authoringMode": "direct-only",
+  "localFrame": {
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "xAxis": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "zAxis": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "references": [
+    {
+      "id": "origin",
+      "type": "origin",
+      "name": "Origin",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:top",
+      "type": "plane",
+      "name": "Top Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:front",
+      "type": "plane",
+      "name": "Front Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:right",
+      "type": "plane",
+      "name": "Right Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "axis:x",
+      "type": "axis",
+      "name": "X Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:y",
+      "type": "axis",
+      "name": "Y Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:z",
+      "type": "axis",
+      "name": "Z Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    }
+  ],
+  "parameters": {},
+  "sketches": [
+    {
+      "id": "sk_013or",
+      "name": "Top Plane sketch",
+      "plane": "top",
+      "offset": 0,
+      "referenceId": "plane:top",
+      "points": [
+        {
+          "id": 846,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": 847,
+          "x": 12,
+          "y": 0
+        },
+        {
+          "id": 848,
+          "x": 12,
+          "y": 8
+        },
+        {
+          "id": 849,
+          "x": 0,
+          "y": 8
+        }
+      ],
+      "entities": [
+        {
+          "id": 850,
+          "type": "line",
+          "name": "Line",
+          "a": 846,
+          "b": 847,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 851,
+          "type": "line",
+          "name": "Line",
+          "a": 847,
+          "b": 848,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 852,
+          "type": "line",
+          "name": "Line",
+          "a": 848,
+          "b": 849,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 853,
+          "type": "line",
+          "name": "Line",
+          "a": 849,
+          "b": 846,
+          "construction": false,
+          "weight": 2
+        }
+      ],
+      "constraints": [
+        {
+          "id": 854,
+          "type": "horizontal",
+          "entity": 850,
+          "exprError": null
+        },
+        {
+          "id": 855,
+          "type": "vertical",
+          "entity": 851,
+          "exprError": null
+        },
+        {
+          "id": 856,
+          "type": "horizontal",
+          "entity": 852,
+          "exprError": null
+        },
+        {
+          "id": 857,
+          "type": "vertical",
+          "entity": 853,
+          "exprError": null
+        },
+        {
+          "id": "dim_woaj8zc",
+          "type": "distance",
+          "entity": 850,
+          "value": 12,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": "dim_vclkapm",
+          "type": "distance",
+          "entity": 851,
+          "value": 8,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 858,
+          "type": "fixed",
+          "point": 846,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    }
+  ],
+  "features": [
+    {
+      "id": "feature_mukyl4yp_1",
+      "type": "extrude",
+      "name": "Extrude / Boss 1",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 2.5,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "mergeResult": true,
+        "axis": "y",
+        "profileEntityIds": [
+          850,
+          851,
+          852,
+          853
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_013or",
+        "from": 0,
+        "to": 2.5
+      },
+      "references": {
+        "sketches": [
+          "sk_013or"
+        ],
+        "features": [],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          850,
+          851,
+          852,
+          853
+        ]
+      },
+      "inputs": [],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mukylryj_3",
+      "type": "fillet",
+      "name": "Fillet 1",
+      "params": {
+        "radius": 1,
+        "fullRound": false,
+        "multipleRadius": false,
+        "variableRadius": false,
+        "endRadius": 1,
+        "edgeRadii": [],
+        "propagation": "tangent",
+        "section": "rational",
+        "continuity": "tangent"
+      },
+      "references": {
+        "sketches": [],
+        "features": [
+          "feature_mukyl4yp_1"
+        ],
+        "topology": [
+          {
+            "type": "topology-reference",
+            "ownerFeatureId": "feature_mukyl4yp_1",
+            "kind": "edge",
+            "persistentId": "feature_mukyl4yp_1:edge:depth:850",
+            "descriptor": {
+              "curve": "line",
+              "origin": {
+                "x": 0,
+                "y": 1.25,
+                "z": 0
+              },
+              "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "measure": 2.5,
+              "bounds": {
+                "min": {
+                  "x": -1.0000000000000002e-7,
+                  "y": -1.0000000000000002e-7,
+                  "z": -1.0000000000000002e-7
+                },
+                "max": {
+                  "x": 1.0000000000000002e-7,
+                  "y": 2.5000001,
+                  "z": 1.0000000000000002e-7
+                }
+              },
+              "endpoints": [
+                {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": 0,
+                  "y": 2.5,
+                  "z": 0
+                }
+              ]
+            },
+            "signature": "line:0:1.25:0:0:1:0:2.5:"
+          },
+          {
+            "type": "topology-reference",
+            "ownerFeatureId": "feature_mukyl4yp_1",
+            "kind": "edge",
+            "persistentId": "feature_mukyl4yp_1:edge:depth:851",
+            "descriptor": {
+              "curve": "line",
+              "origin": {
+                "x": 12,
+                "y": 1.25,
+                "z": 0
+              },
+              "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "measure": 2.5,
+              "bounds": {
+                "min": {
+                  "x": 11.9999999,
+                  "y": -1.0000000000000002e-7,
+                  "z": -1.0000000000000002e-7
+                },
+                "max": {
+                  "x": 12.0000001,
+                  "y": 2.5000001,
+                  "z": 1.0000000000000002e-7
+                }
+              },
+              "endpoints": [
+                {
+                  "x": 12,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": 12,
+                  "y": 2.5,
+                  "z": 0
+                }
+              ]
+            },
+            "signature": "line:12:1.25:0:0:1:0:2.5:"
+          },
+          {
+            "type": "topology-reference",
+            "ownerFeatureId": "feature_mukyl4yp_1",
+            "kind": "edge",
+            "persistentId": "feature_mukyl4yp_1:edge:depth:852",
+            "descriptor": {
+              "curve": "line",
+              "origin": {
+                "x": 12,
+                "y": 1.25,
+                "z": 8
+              },
+              "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "measure": 2.5,
+              "bounds": {
+                "min": {
+                  "x": 11.9999999,
+                  "y": -1.0000000000000002e-7,
+                  "z": 7.9999999
+                },
+                "max": {
+                  "x": 12.0000001,
+                  "y": 2.5000001,
+                  "z": 8.0000001
+                }
+              },
+              "endpoints": [
+                {
+                  "x": 12,
+                  "y": 0,
+                  "z": 8
+                },
+                {
+                  "x": 12,
+                  "y": 2.5,
+                  "z": 8
+                }
+              ]
+            },
+            "signature": "line:12:1.25:8:0:1:0:2.5:"
+          },
+          {
+            "type": "topology-reference",
+            "ownerFeatureId": "feature_mukyl4yp_1",
+            "kind": "edge",
+            "persistentId": "feature_mukyl4yp_1:edge:depth:853",
+            "descriptor": {
+              "curve": "line",
+              "origin": {
+                "x": 0,
+                "y": 1.25,
+                "z": 8
+              },
+              "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "measure": 2.5,
+              "bounds": {
+                "min": {
+                  "x": -1.0000000000000002e-7,
+                  "y": -1.0000000000000002e-7,
+                  "z": 7.9999999
+                },
+                "max": {
+                  "x": 1.0000000000000002e-7,
+                  "y": 2.5000001,
+                  "z": 8.0000001
+                }
+              },
+              "endpoints": [
+                {
+                  "x": 0,
+                  "y": 0,
+                  "z": 8
+                },
+                {
+                  "x": 0,
+                  "y": 2.5,
+                  "z": 8
+                }
+              ]
+            },
+            "signature": "line:0:1.25:8:0:1:0:2.5:"
+          }
+        ],
+        "references": []
+      },
+      "inputs": [
+        "feature_mukyl4yp_1"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mukymrxa_4",
+      "type": "shell",
+      "name": "Shell 1",
+      "params": {
+        "thickness": 0.2,
+        "direction": "inside",
+        "tolerance": 0.001,
+        "join": "arc",
+        "removeOpenings": true
+      },
+      "references": {
+        "sketches": [],
+        "features": [
+          "feature_mukylryj_3"
+        ],
+        "topology": [
+          {
+            "type": "topology-reference",
+            "ownerFeatureId": "feature_mukyl4yp_1",
+            "kind": "face",
+            "persistentId": "feature_mukyl4yp_1:face:end",
+            "descriptor": {
+              "surface": "plane",
+              "origin": {
+                "x": 6,
+                "y": 2.5,
+                "z": 4
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "measure": 95.14159265358978,
+              "bounds": {
+                "min": {
+                  "x": -1.000000002220446e-7,
+                  "y": 2.4999999,
+                  "z": -1.000000002220446e-7
+                },
+                "max": {
+                  "x": 12.0000001,
+                  "y": 2.5000001,
+                  "z": 8.0000001
+                }
+              }
+            },
+            "signature": "plane:6:2.5:4:0:1:0:95.142:"
+          }
+        ],
+        "references": []
+      },
+      "inputs": [
+        "feature_mukylryj_3"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    }
+  ],
+  "history": [
+    {
+      "id": "history:sketch:sk_013or",
+      "kind": "sketch",
+      "targetId": "sk_013or",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mukyl4yp_1",
+      "kind": "feature",
+      "targetId": "feature_mukyl4yp_1",
+      "name": "Extrude / Boss 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mukylryj_3",
+      "kind": "feature",
+      "targetId": "feature_mukylryj_3",
+      "name": "Fillet 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mukymrxa_4",
+      "kind": "feature",
+      "targetId": "feature_mukymrxa_4",
+      "name": "Shell 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "variables": [],
+  "referenceGeometry": [
+    {
+      "id": "plane:top",
+      "type": "reference_plane",
+      "name": "Top Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:front",
+      "type": "reference_plane",
+      "name": "Front Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:right",
+      "type": "reference_plane",
+      "name": "Right Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "axis:x",
+      "type": "reference_axis",
+      "name": "X Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:y",
+      "type": "reference_axis",
+      "name": "Y Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:z",
+      "type": "reference_axis",
+      "name": "Z Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    }
+  ]
+}

@@ -1,6 +1,27 @@
 // Continuous gear ratios act on angle increments from the saved zero pose.
 // They prescribe kinematics; they do not position shafts or simulate contact.
 import {rotationOf} from './cad_mate_model.js';
+import {solveAssemblyMates} from './cad_mate_solver.js';
+
+// Establish a new mechanical zero pose without changing the tooth ratio.
+// Existing timeline motors keep their settings but restart at this zero pose.
+export function setGearMatePhase(assembly,mateId,degrees){
+  if(!Number.isFinite(degrees))return {ok:false,issues:[{code:'invalid-gear-phase'}]};
+  const trial={...assembly,components:(assembly.components||[]).map(c=>({...c,transform:structuredClone(c.transform||{})})),
+    mates:structuredClone(assembly.mates||[]),topologyMates:structuredClone(assembly.topologyMates||[]),motionStudies:structuredClone(assembly.motionStudies||[])};
+  const mate=trial.topologyMates.find(m=>m.id===mateId&&m.type==='gear');
+  if(!mate||!Number.isFinite(mate.rollB0))return {ok:false,issues:[{code:'missing-gear-phase-baseline'}]};
+  mate.rollB0+=(degrees-(Number(mate.followerPhaseDeg)||0))*Math.PI/180;
+  mate.followerPhaseDeg=degrees;
+  const result=solveAssemblyMates(trial);
+  if(!result.ok)return result;
+  for(const study of trial.motionStudies){
+    delete study.baseRotations;
+    for(const motor of study.motors||[])delete motor.baseRotation;
+    study.time=0;
+  }
+  return {...result,assembly:trial};
+}
 export function addGearRelation(study, driverId, followerId, options={}) {
   const relation={id:crypto.randomUUID(),driverId,followerId,driverTeeth:options.driverTeeth??20,followerTeeth:options.followerTeeth??40,
     mesh:options.mesh??'external',driverAxis:options.driverAxis??{x:0,y:1,z:0},followerAxis:options.followerAxis??{x:0,y:1,z:0}};

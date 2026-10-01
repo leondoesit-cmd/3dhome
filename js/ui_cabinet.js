@@ -2,7 +2,7 @@ import { captureCabinetSession, restoreCabinetSession } from "./cabinet_session.
 // Cabinet designer overlay chrome: open/close, size, history, keyboard and wiring.
 // Elevation drawing lives in ui_cabinet_view.js; inspector panes in ui_cabinet_inspect.js.
 
-import { S, clamp, fin } from "./state.js";
+import { S, clamp, fin, touchItem3D } from "./state.js";
 import { dropPoint } from "./plan_view.js";
 import { clearVSpanCache } from "./furniture.js";
 import { getLang, onLangChange } from "./i18n.js";
@@ -28,7 +28,7 @@ import { parseCabinetDimension, formatCabinetDimension } from "./cabinet_units.j
 import { api, E, T, el, btn, sp, ico, grp, formatCm, formatCmInput, AXES, isEn } from "./ui_cabinet_ctx.js";
 import {
   sizeCanvas, setMode, setAxis, syncHint, syncViewPreferences, draw, wireCanvas,
-  setTool, exportPNG, initPreview, updatePreview, renderPreview,
+  setTool, exportPNG, initPreview, updatePreview, renderPreview, queueRuntimePreview, cancelRuntimePreview,
 } from "./ui_cabinet_view.js";
 import "./ui_cabinet_agent.js"; // registers the designer's AI adapter
 import { initCabinetMobile, disposeCabinetMobile, refreshCabinetMobile, showCabinetPropertiesMobile } from "./ui_cabinet_mobile.js";
@@ -44,6 +44,7 @@ import {
 
 var cabinetListeners = null;
 function destroyDOM() {
+  cancelRuntimePreview();
   if (cabinetListeners) cabinetListeners.abort();
   if (E.pv && E.pv.rr) E.pv.rr.dispose();
   E.pv = null;
@@ -586,6 +587,7 @@ function syncOpenUI(rawVal) {
 /* ================= open / close ================= */
 
 export function openCabinet(it) {
+  cancelRuntimePreview();
   if (E.host && E.lang !== getLang()) destroyDOM();
   if (!E.host) buildDOM();
   if (!it) return;
@@ -652,6 +654,7 @@ export function openCabinet(it) {
 
 export function closeCabinet() {
   if (!E.open) return;
+  cancelRuntimePreview();
   dismissSizeDlg();
   disposeCabinetMobile();
   E.open = false;
@@ -1040,8 +1043,8 @@ function formatStockMm(cm) {
 function runtimeChanged() {
   if (!E.it) return;
   clearVSpanCache();
-  S.dirty3D = true;
-  updatePreview();
+  touchItem3D(E.it, "build");
+  queueRuntimePreview();
   render2D();
 }
 

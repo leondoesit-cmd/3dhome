@@ -46,6 +46,18 @@ test("history is bounded and the newest versions are the ones kept", async (t) =
   assert.equal((await readModelBackup(dir, "cm_a")).revision, 5);
 });
 
+test("a stale browser mirror cannot replace a newer model or remove its exact attachments", async(t)=>{
+  const dir=await tempDir(t);
+  const attachments=[{reference:{attachmentId:'sha256:current'},payload:{data:'exact body'}}];
+  await writeModelBackup(dir,record('cm_housing',{revision:43,features:['Mirror1']}),{attachments});
+  const before=await readdir(join(dir,'cm_housing'));
+  const result=await writeModelBackup(dir,record('cm_housing',{revision:26,features:['Thread']}));
+  assert.equal(result.stale,true);
+  assert.equal((await readModelBackup(dir,'cm_housing')).revision,43);
+  assert.deepEqual(await readModelBackupAttachments(dir,'cm_housing'),attachments);
+  assert.deepEqual(await readdir(join(dir,'cm_housing')),before);
+});
+
 test("keys that could escape the folder or hide a file are refused", async (t) => {
   const dir = await tempDir(t);
   for (const key of ["../evil", ".hidden", "a/b", "a\\b", "", "x".repeat(121), null, 7]) {
@@ -117,16 +129,16 @@ test("signatures change with content and missing models are found by key", () =>
   assert.deepEqual(missingFromLibrary(backups, []).length, 2);
 });
 
-test("the modeler mirrors every library write and restores without overwriting", async () => {
+test("the modeler mirrors changed library records and restores without overwriting", async () => {
   const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
   const saveLib = source.slice(source.indexOf("async function saveLib("), source.indexOf("function loadAssemblies("));
-  assert.match(saveLib, /mirrorLibraryToDisk\(modelLibraryCache\)/, "saveLib mirrors the committed cache");
-  assert.match(source, /function initializeModelLibrary[\s\S]*?mirrorLibraryToDisk\(modelLibraryCache\);\n\}/, "models already present get a copy at load");
+  assert.match(saveLib, /mirrorLibraryToDisk\(options\.mode==="merge" \? result\.puts : \[records\]\)/, "saveLib mirrors only records changed in this tab");
+  assert.match(source, /function initializeModelLibrary[\s\S]*?mirrorLibraryToDisk\(modelLibraryCache\);\r?\n\}/, "models already present get a copy at load");
   const restore = source.slice(source.indexOf("async function restoreDiskBackups("), source.indexOf("function appendDiskBackupNote("));
   assert.match(restore, /conflict:"skip"/, "restore only adds missing models");
   assert.match(restore, /installAttachmentRecords\(backup\.attachments\)[\s\S]*records\.push\(backup\.model\)/, "attachments are installed before the record");
   const partLib = source.slice(source.indexOf("function refreshLib("));
-  assert.match(partLib, /libraryTransferButtons\(host\);\n  appendDiskBackupNote\(host\);\n  var lib = loadLib\(\);/, "the note sits above an empty library");
+  assert.match(partLib, /libraryTransferButtons\(host\);\r?\n  appendLegacyDraftRecovery\(host\);\r?\n  appendDiskBackupNote\(host\);\r?\n  var lib = loadLib\(\);/, "recovery and the backup note sit above an empty library");
 });
 
 async function freePort() {

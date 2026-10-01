@@ -1,16 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
+import {installModelerDraftFixture} from './browser_modeler_fixture.mjs';
 const chrome=await findChrome();
 test('all material choices save qualification data through the editor and survive draft storage',chrome?{timeout:60000}:{skip:'Chrome unavailable'},async()=>{
  const page=await openPage({width:1440,height:1000,lang:'en'});
  try{
+  await installModelerDraftFixture(page);
   await page.eval(async()=>{const {openModeler}=await import('/js/modeler.js');openModeler(null,{key:'material_check',name:'Materials',parts:[{id:'plate',name:'Plate',kind:'box',x0:0,x1:10,y0:0,y1:1,z0:0,z1:6}]},null);[...document.querySelectorAll('#mdParts [data-node-id]')].find(e=>e.textContent.includes('Plate')).click();document.querySelector('[data-tab="look"]').click();document.querySelector('[data-engineering-action="title"]').click();});
   const choices=await page.eval(()=>[...document.querySelectorAll('#mdQuickSettings [data-parameter="catalogId"] option')].map(o=>o.value));
   assert.ok(choices.length>=30);assert.ok(choices.includes('stock:aluminum'));assert.ok(choices.includes('toolbox:aluminum'));assert.ok(choices.includes('custom'));assert.ok(choices.includes('stock:rubber'));assert.ok(choices.includes('stock:polycarbonate'));
   await page.eval(()=>{const set=(key,value)=>{const e=document.querySelector('#mdQuickSettings [data-parameter="'+key+'"] input,#mdQuickSettings [data-parameter="'+key+'"] select');e.value=value;e.dispatchEvent(new Event('input',{bubbles:true}));};set('catalogId','toolbox:beech');set('source','Synthetic browser fixture');set('condition','Longitudinal');document.querySelector('#mdQuickSettings .md-quick-apply').click();});
-  await page.waitUntil(async()=>((await (await import('/js/core/model_library_store.js')).loadModelerDraftRecord())?.def?.engineeringMaterials?.length||0)===1);
-  const saved=await page.eval(async()=>((await (await import('/js/core/model_library_store.js')).loadModelerDraftRecord())).def);
+  await page.waitUntil(async()=>((await window.currentModelerDraftForTest())?.def?.engineeringMaterials?.length||0)===1);
+  const saved=await page.eval(async()=>(await window.currentModelerDraftForTest()).def);
   assert.equal(saved.engineeringMaterials[0].catalogId,'toolbox:beech');assert.equal(saved.engineeringMaterials[0].source,'Synthetic browser fixture');assert.equal(saved.parts[0].materialQualificationId,saved.engineeringMaterials[0].id);
   const report=await page.eval(()=>{document.querySelector('[data-engineering-action="check"]').click();return document.querySelector('#mdReport').textContent;});assert.match(report,/Data needs completion/);assert.match(report,/maxHours/);
  }finally{await page.close();}

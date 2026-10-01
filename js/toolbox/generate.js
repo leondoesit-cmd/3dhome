@@ -9,6 +9,7 @@ import {
   paint, matePort, fastenerAxisPorts, pipeEndPorts, standardPartMetadata,
   canonicalDimensionsMm, designationOf,
 } from "./schema.js";
+import { ANSI_TYPE_A_NARROW, ANSI_HEX_MACHINE_NUT, ANSI_PAN_CROSS } from "./ansi_machine_tables.js";
 import {
   ISO4762_SHCS, ISO4017_HEX, ISO4032_NUT, ISO4035_JAM, ISO7040_NYLOC, ISO4161_FLANGE,
   DIN315_WING, DIN1587_ACORN, ISO7089_WASHER, ISO7093_FENDER, DIN127_LOCK, CSINK_FINISH_WASHER,
@@ -112,7 +113,7 @@ function threadGeom(row, options, side = "external") {
     profile: row.imperial ? "unified-60" : "ISO-metric-60",
     pitchMm: row.pitchMm,
     flankAngleDeg: 60,
-    toleranceClass: options.toleranceClass || (side === "internal" ? "6H" : "6g"),
+    toleranceClass: options.toleranceClass || (row.imperial ? (side === "internal" ? "2B" : "2A") : (side === "internal" ? "6H" : "6g")),
     side,
   };
 }
@@ -125,7 +126,7 @@ function threadSpec(row, lengthMm, options, family, standard) {
     pitchMm: row.pitchMm,
     lengthMm,
     flankAngleDeg: 60,
-    toleranceClass: options.toleranceClass || "6g",
+    toleranceClass: options.toleranceClass || (row.imperial ? "2A" : "6g"),
     productGrade: options.productGrade || "A",
     series: row.imperial ? "unc" : "coarse",
     headAcrossFlatsMm: row.af || row.hexAfMm || null,
@@ -377,6 +378,29 @@ function generatePan(row, options, group) {
   });
 }
 
+function generateAnsiPan(row, options, group) {
+  const lengthMm = Number(options.lengthMm) || 19.05;
+  const standard = "ASME B18.6.3";
+  const spec = threadSpec(row, lengthMm, options, "ansi-pan-cross", standard);
+  const y = mmToCm(lengthMm), height = mmToCm(row.headHeightMm);
+  const span = mmToCm(row.recessDiaMm), width = mmToCm(row.recessWidthMm);
+  const depth = mmToCm(row.recessDepthMm);
+  const parts = [shankCylinder(row,lengthMm,group,options,row.size+" UNC shank"),
+    {kind:"cyl",name:"Pan cross head",x:0,y,z:0,r:mmToCm(row.headDiaMm)/2,h:height,standardRole:"head"}];
+  // Actual native recess, envelope-controlled. The straight walls and flat
+  // crown remain explicitly representative rather than claiming driver fit.
+  [[span,width],[width,span]].forEach(([x,z])=>parts.push({
+    kind:"box",name:"Cross recess cutter",x0:-x/2,x1:x/2,z0:-z/2,z1:z/2,
+    y0:y+height-depth,y1:y+height+.001,previewOnly:true,standardRole:"recess"
+  }));
+  return pack("ansi-pan-cross","ansi-pan-cross",row,options,parts,{
+    group,lengthMm,standard,spec,representative:true,
+    callout:row.size+" UNC × "+lengthMm+" mm pan cross head (representative driver form)",
+    matePorts:fastenerAxisPorts(row.diameterMm,lengthMm,row.pitchMm),
+    dimensionsMm:{diameter:row.diameterMm,pitch:row.pitchMm,headDia:row.headDiaMm,headHeight:row.headHeightMm,length:lengthMm}
+  });
+}
+
 function generateMachineCsink(row, options, group) {
   const lengthMm = Number(options.lengthMm) || preferredLengthFor(row.size, row.diameterMm);
   const standard = "ISO 7046:2011";
@@ -461,7 +485,7 @@ function generateSetScrew(row, options, group, point) {
 function generateHexNut(row, options, group, family, standard) {
   const spec = {
     family, standard, diameterMm: row.diameterMm, pitchMm: row.pitchMm, flankAngleDeg: 60,
-    toleranceClass: options.toleranceClass || "6H", series: "coarse",
+    toleranceClass: options.toleranceClass || (row.imperial ? "2B" : "6H"), series: row.imperial ? "unc" : "coarse",
     headAcrossFlatsMm: row.af, headHeightMm: row.h,
   };
   const body = {
@@ -489,7 +513,7 @@ function generateHexNut(row, options, group, family, standard) {
     group, standard, spec,
     callout: row.size + " " + standard.replace(/:.*$/, ""),
     matePorts: [
-      matePort({ id: "axis", type: "axis", diameterMm: row.diameterMm, gender: "female", thread: "ISO-metric", pitchMm: row.pitchMm }),
+      matePort({ id: "axis", type: "axis", diameterMm: row.diameterMm, gender: "female", thread: row.imperial ? "UNC" : "ISO-metric", pitchMm: row.pitchMm }),
       matePort({ id: "seat", type: "plane", origin: { x: 0, y: 0, z: 0 }, axis: { x: 0, y: -1, z: 0 } }),
     ],
     dimensionsMm: { pitch: row.pitchMm, acrossFlats: row.af, height: row.h, diameter: row.diameterMm, flangeDia: row.flangeDiaMm },
@@ -1154,6 +1178,9 @@ export function generateToolboxPart(options = {}) {
     case "csink-socket": return go(ISO10642_CSINK, "M6", generateCsinkSocket);
     case "button-socket": return go(ISO7380_BUTTON, "M6", generateButton);
     case "pan-screw": return go(ISO7045_PAN, "M5", generatePan);
+    case "ansi-pan-cross": return go(ANSI_PAN_CROSS, "5/16", generateAnsiPan);
+    case "ansi-hex-machine-nut": return go(ANSI_HEX_MACHINE_NUT, "5/16", (row,o,g)=>generateHexNut(row,o,g,"ansi-hex-machine-nut","ASME B18.6.3"));
+    case "ansi-washer-narrow": return go(ANSI_TYPE_A_NARROW, "5/16", (row,o,g)=>generateWasher(row,o,g,"ansi-washer-narrow","ASME B18.21.1"));
     case "csink-machine": return go(ISO7046_CSINK_MACHINE, "M5", generateMachineCsink);
     case "wood-screw": return go(DIN7997_WOOD, "4.0", generateWoodScrew);
     case "lag-bolt": return go(DIN571_LAG, "M8", generateLag);

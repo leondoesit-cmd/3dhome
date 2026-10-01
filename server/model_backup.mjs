@@ -56,6 +56,10 @@ export async function writeModelBackup(dir, record, options = {}) {
   await mkdir(keyDir, { recursive: true });
   const attachments = Array.isArray(options.attachments) ? options.attachments : [];
   const prior = await readMeta(keyDir);
+  const revision = Number.isFinite(Number(record.revision)) ? Math.trunc(Number(record.revision)) : 0;
+  // A restored browser can mirror an older library at startup. Preserve the
+  // newer saved model and its matching exact attachments on disk.
+  if (prior && revision < prior.revision) return { key, written: false, stale: true, revision: prior.revision };
   // A save that changed nothing is not a new version.
   if (prior && prior.sha256 === sha256) {
     if (attachments.length && !prior.attachments) {
@@ -65,7 +69,6 @@ export async function writeModelBackup(dir, record, options = {}) {
     return { key, written: false };
   }
 
-  const revision = Number.isFinite(Number(record.revision)) ? Math.trunc(Number(record.revision)) : 0;
   const stamp = new Date(now).toISOString().replace(/[:.]/g, "-");
   const version = `${stamp}-r${revision}.json`;
   await writeAtomic(join(keyDir, version), text);

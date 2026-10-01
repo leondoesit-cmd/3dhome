@@ -1,7 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { booleanBrep, disposeBrep, makeBrepExtrusion, shapeToMeshData } from "../js/cad_kernel.js";
-import { projectSolid, projectionBounds } from "../js/core/hidden_line.js";
+import { projectSolid, projectionBounds, viewBasis } from "../js/core/hidden_line.js";
+
+test("dense small hole rims remain visible in an isometric assembly drawing", () => {
+  const positions=[];
+  for(let hole=0;hole<9;hole++) for(let i=0;i<128;i++) {
+    const a=i*Math.PI/64,b=(i+1)*Math.PI/64,x=-5.08+hole*1.27,r=.2413;
+    const p=[x+r*Math.cos(a),r*Math.sin(a),0],q=[x+r*Math.cos(b),r*Math.sin(b),0];
+    const t=[p[0],p[1],.1524],s=[q[0],q[1],.1524];
+    positions.push(...p,...q,...s,...p,...s,...t);
+  }
+  const projection=projectSolid([{positions}],"iso"),basis=viewBasis("iso");
+  for(let hole=0;hole<9;hole++) {
+    const x=-5.08+hole*1.27,u=x*basis.right.x,v=x*basis.up.x;
+    const nearby=projection.visible.filter(segment=>Math.hypot((segment.a.u+segment.b.u)/2-u,(segment.a.v+segment.b.v)/2-v)<.4);
+    assert.ok(nearby.length>=16,`hole ${hole+1} retains its oblique rim, not only a center mark`);
+  }
+});
 
 test("orthographic extents use kernel bounds rather than tessellation extrema", () => {
   const body={positions:[-5.713,-.635,0,5.713,-.635,0,5.713,.635,0],exactBounds:{min:{x:-5.715,y:-.635,z:0},max:{x:5.715,y:.635,z:.1524}}};

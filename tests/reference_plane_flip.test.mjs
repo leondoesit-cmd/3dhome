@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { resolveOffsetPlanes } from "../js/core/offset_planes.js";
+import { resolveOffsetPlanes,referencePlaneOffset } from "../js/core/offset_planes.js";
 
 const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
 const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
@@ -14,7 +14,7 @@ const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url
 test("the reference plane form has Flip offset and stores the sign on the offset", () => {
   assert.match(modeler, /\{key:"offset",label:"Offset distance",type:"number",unit:"length",value:Math\.abs\(existing\?\.offset \?\? 1\.27\)/, "the distance field shows a size");
   assert.match(modeler, /\{key:"flip",label:t\("refPlaneFlipOffset"\),type:"boolean",value:Number\(existing\?\.offset\)<0\}/, "an existing flipped plane opens with Flip checked");
-  assert.match(modeler, /plane\.offset=\(flipped\?-1:1\)\*Math\.abs\(Number\(values\.offset\)\);plane\.refType="offset";/, "Flip negates the stored offset");
+  assert.match(modeler, /plane\.offset=referencePlaneOffset\(values\.offset,flipped\);plane\.refType="offset";/, "typed signed offsets retain direction and Flip reverses it");
   const pair = strings.match(/\n  refPlaneFlipOffset: \["([^"]+)", "([^"]+)"\]/);
   assert.ok(pair && pair[1] && pair[2] === "Flip offset", "Flip offset has Hebrew and English");
 });
@@ -28,4 +28,11 @@ test("a flipped offset plane from the front rim lands inside the part", () => {
   const plane = document.references[0];
   assert.ok(Math.abs(plane.origin.z - (3.302 - 0.3175)) < 1e-9, "ThreadPlane at z = " + plane.origin.z);
   assert.ok(Math.abs(plane.normal.z - 1) < 1e-9, "the plane keeps the rim's orientation");
+});
+
+test('signed datum input preserves direction and Flip reverses explicit direction',()=>{
+ assert.equal(referencePlaneOffset(-25),-25);assert.equal(referencePlaneOffset(25,true),-25);assert.equal(referencePlaneOffset(-25,true),25);
+ const document={references:[{id:'right',type:'plane',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}},{id:'middle',type:'plane',baseReferenceId:'right',offset:referencePlaneOffset(-25)}],sketches:[]};
+ assert.equal(resolveOffsetPlanes(document).ok,true);assert.equal(document.references[1].origin.x,-25);
+ assert.throws(()=>referencePlaneOffset('bad'),/Invalid/);
 });

@@ -11,10 +11,11 @@ export function helixFromSketch(document,params){
   else{origin={x:center.x,y:sketch.offset||0,z:center.y};axis={x:0,y:1,z:0};}
  }
  if(params.reverse)axis={x:-axis.x,y:-axis.y,z:-axis.z};
- const height=params.definition==='pitch-turns'?Number(params.pitch)*Number(params.turns):Number(params.height);
- const delta=params.taperMode==='angle'?height*Math.tan(Number(params.taperAngle)*Math.PI/180)*(params.taperOutward?1:-1):Number(params.taper || 0);
+ const variable=params.pitchMode==='variable'?normalizeHelixSpec({...params,radius}):null;
+ const height=variable?variable.height:params.definition==='pitch-turns'?Number(params.pitch)*Number(params.turns):Number(params.height);
+ const delta=variable?0:params.taperMode==='angle'?height*Math.tan(Number(params.taperAngle)*Math.PI/180)*(params.taperOutward?1:-1):Number(params.taper || 0);
  if(!(radius>0)||!(height>0)||!(radius+delta>0))throw new Error('Helix radius and height must stay positive');
- return {...params,origin,axis,radius,radiusEnd:radius+delta,height,pitch:params.definition==='height-turns'?height/Number(params.turns):Number(params.pitch),startAngle:Number(params.startAngle || 0)*Math.PI/180};
+ return {...params,pitchMode:variable?'variable':'constant',pitchRegions:variable?.pitchRegions || [],origin,axis,radius:variable?.radius ?? radius,radiusEnd:variable?.radiusEnd ?? radius+delta,height,turns:variable?.turns ?? params.turns,pitch:params.definition==='height-turns'?height/Number(params.turns):Number(params.pitch),startAngle:Number(params.startAngle || 0)*Math.PI/180};
 }
 
 /* Reference geometry is a display/selection projection of the Helix feature,

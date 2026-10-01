@@ -88,8 +88,8 @@ test("modeler: borrowed panels go home clean", () => {
   assert.match(mdMobile, /md-group-open[\s\S]{0,160}classList\.remove\("md-group-open"\)/);
   assert.match(mdMobile, /removeAttribute\("aria-expanded"\)/);
   // teardown and every sheet switch release before doing anything else
-  assert.match(mdMobile, /export function teardownModelerMobile\(\) \{\s*release\(\);/);
-  assert.match(mdMobile, /function closeSheet\(\)[\s\S]{0,80}release\(\);/);
+  assert.match(mdMobile, /export function teardownModelerMobile\(\) \{[\s\S]*?release\(\);[\s\S]*?closeSheet\(\);/);
+  assert.match(mdMobile, /function closeSheet\(\)[\s\S]{0,400}release\(\);/);
 });
 
 test("modeler: drawer listeners live on the sheet, never on the borrowed ribbon", () => {

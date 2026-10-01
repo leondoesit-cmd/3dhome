@@ -1,0 +1,13 @@
+{
+  "sourceBundle": "WEIGHT-LINK8.2-final-browser-2026-09-28.mforge",
+  "method": "Read-only complete feature-tree regeneration and placed BREP material intersections",
+  "solidCount": 4,
+  "pairs": [
+    {"a":"AXLE","b":"FLAT BAR - 9 HOLE","intersects":false,"volumeCm3":0},
+    {"a":"AXLE","b":"WEIGHT","intersects":false,"volumeCm3":0},
+    {"a":"AXLE","b":"HOOK","intersects":false,"volumeCm3":0},
+    {"a":"FLAT BAR - 9 HOLE","b":"WEIGHT","intersects":false,"volumeCm3":0},
+    {"a":"FLAT BAR - 9 HOLE","b":"HOOK","intersects":false,"volumeCm3":0},
+    {"a":"WEIGHT","b":"HOOK","intersects":false,"volumeCm3":0}
+  ]
+}

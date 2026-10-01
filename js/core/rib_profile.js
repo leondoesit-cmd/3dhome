@@ -52,6 +52,47 @@ export function ribLoop(points, thickness, side) {
   return ribLoopFromOffsets(points, ribOffsets(size, side));
 }
 
+/* Parallel-to-sketch ribs keep the traced line as their upper boundary. The
+   open ends grow along one in-plane direction to a planar stopping surface;
+   thickness is subsequently applied NORMAL to this closed section. */
+export function ribGrowthVector(direction) {
+  if (direction === "positive-u") return {u:1,v:0};
+  if (direction === "negative-u") return {u:-1,v:0};
+  if (direction === "positive-v") return {u:0,v:1};
+  return {u:0,v:-1};
+}
+
+export function ribWebLoop(points, growth, stop) {
+  const line = cleaned(points);
+  if (line.length < 2) throw new Error("Rib needs an open sketch line of at least two points");
+  const denominator = stop.normal.u*growth.u + stop.normal.v*growth.v;
+  if (Math.abs(denominator)<1e-9) throw new Error("Rib growth is parallel to the stopping face");
+  const project = point => {
+    const run=((stop.u-point.u)*stop.normal.u+(stop.v-point.v)*stop.normal.v)/denominator;
+    if(run < -1e-6)throw new Error("The rib runs away from the body it braces, so it never reaches it");
+    return {u:point.u+growth.u*run,v:point.v+growth.v*run};
+  };
+  const loop=cleaned([...line,project(line[line.length-1]),project(line[0])]);
+  if(loop.length>1 && Math.hypot(loop[0].u-loop.at(-1).u,loop[0].v-loop.at(-1).v)<1e-9)loop.pop();
+  const boundary=analyzeSectionBoundaries(loop.map((a,i)=>({a,b:loop[(i+1)%loop.length]})),1e-7);
+  if(!boundary.ok || boundary.loops.length!==1)throw new Error("Rib growth creates an overlapping or empty web; change its direction or profile");
+  return loop;
+}
+
+/* An intentionally open path consumed by Rib is healthy. A broken path or a
+   branch must still report the normal sketch warning, even after consumption. */
+export function ribSketchReady(sketch,features,chains) {
+  if(!sketch || chains?.length!==1)return false;
+  const ids=new Set(chains[0].entityIds);
+  if((sketch.entities || []).some(entity=>!entity.construction && !ids.has(entity.id)))return false;
+  return (features || []).some(feature=>{
+    if(feature.type!=="rib")return false;
+    const references=(feature.references?.sketches || []).map(reference=>typeof reference==="string"?reference:reference?.id);
+    if(feature.params?.sketchId!==sketch.id && !references.includes(sketch.id))return false;
+    return (feature.params?.chainEntityIds || []).every(id=>ids.has(id));
+  });
+}
+
 function ribLoopFromOffsets(points, { left, right }) {
   const line = cleaned(points);
   if (line.length < 2) throw new Error("Rib needs an open sketch line of at least two points");

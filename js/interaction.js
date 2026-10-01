@@ -6510,6 +6510,9 @@ export function initInteraction() {
     // visible modeler before the planner mutates hidden state behind it.
     if (modelerKeyboardOwnsInput()) return;
     if (S.workspace && S.workspace.role === "viewer") return;
+    // Browser extensions and other integrations can dispatch a keydown-like
+    // event without KeyboardEvent.key. There is no planner shortcut to run.
+    if (typeof e.key !== "string" || !e.key) return;
     if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
       e.preventDefault();
       if (e.shiftKey) redo();

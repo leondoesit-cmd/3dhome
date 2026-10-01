@@ -357,6 +357,31 @@ body.compact-nav .m-editor-strip .pr-editors button {
 body.compact-nav .m-editor-strip .pr-ed-full { display: none; }
 body.compact-nav .m-editor-strip .pr-ed-short { display: inline; }
 body.compact-nav .m-editor-strip .m-panes button i { font-size: 16px; vertical-align: -3px; }
+
+/* Keep the complete command set discoverable with a mouse or keyboard. The
+   tabs and tool rows can overflow on laptop windows and translated labels. */
+.pro-ribbon .pr-tab:focus-visible,
+.pro-ribbon .pr-every:focus-visible,
+.pro-ribbon .pr-collapse:focus-visible,
+.pro-ribbon .pr-groups:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.pro-ribbon .pr-tabs:is(:hover, :focus-within),
+body.pro-skin .pro-ribbon .pr-groups:is(:hover, :focus-within) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) transparent;
+}
+.pro-ribbon .pr-tabs:is(:hover, :focus-within)::-webkit-scrollbar,
+body.pro-skin .pro-ribbon .pr-groups:is(:hover, :focus-within)::-webkit-scrollbar {
+  display: block;
+  height: 5px;
+}
+.pro-ribbon .pr-tabs:is(:hover, :focus-within)::-webkit-scrollbar-thumb,
+body.pro-skin .pro-ribbon .pr-groups:is(:hover, :focus-within)::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--text-muted);
+}
 /* Too short to give up a row (a phone on its side), and the full-screen modes
    that hide the top bar: the strip goes and the block shrinks with it. */
 @media (max-height: 500px) {

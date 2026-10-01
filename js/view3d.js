@@ -1,5 +1,6 @@
 import { buildBlueprintUnderlay3D } from './blueprint_3d.js';
 import { createPlannerDrawing } from './planner_drawing.js';
+import { updateCabinetRuntimeMesh } from './cabinet_mesh.js';
 import { switchFloorAndWait } from './floors.js';
 import { buildSurveyGeometry } from './survey_mesh.js';
 import { moveSurveyWalker, navigationPosition, navigationFloorTransition } from './navigation_geometry.js';
@@ -2144,7 +2145,10 @@ window.addEventListener("customTextureLoaded", function () {
 
 function itemSig(it) {
   try {
-    return catalogRev + "|" + JSON.stringify(it, function (k, v) {
+    // Canonical definitions can change independently of their placed item.
+    // Include their complete data so an explicit build request cannot retain
+    // stale geometry, derived bounds or rules after a definition edit.
+    return catalogRev + "|" + JSON.stringify({ item: it, definition: S.parametric?.definitions?.[it.definitionId] }, function (k, v) {
       // only the piece's OWN placement is transform-only. A nested x/z inside a
       // custom model's part list genuinely changes its shape, so `this === it`
       // keeps the exclusion to the top level.
@@ -2181,7 +2185,7 @@ function dropItem(id) {
 function buildAndCache(it) {
   dropItem(it.id);
   var g = buildItem(it);
-  if (g) itemCache.set(it.id, { g: g, sig: itemSig(it) });
+  if (g) itemCache.set(it.id, { g: g, sig: itemSig(it), catalogRev: catalogRev });
   return g;
 }
 
@@ -2228,7 +2232,14 @@ function applyItemOps() {
       return;
     }
     if (mode === "move") placeItem(c.g, it);
-    else if (!buildAndCache(it)) escalate = true;
+    else {
+      var signature = itemSig(it);
+      if (signature != null && signature === c.sig) placeItem(c.g, it);
+      else if (c.catalogRev === catalogRev && updateCabinetRuntimeMesh(c.g, it)) {
+        placeItem(c.g, it);
+        c.sig = itemSig(it);
+      } else if (!buildAndCache(it)) escalate = true;
+    }
   });
   S.items3D.clear();
   shadowsDirty = true;

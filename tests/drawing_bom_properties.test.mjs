@@ -1,0 +1,65 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {generateBOM} from '../js/cad_interference.js';
+import {buildDrawingScene} from '../js/cad_drawings.js';
+import {sceneToSvg} from '../js/cad_sheet.js';
+
+test('assembly sheet export respects ANSI Letter, explicit scale and title fields',()=>{
+  const scene=buildDrawingScene({kind:'assembly',name:'LINKS',parts:[{id:1,kind:'box',x0:0,x1:10,y0:0,y1:1,z0:0,z1:2}]},
+    {size:'Letter',orientation:'landscape',draftingStandard:'ANSI',units:'in',projection:'third',scale:[1,1],views:['iso'],
+      title:'LINK',number:'56-7789',revision:'A',company:'D&M ENGINEERING',author:'Designer',date:'2026-09-30',balloons:[]});
+  assert.deepEqual(scene.scale,[1,1]);
+  assert.equal(scene.views.find(view=>view.id===scene.primaryId).scale,1,'sole isometric uses the title-block sheet scale');
+  const svg=sceneToSvg(scene);
+  assert.match(svg,/width="279\.4mm"/);
+  assert.match(svg,/height="215\.9mm"/);
+  const text=scene.items.filter(item=>item.type==='text').map(item=>item.text);
+  for(const expected of ['LINK','56-7789','D&M ENGINEERING','Designer','2026-09-30']) assert.ok(text.includes(expected),expected);
+  assert.ok(text.some(value=>value.includes('1:1')));
+  assert.ok(!text.some(value=>value.includes('2:1')||value.includes('4:1')));
+});
+
+test('parts-only drawing BOM retains document properties and assigned stock material',()=>{
+  const def={customProperties:{PartNo:'GIDS-SC-10009-7',Description:'7HOLES'},parts:[{materialCatalogId:'stock:aluminum2014'}]};
+  const rows=generateBOM({components:[{modelKey:'bar7',name:'Long source library name',def},{modelKey:'bar7',def},
+    {modelKey:'collar',def:{customProperties:{Number:'GIDS-SC-10012-3-16',Description:'SHAFT-COLLAR',Material:'1060 Alloy'}}}]});
+  assert.equal(rows[0].quantity,2);
+  assert.equal(rows[0].partNumber,'GIDS-SC-10009-7');
+  assert.equal(rows[0].description,'7HOLES');
+  assert.equal(rows[0].material,'Aluminum 2014');
+  assert.equal(rows[1].partNumber,'GIDS-SC-10012-3-16');
+  assert.equal(rows[1].material,'1060 Alloy');
+  const scene=buildDrawingScene({kind:'assembly',parts:[]},{views:['iso'],balloons:rows.map((row,i)=>({...row,item:i+1,qty:row.quantity}))});
+  const text=scene.items.filter(item=>item.type==='text').map(item=>item.text);
+  assert.ok(text.includes('PART NUMBER'));
+  assert.ok(text.includes('GIDS-SC-10009-7'));
+  assert.ok(text.includes('7HOLES'));
+  assert.ok(text.includes('Aluminum 2014'));
+  assert.ok(text.includes('1060 Alloy'));
+});
+
+test('long BOM descriptions fit their cell and preserve the full exported tooltip',()=>{
+  const description='A long source description '.repeat(30);
+  const scene=buildDrawingScene({kind:'assembly',parts:[]},{views:['iso'],balloons:[{item:1,name:'Source',description,qty:1}]});
+  const cell=scene.items.find(item=>item.fullText===description);
+  assert.ok(cell.text.endsWith('…'));
+  assert.ok(cell.text.length<description.length);
+  assert.ok(cell.size>=1.8);
+});
+
+test('Letter assembly BOM reserves a band above a sole isometric view',()=>{
+  const scene=buildDrawingScene({kind:'assembly',parts:[{id:'link',kind:'box',x0:0,x1:11.43,y0:0,y1:0.1524,z0:0,z1:5}]},
+    {size:'Letter',scale:[1,1],views:['iso'],overallDimensions:false,balloons:Array.from({length:4},(_,i)=>({item:i+1,name:'Part '+i,qty:1}))});
+  const table=scene.items.find(item=>item.type==='rect'&&item.style==='frame'&&item.fill==='#ffffff'&&item.h===30);
+  assert.ok(table,'BOM frame exists');
+  for(const view of scene.views) assert.ok(view.box.y>=table.y+table.h+12,'geometry stays below BOM');
+  assert.equal(scene.dims.size,0,'assembly sheet does not invent isometric overall dimensions');
+});
+
+test('instance part number takes precedence without replacing the source document',()=>{
+  const def={customProperties:{PartNo:'SOURCE',Description:'SOURCE DESCRIPTION'}};
+  const row=generateBOM({components:[{modelKey:'source',def,customProperties:{PartNumber:'INSTANCE',Description:'INSTANCE DESCRIPTION'}}]})[0];
+  assert.equal(row.partNumber,'INSTANCE');
+  assert.equal(row.description,'INSTANCE DESCRIPTION');
+  assert.equal(def.customProperties.PartNo,'SOURCE');
+});

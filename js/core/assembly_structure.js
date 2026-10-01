@@ -26,6 +26,13 @@ import { worldFrame } from "../cad_mate_model.js";
 export const ASSEMBLY_ORIGIN_ID = "assembly:origin";
 export const PATH_SEPARATOR = "/";
 
+/* Tree row IDs are strings, while older saved assembly occurrences use numeric
+   IDs. A selected plane row must still resolve the same component and hand its
+   original ID type to the mate solver's keyed component map. */
+export function lookupAssemblyComponent(assembly, id) {
+  return (assembly?.components || []).find((component)=>String(component.id)===String(id)) || null;
+}
+
 /* This modeler's planes: Front is X·Y, Top is X·Z, Right is Z·Y. */
 const PLANES = [
   { id: "plane:front", name: "Front Plane", normal: { x: 0, y: 0, z: 1 } },
@@ -48,7 +55,7 @@ export function isSubassembly(component) {
   return !!(component && component.kind === "assembly" && component.asm && Array.isArray(component.asm.components));
 }
 
-const POINT_KEYS = ["origin", "point", "center", "start", "end"];
+const POINT_KEYS = ["origin", "point", "center", "start", "end", "referenceOrigin"];
 const DIRECTION_KEYS = ["normal", "axis", "xDir", "direction"];
 
 /* A descriptor carried from a child's space into its parent's: points through
@@ -61,6 +68,7 @@ export function descriptorToParent(descriptor, child) {
     if (!descriptor[key]) continue;
     out[key] = worldFrame({ origin: descriptor[key] }, child, "component").origin;
   }
+  if(Array.isArray(descriptor.endpoints)) out.endpoints=descriptor.endpoints.map(point=>worldFrame({origin:point},child,'component').origin);
   for (const key of DIRECTION_KEYS) {
     if (!descriptor[key]) continue;
     out[key] = worldFrame({ normal: descriptor[key] }, child, "component").normal;
@@ -148,6 +156,33 @@ export function subassemblyComponent(record, fields = {}) {
     description: record.description || "", asm, visible: true, grounded: !!fields.grounded,
     transform: fields.transform || { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
   };
+}
+
+export function boundsAtPlacement(bounds, placement) {
+  if (!bounds || !placement) return null;
+  const out = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
+  for (const x of [bounds.x0, bounds.x1]) for (const y of [bounds.y0, bounds.y1]) for (const z of [bounds.z0, bounds.z1]) {
+    const point = {
+      x: placement.origin.x + placement.x.x*x + placement.y.x*y + placement.z.x*z,
+      y: placement.origin.y + placement.x.y*x + placement.y.y*y + placement.z.y*z,
+      z: placement.origin.z + placement.x.z*x + placement.y.z*y + placement.z.z*z,
+    };
+    for (const axis of ["x", "y", "z"]) {
+      out[axis+"0"] = Math.min(out[axis+"0"], point[axis]);
+      out[axis+"1"] = Math.max(out[axis+"1"], point[axis]);
+    }
+  }
+  return out;
+}
+
+/* Refresh the embedded document without replacing its occurrence in the
+   parent. Parent mates address that occurrence ID, while references into the
+   child use the saved child IDs and may rebind during the next solve. */
+export function refreshSubassemblyFromRecord(component, record) {
+  if (!isSubassembly(component) || !record) return component;
+  component.asm = subassemblyComponent(record, { id: component.id }).asm;
+  component.assemblyKey = record.key;
+  return component;
 }
 
 /* An assembly may not contain itself, however deep: inserting CAPANDLENS into

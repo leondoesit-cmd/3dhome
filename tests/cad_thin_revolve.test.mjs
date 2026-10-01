@@ -43,3 +43,19 @@ test('thin revolve outward follows the axis, not the sketch drawing direction',(
  const reversed=revolveThinProfile(backward,['cb','ba'],.381,'forward','z');
  assert.ok(reversed.points.every(p=>p.v>=.3302-1e-8),JSON.stringify(reversed.points));
 });
+test('thin revolve outward on a centerpoint arc follows the axis rather than the arc centre',()=>{
+ const below={plane:'side',referenceId:'plane:right',points:[
+  {id:'centre',x:0,y:2},{id:'start',x:1,y:2},{id:'end',x:0,y:1},
+ ],entities:[{id:'arc',type:'arc',a:'end',b:'start',c:'centre'}]};
+ const outward=revolveThinProfile(below,['arc'],.2,'forward','z');
+ const inward=revolveThinProfile(below,['arc'],.2,'reverse','z');
+ assert.ok(Math.abs(outward.segments[0].radius-.8)<1e-10,
+  'Decreasing this arc radius moves its wall farther from the Z axis');
+ assert.ok(Math.abs(inward.segments[2].radius-1.2)<1e-10);
+ const above={...below,points:[
+  {id:'centre',x:0,y:2},{id:'start',x:1,y:2},{id:'end',x:0,y:3},
+ ],entities:[{id:'arc',type:'arc',a:'start',b:'end',c:'centre'}]};
+ const opposite=revolveThinProfile(above,['arc'],.2,'forward','z');
+ assert.ok(Math.abs(opposite.segments[2].radius-1.2)<1e-10,
+  'Increasing this arc radius moves its wall farther from the Z axis');
+});

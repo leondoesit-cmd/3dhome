@@ -5,11 +5,25 @@ import { openPage, findChrome } from "../tools/browser_harness.mjs";
 const chrome = await findChrome();
 const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
 
+async function centimetreFixture(page) {
+  await page.eval(async () => {
+    const { loadUnitSettings, saveUnitSettings } = await import('/js/unit_settings.js');
+    const settings = loadUnitSettings();
+    const overrides = { ...settings.overrides };
+    for (const domain of ['plan', 'rooms', 'details', 'furniture']) overrides[domain] = { unit: 'cm', digits: 0 };
+    saveUnitSettings({ ...settings, overrides });
+    // These gesture cases measure ten and five base steps, independent of
+    // locale defaults and the field's keyboard precision.
+    for (const id of ['w_len', 'i_w']) document.getElementById(id).step = '1';
+  });
+}
+
 /* A wall has to be selected for the length field to be bound to anything, so
    every case here starts from the same real selection rather than poking a
    detached input. */
 async function planWithWallSelected() {
   const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
+  await centimetreFixture(page);
   await page.eval(async () => {
     const start = document.getElementById("start-screen");
     if (start) start.hidden = true;
@@ -76,10 +90,8 @@ test("tapping a dimension field on a phone opens the dial instead of the keyboar
 test("turning the dial scrubs the wall live, in one undo step", opts, async () => {
   const page = await planWithWallSelected();
   try {
-    const result = await page.eval(async (tapSrc) => {
+    await page.eval((tapSrc) => {
       eval("window.__tap = " + tapSrc);
-      const { S } = await import("/js/state.js");
-      const { wallClearLength } = await import("/js/geometry.js");
       const wall = window.__testWall();
       const field = document.getElementById("w_len");
       const before = { value: Number(field.value) };
@@ -89,7 +101,7 @@ test("turning the dial scrubs the wall live, in one undo step", opts, async () =
       const r = dial.getBoundingClientRect();
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       const radius = r.width / 2 - 6;
-      const send = (type, deg, stamp) =>
+      const send = (type, deg) =>
         dial.dispatchEvent(
           new PointerEvent(type, {
             bubbles: true, cancelable: true, pointerId: 2, pointerType: "touch",
@@ -101,13 +113,23 @@ test("turning the dial scrubs the wall live, in one undo step", opts, async () =
          well under the acceleration knee, so this is 60 degrees at gain 1 and
          the arithmetic is exact rather than dependent on frame timing. */
       send("pointerdown", -90);
-      const frames = [];
-      for (let i = 1; i <= 12; i++) {
+      window.__dialGesture = { before, wall, field, send, frames: [] };
+    }, tap.toString());
+    // Keep each frame within the harness command timeout even when software
+    // rendering makes the complete twelve-frame gesture exceed thirty seconds.
+    for (let i = 1; i <= 12; i++) {
+      await page.eval(async (i) => {
+        const { send, field, frames } = window.__dialGesture;
         await new Promise((r2) => setTimeout(r2, 40));
         send("pointermove", -90 + i * 5);
         await new Promise((r2) => requestAnimationFrame(r2));
         frames.push(Number(field.value));
-      }
+      }, i);
+    }
+    const result = await page.eval(async () => {
+      const { before, wall, field, send, frames } = window.__dialGesture;
+      const { S } = await import("/js/state.js");
+      const { wallClearLength } = await import("/js/geometry.js");
       send("pointerup", -30);
       await new Promise((r2) => requestAnimationFrame(r2));
 
@@ -130,7 +152,7 @@ test("turning the dial scrubs the wall live, in one undo step", opts, async () =
         dialClosed: document.getElementById("dim-knob").hidden,
         stillReadOnly: document.getElementById("w_len").readOnly,
       };
-    }, tap.toString());
+    });
 
     assert.ok(result.scrubbed > result.before, `dial raised the length ${result.before} -> ${result.scrubbed}`);
     assert.equal(result.scrubbed, result.before + 10, "60 degrees of slow turn is ten base steps");
@@ -239,6 +261,7 @@ test("a desktop window never gets the dial", opts, async () => {
 test("an item dimension applies live, but its proposal dialog waits for the release", opts, async () => {
   const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
   try {
+    await centimetreFixture(page);
     const result = await page.eval(async (tapSrc) => {
       eval("window.__tap = " + tapSrc);
       const start = document.getElementById("start-screen");

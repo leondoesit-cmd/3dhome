@@ -15,6 +15,19 @@ const circle = (count, radius, cu, cv) => Array.from({ length: count }, (_, i) =
   v: cv + radius * Math.sin(2 * Math.PI * i / count),
 }));
 
+test("a cut into a merged raised boss survives base-profile broad phase", () => {
+  const part = {kind:"ext",axis:"z",from:0,to:1,
+    pts:[{u:0,v:0},{u:4,v:0},{u:4,v:1},{u:0,v:1}],
+    merges3d:[{axis:"z",from:1,to:2,loop:circle(24,1,2,4)}]};
+  const bounds={x0:0,x1:4,y0:0,y1:5,z0:0,z1:2};
+  const frame=frameFromPlane({x:0,y:0,z:2},{x:0,y:0,z:1});
+  assert.equal(contains(cutFootprint(part,bounds,null,"z"),{u:2,v:4}),true);
+  const projected=cutFootprint(part,bounds,frame,"frame");
+  assert.equal(contains(projected,{u:2,v:4}),true);
+  part.merges3d[0].suppressed=true;
+  assert.equal(contains(cutFootprint(part,bounds,null,"z"),{u:2,v:4}),false);
+});
+
 test("only a cut wholly inside the profile is a lightweight hole", () => {
   const profile = [{ u: -5, v: -5 }, { u: 5, v: -5 }, { u: 5, v: 5 }, { u: -5, v: 5 }];
   const enclosed = [{ u: -2, v: -1 }, { u: 2, v: -1 }, { u: 2, v: 1 }, { u: -2, v: 1 }];

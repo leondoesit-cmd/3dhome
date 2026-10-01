@@ -87,7 +87,10 @@ function buzz() {
    every panel built at runtime without one, which is where the boxes are
    smallest. `data-knob="off"` is the escape hatch. */
 export function knobEligible(el) {
-  if (!el || el.tagName !== "INPUT" || el.type !== "number") return false;
+  if (!el || el.tagName !== "INPUT") return false;
+  // Length fields use text so typed fractions and unit suffixes stay valid.
+  var lengthText = el.type === "text" && el.inputMode === "decimal" && inferDomainFromElementId(el.id);
+  if (el.type !== "number" && !lengthText) return false;
   if (el.disabled || el.readOnly) return false;
   if (el.getAttribute("data-knob") === "off") return false;
   return !el.closest("#start-screen, #dim-knob");

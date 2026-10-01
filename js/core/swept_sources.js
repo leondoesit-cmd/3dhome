@@ -4,7 +4,7 @@ import {splineControls} from "../sketch_spline.js";
    question without loading the browser. */
 import { framePoint } from "./frame.js";
 import { analyzeSketchChains, analyzeSketchProfiles } from "../sketch_profiles.js";
-import { helixSweepPath } from "../cad_helix.js";
+import { helixSweepPath,circularHelixSweepProfile } from "../cad_helix.js";
 import { helixFromSketch } from "./sketch_helix.js";
 
 function planeAxis(plane) { return plane === "top" ? "y" : plane === "front" ? "z" : "x"; }
@@ -98,6 +98,12 @@ export function loftSourceRecord(sketches, entityIdSets) {
 
 export function resolveSketchSources(def, sources, resolveProfilePoints) {
   if (!sources) return null;
+  if(sources.kind==='circular-helix-sweep'){
+    let helix=(def.referenceGeometry || []).find(item=>item.id===sources.helixId);
+    const feature=(def.features || []).find(item=>item.id===(sources.helixFeatureId || helix?.featureId) && item.type==='helix');
+    if(feature)helix={...helix,...helixFromSketch(def,feature.params || {})};
+    return helix?circularHelixSweepProfile(helix,sources.diameter):null;
+  }
   if(sources.kind==="circular-sweep")return circularSweepProfile(sketchById(def,sources.path.sketchId),sources.diameter,sources.path.entityIds);
   var loop = function (entry) {
     var sketch = sketchById(def, entry.sketchId);

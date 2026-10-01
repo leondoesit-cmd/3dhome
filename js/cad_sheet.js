@@ -145,9 +145,12 @@ export function createView(dir, options = {}) {
     x: Number.isFinite(options.x) ? options.x : null,      // null = let the layout place it
     y: Number.isFinite(options.y) ? options.y : null,
     scale: options.scale || null,                          // null = inherit the sheet scale
+    configurationId: options.configurationId || null,      // null = active model configuration
+    configurationName: options.configurationName || null,
     primary: !!options.primary,
     parent: options.parent || null,
     hidden: options.hidden !== undefined ? !!options.hidden : null,
+    displayStyle: ["shaded","shadedEdges"].includes(options.displayStyle) ? options.displayStyle : "edges",
     centers: options.centers !== undefined ? !!options.centers : null,
     labelled: options.labelled !== false,
     section: options.section || null,                      // {axis, at, from, arrows, tag}
@@ -165,6 +168,11 @@ export function ensureSheetDoc(def, options = {}) {
   }
   const doc = def.drawing;
   doc.views = doc.views.filter(Boolean).map((view) => Object.assign(createView(view.dir, view), view));
+  doc.views.forEach(view => {
+    view.configurationName = view.configurationId
+      ? (def.configurations || []).find(cfg => cfg.id === view.configurationId)?.name || null
+      : null;
+  });
   if (!doc.views.some((view) => view.primary)) doc.views[0].primary = true;
   doc.dims = Array.isArray(doc.dims) ? doc.dims : [];
   doc.notes = Array.isArray(doc.notes) ? doc.notes : [];
@@ -204,7 +212,7 @@ export function titleBlockBox(doc) {
    isometric of a cube is 1.7× the area of the front view and dominates the
    page, so an undirected one steps down to the next standard scale. */
 function defaultViewScale(view, sheetScale) {
-  if (!view || isOrthoView(view.dir) || view.section || view.detail) return sheetScale;
+  if (!view || view.primary || isOrthoView(view.dir) || view.section || view.detail) return sheetScale;
   const value = scaleValue(sheetScale);
   const index = STANDARD_SCALES.findIndex((scale) => scaleValue(scale) <= value + 1e-9);
   return STANDARD_SCALES[Math.min(STANDARD_SCALES.length - 1, (index < 0 ? 0 : index) + 1)];
@@ -276,7 +284,7 @@ function drawingArea(doc, columnW) {
   const x1 = frame.x1 - 6 - column;
   const extendsOverTitle = x1 > title.x - 4;
   return {
-    x0: frame.x0 + 6, y0: frame.y0 + 6,
+    x0: frame.x0 + 6, y0: frame.y0 + 6 + (doc.bomRowCount ? 6 + doc.bomRowCount * 6 + 12 : 0),
     x1, y1: extendsOverTitle ? title.y - 6 : frame.y1 - 6,
     get w() { return this.x1 - this.x0; },
     get h() { return this.y1 - this.y0; },
@@ -569,15 +577,17 @@ export function createProjector(doc, bodies, options = {}) {
   const cache = new Map();
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [view.dir, JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0)].join("|");
+    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0)].join("|");
     if (cache.has(key)) return cache.get(key);
+    const viewBodies = options.bodiesForView ? options.bodiesForView(view) || bodies : bodies;
+    const viewOptions={...options,shaded:["shaded","shadedEdges"].includes(view.displayStyle)};
     let projection = null;
-    if (view.section) projection = projectSection(doc, view, bodies, options);
+    if (view.section) projection = projectSection(doc, view, viewBodies, viewOptions);
     else if (view.detail) {
       const parent = (doc.views || []).find((entry) => entry.id === view.detail.from);
-      const base = parent ? project(parent) : projectSolid(bodies, view.dir, options);
+      const base = parent ? project({...parent,displayStyle:view.displayStyle}) : projectSolid(viewBodies, view.dir, viewOptions);
       projection = cropProjection(base, view.detail);
-    } else projection = projectSolid(bodies, view.dir, options);
+    } else projection = projectSolid(viewBodies, view.dir, viewOptions);
     cache.set(key, projection);
     return projection;
   };
@@ -702,8 +712,15 @@ export function formatLength(modelValue, doc) {
    it. */
 export function dimensionText(dim, doc) {
   if(dim.reference)return "("+dimensionText({...dim,reference:false},doc)+")";
+  if(Number.isInteger(dim.quantity) && dim.quantity>1)return dim.quantity+"X "+dimensionText({...dim,quantity:1},doc);
   const suffix = dim.tolerance ? " " + dim.tolerance : "";
-  if (dim.text) return dim.text + suffix;
+  // <> keeps the measured value live inside custom text, e.g. Ø<> for a
+  // bolt-circle span. Literal overrides remain literal for existing sheets.
+  if (dim.text) {
+    const text = String(dim.text);
+    const measured = text.includes("<>") ? dimensionText({...dim,text:"",tolerance:""},doc) : "";
+    return text.replaceAll("<>", measured) + suffix;
+  }
   const value = formatLength(dim.measure, doc);
   const prefix = dim.type === "diameter" ? "⌀" : dim.type === "radius" ? "R" : "";
   if (dim.type === "angle") return trimNumber(Math.round(num(dim.measure) * 10) / 10) + "°" + suffix;
@@ -872,6 +889,10 @@ export function resolveDimAnchor(ref, index, basis) {
   if (!entry || (ref.kind && entry.kind !== ref.kind)) return null;
   const descriptor = entry.descriptor || {};
   const at = ref.at || "mid";
+  /* Model Items may dimension the distance between a feature's persistent
+     start/end faces. Their plane origins move with the feature depth. Keep
+     face picks out of the interactive snap set, but resolve explicit refs. */
+  if (entry.kind === "face") return at === "centre" ? projectToView(descriptor.origin || descriptor.center, basis) : null;
   if (at === "a" || at === "b") {
     const ends = edgeEndpoints(descriptor);
     return ends ? projectToView(ends[at === "a" ? 0 : 1], basis) : null;
@@ -981,10 +1002,27 @@ export function topologyAnchors(index, basis) {
    — and its leader binds to topology like any dimension reference, so it
    follows the hole rather than pointing at where the hole used to be.
    A plain typed note carries neither and is never touched. */
-export function resolveNote(note, callouts, index, basis) {
+export function resolveNote(note, callouts, index, basis, doc, properties) {
   const result = { note, dangling: false, missing: [] };
   if (!note) return result;
   const patch = {};
+  if(note.modelLink?.kind === "property") {
+    const key=note.modelLink.key,value=properties?.[key];
+    if(value!==undefined && value!==null && String(value)!=="")patch.text=(note.text ? note.text+" " : "")+String(value);
+    else {result.dangling=true;result.missing.push("property:"+key);}
+  }
+  if (note.modelLink?.kind === "extrudeDepth") {
+    const id=note.modelLink.featureId;
+    const startFace=index?.get(id+":face:start")?.descriptor;
+    const start=startFace?.origin;
+    const end=index?.get(id+":face:end")?.descriptor?.origin;
+    if(start && end) {
+      const dx=end.x-start.x,dy=end.y-start.y,dz=end.z-start.z,normal=startFace.normal;
+      const normalLength=normal && Math.hypot(normal.x,normal.y,normal.z);
+      const depth=normalLength>0 ? Math.abs((dx*normal.x+dy*normal.y+dz*normal.z)/normalLength) : Math.hypot(dx,dy,dz);
+      patch.text=String(note.text || "MATERIAL THICKNESS")+" "+dimensionText({measure:depth},doc);
+    } else {result.dangling=true;result.missing.push(id);}
+  }
   if (note.feature && callouts) {
     const text = typeof callouts.get === "function" ? callouts.get(note.feature) : callouts[note.feature];
     if (text) patch.text = text;
@@ -1153,6 +1191,7 @@ function exactArcStroke(segment, topologyIndex, basis, toSheet, k, style, viewId
 }
 
 export function buildSheetScene(doc, provider, options = {}) {
+  if (provider?.bom?.length) doc = { ...doc, bomRowCount: provider.bom.length };
   const items = [], diagnostics = [];
   const frame = sheetFrame(doc), paper = frame.paper;
   /* null, not an empty index: "no topology was offered" and "this id is gone"
@@ -1201,9 +1240,20 @@ export function buildSheetScene(doc, provider, options = {}) {
 
     /* A pictorial is there to be recognised, not measured: dashed lines behind
        an isometric read as noise, so one is only ever shown on request. */
-    const showHidden = view.hidden !== null && view.hidden !== undefined ? !!view.hidden
-      : (isOrthoView(view.dir) || view.section) && doc.showHidden !== false;
+    const shaded=["shaded","shadedEdges"].includes(view.displayStyle);
+    const drawEdges=view.displayStyle!=="shaded";
+    const showHidden = !shaded && (view.hidden !== null && view.hidden !== undefined ? !!view.hidden
+      : (isOrthoView(view.dir) || view.section) && doc.showHidden !== false);
     const showCenters = view.centers === null ? doc.showCenters !== false : !!view.centers;
+
+    if(shaded)for(const surface of projection.surfaces || []) {
+      const pts=surface.points.map(toSheet),previous=items[items.length-1];
+      // Fill adjacent same-tone facets as one path. Its shared internal edges
+      // are not antialiased against paper (which otherwise creates white seams).
+      if(previous?.shaded && previous.viewId===view.id && previous.fill===surface.fill) {
+        previous.paths.push(pts);previous.pts.push(...pts);
+      } else items.push({type:"poly",closed:true,pts:pts.slice(),paths:[pts],fill:surface.fill,viewId:view.id,shaded:true});
+    }
 
     if (projection.cuts?.length) {
       const boundary = analyzeSectionBoundaries(projection.cuts, Math.max(1e-4, (extent.w + extent.h) * 1e-3));
@@ -1220,7 +1270,7 @@ export function buildSheetScene(doc, provider, options = {}) {
         }
       }
     }
-    for (const segment of projection.visible || []) {
+    for (const segment of drawEdges ? projection.visible || [] : []) {
       const a = toSheet(segment.a), b = toSheet(segment.b);
       items.push(exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "outline", view.id) || line(a.x, a.y, b.x, b.y, "outline", { viewId: view.id }));
     }
@@ -1231,7 +1281,7 @@ export function buildSheetScene(doc, provider, options = {}) {
       }
     }
     for (const round of projection.circles || []) {
-      if (round.drawn === "visible" || (round.drawn === "hidden" && showHidden)) {
+      if (drawEdges && (round.drawn === "visible" || (round.drawn === "hidden" && showHidden))) {
         const centrePoint = toSheet(round);
         items.push(circle(centrePoint.x, centrePoint.y, round.radius * k, round.drawn === "hidden" ? "hidden" : "outline", { viewId: view.id }));
       }
@@ -1247,7 +1297,8 @@ export function buildSheetScene(doc, provider, options = {}) {
     if (view.labelled !== false) {
       const suffix = scaleValue(record.scale) !== scaleValue(layout.sheetScale)
         ? "  (" + scaleLabel(view.scale || record.scale) + ")" : "";
-      labels.push({ record, caption: (view.label || defaultViewLabel(view.dir)) + suffix });
+      const label = view.label || defaultViewLabel(view.dir);
+      labels.push({ record, caption: (view.configurationName ? label.replace(/(?: copy)+$/, "") : label) + (view.configurationName ? " · " + view.configurationName : "") + suffix });
     }
   }
 
@@ -1277,7 +1328,7 @@ export function buildSheetScene(doc, provider, options = {}) {
   for (const note of doc.notes || []) {
     const place = note.leader ? byId.get(note.leader.viewId) : null;
     const basis = place ? (place.projection?.basis || viewBasis(place.view.dir)) : null;
-    const resolved = resolveNote(note, provider?.callouts, topologyIndex, basis);
+    const resolved = resolveNote(note, provider?.callouts, topologyIndex, basis, doc, provider?.properties);
     notes.set(note.id, resolved);
     items.push(...noteItems(resolved.note, byId, doc, { dangling: resolved.dangling }));
   }
@@ -1403,7 +1454,28 @@ function detailMarker(view, placements) {
   ];
 }
 
+/* A balloon is a circled item number on a leader that ends in a dot on the part
+   it names. It sits a fixed offset from its target so a numbered set never needs
+   hand placement, and the same number is the row in the bill of materials. */
+function balloonItems(note, byId) {
+  const place = note.leader ? byId.get(note.leader.viewId) : null;
+  if (!place) return [];
+  const target = place.toSheet(note.leader);
+  const cx = target.x + num(note.dx, 14), cy = target.y + num(note.dy, -12), radius = 3.6;
+  const dx = target.x - cx, dy = target.y - cy, distance = Math.hypot(dx, dy) || 1;
+  const edge = { x: cx + dx / distance * radius, y: cy + dy / distance * radius };
+  const dot = [];
+  for (let i = 0; i < 8; i++) dot.push({ x: target.x + Math.cos(i * Math.PI / 4) * 0.9, y: target.y + Math.sin(i * Math.PI / 4) * 0.9 });
+  return [
+    line(edge.x, edge.y, target.x, target.y, "dim", { noteId: note.id }),
+    poly(dot, "fill", { fill: LINE_STYLES.dim.color, closed: true, noteId: note.id }),
+    circle(cx, cy, radius, "dim", { noteId: note.id }),
+    text(cx, cy + 1.3, note.text, { size: TEXT_SIZES.dim, anchor: "middle", noteId: note.id, weight: "bold", color: LINE_STYLES.dim.color }),
+  ];
+}
+
 function noteItems(note, byId, doc, options = {}) {
+  if (note.balloon) return balloonItems(note, byId);
   const items = [];
   const x = num(note.x), y = num(note.y);
   /* A callout whose hole is gone reads as the LAST thing that hole was called,
@@ -1573,20 +1645,20 @@ function titleBlockItems(doc, provider, sheetScale) {
   return items;
 }
 
-/* A parts list, numbered top-down from the sheet's bottom-right the way an
-   assembly drawing carries it. */
+/* Reserve a top band for the parts list so it cannot cover a view or caption. */
 function bomTableItems(doc, rows) {
   const box = titleBlockBox(doc);
   const width = box.w, rowHeight = 6, header = 6;
   const height = header + rows.length * rowHeight;
-  const x = box.x, y = box.y - height - 12;
+  const frame = sheetFrame(doc);
+  const x = frame.x0 + 6, y = frame.y0 + 6;
   const items = [rect(x, y, width, height, "frame", { fill: "#ffffff" })];
-  const columns = [0.12, 0.12, 0.52, 0.24];
+  const columns = [0.1, 0.25, 0.3, 0.25, 0.1];
   let cursor = x;
   const edges = columns.map((fraction) => { cursor += fraction * width; return cursor; });
   edges.slice(0, -1).forEach((edge) => items.push(line(edge, y, edge, y + height, "frame")));
   items.push(line(x, y + header, x + width, y + header, "frame"));
-  const captions = ["ITEM", "QTY", "DESCRIPTION", "MATERIAL"];
+  const captions = ["ITEM", "PART NUMBER", "DESCRIPTION", "MATERIAL", "QTY"];
   let left = x;
   captions.forEach((caption, index) => {
     items.push(text(left + 1.5, y + header - 1.6, caption, { size: TEXT_SIZES.small, weight: "600", color: "#6b7280" }));
@@ -1595,8 +1667,9 @@ function bomTableItems(doc, rows) {
   rows.forEach((row, index) => {
     const rowY = y + header + (index + 1) * rowHeight - 1.6;
     let cell = x;
-    [String(row.item ?? index + 1), String(row.qty ?? row.quantity ?? 1), row.description || row.name || "", row.material || ""].forEach((value, column) => {
-      items.push(text(cell + 1.5, rowY, value, { size: TEXT_SIZES.small }));
+    [String(row.item ?? index + 1), row.partNumber || "", row.description || row.name || "", row.material || "", String(row.qty ?? row.quantity ?? 1)].forEach((value, column) => {
+      const fitted = sheetFieldText(value, edges[column] - cell - 3);
+      items.push(text(cell + 1.5, rowY, fitted.label, { size: fitted.size, fullText: value }));
       cell = edges[column];
     });
     items.push(line(x, y + header + (index + 1) * rowHeight, x + width, y + header + (index + 1) * rowHeight, "thin"));
@@ -1643,15 +1716,21 @@ export function sceneToSvg(scene, options = {}) {
       parts.push('<path d="M' + round3(x1) + "," + round3(y1) + "A" + round3(item.r) + "," + round3(item.r) +
         " 0 " + large + ' 1 ' + round3(x2) + "," + round3(y2) + '" ' + strokeAttrs(item.style) + "/>");
     } else if (item.type === "poly") {
+      if(item.paths) {
+        const path=item.paths.map(points=>"M"+points.map(point=>round3(point.x)+","+round3(point.y)).join("L")+"Z").join("");
+        parts.push('<path d="'+path+'" fill="'+item.fill+'" stroke="'+item.fill+'" stroke-width="0.035" stroke-linejoin="round"/>');
+        continue;
+      }
       const points = item.pts.map((point) => round3(point.x) + "," + round3(point.y)).join(" ");
       parts.push("<" + (item.closed ? "polygon" : "polyline") + ' points="' + points + '" ' +
-        (item.fill ? 'fill="' + item.fill + '" stroke="none"' : strokeAttrs(item.style)) + "/>");
+        (item.fill ? 'fill="' + item.fill + '"'+(item.shaded ? ' stroke="'+item.fill+'" stroke-width="0.035" stroke-linejoin="round"' : ' stroke="none"') : strokeAttrs(item.style)) + "/>");
     } else if (item.type === "text") {
       const transform = item.rotate ? ' transform="rotate(' + round3(item.rotate) + " " + round3(item.x) + " " + round3(item.y) + ')"' : "";
       parts.push('<text x="' + round3(item.x) + '" y="' + round3(item.y) + '" font-size="' + round3(item.size) +
         '" text-anchor="' + (ANCHORS[item.anchor] || "start") + '" fill="' + (item.color || "#101418") + '"' +
         (item.baseline==="top"?' dominant-baseline="text-before-edge"':item.baseline==="bottom"?' dominant-baseline="text-after-edge"':"") +
-        (item.weight ? ' font-weight="' + item.weight + '"' : "") + transform + ">" + esc(item.text) + "</text>");
+        (item.weight ? ' font-weight="' + item.weight + '"' : "") + transform + ">" +
+        (item.fullText && item.fullText !== item.text ? "<title>" + esc(item.fullText) + "</title>" : "") + esc(item.text) + "</text>");
     }
   }
   const pixelScale = options.pixelsPerMm || 1;

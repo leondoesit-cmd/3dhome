@@ -1,4 +1,5 @@
 import { frameProjectPoint } from "./core/frame.js";
+import { vertexKey } from "./core/topology_selection.js";
 
 const EPS = 1e-7;
 
@@ -80,7 +81,24 @@ export function modelEdgeSketchLine(sketch, edge) {
      diameter. That is the rebuilt Boss-Stop rim HOUSING HandlePath is
      coincident with (the editor's pick had no end points, so only the rebuild
      failed and the save never went through). */
-  return project(edgeEndpoints(edge)) || project(edgeOnCircleEnds(sketch, edge?.descriptor || edge));
+  const descriptor = edge?.descriptor || edge || {};
+  const curve = descriptor.curve;
+  if (!curve || curve === "line") return project(edgeEndpoints(edge)) || project(edgeOnCircleEnds(sketch, descriptor));
+  /* Only a straight edge is its chord. A B-spline, hyperbola or ellipse joined
+     end to end is not, and neither is a circular arc lying in the plane, so
+     they are no line for a relation, pick or Convert to hang a point on (the
+     loft's rail chords used to steal picks meant for the Boss-Stop rim).
+     A circle standing square to the plane does show as a segment: its whole
+     diameter when complete, else the span of its end points. */
+  if (curve !== "circle") return null;
+  if (!edgeOnCircle(sketch, descriptor)) return null;
+  return project(edgeEndpoints(edge)) || project(edgeOnCircleEnds(sketch, descriptor));
+}
+
+function edgeOnCircle(sketch, descriptor) {
+  if (!descriptor?.axis) return false;
+  const n = sketchNormal(sketch), a = descriptor.axis, al = Math.hypot(a.x || 0, a.y || 0, a.z || 0) || 1;
+  return Math.abs(((a.x || 0) * n.x + (a.y || 0) * n.y + (a.z || 0) * n.z) / al) <= 1e-6;
 }
 
 export function intersectionOfModelEdges(sketch, edgeA, edgeB) {
@@ -101,7 +119,7 @@ export function intersectionOfModelEdges(sketch, edgeA, edgeB) {
 
 export function bindIntersectionTargets(sketch, resolveEdge) {
   for (const constraint of sketch.constraints || []) {
-    if (constraint.type !== "intersection" || !constraint.edgeA || !constraint.edgeB) continue;
+    if (constraint.type !== "intersection" || constraint.sectionFace || !constraint.edgeA || !constraint.edgeB) continue;
     const edgeA = resolveEdge?.(constraint.edgeA), edgeB = resolveEdge?.(constraint.edgeB);
     if (!edgeA || !edgeB) throw new Error("An intersection edge is unavailable");
     const hit = intersectionOfModelEdges(sketch, edgeA, edgeB);
@@ -125,17 +143,91 @@ export function hitProjectedModelEdge(sketch, uv, edges, tol) {
   return best;
 }
 
+/* A named place on a model edge, as the sketch plane sees it: its start, its
+   end (a picked model VERTEX is one of these on an edge that ends there) or its
+   midpoint. Read from the rebuilt edge, so it moves when the body does. */
+export function modelEdgeAnchor(sketch, edge, at) {
+  const ends = edgeEndpoints(edge);
+  if (ends.length < 2) throw new Error("The model edge has no end points to relate to");
+  const a = ends[0], b = ends[ends.length - 1];
+  const world = at === "end" ? b : at === "mid"
+    ? { x: ((a.x || 0) + (b.x || 0)) / 2, y: ((a.y || 0) + (b.y || 0)) / 2, z: ((a.z || 0) + (b.z || 0)) / 2 }
+    : a;
+  if (at === "mid" && Math.hypot((a.x || 0) - (b.x || 0), (a.y || 0) - (b.y || 0), (a.z || 0) - (b.z || 0)) < EPS) throw new Error("A closed model edge has no midpoint to relate to");
+  const uv = projectWorldToSketch(sketch, world);
+  return { x: uv.x, y: uv.y };
+}
+
+/* Where a model edge that stands square to the sketch plane (so it shows as a
+   single point, not a line) pierces that plane. */
+export function modelEdgePierce(sketch, edge) {
+  const ends = edgeEndpoints(edge);
+  if (ends.length < 2) return null;
+  const a = projectWorldToSketch(sketch, ends[0]), b = projectWorldToSketch(sketch, ends[ends.length - 1]);
+  if (Math.abs(a.w - b.w) < EPS || Math.hypot(b.x - a.x, b.y - a.y) >= EPS) return null;
+  return { x: a.x, y: a.y };
+}
+
+/* The end of an edge a picked vertex is: the edge entry that ends at the
+   vertex's point, and which end. Vertices are derived from edge ends and keyed
+   by position, so a bare vertex reference cannot follow a rebuild by itself;
+   the edge and its end can. */
+export function vertexEdgeBinding(vertex, edges, tol = 1e-3) {
+  const p = vertex?.descriptor?.point || vertex?.descriptor?.origin;
+  if (!p) return null;
+  for (const edge of edges || []) {
+    if (edge?.kind && edge.kind !== "edge") continue;
+    const ends = edgeEndpoints(edge);
+    if (ends.length < 2) continue;
+    const d = (q) => Math.hypot((q.x || 0) - (p.x || 0), (q.y || 0) - (p.y || 0), (q.z || 0) - (p.z || 0));
+    if (d(ends[0]) <= tol) return { edge, at: "start" };
+    if (d(ends[ends.length - 1]) <= tol) return { edge, at: "end" };
+  }
+  return null;
+}
+
+/* A corner of the model under the pointer, as the sketch plane sees it. */
+export function hitProjectedModelVertex(sketch, uv, edges, tol) {
+  let best = null, bd = tol;
+  for (const edge of edges || []) {
+    if (edge?.kind && edge.kind !== "edge") continue;
+    const ends = edgeEndpoints(edge);
+    if (ends.length < 2) continue;
+    for (const world of [ends[0], ends[ends.length - 1]]) {
+      const q = projectWorldToSketch(sketch, world), d = Math.hypot(uv.x - q.x, uv.y - q.y);
+      if (d < bd) {
+        bd = d;
+        best = { kind: "vertex", persistentId: vertexKey(world), ownerFeatureId: edge.ownerFeatureId, descriptor: { point: { x: world.x, y: world.y, z: world.z }, origin: { x: world.x, y: world.y, z: world.z }, semantic: vertexKey(world) } };
+      }
+    }
+  }
+  return best;
+}
+
 /* Coincident with a model edge (SOLIDWORKS: a sketch point and an edge, then
    Coincident). The point stays on the edge's line as seen on this sketch plane;
-   the line is re-read from the rebuilt edge, so it follows the body. */
+   the line is re-read from the rebuilt edge, so it follows the body.
+   - The "at" field (start | end | mid) pins the point to that place on the edge instead
+     (a picked vertex; Midpoint; Convert Entities' end points).
+   - An edge square to the plane shows as a point, and the point is pinned to
+     where it pierces the plane.
+   A reference that no longer resolves throws; nothing is baked. */
 export function bindModelEdgeTargets(sketch, resolveEdge) {
   for (const constraint of sketch.constraints || []) {
     if (constraint.type !== "onModelEdge" || !constraint.edge) continue;
     const edge = resolveEdge?.(constraint.edge);
     if (!edge) throw new Error("A coincident model edge is unavailable");
+    for (const key of ["ax", "ay", "bx", "by", "px", "py"]) delete constraint[key];
+    if (constraint.at) {
+      const anchor = modelEdgeAnchor(sketch, edge, constraint.at);
+      Object.assign(constraint, { px: anchor.x, py: anchor.y });
+      continue;
+    }
     const line = modelEdgeSketchLine(sketch, edge);
-    if (!line) throw new Error("The model edge does not show as a line on this sketch plane");
-    Object.assign(constraint, { ax: line.a.x, ay: line.a.y, bx: line.b.x, by: line.b.y });
+    if (line) { Object.assign(constraint, { ax: line.a.x, ay: line.a.y, bx: line.b.x, by: line.b.y }); continue; }
+    const pierce = modelEdgePierce(sketch, edge);
+    if (!pierce) throw new Error("The model edge does not show as a line on this sketch plane");
+    Object.assign(constraint, { px: pierce.x, py: pierce.y });
   }
   return sketch;
 }
@@ -211,6 +303,57 @@ export function sketchIntersectionOwners(sketch) {
     if (constraint.type !== "intersection") continue;
     if (constraint.edgeA?.ownerFeatureId) ids.push(constraint.edgeA.ownerFeatureId);
     if (constraint.edgeB?.ownerFeatureId) ids.push(constraint.edgeB.ownerFeatureId);
+    if (constraint.sectionFace?.ownerFeatureId) ids.push(constraint.sectionFace.ownerFeatureId);
   }
   return ids;
+}
+
+/* Picking on a sketch that is drawn over the model through a perspective
+   camera: an edge off the sketch plane is not where its plane projection is, so
+   the click is compared in SCREEN space with where the model edge is actually
+   drawn. `toScreen(world)` maps a world point to canvas pixels (or null when it
+   is behind the camera). Only real straight edges and circles are pickable (a
+   B-spline's chord is not the curve); relations still read the plane
+   projection of whatever was picked. */
+function distanceToSegment(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, len2 = dx * dx + dy * dy;
+  const t = len2 > EPS ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0;
+  return Math.hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t));
+}
+
+export function hitScreenModelVertex(px, edges, tol, toScreen) {
+  let best = null, bd = tol;
+  for (const edge of edges || []) {
+    if (edge?.kind && edge.kind !== "edge") continue;
+    const ends = edgeEndpoints(edge);
+    if (ends.length < 2) continue;
+    for (const world of [ends[0], ends[ends.length - 1]]) {
+      const s = toScreen(world);
+      if (!s) continue;
+      const d = Math.hypot(px.x - s.x, px.y - s.y);
+      if (d < bd) {
+        bd = d;
+        best = { kind: "vertex", persistentId: vertexKey(world), ownerFeatureId: edge.ownerFeatureId, descriptor: { point: { x: world.x, y: world.y, z: world.z }, origin: { x: world.x, y: world.y, z: world.z }, semantic: vertexKey(world) } };
+      }
+    }
+  }
+  return best;
+}
+
+export function hitScreenModelEdge(px, edges, tol, toScreen, pointsOf) {
+  let best = null, bd = tol;
+  for (const edge of edges || []) {
+    if (edge?.kind && edge.kind !== "edge") continue;
+    const curve = edge?.descriptor?.curve;
+    if (curve && curve !== "line" && curve !== "circle") continue;
+    const world = pointsOf(edge.descriptor) || [];
+    if (world.length < 2) continue;
+    const screen = world.map(toScreen);
+    for (let i = 1; i < screen.length; i++) {
+      if (!screen[i - 1] || !screen[i]) continue;
+      const d = distanceToSegment(px, screen[i - 1], screen[i]);
+      if (d < bd) { bd = d; best = edge; }
+    }
+  }
+  return best;
 }

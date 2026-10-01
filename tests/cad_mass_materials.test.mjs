@@ -7,6 +7,14 @@ import { loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveM
 
 const box = (id, x0) => ({id, kind:'box', x0, x1:x0+2, y0:0, y1:2, z0:0, z1:2});
 
+test('worker exact mass payload avoids main-thread integration and still uses current material density',async()=>{
+  const props={volume:8,centerOfMass:{x:1,y:1,z:1},bounds:{min:{x:0,y:0,z:0},max:{x:2,y:2,z:2}},inertia:[[16/3,0,0],[0,16/3,0],[0,0,16/3]]};
+  const solid={workerMassProperties:props};let released=false;
+  const mass=await evaluateMassProperties({parts:[{...box('alu',0),materialCatalogId:'stock:aluminum'}]}, {buildSolid:async()=>solid,releaseSolid:value=>{assert.equal(value,solid);released=true;}});
+  assert.equal(mass.accuracy,'exact');assert.equal(mass.volumeCm3,8);assert.equal(mass.massG,21.6);
+  assert.deepEqual(mass.bounds,props.bounds);assert.deepEqual(mass.centerOfMass,props.centerOfMass);assert.equal(released,true);
+});
+
 test('mass uses each body material density and answers in grams', async () => {
   const aluminum={...box('alu',0), materialCatalogId:'stock:aluminum', materialName:STOCK_MATERIALS.aluminum.name};
   const steel={...box('stl',10), materialCatalogId:'stock:steel', materialName:STOCK_MATERIALS.steel.name};

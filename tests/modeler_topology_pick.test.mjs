@@ -45,6 +45,16 @@ test("section clipping removes hits on the discarded side before arbitration", (
   assert.deepEqual(filterTopologyHitsByClipPlane([clipped, kept], plane), [kept]);
 });
 
+test("slot semicircles use the kernel midpoint to choose the correct side", () => {
+  const radius = .635;
+  const start = -Math.PI / 2, end = Math.PI / 2;
+  assert.equal(circularEdgeSweep(radius, Math.PI * radius, start, end, true, 0).sweep, Math.PI);
+  assert.equal(circularEdgeSweep(radius, Math.PI * radius, start, end, true, Math.PI).sweep, -Math.PI);
+  // Reverse endpoint order and cross the angle wrap without changing the arc.
+  assert.equal(circularEdgeSweep(radius, Math.PI * radius, end, start, true, -Math.PI).sweep, Math.PI);
+  assert.equal(circularEdgeSweep(radius, Math.PI * radius, end, start, true, 0).sweep, -Math.PI);
+});
+
 test("All picks the face unless an edge is actually inside the pixel band", () => {
   const surface = face();
   const outside = edge(1.26);

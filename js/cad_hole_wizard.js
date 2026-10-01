@@ -10,7 +10,7 @@ export const HOLE_TYPES = Object.freeze([
   "simple", "counterbore", "countersink", "spotface", "tapped", "tap-counterbore", "tap-countersink",
 ]);
 
-export const HOLE_STANDARDS = Object.freeze(["ISO 4762", "ISO 4017", "ISO 273"]);
+export const HOLE_STANDARDS = Object.freeze(["ISO 4762", "ISO 4017", "ISO 273", "ISO 262:2023", "ANSI Metric", "ANSI Inch"]);
 
 // Preferred metric coarse series used by the wizard. Tap drill follows the
 // ISO handbook approximation (D − P). Counterbore numbers are DIN 974-1 / ISO
@@ -36,9 +36,24 @@ export const METRIC_HOLE_TABLE = Object.freeze({
 // 0.201 in; retaining its exact conversion avoids silently changing thread
 // engagement when the part is reopened in a metric document.
 export const UNIFIED_HOLE_TABLE = Object.freeze({
+  "7/16-drill": {size:"7/16-drill",imperial:true,diameterMm:11.1125,normalMm:11.1125,fastenerType:"fractional-drill"},
+  // Reference clearances are explicit design choices, not a tolerance/fit
+  // certification. Pearson's published SW Hex Screw example reports Ø.40,
+  // Ø.88 recess and .30 depth; the nominal 7/8 recess rounds to that figure.
+  "3/8-hex": {size:"3/8-hex",imperial:true,diameterMm:9.525,normalMm:10.16,
+    cboreDiaMm:22.225,cboreDepthMm:7.62,fastenerType:"hex-bolt"},
+  // 82° ASME B18.6.3 machine screw, manufacturer maximum head Ø.717 in.
+  // This recess is at maximum head size; callers can add head clearance.
+  "3/8-flat": {size:"3/8-flat",imperial:true,diameterMm:9.525,normalMm:10.16,
+    csinkDiaMm:18.2118,csinkAngle:82,fastenerType:"flat-head-machine-screw"},
   "1/4-20": { size:"1/4-20", imperial:true, diameterMm:6.35, pitchMm:1.27,
     tapDrillMm:5.1054, closeMm:6.74624, normalMm:7.14375, looseMm:7.9375,
     cboreDiaMm:11.1125, cboreDepthMm:6.35, csinkDiaMm:12.8778 },
+  // The book's LENS uses the ANSI Inch / Hex Bolt 1/2 Normal clearance bore
+  // (17/32 in). Its head recess is then customized in the feature form.
+  "1/2": { size:"1/2", imperial:true, diameterMm:12.7,
+    normalMm:13.49375, cboreDiaMm:22.225, cboreDepthMm:8.89,
+    csinkDiaMm:22.225 },
 });
 
 const FIT_COLUMN = { close: "closeMm", normal: "normalMm", loose: "looseMm" };
@@ -46,7 +61,8 @@ const FIT_COLUMN = { close: "closeMm", normal: "normalMm", loose: "looseMm" };
 export function holeTableRow(size) {
   const key = String(size || "").toUpperCase().replace(/\s+/g, "");
   const unified = key.replace(/UNC$/, "");
-  if (UNIFIED_HOLE_TABLE[unified]) return UNIFIED_HOLE_TABLE[unified];
+  const unifiedRow=UNIFIED_HOLE_TABLE[unified] || UNIFIED_HOLE_TABLE[unified.toLowerCase()];
+  if (unifiedRow) return unifiedRow;
   const tagged = key.startsWith("M") ? key : "M" + key;
   return METRIC_HOLE_TABLE[tagged] || null;
 }
@@ -55,13 +71,27 @@ export function listHoleSizes() {
   return Object.keys(METRIC_HOLE_TABLE).concat(Object.keys(UNIFIED_HOLE_TABLE));
 }
 
+export function holeWizardSizeChoices(standard, holeType, fastenerType) {
+  if(standard === "ANSI Inch" && !String(holeType).startsWith("tap")){
+    if(fastenerType === "fractional-drill")return ["custom","7/16-drill"];
+    if(fastenerType === "flat-head-machine-screw")return ["custom","3/8-flat"];
+    return ["custom","1/2","3/8-hex","1/4-20"];
+  }
+  return standard === "ANSI Inch" ? (String(holeType).startsWith("tap")
+    ? ["custom", "1/4-20"] : ["custom", "1/2", "1/4-20"])
+    : ["custom", "M3", "M4", "M5", "M6", "M8", "M10", "M12", "M16", "M20"];
+}
+
 export function normalizeHoleWizard(params = {}) {
   let type = HOLE_TYPES.includes(params.holeType) ? params.holeType : "simple";
   if (type === "simple" && params.countersink) type = "countersink";
   if ((type === "simple" || type === "countersink") && params.counterbore) type = "counterbore";
   const row = holeTableRow(params.standardSize || params.size);
+  if (type.startsWith("tap") && row?.size === "1/2") throw new Error("1/2 Hex Bolt is a clearance size; choose a threaded hole size");
   const fit = FIT_COLUMN[params.fit] ? params.fit : "normal";
-  const diameterMm = pickMm(params.diameterMm, params.diameter) || (row ? row[FIT_COLUMN[fit]] : 10);
+  if (row?.size === "1/2" && fit !== "normal") throw new Error("1/2 Hex Bolt currently supports the verified Normal clearance fit");
+  if(row && !type.startsWith("tap") && !Number.isFinite(row[FIT_COLUMN[fit]]))throw new Error("This hole size has no verified "+fit+" clearance fit");
+  const diameterMm = pickMm(params.diameterMm, params.diameter) || (row ? row[FIT_COLUMN[fit]] || row.normalMm : 10);
   const tapDrillMm = pickMm(params.tapDrillMm, params.tapDrill) || row?.tapDrillMm || (row ? row.diameterMm - row.pitchMm : diameterMm);
   const pitchMm = pickMm(params.pitchMm, params.pitch) || row?.pitchMm || 1.5;
   const threadDiaMm = pickMm(params.threadDiameterMm, params.threadDiameter) || row?.diameterMm || diameterMm;
@@ -75,7 +105,11 @@ export function normalizeHoleWizard(params = {}) {
      the countersink diameter uneditable rather than merely mis-scaled. */
   const csinkDiaMm = pickMm(params.csinkDiameterMm ?? params.countersinkDiameterMm, params.csinkDiameter ?? params.countersinkDiameter)
     || row?.csinkDiaMm || diameterMm * 2;
-  const csinkAngle = Number(params.csinkAngle) || 90;
+  const csinkAngle = Number(params.csinkAngle) || row?.csinkAngle || 90;
+  // Absent in older documents: preserve their flat bottom. New Hole Wizard
+  // forms explicitly request the SOLIDWORKS 2021 default 118° drill point.
+  const drillPointAngle = params.drillPointAngle == null ? 180 : Number(params.drillPointAngle);
+  if(!Number.isFinite(drillPointAngle) || drillPointAngle < 60 || drillPointAngle > 180)throw new Error("Drill point angle must be between 60 and 180 degrees");
   const spotfaceDepthMm = Number(params.spotfaceDepthMm) || Math.max(0.3, cboreDiaMm * 0.05);
   const threaded = type.startsWith("tap");
   const threadDepthMm=pickMm(params.threadDepthMm,params.threadDepth) || 0;
@@ -84,7 +118,8 @@ export function normalizeHoleWizard(params = {}) {
   return {
     holeType: type,
     standardSize: row?.size || params.standardSize || null,
-    standard: params.standardSize === "custom" ? "Custom" : params.standard || (row?.imperial ? "ASME B1.1 UNC" : threaded ? "ISO 262:2023" : "ISO 273"),
+    standard: params.standardSize === "custom" ? "Custom" : params.standard || (row?.imperial ? (threaded ? "ASME B1.1 UNC" : "ANSI Inch") : threaded ? "ISO 262:2023" : "ISO 273"),
+    fastenerType: params.fastenerType || row?.fastenerType || (row?.size === "1/2" ? "hex-bolt" : "generic"),
     fit,
     diameterMm,
     diameter: mmToCm(diameterMm),
@@ -105,12 +140,13 @@ export function normalizeHoleWizard(params = {}) {
     csinkDiameterMm: csinkDiaMm,
     csinkDiameter: mmToCm(csinkDiaMm),
     csinkAngle,
+    drillPointAngle,
     spotfaceDepthMm,
     spotfaceDepth: mmToCm(spotfaceDepthMm),
     direction: params.direction === "reverse" ? "reverse" : "forward",
     handedness: params.handedness === "lh" ? "lh" : "rh",
     toleranceClass: row?.imperial && (!params.toleranceClass || params.toleranceClass === "6H") ? "2B" : params.toleranceClass || (threaded ? "6H" : null),
-    threadPreset: row?.imperial ? "unc-quarter-20" : "iso-metric",
+    threadPreset: row?.size === "1/4-20" ? "unc-quarter-20" : "iso-metric",
     threadMode: params.threadMode === "modeled" ? "modeled" : "cosmetic",
     origin: params.origin || { u: 0, v: 0 },
     axis: params.axis || { x: 0, y: 1, z: 0 },
@@ -142,6 +178,10 @@ export function holeWizardSolids(params) {
     depth: boreDepth,
     endCondition: hole.endCondition,
   });
+  if(hole.endCondition === "blind" && hole.drillPointAngle < 180){
+    solids.push({role:"drill-point",kind:"cone",diameter1:boreDia,diameter2:0,
+      startDepth:boreDepth,depth:boreDia/2/Math.tan(hole.drillPointAngle*Math.PI/360),endCondition:"blind"});
+  }
   if (hole.holeType === "counterbore" || hole.holeType === "tap-counterbore") {
     solids.push({ role: "counterbore", kind: "cylinder", diameter: hole.cboreDiameter, depth: hole.cboreDepth, endCondition: "blind" });
   }
@@ -201,7 +241,7 @@ export function holeWizardThread(params, placement = {}) {
     axis: placement.axis || hole.axis,
     endCondition: hole.threadDepthMm>0?"blind":hole.endCondition,
     series: "coarse",
-    standard: "ISO 262:2023",
+    standard: hole.threadPreset === "unc-quarter-20" ? "ASME B1.1 UNC" : hole.standard === "ISO 273" ? "ISO 262:2023" : hole.standard,
     basic,
   });
   annotation.drillDepthMm=drillDepthMm;
@@ -214,7 +254,7 @@ export function holeWizardThread(params, placement = {}) {
 export function holeCallout(params) {
   const hole = normalizeHoleWizard(params);
   const thru = hole.endCondition === "through-all";
-  const inch = params.displayUnit === "in" || (!params.displayUnit && hole.threadPreset === "unc-quarter-20");
+  const inch = params.displayUnit === "in" || (!params.displayUnit && holeTableRow(hole.standardSize)?.imperial);
   const dimension = mm => inch ? Number((mm / 25.4).toPrecision(10)) + " in" : round1(mm);
   const depth = thru ? " THRU" : " \u2193" + dimension(hole.depthMm);
   if (hole.holeType === "simple") return "Ø" + dimension(hole.diameterMm) + depth;
@@ -249,6 +289,11 @@ export function holeCallout(params) {
 export function holeLayoutPoints(params = {}, sketch) {
   if(Array.isArray(params.centres))return params.centres.map(p=>({u:Number(p.u),v:Number(p.v)}));
   if((!params.layout || params.layout==="sketch") && sketch){
+    if(params.holePositionPointIds?.length)return params.holePositionPointIds.map(id=>{
+      const point=(sketch.points || []).find(p=>p.id===id);
+      if(!point || ![point.x,point.y].every(Number.isFinite))throw new Error("Hole centre is missing or invalid");
+      return {u:point.x,v:point.y};
+    });
     return (sketch.entities || []).filter(e=>e.type==="circle" && !e.construction && (!params.profileEntityIds?.length || params.profileEntityIds.includes(e.id))).map(e=>{
       const point=(sketch.points || []).find(p=>p.id===(e.c ?? e.center));
       if(!point || ![point.x,point.y].every(Number.isFinite))throw new Error("Hole centre is missing or invalid");

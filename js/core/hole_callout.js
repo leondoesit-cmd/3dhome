@@ -1,6 +1,7 @@
 import { viewBasis } from "./hidden_line.js";
 import { sketchWorldPoint } from "./swept_sources.js";
 import { cylinderAxis } from "./cylinder_axis.js";
+import { linearPatternOffsets, linearPatternAxisDefinitions, parseSkippedPatternInstances } from "./pattern_geometry.js";
 /* One spelling of "M6×1 6H ↓12".
  *
  * A hole callout is written in two places — the sheet you draft on
@@ -38,11 +39,26 @@ export function holeCallouts(def) {
     if(params.frame){placement.frameSpace="local";placement.frame=params.frame;}
     const axis=cylinderAxis(placement.frame?.normal || (plane==="side"?"x":plane==="front"?"z":"y"));
     const worldPoints=points.map(p=>{const q=sketchWorldPoint(placement,p.u,p.v);if(placement.frame)for(const key of ["x","y","z"])q[key]+=axis[key]*(Number(params.offset)||0);return q;});
+    // Feature patterns repeat the seed cut. Reuse their instance semantics,
+    // including disabled axes and skipped copies, instead of reporting only
+    // the seed sketch's hole count.
+    const patterns = features.filter(item => item?.type === "pattern" && !item.suppressed
+      && item.params?.scope === "feature" && item.params.seedFeatureId === feature.id
+      && item.params.mode === "linear");
+    let quantity = points.length;
+    for (const pattern of patterns) quantity += points.length * linearPatternOffsets(pattern.params).length;
+    // A circular layout is a bolt circle: its holes are equally spaced by construction.
+    const circularLayout=params.layout==="circular" && points.length>1 && !patterns.length;
+    const equalSpacing=circularLayout || patterns.length===1 && quantity>1
+      && parseSkippedPatternInstances(patterns[0].params.skipInstances).size===0
+      && linearPatternAxisDefinitions(patterns[0].params).length===1
+      && linearPatternAxisDefinitions(patterns[0].params).every(axis=>axis.spacing!==0 && axis.spacingIncrement===0);
     rows.push({
       id: feature.id,
       item: rows.length + 1,
       callout: holeCallout({...params, displayUnit:params.displayUnit || def?.context?.units?.length}),
-      quantity: points.length,
+      quantity,
+      equalSpacing,
       points,worldPoints,axis,
     });
   });
@@ -53,7 +69,7 @@ export function holeCallouts(def) {
    called out once rather than one leader per hole. */
 export function calloutText(row) {
   if (!row) return "";
-  return row.callout + (row.quantity > 1 ? "  ×" + row.quantity : "");
+  return row.callout + (row.quantity > 1 ? "  ×" + row.quantity : "") + (row.equalSpacing ? " EQ SP." : "");
 }
 
 /* featureId -> text, which is what a sheet needs to re-read a bound callout on

@@ -92,6 +92,12 @@ test("every additive feature that offers the option consults it", () => {
   assert.match(modeler, /var revolveHost=mergeTargetBody\(partBounds\(revolved\),params\);/);
   assert.match(modeler, /var mergeHost=cutTarget\?null:mergeTargetBody\(kernelRecipeBounds\(type,params\),params\);/);
   assert.match(modeler, /var helixHost=mergeTargetBody\(kernelRecipeBounds\(type,params\),params\);/);
+  assert.match(modeler, /var circularHost=mergeTargetBody\(kernelRecipeBounds\(type,circularParams\),circularParams\);/);
+  const circularBranch=modeler.slice(modeler.indexOf("var circularHost=mergeTargetBody"),modeler.indexOf("if(type===\"sweep\" && !sketchPath && (inputParams.sweepPathMode"));
+  assert.match(circularBranch,/circularFeature\.inputs=\[circularParentId\]/);
+  assert.match(circularBranch,/reconnectLaterBodyConsumers\(E\.def,circularFeature\)/);
+  assert.match(circularBranch,/circularHost\.merges3d\.push/);
+  assert.match(circularBranch,/E\.sel=circularHost;queueExactMesh\(circularHost\)/);
 });
 
 test("a merged sweep reaches the exact tree too, not only the viewport", async () => {

@@ -137,7 +137,10 @@ export function sketchProfileSegments(sketch, entityIds, tolerance = 0.05, optio
   if (entities.some((e) => e.type !== "line" && e.type !== "arc" && e.type!=="spline")) return null;
   const ordered = orderChain(entities, points, Math.max(1e-6, tolerance), options.open);
   if (!ordered) return null;
-  const segments = ordered.map((step) => segmentFor(step, points));
+  const segments = ordered.map((step) => {
+    const segment=segmentFor(step,points);
+    return segment&&options.includeEntityIds?{...segment,sourceEntityId:step.entity.id}:segment;
+  });
   return segments.every(Boolean) && segments.length ? (options.open ? segments : weld(segments)) : null;
 }
 

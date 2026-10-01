@@ -149,16 +149,34 @@ test("copying an empty sketch or pasting with nothing copied says so", () => {
   assert.equal(readSketchClipboard(storage), null);
 });
 
+test("copied standalone points and spline handles reference fresh destination points",()=>{
+  const source={name:'Threadsection',points:[{id:1,x:0,y:0},{id:2,x:1,y:0},{id:3,x:.3,y:.4},{id:4,x:.7,y:.4}],
+    entities:[{id:10,type:'point',p:3},{id:11,type:'spline',a:1,h1:3,h2:4,b:2}],
+    constraints:[{id:20,type:'fixed',point:3,x:.3,y:.4}]};
+  let next=100;
+  const pasted=pasteSketchGeometry(copySketchForClipboard(source),()=>next++);
+  const byPosition=pasted.points.find(p=>p.x===.3&&p.y===.4);
+  const standalone=pasted.entities.find(e=>e.type==='point'),spline=pasted.entities.find(e=>e.type==='spline');
+  assert.equal(standalone.p,byPosition.id);
+  assert.equal(spline.h1,standalone.p);
+  assert.equal(spline.h2,pasted.points.find(p=>p.x===.7).id);
+  assert.equal(pasted.constraints[0].point,standalone.p);
+  assert.ok(pasted.entities.every(e=>[e.p,e.a,e.b,e.h1,e.h2].filter(id=>id!=null).every(id=>pasted.points.some(p=>p.id===id))));
+  assert.equal(source.entities[0].p,3,'copy leaves the source point identity unchanged');
+});
+
 /* --- the editor wiring ---------------------------------------------------- */
 
 const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
 const tree = readFileSync(new URL("../js/cad_feature_tree.js", import.meta.url), "utf8");
+const relationSources = readFileSync(new URL("../js/core/sketch_relation_sources.js", import.meta.url), "utf8");
 const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 
 test("the editor binds, offers and applies all three", () => {
   assert.match(modeler, /bindModelEdgeTargets\(sketch, resolveIntersectionEdge\)[\s\S]{0,160}bindPierceTargets\(sketch, E\.def\.sketches \|\| \[\], sketchWorldPoint\)/, "live solve binds both links");
-  assert.match(tree, /bindModelEdgeTargets\(updated,edgeLookup\);\s*bindPierceTargets\(updated,executionDef\.sketches \|\| \[\],sketchWorldPoint\);/, "rebuild binds both links");
-  assert.match(modeler, /case "coincident": return points\.length === 2 \|\| \(points\.length === 1 && !ents\.length && selectedModelEdges\(\)\.length === 1\);/, "Coincident takes a point and one model edge");
+  assert.match(tree, /resolveSketchRelationSources\(executionDef,relationSourceSketchIds\(feature,sketchId\),edgeLookup\)/, "rebuild resolves relations on all driving source sketches");
+  assert.match(relationSources, /bindModelEdgeTargets\(updated,resolveEdge\);\s*bindPierceTargets\(updated,document\.sketches,sketchWorldPoint\);/, "source relation helper binds both links before solving");
+  assert.match(modeler, /case "coincident": return points\.length === 2 \|\| \(points\.length === 1 && !ents\.length && \(selectedModelEdges\(\)\.length === 1 \|\| \(selectedModelVertices\(\)\.length === 1/, "Coincident takes a point and one model edge");
   assert.match(modeler, /add\(\{ type: "onModelEdge", point: points\[0\]\.id, edge:/, "and records the edge");
   assert.match(modeler, /sketch\.constraints\.push\(\{id:uid\(\),type:"pierce",point:anchor\.id,sketchId:sketchCurve\.sketchId,entityId:sketchCurve\.entityId\}\)/, "Pierce takes another sketch's curve");
   assert.match(modeler, /label: t\("sketchCopy"\) \+ " · Ctrl\+C"/, "tree menu Copy sketch");

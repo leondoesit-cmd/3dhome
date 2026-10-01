@@ -327,6 +327,9 @@ function residualTerms(sketch, tags, index) {
         /* Coincident with a model edge: the edge's line on this plane is bound
            from the rebuilt body into ax..by, so it is a constant here. */
         const p = pt(c.point);
+        /* Pinned to a place on the edge (a vertex, its midpoint, or where an
+           edge square to this plane pierces it): a bound point, like pierce. */
+        if (p && c.px != null && c.py != null) { push(sub(p.x, Number(c.px)), sub(p.y, Number(c.py))); break; }
         if (!p || c.ax == null || c.bx == null) break;
         const dx = Number(c.bx) - Number(c.ax), dy = Number(c.by) - Number(c.ay), length = Math.hypot(dx, dy);
         if (length > EPS) push(across(p.x, p.y, { a: { x: Number(c.ax), y: Number(c.ay) }, dx, dy, length }));
@@ -1003,7 +1006,8 @@ export function resolveProfilePoints(sketch, entityIds) {
   const byId = new Map((sketch.entities || []).map((e) => [e.id, e]));
   const entities = entityIds.map((id) => byId.get(id));
   if (entities.some((e) => !e)) return null;             // an entity was deleted
-  const analysis = analyzeSketchProfiles({...sketch, entities}, {selectedIds:entityIds, tolerance:0.05});
+  const generatedOutline=entities.every(entity=>String(entity.id).startsWith("generated:"));
+  const analysis = analyzeSketchProfiles({...sketch, entities}, {selectedIds:entityIds, tolerance:sketch.profileTolerance ?? (generatedOutline?1e-6:0.05)});
   const wanted = new Set(entityIds);
   const profile = analysis.profiles.find((p) => p.entityIds.length === wanted.size && p.entityIds.every((id) => wanted.has(id)));
   return profile ? profile.points : null;

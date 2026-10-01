@@ -40,7 +40,7 @@ test("only a tool that draws opens the sketch sheet over the model", () => {
 });
 
 test("sketch tools that edit refuse an empty new sketch instead of opening one", () => {
-  assert.match(source, /var SKETCH_DRAW_TOOLS = \["wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline"\]/);
+  assert.match(source, /var SKETCH_DRAW_TOOLS = \["wall", "constr", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline"\]/);
   const setTool = body("setTool");
   assert.match(setTool, /if\(!SKETCH_DRAW_TOOLS\.includes\(id\)\) \{ flash\(t\("needSketchForTool"\)\); return; \}/);
   assert.match(strings, /needSketchForTool: \["[^"]+", "[^"]+"\]/);
@@ -87,7 +87,7 @@ test("no editor path uses a blocking browser question", () => {
   for (const fn of ["cornerRoundForm", "segmentLengthForm"]) assert.match(body(fn), /pushUndo\(/);
 });
 
-test("a mate is built from picked faces or not at all", () => {
+test("a geometric mate requires picked references and never substitutes bounding boxes", () => {
   /* The one place the editor stated a guess and then acted on it: with no
      picks it mated one component's +X bounding-box face to the other's -X,
      printed "using bounding boxes" in the reference rows, and wrote a real
@@ -95,9 +95,9 @@ test("a mate is built from picked faces or not at all", () => {
   assert.doesNotMatch(source, /mateUsingBounds/);
   assert.doesNotMatch(source, /function mateFallbackRefs/);
   const add = body("addTopologyMate");
-  assert.match(add, /if \(!picked\) \{ flash\(t\("mateNeedTwoFaces"\)\); return false; \}/);
+  assert.match(add, /if \(!picked\) \{ flash\(t\(type === "symmetric" \? "mateNeedThreePicks" : "mateNeedTwoFaces"\)\); return false; \}/);
   assert.doesNotMatch(add, /fallback/);
-  // Every mate type is unavailable until two faces on two components exist.
+  // Geometric mates need their references; Lock explicitly captures two components.
   assert.match(body("mateTypeFits"), /if \(!picked\) return \{ ok: false, reason: t\("mateNeedTwoFaces"\) \}/);
   // And the PropertyManager refuses rather than offering a live Apply.
   const pm = body("openMatePropertyManager");

@@ -42,7 +42,7 @@ export function filterTopologyHitsByClipPlane(hits, plane, tolerance) {
 /* Choose the represented arc, not the visually shorter one. A cut can leave
    95% of a circular rim; treating every >92% arc as closed draws and picks a
    phantom segment straight across the material that the cut removed. */
-export function circularEdgeSweep(radius, measure, startAngle, endAngle, open) {
+export function circularEdgeSweep(radius, measure, startAngle, endAngle, open, midpointAngle) {
   var tau = Math.PI * 2;
   var start = Number(startAngle) || 0;
   if (!open) return { start: start, sweep: tau };
@@ -54,6 +54,14 @@ export function circularEdgeSweep(radius, measure, startAngle, endAngle, open) {
   var sweep = forward;
   if (r > 0 && length > 0 && Math.abs(length - Math.abs(backward) * r) < Math.abs(length - forward * r)) {
     sweep = backward;
+  }
+  // Antipodal endpoints have two equally long semicircles. The kernel's
+  // midpoint identifies which side belongs to the edge (e.g. a slot end).
+  if (midpointAngle != null && Number.isFinite(Number(midpointAngle))) {
+    var middleForward = ((Number(midpointAngle) - start) % tau + tau) % tau;
+    if (middleForward > 1e-9 && Math.abs(middleForward - forward) > 1e-9) {
+      sweep = middleForward < forward ? forward : backward;
+    }
   }
   return { start: start, sweep: sweep };
 }

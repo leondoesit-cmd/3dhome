@@ -65,7 +65,7 @@ test("cutaway: wired into the wall builder, saved with the scene, strings in bot
   const v = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
   assert.match(v, /H = Math\.min\(Hfull, cutH\(\)\)/);
   assert.match(v, /mesh\.userData\.role = "wallCap"/);
-  assert.match(v, /clipBelow\(group, Hc\);\n\s+addWallCaps\(group, Hc\);/);
+  assert.match(v, /clipBelow\(group, Hc\);\r?\n\s+addWallCaps\(group, Hc\);/);
   const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
   assert.match(ui, /\n\s+cutaway: S\.cutaway,/);
   assert.match(ui, /S\.cutaway = normalizeCutaway\(d\.cutaway\);/);

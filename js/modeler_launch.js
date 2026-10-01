@@ -141,7 +141,8 @@ export function initModeler() {
     // Guard on the editor being closed exactly as before. While it has not
     // loaded it cannot be open, so "m" is always a launch.
     var active = document.activeElement;
-    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== "m") return;
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey ||
+        typeof e.key !== "string" || e.key.toLowerCase() !== "m") return;
     if (modelerLoaded() && pendingIsOpen()) return;
     if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) return;
     e.preventDefault();

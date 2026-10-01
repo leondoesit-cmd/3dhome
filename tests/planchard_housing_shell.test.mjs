@@ -347,3 +347,44 @@ test("the saved HOUSING record rebuilds Shell1 as the exact shell without touchi
     releaseRegeneration(run);
   }
 });
+
+/* This separate model was authored from blank through desktop Chrome. Its
+   cylinder/loft/battery stack runs along +Z, unlike the older fixture, and its
+   final cavity union exposed the generic loose-overlap repair's very slow
+   coincident spline intersection. Keep the actual browser sketch/history. */
+test("fresh browser HOUSING keeps exact wall thickness across its positive-Z stack", { timeout: 900000 }, async () => {
+  const record = JSON.parse(readFileSync(new URL("./fixtures/planchard_housing_fresh_2026_record.json", import.meta.url), "utf8"));
+  const compiled = compileKernelFeatureTree(record);
+  const run = await regenerateFeatures({ ...compiled.document, features: compiled.features });
+  let shelled;
+  try {
+    assert.ok(run.ok, JSON.stringify(run.issues));
+    const body = run.results.get(record.features.at(-1).id);
+    const opening = body.topology.find(item => item.kind === "face" && item.descriptor.surface === "plane"
+      && Math.abs(item.descriptor.origin.z) < 1e-6 && item.descriptor.normal.z < -.9);
+    assert.ok(opening, "front disk at z=0");
+    shelled = await shellBrep(body, THICK, {facePersistentIds:[opening.persistentId], join:"round", tolerance:.001});
+    assert.equal(shelled.approximate, undefined);
+    assert.equal(shelled.invalid, undefined);
+    const exported = await validateBrepForExport(shelled);
+    assert.equal(exported.solidCount, 1);
+    assert.ok(Math.abs(exported.volumeCm3 - 156.35) < .02, `volume ${exported.volumeCm3}`);
+    assert.ok(exported.maxToleranceCm < .001);
+    const bounds = (await shapeMassProperties(shelled)).bounds;
+    assert.ok(Math.abs(bounds.min.z) < 1e-6 && Math.abs(bounds.max.z - (H+H+BATTERY)) < 1e-6);
+    const seams = seamFailures(body, shelled, opening.persistentId);
+    assert.equal(seams.failures, 0, `${seams.failures} of ${seams.samples} crease samples are missing wall material`);
+    const gauge = wallGauge(body, shelled);
+    for (const z of [1.65, H+1.65, H+H+.01, H+H+5]) {
+      const {min,max}=gauge(z);
+      assert.ok(min > THICK-5e-4 && max < THICK+5e-4, `wall at ${z}: ${min}..${max}`);
+    }
+    for (const z of [H-.005,H+.005]) {
+      const {min,max}=gauge(z);
+      assert.ok(min > THICK-5e-4 && max < MITRE_LIMIT+5e-4, `junction wall at ${z}: ${min}..${max}`);
+    }
+  } finally {
+    if (shelled) disposeBrep(shelled);
+    releaseRegeneration(run);
+  }
+});

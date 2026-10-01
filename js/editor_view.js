@@ -15,12 +15,16 @@
 //   view.setBig(true);   // fill the middle pane
 //   view.render();
 //
-// The renderer prefers WebGL2 (see gpu.js): an editor preview gains nothing
-// from WebGPU and the WebGL2 backend comes up faster.
+// The editor uses classic WebGLRenderer (see gpu.js). It renders the CAD
+// materials directly without converting them into node shader graphs.
 
 import { THREE } from "./three_lazy.js";
 import { createRenderer, render as gpuRender, ready as gpuReady, LUX } from "./gpu.js";
 import { clearGroup } from "./primitives.js";
+import { guardRenderReentry } from "./core/render_guard.js";
+import { syncEditorClipping } from "./editor_renderer_clipping.js";
+import {planeBoundsFit} from './core/sketch_view_fit.js';
+import {normalToFrustum,orbitTargetFromFrame,frameTargetFromOrbit} from './core/editor_projection.js';
 
 function clamp(v, a, b) {
   return v < a ? a : v > b ? b : v;
@@ -109,7 +113,7 @@ export function createEditorView(opts) {
 
   var view = null;
   try {
-    var rr = createRenderer({ canvas: cv, antialias: true, alpha: true, preferWebGL: true });
+    var rr = createRenderer({ canvas: cv, antialias: true, alpha: true, classicWebGL: true });
     /* alpha:true alone no longer clears transparent — WebGPURenderer defaults
        to an opaque clear, so the preview came out on a black slab instead of
        the panel behind it. Ask for a fully transparent clear explicitly. */
@@ -122,6 +126,11 @@ export function createEditorView(opts) {
 
     var sc = new THREE.Scene();
     var cam = new THREE.PerspectiveCamera(opts.fov || 45, 1, opts.near || 1, opts.far || 6000);
+    var perspectiveCam = cam;
+    var normalCam = new THREE.OrthographicCamera(-1, 1, 1, -1, cam.near, cam.far);
+    // Fitting and pan speed retain the equivalent target-plane field of view.
+    normalCam.fov = cam.fov;
+    normalCam.aspect = cam.aspect;
     var ambient = new THREE.AmbientLight(0xffffff, LUX * (opts.ambient || 0.6));
     sc.add(ambient);
     var key = new THREE.DirectionalLight(0xfff2dd, LUX * (opts.keyLight || 0.95));
@@ -162,7 +171,7 @@ export function createEditorView(opts) {
       });
       sc.add(grid);
     }
-    // The node renderer reads section planes from the scene graph, not materials.
+    // Keep section state on the root; syncEditorClipping applies it to materials.
     var grp = new THREE.ClippingGroup();
     grp.enabled = false;
     sc.add(grp);
@@ -444,6 +453,10 @@ export function createEditorView(opts) {
         tz + Math.cos(lightAz) * lightHorizontal
       );
       if (view.fixedFrame) {
+        if (cam.isOrthographicCamera) {
+          Object.assign(cam, normalToFrustum(d, cam.fov, cam.aspect));
+          cam.updateProjectionMatrix();
+        }
         var frame = view.fixedFrame,
           origin = {
             x: frame.origin.x + view.target.x,
@@ -469,6 +482,7 @@ export function createEditorView(opts) {
     view.render = function () {
       if (opts.active && !opts.active()) return;
       view.resize();
+      syncEditorClipping(rr, grp);
       // an editor with a second destination for the same parts (the modeler's
       // context room) takes over here and draws it its own way
       if (opts.draw && opts.draw(view)) { if (opts.afterRender) opts.afterRender(view); return; }
@@ -478,6 +492,10 @@ export function createEditorView(opts) {
       // placed here, so they follow an orbit rather than the last rebuild
       if (opts.afterRender) opts.afterRender(view);
     };
+    /* A render requested from inside a render (an overlay hook, a material
+       callback) is run once after the outer one instead of nesting until the
+       stack overflows in three's renderBufferDirect. */
+    view.render = guardRenderReentry(view.render, function (fn) { requestAnimationFrame(fn); });
 
     // swap the contents of the view's group; the callback does the building
     view.rebuild = function (fn) {
@@ -491,9 +509,9 @@ export function createEditorView(opts) {
       view.render();
     };
 
-    view.setBig = function (b) {
+    view.setBig = function (b, render) {
       view.big = !!b;
-      view.render();
+      if (render !== false) view.render();
     };
     // point the camera at a standard direction (used by the axis buttons)
     view.orbitTo = function (az, el) {
@@ -506,6 +524,16 @@ export function createEditorView(opts) {
     // in XZ (normal +Y), so the same frame also orients the construction grid.
     view.lookAtFrame = function (frame) {
       if (!frame || !frame.origin || !frame.normal || !frame.yAxis) return;
+      var centerY = opts.center ? opts.center() : 0;
+      var orbitTarget = view.fixedFrame ? orbitTargetFromFrame(view.fixedFrame, view.target, centerY) : view.target;
+      var target = frameTargetFromOrbit(frame, orbitTarget, centerY);
+      view.target.set(target.x, target.y, target.z);
+      if (opts.normalToOrthographic && cam !== normalCam) {
+        normalCam.aspect = cam.aspect;
+        normalCam.zoom = cam.zoom;
+        cam = normalCam;
+        view.cam = cam;
+      }
       view.fixedFrame = JSON.parse(JSON.stringify(frame));
       if (grid) {
         var n = new THREE.Vector3(frame.normal.x, frame.normal.y, frame.normal.z).normalize();
@@ -517,7 +545,18 @@ export function createEditorView(opts) {
       view.render();
     };
     view.clearFixedFrame = function (render) {
+      if (view.fixedFrame) {
+        var target = orbitTargetFromFrame(view.fixedFrame, view.target, opts.center ? opts.center() : 0);
+        view.target.set(target.x, target.y, target.z);
+      }
       view.fixedFrame = null;
+      if (cam !== perspectiveCam) {
+        perspectiveCam.aspect = cam.aspect;
+        perspectiveCam.zoom = cam.zoom;
+        perspectiveCam.updateProjectionMatrix();
+        cam = perspectiveCam;
+        view.cam = cam;
+      }
       cam.up.set(0, 1, 0);
       if (grid) {
         grid.quaternion.identity();
@@ -572,6 +611,13 @@ export function createEditorView(opts) {
       view.dist = clamp(radius, minDist, maxDist);
       view.target.set(0, 0, 0);
     };
+    view.framePlane = function (bounds) {
+      if(!view.fixedFrame)return;
+      view.resize(true);
+      const fit=planeBoundsFit(bounds,view.fixedFrame,cv.clientWidth || lastW,cv.clientHeight || lastH,cam.fov,72,cam.zoom);
+      view.dist=clamp(fit.distance/(view.big?bigZoom():1),minDist,maxDist);
+      const origin=view.fixedFrame.origin;view.target.set(fit.center.x-origin.x,fit.center.y-origin.y,fit.center.z-origin.z);
+    };
   } catch (e) {
     // no WebGL at all — the editors treat a null view as "no preview" and
     // carry on in 2D rather than failing to open
@@ -590,7 +636,7 @@ export function createViewportSwap(o) {
      opens with a drag-resizer that has to stay above it. */
   var anchor = o.wrap.nextSibling,
     home = o.panelHost || o.wrap.parentElement;
-  return function setBig(big, view) {
+  return function setBig(big, view, options) {
     if (!home && o.wrap.parentElement !== o.bigHost) {
       home = o.wrap.parentElement;
       anchor = o.wrap.nextSibling;
@@ -601,7 +647,7 @@ export function createViewportSwap(o) {
     if (view) {
       // a new home is a new size; the window never resized, so say so
       if (view.invalidateSize) view.invalidateSize();
-      view.setBig(big);
+      view.setBig(big, !(options && options.render === false));
     }
   };
 }

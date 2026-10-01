@@ -90,6 +90,35 @@ test("a radius larger than the shorter leg is refused", () => {
   assert.throws(() => filletSketchCorner(sketch, { vertexId: "v", radius: 12 }), /too large/);
 });
 
+test("five rounded fixed corners retain the fully defined wire path and editable radii", () => {
+  const coords = [[-3, 0], [-3, 3], [-2, 5], [0, 6], [2, 5], [3, 3], [3, 0]];
+  const sketch = {
+    points: coords.map(([x, y], i) => ({ id: `p${i}`, x, y, fixed: true })),
+    entities: coords.slice(1).map((_, i) => ({ id: `l${i}`, type: "line", a: `p${i}`, b: `p${i + 1}` })),
+    constraints: [],
+  };
+  assert.equal(solveSketch(sketch).degreesOfFreedom, 0);
+  for (let i = 1; i <= 5; i++) {
+    filletSketchCorner(sketch, { vertexId: `p${i}`, radius: .2, keepConstrainedCorners: true });
+    const report = solveSketch(sketch);
+    assert.equal(report.converged, true, `corner ${i}`);
+    assert.equal(report.degreesOfFreedom, 0, `corner ${i}`);
+  }
+  assert.equal(sketch.entities.length, 11);
+  assert.equal(sketch.points.filter(p => p.virtualSharp && p.fixed).length, 5);
+  const radii = sketch.constraints.filter(c => c.type === "radius");
+  radii[2].value = .3;
+  const reopened = JSON.parse(JSON.stringify(sketch));
+  const report = solveSketch(reopened);
+  assert.equal(report.converged, true);
+  assert.equal(report.degreesOfFreedom, 0);
+  const map = points(reopened);
+  for (let i = 0; i < coords.length; i++) {
+    assert.deepEqual([map.get(`p${i}`).x, map.get(`p${i}`).y], coords[i]);
+  }
+  assert.ok(Math.abs(circleData(reopened.entities.find(e => e.id === radii[2].entity), map).radius - .3) < 1e-6);
+});
+
 test("parallel lines are refused", () => {
   const sketch = {
     points: [

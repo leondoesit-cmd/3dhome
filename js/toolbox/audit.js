@@ -3,6 +3,7 @@
 // against the installed millimetre pack so a wrong head height cannot pass.
 
 import { near, lookupSize } from "./geom.js";
+import { ANSI_TYPE_A_NARROW, ANSI_HEX_MACHINE_NUT, ANSI_PAN_CROSS } from "./ansi_machine_tables.js";
 import { canonicalDimensionsMm } from "./schema.js";
 import { TOOLBOX_KINDS } from "./catalog.js";
 import {
@@ -15,6 +16,9 @@ import { COPPER_EN1057, COPPER_ASTM_B88, PVC_D1785, PEX_ISO15875, STEEL_EN10255,
 import { EURO_HINGE } from "./hardware_tables.js";
 
 const PACKS = {
+  "ansi-pan-cross": {table:ANSI_PAN_CROSS,standard:"ASME B18.6.3",fields:{diameterMm:"diameterMm",pitchMm:"pitchMm",headDiaMm:"headDiaMm",headHeightMm:"headHeightMm"}},
+  "ansi-hex-machine-nut": {table:ANSI_HEX_MACHINE_NUT,standard:"ASME B18.6.3",fields:{diameterMm:"diameterMm",pitchMm:"pitchMm",acrossFlatsMm:"af",headHeightMm:"h"}},
+  "ansi-washer-narrow": {table:ANSI_TYPE_A_NARROW,standard:"ASME B18.21.1",fields:{idMm:"idMm",odMm:"odMm",thicknessMm:"h"}},
   shcs: { table: ISO4762_SHCS, standard: "ISO 4762:2018", aliases: ["ISO 4762:2018", "ISO 4762", "DIN 912"], fields: { diameterMm: "diameterMm", pitchMm: "pitchMm", headDiaMm: "headDiaMm", headHeightMm: "headHeightMm", acrossFlatsMm: "hexAfMm" } },
   "hex-screw": { table: ISO4017_HEX, standard: "ISO 4017:2022", aliases: ["ISO 4017:2022", "ISO 4017", "DIN 933"], fields: { diameterMm: "diameterMm", pitchMm: "pitchMm", acrossFlatsMm: "af", headHeightMm: "h" } },
   "hex-bolt": { table: ISO4017_HEX, standard: "ISO 4014:2022", aliases: ["ISO 4014:2022", "ISO 4014", "DIN 931"], fields: { diameterMm: "diameterMm", pitchMm: "pitchMm", acrossFlatsMm: "af", headHeightMm: "h" } },
@@ -134,7 +138,8 @@ export function validateToolboxSpec(spec = {}) {
       issues.push(issue("wrong-coarse-pitch", row.size + " coarse pitch must be " + expectedPitch + " mm", "pitchMm"));
     }
   }
-  return report(spec.standard || pack.standard, issues, { pack: pack.standard, size: row && row.size, family });
+  if (spec.representative) issues.push(issue("representative-geometry", "Published dimensional envelope only; detailed driver/thread form is representative", "standard", "warning"));
+  return report(spec.standard || pack.standard, issues, { pack: pack.standard, size: row && row.size, family, ...(spec.representative ? {status:"representative"} : {}) });
 }
 
 function validateEuroHinge(spec) {

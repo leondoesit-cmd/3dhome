@@ -1,6 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js';
+import {revolvePreviewAxis} from '../js/core/revolve_geometry.js';
+import {sketchWorldPoint} from '../js/core/swept_sources.js';
+
+test('live Right Plane thin revolve uses the chosen Z axis before Finish',()=>{
+ const sketch={plane:'side',referenceId:'plane:right'};
+ const axis=revolvePreviewAxis({axis:'y',thinFeature:true},{axis:'axis:z'});
+ assert.equal(axis,'z');
+ const connector=sketchWorldPoint(sketch,-2.3,.4);
+ const preview={u:Math.hypot(connector.x,connector.y),v:connector[axis]};
+ assert.ok(Math.abs(preview.u-.4)<1e-10);
+ assert.ok(Math.abs(preview.v+2.3)<1e-10,
+  'The connector preview stays at the rear neck rather than jumping to z=0');
+});
 
 test('Right Plane revolve keeps horizontal Z as axial distance and vertical Y as radius',async()=>{
  const sketch={id:'profile',plane:'side',referenceId:'plane:right',points:[{id:'a',x:0,y:0},{id:'b',x:5,y:0},{id:'c',x:5,y:1},{id:'d',x:0,y:4}],

@@ -176,7 +176,9 @@ test("limit mates clamp distance and tangent mates separate cylinder axes by the
     topologyMates: [{ id: "lim", type: "limit", value: 10, min: 1, max: 3, a: topologyReference("a", "face", "fa", faceA), b: topologyReference("b", "face", "fb", faceB) }],
   };
   solveTopologyMates(limited);
-  assert.equal(limited.components[1].transform.x, 8);
+  // The initial signed separation is -5: return to the nearest lower end
+  // stop (1), rather than treating the stored value as a fixed distance.
+  assert.ok(Math.abs(limited.components[1].transform.x - 6) < 1e-6);
   const cylA = { surface: "cylinder", origin: { x: 0, y: 0, z: 0 }, axis: { x: 0, y: 1, z: 0 }, radius: 2 };
   const cylB = { surface: "cylinder", origin: { x: 0, y: 0, z: 0 }, axis: { x: 0, y: 1, z: 0 }, radius: 1 };
   const tangent = {

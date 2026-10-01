@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
+import {installModelerDraftFixture} from './browser_modeler_fixture.mjs';
 const available=await findChrome();
 test('manufacturing thread fields round-trip through the real feature form',available?{timeout:60000}:{skip:'Chrome unavailable'},async()=>{
  const page=await openPage({width:1440,height:1000,lang:'en'});
@@ -21,6 +22,7 @@ test('manufacturing thread fields round-trip through the real feature form',avai
 test('sheet rules and two adjacent flanges save through the modeler controls',available?{timeout:60000}:{skip:'Chrome unavailable'},async()=>{
  const page=await openPage({width:1440,height:1000,lang:'en'});
  try{
+  await installModelerDraftFixture(page);
   await page.eval(async()=>{const {openModeler}=await import('/js/modeler.js');const {createSheetMetalPart}=await import('/js/cad_sheet_metal.js');openModeler(null,{key:'mfg_sheet',name:'Manufacturing sheet',sheetMetal:createSheetMetalPart({thickness:.1,insideRadius:.2,base:{width:10,height:6}}),parts:[{id:'plate',name:'Plate',kind:'box',x0:0,x1:10,y0:0,y1:.1,z0:0,z1:6}]},null);});
   const tree=await page.eval(()=>document.querySelector('#mdParts')?.innerHTML);
   assert.ok(tree,tree);
@@ -33,8 +35,8 @@ test('sheet rules and two adjacent flanges save through the modeler controls',av
   const flangeLabel=await page.eval(async()=>{const {t}=await import('/js/modeler_strings.js');return t('sheetMetalFlange');});
   await click(flangeLabel);await set({edge:'right',length:2,angle:90});
   await click(flangeLabel);await set({edge:'top',length:2,angle:90});
-  await page.waitUntil(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')||'null')?.def?.sheetMetal?.flanges?.length===2);
-  const sheet=await page.eval(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')).def.sheetMetal);
+  await page.waitUntil(async()=>(await window.currentModelerDraftForTest())?.def?.sheetMetal?.flanges?.length===2);
+  const sheet=await page.eval(async()=>(await window.currentModelerDraftForTest()).def.sheetMetal);
   assert.equal(sheet.cornerRelief.width,.15);assert.deepEqual(sheet.flanges.map(f=>f.edge),['right','top']);
  }finally{await page.close();}
 });

@@ -1,0 +1,2055 @@
+{
+  "schemaVersion": 8,
+  "id": "cm_mukcv9q3",
+  "name": "Planchard HOUSING - rebuilt 2026-09-28",
+  "kind": "part",
+  "authoringMode": "fully-parametric",
+  "localFrame": {
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "xAxis": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "zAxis": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "references": [
+    {
+      "id": "origin",
+      "type": "origin",
+      "name": "Origin",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:top",
+      "type": "plane",
+      "name": "Top Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:front",
+      "type": "plane",
+      "name": "Front Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:right",
+      "type": "plane",
+      "name": "Right Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "axis:x",
+      "type": "axis",
+      "name": "X Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:y",
+      "type": "axis",
+      "name": "Y Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:z",
+      "type": "axis",
+      "name": "Z Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "plane_245",
+      "type": "plane",
+      "name": "BatteryLoftPlane",
+      "origin": {
+        "x": 0,
+        "y": -2.805054320423616e-16,
+        "z": 6.604
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "offset": 3.302,
+      "refType": "offset",
+      "support": {
+        "type": "topology-reference",
+        "ownerFeatureId": "feature_mukcxaa9_2",
+        "kind": "face",
+        "persistentId": "feature_mukcxaa9_2:face:end",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": -2.805054320423616e-16,
+            "z": 3.302
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 96.98697842100543,
+          "bounds": {
+            "min": {
+              "x": -5.556250100000001,
+              "y": -5.556250100000001,
+              "z": 3.3019999
+            },
+            "max": {
+              "x": 5.556250100000001,
+              "y": 5.556250100000001,
+              "z": 3.3020001
+            }
+          }
+        },
+        "signature": "plane:0:0:3.302:0:0:1:96.987:"
+      }
+    }
+  ],
+  "parameters": {},
+  "sketches": [
+    {
+      "id": "sk_1v2d8",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 240,
+          "x": 0,
+          "y": 4.898678015800028e-34
+        }
+      ],
+      "entities": [
+        {
+          "id": 239,
+          "type": "circle",
+          "name": "Circle",
+          "c": 240,
+          "r": 5.55625,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 241,
+          "type": "fixed",
+          "point": 240,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": "dim_8yq4tsh",
+          "type": "diameter",
+          "entity": 239,
+          "value": 11.1125,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_2kgcc",
+      "name": "SketchCircle",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "feature_mukcxaa9_2:face:end",
+      "support": {
+        "type": "topology-reference",
+        "ownerFeatureId": "feature_mukcxaa9_2",
+        "kind": "face",
+        "persistentId": "feature_mukcxaa9_2:face:end",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": -2.805054320423616e-16,
+            "z": 3.302
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 96.98697842100543,
+          "bounds": {
+            "min": {
+              "x": -5.556250100000001,
+              "y": -5.556250100000001,
+              "z": 3.3019999
+            },
+            "max": {
+              "x": 5.556250100000001,
+              "y": 5.556250100000001,
+              "z": 3.3020001
+            }
+          }
+        },
+        "signature": "plane:0:0:3.302:0:0:1:96.987:"
+      },
+      "points": [
+        {
+          "id": 244,
+          "x": 0,
+          "y": 2.805054320423616e-16,
+          "fixed": true
+        }
+      ],
+      "entities": [
+        {
+          "id": 243,
+          "type": "circle",
+          "name": "Face boundary",
+          "construction": false,
+          "c": 244,
+          "r": 5.55625,
+          "fixed": true
+        }
+      ],
+      "constraints": [],
+      "frame": {
+        "origin": {
+          "x": 0,
+          "y": -2.805054320423616e-16,
+          "z": 3.302
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "yAxis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "frameSpace": "local",
+      "frameAnchor": "bounds-center",
+      "supportOffset": 0,
+      "diagnostics": [],
+      "status": "fully-defined",
+      "boundaryCopies": [
+        {
+          "source": {
+            "type": "topology-reference",
+            "ownerFeatureId": "feature_mukcxaa9_2",
+            "kind": "face",
+            "persistentId": "feature_mukcxaa9_2:face:end",
+            "descriptor": {
+              "surface": "plane",
+              "origin": {
+                "x": 0,
+                "y": -2.805054320423616e-16,
+                "z": 3.302
+              },
+              "normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "measure": 96.98697842100543,
+              "bounds": {
+                "min": {
+                  "x": -5.556250100000001,
+                  "y": -5.556250100000001,
+                  "z": 3.3019999
+                },
+                "max": {
+                  "x": 5.556250100000001,
+                  "y": 5.556250100000001,
+                  "z": 3.3020001
+                }
+              }
+            },
+            "signature": "plane:0:0:3.302:0:0:1:96.987:"
+          },
+          "distance": 0,
+          "entityIds": [
+            243
+          ],
+          "associative": true
+        }
+      ]
+    },
+    {
+      "id": "sk_33cnr",
+      "name": "SketchSquare",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane_245",
+      "points": [
+        {
+          "id": 246,
+          "x": 0,
+          "y": 2.805054320423616e-16
+        },
+        {
+          "id": 267,
+          "x": -3.9369999999999976,
+          "y": 2.7939999999999996
+        },
+        {
+          "id": 268,
+          "x": -2.6669999999999976,
+          "y": 4.064
+        },
+        {
+          "id": 269,
+          "x": -2.6669999999999976,
+          "y": 2.794
+        },
+        {
+          "id": 274,
+          "x": 2.6670000000000034,
+          "y": 4.064
+        },
+        {
+          "id": 275,
+          "x": 3.9370000000000034,
+          "y": 2.7939999999999996
+        },
+        {
+          "id": 276,
+          "x": 2.6670000000000034,
+          "y": 2.794
+        },
+        {
+          "id": 281,
+          "x": -3.936999999999996,
+          "y": -3.355450798700759
+        },
+        {
+          "id": 282,
+          "x": -3.457222222222183,
+          "y": -4.349658442760201
+        },
+        {
+          "id": 283,
+          "x": -2.666999999999996,
+          "y": -3.3554507987007587
+        },
+        {
+          "id": 288,
+          "x": 3.9370000000000034,
+          "y": -3.3554507987005366
+        },
+        {
+          "id": 289,
+          "x": 3.457222222222225,
+          "y": -4.349658442759952
+        },
+        {
+          "id": 290,
+          "x": 2.6670000000000034,
+          "y": -3.3554507987005366
+        }
+      ],
+      "entities": [
+        {
+          "id": 247,
+          "type": "arc",
+          "c": 246,
+          "construction": false,
+          "a": 282,
+          "b": 289,
+          "r": 5.55625
+        },
+        {
+          "id": 252,
+          "type": "line",
+          "name": "Line",
+          "a": 281,
+          "b": 267,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 256,
+          "type": "line",
+          "name": "Line",
+          "a": 268,
+          "b": 274,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 260,
+          "type": "line",
+          "name": "Line",
+          "a": 275,
+          "b": 288,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 270,
+          "type": "arc",
+          "name": "Sketch fillet",
+          "c": 269,
+          "a": 268,
+          "b": 267,
+          "construction": false
+        },
+        {
+          "id": 277,
+          "type": "arc",
+          "name": "Sketch fillet",
+          "c": 276,
+          "a": 275,
+          "b": 274,
+          "construction": false
+        },
+        {
+          "id": 284,
+          "type": "arc",
+          "name": "Sketch fillet",
+          "c": 283,
+          "a": 281,
+          "b": 282,
+          "construction": false
+        },
+        {
+          "id": 291,
+          "type": "arc",
+          "name": "Sketch fillet",
+          "c": 290,
+          "a": 289,
+          "b": 288,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 248,
+          "type": "fixed",
+          "point": 246,
+          "x": 0,
+          "y": 2.805054320423616e-16,
+          "exprError": null
+        },
+        {
+          "id": 249,
+          "type": "diameter",
+          "entity": 247,
+          "value": 11.1125,
+          "exprError": null
+        },
+        {
+          "type": "vertical",
+          "entity": 252,
+          "id": 253,
+          "exprError": null
+        },
+        {
+          "type": "horizontal",
+          "entity": 256,
+          "id": 257,
+          "exprError": null
+        },
+        {
+          "type": "vertical",
+          "entity": 260,
+          "id": 261,
+          "exprError": null
+        },
+        {
+          "id": 271,
+          "type": "tangent",
+          "a": 252,
+          "b": 270,
+          "exprError": null
+        },
+        {
+          "id": 272,
+          "type": "tangent",
+          "a": 256,
+          "b": 270,
+          "exprError": null
+        },
+        {
+          "id": 273,
+          "type": "radius",
+          "entity": 270,
+          "value": 1.27,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 278,
+          "type": "tangent",
+          "a": 256,
+          "b": 277,
+          "exprError": null
+        },
+        {
+          "id": 279,
+          "type": "tangent",
+          "a": 260,
+          "b": 277,
+          "exprError": null
+        },
+        {
+          "id": 280,
+          "type": "radius",
+          "entity": 277,
+          "value": 1.27,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 285,
+          "type": "tangent",
+          "a": 252,
+          "b": 284,
+          "exprError": null
+        },
+        {
+          "id": 286,
+          "type": "tangent",
+          "a": 247,
+          "b": 284,
+          "exprError": null
+        },
+        {
+          "id": 287,
+          "type": "radius",
+          "entity": 284,
+          "value": 1.27,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 292,
+          "type": "tangent",
+          "a": 260,
+          "b": 291,
+          "exprError": null
+        },
+        {
+          "id": 293,
+          "type": "tangent",
+          "a": 247,
+          "b": 291,
+          "exprError": null
+        },
+        {
+          "id": 294,
+          "type": "radius",
+          "entity": 291,
+          "value": 1.27,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "frame": {
+        "origin": {
+          "x": 0,
+          "y": -2.805054320423616e-16,
+          "z": 6.604
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "yAxis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "frameSpace": "local",
+      "diagnostics": [
+        {
+          "severity": "warning",
+          "code": "under-constrained-sketch",
+          "sketchId": "sk_33cnr",
+          "dof": 3,
+          "message": "SketchSquare has 3 degrees of freedom"
+        }
+      ],
+      "status": "partially-defined",
+      "circleCopies": [
+        {
+          "source": {
+            "ownerFeatureId": "feature_mukcxaa9_2",
+            "kind": "edge",
+            "persistentId": "feature_mukcxaa9_2:edge:profile:239:end",
+            "semantic": "profile:239:end",
+            "descriptor": {
+              "curve": "circle",
+              "semantic": "profile:239:end",
+              "origin": {
+                "x": 0,
+                "y": 4.898678015800028e-34,
+                "z": 3.302
+              },
+              "axis": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "radius": 5.55625,
+              "measure": 34.91094836301658
+            },
+            "signature": "circle:0:0:3.302:0:0:1:34.911:profile:239:end",
+            "memberPersistentIds": [
+              "feature_mukcxaa9_2:edge:profile:239:end",
+              "feature_mukcxaa9_2:edge:mesh-circle:1"
+            ]
+          },
+          "entityId": 247
+        }
+      ],
+      "repairs": [
+        {
+          "id": "repair_dim_5a3rt9a_0",
+          "operation": "trim",
+          "entityId": 247,
+          "constraint": {
+            "id": "dim_5a3rt9a",
+            "type": "distance",
+            "value": 7.8740000000000006,
+            "driven": false,
+            "exprError": null,
+            "a": 255,
+            "b": 251
+          },
+          "points": [
+            {
+              "id": 246,
+              "x": -1.6097805311333018e-15,
+              "y": -1.6696366702163986e-15
+            },
+            {
+              "id": 250,
+              "x": -3.936999999999996,
+              "y": -3.920707214585403
+            },
+            {
+              "id": 259,
+              "x": 3.9370000000000034,
+              "y": -3.9207072145851543
+            },
+            {
+              "id": 267,
+              "x": -3.9369999999999976,
+              "y": 2.7939999999999996
+            },
+            {
+              "id": 268,
+              "x": -2.6669999999999976,
+              "y": 4.064
+            },
+            {
+              "id": 269,
+              "x": -2.6669999999999976,
+              "y": 2.794
+            },
+            {
+              "id": 274,
+              "x": 2.6670000000000034,
+              "y": 4.064
+            },
+            {
+              "id": 275,
+              "x": 3.9370000000000034,
+              "y": 2.7939999999999996
+            },
+            {
+              "id": 276,
+              "x": 2.6670000000000034,
+              "y": 2.794
+            },
+            {
+              "id": 255,
+              "x": 3.9370000000000034,
+              "y": 4.064
+            }
+          ],
+          "entities": [
+            {
+              "id": 247,
+              "type": "circle",
+              "c": 246,
+              "r": 5.556250000000003,
+              "construction": false
+            },
+            {
+              "id": 252,
+              "type": "line",
+              "name": "Line",
+              "a": 250,
+              "b": 267,
+              "construction": false,
+              "weight": 2
+            },
+            {
+              "id": 256,
+              "type": "line",
+              "name": "Line",
+              "a": 268,
+              "b": 274,
+              "construction": false,
+              "weight": 2
+            },
+            {
+              "id": 260,
+              "type": "line",
+              "name": "Line",
+              "a": 275,
+              "b": 259,
+              "construction": false,
+              "weight": 2
+            },
+            {
+              "id": 270,
+              "type": "arc",
+              "name": "Sketch fillet",
+              "c": 269,
+              "a": 268,
+              "b": 267,
+              "construction": false
+            },
+            {
+              "id": 277,
+              "type": "arc",
+              "name": "Sketch fillet",
+              "c": 276,
+              "a": 275,
+              "b": 274,
+              "construction": false
+            }
+          ],
+          "status": "dismissed"
+        }
+      ],
+      "lastEdit": {
+        "operation": "trim",
+        "entityId": 247,
+        "repairCount": 1
+      }
+    },
+    {
+      "id": "sk_4tzdy",
+      "name": "Face sketch",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "feature_mukdi3e3_3:tool:face:generated:plane:1",
+      "support": {
+        "type": "topology-reference",
+        "ownerFeatureId": "feature_mukdi3e3_3:tool",
+        "kind": "face",
+        "persistentId": "feature_mukdi3e3_3:tool:face:generated:plane:1",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -1.321172954367409e-14,
+            "y": -0.5416630433329717,
+            "z": 6.604
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 70.96275841354155,
+          "bounds": {
+            "min": {
+              "x": -3.9370000999999974,
+              "y": -5.556250100000179,
+              "z": 6.6039999
+            },
+            "max": {
+              "x": 3.9370001000000037,
+              "y": 4.0640001,
+              "z": 6.6040001
+            }
+          }
+        },
+        "signature": "plane:0:-0.542:6.604:0:0:1:70.963:"
+      },
+      "points": [
+        {
+          "id": "boundary:295:2",
+          "x": 3.9370000000000167,
+          "y": 0.07296837948314172,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:3",
+          "x": 3.9370000000000167,
+          "y": 3.3356630433329713,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:5",
+          "x": 2.6670000000000167,
+          "y": 4.605663043332972,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:6",
+          "x": 2.667000000000016,
+          "y": 3.3356630433329713,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:8",
+          "x": -2.6669999999999847,
+          "y": 4.605663043332972,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:10",
+          "x": -3.9369999999999843,
+          "y": 3.335663043332971,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:11",
+          "x": -2.666999999999984,
+          "y": 3.3356630433329713,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:13",
+          "x": -3.9369999999999834,
+          "y": 0.07296837948314172,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:15",
+          "x": -3.9369999999999825,
+          "y": -2.813787755367788,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:17",
+          "x": -3.45722222222217,
+          "y": -3.807995399427229,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:18",
+          "x": -2.666999999999986,
+          "y": -2.8137877553677875,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:20",
+          "x": 3.457222222222238,
+          "y": -3.8079953994269804,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:21",
+          "x": -1.2234650176305753e-13,
+          "y": 0.5416630433325835,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:23",
+          "x": 3.937000000000017,
+          "y": -2.8137877553675654,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:24",
+          "x": 2.6670000000000185,
+          "y": -2.8137877553675654,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:2",
+          "x": 3.9370000000000167,
+          "y": 0.07296837948314172,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:3",
+          "x": 3.9370000000000167,
+          "y": 3.3356630433329713,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:5",
+          "x": 2.6670000000000167,
+          "y": 4.605663043332972,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:6",
+          "x": 2.667000000000016,
+          "y": 3.3356630433329713,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:8",
+          "x": -2.6669999999999847,
+          "y": 4.605663043332972,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:10",
+          "x": -3.9369999999999843,
+          "y": 3.335663043332971,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:11",
+          "x": -2.666999999999984,
+          "y": 3.3356630433329713,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:13",
+          "x": -3.9369999999999834,
+          "y": 0.07296837948314172,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:15",
+          "x": -3.9369999999999825,
+          "y": -2.813787755367788,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:17",
+          "x": -3.45722222222217,
+          "y": -3.807995399427229,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:18",
+          "x": -2.666999999999986,
+          "y": -2.8137877553677875,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:20",
+          "x": 3.457222222222238,
+          "y": -3.8079953994269804,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:21",
+          "x": -1.2234650176305753e-13,
+          "y": 0.5416630433325835,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:23",
+          "x": 3.937000000000017,
+          "y": -2.8137877553675654,
+          "fixed": true
+        },
+        {
+          "id": "boundary:295:24",
+          "x": 2.6670000000000185,
+          "y": -2.8137877553675654,
+          "fixed": true
+        }
+      ],
+      "entities": [
+        {
+          "id": "boundary:295:1",
+          "type": "line",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:2",
+          "b": "boundary:295:3"
+        },
+        {
+          "id": "boundary:295:4",
+          "type": "arc",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:3",
+          "b": "boundary:295:5",
+          "c": "boundary:295:6"
+        },
+        {
+          "id": "boundary:295:7",
+          "type": "line",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:5",
+          "b": "boundary:295:8"
+        },
+        {
+          "id": "boundary:295:9",
+          "type": "arc",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:8",
+          "b": "boundary:295:10",
+          "c": "boundary:295:11"
+        },
+        {
+          "id": "boundary:295:12",
+          "type": "line",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:10",
+          "b": "boundary:295:13"
+        },
+        {
+          "id": "boundary:295:14",
+          "type": "line",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:13",
+          "b": "boundary:295:15"
+        },
+        {
+          "id": "boundary:295:16",
+          "type": "arc",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:15",
+          "b": "boundary:295:17",
+          "c": "boundary:295:18"
+        },
+        {
+          "id": "boundary:295:19",
+          "type": "arc",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:17",
+          "b": "boundary:295:20",
+          "c": "boundary:295:21"
+        },
+        {
+          "id": "boundary:295:22",
+          "type": "arc",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:20",
+          "b": "boundary:295:23",
+          "c": "boundary:295:24"
+        },
+        {
+          "id": "boundary:295:25",
+          "type": "line",
+          "name": "Face boundary",
+          "construction": false,
+          "a": "boundary:295:23",
+          "b": "boundary:295:2"
+        }
+      ],
+      "constraints": [],
+      "frame": {
+        "origin": {
+          "x": -1.321172954367409e-14,
+          "y": -0.5416630433329717,
+          "z": 6.604
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "yAxis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "frameSpace": "local",
+      "frameAnchor": "bounds-center",
+      "supportOffset": 0,
+      "diagnostics": [],
+      "status": "fully-defined",
+      "boundaryCopies": [
+        {
+          "source": {
+            "type": "topology-reference",
+            "ownerFeatureId": "feature_mukdi3e3_3",
+            "kind": "face",
+            "persistentId": "feature_mukdi3e3_3:tool:face:generated:plane:1",
+            "semantic": "generated-1",
+            "descriptor": {
+              "surface": "plane",
+              "origin": {
+                "x": -1.321172954367409e-14,
+                "y": -0.5416630433329717,
+                "z": 6.604
+              },
+              "normal": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "measure": 70.96275841354155,
+              "bounds": {
+                "min": {
+                  "x": -3.9370000999999974,
+                  "y": -5.556250100000179,
+                  "z": 6.6039999
+                },
+                "max": {
+                  "x": 3.9370001000000037,
+                  "y": 4.0640001,
+                  "z": 6.6040001
+                }
+              }
+            },
+            "signature": "plane:0:-0.542:6.604:0:0:1:70.963:"
+          },
+          "distance": 0,
+          "entityIds": [
+            "boundary:295:1",
+            "boundary:295:4",
+            "boundary:295:7",
+            "boundary:295:9",
+            "boundary:295:12",
+            "boundary:295:14",
+            "boundary:295:16",
+            "boundary:295:19",
+            "boundary:295:22",
+            "boundary:295:25"
+          ],
+          "associative": true,
+          "id": "boundary:295",
+          "loopCount": 1
+        }
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "feature_mukcxaa9_2",
+      "type": "extrude",
+      "name": "Base Extrude",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 3.302,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          239
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1v2d8",
+        "from": 0,
+        "to": 3.302
+      },
+      "references": {
+        "sketches": [
+          "sk_1v2d8"
+        ],
+        "features": [],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          239
+        ]
+      },
+      "inputs": [],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mukdi3e3_3",
+      "type": "loft",
+      "name": "Boss-Loft1",
+      "params": {
+        "operation": "add",
+        "continuity": "position",
+        "solid": true,
+        "ruled": false,
+        "matchProfiles": true,
+        "tolerance": 0.001,
+        "mergeResult": true,
+        "sections": [
+          [
+            {
+              "x": 5.55625,
+              "y": 0,
+              "z": 3.302
+            },
+            {
+              "x": 5.497039088867331,
+              "y": 0.8089964882276208,
+              "z": 3.302
+            },
+            {
+              "x": 5.320668333241081,
+              "y": 1.6007506208481015,
+              "z": 3.302
+            },
+            {
+              "x": 5.030896769571296,
+              "y": 2.3583875331287474,
+              "z": 3.302
+            },
+            {
+              "x": 4.633900375650635,
+              "y": 3.06575950965579,
+              "z": 3.302
+            },
+            {
+              "x": 4.1381404403701385,
+              "y": 3.7077901448535675,
+              "z": 3.302
+            },
+            {
+              "x": 3.55418322603659,
+              "y": 4.270795670394469,
+              "z": 3.302
+            },
+            {
+              "x": 2.894474766836063,
+              "y": 4.742776600963756,
+              "z": 3.302
+            },
+            {
+              "x": 2.1730756032234293,
+              "y": 5.113673482456142,
+              "z": 3.302
+            },
+            {
+              "x": 1.4053611059137758,
+              "y": 5.37558129177532,
+              "z": 3.302
+            },
+            {
+              "x": 0.6076937765495654,
+              "y": 5.52291791867695,
+              "z": 3.302
+            },
+            {
+              "x": -0.20292549061411755,
+              "y": 5.552543138757143,
+              "z": 3.302
+            },
+            {
+              "x": -1.0092197532544933,
+              "y": 5.463825541883722,
+              "z": 3.302
+            },
+            {
+              "x": -1.7940042490113468,
+              "y": 5.258655989606968,
+              "z": 3.302
+            },
+            {
+              "x": -2.540552658861398,
+              "y": 4.9414073147284965,
+              "z": 3.302
+            },
+            {
+              "x": -3.2329535995688747,
+              "y": 4.518841121961986,
+              "z": 3.302
+            },
+            {
+              "x": -3.8564497471946475,
+              "y": 3.9999636760678645,
+              "z": 3.302
+            },
+            {
+              "x": -4.397752363835043,
+              "y": 3.395833948956176,
+              "z": 3.302
+            },
+            {
+              "x": -4.845324523999032,
+              "y": 2.7193279169003435,
+              "z": 3.302
+            },
+            {
+              "x": -5.18962700414522,
+              "y": 1.9848641314575446,
+              "z": 3.302
+            },
+            {
+              "x": -5.42332159467012,
+              "y": 1.2080964130750276,
+              "z": 3.302
+            },
+            {
+              "x": -5.541427501105609,
+              "y": 0.4055802170846701,
+              "z": 3.302
+            },
+            {
+              "x": -5.541427501105609,
+              "y": -0.40558021708466874,
+              "z": 3.302
+            },
+            {
+              "x": -5.423321594670122,
+              "y": -1.2080964130750238,
+              "z": 3.302
+            },
+            {
+              "x": -5.18962700414522,
+              "y": -1.9848641314575435,
+              "z": 3.302
+            },
+            {
+              "x": -4.8453245239990315,
+              "y": -2.7193279169003444,
+              "z": 3.302
+            },
+            {
+              "x": -4.397752363835045,
+              "y": -3.395833948956173,
+              "z": 3.302
+            },
+            {
+              "x": -3.8564497471946484,
+              "y": -3.9999636760678636,
+              "z": 3.302
+            },
+            {
+              "x": -3.232953599568876,
+              "y": -4.5188411219619855,
+              "z": 3.302
+            },
+            {
+              "x": -2.540552658861399,
+              "y": -4.941407314728496,
+              "z": 3.302
+            },
+            {
+              "x": -1.7940042490113506,
+              "y": -5.258655989606966,
+              "z": 3.302
+            },
+            {
+              "x": -1.009219753254497,
+              "y": -5.463825541883721,
+              "z": 3.302
+            },
+            {
+              "x": -0.2029254906141164,
+              "y": -5.552543138757143,
+              "z": 3.302
+            },
+            {
+              "x": 0.607693776549564,
+              "y": -5.52291791867695,
+              "z": 3.302
+            },
+            {
+              "x": 1.4053611059137745,
+              "y": -5.37558129177532,
+              "z": 3.302
+            },
+            {
+              "x": 2.173075603223427,
+              "y": -5.113673482456144,
+              "z": 3.302
+            },
+            {
+              "x": 2.8944747668360638,
+              "y": -4.742776600963756,
+              "z": 3.302
+            },
+            {
+              "x": 3.55418322603659,
+              "y": -4.270795670394469,
+              "z": 3.302
+            },
+            {
+              "x": 4.138140440370138,
+              "y": -3.707790144853569,
+              "z": 3.302
+            },
+            {
+              "x": 4.633900375650633,
+              "y": -3.065759509655792,
+              "z": 3.302
+            },
+            {
+              "x": 5.030896769571295,
+              "y": -2.3583875331287505,
+              "z": 3.302
+            },
+            {
+              "x": 5.320668333241081,
+              "y": -1.6007506208481006,
+              "z": 3.302
+            },
+            {
+              "x": 5.49703908886733,
+              "y": -0.808996488227626,
+              "z": 3.302
+            }
+          ],
+          [
+            {
+              "x": -3.457222222222183,
+              "y": -4.349658442760199,
+              "z": 6.604
+            },
+            {
+              "x": -2.8436116631691943,
+              "y": -4.773446005936393,
+              "z": 6.604
+            },
+            {
+              "x": -2.1787774665879414,
+              "y": -5.111246698564901,
+              "z": 6.604
+            },
+            {
+              "x": -1.4746956791176913,
+              "y": -5.35697551949732,
+              "z": 6.604
+            },
+            {
+              "x": -0.7440493371725755,
+              "y": -5.506206011979121,
+              "z": 6.604
+            },
+            {
+              "x": 9.249432720247539e-14,
+              "y": -5.556250000000177,
+              "z": 6.604
+            },
+            {
+              "x": 0.744049337172759,
+              "y": -5.5062060119790965,
+              "z": 6.604
+            },
+            {
+              "x": 1.4746956791178687,
+              "y": -5.35697551949727,
+              "z": 6.604
+            },
+            {
+              "x": 2.1787774665881106,
+              "y": -5.111246698564828,
+              "z": 6.604
+            },
+            {
+              "x": 2.8436116631693524,
+              "y": -4.773446005936297,
+              "z": 6.604
+            },
+            {
+              "x": 3.457222222222225,
+              "y": -4.349658442759952,
+              "z": 6.604
+            },
+            {
+              "x": 3.658963025951515,
+              "y": -4.14848885273396,
+              "z": 6.604
+            },
+            {
+              "x": 3.8107836819570027,
+              "y": -3.907409935674362,
+              "z": 6.604
+            },
+            {
+              "x": 3.9050438756533237,
+              "y": -3.638553892921186,
+              "z": 6.604
+            },
+            {
+              "x": 3.9370000000000034,
+              "y": -3.355450798700537,
+              "z": 6.604
+            },
+            {
+              "x": 3.9370000000000034,
+              "y": 2.793999999999999,
+              "z": 6.604
+            },
+            {
+              "x": 3.8937257993871204,
+              "y": 3.1227001872802007,
+              "z": 6.604
+            },
+            {
+              "x": 3.766852262806241,
+              "y": 3.428999999999999,
+              "z": 6.604
+            },
+            {
+              "x": 3.5650256121069193,
+              "y": 3.6920256121069146,
+              "z": 6.604
+            },
+            {
+              "x": 3.302000000000004,
+              "y": 3.8938522628062366,
+              "z": 6.604
+            },
+            {
+              "x": 2.9957001872802054,
+              "y": 4.020725799387117,
+              "z": 6.604
+            },
+            {
+              "x": 2.6670000000000034,
+              "y": 4.064,
+              "z": 6.604
+            },
+            {
+              "x": -2.6669999999999976,
+              "y": 4.064,
+              "z": 6.604
+            },
+            {
+              "x": -2.9957001872801987,
+              "y": 4.020725799387117,
+              "z": 6.604
+            },
+            {
+              "x": -3.3019999999999974,
+              "y": 3.8938522628062366,
+              "z": 6.604
+            },
+            {
+              "x": -3.565025612106913,
+              "y": 3.692025612106915,
+              "z": 6.604
+            },
+            {
+              "x": -3.7668522628062346,
+              "y": 3.429,
+              "z": 6.604
+            },
+            {
+              "x": -3.8937257993871146,
+              "y": 3.1227001872802007,
+              "z": 6.604
+            },
+            {
+              "x": -3.9369999999999976,
+              "y": 2.793999999999999,
+              "z": 6.604
+            },
+            {
+              "x": -3.936999999999996,
+              "y": -3.35545079870076,
+              "z": 6.604
+            },
+            {
+              "x": -3.905043875653314,
+              "y": -3.6385538929214185,
+              "z": 6.604
+            },
+            {
+              "x": -3.810783681956986,
+              "y": -3.9074099356746035,
+              "z": 6.604
+            },
+            {
+              "x": -3.6589630259514876,
+              "y": -4.148488852734208,
+              "z": 6.604
+            }
+          ]
+        ],
+        "sketchSources": {
+          "kind": "loft",
+          "sections": [
+            {
+              "sketchId": "sk_2kgcc",
+              "entityIds": [
+                243
+              ]
+            },
+            {
+              "sketchId": "sk_33cnr",
+              "entityIds": [
+                247,
+                291,
+                260,
+                277,
+                256,
+                270,
+                252,
+                284
+              ]
+            }
+          ]
+        },
+        "sectionSegments": [
+          [
+            {
+              "type": "arc",
+              "from": {
+                "x": 5.55625,
+                "y": 0,
+                "z": 3.302
+              },
+              "mid": {
+                "x": 3.402221888881241e-16,
+                "y": 5.55625,
+                "z": 3.302
+              },
+              "to": {
+                "x": -5.55625,
+                "y": 6.804443777762481e-16,
+                "z": 3.302
+              }
+            },
+            {
+              "type": "arc",
+              "from": {
+                "x": -5.55625,
+                "y": 6.804443777762481e-16,
+                "z": 3.302
+              },
+              "mid": {
+                "x": -1.0206665666643722e-15,
+                "y": -5.55625,
+                "z": 3.302
+              },
+              "to": {
+                "x": 5.55625,
+                "y": -1.3608887555524964e-15,
+                "z": 3.302
+              }
+            }
+          ],
+          [
+            {
+              "type": "arc",
+              "from": {
+                "x": -3.457222222222183,
+                "y": -4.349658442760201,
+                "z": 6.604
+              },
+              "to": {
+                "x": 3.457222222222225,
+                "y": -4.349658442759952,
+                "z": 6.604
+              },
+              "mid": {
+                "x": 9.249432720247539e-14,
+                "y": -5.556250000000177,
+                "z": 6.604
+              }
+            },
+            {
+              "type": "arc",
+              "from": {
+                "x": 3.457222222222225,
+                "y": -4.349658442759952,
+                "z": 6.604
+              },
+              "to": {
+                "x": 3.9370000000000034,
+                "y": -3.355450798700537,
+                "z": 6.604
+              },
+              "mid": {
+                "x": 3.8107836819570027,
+                "y": -3.907409935674362,
+                "z": 6.604
+              }
+            },
+            {
+              "type": "line",
+              "from": {
+                "x": 3.9370000000000034,
+                "y": -3.355450798700537,
+                "z": 6.604
+              },
+              "to": {
+                "x": 3.9370000000000034,
+                "y": 2.793999999999999,
+                "z": 6.604
+              }
+            },
+            {
+              "type": "arc",
+              "from": {
+                "x": 3.9370000000000034,
+                "y": 2.793999999999999,
+                "z": 6.604
+              },
+              "to": {
+                "x": 2.6670000000000034,
+                "y": 4.064,
+                "z": 6.604
+              },
+              "mid": {
+                "x": 3.5650256121069193,
+                "y": 3.6920256121069146,
+                "z": 6.604
+              }
+            },
+            {
+              "type": "line",
+              "from": {
+                "x": 2.6670000000000034,
+                "y": 4.064,
+                "z": 6.604
+              },
+              "to": {
+                "x": -2.6669999999999976,
+                "y": 4.064,
+                "z": 6.604
+              }
+            },
+            {
+              "type": "arc",
+              "from": {
+                "x": -2.6669999999999976,
+                "y": 4.064,
+                "z": 6.604
+              },
+              "to": {
+                "x": -3.9369999999999976,
+                "y": 2.793999999999999,
+                "z": 6.604
+              },
+              "mid": {
+                "x": -3.565025612106913,
+                "y": 3.692025612106915,
+                "z": 6.604
+              }
+            },
+            {
+              "type": "line",
+              "from": {
+                "x": -3.9369999999999976,
+                "y": 2.793999999999999,
+                "z": 6.604
+              },
+              "to": {
+                "x": -3.936999999999996,
+                "y": -3.3554507987007596,
+                "z": 6.604
+              }
+            },
+            {
+              "type": "arc",
+              "from": {
+                "x": -3.936999999999996,
+                "y": -3.3554507987007596,
+                "z": 6.604
+              },
+              "to": {
+                "x": -3.457222222222183,
+                "y": -4.349658442760201,
+                "z": 6.604
+              },
+              "mid": {
+                "x": -3.810783681956986,
+                "y": -3.9074099356746035,
+                "z": 6.604
+              }
+            }
+          ]
+        ]
+      },
+      "references": {
+        "sketches": [
+          "sk_2kgcc",
+          "sk_33cnr"
+        ],
+        "features": [
+          "feature_mukcxaa9_2"
+        ],
+        "topology": [],
+        "references": []
+      },
+      "inputs": [
+        "feature_mukcxaa9_2"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mukdmi0j_4",
+      "type": "extrude",
+      "name": "Boss-Battery",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 11.176000000000002,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 1,
+        "draftOutward": false,
+        "mergeResult": true,
+        "axis": "frame",
+        "profileEntityIds": [
+          "boundary:295:1",
+          "boundary:295:4",
+          "boundary:295:7",
+          "boundary:295:9",
+          "boundary:295:12",
+          "boundary:295:14",
+          "boundary:295:16",
+          "boundary:295:19",
+          "boundary:295:22",
+          "boundary:295:25"
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_4tzdy",
+        "from": 0,
+        "to": 11.176000000000002
+      },
+      "references": {
+        "sketches": [
+          "sk_4tzdy"
+        ],
+        "features": [
+          "feature_mukdi3e3_3"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          "boundary:295:1",
+          "boundary:295:4",
+          "boundary:295:7",
+          "boundary:295:9",
+          "boundary:295:12",
+          "boundary:295:14",
+          "boundary:295:16",
+          "boundary:295:19",
+          "boundary:295:22",
+          "boundary:295:25"
+        ]
+      },
+      "inputs": [
+        "feature_mukdi3e3_3"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    }
+  ],
+  "history": [
+    {
+      "id": "history:sketch:sk_1v2d8",
+      "kind": "sketch",
+      "targetId": "sk_1v2d8",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mukcxaa9_2",
+      "kind": "feature",
+      "targetId": "feature_mukcxaa9_2",
+      "name": "Base Extrude",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_2kgcc",
+      "kind": "sketch",
+      "targetId": "sk_2kgcc",
+      "name": "SketchCircle",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_33cnr",
+      "kind": "sketch",
+      "targetId": "sk_33cnr",
+      "name": "SketchSquare",
+      "suppressed": false,
+      "status": "warning"
+    },
+    {
+      "id": "history:feature:feature_mukdi3e3_3",
+      "kind": "feature",
+      "targetId": "feature_mukdi3e3_3",
+      "name": "Boss-Loft1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_4tzdy",
+      "kind": "sketch",
+      "targetId": "sk_4tzdy",
+      "name": "Face sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mukdmi0j_4",
+      "kind": "feature",
+      "targetId": "feature_mukdmi0j_4",
+      "name": "Boss-Battery",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "referenceGeometry": [
+    {
+      "id": "plane_245",
+      "type": "reference_plane",
+      "name": "BatteryLoftPlane",
+      "origin": {
+        "x": 0,
+        "y": -2.805054320423616e-16,
+        "z": 6.604
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "offset": 3.302,
+      "refType": "offset",
+      "support": {
+        "type": "topology-reference",
+        "ownerFeatureId": "feature_mukcxaa9_2",
+        "kind": "face",
+        "persistentId": "feature_mukcxaa9_2:face:end",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": -2.805054320423616e-16,
+            "z": 3.302
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 96.98697842100543,
+          "bounds": {
+            "min": {
+              "x": -5.556250100000001,
+              "y": -5.556250100000001,
+              "z": 3.3019999
+            },
+            "max": {
+              "x": 5.556250100000001,
+              "y": 5.556250100000001,
+              "z": 3.3020001
+            }
+          }
+        },
+        "signature": "plane:0:0:3.302:0:0:1:96.987:"
+      }
+    }
+  ],
+  "variables": [],
+  "revision": 7
+}

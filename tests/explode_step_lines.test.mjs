@@ -1,0 +1,53 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createExplodedView,addExplodeStep,applyExplodedView,explodeLines,explodeTargets,explodedOccurrenceOffset} from '../js/cad_exploded_view.js';
+import {flattenAssembly} from '../js/core/assembly_structure.js';
+
+test('chained explode steps accumulate per component and each moved component gets a leader from its mated centre',()=>{
+  const assembly={components:[{id:1},{id:2},{id:3}]};
+  const view=createExplodedView(assembly,'Chain');
+  addExplodeStep(view,[3],{x:0,y:0,z:24.13});
+  addExplodeStep(view,[2],{x:0,y:12.7,z:0});
+  addExplodeStep(view,[3],{x:0,y:0,z:-2});
+  applyExplodedView(assembly,view.id,1);
+  assert.deepEqual(assembly.components[2].explodedOffset,{x:0,y:0,z:22.13},'two steps on one component add');
+  assert.equal(assembly.components[0].explodedOffset,null);
+  const lines=explodeLines(assembly,c=>({x:c.id,y:0,z:0}));
+  assert.deepEqual(lines.map(l=>l.id),[2,3],'the base component has no leader');
+  assert.deepEqual(lines[1],{id:3,from:{x:3,y:0,z:0},to:{x:3,y:0,z:22.13}});
+  applyExplodedView(assembly,null);
+  assert.deepEqual(explodeLines(assembly,()=>({x:0,y:0,z:0})),[],'collapsing removes every leader');
+});
+
+test('nested steps use occurrence paths and assembly axes through rotated parents without changing mate poses',()=>{
+  const nested={id:3,name:'Lens',transform:{x:1,y:2,z:3,rx:0,ry:0,rz:0}};
+  const parent={id:2,name:'Cap',kind:'assembly',transform:{x:5,y:6,z:7,rx:0,ry:0,rz:90},asm:{components:[nested]}};
+  const sibling={id:3,name:'Battery',transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0}};
+  const assembly={components:[parent,sibling],mates:[{id:'keep'}]};
+  const poses=JSON.stringify([parent.transform,nested.transform,sibling.transform,assembly.mates]);
+  assert.deepEqual(explodeTargets(assembly).map(t=>[t.key,t.label]),[['2','Cap'],['2/3','Cap / Lens'],['3','Battery']]);
+  const view=createExplodedView(assembly,'Book chain');
+  assembly.activeExplodedView=view.id;
+  addExplodeStep(view,[2],{x:0,y:0,z:24.13});
+  addExplodeStep(view,[[2,3]],{x:10,y:0,z:-11.684});
+  applyExplodedView(assembly,view.id);
+  assert.ok(Math.abs(nested.explodedOffset.x)<1e-12);
+  assert.ok(Math.abs(nested.explodedOffset.y+10)<1e-12,'global X becomes negative local Y under rotated cap');
+  assert.equal(sibling.explodedOffset,null,'same child ID outside the path is unaffected');
+  const occurrence=flattenAssembly(assembly)[0];
+  const offset=explodedOccurrenceOffset(occurrence);
+  assert.ok(Math.abs(offset.x-10)<1e-12);
+  assert.ok(Math.abs(offset.y)<1e-12);
+  assert.ok(Math.abs(offset.z-12.446)<1e-12);
+  const line=explodeLines(assembly,()=>({x:0,y:0,z:0})).find(l=>l.id==='2/3');
+  assert.deepEqual(line.to,offset);
+  assert.equal(JSON.stringify([parent.transform,nested.transform,sibling.transform,assembly.mates]),poses);
+  const saved=JSON.parse(JSON.stringify(assembly));
+  applyExplodedView(saved,null);
+  assert.equal(saved.exploded,false);
+  assert.equal(saved.explodedViews[0].steps.length,2,'collapse preserves authored steps through save/reopen');
+  assert.equal(saved.activeExplodedView,view.id);
+  assert.ok(explodeTargets(saved).every(t=>t.component.explodedOffset===null));
+  applyExplodedView(saved,saved.activeExplodedView);
+  assert.deepEqual(explodedOccurrenceOffset(flattenAssembly(saved)[0]),offset);
+});

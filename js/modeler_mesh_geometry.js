@@ -283,7 +283,8 @@ export function edgePoints(descriptor) {
           var dx = p.x - origin.x, dy = p.y - origin.y, dz = p.z - origin.z;
           return Math.atan2(dx * v.x + dy * v.y + dz * v.z, dx * u.x + dy * u.y + dz * u.z);
         };
-        var arc = circularEdgeSweep(radius, measure, toAngle(ends[0]), toAngle(ends[1]), true);
+        var arc = circularEdgeSweep(radius, measure, toAngle(ends[0]), toAngle(ends[1]), true,
+          descriptor.arcMidpoint ? toAngle(descriptor.arcMidpoint) : undefined);
         start = arc.start;
         sweep = arc.sweep;
         steps = curveSegments(radius, Math.abs(sweep), 12, 96);

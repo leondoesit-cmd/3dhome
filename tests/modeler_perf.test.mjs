@@ -228,6 +228,15 @@ test("a selection change consumes the existing coreRun instead of rebuilding the
        reproduce the coreRun already held — the redundant work this guards. */
     const counts = await page.eval(() => {
       const before = window.cadRebuildDocCount();
+      const workBefore = window.cadPreviewWorkSnapshot();
+      const meshes = [];
+      window.cadPreviewView.grp.traverse(object => { if (object.isMesh && object.userData.cadPart) meshes.push(object); });
+      const identities = meshes.map(object => ({ object, geometry: object.geometry }));
+      let disposals = 0;
+      for (const geometry of new Set(meshes.map(object => object.geometry))) {
+        const dispose = geometry.dispose;
+        geometry.dispose = function () { disposals++; return dispose.apply(this, arguments); };
+      }
       const canvas = document.querySelector("#mdPrev");
       const r = canvas.getBoundingClientRect();
       for (const type of ["pointerdown", "pointerup"]) {
@@ -237,13 +246,22 @@ test("a selection change consumes the existing coreRun instead of rebuilding the
           button: 0, buttons: type === "pointerdown" ? 1 : 0,
         }));
       }
-      return { rebuilds: window.cadRebuildDocCount() - before, seam: typeof window.cadRebuildDocCount };
+      const workAfter = window.cadPreviewWorkSnapshot();
+      return { rebuilds: window.cadRebuildDocCount() - before, seam: typeof window.cadRebuildDocCount,
+        builds: workAfter.builds - workBefore.builds, disposals,
+        stableMeshes: identities.every(({ object, geometry }) => object.parent && object.geometry === geometry),
+        meshes: meshes.length, drawingBefore: workBefore.drawingToken, drawingAfter: workAfter.drawingToken };
     });
 
     assert.equal(counts.seam, "function",
       "window.cadRebuildDocCount() must exist — without it the assertion below is vacuous");
     assert.equal(counts.rebuilds, 0,
       "a selection click must not re-run rebuildParametricDocument — refreshSelection consumes the existing coreRun");
+    assert.ok(counts.meshes > 0);
+    assert.equal(counts.builds, 0, 'selection must retain committed solid buffers');
+    assert.equal(counts.disposals, 0, 'selection must not dispose solid geometry');
+    assert.equal(counts.stableMeshes, true);
+    assert.equal(counts.drawingAfter, counts.drawingBefore, 'selection must retain drawing projections');
   } finally {
     await page.close();
   }

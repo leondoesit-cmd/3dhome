@@ -1,6 +1,7 @@
 // Instant3D handle math: drag arrows on a live feature instead of typing the
 // PropertyManager. The viewport builds meshes from these poses; this module
 // never touches Three.js.
+import {endConditionHidesDepth} from './core/extrude_extent.js';
 
 function num(value, fallback) {
   var n = Number(value);
@@ -24,6 +25,9 @@ function centerOf(bounds) {
 
 export function extrudeHandlePose(bounds, axis, params) {
   params = params || {};
+  // Through-all and face-terminated extents do not use the numeric depth.
+  // Showing a draggable depth here would suggest an edit that cannot persist.
+  if(endConditionHidesDepth(params.endCondition))return null;
   var dir = axisVector(axis);
   var reverse = params.direction === "reverse" ? -1 : 1;
   var depth = Math.max(1e-6, num(params.depth, 10));

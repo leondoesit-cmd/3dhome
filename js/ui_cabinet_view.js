@@ -2,7 +2,8 @@
 
 import { clamp, fin } from "./state.js";
 import { buildItem } from "./furniture.js";
-import { loadThree, threeLoaded } from "./three_lazy.js";
+import { updateCabinetRuntimeMesh } from "./cabinet_mesh.js";
+import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
 import { createEditorView, createViewportSwap } from "./editor_view.js";
 import {
   layoutCab, isFloat, isCorner,
@@ -36,8 +37,9 @@ export function sizeCanvas() {
     dpr = Math.min(2, window.devicePixelRatio || 1),
     // split view: the drawing keeps the left half, the model has the right
     w = E.split ? Math.floor(r.width / 2) : r.width;
-  E.cv.width = Math.max(100, w * dpr);
-  E.cv.height = Math.max(100, r.height * dpr);
+  var pixelW = Math.max(100, Math.floor(w * dpr)), pixelH = Math.max(100, Math.floor(r.height * dpr));
+  if (E.cv.width !== pixelW) E.cv.width = pixelW;
+  if (E.cv.height !== pixelH) E.cv.height = pixelH;
   E.cv.style.width = w + "px";
   E.cv.style.height = r.height + "px";
   E.cx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1568,13 +1570,35 @@ export function initPreview() {
   });
 }
 
-export function updatePreview() {
+export function updatePreview(options = {}) {
   if (!E.pv || !E.it) return;
   // frame the piece for the size it now is
   E.pv.frame(Math.hypot(E.it.w, E.it.h, E.it.d) * 1.5);
   // buildItem, not build(): it sets the item's style variant and clears it
   // again, which is the only correct way to render a piece
-  E.pv.rebuild(function (grp) { buildItem(grp, E.it); });
+  if (options.runtime && updateCabinetRuntimeMesh(E.pv.grp, E.it)) {
+    // Use the same bounds calculation as editor_view.rebuild: an open door can
+    // enlarge the raycast broad phase even though its geometry is unchanged.
+    var bounds = new THREE.Box3().setFromObject(E.pv.grp);
+    E.pv.pickBounds = bounds.isEmpty() ? null : bounds.getBoundingSphere(new THREE.Sphere());
+    E.pv.render();
+  } else E.pv.rebuild(function (grp) { buildItem(grp, E.it); });
+}
+
+var runtimePreviewFrame = null;
+export function cancelRuntimePreview() {
+  if (runtimePreviewFrame !== null) cancelAnimationFrame(runtimePreviewFrame);
+  runtimePreviewFrame = null;
+}
+export function queueRuntimePreview() {
+  if (runtimePreviewFrame !== null) return;
+  var item = E.it;
+  runtimePreviewFrame = requestAnimationFrame(function () {
+    runtimePreviewFrame = null;
+    if (!E.open || E.it !== item) return;
+    updatePreview({ runtime: true });
+    draw();
+  });
 }
 
 export function renderPreview() {
@@ -1597,8 +1621,13 @@ export function drawElevThumb() {
   var cv = box.querySelector("canvas"), r = box.getBoundingClientRect();
   if (r.width < 20 || r.height < 20) return;
   var dpr = Math.min(2, window.devicePixelRatio || 1), cx = cv.getContext("2d");
-  cv.width = Math.round(r.width * dpr);
-  cv.height = Math.round(r.height * dpr);
+  var pixelW = Math.round(r.width * dpr), pixelH = Math.round(r.height * dpr);
+  if (cv.width !== pixelW) cv.width = pixelW;
+  if (cv.height !== pixelH) cv.height = pixelH;
+  // Rounded thumbnail dimensions can include a fractional edge beyond the
+  // CSS drawing area. Clear the entire bitmap so repeated draws cannot blend
+  // with pixels left in that edge by the previous pass.
+  cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, cv.width, cv.height); cx.restore();
   cx.setTransform(dpr, 0, 0, dpr, 0, 0);
   var saved = { cv: E.cv, cx: E.cx, vw: E.vw, vh: E.vh, view: E.view, z: viewZoom, px: viewPanX, py: viewPanY };
   E.cv = cv; E.cx = cx; E.vw = r.width; E.vh = r.height;

@@ -56,7 +56,7 @@ const bench = () => {
     addPart: (part) => def.parts.push(part),
     partBounds: () => ({ x0: 0, x1: 10, y0: 0, y1: 10, z0: 0, z1: 10 }),
     ensureSketch: () => ({ id: 'sketch1', plane: 'xy', offset: 0 }),
-    analyzeSketchChains: () => ({ chains: [{ points: [{ u: 0, v: 0 }, { u: 5, v: 5 }] }] }),
+    analyzeSketchChains: () => ({ chains: [{ entityIds: ['rib-line'], points: [{ u: 0, v: 0 }, { u: 5, v: 5 }] }] }),
     selEntities: () => [], planeAxis: () => 'z', activeParts: () => [body],
   };
   vm.createContext(context);
@@ -85,7 +85,10 @@ test('Rib braces the merged body as it stands, and a later step follows the rib'
   const rib = created();
   assert.deepEqual([...rib.inputs], ['boss']);
   assert.deepEqual([...rib.references.features], ['boss']);
+  assert.deepEqual([...rib.params.chainEntityIds], ['rib-line'], 'the rib retains its driving open path');
   assert.equal(head(body), rib.id);
+  api.quickThickenPart({ thickness: 2 });
+  assert.deepEqual([...created().inputs], [rib.id], 'the next modifier follows the rib result');
 });
 
 test('Move Body and Split Body take the merged body head', () => {

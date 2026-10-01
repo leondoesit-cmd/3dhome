@@ -348,7 +348,7 @@ function sketchNode(sketch, options, extra = {}) {
     selected: (options.selection?.sketches || []).includes(sketch.id),
     can: {
       select: true, rename: true, edit: true,
-      suppress: !!extra.historyId, rollback: !!extra.historyId,
+      suppress: !!extra.historyId, rollback: !!extra.historyId || Number.isInteger(extra.index),
       remove: true, reorder: !!extra.historyId,
     },
   });
@@ -393,7 +393,10 @@ function canonicalHistory(def, options) {
       .filter((id) => nested.has(id) && ownership.get(id)?.ownerId === feature.id)
       .map((id) => sketches.get(id))
       .filter(Boolean)
-      .map((sketch) => sketchNode(sketch, { ...options, definition: def }, { rolled, detail: sketchDetail(sketch, def) }));
+      .map((sketch) => {
+        const sketchIndex=history.findIndex(item=>item.kind==='sketch' && item.targetId===sketch.id);
+        return sketchNode(sketch, { ...options, definition: def }, {index:sketchIndex>=0?sketchIndex:null,rolled:sketchIndex>=0?sketchIndex>=rollbackAt:rolled,detail:sketchDetail(sketch, def)});
+      });
     rows.push(node({
       id: "feature:" + feature.id,
       kind: "feature",
@@ -525,6 +528,23 @@ export function buildTreeModel(def, options = {}) {
   }));
   // the count the rollback bar is compared with is in the same unit as rollbackAt
   return { mode, nodes: sections, rollbackAt, historyCount: history.historyCount ?? rows.length };
+}
+
+/* Only rows that the history actually displays at its top level can belong to
+   a folder. A feature's owned sketch may remain selected after leaving sketch
+   mode, but it is nested inside that feature and must not be saved as a folder
+   member. Keep just the selected run containing the context-menu anchor. */
+export function folderMemberIds(model, selectedIds, anchorId) {
+  const history = findTreeNode(model?.nodes, "section:history");
+  const rows = history?.children || [];
+  const eligible = (row) => (row.kind === "feature" || row.kind === "sketch") && !!row.targetId;
+  const anchor = rows.findIndex((row) => eligible(row) && row.targetId === anchorId);
+  if (anchor < 0) return [];
+  const selected = new Set([...(selectedIds || []), anchorId]);
+  let first = anchor, last = anchor;
+  while (first > 0 && eligible(rows[first - 1]) && selected.has(rows[first - 1].targetId)) first--;
+  while (last + 1 < rows.length && eligible(rows[last + 1]) && selected.has(rows[last + 1].targetId)) last++;
+  return rows.slice(first, last + 1).map((row) => row.targetId);
 }
 
 /* Folders are a presentation grouping over history rows. A folder appears at

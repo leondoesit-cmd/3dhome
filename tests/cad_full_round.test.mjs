@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {makeBrepPrimitive,extractBrepTopology,fullRoundFilletDefinition,filletBrep,shapeMassProperties,disposeBrep} from '../js/cad_kernel.js';
+import {makeBrepPrimitive,booleanBrep,extractBrepTopology,fullRoundFilletDefinition,filletBrep,shapeMassProperties,disposeBrep} from '../js/cad_kernel.js';
 
 test('three-face full round derives its radius and removes the flat land within kernel tolerance',async()=>{
  const body=await makeBrepPrimitive({type:'box',w:2,h:5,d:10});let rounded;
@@ -18,4 +18,25 @@ test('three-face full round derives its radius and removes the flat land within 
   assert.throws(()=>fullRoundFilletDefinition(body,ids.slice(0,2)),/three faces/);
   assert.throws(()=>fullRoundFilletDefinition(body,[ids[0],ids[0],ids[2]]),/three faces/);
  }finally{if(rounded)disposeBrep(rounded);disposeBrep(body);}
+});
+
+test('three-face full round also covers the concentric annular land between cylindrical walls',async()=>{
+ const outer=await makeBrepPrimitive({type:'cylinder',axis:'z',r:5,h:3});
+ const bore=await makeBrepPrimitive({type:'cylinder',axis:'z',r:3,h:3});
+ let ring,rounded;
+ try{
+  ring=await booleanBrep('subtract',outer,bore);
+  const topology=extractBrepTopology(ring,{ownerFeatureId:'ring'}).topology;
+  const top=topology.find(t=>t.kind==='face'&&t.descriptor.surface==='plane'&&t.descriptor.normal.z>.99&&t.descriptor.origin.z>2);
+  const sides=[3,5].map(radius=>topology.find(t=>t.kind==='face'&&t.descriptor.surface==='cylinder'&&Math.abs(t.descriptor.radius-radius)<1e-8));
+  assert.ok(top&&sides.every(Boolean),'the ring has a top land and two cylindrical walls');
+  const ids=[sides[0],top,sides[1]].map(t=>t.persistentId);
+  const definition=fullRoundFilletDefinition(ring,ids);
+  assert.ok(Math.abs(definition.nominalRadius-1)<1e-8);
+  rounded=await filletBrep(ring,99,{fullRound:true,facePersistentIds:ids});
+  const before=await shapeMassProperties(ring),after=await shapeMassProperties(rounded);
+  assert.ok(after.volume<before.volume,'the full round removes the flat annular land');
+  const result=extractBrepTopology(rounded,{ownerFeatureId:'round'}).topology;
+  assert.ok(result.filter(t=>t.kind==='face'&&t.descriptor.surface==='plane'&&t.descriptor.normal.z>.99&&t.descriptor.origin.z>2).reduce((sum,t)=>sum+t.descriptor.measure,0)<1e-3,'only the sub-tolerance seam remains');
+ }finally{[rounded,ring,bore,outer].filter(Boolean).forEach(disposeBrep);}
 });

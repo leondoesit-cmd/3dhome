@@ -7,6 +7,28 @@ import { pathFrames } from "./profile_curves.js";
 const AXES = ["x", "y", "z"];
 export const LINEAR_PATTERN_INSTANCE_LIMIT = 128;
 
+// A feature pattern cut from a revolved body normally turns about that body's
+// axis. Follow the seed's history inputs instead of assuming Y: a sketch-plane
+// revolve can place its actual shaft on X or Z even when the viewport is
+// showing an end-on circular face.
+export function circularPatternAxisFromHistory(features = [], seedFeatureId, fallback = "y") {
+  const byId = new Map(features.map(feature => [feature.id, feature]));
+  const pending = [seedFeatureId];
+  const seen = new Set();
+  while (pending.length) {
+    const id = pending.shift();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const feature = byId.get(id);
+    if (!feature) continue;
+    if ((feature.type === "revolve" || feature.type === "revolveCut") && AXES.includes(feature.params?.axis)) {
+      return feature.params.axis;
+    }
+    pending.push(...(feature.inputs || []));
+  }
+  return AXES.includes(fallback) ? fallback : "y";
+}
+
 export function linearPatternDirection(params = {}) {
   const hasAxisToggles = AXES.some((axis) => Object.prototype.hasOwnProperty.call(params, "axis" + axis.toUpperCase()));
   if (hasAxisToggles) {

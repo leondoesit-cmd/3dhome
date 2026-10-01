@@ -7,6 +7,9 @@ const base=await makeBrepExtrusion({points:[{u:6.223,v:0},{u:0,v:6.223},{u:-6.22
 const cut=await makeBrepExtrusion({points:[{u:4.92125,v:0},{u:0,v:4.92125},{u:-4.92125,v:0},{u:0,v:-4.92125}],segments:[{type:'circle',center:{u:0,v:0},radius:4.92125}],from:0,to:-.6985,frame,draftAngle:5});
 const body=await booleanBrep('subtract',base,cut);const topology=extractBrepTopology(body,{ownerFeatureId:'cut'}).topology;
 const faces=topology.filter(t=>t.kind==='face'&&t.descriptor.surface==='plane'&&t.descriptor.origin.z<-.1);
+const innerCone=topology.find(t=>t.kind==='face'&&t.descriptor.surface==='cone'&&t.descriptor.radius<5);
+assert.ok(innerCone,'the recessed cut has a conical side wall distinct from its planar floor');
+await assert.rejects(shellBrep(body,.381,{facePersistentIds:[faces[0].persistentId,innerCone.persistentId],join:'round'}),/openings in parallel planes/,'picking the recess wall instead of its floor should explain the selection error');
 let result,overlap;
 try{result=await shellBrep(body,.381,{facePersistentIds:faces.map(f=>f.persistentId),join:'round'});const mass=await shapeMassProperties(result);assert.ok(Math.abs(mass.bounds.min.z+4.3815)<1e-6);assert.ok(Math.abs(mass.bounds.max.z)<1e-6);const k=Math.tan(5*Math.PI/180),shift=.381/Math.cos(5*Math.PI/180);
 const integral=(a,b,lo,hi)=>a*a*(hi-lo)+a*b*(hi*hi-lo*lo)+b*b/3*(hi**3-lo**3);

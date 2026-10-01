@@ -22,6 +22,20 @@ test("letter keys leave R for revolve and S for the shortcut bar", () => {
   assert.equal(DIRECT_COMMAND_TOOLS.directbox, "rect");
 });
 
+test("the centre-start-end arc is discoverable as Centerpoint Arc", () => {
+  const catalog = buildCommandCatalog({
+    t: (key) => key,
+    editor: { docType: "part", def: { parts: [] } },
+    closedSketchProfile: () => null,
+    activeParts: () => [],
+  });
+  const arc = catalog.find((command) => command.id === "sarc");
+  assert.equal(arc.label, "centerpointArc");
+  assert.equal(arc.shortcut, "A");
+  assert.match(arc.terms, /centerpoint.*start end/);
+  assert.equal(!!arc.available(), true);
+});
+
 test("the catalog exposes hole and direct tools with availability reasons", () => {
   const editor = { docType: "part", def: { parts: [] }, kernelBusy: false, assembly: null };
   const catalog = buildCommandCatalog({

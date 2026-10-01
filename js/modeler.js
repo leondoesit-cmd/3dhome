@@ -1,4 +1,8 @@
 import {shortcutConflict,validShortcutBindings} from './core/command_shortcuts.js';
+import {sketchGeometryBounds} from './core/sketch_view_fit.js';
+import {reassignSketchPlane} from './core/sketch_plane_edit.js';
+import {sketchPlaneDisplay} from './core/sketch_plane_display.js';
+import {applyCurrentExactDiagnostics,captureExactDiagnostics} from './core/exact_diagnostics.js';
 import {temporaryAxes} from './core/temporary_axes.js';
 import { massDisplaySystem } from "./mass_display_units.js";
 import {reorderFinishFeature} from "./cad_finish_reorder.js";
@@ -6,11 +10,17 @@ import {resolveFinishFace} from "./core/finish_face_reference.js";
 import { markDirty as markPlannerDirty } from "./persist.js";
 import {pierceSketchToHelix} from './core/sketch_pierce.js';
 import {helixFromSketch,synchronizeSketchHelices} from './core/sketch_helix.js';
-import {appendCircularEdgeOffset,coneSilhouette,detachDrivenSketchDimension,projectCircularEdge} from './core/cone_silhouette.js';
+import {appendCircularEdgeOffset,coneSilhouette,detachDrivenSketchDimension,projectCircularEdge,retargetConvertedCircle,retargetSilhouetteLine} from './core/cone_silhouette.js';
+import {readProjectBundleUrl} from './core/project_bundle_url.js';
 import {dimensionTargetFromSelection} from './core/sketch_dimension_selection.js';
-import {resolveOffsetPlanes, throughVertexBinding} from './core/offset_planes.js';
-import {revolveThinProfile} from './core/thin_profile.js';
-import { synchronizeExtrusionProjections } from "./core/extrusion_projection.js";
+import {resolveOffsetPlanes, throughVertexBinding, referencePlaneOffset} from './core/offset_planes.js';
+import {revolveThinProfile,thinSketchProfile} from './core/thin_profile.js';
+import {threadPlacementFromFace} from './core/thread_placement.js';
+import { synchronizeExtrusionProjections, extrusionPreviewDirection } from "./core/extrusion_projection.js";
+import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
+import { deduplicateBooleanProjections } from "./core/boolean_projection.js";
+import { rebindReplacedSketchProfiles } from "./core/sketch_profile_rebind.js";
+import { forkConflictingModel } from "./core/model_save_conflict.js";
 import { threePointArc, radialArcEndpoint } from "./sketch_three_point_arc.js";
 import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
@@ -18,22 +28,25 @@ import { addCenterRectangle } from "./sketch_center_rectangle.js";
 import { addCenterSlot } from "./sketch_center_slot.js";
 import { rasterTextContours } from "./sketch_text.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
-import { bindIntersectionTargets, bindModelEdgeTargets, bindPierceTargets, hitProjectedModelEdge } from "./sketch_intersection.js";
+import { bindIntersectionTargets, bindModelEdgeTargets, bindPierceTargets, hitProjectedModelEdge, hitProjectedModelVertex, hitScreenModelEdge, hitScreenModelVertex, vertexEdgeBinding, modelEdgeAnchor } from "./sketch_intersection.js";
 import { copySketchForClipboard, pasteSketchGeometry, readSketchClipboard, writeSketchClipboard } from "./core/sketch_clipboard.js";
 import { ensureSketchOriginPoint, pickIsOrigin, sketchOriginPoint } from "./core/sketch_origin.js";
 import { offsetFaceBoundary, appendBoundarySketch } from "./cad_face_offset.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
-import { captureExactTopology, verifiedExactTopology } from './core/exact_topology_cache.js';
+import { captureExactTopology, verifiedExactTopology, verifiedFinalTopology } from './core/exact_topology_cache.js';
 import { parallelStraightEdges } from "./core/edge_selection.js";
 import { modelDimensions, formatModelLength } from "./core/model_dimensions.js";
 import {documentLengthUnit,formatDocumentLength,lengthFromDocument,lengthToDocument} from './core/document_length_units.js';
+import {parseSketchDimensionEntry} from './core/sketch_dimension_entry.js';
 import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
+import {setGearMatePhase} from "./cad_gear_motion.js";
 import {addCubicSpline,splineControls,sampleBezier} from "./sketch_spline.js";
 import {repairReferences,restoreSketchConstraint} from "./sketch_edit_repair.js";
 import { MANUFACTURING_TABLES, validateManufacturingTables } from "./manufacturing_tables.js";
-import { evaluateMassProperties } from "./cad_mass_properties.js";
-import { holeToolPlacements, holeCutRecords, holePreviewParts, syncHoleCutPlacement } from "./core/hole_geometry.js";
-import { revolveRecipe } from "./core/revolve_geometry.js";
+import { centerOfMassInSystem, evaluateMassProperties } from "./cad_mass_properties.js";
+import { holeToolPlacements, holeCutRecords, holePreviewParts, syncHoleCutPlacement, holePositionPointIds } from "./core/hole_geometry.js";
+import { cylindricalHoleSource } from './core/cylindrical_hole_placement.js';
+import { revolvePreviewAxis, revolveRecipe } from "./core/revolve_geometry.js";
 import { aabbFromBox, isUpToFace, resolveExtrudeExtent } from "./core/extrude_extent.js";
 import { toolFeatureRecipe } from "./core/tool_recipe.js";
 import { askModelerDecision, dismissModelerDecision, modelerDecisionOpen } from "./modeler_decision.js";
@@ -53,6 +66,8 @@ import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
 import { render as gpuRender } from "./gpu.js";
 import { S, uid, clamp, fin, hexStr } from "./state.js";
 import { nextDocumentNumericId } from "./core/document_ids.js";
+import { reattachFeatureSketchSupport, reattachSketchSupport, sketchSupportNeedsUpdate } from "./core/sketch_support_edit.js";
+import {compactAssemblyTopologySnapshots,compactDocumentTopologySnapshots} from './core/project_topology_budget.js';
 import { FURN, PRICE, CATALOG, flabel, clearVSpanCache, buildItem } from "./furniture.js";
 import { modelThumb, hasThumb, loadThumbCache } from "./thumbs.js";
 import { usedCustomModels, refreshCatalogSelect } from "./model_catalog.js";
@@ -62,6 +77,7 @@ import {
   projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML,
 } from "./pro_shell.js";
 import { box, cyl, sph, clearGroup } from "./primitives.js";
+import { syncViewportSelectionMaterial } from "./core/viewport_selection.js";
 import { getLang, onLangChange } from "./i18n.js";
 import * as ribbon from "./uikit_host/ribbon.js";
 import { stopSpeaking, bindSpeakButton } from "./speech.js";
@@ -102,30 +118,46 @@ import {
 } from "./sketch_equations.js";
 import { trimEntity, extendEntity, offsetEntity, toggleConstruction, projectLoop } from "./sketch_trim.js";
 import { mirrorEntities, linearPatternEntities, circularPatternEntities } from "./sketch_pattern.js";
-import { addFeature, ensureFeatureTree, regenerateFeatures, releaseRegeneration } from "./cad_feature_tree.js";
+import { addFeature, ensureFeatureTree, releaseRegeneration } from "./cad_feature_tree.js";
+import { regenerateInCadWorker as regenerateFeatures, finishInCadWorker, interferenceInCadWorker, assemblyStepInCadWorker, partStepInCadWorker, cutIntersectionInCadWorker, surfaceSectionsInCadWorker, topologyInCadWorker, cadWorkerAvailable, cancelCadWorkerWork, cadWorkerActivity, subscribeCadWorkerActivity } from './core/cad_worker_client.js';
+import { interferenceDocument } from './core/worker_interference.js';
+import { assemblyInterferenceScope } from './core/assembly_interference_scope.js';
+import {canonicalFeatureTopologyReferences,featureInputStage} from './core/feature_input_stage.js';
+import {setSketchOffset,sketchOffsetValue} from './core/sketch_offset.js';
+import {pointerCameraRay} from './core/editor_projection.js';
+import {createExactRebuildQueue} from './core/exact_rebuild_queue.js';
+import { exportBinaryStl, stlMeshOptions } from "./cad_stl.js";
+import { prepareNativePrintPositions, printSetupExtents } from "./core/print_setup.js";
+import { exportThreeMf } from "./cad_3mf.js";
+import { exportAmf } from "./cad_amf.js";
 import {
   exportStep, exportIges, importStep,
   makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, boundsMayOverlap, brepConnectedGroups, chamferBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, placeBrep, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
   serializeBrep, transformBrep, translateBrep, unifyBrepFaces,
 } from "./cad_kernel.js";
 import { buildDrawingScene } from "./cad_drawings.js";
+import { configuredBodiesForView } from "./cad_configured_drawing.js";
 import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
 import { DRAWING_TOOLS, createDrawingController } from "./modeler_drawing.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern, flatPatternSvg } from "./cad_sheet_metal.js";
-import { mateFrameSupports, mateRequirementFor, solveTopologyMates, topologyReference } from "./cad_mates.js";
-import { ASSEMBLY_ORIGIN_ID, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
-import { eulerMatrix, normalizePose, setRotation } from "./cad_mate_model.js";
+import { captureLockPose, mateFrameSupports, mateFramesSupport, mateRequirementFor, solveTopologyMates, topologyReference } from "./cad_mates.js";
+import { exactMateReferenceChoices, mateAlignmentForLockedOrientation, planarMateFaceChoices } from "./cad_mate_reference_choices.js";
+import { draftFaceChoices } from "./core/draft_face_choices.js";
+import { ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, lookupAssemblyComponent, refreshSubassemblyFromRecord, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
+import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds } from "./cad_mate_model.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
+import { ribSketchReady } from "./core/rib_profile.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
+import { featureContourKey, selectFeatureContours } from "./core/feature_contours.js";
 import { createReferencePlane, createReferenceAxis, createReferencePoint, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
-import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath } from "./cad_helix.js";
+import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath,circularHelixSweepProfile } from "./cad_helix.js";
 import { circularSweepProfile, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
-import { createExplodedView, addExplodeStep, applyExplodedView } from "./cad_exploded_view.js";
+import { createExplodedView, addExplodeStep, applyExplodedView, applyExplodedProgress, explodeLines, explodeTargets, explodedOccurrenceOffset } from "./cad_exploded_view.js";
 import { createMotionStudy, addRotaryMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
 import { detectInterference, generateBOM } from "./cad_interference.js";
-import { createProjectBundle, exportProjectBundle, importProjectBundle } from "./cad_project_bundle.js";
+import { createProjectBundle, exportProjectBundle, importProjectBundle, importProjectBundleText, activeProjectDocument } from "./cad_project_bundle.js";
 import { measureAngleBetweenNormals, measureDistance } from "./cad_evaluate.js";
 import { auditStandardParts, involuteGearOutline } from "./cad_standards.js";
 import { holeCallout, holeTableRow, holeWizardSolids, holeWizardThread, listHoleSizes, normalizeHoleWizard } from "./cad_hole_wizard.js";
@@ -133,9 +165,13 @@ import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.
 import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, validateThreadFit, documentThreadOverlays } from "./cad_thread.js";
 import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
 import { toolboxFastener, listToolboxLibrary, toolboxFamily, lengthOptionsForSize, FASTENER_LENGTHS_MM, reducingBranchRows, PVC_D1785, searchToolbox, TOOLBOX_CATEGORY_LABELS } from "./cad_toolbox.js";
+import { assemblyToolboxDocument, hasSingleToolboxKernelRecipe } from "./cad_assembly_toolbox.js";
+import { expectedContactFor, recordExpectedContact, removeExpectedContact, contactAuditSummary } from "./core/assembly_contact_audit.js";
 import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart, drawingMaterialName, pruneSketchTargetedBodyAppearances, pruneSketchMaterialFields } from "./cad_appearances.js";
 import { appearanceGroups } from "./core/appearance_groups.js";
-import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "./cad_configurations.js";
+import { captureConfiguration, circularSweepTableRows, ensureConfigurations, setActiveConfiguration, setCircularSweepDesignTable, updateConfiguration } from "./cad_configurations.js";
+import {replaceComponentDefinition,setComponentConfiguration} from './core/component_configuration.js';
+import {rebindTopologyMate} from './core/topology_mate_rebind.js';
 import { evaluateFit, fitCallout, fitLimitSource } from "./cad_fits.js";
 import {
   ensureItemDefinition,
@@ -158,10 +194,14 @@ import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } fr
 import { encodeBinaryPayload } from "./core/binary_payload.js";
 import { externalizeAttachments, collectAttachmentReferences, exportAttachmentRecords, installAttachmentRecords } from "./core/attachment_store.js";
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
-import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, libraryBundle, parseLibraryBundle, mergeLibraryRecords, collidingLibraryKeys } from "./core/model_library_store.js";
+import { loadModelLibrary, putModelLibraryRecord, deleteModelLibraryRecord, mergeStoredModelLibrary, loadAssemblyLibrary, putAssemblyLibraryRecord, deleteAssemblyLibraryRecord, mergeStoredAssemblyLibrary, loadModelerDraftRecord, listModelerDraftRecords, saveModelerDraftRecord, clearModelerDraftRecord, claimLegacyModelerDraftRecord, libraryBundle, parseLibraryBundle, collidingLibraryKeys } from "./core/model_library_store.js";
+import { hasSaveableModelContent } from "./core/model_save_policy.js";
+import { updateAssemblyContexts } from "./core/assembly_context.js";
+import { componentEditCopy, commitComponentEdit } from "./core/component_edit.js";
+import { registerGeneratedExtrusion } from "./core/generated_extrusion.js";
 import { queueModelBackup, listDiskBackups, fetchDiskBackup, missingFromLibrary, modelBackupStatus } from "./core/model_backup_client.js";
 import { leavesInputStanding, rebuildDefinition } from "./core/rebuild.js";
-import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
+import { buildTreeModel, findTreeNode, folderMemberIds } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
 import { analyzeLegacyMigration, convertLegacyDocument, evaluateMigration, migrationGeometrySummary, retainLegacySource, restoreLegacyDocument } from "./core/migration_check.js";
 import { applyDocumentTopologyRebindings, applyTopologyRebindings, createTopologyReference, cutWallTopology, createTopologyRegistry, resolveTopologyReference, topologyForFeature, mergeSmoothTopology, isCylinderTessellationSeam, pointWithinCylinderArc, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
@@ -176,7 +216,7 @@ import {
   profileLoopIsSeparateHole,
 } from "./core/cut_scope.js";
 import { diagnosticHelp, groupDiagnostics, recommendedDiagnostic } from "./core/diagnostic_help.js";
-import { circularPatternPivot, circularPatternStepDegrees, composeRigidTransforms, curvePatternPath, curvePatternPlacements, invertRigidTransform, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform, patternRotationTransform, rigidTransformIsIdentity, rotatedPatternBounds } from "./core/pattern_geometry.js";
+import { circularPatternAxisFromHistory, circularPatternPivot, circularPatternStepDegrees, composeRigidTransforms, curvePatternPath, curvePatternPlacements, invertRigidTransform, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform, patternRotationTransform, rigidTransformIsIdentity, rotatedPatternBounds } from "./core/pattern_geometry.js";
 import { cabinetDefinitionFromItem, finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
@@ -187,7 +227,8 @@ import {
   bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
 } from "./modeler_commands.js";
 import { documentDescription, setDocumentDescription, setDocumentProperty, sheetTitleText } from "./core/custom_properties.js";
-import { MODELER_DRAFT_KEY, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
+import { finishPreviewProofMatches } from "./core/finish_preview_proof.js";
+import { claimLegacyModelerDraft, modelerDraftKey, modelerDraftOwner, freshModelerDraftOwner, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
   featureField as featureFieldCore, featureControlValue, evaluateFeatureNumber, validateFeatureInputs, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
 } from "./modeler_feature_form.js";
@@ -266,6 +307,10 @@ var LS_ASSEMBLIES = "home3d_assemblies";
 var modelLibraryCache = [];
 var assemblyLibraryCache = [];
 var modelerDraftCache = null;
+var modelerDraftOwnerId = modelerDraftOwner(modelerSessionStorage());
+var libraryOpenBaseline = null;
+var assemblyOpenBaseline = null;
+var libraryChannel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("modelforge-model-library-v1");
 
 /* The feature catalogue cannot import t() — it is a shared module loaded
    without a UI — so it asks for a translation through this resolver instead.
@@ -297,9 +342,9 @@ async function initializeModelLibrary() {
   try { assemblyLibraryCache=await loadAssemblyLibrary(legacyAssemblies); }
   catch(e) { assemblyLibraryCache=legacyAssemblies; }
   try {
-    modelerDraftCache=await loadModelerDraftRecord();
-    if (!modelerDraftCache) modelerDraftCache=readModelerDraft(modelerDraftStorage());
-  } catch(e) { modelerDraftCache=readModelerDraft(modelerDraftStorage()); }
+    modelerDraftCache=await loadModelerDraftRecord(modelerDraftOwnerId);
+    if (!modelerDraftCache) modelerDraftCache=readModelerDraft(modelerDraftStorage(),modelerDraftOwnerId);
+  } catch(e) { modelerDraftCache=readModelerDraft(modelerDraftStorage(),modelerDraftOwnerId); }
   writeLibraryIndex(modelLibraryCache);
   writeAssemblyIndex(assemblyLibraryCache);
   // Give models that predate the disk mirror a copy now, not at their next save.
@@ -334,14 +379,34 @@ function mirrorLibraryToDisk(models) {
     try { queueModelBackup(models, { attachmentsFor:diskBackupAttachments }); } catch (e) { /* the save already landed */ }
   }, 0);
 }
-async function saveLib(lib) {
+async function refreshLibraryFromOtherTab() {
+  var previous=new Set(modelLibraryCache.map(function(model){return model.key;}));
+  var models=await loadModelLibrary(), assemblies=await loadAssemblyLibrary();
+  modelLibraryCache=models; assemblyLibraryCache=assemblies;
+  writeLibraryIndex(models); writeAssemblyIndex(assemblies);
+  var current=new Set(models.map(function(model){return model.key;}));
+  previous.forEach(function(key){if(!current.has(key)){delete FURN[key];delete PRICE[key];}});
+  // Catalogue normalization adds render defaults. Keep the library snapshot
+  // byte-for-byte equal to its stored record for optimistic save baselines.
+  models.forEach(function(model){registerCustomModel(cloneData(model));});
+  if(root && E && E.open){refreshCatalogSelect();refreshLib();}
+}
+if(libraryChannel)libraryChannel.addEventListener("message",function(){refreshLibraryFromOtherTab().catch(function(){});});
+function signalLibraryChange() { if(libraryChannel)libraryChannel.postMessage("changed"); }
+var lastLibrarySaveConflict=false;
+async function saveLib(records, options={}) {
   try {
-    await saveModelLibrary(lib);
-    modelLibraryCache=cloneData(lib);
-    writeLibraryIndex(lib);
-    mirrorLibraryToDisk(modelLibraryCache);
+    var result=options.mode==="delete" ? await deleteModelLibraryRecord(records)
+      : options.mode==="merge" ? await mergeStoredModelLibrary(records,{conflict:options.conflict || "replace"})
+      : await putModelLibraryRecord(records,{expected:options.expected});
+    lastLibrarySaveConflict=!!result.conflict;
+    modelLibraryCache=cloneData(result.records);
+    writeLibraryIndex(modelLibraryCache);
+    if(result.ok && options.mode!=="delete") mirrorLibraryToDisk(options.mode==="merge" ? result.puts : [records]);
+    if(!result.ok)return false;
+    signalLibraryChange();
     return true;
-  } catch (e) { return false; }
+  } catch (e) { lastLibrarySaveConflict=false; return false; }
 }
 
 function loadAssemblies() {
@@ -351,14 +416,19 @@ function loadAssemblies() {
    quota error and returning nothing let saveAssemblyDocument() announce a save
    that never happened, mark the document clean and delete its recovery draft —
    the one copy of the work that was left. */
-async function saveAssemblies(list) {
+async function saveAssemblies(records, options={}) {
   try {
-    await saveAssemblyLibrary(list);
-    assemblyLibraryCache=cloneData(list);
-    writeAssemblyIndex(list);
-    return true;
-  } catch (e) { return false; }
+    var result=options.mode==="delete" ? await deleteAssemblyLibraryRecord(records)
+      : options.mode==="merge" ? await mergeStoredAssemblyLibrary(records,{conflict:options.conflict || "replace"})
+      : await putAssemblyLibraryRecord(records,{expected:options.expected});
+    assemblyLibraryCache=cloneData(result.records);
+    writeAssemblyIndex(assemblyLibraryCache);
+    lastAssemblySaveConflict=!!result.conflict;
+    if(result.ok)signalLibraryChange();
+    return !!result.ok;
+  } catch (e) { lastAssemblySaveConflict=false; return false; }
 }
+var lastAssemblySaveConflict=false;
 function newAssembly() {
   return {
     key: "asm_" + Date.now().toString(36),
@@ -389,7 +459,7 @@ function componentWorldBounds(component, options) {
     var inner = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
     component.asm.components.forEach(function (child) {
       if (child.visible === false) return;
-      var cb = componentWorldBounds(child, { exploded: false });
+      var cb = componentWorldBounds(child, options);
       if (!cb) return;
       inner.x0 = Math.min(inner.x0, cb.x0); inner.x1 = Math.max(inner.x1, cb.x1);
       inner.y0 = Math.min(inner.y0, cb.y0); inner.y1 = Math.max(inner.y1, cb.y1);
@@ -443,11 +513,14 @@ function assemblyBounds() {
 
 function applyAssemblyMates(assembly) {
   if (!assembly) return null;
+  mateSolveCount++;
   /* The old align/distance mates are part of the system the solver solves —
      they used to be applied by hand at the head of every pass, which is the
      best a solver that placed one component at a time could do. Both kinds now
      settle together because they are solved together. */
   var result = solveTopologyMates(assembly);
+  var contextResult = updateAssemblyContexts(assembly);
+  if (contextResult.issues.length) result.issues.push(...contextResult.issues);
   /* The solver reports missing topology, ambiguous rebinds, frames it could
      not use, and — since it now measures the result — mates that another mate
      has overridden. That report used to be discarded at this line, which is
@@ -485,7 +558,8 @@ function pruneAssemblyMates(assembly) {
     return live.has(mate.a) && live.has(mate.b);
   });
   assembly.topologyMates = (Array.isArray(assembly.topologyMates) ? assembly.topologyMates : []).filter(function (mate) {
-    return mate.a && mate.b && live.has(mate.a.componentId) && live.has(mate.b.componentId);
+    return mate.a && mate.b && live.has(mate.a.componentId) && live.has(mate.b.componentId)
+      && (!mate.c || live.has(mate.c.componentId) || mate.c.componentId === ASSEMBLY_ORIGIN_ID);
   });
   return before - assemblyMateCount(assembly);
 }
@@ -557,11 +631,15 @@ function mateReboundFor(mateId) {
    check, ran twice on every click. */
 var assemblySolveFresh = false;
 var coreRunFresh = false;
+// Only true inside a synchronous full refresh whose solver already ran.
+// A standalone viewport/drawing build still solves its current assembly.
+var assemblyPreviewSolved = false;
 
 /* Interference results describe one exact set of visible components at one
    exact arrangement. Component edits, visibility changes and document
    restoration all invalidate that answer even when no mate needs solving. */
 function invalidateInterference() {
+  cancelInterferenceCheck();
   E.interferenceHits = [];
   E.interferenceChecked = false;
   E.interferenceRevision = (E.interferenceRevision || 0) + 1;
@@ -613,11 +691,11 @@ export function activeParts(def) {
   if (!def || !Array.isArray(def.parts)) return [];
   var upto = fin(def.rollback) && def.rollback >= 0 ? Math.min(def.rollback, def.parts.length) : def.parts.length;
   var parts = def.parts.slice(0, upto).filter(function (p) { return p && !p.suppressed; });
-  if (def.rollbackIndex == null) return parts;
-  return parts.filter(function (p) {
+  if (def.rollbackIndex != null) parts=parts.filter(function (p) {
     var index = featureHistoryIndex(def.history, p.featureId);
     return index < 0 || !historyEntryRolled(def, index);
   });
+  return def.metadata?.authoringSystem==='parametric-v1' ? deduplicateBooleanProjections(parts,def,cutTargetFeatureId) : parts;
 }
 
 // Command previews live outside the document so saving, rebuilding and undo
@@ -1235,6 +1313,7 @@ function addFaceAppearances(parent, part, mesh) {
       var geometry = mesh.geometry.clone();
       geometry.clearGroups(); geometry.setIndex(indices);
       var surface = new THREE.Mesh(geometry, paintedMaterials[index]);
+      viewportPartByMesh.set(surface, { part: part, component: E.buildComponent || null, appearanceSurface: true, preserveAppearanceOpacity: index > 0 });
       surface.raycast = function () {};
       surface.castShadow = !paintedMaterials[index].transparent;
       surface.receiveShadow = true;
@@ -1345,6 +1424,7 @@ function applyViewportDisplayStyle(mesh, style, previewOnly) {
 }
 
 var decoGroups = [];
+var viewportPartByMesh = new WeakMap();
 /* Test seams. buildPart is called through its LOCAL binding everywhere, so a
    spy installed on a window handle can never observe it — the perf suite tried
    that and its counter silently read zero while hover rebuilt the whole scene.
@@ -1353,12 +1433,16 @@ var decoGroups = [];
    decides whether decoration is per-component isolated. */
 var buildPartCount = 0;
 var rebuildDocCount = 0;
+var mateSolveCount = 0;
 if (typeof window !== "undefined") {
   window.cadDecoGroups = decoGroups;
   window.cadRefreshDecorations = refreshDecorations;
   window.cadBuildPart = buildPart;
   window.cadBuildPartCount = function () { return buildPartCount; };
   window.cadRebuildDocCount = function () { return rebuildDocCount; };
+  window.cadPreviewWorkSnapshot = function () {
+    return { builds: buildPartCount, rebuilds: rebuildDocCount, mateSolves: mateSolveCount, drawingToken: E.sheetToken };
+  };
   /* Kernel bodies arrive asynchronously, so a test cannot settle for them — it
      has to poll for the answer or for the failure. This reports both without
      handing out the editor's whole state. */
@@ -1668,7 +1752,51 @@ function isEntryAffectedByHover(entry, hoverRef) {
   return !!(entry.part && hoverRef.partId && hoverRef.partId === entry.part.id);
 }
 
-function refreshDecorations() {
+function syncViewportMeshSelection(mesh, component) {
+  if (!mesh || !mesh.isMesh) return;
+  var entry = viewportPartByMesh.get(mesh), part = entry && entry.part;
+  if (!component) component = entry && entry.component;
+  if (!component && E.docType === "assembly") {
+    var parent = mesh.parent;
+    while (parent) {
+      if (parent.userData && parent.userData.cadComponent != null) {
+        component = (E.assembly && E.assembly.components || []).find(function (item) { return item.id === parent.userData.cadComponent; });
+        break;
+      }
+      parent = parent.parent;
+    }
+  }
+  syncViewportSelectionMaterial(mesh, {
+    partSelected: !!part && part === E.sel,
+    componentSelected: !!component && E.componentSel.some(function (item) { return item.id === component.id; }),
+    dependency: part ? dependencyRole(part.derivedFeatureId || part.featureId) : "",
+    dependencyHighlight: !!part && !!E.dependencyHighlight,
+    materialOwned: !!entry,
+    preserveAppearanceOpacity: !!(entry && entry.preserveAppearanceOpacity),
+  });
+  if (entry && entry.appearanceSurface) mesh.castShadow = !mesh.material.transparent;
+}
+
+function refreshViewportSelection() {
+  if (!E.pv) return;
+  refreshDecorations(false);
+  [E.pv.grp, E.pv.roomGrp].forEach(function (group) {
+    if (group) group.traverse(function (object) { syncViewportMeshSelection(object); });
+  });
+  var live = E.pv.liveGrp;
+  if (live) {
+    live.children.slice().forEach(function (child) {
+      if (!child.userData || !child.userData.instant3d) return;
+      live.remove(child);
+      clearGroup(child);
+    });
+    addInstant3dHandles(live);
+    applySectionClipping(live);
+  }
+  E.pv.render();
+}
+
+function refreshDecorations(render = true) {
   if (!E.pv) return;
   var currentHover = E.hoverTopology;
   decoGroups.forEach(function (entry) {
@@ -1694,7 +1822,7 @@ function refreshDecorations() {
     entry.hadHighlight = isEntryAffectedByHover(entry, currentHover);
   });
   lastDecoratedHover = currentHover;
-  E.pv.render();
+  if (render) E.pv.render();
 }
 
 /* Called after each frame: re-bakes highlight widths once a zoom has carried
@@ -1718,7 +1846,7 @@ function refreshDecorationScale() {
    rounding. */
 var sheetSharpSolids = false;
 
-function buildPart(g, p, displayStyle) {
+function buildPart(g, p, displayStyle, presentationOnly = false) {
   buildPartCount++;
   /* One THREE child per body so a live parameter drag can dispose this part
      without tearing down every other GPU mesh in the viewport. */
@@ -1780,27 +1908,23 @@ function buildPart(g, p, displayStyle) {
     me.userData.cadFeatureId = p.featureId || "feature:part:" + p.id;
     me.userData.cadFaceRanges = p.meshData && p.meshData.faceRanges || null;
     me.userData.cadSubshapeMap = p.meshData && p.meshData.subshapeMap || null;
-    if (p === E.sel && me.material) {
-      me.material = me.material.clone();
-      if (me.material.emissive) me.material.emissive.setHex(0x3f2508);
-    }
-    var dependencyId=p.derivedFeatureId || p.featureId,dependency=dependencyRole(dependencyId);
-    if(dependency&&me.material){
-      me.material=me.material.clone();
-      if(me.material.emissive)me.material.emissive.setHex(dependency==="focus"?0x5a3a00:dependency==="upstream"?0x063a5a:0x42135f);
-      if(me.material.emissiveIntensity!=null)me.material.emissiveIntensity=.85;
-    } else if(E.dependencyHighlight&&me.material){
-      me.material=me.material.clone();me.material.transparent=true;me.material.opacity=Math.min(Number(me.material.opacity)||1,.2);me.material.depthWrite=false;
-    }
+    viewportPartByMesh.set(me, { part: p, component: E.buildComponent || null });
     addMeshSharpEdges(me);
     var deco = new THREE.Group();
     deco.userData.cadDeco = p.id;
     g.add(deco);
-    decoGroups.push({ part: p, mesh: me, group: deco, component: E.buildComponent || null });
-    addTopologyPickEdges(deco, p, me);
+    if (!presentationOnly) {
+      decoGroups.push({ part: p, mesh: me, group: deco, component: E.buildComponent || null });
+      addTopologyPickEdges(deco, p, me);
+    }
     addFaceAppearances(g, p, me);
-    addFaceHighlights(deco, p, me);
-    addTemporaryAxes(deco,p);
+    me.traverse(function (object) {
+      if (viewportPartByMesh.has(object)) syncViewportMeshSelection(object);
+    });
+    if (!presentationOnly) {
+      addFaceHighlights(deco, p, me);
+      addTemporaryAxes(deco,p);
+    }
     addPartFeatureOverlays(g, p);
   }
   return me;
@@ -1970,6 +2094,14 @@ function addDocumentOverlays(parent, def) {
 
 export function registerCustomModel(def) {
   S.idc=nextDocumentNumericId(def,S.idc);
+  // Sketch-only documents belong in the model library, but have no body to
+  // place in a room. Clear a former solid's catalog entry if it was edited
+  // down to sketches, while leaving its library record available to reopen.
+  if (def && validCustomModelKey(def.key) && Array.isArray(def.parts) && !def.parts.length && hasSaveableModelContent(def)) {
+    delete FURN[def.key];
+    delete PRICE[def.key];
+    return false;
+  }
   if (
     !def ||
     !validCustomModelKey(def.key) ||
@@ -2398,23 +2530,34 @@ function snapPt(uv, excludePart, origin) {
 
 
 var exactBuildTimers = new WeakMap();
+var cancelledExactPreview = null;
+function exactPreviewWasCancelled() {
+  return cancelledExactPreview && cancelledExactPreview.document===E.def && cancelledExactPreview.node===currentHistoryNode();
+}
 
 
-async function exactDisplayBody(p, document = E.def, requestedHead = null) {
+async function exactDisplayBody(p, document = E.def, requestedHead = null, options = {}) {
   if (document.metadata?.authoringSystem!=="parametric-v1" || !(document.features || []).some(function(feature){return feature.id===p.featureId;})) {
     var legacy=await exactBrepForPart(p);
     return {brep:legacy,release:function(){disposeBrep(legacy);}};
   }
   var head=requestedHead || cutTargetFeatureId(p,document), compiled=compileKernelFeatureTree(document);
+  var displayNode=currentHistoryNode(),displayEditRevision=E.massEditRevision;
   if(!compiled.ok)throw new Error(compiled.issues[0]?.message || "Invalid feature history");
-  var run=await regenerateFeatures({...compiled.document,features:compiled.features});
+  var run=await regenerateFeatures({...compiled.document,features:compiled.features},{requestedHead:head,massProperties:options.massProperties,signal:options.signal,scope:options.scope,restoreMode:options.restoreMode,coalesceKey:options.coalesceViewport?'viewport:'+head:undefined});
+  if(document===E.def && displayNode===currentHistoryNode() && displayEditRevision===E.massEditRevision){
+    if(run.ok===false)E.exactDiagnosticRun=captureExactDiagnostics(document,displayNode,displayEditRevision,run);
+    else if(E.exactDiagnosticRun?.kernelRun.issues.every(function(issue){return run.results.has(issue.feature);}))E.exactDiagnosticRun=null;
+  }
   var brep=run.results.get(head);
-  if(!brep?.shape){releaseRegeneration(run);throw new Error(run.issues.find(function(issue){return issue.code==='regeneration-failed';})?.message || "The displayed body could not be rebuilt");}
+  if(!brep?.shape && !(options.restoreMode==='mesh' && brep?.verifiedSerializedExact===true)){releaseRegeneration(run);throw new Error(run.issues.find(function(issue){return issue.code==='regeneration-failed';})?.message || "The displayed body could not be rebuilt");}
   return {brep:brep,release:function(){releaseRegeneration(run);}};
 }
 
 function queueExactMesh(p) {
+  if(exactPreviewWasCancelled())return;
   if (!partSupportsExactMesh(p)) return;
+  var buildingDocument=E.def;
   var scheduled = exactBuildTimers.get(p);
   if (scheduled) { clearTimeout(scheduled); exactBuildTimers.delete(p); }
   var token = (p.exactBuildToken || 0) + 1;
@@ -2432,17 +2575,17 @@ function queueExactMesh(p) {
   // original build is not cancelled: a late result still replaces the
   // lightweight preview below.
   var slowTimer = typeof window !== "undefined" ? setTimeout(function () {
-    if (p.exactBuildToken !== token || !p.exactPending) return;
-    p.exactPending = false;
-    p.exactError = "Exact CAD kernel is still loading; the lightweight preview remains active.";
+    if (E.def!==buildingDocument || p.exactBuildToken !== token || !p.exactPending) return;
+    p.exactPending = true;
+    p.exactError = "Exact geometry is still computing. You can continue editing or cancel the command.";
     refreshChangedPart(p);
   }, 15000) : null;
-  exactDisplayBody(p).then(async function (display) {
+  exactDisplayBody(p,E.def,null,{restoreMode:'mesh',coalesceViewport:true}).then(async function (display) {
     var brep=display.brep;
     try {
-      var meshData = await shapeToMeshData(brep, {deflection:0.28,angle:0.18});
+      var meshData = brep.verifiedSerializedExact===true ? cloneData(brep.workerMeshData) : await shapeToMeshData(brep, {deflection:0.28,angle:0.18});
       meshData.topology = cloneData(brep.topology || []);
-      if (p.exactBuildToken !== token) return;
+      if (E.def!==buildingDocument || p.exactBuildToken !== token) return;
       if (slowTimer) clearTimeout(slowTimer);
       if (isKernelBody(p)) {
         /* This mesh IS the body — it is saved with the document rather than
@@ -2462,7 +2605,7 @@ function queueExactMesh(p) {
       if (E.mode === "3d") renderPreview();
     } finally { display.release(); }
   }).catch(function (error) {
-    if (p.exactBuildToken !== token) return;
+    if (E.def!==buildingDocument || p.exactBuildToken !== token) return;
     if (slowTimer) clearTimeout(slowTimer);
     p.exactPending = false;
     p.exactError = String(error && error.message || error);
@@ -2502,7 +2645,7 @@ function scheduleKernelBody(p) {
    hide the new hole forever.  Drop the stale mesh immediately so the analytic
    fallback shows profile holes, then rebuild when this body still needs the
    exact kernel (cross-cuts, fillets, chamfers, or shells). */
-function invalidatePartMeshAfterEdit(p) {
+function invalidatePartMeshAfterEdit(p, schedule=true) {
   if (!p) return;
   delete p.meshData;
   // no analytic fallback: stale bounds would keep snapping and framing the
@@ -2510,7 +2653,7 @@ function invalidatePartMeshAfterEdit(p) {
   if (isKernelBody(p)) delete p.bounds;
   p.exactPending = false;
   p.exactError = null;
-  if (partNeedsExactMesh(p)) scheduleExactMesh(p);
+  if (schedule && partNeedsExactMesh(p)) scheduleExactMesh(p);
 }
 
 /* ---- kernel bodies ------------------------------------------------------
@@ -2521,7 +2664,12 @@ function invalidatePartMeshAfterEdit(p) {
    viewport need to learn nothing new — and an overtaken build cannot land on
    top of a newer one. */
 function queueKernelBody(p) {
+  if(exactPreviewWasCancelled())return;
   if (!isKernelBody(p) || !p.kernel) return;
+  // Canonical Loft/Sweep bodies belong to the feature history. Building their
+  // bare legacy recipe here repeats OpenCascade on the UI thread while the
+  // complete history is already running in the worker.
+  if(isCanonicalAuthoring() && (E.def.features || []).some(function(feature){return feature.id===p.featureId;})) { queueExactMesh(p); return; }
   /* Once cuts or finish operations sit on the body, the recipe alone is no
      longer its shape. exactBrepForPart() starts from the same recipe and then
      applies them, so there is one builder rather than two disagreeing answers. */
@@ -2597,14 +2745,15 @@ function restoreKernelBodies(def) {
 
 
 
+var pendingCutController=null;
 async function applyCut(loop,featureId,hint,cutSpec){
   if(E.cutPending)return 0;
-  const host=root,wasInert=host?.inert;E.cutPending=true;
-  if(host){host.inert=true;host.setAttribute("aria-busy","true");}
-  try{return await applyCutChecked(loop,featureId,hint,cutSpec);}
-  finally{E.cutPending=false;if(host){host.inert=!!wasInert;host.removeAttribute("aria-busy");}}
+  const host=root,controller=new AbortController();pendingCutController=controller;E.cutPending=true;
+  if(host)host.setAttribute("aria-busy","true");
+  try{return await applyCutChecked(loop,featureId,hint,cutSpec,controller.signal);}
+  finally{if(pendingCutController===controller)pendingCutController=null;E.cutPending=false;if(host)host.removeAttribute("aria-busy");}
 }
-async function applyCutChecked(loop, featureId, hint, cutSpec) {
+async function applyCutChecked(loop, featureId, hint, cutSpec, signal) {
   if (!loop || loop.length < 3) return 0;
   // The cut belongs to whatever it overlaps, not to whatever happens to sit
   // under its average point: the centroid of a C-shaped or ring-shaped loop is
@@ -2645,7 +2794,19 @@ async function applyCutChecked(loop, featureId, hint, cutSpec) {
     if(inside){
       var exactRange=bounded?{from:cutSpec.from,to:cutSpec.to}:frame?frameRangeForBounds(partBounds(p),frame):cutRangeForAxis(partBounds(p),ax);
       var cutDisplay;
-      try{var pendingCut=(E.def.features || []).find(function(feature){return feature.id===featureId;});cutDisplay=await exactDisplayBody(p,E.def,pendingCut?.inputs?.[0]);var check=await exactCutIntersection(p,{axis:frame?"frame":ax,...(frame?{frame:cloneData(frame)}:{}),...exactRange,loop:loop,...draftRecord},cutDisplay.brep);if(!check.intersects)return p;}
+      try{
+        var pendingCut=(E.def.features || []).find(function(feature){return feature.id===featureId;});
+        var cutHead=pendingCut?.inputs?.[0] || cutTargetFeatureId(p,E.def),exactCut={axis:frame?"frame":ax,...(frame?{frame:cloneData(frame)}:{}),...exactRange,loop:loop,...draftRecord};
+        var check;
+        if(cadWorkerAvailable() && isCanonicalAuthoring()){
+          var cutCompiled=compileKernelFeatureTree(E.def);if(!cutCompiled.ok)throw new Error(cutCompiled.issues[0]?.message || 'Invalid feature history');
+          check=await cutIntersectionInCadWorker({...cutCompiled.document,features:cutCompiled.features},cutHead,exactCut,{signal:signal});
+        } else {
+          cutDisplay=await exactDisplayBody(p,E.def,cutHead,{signal:signal,scope:'cut-preflight'});if(signal?.aborted)return p;
+          check=await exactCutIntersection(p,exactCut,cutDisplay.brep);
+        }
+        if(!check.intersects)return p;
+      }
       catch(error){skipped.push((p.name||p.kind||"body")+": "+String(error.message||error));return p;}
       finally{if(cutDisplay)cutDisplay.release();}
     }
@@ -2680,7 +2841,7 @@ async function applyCutChecked(loop, featureId, hint, cutSpec) {
     }
     return p;
   })(cloneData(original)));
-  if(E.def!==document||E.def.parts!==originalParts||JSON.stringify(originalParts)!==signature||JSON.stringify(sketch)!==sketchSignature){E.lastCutSkipped=[t("cutChangedRetry")];return 0;}
+  if(signal?.aborted || E.def!==document||E.def.parts!==originalParts||JSON.stringify(originalParts)!==signature||JSON.stringify(sketch)!==sketchSignature){E.lastCutSkipped=[signal?.aborted?'Exact CAD computation cancelled':t("cutChangedRetry")];return 0;}
   if(changed)E.def.parts=updated;
   E.lastCutSkipped = skipped;
   return changed;
@@ -2742,14 +2903,26 @@ function patternPlacements(params) {
    mate and delete pushed a step that restored an identical part document —
    undo in an assembly appeared to do nothing at all. */
 function snapDoc() {
+  // Component authoring has an isolated working definition. Its unchanged
+  // parent assembly is not part of these local sketch edits: serializing it
+  // into sixty Undo entries duplicated every other native body many times.
+  if (E.contextEdit) return JSON.stringify({d:E.def,contextComponentId:E.contextEdit.componentId});
   return JSON.stringify({ d: E.def, a: E.assembly });
 }
 const H = createHistory({
   get: snapDoc,
   set: function (s) {
     var o = JSON.parse(s);
+    // Evaluation values describe the document being left, including its mass.
+    closeEvalCard();
     E.def = o.d;
-    E.assembly = o.a || null;
+    if (!E.contextEdit || o.contextComponentId !== E.contextEdit.componentId) E.assembly = o.a || null;
+    // Undo restores document metadata too. Leaving the stale name textbox
+    // behind would write the undone name back into the next Save.
+    syncHead();
+    // Drawing mode intentionally skips the 3D preview rebuild. Its cached
+    // projections must still follow the document restored by Undo or Redo.
+    invalidateDrawing();
     invalidateInterference();
     // the selected part / entity / component may not exist in the restored doc
     E.sel = null;
@@ -2762,6 +2935,7 @@ const H = createHistory({
     // badge disagree with the restored geometry until another edit happened.
     if (E.docType === "part" && E.def) resolveSketch(false);
     refreshAll();
+    if (E.mode === "drawing") syncSheetPanel();
   },
   scan: scanDoc,
   subtree: docSubtree,
@@ -2929,12 +3103,18 @@ function docPick(id) {
   refreshAll();
   if (histPanel) histPanel.refreshNow();
 }
-function pushUndo(label, tag) { H.push(label, tag); scheduleModelerDraft(); }
+function pushUndo(label, tag) { H.push(label, tag); E.massEditRevision=(E.massEditRevision || 0)+1; scheduleModelerDraft(); }
 function doUndo() { H.undo(); scheduleModelerDraft(); }
 function doRedo() { H.redo(); scheduleModelerDraft(); }
 var histPanel = null;
 var savedHistoryId = null;
 var draftSaveTimer = 0;
+var draftRevision = 0;
+
+function modelerSessionStorage() {
+  try { return typeof sessionStorage === "undefined" ? null : sessionStorage; }
+  catch (error) { return null; }
+}
 
 function modelerDraftStorage() {
   try { return typeof localStorage === "undefined" ? null : localStorage; }
@@ -2954,16 +3134,20 @@ var draftFailureReported = false;
 function flushModelerDraft() {
   draftSaveTimer = 0;
   if (!E.open || !(E.docType === "assembly" ? E.assembly : E.def)) return;
-  var payload = { docType: E.docType, def: E.def, assembly: E.assembly };
+  var revision = ++draftRevision;
+  var payload = { docType: E.docType, def: E.def, assembly: E.assembly,
+    libraryBaseline:libraryOpenBaseline, assemblyBaseline:assemblyOpenBaseline };
   var parsed = parseModelerDraft(serializeModelerDraft(payload));
   modelerDraftCache = parsed;
-  saveModelerDraftRecord(parsed).then(function () {
-    try { localStorage.setItem(MODELER_DRAFT_KEY, JSON.stringify({ v: parsed.v, at: parsed.at, docType: parsed.docType, indexedDB: true })); }
+  saveModelerDraftRecord(parsed,modelerDraftOwnerId).then(function () {
+    if (revision !== draftRevision) return;
+    try { localStorage.setItem(modelerDraftKey(modelerDraftOwnerId), JSON.stringify({ v: parsed.v, at: parsed.at, docType: parsed.docType, indexedDB: true })); }
     catch (error) {}
     draftFailureReported = false;
     syncDraftStatus("draftSaved");
   }).catch(function () {
-    if (writeModelerDraft(modelerDraftStorage(), payload)) {
+    if (revision !== draftRevision) return;
+    if (writeModelerDraft(modelerDraftStorage(), payload, undefined, modelerDraftOwnerId)) {
       draftFailureReported = false;
       syncDraftStatus("draftSaved");
       return;
@@ -2974,23 +3158,32 @@ function flushModelerDraft() {
 }
 
 function discardModelerDraft() {
+  ++draftRevision;
   if (draftSaveTimer) { clearTimeout(draftSaveTimer); draftSaveTimer = 0; }
   modelerDraftCache = null;
-  clearModelerDraft(modelerDraftStorage());
-  clearModelerDraftRecord().catch(function () {});
+  clearModelerDraft(modelerDraftStorage(),modelerDraftOwnerId);
+  return clearModelerDraftRecord(modelerDraftOwnerId).catch(function () {});
 }
 
 function tryRestoreModelerDraft() {
-  var draft = modelerDraftCache && (modelerDraftCache.def || modelerDraftCache.assembly) ? modelerDraftCache : readModelerDraft(modelerDraftStorage());
+  var draft = modelerDraftCache && (modelerDraftCache.def || modelerDraftCache.assembly) ? modelerDraftCache : readModelerDraft(modelerDraftStorage(),modelerDraftOwnerId);
   if (!draft) return false;
   var documentAtRequest = E.def;
   askModelerDecision(root, {
     title:t("recoverDraftTitle"),
     message:t("unsavedDraft") + "\n" + ((draft.docType === "assembly" ? draft.assembly : draft.def).name || t("title")) + "\n" + new Date(draft.at).toLocaleString(),
     accept:t("restoreDraftAction"), cancel:t("startWithoutDraft"), dismiss:t("recoverLater"), focusAccept:true,
+    alternate:t("startFreshKeepDraft"),
   }).then(function (accepted) {
     if (!E.open || E.def !== documentAtRequest) return;
-    if (accepted) restoreModelerDraft(draft);
+    if (accepted === 'alternate') {
+      ++draftRevision;
+      if (draftSaveTimer) { clearTimeout(draftSaveTimer); draftSaveTimer = 0; }
+      modelerDraftOwnerId = freshModelerDraftOwner(modelerSessionStorage());
+      modelerDraftCache = null;
+      syncDraftStatus("draftPending");
+    }
+    else if (accepted) restoreModelerDraft(draft);
     else if (accepted === false) discardModelerDraft();
     else closeModeler();
   });
@@ -2998,7 +3191,15 @@ function tryRestoreModelerDraft() {
 }
 
 function restoreModelerDraft(draft) {
+  closeEvalCard();
   S.idc=nextDocumentNumericId(draft,S.idc);
+  // A recovered edit still belongs to the saved library revision it started
+  // from. Older single-slot drafts have no baseline; leave it unknown so the
+  // save conflict path can ask before replacing a same-key saved record.
+  try { libraryOpenBaseline=draft.libraryBaselineJson ? JSON.parse(draft.libraryBaselineJson) : null; }
+  catch (error) { libraryOpenBaseline=null; }
+  try { assemblyOpenBaseline=draft.assemblyBaselineJson ? JSON.parse(draft.assemblyBaselineJson) : null; }
+  catch (error) { assemblyOpenBaseline=null; }
   if (draft.docType === "assembly" && draft.assembly) {
     E.assembly = draft.assembly;
     if (draft.def) E.def = ensureParametricDocument(draft.def);
@@ -3009,6 +3210,7 @@ function restoreModelerDraft(draft) {
     invalidateInterference();
   } else if (draft.def) {
     E.def = ensureParametricDocument(draft.def);
+    if(draft.assembly && E.def.metadata?.contextEditor){E.assembly=draft.assembly;E.contextEdit={componentId:E.def.metadata.contextEditor.componentId,isNew:!!E.def.metadata.contextEditor.isNew,previousDef:newDef()};}
     E.docType = "part";
     if (root) root.classList.remove("md-assembly");
   } else return false;
@@ -3087,6 +3289,7 @@ function markDocumentClean() {
   savedHistoryId = currentHistoryNode();
   syncDirty();
   syncDraftStatus("documentSaved");
+  if (E.docType === "assembly") syncAssemblyWorkflow();
 }
 
 function syncDirty() {
@@ -3254,6 +3457,7 @@ function computeSketchProjection() {
 }
 var _scratchSketchNdc = null;
 var _scratchSketchDir = null;
+var _scratchSketchRayOrigin = null;
 function getScratchSketchNdc() {
   if (!_scratchSketchNdc) _scratchSketchNdc = new THREE.Vector3();
   return _scratchSketchNdc;
@@ -3263,9 +3467,19 @@ function getScratchSketchDir() {
   return _scratchSketchDir;
 }
 
+function getScratchSketchRayOrigin() {
+  if (!_scratchSketchRayOrigin) _scratchSketchRayOrigin = new THREE.Vector3();
+  return _scratchSketchRayOrigin;
+}
 function projectSketchPoint(proj, u, v) {
   var world = framePoint(proj.frame, u, v, 0);
   var ndc = getScratchSketchNdc().set(world.x, world.y, world.z).project(proj.cam);
+  return { x: proj.dx + (ndc.x * .5 + .5) * proj.w, y: proj.dy + (-ndc.y * .5 + .5) * proj.h };
+}
+/* Where a world point lands on the sketch canvas, or null behind the camera. */
+function worldToSketchPx(proj, world) {
+  var ndc = getScratchSketchNdc().set(world.x, world.y, world.z).project(proj.cam);
+  if (!(ndc.z > -1 && ndc.z < 1)) return null;
   return { x: proj.dx + (ndc.x * .5 + .5) * proj.w, y: proj.dy + (-ndc.y * .5 + .5) * proj.h };
 }
 function toPx(u, v) {
@@ -3280,10 +3494,10 @@ function toUV(px, py) {
     // Cast the pointer ray and land it on the sketch plane. Behind the camera,
     // or parallel to the plane, there is no answer — hold the last one rather
     // than throwing geometry to infinity.
-    var ndc = getScratchSketchNdc().set(((px - proj.dx) / proj.w) * 2 - 1, -(((py - proj.dy) / proj.h) * 2 - 1), .5);
-    ndc.unproject(proj.cam);
-    var eye = proj.cam.position;
-    var dir = getScratchSketchDir().subVectors(ndc, eye).normalize();
+    // Orthographic rays start at the pointer, perspective rays at the eye.
+    var ray = pointerCameraRay(proj.cam, ((px - proj.dx) / proj.w) * 2 - 1,
+      -(((py - proj.dy) / proj.h) * 2 - 1), getScratchSketchRayOrigin(), getScratchSketchDir());
+    var eye = ray.origin, dir = ray.direction;
     var n = proj.frame.normal, o = proj.frame.origin;
     var denom = dir.x * n.x + dir.y * n.y + dir.z * n.z;
     if (Math.abs(denom) < 1e-6) return E._lastUV || { u: 0, v: 0 };
@@ -3639,7 +3853,7 @@ function buildDOM() {
         commandButton("centerrectangle", t("centerRectangle"), ""),
         commandButton("faceboundary", t("faceBoundary"), ""),
         commandButton("scirc", t("cap_scirc"), "G", "primary", t("tool_scirc")),
-        commandButton("sarc", t("cap_sarc"), "A", "", t("tool_sarc")),
+        commandButton("sarc", t("centerpointArc"), "A", "", t("centerpointArc")),
         commandButton("arc3point", t("arcThreePoint"), ""),
         commandButton("tangentarc", t("tangentArc"), ""),
         commandButton("sslot", t("tool_sslot"), "J"),
@@ -3700,6 +3914,7 @@ function buildDOM() {
         commandButton("stepin", t("stepImport"), null, "", t("stepImport")),
         commandButton("stepout", t("stepExport"), null, "", t("stepExport")),
         commandButton("igesout", t("exportIges"), null, "", t("exportIges")),
+        commandButton("stlout", t("exportStl"), null, "", t("exportStlTip")),
         // the unit override belongs next to the import it modifies, not in the header
         '<label class="md-command-field"><span>' + t("sourceUnits") + '</span>' +
         '<select id="mdStepUnit" aria-label="' + t("sourceUnits") + '"><option value="auto">' + t("stepAuto") + '</option>' +
@@ -3786,6 +4001,7 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
     '<span class="md-drawing-tools-sep"></span>' +
     '<button type="button" id="mdSheetAutoDim"><i class="ph ph-ruler"></i><span>' + t("drawAutoDim") + '</span></button>' +
+    '<button type="button" id="mdSheetModelItems"><i class="ph ph-ruler"></i><span>' + t("drawModelItems") + '</span></button>' +
     '<button type="button" id="mdSheetHidden" aria-pressed="true"><i class="ph ph-eye-closed"></i><span>' + t("drawHiddenLines") + '</span><kbd>H</kbd></button>' +
     '<button type="button" id="mdSheetFit">' + cadIcon("fit") + '<span>' + t("zoomFit") + '</span><kbd>F</kbd></button>' +
     '<span class="md-drawing-tools-sep"></span>' +
@@ -3796,6 +4012,7 @@ function buildDOM() {
     '<div class="md-views" id="mdViews" role="toolbar" aria-label="' + t("displayStyle") + '">' +
     '<div class="md-vgroup">' +
     '<button data-view="top" data-tip="' + kt(t("view_top"), "4") + '">' + cadIcon("view_top") + '<span>' + (getLang()==="en"?"Top":"על") + ' · X·Z</span></button>' +
+    '<button data-view="bottom" data-tip="' + t("view_bottom") + '">' + cadIcon("view_top") + '<span>' + (getLang()==="en"?"Bottom":"תחתון") + ' · X·Z</span></button>' +
     '<button data-view="front" data-tip="' + kt(t("view_front"), "5") + '">' + cadIcon("view_front") + '<span>' + (getLang()==="en"?"Front":"חזית") + ' · X·Y</span></button>' +
     '<button data-view="side" data-tip="' + kt(t("view_right"), "6") + '">' + cadIcon("view_right") + '<span>' + (getLang()==="en"?"Right":"ימין") + ' · Z·Y</span></button>' +
     '<button data-view="back" data-tip="' + t("view_back") + '">' + cadIcon("view_front") + '<span>' + (getLang()==="en"?"Back":"אחור") + ' · X·Y</span></button>' +
@@ -4374,6 +4591,7 @@ function buildDOM() {
 
   root.querySelector("#mdSave").addEventListener("click", saveCurrentDocument);
   root.querySelector("#mdSheetAutoDim").addEventListener("click", function () { drawingSheet().autoDimension(); drawSketch(); syncStatus(); });
+  root.querySelector("#mdSheetModelItems").addEventListener("click", function () { drawingSheet().insertModelItems(); drawSketch(); syncStatus(); });
   root.querySelector("#mdSheetHidden").addEventListener("click", function () {
     drawingSheet().setSheetOption("showHidden", !ensureSheetDoc(E.def).showHidden);
     drawSketch(); syncTools();
@@ -4463,6 +4681,7 @@ function buildDOM() {
   if (diagJump) diagJump.addEventListener("click", function () { focusTreeDiagnostics(); });
   var statusEl = root.querySelector("#mdStatus");
   if (statusEl) statusEl.addEventListener("click", function (event) {
+    if(event.target.closest(".md-cancel-exact")){cancelExactModelRebuild();flash("Exact computation cancelled");return;}
     if (event.target.closest(".md-st-rebuild")) focusTreeDiagnostics();
   });
   root.querySelector("#mdSketchThumb").addEventListener("click", function () {
@@ -5472,7 +5691,9 @@ function insertISOInvoluteGear() {
   var spec={family:"involute-gear",standard:"ISO 21771-1:2024",rackStandard:"ISO 53:1998",moduleStandard:"ISO 54:1996",moduleMm:2,teeth:20,pressureAngleDeg:20,profile:"involute",pitchDiameterMm:40,rootGeometry:"rack-generated",cutter:{tipRadiusCoefficient:.38,addendumCoefficient:1.25}};
   spec.mate={...spec};
   pushUndo(t("stdGearCommand"));
-  addPart(Object.assign({id:uid(),kind:"ext",name:"Rack-generated gear m2 z20",axis:"y",from:0,to:.8,pts:involuteGearOutline(spec),holes:[],standardCompliance:spec},tourMaterial("#d0a84b")));
+  var gearBase=Object.assign({id:uid(),kind:"ext",name:"Rack-generated gear m2 z20",axis:"y",from:0,to:.8,pts:involuteGearOutline(spec),holes:[],standardCompliance:spec},tourMaterial("#d0a84b"));
+  if(isCanonicalAuthoring())registerGeneratedExtrusion(E.def,gearBase);
+  addPart(gearBase);
   E.def.lastStandardsAudit=null;E.sel=E.def.parts[E.def.parts.length-1];refreshAll();fitSketch();updateTourProgress();
 }
 
@@ -5615,7 +5836,7 @@ function closeTour() {
     else {
       // The assembly demo saves, so restoring the document is not enough — drop
       // the library entry it wrote too, or every replay leaves another orphan.
-      if (E.tour.demoAssemblyKey) saveAssemblies(loadAssemblies().filter(function (a) { return a.key !== E.tour.demoAssemblyKey; })).catch(function () {});
+      if (E.tour.demoAssemblyKey) saveAssemblies(E.tour.demoAssemblyKey,{mode:"delete"}).catch(function () {});
       E.tour.preparing = true; restoreAutomaticTourOrigin(); E.tour.preparing = false; refreshAll(); flash(t("guideDemoRestored"));
     }
   }
@@ -6025,7 +6246,7 @@ var SKETCH_TOOLS = ["wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "s
    Only these may open a sketch from model mode: "start drawing and I will make
    you a sketch" is a reasonable offer, while Trim or Dimension arriving on an
    empty new sketch is an offer to edit nothing. */
-var SKETCH_DRAW_TOOLS = ["wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline"];
+var SKETCH_DRAW_TOOLS = ["wall", "constr", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline"];
 
 /* Which tools own the sketch sheet. Everything else — Select above all — used
    to open it too: setTool() armed E.modelPlaneActive for ANY tool change in
@@ -6389,6 +6610,7 @@ function finishSketchWorkflow() {
   }
   var consumed=consumedSketchIds(E.def).has(sketch.id);
   recordSketchInHistory(E.def,sketch);
+  if(consumed && run.status!=="conflicting")rebindReplacedSketchProfiles(E.def,sketch.id);
   E.authoring.phase="model";E.authoring.sketchId=sketch.id;E.authoring.referenceId=sketch.referenceId;E.authoring.sketchSelection=[sketch.id];
   E.authoring.featureType=null;E.authoring.workflowFocus=consumed ? null : "feature";E.authoring.resumePhase=null;
   E.modelPlaneActive=false;setMode("3d");restoreSketchCameraPose();setCommandTab("features");setTab("parts");
@@ -6585,10 +6807,10 @@ function modelAreaText(cm2) {
   var value=cm2*Math.pow(lengthToDocument(1,modelLengthUnit()),2);
   return String(Number(value.toPrecision(10)))+' '+modelLengthUnit()+'²';
 }
-function faceSketchAttachment() {
-  var support=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
+function faceSketchAttachment(reference, exact) {
+  var support=reference || (E.topologySelection || []).find(function(item){return item.kind==="face";});
   if (!support) return null;
-  if(isCanonicalAuthoring() && E.brepRun){
+  if(!exact && isCanonicalAuthoring() && E.brepRun){
     var supportPart=(E.def.parts || []).find(function(part){return part.featureId===support.ownerFeatureId || part.id===support.partId;});
     var supportHead=cutTargetFeatureId(supportPart),supportResult=E.brepRun.results.get(supportHead);
     if(supportResult && supportResult.topology){
@@ -6680,7 +6902,7 @@ function setTool(id, keepPlaneState) {
      sketch every time a drawing tool was chosen after leaving the surface. */
   var sessionOpen = E.authoring && E.authoring.phase === "sketch";
   var attachedToFace = openingModelPlane && !sessionOpen ? attachSketchToSelectedFace() : false;
-  if (E.wallPts && id !== "wall") finishWallChain(false);
+  if (E.wallPts && id !== E.tool) finishWallChain(false);
   if (id !== E.tool) E.dynInput = null;
   if (id !== E.tool) { E.dimPick = []; E.dimSel = null; }
   E.tool = id;
@@ -6730,14 +6952,15 @@ function setTool(id, keepPlaneState) {
   if (openingModelPlane) requestAnimationFrame(fitSketch);
   updateTourProgress();
 }
-/* Views that only turn the camera. Isometric, Back and Left have no sketch
+/* Views that only turn the camera. Isometric, Back, Left and Bottom have no sketch
    plane of their own, so they must not touch E.view: that swaps the active
    sketch, and an Extrude Cut taken right after would cut from the wrong one. */
-var CAMERA_ONLY_VIEWS = ["iso", "back", "left"];
+var CAMERA_ONLY_VIEWS = ["iso", "back", "left", "bottom"];
 function setView(id) {
   // A feature owns its profile while the user turns the model to pick limits.
   // Adopting another plane's sketch here changes both preview and commit inputs.
-  if (CAMERA_ONLY_VIEWS.indexOf(id) >= 0 || (E.authoring && E.authoring.featureType)) {
+  if (CAMERA_ONLY_VIEWS.indexOf(id) >= 0 || (E.authoring && E.authoring.featureType)
+      || (E.mode === "3d" && E.modelPlaneActive && E.authoring?.phase === "sketch")) {
     var cameraId = id === "side" ? "right" : id;
     var cameraPreset = VIEW_PRESETS.find(function (preset) { return preset.id === cameraId; });
     if (E.pv && cameraPreset) {
@@ -6762,6 +6985,10 @@ function setView(id) {
   if (E.mode === "3d" && E.modelPlaneActive) fitSketch();
 }
 function zoomBy(dir) {
+  if(E.modelPlaneActive && sketchProjection() && E.pv){
+    if(dir==='fit')fitSketch();else{E.pv.zoomBy(dir==='in'?1/1.25:1.25);invalidateSketchProjection();drawSketch();}
+    syncStatus();return;
+  }
   if (E.mode === "3d" && !E.modelPlaneActive) {
     if (dir === "fit") fitPreview();
     else if (E.pv) E.pv.zoomBy(dir === "in" ? 1/1.25 : 1.25);
@@ -6775,16 +7002,17 @@ function zoomBy(dir) {
   E.oy = Hh - ((Hh - E.oy) / E.scl) * ns;
   E.scl = ns;
   drawSketch();
+  syncStatus();
 }
 /* Frame the whole model in the sketch the way the 3D view frames it — without
    this the only way back from a stray scroll was to close and reopen. */
 function fitSketch() {
   // the observer re-measures a frame later, which is too late for anything
   // that fits immediately after opening
-  if (!E.cw || !E.ch) sizeSketch();
+  sizeSketch();
   /* Sketching over the model, the sheet has no pan/zoom of its own — it is the
      camera's projection of the plane. Fitting means framing the model. */
-  if (sketchProjection()) { fitPreview(); drawSketch(); return; }
+  if (sketchProjection()) { fitPreview(); drawSketch(); syncStatus(); return; }
   var W = E.cw, Hh = E.ch;
   var u0, u1, v0, v1;
   var hasParts = renderedParts(E.def).length > 0;
@@ -6810,28 +7038,9 @@ function fitSketch() {
      zoomed to nothing. Sketch points are already in this plane's u/v. */
   ensureSketchDoc(E.def).forEach(function (sketch) {
     if (!sameSketchContext(sketch,ensureSketch(E.def))) return;
-    (sketch.points || []).forEach(function (p) {
-      u0 = u0 === undefined ? p.x : Math.min(u0, p.x);
-      u1 = u1 === undefined ? p.x : Math.max(u1, p.x);
-      v0 = v0 === undefined ? p.y : Math.min(v0, p.y);
-      v1 = v1 === undefined ? p.y : Math.max(v1, p.y);
-    });
-    // a circle or ellipse reaches past its centre point, which is the only
-    // point of it the loop above saw
-    var pointsById = new Map((sketch.points || []).map(function (q) { return [q.id, q]; }));
-    (sketch.entities || []).forEach(function (e) {
-      var reach = 0, centre = null;
-      if (e.type === "circle") {
-        var o = circleData(e, pointsById);
-        if (o) { centre = o.center; reach = o.radius; }
-      } else if (e.type === "ellipse") {
-        var el = ellipseData(e, pointsById);
-        if (el) { centre = el.center; reach = Math.max(el.rx, el.ry); }
-      }
-      if (!centre) return;
-      u0 = Math.min(u0, centre.x - reach); u1 = Math.max(u1, centre.x + reach);
-      v0 = Math.min(v0, centre.y - reach); v1 = Math.max(v1, centre.y + reach);
-    });
+    var geometry=sketchGeometryBounds(sketch);if(!geometry)return;
+    u0=u0===undefined?geometry.u0:Math.min(u0,geometry.u0);u1=u1===undefined?geometry.u1:Math.max(u1,geometry.u1);
+    v0=v0===undefined?geometry.v0:Math.min(v0,geometry.v0);v1=v1===undefined?geometry.v1:Math.max(v1,geometry.v1);
   });
   /* An empty part sketch is usually a small component, not a room. The old
      60 cm opening span made a 4 mm slot only a few pixels wide before the
@@ -6843,6 +7052,7 @@ function fitSketch() {
   E.ox = W / 2 - cu * E.scl;
   E.oy = Hh / 2 - (!activeSketchFrame() && E.view === "top" ? cv : -cv) * E.scl;
   drawSketch();
+  syncStatus();
 }
 
 /* One pane visible per panel. The old editor stacked all five sections down the
@@ -6972,11 +7182,8 @@ function runCommand(id) {
   if (id === "sheetmetal") { setTab("shape"); if (selectedSolid()?.kind !== "box") flash(t("sheetMetalNeedPlate")); else requestAnimationFrame(function () { Array.from(root.querySelectorAll('.md-pane[data-pane="shape"] .md-h5')).find(function (node) { return node.textContent.trim() === t("sheetMetal"); })?.scrollIntoView({ block: "nearest" }); }); closeCommandSearch(); return; }
   if (id === "branch") { setTab("hist"); closeCommandSearch(); return; }
   var tools = ["select", "rect", "circle", "sph", "poly", "rev", "cut", "cutc", "wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "offset", "constr"];
-  /* "For construction" acts on what is selected, as in SOLIDWORKS. It used to
-     only arm a click-to-toggle tool, so selecting HOUSING's centerline and
-     pressing Construction left it solid (the selection highlight looked like
-     construction) and the profile branched. With nothing selected it still
-     arms the tool. */
+  /* A selected sketch entity toggles immediately. With nothing selected the
+     command arms the two-point construction-line tool. */
   if (id === "constr" && E.mode !== "drawing") {
     var constrTargets = selEntities();
     if (constrTargets.length) {
@@ -7025,6 +7232,8 @@ function runCommand(id) {
   else if (id === "toolboxfastener") insertToolboxFastener();
   else if (id === "config") showConfigurations();
   else if (id === "screwmate") { setDocumentType("assembly"); setTab("ops"); addTopologyMate("screw"); }
+  else if (id === "gearmate") { setDocumentType("assembly"); setTab("ops"); openMateGearForm(); }
+  else if (id === "symmetricmate") { setDocumentType("assembly"); setTab("ops"); addTopologyMate("symmetric"); }
   else if (id === "dynamicmirror") toggleDynamicMirror();
   else if (id === "mirror") mirrorSelection();
   else if (id === "pattern") patternSelection();
@@ -7034,7 +7243,14 @@ function runCommand(id) {
   else if (id === "stepin") importStepDocument();
   else if (id === "stepout") exportStepDocument();
   else if (id === "igesout") exportIgesDocument();
-  else if (id === "drawing") exportDrawingSvg();
+  else if (id === "stlout") openStlExportForm();
+  else if (id === "3mfout") openStlExportForm("3mf");
+  else if (id === "amfout") openStlExportForm("amf");
+  else if (id === "printsetup") openPrintSetupForm();
+  else if (id === "drawing") {
+    if (E.docType === "assembly" && E.assembly) showAssemblyDrawingSettings();
+    else exportDrawingSvg();
+  }
   else if (id === "mass") showMassProperties();
   else if (id === "measure") beginMeasure(E.measure && E.measure.mode);
   else if (id === "section") toggleSectionView();
@@ -7046,7 +7262,7 @@ function runCommand(id) {
   else if (id === "bundlein") importBundleDocument();
   else if (id === "refplane") openOffsetPlaneForm();
   else if (id === "refaxis") addReferenceGeometry("axis");
-  else if (id === "coordsys") addReferenceGeometry("coordsys");
+  else if (id === "coordsys") openCoordinateSystemForm();
   else if (id === "refpoint") addReferenceGeometry("point");
   else if (id === "fit") E.mode === "3d" ? fitPreview() : fitSketch();
   else if (id === "model3d") setMode("3d");
@@ -7055,6 +7271,7 @@ function runCommand(id) {
   else if (id === "components") { setDocumentType("assembly"); setTab("parts"); }
   else if (id === "mates") openMatePropertyManager();
   else if (id === "explode") createDefaultExplodedView();
+  else if (id === "explodestep") openExplodeStepForm();
   else if (id === "motion") createDefaultMotionStudy();
   else if (id === "interference") runInterferenceCheck();
   else if (id === "bom") showAssemblyBOM();
@@ -7245,6 +7462,20 @@ function quickDuplicatePart() {
 
 function quickMirrorPart(options) {
   var params={...featureDefaults("mirror"),...(options || {})};
+  if(params.scope==="feature"){
+    /* Features to Mirror: reflect the picked addition or cutter on its host. */
+    params.seedFeatureIds=Array.from(new Set(params.seedFeatureIds?.length ? params.seedFeatureIds : [params.seedFeatureId].filter(Boolean)));
+    params.seedFeatureId=params.seedFeatureIds[0] || "";
+    var mirrorSource=(E.def.features || []).find(function(item){return item.id===params.seedFeatureId;});
+    var mirrorHost=selectedPatternBody(params.seedFeatureId);
+    if(!mirrorHost){flash(t("quickNeedPart"));return false;}
+    if(!mirrorSource?.inputs?.[0]){flash("Select the feature to mirror in the history tree");return false;}
+    var mirrorPlane=params.planeReference || (E.authoring.referenceId && String(E.authoring.referenceId).indexOf("plane:")===0 ? E.authoring.referenceId : "plane:right");
+    var mirrorParams={...params};delete mirrorParams.planeReference;
+    pushUndo(t("quickMirror"));
+    try{var hostFeatureId=cutTargetFeatureId(mirrorHost);createFeatureDefinition(E.def,"mirror",{inputs:[hostFeatureId],references:{sketches:[],features:Array.from(new Set([hostFeatureId,...params.seedFeatureIds])),topology:[],references:[mirrorPlane]},params:mirrorParams});queueExactMesh(mirrorHost);refreshAll();return true;}
+    catch(error){H.discard();flash(String(error.message || error));return false;}
+  }
   var p = selectedSolid();
   if (!p) { flash(t("quickNeedPart")); return false; }
   pushUndo(t("quickMirror"));
@@ -7348,15 +7579,18 @@ async function quickRoundPart(kind, amount) {
   return true;
 }
 
-async function quickShellPart(thickness) {
+async function quickShellPart(thickness, verifiedPreview=false) {
   var params={...featureDefaults("shell"),...(typeof thickness==="object"?thickness:{thickness:thickness})};thickness=params.thickness;
   var p = selectedSolid();
   if (!p) { flash(t("quickNeedPart")); return false; }
   if (!partSupportsExactMesh(p)) { flash(t("shellFail")); return false; }
   var targets=cloneData((E.topologySelection || []).filter(function(reference){return reference.kind==="face";}));
   if (!targets.length) { flash(t("needFace")); return false; }
-  var source=cutTargetFeatureId(p),preview=exactFinishPreviewPart("shell",{params}),verified;
-  try{verified=await exactFinishPreviewBody(preview,"shell");}catch(error){flash(String(error.message || error));return false;}finally{if(verified)disposeBrep(verified);}
+  var source=cutTargetFeatureId(p),verified;
+  if(!verifiedPreview){
+    var preview=exactFinishPreviewPart("shell",{params});
+    try{verified=await exactFinishPreviewBody(preview,"shell");}catch(error){flash(String(error.message || error));return false;}finally{if(verified)disposeBrep(verified);}
+  }
   pushUndo(t("shellOp"));
   var feature;
   if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"shell",{inputs:[source],references:{sketches:[],features:[source],topology:targets,references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
@@ -7525,6 +7759,7 @@ function createRibFeature(options) {
   var principal=localFrame || !normal ? 1 : (axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)) || 1;
   var ribParams={...params,
     points:chain.points.map(function(q){return {u:q.u,v:q.v};}),
+    chainEntityIds:chain.entityIds.slice(),
     axis:localFrame?"frame":axis,
     ...(localFrame?{frame:cloneData(sketch.frame)}:{}),
     from:localFrame?0:(Number(sketch.offset)||0),
@@ -7774,6 +8009,7 @@ function renderFeatureParameterForm(host,type,state,onLive) {
     el:el,
     units:E.def && E.def.context && E.def.context.units || {length:getDomainUnit("details"),angle:"deg"},
     referenceOptions:featureReferenceOptions,
+    featureSeeds:(E.def.features || []).filter(function(feature,index,features){var current=features.findIndex(function(item){return item.id===state.id;});return !feature.suppressed && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length && (current<0 || index<current);}).map(function(feature){return {value:feature.id,label:feature.name || feature.type};}),
     advancedLabel:t("featureMoreOptions"),
   });
   if(type==="thread"){
@@ -7814,7 +8050,10 @@ function setFeatureReferencesFromForm(feature,referenceValues) {
 
 function selectedFeatureIds() {
   var selected=(E.authoring.featureSelection || []).slice();
-  var part=selectedSolid();if(part&&part.featureId&&!selected.includes(part.featureId))selected.push(part.featureId);
+  // Explicit history nodes are the complete requested inputs. Adding a
+  // selected body's original boss duplicated it after its finished head.
+  var part=selectedSolid();
+  if(!selected.length && part){var head=cutTargetFeatureId(part) || part.featureId;if(head)selected.push(head);}
   return selected;
 }
 
@@ -7883,6 +8122,28 @@ function createMultiSketchFeature(type, values) {
     if(fallbackFeature){var fp=fallbackFeature.params || {};helix={...fp,id:fallbackFeature.id,type:"reference_helix",featureId:fallbackFeature.id};}
   }
   if(type==="sweep" && !sketchPath && inputParams.sweepPathMode==="helix" && !helix){flash(t("sweepNeed"));return false;}
+  if(type==='sweep' && !sketchPath && helix && inputParams.profileMode==='circular'){
+    var circularParams={...featureDefaults(type),...inputParams},circularSources={kind:'circular-helix-sweep',diameter:circularParams.profileDiameter,helixId:helix.id,helixFeatureId:helix.featureId};
+    var circularUndoPushed=false;
+    try{
+      Object.assign(circularParams,circularHelixSweepProfile(helix,circularParams.profileDiameter));circularParams.sketchSources=circularSources;
+      pushUndo('Circular helix sweep');
+      circularUndoPushed=true;
+      var circularFeature=createFeatureDefinition(E.def,type,{inputs:[],references:{sketches:[],features:helix.featureId?[helix.featureId]:[],topology:[],references:[helix.id]},params:circularParams});
+      var circularHost=mergeTargetBody(kernelRecipeBounds(type,circularParams),circularParams);
+      if(circularHost){
+        var circularParentId=cutTargetFeatureId(circularHost);
+        circularFeature.inputs=[circularParentId];
+        circularFeature.references.features=[circularParentId,...(helix.featureId?[helix.featureId]:[])];
+        reconnectLaterBodyConsumers(E.def,circularFeature);
+        circularHost.merges3d=circularHost.merges3d || [];
+        circularHost.merges3d.push({kind:"sweep",profile:cloneData(circularParams.profile),path:cloneData(circularParams.path),pathSegments:cloneData(circularParams.pathSegments),profileSegments:cloneData(circularParams.profileSegments),orientation:circularParams.orientation,twistAngle:circularParams.twistAngle,scale:circularParams.scale,sketchSources:circularSources,featureId:circularFeature.id});
+        invalidatePartMeshAfterEdit(circularHost);
+        E.sel=circularHost;queueExactMesh(circularHost);
+      }else E.sel=addKernelBodyPart(circularFeature,type,circularParams,circularSources) || E.sel;
+      refreshAll();return true;
+    }catch(error){if(circularUndoPushed)H.discard();flash(String(error.message || error));return false;}
+  }
   if(type==="sweep" && !sketchPath && (inputParams.sweepPathMode==="helix" || sweepUsesHelixPath(ids.length, helix))){
     var profileSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===ids[0];});
     var profileRun=analyzeSketchProfiles(profileSketch),profileLoop=profileRun.profiles[0];
@@ -7892,7 +8153,7 @@ function createMultiSketchFeature(type, values) {
     Object.assign(params,helixSweepPath(helix));
     var helixSources={kind:"sweep",profile:{sketchId:profileSketch.id,entityIds:(profileLoop.entityIds || []).slice()},helixId:helix.id,helixFeatureId:helix.featureId};
     params.sketchSources=cloneData(helixSources);
-    params.helix={origin:helix.origin,axis:helix.axis,radius:helix.radius,radiusEnd:helix.radiusEnd,pitch:helix.pitch,turns:helix.turns,height:helix.height,handedness:helix.handedness,startAngle:helix.startAngle};
+    params.helix={origin:helix.origin,axis:helix.axis,radius:helix.radius,radiusEnd:helix.radiusEnd,pitch:helix.pitch,turns:helix.turns,height:helix.height,handedness:helix.handedness,startAngle:helix.startAngle,...(helix.pitchMode==='variable'?{pitchMode:helix.pitchMode,pitchRegions:cloneData(helix.pitchRegions)}:{})};
     pushUndo(t("createFeature")+" "+featureTypeLabel(type));
     var helixFeature=null;
     try{helixFeature=createFeatureDefinition(E.def,type,{references:{sketches:[profileSketch.id],features:[],topology:[],references:[helix.id]},params:params});}
@@ -8001,13 +8262,20 @@ async function createHoleFeature(options) {
   var target=selectedSolid() || (E.def && activeParts(E.def)[activeParts(E.def).length-1]);
   if(!target){flash(t("cmdNeedSolid"));return false;}
   var face=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
-  if(face && face.descriptor && face.descriptor.surface && face.descriptor.surface!=="plane"){flash(t("needPlanarFace"));return false;}
+  var radialSource=params.cylindricalSource || cylindricalHoleSource(E.def,face);
+  if(radialSource){params.cylindricalSource=radialSource;params.layout='sketch';}
+  if(face && face.descriptor && face.descriptor.surface && face.descriptor.surface!=="plane" && !radialSource){flash(t("needPlanarFace"));return false;}
   var profile=closedSketchProfile();
-  if(!profile && !face){flash(t("holeNeed"));return false;}
-  if(face && !attachSketchToSelectedFace()){flash(t("needPlanarFace"));return false;}
+  if(!profile && !face && !holePositionPointIds(ensureSketch(E.def)).length){flash(t("holeNeed"));return false;}
+  if(face && !radialSource && !attachSketchToSelectedFace()){flash(t("needPlanarFace"));return false;}
   var wizard=holeWizardSolids(params);
   var diameter=Math.max(.1, Number(wizard.hole.diameter)||Number(params.diameter)||1);
   profile=closedSketchProfile();
+  if(!params.layout || params.layout==="sketch"){
+    var positionIds=holePositionPointIds(ensureSketch(E.def));
+    if(positionIds.length){params.holePositionPointIds=positionIds;profile={entityIds:[]};}
+  }
+  if(radialSource){profile={entityIds:[]};}
   if(!profile){
     pushUndo(t("holeWizard"));
     var placementCircle=addSketchCircle({u:0,v:0},{u:Math.max(.25,diameter/2),v:0});
@@ -8030,7 +8298,7 @@ async function createHoleFeature(options) {
     try{
       feature=createFeatureDefinition(E.def,"hole",{
         inputs:targetFeatureId ? [targetFeatureId] : [],
-        references:{sketches:[sketch.id],features:targetFeatureId ? [targetFeatureId] : [],topology:topology,references:[],profileEntityIds:profile.entityIds},
+        references:{sketches:radialSource?[]:[sketch.id],features:targetFeatureId ? [targetFeatureId] : [],topology:topology,references:[],profileEntityIds:profile.entityIds},
         params:{...params,depth:wizard.hole.depth,diameter:diameter,profileEntityIds:profile.entityIds,sketchId:sketch.id,operation:"subtract",callout:callout},
       });
     }catch(error){H.discard();flash(String(error.message||error));return false;}
@@ -8039,7 +8307,7 @@ async function createHoleFeature(options) {
   var historyAtStart=H.tree().find(function(node){return node.current;})?.i;
   E._holeBuildPending=true;
   try {
-    records=holeCutRecords(params,sketch,profile.entityIds);
+    records=holeCutRecords(params,sketch,profile.entityIds,E.def);
     records.forEach(function(record){record.featureId=feature && feature.id;});
     if(wizard.hole.holeType.startsWith("tap")){
       var bounds=partBounds(target),threadPlacement=holeToolPlacements(records[0].params,{min:{x:bounds.x0,y:bounds.y0,z:bounds.z0},max:{x:bounds.x1,y:bounds.y1,z:bounds.z1}})[0];
@@ -8099,8 +8367,9 @@ function createThreadFeature(options) {
   var face=selectedCylindricalFace();
   var target=selectedSolid();
   if(!face && !target){flash(t("threadNeed"));return false;}
-  var origin=face&&face.descriptor&&face.descriptor.origin||{x:0,y:0,z:0};
-  var axis=face&&face.descriptor&&(face.descriptor.axis||face.descriptor.normal)||{x:0,y:1,z:0};
+  var placement=threadPlacementFromFace(face&&face.descriptor);
+  var origin=placement.origin,axis=placement.axis;
+  var targetFeatureId=target&&cutTargetFeatureId(target);
   var diameterMm=Number(params.diameterMm)||((face&&face.descriptor&&face.descriptor.radius||0)*20)||8;
   var spec=normalizeThreadSpec({...params,diameterMm:diameterMm,origin:origin,axis:axis,length:Number(params.length)||1.5});
   var check=validateThreadFeature(spec);
@@ -8110,8 +8379,8 @@ function createThreadFeature(options) {
   pushUndo(t("opThread"));
   try{
     if(isCanonicalAuthoring())createFeatureDefinition(E.def,"thread",{
-      inputs:target&&target.featureId?[target.featureId]:[],
-      references:{sketches:[],features:target&&target.featureId?[target.featureId]:[],topology:face?[cloneData(face)]:[],references:[]},
+      inputs:targetFeatureId?[targetFeatureId]:[],
+      references:{sketches:[],features:targetFeatureId?[targetFeatureId]:[],topology:face?[cloneData(face)]:[],references:[]},
       params:{...params,...spec},
     });
   }catch(error){H.discard();flash(String(error.message||error));return false;}
@@ -8168,7 +8437,8 @@ function createInsertFeature(options) {
 
 function insertToolboxFastener(kind, size, lengthMm, extra) {
   if(!kind){ showToolboxPicker(); return false; }
-  if(E.docType!=="part")setDocumentType("part");
+  var assemblyTarget=E.docType==="assembly" && E.assembly;
+  if(E.docType!=="part" && !assemblyTarget)setDocumentType("part");
   extra = extra || {};
   var modeled = kind==="hex-screw" || kind==="hex-bolt";
   var fastener=toolboxFastener(Object.assign({
@@ -8182,6 +8452,19 @@ function insertToolboxFastener(kind, size, lengthMm, extra) {
   if(fastener && fastener.ok===false){
     flash(fastener.message || t("toolboxFastener"));
     return false;
+  }
+  if(assemblyTarget){
+    S.idc=nextDocumentNumericId(assemblyTarget,S.idc);
+    var toolboxDef;
+    try{toolboxDef=assemblyToolboxDocument(fastener,{key:"cm_toolbox_"+Date.now().toString(36),nextId:uid});}
+    catch(error){flash(String(error.message || error));return false;}
+    pushUndo(t("toolboxFastener"));
+    var count=assemblyTarget.components.length;
+    var occurrence={id:uid(),modelKey:toolboxDef.key,name:toolboxDef.name,def:toolboxDef,visible:true,grounded:count===0,transform:{x:count*25,y:0,z:0,rx:0,ry:0,rz:0}};
+    assemblyTarget.components.push(occurrence);
+    invalidateInterference();E.componentSel=[occurrence];E.sel=occurrence;
+    lastToolboxPick={kind:kind,label:fastener.callout || kind};
+    refreshAll();fitPreview();flash("✓ "+fastener.callout);return true;
   }
   pushUndo(t("toolboxFastener"));
   var feature=null;
@@ -8327,22 +8610,65 @@ function pickToolboxSize(fam, done, extra) {
 }
 
 function showConfigurations() {
+  function refreshConfigurationGeometry(){
+    refreshAll();
+    // A circular sweep has no analytic stand-in. Switching a design-table row
+    // clears its old mesh, so the exact kernel body must be queued explicitly.
+    (E.def.parts||[]).filter(function(part){return isKernelBody(part)&&part.sketchSources?.kind==="circular-sweep"&&!part.meshData;}).forEach(scheduleKernelBody);
+    if(isCanonicalAuthoring())scheduleExactRestore();
+  }
   ensureConfigurations(E.def);
   var items=E.def.configurations.map(function(cfg){
     var active=cfg.id===E.def.activeConfiguration;
-    return {id:cfg.id,label:cfg.name+(active?" ●":""),hint:active?t("configSaved"):Object.keys(cfg.parameterOverrides||{}).length+" overrides"};
+    var size=cfg.designTableValues;
+    return {id:cfg.id,label:cfg.name+(active?" ●":""),hint:size?"Path Ø "+size.pathDiameterMm+" mm · profile Ø "+size.profileDiameterMm+" mm":active?t("configSaved"):Object.keys(cfg.parameterOverrides||{}).length+" overrides"};
   });
+  if(circularSweepTableRows(E.def))items.push({id:"__sweep_table__",label:"Edit circular-sweep design table",hint:"Default, Small, Medium and Large · path and profile diameters"});
+  items.push({id:"__edit__",label:"Rename active configuration",hint:"Name and description"});
+  items.push({id:"__capture__",label:"Update active configuration from model",hint:"Capture current dimensions, feature settings, suppression, material and properties"});
   items.push({id:"__new__",label:"+ "+t("configNew")});
   showPickList(t("configurations"), t("configurations"), items, function(item){
+    if(item.id==="__capture__"){
+      pushUndo(t("configurations"));
+      updateConfiguration(E.def,E.def.activeConfiguration,{capture:true});
+      refreshAll();flash("✓ Active configuration updated");return;
+    }
+    if(item.id==="__edit__"){
+      var current=E.def.configurations.find(function(cfg){return cfg.id===E.def.activeConfiguration;});
+      sheetForm("Configuration",[{key:"name",label:"Configuration name",value:current.name},{key:"description",label:"Description",value:current.description||""}],"Names identify configurations in parts, assemblies and drawings.").then(function(values){
+        if(!values)return;
+        pushUndo(t("configurations"));
+        try{updateConfiguration(E.def,current.id,values);refreshAll();flash("✓ Configuration renamed");}
+        catch(error){H.discard();flash(String(error.message||error),4000);}
+      });return;
+    }
+    if(item.id==="__sweep_table__"){
+      var rows=circularSweepTableRows(E.def);
+      var fields=rows.flatMap(function(row,index){return [
+        {key:"path"+index,label:row.name+" path Ø (mm)",value:String(row.pathDiameterMm)},
+        {key:"profile"+index,label:row.name+" profile Ø (mm)",value:String(row.profileDiameterMm)}
+      ];});
+      sheetForm("Circular-sweep design table",fields,"Large profile: the book screenshot shows 5 mm; its written step 254 says 10 mm. Enter the value you intend.").then(function(values){
+        if(!values)return;
+        var edited=rows.map(function(row,index){return {name:row.name,pathDiameterMm:Number(values["path"+index]),profileDiameterMm:Number(values["profile"+index])};});
+        pushUndo("Design table");
+        try{setCircularSweepDesignTable(E.def,edited);refreshConfigurationGeometry();flash("✓ Design table · 4 configurations");}
+        catch(error){H.discard();flash(String(error.message||error),4000);}
+      });
+      return;
+    }
     if(item.id==="__new__"){
       var name="Config "+(E.def.configurations.length+1);
-      pushUndo(t("configurations"));
-      captureConfiguration(E.def,{name:name});
-      flash("✓ "+t("configSaved")+" · "+name);refreshAll();return;
+      sheetForm("New configuration",[{key:"name",label:"Configuration name",value:name},{key:"description",label:"Description",value:""}],"Captures the current model. Edit dimensions and feature settings normally, then update the active configuration to retain the edits.").then(function(values){
+        if(!values)return;
+        pushUndo(t("configurations"));
+        try{var saved=captureConfiguration(E.def,values);flash("✓ "+t("configSaved")+" · "+saved.name);refreshAll();}
+        catch(error){H.discard();flash(String(error.message||error),4000);}
+      });return;
     }
     pushUndo(t("configurations"));
     setActiveConfiguration(E.def,item.id);
-    refreshAll();flash("✓ "+item.label.replace(" ●",""));
+    refreshConfigurationGeometry();flash("✓ "+item.label.replace(" ●",""));
   });
 }
 
@@ -8419,7 +8745,7 @@ function cutTargetFeatureId(target, document = E.def, built = null) {
   /* `built(id)`, when given, also stops the chain at a step the run did not
      build, so a failed last step leaves the body at the step before it. */
   var head = target.derivedFeatureId || target.featureId;
-  var modifiers = new Set(["fillet", "chamfer", "shell", "dome", "draft", "thicken", "rib", "extrudeCut", "revolveCut", "sweepCut", "hole", "moveBody"]);
+  var modifiers = new Set(["fillet", "chamfer", "shell", "dome", "draft", "thicken", "rib", "extrudeCut", "revolveCut", "sweepCut", "hole", "moveBody", "boolean"]);
   /* A step below the rollback bar (or suppressed in history) is not built, so it
      cannot be the body's head. Walking past it made the displayed body ask the
      regeneration for Shell1 after rolling HOUSING back to Boss-Battery; the run
@@ -8433,9 +8759,10 @@ function cutTargetFeatureId(target, document = E.def, built = null) {
   var orderedFeatures=(document.history || []).filter(function(entry){return entry.kind==='feature' && featureOrder.has(entry.targetId);}).map(function(entry){var feature=featureOrder.get(entry.targetId);featureOrder.delete(entry.targetId);return feature;});
   orderedFeatures.push(...featureOrder.values());
   orderedFeatures.forEach(function (feature) {
-    if (!feature.suppressed && !inactive.has(feature.id) && (modifiers.has(feature.type) || (feature.type==="pattern" && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).includes(head)
+    if (!feature.suppressed && !inactive.has(feature.id) && (modifiers.has(feature.type) || (feature.type==="thread" && feature.params?.mode==="modeled") || (["pattern","mirror"].includes(feature.type) && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).includes(head)
       // a Move with Copy made a second body; the original does not move with it
       && (feature.type !== "moveBody" || !leavesInputStanding(document, feature))
+      && (feature.type !== "boolean" || !feature.params?.keepTools || feature.inputs[0]===head)
       && (!built || built(feature.id))) head = feature.id;
   });
   return head && (!built || built(head)) ? head : null;
@@ -8447,18 +8774,21 @@ function cutTargetFeatureId(target, document = E.def, built = null) {
    part now shows the last step of its chain that did build, flagged with the
    failure; a part none of whose steps built loses its mesh. Returns the parts
    whose display changed. */
-async function publishExactBodies(parts, run, document, meshOf) {
+async function publishExactBodies(parts, run, document, meshOf, isCurrent=function(){return true;}) {
   var failed = (run.issues || []).find(function (issue) { return issue.code === "regeneration-failed"; });
   var failure = run.ok ? null : failed ? failed.message : "The body could not be rebuilt";
-  var built = function (id) { var result = run.results.get(id); return !!(result && result.shape); };
+  var built = function (id) { var result = run.results.get(id); return !!(result && (result.shape || (result.verifiedSerializedExact===true && result.workerMeshData && !result.invalid && !result.approximate))); };
   var changed = [];
   for (var part of parts) {
+    if(!isCurrent())return changed;
     var head = cutTargetFeatureId(part, document);
     if (!head) continue;
     var shown = run.ok ? head : cutTargetFeatureId(part, document, built);
     var body = shown ? run.results.get(shown) : null;
-    if (body && body.shape) {
-      part.meshData = await meshOf(body);
+    if (body && built(shown)) {
+      var mesh=await meshOf(body);
+      if(!isCurrent())return changed;
+      part.meshData = mesh;
       part.exactError = shown === head ? null : failure;
     } else if (run.ok) continue;
     else { delete part.meshData; part.exactError = failure; }
@@ -8496,6 +8826,7 @@ function createRevolveCutFeature(options) {
 }
 
 function clearFeaturePreview(refresh) {
+  cancelCadWorkerWork('finish');
   E._instant3dPose = null;
   if(E.authoring){E.authoring.patternOverlap=false;E.authoring.finishPreviewStatus=null;}
   if(!E.authoring)return;E.authoring.previewParts=[];E.authoring.previewReplacesPartId=null;
@@ -8514,7 +8845,7 @@ function clearFeaturePreview(refresh) {
 /* The live preview shows what the feature will do — so it shows every area the
    feature will act on, one ghost body each. */
 function extrudePreviewParts(type,params) {
-  var areas=sketchFeatureAreas();if(!areas.length)return [];
+  var areas;try{areas=extrusionSketchAreas(params);}catch(error){return [];}if(!areas.length)return [];
   var sketch=ensureSketch(E.def);
   // Local distances already follow the frame normal. Multiplying by its world
   // sign again reverses previews on back-facing supports.
@@ -8538,7 +8869,7 @@ function extrudePreviewParts(type,params) {
 }
 
 function finishCommandActive() {
-  return !!(E.authoring && ["fillet", "chamfer"].includes(E.authoring.featureType) && !E.authoring.featureEdit);
+  return !!(E.authoring && ["fillet", "chamfer"].includes(E.authoring.featureType));
 }
 
 function overlayEdgesOnFace(part, face, mesh) {
@@ -8623,12 +8954,27 @@ function currentFinishEdges() {
 function setFinishEdges(edges, options) {
   var part = selectedSolid();
   var faces = (edges || []).filter(function (reference) { return reference && reference.kind === "face"; });
-  var canonical = canonicalFinishEdges((edges || []).filter(function (reference) { return reference && reference.kind === "edge"; }), part);
-  E.topologySelection = dedupeFinishRefs(faces.concat(canonical));
+  var edgeRefs=(edges || []).filter(function(reference){return reference && reference.kind==="edge";});
+  var canonical = E.authoring?.featureEdit && E.authoring.finishEditTopology ? dedupeFinishRefs(edgeRefs) : canonicalFinishEdges(edgeRefs, part);
+  E.topologySelection = canonicalFeatureTopologyReferences(E.def,dedupeFinishRefs(faces.concat(canonical)));
   if (options && options.pool) {
     E.authoring.finishEdgePool = E.topologySelection.map(function (reference) { return reference.persistentId; });
   }
   syncActiveFeatureSelectionFeedback();
+  if (E.authoring?.featureEdit && ["fillet","chamfer"].includes(E.authoring.featureType)) {
+    var edited=(E.def.features || []).find(function(feature){return feature.id===E.authoring.featureEdit.featureId;});
+    if(edited){
+      edited.references.topology=cloneData(E.topologySelection);
+      if(edited.type==="fillet" && Array.isArray(edited.params.edgeRadii)){
+        var selectedIds=new Set(E.topologySelection.map(function(reference){return reference.persistentId;}));
+        edited.params.edgeRadii=edited.params.edgeRadii.filter(function(entry){return selectedIds.has(entry.id);});
+      }
+      (E.def.parts || []).forEach(function(item){(item.exactOperations || []).forEach(function(operation){if(operation.id===edited.id)operation.targets=cloneData(edited.references.topology);});});
+      syncLiveFeatureEdit(edited);
+      renderFinishEdgeList();
+    }
+    return;
+  }
   if (E.authoring && E.authoring.featureType && E.authoring.featurePreviewState && !E.authoring.featureEdit) {
     queueNewFeaturePreview(E.authoring.featureType, E.authoring.featurePreviewState, E.authoring.featurePreviewBadge);
     return;
@@ -8800,6 +9146,7 @@ function selectedTopologyFaces() {
    scoping to the face is the whole point of picking one. Only a body-level
    selection sweeps the entire solid. */
 function allCandidateFinishEdges(part) {
+  if(E.authoring?.featureEdit && E.authoring.finishEditTopology)return dedupeFinishRefs(E.authoring.finishEditTopology.filter(function(entry){return entry.kind==="edge";}).map(topologyReferenceFromEntry));
   if (!part) return [];
   if (!authoritativeFinishTopology(part)) return [];
   var overlay = overlayEntriesForPart(part, null);
@@ -8841,22 +9188,23 @@ function filletEdgeRadiusEntry(params, persistentId, create) {
    fail on that edge alone. */
 function filletEdgeRadiusInput(row, reference, key, params) {
   var field = el("label", "md-finish-edge-radius");
-  field.appendChild(el("span", "", t(key === "radius" ? "edgeRadiusStart" : "edgeRadiusEnd")));
+  var unit=modelLengthUnit();
+  field.appendChild(el("span", "", t(key === "radius" ? "edgeRadiusStart" : "edgeRadiusEnd")+" ("+unit+")"));
   var input = el("input");
   input.type = "number";
   input.min = "0";
-  input.step = "0.1";
+  input.step = "any";
   input.dataset.edgeRadius = key;
   input.dataset.edgeId = reference.persistentId;
   var entry = filletEdgeRadiusEntry(params, reference.persistentId, false);
-  input.value = entry && Number(entry[key]) > 0 ? String(entry[key]) : "";
+  input.value = entry && Number(entry[key]) > 0 ? String(lengthToDocument(entry[key],unit)) : "";
   input.addEventListener("input", function () {
     /* Read the live params object, not the one captured at render time: every
        form edit replaces state.params with a fresh spread, so a closed-over
        reference would collect radii nobody would ever apply. */
     var live = activeFilletParams();
     if (!live) return;
-    var value = Number(input.value);
+    var value = lengthFromDocument(Number(input.value),unit);
     if (input.value === "" || !Number.isFinite(value) || value <= 0) {
       var existing = filletEdgeRadiusEntry(live, reference.persistentId, false);
       if (existing) delete existing[key];
@@ -8864,7 +9212,10 @@ function filletEdgeRadiusInput(row, reference, key, params) {
         live.edgeRadii = live.edgeRadii.filter(function (item) { return item !== existing; });
       }
     } else filletEdgeRadiusEntry(live, reference.persistentId, true)[key] = value;
-    if (E.authoring.featurePreviewState) {
+    if (E.authoring.featureEdit) {
+      var feature=(E.def.features || []).find(function(item){return item.id===E.authoring.featureEdit.featureId;});
+      if(feature)syncLiveFeatureEdit(feature);
+    } else if (E.authoring.featurePreviewState) {
       queueNewFeaturePreview("fillet", E.authoring.featurePreviewState, E.authoring.featurePreviewBadge);
     }
   });
@@ -8891,22 +9242,24 @@ function renderFinishEdgeList() {
   var host = root && root.querySelector("#mdQuickSettings [data-finish-edges]");
   if (!host) return;
   var part = selectedSolid();
+  if(!part && E.authoring?.featureEdit){var finishBodies=activeParts(E.def).filter(partSupportsExactMesh);if(finishBodies.length===1)part=finishBodies[0];}
   var edges = currentFinishEdges();
   var filletParams = activeFilletParams();
   if(filletParams?.fullRound){
     host.dataset.edgeSignature="";host.innerHTML="";
-    host.appendChild(el("p","md-finish-edges-hint","Select side face 1, the center face, then side face 2. The sides must have parallel straight boundaries on a planar center face."));
+    host.appendChild(el("p","md-finish-edges-hint","Select wall 1, the flat land, then wall 2. The walls need parallel straight or concentric circular boundaries on the land."));
     if(!part){var bodies=activeParts(E.def).filter(partSupportsExactMesh);if(bodies.length===1)part=bodies[0];}
     var selectedFaces=(E.topologySelection || []).filter(function(reference){return reference.kind==="face";});
-    var availableFaces=part ? topologyEntriesForPart(part).filter(function(reference){return reference.kind==='face'&&reference.descriptor?.surface==='plane';}) : [];
+    var availableFaces=part ? topologyEntriesForPart(part).filter(function(reference){return reference.kind==='face'&&["plane","cylinder"].includes(reference.descriptor?.surface);}) : [];
     ["Side face 1","Center face","Side face 2"].forEach(function(role,index){
       var label=el("label","md-feature-field"),select=document.createElement('select');
       label.appendChild(document.createTextNode(role));select.setAttribute('aria-label',role);
       var empty=document.createElement('option');empty.value='';empty.textContent='Pick in viewport or choose a face';select.appendChild(empty);
-      availableFaces.forEach(function(reference){
+      var roleFaces=availableFaces.filter(function(reference){return index!==1||reference.descriptor.surface==="plane";});
+      roleFaces.forEach(function(reference){
         var option=document.createElement('option'),d=reference.descriptor,o=d.origin||{},n=d.normal||{};
         option.value=reference.persistentId;
-        option.textContent='Center ('+[o.x,o.y,o.z].map(function(v){return Number(v||0).toFixed(3);}).join(', ')+') cm · normal ('+[n.x,n.y,n.z].map(function(v){return Number(v||0).toFixed(2);}).join(', ')+')';
+        option.textContent=d.surface+' · center ('+[o.x,o.y,o.z].map(function(v){return modelLengthText(Number(v||0),5);}).join(', ')+') '+modelLengthUnit()+(d.surface==="cylinder"?' · R '+modelLengthText(d.radius,5)+' '+modelLengthUnit():' · normal ('+[n.x,n.y,n.z].map(function(v){return Number(v||0).toFixed(2);}).join(', ')+')');
         option.disabled=selectedFaces.some(function(face,other){return other!==index&&face.persistentId===reference.persistentId;});
         select.appendChild(option);
       });
@@ -8940,6 +9293,7 @@ function renderFinishEdgeList() {
     + (part?.id || "") + "|" + candidates.map(function(reference){return reference.persistentId;}).join(",")
     + "|" + edges.map(function (reference) { return reference.persistentId; }).join("|");
   if (host.dataset.edgeSignature === signature) return;
+  var browseOpen=!!host.querySelector(".md-edge-browser")?.open || host.dataset.edgeBrowserOpen==="true";
   host.dataset.edgeSignature = signature;
   host.innerHTML = "";
   var head = el("div", "md-finish-edges-head");
@@ -8968,6 +9322,8 @@ function renderFinishEdgeList() {
   host.appendChild(head);
   if(part){
     var browser=el("details","md-edge-browser"),summary=el("summary","","Browse body edges");
+    browser.open=browseOpen;
+    browser.addEventListener("toggle",function(){host.dataset.edgeBrowserOpen=String(browser.open);});
     browser.appendChild(summary);
     var choices=el("div","md-edge-browser-choices");
     candidates.forEach(function(reference,index){
@@ -9089,13 +9445,14 @@ function approximateFinishPreviewParts(type,state,source) {
 /* Exact finish previews are debounced so dragging a radius scrubber does not
    queue a kernel build for every pointer event.  The source body remains
    untouched and the latest token alone is allowed to replace the preview. */
-async function exactFinishPreviewBody(preview,type) {
+async function exactFinishPreviewBody(preview,type,onProgress) {
   /* Draft belongs here too: on a merged body its faces (HOUSING's Shell1 rim
      and wall) exist only on the rebuilt display body, never on the analytic
      part exactBrepForPart would rebuild, so the preview stayed "unavailable"
      and OK stayed disabled. */
   if(!isCanonicalAuthoring() || !["fillet","chamfer","shell","dome","draft"].includes(type))return exactBrepForPart(preview);
   var operation=preview.exactOperations[preview.exactOperations.length-1];
+  if(cadWorkerAvailable())return finishInCadWorker(E.def,cutTargetFeatureId(preview,E.def),type,operation,{onProgress});
   var display=await exactDisplayBody(preview);
   try{
     var registry=createTopologyRegistry(display.brep.topology || []);
@@ -9117,7 +9474,9 @@ async function exactFinishPreviewBody(preview,type) {
 }
 
 function queueExactFeaturePreview(preview,type,liveBadge) {
+  cancelCadWorkerWork('finish');
   var token=(E._featurePreviewToken || 0)+1;E._featurePreviewToken=token;
+  var sourceDocument=E.def,sourceHistorySignature=finishPreviewHistorySignature();
   if(E._featureExactPreviewTimer)clearTimeout(E._featureExactPreviewTimer);
   /* Two different claims: with an approximation on screen the badge must not
      say the views are synced or exact — it says the picture is approximate. */
@@ -9129,11 +9488,18 @@ function queueExactFeaturePreview(preview,type,liveBadge) {
   E._featureExactPreviewTimer=setTimeout(async function(){
     E._featureExactPreviewTimer=0;var brep=null;
     try{
-      brep=await exactFinishPreviewBody(preview,type);
+      brep=await exactFinishPreviewBody(preview,type,function(progress){
+        if(token!==E._featurePreviewToken || !liveBadge)return;
+        liveBadge.textContent="Computing exact "+type+" · "+(progress.name || progress.stage);
+      });
+      if(brep.approximate || brep.invalid)throw new Error(brep.approximate || "The exact finish is invalid");
       var meshData=await shapeToMeshData(brep,{deflection:.24,angle:.16});
       meshData.topology=cloneData(brep.topology || []);
       if(token!==E._featurePreviewToken || !E.authoring || !finishPreviewIsLive(preview))return;
       preview.meshData=meshData;preview.exactError=null;
+      preview.verifiedProof={document:sourceDocument,type,sourceId:preview.id,token,
+        historySignature:sourceHistorySignature,params:cloneData(preview.exactOperations.at(-1)?.params),
+        targets:cloneData(preview.exactOperations.at(-1)?.targets)};
       E.authoring.finishPreviewStatus="ready";
       syncContextActions();
       adoptExactFinishPreview(preview);   // the approximation has served its purpose
@@ -9154,7 +9520,7 @@ function queueExactFeaturePreview(preview,type,liveBadge) {
         var caption=/no resolved edges/i.test(message)?t("previewNoResolvedEdges"):/fillet failed/i.test(message)?t("previewFilletConflict"):/chamfer failed/i.test(message)?t("previewRadiusTooLarge"):type==="shell"?"Shell could not be built · check thickness and opening faces":t("previewUnavailable");
         liveBadge.classList.remove("approx");liveBadge.setAttribute("data-preview-state","error");
         liveBadge.innerHTML='<i class="ph ph-warning"></i> '+caption;
-        if(type==='fillet' && activeFilletParams()?.fullRound)liveBadge.appendChild(document.createTextNode(' · '+message));
+        if(type==='shell' || (type==='fillet' && (activeFilletParams()?.fullRound || /valid closed solid/.test(message))))liveBadge.appendChild(document.createTextNode(' · '+message));
         liveBadge.title=message;   // the caption is a guess; keep the real reason reachable
       }
     }finally{if(brep)disposeBrep(brep);}
@@ -9327,10 +9693,14 @@ function syncNewFeaturePreview(type,state,liveBadge) {
   E.authoring.previewReplacesPartId=null;
   E.authoring.patternOverlap=false;
   if(type==="hole"){
-    var holeTarget=selectedSolid(),holeProfile=closedSketchProfile();
+    var holeTarget=selectedSolid(),holeSketch=ensureSketch(E.def),holeProfile=closedSketchProfile(),holePreviewParams={...state.params};
+    if(!holePreviewParams.layout || holePreviewParams.layout==="sketch"){
+      var previewPositionIds=holePositionPointIds(holeSketch);
+      if(previewPositionIds.length){holePreviewParams.holePositionPointIds=previewPositionIds;holeProfile={entityIds:[]};}
+    }
     if(holeTarget && holeProfile){
       try{
-        var holeBounds=partBounds(holeTarget),holeRecords=holeCutRecords(state.params,ensureSketch(E.def),holeProfile.entityIds);
+        var holeBounds=partBounds(holeTarget),holeRecords=holeCutRecords(holePreviewParams,holeSketch,holeProfile.entityIds,E.def);
         previews=holePreviewParts(holeRecords,{min:{x:holeBounds.x0,y:holeBounds.y0,z:holeBounds.z0},max:{x:holeBounds.x1,y:holeBounds.y1,z:holeBounds.z1}}).map(function(part,i){return {...part,id:"preview:hole:"+i,previewOnly:true,color:"#d75a4a",opacity:.42,metal:.04,rough:.68,name:"Hole cutter"};});
       }catch(error){if(liveBadge)liveBadge.textContent=String(error.message || error);}
     }
@@ -9340,7 +9710,8 @@ function syncNewFeaturePreview(type,state,liveBadge) {
     /* The cut shows the tool it will remove, in the cut colour, the way
        extrudePreviewParts draws a red prism for Extrude Cut. */
     var revCut=type==="revolveCut";
-    var profile;try{profile=revolveSketchProfile({...state.params,axisReference:state.references.axis});}catch(error){if(liveBadge)liveBadge.textContent=String(error.message||error);}if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:revolvePreviewPoints(ensureSketch(E.def),profile.points,state.params),axis:state.params.axis || String(state.references.axis || "axis:y").split(":")[1],angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:revCut?"#d75a4a":"#6f8de8",opacity:revCut?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)});
+    var previewAxis=revolvePreviewAxis(state.params,state.references);
+    var profile;try{profile=revolveSketchProfile({...state.params,axis:previewAxis,axisReference:state.references.axis});}catch(error){if(liveBadge)liveBadge.textContent=String(error.message||error);}if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:revolvePreviewPoints(ensureSketch(E.def),profile.points,{...state.params,axis:previewAxis}),axis:previewAxis,angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:revCut?"#d75a4a":"#6f8de8",opacity:revCut?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)});
   } else if(type==="pattern"){
     var seed=selectedSolid(),count=Math.max(2,Math.min(100,Math.round(Number(state.params.count)||2))),circularStep=circularPatternStepDegrees(state.params,count)*Math.PI/180,placements=patternPlacements(state.params),patternInstances=[];
     if(seed && state.params.scope!=="feature")placements.forEach(function(placement,index){var copy=clonePartForLivePreview(seed);copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;placePatternCopy(copy,state.params,placement,circularStep);copy.patternGridIndex=placement.indices;previews.push(copy);patternInstances.push({part:copy,transform:patternPlacementTransform(state.params,placement,circularStep)});});
@@ -9393,6 +9764,19 @@ function finishPreviewIsLive(preview) {
   return (E.authoring.previewParts || []).includes(preview) || E.authoring.pendingExactPreview===preview;
 }
 
+function finishPreviewHistorySignature() {
+  return JSON.stringify({features:E.def.features || [],sketches:E.def.sketches || []});
+}
+
+function readyShellPreviewMatches(params) {
+  var preview=E.authoring?.pendingExactPreview,operation=preview?.exactOperations?.at(-1);
+  return E.authoring?.finishPreviewStatus==="ready" && preview?.meshData && finishPreviewIsLive(preview)
+    && finishPreviewProofMatches(preview.verifiedProof,{
+      document:E.def,type:"shell",sourceId:selectedSolid()?.id,token:E._featurePreviewToken,
+      historySignature:finishPreviewHistorySignature(),params,targets:finishFeatureTargets("shell"),
+    }) && operation?.type==="shell";
+}
+
 /* Retire the approximation in favour of the exact body it stood in for. */
 function adoptExactFinishPreview(preview) {
   if(!E.authoring)return;
@@ -9424,6 +9808,7 @@ function finishSelectionMessage(type) {
 
 function syncActiveFeatureSelectionFeedback() {
   if(!root || !E.authoring || !E.authoring.featureType)return;
+  if(E.authoring.featurePreviewState?.syncTerminatingFace)E.authoring.featurePreviewState.syncTerminatingFace();
   var note=root.querySelector("#mdQuickSettings [data-live-selection]");
   if(!note)return;
   var type=note.getAttribute("data-live-selection");
@@ -9458,6 +9843,42 @@ function addFinishScrubber(host,type,controls) {
   var note=host.querySelector(".md-feature-selection-note");host.insertBefore(wrap,note || null);
 }
 
+/* A face sketch may enclose several independent regions (three concentric
+   circles enclose a ring and a centre disk). Let the boss PropertyManager
+   choose the material by region, even after Finish sketch has hidden the 2D
+   canvas. Empty selection deliberately means the usual all-contour workflow. */
+function addBossContourChoices(host,state,liveBadge) {
+  var areas=sketchFeatureAreas(true);
+  if(areas.length<2)return;
+  var picker=el("fieldset","md-contour-picker");
+  picker.appendChild(el("legend","",t("featureContours")));
+  var hint=el("small","",t("featureContoursHint"));picker.appendChild(hint);
+  var choices=el("div","md-contour-choices");picker.appendChild(choices);
+  var all=btn(t("featureAllContours"),function(){state.contourKeys=[];sync();},"md-contour-choice");
+  choices.appendChild(all);
+  var choicesByArea=areas.map(function(area,index){
+    var key=featureContourKey(area);
+    var label=t("featureContour")+" "+(index+1)+(area.holes.length?" · "+t("featureRing"):"");
+    var button=btn(label,function(){
+      var active=state.contourKeys || [];
+      state.contourKeys=active.includes(key)?active.filter(function(item){return item!==key;}):active.concat(key);
+      sync();
+    },"md-contour-choice");
+    choices.appendChild(button);
+    return {key:key,button:button};
+  });
+  function renderSelection(){
+    all.setAttribute("aria-pressed",String(!state.contourKeys.length));
+    choicesByArea.forEach(function(choice){choice.button.setAttribute("aria-pressed",String(state.contourKeys.includes(choice.key)));});
+  }
+  function sync(){
+    renderSelection();
+    syncNewFeaturePreview("extrude",state,liveBadge);refreshAll();
+  }
+  renderSelection();
+  host.insertBefore(picker,host.querySelector(".md-feature-group") || host.querySelector(".md-feature-selection-note") || null);
+}
+
 /* Which parameter each of these means by "the amount", for repeat-last. */
 var REPEATABLE_AMOUNT = { fillet: "radius", chamfer: "distance", shell: "thickness" };
 
@@ -9466,6 +9887,44 @@ function rememberFinishAmount(type, params) {
   if (!key || !params || !fin(Number(params[key]))) return;
   E.lastFinishAmount = Object.assign({}, E.lastFinishAmount);
   E.lastFinishAmount[type] = Number(params[key]);
+}
+
+function addTerminatingFaceChoices(host,type,state,liveBadge,controls) {
+  if(type!=="extrude" && type!=="extrudeCut")return null;
+  var inactive=new Set();
+  (E.def.history || []).forEach(function(entry,index){
+    if(entry.suppressed || historyEntryRolled(E.def,index))inactive.add(entry.targetId);
+  });
+  var history=(E.def.features || []).filter(function(feature){return !feature.suppressed && !inactive.has(feature.id);});
+  var allowed=new Set(history.map(function(feature){return feature.id;}));
+  var choices=planarMateFaceChoices(activeParts(E.def).flatMap(topologyEntriesForPart).filter(function(entry){
+    var owner=String(entry.ownerFeatureId || "");
+    return allowed.has(owner) || history.some(function(feature){return owner.startsWith(feature.id+":");});
+  }),history);
+  var row=el("label","md-row md-row-wide"),select=document.createElement("select");
+  row.appendChild(el("span","t",t("terminatingFace")));
+  select.setAttribute("aria-label",t("terminatingFace"));
+  var placeholder=document.createElement("option");placeholder.value="";placeholder.textContent=t("terminatingFace");select.appendChild(placeholder);
+  choices.forEach(function(choice){var option=document.createElement("option");option.value=choice.entry.persistentId;option.textContent=choice.label;select.appendChild(option);});
+  row.appendChild(select);host.appendChild(row);
+  state.syncTerminatingFace=function(){
+    row.hidden=!isUpToFace(state.params.endCondition);
+    var face=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
+    select.value=face?.persistentId || "";
+  };
+  select.addEventListener("change",function(){
+    var chosen=choices.find(function(choice){return choice.entry.persistentId===select.value;});
+    // Selecting a terminating face changes only the extrusion reference. In
+    // particular it must not activate the sketch that produced that face.
+    E.topologySelection=chosen ? [topologyReferenceFromEntry(chosen.entry)] : [];
+    E.collectingFeature=false;
+    syncActiveFeatureSelectionFeedback();
+    queueNewFeaturePreview(type,state,liveBadge);
+  });
+  var endControl=(controls || []).find(function(control){return control.field.key==="endCondition";});
+  if(endControl)endControl.input.addEventListener("change",state.syncTerminatingFace);
+  state.syncTerminatingFace();
+  return row;
 }
 
 function openParametricFeature(type, repeatedParams) {
@@ -9477,7 +9936,12 @@ function openParametricFeature(type, repeatedParams) {
   if(E.authoring.featureEdit)cancelFeatureParameterEdit(true);
   clearFeaturePreview(false);E.authoring.featureType=type;E.authoring.phase="model";E.quickAction=type;host.hidden=false;host.innerHTML="";
   host.appendChild(el("div","md-feature-form-title",'<i class="ph '+spec.icon+'"></i><span><b>'+featureTypeLabel(type)+'</b><small>'+t("featureFormHint")+'</small></span>'));
-  var state={type:type,params:featureDefaults(type),references:{}};
+  var state={type:type,params:featureDefaults(type),references:{},contourKeys:[]};
+  if(type==='hole'){
+    var cylinderFace=(E.topologySelection || []).find(function(ref){return ref.kind==='face';});
+    var cylinderSource=cylindricalHoleSource(E.def,cylinderFace);
+    if(cylinderSource){state.params.cylindricalSource=cylinderSource;state.params.cylinderTopDistance=.635;state.params.cylinderAngle=0;}
+  }
   if(type==="helix"){
     var helixCircle=(ensureSketch(E.def).entities || []).find(function(e){return e.type==="circle"&&!e.construction;});if(helixCircle)state.params.radius=helixCircle.r;
   }
@@ -9491,9 +9955,18 @@ function openParametricFeature(type, repeatedParams) {
   }
   if(type==="pattern"){
     var patternSeed=(E.def.features || []).find(function(feature){return (E.authoring.featureSelection || []).includes(feature.id) && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length;});
-    if(patternSeed){state.params.scope="feature";state.params.seedFeatureId=patternSeed.id;}
+    if(patternSeed){
+      state.params.scope="feature";
+      state.params.seedFeatureId=patternSeed.id;
+      state.params.axis=circularPatternAxisFromHistory(E.def.features,patternSeed.id,state.params.axis);
+    }
+  }
+  if(type==="mirror"){
+    var mirrorSeed=(E.def.features || []).find(function(feature){return (E.authoring.featureSelection || []).includes(feature.id) && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length;});
+    if(mirrorSeed){state.params.scope="feature";state.params.seedFeatureId=mirrorSeed.id;state.params.seedFeatureIds=(E.def.features || []).filter(function(feature){return (E.authoring.featureSelection || []).includes(feature.id) && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length;}).map(function(feature){return feature.id;});}
   }
   if(type==="revolve"||type==="revolveCut"){state.params.useSketchPlane=true;state.params.thinFeature=!closedSketchProfile();}
+  if(type==="extrude"||type==="extrudeCut")state.params.thinFeature=!closedSketchProfile();
   /* Repeat-last: a second fillet reuses the radius the first one was given.
      Extrude already works this way through E.depth; fillet and chamfer did not,
      so every edge in a run of identical rounds was retyped. The feature is
@@ -9514,6 +9987,8 @@ function openParametricFeature(type, repeatedParams) {
   var liveBadge=el("div","md-feature-live",'<i class="ph ph-broadcast"></i> '+t("livePreviewReady"));host.appendChild(liveBadge);
   E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;
   var controls=renderFeatureParameterForm(host,type,state,function(next){state.params=next.params;state.references={...state.references,...next.references};E.depth=Number(state.params.depth)||E.depth;E.baseOff=Number(state.params.offset)||0;if(type==="fillet")renderFinishEdgeList();queueNewFeaturePreview(type,state,liveBadge);});
+  addTerminatingFaceChoices(host,type,state,liveBadge,controls);
+  if(type==="extrude")addBossContourChoices(host,state,liveBadge);
   var selectionNote=el("div","md-feature-selection-note");
   selectionNote.setAttribute("data-live-selection",type);host.appendChild(selectionNote);syncActiveFeatureSelectionFeedback();addFinishScrubber(host,type,controls);
   if(["fillet","chamfer"].includes(type)){
@@ -9573,8 +10048,16 @@ function openParametricFeature(type, repeatedParams) {
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("quickApply"),async function(){
     if (!validateFeatureInputs(host)) return;
     if (FINISH_FEATURES.includes(type) && !featureSelectionReady()) return;
-    var values=readFeatureParameterForm(controls,state.params),params=values.params,ok=false;state.references={...state.references,...values.references};clearFeaturePreview(false);
-    if(type==="extrude"||type==="extrudeCut")ok=await extrudeClosedSketch({type:type,...params});
+    // A new body step can invalidate cached generated names used by later
+    // features. Keep the last verified status until the exact history catches
+    // up, just as a committed feature edit does.
+    var restoreExact=isCanonicalAuthoring();
+    var values=readFeatureParameterForm(controls,state.params),params=values.params,ok=false;
+    var shellPreviewVerified=type==="shell" && readyShellPreviewMatches(params);
+    state.references={...state.references,...values.references};clearFeaturePreview(false);
+    if(restoreExact){E.exactRestoring=true;coreRunFresh=true;}
+    try {
+    if(type==="extrude"||type==="extrudeCut")ok=await extrudeClosedSketch({type:type,...params,contourKeys:type==="extrude"?state.contourKeys:null});
     else if(type==="revolve")ok=createRevolveFeature({...params,axisReference:state.references.axis});
     else if(type==="revolveCut")ok=createRevolveCutFeature({...params,axisReference:state.references.axis});
     else if(type==="sweepCut")ok=createMultiSketchFeature("sweepCut",params);
@@ -9585,7 +10068,7 @@ function openParametricFeature(type, repeatedParams) {
     else if(type==="insert")ok=createInsertFeature(params);
     else if(type==="sweep"||type==="loft")ok=createMultiSketchFeature(type,params);
     else if(type==="fillet"||type==="chamfer")ok=await quickRoundPart(type,params);
-    else if(type==="shell")ok=await quickShellPart(params);
+    else if(type==="shell")ok=await quickShellPart(params,shellPreviewVerified);
     else if(type==="dome")ok=quickDomePart(params);
     else if(type==="draft")ok=quickDraftPart(params);
     else if(type==="thicken")ok=quickThickenPart(params);
@@ -9595,14 +10078,21 @@ function openParametricFeature(type, repeatedParams) {
     else if(type==="pattern")ok=quickPatternPart(params);
     else if(type==="mirror"){E.authoring.referenceId=state.references.plane;ok=quickMirrorPart({...params,planeReference:state.references.plane});}
     else if(type==="boolean"){
-      var ids=selectedFeatureIds();if(ids.length<2){flash(t("booleanNeedTwo"));syncNewFeaturePreview(type,state);refreshAll();return;}
-      pushUndo(t("createBoolean"));try{createFeatureDefinition(E.def,"boolean",{inputs:ids.slice(0,2),references:{sketches:[],features:ids.slice(0,2),topology:[],references:[]},params:params});ok=true;refreshAll();}catch(error){H.discard();flash(String(error.message||error));}
+      var ids=selectedFeatureIds();if(ids.length<2){E.exactRestoring=false;coreRunFresh=false;flash(t("booleanNeedTwo"));syncNewFeaturePreview(type,state);refreshAll();return;}
+      pushUndo(t("createBoolean"));try{
+        var combined=createFeatureDefinition(E.def,"boolean",{inputs:ids.slice(0,2),references:{sketches:[],features:ids.slice(0,2),topology:[],references:[]},params:params});
+        E.sel=activeParts(E.def).find(function(part){return cutTargetFeatureId(part)===combined.id;}) || null;
+        E.topologySelection=[];E.ssel=[];ok=true;refreshAll();
+      }catch(error){H.discard();flash(String(error.message||error));}
     }
+    } catch(error) { E.exactRestoring=false;coreRunFresh=false;flash(String(error.message||error));return; }
     if(ok){
       var reusable = {};
       controls.forEach(function(control){ if(control.field.key[0] !== "$" && ["number","boolean","select"].includes(control.field.type)) reusable[control.field.key] = params[control.field.key]; });
       E.lastOperation = {type:type, params:cloneData(reusable)};
-      rememberFinishAmount(type,params);E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();}else{E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
+      rememberFinishAmount(type,params);E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();
+      if(restoreExact){if(exactRunIsCurrent(false))E.exactRestoring=false;else scheduleExactRestore();}
+    }else{E.exactRestoring=false;coreRunFresh=false;E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
   },"md-quick-apply"));host.appendChild(actions);
   syncNewFeaturePreview(type,state,liveBadge);refreshAll();syncAuthoringWorkflow();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
@@ -10174,7 +10664,7 @@ function showViewSelector() {
   host.hidden = false;
   host.innerHTML = "";
   host.appendChild(el("div", "md-overlay-caption", t("viewSelector")));
-  var labels = { front: t("view_front"), top: t("view_top"), right: t("view_right"), back: t("view_back"), left: t("view_left"), iso: t("isoView"), normalTo: t("normalTo") };
+  var labels = { front: t("view_front"), top: t("view_top"), bottom: t("view_bottom"), right: t("view_right"), back: t("view_back"), left: t("view_left"), iso: t("isoView"), normalTo: t("normalTo") };
   VIEW_PRESETS.forEach(function (preset) {
     var button = el("button", "", (labels[preset.id] || preset.id) + (preset.shortcut ? " · " + preset.shortcut : ""));
     button.type = "button";
@@ -10263,6 +10753,15 @@ function finishActiveCommand() {
 }
 
 function cancelActiveCommand() {
+  if(E.quickAction){
+    var quickCancel=root && root.querySelector('.md-quick-cancel');
+    if(quickCancel){
+      var quickActions=quickCancel.closest('.md-feature-actions');
+      if(quickActions && quickActions.hidden)quickActions.hidden=false;
+      quickCancel.click();return;
+    }
+  }
+  cancelCadWorkerWork();
   var corner = confirmationCornerState(currentCornerInput());
   if (corner.mode === "feature") {
     if (E.authoring && E.authoring.featureEdit) cancelFeatureParameterEdit(false);
@@ -10312,7 +10811,7 @@ function currentCornerInput() {
   return {
     drawing: drawing,
     canAccept: !E.arcPts && !(E.poly && E.poly.length < 3) && !((E.slotPts || E.ellPts || (E.drag && E.drag.sticky)) && !dynHasEntry()),
-    toolLabel: ({ wall:t("tool_wall"), poly:t("tool_poly"), cut:t("tool_cut"), rev:t("tool_rev"), sarc:t("tool_sarc"),
+    toolLabel: ({ wall:t("tool_wall"), constr:t("cap_constr"), poly:t("tool_poly"), cut:t("tool_cut"), rev:t("tool_rev"), sarc:t("tool_sarc"),
       sslot:t("tool_sslot"), sell:t("tool_sell"), spoly:t("tool_spoly"), srect:t("tool_srect"), scirc:t("tool_scirc") })[E.tool],
     featureReady: featureSelectionReady(),
     featureType: E.authoring && E.authoring.featureType,
@@ -10393,6 +10892,7 @@ function syncDuplicateCommit(state) {
 
 async function newModel() {
   if (!await confirmDiscardDocument("unsavedNew")) return;
+  closeEvalCard();
   /* Same rule as opening another document: once the user has confirmed the
      discard, the previous document's draft has stopped being recovery material.
      Left behind it is offered back on the next fresh open — "restore this
@@ -10416,6 +10916,7 @@ async function newModel() {
   E.mobileAddSelection = false;
   if (E.docType === "assembly") {
     E.assembly = newAssembly();
+    assemblyOpenBaseline=null;
     invalidateInterference();
     E.componentSel = [];
     E.sel = null;
@@ -10428,6 +10929,7 @@ async function newModel() {
     return;
   }
   E.def = newDef();
+  libraryOpenBaseline=null;
   E.srcItem = null;
   E.sel = null;
   E.authoring={phase:"model",referenceId:null,sketchId:null,featureType:null,sketchSelection:[],featureSelection:[],workflowFocus:"context"};
@@ -10440,7 +10942,10 @@ async function newModel() {
 
 function setDocumentType(type) {
   type = type === "assembly" ? "assembly" : "part";
+  if(type==="assembly" && E.contextEdit){finishContextPart();return;}
   if (type === E.docType) return;
+  abandonDocumentExactWork();
+  closeEvalCard();
   E.docType = type;
   E.poly = null;
   E.wallPts = null;
@@ -10481,12 +10986,11 @@ async function saveAssemblyDocument() {
   setDocumentDescription(E.assembly, root.querySelector("#mdDescription").value);
   applyAssemblyMates(E.assembly);
   var saved = cloneData(E.assembly);
-  var list = loadAssemblies().filter(function (a) { return a.key !== saved.key; });
-  list.push(saved);
-  if (!await saveAssemblies(list)) {
-    report(t("reportKickerSave"), t("saveAssemblyFailed"), t("saveStorageFull"));
+  if (!await saveAssemblies(saved,{expected:assemblyOpenBaseline})) {
+    report(t("reportKickerSave"), t("saveAssemblyFailed"), t(lastAssemblySaveConflict ? "saveAssemblyConflict" : "saveStorageFull"));
     return;
   }
+  assemblyOpenBaseline=cloneData(saved);
   refreshLib();
   flash("✓ " + t("savedAssembly"));
   markDocumentClean();
@@ -10544,7 +11048,7 @@ async function publishAssemblyModel() {
     var model={key:"cm_"+source.key,name:source.components.map(c=>c.name || componentDef(c)?.name || "Component").join(" + "),
       parts,metadata:{sourceAssembly:source},col:"#999999"};
     normalizeDef(model);
-    if(!await saveLib(loadLib().filter(m=>m.key!==model.key).concat([model])))throw new Error(t("saveStorageFull"));
+    if(!await saveLib(model,{expected:loadLib().find(m=>m.key===model.key) || null}))throw new Error(t("saveStorageFull"));
     registerCustomModel(model);refreshCatalogSelect();
     var committed=commitDefinition(S,model);
     if(committed.affected.length){markPlannerDirty();S.dirty3D=true;render2D();}
@@ -10552,9 +11056,31 @@ async function publishAssemblyModel() {
   } catch(error) {report(t("reportKickerSave"),t("saveRebuildFailed"),String(error.message || error));}
 }
 
+var documentSaveTasks=new WeakMap();
+function saveProgress(key, document) {
+  if(document !== (E.docType === "assembly" ? E.assembly : E.def))return;
+  var save=root && root.querySelector("#mdSave");
+  if(save){save.setAttribute("aria-busy","true");save.dataset.savePhase=key;}
+  syncDraftStatus(key);flash(t(key));
+}
 function saveCurrentDocument() {
-  if (E.docType === "assembly") saveAssemblyDocument();
-  else saveModel();
+  var document=E.docType === "assembly" ? E.assembly : E.def;
+  if(!document)return Promise.resolve();
+  var pending=documentSaveTasks.get(document);
+  if(pending)return pending;
+  saveProgress("savePreparing",document);
+  var task=Promise.resolve(E.docType === "assembly" ? saveAssemblyDocument() : saveModel()).catch(function(error){
+    if(document === (E.docType === "assembly" ? E.assembly : E.def))
+      report(t("reportKickerSave"),t("saveLibraryFailed"),String(error.message || error));
+  }).finally(function(){
+    documentSaveTasks.delete(document);
+    if(document !== (E.docType === "assembly" ? E.assembly : E.def))return;
+    var save=root && root.querySelector("#mdSave");
+    if(save){save.removeAttribute("aria-busy");delete save.dataset.savePhase;}
+    if(documentDirty())syncDraftStatus("saveStillUnsaved");
+  });
+  documentSaveTasks.set(document,task);
+  return task;
 }
 
 function syncViewButtons() {
@@ -10634,12 +11160,8 @@ function syncExtrudeButton() {
    change as you work moved to the status bar. */
 function sketchPlaneCaption() {
   var sketch=ensureSketch(E.def);
-  if (activeSketchFrame() && sketch.support) return t("facePrefix") + " · " + (sketch.support.semantic || sketch.support.persistentId);
-  // a sketch on a user plane names the plane, not the principal view it is parallel to
-  var plane = sketch.referenceId && !/^plane:(top|front|right)$/.test(sketch.referenceId)
-    && (E.def.references || []).find(function (ref) { return ref.id === sketch.referenceId; });
-  if (plane) return referenceLabel(plane);
-  return t(E.view === "top" ? "view_top" : E.view === "front" ? "view_front" : "view_right");
+  return sketchPlaneDisplay(sketch,E.def.references || [],{face:t("facePrefix"),reference:referenceLabel,
+    principal:function(plane){return t(plane==="top"?"view_top":plane==="front"?"view_front":"view_right");}}).label;
 }
 /* "Face", "Edge 42 cm", "Vertex" — the kind, and the one number that makes an
    edge identifiable when several run parallel a few pixels apart. */
@@ -10680,7 +11202,7 @@ function syncHint() {
     hint.classList.remove("on");
     return;
   }
-  var live = (E.mode !== "3d" || E.modelPlaneActive) && (E.tool === "wall" || E.tool === "poly" || E.tool === "rev" || E.tool === "cut" || E.tool === "cutc" || E.tool === "sarc" || E.tool === "sslot" || E.tool === "sell");
+  var live = (E.mode !== "3d" || E.modelPlaneActive) && (E.tool === "wall" || E.tool === "constr" || E.tool === "poly" || E.tool === "rev" || E.tool === "cut" || E.tool === "cutc" || E.tool === "sarc" || E.tool === "sslot" || E.tool === "sell");
   var topology=(E.topologySelection || []),finishType=E.authoring && FINISH_FEATURES.includes(E.authoring.featureType) ? E.authoring.featureType : null;
   var sameKind=topology.length && topology.every(function(reference){return reference.kind===topology[0].kind;});
   var kindLabel=!sameKind?t("selKindMixed"):topology[0].kind==="edge"?t("selKindEdge"):topology[0].kind==="face"?t("selKindFace"):t("selKindMixed");
@@ -10708,7 +11230,7 @@ function syncHint() {
     E.tool === "sell" ? t("ellipseHint") :
     E.tool === "spoly" ? t("polygonHint") + " (" + E.polySides + ")" :
     E.tool === "srect" || E.tool === "scirc" ? t("twoPointHint") :
-    E.tool === "wall" ? t("wallHint") :
+    E.tool === "wall" || E.tool === "constr" ? t("wallHint") :
     E.tool === "poly" ? t("polyHint") :
     E.tool === "rev" ? t("revHint") :
     E.tool === "cut" ? t("cutHint") :
@@ -10779,6 +11301,30 @@ function syncStatus() {
   syncStatusLine();
   var st = root && root.querySelector("#mdStatus");
   if (st && !st.querySelector(".ps-ai-status")) st.insertAdjacentHTML("beforeend", aiStatusHTML());
+  syncExactWorkerActivity();
+}
+var exactWorkerActivityTimer=0,exactWorkerActivitySubscribed=false;
+function syncExactWorkerActivity(){
+  if(!exactWorkerActivitySubscribed && cadWorkerAvailable()){
+    exactWorkerActivitySubscribed=true;
+    subscribeCadWorkerActivity(function(){syncExactWorkerActivity();});
+  }
+  var st=root && root.querySelector("#mdStatus");
+  if(!st)return;
+  var jobs=cadWorkerActivity().filter(function(job){return job.scope!=="interference";});
+  var chip=st.querySelector(".md-exact-activity");
+  if(!jobs.length){if(chip)chip.remove();if(exactWorkerActivityTimer){clearInterval(exactWorkerActivityTimer);exactWorkerActivityTimer=0;}return;}
+  if(!chip){
+    chip=el("span","md-exact-activity");chip.setAttribute("aria-live","polite");
+    chip.appendChild(el("span","md-exact-activity-text"));
+    var cancel=btn("Cancel",function(event){event.stopPropagation();cancelExactModelRebuild();flash("Exact computation cancelled");},"md-cancel-exact");
+    cancel.title="Cancel this tab's pending exact computations";cancel.setAttribute("aria-label","Cancel exact computation");chip.appendChild(cancel);
+    st.appendChild(chip);
+  }
+  var job=jobs.find(function(item){return item.progress;}) || jobs[0];
+  var seconds=Math.floor((Date.now()-job.startedAt)/1000);
+  chip.querySelector(".md-exact-activity-text").textContent=(job.progress?.stage==="loading-runtime"?"Loading CAD runtime · ":job.progress?.stage==="restore"?"Restoring exact geometry · ":job.progress && job.progress.stage!=="queued"?"Computing exact geometry · ":"Queued exact geometry · ")+(job.progress?.name || job.name)+" · "+seconds+"s"+(jobs.length>1?" · "+(jobs.length-1)+" queued":"")+" ";
+  if(!exactWorkerActivityTimer)exactWorkerActivityTimer=setInterval(syncExactWorkerActivity,1000);
 }
 function syncStatusLine() {
   var st = root && root.querySelector("#mdStatus");
@@ -11011,7 +11557,7 @@ function sheetForm(title, fields, hint) {
       title: title,
       hint: hint || fields.map(function (field) { return field.hint; }).filter(Boolean)[0] || t("drawNoteHint"),
       fields: fields.map(function (field) {
-        return { key: field.key, label: field.label || title, type: field.type === "boolean" ? "boolean" : "text", value: field.value ?? "" };
+        return { key: field.key, label: field.label || title, type: ["boolean","select"].includes(field.type) ? field.type : "text", choices:field.choices, value: field.value ?? "" };
       }),
       onApply: function (values) {
         var answer = {};
@@ -11148,6 +11694,7 @@ function buildSheetPanel(host) {
   /* Callouts are read off the feature tree, never typed: the button is here
      rather than in the tool row because it annotates every hole at once. */
   setup.appendChild(btn('<i class="ph ph-crosshair"></i> ' + t("sheetHoleCallouts"), function () { sheet.addHoleCallouts(); drawSketch(); }, "md-sheet-btn"));
+  setup.appendChild(btn('<i class="ph ph-ruler"></i> ' + t("drawModelItems"), function () { sheet.insertModelItems(); drawSketch(); }, "md-sheet-btn"));
 
   var views = sheetGroup(host, t("sheetViews"));
   var list = el("div", "md-sheet-views");
@@ -11182,6 +11729,18 @@ function buildSheetPanel(host) {
   var selected = sheet.selection();
   var selectedView = selected && selected.kind === "view" && doc.views.filter(function (view) { return view.id === selected.id; })[0];
   if (selectedView) {
+    views.appendChild(btn('<i class="ph ph-copy"></i> Copy selected view', function(){
+      sheet.duplicateSelectedView();
+      drawSketch();
+    }, "md-sheet-btn"));
+    if((E.def.configurations||[]).length>1){
+      sheetRow(views,"Configuration",sheetSelect([{value:"active",label:"Active model"}].concat(E.def.configurations.map(function(cfg){
+        return {value:cfg.id,label:cfg.name};
+      })),selectedView.configurationId||"active",function(value){
+        sheet.setSheetOption("viewConfiguration",value);
+        drawSketch();
+      })).id="mdSheetViewConfiguration";
+    }
     sheetRow(views, t("sheetViewScale"), sheetSelect([{ value: "sheet", label: t("sheetInherit") }].concat(
       STANDARD_SCALES.map(function (scale) { return { value: scale.join(":"), label: scaleLabel(scale) }; })
     ), selectedView.scale ? selectedView.scale.join(":") : "sheet", function (value) {
@@ -11192,6 +11751,14 @@ function buildSheetPanel(host) {
       { value: "sheet", label: t("sheetInherit") }, { value: "on", label: t("drawOn") }, { value: "off", label: t("drawOff") },
     ], selectedView.hidden === null || selectedView.hidden === undefined ? "sheet" : selectedView.hidden ? "on" : "off", function (value) {
       sheet.setSheetOption("viewHidden", value === "sheet" ? "sheet" : value === "on");
+      drawSketch();
+    }));
+    sheetRow(views, "Display style", sheetSelect([
+      {value:"edges",label:"Hidden line drawing"},
+      {value:"shaded",label:"Shaded"},
+      {value:"shadedEdges",label:"Shaded with edges"},
+    ], selectedView.displayStyle || "edges", function(value) {
+      sheet.setSheetOption("viewDisplayStyle",value);
       drawSketch();
     }));
   }
@@ -11250,7 +11817,7 @@ function syncSheetPanel() {
   var doc = ensureSheetDoc(E.def), sheet = drawingSheet();
   var selection = sheet.selection();
   var signature = doc.views.map(function (view) {
-    return view.id + ":" + view.label + ":" + (view.scale ? view.scale.join("/") : "-") + ":" + view.hidden;
+    return view.id + ":" + view.label + ":" + (view.scale ? view.scale.join("/") : "-") + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"");
   }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "");
   if (host.getAttribute("data-signature") !== signature) {
     buildSheetPanel(host);
@@ -11304,7 +11871,9 @@ function drawingSheet() {
       width: function () { return E.cw; },
       height: function () { return E.ch; },
       doc: function () { return ensureSheetDoc(E.def, { title: { title: E.def && E.def.name || "" } }); },
+      model: function () { return E.def; },
       bodies: drawingBodies,
+      bodiesForView: function(view,bodies){return configuredBodiesForView(E.def,view,bodies);},
       topology: drawingTopology,
       /* The live spelling of every hole, re-read on each build so a callout
          cannot outlive the parameters it was placed from. */
@@ -11320,7 +11889,7 @@ function drawingSheet() {
       bom: function () {
         if (E.docType !== "assembly" || !E.assembly) return null;
         return generateBOM(E.assembly).map(function (row, index) {
-          return { item: index + 1, qty: row.quantity, name: row.name, material: row.material || "" };
+          return { item: index + 1, qty: row.quantity, name: row.name, description: row.description, partNumber: row.partNumber, material: row.material || "" };
         });
       },
       pushUndo: pushUndo,
@@ -11860,19 +12429,18 @@ function drawSketch() {
     c.restore();
   }
 
-  // Connected wall/line chain preview. Each committed span becomes a real,
-  // independently constrained extruded feature; the centreline remains visible
-  // so users can continue the chain with predictable endpoint snapping.
+  // Connected sketch-line preview. Each committed span is a separate sketch
+  // entity; construction spans are dashed and excluded from solid profiles.
   if (E.wallPts && E.wallPts.length && E._mouse) {
     var w0 = E.wallPts[E.wallPts.length - 1], w1 = E._mouse;
     var ws0 = toPx(w0.u, w0.v), ws1 = toPx(w1.u, w1.v);
     c.save();
-    c.strokeStyle = "#18a36b";
+    c.strokeStyle = E.tool === "constr" ? "#2684c7" : "#18a36b";
     c.lineWidth = 2;
     c.setLineDash([8, 5]);
     c.beginPath(); c.moveTo(ws0.x, ws0.y); c.lineTo(ws1.x, ws1.y); c.stroke();
     c.setLineDash([]);
-    c.fillStyle = "#18a36b";
+    c.fillStyle = E.tool === "constr" ? "#2684c7" : "#18a36b";
     c.fillRect(ws0.x - 4, ws0.y - 4, 8, 8);
     var liveL = Math.hypot(w1.u - w0.u, w1.v - w0.v);
     var liveA = (Math.atan2(w1.v - w0.v, w1.u - w0.u) * 180) / Math.PI;
@@ -12163,6 +12731,8 @@ function hitPart(uv, pointerType) {
 function report(kicker, title, body) {
   var host = root && root.querySelector("#mdReport");
   if (!host) { flash(title); return; }
+  host.querySelector("#mdUnqualifiedDraftExport")?.remove();
+  host.querySelector("#mdExpectedContacts")?.remove();
   root.querySelector("#mdReportKicker").textContent = kicker;
   root.querySelector("#mdReportTitle").textContent = title;
   var pre = root.querySelector("#mdReportBody");
@@ -12176,6 +12746,8 @@ function showPickList(kicker, title, items, onPick, extra) {
   extra = extra || {};
   var host = root && root.querySelector("#mdReport");
   if (!host) { flash(title); return; }
+  host.querySelector("#mdUnqualifiedDraftExport")?.remove();
+  host.querySelector("#mdExpectedContacts")?.remove();
   root.querySelector("#mdReportKicker").textContent = kicker;
   root.querySelector("#mdReportTitle").textContent = title;
   var pre = root.querySelector("#mdReportBody");
@@ -12317,11 +12889,12 @@ async function finishPoly() {
 function sketchFingerprint(sketch, selectedIds) {
   var h = 2166136261;
   var mix = function (n) { h = Math.imul(h ^ ((n | 0) + 0x9e3779b9), 16777619) >>> 0; };
-  var mixText = function (s) { for (var i = 0; i < s.length; i++) mix(s.charCodeAt(i)); };
+  var mixText = function (s) { s = String(s ?? ""); for (var i = 0; i < s.length; i++) mix(s.charCodeAt(i)); };
   mix(sketch.points.length); mix(sketch.entities.length);
   sketch.points.forEach(function (p) { mix(p.x * 1000); mix(p.y * 1000); });
   sketch.entities.forEach(function (e) {
     mixText(e.id); mixText(e.type || "");
+    mixText(e.a); mixText(e.b); mixText(e.c);
     mix(e.construction ? 1 : 0);
     mix((e.r || 0) * 1000); mix((e.rx || 0) * 1000); mix((e.ry || 0) * 1000); mix((e.rot || 0) * 1000);
   });
@@ -12391,6 +12964,7 @@ function unclaimedSketchEntityIds(sketch) {
     claim(feature.params && feature.params.profileEntityIds);
     claim(feature.references && feature.references.profileEntityIds);
     (feature.params && feature.params.holeProfileEntityIds || []).forEach(claim);
+    (feature.params && feature.params.regionProfileEntityIds || []).forEach(claim);
   });
   (E.def.parts || []).forEach(function (part) {
     claim(part.profileEntityIds);
@@ -12481,17 +13055,21 @@ function toggleFeatureArea(area) {
 }
 
 var featureAreaMemo = { sketch:null, key:0, scope:"", value:null };
-function sketchFeatureAreas() {
+function sketchFeatureAreas(allCandidates, committedContourKeys) {
   // A selection the user made picks the areas; the one the draw tool left
   // behind does not — see markDrawnSelection.
-  var selected = E.sselAuto ? [] : selEntities().map(function (entity) { return entity.id; });
+  var activeBossChoice=!allCandidates && (Array.isArray(committedContourKeys)
+    || E.authoring && E.authoring.featureType==="extrude" && E.authoring.featurePreviewState);
+  var explicit=allCandidates ? [] : Array.isArray(committedContourKeys) ? committedContourKeys
+    : activeBossChoice ? E.authoring.featurePreviewState.contourKeys || [] : [];
+  var selected = allCandidates || activeBossChoice || E.sselAuto ? [] : selEntities().map(function (entity) { return entity.id; });
   var sketch = ensureSketch(E.def);
   /* Memoised on the same fingerprint as the two analyses it composes. The
      hatch draws this every frame, and while both of those are already cached,
      rebuilding the area list on top of them per frame is the kind of quiet
      per-frame allocation this file has had to hunt down before. */
   var areaKey = sketchFingerprint(sketch, selected);
-  var areaScope = selected.slice().sort().join("|");
+  var areaScope = selected.slice().sort().join("|")+"/"+(allCandidates?"all":explicit.slice().sort().join("|"));
   if (featureAreaMemo.sketch === sketch && featureAreaMemo.key === areaKey && featureAreaMemo.scope === areaScope) {
     return featureAreaMemo.value;
   }
@@ -12506,6 +13084,7 @@ function sketchFeatureAreas() {
     if (scoped.length) value = scoped;
   }
   if (!value) value = featureAreas(analysis, sketchRegionAnalysis(), selected);
+  if(explicit.length)value=selectFeatureContours(value,explicit);
   featureAreaMemo.sketch = sketch;
   featureAreaMemo.key = areaKey;
   featureAreaMemo.scope = areaScope;
@@ -12513,15 +13092,23 @@ function sketchFeatureAreas() {
   return value;
 }
 
-/* Extrude or cut with the sketch — the whole sketch.
-   A feature acts on every area the drawing encloses, the way it does in a
-   full CAD modeller: two loops make two bosses, and a cut takes away all of
-   them, crossings included. Each area becomes its own feature so the exact
-   kernel can rebuild it from one closed profile, and the cuts are chained so
-   the second one bites into the result of the first. */
+/* Extrude or cut with the sketch — the whole sketch. A multi-region cut is
+   one feature with several associative loops; the live body still records a
+   cutter for each region so its preview matches the exact rebuild. */
+function extrusionSketchAreas(params,contourKeys) {
+  if(!params.thinFeature)return sketchFeatureAreas(false,contourKeys);
+  var sketch=ensureSketch(E.def),selected=E.sselAuto?[]:selEntities().map(function(entity){return entity.id;});
+  var chains=analyzeSketchChains(sketch,{selectedIds:selected}).chains;
+  if(selected.length)chains=chains.filter(function(chain){return chain.selected;});
+  if(chains.length!==1)throw new Error("Select one connected open line or arc chain for Thin Extrude");
+  var chain=chains[0],profile=thinSketchProfile(sketch,chain.entityIds,params.thickness,params.thinMode);
+  return [{...profile,entityIds:chain.entityIds,holes:[],holeEntityIds:[]}];
+}
+
 async function extrudeClosedSketch(options) {
-  options=options || {};var featureType=options.type || "extrude",params={...featureDefaults(featureType),...options};delete params.type;
-  var analysis = sketchProfileAnalysis(), areas = sketchFeatureAreas();
+  options=options || {};var featureType=options.type || "extrude",params={...featureDefaults(featureType),...options};delete params.type;delete params.contourKeys;
+  var analysis = sketchProfileAnalysis(), areas;
+  try{areas=extrusionSketchAreas(params,options.contourKeys);}catch(error){flash(String(error.message||error));return false;}
   if (!areas.length) {
     flash(analysis.branchPoints.length ? t("profileBranched") : analysis.openEnds.length ? t("profileOpen") + " · " + analysis.openEnds.length + " " + t("profileEnds") : t("profileEmpty"));
     setTab("sketch");
@@ -12568,11 +13155,16 @@ async function extrudeClosedSketch(options) {
   /* An area with a chain behind it stays parametric; one that exists only
      because curves cross has no chain to name, so the feature carries the
      resolved loop instead of a reference that could never resolve. */
-  var defineFeature=function (area, inputId) {
+  var defineFeature=function (area, inputId, extraAreas) {
     if (!isCanonicalAuthoring()) return null;
+    extraAreas=extraAreas || [];
     var profileParams=area.entityIds
       ? { profileEntityIds:area.entityIds, holeProfileEntityIds:area.holeEntityIds || [], holes:cloneData(area.holes || []) }
       : { points:area.points.map(function (q) { return { u:q.u, v:q.v }; }) };
+    if(extraAreas.length){
+      profileParams.regions=extraAreas.map(function(extra){return extra.points.map(function(q){return {u:q.u,v:q.v};});});
+      profileParams.regionProfileEntityIds=extraAreas.map(function(extra){return extra.entityIds || null;});
+    }
     return createFeatureDefinition(E.def,featureType,{
       inputs:inputId ? [inputId] : [],
       references:{sketches:[sketch.id],features:inputId ? [inputId] : [],topology:endFace?[cloneData(endFace)]:[],references:[],...(area.entityIds ? {profileEntityIds:area.entityIds} : {})},
@@ -12580,23 +13172,28 @@ async function extrudeClosedSketch(options) {
     });
   };
   if(featureType==="extrudeCut"){
-    var cutCount=0,previousId=targetFeatureId,cutSkipped=[];
+    var cutCount=0,cutSkipped=[],cutFeature=null;
+    try{cutFeature=defineFeature(areas[0],targetFeatureId,areas.slice(1));}
+    catch(error){H.discard();flash(String(error.message||error));return false;}
     for(var i=0;i<areas.length;i++){
-      var cutArea=areas[i],cutFeature=null;
-      try{cutFeature=defineFeature(cutArea,previousId);}catch(error){H.discard();flash(String(error.message||error));return false;}
+      var cutArea=areas[i];
       var removed=await applyCut(cutArea.points, cutFeature && cutFeature.id, cutArea.interior,{
-        segments:cutArea.entityIds ? sketchProfileSegments(sketch,cutArea.entityIds) : undefined,
+        segments:cutArea.segments || (cutArea.entityIds ? sketchProfileSegments(sketch,cutArea.entityIds) : undefined),
         axis:localFrame?"frame":axis,frame:localFrame?cloneData(sketch.frame):undefined,
         from:start,to:end,endCondition:params.endCondition,
         draftAngle:Number(params.draftAngle)||0,draftOutward:!!params.draftOutward,
       });
       cutSkipped=cutSkipped.concat(E.lastCutSkipped || []);
-      if(!removed){if(cutFeature)removeHistoryNode(E.def,"history:feature:"+cutFeature.id);continue;}
-      if(cutFeature)previousId=cutFeature.id;
+      if(!removed)continue;
       cutCount++;
     }
     E.lastCutSkipped=[...new Set(cutSkipped)];
-    if(!cutCount){H.discard();flash(t("cutNone")+cutSkipNote());return false;}
+    if(!cutCount){
+      if(cutFeature)removeHistoryNode(E.def,"history:feature:"+cutFeature.id);H.discard();
+      var refusal=t("cutNone")+cutSkipNote();flash(refusal,8000);
+      report("FEATURE", "Cut not applied", refusal);
+      return false;
+    }
     // applyCut replaces the parts array with rebuilt copies. Keep selection on
     // the affected body, not on the sketch point that was selected before the
     // feature. Otherwise the material pane can edit that point as if it were
@@ -12628,11 +13225,13 @@ async function extrudeClosedSketch(options) {
     if(host){
       host.merges3d=host.merges3d || [];
       host.merges3d.push({axis:part.axis,...(part.frame?{frame:cloneData(part.frame)}:{}),from:start,to:end,loop:area.points.map(function(q){return {u:q.u,v:q.v};}),
-        segments:area.entityIds ? sketchProfileSegments(sketch,area.entityIds) : undefined,
+        segments:area.segments || (area.entityIds ? sketchProfileSegments(sketch,area.entityIds) : undefined),
         holes:(area.holes || []).map(function(loop,index){return {points:cloneData(loop),segments:area.holeEntityIds && area.holeEntityIds[index] ? sketchProfileSegments(sketch,area.holeEntityIds[index]) : undefined};}),
         draftAngle:Number(params.draftAngle)||0,draftOutward:!!params.draftOutward,draftBase:start,featureId:feature?feature.id:undefined});
-      invalidatePartMeshAfterEdit(host);
-      queueExactMesh(host);
+      // One sketch can contribute several boss regions to the same host.
+      // Invalidate each changed projection, then build the final result once
+      // after all merges instead of launching a kernel job per region.
+      invalidatePartMeshAfterEdit(host,false);
       merged.push(host);
       continue;
     }
@@ -12641,7 +13240,8 @@ async function extrudeClosedSketch(options) {
   }
   E.sel = made[made.length-1] || merged[merged.length-1] || E.sel;
   refreshAll();
-  if (merged.length && isCanonicalAuthoring()) await regenerateExactModel();
+  if (merged.length && isCanonicalAuthoring()) await regenerateExactModel(undefined,{restoreMode:'mesh'});
+  else [...new Set(merged)].forEach(function(part){queueExactMesh(part);});
   flash("✓ " + t("opExtrude") + (made.length > 1 ? " · " + made.length + " " + t("profileRegions") : "")
     + (holeCount ? " · " + holeCount + " " + t("profileHoles") : "") + (healed ? " · " + t("profileHealed") : ""));
   E.authoring.featureType=null;E.authoring.phase="model";
@@ -12693,7 +13293,7 @@ function sketchForView() {
      local-frame, so with its surface off its plane never matched E.view and
      every line segment used to add a new principal sketch — 11 stray sketches
      after a few clicks, and a render stack overflow. */
-  if (isCanonicalAuthoring() && E.authoring && E.authoring.phase === "sketch" && current.frameSpace === "local") return current;
+  if (isCanonicalAuthoring() && E.authoring && E.authoring.phase === "sketch") return current;
   var existing = sketchesOnPlane(E.view);
   var target = existing.length ? existing[existing.length - 1] : addSketch(E.def, E.view, 0);
   E.def.activeSketch = target.id;
@@ -12819,16 +13419,17 @@ function syncSketchDrivenParts() {
   (E.def.parts || []).forEach(function (p) {
     holes.forEach(function(feature){
       var sketch=feature.params?.sketchId && sketchById(E.def,feature.params.sketchId);
-      if(!sketch)return;
-      try{if(syncHoleCutPlacement(p,feature,sketch)){changed=true;delete p.meshData;}}
+      if(!sketch && !feature.params?.cylindricalSource)return;
+      try{if(syncHoleCutPlacement(p,feature,sketch,E.def)){changed=true;delete p.meshData;}}
       catch(error){/* A broken placement is diagnosed by the feature rebuild. */}
     });
     if (!p.sketchDriven || !p.profileEntityIds || !p.profileEntityIds.length) return;
     var sketch = p.sketchId ? sketchById(E.def, p.sketchId) : ensureSketch(E.def);
     var revolveFeature=p.kind==='rev' && (E.def.features || []).find(function(feature){return feature.id===p.featureId;});
     var revolveParams=revolveFeature?.params;
+    var extrusionParams=p.kind==='ext' && (E.def.features || []).find(function(feature){return feature.id===p.featureId;})?.params;
     var pts;
-    try{pts=sketch && revolveParams?.thinFeature ? revolveThinProfile(sketch,p.profileEntityIds,revolveParams.thickness,revolveParams.thinMode,revolveParams.axis).points : sketch ? resolveProfilePoints(sketch,p.profileEntityIds) : null;}catch(error){pts=null;}
+    try{pts=sketch && extrusionParams?.thinFeature ? thinSketchProfile(sketch,p.profileEntityIds,extrusionParams.thickness,extrusionParams.thinMode).points : sketch && revolveParams?.thinFeature ? revolveThinProfile(sketch,p.profileEntityIds,revolveParams.thickness,revolveParams.thinMode,revolveParams.axis).points : sketch ? resolveProfilePoints(sketch,p.profileEntityIds) : null;}catch(error){pts=null;}
     if(pts && revolveParams)pts=revolvePreviewPoints(sketch,pts,revolveParams);
     var holePts = sketch && Array.isArray(p.holeProfileEntityIds)
       ? p.holeProfileEntityIds.map(function (ids) { return resolveProfilePoints(sketch, ids); }) : [];
@@ -12880,7 +13481,9 @@ function syncSweptSourceParts() {
   var same = function (a, b) { return JSON.stringify(a) === JSON.stringify(b); };
   (E.def.parts || []).forEach(function (p) {
     if (isKernelBody(p) && p.kernel && p.sketchSources) {
-      var resolved = resolveSweptSources(E.def, p.sketchSources, resolveProfilePoints);
+      var resolved;
+      try { resolved = resolveSweptSources(E.def, p.sketchSources, resolveProfilePoints); }
+      catch (error) { resolved = null; } // An edited path may temporarily have open or disconnected joints.
       if (!resolved) { if (!p.profileError) { p.profileError = true; changed = true; } return; }
       if (p.profileError) { p.profileError = false; changed = true; }
       var next = kernelBodySpec(p.kernel.type, {...p.kernel.params, ...resolved});
@@ -12889,7 +13492,9 @@ function syncSweptSourceParts() {
     var entries = (p.merges3d || []).concat(p.cuts3d || []).filter(function (entry) { return entry && entry.sketchSources; });
     var touched = false;
     entries.forEach(function (entry) {
-      var resolved = resolveSweptSources(E.def, entry.sketchSources, resolveProfilePoints);
+      var resolved;
+      try { resolved = resolveSweptSources(E.def, entry.sketchSources, resolveProfilePoints); }
+      catch (error) { resolved = null; }
       if (!resolved) return;
       if (resolved.sections) { if (!same(resolved.sections, entry.sections)) { entry.sections = resolved.sections; touched = true; } return; }
       if (!same(resolved.profile, entry.profile)) { entry.profile = resolved.profile; touched = true; }
@@ -12945,8 +13550,16 @@ function isSketchObject(o) {
    the last rectangle. So a selection remembers whether a person made it. */
 function markDrawnSelection(list) { E.ssel = [].concat(list); E.sselAuto = true; }
 
+/* Model edges and corners picked for a relation live in E.topologySelection.
+   A fresh (non-additive) pick or a miss in the sketch must drop them too, or
+   the next Coincident quietly reuses an edge picked minutes ago. */
+function dropSketchModelPicks() {
+  if (E.authoring && E.authoring.phase === "sketch" && (E.topologySelection || []).some(function (item) { return item.kind === "edge" || item.kind === "vertex"; })) E.topologySelection = [];
+}
+
 function selectSketch(obj, additive) {
   E.sselAuto = false;
+  if (!additive) dropSketchModelPicks();
   if (!obj) { if (!additive) { E.ssel = []; E.sel = null; } return; }
   var i = E.ssel.indexOf(obj);
   if (additive) {
@@ -12956,6 +13569,23 @@ function selectSketch(obj, additive) {
 }
 function selectedModelEdges() {
   return (E.topologySelection || []).filter(function (reference) { return reference.kind === "edge"; });
+}
+
+/* A model corner picked for a relation. It is a derived, position-keyed
+   reference, so the relation is recorded against the edge that ends there
+   (see vertexEdgeBinding) and follows the rebuilt edge. */
+function selectedModelVertices() {
+  return (E.topologySelection || []).filter(function (reference) { return reference.kind === "vertex"; });
+}
+
+/* The edge reference a relation stores, and where on it (undefined = anywhere
+   along it). Null when a picked vertex has no visible edge ending at it. */
+function modelEdgeRelationTarget(reference) {
+  if (reference.kind === "vertex") {
+    var bound = vertexEdgeBinding(reference, sketchVisibleModelEdges());
+    return bound ? { edge: topologyReferenceFromEntry(bound.edge), at: bound.at } : null;
+  }
+  return { edge: topologyReferenceFromEntry(reference) || createTopologyReference(reference.ownerFeatureId, "edge", reference.persistentId, reference.descriptor || {}), at: undefined };
 }
 
 function sketchVisibleModelEdges() {
@@ -13105,6 +13735,7 @@ function addSketchCircle(centre, rim, snap) {
   return circle;
 }
 function openCircularConversion(sketch, selectedEdge) {
+  var convertedSelection=selCircles().find(function(entity){return entity.type==="circle" && (sketch.circleCopies || []).some(function(copy){return copy.entityId===entity.id;});});
   var candidates=[];
   (E.def.parts || []).forEach(function(part){topologyEntriesForPart(part).forEach(function(edge){if(edge.kind!=="edge")return;try{projectCircularEdge(sketch,edge);candidates.push(edge);}catch(error){/* Parallel complete circles only. */}});});
   // A picked edge expresses the user's intent more precisely than the order
@@ -13128,10 +13759,12 @@ function openCircularConversion(sketch, selectedEdge) {
   }
   if(!candidates.length){flash("No parallel circular edges are available");return;}
   openQuickForm({action:"faceboundary",icon:"ph-copy-simple",title:"Convert circular edge",hint:partialSelection?"The picked edge is a partial arc. Choose a complete circular edge by radius and Z position.":"Project an exact circle onto this sketch plane. It follows changes to the source edge.",fields:[
-    {key:"source",label:"Source edge",type:"select",value:candidates[0].persistentId,choices:candidates.map(function(edge,index){return {value:edge.persistentId,label:(index+1)+" · radius "+edge.descriptor.radius.toFixed(4)+" cm · Z "+edge.descriptor.origin.z.toFixed(4)+" cm"};})}
+    {key:"source",label:"Source edge",type:"select",value:candidates[0].persistentId,choices:candidates.map(function(edge,index){return {value:edge.persistentId,label:(index+1)+" · radius "+edge.descriptor.radius.toFixed(4)+" cm · Z "+edge.descriptor.origin.z.toFixed(4)+" cm"};})},
+    ...(convertedSelection?[{key:"replace",label:"Update selected circle",type:"checkbox",value:true}]:[])
   ],onApply:function(values){
     var source=candidates.find(function(edge){return edge.persistentId===values.source;});
     try{var projected=projectCircularEdge(sketch,source),made=appendToSketch("Convert circular edge",function(target){
+      if(convertedSelection && values.replace)return [retargetConvertedCircle(target,convertedSelection.id,source)];
       var center=newSketchPoint(target,{u:projected.x,v:projected.y}),circle={id:uid(),type:"circle",c:center,r:projected.radius,construction:false};target.entities.push(circle);
       target.constraints.push({id:uid(),type:"fixed",point:center,x:projected.x,y:projected.y});
       target.constraints.push({id:uid(),type:"diameter",entity:circle.id,value:2*projected.radius});
@@ -13140,7 +13773,7 @@ function openCircularConversion(sketch, selectedEdge) {
   }});
 }
 function openSilhouetteConversion(sketch) {
-  var candidates=[];
+  var candidates=[],selectedLine=selEntities().find(function(entity){return entity.type==="line" && !entity.construction && (sketch.entities || []).some(function(candidate){return candidate.id===entity.id;});});
   (E.def.parts || []).forEach(function(part){topologyEntriesForPart(part).forEach(function(face){
     if(face.kind!=="face")return;
     try{coneSilhouette(sketch,face);candidates.push(face);}catch(error){/* Only axial silhouettes belong to this sketch plane. */}
@@ -13148,6 +13781,7 @@ function openSilhouetteConversion(sketch) {
   if(!candidates.length){openCircularConversion(sketch);return;}
   openQuickForm({action:"faceboundary",icon:"ph-copy-simple",title:"Convert silhouette",hint:"Create a linked outline from a cylindrical or conical face. Zero length uses the whole edge.",fields:[
     {key:"source",label:"Source face",type:"select",value:candidates[0].persistentId,choices:candidates.map(function(face,index){return {value:face.persistentId,label:(index+1)+" · "+face.descriptor.surface+" · radius "+face.descriptor.radius.toFixed(4)+" cm"};})},
+    ...(selectedLine?[{key:"replace",label:"Update selected line",type:"boolean",value:true}]:[]),
     {key:"side",label:"Side",type:"select",value:"normal",choices:[{value:"normal",label:"Upper"},{value:"opposite",label:"Lower"}]},
     {key:"fromEnd",label:"Keep end",type:"select",value:"lower",choices:[{value:"lower",label:"Axis start"},{value:"upper",label:"Axis end"}]},
     {key:"length",label:"Line length",type:"number",value:0,min:0,unit:"length"}
@@ -13156,6 +13790,7 @@ function openSilhouetteConversion(sketch) {
     try{
       var converted=coneSilhouette(sketch,source,values);
       var made=appendToSketch("Convert silhouette",function(target){
+        if(selectedLine && values.replace)return [retargetSilhouetteLine(target,selectedLine.id,source,values,uid)];
         var a=newSketchPoint(target,{u:converted.a.x,v:converted.a.y}),b=newSketchPoint(target,{u:converted.b.x,v:converted.b.y});
         var line={id:uid(),type:"line",a:a,b:b,construction:false};target.entities.push(line);
         [[a,converted.a],[b,converted.b]].forEach(function(pair){target.constraints.push({id:uid(),type:"fixed",point:pair[0],x:pair[1].x,y:pair[1].y});});
@@ -13166,10 +13801,49 @@ function openSilhouetteConversion(sketch) {
     }catch(error){flash(error.message);return false;}
   }});
 }
+/* Convert Entities for straight model edges. Each edge becomes a sketch line
+   whose two ends are pinned to the start and end of that edge (an onModelEdge
+   relation with "at"), so the line is real sketch geometry that any relation can
+   take, and both ends follow the rebuilt edge. Ends two edges share are one
+   sketch point, so a converted outline closes into a profile. */
+function convertModelEdgesToSketch() {
+  var sketch = ensureSketch(E.def), source = [];
+  selectedModelEdges().forEach(function (reference) {
+    var entry = resolveIntersectionEdge(reference);
+    if (!entry || !entry.descriptor || entry.descriptor.curve !== "line") return;
+    try {
+      var start = modelEdgeAnchor(sketch, entry, "start"), end = modelEdgeAnchor(sketch, entry, "end");
+      if (Math.hypot(end.x - start.x, end.y - start.y) > 1e-6) source.push({ entry: entry, start: start, end: end });
+    } catch (error) { /* an edge without ends cannot be converted */ }
+  });
+  if (!source.length) { flash(t("convertEdgesNone")); return false; }
+  var made = appendToSketch(t("opConvertEdges"), function (target) {
+    var pointFor = {}, lines = [];
+    var shared = function (anchor) {
+      var key = Math.round(anchor.x * 1e5) + ":" + Math.round(anchor.y * 1e5);
+      return pointFor[key] || (pointFor[key] = newSketchPoint(target, { u: anchor.x, v: anchor.y }));
+    };
+    source.forEach(function (item) {
+      var a = shared(item.start), b = shared(item.end), ref = topologyReferenceFromEntry(item.entry);
+      var line = { id: uid(), type: "line", name: "Converted edge", a: a, b: b, construction: false };
+      target.entities.push(line);
+      target.constraints.push({ id: uid(), type: "onModelEdge", point: a, edge: ref, at: "start" });
+      target.constraints.push({ id: uid(), type: "onModelEdge", point: b, edge: cloneData(ref), at: "end" });
+      lines.push(line);
+    });
+    return lines;
+  });
+  if (!made) return false;
+  E.topologySelection = [];
+  markDrawnSelection(made); E.sel = E.ssel[E.ssel.length - 1];
+  refreshAll(); flash(t("convertEdgesDone"));
+  return true;
+}
 function openFaceBoundary() {
   var sketch=ensureSketch(E.def),reference=E.authoring?.phase==="sketch" ? sketch.support || selectedSketchableFace() : selectedSketchableFace() || sketch.support;
   var selectedEdge=(E.topologySelection || []).find(function(item){return item.kind==="edge" && item.descriptor?.curve==="circle";});
   if(E.authoring?.phase==="sketch" && selectedEdge){openCircularConversion(sketch,selectedEdge);return;}
+  if(E.authoring?.phase==="sketch" && selectedModelEdges().some(function(edge){return edge.descriptor?.curve==="line";})){convertModelEdgesToSketch();return;}
   if (!reference || reference.descriptor?.surface!=="plane") { if(E.authoring?.phase==="sketch")openSilhouetteConversion(sketch);else flash(t("faceBoundaryNeed")); return; }
   var part=selectedSolid() || (E.def.parts || []).find(function(p){return topologyEntriesForPart(p).some(function(e){return e.persistentId===reference.persistentId;});});
   if(!part){flash(t("faceBoundaryNeed"));return;}
@@ -13484,13 +14158,13 @@ var CONSTRAINT_DEFS = [
 function constraintFits(type) {
   var lines = selLines(), circles = selCircles(), points = selPoints(), ents = selEntities();
   switch (type) {
-    case "coincident": return points.length === 2 || (points.length === 1 && !ents.length && selectedModelEdges().length === 1);
+    case "coincident": return points.length === 2 || (points.length === 1 && !ents.length && (selectedModelEdges().length === 1 || (selectedModelVertices().length === 1 && !selectedModelEdges().length)));
     case "horizontal": case "vertical": return lines.length >= 1 || points.length === 2;
     case "parallel": case "perpendicular": return lines.length === 2;
     case "tangent": return (lines.length===1&&ents.some(e=>e.type==="spline")) || (lines.length === 1 && circles.length === 1) || circles.length === 2;
     case "equal": return lines.length >= 2 || selConics().length >= 2;
     case "concentric": return selConics().length === 2;
-    case "midpoint": return points.length === 1 && lines.length === 1;
+    case "midpoint": return points.length === 1 && (lines.length === 1 || (!ents.length && selectedModelEdges().length === 1));
     case "pointOnLine": return points.length === 1 && ents.length === 1 && ["line","circle","arc","ellipse"].includes(ents[0].type);
     case "intersection": return points.length === 1 && (lines.length >= 2 || selectedModelEdges().length >= 2);
     case "symmetric": return points.length === 2 && lines.length === 1;
@@ -13521,8 +14195,11 @@ function applyConstraint(type) {
          HandlePath's end on Boss-Stop's rim). The edge line is re-read from the
          rebuilt body on every solve. */
       if (points.length === 1) {
-        var edge = selectedModelEdges()[0];
-        add({ type: "onModelEdge", point: points[0].id, edge: topologyReferenceFromEntry(edge) || createTopologyReference(edge.ownerFeatureId, "edge", edge.persistentId, edge.descriptor || {}) });
+        var edge = selectedModelEdges()[0], vertexTarget = !edge && modelEdgeRelationTarget(selectedModelVertices()[0]);
+        if (!edge && !vertexTarget) { H.discard(); flash(t("modelVertexNoEdge")); return; }
+        /* A picked corner is recorded as "the start/end of the edge that ends there". */
+        add(edge ? { type: "onModelEdge", point: points[0].id, edge: topologyReferenceFromEntry(edge) || createTopologyReference(edge.ownerFeatureId, "edge", edge.persistentId, edge.descriptor || {}) }
+          : { type: "onModelEdge", point: points[0].id, edge: vertexTarget.edge, at: vertexTarget.at });
         try { bindModelEdgeTargets(sketch, resolveIntersectionEdge); } catch (error) { H.discard(); flash(error.message); return; }
       } else add({ type: "coincident", a: points[0].id, b: points[1].id });
       break;
@@ -13541,7 +14218,14 @@ function applyConstraint(type) {
     case "concentric":
       add({ type: "concentric", a: conics[0].id, b: conics[1].id }); break;
     case "midpoint":
-      add({ type: "midpoint", point: points[0].id, entity: lines[0].id }); break;
+      if (lines.length) add({ type: "midpoint", point: points[0].id, entity: lines[0].id });
+      else {
+        /* Midpoint of a model edge: pinned to the middle of the rebuilt edge. */
+        var midEdge = modelEdgeRelationTarget(selectedModelEdges()[0]);
+        add({ type: "onModelEdge", point: points[0].id, edge: midEdge.edge, at: "mid" });
+        try { bindModelEdgeTargets(sketch, resolveIntersectionEdge); } catch (error) { H.discard(); flash(error.message); return; }
+      }
+      break;
     case "pointOnLine":
       add({ type: ents[0].type === "line" ? "pointOnLine" : "pointOnCircle", point: points[0].id, entity: ents[0].id }); break;
     case "intersection":
@@ -13826,20 +14510,20 @@ function clearDimensionRefusal() {
 function constraintKindCaption(constraint) {
   if (constraint.name) return constraint.name;
   if (constraint.value != null) {
-    var n = constraint.type === "angle" ? Number(Number(constraint.value).toFixed(3)) : modelLengthText(Number(constraint.value),6);
-    return constraint.type === "angle" ? n + "°"
+    var n = dimensionUnit(constraint) === "angle" ? Number(Number(constraint.value).toFixed(3)) : modelLengthText(Number(constraint.value),6);
+    return dimensionUnit(constraint) === "angle" ? n + "°"
       : constraint.type === "radius" ? "R " + n + " " + modelLengthUnit()
       : constraint.type === "diameter" ? "Ø " + n + " " + modelLengthUnit() : n + " " + modelLengthUnit();
   }
   if (constraint.type === "pointOnCircle") return t("cPointOnLine");
-  if (constraint.type === "onModelEdge") return t("cCoincident");
+  if (constraint.type === "onModelEdge") return constraint.at === "mid" ? t("cMidpoint") : t("cCoincident");
   if (constraint.type === "pierce") return t("cPierce");
   var def = CONSTRAINT_DEFS.find(function (d) { return d.id === constraint.type; });
   return def ? t(def.label) : constraint.type;
 }
 
 // the value sits in the row's own field, so a dimension row names only its kind
-var DIMENSION_SYMBOLS = { diameter: "Ø", radius: "R", angle: "∠" };
+var DIMENSION_SYMBOLS = { diameter: "Ø", radius: "R", angle: "∠", rotation: "∠" };
 
 function instanceLabels() {
   return { line: t("nameLine"), arc: t("nameArc"), circle: t("nameCircle"), ellipse: t("nameEllipse"), spline: t("nameSpline"), point: t("namePoint"), entity: t("nameEntity") };
@@ -13928,8 +14612,15 @@ function cancelDimensionEditor() {
   refreshAll();
 }
 
+function dismissCommittedDimensionEditor(sketch, constraint) {
+  // The inspector and placed-dimension popover edit the same constraint. A
+  // successful inspector commit supersedes the popover's original value;
+  // otherwise finishing the sketch applies that stale value over the edit.
+  if(E.dimEditor?.sketch===sketch && E.dimEditor.constraint===constraint)hideDimensionEditor();
+}
+
 function dimensionEditorUnit(constraint) {
-  if (constraint && constraint.type === "angle") return "°";
+  if (dimensionUnit(constraint) === "angle") return "°";
   var docUnit = typeof E !== "undefined" && E.def && E.def.context && E.def.context.units && E.def.context.units.length;
   if (docUnit) return docUnit;
   if (typeof getDomainUnit === "function") return getDomainUnit("details");
@@ -13989,8 +14680,8 @@ function applyDimensionEditor() {
   if (raw === state.before.text) value = state.before.value;
   else {
     try {
-      value = evaluateFeatureNumber(raw, { key:"dimension", unit:state.constraint.type === "angle" ? "angle" : "length" });
-      if (state.constraint.type !== "angle" && !/(\d+(?:\.\d*)?|\.\d+)\s*(mm|cm|in|ft|m)\b/i.test(raw)) {
+      value = evaluateFeatureNumber(raw, { key:"dimension", unit:dimensionUnit(state.constraint) });
+      if (dimensionUnit(state.constraint) !== "angle" && !/(\d+(?:\.\d*)?|\.\d+)\s*(mm|cm|in|ft|m)\b/i.test(raw)) {
         var u = dimensionEditorUnit(state.constraint);
         if (u === "mm") value /= 10;
         else if (u === "in") value *= 2.54;
@@ -14000,7 +14691,9 @@ function applyDimensionEditor() {
     }
     catch (error) { value = NaN; }
   }
-  if (!fin(value) || value <= 0) {
+  /* Directed sketch angles may be negative (or zero for parallel lines).
+     Length dimensions still require a positive value. */
+  if (!fin(value) || (dimensionUnit(state.constraint) !== "angle" && value <= 0)) {
     root.querySelector("#mdDimValue").focus();
     return false;
   }
@@ -14250,8 +14943,8 @@ function makeWallSegment(a, b, options) {
   var existingPointIds = new Set(sketch.points.map(function (p) { return p.id; }));
   var aid = newSketchPoint(sketch, a), bid = newSketchPoint(sketch, b);
   var line = {
-    id: uid(), type: "line", name: "Line", a: aid, b: bid,
-    construction: false, weight: Math.max(1, E.wallWidth / 5),
+    id: uid(), type: "line", name: options?.construction ? "Centreline" : "Line", a: aid, b: bid,
+    construction: !!options?.construction, weight: Math.max(1, E.wallWidth / 5),
   };
   sketch.entities.push(line);
   var snap = options?.typed ? null : E._osnap;
@@ -14259,9 +14952,10 @@ function makeWallSegment(a, b, options) {
   var circles = (sketch.entities || []).filter(function (e) { return e.type === "circle" || e.type === "arc"; }).map(function (e) {
     var c = sketchPoint(sketch, e.c); if (!c) return null;
     var r = e.type === "circle" ? Number(e.r) : Math.hypot((sketchPoint(sketch, e.a) || c).x - c.x, (sketchPoint(sketch, e.a) || c).y - c.y);
-    return { id: e.id, r: r, center: { u: c.x, v: c.y } };
+    var startPoint=sketchPoint(sketch,e.a),endPoint=sketchPoint(sketch,e.b);
+    return { id: e.id, type:e.type, r: r, center: { u: c.x, v: c.y },startAngle:startPoint?Math.atan2(startPoint.y-c.y,startPoint.x-c.x):undefined,endAngle:endPoint?Math.atan2(endPoint.y-c.y,endPoint.x-c.x):undefined };
   }).filter(Boolean);
-  var tangent = inferTangentCircle({ a: a, b: b }, circles), inferred = [];
+  var tangent = inferTangentCircle({ a: a, b: b }, circles,{scale:E.scl,pixelTolerance:4}), inferred = [];
   inferLineRelations(line, a, { u: b.u, v: b.v }, snap, {
     // Closing an already determined chain needs no extra orientation relation.
     suppress: E._suppressInference || (existingPointIds.has(aid) && existingPointIds.has(bid) && solveSketch(sketch).status === "fully-constrained"), tangentCircleId: tangent && tangent.id,
@@ -14297,6 +14991,7 @@ function finishWallChain(cancel) {
    while a shape you eyeballed stays free to be dragged. */
 var DYN_TOOLS = {
   wall:  [{ k:"length", unit:"length" }, { k:"angle", u:"°", signed:true }],
+  constr:[{ k:"length", unit:"length" }, { k:"angle", u:"°", signed:true }],
   srect: [{ k:"width", unit:"length" }, { k:"height", unit:"length" }],
   scirc: [{ k:"diameter", unit:"length" }],
   sell:  [{ k:"major", unit:"length" }, { k:"minor", unit:"length" }],
@@ -14307,7 +15002,7 @@ var DYN_TOOLS = {
 // A typed number only means something once the tool has an anchor on the sheet.
 function dynAnchor() {
   if (E.mode === "drawing") return null;
-  if (E.tool === "wall") return E.wallPts && E.wallPts.length ? E.wallPts[E.wallPts.length - 1] : null;
+  if (E.tool === "wall" || E.tool === "constr") return E.wallPts && E.wallPts.length ? E.wallPts[E.wallPts.length - 1] : null;
   if (E.tool === "sslot") return E.slotPts && E.slotPts.length ? E.slotPts[0] : null;
   if (E.tool === "sell") return E.ellPts && E.ellPts.length ? E.ellPts[0] : null;
   if (E.tool === "srect" || E.tool === "scirc" || E.tool === "spoly") return E.drag && (E.drag.mode === "srect" || E.drag.mode === "scirc" || E.drag.mode === "spoly") ? { u:E.drag.u, v:E.drag.v } : null;
@@ -14323,7 +15018,7 @@ function dynLive() {
   if (!anchor) return {};
   var to = m || anchor;
   var du = to.u - anchor.u, dv = to.v - anchor.v, reach = Math.hypot(du, dv);
-  if (E.tool === "wall") return { length: reach, angle: (Math.atan2(dv, du) * 180) / Math.PI };
+  if (E.tool === "wall" || E.tool === "constr") return { length: reach, angle: (Math.atan2(dv, du) * 180) / Math.PI };
   if (E.tool === "srect") return { width: Math.abs(du), height: Math.abs(dv) };
   if (E.tool === "scirc") return { diameter: reach * 2 };
   if (E.tool === "spoly") return { diameter: reach * 2, sides: E.polySides };
@@ -14351,10 +15046,15 @@ function pointToLineDistance(p, a, b) {
 
 function dynTyped(key) {
   var raw = E.dynInput && E.dynInput.values ? E.dynInput.values[key] : "";
-  var value = parseFloat(raw);
-  if (!fin(value)) return null;
   var field = (DYN_TOOLS[E.tool] || []).find(function (item) { return item.k === key; });
-  return field && field.unit === "length" ? lengthFromDocument(value, modelLengthUnit()) : value;
+  if (!String(raw).trim()) return null;
+  var value;
+  try {
+    value = field && field.unit === "length"
+      ? parseSketchDimensionEntry(raw, {type:"distance"}, modelLengthUnit()).value
+      : Number(raw);
+  } catch (_) { return null; }
+  return fin(value) ? value : null;
 }
 // typed if given, measured otherwise
 function dynValue(key, live) { var typed = dynTyped(key); return typed == null ? live[key] : typed; }
@@ -14372,6 +15072,16 @@ function dynKey(e) {
     return E.dynInput;
   };
   var current = function () { return fields.filter(function (f) { return f.k === E.dynInput.field; })[0] || fields[0]; };
+
+  // A length already being typed owns its unit suffix, so "100mm" cannot
+  // silently become 100 document units or launch a tool on the letter key.
+  if (E.dynInput && current().unit === "length" && /^[a-z ]$/i.test(e.key)) {
+    var candidate=String(E.dynInput.values[E.dynInput.field] || "")+e.key;
+    var suffix=candidate.match(/^[+-]?(?:\d+\.?\d*|\.\d+)\s*([a-z]*)$/i);
+    if (suffix && ["mm","cm","m","in","ft"].some(function(unit){return unit.indexOf(suffix[1].toLowerCase())===0;})) {
+      e.preventDefault(); E.dynInput.values[E.dynInput.field]=candidate; drawSketch(); return true;
+    }
+  }
 
   if (/^[0-9.]$/.test(e.key) || (e.key === "-" && E.dynInput && current().signed)) {
     e.preventDefault();
@@ -14419,12 +15129,12 @@ function dynCommit() {
   var typedKeys = fields.map(function (f) { return f.k; }).filter(function (k) { return dynTyped(k) != null; });
   var made = null;
 
-  if (E.tool === "wall") {
+  if (E.tool === "wall" || E.tool === "constr") {
     var length = Math.max(1e-6, Math.abs(dynValue("length", live) || E.grid));
     var rad = ((dynValue("angle", live) || 0) * Math.PI) / 180;
     var end = { u: anchor.u + Math.cos(rad) * length, v: anchor.v + Math.sin(rad) * length };
     pushUndo(t("opDraw"));
-    var line = makeWallSegment(anchor, end, {typed:true});
+    var line = makeWallSegment(anchor, end, {typed:true, construction:E.tool === "constr"});
     if (!line) { H.discard(); return false; }
     if (autoDimTyped() && typedKeys.indexOf("length") >= 0) {
       addSmartDimension(ensureSketch(E.def), { type:"line", id:line.id }, length);
@@ -14542,7 +15252,8 @@ function dynDrawHud(c, px, py) {
     var measured = f.unit === "length" ? lengthToDocument(live[f.k] || 0, modelLengthUnit()) : (live[f.k] || 0);
     var shown = hasTyped ? typed
       : (f.whole ? String(Math.round(measured)) : String(Math.round(measured * 1000) / 1000));
-    var label = t("dyn_" + f.k) + " " + shown + (f.unit === "length" ? " " + modelLengthUnit() : f.u);
+    var explicitUnit=hasTyped && /\d\s*(?:mm|cm|m|in|ft)\s*$/i.test(typed);
+    var label = t("dyn_" + f.k) + " " + shown + (f.unit === "length" ? (explicitUnit ? "" : " " + modelLengthUnit()) : f.u);
     return { on: !!input && f.k === input.field, typed: hasTyped, text: label, w: c.measureText(label).width + 16 };
   });
   var total = boxes.reduce(function (s, b) { return s + b.w + 4; }, 0);
@@ -14711,7 +15422,20 @@ function wireSketch() {
       selectSketch(sketchPoint(active, pointId), false);
       resolveSketch(false); refreshAll(); return;
     }
-    if (E.tool === "wall") {
+    if (E.tool === "wall" || E.tool === "constr") {
+      // An idle Construction click on a curve keeps the existing toggle action;
+      // a click on blank space or a point starts a new construction line.
+      if (E.tool === "constr" && (!E.wallPts || !E.wallPts.length)) {
+        var existingCurve = hitSketch(uv, e.pointerType);
+        if (existingCurve && existingCurve.type && existingCurve.type !== "point") {
+          var currentSketch = ensureSketch(E.def);
+          pushUndo(t("tool_constr"));
+          if (!toggleConstruction(currentSketch, existingCurve.id)) H.discard();
+          else { E.ssel = []; E.sel = null; resolveSketch(false); }
+          refreshAll();
+          return;
+        }
+      }
       if (!E.wallPts || !E.wallPts.length) {
         E.wallPts = [{ u: su, v: sv, pointId: sp.pointId || null }];
         E.dynInput = null;
@@ -14721,7 +15445,7 @@ function wireSketch() {
         var cp = E._osnap ? { u: su, v: sv, pointId: sp.pointId || null } : constrainWallPoint({ u: su, v: sv }, last, e.shiftKey);
         if (Math.hypot(cp.u - last.u, cp.v - last.v) >= 1e-6) {
           pushUndo(t("opDraw"));
-          var madeLine = makeWallSegment(last, cp);
+          var madeLine = makeWallSegment(last, cp, {construction:E.tool === "constr"});
           if (madeLine) {
             last.pointId = madeLine.a;
             E.wallPts.push({ u: cp.u, v: cp.v, pointId: madeLine.b });
@@ -14855,7 +15579,7 @@ function wireSketch() {
       refreshAll();
       return;
     }
-    if (E.tool === "trim" || E.tool === "extend" || E.tool === "offset" || E.tool === "constr") {
+    if (E.tool === "trim" || E.tool === "extend" || E.tool === "offset") {
       var target = hitSketch(uv, e.pointerType);
       if (!target || !target.type) {
         if(E.tool==="offset"){
@@ -14866,7 +15590,7 @@ function wireSketch() {
         drawSketch();return;
       }
       /* Offset asks for a distance, and the panel that asks is asynchronous —
-         so unlike its three neighbours it cannot push an undo entry here. The
+         so unlike Trim and Extend it cannot push an undo entry here. The
          apply handler pushes it, and cancelling leaves the history alone. */
       if (E.tool === "offset") { openSketchOffsetForm(target.id); drawSketch(); return; }
       var sketch = ensureSketch(E.def), ok = false, why = "";
@@ -14882,7 +15606,7 @@ function wireSketch() {
         pushUndo(t("tool_extend"));
         ok = extendEntity(sketch, target.id, { x: uv.u, y: uv.v });
         if (!ok) why = ["line","arc"].includes(target.type) ? t("extendNoTarget") : t("extendLineOnly");
-      } else { pushUndo(t("tool_constr")); ok = toggleConstruction(sketch, target.id); }
+      }
       if (!ok) H.discard();
       else { E.ssel = []; E.sel = null; resolveSketch(false);if(sketch.lastEdit?.repairCount)why=t("sketchRepairNeeded")+" · "+sketch.lastEdit.repairCount; }
       if (why) flash(why);
@@ -14966,9 +15690,19 @@ function wireSketch() {
     // In canonical sketch mode solids are context geometry only. Their design
     // parameters are edited through history, never by dragging the projection.
     if (isCanonicalAuthoring() && E.authoring && E.authoring.phase === "sketch") {
-      var modelEdge = hitProjectedModelEdge(ensureSketch(E.def), { x: uv.u, y: uv.v }, sketchVisibleModelEdges(), (e.pointerType === "touch" ? 14 : 7) / E.scl);
+      /* A corner beats the edge it ends: the point of a Coincident. */
+      var visibleModelEdges = sketchVisibleModelEdges(), pickTolerance = (e.pointerType === "touch" ? 14 : 7) / E.scl;
+      /* Drawn over the model through a perspective camera, an edge off the sketch
+         plane is not where its plane projection is: compare the click with where
+         the edge is drawn. The flat sheet has no camera, so it keeps the plane hit. */
+      var pickProjection = sketchProjection(), screenTolerance = e.pointerType === "touch" ? 14 : 8;
+      var pickScreen = pickProjection ? function (world) { return worldToSketchPx(pickProjection, world); } : null;
+      var modelVertex = pickScreen ? hitScreenModelVertex(downPoint, visibleModelEdges, screenTolerance, pickScreen)
+        : hitProjectedModelVertex(ensureSketch(E.def), { x: uv.u, y: uv.v }, visibleModelEdges, pickTolerance);
+      var modelEdge = modelVertex || (pickScreen ? hitScreenModelEdge(downPoint, visibleModelEdges, screenTolerance, pickScreen, edgePoints)
+        : hitProjectedModelEdge(ensureSketch(E.def), { x: uv.u, y: uv.v }, visibleModelEdges, pickTolerance));
       if (modelEdge) {
-        var reference = topologyReferenceFromEntry(modelEdge) || cloneData(modelEdge);
+        var reference = modelVertex ? cloneData(modelVertex) : topologyReferenceFromEntry(modelEdge) || cloneData(modelEdge);
         var additive = e.ctrlKey || e.metaKey || E.mobileAddSelection || selPoints().length > 0;
         if (!additive) E.topologySelection = [];
         var already = (E.topologySelection || []).findIndex(function (item) { return item.persistentId === reference.persistentId; });
@@ -14983,6 +15717,7 @@ function wireSketch() {
       if (!(e.ctrlKey || e.metaKey || E.mobileAddSelection)) {
         E.ssel = [];
         E.sel = null;
+        dropSketchModelPicks();
       }
       refreshAll();
       return;
@@ -15050,7 +15785,7 @@ function wireSketch() {
       if (E.drag.mode === "orbit") {
         if (E.pv) {
           E.pv.az += (e.clientX - E.drag.px) * 0.009;
-          E.pv.el = clamp(E.pv.el + (e.clientY - E.drag.py) * 0.006, 0.05, 1.5);
+          E.pv.el = clamp(E.pv.el + (e.clientY - E.drag.py) * 0.006, -1.5, 1.5);
           if (E.pv.clearFixedFrame) E.pv.clearFixedFrame(false);
           E.pv.render();
         }
@@ -15224,7 +15959,7 @@ function wireSketch() {
       drawingSheet().doubleClick(e, e.clientX - sheetRect.left, e.clientY - sheetRect.top);
       return;
     }
-    if (E.tool === "wall" && E.wallPts) { finishWallChain(false); return; }
+    if ((E.tool === "wall" || E.tool === "constr") && E.wallPts) { finishWallChain(false); return; }
     if (E.tool === "select" || E.tool === "dim") {
       var sketchRect = cv.getBoundingClientRect(), sketch = ensureSketch(E.def);
       var dimension = placedDimensionAt(sketch, e.clientX - sketchRect.left, e.clientY - sketchRect.top);
@@ -15497,6 +16232,9 @@ function releaseSelectionFilterChord(e) {
 }
 
 function onKey(e) {
+  // Extension and legacy event producers can dispatch keydown without a key.
+  // Such events identify no shortcut and must not reach tool or field handlers.
+  if (!e || typeof e.key !== "string" || !e.key) return;
   if(E.cutPending){e.preventDefault();return;}
   if (!E.open || modelerDecisionOpen()) return;
   var commandSearch = root && root.querySelector("#mdCommandSearch");
@@ -15747,6 +16485,10 @@ function applyFeatureFilter(host) {
 
 function insertAssemblyComponent(modelKey) {
   if (!E.assembly) E.assembly = newAssembly();
+  // Saved assemblies can contain numeric IDs newer than the scene allocator.
+  // Reserve the whole tree before assigning a new occurrence ID; otherwise a
+  // duplicate top-level ID redirects existing mates to the inserted assembly.
+  S.idc = nextDocumentNumericId(E.assembly, S.idc);
   var i = E.assembly.components.length, component;
   /* A saved assembly goes in as ONE component that carries its own document
      (book p.387–402: LENSANDBULB into CAPANDLENS into FLASHLIGHT). Its mates are
@@ -15756,7 +16498,7 @@ function insertAssemblyComponent(modelKey) {
     if (!record) return;
     if (containsAssembly(record, E.assembly.key)) { flash(t("subassemblyContainsThis")); return; }
     pushUndo(t("addComponent"));
-    component = subassemblyComponent(record, { id: uid(), grounded: i === 0, transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } });
+    component = subassemblyComponent(compactAssemblyTopologySnapshots(record), { id: uid(), grounded: i === 0, transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } });
     solveTopologyMates(component.asm);
   } else {
     var def = loadLib().find(function (m) { return m.key === modelKey; });
@@ -15764,7 +16506,7 @@ function insertAssemblyComponent(modelKey) {
     pushUndo(t("addComponent"));
     component = {
       id: uid(), modelKey: def.key, name: def.name || def.key,
-      def: cloneData(def), visible: true, grounded: i === 0,
+      def: cloneData(compactDocumentTopologySnapshots(def)), visible: true, grounded: i === 0,
       transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
     };
   }
@@ -15809,19 +16551,26 @@ function assemblyTreeNode(fields) {
    phosphor class names because these buttons are drawn inline rather than
    through cadIcon. */
 var MATE_PALETTE = [
+  ["lock", "ph-lock", "lockMate"],
   ["coincident", "ph-selection", "coincidentMate"],
+  ["distance", "ph-ruler", "topologyDistanceMate"],
   ["concentric", "ph-circles-three-plus", "concentricMate"],
   ["angle", "ph-angle", "angleMate"],
   ["screw", "threadfeature", "screwMate"],
   ["tangent", "ph-circle", "tangentMate"],
   ["limit", "ph-arrows-in-line-vertical", "limitMate"],
+  ["symmetric", "ph-flip-horizontal", "symmetricMate"],
+  ["gear", "ph-gear", "gearMate"],
 ];
 
-function topologyMateLabel(type) {
+function topologyMateLabel(type,mate) {
+  if(type==='coincident' && (mate?.a?.descriptor?.surface==='axis' || mate?.b?.descriptor?.surface==='axis'))return 'Coincident plane and axis';
   var key = {
+    lock:"lockMate",
     coincident: "coincidentMate", concentric: "concentricMate",
     screw: "screwMate", tangent: "tangentMate", limit: "limitMate",
     angle: "angleMate", distance: "topologyDistanceMate",
+    symmetric: "symmetricMate", gear: "gearMate",
   }[type];
   return key ? t(key) : t("mate");
 }
@@ -15870,6 +16619,7 @@ function assemblyTreeModel() {
   var componentRows = components.map(function (component, index) {
     var def = componentDef(component), sub = isSubassembly(component);
     var solids = def ? activeParts(def).length : 0;
+    if (hasSingleToolboxKernelRecipe(def,activeParts(def)) && def.features[0].params.kind === "ansi-pan-cross") solids=1;
     var label = componentLabelOf(component);
     if (labelCounts.get(label) > 1) {
       labelSeen.set(label, (labelSeen.get(label) || 0) + 1);
@@ -15893,6 +16643,7 @@ function assemblyTreeModel() {
       id: "comp:" + component.id, kind: "component", targetId: component.id, index: index,
       name: label,
       detail: [component.grounded ? t("treeGrounded") : "",
+        component.inContext ? "→ In context"+(component.contextIssue?" · "+component.contextIssue:"") : "",
         sub ? tf("subassemblyParts", { n: component.asm.components.length }) : "",
         solids ? countLabel(solids, "treeComponentPartOne", "treeComponentParts") : "",
         /* What its mates have left free. Only for components a mate actually
@@ -15923,7 +16674,7 @@ function assemblyTreeModel() {
     return assemblyTreeNode({
       id: "tmate:" + mate.id, kind: "mate", targetId: mate.a && mate.a.componentId,
       index: legacy.length + index,
-      name: topologyMateLabel(mate.type),
+      name: topologyMateLabel(mate.type,mate),
       detail: componentLabel(mate.a && mate.a.componentId) + " ↔ " + componentLabel(mate.b && mate.b.componentId),
       icon: mate.type === "screw" ? "threadfeature" : "ph-link",
       // the solver already honours mate.suppressed; this is the first way to set it
@@ -15975,6 +16726,7 @@ function showAssemblyTreeMenu(node, event, api, handlers) {
   });
   if (node.kind === "component") {
     var component = assemblyComponentForNode(node);
+    if(component?.def && !isSubassembly(component))items.push({label:"Edit component",icon:"ph-cube-focus",run:function(){beginContextPart(component);}});
     if (component) items.push({
       label: (component.grounded ? "✓ " : "") + t("grounded"),
       icon: component.grounded ? "ph-lock-open" : "ph-anchor",
@@ -16126,13 +16878,153 @@ function removeAssemblyComponent(component) {
   refreshAll();
 }
 
+function openNewContextPart() {
+  if (!E.assembly) return;
+  var choices = [];
+  E.assembly.components.filter(function(component){return !isSubassembly(component);}).forEach(function(component){
+    var doc=componentDef(component), entries=componentTopology(component,function(leaf){
+      var leafDoc=componentDef(leaf);
+      if(leafDoc?.exactTopologyCache){var compiled=compileKernelFeatureTree(interferenceDocument(leafDoc));if(compiled.ok)return verifiedFinalTopology(leafDoc,compiled.features);}
+      return pickPartsFor(leaf).flatMap(topologyEntriesForPart);
+    });
+    exactMateReferenceChoices(entries,doc?.features || []).filter(function(choice){return choice.entry.descriptor?.surface==="plane";}).forEach(function(choice){
+      choices.push({value:String(component.id)+"|"+choice.entry.persistentId,label:component.name+" · "+choice.label,component:component,entry:choice.entry});
+    });
+  });
+  if(!choices.length){flash("Select a component with a planar face");return;}
+  var selected=(E.topologySelection || []).at(-1), initial=choices.find(function(choice){return choice.component.id===selected?.componentId && choice.entry.persistentId===selected?.persistentId;}) || choices[0];
+  openQuickForm({action:"newcontextpart",title:"New part in context",hint:"The new part's Right plane attaches to this face. Sketch and add features, then Finish component. Parent geometry is shown transparent.",fields:[
+    {key:"name",label:"Component name",type:"text",value:"New in-context part"},
+    {key:"support",label:"Parent planar face",type:"select",value:initial.value,choices:choices},
+  ],onApply:function(values){
+    var choice=choices.find(function(item){return item.value===values.support;});if(!choice)return false;
+    pushUndo("New part in context");
+    var def=newDef();def.name=String(values.name || "New in-context part");
+    var component={id:uid(),name:def.name,def:def,visible:true,grounded:true,transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0},inContext:{parentId:choice.component.id,reference:stampComponentRef(topologyReferenceFromEntry(choice.entry),choice.component,null)}};
+    E.assembly.components.push(component);updateAssemblyContexts(E.assembly);
+    if(component.contextIssue){E.assembly.components.pop();flash(component.contextIssue);return false;}
+    beginContextPart(component,true);return true;
+  }});
+}
+
+function openSurfaceSectionIntersection(sketch,anchor,edgeReference) {
+  var compiled=compileKernelFeatureTree(E.def);
+  if(!compiled.ok){flash("The upstream feature history is unavailable");return;}
+  var consumer=compiled.features.findIndex(function(feature){return feature.params?.sketchId===sketch.id || (feature.references?.sketches || []).includes(sketch.id);});
+  var features=consumer<0?compiled.features:compiled.features.slice(0,consumer);
+  openQuickForm({action:"surfaceintersectionsource",title:"Choose surface feature",hint:"Choose the feature containing the original curved face. Only history through that feature is calculated.",fields:[
+    {key:"owner",label:"Surface feature",type:"select",value:"all",choices:[{value:"all",label:"All upstream features"}].concat(features.map(function(feature){return {value:feature.id,label:feature.name || feature.type};}))}
+  ],onApply:function(values){computeSurfaceSectionIntersection(sketch,anchor,edgeReference,values.owner);return true;}});
+}
+
+async function computeSurfaceSectionIntersection(sketch,anchor,edgeReference,ownerId) {
+  var edge=resolveIntersectionEdge(edgeReference),candidates=[];
+  if(!edge){flash("Select a model edge for the section intersection");return;}
+  // Worker restore materializes the final head only. A surface relation must
+  // query the original trimmed upstream face with its original persistent name.
+  var compiled=compileKernelFeatureTree(E.def),sectionDocument=E.def;
+  if(!compiled.ok){flash("The upstream feature history is unavailable");return;}
+  var consumer=compiled.features.findIndex(function(feature){return feature.params?.sketchId===sketch.id || (feature.references?.sketches || []).includes(sketch.id);});
+  var sectionFeatures=consumer<0?compiled.features:compiled.features.slice(0,consumer);
+  if(ownerId!=="all"){
+    var ownerIndex=sectionFeatures.findIndex(function(feature){return feature.id===ownerId;});
+    if(ownerIndex<0){flash("The surface feature is no longer available");return;}
+    sectionFeatures=sectionFeatures.slice(0,ownerIndex+1);
+  }
+  try {
+    flash("Computing upstream surface sections");
+    candidates=await surfaceSectionsInCadWorker({...compiled.document,features:sectionFeatures,nativeSectionOwnerId:ownerId==="all"?null:ownerId},cloneData(sketch),cloneData(edge),{onProgress:function(progress){flash("Computing upstream surface sections · "+(progress.name || progress.stage));}});
+  }catch(error){flash(error.message);return;}
+  if(E.def!==sectionDocument)return;
+  if(!candidates.length){flash("No curved native surface meets this model edge on the sketch plane");return;}
+  openQuickForm({action:"surfaceintersection",title:"Intersect model surface",hint:"Bind this point to the exact surface section and the selected edge projection. It follows upstream edits.",fields:[
+    {key:"source",label:"Source surface",type:"select",value:"0",choices:candidates.map(function(item,index){return {value:String(index),label:item.name+" · "+item.surface+" · "+item.reference.semantic+" · lower Y "+modelLengthText(item.lower.y,5)+" "+modelLengthUnit()};})},
+    {key:"branch",label:"Intersection branch",type:"select",value:"lower",choices:[{value:"lower",label:"Lower"},{value:"upper",label:"Upper"}]}
+  ],onApply:function(values){
+    try {
+      var chosen=candidates[Number(values.source)],target=chosen[values.branch];
+      pushUndo("Intersect model surface");anchor.fixed=false;
+      sketch.constraints=(sketch.constraints || []).filter(function(c){return !(c.point===anchor.id && (c.type==="fixed" || c.type==="intersection"));});
+      sketch.constraints.push({id:uid(),type:"intersection",point:anchor.id,edgeA:cloneData(edgeReference),sectionFace:cloneData(chosen.reference),sectionBranch:values.branch,x:target.x,y:target.y});
+      if(!resolveSketch(true)){flash("The surface intersection conflicts with the sketch relations");return false;}
+      refreshAll();return true;
+    }catch(error){flash(error.message);return false;}
+  }});
+}
+
+function beginContextPart(component,isNew) {
+  if(!component?.def || isSubassembly(component) || E.contextEdit)return;
+  E.contextEdit={componentId:component.id,previousDef:E.def,isNew:!!isNew};
+  E.def=componentEditCopy(component);
+  E.def.metadata=E.def.metadata || {};E.def.metadata.contextEditor={componentId:component.id,assemblyKey:E.assembly.key,isNew:!!isNew};
+  setDocumentType("part");
+  H.clear().seed();
+  E.authoring={phase:"model",referenceId:null,sketchId:null,featureType:null,sketchSelection:[],featureSelection:[],workflowFocus:"context"};
+  setTab("parts");refreshAll();fitPreview();
+}
+
+function finishContextPart() {
+  var edit=E.contextEdit;if(!edit)return;
+  var component=assemblyComponentById(edit.componentId);
+  var working=E.def;
+  E.def=edit.previousDef;E.contextEdit=null;
+  setDocumentType("assembly");E.sel=component;E.componentSel=component?[component]:[];
+  // Part Undo is local to the isolated working copy. The assembly gets one
+  // complete transaction, with its unchanged source definition as baseline.
+  H.clear().seed();
+  if(component){pushUndo("Edit component");commitComponentEdit(component,working);}
+  solveAssembly({quiet:true});refreshAll();fitPreview();
+}
+
+function cancelContextPart() {
+  var edit=E.contextEdit;if(!edit)return;
+  if(edit.isNew)E.assembly.components=E.assembly.components.filter(function(component){return component.id!==edit.componentId;});
+  E.def=edit.previousDef;E.contextEdit=null;
+  setDocumentType("assembly");H.clear().seed();refreshAll();fitPreview();scheduleModelerDraft();
+}
+
+function syncAssemblyContextBar() {
+  var existing=root?.querySelector("#mdAssemblyContextBar");if(existing)existing.remove();
+  if(!E.contextEdit)return;
+  var bar=el("div","md-note");bar.id="mdAssemblyContextBar";
+  bar.appendChild(el("span","","Editing component · "+(E.def?.name || "")));
+  bar.appendChild(btn("Finish component",finishContextPart,"btn-accent"));
+  bar.appendChild(btn("Cancel component edit",cancelContextPart));
+  root.querySelector("#mdRailRow")?.appendChild(bar);
+}
+
+function addAssemblyContextGhosts(parent) {
+  if(!E.contextEdit)return;
+  var current=assemblyComponentById(E.contextEdit.componentId);if(!current)return;
+  // Placement is a pose, not geometry. Building the current housing here used
+  // to tessellate its entire body and allocate every picking edge just to
+  // discard the result after reading its matrix.
+  var placement=new THREE.Group(),tr=normalizeTransform(current),blown=current.explodedOffset || null;
+  placement.position.set(tr.x+(blown?.x || 0),tr.y+(blown?.y || 0),tr.z+(blown?.z || 0));
+  placement.rotation.set(tr.rx*Math.PI/180,tr.ry*Math.PI/180,tr.rz*Math.PI/180);
+  placement.updateMatrix();
+  var context=new THREE.Group();context.userData.cadAssemblyContext=true;context.matrix.copy(placement.matrix).invert();context.matrixAutoUpdate=false;
+  E.assembly.components.forEach(function(component){
+    if(component===current || component.visible===false)return;
+    var ghost=buildComponentGroup(component,null,"",true);if(!ghost)return;
+    ghost.traverse(function(object){
+      delete object.userData.cadComponent;delete object.userData.cadPart;object.userData.cadOverlay=true;
+      if(object.material){var materials=Array.isArray(object.material)?object.material:[object.material];materials=materials.map(function(material){var copy=material.clone();copy.transparent=true;copy.opacity=.18;copy.depthWrite=false;return copy;});object.material=Array.isArray(object.material)?materials:materials[0];}
+    });context.add(ghost);
+  });parent.add(context);
+}
+
 function refreshComponents() {
   var host = root.querySelector("#mdParts");
+  var previousInsertModel=host.querySelector(".md-insert-component select")?.value;
   host.innerHTML = "";
   addFeatureFilter(host);
-  var models = loadLib();
+  // This panel reads names and keys only. Deep-copying every saved mesh and
+  // native topology on every selection/refresh blocks the main thread.
+  var models = modelLibraryCache;
   var insert = el("div", "md-insert-component");
   var select = el("select");
+  select.setAttribute("aria-label","Component model");
   models.forEach(function (m) {
     var o = document.createElement("option");
     o.value = m.key; o.textContent = m.name || m.key;
@@ -16141,7 +17033,7 @@ function refreshComponents() {
   /* Saved assemblies insert as sub-assemblies — every one but this assembly
      and any that already contain it, which would nest it inside itself. */
   var currentKey = E.assembly && E.assembly.key;
-  var subassemblies = loadAssemblies().filter(function (a) { return a.key !== currentKey && !containsAssembly(a, currentKey); });
+  var subassemblies = assemblyLibraryCache.filter(function (a) { return a.key !== currentKey && !containsAssembly(a, currentKey); });
   if (subassemblies.length) {
     var group = document.createElement("optgroup");
     group.label = t("subassembliesGroup");
@@ -16152,11 +17044,13 @@ function refreshComponents() {
     });
     select.appendChild(group);
   }
+  if(previousInsertModel && Array.from(select.options).some(function(option){return option.value===previousInsertModel;}))select.value=previousInsertModel;
   var add = btn('<i class="ph ph-plus"></i> ' + t("addComponent"), function () {
     if (select.value) insertAssemblyComponent(select.value);
   }, "btn-accent");
   add.disabled = !models.length && !subassemblies.length;
   insert.appendChild(select); insert.appendChild(add); host.appendChild(insert);
+  host.appendChild(btn("New part in context", openNewContextPart, "md-wide"));
   /* An empty library used to leave Assembly as a dead end: an empty dropdown, a
      disabled Insert button, and no hint that the tutorial can seed components.
      Say so, and offer the one action that actually gets the user moving. */
@@ -16226,6 +17120,11 @@ function mergeRecordFor(featureId) {
 }
 
 function syncProjectionFromFeature(feature) {
+  var changedProjections=transitionExtrudeProjection(E.def,feature);
+  if(changedProjections.length){
+    if(E.sel && !E.def.parts.includes(E.sel))E.sel=changedProjections[0];
+    changedProjections.forEach(function(item){invalidatePartMeshAfterEdit(item);markLiveDirtyPart(item);scheduleExactMesh(item);});
+  }
   if(feature.type==="helix"){
     var reference=(E.def.referenceGeometry || []).find(function(r){return r.featureId===feature.id;});
     if(reference){Object.assign(reference,createHelix({...helixFromSketch(E.def,feature.params),id:reference.id,name:feature.name}));return true;}
@@ -16249,8 +17148,7 @@ function syncProjectionFromFeature(feature) {
     return true;
   } else if(part && feature.type==="extrude"){
     var depth=Math.max(.1,Number(feature.params.depth)||.1),offset=Number(feature.params.offset)||0,sketchId=feature.references.sketches[0],sketch=(E.def.sketches || []).find(function(item){return item.id===(sketchId && sketchId.id || sketchId);});
-    var normal=sketch && sketch.frame && sketch.frame.normal,axis=part.axis==="frame"?planeAxis(sketch && sketch.plane):part.axis,principal=normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):(part.to>=part.from?1:-1);
-    var direction=(feature.params.direction==="reverse"?-1:1)*(principal||1),symmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane",center=(part.frame?0:(sketch&&Number(sketch.offset)||0))+direction*offset;
+    var direction=extrusionPreviewDirection(sketch,part.axis,feature.params.direction),symmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane",center=(part.frame?0:(sketch&&Number(sketch.offset)||0))+direction*offset;
     part.from=symmetric?center-direction*depth/2:center;part.to=symmetric?center+direction*depth/2:center+direction*depth;part.supportDepth=depth;part.supportBaseOffset=offset;
     part.direction=feature.params.direction;part.symmetric=symmetric;part.draftAngle=Number(feature.params.draftAngle)||0;part.draftOutward=!!feature.params.draftOutward;delete part.meshData;part.exactPending=false;markLiveDirtyPart(part);scheduleExactMesh(part);
   } else if(!part && feature.type==="extrude" && mergeRecordFor(feature.id)){
@@ -16259,9 +17157,7 @@ function syncProjectionFromFeature(feature) {
     var record=mergeRecordFor(feature.id),host=record.part,merge=record.merge;
     var mergedDepth=Math.max(.1,Number(feature.params.depth)||.1),mergedOffset=Number(feature.params.offset)||0;
     var mergedSketchId=feature.references.sketches[0],mergedSketch=(E.def.sketches || []).find(function(item){return item.id===(mergedSketchId && mergedSketchId.id || mergedSketchId);});
-    var mergedNormal=mergedSketch && mergedSketch.frame && mergedSketch.frame.normal,mergedAxis=merge.axis==="frame"?planeAxis(mergedSketch && mergedSketch.plane):merge.axis;
-    var mergedPrincipal=mergedNormal?(mergedAxis==="x"?Math.sign(mergedNormal.x||1):mergedAxis==="y"?Math.sign(mergedNormal.y||1):Math.sign(mergedNormal.z||1)):(merge.to>=merge.from?1:-1);
-    var mergedDirection=(feature.params.direction==="reverse"?-1:1)*(mergedPrincipal||1),mergedSymmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane";
+    var mergedDirection=extrusionPreviewDirection(mergedSketch,merge.axis,feature.params.direction),mergedSymmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane";
     var mergedCentre=(merge.frame?0:(mergedSketch&&Number(mergedSketch.offset)||0))+mergedDirection*mergedOffset;
     merge.from=mergedSymmetric?mergedCentre-mergedDirection*mergedDepth/2:mergedCentre;
     merge.to=mergedSymmetric?mergedCentre+mergedDirection*mergedDepth/2:mergedCentre+mergedDirection*mergedDepth;
@@ -16289,6 +17185,8 @@ function syncProjectionFromFeature(feature) {
        left on their hosts describe placements that no longer exist. */
     clearPatternMerges(feature.id);
     if(seed){markLiveDirtyPart(seed);var count=Math.max(2,Math.min(100,Math.round(Number(feature.params.count)||2))),circularStep=circularPatternStepDegrees(feature.params,count)*Math.PI/180,placements=patternPlacements(feature.params);layPatternCopies(seed,feature.params,feature,placements,circularStep,function(copy){markLiveDirtyPart(copy);E.def.parts.push(copy);});}
+  } else if(feature.type==="mirror" && feature.params?.scope==="feature"){
+    var featureMirrorHost=selectedPatternBody(feature.params.seedFeatureId);if(featureMirrorHost){markLiveDirtyPart(featureMirrorHost);queueExactMesh(featureMirrorHost);}
   } else if(feature.type==="mirror"){
     var mirrorSeed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0] || cutTargetFeatureId(item)===feature.inputs[0];}),planeReference=(feature.references.references || ["plane:right"])[0];
     E.def.parts=(E.def.parts || []).filter(function(item){return item.derivedFeatureId!==feature.id;});
@@ -16340,6 +17238,7 @@ function featureRebuildNeedsKernel(feature) {
   if(!feature)return false;
   if(featureBuildsKernelBody(feature.type) || FINISH_FEATURES.includes(feature.type))return true;
   if(feature.type==="pattern" && feature.params && (feature.params.mergeResult || feature.params.scope==="feature"))return true;
+  if(feature.type==="mirror" && feature.params?.scope==="feature")return true;
   return partsForFeature(feature.id).some(function(part){
     return isKernelBody(part) || (part.exactOperations || []).length>0
       || (part.cuts3d || []).length>0 || (part.merges3d || []).length>0;
@@ -16431,7 +17330,11 @@ function syncLiveFeatureEdit(feature) {
 function cancelFeatureParameterEdit(silent) {
   var edit=E.authoring && E.authoring.featureEdit;if(!edit)return;
   var feature=(E.def.features || []).find(function(item){return item.id===edit.featureId;});
-  if(feature){Object.keys(feature).forEach(function(key){delete feature[key];});Object.assign(feature,cloneData(edit.snapshot));syncProjectionFromFeature(feature);}
+  if(feature){
+    Object.keys(feature).forEach(function(key){delete feature[key];});Object.assign(feature,cloneData(edit.snapshot));
+    (E.def.parts || []).forEach(function(item){(item.exactOperations || []).forEach(function(operation){if(operation.id===feature.id)operation.targets=cloneData(feature.references?.topology || []);});});
+    syncProjectionFromFeature(feature);
+  }
   E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;H.discard();
   closeFeaturePanel();
   refreshAll();if(!silent)flash(t("featureEditCancelled"));
@@ -16442,22 +17345,157 @@ function openFeatureEditor(feature) {
   if(E.authoring.featureEdit)cancelFeatureParameterEdit(true);
   pushUndo("Edit "+feature.name);E.authoring.featureEdit={featureId:feature.id,snapshot:cloneData(feature)};
   host.hidden=false;host.innerHTML="";E.authoring.featureType=feature.type;E.authoring.editFeatureId=feature.id;
+  if(["fillet","chamfer"].includes(feature.type)){
+    E.authoring.featurePreviewState=feature;
+    E.topologySelection=canonicalFeatureTopologyReferences(E.def,cloneData(feature.references?.topology || []));
+    feature.references.topology=cloneData(E.topologySelection);
+    var finishCompiled=compileKernelFeatureTree(E.def),finishInput=feature.inputs?.[0];
+    E.authoring.finishEditTopology=finishCompiled.ok ? verifiedExactTopology(E.def,finishCompiled.features).get(finishInput) || null : null;
+  }
   host.appendChild(el("div","md-feature-form-title",cadIcon(feature.type)+'<span><b>'+tf("featureEditTitle",{name:feature.name})+'</b><small>'+tf("featureEditStep",{id:feature.id})+'</small></span>'));
   highlightFeatureIssueBanner(host, feature);
   if(E.authoring.repairMarker)host.appendChild(el("div","md-note",t("repairLastLocation")));
   var name=featureField(host,{key:"$name",label:t("fldFeatureName"),type:"text"},feature.name),liveBadge=el("div","md-feature-live on",'<i class="ph ph-broadcast"></i> '+t("featureLiveAllViews"));host.appendChild(liveBadge);
+  var supportSketch=feature.type==="hole" ? (E.def.sketches || []).find(function(sketch){return sketch.id===feature.params?.sketchId;}) : null;
+  var supportSelect=null,supportChoices=[];
+  var finishTargetSelect=null,finishTargetChoices=[],draftNeutralSelect=null,draftNeutralChoices=[];
+  // A single Shell opening can be repaired from the same verified planar
+  // face picker as a Dome, without collapsing a multi-opening Shell.
+  if(feature.type==="dome" || ["shell","draft"].includes(feature.type) && (feature.references?.topology || []).length<=1){
+    var targetStageId=(feature.inputs || []).map(dependencyReferenceId)[0];
+    var targetCompiled=compileKernelFeatureTree(E.def);
+    var targetStageEntries=(targetCompiled.ok && verifiedExactTopology(E.def,targetCompiled.features).get(targetStageId))
+      || E.brepRun?.results?.get(targetStageId)?.topology || [];
+    finishTargetChoices=feature.type==="draft" ? draftFaceChoices(targetStageEntries,(E.def.features || [])) : planarMateFaceChoices(targetStageEntries,(E.def.features || []));
+    if(finishTargetChoices.length){
+      var finishTargetRow=el("label","md-row md-row-wide");finishTargetRow.appendChild(el("span","t",t("featureTargetFace")));
+      finishTargetSelect=document.createElement("select");finishTargetSelect.setAttribute("aria-label",t("featureTargetFace"));
+      finishTargetChoices.forEach(function(choice){var option=document.createElement("option");option.value=choice.entry.persistentId;option.textContent=choice.label;finishTargetSelect.appendChild(option);});
+      finishTargetSelect.value=feature.references?.topology?.[0]?.persistentId || "";
+      finishTargetRow.appendChild(finishTargetSelect);host.appendChild(finishTargetRow);
+    }
+    if(feature.type==="draft"){
+      draftNeutralChoices=planarMateFaceChoices(targetStageEntries,(E.def.features || []));
+      var draftNeutralRow=el("label","md-row md-row-wide");draftNeutralRow.appendChild(el("span","t",t("fcFldNeutralPlane")));
+      draftNeutralSelect=document.createElement("select");draftNeutralSelect.setAttribute("aria-label",t("fcFldNeutralPlane"));
+      var noNeutral=document.createElement("option");noNeutral.value="";noNeutral.textContent="Use axis and start/end settings";draftNeutralSelect.appendChild(noNeutral);
+      draftNeutralChoices.forEach(function(choice){var option=document.createElement("option");option.value=choice.entry.persistentId;option.textContent=choice.label;draftNeutralSelect.appendChild(option);});
+      draftNeutralSelect.value=feature.params?.neutralFace?.persistentId || "";
+      draftNeutralRow.appendChild(draftNeutralSelect);host.appendChild(draftNeutralRow);
+      var refreshDraftStatus=el("p","md-field-hint","Face choices are from the saved model. Refresh to inspect native upstream geometry.");
+      refreshDraftStatus.setAttribute("role","status");
+      var refreshDraftFaces=btn("Refresh exact faces",async function(){
+        refreshDraftFaces.disabled=true;
+        refreshDraftStatus.textContent="Computing exact upstream faces…";
+        try{
+          var compiledFaces=compileKernelFeatureTree(E.def);
+          if(!compiledFaces.ok)throw new Error(compiledFaces.issues[0]?.message || "Invalid feature history");
+          var draftIndex=compiledFaces.features.findIndex(function(item){return item.id===feature.id;});
+          if(draftIndex<0)throw new Error("Draft is missing from the feature history");
+          var refreshed=await topologyInCadWorker({...compiledFaces.document,features:compiledFaces.features.slice(0,draftIndex)},targetStageId,{onProgress:function(progress){refreshDraftStatus.textContent="Refreshing exact faces · "+(progress.name || progress.stage);flash(refreshDraftStatus.textContent);}});
+          if(E.authoring.editFeatureId!==feature.id){refreshDraftStatus.textContent="Exact faces computed, but the edited feature changed. Reopen Draft and refresh its faces.";console.warn("Draft exact face refresh edit context changed",{expected:feature.id,current:E.authoring.editFeatureId});flash(refreshDraftStatus.textContent);return;}
+          finishTargetChoices=draftFaceChoices(refreshed.topology,E.def.features || []);
+          draftNeutralChoices=planarMateFaceChoices(refreshed.topology,E.def.features || []);
+          if(!finishTargetSelect)throw new Error("No target face selector is available");
+          var selectedTarget=finishTargetSelect.value,selectedNeutral=draftNeutralSelect.value;
+          finishTargetSelect.innerHTML="";draftNeutralSelect.innerHTML="";
+          finishTargetChoices.forEach(function(choice){var option=document.createElement("option");option.value=choice.entry.persistentId;option.textContent=choice.label;finishTargetSelect.appendChild(option);});
+          var blankNeutral=document.createElement("option");blankNeutral.value="";blankNeutral.textContent="Use axis and start/end settings";draftNeutralSelect.appendChild(blankNeutral);
+          draftNeutralChoices.forEach(function(choice){var option=document.createElement("option");option.value=choice.entry.persistentId;option.textContent=choice.label;draftNeutralSelect.appendChild(option);});
+          finishTargetSelect.value=selectedTarget;draftNeutralSelect.value=selectedNeutral;
+          refreshDraftStatus.textContent="Native faces refreshed: "+finishTargetChoices.length+" draftable faces and "+draftNeutralChoices.length+" neutral planes. Choose the target and neutral plane before updating.";
+          flash("Exact upstream faces refreshed. Choose the drafted face and neutral plane.");
+        }catch(error){refreshDraftStatus.textContent="Exact face refresh failed: "+(error.message || "Unknown error")+". Previous face choices remain unchanged.";console.warn("Draft exact face refresh failed",error);flash(refreshDraftStatus.textContent);}
+        finally{refreshDraftFaces.disabled=false;}
+      });host.appendChild(refreshDraftFaces);host.appendChild(refreshDraftStatus);
+    }
+  }
+  if(supportSketch){
+    var featureIndex=(E.def.features || []).indexOf(feature);
+    var earlier=(E.def.features || []).slice(0,featureIndex);
+    var allowedOwners=new Set(earlier.map(function(item){return item.id;}));
+    var supportStageId=(feature.inputs || []).map(dependencyReferenceId).find(function(id){return allowedOwners.has(id);}) || earlier.at(-1)?.id;
+    var supportStage=E.brepRun?.results?.get(supportStageId);
+    var supportEntries=supportStage?.topology || (E.def.parts || []).flatMap(topologyEntriesForPart);
+    supportChoices=planarMateFaceChoices(supportEntries.filter(function(entry){return allowedOwners.has(entry.ownerFeatureId);}),earlier);
+    if(supportChoices.length){
+      var supportRow=el("label","md-row md-row-wide");supportRow.appendChild(el("span","t",t("sketchSupportFace")));
+      supportSelect=document.createElement("select");supportSelect.setAttribute("aria-label",t("sketchSupportFace"));
+      supportChoices.forEach(function(choice){var option=document.createElement("option");option.value=choice.entry.persistentId;option.textContent=choice.label;supportSelect.appendChild(option);});
+      supportSelect.value=supportSketch.support?.persistentId || "";
+      supportRow.appendChild(supportSelect);host.appendChild(supportRow);
+    }
+  }
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
     feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);retargetSweepHelix(feature);feature.name=name.value || feature.name;
-    if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncLiveFeatureEdit(feature);if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
+    if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncLiveFeatureEdit(feature);if(["fillet","chamfer"].includes(feature.type))renderFinishEdgeList();if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
   });
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
   var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push(t("depSketch")+": "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push(t("depFeature")+": "+id);});
   host.appendChild(el("div","md-feature-selection-note",dependencies.length?dependencies.join(" · "):t("noUpstreamDeps")));
+  if(["fillet","chamfer"].includes(feature.type)){
+    var edgeBox=el("div","md-finish-edges");edgeBox.setAttribute("data-finish-edges",feature.type);
+    host.appendChild(edgeBox);renderFinishEdgeList();
+    var refreshFinishEdges=btn("Refresh exact upstream edges",async function(){
+      refreshFinishEdges.disabled=true;
+      try{
+        var stage=featureInputStage(compileKernelFeatureTree(E.def),feature);
+        var result=await topologyInCadWorker(stage.document,stage.head,{onProgress:function(progress){flash("Refreshing upstream edges · "+(progress.name || progress.stage));}});
+        if(E.authoring.editFeatureId!==feature.id)return;
+        E.authoring.finishEditTopology=result.topology;delete edgeBox.dataset.edgeSignature;renderFinishEdgeList();
+        flash("Exact upstream edges refreshed");
+      }catch(error){report(t("reportKickerSave"),"Upstream edges",String(error.message || error));}
+      finally{refreshFinishEdges.disabled=false;}
+    },"md-wide");host.appendChild(refreshFinishEdges);
+  }
   var actions=el("div","md-feature-actions");actions.appendChild(namedButton(btn('<i class="ph ph-arrow-counter-clockwise"></i> '+t("m_cancel"),function(){cancelFeatureParameterEdit(false);},"md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("updateFeature"),function(){
     if (!validateFeatureInputs(host)) return;
     var values=readFeatureParameterForm(controls,feature.params);
-    try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);retargetSweepHelix(feature);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ "+t("featureRebuiltFromHistory"));}
+    try{
+      var before=E.authoring.featureEdit.snapshot;
+      var chosenSupport=supportSelect && supportChoices.find(function(choice){return choice.entry.persistentId===supportSelect.value;});
+      var attachment=chosenSupport && faceSketchAttachment(topologyReferenceFromEntry(chosenSupport.entry),true);
+      var supportChanged=!!(supportSketch && (sketchSupportNeedsUpdate(supportSketch,attachment)
+        || attachment && (feature.references.topology || []).some(function(reference){return reference.kind==="face" && reference.persistentId!==attachment.support.persistentId;})));
+      if(supportChanged){
+        if(!attachment || attachment.surface)throw new Error(t("sketchSupportFace"));
+        var reattached=reattachFeatureSketchSupport(E.def,feature,attachment,"sk_hole_"+uid());
+        supportSketch=reattached.sketch;
+        values.params.sketchId=supportSketch.id;
+        values.params.holePositionPointIds=cloneData(feature.params.holePositionPointIds);
+        values.params.profileEntityIds=cloneData(feature.params.profileEntityIds);
+        values.references.sketches=cloneData(feature.references.sketches);
+      }
+      updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});
+      setFeatureReferencesFromForm(feature,values.references);retargetSweepHelix(feature);syncProjectionFromFeature(feature);
+      if(finishTargetSelect){
+        var chosenFinishTarget=finishTargetChoices.find(function(choice){return choice.entry.persistentId===finishTargetSelect.value;});
+        if(!chosenFinishTarget)throw new Error(t("featureTargetFace"));
+        feature.references.topology=[topologyReferenceFromEntry(chosenFinishTarget.entry)];
+        (E.def.parts || []).forEach(function(part){(part.exactOperations || []).forEach(function(operation){if(operation.id===feature.id)operation.targets=cloneData(feature.references.topology);});});
+      }
+      if(draftNeutralSelect){
+        var chosenNeutral=draftNeutralChoices.find(function(choice){return choice.entry.persistentId===draftNeutralSelect.value;});
+        if(draftNeutralSelect.value && !chosenNeutral)throw new Error(t("fcFldNeutralPlane"));
+        if(chosenNeutral)feature.params.neutralFace=topologyReferenceFromEntry(chosenNeutral.entry);
+        else delete feature.params.neutralFace;
+        if(feature.references.topology.some(function(reference){return reference.persistentId===feature.params.neutralFace?.persistentId;}))throw new Error("The neutral plane must be different from the drafted face");
+        (E.def.parts || []).forEach(function(part){(part.exactOperations || []).forEach(function(operation){if(operation.id===feature.id)operation.params=cloneData(feature.params);});});
+      }
+      var geometryChanged=JSON.stringify(before.params)!==JSON.stringify(feature.params)
+        || JSON.stringify(before.references)!==JSON.stringify(feature.references);
+      var restoreExact=(geometryChanged || supportChanged) && isCanonicalAuthoring() && !!activeParts(E.def).length;
+      E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";
+      closeFeaturePanel();
+      // A depth edit invalidates verified generated edge names until the
+      // kernel rebuilds them. Keep the last valid status during that rebuild;
+      // the lightweight pass cannot reconstruct fillet-generated topology.
+      if(restoreExact){E.exactRestoring=true;coreRunFresh=true;}
+      refreshAll();
+      if(restoreExact)scheduleExactRestore();
+      else flash("✓ "+t("featureRebuiltFromHistory"));
+    }
     catch(error){flash(String(error.message||error));}
   },"md-quick-apply"));host.appendChild(actions);syncAuthoringWorkflow();syncCommandManager();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
@@ -16507,7 +17545,7 @@ function setDependencyHighlight(targetId) {
   if((E.dependencyHighlight&&E.dependencyHighlight.focus||null)===(next&&next.focus||null))return;
   E.dependencyHighlight=next;
   applyDependencyTreeClasses();
-  updatePreview();
+  refreshViewportSelection();
 }
 
 /* ================= the FeatureManager =================
@@ -16677,6 +17715,7 @@ function selectTreeNode(node, model, event) {
     refreshAll(); return;
   }
   if (node.kind === "reference") {
+    if(!additive){E.topologySelection=[];E.sel=null;E.ssel=[];}
     E.selectedReferenceId = E.selectedReferenceId === node.targetId ? null : node.targetId;
     refreshAll(); return;
   }
@@ -16796,6 +17835,19 @@ function rollbackToTreeNode(node, model) {
   refreshAll();
 }
 
+function syncSketchAfterRemoval(previousSketchId) {
+  var sketch = ensureSketch(E.def);
+  if (sketch.id === previousSketchId) return;
+  E.view = sketch.plane || referencePlaneView((E.def.references || []).find(function (reference) { return reference.id === sketch.referenceId; }));
+  E.ssel = []; E.sel = null; E.poly = null; E.arcPts = null; E.drag = null; E.dimPick = []; E.dimSel = null;
+  E.solveInfo = solveSketch(sketch); E._solveSketchId = sketch.id;
+  if (E.authoring) {
+    E.authoring.sketchId = sketch.id; E.authoring.referenceId = sketch.referenceId;
+    E.authoring.sketchSelection = [sketch.id];
+  }
+  syncModelPlane();
+  if (E.mode === "3d" && E.modelPlaneActive && E.sketchNormalTo) orientModelToView(true);
+}
 function removeTreeNode(node, model) {
   if (node.kind === "folder") { ungroupFolder(node); return; }
   if (node.kind === "reference") {
@@ -16806,6 +17858,7 @@ function removeTreeNode(node, model) {
   }
   if (model.mode === "canonical" && node.historyId) {
     pushUndo(t("del"));
+    var previousSketchId = E.def.activeSketch;
     var result = removeHistoryNode(E.def, node.historyId, {verifiedTopology:verifiedExactTopology(E.def,compileKernelFeatureTree(E.def).features)});
     if (!result.ok) { H.discard(); flash(result.issues[0].message); return; }
     E.def.parts = (E.def.parts || []).filter(function (item) {
@@ -16819,15 +17872,17 @@ function removeTreeNode(node, model) {
       if (partNeedsExactMesh(part)) queueExactMesh(part);
     });
     E.topologySelection = []; E.sel = null;
+    syncSketchAfterRemoval(previousSketchId);
     refreshAll(); return;
   }
   if (node.kind === "sketch") {
     var sketches = ensureSketchDoc(E.def);
     if (sketches.length < 2) { flash(t("del")); return; }
     pushUndo(t("del"));
+    var priorSketchId = E.def.activeSketch;
     removeSketch(E.def, node.targetId);
     E.ssel = []; E.sel = null;
-    setView(ensureSketch(E.def).plane);
+    syncSketchAfterRemoval(priorSketchId);
     refreshAll(); return;
   }
   if (node.kind === "feature" && node.index != null) {
@@ -16873,13 +17928,12 @@ async function reorderTreeNode(dragId, target, after, model) {
    folder gathers only the members that are already contiguous with its anchor
    and reports how many it actually took. */
 function groupIntoFolder(node, model) {
-  var members = [];
+  var selected = [];
   if (model.mode === "canonical") {
-    members = ((E.authoring && E.authoring.featureSelection) || [])
+    selected = ((E.authoring && E.authoring.featureSelection) || [])
       .concat((E.authoring && E.authoring.sketchSelection) || []);
-  } else if (E.sel && E.sel.id) members = [E.sel.id];
-  if (node.targetId && members.indexOf(node.targetId) < 0) members.push(node.targetId);
-  members = members.filter(Boolean);
+  } else if (E.sel && E.sel.id) selected = [E.sel.id];
+  var members = folderMemberIds(model, selected, node.targetId);
   if (!members.length) return;
   pushUndo(t("treeNewFolder"));
   E.def.treeFolders ||= [];
@@ -17227,7 +18281,7 @@ function syncSizeReadout(sketchCount) {
   if (sketchCount == null) sketchCount = ensureSketchDoc(E.def).reduce(function (a, s2) { return a + s2.entities.length; }, 0);
   var b = defBounds(E.def);
   sizeEl.textContent = renderedParts(E.def).length
-    ? [b.x1 - b.x0, b.z1 - b.z0, b.y1 - b.y0].map(value=>modelLengthText(Math.round(value*1e6)/1e6,7)).join("×") + " " + modelLengthUnit()
+    ? ["x","y","z"].map(axis=>axis.toUpperCase()+" "+modelLengthText(Math.round((b[axis+"1"]-b[axis+"0"])*1e6)/1e6,7)).join(" · ") + " " + modelLengthUnit()
     : sketchCount ? sketchCount + " sketch" : "";
 }
 
@@ -17561,15 +18615,36 @@ function numRow(host, label, get, set, step, tourKey) {
   inp.addEventListener("blur", function () { propGen++; });
   w.appendChild(inp);
   host.appendChild(w);
+  return inp;
 }
 function numLengthRow(host, label, get, set, step, tourKey) {
   var unit=modelLengthUnit();
-  numRow(host, label+" ("+unit+")", function () {
+  return numRow(host, label+" ("+unit+")", function () {
     var value=lengthToDocument(get(),unit);
     return Math.abs(value)<1e-9 ? 0 : Number(value.toPrecision(12));
   }, function (value) {
     set(lengthFromDocument(value,unit));
   }, lengthToDocument(step || 0.1,unit), tourKey);
+}
+
+function addSketchOffsetControl(host,sketchId) {
+  var currentOffset=function(){return sketchOffsetValue((E.def.sketches || []).find(function(item){return item.id===sketchId;}));};
+  var input=numLengthRow(host,t("sketchOffset"),currentOffset,function(value){
+    if(!setSketchOffset(E.def,sketchId,value))return;
+    invalidateSketchProjection();syncSketchDrivenParts();
+    if(isCanonicalAuthoring() && (E.def.features || []).some(function(feature){return feature.params?.sketchId===sketchId || (feature.references?.sketches || []).some(function(ref){return (typeof ref==="string"?ref:ref.id)===sketchId;});}))scheduleExactRestore();
+  },0.5);
+  var commit=function(){
+    var typed=parseFloat(input.value),value=lengthFromDocument(typed,modelLengthUnit());
+    if(fin(value) && Math.abs(value-currentOffset())>1e-10)input.dispatchEvent(new Event("change",{bubbles:true}));
+  };
+  // Numeric editors do not always send change when automation or a retained
+  // inspector field loses focus. Explicit commit paths share the same undo
+  // and canonical-frame setter as a native change event.
+  input.addEventListener("blur",commit);
+  input.addEventListener("keydown",function(event){if(event.key==="Enter"){event.preventDefault();event.stopPropagation();commit();}});
+  host.appendChild(btn(t("applySketchOffset"),commit,"md-wide"));
+  return input;
 }
 
 /* The inspector was one long column: six dimension cells, four material rows, a
@@ -17585,11 +18660,42 @@ function assemblyTransformInspector() {
   var name = el("input"); name.type = "text"; name.value = component.name || component.modelKey;
   name.addEventListener("change", function () { pushUndo(t("partName")); component.name = name.value.slice(0, 80) || component.modelKey; refreshAll(); });
   nameRow.appendChild(name); host.appendChild(nameRow);
+  if (component.modelKey || isSubassembly(component)) {
+    if(!isSubassembly(component))host.appendChild(btn("Replace part from library",function(){
+      var models=loadLib().filter(function(model){return (model.parts||[]).length;});
+      showPickList("Replace part","Choose the saved part for this occurrence",models.map(function(model){return {id:model.key,label:model.name||model.key};}),function(item){
+        var latest=models.find(function(model){return model.key===item.id;});
+        pushUndo("Replace component part");replaceComponentDefinition(component,latest);
+        invalidateInterference();refreshAll();refreshConfiguredComponent(component);
+      });
+    },"md-wide"));
+    host.appendChild(btn('<i class="ph ph-arrow-clockwise"></i> ' + t("updateFromLibrary"), function () {
+      var latest = isSubassembly(component)
+        ? loadAssemblies().find(function (model) { return model.key === component.assemblyKey; })
+        : loadLib().find(function (model) { return model.key === component.modelKey; });
+      if (!latest) { flash(t("modelNotInLibrary")); return; }
+      if (isSubassembly(component) && containsAssembly(latest, E.assembly.key)) { flash(t("subassemblyContainsThis")); return; }
+      pushUndo(t("updateFromLibrary"));
+      if (isSubassembly(component)) {
+        refreshSubassemblyFromRecord(component, compactAssemblyTopologySnapshots(latest));
+        solveTopologyMates(component.asm);
+      } else {
+        var selectedConfiguration=component.configurationId;
+        component.def = cloneData(compactDocumentTopologySnapshots(latest));
+        if(selectedConfiguration && (component.def.configurations||[]).some(function(cfg){return cfg.id===selectedConfiguration;}))setComponentConfiguration(component,selectedConfiguration);
+      }
+      invalidateInterference();
+      solveAssembly();
+      refreshAll();
+      fitPreview();
+      if(!isSubassembly(component) && component.configurationId)refreshConfiguredComponent(component);
+    }, "md-wide"));
+  }
   host.appendChild(el("h5", "md-h5", t("transform")));
-  var grid = el("div", "md-prop-grid"), tr = normalizeTransform(component);
+  var grid = el("div", "md-prop-grid"), tr = normalizeTransform(component),placementInputs={};
   [["X", "x"], ["Y", "y"], ["Z", "z"], ["RX°", "rx"], ["RY°", "ry"], ["RZ°", "rz"]].forEach(function (pair) {
     var turns = pair[1] !== "x" && pair[1] !== "y" && pair[1] !== "z";
-    numRow(grid, pair[0], function () { return tr[pair[1]]; }, function (v) {
+    placementInputs[pair[1]]=numRow(grid, pair[0], function () { return tr[pair[1]]; }, function (v) {
       if (!component.grounded) {
         tr[pair[1]] = v;
         /* A typed angle is an edit to the orientation, and the orientation is
@@ -17602,22 +18708,73 @@ function assemblyTransformInspector() {
     }, 0.1);
   });
   host.appendChild(grid);
+  var applyPlacement=btn("Apply placement",function(){
+    if(component.grounded)return;
+    var values={};Object.keys(placementInputs).forEach(function(key){values[key]=Number(placementInputs[key].value);});
+    if(Object.values(values).some(function(value){return !Number.isFinite(value);})){flash("Enter finite placement values.");return;}
+    var nextName=name.value.slice(0,80) || component.modelKey;
+    if(nextName===component.name && Object.keys(values).every(function(key){return values[key]===tr[key];}))return;
+    pushUndo("Apply component placement");component.name=nextName;
+    Object.assign(tr,values);setRotation(tr,eulerMatrix(tr));
+    solveAssembly({quiet:true});refreshAll();fitPreview();
+  },"md-wide");
+  applyPlacement.disabled=!!component.grounded;host.appendChild(applyPlacement);
   if (component.grounded) host.appendChild(el("div", "md-note", t("grounded") + " · " + t("constraintDriven")));
+}
+
+var configuredComponentBuilds=new WeakMap();
+async function refreshConfiguredComponent(component) {
+  var document=component.def,assembly=E.assembly,run=null;
+  var revision=(configuredComponentBuilds.get(component)||0)+1;configuredComponentBuilds.set(component,revision);
+  var current=function(){return E.assembly===assembly && component.def===document && configuredComponentBuilds.get(component)===revision;};
+  try {
+    var compiled=compileKernelFeatureTree(document);
+    if(!compiled.ok)throw new Error(compiled.issues?.[0]?.message || "Invalid component history");
+    flash("Computing component configuration…");
+    run=await regenerateFeatures({...compiled.document,features:compiled.features},{onProgress:function(progress){if(current())flash("Computing component · "+(progress.name||progress.stage));}});
+    if(!current())return;
+    synchronizeExtrusionProjections(document,compiled.features,run);
+    document.exactTopologyCache=captureExactTopology(document,compiled.features,run);
+    await publishExactBodies(activeParts(document),run,document,async function(body){
+      var mesh=body.verifiedSerializedExact===true?cloneData(body.workerMeshData):await shapeToMeshData(body,{deflection:.28,angle:.18});
+      mesh.topology=cloneData(body.topology||[]);delete mesh.normals;delete mesh.colors;return mesh;
+    },current);
+    if(!current())return;
+    invalidateInterference();solveAssembly();refreshAll();fitPreview();
+    if(!run.ok)throw new Error(rebuildFailureMessage(run.issues,"Component configuration failed"));
+    flash("✓ Component configuration rebuilt");
+  } catch(error) {if(current())flash(String(error.message||error),5000);}
+  finally {if(run)releaseRegeneration(run);}
 }
 
 function assemblyFlagsInspector() {
   var host = root.querySelector("#mdLook"); host.innerHTML = "";
   var component = E.sel;
   if (!component) { emptyState(host, "ph-eye", t("noSel"), t("mateHint")); return; }
-  [["visible", t("visible")], ["grounded", t("grounded")]].forEach(function (entry) {
+  if(component.inContext)host.appendChild(el("div","md-note","→ In context · parent "+componentLabel(component.inContext.parentId)+(component.contextIssue?" · "+component.contextIssue:"")));
+  if(component.def && !isSubassembly(component))host.appendChild(btn("Edit component",function(){beginContextPart(component);},"md-wide"));
+  [["visible", t("visible")], ["grounded", t("grounded")], ["transparent", "Transparent component"]].forEach(function (entry) {
     var row = el("label", "md-check");
     var input = el("input"); input.type = "checkbox";
-    input.checked = entry[0] === "visible" ? component.visible !== false : !!component.grounded;
+    input.checked = entry[0] === "visible" ? component.visible !== false : !!component[entry[0]];
     input.addEventListener("change", function () { pushUndo(entry[1]); component[entry[0]] = input.checked; solveAssembly({quiet:true}); refreshAll(); });
     row.appendChild(input); row.appendChild(el("span", "", entry[1])); host.appendChild(row);
   });
   var def = componentDef(component);
-  if (def) host.appendChild(el("div", "md-note", (def.parts || []).length + " " + t("partCount") + " · " + (def.w || "—") + "×" + (def.d || "—") + "×" + (def.h || "—") + " cm"));
+  if (def) {
+    var shown=activeParts(def), bounds=shown.length?defBounds(def):null;
+    if(!isSubassembly(component) && (def.configurations||[]).length>1){
+      var configurationRow=el("label","md-row md-row-wide"),configurationSelect=el("select");
+      configurationRow.appendChild(el("span","t","Configuration"));configurationSelect.setAttribute("aria-label","Component configuration");
+      (def.configurations||[]).forEach(function(cfg){var option=el("option","",cfg.name);option.value=cfg.id;configurationSelect.appendChild(option);});
+      configurationSelect.value=component.configurationId||def.activeConfiguration||def.configurations[0].id;
+      configurationSelect.addEventListener("change",function(){
+        pushUndo("Component configuration");if(!component.def)component.def=cloneData(def);
+        setComponentConfiguration(component,configurationSelect.value);invalidateInterference();refreshAll();refreshConfiguredComponent(component);
+      });configurationRow.appendChild(configurationSelect);host.appendChild(configurationRow);
+    }
+    host.appendChild(el("div", "md-note", shown.length + " " + t("partCount") + " · " + (bounds?[bounds.x1-bounds.x0,bounds.y1-bounds.y0,bounds.z1-bounds.z0].map(function(size){return Number(size.toFixed(6));}).join("×"):"—×—×—") + " cm"));
+  }
 }
 
 function addMate(type) {
@@ -17669,12 +18826,21 @@ function componentTopologyRef(component, kind, side) {
   return topologyReference(component.id, kind, (component.modelKey||component.id)+":"+kind+":"+(side||"center"), frame);
 }
 
-/* `value` is the one number a mate can carry. Only Angle asks for one today —
-   every other type stored a hardcoded zero and had nothing to set — so it is
-   optional and clamps to the 0..180 range cad_mate_model measures in.
+/* `value` is the one number a mate can carry. Angles use degrees and planar
+   distances use the model's internal centimeters. Keep those distinct from
+   the legacy X-position mate so the picked face normal drives the offset.
    Returns whether a mate was actually stored, so a PropertyManager can stay
    open on the refusal instead of closing over it. */
 function addTopologyMate(type, value) {
+  if(type==='lock'){
+    var pair=lockMateComponentPair();
+    if(!pair){flash(t("lockMateNeedTwoComponents"));return false;}
+    pushUndo(t("lockMate"));
+    var mate={id:uid(),type:"lock",a:{componentId:pair[0].id,kind:"body"},b:{componentId:pair[1].id,kind:"body"}};
+    captureLockPose(mate,pair[0],pair[1]);
+    (E.assembly.topologyMates ||= []).push(mate);
+    E.topologySelection=[];solveAssembly();refreshAll();return true;
+  }
   if (!E.assembly) { flash(t("mateHint")); return false; }
   var fits = mateTypeFits(type);
   if (!fits.ok) { flash(fits.reason); return false; }
@@ -17688,8 +18854,9 @@ function addTopologyMate(type, value) {
      "using bounding boxes" and then acted as though that were an answer, which
      made this the one place the editor stated a guess and committed it. Two
      picked faces, or nothing. */
-  var picked = assemblyPickedRefs();
-  if (!picked) { flash(t("mateNeedTwoFaces")); return false; }
+  var triple = type === "symmetric" ? assemblySymmetricPicks() : null;
+  var picked = triple ? { a: triple.a, b: triple.b } : assemblyPickedRefs();
+  if (!picked) { flash(t(type === "symmetric" ? "mateNeedThreePicks" : "mateNeedTwoFaces")); return false; }
   var a = mateReferenceFromPick(picked.a);
   var b = mateReferenceFromPick(picked.b);
   /* The solver only ever moves B. Pick order is not a promise about which
@@ -17699,20 +18866,28 @@ function addTopologyMate(type, value) {
   var componentB = mateHolderById(b.componentId);
   if (componentB && componentB.grounded && componentA && !componentA.grounded) {
     var swap = a; a = b; b = swap;
-    componentB = componentA;
+    var swapComponent = componentA; componentA = componentB; componentB = swapComponent;
   }
   if (componentB && componentB.grounded) { flash(t("mateIssueGroundedTarget")); return false; }
+  var lockedAlignment = ["coincident", "distance", "limit"].includes(type)
+    ? mateAlignmentForLockedOrientation(a.frame, b.frame, componentA && componentA.transform,
+      componentB && componentB.transform, componentB && componentFreedom(componentB.id)) : null;
   pushUndo(t("mate"));
   E.assembly.topologyMates ||= [];
+  var gearSpec = type === "gear" && value && typeof value === "object" ? value : {};
   E.assembly.topologyMates.push({
     id:uid(), type:type, a:a, b:b,
+    c: triple ? mateReferenceFromPick(triple.c) : undefined,
     // two reference planes mate Aligned, the SOLIDWORKS default for planes
-    aligned: !!(picked.a.referencePlane && picked.b.referencePlane) || undefined,
-    value: type === "angle" ? clampMateAngle(value) : 0,
+    aligned: lockedAlignment == null ? !!(picked.a.referencePlane && picked.b.referencePlane) : lockedAlignment,
+    value: type === "angle" ? clampMateAngle(value) : type === "distance" ? Number(value) : 0,
     pitch: type === "screw" ? 0.125 : undefined,
     turns: type === "screw" ? 0 : undefined,
     min: type === "limit" ? 0 : undefined,
     max: type === "limit" ? 2 : undefined,
+    ratioA: type === "gear" ? (fin(Number(gearSpec.ratioA)) && Number(gearSpec.ratioA) > 0 ? Number(gearSpec.ratioA) : 1) : undefined,
+    ratioB: type === "gear" ? (fin(Number(gearSpec.ratioB)) && Number(gearSpec.ratioB) > 0 ? Number(gearSpec.ratioB) : 1) : undefined,
+    reverse: type === "gear" ? !!gearSpec.reverse : undefined,
   });
   E.topologySelection = [];
   solveAssembly(); refreshAll();
@@ -17735,6 +18910,34 @@ function openMateAngleForm() {
     hint: assemblyPickedRefs() ? t("mateUsingPicked") : t("mateNeedTwoFaces"),
     fields: [{ key: "angle", label: t("mateAngleValue"), type: "number", value: 45, step: 1, min: 0, max: 180, unit: "angle" }],
     onApply: function (values) { return addTopologyMate("angle", values.angle); },
+  });
+}
+
+/* A gear mate asks for the two tooth counts (the ratio) before it is built.
+   The gears do not have to mesh: the mate only ties the two rotations. */
+function openMateGearForm() {
+  openQuickForm({
+    action: "gearmate", icon: "ph-gear", title: t("gearMate"),
+    hint: assemblyPickedRefs() ? t("mateUsingPicked") : t("mateNeedTwoFaces"),
+    fields: [
+      { key: "ratioA", label: t("gearTeethA"), type: "number", value: 24, step: 1, min: 1 },
+      { key: "ratioB", label: t("gearTeethB"), type: "number", value: 12, step: 1, min: 1 },
+      { key: "direction", label: t("gearDirection"), type: "select", value: "opposite",
+        choices: [{ value: "opposite", label: t("gearOpposite") }, { value: "same", label: t("gearSame") }] },
+    ],
+    onApply: function (values) {
+      if (!(Number(values.ratioA) > 0) || !(Number(values.ratioB) > 0)) { flash(t("gearRatioInvalid")); return false; }
+      return addTopologyMate("gear", { ratioA: Number(values.ratioA), ratioB: Number(values.ratioB), reverse: values.direction === "same" });
+    },
+  });
+}
+
+function openMateDistanceForm() {
+  openQuickForm({
+    action: "distancemate", icon: "ph-ruler", title: t("topologyDistanceMate"),
+    hint: t("mateUsingPicked"),
+    fields: [{ key: "distance", label: t("topologyDistanceMate"), type: "number", unit: "length", value: 0.15875, step: 0.01 }],
+    onApply: function (values) { return fin(values.distance) && addTopologyMate("distance", values.distance); },
   });
 }
 
@@ -17764,8 +18967,9 @@ function openMatePropertyManager() {
       { key: "type", label: t("matePmType"), type: "select", value: offered[0][0],
         choices: offered.map(function (entry) { return { value: entry[0], label: t(entry[2]) }; }) },
       { key: "angle", label: t("mateAngleValue"), type: "number", value: 45, step: 1, min: 0, max: 180, unit: "angle" },
+      { key: "distance", label: t("topologyDistanceMate"), type: "number", value: 0.15875, step: 0.01, unit: "length" },
     ],
-    onApply: function (values) { return addTopologyMate(values.type, values.angle); },
+    onApply: function (values) { return addTopologyMate(values.type, values.type === "distance" ? values.distance : values.angle); },
   });
   if (!inputs) return;
   // The two reference rows report the picks; they are not somewhere to type.
@@ -17780,10 +18984,12 @@ function openMatePropertyManager() {
     applyButton.dataset.tip = t("mateNeedTwoFaces");
   }
   var angleField = inputs.angle && inputs.angle.closest(".md-quick-field");
+  var distanceField = inputs.distance && inputs.distance.closest(".md-quick-field");
   /* `parameter-hidden`, not the hidden attribute: .md-quick-field sets its own
      display, which a bare [hidden] does not beat. */
   var syncAngleField = function () {
     if (angleField) angleField.classList.toggle("parameter-hidden", inputs.type.value !== "angle");
+    if (distanceField) distanceField.classList.toggle("parameter-hidden", inputs.type.value !== "distance");
   };
   inputs.type.addEventListener("change", syncAngleField);
   syncAngleField();
@@ -17810,7 +19016,9 @@ var PLANE_NAME_KEYS = { "plane:front": "planeFrontName", "plane:top": "planeTopN
 function planeMateReference(holderId, planeId) {
   var entry = standardPlaneEntries().find(function (item) { return item.persistentId === planeId; });
   if (!entry) return null;
-  var reference = topologyReference(holderId, "face", planeId, entry.descriptor);
+  var holder = mateHolderById(holderId);
+  if (!holder) return null;
+  var reference = topologyReference(holder.id, "face", planeId, entry.descriptor);
   reference.semantic = t(PLANE_NAME_KEYS[planeId]);
   reference.referencePlane = true;
   return reference;
@@ -17818,27 +19026,41 @@ function planeMateReference(holderId, planeId) {
 
 /* One row per mate: what it is, which two components it holds, and — when the
    solver could not honour it — why. */
-function mateRow(host, label, detail, issues, remove, rebound, valueEdit) {
+function mateRow(host, label, detail, issues, remove, rebound, valueEdit, alignmentEdit, contactEdit) {
   var row = el("div", "md-mate-row" + (issues && issues.length ? " md-mate-broken" : ""));
   var text = el("span", "");
   text.textContent = label + (detail ? " · " + detail : "");
   row.appendChild(text);
-  /* A mate that carries a number is edited where it is listed. Angle is the
-     only one so far, which is why the field is opt-in per row. */
+  /* A mate that carries a number is edited where it is listed. */
   if (valueEdit) {
     var field = el("label", "md-mate-value");
     var input = el("input");
     input.type = "number";
-    input.step = "1";
-    input.min = "0";
-    input.max = "180";
+    input.step = String(valueEdit.step || 1);
+    if (valueEdit.min != null) input.min = String(valueEdit.min);
+    if (valueEdit.max != null) input.max = String(valueEdit.max);
     input.value = String(valueEdit.value);
     input.setAttribute("aria-label", valueEdit.label);
     input.title = valueEdit.label;
     input.addEventListener("change", function () { valueEdit.onChange(input.value); });
+    input.addEventListener("keydown", function (event) {
+      if(event.key!=="Enter")return;
+      event.preventDefault();event.stopPropagation();
+      valueEdit.onChange(input.value);
+    });
     field.appendChild(input);
     field.appendChild(el("b", "", valueEdit.suffix || ""));
     row.appendChild(field);
+  }
+  if (alignmentEdit) {
+    var align = btn(alignmentEdit.aligned ? t("mateAligned") : t("mateOpposed"), alignmentEdit.onToggle, "md-mate-align");
+    align.setAttribute("aria-label", t("mateAlignment") + ": " + (alignmentEdit.aligned ? t("mateAligned") : t("mateOpposed")));
+    row.appendChild(align);
+  }
+  if(contactEdit){
+    var contact=btn(contactEdit.finite?t("mateFiniteBoreContact"):t("mateSurfaceContact"),contactEdit.onToggle,"md-mate-align");
+    contact.setAttribute("aria-label",t("mateContactMode")+": "+(contactEdit.finite?t("mateFiniteBoreContact"):t("mateSurfaceContact")));
+    row.appendChild(contact);
   }
   if (issues && issues.length) {
     var warn = el("span", "md-mate-issue");
@@ -17853,13 +19075,132 @@ function mateRow(host, label, detail, issues, remove, rebound, valueEdit) {
   }
   row.appendChild(btn('<i class="ph ph-x"></i>', remove, "md-part-x"));
   host.appendChild(row);
+  return row;
 }
 
+var mateTopologyMemo=new WeakMap();
+function finalMateTopology(document) {
+  var previous=mateTopologyMemo.get(document),cache=document.exactTopologyCache;
+  var node=document.history?.at(-1),features=document.features,sketches=document.sketches;
+  if(previous && previous.cache===cache && previous.node===node && previous.features===features && previous.sketches===sketches)return previous.entries;
+  var compiled=compileKernelFeatureTree(interferenceDocument(document));
+  var entries=compiled.ok?verifiedFinalTopology(document,compiled.features):null;
+  mateTopologyMemo.set(document,{cache:cache,node:node,features:features,sketches:sketches,entries:entries});
+  return entries;
+}
+var mateReferenceRefreshes=new WeakMap();
+async function refreshComponentMateReferences(holder) {
+  if(mateReferenceRefreshes.has(holder))return;
+  var assembly=E.assembly,leaves=[];
+  componentTopology(holder,function(leaf){if(!leaves.includes(leaf))leaves.push(leaf);return [];});
+  mateReferenceRefreshes.set(holder,true);
+  refreshSelection();
+  try {
+    for(var leaf of leaves){
+      var document=componentDef(leaf),intent=JSON.stringify(interferenceDocument(document)),run=null;
+      if(document?.metadata?.authoringSystem!=="parametric-v1")continue;
+      var current=function(){return E.assembly===assembly && componentDef(leaf)===document && JSON.stringify(interferenceDocument(document))===intent;};
+      try {
+        var compiled=compileKernelFeatureTree(interferenceDocument(document));
+        if(!compiled.ok)throw new Error(compiled.issues[0]?.message || "Invalid component feature history");
+        run=await regenerateFeatures({...compiled.document,features:compiled.features},{restoreMode:'mesh',scope:'mate-references:'+holder.id,onProgress:function(progress){if(E.assembly===assembly)flash("Refreshing exact mate references · "+(progress.name || progress.stage));}});
+        if(!current())return;
+        if(!run.ok)throw new Error(rebuildFailureMessage(run.issues,"Exact mate references could not rebuild"));
+        document.exactTopologyCache=captureExactTopology(document,compiled.features,run);
+        mateTopologyMemo.delete(document);
+        await publishExactBodies(activeParts(document),run,document,async function(body){
+          var mesh=body.verifiedSerializedExact===true?cloneData(body.workerMeshData):await shapeToMeshData(body,{deflection:.28,angle:.18});
+          mesh.topology=cloneData(body.topology || []);delete mesh.normals;delete mesh.colors;return mesh;
+        },current);
+        if(!current())return;
+      } finally {if(run)releaseRegeneration(run);}
+    }
+    if(E.assembly===assembly){
+      // Newly verified faces must reach the solver before displaying the mate
+      // rows. Otherwise a successful refresh leaves old unresolved diagnostics
+      // on screen until an unrelated assembly edit triggers a solve.
+      solveAssembly({quiet:true});refreshAll();
+      flash("Exact mate references refreshed");
+    }
+  } catch(error) {if(E.assembly===assembly)flash(String(error.message || error),5000);}
+  finally {mateReferenceRefreshes.delete(holder);if(E.assembly===assembly)refreshSelection();}
+}
 function assemblyMateInspector() {
+  try {
+    assemblyMateInspectorBody();
+  } catch (error) {
+    var host = root.querySelector("#mdOps");
+    if (host) host.appendChild(el("div", "md-note", "Mate references could not be displayed: " + (error?.message || String(error))));
+    console.error("Assembly mate inspector failed", error);
+  }
+}
+
+function assemblyMateInspectorBody() {
   var host = root.querySelector("#mdOps"); host.innerHTML = "";
   host.appendChild(el("h5", "md-h5", t("mate")));
   var picked = assemblyPickedRefs();
   host.appendChild(el("div", "md-note", picked ? t("matePickHint") : t("mateHint")));
+  /* A counterbore shoulder can be narrower than a few screen pixels, and a
+     hidden back flange cannot be ray-picked at all. The two component rows in
+     the tree still identify the intended pair; offer their exact planar faces
+     here so a mate can use topology without inventing a bounding-box face. */
+  var faceHolders = picked
+    ? [mateHolderById(picked.a.componentId), mateHolderById(picked.b.componentId)]
+    : (E.componentSel || []).slice(-2);
+  if (faceHolders.length === 2 && faceHolders[0] && faceHolders[1] && faceHolders[0].id !== faceHolders[1].id) {
+    var chooser = el("div", "md-mate-face-chooser");
+    faceHolders.forEach(function (holder, index) {
+      var doc = componentDef(holder);
+      var missingExactLeaves=[];
+      var entries = componentTopology(holder, function (leaf) {
+        var leafDoc = componentDef(leaf);
+        if (leafDoc?.metadata?.authoringSystem==="parametric-v1") {
+          var finalEntries=finalMateTopology(leafDoc);
+          if(finalEntries?.length)return finalEntries;
+          missingExactLeaves.push(leaf);
+          // An expired exact cache is not proof that a saved mesh still names
+          // the current faces. Expose an explicit native refresh, not stale IDs.
+          return [];
+        }
+        return pickPartsFor(leaf).flatMap(topologyEntriesForPart);
+      });
+      var choices = exactMateReferenceChoices(entries, (doc && (doc.features || doc.featureHistory)) || []);
+      var row = el("label", "md-mate-face-row");
+      row.appendChild(el("span", "", t(index ? "matePmRefB" : "matePmRefA") + " · " + componentLabel(holder.id)));
+      var select = document.createElement("select");
+      select.setAttribute("aria-label", t(index ? "matePmRefB" : "matePmRefA") + " · " + componentLabel(holder.id));
+      select.dataset.mateFaceComponent = holder.id;
+      var blank = document.createElement("option"); blank.value = ""; blank.textContent = t("matePmPickFace"); select.appendChild(blank);
+      choices.forEach(function (choice) {
+        var option = document.createElement("option");
+        option.value = choice.entry.persistentId; option.textContent = choice.label;
+        select.appendChild(option);
+      });
+      var selected = (E.topologySelection || []).filter(function (ref) { return ref.componentId === holder.id; }).at(-1);
+      if (selected && choices.some(function (choice) { return choice.entry.persistentId === selected.persistentId; })) select.value = selected.persistentId;
+      select.addEventListener("change", function () {
+        var choice = choices.find(function (candidate) { return candidate.entry.persistentId === select.value; });
+        var retained = (E.topologySelection || []).filter(function (ref) { return ref.componentId !== holder.id; });
+        if (choice) retained.push(stampComponentRef(topologyReferenceFromEntry(choice.entry), holder, null));
+        E.topologySelection = retained;
+        E.componentSel = faceHolders;
+        E.sel = holder;
+        // Let the native dropdown finish committing before its inspector is
+        // replaced. Rebuilding hundreds of options inside the change event
+        // also keeps the browser input handler blocked for the entire redraw.
+        requestAnimationFrame(function () { refreshSelection(); });
+      });
+      row.appendChild(select);
+      var refreshing=mateReferenceRefreshes.has(holder);
+      var refreshButton=btn(refreshing?"Refreshing exact mate references…":"Refresh exact mate references",function(){refreshComponentMateReferences(holder);});
+      refreshButton.disabled=refreshing;
+      refreshButton.setAttribute('aria-label',"Refresh exact mate references · "+componentLabel(holder.id));
+      row.appendChild(refreshButton);
+      if(missingExactLeaves.length)row.appendChild(el("small","md-note","Native face references need refresh for "+missingExactLeaves.map(function(leaf){return leaf.name || leaf.modelKey || leaf.id;}).join(", ")));
+      chooser.appendChild(row);
+    });
+    host.appendChild(chooser);
+  }
   if (picked) {
     var chips = el("div", "md-mate-picks");
     [picked.a, picked.b].forEach(function (reference, index) {
@@ -17880,20 +19221,24 @@ function assemblyMateInspector() {
     markUnavailable(mateButton, pair ? "" : t("mateHint"), t(entry[1]));
     ops.appendChild(mateButton);
   });
+  host.appendChild(el("div", "md-note", t("mateAxisHint")));
   var source = picked ? t("mateUsingPicked") : t("mateNeedTwoFaces");
   MATE_PALETTE.forEach(function (entry) {
     /* A mate the picked references cannot support is greyed and says what it
        wanted, rather than accepting the pair and placing the component
        somewhere meaningless. */
     var fits = mateTypeFits(entry[0]), label = t(entry[2]);
+    if(entry[0]==='coincident' && picked && (picked.a.descriptor?.surface==='axis' || picked.b.descriptor?.surface==='axis'))label='Coincident plane and axis';
     var mateButton = btn((entry[1] === "threadfeature" ? '<i class="ph ph-spiral"></i>' : '<i class="ph ' + entry[1] + '"></i>') + " " + label, function () {
       if (!fits.ok) { flash(label + " — " + fits.reason); return; }
-      // Angle is the one type with a number to choose, so it asks first.
+      // Numbered mates ask for their value before creating the constraint.
       if (entry[0] === "angle") openMateAngleForm();
+      else if (entry[0] === "distance") openMateDistanceForm();
+      else if (entry[0] === "gear") openMateGearForm();
       else addTopologyMate(entry[0]);
     });
     mateButton.setAttribute("data-topology-mate", entry[0]);
-    markUnavailable(mateButton, fits.ok ? "" : label + " — " + fits.reason, label + " — " + source);
+    markUnavailable(mateButton, fits.ok ? "" : label + " — " + fits.reason, label + " — " + (entry[0]==="lock"?t("lockMatePreservesPose"):source));
     ops.appendChild(mateButton);
   });
   host.appendChild(ops);
@@ -17912,7 +19257,7 @@ function assemblyMateInspector() {
         });
     });
     topology.forEach(function (mate) {
-      mateRow(host, topologyMateLabel(mate.type),
+      var mateUiRow = mateRow(host, topologyMateLabel(mate.type,mate),
         componentLabel(mate.a && mate.a.componentId) + " ↔ " + componentLabel(mate.b && mate.b.componentId),
         mateIssuesFor(mate.id),
         function () {
@@ -17930,7 +19275,125 @@ function assemblyMateInspector() {
             mate.value = degrees;
             solveAssembly(); refreshAll();
           },
+        } : mate.type === "distance" ? {
+          label: t("topologyDistanceMate") + " (" + modelLengthUnit() + ")",
+          value: Number(lengthToDocument(Number(mate.value) || 0, modelLengthUnit()).toPrecision(10)),
+          step: 0.001, suffix: modelLengthUnit(),
+          onChange: function (next) {
+            var cm = lengthFromDocument(Number(next), modelLengthUnit());
+            if (!fin(cm) || Math.abs(cm - Number(mate.value || 0)) < 1e-9) return;
+            pushUndo(t("topologyDistanceMate"));
+            mate.value = cm;
+            solveAssembly(); refreshAll();
+          },
+        } : null,
+        ["coincident", "distance", "limit", "tangent"].includes(mate.type) ? {
+          aligned: !!mate.aligned,
+          onToggle: function () {
+            pushUndo(t("mateAlignment"));
+            mate.aligned = !mate.aligned;
+            solveAssembly(); refreshAll();
+          },
+        } : null,
+        mate.type==="tangent" && [mate.a?.frame?.surface,mate.b?.frame?.surface].includes("torus") ? {
+          finite:mate.contactMode==="finite-bore",
+          onToggle:function(){
+            pushUndo(t("mateContactMode"));
+            mate.contactMode=mate.contactMode==="finite-bore"?"surface":"finite-bore";
+            if(mate.contactMode==="finite-bore")mate.aligned=true;
+            solveAssembly();refreshAll();
+          },
         } : null);
+      if(picked && [picked.a.componentId,picked.b.componentId].includes(mate.a?.componentId) && [picked.a.componentId,picked.b.componentId].includes(mate.b?.componentId) && mateTypeFits(mate.type).ok){
+        mateUiRow.appendChild(btn("Replace references with selection",function(){
+          pushUndo("Replace mate references");
+          rebindTopologyMate(mate,mateReferenceFromPick(picked.a),mateReferenceFromPick(picked.b));
+          solveAssembly();refreshAll();
+        },"md-mate-align"));
+      }
+      /* Screw, gear and angle-range mates carry numbers of their own. Each is
+         edited where the mate is listed, one undo step per change, and the
+         assembly is solved again so the motion is visible immediately. */
+      var extraField = function (title, current, step, commit) {
+        var wrap = el("label", "md-mate-value"), input = el("input");
+        wrap.appendChild(el("span", "", title));
+        input.type = "number"; input.step = String(step);
+        input.value = current == null || !fin(Number(current)) ? "" : String(Number(Number(current).toPrecision(10)));
+        input.setAttribute("aria-label", title);
+        input.addEventListener("change", function () { commit(input.value.trim() === "" ? null : Number(input.value), input); });
+        wrap.appendChild(input); mateUiRow.appendChild(wrap);
+      };
+      if (mate.type === "screw") {
+        mateUiRow.appendChild(btn(mate.axisOpposed ? "Screw axes: Opposed" : "Screw axes: Aligned", function () {
+          pushUndo(t("screwMate")); mate.axisOpposed = !mate.axisOpposed; solveAssembly(); refreshAll();
+        }, "md-mate-align"));
+        var lengthUnit = modelLengthUnit();
+        extraField(t("mateScrewPitch") + " (" + lengthUnit + "/" + t("mateScrewTurn") + ")",
+          lengthToDocument(Number(mate.pitch) || 0, lengthUnit), 0.001, function (next, input) {
+            var cm = fin(next) && next > 0 ? lengthFromDocument(next, lengthUnit) : NaN;
+            if (!fin(cm)) { flash(t("mateScrewInvalid")); input.value = String(lengthToDocument(Number(mate.pitch) || 0, lengthUnit)); return; }
+            if (Math.abs(cm - Number(mate.pitch || 0)) < 1e-12) return;
+            pushUndo(t("screwMate")); mate.pitch = cm; solveAssembly(); refreshAll();
+          });
+        extraField(t("mateScrewTurns"), mate.turns, 0.25, function (next, input) {
+          if (!fin(next)) { flash(t("mateScrewInvalid")); input.value = String(Number(mate.turns) || 0); return; }
+          if (Math.abs(next - Number(mate.turns || 0)) < 1e-12) return;
+          pushUndo(t("screwMate")); mate.turns = next; solveAssembly(); refreshAll();
+        });
+      }
+      if (mate.type === "gear") {
+        extraField("Follower phase (°)",mate.followerPhaseDeg||0,.1,function(next,input){
+          if(next===null||!fin(next)){flash("Enter a finite gear phase");input.value=String(mate.followerPhaseDeg||0);return;}
+          if(next===Number(mate.followerPhaseDeg||0))return;
+          var phased=setGearMatePhase(E.assembly,mate.id,next);
+          if(!phased.ok){flash("Gear phase could not satisfy the assembly mates");input.value=String(mate.followerPhaseDeg||0);return;}
+          pushUndo("Gear phase");E.assembly=phased.assembly;invalidateInterference();refreshAll();
+          flash("Gear phase updated · motion studies restart at the new zero pose");
+        });
+        [["ratioA", "gearTeethA"], ["ratioB", "gearTeethB"]].forEach(function (pair) {
+          extraField(t(pair[1]), mate[pair[0]], 1, function (next, input) {
+            if (!fin(next) || !(next > 0)) { flash(t("gearRatioInvalid")); input.value = String(mate[pair[0]]); return; }
+            if (next === Number(mate[pair[0]])) return;
+            pushUndo(t("gearMate")); mate[pair[0]] = next; solveAssembly(); refreshAll();
+          });
+        });
+        var flip = btn(mate.reverse ? t("gearSame") : t("gearOpposite"), function () {
+          pushUndo(t("gearMate")); mate.reverse = !mate.reverse; solveAssembly(); refreshAll();
+        }, "md-mate-align");
+        mateUiRow.appendChild(flip);
+      }
+      if (mate.type === "angle") {
+        [["angleMin", "mateAngleMinimum"], ["angleMax", "mateAngleMaximum"]].forEach(function (pair) {
+          extraField(t(pair[1]) + " (°)", mate[pair[0]], 1, function (next, input) {
+            if (next !== null && (!fin(next) || next < 0 || next > 180)) { flash(t("mateAngleRangeInvalid")); input.value = mate[pair[0]] == null ? "" : String(mate[pair[0]]); return; }
+            var lo = pair[0] === "angleMin" ? next : (mate.angleMin == null ? null : Number(mate.angleMin));
+            var hi = pair[0] === "angleMax" ? next : (mate.angleMax == null ? null : Number(mate.angleMax));
+            if (lo !== null && hi !== null && lo > hi) { flash(t("mateAngleRangeInvalid")); input.value = mate[pair[0]] == null ? "" : String(mate[pair[0]]); return; }
+            pushUndo(t("angleMate"));
+            if (next === null) delete mate[pair[0]]; else mate[pair[0]] = next;
+            solveAssembly(); refreshAll();
+          });
+        });
+      }
+      if (mate.type === "limit") {
+        ["min", "max"].forEach(function (key) {
+          var wrap = el("label", "md-mate-value"), input = el("input");
+          var unit = modelLengthUnit(), title = t(key === "min" ? "mateLimitMinimum" : "mateLimitMaximum") + " (" + unit + ")";
+          wrap.appendChild(el("span", "", title));
+          input.type = "number"; input.step = "0.001";
+          input.value = String(Number(lengthToDocument(Number(mate[key]), unit).toPrecision(10)));
+          input.setAttribute("aria-label", title);
+          input.addEventListener("change", function () {
+            var next = input.value.trim() === "" ? NaN : lengthFromDocument(Number(input.value), unit);
+            var bounds = validLimitMateBounds(key === "min" ? next : mate.min, key === "max" ? next : mate.max);
+            if (!bounds) { flash(t("mateLimitInvalidRange")); input.value = String(lengthToDocument(Number(mate[key]), unit)); return; }
+            if (Math.abs(bounds[key] - Number(mate[key])) < 1e-9) return;
+            pushUndo(t("mate")); mate.min = bounds.min; mate.max = bounds.max;
+            solveAssembly(); refreshAll();
+          });
+          wrap.appendChild(input); mateUiRow.appendChild(wrap);
+        });
+      }
     });
   }
 }
@@ -18274,18 +19737,20 @@ function fillSketchPane() {
   // reports that as usable rather than as a branch the user has to repair.
   var regionRun = sketchRegionAnalysis(), regionCount = (regionRun.regions || []).length;
   var profileStatus = profileInfo.profiles.length || !regionCount ? profileInfo.status : "ready";
-  var profileText = profileStatus === "ready" ? t("profileReady")
+  var ribReady=profileStatus === "open" && ribSketchReady(sketch,E.def.features,analyzeSketchChains(sketch).chains);
+  if(ribReady)profileStatus="ready";
+  var profileText = ribReady ? t("profileRibReady") : profileStatus === "ready" ? t("profileReady")
     : profileStatus === "multiple" ? t("profileMultiple")
     : profileStatus === "partial" ? t("profilePartial")
     : profileStatus === "branched" ? t("profileBranched")
     : profileStatus === "open" ? t("profileOpen") : t("profileEmpty");
   var profileCard = el("div", "md-profile-state md-profile-" + profileStatus);
   profileCard.appendChild(el("div", "md-profile-head", '<i class="ph ' +
-    (profileInfo.profiles.length || regionCount ? "ph-check-circle" : profileInfo.branchPoints.length ? "ph-warning" : "ph-path") + '"></i><b>' + profileText + "</b>"));
+    (ribReady || profileInfo.profiles.length || regionCount ? "ph-check-circle" : profileInfo.branchPoints.length ? "ph-warning" : "ph-path") + '"></i><b>' + profileText + "</b>"));
   var profileStats = el("div", "md-profile-stats");
   profileStats.appendChild(el("span", "", profileInfo.profiles.length + " " + t("profileLoops")));
   if (regionCount) profileStats.appendChild(el("span", "", regionCount + " " + t("profileRegions")));
-  if (profileInfo.openEnds.length) profileStats.appendChild(el("span", "", profileInfo.openEnds.length + " " + t("profileEnds")));
+  if (profileInfo.openEnds.length) profileStats.appendChild(el("span", "", profileInfo.openEnds.length + " " + t(ribReady ? "profilePathEnds" : "profileEnds")));
   if (profileInfo.branchPoints.length) profileStats.appendChild(el("span", "", profileInfo.branchPoints.length + " × " + t("profileBranched")));
   profileCard.appendChild(profileStats);
   if (profileInfo.nearMergeCount) {
@@ -18329,6 +19794,23 @@ function fillSketchPane() {
     selectionCard.appendChild(el("span", "", sketchSelectionSummary()));
     selectionCard.appendChild(el("kbd", "", "Ctrl+A"));
     host.appendChild(selectionCard);
+    if(selPoints().length===1 && selectedModelEdges().length===1) {
+      host.appendChild(btn("Intersect model surface",function(){openSurfaceSectionIntersection(sketch,selPoints()[0],selectedModelEdges()[0]);},"md-wide"));
+    }
+    if (selEntities().length === 1 && selEntities()[0].type === "arc" && !selPoints().length) {
+      host.appendChild(btn("Reverse arc", function () {
+        var arc = selEntities()[0];
+        if (!arc || arc.type !== "arc") return;
+        pushUndo("Reverse arc");
+        var start = arc.a;
+        arc.a = arc.b;
+        arc.b = start;
+        // Point identities and all endpoint relations stay attached. Swapping
+        // the rim endpoints selects the complementary counter-clockwise sweep.
+        resolveSketch(false);
+        refreshAll();
+      }, "md-wide"));
+    }
     if (selPoints().length === 1 && !selEntities().length) {
       host.appendChild(btn("Set point coordinates", function () {
         var point=selPoints()[0];if(!point)return;
@@ -18349,7 +19831,7 @@ function fillSketchPane() {
            line or arc of another sketch is a relation (HOUSING HandleProfile on
            HandlePath), re-found where that curve crosses this plane. */
         var anchor=selPoints()[0],curves=(E.def.referenceGeometry || []).filter(function(r){return r.type==="reference_helix";});
-        var sketchCurves=[];(E.def.sketches || []).forEach(function(other){if(other.id===sketch.id)return;(other.entities || []).forEach(function(entity){if(entity.construction||!["line","arc"].includes(entity.type))return;try{bindPierceTargets({...sketch,constraints:[{type:"pierce",sketchId:other.id,entityId:entity.id}]},E.def.sketches,sketchWorldPoint);sketchCurves.push({value:"sketch:"+other.id+":"+entity.id,label:(other.name || other.id)+" · "+entity.type+" "+entity.id,sketchId:other.id,entityId:entity.id});}catch(error){/* only curves that cross this plane */}});});
+        var sketchCurves=[];(E.def.sketches || []).forEach(function(other){if(other.id===sketch.id)return;(other.entities || []).forEach(function(entity){if(entity.construction||!["line","arc","circle"].includes(entity.type))return;try{bindPierceTargets({...sketch,constraints:[{type:"pierce",sketchId:other.id,entityId:entity.id}]},E.def.sketches,sketchWorldPoint);sketchCurves.push({value:"sketch:"+other.id+":"+entity.id,label:(other.name || other.id)+" · "+entity.type+" "+entity.id,sketchId:other.id,entityId:entity.id});}catch(error){/* only curves that cross this plane */}});});
         if(!anchor || (!curves.length && !sketchCurves.length)){flash(t("pierceNeed"));return;}
         var choices=sketchCurves.concat(curves.map(function(r){return {value:r.id,label:r.name};}));
         openQuickForm({action:"piercecurve",title:t("cPierce"),hint:"Attach the selected point to where a curve crosses this sketch plane.",fields:[
@@ -18399,30 +19881,38 @@ function fillSketchPane() {
   var planeRow = el("label", "md-row md-row-wide");
   planeRow.appendChild(el("span", "t", t("sketchPlane")));
   var planeSel = el("select");
+  var planeDisplay=sketchPlaneDisplay(sketch,E.def.references || [],{face:t("facePrefix"),reference:referenceLabel});
+  if(planeDisplay.kind==="face" || planeDisplay.kind==="frame"){
+    var frameOption=el("option","",planeDisplay.label);
+    frameOption.value=planeDisplay.value;frameOption.selected=true;frameOption.disabled=true;
+    planeSel.appendChild(frameOption);
+  }
   var attachedPlane = sketch.referenceId && !/^plane:(top|front|right)$/.test(sketch.referenceId)
     ? (E.def.references || []).find(function (reference) { return reference.id === sketch.referenceId; })
     : null;
-  if (attachedPlane) {
-    var attachedOption = el("option", "", referenceLabel(attachedPlane));
-    attachedOption.value = attachedPlane.id;
-    attachedOption.selected = true;
+  (E.def.references || []).filter(function(reference){return reference.type==="plane" && !["plane:top","plane:front","plane:right"].includes(reference.id);}).forEach(function(reference){
+    var attachedOption = el("option", "", referenceLabel(reference));
+    attachedOption.value = reference.id;
+    attachedOption.selected = planeDisplay.kind==="reference" && reference.id===attachedPlane?.id;
     planeSel.appendChild(attachedOption);
-  }
+  });
   [["top", t("view_top")], ["front", t("view_front")], ["side", t("view_side")]].forEach(function (o) {
     var opt = el("option", "", o[1]);
     opt.value = o[0];
-    if (!attachedPlane && sketch.plane === o[0]) opt.selected = true;
+    if (planeDisplay.kind==="principal" && sketch.plane === o[0]) opt.selected = true;
     planeSel.appendChild(opt);
   });
   planeSel.addEventListener("change", function () {
     pushUndo(t("sketchPlane"));
-    sketch.plane = planeSel.value;
-    sketch.name = planeLabel(sketch.plane) + " sketch";
-    sketch.referenceId = sketch.plane === "side" ? "plane:right" : "plane:" + sketch.plane;
-    delete sketch.support;
-    delete sketch.frame;
-    delete sketch.frameSpace;
-    delete sketch.supportOffset;
+    var chosenReference=(E.def.references || []).find(function(reference){return reference.id===planeSel.value;});
+    if(chosenReference){
+      reassignSketchPlane(sketch,chosenReference,referencePlaneView(chosenReference));
+      sketch.name=referenceLabel(chosenReference)+" sketch";
+    }else{
+      var principalId=planeSel.value==="side" ? "plane:right" : "plane:"+planeSel.value;
+      reassignSketchPlane(sketch,{id:principalId,type:"plane"},planeSel.value);
+      sketch.name=planeLabel(sketch.plane)+" sketch";
+    }
     setView(sketch.plane);
     E.def.activeSketch = sketch.id;
     refreshAll();
@@ -18472,24 +19962,48 @@ function fillSketchPane() {
     linked.disabled=!!copy.associative;host.appendChild(linked);
   });
 
-  var attachFace=btn("Attach to selected face",function(){
-    var attachment=faceSketchAttachment();
+  var attachSupport=async function(attachment){
     if(!attachment || attachment.surface){flash("Select a planar face first");return;}
     var features=E.def.features || [],ownerIndex=features.findIndex(function(feature){return feature.id===attachment.support.ownerFeatureId;});
     var consumerIndex=features.findIndex(function(feature){return feature.params?.sketchId===sketch.id || (feature.references?.sketches || []).includes(sketch.id);});
     if(consumerIndex>=0 && ownerIndex>=consumerIndex){flash("Select a face from before this sketch in the history");return;}
     pushUndo("Attach sketch to face");
-    sketch.support=attachment.support;sketch.referenceId=attachment.support.persistentId;
-    sketch.plane=attachment.plane;sketch.frame=attachment.frame;sketch.frameSpace="local";sketch.frameAnchor=attachment.frameAnchor;sketch.supportOffset=0;
-    refreshAll();flash("✓ Sketch attached to selected face");
-  },"md-wide");
+    reattachSketchSupport(sketch,attachment);
+    refreshAll();
+    if(isCanonicalAuthoring()){await regenerateExactModel();refreshAll();}
+    flash("✓ Sketch attached to selected face");
+  };
+  var attachFace=btn("Attach to selected face",function(){attachSupport(faceSketchAttachment());},"md-wide");
   host.appendChild(attachFace);
 
+  /* The face at the bottom of a narrow shell may be hidden behind its neck.
+     Offer the same exact topology IDs the viewport can pick, limited to
+     features before this sketch, so reattachment remains a history edit. */
+  var history=E.def.features || [];
+  var consumerAt=history.findIndex(function(feature){return feature.params?.sketchId===sketch.id || (feature.references?.sketches || []).includes(sketch.id);});
+  var before=consumerAt<0 ? history : history.slice(0,consumerAt);
+  var allowed=new Set(before.map(function(feature){return feature.id;}));
+  var supportChoices=planarMateFaceChoices((E.def.parts || []).flatMap(topologyEntriesForPart).filter(function(entry){
+    return allowed.has(entry.ownerFeatureId) || allowed.has(String(entry.ownerFeatureId).replace(/:tool$/, ""));
+  }),before);
+  if(supportChoices.length){
+    var supportSelect=document.createElement("select");
+    supportSelect.setAttribute("aria-label",t("sketchSupportFace"));
+    var placeholder=document.createElement("option");placeholder.value="";placeholder.textContent=t("sketchSupportFace");supportSelect.appendChild(placeholder);
+    supportChoices.forEach(function(choice){var option=document.createElement("option");option.value=choice.entry.persistentId;option.textContent=choice.label;supportSelect.appendChild(option);});
+    supportSelect.value=sketch.support?.persistentId || "";
+    var supportPicker=el("label","md-row md-row-wide");
+    supportPicker.appendChild(el("span","t",t("sketchSupportFace")));
+    supportPicker.appendChild(supportSelect);host.appendChild(supportPicker);
+    host.appendChild(btn(t("attachChosenFace"),function(){
+      var choice=supportChoices.find(function(item){return item.entry.persistentId===supportSelect.value;});
+      if(!choice){flash(t("sketchSupportFace"));return;}
+      attachSupport(faceSketchAttachment(topologyReferenceFromEntry(choice.entry),true));
+    },"md-wide"));
+  }
+
   var grid = el("div", "md-prop-grid");
-  numLengthRow(grid, t("sketchOffset"), function () { return sketch.frameSpace==="local" ? Number(sketch.supportOffset)||0 : Number(sketch.offset)||0; }, function (v) {
-    if (sketch.frameSpace==="local") sketch.supportOffset=v;
-    else sketch.offset = v;
-  }, 0.5);
+  addSketchOffsetControl(grid,sketch.id);
   host.appendChild(grid);
 
   host.appendChild(el("h5", "md-h5", t("constraints")));
@@ -18549,34 +20063,37 @@ function fillSketchPane() {
       inp.type = "text";
       inp.disabled = !!con.driven;
       inp.value = con.expr != null && String(con.expr).trim() ? String(con.expr)
-        : con.type === 'angle' ? String(con.value) : modelLengthText(Number(con.value),12);
+        : dimensionUnit(con) === 'angle' ? String(con.value) : modelLengthText(Number(con.value),12);
       inp.title = t("eqHelp");
+      inp.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        event.stopPropagation();
+        inp.dispatchEvent(new Event("change", { bubbles: true }));
+      });
       inp.addEventListener("change", function () {
         var text = inp.value.trim();
-        var numeric = parseFloat(text);
-        var isPlainNumber = String(numeric) === text && fin(numeric);
-        var value;
-        if (isPlainNumber) value = con.type === 'angle' ? numeric : lengthFromDocument(numeric,modelLengthUnit());
-        else {
-          // an expression has to make sense before it is allowed into the model
-          try {
-            value = evaluateExpression(expandUnitLiterals(text, dimensionUnit(con)), function (ref) {
-              var entry = collectSymbols(E.def).get(ref);
-              return entry ? Number(entry.node.value) : undefined;
-            });
-          } catch (error) { flash(String(error.message || error)); inp.value = con.expr || (con.type==='angle' ? String(con.value) : modelLengthText(Number(con.value),12)); return; }
-        }
+        var entered;
+        try {
+          entered = parseSketchDimensionEntry(text, con, modelLengthUnit(), function (ref) {
+            var entry = collectSymbols(E.def).get(ref);
+            return entry ? Number(entry.node.value) : undefined;
+          });
+        } catch (error) { flash(String(error.message || error)); inp.value = con.expr || (dimensionUnit(con)==='angle' ? String(con.value) : modelLengthText(Number(con.value),12)); return; }
         pushUndo(t("opDim"));
         var oldValue = con.value, oldExpr = con.expr;
-        con.value = value;
-        if (isPlainNumber) delete con.expr; else con.expr = text;
+        con.value = entered.value;
+        if (entered.expr == null) delete con.expr; else con.expr = entered.expr;
         if (!resolveSketch(true)) {
           var valueWhy = explainSketchConflict(sketch, { keep: [con.id] });
           con.value = oldValue;
           if (oldExpr == null) delete con.expr; else con.expr = oldExpr;
           resolveSketch(false); H.discard();
           showSketchRefusal(sketch, text + " (" + relationSubjects(sketch, con, sketchInstanceNames(sketch, instanceLabels())).join(", ") + ")", [con.id], valueWhy);
-        } else detachDrivenSketchDimension(sketch,con);
+        } else {
+          detachDrivenSketchDimension(sketch,con);
+          dismissCommittedDimensionEditor(sketch,con);
+        }
         refreshAll();
       });
       row.appendChild(inp);
@@ -18620,7 +20137,7 @@ function fillSketchPane() {
     row.appendChild(del);
     if (con.value != null) {
       row.appendChild(el("span", "md-var-val",
-        con.exprError ? "—" : con.type === "angle"
+        con.exprError ? "—" : dimensionUnit(con) === "angle"
           ? String(Number(Number(con.value).toPrecision(8))) + "°"
           : modelLengthText(Number(con.value),10) + " " + modelLengthUnit()));
     }
@@ -19281,7 +20798,7 @@ function fillOps() {
    own coordinates — a mate reference only means anything in the space its
    component was authored in. */
 function assemblyComponentById(id) {
-  return (E.assembly && E.assembly.components || []).find(function (candidate) { return candidate.id === id; }) || null;
+  return lookupAssemblyComponent(E.assembly, id);
 }
 
 /* `component` is the top-level component a hit belongs to — what a mate
@@ -20668,8 +22185,13 @@ function showSelectThrough(event, view) {
     );
     var ray = new THREE.Raycaster();
     ray.setFromCamera(pointer, view.cam);
-    var components = [], seen = new Set();
+    var components = [], seen = new Set(), references = [], referenceSeen = new Set();
     ray.intersectObjects(view.grp.children, true).forEach(function (hit) {
+      var candidate=rawTopologyPickCandidate(hit,view), owner=pickOwnerChain(hit.object,view.grp), reference=stampComponentRef(candidate?.reference,owner.component,null);
+      if(reference?.componentId && selectionFilterAllows(reference.kind,E.selectionFilter)){
+        var referenceKey=reference.componentId+"|"+reference.persistentId;
+        if(!referenceSeen.has(referenceKey)){referenceSeen.add(referenceKey);references.push(reference);}
+      }
       var object = hit.object;
       while (object && object !== view.grp) {
         var id = object.userData && object.userData.cadComponent;
@@ -20700,6 +22222,15 @@ function showSelectThrough(event, view) {
         refreshAll();
       });
       assemblyHost.appendChild(button);
+    });
+    if(references.length)assemblyHost.appendChild(el("strong","md-context-title","Select other face or edge"));
+    references.forEach(function(reference,index){
+      var button=btn((index+1)+". "+componentLabel(reference.componentId)+" · "+reference.kind+" · "+reference.persistentId,function(){
+        var component=assemblyComponentById(reference.componentId);
+        E.topologySelection=E.mobileAddSelection?(E.topologySelection || []).concat([reference]):[reference];
+        E.componentSel=E.mobileAddSelection?Array.from(new Set((E.componentSel || []).concat([component]))):[component];
+        E.sel=component;closeChromeOverlays();refreshSelection();
+      });assemblyHost.appendChild(button);
     });
     positionContextMenu(assemblyHost, event.clientX, event.clientY);
     return;
@@ -20798,6 +22329,19 @@ function assemblyPickedRefs() {
   return { a: a, b: b };
 }
 
+/* A symmetric mate takes three picks in order: the two entities that mirror
+   each other, then the plane they mirror across. The plane may belong to a
+   third component or to one of the two (a component's own Front plane is the
+   usual choice), but the two mirrored entities must be on different components. */
+function assemblySymmetricPicks() {
+  var refs = (E.topologySelection || []).filter(function (reference) { return reference && reference.componentId; });
+  if (refs.length < 3) return null;
+  var a = refs[refs.length - 3], b = refs[refs.length - 2], c = refs[refs.length - 1];
+  if (a.componentId === b.componentId) return null;
+  if (!mateHolderById(a.componentId) || !mateHolderById(b.componentId) || !mateHolderById(c.componentId)) return null;
+  return { a: a, b: b, c: c };
+}
+
 /* Align X/Y/Z still mate two components, not two faces. Prefer the pair the
    topology picks already named; otherwise the Ctrl-selected components. The
    solver only moves B, so a grounded second pick is swapped rather than
@@ -20819,7 +22363,9 @@ function ungroundedComponentPair() {
    cad_mates.js and both ask it, so the button gate cannot promise something
    the solver will not honour, or refuse something it would. */
 function mateRequirementLabel(requirement) {
-  return t(requirement === "axis" ? "mateNeedsAxis" : requirement === "round" ? "mateNeedsRound" : "mateNeedsPlanar");
+  if(requirement==='distance')return 'Choose two planar references, or a plane and an exact vertex';
+  if(requirement==='coincident')return 'Choose two planar references, or a plane and an exact axis';
+  return t(requirement === "axis" ? "mateNeedsAxis" : requirement === "round" ? "mateNeedsRound" : requirement === "mirror" ? "mateNeedsMirror" : "mateNeedsPlanar");
 }
 
 /* The one gate every mate goes through, whichever way it was asked for. The
@@ -20829,7 +22375,7 @@ function mateRequirementLabel(requirement) {
    Frames are the two the mate will actually be stored with. */
 function mateFramesFit(type, frameA, frameB) {
   var requirement = mateRequirementFor(type);
-  if (!mateFrameSupports(requirement, frameA) || !mateFrameSupports(requirement, frameB)) {
+  if (!mateFramesSupport(type, frameA, frameB)) {
     return { ok: false, reason: mateRequirementLabel(requirement) };
   }
   return { ok: true, reason: "" };
@@ -20842,7 +22388,24 @@ function mateFramesFit(type, frameA, frameB) {
 
 /* Whether this mate can be built from what is picked right now, and if not,
    what it wanted. */
+function lockMateComponentPair() {
+  var picked=assemblyPickedRefs(),pair=picked?[mateHolderById(picked.a.componentId),mateHolderById(picked.b.componentId)]:(E.componentSel || []).slice(-2);
+  if(pair.length!==2 || !pair[0] || !pair[1] || pair[0].id===pair[1].id)return null;
+  if(pair[1].grounded)pair.reverse();
+  return pair[1].grounded?null:pair;
+}
 function mateTypeFits(type) {
+  if(type==='lock')return {ok:!!lockMateComponentPair(),reason:t("lockMateNeedTwoComponents")};
+  if (type === "symmetric") {
+    var triple = assemblySymmetricPicks();
+    if (!triple) return { ok: false, reason: t("mateNeedThreePicks") };
+    var mirror = mateReferenceFromPick(triple.c).frame;
+    if (!mateFrameSupports("planar", mirror) || mirror.surface !== "plane") return { ok: false, reason: t("mateNeedsMirrorPlane") };
+    var tripleFrame = function (reference) { return mateReferenceFromPick(reference).frame; };
+    var kindA = tripleFrame(triple.a).surface === "plane", kindB = tripleFrame(triple.b).surface === "plane";
+    if (kindA !== kindB) return { ok: false, reason: t("mateNeedsMatchingKinds") };
+    return mateFramesFit(type, tripleFrame(triple.a), tripleFrame(triple.b));
+  }
   var picked = assemblyPickedRefs();
   /* Every mate type is unavailable until two faces on two components are
      picked. This used to fall back to the bounding-box frames and answer from
@@ -21633,8 +23196,9 @@ function initPreview() {
     grid: true, gridOpacity: 0.26, shadows: true,
     ambient: 0.62, keyLight: 1.05, fill: 0.22,
     az: 0.8, el: 0.5, dist: 260,
-    minEl: 0.05, maxEl: 1.5, minDist: 1, maxDist: 2000,
+    minEl: -1.5, maxEl: 1.5, minDist: 1, maxDist: 2000,
     pad: 16, ratio: 0.75,
+    fitContainerHeight: function () { return E.mode === "3d"; },
     center: function () {
       if (E.docType === "assembly") return 0;
       var b = defBounds(E.def);
@@ -21644,6 +23208,7 @@ function initPreview() {
     draw: drawInRoom,
     pick: pickAssemblyComponent,
     cadNav: true,
+    normalToOrthographic: true,
     beginDrag: beginInstant3dDrag,
     contextMenu: function (event) { showSelectThrough(event, E.pv); },
     longPress: showSelectThrough,
@@ -21802,7 +23367,8 @@ function setMode(m) {
     });
   }
   root.classList.toggle("md-split", split);
-  swapView(m === "3d" || split, E.pv);
+  // Relocating the preview must not compile its hidden shader on a 2D sheet.
+  swapView(m === "3d" || split, E.pv, { render: m !== "drawing" });
   root.classList.toggle("md-is3d", m === "3d");
   root.classList.toggle("md-isdrawing", m === "drawing");
   syncModelPlane();
@@ -21964,7 +23530,9 @@ function toggleSectionView() {
 function layout3DHost() {
   if (E.pv) {
     if (E.pv.invalidateSize) E.pv.invalidateSize();
-    E.pv.render();
+    // The sheet is a 2D canvas. Compiling the hidden preview's shader here can
+    // throw before the mode buttons update, leaving a partial drawing switch.
+    if (E.mode !== "drawing") E.pv.render();
   }
 }
 
@@ -21984,28 +23552,9 @@ function activeSketchWorldBounds() {
   ensureSketchDoc(E.def).forEach(function (sketch) {
     if (!sameSketchContext(sketch, current)) return;
     if (!frame) frame = activeSketchFrame() || standardPlaneFrame(E.view, sketch.offset);
-    var pointsById = new Map((sketch.points || []).map(function (q) { return [q.id, q]; }));
-    function span(x, y, reach) {
-      if (!fin(x) || !fin(y)) return;
-      u0 = u0 === undefined ? x - reach : Math.min(u0, x - reach);
-      u1 = u1 === undefined ? x + reach : Math.max(u1, x + reach);
-      v0 = v0 === undefined ? y - reach : Math.min(v0, y - reach);
-      v1 = v1 === undefined ? y + reach : Math.max(v1, y + reach);
-    }
-    (sketch.points || []).forEach(function (q) { span(q.x, q.y, 0); });
-    /* A circle or ellipse reaches past its centre, which is the only point of
-       it the loop above saw. */
-    (sketch.entities || []).forEach(function (e) {
-      var centre = null, reach = 0;
-      if (e.type === "circle") {
-        var o = circleData(e, pointsById);
-        if (o) { centre = o.center; reach = o.radius; }
-      } else if (e.type === "ellipse") {
-        var el = ellipseData(e, pointsById);
-        if (el) { centre = el.center; reach = Math.max(el.rx, el.ry); }
-      }
-      if (centre) span(centre.x, centre.y, reach);
-    });
+    var geometry=sketchGeometryBounds(sketch);if(!geometry)return;
+    u0=u0===undefined?geometry.u0:Math.min(u0,geometry.u0);u1=u1===undefined?geometry.u1:Math.max(u1,geometry.u1);
+    v0=v0===undefined?geometry.v0:Math.min(v0,geometry.v0);v1=v1===undefined?geometry.v1:Math.max(v1,geometry.v1);
   });
   if (u0 === undefined || !frame) return null;
   var b = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9, z0: 1e9, z1: -1e9 };
@@ -22035,12 +23584,22 @@ function fitPreview() {
      either one alone can be the larger of the two. */
   var sketchBox = activeSketchWorldBounds();
   var b = renderedParts(E.def).length ? defBounds(E.def) : sketchBox;
+  if(E.contextEdit){
+    var ghost=E.pv.grp?.children.find(function(object){return object.userData.cadAssemblyContext;});
+    if(ghost){var ghostBox=new THREE.Box3().setFromObject(ghost);if(!ghostBox.isEmpty()){
+      var gb={x0:ghostBox.min.x,x1:ghostBox.max.x,y0:ghostBox.min.y,y1:ghostBox.max.y,z0:ghostBox.min.z,z1:ghostBox.max.z};
+      b=b?{x0:Math.min(b.x0,gb.x0),x1:Math.max(b.x1,gb.x1),y0:Math.min(b.y0,gb.y0),y1:Math.max(b.y1,gb.y1),z0:Math.min(b.z0,gb.z0),z1:Math.max(b.z1,gb.z1)}:gb;
+    }}
+  }
   if (b && sketchBox && b !== sketchBox) b = {
     x0: Math.min(b.x0, sketchBox.x0), x1: Math.max(b.x1, sketchBox.x1),
     y0: Math.min(b.y0, sketchBox.y0), y1: Math.max(b.y1, sketchBox.y1),
     z0: Math.min(b.z0, sketchBox.z0), z1: Math.max(b.z1, sketchBox.z1),
   };
   if (!b) b = defBounds(E.def);
+  if(E.modelPlaneActive && E.pv.fixedFrame && E.pv.framePlane){
+    E.pv.framePlane(b);invalidateSketchProjection();E.pv.render();return;
+  }
   var dx = b.x1 - b.x0, dy = b.y1 - b.y0, dz = b.z1 - b.z0,
     r = Math.max(1, Math.hypot(dx, dy, dz));
   E.pv.frame(r * 1.5);
@@ -22055,21 +23614,32 @@ function fitPreview() {
 
 function buildAssembly(parent) {
   if (!E.assembly) return;
-  applyAssemblyMates(E.assembly);
+  if (!assemblyPreviewSolved) applyAssemblyMates(E.assembly);
   E.assembly.components.forEach(function (component) {
     if (component.visible === false) return;
     var group = buildComponentGroup(component, null, "");
     if (!group) return;
-    if (E.componentSel.indexOf(component) !== -1) {
-      group.traverse(function (object) {
-        if (!object.isMesh || !object.material) return;
-        object.material = object.material.clone();
-        if (object.material.emissive) object.material.emissive.setHex(0x4b2800);
-      });
-    }
+    group.traverse(function (object) { syncViewportMeshSelection(object, component); });
     parent.add(group);
   });
+  addExplodeLeaders(parent);
   addInterferenceVisuals(parent);
+}
+
+/* Explode lines: a dashed leader from each moved component's mated centre to
+   where the exploded view drew it. Never part of the model, only of the view. */
+function addExplodeLeaders(parent) {
+  var occurrences=flattenAssembly(E.assembly,{visibleOnly:true});
+  explodeLines(E.assembly, function (component,target) {
+    var matching=occurrences.filter(function(occurrence){return target.path.every(function(id,index){return String(occurrence.path[index])===id;});});
+    var b=null;
+    matching.forEach(function(occurrence){var next=occurrenceWorldBounds(occurrence.component,occurrence.placement);if(!next)return;if(!b)b=Object.assign({},next);else ['x','y','z'].forEach(function(axis){b[axis+'0']=Math.min(b[axis+'0'],next[axis+'0']);b[axis+'1']=Math.max(b[axis+'1'],next[axis+'1']);});});
+    return b ? { x:(b.x0 + b.x1) / 2, y:(b.y0 + b.y1) / 2, z:(b.z0 + b.z1) / 2 } : null;
+  }).forEach(function (line) {
+    var geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(line.from.x, line.from.y, line.from.z), new THREE.Vector3(line.to.x, line.to.y, line.to.z)]);
+    var leader = new THREE.Line(geometry, new THREE.LineDashedMaterial({ color:0x4dabf7, dashSize:.6, gapSize:.35, depthTest:false }));
+    leader.computeLineDistances(); leader.renderOrder = 60; leader.userData.cadExplodeLine = line.id; parent.add(leader);
+  });
 }
 
 /* One component's group. A top-level component carries `cadComponent` — it is
@@ -22077,15 +23647,16 @@ function buildAssembly(parent) {
    carry `cadSubComponent` instead, sit at their own poses inside it, and build
    their parts under the path prefix their faces are named by on the
    sub-assembly (see builtTopologyId). */
-function buildComponentGroup(component, top, prefix) {
+function buildComponentGroup(component, top, prefix, presentationOnly = false) {
   var group = new THREE.Group(), tr = normalizeTransform(component);
+  group._cadExplodeComponent = component;
   group.name = component.name || component.modelKey || component.assemblyKey || "";
   if (top) group.userData.cadSubComponent = component.id;
   else group.userData.cadComponent = component.id;
   if (isSubassembly(component)) {
     component.asm.components.forEach(function (child) {
       if (child.visible === false) return;
-      var inner = buildComponentGroup(child, top || component, prefix + child.id + "/");
+      var inner = buildComponentGroup(child, top || component, prefix + child.id + "/", presentationOnly);
       if (inner) group.add(inner);
     });
   } else {
@@ -22100,7 +23671,7 @@ function buildComponentGroup(component, top, prefix) {
        selection and hover against a component that is no longer being built,
        so face highlights stop appearing anywhere until the editor is reopened. */
     try {
-      activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle); });
+      activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle, presentationOnly); });
     } finally {
       E.buildComponent = null;
     }
@@ -22108,9 +23679,15 @@ function buildComponentGroup(component, top, prefix) {
   /* An exploded view is a viewing offset, not a change to the model: it is
      added to the pose here and never written back to the transform, so
      collapsing the view restores the mated position exactly. */
-  var blown = !top && component.explodedOffset || null;
+  var blown = component.explodedOffset || null;
   group.position.set(tr.x + (blown && blown.x || 0), tr.y + (blown && blown.y || 0), tr.z + (blown && blown.z || 0));
   group.rotation.set((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180);
+  if(component.transparent)group.traverse(function(object){
+    if(!object.isMesh || !object.material)return;
+    var materials=Array.isArray(object.material)?object.material:[object.material];
+    materials=materials.map(function(material){var copy=material.clone();copy.transparent=true;copy.opacity=.22;copy.depthWrite=false;return copy;});
+    object.material=Array.isArray(object.material)?materials:materials[0];
+  });
   return group;
 }
 
@@ -22350,6 +23927,7 @@ function updatePreview() {
     if (E.docType === "assembly") buildAssembly(grp);
     else {
       committedRenderedParts(E.def).forEach(function (p) { buildPart(grp, p, E.displayStyle); });
+      addAssemblyContextGhosts(grp);
       addDocumentOverlays(grp, E.def);
     }
     var live = new THREE.Group();
@@ -22437,7 +24015,12 @@ function drawInRoom(view) {
 }
 
 /* ================= saved-model library panel ================= */
-function exportLibraryJson() {
+async function exportLibraryJson() {
+  // IndexedDB is the shared source of truth; another tab may have saved since
+  // this editor last rendered its Library panel.
+  try { modelLibraryCache=await loadModelLibrary(); assemblyLibraryCache=await loadAssemblyLibrary(); }
+  catch (e) { flash(t("saveStorageFull")); return; }
+  writeLibraryIndex(modelLibraryCache); writeAssemblyIndex(assemblyLibraryCache);
   var text = JSON.stringify(libraryBundle(loadLib(), loadAssemblies()), null, 2);
   downloadBytes(text, "modelforge-library.json", "application/json");
   flash("✓ " + t("libraryExported"));
@@ -22452,6 +24035,10 @@ function importLibraryJson() {
     if (!file) return;
     try {
       var bundle = parseLibraryBundle(await file.text());
+      // Collision choices must describe the current shared library, not the
+      // snapshot this tab had when it opened the editor.
+      modelLibraryCache=await loadModelLibrary();
+      assemblyLibraryCache=await loadAssemblyLibrary();
       var collisions = collidingLibraryKeys(loadLib(), bundle.models).concat(collidingLibraryKeys(loadAssemblies(), bundle.assemblies));
       var conflict = "replace";
       if (collisions.length) {
@@ -22465,11 +24052,9 @@ function importLibraryJson() {
         if (choice == null) return;
         conflict = choice ? "replace" : "keep-both";
       }
-      var models = mergeLibraryRecords(loadLib(), bundle.models, { conflict: conflict });
-      var assemblies = mergeLibraryRecords(loadAssemblies(), bundle.assemblies, { conflict: conflict });
-      if (!await saveLib(models)) { report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull")); return; }
-      if (!await saveAssemblies(assemblies)) { flash(t("saveStorageFull")); return; }
-      models.forEach(registerCustomModel);
+      if (!await saveLib(bundle.models,{mode:"merge",conflict:conflict})) { report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull")); return; }
+      if (!await saveAssemblies(bundle.assemblies,{mode:"merge",conflict:conflict})) { flash(t("saveStorageFull")); return; }
+      loadLib().forEach(registerCustomModel);
       refreshLib();
       flash("✓ " + t(conflict === "keep-both" && collisions.length ? "libraryImportedKept" : "libraryImported"));
     } catch (error) { flash(t("libraryImportFailed")); }
@@ -22492,9 +24077,8 @@ async function restoreDiskBackups(missing) {
     records.push(backup.model);
   }
   if (!records.length) { flash(t("diskBackupRestoreFailed")); return; }
-  var models = mergeLibraryRecords(loadLib(), records, { conflict:"skip" });
-  if (!await saveLib(models)) { report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull")); return; }
-  models.forEach(registerCustomModel);
+  if (!await saveLib(records,{mode:"merge",conflict:"skip"})) { report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull")); return; }
+  loadLib().forEach(registerCustomModel);
   refreshCatalogSelect();
   refreshLib();
   flash("✓ " + tf("diskBackupRestored", { n:records.length }));
@@ -22521,6 +24105,74 @@ function appendDiskBackupNote(host) {
 function libraryTransferButtons(host) {
   host.appendChild(btn('<i class="ph ph-export"></i> ' + t("exportLibrary"), exportLibraryJson, "md-wide"));
   host.appendChild(btn('<i class="ph ph-download-simple"></i> ' + t("importLibrary"), importLibraryJson, "md-wide"));
+}
+
+/* The old shared draft cannot be attributed to a tab. Do not offer it as an
+   automatic restore on a fresh tab: an older tab may still be editing it.
+   Keep it available through a deliberate action in the Library pane. */
+function appendLegacyDraftRecovery(host) {
+  host.appendChild(btn('<i class="ph ph-clock-counter-clockwise"></i> ' +
+    (getLang() === "en" ? "Saved drafts" : "טיוטות שמורות"), recoverSavedModelerDraft, "md-wide"));
+  var action = btn('<i class="ph ph-clock-counter-clockwise"></i> ' +
+    (getLang() === "en" ? "Recover earlier draft" : "שחזור טיוטה קודמת"), recoverLegacyModelerDraft, "md-wide");
+  action.hidden = true;
+  host.appendChild(action);
+  loadModelerDraftRecord().then(function (legacy) {
+    if (action.isConnected) action.hidden = !legacy && !readModelerDraft(modelerDraftStorage());
+  }).catch(function () {
+    if (action.isConnected) action.hidden = !readModelerDraft(modelerDraftStorage());
+  });
+}
+
+async function recoverSavedModelerDraft() {
+  var records;
+  try { records=await listModelerDraftRecords(); }
+  catch(error) { flash(String(error.message || error)); return; }
+  var dialog=document.createElement("dialog");
+  dialog.className="md-properties-dialog";
+  dialog.appendChild(el("h3","",getLang()==="en" ? "Saved drafts" : "טיוטות שמורות"));
+  dialog.appendChild(el("p","",getLang()==="en"
+    ? "Recover work from this browser, including an unresponsive tab. The original draft stays available."
+    : "שחזור עבודה מהדפדפן, כולל לשונית שאינה מגיבה. הטיוטה המקורית נשמרת."));
+  records.forEach(function(record){
+    var doc=record.docType==="assembly" ? record.assembly : record.def;
+    var row=el("div","md-card");
+    row.appendChild(el("strong","",doc && doc.name || t("title")));
+    row.appendChild(el("p","",new Date(record.at || 0).toLocaleString()+" · "+((doc && doc.history || []).length)+" "+t("steps")));
+    var recover=btn(getLang()==="en" ? "Recover here" : "שחזור כאן",async function(){
+      dialog.close();dialog.remove();
+      if(!await confirmDiscardDocument("unsavedOpen"))return;
+      var draft=cloneData(record);delete draft.id;
+      if(restoreModelerDraft(draft))scheduleModelerDraft();
+    },"md-wide");
+    row.appendChild(recover);dialog.appendChild(row);
+  });
+  if(!records.length)dialog.appendChild(el("p","",getLang()==="en" ? "No saved drafts." : "אין טיוטות שמורות."));
+  dialog.appendChild(btn(t("close"),function(){dialog.close();dialog.remove();},"md-wide"));
+  dialog.addEventListener("cancel",function(){dialog.remove();});
+  root.appendChild(dialog);dialog.showModal();
+}
+
+async function recoverLegacyModelerDraft() {
+  if (!await confirmDiscardDocument("unsavedOpen")) return;
+  var accepted = await askModelerDecision(root, {
+    title:t("recoverDraftTitle"),
+    message:getLang() === "en"
+      ? "Recover the earlier shared draft? It may still be open in another browser tab."
+      : "לשחזר את הטיוטה המשותפת הקודמת? ייתכן שהיא עדיין פתוחה בלשונית דפדפן אחרת.",
+    accept:t("restoreDraftAction"), cancel:t("keepEditingAction"),
+  });
+  if (!accepted) return;
+  await discardModelerDraft();
+  var recovered = null;
+  try { recovered = await claimLegacyModelerDraftRecord(modelerDraftOwnerId); }
+  catch (error) {}
+  var local = claimLegacyModelerDraft(modelerDraftStorage(),modelerDraftOwnerId);
+  recovered = recovered || local;
+  if (!recovered) return;
+  modelerDraftCache = recovered;
+  restoreModelerDraft(recovered);
+  refreshLib();
 }
 
 /* A saved model's card shows the model, the same picture as its planner
@@ -22578,7 +24230,10 @@ function refreshLib() {
         countLabel(assemblyMateCount(assembly), "matesCountOne", "matesCount")));
       card.addEventListener("click", async function () {
         if (!await confirmDiscardDocument("unsavedOpen")) return;
-        E.assembly = cloneData(assembly); E.componentSel = []; E.sel = null;
+        abandonDocumentExactWork();closeEvalCard();
+        var occurrenceSnapshot=compactAssemblyTopologySnapshots(assembly);
+        E.assembly = cloneData(occurrenceSnapshot); assemblyOpenBaseline=cloneData(assembly); E.componentSel = []; E.sel = null;
+        S.idc = nextDocumentNumericId(E.assembly, S.idc);
         invalidateInterference();
         /* Opening an assembly is a document open, the same as the part cards
            below. Without these two lines the new assembly inherited the
@@ -22592,7 +24247,7 @@ function refreshLib() {
       });
       var del = btn('<i class="ph ph-trash"></i>', function (e) {
         e.stopPropagation();
-        saveAssemblies(loadAssemblies().filter(function (a) { return a.key !== assembly.key; })).then(function (ok) {
+        saveAssemblies(assembly.key,{mode:"delete"}).then(function (ok) {
           if (!ok) flash(t("saveStorageFull"));
           refreshLib();
         });
@@ -22602,7 +24257,14 @@ function refreshLib() {
     return;
   }
   host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newModel"), newModel, "md-wide md-dashed"));
+  /* Models and assemblies use separate stores and separate cards. On reload
+     the editor opens in Part mode, so a saved assembly otherwise looks lost
+     while this pane shows only parts. Give its library a direct route here. */
+  var savedAssemblies=loadAssemblies().length;
+  if(savedAssemblies) host.appendChild(btn('<i class="ph ph-stack"></i> ' + t("assemblies") + " · " + savedAssemblies,
+    function () { setDocumentType("assembly"); }, "md-wide"));
   libraryTransferButtons(host);
+  appendLegacyDraftRecovery(host);
   appendDiskBackupNote(host);
   var lib = loadLib();
   if (!lib.length) { emptyState(host, "ph-folder-open", t("noLib"), t("noLibHint")); return; }
@@ -22612,12 +24274,16 @@ function refreshLib() {
     var card = el("div", "md-card" + (m.key === E.def.key ? " on" : ""));
     card.title = t("load");
     var top = el("div", "md-card-top");
-    top.appendChild(libThumb(m.key, "ph-cube"));
+    top.appendChild(libThumb(m.key, (m.parts || []).length ? "ph-cube" : "ph-pencil-ruler"));
     top.appendChild(el("span", "nm", m.name || m.key));
     card.appendChild(top);
-    card.appendChild(el("div", "md-card-note",
-      (m.parts ? m.parts.length : 0) + " " + t("partCount") +
-      (fin(m.w) ? " · " + [m.w,m.d,m.h].map(formatModelLength).join("×") + " cm" : "")));
+    card.appendChild(el("div", "md-card-note", (m.parts || []).length
+      ? m.parts.length + " " + t("partCount") +
+        (fin(m.w) ? " · " + [m.w,m.d,m.h].map(formatModelLength).join("×") + " cm" : "")
+      : (function(){
+          var count=(m.sketches || []).filter(function(sketch){return (sketch.entities || []).length || (m.history || []).some(function(entry){return entry.kind === "sketch" && entry.targetId === sketch.id;});}).length;
+          return t("sketchOnly") + " · " + count + " " + t(count === 1 ? "sketch" : "sketches");
+        })()));
     card.addEventListener("click", async function () {
       /* A library choice is a document open, not an in-place geometry swap.
          Replacing E.def directly skipped the initialization below in
@@ -22641,7 +24307,7 @@ function refreshLib() {
       copy.key="cm_"+Date.now().toString(36)+"_"+uid();
       copy.id=copy.definitionId=copy.key;
       copy.name=name;
-      if (!await saveLib(loadLib().concat([copy]))) {
+      if (!await saveLib(copy,{expected:null})) {
         report(t("reportKickerSave"),t("saveLibraryFailed"),t("saveStorageFull"));return;
       }
       registerCustomModel(copy);
@@ -22652,7 +24318,7 @@ function refreshLib() {
     var x = btn('<i class="ph ph-trash"></i>', async function (e) {
       e.stopPropagation();
       if (!await askModelerDecision(root, { title:t("delModel"), message:t("askDel") + "\n" + (m.name || m.key), accept:t("del"), cancel:t("m_cancel") })) return;
-      await saveLib(loadLib().filter(function (q) { return q.key !== m.key; }));
+      if (!await saveLib(m.key,{mode:"delete"})) { flash(t("saveStorageFull")); return; }
       delete FURN[m.key];
       delete PRICE[m.key];
       refreshCatalogSelect();
@@ -22862,6 +24528,17 @@ function releaseExactRun() {
   E.brepStamp = null;
 }
 
+function abandonDocumentExactWork() {
+  if(pendingCutController)pendingCutController.abort();
+  (E.def?.parts || []).forEach(function(part){
+    var timer=exactBuildTimers.get(part);
+    if(timer){clearTimeout(timer);exactBuildTimers.delete(part);}
+    part.exactBuildToken=(part.exactBuildToken || 0)+1;
+    part.exactPending=false;
+  });
+  exactRebuildQueue.reset();cancelCadWorkerWork();releaseExactRun();E.kernelBusy=false;
+}
+
 function exactRunStamp() {
   return { doc: (E.def && (E.def.definitionId || E.def.key)) || null, node: currentHistoryNode() };
 }
@@ -22869,8 +24546,9 @@ function exactRunStamp() {
 /* A cached run may be exported only while it still describes THIS document at
    THIS revision. Anything else regenerates: a stale export is silently wrong,
    a redundant regeneration is merely slow. */
-function exactRunIsCurrent() {
+function exactRunIsCurrent(requireNative=true) {
   if (!E.brepRun || !E.brepRun.finalShape || !E.brepStamp) return false;
+  if(requireNative && !E.brepRun.finalShape.shape)return false;
   var now = exactRunStamp();
   return E.brepStamp.doc === now.doc && E.brepStamp.node === now.node;
 }
@@ -22883,23 +24561,41 @@ function rebuildFailureMessage(issues, fallback) {
   var failure = list.find(function (issue) { return issue.code === "regeneration-failed"; }) || list.find(function (issue) { return issue.severity === "error"; }) || list[0];
   return failure ? failure.message : fallback;
 }
-var exactModelRebuild = null;
+var exactRebuildQueue=createExactRebuildQueue();
+function cancelExactModelRebuild() {
+  if(pendingCutController)pendingCutController.abort();
+  cancelledExactPreview={document:E.def,node:currentHistoryNode()};
+  (E.def?.parts || []).forEach(function(part){
+    var scheduled=exactBuildTimers.get(part);
+    if(scheduled){clearTimeout(scheduled);exactBuildTimers.delete(part);}
+    part.exactBuildToken=(part.exactBuildToken || 0)+1;
+    part.exactPending=false;
+    part.exactError="Exact CAD computation cancelled";
+  });
+  exactRebuildQueue.reset();
+  cancelCadWorkerWork();
+  E.kernelBusy=false;
+}
 function scheduleExactRestore() {
   if (!(isCanonicalAuthoring() && E.def && activeParts(E.def).length)) {
     E.exactRestoring = false;
     return;
   }
-  Promise.resolve(regenerateExactModel()).finally(function () {
+  var restoringDocument=E.def;
+  Promise.resolve(regenerateExactModel(undefined,{restoreMode:'mesh'})).catch(function(error){console.warn("Exact restore failed:",error);}).finally(function () {
+    if(E.def!==restoringDocument)return;
     if (!E.exactRestoring) return;
     E.exactRestoring = false;
     refreshAll();
   });
 }
-async function regenerateExactModel(rebuild) {
+async function regenerateExactModel(rebuild,options={}) {
   if(rebuild==="force")return forceRebuildDocument();
-  var pending=(exactModelRebuild || Promise.resolve()).then(function(){return regenerateExactModelNow(rebuild);});
-  exactModelRebuild=pending;
-  try{return await pending;}finally{if(exactModelRebuild===pending)exactModelRebuild=null;}
+  var requestedDocument=E.def;
+  return exactRebuildQueue.run(function(isCurrent){
+    if(E.def!==requestedDocument)return null;
+    return regenerateExactModelNow(rebuild,isCurrent,options);
+  });
 }
 
 /* Ctrl+B is an authoring command, not merely an export-kernel warm-up.  A
@@ -22915,6 +24611,7 @@ async function regenerateExactModel(rebuild) {
 async function forceRebuildDocument() {
   if (E.docType !== "part" || !E.def) { flash(t("cmdNeedPartDoc")); return null; }
   if (!activeParts(E.def).length) { flash(t("needParts")); return null; }
+  cancelledExactPreview=null;
 
   syncSketchDrivenParts();
   (E.def.parts || []).forEach(function (part) {
@@ -22935,11 +24632,11 @@ async function forceRebuildDocument() {
   E.coreRun=null;
   coreRunFresh=false;
   refreshAll();
-  var run=await regenerateExactModel(true);
+  var run=await regenerateExactModel(true,{restoreMode:'mesh'});
   if(run){refreshAll();flash("✓ "+t("forceRebuildReady"));}
   return run;
 }
-async function regenerateExactModelNow(rebuild) {
+async function regenerateExactModelNow(rebuild,queueIsCurrent=function(){return true;},options={}) {
   if (E.docType !== "part" || !activeParts(E.def).length) { flash(t("needParts")); return null; }
   /* The busy state is a flag, not a button handle. This used to reach for
      `#mdRegen`, an element the ribbon consolidation deleted — the throw landed
@@ -22948,6 +24645,9 @@ async function regenerateExactModelNow(rebuild) {
      every disabled state; see its comment. */
   E.kernelBusy = true; syncCommandManager(); flash(t("kernelBusy"));
   var rebuildingDocument=E.def;
+  var rebuildingNode=currentHistoryNode();
+  var rebuildingEditRevision=E.massEditRevision;
+  var buildIsCurrent=function(){return queueIsCurrent() && E.def===rebuildingDocument && currentHistoryNode()===rebuildingNode;};
   try {
     releaseExactRun();
     var preserveRecognized=E.def.metadata && E.def.metadata.import && E.def.metadata.import.recognition && E.def.metadata.import.recognition!=="none",executionDocument=E.def;
@@ -22960,9 +24660,10 @@ async function regenerateExactModelNow(rebuild) {
       if ((!preserveRecognized && rebuild !== false) || !ensureFeatureTree(E.def).length) rebuildFeatureTreeFromDocument();
       E.coreRun = rebuildDefinition(E.def, modelParameterOverrides());
     }
-    var regenerated=await regenerateFeatures(executionDocument);
-    if(E.def!==rebuildingDocument){releaseRegeneration(regenerated);return null;}
+    var regenerated=await regenerateFeatures(executionDocument,{restoreMode:options.restoreMode,onProgress:function(progress){if(buildIsCurrent())flash("Computing exact geometry · "+(progress.name || progress.stage));}});
+    if(!buildIsCurrent()){releaseRegeneration(regenerated);return null;}
     E.brepRun=regenerated;
+    E.exactDiagnosticRun=captureExactDiagnostics(rebuildingDocument,rebuildingNode,rebuildingEditRevision,E.brepRun);
     if(isCanonicalAuthoring()){
       var projectionDirty=synchronizeExtrusionProjections(E.def,executionDocument.features,E.brepRun);
       projectionDirty.forEach(function(id){var part=E.def.parts.find(function(item){return item.id===id;});if(part)invalidatePartMeshAfterEdit(part);});
@@ -22971,17 +24672,18 @@ async function regenerateExactModelNow(rebuild) {
       /* Before the failure throws below: a failed run still replaces every
          saved mesh with what actually built (see publishExactBodies). */
       (await publishExactBodies(activeParts(E.def),E.brepRun,E.def,async function(body){
-        var mesh=await shapeToMeshData(body,{deflection:.28,angle:.18});
+        var mesh=body.verifiedSerializedExact===true ? cloneData(body.workerMeshData) : await shapeToMeshData(body,{deflection:.28,angle:.18});
         mesh.topology=cloneData(body.topology || []);
         delete mesh.normals;delete mesh.colors;
         return mesh;
-      })).forEach(function(part){
+      },buildIsCurrent)).forEach(function(part){
         part.exactBuildToken=(part.exactBuildToken || 0)+1;
         var scheduled=exactBuildTimers.get(part);if(scheduled){clearTimeout(scheduled);exactBuildTimers.delete(part);}
         if(!part.meshData && isKernelBody(part))delete part.bounds;
         clearTopologyCache(part);refreshChangedPart(part);
       });
     }
+    if(!buildIsCurrent()){if(E.brepRun===regenerated)releaseExactRun();return null;}
     refreshParts(); // Publish healthy branches even when another branch needs repair.
     if (!E.brepRun.ok || !E.brepRun.finalShape) throw new Error(rebuildFailureMessage(E.brepRun.issues, "No supported solid features"));
     /* Stamped after refreshParts(), so the run is only ever marked current
@@ -22990,36 +24692,136 @@ async function regenerateExactModelNow(rebuild) {
     syncAuthoringWorkflow();
     flash("✓ " + t("kernelReady")); return E.brepRun;
   } catch (error) {
+    if(!buildIsCurrent())return null;
     E.brepStamp = null;
     flash(t("errBrep") + ": " + String(error.message || error)); console.error(error); return null;
-  } finally { E.kernelBusy = false; syncCommandManager(); }
+  } finally { if(queueIsCurrent()){E.kernelBusy = false; syncCommandManager();} }
 }
 
-async function exportStepDocument() {
-  if (E.docType !== "part") return;
-  if (!standardsGate("STEP export")) return;
-  var run = exactRunIsCurrent() ? E.brepRun : await regenerateExactModel();
-  if (!run || !run.ok || !run.finalShape) return;
+/* An assembly is exported as one compound of its exact leaf bodies, placed where
+   the mates put them (the same occurrences the interference check measures). */
+async function exportAssemblyStep() {
+  if (!E.assembly) return;
+  if (!cadWorkerAvailable()) { flash(t("errStep") + ": needs the browser CAD worker"); return; }
+  var requests = flattenAssembly(E.assembly, { visibleOnly:true }).map(function (occurrence) {
+    var component = occurrence.component, def = componentDef(component), placement = occurrence.placement, transform = component.transform || {};
+    return { id:component.id, label:occurrence.parents.concat(component).map(function (item) { return item.name || item.modelKey || item.assemblyKey || String(item.id); }).join(" / "),
+      document:def?.metadata?.authoringSystem === "parametric-v1" && (activeParts(def).length === 1 || hasSingleToolboxKernelRecipe(def,activeParts(def))) ? interferenceDocument(def) : null,
+      placement:{ matrix:placement ? [placement.x.x, placement.y.x, placement.z.x, placement.x.y, placement.y.y, placement.z.y, placement.x.z, placement.y.z, placement.z.z] : rotationOf(transform).flat(),
+        translation:placement ? placement.origin : { x:Number(transform.x) || 0, y:Number(transform.y) || 0, z:Number(transform.z) || 0 } } };
+  });
+  if (!requests.length) { flash(t("noComponents")); return; }
+  flash("STEP…");
   try {
-    var bytes = await exportStep(run.finalShape, (E.def.name || "model") + ".step");
+    var result = await assemblyStepInCadWorker(requests, { onProgress:function (progress) { flash((progress.name || progress.stage || "STEP") + "…"); } });
+    downloadBytes(result.bytes, (E.assembly.name || "assembly") + ".step", "model/step");
+    flash("✓ " + t("stepExported") + " · " + result.bodies);
+  } catch (error) { report(t("reportKickerSave"), t("errStep"), String(error.message || error)); }
+}
+
+async function exportStepDocument(unqualifiedDraft) {
+  if (E.docType === "assembly") { await exportAssemblyStep(); return; }
+  if (E.docType !== "part") return;
+  if (!standardsGate("STEP export",{unqualifiedDraft:unqualifiedDraft===true,onDraft:function(){exportStepDocument(true);}})) return;
+  try {
+    var name=(E.def.name || "model")+(unqualifiedDraft===true?"__UNQUALIFIED_DRAFT":"");
+    var bytes;
+    if(cadWorkerAvailable()){
+      flash("STEP…");
+      bytes=(await partStepInCadWorker(E.def,name+".step",{parameterOverrides:modelParameterOverrides(),onProgress:function(progress){flash((progress.name || progress.stage || "STEP")+"…");}})).bytes;
+    }else{
+      var run=exactRunIsCurrent()?E.brepRun:await regenerateExactModel();
+      if(!run?.ok || !run.finalShape)throw new Error("No supported solid features");
+      bytes=await exportStep(run.finalShape,name+".step");
+    }
     var blob = new Blob([bytes], {type:"model/step"}), a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = (E.def.name || "model").replace(/[^a-z0-9_-]+/gi,"_") + ".step";
+    a.href = URL.createObjectURL(blob); a.download = name.replace(/[^a-z0-9_-]+/gi,"_") + ".step";
     a.hidden = true; document.body.appendChild(a); a.click(); a.remove();
     flash("✓ " + t("stepExported"));
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-  } catch (error) { flash(t("errStep") + ": " + String(error.message || error)); }
+  } catch (error) { report(t("reportKickerSave"),t("errStep"),String(error.message || error)); }
 }
 
-async function exportIgesDocument() {
+async function exportIgesDocument(unqualifiedDraft) {
   if (E.docType !== "part") return;
-  if (!standardsGate("IGES export")) return;
+  if (!standardsGate("IGES export",{unqualifiedDraft:unqualifiedDraft===true,onDraft:function(){exportIgesDocument(true);}})) return;
   var run = exactRunIsCurrent() ? E.brepRun : await regenerateExactModel();
   if (!run || !run.ok || !run.finalShape) return;
   try {
-    var bytes = await exportIges(run.finalShape, (E.def.name || "model") + ".igs");
-    downloadBytes(bytes, (E.def.name || "model") + ".igs", "model/iges");
+    var name=(E.def.name || "model")+(unqualifiedDraft===true?"__UNQUALIFIED_DRAFT":"");
+    var bytes = await exportIges(run.finalShape, name + ".igs");
+    downloadBytes(bytes, name + ".igs", "model/iges");
     flash("✓ " + t("igesExported"));
   } catch (error) { flash(t("errIges") + ": " + String(error.message || error)); }
+}
+
+async function openPrintSetupForm() {
+  if(E.docType!=="part")return;
+  var run=exactRunIsCurrent()?E.brepRun:await regenerateExactModel();
+  if(!run?.ok || !run.finalShape){flash("Print setup needs a closed native solid",4000);return;}
+  var mesh;
+  try{mesh=await shapeToMeshData(run.finalShape,{deflection:0.002,angle:0.08});}
+  catch(error){flash(String(error.message || error),4000);return;}
+  var saved=E.def.printSetup || {},preview=el("div","md-print-bed-preview"),inputs;
+  function show(values){
+    try{
+      var ext=printSetupExtents(mesh.positions,values.basePlane),w=Number(values.bedWidthMm),d=Number(values.bedDepthMm),h=Number(values.bedHeightMm);
+      var fits=w>0 && d>0 && h>0 && ext.widthMm<=w+0.001 && ext.depthMm<=d+0.001 && ext.heightMm<=h+0.001;
+      var scale=180/Math.max(w || 1,d || 1,ext.widthMm,ext.depthMm),color=fits?"#55d9e5":"#ff7070";
+      preview.innerHTML='<svg viewBox="0 0 220 220" role="img" aria-label="Centered part footprint on print bed"><rect x="'+(110-w*scale/2)+'" y="'+(110-d*scale/2)+'" width="'+(w*scale)+'" height="'+(d*scale)+'" fill="none" stroke="currentColor"/><rect x="'+(110-ext.widthMm*scale/2)+'" y="'+(110-ext.depthMm*scale/2)+'" width="'+(ext.widthMm*scale)+'" height="'+(ext.depthMm*scale)+'" fill="'+color+'" fill-opacity="0.25" stroke="'+color+'"/></svg><p>'+ext.widthMm.toFixed(2)+' × '+ext.depthMm.toFixed(2)+' × '+ext.heightMm.toFixed(2)+' mm · '+(fits?'Fits print bed':'Exceeds print bed')+'</p><small>Export is centered in X/Y with lowest Z at 0 mm.</small>';
+    }catch(error){preview.textContent=String(error.message || error);}
+  }
+  inputs=openQuickForm({action:"printsetup",icon:"ph-printer",title:"Print setup",hint:"Choose the base plane and printer volume. STL, 3MF and AMF exports use this orientation and placement.",fields:[
+    {key:"basePlane",label:"Base plane",type:"select",value:saved.basePlane || "top",choices:[{value:"top",label:"Top (X · Z)"},{value:"front",label:"Front (X · Y)"},{value:"right",label:"Right (Z · Y)"}]},
+    {key:"bedWidthMm",label:"Bed width (mm)",type:"number",value:saved.bedWidthMm || 220,min:1,max:100000},
+    {key:"bedDepthMm",label:"Bed depth (mm)",type:"number",value:saved.bedDepthMm || 220,min:1,max:100000},
+    {key:"bedHeightMm",label:"Build height (mm)",type:"number",value:saved.bedHeightMm || 250,min:1,max:100000}
+  ],onLive:show,onApply:function(values){
+    try{prepareNativePrintPositions(mesh.positions,values);}catch(error){flash(error.message,4000);return false;}
+    pushUndo("Print setup");E.def.printSetup=cloneData(values);flash("Print setup saved for STL, 3MF and AMF");return true;
+  }});
+  if(inputs){var actions=root.querySelector("#mdQuickSettings .md-feature-actions");actions?.before(preview);show(Object.fromEntries(Object.entries(inputs).map(function(pair){return [pair[0],pair[1].value];})));}
+}
+
+function applyPrintMeshExportSettings(settings) {
+  // Tessellation preferences change the output mesh, not the native solid.
+  // Retain only a run that was already current before this metadata edit.
+  var currentNative=exactRunIsCurrent();
+  pushUndo("Print mesh export settings");E.def.stlExportSettings=settings;
+  if(currentNative)E.brepStamp=exactRunStamp();
+}
+
+function openStlExportForm(format) {
+  if(E.docType!=="part")return;
+  format=format==="3mf" || format==="amf" ? format : "stl";
+  var saved=E.def.stlExportSettings || {},inputs;
+  inputs=openQuickForm({action:"stlexport",icon:"ph-printer",title:format.toUpperCase()+" export",hint:format!=="stl" ? format.toUpperCase()+" includes millimeter units and a closed mesh in Z-up print coordinates. Smaller deviation and angle preserve curved surfaces with more triangles." : "STL coordinates are millimeters. Smaller deviation and angle preserve curved surfaces with more triangles. Export requires a closed native solid.",fields:[
+    {key:"quality",label:"Resolution",type:"select",value:saved.quality || "fine",choices:[{value:"coarse",label:"Coarse"},{value:"fine",label:"Fine"},{value:"custom",label:"Custom"}]},
+    {key:"deviationMm",label:"Deviation (mm)",type:"number",value:saved.deviationMm ?? 0.01,min:0.0001,max:100,step:0.001},
+    {key:"angleDegrees",label:"Angle (degrees)",type:"number",value:saved.angleDegrees ?? 5,min:0.1,max:45,step:0.1}
+  ],onLive:function(values){
+    ["deviationMm","angleDegrees"].forEach(function(key){var wrap=inputs?.[key]?.closest(".md-quick-field");if(wrap)wrap.classList.toggle("parameter-hidden",values.quality!=="custom");});
+  },onApply:function(values){
+    var settings={quality:values.quality,deviationMm:Number(values.deviationMm),angleDegrees:Number(values.angleDegrees)};
+    if(E.def.printSetup)settings.printSetup=cloneData(E.def.printSetup);
+    try{stlMeshOptions(settings);}catch(error){flash(error.message,4000);return false;}
+    applyPrintMeshExportSettings(settings);
+    if(format!=="stl")exportThreeMfDocument(settings,format);else exportStlDocument(settings);return true;
+  }});
+  if(inputs?.quality)inputs.quality.dispatchEvent(new Event("input",{bubbles:true}));
+}
+
+async function exportStlDocument(settings,unqualifiedDraft) {
+  if (E.docType !== "part") return;
+  if (!standardsGate("STL export",{unqualifiedDraft:unqualifiedDraft===true,onDraft:function(){exportStlDocument(settings,true);}})) return;
+  var run = exactRunIsCurrent() ? E.brepRun : await regenerateExactModel();
+  if (!run || !run.ok || !run.finalShape) return;
+  try {
+    var name = (E.def.name || "model")+(unqualifiedDraft===true?"__UNQUALIFIED_DRAFT":"");
+    var bytes = await exportBinaryStl(run.finalShape, name, settings);
+    downloadBytes(bytes, name + ".stl", "model/stl");
+    flash("✓ " + t("stlExported"));
+  } catch (error) { flash(t("errStl") + ": " + String(error.message || error)); }
 }
 
 function downloadBytes(bytes, name, type) {
@@ -23036,45 +24838,72 @@ function openOffsetPlaneForm(existing) {
   // editing, keep the plane's own parent instead of silently reattaching it to
   // whichever face happens to be selected (and moving all dependent sketches).
   var support=existing ? existing.support : selectedFace;
+  var replacementFace=existing && selectedFace && selectedFace.persistentId!==support?.persistentId ? selectedFace : null;
   var throughVertex=existing ? existing.throughVertex : selectedVertex;
   var throughEdges=existing?.throughEdges;
+  var angleAxis=existing?.angleAxis || (E.topologySelection || []).find(function(item){return item.kind==="edge" && (item.descriptor?.curve==="line" || item.descriptor?.endpoints?.length===2);});
+  var angleOrigin=existing?.angleOrigin || {x:0,y:0,z:0};
+  var angleDirection=existing?.angleDirection || {x:1,y:0,z:0};
+  var selectedVertices=(E.topologySelection || []).filter(function(item){return item.kind==="vertex";});
+  var threePoints=existing?.threePoints || (selectedVertices.length>=3 ? selectedVertices.slice(0,3) : null);
   var planes=(E.def.references || []).filter(function(r){return r.type==="plane" && r.id!==existing?.id;});
-  var initialMode=existing?.refType==="through-vertex-parallel" || throughVertex ? "through-vertex" : "offset";
-  var inputs=openQuickForm({action:"offsetplane",icon:"ph-square",title:existing?"Edit reference plane":t("refPlane"),hint:t("refPlaneHint"),fields:[
+  var initialMode=existing?.refType==="angle" ? "angle" : existing?.refType==="three-points" || (!existing && threePoints) ? "three-points" : existing?.refType==="through-vertex-parallel" || throughVertex ? "through-vertex" : "offset";
+  var inputs=openQuickForm({action:"offsetplane",icon:"ph-square",title:existing?"Edit reference plane":t("refPlane"),hint:"Define a plane by an offset, vertex, three points, or a rotation around an axis in its parent plane. Dependent sketches follow edits.",fields:[
     {key:"name",label:"Plane name",type:"text",value:existing?.name || "Plane "+((E.def.referenceGeometry || []).length+1)},
     {key:"mode",label:t("refPlaneMode"),type:"select",value:initialMode,choices:[
       {value:"offset",label:t("refPlaneOffset")},
-      {value:"through-vertex",label:t("refPlaneThroughVertex")}
+      {value:"through-vertex",label:t("refPlaneThroughVertex")},
+      {value:"three-points",label:"Through three points"},
+      {value:"angle",label:"Angle around axis"}
     ]},
-    {key:"parent",label:"Parent plane",type:"select",value:support?"selected-face":existing?.baseReferenceId || E.selectedReferenceId || "plane:top",choices:[...(support?[{value:"selected-face",label:"Selected planar face"}]:[]),...planes.map(function(r){return {value:r.id,label:r.name || r.id};})]},
+    {key:"parent",label:"Parent plane",type:"select",value:support?"selected-face":existing?.baseReferenceId || E.selectedReferenceId || "plane:top",choices:[...(support?[{value:"selected-face",label:"Selected planar face"}]:[]),...(replacementFace?[{value:"replacement-face",label:"Selected planar face (change support)"}]:[]),...planes.map(function(r){return {value:r.id,label:r.name || r.id};})]},
     /* SOLIDWORKS states an offset plane as a positive distance plus Flip offset
        (HOUSING's ThreadPlane: .125 in, flipped into the part). The stored offset
        stays signed along the parent's normal, so an existing plane shows its
        size here and Flip carries the sign. */
     {key:"offset",label:"Offset distance",type:"number",unit:"length",value:Math.abs(existing?.offset ?? 1.27),step:.01},
     {key:"flip",label:t("refPlaneFlipOffset"),type:"boolean",value:Number(existing?.offset)<0},
-    {key:"count",label:"Planes to create",type:"number",value:1,min:1,max:20,step:1}
-  ],onLive:function(values){
+    {key:"count",label:"Planes to create",type:"number",value:1,min:1,max:20,step:1},
+    {key:"angle",label:"Rotation angle",type:"number",unit:"angle",value:existing?.angle ?? 48,step:1},
+    {key:"angleAxis",label:"Rotation axis",type:"select",value:angleAxis?"selected-edge":angleDirection.y?"y":angleDirection.z?"z":"x",choices:[...(angleAxis?[{value:"selected-edge",label:"Selected straight edge"}]:[]),{value:"x",label:"X axis"},{value:"y",label:"Y axis"},{value:"z",label:"Z axis"}]},
+    {key:"axisx",label:"Axis origin X",type:"number",unit:"length",value:angleOrigin.x,step:.01},
+    {key:"axisy",label:"Axis origin Y",type:"number",unit:"length",value:angleOrigin.y,step:.01},
+    {key:"axisz",label:"Axis origin Z",type:"number",unit:"length",value:angleOrigin.z,step:.01}
+  ].concat(threePointCoordinateFields(threePoints || selectedVertices)),onLive:function(values){
     var offsetWrap=inputs && inputs.offset && inputs.offset.closest(".md-quick-field");
     var countWrap=inputs && inputs.count && inputs.count.closest(".md-quick-field");
-    if(offsetWrap)offsetWrap.classList.toggle("parameter-hidden",values.mode==="through-vertex");
-    if(countWrap)countWrap.classList.toggle("parameter-hidden",values.mode==="through-vertex");
+    var noOffset=values.mode==="through-vertex" || values.mode==="three-points" || values.mode==="angle";
+    if(offsetWrap)offsetWrap.classList.toggle("parameter-hidden",noOffset);
+    if(countWrap)countWrap.classList.toggle("parameter-hidden",noOffset);
+    THREE_POINT_KEYS.forEach(function(key){var wrap=inputs && inputs[key] && inputs[key].closest(".md-quick-field");if(wrap)wrap.classList.toggle("parameter-hidden",values.mode!=="three-points");});
+    ["angle","angleAxis","axisx","axisy","axisz"].forEach(function(key){var wrap=inputs && inputs[key] && inputs[key].closest(".md-quick-field");if(wrap)wrap.classList.toggle("parameter-hidden",values.mode!=="angle" || (key.startsWith("axis") && values.angleAxis==="selected-edge"));});
   },onApply:function(values){
-    var trial=cloneData(E.def),parent=values.parent,through=values.mode==="through-vertex",count=existing || through?1:Math.max(1,Math.min(20,Math.round(values.count))),last;
+    var trial=cloneData(E.def),parent=values.parent,through=values.mode==="through-vertex",three=values.mode==="three-points",angled=values.mode==="angle",count=existing || through || three || angled?1:Math.max(1,Math.min(20,Math.round(values.count))),last;
     var binding=through?throughVertexBinding(throughVertex, topologyEntriesForPart(selectedSolid())):null;
     if(through && !binding && !throughEdges){flash(t("needVertex"));return false;}
+    var typedPoints=three?threePointsFromFields(values,threePoints || selectedVertices):null;
+    if(three && !typedPoints){flash("Give three points: pick model vertices or type their X, Y and Z");return false;}
     trial.references ||= [];trial.referenceGeometry ||= [];
     for(var i=0;i<count;i++){
       var plane=existing?trial.references.find(function(r){return r.id===existing.id;}):{...createReferencePlane(),id:"plane_"+uid(),type:"plane"};
-      plane.name=values.name+(count>1?" "+(i+1):"");delete plane.support;delete plane.baseReferenceId;delete plane.throughVertex;delete plane.throughEdges;
-      if(parent==="selected-face")plane.support=cloneData(support);else plane.baseReferenceId=parent;
-      if(through){
+      plane.name=values.name+(count>1?" "+(i+1):"");delete plane.support;delete plane.baseReferenceId;delete plane.throughVertex;delete plane.throughEdges;delete plane.threePoints;delete plane.angle;delete plane.angleAxis;delete plane.angleOrigin;delete plane.angleDirection;
+      if(parent==="selected-face")plane.support=cloneData(support);
+      else if(parent==="replacement-face")plane.support=cloneData(replacementFace);
+      else plane.baseReferenceId=parent;
+      if(angled){
+        plane.refType="angle";plane.angle=Number(values.angle);plane.offset=0;
+        if(values.angleAxis==="selected-edge")plane.angleAxis=cloneData(angleAxis);
+        else {plane.angleDirection={x:values.angleAxis==="x"?1:0,y:values.angleAxis==="y"?1:0,z:values.angleAxis==="z"?1:0};plane.angleOrigin={x:Number(values.axisx),y:Number(values.axisy),z:Number(values.axisz)};}
+      }else if(three){
+        plane.refType="three-points";plane.offset=0;
+        plane.threePoints=typedPoints;
+      }else if(through){
         plane.refType="through-vertex-parallel";
         if(binding){plane.throughVertex=cloneData(binding.throughVertex);if(binding.throughEdges.length>=2)plane.throughEdges=cloneData(binding.throughEdges);}
         else {plane.throughVertex=cloneData(throughVertex);if(throughEdges)plane.throughEdges=cloneData(throughEdges);}
       }else{
         var flipped=values.flip===true||values.flip==="true"||values.flip==="on";
-        plane.offset=(flipped?-1:1)*Math.abs(Number(values.offset));plane.refType="offset";
+        plane.offset=referencePlaneOffset(values.offset,flipped);plane.refType="offset";
       }
       if(!existing){trial.references.push(plane);trial.referenceGeometry.push({...cloneData(plane),type:"reference_plane"});}
       parent=plane.id;last=plane;
@@ -23089,6 +24918,70 @@ function openOffsetPlaneForm(existing) {
     syncSketchDrivenParts();if(activeParts(E.def).length)regenerateExactModel();refreshAll();return true;
   }});
   if(inputs && inputs.mode)inputs.mode.dispatchEvent(new Event("input",{bubbles:true}));
+}
+
+/* Through three points: each point is a picked model vertex (kept associative)
+   or, where nothing is at hand to pick — the middle of a face edge, a point on
+   a slanted face — typed as X, Y, Z. A typed point is stored as a free point;
+   a picked one whose typed coordinates are unchanged stays bound to its vertex. */
+var THREE_POINT_KEYS=["p1x","p1y","p1z","p2x","p2y","p2z","p3x","p3y","p3z"];
+function threePointCoordinateFields(picked) {
+  var fields=[];
+  [1,2,3].forEach(function(n){
+    var seed=picked && picked[n-1] ? vertexPointOf(picked[n-1]) : {x:0,y:0,z:0};
+    ["x","y","z"].forEach(function(axis){
+      fields.push({key:"p"+n+axis,label:"Point "+n+" "+axis.toUpperCase(),type:"number",unit:"length",value:seed[axis],step:.01});
+    });
+  });
+  return fields;
+}
+function threePointsFromFields(values, picked) {
+  var out=[];
+  for(var i=0;i<3;i++){
+    var n=i+1,point={x:Number(values["p"+n+"x"]),y:Number(values["p"+n+"y"]),z:Number(values["p"+n+"z"])};
+    if(![point.x,point.y,point.z].every(Number.isFinite))return null;
+    var vertex=picked && picked[i];
+    var seed=vertex?vertexPointOf(vertex):null;
+    if(vertex && Math.hypot(point.x-seed.x,point.y-seed.y,point.z-seed.z)<1e-6){
+      out.push(cloneData({ownerFeatureId:vertex.ownerFeatureId,persistentId:vertex.persistentId,kind:"vertex",semantic:vertex.semantic,descriptor:{...(vertex.descriptor||{}),point:seed}}));
+    }else out.push({kind:"vertex",descriptor:{point:point}});
+  }
+  return out;
+}
+
+function vertexPointOf(vertex) {
+  var d = vertex && (vertex.descriptor || vertex) || {};
+  var p = d.point || d.origin || vertex;
+  return {x:Number(p.x) || 0, y:Number(p.y) || 0, z:Number(p.z) || 0};
+}
+
+/* Coordinate system: an origin (a picked model vertex, or typed) and three axes
+   that may each be reversed - what SOLIDWORKS asks for in Reference Geometry >
+   Coordinate System. Mass properties can then be reported relative to it. */
+function openCoordinateSystemForm() {
+  if (E.docType !== "part") return;
+  var vertex=(E.topologySelection || []).find(function(item){return item.kind==="vertex";});
+  var seed=vertex?vertexPointOf(vertex):{x:0,y:0,z:0};
+  var n=(E.def.referenceGeometry || []).filter(function(r){return r.type==="coordinate_system";}).length+1;
+  openQuickForm({action:"coordsys",icon:"ph-arrows-out-cardinal",title:t("refCoord"),hint:vertex?"Origin taken from the selected vertex":"Type the origin, or select a vertex first",fields:[
+    {key:"name",label:"Name",type:"text",value:"Coordinate System"+n},
+    {key:"ox",label:"Origin X",type:"number",unit:"length",value:seed.x,step:.01},
+    {key:"oy",label:"Origin Y",type:"number",unit:"length",value:seed.y,step:.01},
+    {key:"oz",label:"Origin Z",type:"number",unit:"length",value:seed.z,step:.01},
+    {key:"rx",label:"Reverse X axis",type:"boolean",value:false},
+    {key:"ry",label:"Reverse Y axis",type:"boolean",value:false},
+    {key:"rz",label:"Reverse Z axis",type:"boolean",value:false}
+  ],onApply:function(values){
+    var sign=function(flag){return (flag===true||flag==="true"||flag==="on")?-1:1;};
+    pushUndo(t("addRefGeom"));
+    var item=createCoordinateSystem({name:values.name,origin:{x:Number(values.ox),y:Number(values.oy),z:Number(values.oz)},
+      xAxis:{x:sign(values.rx),y:0,z:0},yAxis:{x:0,y:sign(values.ry),z:0},zAxis:{x:0,y:0,z:sign(values.rz)}});
+    E.def.referenceGeometry ||= [];E.def.references ||= [];
+    E.def.referenceGeometry.push(item);
+    E.def.references.push(Object.assign({},cloneDomain(item),{type:"coordinate-system"}));
+    refreshAll();flash("✓ "+item.name);
+    return true;
+  }});
 }
 
 function addReferenceGeometry(kind) {
@@ -23164,7 +25057,9 @@ function closeEvalCard() {
   if (host) host.hidden = true;
   var owner = E.evalCard;
   E.evalCard = null;
+  if (owner === "mass") E.massEvaluation=null;
   if (owner === "measure") endMeasure();
+  if (owner === "interference") cancelInterferenceCheck();
 }
 
 function evalRow(host, label, value) {
@@ -23176,19 +25071,34 @@ function evalRow(host, label, value) {
 }
 
 var massDisplayUnits = "si";
+var massCoordinateSystemId = "";
+function massEvaluationChanged(evaluation) {
+  return evaluation.document!==E.def || evaluation.node!==currentHistoryNode() || evaluation.editRevision!==(E.massEditRevision || 0);
+}
+
+function syncMassPropertiesEvaluation() {
+  if(E.evalCard!=="mass" || !E.massEvaluation || !massEvaluationChanged(E.massEvaluation))return;
+  void showMassProperties();
+}
+
 async function showMassProperties() {
   if (E.docType !== "part") return;
   var documentAtStart=E.def, snapshot=cloneData({...E.def,parts:activeParts(E.def)});
   var body = openEvalCard("mass", t("cmdEvaluate"), t("massProps"));
   if (!body) return;
+  var evaluation={document:documentAtStart,node:currentHistoryNode(),editRevision:E.massEditRevision || 0};
+  E.massEvaluation=evaluation;
   body.textContent=t("liveExactCalc");
   var releases=new Map();
   var mass = await evaluateMassProperties(snapshot,{
-    buildSolid:async function(part){var display=await exactDisplayBody(part,snapshot);releases.set(display.brep,display.release);return display.brep;},
+    buildSolid:async function(part){var display=await exactDisplayBody(part,snapshot,null,{massProperties:true});releases.set(display.brep,display.release);return display.brep;},
     releaseSolid:function(solid){releases.get(solid)?.();releases.delete(solid);},
   });
-  if(E.def!==documentAtStart || E.evalCard!=="mass" || !body.isConnected)return;
+  if(E.evalCard!=="mass" || E.massEvaluation!==evaluation || !body.isConnected)return;
+  if(massEvaluationChanged(evaluation)){syncMassPropertiesEvaluation();return;}
   function paintMass() {
+    if(E.massEvaluation!==evaluation || E.evalCard!=="mass")return;
+    if(massEvaluationChanged(evaluation)){syncMassPropertiesEvaluation();return;}
     body.textContent="";
     var system=massDisplaySystem(massDisplayUnits);
     var quantity=function(value,kind,precision){return (value*system[kind]).toPrecision(precision||7)+" "+system[kind+"Unit"];};
@@ -23206,10 +25116,27 @@ async function showMassProperties() {
     evalRow(body, t("massDensity"), mass.density == null ? t("massMixedDensity") : quantity(mass.density,"density",6));
     // Suppress quadrature noise at a symmetric body's zero coordinate.
     var massCoord=function(value){var v=value*system.length;return String(Math.abs(v)<1e-9?0:Number(v.toPrecision(7)));};
-    evalRow(body, t("massCentre"), "X "+massCoord(mass.centerOfMass.x)+"   Y "+massCoord(mass.centerOfMass.y)+"   Z "+massCoord(mass.centerOfMass.z)+" "+system.lengthUnit);
+    /* "Report coordinate values relative to": the centre of mass expressed in a
+       user coordinate system (origin plus possibly reversed axes). */
+    var coordinateSystems=(E.def.referenceGeometry || []).filter(function(r){return r.type==="coordinate_system";});
+    var chosen=coordinateSystems.find(function(r){return r.id===massCoordinateSystemId;}) || null;
+    if(coordinateSystems.length){
+      var pick=el("select","md-input");
+      pick.setAttribute("aria-label",t("massReportRelative"));
+      var none=document.createElement("option");none.value="";none.textContent=t("massDefaultSystem");pick.appendChild(none);
+      coordinateSystems.forEach(function(r){var o=document.createElement("option");o.value=r.id;o.textContent=r.name;if(chosen&&chosen.id===r.id)o.selected=true;pick.appendChild(o);});
+      pick.addEventListener("change",function(){massCoordinateSystemId=pick.value;paintMass();});
+      var pickRow=el("div","md-eval-row");pickRow.appendChild(el("span","",t("massReportRelative")));pickRow.appendChild(pick);body.appendChild(pickRow);
+    }
+    var com=mass.centerOfMass;
+    if(chosen){
+      com=centerOfMassInSystem(com,chosen);
+    }
+    evalRow(body, t("massCentre")+(chosen?" · "+chosen.name:""), "X "+massCoord(com.x)+"   Y "+massCoord(com.y)+"   Z "+massCoord(com.z)+" "+system.lengthUnit);
     (mass.bodies || []).forEach(function(row,index){
       var label=(row.materialName || t("massNoMaterial"));
       evalRow(body, t("massBodyRow")+" "+(index+1)+" · "+label, quantity(row.volume,"volume",6)+" · "+quantity(row.massKg||0,"mass",6)+" · "+quantity(row.density,"density",6));
+      if(row.error) body.appendChild(el("div", "md-note", t("massBodyRow")+" "+(index+1)+": "+row.error));
     });
     if(mass.inertiaKgM2){
       evalRow(body,t("massInertia"),system.inertiaUnit);
@@ -23377,11 +25304,30 @@ function pushMeasurePick(pick) {
   renderMeasureCard();
 }
 
-function standardsGate(action) {
+function standardsGate(action,options) {
   var audit = auditStandardParts({...E.def,parts:activeParts(E.def)});
   E.def.lastStandardsAudit = {at:Date.now(),ok:audit.ok,checked:audit.checked,blocking:audit.blocking};
   if (audit.ok) return true;
+  // Authoring drafts must remain recoverable before service qualification.
+  // Exact manufacturing exports continue to use the blocking gate below.
+  if (action === "Save") return true;
+  if(options?.unqualifiedDraft===true){
+    E.def.lastUnqualifiedGeometryExport={at:Date.now(),action:action,status:"unqualified-draft",blocking:cloneData(audit.blocking)};
+    return true;
+  }
   report(t("reportKickerStandards"), tf("auditBlocked", {x: action}), audit.blocking.map(function (i) { return "• " + (i.partName || i.partId) + ": " + i.message; }));
+  if(typeof options?.onDraft==="function"){
+    var host=root.querySelector("#mdReport"),source=E.def;
+    var disclosure=el("div","md-draft-export-disclosure",""),button=el("button","btn-accent","Export unqualified draft");
+    disclosure.id="mdUnqualifiedDraftExport";
+    disclosure.appendChild(el("p","","Local geometry exchange only. Standards qualification has not passed. The filename will identify an UNQUALIFIED_DRAFT; audit failures remain in the editable document."));
+    button.type="button";
+    button.addEventListener("click",function(){
+      if(E.def!==source){flash("The document changed. Start the export again.");return;}
+      host.hidden=true;disclosure.remove();options.onDraft();
+    });
+    disclosure.appendChild(button);root.querySelector("#mdReportBody").after(disclosure);
+  }
   return false;
 }
 
@@ -23395,30 +25341,79 @@ function runStandardsAudit() {
 
 async function exportBundleDocument() {
   try {
-    var bundle = await createProjectBundle(E.def, loadAssemblies(), []);
+    // A document export carries this document, not the unrelated assembly
+    // library (whose embedded exact parts can dwarf a small authored part).
+    var bundle = await createProjectBundle(E.def, [], [], {
+      activeAssembly:E.docType === "assembly" ? cloneData(E.assembly) : null,
+    });
     exportProjectBundle(bundle); flash("✓ " + t("bundleExported"));
   } catch (error) { flash(t("errBundle") + ": " + String(error.message || error)); }
 }
 
 function importBundleDocument() {
+  var dialog=document.createElement("dialog");dialog.className="md-properties-dialog";
+  var title=document.createElement("h3");title.textContent=t("importBundle");dialog.appendChild(title);
+  var hint=document.createElement("p");hint.textContent=getLang()==="en"?"Choose a project file or paste its JSON content.":"בחרו קובץ פרויקט או הדביקו את תוכן ה-JSON שלו.";dialog.appendChild(hint);
+  var browse=document.createElement("button");browse.type="button";browse.textContent=getLang()==="en"?"Choose bundle file":"בחרו קובץ פרויקט";dialog.appendChild(browse);
+  var label=document.createElement("label");label.textContent=getLang()==="en"?"Bundle JSON":"JSON של הפרויקט";
+  var text=document.createElement("textarea");text.rows=8;text.style.cssText="width:100%;box-sizing:border-box;font-family:monospace";text.setAttribute("aria-label","Bundle JSON");label.appendChild(text);dialog.appendChild(label);
+  var status=document.createElement("p");status.setAttribute("role","status");dialog.appendChild(status);
+  var paste=document.createElement("button");paste.type="button";paste.textContent=getLang()==="en"?"Open pasted bundle":"פתחו פרויקט שהודבק";dialog.appendChild(paste);
+  var urlLabel=document.createElement("label");urlLabel.textContent=getLang()==="en"?"Project link on this server":"קישור פרויקט בשרת הזה";
+  var urlInput=document.createElement("input");urlInput.type="text";urlInput.setAttribute("aria-label","Project link on this server");urlInput.placeholder="/projects/model.mforge";urlInput.style.cssText="width:100%;box-sizing:border-box";urlLabel.appendChild(urlInput);dialog.appendChild(urlLabel);
+  var openLink=document.createElement("button");openLink.type="button";openLink.textContent=getLang()==="en"?"Open project link":"פתיחת קישור פרויקט";dialog.appendChild(openLink);
+  openLink.addEventListener("click",async function(){
+    openLink.disabled=true;status.textContent=getLang()==="en"?"Opening project…":"פותח פרויקט…";
+    try{var bundle=await importProjectBundleText(await readProjectBundleUrl(urlInput.value,location.href));dialog.close();await openImportedBundle(bundle);}
+    catch(error){var message=t("errBundle")+": "+String(error.message || error);status.textContent=message;openLink.disabled=false;if(!dialog.open)flash(message);}
+  });
+  var cancel=document.createElement("button");cancel.type="button";cancel.textContent=t("cancel");dialog.appendChild(cancel);
+  cancel.addEventListener("click",function(){dialog.close();});
+  dialog.addEventListener("close",function(){dialog.remove();},{once:true});
+  paste.addEventListener("click",async function(){
+    paste.disabled=true;
+    try{var bundle=await importProjectBundleText(text.value);dialog.close();await openImportedBundle(bundle);}
+    catch(error){var message=t("errBundle")+": "+String(error.message || error);status.textContent=message;paste.disabled=false;if(!dialog.open)flash(message);}
+  });
+  browse.addEventListener("click",function(){dialog.close();chooseBundleFile();});
+  root.appendChild(dialog);dialog.showModal();
+}
+
+function chooseBundleFile() {
   var input=document.createElement("input"); input.type="file"; input.accept=".mforge,application/json";
   input.addEventListener("change",async function(){
     var file=input.files && input.files[0]; if (!file) return;
     try {
       var bundle=await importProjectBundle(file);
-      if (!bundle || !bundle.mainModel || !Array.isArray(bundle.mainModel.parts)) throw new Error("Bundle has no main model");
-      if (Array.isArray(bundle.assemblies) && bundle.assemblies.length) {
-        var merged=new Map(loadAssemblies().map(function(item){return [item.key,item];}));
-        bundle.assemblies.forEach(function(item){if(item && item.key)merged.set(item.key,item);});
-        if (!await saveAssemblies(Array.from(merged.values()))) throw new Error(t("saveStorageFull"));
-      }
-      releaseExactRun();
-      E.docType="part"; E.def=migrateDefinition(bundle.mainModel); E.srcItem=null; E.sel=null; E.ssel=[]; E.topologySelection=[];
-      H.clear().seed(); syncHead(); refreshAll(); refreshLib(); setMode("3d"); fitPreview();
-      flash("✓ " + t("bundleImported"));
+      await openImportedBundle(bundle);
     } catch(error) { flash(t("errBundle") + ": " + String(error.message || error)); }
   });
   input.click();
+}
+
+async function openImportedBundle(bundle) {
+      if (!bundle || !bundle.mainModel || !Array.isArray(bundle.mainModel.parts)) throw new Error("Bundle has no main model");
+      if (!await confirmDiscardDocument("unsavedOpen")) return;
+      closeEvalCard();
+      if (Array.isArray(bundle.assemblies) && bundle.assemblies.length) {
+        if (!await saveAssemblies(bundle.assemblies,{mode:"merge"})) throw new Error(t("saveStorageFull"));
+      }
+      abandonDocumentExactWork();
+      var active=activeProjectDocument(bundle);
+      E.srcItem=null; E.sel=null; E.ssel=[]; E.topologySelection=[]; E.componentSel=[];
+      if(active.type==="assembly") {
+        active.assembly=compactAssemblyTopologySnapshots(active.assembly);
+        E.assembly=cloneData(active.assembly);
+        assemblyOpenBaseline=cloneData(active.assembly);
+        setDocumentType("assembly");
+      } else {
+        E.def=migrateDefinition(bundle.mainModel);
+        libraryOpenBaseline=null;
+        setDocumentType("part");
+      }
+      H.clear().seed(); markDocumentClean(); discardModelerDraft();
+      syncHead(); refreshAll(); refreshLib(); setMode("3d"); fitPreview();
+      flash("✓ " + t("bundleImported"));
 }
 
 /* Explode and collapse are the same command. Once the offsets render, a
@@ -23426,32 +25421,93 @@ function importBundleDocument() {
    back, and the offsets follow the assembly into the saved document. */
 function createDefaultExplodedView() {
   if (E.docType !== "assembly" || !E.assembly) return;
-  var exploded = (E.assembly.components || []).some(function (component) {
+  var exploded = explodeTargets(E.assembly).some(function (target) {
+    var component=target.component;
     var offset = component.explodedOffset;
     return offset && (offset.x || offset.y || offset.z);
   });
   if (exploded) {
     pushUndo(t("collapseExplodeView"));
-    E.assembly.components.forEach(function (component) { component.explodedOffset = null; });
-    /* Take the generated view back out with the offsets it placed. Collapsing
-       used to leave it behind, so toggling explode ten times saved ten
-       identical views and the name counter kept climbing. activeExplodedView is
-       what says which one this command owns. */
-    var owned = E.assembly.activeExplodedView;
-    if (owned) {
-      E.assembly.explodedViews = (E.assembly.explodedViews || []).filter(function (view) { return view.id !== owned; });
-    }
-    E.assembly.activeExplodedView = null;
+    applyExplodedView(E.assembly,null);
     refreshAll(); fitPreview(); flash("\u2713 " + t("collapseExplodeView"));
-    return;
+    openExplodedPlayback(); return;
   }
   pushUndo(t("explodeView"));
+  var saved=(E.assembly.explodedViews || []).find(function(view){return view.id===E.assembly.activeExplodedView;});
+  if(saved){applyExplodedView(E.assembly,saved.id,1);refreshAll();fitPreview();flash("✓ "+saved.name);openExplodedPlayback();return;}
   var view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1));
   E.assembly.components.forEach(function (component, index) {
     if (index) addExplodeStep(view, [component.id], {x:index * 25,y:0,z:0});
   });
   E.assembly.activeExplodedView = view.id;
   applyExplodedView(E.assembly, view.id, 1); refreshAll(); fitPreview(); flash("\u2713 " + view.name);
+  openExplodedPlayback();
+}
+
+let explodedPlaybackStop = null;
+function openExplodedPlayback() {
+  if(explodedPlaybackStop)explodedPlaybackStop();
+  const assembly=E.assembly,view=assembly?.explodedViews?.find(item=>item.id===assembly.activeExplodedView);
+  if(!view || !view.steps.length)return;
+  let frame=0,progress=0,lastTime=0;
+  const stop=()=>{if(frame)cancelAnimationFrame(frame);frame=0;lastTime=0;};
+  explodedPlaybackStop=stop;
+  const update=()=>{
+    if(E.assembly!==assembly || E.docType!=="assembly"){stop();return;}
+    applyExplodedProgress(assembly,view.id,progress);
+    E.pv?.grp?.traverse(object=>{
+      const component=object._cadExplodeComponent;
+      if(component){const tr=normalizeTransform(component),off=component.explodedOffset;object.position.set(tr.x+(off?.x||0),tr.y+(off?.y||0),tr.z+(off?.z||0));}
+      if(object.userData.cadExplodeLine || object.userData.cadInterference !== undefined)object.visible=false;
+    });
+    E.pv?.render();
+    status.textContent=Math.round(progress*100)+"% · "+view.steps.length+" steps";
+  };
+  const inputs=openQuickForm({action:"explodeplay",title:"Exploded animation",hint:"Play the saved steps in order. Stop pauses; Reset returns to the assembled position.",fields:[{key:"duration",label:"Duration (seconds)",type:"number",value:view.animationDurationSeconds || Math.max(4,view.steps.length),step:1}],onApply:()=>true,onCancel:stop});
+  const host=root.querySelector("#mdQuickSettings");
+  if(!inputs || !host)return;
+  const duration=inputs.duration,actions=host.querySelector('.md-feature-actions');
+  actions.innerHTML="";
+  duration.addEventListener("change",()=>{const seconds=Number(duration.value);if(Number.isFinite(seconds) && seconds>0 && seconds<=3600){pushUndo("Animation duration");view.animationDurationSeconds=seconds;syncHead();}});
+  const status=el("div","md-note","Ready · "+view.steps.length+" steps");host.appendChild(status);
+  const tick=time=>{
+    if(!host.isConnected || host.hidden || E.quickAction!=="explodeplay" || E.assembly!==assembly || E.docType!=="assembly"){stop();return;}
+    if(lastTime)progress=Math.min(1,progress+(time-lastTime)/(Math.max(.1,Number(duration.value)||7)*1000));
+    lastTime=time;update();
+    if(progress<1)frame=requestAnimationFrame(tick);else{stop();status.textContent="Complete · "+view.steps.length+" steps";}
+  };
+  actions.appendChild(btn("Play",()=>{stop();if(progress>=1)progress=0;update();frame=requestAnimationFrame(tick);},"md-quick-apply"));
+  actions.appendChild(btn("Stop",()=>{stop();status.textContent="Paused · "+Math.round(progress*100)+"%";}));
+  actions.appendChild(btn("Reset",()=>{stop();progress=0;update();}));
+  actions.appendChild(btn("Close",()=>{stop();host.innerHTML="";E.quickAction=null;closeFeaturePanel();refreshAll();}));
+}
+
+
+/* One explode step at a time, as the book builds its exploded view: pick a
+   component, a direction and a distance; the step joins the active exploded
+   view (the first step creates it) and the leader line shows the move. */
+function openExplodeStepForm() {
+  if (E.docType !== "assembly" || !E.assembly || (E.assembly.components || []).length < 2) return;
+  var targets=explodeTargets(E.assembly);
+  var selected = targets.find(function(target){return target.component===(E.componentSel && E.componentSel[0]);}) || targets[0];
+  openQuickForm({ action:"explodestep", icon:"ph-arrows-out", title:t("explodeStep"), hint:t("explodeStepHint"), fields:[
+    { key:"component", label:t("components"), type:"select", value:selected.key, choices:targets.map(function(target){return {value:target.key,label:target.label};}) },
+    { key:"axis", label:t("explodeDirection"), type:"select", value:"z", choices:[{ value:"x", label:"X" }, { value:"y", label:"Y" }, { value:"z", label:"Z" }] },
+    { key:"distance", label:t("explodeDistance"), type:"number", unit:"length", value:10, step:.1 },
+    { key:"reverse", label:t("explodeReverse"), type:"boolean", value:false },
+  ], onApply:function (values) {
+    var target = targets.find(function (item) { return item.key === String(values.component); });
+    var distance = Number(values.distance) * (values.reverse ? -1 : 1);
+    if (!target || !Number.isFinite(distance) || !distance) { flash(t("explodeStepInvalid")); return false; }
+    pushUndo(t("explodeStep"));
+    var view = (E.assembly.explodedViews || []).find(function (v) { return v.id === E.assembly.activeExplodedView; });
+    if (!view) { view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1)); E.assembly.activeExplodedView = view.id; }
+    var vector = { x:0, y:0, z:0 }; vector[values.axis] = distance;
+    addExplodeStep(view, [target.key], vector);
+    applyExplodedView(E.assembly, view.id, 1); invalidateInterference(); refreshAll(); fitPreview();
+    flash("✓ " + view.name + " · " + view.steps.length);
+    return true;
+  } });
 }
 
 function createDefaultMotionStudy() {
@@ -23481,6 +25537,10 @@ function createDefaultMotionStudy() {
       {key:"remove",label:t("motionRemoveRelation"),type:"boolean",value:false},
       {key:"time",label:t("motionTime"),type:"number",value:study?.time??1,step:.1}
     ],onLive:v=>{if(v.study!==(studyId||"new"))show(v.study);else if(v.relation!==relationId)show(studyId,v.relation);},onApply:v=>{
+      // HTML selects return strings; occurrence IDs retain their saved type.
+      // Resolve the chosen rows before the motion graph's strict ID comparisons.
+      const selectedComponentId=value=>E.assembly.components.find(c=>String(c.id)===String(value))?.id;
+      v={...v,motor:selectedComponentId(v.motor),driver:selectedComponentId(v.driver),follower:selectedComponentId(v.follower)};
       const trial=structuredClone(E.assembly),target=(trial.motionStudies||[]).find(s=>s.id===studyId)||createMotionStudy(trial,"Motion Study "+((trial.motionStudies||[]).length+1));
       const axis=(k,saved)=>k==="custom"?saved:({x:k==="x"?1:0,y:k==="y"?1:0,z:k==="z"?1:0});
       if(target.motors[0]?.componentId!==v.motor&&target.motors[0])delete target.motors[0].baseRotation;
@@ -23499,30 +25559,159 @@ function createDefaultMotionStudy() {
   show(E.assembly.motionStudies?.at(-1)?.id);
 }
 
+/* The Evaluate command is explicit, so spend the kernel work needed to answer
+   it for feature-built parts. AABB overlap alone can be entirely empty space:
+   the BATTERY terminal and BATTERYPLATE holder make their envelopes overlap by
+   71.68 cm³ while their exact solids share no material. */
+async function exactInterferenceBrep(component, placement, onProgress, options={}) {
+  var def=componentDef(component);
+  if(def?.metadata?.authoringSystem!=="parametric-v1") return null;
+  // finalShape names one feature-tree head; a multi-body document needs each
+  // body placed separately before a negative result can be called exact.
+  if(activeParts(def).length!==1 && !hasSingleToolboxKernelRecipe(def,activeParts(def))) return null;
+  var compiled=compileKernelFeatureTree(def), run=null;
+  if(!compiled.ok) return null;
+  try {
+    run=await regenerateFeatures({...compiled.document,features:compiled.features},{...options,scope:"interference",onProgress});
+    if(!run.ok || !run.finalShape?.shape) return null;
+    onProgress?.({stage:"placement",name:component.interferenceLabel});
+    var transform=component.transform || {};
+    return await placeBrep(run.finalShape,{
+      matrix:placement ? [
+        placement.x.x,placement.y.x,placement.z.x,
+        placement.x.y,placement.y.y,placement.z.y,
+        placement.x.z,placement.y.z,placement.z.z,
+      ] : rotationOf(transform).flat(),
+      translation:placement ? placement.origin : {x:Number(transform.x)||0,y:Number(transform.y)||0,z:Number(transform.z)||0},
+    });
+  } finally {if(run)releaseRegeneration(run);}
+}
+
+function occurrenceWorldBounds(component, placement) {
+  var def=componentDef(component);
+  if(!def || !activeParts(def).length) return null;
+  return boundsAtPlacement(defBounds(def),placement);
+}
+
+function cancelInterferenceCheck() {
+  var job=E.interferenceJob;
+  if(!job)return;
+  job.cancelled=true;
+  job.controller.abort();
+}
+
 async function runInterferenceCheck() {
   if (E.docType !== "assembly" || !E.assembly) return;
+  if(E.interferenceJob){flash(E.interferenceJob.stageText || t("interferenceChecking"));return;}
   /* The detector's own fallback only knows boxes, cylinders and spheres and
      ignores rotation, so a feature-built or turned component measured as
      nothing and the check reported a clean assembly. Measure here, where the
      real part bounds live, and hand the result over. Mated position, not
      exploded position — an exploded view is not a clash. */
   var revision = E.interferenceRevision || 0;
-  var measured = (E.assembly.components || []).map(function (component) {
-    return Object.assign({}, component, { bounds: componentWorldBounds(component, { exploded: false }) });
+  var scope = assemblyInterferenceScope(E.assembly, E.componentSel, flattenAssembly(E.assembly,{visibleOnly:true}));
+  var scopeCaption = scope.wholeAssembly ? t("interferenceScopeAll") : tf("interferenceScopeSelected", {names:scope.roots.map(function(component){return component.name || String(component.id);}).join(" · ")});
+  var measured = scope.occurrences.map(function (occurrence) {
+    var component=occurrence.component;
+    return Object.assign({}, component, {
+      id:occurrence.path.length===1 ? component.id : occurrence.path.join("/"),
+      interferenceLabel:occurrence.parents.concat(component).map(function(item){return item.name || item.modelKey || item.assemblyKey || String(item.id);}).join(" / "),
+      placement:occurrence.placement,
+      bounds:occurrenceWorldBounds(component,occurrence.placement),
+    });
   });
-  var hits = await detectInterference(measured);
+  var labels=new Map(measured.map(function(component){return [component.id,component.interferenceLabel];}));
+  var job={revision:revision,assembly:E.assembly,controller:new AbortController(),cancelled:false,stageText:t("interferenceChecking")};
+  E.interferenceJob=job;
+  var progressBody=openEvalCard("interference",t("reportKickerEvaluate"),t("interferenceChecking"));
+  if(progressBody)progressBody.appendChild(el("p","md-note",scopeCaption));
+  var progressText=el("p","md-note");
+  if(progressBody)progressBody.appendChild(progressText);
+  var progressActions=evalCardActions();
+  if(progressActions)progressActions.appendChild(btn(t("m_cancel"),function(){cancelInterferenceCheck();closeEvalCard();}));
+  var setProgress=function(text){
+    if(E.interferenceJob!==job || job.cancelled)return;
+    job.stageText=text;
+    if(E.evalCard==="interference")progressText.textContent=text;
+  };
+  var placed=[];
+  var hits;
+  setProgress(t("interferenceStagestart"));
+  try {
+    if(cadWorkerAvailable()){
+      var requests=measured.map(function(component){
+        var def=componentDef(component),placement=component.placement,transform=component.transform || {};
+        return {id:component.id,label:component.interferenceLabel,bounds:component.bounds,
+          document:def?.metadata?.authoringSystem==="parametric-v1" && (activeParts(def).length===1 || hasSingleToolboxKernelRecipe(def,activeParts(def))) ? interferenceDocument(def) : null,
+          placement:{matrix:placement ? [placement.x.x,placement.y.x,placement.z.x,placement.x.y,placement.y.y,placement.z.y,placement.x.z,placement.y.z,placement.z.z] : rotationOf(transform).flat(),
+            translation:placement ? placement.origin : {x:Number(transform.x)||0,y:Number(transform.y)||0,z:Number(transform.z)||0}}};
+      });
+      hits=await interferenceInCadWorker(requests,{signal:job.controller.signal,onProgress:function(progress){
+        if(progress.stage==="intersection")setProgress(t("interferenceStageintersection")+" · "+labels.get(progress.a)+" ↔ "+labels.get(progress.b));
+        else setProgress(t("interferenceStage"+progress.stage)+" · "+(labels.get(progress.componentId) || "")+" · "+(progress.name || progress.stage));
+      }});
+    }else{
+    for(var component of measured) {
+      if (job.cancelled || revision !== (E.interferenceRevision || 0)) return;
+      setProgress(t("interferenceChecking") + " · " + component.interferenceLabel);
+      var solid=await exactInterferenceBrep(component,component.placement,function(progress){
+        if(revision===(E.interferenceRevision || 0))setProgress(t("interferenceStage"+progress.stage)+" · "+component.interferenceLabel+" · "+(progress.name || progress.stage));
+      },{signal:job.controller.signal});
+      if(solid){component.brep=solid;placed.push(solid);}
+    }
+    hits=await detectInterference(measured,{signal:job.controller.signal,onProgress:function(pair){setProgress(t("interferenceStageintersection")+" · "+labels.get(pair.a)+" ↔ "+labels.get(pair.b));}});
+    }
+  } catch(error) {
+    if(error.name==="AbortError")job.cancelled=true;
+    if(job.cancelled)return;
+    report(t("reportKickerEvaluate"),t("interferenceCheckFailed"),String(error.message || error));
+    return;
+  } finally {
+    placed.forEach(disposeBrep);
+    if(E.interferenceJob===job){
+      E.interferenceJob=null;
+      if(E.evalCard==="interference")closeEvalCard();
+      if(job.cancelled)flash(t("interferenceCancelled"));
+    }
+  }
   /* A boolean-kernel check can finish after the user has hidden, inserted or
      moved something. Do not let that obsolete answer overwrite invalidation. */
   if (revision !== (E.interferenceRevision || 0)) return;
   E.interferenceHits = hits;
-  E.interferenceChecked = true;
+  E.interferenceChecked = scope.wholeAssembly;
   syncAssemblyWorkflow();
   updatePreview();
-  report(t("reportKickerEvaluate"), !hits.length ? t("interferenceNone") : hits.length === 1 ? t("interferenceFoundOne") : tf("interferenceFound", {n: hits.length}),
-    hits.length ? [t("interferenceVisualized")].concat(hits.map(function (h) {
+  renderAssemblyInterferenceReport(hits,labels,scopeCaption);
+}
+
+function renderAssemblyInterferenceReport(hits,labels,scopeCaption) {
+  var summary=contactAuditSummary(E.assembly,hits),confirmed=summary.rawExact;
+  report(t("reportKickerEvaluate"), !hits.length ? t("interferenceNone") : confirmed===0 ? t("interferencePossible") : hits.length === 1 ? t("interferenceFoundOne") : tf("interferenceFound", {n: confirmed}),
+    hits.length ? [scopeCaption,"Native overlaps: "+summary.rawExact+" · Declared contacts: "+summary.declared+" · Unreviewed overlaps: "+summary.unreviewed+" · Bounds only: "+summary.boundsOnly,t("interferenceVisualized")].concat(hits.map(function (h) {
       // Component ids mean nothing to the person reading the report.
-      return "• " + componentLabel(h.a) + " ↔ " + componentLabel(h.b) + (h.volume != null ? "   " + h.volume + " cm³" : "");
-    })) : t("interferenceNoneBody"));
+      return "• " + (labels.get(h.a) || componentLabel(h.a)) + " ↔ " + (labels.get(h.b) || componentLabel(h.b)) +
+        (h.exact ? "   " + h.volume.toFixed(3) + " cm³" + (h.bounds ? "\n  X " + h.bounds.x0.toFixed(4) + "…" + h.bounds.x1.toFixed(4) + " · Y " + h.bounds.y0.toFixed(4) + "…" + h.bounds.y1.toFixed(4) + " · Z " + h.bounds.z0.toFixed(4) + "…" + h.bounds.z1.toFixed(4) + " cm" : "") : "   " + t("interferenceBoundsOnly")) + (expectedContactFor(E.assembly,h) ? "\n  Declared contact: "+expectedContactFor(E.assembly,h).reason : "");
+    })) : scopeCaption + "\n" + t("interferenceNoneBody"));
+  if(!confirmed)return;
+  var container=el("div","md-reference-options");container.id="mdExpectedContacts";
+  container.appendChild(el("p","md-note","Declared contacts remain measured overlaps. This annotation is not a geometric clearance pass."));
+  hits.filter(function(hit){return hit.exact;}).forEach(function(hit){
+    var label=(labels.get(hit.a) || componentLabel(hit.a))+" ↔ "+(labels.get(hit.b) || componentLabel(hit.b));
+    var row=el("div","md-stack"),record=expectedContactFor(E.assembly,hit);
+    row.appendChild(el("p","md-note",label));
+    if(record){
+      row.appendChild(btn("Remove declared contact",function(){pushUndo("Remove declared contact");removeExpectedContact(E.assembly,hit);refreshAll();renderAssemblyInterferenceReport(hits,labels,scopeCaption);}));
+    }else{
+      var reason=el("input","md-input");reason.type="text";reason.placeholder="Describe the intended contact";reason.setAttribute("aria-label","Reason for expected contact · "+label);
+      row.appendChild(reason);
+      row.appendChild(btn("Record expected contact · "+label,function(){
+        if(!reason.value.trim()){flash("Describe the intended contact before recording it");return;}
+        pushUndo("Record expected contact");recordExpectedContact(E.assembly,hit,reason.value);refreshAll();renderAssemblyInterferenceReport(hits,labels,scopeCaption);
+      }));
+    }
+    container.appendChild(row);
+  });
+  root.querySelector("#mdReport section")?.appendChild(container);
 }
 
 /* A general-arrangement sheet: one outline per component where the mates put
@@ -23530,22 +25719,49 @@ async function runInterferenceCheck() {
    any part it has no mesh for as its view rectangle, so an envelope per
    component is the fidelity a part sheet gets too, not a shortcut past it. */
 function assemblyDrawingDocument() {
-  var components = (E.assembly.components || []).filter(function (component) { return component.visible !== false; });
-  var rows = generateBOM({ components: components });
+  var occurrences = flattenAssembly(E.assembly, { visibleOnly: true });
+  /* Parts-only bill of materials, as the book asks for: every leaf part is a
+     row, so the sub-assemblies are read through to what they are made of. */
+  var rows = generateBOM({ components: occurrences.map(function (occurrence) { return occurrence.component; }) });
   var itemOf = new Map(rows.map(function (row, index) { return [row.key, index + 1]; }));
-  var parts = [];
-  components.forEach(function (component) {
-    var bounds = componentWorldBounds(component, { exploded: false });
-    if (!bounds) return;
-    parts.push({
-      id: component.id, kind: "box", name: component.name || component.modelKey,
-      x0: bounds.x0, x1: bounds.x1, y0: bounds.y0, y1: bounds.y1, z0: bounds.z0, z1: bounds.z1,
+  var parts = [], targets = [];
+  /* The sheet shows the real bodies where the mates put them, moved by the
+     active exploded view, not an envelope per component. */
+  occurrences.forEach(function (occurrence) {
+    var component = occurrence.component, placement = occurrence.placement;
+    var blown = explodedOccurrenceOffset(occurrence);
+    var def = componentDef(component);
+    var bodies = def ? activeParts(def).filter(function (part) { return part.meshData && part.meshData.positions && part.meshData.positions.length >= 9; }) : [];
+    var item = itemOf.get(generateBOM({ components: [component] })[0].key);
+    var low = [Infinity, Infinity, Infinity], high = [-Infinity, -Infinity, -Infinity];
+    if (!placement || !bodies.length) {
+      var bounds = occurrenceWorldBounds(component,placement);
+      if (!bounds) return;
+      bounds={x0:bounds.x0+blown.x,x1:bounds.x1+blown.x,y0:bounds.y0+blown.y,y1:bounds.y1+blown.y,z0:bounds.z0+blown.z,z1:bounds.z1+blown.z};
+      parts.push({ id: component.id, kind: "box", name: component.name || component.modelKey, x0: bounds.x0, x1: bounds.x1, y0: bounds.y0, y1: bounds.y1, z0: bounds.z0, z1: bounds.z1 });
+      targets.push({ item: item, point: { x: (bounds.x0 + bounds.x1) / 2, y: (bounds.y0 + bounds.y1) / 2, z: (bounds.z0 + bounds.z1) / 2 } });
+      return;
+    }
+    bodies.forEach(function (part) {
+      var source = part.meshData.positions, baked = new Array(source.length);
+      for (var i = 0; i + 2 < source.length; i += 3) {
+        var px = Number(source[i]), py = Number(source[i + 1]), pz = Number(source[i + 2]);
+        var point = [
+          placement.origin.x + blown.x + placement.x.x * px + placement.y.x * py + placement.z.x * pz,
+          placement.origin.y + blown.y + placement.x.y * px + placement.y.y * py + placement.z.y * pz,
+          placement.origin.z + blown.z + placement.x.z * px + placement.y.z * py + placement.z.z * pz,
+        ];
+        for (var a = 0; a < 3; a++) { baked[i + a] = point[a]; if (point[a] < low[a]) low[a] = point[a]; if (point[a] > high[a]) high[a] = point[a]; }
+      }
+      parts.push({ id: component.id + ":" + part.id, name: component.name || component.modelKey, meshData: { positions: baked } });
     });
+    targets.push({ item: item, point: { x: (low[0] + high[0]) / 2, y: (low[1] + high[1]) / 2, z: (low[2] + high[2]) / 2 } });
   });
   return {
     def: { kind: "assembly", name: E.assembly.name || t("docAssembly"), parts: parts },
+    targets: targets,
     balloons: rows.map(function (row) {
-      return { item: itemOf.get(row.key), name: row.name, material: "", qty: row.quantity };
+      return { item: itemOf.get(row.key), name: row.name, description: row.description, partNumber: row.partNumber, material: row.material || "", qty: row.quantity };
     }),
   };
 }
@@ -23553,18 +25769,95 @@ function assemblyDrawingDocument() {
 /* Export what Drawing mode shows. An unopened document has no sheet yet, so it
    gets the standard three-view one the exporter builds — the same engine, so
    the file and the screen can never drift apart. */
+function showAssemblyDrawingSettings() {
+  if (!E.assembly) return;
+  root.querySelector("#mdAssemblySheetDialog")?.remove();
+  var dialog = document.createElement("dialog");
+  dialog.id = "mdAssemblySheetDialog";
+  dialog.style.cssText = "max-width:min(34rem,90vw);max-height:85vh;overflow:auto;border-radius:12px;padding:1.2rem";
+  dialog.appendChild(el("h2", "", "Assembly drawing"));
+  var settings = E.assembly.drawingSettings || {};
+  var fields = {};
+  function textField(label, value) {
+    var field = document.createElement("input");
+    field.value = value || "";
+    field.setAttribute("aria-label", label);
+    fields[label] = sheetRow(dialog, label, field);
+  }
+  fields.size = sheetRow(dialog, "Sheet size", sheetSelect(Object.keys(SHEET_SIZES).map(function(key) {
+    return { value: key, label: key === "Letter" ? "A (ANSI) Landscape / Letter" : key };
+  }), settings.size || "A3", function() {}));
+  fields.size.setAttribute("aria-label", "Sheet size");
+  fields.units = sheetRow(dialog, "Drawing units", sheetSelect(["mm", "cm", "in"].map(function(unit) {
+    return { value: unit, label: unit };
+  }), settings.units || "in", function() {}));
+  fields.units.setAttribute("aria-label", "Drawing units");
+  fields.scale = sheetRow(dialog, "Sheet scale", sheetSelect([
+    { value:"fit", label:"Fit to sheet" }, { value:"1:1", label:"1:1" },
+    { value:"2:1", label:"2:1" }, { value:"1:2", label:"1:2" }, { value:"1:4", label:"1:4" }
+  ], Array.isArray(settings.scale) ? settings.scale.join(":") : "fit", function() {}));
+  fields.scale.setAttribute("aria-label", "Sheet scale");
+  fields.projection = sheetRow(dialog, "Projection", sheetSelect([
+    { value:"third", label:"Third angle" }, { value:"first", label:"First angle" }
+  ], settings.projection || "third", function() {}));
+  fields.projection.setAttribute("aria-label", "Projection");
+  ["Title", "Number", "Revision", "Drawn by", "Company", "Date"].forEach(function(label, index) {
+    var key = ["title", "number", "revision", "author", "company", "date"][index];
+    textField(label, settings[key] || (key === "title" ? E.assembly.name : key === "revision" ? "A" : ""));
+  });
+  function apply() {
+    var next = { size: fields.size.value, units: fields.units.value, scale: fields.scale.value === "fit" ? "fit" : fields.scale.value.split(":").map(Number), projection: fields.projection.value, orientation:"landscape", draftingStandard:"ANSI" };
+    ["Title", "Number", "Revision", "Drawn by", "Company", "Date"].forEach(function(label, index) {
+      next[["title", "number", "revision", "author", "company", "date"][index]] = fields[label].value.trim();
+    });
+    pushUndo("Assembly drawing settings");
+    E.assembly.drawingSettings = next;
+    ["Number", "Revision", "DrawnBy", "CompanyName", "DrawnDate", "Description"].forEach(function(key, index) {
+      setDocumentProperty(E.assembly, key, next[["number", "revision", "author", "company", "date", "title"][index]]);
+    });
+    refreshAll();
+  }
+  var save = el("button", "", "Apply drawing settings");
+  save.type = "button";
+  save.onclick = function() { apply(); dialog.close(); };
+  var output = el("button", "", "Export drawing SVG");
+  output.type = "button";
+  output.onclick = function() { apply(); exportDrawingSvg(); dialog.close(); };
+  var cancel = el("button", "", "Cancel");
+  cancel.type = "button";
+  cancel.onclick = function() { dialog.close(); };
+  dialog.append(save, output, cancel);
+  dialog.addEventListener("close", function() { dialog.remove(); }, { once:true });
+  root.appendChild(dialog);
+  dialog.showModal();
+}
+
+async function exportThreeMfDocument(settings,format,unqualifiedDraft) {
+  format=format==="amf" ? "amf" : "3mf";
+  if(E.docType!=="part" || !standardsGate(format.toUpperCase()+" export",{unqualifiedDraft:unqualifiedDraft===true,onDraft:function(){exportThreeMfDocument(settings,format,true);}}))return;
+  try {
+    var run=exactRunIsCurrent() ? E.brepRun : await regenerateExactModel();
+    if(!run || !run.ok || !run.finalShape)throw new Error("The exact model must rebuild successfully before export");
+    var name=(E.def.name || "model")+(unqualifiedDraft===true?"__UNQUALIFIED_DRAFT":"");
+    var bytes=format==="amf" ? await exportAmf(run.finalShape,name,settings) : await exportThreeMf(run.finalShape,name,settings);
+    downloadBytes(bytes,name+"."+format,format==="amf" ? "application/xml" : "model/3mf");
+    flash("✓ "+format.toUpperCase()+" exported · millimeters · Z-up");
+  } catch(error) {flash(format.toUpperCase()+" export failed: "+String(error.message || error),6000);}
+}
+
 function exportDrawingSvg() {
   var svg;
-  if (E.mode === "drawing" || (E.def && E.def.drawing)) svg = drawingSheet().svg();
-  else if (E.docType === "assembly" && E.assembly) {
+  if (E.docType === "assembly" && E.assembly) {
     var sheet = assemblyDrawingDocument();
     if (!sheet.def.parts.length) { flash(t("noComponents")); return; }
-    svg = sceneToSvg(buildDrawingScene(sheet.def, { balloons: sheet.balloons, useStored: false }));
-  } else svg = sceneToSvg(buildDrawingScene(E.def, { section: true, holeCallouts: true, useStored: false }));
+    sheet.def.customProperties = E.assembly.customProperties || {};
+    svg = sceneToSvg(buildDrawingScene(sheet.def, { ...(E.assembly.drawingSettings || {}), balloons: sheet.balloons, balloonTargets: sheet.targets, overallDimensions: false, views: ["iso"], title: E.assembly.drawingSettings?.title || E.assembly.name, useStored: false }));
+  } else if (E.mode === "drawing" || (E.def && E.def.drawing)) svg = drawingSheet().svg();
+  else svg = sceneToSvg(buildDrawingScene(E.def, { section: true, holeCallouts: true, useStored: false }));
   var blob = new Blob([svg], { type: "image/svg+xml" });
   var link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = ((E.def && E.def.name) || "drawing").replace(/[^a-z0-9_-]+/gi, "_") + ".svg";
+  link.download = ((E.docType === "assembly" && E.assembly ? E.assembly.name : E.def && E.def.name) || "drawing").replace(/[^a-z0-9_-]+/gi, "_") + ".svg";
   link.click();
   setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
   flash(t("drawExported"));
@@ -23702,14 +25995,21 @@ function importStepDocument() {
 }
 
 async function saveModel() {
-  if(exactModelRebuild)await exactModelRebuild;
-  if (!E.def.parts.length && !ensureSketchDoc(E.def).some(function (s) { return s.entities.length; })) { flash(t("needParts")); return; }
+  if(E.contextEdit){finishContextPart();return saveAssemblyDocument();}
+  /* Save validates its own snapshot with an authoritative exact rebuild below.
+     A display restoration can remain pending after its worker has finished;
+     waiting on that unrelated publication barrier prevented any library write,
+     even though independent exact evaluation rebuilt the current history.
+     Derived display caches are not authored inputs to this save. */
+  ensureSketchDoc(E.def);
+  if (!hasSaveableModelContent(E.def)) { flash(t("needParts")); return; }
   if (!standardsGate("Save")) return;
   /* Which document this save is FOR. Attachment externalization and the
      library write below are both awaited, and openModeler() is synchronous —
      a library card clicked in that window swaps E.def out from under the tail
      of this function. See the guard before markDocumentClean(). */
   var savingDoc = E.def, savingItem = E.srcItem, savingNode = currentHistoryNode();
+  var expectedRecord=cloneData(libraryOpenBaseline);
   E.def.name = root.querySelector("#mdName").value || E.def.name;
   setDocumentDescription(E.def, root.querySelector("#mdDescription").value);
   E.def.price = +root.querySelector("#mdPrice").value || 0;
@@ -23720,6 +26020,7 @@ async function saveModel() {
   var canonical=isCanonicalAuthoring();
   if (!canonical && !(E.def.metadata && E.def.metadata.adapter === "cabinet") && !recognizedHistory) rebuildFeatureTreeFromDocument();
   pruneAbandonedSketches(E.def);
+  if(canonical)rebindReplacedSketchProfiles(E.def);
   var def = JSON.parse(JSON.stringify(E.def));
   pruneSketchTargetedBodyAppearances(def);
   pruneSketchMaterialFields(def);
@@ -23733,9 +26034,10 @@ async function saveModel() {
   def.id = def.definitionId;
   if(canonical){
     var saveCompiled=compileKernelFeatureTree(def),saveRun;
+    saveProgress("saveRebuilding",savingDoc);
     try{
       if(!saveCompiled.ok)throw new Error(saveCompiled.issues[0]?.message || "Invalid feature history");
-      saveRun=await regenerateFeatures({...saveCompiled.document,features:saveCompiled.features});
+      saveRun=await regenerateFeatures({...saveCompiled.document,features:saveCompiled.features},{restoreMode:'mesh',onProgress:function(progress){if(E.def===savingDoc)flash(t("saveRebuilding")+" · "+(progress.name || progress.stage));}});
       if(!saveRun.ok)throw new Error(saveRun.issues.find(function(issue){return issue.code==='regeneration-failed' || issue.severity==='error';})?.message || "The model could not rebuild");
       def.exactTopologyCache=captureExactTopology(def,saveCompiled.features,saveRun);
       var savedReferenceRepairs=applyDocumentTopologyRebindings(def,saveRun.topologyBindings);
@@ -23744,10 +26046,20 @@ async function saveModel() {
         releaseRegeneration(saveRun); saveRun=null;
         saveCompiled=compileKernelFeatureTree(def);
         if(!saveCompiled.ok)throw new Error(saveCompiled.issues[0]?.message || "Invalid repaired feature history");
-        saveRun=await regenerateFeatures({...saveCompiled.document,features:saveCompiled.features});
+        saveRun=await regenerateFeatures({...saveCompiled.document,features:saveCompiled.features},{restoreMode:'mesh'});
         if(!saveRun.ok)throw new Error(saveRun.issues.find(function(issue){return issue.severity==='error';})?.message || "Repaired model could not rebuild");
         def.exactTopologyCache=captureExactTopology(def,saveCompiled.features,saveRun);
       }
+      // Save already owns a validated exact run. Preserve its display result
+      // with the record instead of depending on a separate background restore,
+      // which may have been cancelled while the user continued authoring.
+      await publishExactBodies(activeParts(def),saveRun,def,async function(body){
+        var mesh=body.verifiedSerializedExact===true ? cloneData(body.workerMeshData) : await shapeToMeshData(body,{deflection:.28,angle:.18});
+        mesh.topology=cloneData(body.topology || []);
+        mesh.bounds=meshDataBounds(mesh.positions);
+        delete mesh.normals;delete mesh.colors;
+        return mesh;
+      });
     }catch(error){report(t("reportKickerSave"),t("saveRebuildFailed"),String(error.message || error));return;}
     finally{if(saveRun)releaseRegeneration(saveRun);}
   }
@@ -23765,16 +26077,56 @@ async function saveModel() {
     validation = canonical ? rebuildParametricDocument(def,modelParameterOverrides()) : rebuildDefinition(def, modelParameterOverrides());
     E.coreRun = validation;
   }
+  saveProgress("saveAttachments",savingDoc);
   try { def=await externalizeAttachments(def); }
   catch (error) {
     report(t("reportKickerSave"), t("saveAttachmentFailed"), String(error.message || error));
     return;
   }
-  var lib = loadLib().filter(function (m) { return m.key !== def.key; });
-  lib.push(def);
-  if (!await saveLib(lib)) {
-    report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull"));
-    return;
+  var savedAsCopy=false;
+  saveProgress("saveWritingLibrary",savingDoc);
+  if (!await saveLib(def,{expected:expectedRecord})) {
+    if (!lastLibrarySaveConflict) {
+      report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull"));
+      return;
+    }
+    // A restored legacy draft may have no saved-record baseline. An edit in
+    // another tab also leaves our baseline stale. In either case, preserve the
+    // record already in the library and offer to save this live document under
+    // a fresh key. The new-key write is itself optimistic (expected:null).
+    if (E.def !== savingDoc || currentHistoryNode() !== savingNode) return;
+    if (!await askModelerDecision(root, {
+      title:t("saveLibraryConflictTitle"), message:t("saveLibraryConflictOffer"),
+      accept:t("saveConflictCopyAction"), cancel:t("keepEditingAction"),
+    })) return;
+    var defaultCopyName=(def.name || t("newModel"))+" copy";
+    var copyAnswer=await sheetForm(t("saveConflictCopyAction"),[{key:"name",label:t("name"),value:defaultCopyName}],t("saveCopyHint"));
+    if (!copyAnswer || !copyAnswer.name) return;
+    if (E.def !== savingDoc || currentHistoryNode() !== savingNode) return;
+    var copy=forkConflictingModel(def,"cm_"+Date.now().toString(36)+"_"+uid(),copyAnswer.name);
+    if (!await saveLib(copy,{expected:null})) {
+      report(t("reportKickerSave"),t("saveLibraryFailed"),t(lastLibrarySaveConflict ? "saveCopyKeyConflict" : "saveStorageFull"));
+      return;
+    }
+    def=copy;
+    savedAsCopy=true;
+    // A placed instance still belongs to the original definition. This save
+    // creates an independent library model and opens that copy in the editor.
+    savingItem=null;
+  }
+  if(E.def===savingDoc){
+    if(savedAsCopy && currentHistoryNode()===savingNode){
+      // A new library identity invalidates any restore queued for the original
+      // record, even though this live object and its history node are unchanged.
+      cancelExactModelRebuild();releaseExactRun();E.exactRestoring=false;
+      E.def.key=def.key;
+      E.def.id=def.id;
+      E.def.definitionId=def.definitionId;
+      E.def.name=def.name;
+      E.srcItem=null;
+      root.querySelector("#mdName").value=def.name;
+    }
+    if(!savedAsCopy || currentHistoryNode()===savingNode)libraryOpenBaseline=cloneData(def);
   }
   registerCustomModel(def);
   if (def.metadata && def.metadata.adapter === "cabinet" && savingItem) {
@@ -23822,6 +26174,7 @@ async function saveModel() {
      can say success while the tree keeps red diagnostics from an earlier
      failed Force Rebuild. */
   if(canonical){
+    E.exactDiagnosticRun=null;
     // The first pass repaired references on the saved clone; mirror those
     // accepted references into the still-open document after the write.
     if(savedReferenceRepairs?.length){
@@ -23830,6 +26183,19 @@ async function saveModel() {
       E.def.topologyBindings=cloneDomain(def.topologyBindings);
     }
     E.def.exactTopologyCache=cloneDomain(def.exactTopologyCache);
+    // This guard above also covers edits made during Save. Cancel stale mesh
+    // publications before showing the exact geometry that was actually saved.
+    (def.parts || []).forEach(function(savedPart){
+      var livePart=(E.def.parts || []).find(function(part){return part.id===savedPart.id;});
+      if(!livePart || !savedPart.meshData)return;
+      var scheduled=exactBuildTimers.get(livePart);
+      if(scheduled){clearTimeout(scheduled);exactBuildTimers.delete(livePart);}
+      livePart.exactBuildToken=(livePart.exactBuildToken || 0)+1;
+      livePart.meshData=cloneData(savedPart.meshData);
+      if(isKernelBody(livePart))livePart.bounds=cloneData(savedPart.meshData.bounds);
+      livePart.exactPending=false;livePart.exactError=null;
+      clearTopologyCache(livePart);refreshChangedPart(livePart);
+    });
   }
   publishRebuildStatus(E.def,E.coreRun);
   refreshModelHistoryPane();
@@ -23838,6 +26204,11 @@ async function saveModel() {
   flash("✓ " + t("saved"));
   markDocumentClean();
   discardModelerDraft();
+  if (savingDoc.lastStandardsAudit && !savingDoc.lastStandardsAudit.ok) {
+    report(t("reportKickerStandards"), "Draft saved · qualification incomplete",
+      ["The editable draft is saved. Its standards audit has not passed; qualified manufacturing exports remain blocked."]
+        .concat(savingDoc.lastStandardsAudit.blocking.map(function (i) { return "• " + (i.partName || i.partId) + ": " + i.message; })));
+  }
 }
 
 function syncPreviewFromHistory() {
@@ -23856,59 +26227,59 @@ function syncPreviewFromHistory() {
   });
 }
 
-/* A selection change cannot alter the document, so the parametric rebuild that
-   refreshAll() would run is guaranteed to reproduce the coreRun already in
-   hand — two structuredClones of the whole document and a kernel tree compile
-   for a byte-identical answer. Consume the existing run instead. Everything
-   else in the refresh still happens, so nothing downstream can go stale; this
-   skips the one step that is provably redundant.
-
-   Only for callers that touch selection and nothing else. Anything that edits
-   geometry, parameters, history or suppression must still call refreshAll(). */
+/* Solid inspection selection changes presentation, never recipes or poses.
+   Sketch authoring also reconciles its working geometry and support frames:
+   retain that established refresh path while reusing its existing core run. */
 function refreshSelection() {
-  coreRunFresh = true;
-  refreshAll();
+  if (E.mode === "3d" && !E.modelPlaneActive) refreshAll({ selectionOnly: true });
+  else { coreRunFresh = true; refreshAll(); }
 }
 
 /* ================= open / close ================= */
-function refreshAll() {
-  /* Solve before anything reads the assembly: the mate list, the status bar
-     and the viewport all report on the same solve. A solveAssembly() that has
-     just run is that solve, so this refresh consumes it rather than repeating
-     it; anything else that touched the assembly still gets solved here. */
-  if (E.docType === "assembly" && E.assembly && !assemblySolveFresh) applyAssemblyMates(E.assembly);
-  assemblySolveFresh = false;
-  syncFaceSupportedSketchFrames();
-  if(isCanonicalAuthoring()){
-    syncPreviewFromHistory();
-    if (!coreRunFresh) {
-      rebuildDocCount++;
-      E.coreRun=rebuildParametricDocument(E.def,modelParameterOverrides(),{lastGood:E.coreRun && E.coreRun.lastGood});
-      publishRebuildStatus(E.def,E.coreRun);
+function refreshAll(options = {}) {
+  syncAssemblyContextBar();
+  var selectionOnly = !!options.selectionOnly;
+  var previousAssemblyPreviewSolved = assemblyPreviewSolved;
+  try {
+    /* Solve before the panels and viewport consume the assembly. Selection
+       keeps the existing solution; a full refresh consumes an explicit solve
+       or performs one before allowing its viewport/drawing builds to reuse it. */
+    if (!selectionOnly && E.docType === "assembly" && E.assembly && !assemblySolveFresh) applyAssemblyMates(E.assembly);
+    if (!selectionOnly) assemblySolveFresh = false;
+    assemblyPreviewSolved = E.docType === "assembly";
+    if (!selectionOnly) syncFaceSupportedSketchFrames();
+    if (!selectionOnly && isCanonicalAuthoring()) {
+      syncPreviewFromHistory();
+      if (!coreRunFresh && !E.exactRestoring) {
+        rebuildDocCount++;
+        E.coreRun=rebuildParametricDocument(E.def,modelParameterOverrides(),{lastGood:E.coreRun && E.coreRun.lastGood});
+        E.coreRun=applyCurrentExactDiagnostics(E.coreRun,E.exactDiagnosticRun,E.def,currentHistoryNode(),E.massEditRevision);
+        publishRebuildStatus(E.def,E.coreRun);
+      }
     }
+    // Clear even for legacy documents so an old flag cannot swallow a rebuild
+    // when the document subsequently becomes canonical.
+    coreRunFresh = false;
+    refreshParts();
+    refreshModelHistoryPane();
+    fillInspector();
+    if (selectionOnly) refreshViewportSelection();
+    else updatePreview();
+    drawSketch();
+    if (histPanel) histPanel.refresh();
+    syncStatus();
+    syncHint();
+    syncFacePrompt();
+    syncExtrudeButton();
+    syncActiveFeatureSelectionFeedback();
+    syncMassPropertiesEvaluation();
+    syncAuthoringWorkflow();
+    syncContextActions();
+    updateTourProgress();
+    syncModelerMobile();
+  } finally {
+    assemblyPreviewSolved = previousAssemblyPreviewSolved;
   }
-  /* Cleared outside the canonical branch on purpose. A flag set while the
-     document was legacy used to survive until it became canonical and then
-     swallow the first rebuild that genuinely needed to run. */
-  coreRunFresh = false;
-  refreshParts();
-  refreshModelHistoryPane();
-  fillInspector();
-  updatePreview();
-  drawSketch();
-  // the history panel is scoped to the selection, so it follows it too
-  if (histPanel) histPanel.refresh();
-  // the status bar carries the sketch's definition state, which most edits
-  // change without the pointer ever moving
-  syncStatus();
-  syncHint();
-  syncFacePrompt();
-  syncExtrudeButton();
-  syncActiveFeatureSelectionFeedback();
-  syncAuthoringWorkflow();
-  syncContextActions();
-  updateTourProgress();
-  syncModelerMobile();
 }
 
 
@@ -24024,7 +26395,11 @@ function queueModelerChrome() {
 }
 
 export function openModeler(editKey, def, srcItem) {
+  cancelExactModelRebuild();
   dismissModelerDecision();
+  // Evaluations belong to the previous document, including a card whose
+  // native calculation completed before this library/draft replacement.
+  closeEvalCard();
   // Whether this call REPLACES a document that is already open, as opposed to
   // opening the editor. The recovery draft below turns on the difference.
   var replacingOpenDocument = E.open;
@@ -24058,6 +26433,7 @@ export function openModeler(editKey, def, srcItem) {
   var f = editKey && FURN[editKey] && FURN[editKey].custom;
   S.idc=nextDocumentNumericId(def || f,S.idc);
   E.def = def ? ensureParametricDocument(def) : f ? ensureParametricDocument(f) : newDef();
+  libraryOpenBaseline=cloneData(loadLib().find(function(model){return model.key===E.def.key;}) || null);
   E.def.metadata ||= {};
   if(!E.def.metadata.authoringSystem){
     var parametricEvidence=(E.def.features || []).some(function(feature){return !!feature.references || !!feature.params && !!feature.params.sketchId;}) || (E.def.parts || []).some(function(part){return !!part.sketchDriven;});
@@ -24189,6 +26565,7 @@ export function openModelerForItem(it) {
 }
 
 export function closeModeler() {
+  cancelExactModelRebuild();
   dismissModelerDecision();
   closeTour();
   closeWelcome();
@@ -24350,7 +26727,10 @@ function openRackGearForm(){
     var spec={family:"involute-gear",standard:"ISO 21771-1:2024",profile:"involute",rootGeometry:"rack-generated",moduleMm:v.moduleMm,teeth:v.teeth,pressureAngleDeg:v.pressureAngleDeg,backlashMm:v.backlashMm,profileShift:v.profileShift,allowUndercut:v.allowUndercut,cutter:{tipRadiusCoefficient:v.tipRadiusCoefficient,addendumCoefficient:v.addendumCoefficient}};
     spec.mate={...spec,teeth:v.mateTeeth,profileShift:v.mateProfileShift};var geometry=generatedRackGear(spec),pair=validateGearPair(spec,spec.mate);
     if(v.requireMatingCheck&&!pair.ok)throw new Error(pair.issues.join('; '));
-    pushUndo(t("stdGearCommand"));addPart(Object.assign({id:uid(),kind:"ext",name:"Rack-generated gear m"+v.moduleMm+" z"+v.teeth,axis:"y",from:0,to:v.widthMm/10,pts:geometry.points,holes:[],standardCompliance:spec,gearGeometryCheck:pair},tourMaterial("#d0a84b")));
+    pushUndo(t("stdGearCommand"));
+    var generated=Object.assign({id:uid(),kind:"ext",name:"Rack-generated gear m"+v.moduleMm+" z"+v.teeth,axis:"y",from:0,to:v.widthMm/10,pts:geometry.points,holes:[],standardCompliance:spec,gearGeometryCheck:pair,geometryApproximation:{kind:"rack-outline-polyline",outlineSimplificationMm:geometry.outlineSimplificationMm,estimatedChordErrorMm:geometry.estimatedChordErrorMm}},tourMaterial("#d0a84b"));
+    if(isCanonicalAuthoring())registerGeneratedExtrusion(E.def,generated);
+    addPart(generated);
     E.sel=E.def.parts.at(-1);E.def.lastStandardsAudit=null;flash(pair.ok?t("gearGeometryPassed")+" · "+pair.contactRatio.toFixed(3):t("gearStandaloneOnly"));return true;
   }catch(error){flash(error.message);return false;}}});
 }

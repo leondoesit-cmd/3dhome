@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
+import {installModelerDraftFixture} from './browser_modeler_fixture.mjs';
 const chrome=await findChrome();
 test('cabinet inspector, resize dialog and model-editor save and reload remain usable and parametric',{skip:!chrome},async()=>{
  const page=await openPage({width:1280,height:720,lang:'en'});
  try{
+  await installModelerDraftFixture(page);
   await page.eval(async()=>{
    const {S}=await import('/js/state.js'),{makeSpec}=await import('/js/cabinet.js'),{openCabinet}=await import('/js/ui_cabinet.js');
    S.items=[{id:'cabinet-ui-test',type:'cabsys',x:100,z:100,w:120,h:240,d:60,rot:0,cab:makeSpec('w_classic',120,240,60)}];
@@ -21,9 +23,17 @@ test('cabinet inspector, resize dialog and model-editor save and reload remain u
   assert.ok(imported.some(e=>e.label==='Overall width'&&e.value==='120'));
   assert.equal(await page.eval(()=>getComputedStyle(document.querySelector('.md-cab-parameters')).gridTemplateColumns.trim().split(/\s+/).length),1);
   await page.eval(()=>{const field=[...document.querySelectorAll('#mdInsp label')].find(e=>e.textContent==='Overall width').querySelector('input');field.value='160';field.dispatchEvent(new Event('change',{bubbles:true}));});
-  await page.waitUntil(()=>document.querySelector('#mdLeftPanel').textContent.includes('160×'),{what:'resized cabinet geometry'});
+  await page.waitUntil(async()=>{
+   const definition=(await window.currentModelerDraftForTest())?.def;
+   return definition?.parameters?.width?.value===160&&definition.metadata?.generatedParameters?.width===160;
+  },{what:'resized cabinet geometry'});
   await page.eval(()=>document.querySelector('#mdSave').click());
-  await page.waitUntil(()=>!document.querySelector('#mdSave').classList.contains('is-dirty'),{what:'cabinet saved'});
+  try{
+   await page.waitUntil(()=>!document.querySelector('#mdSave').classList.contains('is-dirty'),{what:'cabinet saved'});
+  }catch(error){
+   const diagnostic=await page.eval(()=>({status:document.querySelector('#mdStatus')?.textContent,report:document.querySelector('#mdReport')?.textContent,decision:document.querySelector('#mdDecision')?.textContent}));
+   throw new Error('Cabinet save did not finish: '+JSON.stringify(diagnostic),{cause:error});
+  }
   const saved=await page.eval(async()=>{const{S}=await import('/js/state.js');const item=S.items[0],def=S.parametric.definitions[item.definitionId];return{w:item.w,h:item.h,parameter:def.parameters.width.value,generated:def.metadata.generatedParameters.width,parts:def.parts.length};});
   assert.equal(saved.w,160);assert.equal(saved.h,240);assert.equal(saved.parameter,160);assert.equal(saved.generated,160);assert.ok(saved.parts>10);
   const project=await page.eval(async()=>JSON.parse((await import('/js/ui.js')).serialize()));

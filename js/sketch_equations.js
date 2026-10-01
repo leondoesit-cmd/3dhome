@@ -84,7 +84,7 @@ export function expandUnitLiterals(src, unit) {
 }
 
 export function dimensionUnit(constraint) {
-  return constraint && constraint.type === "angle" ? "angle" : "length";
+  return constraint && ["angle", "rotation"].includes(constraint.type) ? "angle" : "length";
 }
 
 /* ---- recursive-descent parser + evaluator ---- */

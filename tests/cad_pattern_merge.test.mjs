@@ -32,7 +32,7 @@ import {
 } from "../js/cad_kernel.js";
 
 const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
-const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
+const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 
 const volume = async (brep) => {

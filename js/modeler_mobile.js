@@ -785,6 +785,7 @@ function buildViewSheet() {
   var g2 = grid((short ? "m-grid-3" : "m-grid-5") + " m-icon-grid");
   [
     ["top", "view_top", "view_top_short"],
+    ["bottom", "view_top", "view_bottom_short"],
     ["front", "view_front", "view_front_short"],
     ["side", "view_right", "view_right_short"],
     /* Back and Left exist on the desktop View toolbar because a face on the far

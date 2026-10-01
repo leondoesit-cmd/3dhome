@@ -2,7 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   MODELER_DRAFT_KEY,
+  MODELER_TAB_KEY,
+  claimLegacyModelerDraft,
   clearModelerDraft,
+  modelerDraftKey,
+  modelerDraftOwner,
+  freshModelerDraftOwner,
   parseModelerDraft,
   readModelerDraft,
   serializeModelerDraft,
@@ -17,6 +22,20 @@ function memoryStorage() {
     removeItem(key) { data.delete(key); },
   };
 }
+
+test('starting fresh keeps the old recovery record and writes into a reload-stable namespace', () => {
+  const shared = memoryStorage(), session = memoryStorage();
+  const original = modelerDraftOwner(session, () => 'original');
+  writeModelerDraft(shared, {docType:'part', def:{name:'Unfinished recovery', parts:[{id:'old'}]}}, 1, original);
+  const snapshot = shared.getItem(modelerDraftKey(original));
+  const fresh = freshModelerDraftOwner(session, () => 'fresh');
+  assert.notEqual(fresh, original);
+  assert.equal(modelerDraftOwner(session), fresh);
+  assert.equal(readModelerDraft(shared, fresh), null);
+  writeModelerDraft(shared, {docType:'part', def:{name:'Blank test', parts:[]}}, 2, fresh);
+  assert.equal(shared.getItem(modelerDraftKey(original)), snapshot);
+  assert.equal(readModelerDraft(shared, fresh).def.parts.length, 0);
+});
 
 test("modeler drafts round-trip a part definition", () => {
   const storage = memoryStorage();
@@ -51,4 +70,44 @@ test('draft backup omits regenerable topology cache without losing authored refe
   const restored=parseModelerDraft(raw).def;
   assert.deepEqual(restored.features,def.features);assert.deepEqual(restored.parts,def.parts);
   assert.equal(restored.exactTopologyCache,undefined);assert.ok(def.exactTopologyCache);
+});
+
+test('two browser tabs keep independent local fallback drafts through reload, save, and discard',()=>{
+  const shared=memoryStorage(), firstSession=memoryStorage(), secondSession=memoryStorage();
+  const first=modelerDraftOwner(firstSession,()=>"first-tab");
+  const second=modelerDraftOwner(secondSession,()=>"second-tab");
+  assert.equal(firstSession.getItem(MODELER_TAB_KEY),first);
+  assert.equal(modelerDraftOwner(firstSession,()=>"wrong-id"),first);
+  assert.notEqual(first,second);
+  writeModelerDraft(shared,{docType:"part",def:{name:"BATTERY"}},1,first);
+  writeModelerDraft(shared,{docType:"part",def:{name:"LENS"}},2,second);
+  assert.equal(readModelerDraft(shared,first).def.name,"BATTERY");
+  assert.equal(readModelerDraft(shared,second).def.name,"LENS");
+  // A reload retains the tab identity and recovers its own draft only.
+  assert.equal(readModelerDraft(shared,modelerDraftOwner(firstSession)).def.name,"BATTERY");
+  clearModelerDraft(shared,first);
+  assert.equal(readModelerDraft(shared,first),null);
+  assert.equal(readModelerDraft(shared,second).def.name,"LENS");
+  assert.ok(shared.getItem(modelerDraftKey(second)));
+});
+
+test('a legacy shared draft stays untouched until explicit migration',()=>{
+  const shared=memoryStorage();
+  writeModelerDraft(shared,{docType:"part",def:{name:"Earlier BULB"}},10);
+  const fresh=modelerDraftOwner(memoryStorage(),()=>"new-tab");
+  assert.equal(readModelerDraft(shared,fresh),null);
+  assert.equal(readModelerDraft(shared).def.name,"Earlier BULB");
+  const claimed=claimLegacyModelerDraft(shared,fresh);
+  assert.equal(claimed.def.name,"Earlier BULB");
+  assert.equal(readModelerDraft(shared),null);
+  assert.equal(readModelerDraft(shared,fresh).def.name,"Earlier BULB");
+});
+
+test('recovered edits carry the exact saved revision they started from',()=>{
+  const baseline={key:'cm_lenscap',name:'LENSCAP',exactTopologyCache:{signature:'saved-shape'}};
+  const edited={key:'cm_lenscap',name:'LENSCAP',exactTopologyCache:{signature:'edited-shape'}};
+  const draft=parseModelerDraft(serializeModelerDraft({docType:'part',def:edited,libraryBaseline:baseline}));
+  assert.equal(draft.def.exactTopologyCache,undefined);
+  assert.deepEqual(JSON.parse(draft.libraryBaselineJson),baseline);
+  assert.notDeepEqual(JSON.parse(draft.libraryBaselineJson),edited);
 });

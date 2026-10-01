@@ -2,6 +2,7 @@ import {offsetFaceBoundary,appendBoundarySketch} from './cad_face_offset.js';
 import {realignFrame} from './core/frame.js';
 import {segmentProfilePoints} from './core/profile_curves.js';
 import {createTopologyRegistry,resolveTopologyReference} from './core/topology.js';
+import {followTrimmedBoundary} from './core/trimmed_boundary_follow.js';
 
 function loopArea(segments) {
   const points=segmentProfilePoints(segments) || [];
@@ -17,6 +18,22 @@ function sourceFace(result, reference) {
  if(!result?.shape)return null;
  const resolved=resolveTopologyReference(reference,createTopologyRegistry(result.topology || []));
  return resolved.status==='missing'||resolved.status==='ambiguous' ? null : resolved.topology;
+}
+
+export function updateTrimmedBoundarySketch(sketch,params,results){
+ let updated=null;
+ for(const copy of sketch?.boundaryCopies||[]){
+  if(!copy.associative)continue;
+  const surviving=copy.entityIds.filter(id=>sketch.entities.some(e=>e.id===id));
+  if(!surviving.length||surviving.length===copy.entityIds.length)continue;
+  const source=results.get(params.targetFeatureId)||results.get(copy.source.ownerFeatureId),face=sourceFace(source,copy.source);
+  if(!face)throw new Error('Trimmed linked boundary source face is unavailable');
+  // Keep the authored local origin. Manual trim dimensions are relative to it;
+  // translating to a new face centroid would move the user's closing geometry.
+  const loops=offsetFaceBoundary(source,{...copy.source,persistentId:face.persistentId},sketch.frame,Number(copy.distance));
+  updated=followTrimmedBoundary(updated||sketch,copy,loops.flat())||updated;
+ }
+ return updated;
 }
 
 export function resolveAssociativeBoundary(sketch, params, results) {
@@ -56,8 +73,12 @@ export function resolveAssociativeBoundary(sketch, params, results) {
  if((sketch.constraints || []).some(c=>JSON.stringify(c).match(/"(?:entities|points|entity|point)"/) && [...oldIds,...oldPoints].some(id=>JSON.stringify(c).includes('"'+id+'"'))))throw new Error('Remove dimensions on the copied geometry before linking its boundary');
  const updated=structuredClone(sketch);
  updated.entities=updated.entities.filter(e=>!oldIds.has(e.id)).concat(entities);
- const retained=new Set(updated.entities.flatMap(e=>[e.a,e.b,e.c].filter(Boolean)));
- updated.points=updated.points.filter(p=>!oldPoints.has(p.id)||retained.has(p.id)).concat(temp.points);
+ // Generated IDs are stable on subsequent rebuilds. Keep only points used
+ // outside this copy, then replace generated points by ID; retaining their
+ // previous values before appending duplicates grew the sketch every rebuild
+ // and invalidated unchanged downstream native-body cache prefixes.
+ const retained=new Set(updated.entities.filter(e=>!entities.some(next=>next.id===e.id)).flatMap(e=>[e.a,e.b,e.c].filter(Boolean)));
+ updated.points=[...new Map(updated.points.filter(p=>!oldPoints.has(p.id)||retained.has(p.id)).concat(temp.points).map(p=>[p.id,p])).values()];
  const nextCopy=updated.boundaryCopies.find(item=>item.entityIds[0]===copy.entityIds[0]);
  nextCopy.id=prefix;nextCopy.source=sourceReference;nextCopy.entityIds=entities.map(e=>e.id);nextCopy.loopCount=loops.length;
  updated.frame=frame;

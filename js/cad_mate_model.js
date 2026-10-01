@@ -9,6 +9,9 @@
 
 import { createTopologyRegistry, resolveTopologyReference } from "./core/topology.js";
 import { componentTopology, isStandardPlaneId, isSubassembly, standardPlaneEntries } from "./core/assembly_structure.js";
+import {torusBoreSectionContact} from './core/torus_bore_contact.js';
+import { compileKernelFeatureTree } from './core/kernel_feature_adapter.js';
+import { verifiedFinalTopology } from './core/exact_topology_cache.js';
 
 export const rad = (d) => d * Math.PI / 180;
 export const deg = (r) => r * 180 / Math.PI;
@@ -27,8 +30,36 @@ export const apply = (matrix,vector) => ({
 export const add = (a,b) => ({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
 export const transpose = (m) => [[m[0][0],m[1][0],m[2][0]],[m[0][1],m[1][1],m[2][1]],[m[0][2],m[1][2],m[2][2]]];
 
+/* A wire loop contacts a bore through the distance from its centreline circle
+   to the bore axis. The axes can cross: forcing them parallel flattens a hook
+   into the sheet it is supposed to pass through. Search the periodic circle,
+   then refine its closest point; no tessellated face or bounds enter this. */
+function circleAxisSeparation(torus,cylinder) {
+  const normal=norm(torus.axis),axis=norm(cylinder.axis),u=perpendicular(normal),v=cross(normal,u);
+  const at=(angle)=>{
+    const point={x:torus.origin.x+torus.majorRadius*(u.x*Math.cos(angle)+v.x*Math.sin(angle)),
+      y:torus.origin.y+torus.majorRadius*(u.y*Math.cos(angle)+v.y*Math.sin(angle)),
+      z:torus.origin.z+torus.majorRadius*(u.z*Math.cos(angle)+v.z*Math.sin(angle))};
+    const delta={x:point.x-cylinder.origin.x,y:point.y-cylinder.origin.y,z:point.z-cylinder.origin.z},along=dot(delta,axis);
+    const radial={x:delta.x-axis.x*along,y:delta.y-axis.y*along,z:delta.z-axis.z*along};
+    return {distance:len(radial),radial};
+  };
+  const step=2*Math.PI/64;
+  let angle=0,best=at(0);
+  for(let i=1;i<64;i++){const candidate=at(i*step);if(candidate.distance<best.distance){best=candidate;angle=i*step;}}
+  let lo=angle-step,hi=angle+step;
+  const ratio=(Math.sqrt(5)-1)/2;
+  let a=hi-ratio*(hi-lo),b=lo+ratio*(hi-lo),fa=at(a),fb=at(b);
+  for(let i=0;i<48;i++){
+    if(fa.distance<fb.distance){hi=b;b=a;fb=fa;a=hi-ratio*(hi-lo);fa=at(a);}
+    else{lo=a;a=b;fa=fb;b=lo+ratio*(hi-lo);fb=at(b);}
+  }
+  best=at((lo+hi)/2);
+  return {distance:best.distance,direction:best.distance>1e-9?norm(best.radial):perpendicular(axis)};
+}
+
 // Each requirement keeps reporting under the code its own branch always used.
-export const FRAME_ISSUE = { planar: "invalid-face-frame", axis: "invalid-axis-frame", round: "invalid-tangent-frame", tangent: "invalid-tangent-frame" };
+export const FRAME_ISSUE = { planar: "invalid-face-frame", axis: "invalid-axis-frame", round: "invalid-tangent-frame", tangent: "invalid-tangent-frame", mirror: "invalid-face-frame" };
 
 const finitePoint = (point) => !!point && [point.x, point.y, point.z]
   .every((value) => Number.isFinite(Number(value)));
@@ -40,8 +71,9 @@ const finiteDirection = (direction) => finitePoint(direction) && len(direction) 
    what is matable: a normal alone is not a planar face, an axis with nowhere
    to be is not an axis, and nothing can be placed without an origin. */
 export const MATE_REQUIREMENT = {
-  coincident: "planar", distance: "planar", limit: "planar", angle: "planar",
-  concentric: "axis", screw: "axis",
+  coincident: "coincident", distance: "distance", limit: "planar", angle: "planar",
+  concentric: "axis", screw: "axis", gear: "axis",
+  symmetric: "mirror",
   tangent: "tangent",
 };
 
@@ -62,13 +94,24 @@ export function planarDirection(frame) {
 
 export function mateFrameSupports(requirement, frame) {
   if (!frame || !finitePoint(frame.origin)) return false;
+  if (requirement === "coincident") return !!planarDirection(frame) || (frame.surface==='axis' && finiteDirection(frame.axis));
+  if (requirement === "distance") return !!planarDirection(frame) || frame.surface==='point';
   if (requirement === "axis") return finiteDirection(frame.axis);
+  // A symmetric mate mirrors either a plane/face or an axis; which one is decided by the frame.
+  if (requirement === "mirror") return !!planarDirection(frame) || finiteDirection(frame.axis);
   if (requirement === "tangent") return frame.surface==="plane"?!!planarDirection(frame):mateFrameSupports("round",frame);
   if (requirement === "round") {
     return finiteDirection(frame.axis)
       && Number.isFinite(Number(frame.radius)) && Number(frame.radius) > 0;
   }
   return !!planarDirection(frame);
+}
+
+export function mateFramesSupport(type,a,b) {
+  const requirement=mateRequirementFor(type);
+  if(!mateFrameSupports(requirement,a) || !mateFrameSupports(requirement,b))return false;
+  if(type==='coincident' || type==='distance')return !!planarDirection(a) || !!planarDirection(b);
+  return true;
 }
 
 /* ---- how a component's orientation is carried -------------------------------
@@ -307,6 +350,7 @@ export function worldFrame(frame, component, space) {
      and a Jacobian is hundreds of probes. */
   const out={...frame};
   if (frame.origin) out.origin=add(apply(rotation,frame.origin),translation);
+  if (frame.referenceOrigin) out.referenceOrigin=add(apply(rotation,frame.referenceOrigin),translation);
   if (frame.normal) out.normal=norm(apply(rotation,frame.normal));
   if (frame.axis) out.axis=norm(apply(rotation,frame.axis));
   return out;
@@ -317,6 +361,7 @@ export function componentFrame(frame, component) {
     translation={x:Number(transform.x)||0,y:Number(transform.y)||0,z:Number(transform.z)||0};
   const out={...structuredClone(frame)};
   if (frame.origin) out.origin=apply(inverse,{x:frame.origin.x-translation.x,y:frame.origin.y-translation.y,z:frame.origin.z-translation.z});
+  if (frame.referenceOrigin) out.referenceOrigin=apply(inverse,{x:frame.referenceOrigin.x-translation.x,y:frame.referenceOrigin.y-translation.y,z:frame.referenceOrigin.z-translation.z});
   if (frame.normal) out.normal=norm(apply(inverse,frame.normal));
   if (frame.axis) out.axis=norm(apply(inverse,frame.axis));
   return out;
@@ -363,15 +408,25 @@ export function frameSignature(frame) {
 
 // The offset a distance or limit mate asks for, clamped to its bounds. Both
 // the solve and the check below have to read it the same way.
-export function mateOffset(mate) {
+export function mateOffset(mate, currentOffset) {
   if (mate.type === "coincident") return 0;
   let offset = Number(mate.value || 0);
   if (mate.type === "limit") {
+    // A travel limit is an inequality: an interior pose stays where the user
+    // moved it. Only an overshoot asks the solver to return to an end stop.
+    if (Number.isFinite(currentOffset)) offset = currentOffset;
     const lo = Number(mate.min), hi = Number(mate.max);
     if (Number.isFinite(lo)) offset = Math.max(lo, offset);
     if (Number.isFinite(hi)) offset = Math.min(hi, offset);
   }
   return offset;
+}
+
+export function validLimitMateBounds(min, max) {
+  if (String(min).trim() === '' || String(max).trim() === '') return null;
+  const lower = Number(min), upper = Number(max);
+  return Number.isFinite(lower) && Number.isFinite(upper) && lower <= upper
+    ? {min:lower, max:upper} : null;
 }
 
 /* Where a tangent mate wants the moving axis to sit: one radius-sum out from
@@ -429,11 +484,31 @@ export function angleBetween(a, b) {
    express it. */
 export function mateTarget(mate, fa, fb, moving) {
   if (!fa || !fb) return null;
+  if (mate.type === "symmetric" || mate.type === "gear") return null;
+  if(mate.type==='coincident' && mateFramesSupport('coincident',fa,fb) && (!planarDirection(fa) || !planarDirection(fb))){
+    const plane=planarDirection(fa)?fa:fb,line=plane===fa?fb:fa;
+    const normal=norm(planarDirection(plane)),axis=norm(line.axis);
+    const delta={x:line.origin.x-plane.origin.x,y:line.origin.y-plane.origin.y,z:line.origin.z-plane.origin.z};
+    const separation=dot(delta,normal),orientation=dot(axis,normal),movingLine=line===fb;
+    const actualDirection=movingLine?axis:normal,held=movingLine?normal:axis;
+    const along=dot(actualDirection,held),projection={x:actualDirection.x-held.x*along,y:actualDirection.y-held.y*along,z:actualDirection.z-held.z*along};
+    const shift=(movingLine?-1:1)*separation;
+    return {planeAxis:true,offsetResidual:separation,orientationResidual:orientation,
+      origin:{x:fb.origin.x+normal.x*shift,y:fb.origin.y+normal.y*shift,z:fb.origin.z+normal.z*shift},
+      actualDirection,direction:len(projection)>1e-9?norm(projection):perpendicular(held)};
+  }
+  if(mate.type==='distance' && mateFramesSupport('distance',fa,fb) && (!planarDirection(fa) || !planarDirection(fb))){
+    const plane=planarDirection(fa)?fa:fb,point=plane===fa?fb:fa,normal=norm(planarDirection(plane));
+    const separation=dot({x:point.origin.x-plane.origin.x,y:point.origin.y-plane.origin.y,z:point.origin.z-plane.origin.z},normal);
+    const error=separation-mateOffset(mate,separation),shift=(point===fb?-1:1)*error;
+    return {pointPlane:true,offsetResidual:error,origin:{x:fb.origin.x+normal.x*shift,y:fb.origin.y+normal.y*shift,z:fb.origin.z+normal.z*shift}};
+  }
   if (mate.type === "coincident" || mate.type === "distance" || mate.type === "limit") {
     const na = planarDirection(fa), nb = planarDirection(fb);
     if (!fa.origin || !fb.origin || !na || !nb) return null;
     const normal=norm(na), delta={x:fb.origin.x-fa.origin.x,y:fb.origin.y-fa.origin.y,z:fb.origin.z-fa.origin.z};
-    const offset = mateOffset(mate), error=dot(delta,normal)-offset;
+    const separation = dot(delta,normal);
+    const offset = mateOffset(mate, separation), error=separation-offset;
     return {
       origin: {
         x: fb.origin.x - normal.x * error,
@@ -448,11 +523,20 @@ export function mateTarget(mate, fa, fb, moving) {
     const axisA = fa.axis || fa.normal, axisB = fb.axis || fb.normal;
     if (!fa.origin || !fb.origin || !axisA || !axisB) return null;
     const axis = norm(axisA);
+    /* A cylinder's axis has no physical arrow. The terminal and holder in the
+       BATTERYANDPLATE assembly are coaxial while their face descriptors point
+       in opposite directions. A concentric mate must preserve whichever of
+       the two equivalent axis directions the moving part already has; making
+       it match +axis unconditionally overturns the preceding face and plane
+       mates. A screw is directed, so its advance still uses +axis. */
+    const movingAxis = norm(axisB);
+    const direction = (mate.type === "concentric" && dot(axis, movingAxis) < 0) || (mate.type === "screw" && mate.axisOpposed)
+      ? { x: -axis.x, y: -axis.y, z: -axis.z } : axis;
     const along = mate.type === "screw" ? screwAdvance(mate).along : dot({x:fb.origin.x-fa.origin.x,y:fb.origin.y-fa.origin.y,z:fb.origin.z-fa.origin.z},axis);
     const out = {
       origin: { x: fa.origin.x + axis.x*along, y: fa.origin.y + axis.y*along, z: fa.origin.z + axis.z*along },
-      direction: axis,
-      actualDirection: norm(axisB),
+      direction,
+      actualDirection: movingAxis,
     };
     /* A screw also says where in its turn the component stands. Without this
        the roll is a free rotation the solver would leave wherever it started,
@@ -463,6 +547,21 @@ export function mateTarget(mate, fa, fb, moving) {
     return out;
   }
   if (mate.type === "tangent") {
+    if(fa.surface==='torus' || fb.surface==='torus'){
+      const torusA=fa.surface==='torus',torus=torusA?fa:fb,cylinder=torusA?fb:fa;
+      if(cylinder.surface!=='cylinder' || !mateFrameSupports('round',cylinder)
+        || !Number.isFinite(torus.majorRadius) || !Number.isFinite(torus.minorRadius))return null;
+      if(mate.contactMode==='finite-bore'){
+        if(!mate.aligned)return null;
+        const contact=torusBoreSectionContact(torus,cylinder);if(!contact)return null;
+        const error=contact.distance-cylinder.radius,sign=torusA?1:-1,unit=contact.direction,direction=norm(fb.axis);
+        return {tangentTorus:true,offsetResidual:error,origin:{x:fb.origin.x+sign*unit.x*error,y:fb.origin.y+sign*unit.y*error,z:fb.origin.z+sign*unit.z*error},direction,actualDirection:direction};
+      }
+      const separation=circleAxisSeparation(torus,cylinder),direction=norm(fb.axis);
+      const contact=mate.aligned?Math.abs(cylinder.radius-torus.minorRadius):cylinder.radius+torus.minorRadius;
+      const error=separation.distance-contact,unit=separation.direction,sign=torusA?1:-1;
+      return {tangentTorus:true,offsetResidual:error,origin:{x:fb.origin.x+sign*unit.x*error,y:fb.origin.y+sign*unit.y*error,z:fb.origin.z+sign*unit.z*error},direction,actualDirection:direction};
+    }
     if(fa.surface==='plane' || fb.surface==='plane'){
       if(fa.surface==='plane' && fb.surface==='plane')return null;
       const fixedPlane=fa.surface==='plane',plane=fixedPlane?fa:fb,round=fixedPlane?fb:fa;
@@ -487,7 +586,18 @@ export function mateTarget(mate, fa, fb, moving) {
     const na = planarDirection(fa) || fa.normal, nb = planarDirection(fb) || fb.normal;
     if (!na || !nb) return null;
     const fixedDirection = norm(na), actualDirection = norm(nb);
-    const desiredAngle = rad(Math.max(0, Math.min(180, Number(mate.value) || 0)));
+    /* An angle mate with a range (the book's LimitAngle mates) is an
+       inequality like a travel limit: an interior angle stays where the user
+       moved it and only an overshoot returns to the nearest end stop. */
+    const ranged = Number.isFinite(Number(mate.angleMin)) || Number.isFinite(Number(mate.angleMax));
+    let desiredDegrees = Math.max(0, Math.min(180, Number(mate.value) || 0));
+    if (ranged) {
+      desiredDegrees = deg(angleBetween(na, nb));
+      if (Number.isFinite(Number(mate.angleMin))) desiredDegrees = Math.max(Number(mate.angleMin), desiredDegrees);
+      if (Number.isFinite(Number(mate.angleMax))) desiredDegrees = Math.min(Number(mate.angleMax), desiredDegrees);
+      desiredDegrees = Math.max(0, Math.min(180, desiredDegrees));
+    }
+    const desiredAngle = rad(desiredDegrees);
     /* An angle alone does not choose an azimuth around the fixed normal. Keep
        the moving normal's present azimuth when it has one; at the singular
        parallel/opposed poses, choose the same deterministic perpendicular the
@@ -518,9 +628,18 @@ export function mateTarget(mate, fa, fb, moving) {
    finally stand. This deliberately re-derives the target rather than trusting
    the step that placed it: a mate that another mate has overridden looks
    identical to one that holds unless something checks. */
-export function mateResidual(mate, fa, fb, moving) {
+export function mateResidual(mate, fa, fb, moving, ctx = {}) {
+  if(mate.type==='lock'){
+    const rows=lockRows(mate,ctx.reader,moving);if(!rows)return null;
+    return {linear:Math.hypot(...rows.slice(0,3)),angular:Math.hypot(...rows.slice(3))/ANGULAR_SCALE};
+  }
+  if (mate.type === "symmetric") { const m = symmetricMeasure(mate, fa, fb, ctx.fc); return m && { linear: m.linear, angular: m.angular }; }
+  if (mate.type === "gear") { const g = gearMeasure(mate, fa, fb, ctx.reader, moving); return g && { linear: 0, angular: Math.abs(wrapAngle(g.theta)) }; }
   const target = mateTarget(mate, fa, fb, moving);
   if (!target) return null;
+  if(target.pointPlane)return {linear:Math.abs(target.offsetResidual),angular:0};
+  if(target.planeAxis)return {linear:Math.abs(target.offsetResidual),angular:Math.asin(Math.min(1,Math.abs(target.orientationResidual)))};
+  if(target.tangentTorus)return {linear:Math.abs(target.offsetResidual),angular:0};
   if (target.angle !== undefined) return { linear: 0, angular: Math.abs(target.angle) };
   const angular = angleBetween(target.actualDirection, target.direction);
   return {
@@ -538,10 +657,40 @@ export function mateResidual(mate, fa, fb, moving) {
  * a large one are weighted alike. */
 const ANGULAR_SCALE = 10;
 
-export function mateResidualVector(mate, fa, fb, moving) {
+export function captureLockPose(mate,reader,moving) {
+  if(mate.relativePose)return;
+  const a=normalizePose(reader.transform ||= {}),b=normalizePose(moving.transform ||= {}),inverse=transpose(rotationOf(a));
+  mate.relativePose={position:apply(inverse,{x:b.x-a.x,y:b.y-a.y,z:b.z-a.z}),rotation:mul(inverse,rotationOf(b))};
+}
+export function lockTarget(mate,reader) {
+  if(!mate.relativePose || !reader)return null;
+  const a=normalizePose(reader.transform ||= {}),rotation=rotationOf(a);
+  return {position:add(a,apply(rotation,mate.relativePose.position)),rotation:mul(rotation,mate.relativePose.rotation)};
+}
+function lockRows(mate,reader,moving) {
+  const target=lockTarget(mate,reader);if(!target || !moving)return null;
+  const actual=normalizePose(moving.transform ||= {}),rotation=rotationOf(actual);
+  return [actual.x-target.position.x,actual.y-target.position.y,actual.z-target.position.z,
+    ...rotation.flatMap((row,i)=>row.map((v,j)=>(v-target.rotation[i][j])*ANGULAR_SCALE))];
+}
+
+export function mateResidualVector(mate, fa, fb, moving, ctx = {}) {
+  if(mate.type==='lock')return lockRows(mate,ctx.reader,moving);
+  if (mate.type === "symmetric") { const m = symmetricMeasure(mate, fa, fb, ctx.fc); return m && m.rows; }
+  if (mate.type === "gear") {
+    const g = gearMeasure(mate, fa, fb, ctx.reader, moving);
+    return g && [Math.sin(g.theta) * ANGULAR_SCALE, (Math.cos(g.theta) - 1) * ANGULAR_SCALE];
+  }
   const target = mateTarget(mate, fa, fb, moving);
   if (!target) return null;
+  if(target.pointPlane)return [target.offsetResidual];
+  if(target.planeAxis)return [target.offsetResidual,target.orientationResidual*ANGULAR_SCALE];
+  if(target.tangentTorus)return [target.offsetResidual];
   if(target.tangentPlane)return [target.offsetResidual,target.orientationResidual*ANGULAR_SCALE];
+  if(target.tangentRound)return [target.offsetResidual,
+    (target.actualDirection.x-target.direction.x)*ANGULAR_SCALE,
+    (target.actualDirection.y-target.direction.y)*ANGULAR_SCALE,
+    (target.actualDirection.z-target.direction.z)*ANGULAR_SCALE];
   if (target.angle !== undefined) {
     /* At 0° and 180° an angle mate becomes a parallel/anti-parallel
        relation. The scalar unsigned angle has a cusp there, so a central
@@ -581,6 +730,87 @@ export function mateResidualVector(mate, fa, fb, moving) {
   return rows;
 }
 
+/* ---- symmetric mate ---------------------------------------------------------
+   Two entities held as mirror images of each other across a third plane (the
+   book's Guide Roller pair about the bracket's Front plane). The mate reads its
+   `a` entity and the symmetry plane and moves `b`.
+
+   Planes/faces: b's normal must be parallel or anti-parallel to the mirror of
+   a's normal (which of the two is kept as the component already has it, the
+   same reading a coincident mate gives an axis) and b's plane must sit at the
+   mirror of a's. Axes and circular edges: b's axis parallel to the mirror of
+   a's axis and lying on it, the position along the axis left free. */
+const subv = (p, q) => ({ x: p.x - q.x, y: p.y - q.y, z: p.z - q.z });
+function reflectPoint(point, planeOrigin, unitNormal) {
+  const d = dot(subv(point, planeOrigin), unitNormal);
+  return { x: point.x - 2 * d * unitNormal.x, y: point.y - 2 * d * unitNormal.y, z: point.z - 2 * d * unitNormal.z };
+}
+function reflectDirection(direction, unitNormal) {
+  const d = dot(direction, unitNormal);
+  return { x: direction.x - 2 * d * unitNormal.x, y: direction.y - 2 * d * unitNormal.y, z: direction.z - 2 * d * unitNormal.z };
+}
+export function symmetricMeasure(mate, fa, fb, fc) {
+  if (!fa || !fb || !fc || !fc.origin || !fa.origin || !fb.origin) return null;
+  const nc = planarDirection(fc);
+  if (!nc) return null;
+  const normal = norm(nc);
+  const planeA = fa.surface === "plane", planeB = fb.surface === "plane";
+  if (planeA !== planeB) return null;
+  const mirroredOrigin = reflectPoint(fa.origin, fc.origin, normal);
+  if (planeA) {
+    const mirroredNormal = norm(reflectDirection(norm(planarDirection(fa)), normal));
+    const actual = norm(planarDirection(fb));
+    const swing = cross(actual, mirroredNormal);
+    const offset = dot(subv(fb.origin, mirroredOrigin), mirroredNormal);
+    return { rows: [swing.x * ANGULAR_SCALE, swing.y * ANGULAR_SCALE, swing.z * ANGULAR_SCALE, offset],
+      linear: Math.abs(offset), angular: len(swing) };
+  }
+  if (!finiteDirection(fa.axis) || !finiteDirection(fb.axis)) return null;
+  const mirroredAxis = norm(reflectDirection(norm(fa.axis), normal));
+  const actual = norm(fb.axis);
+  const swing = cross(actual, mirroredAxis);
+  const delta = subv(fb.origin, mirroredOrigin), along = dot(delta, mirroredAxis);
+  const radial = { x: delta.x - mirroredAxis.x * along, y: delta.y - mirroredAxis.y * along, z: delta.z - mirroredAxis.z * along };
+  return { rows: [swing.x * ANGULAR_SCALE, swing.y * ANGULAR_SCALE, swing.z * ANGULAR_SCALE, radial.x, radial.y, radial.z],
+    linear: len(radial), angular: len(swing) };
+}
+
+/* ---- gear mate ---------------------------------------------------------------
+   Forces two components to turn about their own axes at a fixed ratio without
+   their teeth having to touch. The mate reads component `a` (the driver) and
+   turns component `b`. Both rolls are measured about a's axis from a fixed
+   zero mark, relative to the rolls they had when the mate was first solved
+   (`rollA0`, `rollB0`, stored on the mate), so any pair of poses that satisfied
+   the other mates is a valid start. External gears turn opposite ways:
+   dB = -(teethA/teethB) dA. `reverse` (internal gear or same-direction belt)
+   flips the sign. Each roll is wrapped to a half turn either side of its start,
+   so the mate is exact for the first half turn of the driver in either
+   direction and for every whole turn when the ratio is an integer. */
+export function gearRatio(mate) {
+  const a = Number(mate.ratioA), b = Number(mate.ratioB);
+  return (Number.isFinite(a) && a > 0 ? a : 1) / (Number.isFinite(b) && b > 0 ? b : 1);
+}
+export function gearMeasure(mate, fa, fb, reader, moving) {
+  if (!fa || !fb || !reader || !moving) return null;
+  const axis = norm(fa.axis || fa.normal);
+  if (!finiteDirection(axis)) return null;
+  const rollA = screwRoll(reader, axis), rollB = screwRoll(moving, axis);
+  const startA = Number.isFinite(Number(mate.rollA0)) ? Number(mate.rollA0) : rollA;
+  const startB = Number.isFinite(Number(mate.rollB0)) ? Number(mate.rollB0) : rollB;
+  const turnA = wrapAngle(rollA - startA), turnB = wrapAngle(rollB - startB);
+  return { turnA, turnB, theta: turnB + (mate.reverse ? -1 : 1) * gearRatio(mate) * turnA };
+}
+/* A gear mate does not know where in its turn each gear stands until the
+   components are placed, so the first solve records it. The capture is
+   persisted with the mate, like the seed of any other stored mate value. */
+export function captureGearPhase(mate, fa, fb, reader, moving) {
+  if (mate.type !== "gear" || (Number.isFinite(Number(mate.rollA0)) && Number.isFinite(Number(mate.rollB0)))) return false;
+  const axis = norm(fa.axis || fa.normal);
+  mate.rollA0 = screwRoll(reader, axis);
+  mate.rollB0 = screwRoll(moving, axis);
+  return true;
+}
+
 /* Resolves a mate reference to a frame in assembly space, reporting what it
    could not do into `sink`. Built once per solve because it carries that
    report; the solver calls it many times per component as it probes poses. */
@@ -601,7 +831,27 @@ export function createFrameResolver(sink) {
   /* A sub-assembly's topology is composed from everything inside it. Its
      children do not move while the parent is solved, so compose once per solve. */
   const composed = new WeakMap();
-  const partTopology = (part) => part?.topology || part?.def?.lastRebuild?.topology || [];
+  const savedParts = new WeakMap();
+  const partTopology = (part) => {
+    if (part?.def?.exactTopologyCache) {
+      const previous = savedParts.get(part);
+      if (previous?.document === part.def && previous.cache === part.def.exactTopologyCache) return previous.entries;
+      // Verifying a face stamp needs authoring history, not potentially huge
+      // modeled-thread display triangles or copies of every saved topology.
+      const compiled = compileKernelFeatureTree({...part.def,parts:[],exactTopologyCache:undefined,verifiedExactTopology:undefined});
+      if (compiled.ok) {
+        const entries = verifiedFinalTopology(part.def, compiled.features);
+        savedParts.set(part, {document:part.def,cache:part.def.exactTopologyCache,entries});
+        return entries;
+      }
+    }
+    if (part?.topology?.length) return part.topology;
+    if (part?.def?.lastRebuild?.topology?.length) return part.def.lastRebuild.topology;
+    // Saved library parts keep exact faces on each body's meshData. The
+    // inspector reads these IDs; the solver must read the same source,
+    // including when that part sits inside a rigid subassembly.
+    return (part?.def?.parts || []).flatMap((body) => body?.meshData?.topology || []);
+  };
   const entriesOf = (component) => {
     if (!isSubassembly(component)) return partTopology(component);
     if (!composed.has(component)) composed.set(component, componentTopology(component, partTopology));
@@ -613,8 +863,15 @@ export function createFrameResolver(sink) {
       const plane = standardPlaneEntries().find((entry) => entry.persistentId === reference.persistentId);
       return worldFrame(plane.descriptor, component, "component");
     }
+    const axisSource=reference.kind==='axis' && reference.descriptor?.sourceFace;
+    const vertexSource=reference.kind==='vertex' && reference.descriptor?.sourceEdge;
     const entries = entriesOf(component);
     if (!entries.length) {
+      if(axisSource || vertexSource){if(collect)sink.issues.push({mate:mateId,code:'missing-topology',reference:reference.persistentId});return null;}
+      if (component?.def?.exactTopologyCache) {
+        if (collect) sink.issues.push({mate:mateId,code:"missing-topology",reference:reference.persistentId});
+        return null; // Expired exact geometry cannot be replaced by a captured old frame.
+      }
       // One-time migration for assemblies saved by the old editor, whose
       // fallback frames were captured in assembly coordinates. Converting the
       // snapshot to the component's local frame stops it being added again on
@@ -627,13 +884,29 @@ export function createFrameResolver(sink) {
       }
       return worldFrame(reference.frame || reference.descriptor || null,component,reference.frameSpace);
     }
-    const result = resolveTopologyReference(reference, registryFor(component, entries));
+    const sourceReference=axisSource || vertexSource || reference;
+    const result = resolveTopologyReference(sourceReference, registryFor(component, entries));
     if (result.status === "missing" || result.status === "ambiguous") {
       if (collect) sink.issues.push({mate:mateId,code:result.status+"-topology",reference:reference.persistentId});
       return null;
     }
     if (result.status === "rebound" && collect) sink.rebindings.push({mate:mateId,from:reference.persistentId,to:result.topology.persistentId});
     const descriptor = result.topology.descriptor || {};
-    return worldFrame({ surface: descriptor.surface, origin: descriptor.origin, normal: descriptor.normal, axis: descriptor.axis, radius: descriptor.radius, measure: descriptor.measure },component,"component");
+    if(vertexSource){
+      const index=reference.descriptor.endpointIndex,point=descriptor.endpoints?.[index];
+      if(!Number.isInteger(index) || index<0 || !finitePoint(point)){
+        if(collect)sink.issues.push({mate:mateId,code:'missing-topology',reference:reference.persistentId});
+        return null;
+      }
+      return worldFrame({surface:'point',origin:point},component,'component');
+    }
+    if(axisSource){
+      if(descriptor.surface!=='cylinder' || !mateFrameSupports('axis',descriptor)){
+        if(collect)sink.issues.push({mate:mateId,code:'invalid-axis-frame',reference:reference.persistentId});
+        return null;
+      }
+      return worldFrame({surface:'axis',origin:descriptor.origin,axis:descriptor.axis},component,'component');
+    }
+    return worldFrame({ surface: descriptor.surface, curve: descriptor.curve, origin: descriptor.origin, normal: descriptor.normal, axis: descriptor.axis, radius: descriptor.radius, majorRadius:descriptor.majorRadius, minorRadius:descriptor.minorRadius, referenceOrigin:descriptor.referenceOrigin,axisRange:descriptor.axisRange, measure: descriptor.measure },component,"component");
   };
 }

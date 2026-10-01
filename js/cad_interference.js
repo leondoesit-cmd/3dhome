@@ -4,31 +4,35 @@ import { revolveInterval, revolvePlacement, revolveBounds } from "./core/revolve
 
 import {rotationOf} from "./cad_mate_model.js";
 import {applyRigidMatrix,rotatedPatternBounds} from "./core/pattern_geometry.js";
-import { brepsOverlap } from "./cad_kernel.js";
+import { brepMaterialIntersection } from "./cad_kernel.js";
 import { framePoint } from "./core/frame.js";
 import { bomIdentity } from "./toolbox/schema.js";
+import { documentDescription, documentProperty } from "./core/custom_properties.js";
+import { drawingMaterialName } from "./cad_appearances.js";
 
-export async function detectInterference(assemblyComponents) {
+export async function detectInterference(assemblyComponents, options={}) {
   const interferences = [];
   // A component the user has hidden is not in the way of anything.
   const visible = (assemblyComponents || []).filter((component) => component.visible !== false);
   for (let i = 0; i < visible.length; i++) {
     for (let j = i + 1; j < visible.length; j++) {
+      if(options.signal?.aborted)throw new DOMException('Interference check cancelled','AbortError');
       const c1 = visible[i], c2 = visible[j];
       const a = componentBounds(c1), b = componentBounds(c2);
       const overlap = a && b ? intersectionBounds(a, b) : null;
       if (c1.brep?.shape && c2.brep?.shape) {
-        try {
-          if (await brepsOverlap(c1.brep, c2.brep)) {
-            interferences.push({
-              a: c1.id,
-              b: c2.id,
-              volume: null,
-              exact: true,
-              bounds: overlap,
-            });
-          }
-        } catch (_) {}
+        if (!overlap && a && b) continue;
+        options.onProgress?.({a:c1.id,b:c2.id,stage:'intersection'});
+        const intersection=await brepMaterialIntersection(c1.brep,c2.brep);
+        if (intersection.intersects) {
+          interferences.push({
+            a: c1.id,
+            b: c2.id,
+            volume: intersection.volume,
+            exact: true,
+            bounds: intersection.bounds ? {x0:intersection.bounds.min.x,y0:intersection.bounds.min.y,z0:intersection.bounds.min.z,x1:intersection.bounds.max.x,y1:intersection.bounds.max.y,z1:intersection.bounds.max.z} : overlap,
+          });
+        }
       } else {
         if (!a || !b) continue;
         const dx = Math.min(a.x1,b.x1)-Math.max(a.x0,b.x0), dy = Math.min(a.y1,b.y1)-Math.max(a.y0,b.y0), dz = Math.min(a.z1,b.z1)-Math.max(a.z0,b.z0);
@@ -100,7 +104,10 @@ export function generateBOM(assembly) {
     const key = (meta && bomIdentity(meta)) || (meta && meta.designation) || comp.modelKey || comp.assemblyKey || comp.name || "Unknown";
     const existing = map.get(key) || {
       key, name: (meta && meta.designation) || comp.name || key, quantity: 0,
-      standard: meta && meta.standard || "", material: meta && meta.material || "",
+      description: documentDescription(comp) || documentDescription(comp.def) || "",
+      partNumber: documentProperty(comp, "PartNo") || documentProperty(comp, "PartNumber") || documentProperty(comp, "Number") || comp.partNumber ||
+        documentProperty(comp.def, "PartNo") || documentProperty(comp.def, "PartNumber") || documentProperty(comp.def, "Number") || comp.def?.partNumber || "",
+      standard: meta && meta.standard || "", material: (meta && meta.material) || comp.material || documentProperty(comp.def, "Material") || drawingMaterialName(comp.def) || "",
       finish: meta && meta.finish || "", category: meta && meta.category || "",
       materialId: meta && meta.materialId || "", propertyClass: meta && meta.propertyClass || "",
     };

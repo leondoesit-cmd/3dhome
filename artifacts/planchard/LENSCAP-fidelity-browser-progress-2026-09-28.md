@@ -1,0 +1,31 @@
+# Fresh LENSCAP fidelity follow-up — 2026-09-28
+
+Authoritative source is the fresh, blank-origin browser-built canonical `Planchard LENSCAP - rebuilt 2026-09-27`, protected in `fresh-lenscap-saved-browser-replay-2026-09-28.mforge`. This follow-up does not use older workflow-audit checkpoint geometry.
+
+Read supplied PDF pages 325–340 and visually inspected page 326 (printed 7-18). The book requires a Right-plane converted exterior cone silhouette, keeping .250 in of line at the back end, then 360° Revolved Thin Cut thickness .050 in. The conversion keeps the Base Extrude draft angle, 5°. Existing manual BackCut line runs from (U−3.77326881914,V6.59970894138) to (U−4.40823118086,V6.60662263786) cm, approximately .624° instead of 5°. Existing Right-plane sketch has unanchored construction axis plus manual profile. The base circle itself already has Ø4.9 in and origin-fixed center; central status referring to six DOF in the base appears to be referring to this BackCut sketch instead.
+
+Existing accepted ThreadSection is Top-plane trapezoid: long vertical .125 in, short vertical .0625 in, slant edges each .125 in. Long-edge midpoint anchored U−2.45,V−1.275 in. It remains unchanged while copied for the fresh HOUSING workflow. The current midpoint uses Fix rather than Pierce, so the copied HOUSING profile should remove that positional anchor and Pierce to its own new ThreadPath.
+
+Plan: open fresh canonical in own Chrome tab 710851395 after HOUSING's heavy cold computation finishes; use actual UI rollback before BackCut, replace manual line with Convert silhouette Upper/appropriate axis end/.250 in, constrain construction axis, restore end and verify downstream thread exact regeneration. Preserve the original exported evidence and accepted thread geometry.
+
+Canonical fresh LENSCAP opened in actual desktop Chrome tab 710851395. ThreadSection visibly fully defined (.125/.0625 in). Copied through the explicit tree context-menu command Copy sketch · Ctrl+C, for root HOUSING paste. Source screenshot protected LENSCAP-ThreadSection-copy-source-browser-2026-09-28.png. Browser confirmed the partially defined six-DOF sketch is Right Plane BackCut, while base circle is fully defined. Fidelity edits held while HOUSING has another unexpected full Shell rebuild after adding an unrelated circle.
+
+## Browser-linked BackCut profile repair
+
+Added a narrow Convert silhouette **Update selected line** option. It preserves the consumed line and endpoint IDs, links to the upstream cone face, and retains the printed .250 in length as a visible reference dimension while the conversion's .250 in trim length drives the endpoints. Fixed the construction-axis endpoints through UI. Unit regression verifies unchanged consumed IDs, exact trim length, source-radius/draft propagation, updated endpoint anchors, and atomic rejection of an invalid oversized trim (7/7 tests).
+
+Actual Chrome retargeted the existing Line 2 to the base outer cone. Source: radius6.223 cm, axis+Z, reference originZ0, axisRange[-4.3815,0] cm. **Axis start**, not Axis end, is the back face for this source descriptor. An initial Axis end trial produced front U0 and was corrected before final feature acceptance. Automatic review initially rejected the correction because it assumed Axis end was required; read-only source descriptor and endpoint calculations demonstrated the correct back endpoint, and review then allowed the reversible UI action.
+
+Correct final profile endpoints in inches: (-1.725,2.60091794) → (-1.47595133,2.57912901). Browser displays **L.25 in, angle−5°, Fully defined**, zero DOF. Same two sketch entities (construction centerline plus consumed profile line); all six constraints, one reference dimension. Screenshot `LENSCAP-linked-BackCut-sketch-browser-2026-09-28.png`. Final rollback release/thread regeneration and exact save/export/reopen remain pending while HOUSING runs its cold native queue.
+
+Full 12-step history restored through Chrome and Save completed with Rebuild succeeded, one body, all sketches fully defined. Protected corrected linked-profile bundle: LENSCAP-linked-BackCut-browser-2026-09-28.mforge (81,046,303 bytes). Independent read-only native replay: 15 compiled features, issues [], volume85.80859035129163 cm³, 6.496 seconds; log scratch/planchard/verify-lenscap-linked-BackCut-2026-09-28.log.
+
+Remaining fidelity issue discovered before final acceptance: the original BackCut has thinMode forward (UI Outward). Book step181 requires Reverse Direction; with the profile now on the exterior silhouette, an outward .050-in tool does not remove stock. It must be changed through feature UI to Inward, preserving .050-in thickness and original thread history, then exact volume/cut verified. Chrome browser1 became unavailable on the attempted BackCut double-click, before that correction. Parent notified; do not call this corrected solid a finished ebook-faithful LENSCAP yet. Original protected source bundles remain intact.
+
+## Final inward-cut acceptance
+
+Chrome reconnected (same extension, browser ID4). Actual dedicated tab395 edited BackCut Thickness direction to Inward, preserving .050 in, 360°, existing IDs and accepted thread geometry. Save completed Rebuild succeeded; full feature history12, one body, all sketches fully defined. Exact UI volume82.53609 cm³ (3.27249 cm³ stock removed versus outward no-op), bounds13.102×13.102×4.3815 cm. Mass.6479083 kg is explicitly fallback steel, no assigned material.
+
+Final protected browser exports: LENSCAP-inward-BackCut-browser-2026-09-28.mforge (81,097,575 bytes), .step (197,654 bytes), and .png. Independent read-only replay validates final solid, 15 compiled features, issues[], volume82.53610721031387 cm³, 7.433 seconds; scratch/planchard/verify-lenscap-inward-BackCut-2026-09-28.log. Difference from UI<.00002 cm³.
+
+Reloaded desktop Chrome and reopened exact canonical fresh library entry Planchard LENSCAP - rebuilt2026-09-27 through UI. Clean rebuild, one body, exact82.53609 cm³ repeated. Proof LENSCAP-inward-BackCut-reopened-browser-2026-09-28.png. Actual parameter edit .050→.060 in produced81.89613 cm³; Undo restored original printed .050 and82.53609 cm³ with clean saved state. Final live tab395 retained as deliverable. Original source bundles and intermediate diagnostic bundles remain intact.

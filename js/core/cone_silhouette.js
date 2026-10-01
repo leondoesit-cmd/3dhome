@@ -41,6 +41,25 @@ export function updateSilhouetteSketch(sketch,resolveFace){
  return updated;
 }
 
+/* Retarget an existing profile without breaking downstream feature entity ids.
+   The conversion's trim length is the driver; its old length dimension remains
+   visible as a reference instead of fighting the linked endpoint positions. */
+export function retargetSilhouetteLine(sketch,entityId,face,options={},makeId=()=>undefined){
+ const trial=structuredClone(sketch),entity=trial.entities?.find(e=>e.id===entityId&&e.type==='line'&&!e.construction);
+ if(!entity)throw new Error('Select an existing profile line');
+ const line=coneSilhouette(trial,face,options);
+ const endpoints=[entity.a,entity.b];
+ for(const [id,point] of [[entity.a,line.a],[entity.b,line.b]]){
+  const target=trial.points.find(p=>p.id===id);if(!target)throw new Error('Selected line endpoint is missing');Object.assign(target,point);
+ }
+ trial.constraints=(trial.constraints || []).filter(c=>!(c.type==='fixed'&&endpoints.includes(c.point)));
+ for(const constraint of trial.constraints){if(constraint.entity===entityId&&['distance','angle','horizontalDistance','verticalDistance'].includes(constraint.type))constraint.driven=true;}
+ for(const [id,point] of [[entity.a,line.a],[entity.b,line.b]])trial.constraints.push({id:makeId(),type:'fixed',point:id,x:point.x,y:point.y});
+ trial.silhouetteCopies=(trial.silhouetteCopies || []).filter(copy=>copy.entityId!==entityId);
+ trial.silhouetteCopies.push({source:structuredClone(face),entityId,side:options.side,fromEnd:options.fromEnd,length:options.length});
+ Object.assign(sketch,trial);return sketch.entities.find(e=>e.id===entityId);
+}
+
 /* Convert Entities is associative until the user explicitly drives the copied
    geometry.  Once a radius/diameter is edited, keeping the hidden source link
    would let the next exact rebuild silently restore the source edge's old
@@ -90,6 +109,23 @@ export function projectCircularEdge(sketch,edge){
  const o=sketchWorldPoint(sketch,0,0),u=sketchWorldPoint(sketch,1,0),v=sketchWorldPoint(sketch,0,1),x={x:u.x-o.x,y:u.y-o.y,z:u.z-o.z},y={x:v.x-o.x,y:v.y-o.y,z:v.z-o.z},dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
  if(Math.abs(dot(d.axis,x))>1e-6||Math.abs(dot(d.axis,y))>1e-6)throw new Error('The circular edge must be parallel to the sketch plane');
  const q={x:d.origin.x-o.x,y:d.origin.y-o.y,z:d.origin.z-o.z};return {x:dot(q,x),y:dot(q,y),radius:d.radius};
+}
+
+// Explicit repair preserves the entity id consumed by an existing annular
+// feature. Choosing another edge must not silently create a duplicate circle.
+export function retargetConvertedCircle(sketch,entityId,edge){
+ const trial=structuredClone(sketch),copy=trial.circleCopies?.find(item=>item.entityId===entityId),entity=trial.entities?.find(item=>item.id===entityId&&item.type==='circle');
+ if(!copy||!entity)throw new Error('Select an existing converted circle');
+ if(copy.offsetFrom)throw new Error('Relink the base converted circle before its offset');
+ const family=new Set([entityId]);let changed=true;
+ while(changed){changed=false;for(const child of trial.circleCopies){
+  const parent=child.offsetFrom || trial.constraints.find(c=>c.type==='offset'&&c.b===child.entityId&&!c.suppressed)?.a;
+  if(family.has(parent)&&!family.has(child.entityId)){family.add(child.entityId);changed=true;}
+ }}
+ for(const child of trial.circleCopies)if(family.has(child.entityId))child.source=structuredClone(edge);
+ const updated=updateSilhouetteSketch({...trial,circleCopies:trial.circleCopies.filter(child=>family.has(child.entityId)),silhouetteCopies:[]},ref=>ref);
+ Object.assign(sketch,{points:updated.points,entities:updated.entities,constraints:updated.constraints,circleCopies:trial.circleCopies});
+ return sketch.entities.find(item=>item.id===entityId);
 }
 
 // The offset stores its signed distance, not a frozen copy of the source radius.
