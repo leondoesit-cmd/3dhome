@@ -27,6 +27,7 @@ import { threePointArc, radialArcEndpoint } from "./sketch_three_point_arc.js";
 import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
 import { addCenterRectangle } from "./sketch_center_rectangle.js";
+import { addDimensionedCircle } from "./sketch_dimensioned_circle.js";
 import { addCenterSlot } from "./sketch_center_slot.js";
 import { rasterTextContours } from "./sketch_text.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
@@ -155,6 +156,7 @@ import {applyDrivenAssemblyPlacement} from "./core/assembly_placement.js";
 import { draftFaceChoices } from "./core/draft_face_choices.js";
 import { ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, lookupAssemblyComponent, refreshSubassemblyFromRecord, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
 import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds } from "./cad_mate_model.js";
+import { setScrewMateHandedness } from "./cad_screw_controls.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { ribSketchReady } from "./core/rib_profile.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
@@ -1813,6 +1815,7 @@ function refreshViewportSelection() {
 }
 
 function refreshDecorations(render = true) {
+  if (retainExactPreview()) return;
   if (!E.pv) return;
   var currentHover = E.hoverTopology;
   decoGroups.forEach(function (entry) {
@@ -3890,6 +3893,7 @@ function buildDOM() {
         commandButton("centerrectangle", t("centerRectangle"), ""),
         commandButton("faceboundary", t("faceBoundary"), ""),
         commandButton("scirc", t("cap_scirc"), "G", "primary", t("tool_scirc")),
+        commandButton("dimensionedcircle", "Dimensioned circle", ""),
         commandButton("sarc", t("centerpointArc"), "A", "", t("centerpointArc")),
         commandButton("arc3point", t("arcThreePoint"), ""),
         commandButton("tangentarc", t("tangentArc"), ""),
@@ -6130,10 +6134,12 @@ function coachSuggestion() {
   if (rebuildIssue && !liveAuthoring) return coachRebuildSuggestion(rebuildIssue);
   if (step === "context" || step === "reference") {
     var compact = document.body.classList.contains("compact-nav");
+    var coachPlane=defaultSketchPlane(E.def && E.def.references,E.lastSketchReferenceId);
     return { icon:"ph-rectangle", text: compact ? "coachStepSketchMobile" : "coachStepSketch",
+      phrase:coachPlane ? tf("coachStepSketchPlane",{plane:referenceLabel(coachPlane)}) : t("coachStepPlane"),
       act: compact ? "coachActSketchMobile" : "coachActSketch", command:"srect",
       target: compact ? '[data-mdnav="cmd"]' : '[data-command="newsketch"], .md-tree-create-sketch',
-      run:function(){ startSketchOnDefaultPlane("srect"); } };
+      run:function(){ startSketchOnDefaultPlane("srect",coachPlane && coachPlane.id); } };
   }
   if (step === "sketch") {
     if (!(sketch.entities || []).length)
@@ -7238,6 +7244,7 @@ function runCommand(id) {
   else if(id==="tangentarc") { E.arcTangent=true; E.arcThreePoint=false; E.arcPts=null; setTool("sarc"); }
   else if(id==="sketchrepair")openSketchRepairs();
   else if(id==="centerrectangle")openCenterRectangle();
+  else if(id==="dimensionedcircle")openDimensionedCircle();
   else if(id==="centerslot")openCenterSlot();
   else if(id==="sketchfillet")openSketchFillet();
   else if(id==="faceboundary")openFaceBoundary();
@@ -11367,7 +11374,17 @@ function syncStatus() {
   syncStatusLine();
   var st = root && root.querySelector("#mdStatus");
   if (st && !st.querySelector(".ps-ai-status")) st.insertAdjacentHTML("beforeend", aiStatusHTML());
+  syncRetainedExactPreviewStatus();
   syncExactWorkerActivity();
+}
+function syncRetainedExactPreviewStatus() {
+  var st=root && root.querySelector("#mdStatus");
+  if(!st)return;
+  var chip=st.querySelector(".md-retained-exact-preview");
+  if(!retainingExactPreview()){if(chip)chip.remove();return;}
+  if(!chip){chip=el("span","md-retained-exact-preview md-st-dirty");chip.setAttribute("aria-live","polite");st.appendChild(chip);}
+  var caption="Showing previous geometry while rebuilding · geometry picking paused";
+  if(chip.textContent!==caption)chip.textContent=caption;
 }
 var exactWorkerActivityTimer=0,exactWorkerActivitySubscribed=false;
 function syncExactWorkerActivity(){
@@ -14020,6 +14037,30 @@ function openSketchFillet() {
       return true;
     },
     onCancel: function () { if (E.tool === "sketchfillet") setTool("select"); },
+  });
+}
+
+function openDimensionedCircle() {
+  if (!E.authoring || E.authoring.phase !== "sketch") startSketchOnDefaultPlane("scirc");
+  setTool("select");
+  openQuickForm({
+    action:"dimensionedcircle", icon:"ph-circle", title:"Dimensioned circle",
+    hint:"Enter the center in the active sketch plane and a driving diameter. Fix center makes the circle fully defined.",
+    fields:[
+      {key:"x",label:"Center U",type:"number",value:0,unit:"length"},
+      {key:"y",label:"Center V",type:"number",value:0,unit:"length"},
+      {key:"diameter",label:"Diameter",type:"number",value:1,min:0.000001,unit:"length"},
+      {key:"fixCenter",label:"Fix center",type:"boolean",value:true},
+    ],
+    onApply:function(values) {
+      if (![values.x,values.y,values.diameter].every(fin) || values.diameter <= 0) {
+        flash("Enter a positive diameter and finite center coordinates"); return false;
+      }
+      var made = appendToSketch("Dimensioned circle", function(sketch) { return addDimensionedCircle(sketch,values,uid); });
+      if (!made) return false;
+      markDrawnSelection(made); E.sel=E.ssel[E.ssel.length-1];
+      return true;
+    },
   });
 }
 
@@ -19568,6 +19609,22 @@ function assemblyMateInspectorBody() {
         wrap.appendChild(input); mateUiRow.appendChild(wrap);
       };
       if (mate.type === "screw") {
+        var screwHand = el("label", "md-mate-value"), screwHandInput = el("select");
+        screwHand.appendChild(el("span", "", "Thread handedness"));
+        screwHandInput.setAttribute("aria-label", "Thread handedness");
+        [["rh", "Right hand"], ["lh", "Left hand"]].forEach(function (choice) {
+          var option = el("option"); option.value = choice[0]; option.textContent = choice[1];
+          screwHandInput.appendChild(option);
+        });
+        screwHandInput.value = mate.handedness === "lh" || mate.handedness === "left" ? "lh" : "rh";
+        screwHandInput.title = "Choose at the home pose before driving. The saved screw zero is preserved.";
+        screwHandInput.addEventListener("change", function () {
+          if (!["rh", "lh"].includes(screwHandInput.value)) return;
+          pushUndo("Screw thread handedness");
+          setScrewMateHandedness(mate, screwHandInput.value);
+          solveAssembly(); refreshAll();
+        });
+        screwHand.appendChild(screwHandInput); mateUiRow.appendChild(screwHand);
         var screwMode = el("label", "md-mate-value"), screwModeInput = el("input");
         screwModeInput.type = "checkbox";
         screwModeInput.checked = !!mate.coupledMotion;
@@ -21214,6 +21271,7 @@ var _scratchToComponent = null;
 var _scratchPickNormal = null;
 
 function resolveTopologyPick(event, view, options) {
+  if(retainingExactPreview())return {hits:[],part:null,component:null,reference:null,pickPoint:null,pickNormal:null,pickedView:null,helixId:null};
   var prefer = options && options.prefer || E.selectionFilter || "all";
   /* A stationary component click is completed by the assembly drag recognizer's
      window-level pointerup listener. `currentTarget` is therefore Window there,
@@ -22182,6 +22240,7 @@ function eraseMarkupAt(x, y) {
 }
 
 function pickNoteAction(event, view) {
+  if(retainingExactPreview())return;
   var canvas = view.rr && view.rr.domElement;
   if (!canvas) return;
   var rect = canvas.getBoundingClientRect();
@@ -22465,6 +22524,7 @@ function renderPickCycle() {
 }
 
 function stepPickCycle() {
+  if(retainingExactPreview())return;
   var cycle = E.pickCycle;
   if (!cycle || !cycle.candidates.length) return;
   var current = cycle.candidates[cycle.index];
@@ -22807,6 +22867,7 @@ function screenDeltaAlongAxis(view, start, event, axisName) {
 }
 
 function hitInstant3d(event, view) {
+  if(retainingExactPreview())return null;
   if (!view || !view.grp || !view.cam) return null;
   if (view.place) view.place();
   var rect = view.rr.domElement.getBoundingClientRect();
@@ -24164,6 +24225,7 @@ function refreshChangedPart(part) {
     invalidateDrawing();
     if (E.mode === "drawing") { drawSketch(); syncSheetPanel(); }
   }
+  if(part && !part.previewOnly && retainExactPreview())return;
   if (typeof window !== "undefined") window.cadRefreshChangedPart = refreshChangedPart;
   /* The one place a body's exact mesh is known to have landed or failed, so
      it is where the live downstream badge stops saying "calculating". */
@@ -24222,15 +24284,33 @@ function refreshLivePreview() {
   drawSketch();
 }
 
+/* Preserve only GPU objects from this document while a committed canonical
+   edit restores its exact result. Model meshes remain invalidated normally:
+   the retained view is never an export, measurement or topology source. */
+function retainingExactPreview() {
+  return !!(E.docType==="part" && E.exactRestoring && E.pv && !E.pv.inRoom
+    && E.pv.committedDocument===E.def && E.pv.grp
+    && E.pv.grp.children.some(function(child){return child.userData && child.userData.cadPartRoot;}));
+}
+function retainExactPreview() {
+  if(!retainingExactPreview())return false;
+  syncReplacedBodyVisibility();
+  if(E.pv.liveGrp && E.pv.liveGrp.children.length)clearGroup(E.pv.liveGrp);
+  E.hoverTopology=null;
+  syncRetainedExactPreviewStatus();
+  return true;
+}
 function updatePreview() {
   if (typeof window !== "undefined") window.cadUpdatePreview = updatePreview;
-  decoGroups.length = 0;   // truncate, never reassign: window.cadDecoGroups holds this reference
-  E._hiddenPreviewReplaceId = null;
   /* The sheet projects the same bodies this rebuild is about to replace, and
      hidden-line removal is far too expensive to redo per paint — so this is
      where its cache is told the model moved. */
   invalidateDrawing();
+  if(retainExactPreview())return;
+  decoGroups.length = 0;   // truncate, never reassign: window.cadDecoGroups holds this reference
+  E._hiddenPreviewReplaceId = null;
   if (!E.pv) return;
+  E.pv.committedDocument=E.docType==="part"?E.def:null;
   if (E.pv.inRoom) {
     clearGroup(E.pv.roomGrp);
     if (E.docType === "part") {
@@ -24856,6 +24936,7 @@ function releaseExactRun() {
 }
 
 function abandonDocumentExactWork() {
+  if(E.pv)E.pv.committedDocument=null;
   if(pendingCutController)pendingCutController.abort();
   (E.def?.parts || []).forEach(function(part){
     var timer=exactBuildTimers.get(part);
@@ -24890,6 +24971,7 @@ function rebuildFailureMessage(issues, fallback) {
 }
 var exactRebuildQueue=createExactRebuildQueue();
 function cancelExactModelRebuild() {
+  var hadRetainedPreview=retainingExactPreview();
   if(pendingCutController)pendingCutController.abort();
   cancelledExactPreview={document:E.def,node:currentHistoryNode()};
   (E.def?.parts || []).forEach(function(part){
@@ -24902,6 +24984,8 @@ function cancelExactModelRebuild() {
   exactRebuildQueue.reset();
   cancelCadWorkerWork();
   E.kernelBusy=false;
+  E.exactRestoring=false;
+  if(hadRetainedPreview){updatePreview();syncStatus();}
 }
 function scheduleExactRestore() {
   if (!(isCanonicalAuthoring() && E.def && activeParts(E.def).length)) {

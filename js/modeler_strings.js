@@ -1495,6 +1495,7 @@ export var TXT = {
   coachStepPlane: ["בחרו מישור עבודה ופתחו את הסקיצה הראשונה", "Choose a work plane and open your first sketch"],
   coachActPlane: ["בחירת מישור", "Choose plane"],
   coachStepSketch: ["שרטטו על המישור העליון — כלי המלבן מוכן", "Sketch on the Top plane — the rectangle tool is ready"],
+  coachStepSketchPlane: ["שרטטו על {plane} — כלי המלבן מוכן", "Sketch on {plane} — the rectangle tool is ready"],
   coachActSketch: ["התחלת סקיצה", "Start sketch"],
   coachStepAddSketch: ["הוסיפו סקיצה על פאה כדי להמשיך את החלק", "Add a sketch on a face to keep building this part"],
   coachActAddSketch: ["סקיצה על פאה", "Sketch on face"],

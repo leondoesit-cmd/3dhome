@@ -18,6 +18,18 @@ test('empty-part Start sketch Top action overrides last-used Right while ordinar
  start('sslot');assert.equal(selected.p.id,'plane:right');
 });
 
+test('coach names the remembered sketch plane and starts on that same plane',()=>{
+ const planes=['top','front','right'].map(x=>({id:'plane:'+x,type:'plane',name:x==='right'?'Right plane':x+' plane'}));
+ for(const compact of [false,true]){
+  const E={docType:'part',def:{references:planes},lastSketchReferenceId:'plane:right'};let selected;
+  const suggest=load('coachSuggestion',{E,isCanonicalAuthoring:()=>true,currentWorkflowStep:()=> 'reference',ensureSketch:()=>({}),recommendedDiagnostic:()=>null,displayedCoreIssues:()=>[],
+   document:{body:{classList:{contains:()=>compact}}},defaultSketchPlane,referenceLabel:p=>p.name,tf:(key,args)=>`Sketch on ${args.plane} — the rectangle tool is ready`,t:key=>key,
+   startSketchOnDefaultPlane:(tool,id)=>selected={tool,id}});
+  const tip=suggest();assert.match(tip.phrase,/Right plane/);assert.doesNotMatch(tip.phrase,/Top plane/);
+  tip.run();assert.deepEqual(selected,{tool:'srect',id:'plane:right'});
+ }
+});
+
 function planeCallback(){let result;function visit(n){if(!n||typeof n!=='object')return;if(n.type==='CallExpression'&&n.callee?.object?.name==='planeSel'&&n.callee.property?.name==='addEventListener')result=n.arguments[1];for(const v of Object.values(n)){if(Array.isArray(v))v.forEach(visit);else if(v&&typeof v==='object')visit(v);}}visit(parse(source,{ecmaVersion:'latest',sourceType:'module'}));return source.slice(result.start,result.end);}
 
 test('committing Right to Top updates authored reference, active working frame, chip and normal camera together',()=>{

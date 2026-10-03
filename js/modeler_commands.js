@@ -105,6 +105,7 @@ export function buildCommandCatalog(ctx) {
     { id:"wall", icon:"ph-line-segment", label:t("tool_wall"), group:t("cmdSketch"), shortcut:"L", terms:"line chain profile", available:function(){ return partDoc(); }, reason:needPart },
     { id:"srect", icon:"ph-rectangle", label:t("tool_srect"), group:t("cmdSketch"), shortcut:"Q", terms:"rectangle profile", available:function(){ return partDoc(); }, reason:needPart },
     { id:"centerrectangle", icon:"ph-rectangle", label:t("centerRectangle"), group:t("cmdSketch"), terms:"center rectangle symmetric origin dimensions precise", available:partDoc, reason:needPart },
+    { id:"dimensionedcircle", icon:"ph-circle", label:"Dimensioned circle", group:t("cmdSketch"), terms:"precise circle center centre diameter dimension fully defined", available:partDoc, reason:needPart },
     { id:"faceboundary", icon:"ph-copy-simple", label:t("faceBoundary"), group:t("cmdSketch"), terms:"convert entities offset face boundary copy inset", available:function(){return partDoc() && solids();}, reason:needSolid },
     { id:"scirc", icon:"ph-circle-dashed", label:t("tool_scirc"), group:t("cmdSketch"), shortcut:"G", terms:"circle", available:function(){ return partDoc(); }, reason:needPart },
     { id:"sarc", icon:"sarc", label:t("centerpointArc"), group:t("cmdSketch"), shortcut:"A", terms:"centerpoint centre center start end arc", available:function(){ return partDoc(); }, reason:needPart },
