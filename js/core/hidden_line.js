@@ -77,13 +77,18 @@ function collectTriangles(bodies) {
     const positions = body?.positions;
     if (positions?.length) total += Math.floor(positions.length / 9);
   }
-  const points = new Float64Array(total * 9), owner = new Int32Array(total);
+  const points = new Float64Array(total * 9), owner = new Int32Array(total), nativeFace = new Array(total);
   let tri = 0, bodyIndex = 0;
   const bounds = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
   for (const body of list) {
     const positions = body?.positions;
     if (positions?.length) {
       const count = Math.floor(positions.length / 9);
+      const faceOf = new Array(count);
+      for (const range of body.faceRanges || []) {
+        if (!range.persistentId || !Number.isInteger(range.triangleStart) || !Number.isInteger(range.triangleCount) || range.triangleStart < 0 || range.triangleCount <= 0 || range.triangleStart + range.triangleCount > count) continue;
+        for (let i=range.triangleStart;i<range.triangleStart+range.triangleCount;i++) faceOf[i]=String(range.persistentId);
+      }
       for (let i = 0; i < count; i++) {
         let ok = true;
         for (let k = 0; k < 9; k++) {
@@ -92,7 +97,7 @@ function collectTriangles(bodies) {
           points[tri * 9 + k] = value;
         }
         if (!ok) continue;
-        owner[tri] = bodyIndex;
+        owner[tri] = bodyIndex; nativeFace[tri] = faceOf[i];
         for (let k = 0; k < 9; k += 3) {
           const x = points[tri * 9 + k], y = points[tri * 9 + k + 1], z = points[tri * 9 + k + 2];
           if (x < bounds.x0) bounds.x0 = x; if (x > bounds.x1) bounds.x1 = x;
@@ -107,7 +112,7 @@ function collectTriangles(bodies) {
   const span = Number.isFinite(bounds.x0)
     ? Math.max(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0, 1e-3)
     : 1;
-  return { points, owner, count: tri, bounds: Number.isFinite(bounds.x0) ? bounds : null, span };
+  return { points, owner, nativeFace, count: tri, bounds: Number.isFinite(bounds.x0) ? bounds : null, span };
 }
 
 function triangleNormal(points, tri) {
@@ -593,7 +598,10 @@ export function projectSolid(bodies, view = "front", options = {}) {
     const owner = store.owner[edge.tris[0]];
     const cylinder = edge.tris.length > 1 && edge.tris.every(tri=>store.owner[tri]===owner)
       ? cylindricalSeam(edge,faces,cylinders[owner],weld*2) : null;
-    if (!candidate && !cylinder) {
+    // Native face identity distinguishes smooth tessellation from authored edges.
+    // Keep silhouettes below, even where both triangles belong to one face.
+    const sameNativeFace = !!store.nativeFace[edge.tris[0]] && edge.tris.every(tri => store.owner[tri]===owner && store.nativeFace[tri]===store.nativeFace[edge.tris[0]]);
+    if (!candidate && !cylinder && !sameNativeFace) {
       for (let a = 0; a < faces.length && !candidate; a++) {
         for (let b = a + 1; b < faces.length; b++) {
           if (dot(faces[a], faces[b]) < creaseCos) { candidate = true; break; }   // a real crease
@@ -659,7 +667,9 @@ export function projectSolid(bodies, view = "front", options = {}) {
   }
   // Small oblique rims remain tessellated ellipses. Removing each short chord
   // by pen width erases the entire hole, even though their complete loop is large.
-  const merged = consolidateSegments(inkVisible, inkHidden, span2d * 1.5e-3, 1e-9);
+  // Consolidation may merge coincident straight ink, but must not relocate
+  // curved outline chords onto nearby lines at paper/pen-scale tolerance.
+  const merged = consolidateSegments(inkVisible, inkHidden, Math.max(1e-8, store.span * 1e-7), 1e-9);
   const cuts = (options.cuts || []).map((cut) => ({
     a: { u: dot(cut.a, basis.right), v: dot(cut.a, basis.up) },
     b: { u: dot(cut.b, basis.right), v: dot(cut.b, basis.up) },

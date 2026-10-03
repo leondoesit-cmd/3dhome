@@ -290,7 +290,7 @@ export function tessellatePart(part) {
   if (!part) return null;
   if (part.meshData && !part.exactPending) {
     const positions = meshDataTriangles(part.meshData);
-    if (positions.length >= 9) return { id: part.id, name: part.name, positions };
+    if (positions.length >= 9) return { id: part.id, name: part.name, positions, faceRanges: part.meshData.faceRanges };
   }
   let positions = [];
   if (part.kind === "box") positions = boxTriangles(part);

@@ -39,11 +39,11 @@
 // and a grounded or prescribed member anchors the entire connected group.
 
 import {
-  axisAngleMatrix, captureGearPhase, captureLockPose, lockTarget, createFrameResolver, mateFrameSupports, mateFramesSupport, mateRequirementFor, mateResidual,
+  axisAngleMatrix, captureCoupledScrewZero, captureGearPhase, captureLockPose, lockTarget, createFrameResolver, mateFrameSupports, mateFramesSupport, mateRequirementFor, mateResidual,
   mateResidualVector, mateTarget, matrixEuler, mul, normalizePose, normalizeQuat, quatMatrix,
   rotationFromTo, rotationOf, rotationVectorMatrix, setRotation, transpose, apply, FRAME_ISSUE,
 } from "./cad_mate_model.js";
-import { gaussNewtonStep, normOf, rankOf } from "./core/least_squares.js";
+import { gaussNewtonStep, normOf, stableColumnRank } from "./core/least_squares.js";
 import { ASSEMBLY_ORIGIN_ID, assemblyOriginComponent } from "./core/assembly_structure.js";
 
 const POSE_KEYS = ["x", "y", "z", "rx", "ry", "rz"];
@@ -141,6 +141,7 @@ function acceptMates(assembly, entries, byId, resolvedFrame, issues) {
       continue;
     }
     if (mate.type === "gear") captureGearPhase(mate, fa, fb, a, b);
+    if (mate.type === "screw" && mate.coupledMotion) captureCoupledScrewZero(mate, fa, fb, a, b);
     const rows = mateResidualVector(mate, fa, fb, b, { fc, reader: a });
     if (!rows) { issues.push({ mate: entry.id, code: "unresolved-topology" }); continue; }
     accepted.push({ ...entry, a, b, c, width: rows.length });
@@ -183,6 +184,61 @@ function decompose(accepted) {
     }
     if (mate.c && movable.has(mate.c.id) && mate.c.id !== mate.b.id) edges.get(mate.c.id).push(mate.b.id);
   }
+
+  /* A grounded component closes a physical linkage even though it contributes
+   * no variables. The directed dependency graph alone sees Ground -> Handle ->
+   * Link -> Arm and Ground -> Arm as a chain, then solves the free handle before
+   * the arm can pull it into loop closure. Find edges that lie on an undirected
+   * cycle and let the movable members of that cycle solve together. Bridges
+   * keep ordinary long assembly chains in their small, fast clusters. A shared
+   * grounded bracket never joins two otherwise independent linkages. */
+  const joints = [], neighbours = new Map(), seenJoints = new Set();
+  const addNeighbour = (from, to, edge) => {
+    if (!neighbours.has(from)) neighbours.set(from, []);
+    neighbours.get(from).push({ to, edge });
+  };
+  for (const { a, b } of accepted) {
+    if (a.id === b.id) continue;
+    const pair = [a.id, b.id].sort();
+    const key = JSON.stringify(pair);
+    if (seenJoints.has(key)) continue; // concentric + axial face is one hinge
+    seenJoints.add(key);
+    const edge = joints.length;
+    joints.push({ a: a.id, b: b.id });
+    addNeighbour(a.id, b.id, edge);
+    addNeighbour(b.id, a.id, edge);
+  }
+  const visited = new Map(), lowLink = new Map(), bridges = new Set();
+  let visitIndex = 0;
+  for (const root of neighbours.keys()) {
+    if (visited.has(root)) continue;
+    visited.set(root, visitIndex); lowLink.set(root, visitIndex++);
+    const work = [{ node: root, parent: null, incoming: -1, next: 0 }];
+    while (work.length) {
+      const frame = work[work.length - 1];
+      const edge = neighbours.get(frame.node)[frame.next++];
+      if (edge) {
+        if (edge.edge === frame.incoming) continue;
+        if (!visited.has(edge.to)) {
+          visited.set(edge.to, visitIndex); lowLink.set(edge.to, visitIndex++);
+          work.push({ node: edge.to, parent: frame.node, incoming: edge.edge, next: 0 });
+        } else {
+          lowLink.set(frame.node, Math.min(lowLink.get(frame.node), visited.get(edge.to)));
+        }
+        continue;
+      }
+      work.pop();
+      if (frame.parent !== null) {
+        lowLink.set(frame.parent, Math.min(lowLink.get(frame.parent), lowLink.get(frame.node)));
+        if (lowLink.get(frame.node) > visited.get(frame.parent)) bridges.add(frame.incoming);
+      }
+    }
+  }
+  joints.forEach(({ a, b }, edge) => {
+    if (bridges.has(edge) || !movable.has(a) || !movable.has(b)) return;
+    edges.get(a).push(b);
+    edges.get(b).push(a);
+  });
 
   const index = new Map(), low = new Map(), onStack = new Set(), stack = [], groups = [];
   let counter = 0;
@@ -412,7 +468,7 @@ function seedCluster(cluster, resolvedFrame) {
   };
   const targetFor = (entry) => mateTarget(entry.mate,
     resolvedFrame(entry.mate.a, entry.a, entry.id, false),
-    resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b);
+    resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b, entry.a);
   const movable=new Set(cluster.components.map(c=>c.id));
   // Seed rigid followers outward from grounded or motor-prescribed members.
   // Either selection order describes the same physical lock relation.
@@ -577,7 +633,7 @@ function analyzeFreedom(cluster, run) {
     offset+=entry.width;
   }
   const jacobian=run.jacobian.filter((_row,index)=>!boundedRows.has(index)).concat(rigidRotationRows);
-  const rank = jacobian.length ? rankOf(jacobian) : 0;
+  const rank = jacobian.length ? stableColumnRank(jacobian) : 0;
   const report = {
     components: cluster.components.map((component) => component.id),
     variableCount: run.variables, rank, degreesOfFreedom: Math.max(0, run.variables - rank),
@@ -586,7 +642,7 @@ function analyzeFreedom(cluster, run) {
   if (run.variables && run.variables <= 60 && jacobian.length) {
     cluster.components.forEach((component, index) => {
       const without = jacobian.map((row) => row.filter((_, column) => column < index * 6 || column >= index * 6 + 6));
-      report.perComponent[component.id] = Math.max(0, 6 - (rank - rankOf(without)));
+      report.perComponent[component.id] = Math.max(0, 6 - (rank - stableColumnRank(without)));
     });
   }
   return report;

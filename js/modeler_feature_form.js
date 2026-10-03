@@ -7,7 +7,7 @@ import { endConditionHidesDepth, isUpToFace } from "./core/extrude_extent.js";
 import { linearPatternAxisDefinitions, linearPatternDirection, patternAxisEnabled } from "./core/pattern_geometry.js";
 import { holeTableRow, holeWizardSizeChoices } from "./cad_hole_wizard.js";
 import { toolboxFamily } from "./cad_toolbox.js";
-import {formatDocumentLength,lengthFromDocument,documentLengthUnit} from './core/document_length_units.js';
+import {formatDocumentLength,lengthFromDocument,lengthToDocument,documentLengthUnit} from './core/document_length_units.js';
 import {createHelixRegionEditor} from './helix_region_form.js';
 
 export function featureControlValue(control) {
@@ -34,8 +34,9 @@ export function evaluateFeatureNumber(raw, field) {
   if (field.unit === 'length' && field.inputUnit && !explicitLength)
     value = lengthFromDocument(value, field.inputUnit);
   if (!Number.isFinite(value)) throw new Error("Enter a finite number");
-  if (field.min != null && value < Number(field.min)) throw new Error("Minimum: " + field.min);
-  if (field.max != null && value > Number(field.max)) throw new Error("Maximum: " + field.max);
+  const limitText=limit=>field.unit==='length' && field.inputUnit ? formatDocumentLength(limit,field.inputUnit)+' '+field.inputUnit : limit;
+  if (field.min != null && value < Number(field.min)) throw new Error("Minimum: " + limitText(field.min));
+  if (field.max != null && value > Number(field.max)) throw new Error("Maximum: " + limitText(field.max));
   if (/^(count|.*Count|count[XYZ])$/.test(field.key) && !Number.isInteger(value)) throw new Error("Enter a whole number");
   return value;
 }
@@ -95,12 +96,13 @@ var expressionFieldId = 0;
 export function featureField(host, field, value, options) {
   options = options || {};
   var el = options.el;
+  var inputLengthUnit=documentLengthUnit(field.inputUnit || options.units?.length);
   var wrap = el(["helix-regions","feature-seeds"].includes(field.type)?"div":"label", "md-quick-field type-" + field.type);
   wrap.dataset.parameter = field.key;
   var caption = el("span", "md-feature-field-label", field.label);
   if (field.unit) {
     var units = options.units || { length: "mm", angle: "deg" };
-    caption.appendChild(el("small", "md-feature-unit", field.unit === "angle" ? (units.angle || "deg") : documentLengthUnit(units.length)));
+    caption.appendChild(el("small", "md-feature-unit", field.unit === "angle" ? (units.angle || "deg") : inputLengthUnit));
   }
   wrap.appendChild(caption);
   var input;
@@ -132,10 +134,10 @@ export function featureField(host, field, value, options) {
   } else {
     input = el("input"); input.type = "text";
     input.value = field.unit === 'length' && Number.isFinite(Number(value)) && value != null
-      ? formatDocumentLength(Number(value), options.units?.length) : value ?? "";
-    if (field.min != null) input.min = field.min;
-    if (field.max != null) input.max = field.max;
-    input.step = field.step || ".1";
+      ? formatDocumentLength(Number(value), inputLengthUnit) : value ?? "";
+    if (field.min != null) input.min = field.unit==='length' ? lengthToDocument(field.min,inputLengthUnit) : field.min;
+    if (field.max != null) input.max = field.unit==='length' ? lengthToDocument(field.max,inputLengthUnit) : field.max;
+    input.step = field.unit==='length' ? lengthToDocument(Number(field.step)||.1,inputLengthUnit) : field.step || ".1";
     wrap.appendChild(input);
   }
   if (field.type === "number") {
@@ -161,6 +163,7 @@ export function featureField(host, field, value, options) {
     input._validateFeatureValue = validate;
     input.addEventListener("input", validate); input.addEventListener("change", validate); validate();
   }
+  input.dataset.parameterLabel = field.label;
   input.dataset.parameter = field.key;
   input.dataset.parameterType = field.type;
   host.appendChild(wrap);

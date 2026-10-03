@@ -104,6 +104,43 @@ export function rankOf(J, tolerance = 1e-9) {
   return rank;
 }
 
+/* Column-pivoted, twice-orthogonalised rank for dense 3D mechanism Jacobians.
+ * A closed loop can have many redundant residual rows; row-wise normalisation
+ * before elimination amplifies their finite-difference noise into an invented
+ * full rank. Unit columns preserve rank while making translations and angles
+ * comparable; reorthogonalisation distinguishes a true free coordinate. */
+export function stableColumnRank(J, tolerance = 1e-6) {
+  if (!J.length || !J[0]?.length) return 0;
+  const count = J[0].length;
+  const columns = Array.from({ length: count }, (_, j) => J.map(row => row[j]));
+  const norm = col => { let sum = 0; for (const value of col) sum += value * value; return Math.sqrt(sum); };
+  for (const col of columns) {
+    const length = norm(col);
+    if (length > 1e-12) for (let i = 0; i < col.length; i++) col[i] /= length;
+    else col.fill(0);
+  }
+  let rank = 0;
+  for (; rank < count; rank++) {
+    let pivot = rank, largest = norm(columns[pivot]);
+    for (let j = rank + 1; j < count; j++) {
+      const size = norm(columns[j]);
+      if (size > largest) { largest = size; pivot = j; }
+    }
+    if (largest <= tolerance) break;
+    [columns[rank], columns[pivot]] = [columns[pivot], columns[rank]];
+    const unit = columns[rank].map(value => value / largest);
+    for (let j = rank + 1; j < count; j++) {
+      const col = columns[j];
+      for (let pass = 0; pass < 2; pass++) {
+        let projection = 0;
+        for (let i = 0; i < col.length; i++) projection += unit[i] * col[i];
+        for (let i = 0; i < col.length; i++) col[i] -= projection * unit[i];
+      }
+    }
+  }
+  return rank;
+}
+
 export function normOf(vector) {
   let sum = 0;
   for (const value of vector) sum += value * value;

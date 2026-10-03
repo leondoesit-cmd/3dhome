@@ -1,3 +1,4 @@
+import {createSpringBinding,springSource,springMotionState,springPreviewMesh,hasUnverifiedSprings,restoreSpringEndpoint} from "./core/flexible_spring.js";
 import {createExactSaveCache} from "./core/exact_save_cache.js";
 import {shortcutConflict,validShortcutBindings} from './core/command_shortcuts.js';
 import {sketchGeometryBounds} from './core/sketch_view_fit.js';
@@ -155,8 +156,8 @@ import { featureContourKey, selectFeatureContours } from "./core/feature_contour
 import { createReferencePlane, createReferenceAxis, createReferencePoint, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
 import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath,circularHelixSweepProfile } from "./cad_helix.js";
 import { circularSweepProfile, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
-import { createExplodedView, addExplodeStep, applyExplodedView, applyExplodedProgress, explodeLines, explodeTargets, explodedOccurrenceOffset } from "./cad_exploded_view.js";
-import { createMotionStudy, addRotaryMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
+import { defaultExplodeSpacing, createExplodedView, addExplodeStep, applyExplodedView, applyExplodedProgress, explodeLines, explodeTargets, explodedOccurrenceOffset } from "./cad_exploded_view.js";
+import { createMotionStudy, addRotaryMotor, addScrewMotor, addLinearMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
 import { detectInterference, generateBOM } from "./cad_interference.js";
 import { createProjectBundle, exportProjectBundle, importProjectBundle, importProjectBundleText, activeProjectDocument } from "./cad_project_bundle.js";
 import { measureAngleBetweenNormals, measureDistance } from "./cad_evaluate.js";
@@ -249,7 +250,7 @@ import {
 } from "./modeler_chrome.js";
 import {
   applyHandleDrag, dimensionValueFromDrag, distancePointToSegment2d, extrudeHandlePose,
-  filletGrowDirection, filletHandlePose, maxFinishAmount, patternHandlePose,
+  filletGrowDirection, filletHandlePose, maxFinishAmount, patternHandlePose, instant3dDisplayValue, instant3dModelValue, instant3dValueLabel,
 } from "./modeler_instant3d.js";
 import { inferSmartMate, isolateVisibility } from "./modeler_smartmates.js";
 import { welcomeGlyph } from "./modeler_welcome_glyphs.js";
@@ -4584,12 +4585,7 @@ function buildDOM() {
   coachBox.addEventListener("change", function () { E.coachEnabled = this.checked; E.coachDismissed = false; saveModelerPrefs(); syncCoach(); });
   cons.querySelector("#mdGuideReplay").addEventListener("click", function () { setTab("parts"); startTour(); });
   cons.querySelector("#mdDocumentLengthUnit").addEventListener("change", function () {
-    var unit=documentLengthUnit(this.value);
-    if(unit===modelLengthUnit())return;
-    pushUndo(t("partUnits"));
-    E.def.context ||= {};E.def.context.units ||= {};
-    E.def.context.units.length=unit;
-    refreshAll();
+    setModelLengthUnit(this.value);
   });
   cons.querySelector("#mdGrid").addEventListener("change", function () { E.grid = Math.max(0.1, fromDisp(+this.value || 5, "details")); drawSketch(); syncStatus(); });
   cons.querySelector("#mdDepth").addEventListener("change", function () { E.depth = Math.max(0.1, fromDisp(+this.value || 60, "details")); });
@@ -6805,7 +6801,16 @@ function syncAuthoringWorkflow() {
   syncCoach();
 }
 function modelLengthUnit() {
-  return documentLengthUnit(E.def?.context?.units?.length);
+  var document=E.docType==="assembly"?E.assembly:E.def;
+  return documentLengthUnit(document?.context?.units?.length);
+}
+function setModelLengthUnit(value) {
+  var document=E.docType==="assembly"?E.assembly:E.def;
+  if(!document)return false;
+  var unit=documentLengthUnit(value);if(unit===modelLengthUnit())return false;
+  pushUndo(t("partUnits"));
+  document.context ||= {};document.context.units ||= {};document.context.units.length=unit;
+  syncHead();refreshAll();return true;
 }
 function modelLengthText(cm, digits=10) {
   return formatDocumentLength(cm, modelLengthUnit(), digits);
@@ -7404,6 +7409,7 @@ function openFinishPreviewChooser() {
 }
 
 async function exportModelGlb() {
+  if(rejectFlexibleSpringPreview())return;
   if (!E.pv?.grp) { flash("Open the 3D model preview first."); return; }
   try {
     var mod = await import("three/addons/exporters/GLTFExporter.js");
@@ -8014,7 +8020,7 @@ function featureReferenceOptions(type) {
 function renderFeatureParameterForm(host,type,state,onLive) {
   var controls=renderFeatureParameterFormCore(host,type,state,onLive,{
     el:el,
-    units:E.def && E.def.context && E.def.context.units || {length:getDomainUnit("details"),angle:"deg"},
+    units:{length:modelLengthUnit(),angle:E.def?.context?.units?.angle || "deg"},
     referenceOptions:featureReferenceOptions,
     featureSeeds:(E.def.features || []).filter(function(feature,index,features){var current=features.findIndex(function(item){return item.id===state.id;});return !feature.suppressed && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length && (current<0 || index<current);}).map(function(feature){return {value:feature.id,label:feature.name || feature.type};}),
     advancedLabel:t("featureMoreOptions"),
@@ -8044,7 +8050,7 @@ function renderFeatureParameterForm(host,type,state,onLive) {
 function featureField(host,field,value) {
   return featureFieldCore(host,field,value,{
     el:el,
-    units:E.def && E.def.context && E.def.context.units || {length:getDomainUnit("details"),angle:"deg"},
+    units:{length:modelLengthUnit(),angle:E.def?.context?.units?.angle || "deg"},
     referenceOptions:featureReferenceOptions,
   });
 }
@@ -10203,9 +10209,10 @@ function openQuickForm(spec) {
     if (spec.onCancel) spec.onCancel();
     refreshAll();
   }, "md-quick-cancel"), t("cancelCommand")));
-  actions.appendChild(btn('<i class="ph ph-check"></i> ' + t("quickApply"), function () {
+  actions.appendChild(btn('<i class="ph ph-check"></i> ' + t("quickApply"), async function () {
     if (!validateFeatureInputs(host)) return;
-    if (spec.onApply(read()) === false) return;
+    if (await spec.onApply(read()) === false) return;
+    if(E.quickAction!==(spec.action || "quickform"))return;
     close();
     refreshAll();
   }, "md-quick-apply"));
@@ -10988,6 +10995,7 @@ function setDocumentType(type) {
 }
 
 async function saveAssemblyDocument() {
+  if(rejectFlexibleSpringPreview())return;
   if (!E.assembly) E.assembly = newAssembly();
   E.assembly.name = root.querySelector("#mdName").value || E.assembly.name;
   setDocumentDescription(E.assembly, root.querySelector("#mdDescription").value);
@@ -11008,6 +11016,7 @@ async function saveAssemblyDocument() {
 // A room object is a reusable snapshot; the complete editable assembly is kept
 // alongside it so publication never discards the component feature histories.
 async function publishAssemblyModel() {
+  if(rejectFlexibleSpringPreview())return;
   if (!E.assembly?.components?.length) { flash(t("needParts")); return; }
   applyAssemblyMates(E.assembly);
   var source=cloneData(E.assembly), parts=[];
@@ -18717,7 +18726,7 @@ function assemblyTransformInspector() {
   var grid = el("div", "md-prop-grid"), tr = normalizeTransform(component),placementInputs={};
   [["X", "x"], ["Y", "y"], ["Z", "z"], ["RX°", "rx"], ["RY°", "ry"], ["RZ°", "rz"]].forEach(function (pair) {
     var turns = pair[1] !== "x" && pair[1] !== "y" && pair[1] !== "z";
-    placementInputs[pair[1]]=numRow(grid, pair[0], function () { return tr[pair[1]]; }, function (v) {
+    placementInputs[pair[1]]=(turns?numRow:numLengthRow)(grid, pair[0], function () { return tr[pair[1]]; }, function (v) {
       if (!component.grounded) {
         tr[pair[1]] = v;
         /* A typed angle is an edit to the orientation, and the orientation is
@@ -18732,7 +18741,7 @@ function assemblyTransformInspector() {
   host.appendChild(grid);
   var applyPlacement=btn("Apply placement",function(){
     if(component.grounded)return;
-    var values={};Object.keys(placementInputs).forEach(function(key){values[key]=Number(placementInputs[key].value);});
+    var values={};Object.keys(placementInputs).forEach(function(key){var value=Number(placementInputs[key].value);values[key]=["x","y","z"].includes(key)?lengthFromDocument(value,modelLengthUnit()):value;});
     if(Object.values(values).some(function(value){return !Number.isFinite(value);})){flash("Enter finite placement values.");return;}
     var nextName=name.value.slice(0,80) || component.modelKey;
     if(nextName===component.name && Object.keys(values).every(function(key){return values[key]===tr[key];}))return;
@@ -18753,7 +18762,7 @@ async function refreshConfiguredComponent(component) {
     var compiled=compileKernelFeatureTree(document);
     if(!compiled.ok)throw new Error(compiled.issues?.[0]?.message || "Invalid component history");
     flash("Computing component configuration…");
-    run=await regenerateFeatures({...compiled.document,features:compiled.features},{onProgress:function(progress){if(current())flash("Computing component · "+(progress.name||progress.stage));}});
+    run=await regenerateFeatures({...compiled.document,features:compiled.features},{restoreMode:"mesh",onProgress:function(progress){if(current())flash("Computing component · "+(progress.name||progress.stage));}});
     if(!current())return;
     synchronizeExtrusionProjections(document,compiled.features,run);
     document.exactTopologyCache=captureExactTopology(document,compiled.features,run);
@@ -18764,11 +18773,65 @@ async function refreshConfiguredComponent(component) {
     if(!current())return;
     invalidateInterference();solveAssembly();refreshAll();fitPreview();
     if(!run.ok)throw new Error(rebuildFailureMessage(run.issues,"Component configuration failed"));
-    flash("✓ Component configuration rebuilt");
-  } catch(error) {if(current())flash(String(error.message||error),5000);}
+    flash("✓ Component configuration rebuilt");return true;
+  } catch(error) {if(current())flash(String(error.message||error),5000);return false;}
   finally {if(run)releaseRegeneration(run);}
 }
 
+function rejectFlexibleSpringPreview() {
+  if(E.docType!=="assembly" || !hasUnverifiedSprings(E.assembly))return false;
+  flash("Flexible spring is a visual preview. Move to an exact endpoint or restore the exact spring before saving, export or interference checks.",6000);return true;
+}
+async function syncFlexibleSpringsAtMotionState(assembly) {
+  for(var component of assembly.components || []){
+    if(!component.flexibleSpring)continue;
+    var state;
+    try {state=springMotionState(component,assembly);}catch(error){component.flexibleSpringState={exact:false,error:error.message};flash(error.message,6000);continue;}
+    component.flexibleSpringState=state;
+    if(state.configurationId){
+      restoreSpringEndpoint(component,state.configurationId);
+      if(await refreshConfiguredComponent(component) && E.assembly===assembly)component.flexibleSpringState.exact=true;
+    }
+  }
+  if(hasUnverifiedSprings(assembly))flash("Flexible spring · visual preview only; exact checks and Save require an endpoint.",6000);
+}
+function openFlexibleSpringForm(component) {
+  var assembly=E.assembly,previous=null,cancelled=false;
+  try{springSource(component.def);}catch(error){flash(error.message,6000);return;}
+  var drivers=(E.assembly.components || []).filter(function(c){return c!==component && !c.grounded;});
+  if(!drivers.length){flash("Choose a moving rod component first.");return;}
+  openQuickForm({action:"flexiblespring",title:"Flexible spring",hint:"Connect the spring height to a rod's axial travel. Intermediate geometry is a visual preview with unchanged circular wire diameter. Exact Save/export requires a configured endpoint.",fields:[
+    {key:"driver",label:"Moving rod",type:"select",value:component.flexibleSpring?.driverId || drivers[0].id,choices:drivers.map(function(c){return {value:c.id,label:c.name || c.id};})},
+    {key:"response",label:"Height response",type:"select",value:component.flexibleSpring?.response || 1,choices:[{value:1,label:"Positive travel extends"},{value:-1,label:"Positive travel compresses"}]}
+  ],onCancel:function(){
+    cancelled=true;if(!previous)return;
+    configuredComponentBuilds.set(component,(configuredComponentBuilds.get(component)||0)+1);
+    component.def=previous.def;component.flexibleSpring=previous.binding;component.flexibleSpringState=previous.state;
+  },onApply:async function(values){
+    if(cancelled || previous || E.assembly!==assembly)return false;
+    var driver=drivers.find(function(c){return String(c.id)===String(values.driver);}),binding;
+    try{binding=createSpringBinding(component,driver,Number(values.response));}catch(error){flash(error.message,6000);return false;}
+    pushUndo("Flexible spring binding");previous={def:component.def,binding:component.flexibleSpring,state:component.flexibleSpringState};
+    component.def=cloneData(component.def);component.flexibleSpring=binding;component.flexibleSpringState={height:binding.baseHeight,configurationId:component.configurationId || component.def.activeConfiguration,exact:false};
+    if(!await refreshConfiguredComponent(component) || cancelled || E.assembly!==assembly)return false;
+    component.flexibleSpringState.exact=true;flash("Flexible spring connected · native endpoint");return true;
+  }});
+}
+async function restoreExactFlexibleSpring(component) {
+  var binding=component.flexibleSpring;if(!binding)return;
+  pushUndo("Restore exact spring");
+  var endpoint=Math.abs(binding.baseHeight-binding.min.height)<1e-7?binding.min:binding.max;
+  restoreSpringEndpoint(component,endpoint.configurationId);
+  if(await refreshConfiguredComponent(component)){delete component.flexibleSpring;delete component.flexibleSpringState;refreshAll();}
+}
+function addFlexibleSpringPreview(group,component) {
+  var state=component.flexibleSpringState;
+  if(!state || state.exact!==false || !Number.isFinite(state.height))return false;
+  var data;try{data=springPreviewMesh(component.def,state.height);}catch(error){flash(error.message,6000);return false;}
+  var geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.Float32BufferAttribute(data.positions,3));geometry.setAttribute("normal",new THREE.Float32BufferAttribute(data.normals,3));geometry.setIndex(data.indices);
+  var mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:0xf5aa42,metalness:.45,roughness:.3,side:THREE.DoubleSide}));
+  mesh.userData.cadFlexibleSpringPreview=true;group.add(mesh);return true;
+}
 function assemblyFlagsInspector() {
   var host = root.querySelector("#mdLook"); host.innerHTML = "";
   var component = E.sel;
@@ -18783,6 +18846,11 @@ function assemblyFlagsInspector() {
     row.appendChild(input); row.appendChild(el("span", "", entry[1])); host.appendChild(row);
   });
   var def = componentDef(component);
+  if(component.def && !isSubassembly(component)){
+    var springEligible=false;try{springSource(component.def);springEligible=true;}catch(_){ }
+    if(springEligible)host.appendChild(btn("Flexible spring…",function(){openFlexibleSpringForm(component);},"md-wide"));
+    if(component.flexibleSpring){host.appendChild(el("div","md-note",component.flexibleSpringState?.exact===false?"Flexible spring · VISUAL PREVIEW · exact Save/export blocked":"Flexible spring · native endpoint"));host.appendChild(btn("Restore exact spring and remove binding",function(){restoreExactFlexibleSpring(component);},"md-wide"));}
+  }
   if (def) {
     var shown=activeParts(def), bounds=shown.length?defBounds(def):null;
     if(!isSubassembly(component) && (def.configurations||[]).length>1){
@@ -18905,6 +18973,7 @@ function addTopologyMate(type, value) {
     value: type === "angle" ? clampMateAngle(value) : type === "distance" ? Number(value) : 0,
     pitch: type === "screw" ? 0.125 : undefined,
     turns: type === "screw" ? 0 : undefined,
+    coupledMotion: type === "screw" ? false : undefined,
     min: type === "limit" ? 0 : undefined,
     max: type === "limit" ? 2 : undefined,
     ratioA: type === "gear" ? (fin(Number(gearSpec.ratioA)) && Number(gearSpec.ratioA) > 0 ? Number(gearSpec.ratioA) : 1) : undefined,
@@ -19346,8 +19415,23 @@ function assemblyMateInspectorBody() {
         wrap.appendChild(input); mateUiRow.appendChild(wrap);
       };
       if (mate.type === "screw") {
+        var screwMode = el("label", "md-mate-value"), screwModeInput = el("input");
+        screwModeInput.type = "checkbox";
+        screwModeInput.checked = !!mate.coupledMotion;
+        screwModeInput.setAttribute("aria-label", "Couple screw rotation and travel");
+        screwMode.appendChild(screwModeInput);
+        screwMode.appendChild(el("span", "", "Couple rotation and travel (free screw joint)"));
+        screwModeInput.addEventListener("change", function () {
+          pushUndo(t("screwMate"));
+          mate.coupledMotion = screwModeInput.checked;
+          delete mate.coupledAxial0; delete mate.coupledPhase0; delete mate.driveTurns;
+          solveAssembly(); refreshAll();
+        });
+        mateUiRow.appendChild(screwMode);
         mateUiRow.appendChild(btn(mate.axisOpposed ? "Screw axes: Opposed" : "Screw axes: Aligned", function () {
-          pushUndo(t("screwMate")); mate.axisOpposed = !mate.axisOpposed; solveAssembly(); refreshAll();
+          pushUndo(t("screwMate")); mate.axisOpposed = !mate.axisOpposed;
+          delete mate.coupledAxial0; delete mate.coupledPhase0;
+          solveAssembly(); refreshAll();
         }, "md-mate-align"));
         var lengthUnit = modelLengthUnit();
         extraField(t("mateScrewPitch") + " (" + lengthUnit + "/" + t("mateScrewTurn") + ")",
@@ -19357,7 +19441,14 @@ function assemblyMateInspectorBody() {
             if (Math.abs(cm - Number(mate.pitch || 0)) < 1e-12) return;
             pushUndo(t("screwMate")); mate.pitch = cm; solveAssembly(); refreshAll();
           });
-        extraField(t("mateScrewTurns"), mate.turns, 0.25, function (next, input) {
+        if (mate.coupledMotion) extraField("Drive turns (blank = free)", mate.driveTurns, 0.25, function (next, input) {
+          if (next !== null && !fin(next)) { flash(t("mateScrewInvalid")); input.value = mate.driveTurns == null ? "" : String(mate.driveTurns); return; }
+          if (next === mate.driveTurns || (next === null && mate.driveTurns == null)) return;
+          pushUndo(t("screwMate"));
+          if (next === null) delete mate.driveTurns; else mate.driveTurns = next;
+          solveAssembly(); refreshAll();
+        });
+        else extraField(t("mateScrewTurns"), mate.turns, 0.25, function (next, input) {
           if (!fin(next)) { flash(t("mateScrewInvalid")); input.value = String(Number(mate.turns) || 0); return; }
           if (Math.abs(next - Number(mate.turns || 0)) < 1e-12) return;
           pushUndo(t("screwMate")); mate.turns = next; solveAssembly(); refreshAll();
@@ -22573,7 +22664,7 @@ function instant3dValueChip(view) {
     chip.addEventListener("pointerdown",function(event){event.stopPropagation();});
     chip.addEventListener("input",function(){
       var pose=E._instant3dPose, value=chip.valueAsNumber;
-      if(pose && Number.isFinite(value) && chip.validity.valid)syncFeatureFormValue(pose.key,value);
+      if(pose && Number.isFinite(value) && chip.validity.valid)syncFeatureFormValue(pose.key,instant3dModelValue(value,pose.key,modelLengthUnit()));
     });
     chip.addEventListener("keydown",function(event){
       event.stopPropagation();
@@ -22635,22 +22726,22 @@ function syncInstant3dValue(view) {
     .addScaledVector(dir.normalize(), (pose.hitLength || pose.length || 0) * 0.6)
     .project(view.cam);
   if (anchor.z > 1) { chip.hidden = true; return; }
-  var units = E.def && E.def.context && E.def.context.units && E.def.context.units.length || getDomainUnit("details");
+  var units = modelLengthUnit();
   var control=instant3dFormControl(pose.key);
   /* Display rounding must not become model rounding. This chip is rewritten
      from pose.value on every repaint, so a typed 10.414 was replaced by 10.41
      a frame later and the shorter number is what got committed — an engineering
      drawing's 4.100in quietly became 4.098in. Two decimals of a centimetre is
      a tenth of a millimetre, which is coarser than the drawings this editor is
-     meant to reproduce. Keep four, and leave the field alone entirely while it
+     meant to reproduce. Keep full document precision, and leave the field alone while it
      already shows the same number so an exact entry is never churned. */
   if (document.activeElement !== chip) {
-    var shownValue = Number(chip.value);
-    if (!Number.isFinite(shownValue) || Math.abs(shownValue - (pose.value || 0)) > 1e-6)
-      chip.value = String(Math.round((pose.value || 0) * 1e4) / 1e4);
+    var displayValue = instant3dDisplayValue(pose.value || 0,pose.key,units), shownValue = Number(chip.value);
+    if (!Number.isFinite(shownValue) || Math.abs(shownValue - displayValue) > 1e-9)
+      chip.value = String(Number(displayValue.toPrecision(12)));
   }
   chip.min=control && control.min || ""; chip.max=control && control.max || "";
-  chip.setAttribute("aria-label",featureTypeLabel(authoring.type)+" · "+(control && control.closest("label") && control.closest("label").querySelector(".md-feature-field-label")?.textContent || pose.key)+" ("+(pose.key==="angle"?"°":units)+")");
+  chip.setAttribute("aria-label",instant3dValueLabel(featureTypeLabel(authoring.type),control?.dataset?.parameterLabel || pose.key,pose.key,units));
   chip.title=chip.getAttribute("aria-label");
   chip.style.left = (canvas.offsetLeft + (anchor.x * 0.5 + 0.5) * canvas.clientWidth) + "px";
   chip.style.top = (canvas.offsetTop + (-anchor.y * 0.5 + 0.5) * canvas.clientHeight) + "px";
@@ -22755,7 +22846,7 @@ function instant3dFormControl(key) {
 function syncFeatureFormValue(key, value) {
   var input = instant3dFormControl(key);
   if (input) {
-    var next = String(Math.round(value * 100) / 100);
+    var next = String(Number(instant3dDisplayValue(value,key,modelLengthUnit()).toPrecision(12)));
     if (input.type === "checkbox") input.checked = !!value;
     else input.value = next;
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -23700,7 +23791,7 @@ function buildComponentGroup(component, top, prefix, presentationOnly = false) {
        selection and hover against a component that is no longer being built,
        so face highlights stop appearing anywhere until the editor is reopened. */
     try {
-      activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle, presentationOnly); });
+      if(!addFlexibleSpringPreview(group,component))activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle, presentationOnly); });
     } finally {
       E.buildComponent = null;
     }
@@ -24364,7 +24455,7 @@ function syncHead() {
   var name = root.querySelector("#mdName"), price = root.querySelector("#mdPrice");
   var description = root.querySelector("#mdDescription");
   var unitControl=root.querySelector("#mdDocumentLengthUnit");
-  if(unitControl && E.docType==="part")unitControl.value=modelLengthUnit();
+  if(unitControl)unitControl.value=modelLengthUnit();
   if (description) description.value = documentDescription(E.docType === "assembly" ? E.assembly : E.def);
   if (E.docType === "assembly") {
     name.value = E.assembly ? E.assembly.name || "" : "";
@@ -24730,6 +24821,7 @@ async function regenerateExactModelNow(rebuild,queueIsCurrent=function(){return 
 /* An assembly is exported as one compound of its exact leaf bodies, placed where
    the mates put them (the same occurrences the interference check measures). */
 async function exportAssemblyStep() {
+  if(rejectFlexibleSpringPreview())return;
   if (!E.assembly) return;
   if (!cadWorkerAvailable()) { flash(t("errStep") + ": needs the browser CAD worker"); return; }
   var requests = flattenAssembly(E.assembly, { visibleOnly:true }).map(function (occurrence) {
@@ -25369,6 +25461,7 @@ function runStandardsAudit() {
 }
 
 async function exportBundleDocument() {
+  if(rejectFlexibleSpringPreview())return;
   try {
     // A document export carries this document, not the unrelated assembly
     // library (whose embedded exact parts can dwarf a small authored part).
@@ -25465,8 +25558,9 @@ function createDefaultExplodedView() {
   var saved=(E.assembly.explodedViews || []).find(function(view){return view.id===E.assembly.activeExplodedView;});
   if(saved){applyExplodedView(E.assembly,saved.id,1);refreshAll();fitPreview();flash("✓ "+saved.name);openExplodedPlayback();return;}
   var view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1));
+  var spacing=defaultExplodeSpacing(E.assembly.components.map(function(component){return componentWorldBounds(component,{exploded:false});}));
   E.assembly.components.forEach(function (component, index) {
-    if (index) addExplodeStep(view, [component.id], {x:index * 25,y:0,z:0});
+    if (index) addExplodeStep(view, [component.id], {x:index * spacing,y:0,z:0});
   });
   E.assembly.activeExplodedView = view.id;
   applyExplodedView(E.assembly, view.id, 1); refreshAll(); fitPreview(); flash("\u2713 " + view.name);
@@ -25541,22 +25635,29 @@ function openExplodeStepForm() {
 
 function createDefaultMotionStudy() {
   if (E.docType !== "assembly" || !E.assembly || !E.assembly.components.length) return;
-  const show=(studyId,relationId="none")=>{
+  const show=(studyId,relationId="none",motorType)=>{
     const study=(E.assembly.motionStudies||[]).find(s=>s.id===studyId),motor=study?.motors?.[0];
+    motorType ||= motor?.type || "rotary";
     const relation=study?.gearRelations?.find(r=>r.id===relationId);
     const components=E.assembly.components.filter(c=>!c.grounded),choices=components.map(c=>({value:c.id,label:c.name||c.id}));
+    const coupledScrews=(E.assembly.topologyMates||[]).filter(m=>m.type==="screw"&&m.coupledMotion);
     if(!components.length){flash(t("motionNeedsMovable"));return;}
     const driver=relation?.driverId||motor?.componentId||E.componentSel[0]?.id||components[0].id;
     const axisName=a=>!a?"y":a.x===1&&a.y===0&&a.z===0?"x":a.z===1&&a.x===0&&a.y===0?"z":a.y===1&&a.x===0&&a.z===0?"y":"custom";
     const axes=["x","y","z"].map(value=>({value,label:value.toUpperCase()}));
     const axisChoices=a=>axisName(a)==="custom"?axes.concat({value:"custom",label:t("motionSavedAxis")}):axes;
-    openQuickForm({action:"motion",title:t("motionStudy"),hint:t(relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"),fields:[
+    openQuickForm({action:"motion",title:t("motionStudy"),hint:motorType==="screw"?"Turn a coupled Screw mate; the shaft advances by its pitch while the linkage follows.":t(motorType==="linear" ? "linearMotionHint" : relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"),fields:[
       {key:"study",label:t("motionStudy"),type:"select",value:studyId||"new",choices:[{value:"new",label:t("motionNewStudy")},...(E.assembly.motionStudies||[]).map(s=>({value:s.id,label:s.name}))]},
-      {key:"relation",label:t("motionRelation"),type:"select",value:relationId,choices:[{value:"none",label:t(study?.gearRelations?.length ? "motionKeepRelations" : "motionMotorOnly")},{value:"new",label:t("motionAddRelation")},...(study?.gearRelations||[]).map(r=>({value:r.id,label:(components.find(c=>c.id===r.driverId)?.name||r.driverId)+" → "+(components.find(c=>c.id===r.followerId)?.name||r.followerId)}))]},
-      {key:"motor",label:t("motionMotor"),type:"select",value:motor?.componentId||driver,choices},
-      {key:"rpm",label:t("motionRPM"),type:"number",value:motor?.rpm??12,step:1},
-      {key:"motorAxis",label:t("motionMotorAxis"),type:"select",value:axisName(motor?.axis),choices:axisChoices(motor?.axis)},
-      ...(relationId!=="none" ? [
+      {key:"motorType",label:t("motionMotorType"),type:"select",value:motorType,choices:[{value:"rotary",label:t("motionRotary")},{value:"linear",label:t("motionLinear")},...(coupledScrews.length?[{value:"screw",label:"Screw mate"}]:[])]},
+      ...(motorType==="rotary" ? [{key:"relation",label:t("motionRelation"),type:"select",value:relationId,choices:[{value:"none",label:t(study?.gearRelations?.length ? "motionKeepRelations" : "motionMotorOnly")},{value:"new",label:t("motionAddRelation")},...(study?.gearRelations||[]).map(r=>({value:r.id,label:(components.find(c=>c.id===r.driverId)?.name||r.driverId)+" → "+(components.find(c=>c.id===r.followerId)?.name||r.followerId)}))]}] : []),
+      ...(motorType==="screw"?[{key:"screwMate",label:"Coupled Screw mate",type:"select",value:motor?.mateId||coupledScrews[0]?.id,choices:coupledScrews.map(m=>({value:m.id,label:m.name||m.id}))}]:[{key:"motor",label:t("motionMotor"),type:"select",value:motor?.componentId||driver,choices}]),
+      ...(motorType==="linear" ? [
+      {key:"stroke",label:t("motionStroke"),type:"number",unit:"length",value:motor?.stroke??-1.5,step:.1},
+      {key:"duration",label:t("motionTravelDuration"),type:"number",value:motor?.duration??1,min:.001,step:.1},
+      {key:"reciprocate",label:t("motionReciprocate"),type:"boolean",value:motor?.reciprocate??false}
+      ] : [{key:"rpm",label:t("motionRPM"),type:"number",value:motor?.rpm??12,step:1}]),
+      ...(motorType==="screw"?[]:[{key:"motorAxis",label:t("motionMotorAxis"),type:"select",value:axisName(motor?.axis),choices:axisChoices(motor?.axis)}]),
+      ...(motorType==="rotary" && relationId!=="none" ? [
       {key:"driver",label:t("motionDriver"),type:"select",value:driver,choices},
       {key:"follower",label:t("motionFollower"),type:"select",value:relation?.followerId||components.find(c=>c.id!==driver)?.id||driver,choices},
       {key:"driverTeeth",label:t("gearTeeth"),type:"number",value:relation?.driverTeeth??20,min:1,step:1},
@@ -25567,16 +25668,23 @@ function createDefaultMotionStudy() {
       ...(relation ? [{key:"remove",label:t("motionRemoveRelation"),type:"boolean",value:false}] : []),
       ] : []),
       {key:"time",label:t("motionTime"),type:"number",value:study?.time??1,step:.1}
-    ],onLive:v=>{if(v.study!==(studyId||"new"))show(v.study);else if(v.relation!==relationId)show(studyId,v.relation);},onApply:v=>{
+    ],onLive:v=>{if(v.study!==(studyId||"new"))show(v.study);else if(v.motorType && v.motorType!==motorType)show(studyId,"none",v.motorType);else if(motorType==="rotary" && v.relation!==relationId)show(studyId,v.relation,motorType);},onApply:async v=>{
       // HTML selects return strings; occurrence IDs retain their saved type.
       // Resolve the chosen rows before the motion graph's strict ID comparisons.
       const selectedComponentId=value=>E.assembly.components.find(c=>String(c.id)===String(value))?.id;
       v={...v,motor:selectedComponentId(v.motor),driver:selectedComponentId(v.driver),follower:selectedComponentId(v.follower)};
       const trial=structuredClone(E.assembly),target=(trial.motionStudies||[]).find(s=>s.id===studyId)||createMotionStudy(trial,"Motion Study "+((trial.motionStudies||[]).length+1));
       const axis=(k,saved)=>k==="custom"?saved:({x:k==="x"?1:0,y:k==="y"?1:0,z:k==="z"?1:0});
-      if(target.motors[0]?.componentId!==v.motor&&target.motors[0])delete target.motors[0].baseRotation;
-      if(target.motors.length)Object.assign(target.motors[0],{componentId:v.motor,rpm:v.rpm,axis:axis(v.motorAxis,motor?.axis)});else addRotaryMotor(target,v.motor,v.rpm,axis(v.motorAxis,motor?.axis));
-      if(relationId!=="none"){
+      if(target.motors[0] && (target.motors[0].componentId!==v.motor || target.motors[0].mateId!==v.screwMate || target.motors[0].type!==motorType)){delete target.motors[0].baseRotation;delete target.motors[0].basePosition;delete target.motors[0].baseTurns;delete target.baseRotations;}
+      if(motorType==="linear"){
+        if(target.gearRelations?.length){flash(t("linearGearConflict"));return false;}
+        if(target.motors.length)Object.assign(target.motors[0],{type:"linear",componentId:v.motor,stroke:v.stroke,duration:v.duration,reciprocate:v.reciprocate,axis:axis(v.motorAxis,motor?.axis)});else addLinearMotor(target,v.motor,v.stroke,v.duration,axis(v.motorAxis,motor?.axis),v.reciprocate);
+      }else if(motorType==="screw"){
+        if(!coupledScrews.some(m=>String(m.id)===String(v.screwMate))){flash("Choose a coupled Screw mate");return false;}
+        if(target.gearRelations?.length){flash(t("linearGearConflict"));return false;}
+        if(target.motors.length)Object.assign(target.motors[0],{type:"screw",mateId:v.screwMate,rpm:v.rpm});else addScrewMotor(target,v.screwMate,v.rpm);
+      }else if(target.motors.length)Object.assign(target.motors[0],{type:"rotary",componentId:v.motor,rpm:v.rpm,axis:axis(v.motorAxis,motor?.axis)});else addRotaryMotor(target,v.motor,v.rpm,axis(v.motorAxis,motor?.axis));
+      if(motorType==="rotary" && relationId!=="none"){
         target.gearRelations=(target.gearRelations||[]).filter(r=>r.id!==relationId);
         if(!v.remove)addGearRelation(target,v.driver,v.follower,{driverTeeth:v.driverTeeth,followerTeeth:v.followerTeeth,mesh:v.mesh,driverAxis:axis(v.driverAxis,relation?.driverAxis),followerAxis:axis(v.followerAxis,relation?.followerAxis)});
       }
@@ -25584,7 +25692,7 @@ function createDefaultMotionStudy() {
       if(!result.ok){flash((result.issues||[]).concat(result.unsatisfied||[]).map(i=>i.code).join("; "));return false;}
       pushUndo(t("motionStudy"));
       trial.components.forEach((component,i)=>{E.assembly.components[i].transform=component.transform;});
-      E.assembly.motionStudies=trial.motionStudies;invalidateInterference();refreshAll();flash(t("motionStudyAdded"));return true;
+      E.assembly.motionStudies=trial.motionStudies;await syncFlexibleSpringsAtMotionState(E.assembly);invalidateInterference();refreshAll();flash(t("motionStudyAdded"));return true;
     }});
   };
   show(E.assembly.motionStudies?.at(-1)?.id);
@@ -25632,6 +25740,7 @@ function cancelInterferenceCheck() {
 }
 
 async function runInterferenceCheck() {
+  if(rejectFlexibleSpringPreview())return;
   if (E.docType !== "assembly" || !E.assembly) return;
   if(E.interferenceJob){flash(E.interferenceJob.stageText || t("interferenceChecking"));return;}
   /* The detector's own fallback only knows boxes, cylinders and spheres and
@@ -25784,7 +25893,7 @@ function assemblyDrawingDocument() {
         ];
         for (var a = 0; a < 3; a++) { baked[i + a] = point[a]; if (point[a] < low[a]) low[a] = point[a]; if (point[a] > high[a]) high[a] = point[a]; }
       }
-      parts.push({ id: component.id + ":" + part.id, name: component.name || component.modelKey, meshData: { positions: baked } });
+      parts.push({ id: component.id + ":" + part.id, name: component.name || component.modelKey, meshData: { positions: baked, faceRanges: cloneData(part.meshData.faceRanges || []) } });
     });
     targets.push({ item: item, point: { x: (low[0] + high[0]) / 2, y: (low[1] + high[1]) / 2, z: (low[2] + high[2]) / 2 } });
   });
@@ -25882,6 +25991,7 @@ async function exportThreeMfDocument(settings,format,unqualifiedDraft) {
 }
 
 function exportDrawingSvg() {
+  if(rejectFlexibleSpringPreview())return;
   var svg;
   if (E.docType === "assembly" && E.assembly) {
     var sheet = assemblyDrawingDocument();
@@ -25902,6 +26012,7 @@ function exportDrawingSvg() {
 /* Print the sheet at its true paper size: the SVG is metric millimetres, so a
    browser print with no margins puts an A3 drawing on A3 paper. */
 function printDrawingSheet() {
+  if(rejectFlexibleSpringPreview())return;
   var svg = drawingSheet().svg();
   var frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");

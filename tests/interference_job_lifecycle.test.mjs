@@ -16,7 +16,7 @@ function fixture(exact,detect){
   assert.ok(start>=0 && end>start);
   const reports=[],released=[],messages=[],card={children:[],appendChild(item){this.children.push(item);}};
   const E={docType:'assembly',assembly:{},interferenceRevision:0,interferenceChecked:false,evalCard:null};
-  const context={E,AbortController,Map,assemblyInterferenceScope,contactAuditSummary,expectedContactFor,hasSingleToolboxKernelRecipe,rotationOf,
+  const context={E,AbortController,Map,rejectFlexibleSpringPreview:()=>false,assemblyInterferenceScope,contactAuditSummary,expectedContactFor,hasSingleToolboxKernelRecipe,rotationOf,
     cadWorkerAvailable:()=>false,el:(tag,className,textContent='')=>({tag,className,textContent}),btn:(label,action)=>({label,action}),t:key=>key,
     flattenAssembly:()=>[{component:{id:'a',name:'A'},path:['a'],parents:[],placement:{}},{component:{id:'b',name:'B'},path:['b'],parents:[],placement:{}}],
     occurrenceWorldBounds:()=>({x0:0,x1:1,y0:0,y1:1,z0:0,z1:1}),

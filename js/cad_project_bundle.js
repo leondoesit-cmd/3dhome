@@ -1,6 +1,7 @@
 // CAD Project Bundles & Document Autosave Engine.
 import { exportAttachmentRecords, externalizeAttachments, installAttachmentRecords } from "./core/attachment_store.js";
 import {compactAssemblyTopologySnapshots,compactDocumentTopologySnapshots} from './core/project_topology_budget.js';
+import {inferAuthoringMode} from './core/authoring_mode.js';
 
 export async function createProjectBundle(def, assemblies = [], drawings = [], options = {}) {
   const activeAssembly=options.activeAssembly;
@@ -9,7 +10,13 @@ export async function createProjectBundle(def, assemblies = [], drawings = [], o
     const at=included.findIndex((item)=>item.key===activeAssembly.key);
     if (at<0) included.push(activeAssembly); else included[at]=activeAssembly;
   }
-  const content=await externalizeAttachments({mainModel:compactDocumentTopologySnapshots(def),assemblies:included.map(assembly=>compactAssemblyTopologySnapshots(assembly)),drawings});
+  // Authored history can outgrow the empty document's cached direct-only mode.
+  // Refresh capability metadata in the exported snapshot, preserving explicit
+  // classifications on imports/catalog definitions and the live document.
+  const mainModel=compactDocumentTopologySnapshots(def);
+  const currentModel=mainModel?.metadata?.authoringSystem==="parametric-v1"
+    ? {...mainModel,authoringMode:inferAuthoringMode({...mainModel,authoringMode:null})} : mainModel;
+  const content=await externalizeAttachments({mainModel:currentModel,assemblies:included.map(assembly=>compactAssemblyTopologySnapshots(assembly)),drawings});
   const bundle={
     version: 3,
     createdAt: Date.now(),

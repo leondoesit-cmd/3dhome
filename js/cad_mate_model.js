@@ -469,6 +469,26 @@ export function screwAdvance(mate) {
   return { along: pitch * turns, roll: rad(360 * turns * handed) };
 }
 
+/* A helical joint measures relative spin in the components' own frames. A
+ * trunnion may swing with the shaft without that common swing counting as a
+ * thread turn. */
+function coupledScrewPhase(fa, fb, reader, moving) {
+  if (!reader || !moving || !fa?.axis || !fb?.axis) return null;
+  const ra = rotationOf(reader.transform), rb = rotationOf(moving.transform);
+  const ma = apply(ra, perpendicular(apply(transpose(ra), norm(fa.axis))));
+  const mb = apply(rb, perpendicular(apply(transpose(rb), norm(fb.axis))));
+  return signedAngle(norm(fa.axis), ma, mb);
+}
+
+export function captureCoupledScrewZero(mate, fa, fb, reader, moving) {
+  if (!mate.coupledMotion || (Number.isFinite(mate.coupledAxial0) && Number.isFinite(mate.coupledPhase0))) return;
+  const phase = coupledScrewPhase(fa, fb, reader, moving);
+  if (phase === null) return;
+  const axis = norm(fa.axis);
+  mate.coupledAxial0 = dot({ x: fb.origin.x-fa.origin.x, y: fb.origin.y-fa.origin.y, z: fb.origin.z-fa.origin.z }, axis);
+  mate.coupledPhase0 = phase;
+}
+
 export function distanceBetween(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 }
@@ -482,7 +502,7 @@ export function angleBetween(a, b) {
    residuals and to measure the result afterwards, so the two can never drift
    apart about what a mate means. Returns null for a mate whose frames cannot
    express it. */
-export function mateTarget(mate, fa, fb, moving) {
+export function mateTarget(mate, fa, fb, moving, reader) {
   if (!fa || !fb) return null;
   if (mate.type === "symmetric" || mate.type === "gear") return null;
   if(mate.type==='coincident' && mateFramesSupport('coincident',fa,fb) && (!planarDirection(fa) || !planarDirection(fb))){
@@ -532,7 +552,8 @@ export function mateTarget(mate, fa, fb, moving) {
     const movingAxis = norm(axisB);
     const direction = (mate.type === "concentric" && dot(axis, movingAxis) < 0) || (mate.type === "screw" && mate.axisOpposed)
       ? { x: -axis.x, y: -axis.y, z: -axis.z } : axis;
-    const along = mate.type === "screw" ? screwAdvance(mate).along : dot({x:fb.origin.x-fa.origin.x,y:fb.origin.y-fa.origin.y,z:fb.origin.z-fa.origin.z},axis);
+    const actualAlong = dot({x:fb.origin.x-fa.origin.x,y:fb.origin.y-fa.origin.y,z:fb.origin.z-fa.origin.z},axis);
+    const along = mate.type === "screw" && !mate.coupledMotion ? screwAdvance(mate).along : actualAlong;
     const out = {
       origin: { x: fa.origin.x + axis.x*along, y: fa.origin.y + axis.y*along, z: fa.origin.z + axis.z*along },
       direction,
@@ -541,7 +562,23 @@ export function mateTarget(mate, fa, fb, moving) {
     /* A screw also says where in its turn the component stands. Without this
        the roll is a free rotation the solver would leave wherever it started,
        and a screw would no longer wind. */
-    if (mate.type === "screw" && moving) {
+    if (mate.type === "screw" && mate.coupledMotion) {
+      const phase = coupledScrewPhase(fa, fb, reader, moving);
+      if (phase === null || !Number.isFinite(mate.coupledAxial0) || !Number.isFinite(mate.coupledPhase0)) return null;
+      const pitch = Math.max(1e-6, Number(mate.pitch) || 0);
+      const handed = mate.handedness === "lh" || mate.handedness === "left" ? -1 : 1;
+      // A helical surface is periodic. A sine/cosine pair stays smooth through
+      // every full shaft turn while axial travel carries the winding number.
+      const helixPhase = 2*Math.PI*(actualAlong-mate.coupledAxial0)/(handed*pitch)-(phase-mate.coupledPhase0);
+      out.coupledScrew = true;
+      out.helixPhase = helixPhase;
+      out.helixScale = pitch/(2*Math.PI);
+      out.helixError = wrapAngle(helixPhase)*out.helixScale;
+      if (Number.isFinite(mate.driveTurns)) {
+        out.driveAxialError = actualAlong-mate.coupledAxial0-handed*pitch*mate.driveTurns;
+        out.driveRollError = wrapAngle(phase-mate.coupledPhase0-2*Math.PI*mate.driveTurns);
+      }
+    } else if (mate.type === "screw" && moving) {
       out.roll = wrapAngle(screwRoll(moving, axis) - screwAdvance(mate).roll);
     }
     return out;
@@ -635,13 +672,17 @@ export function mateResidual(mate, fa, fb, moving, ctx = {}) {
   }
   if (mate.type === "symmetric") { const m = symmetricMeasure(mate, fa, fb, ctx.fc); return m && { linear: m.linear, angular: m.angular }; }
   if (mate.type === "gear") { const g = gearMeasure(mate, fa, fb, ctx.reader, moving); return g && { linear: 0, angular: Math.abs(wrapAngle(g.theta)) }; }
-  const target = mateTarget(mate, fa, fb, moving);
+  const target = mateTarget(mate, fa, fb, moving, ctx.reader);
   if (!target) return null;
   if(target.pointPlane)return {linear:Math.abs(target.offsetResidual),angular:0};
   if(target.planeAxis)return {linear:Math.abs(target.offsetResidual),angular:Math.asin(Math.min(1,Math.abs(target.orientationResidual)))};
   if(target.tangentTorus)return {linear:Math.abs(target.offsetResidual),angular:0};
   if (target.angle !== undefined) return { linear: 0, angular: Math.abs(target.angle) };
   const angular = angleBetween(target.actualDirection, target.direction);
+  if (target.coupledScrew) return {
+    linear: Math.hypot(distanceBetween(fb.origin, target.origin), target.helixError, target.driveAxialError || 0),
+    angular: Math.max(angular, Math.abs(target.driveRollError || 0)),
+  };
   return {
     linear: distanceBetween(fb.origin, target.origin),
     angular: target.roll === undefined ? angular : Math.max(angular, Math.abs(target.roll)),
@@ -681,7 +722,7 @@ export function mateResidualVector(mate, fa, fb, moving, ctx = {}) {
     const g = gearMeasure(mate, fa, fb, ctx.reader, moving);
     return g && [Math.sin(g.theta) * ANGULAR_SCALE, (Math.cos(g.theta) - 1) * ANGULAR_SCALE];
   }
-  const target = mateTarget(mate, fa, fb, moving);
+  const target = mateTarget(mate, fa, fb, moving, ctx.reader);
   if (!target) return null;
   if(target.pointPlane)return [target.offsetResidual];
   if(target.planeAxis)return [target.offsetResidual,target.orientationResidual*ANGULAR_SCALE];
@@ -718,6 +759,11 @@ export function mateResidualVector(mate, fa, fb, moving, ctx = {}) {
     (target.actualDirection.y - target.direction.y) * ANGULAR_SCALE,
     (target.actualDirection.z - target.direction.z) * ANGULAR_SCALE,
   ];
+  if (target.coupledScrew) {
+    rows.push(Math.sin(target.helixPhase)*target.helixScale, (Math.cos(target.helixPhase)-1)*target.helixScale);
+    if (target.driveAxialError !== undefined) rows.push(target.driveAxialError,
+      Math.sin(target.driveRollError)*ANGULAR_SCALE, (Math.cos(target.driveRollError)-1)*ANGULAR_SCALE);
+  }
   /* A screw's roll enters as a sine and cosine pair rather than as the angle
      itself. The angle is only defined to within a full turn, so as a residual
      it steps from one side of the turn to the other and a Jacobian measured

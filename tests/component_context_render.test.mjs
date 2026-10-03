@@ -57,14 +57,15 @@ test('context ghosts read edited component pose without building its geometry, a
 
 test('presentation-only flag reaches every body in nested component rendering without changing ordinary selectable bodies',()=>{
   const body={id:8},leaf={id:2,def:{parts:[body]}},assembly={id:1,asm:{components:[leaf]}};
-  const E={displayStyle:'solid'},calls=[];
-  const run=new Function('E','THREE','normalizeTransform','isSubassembly','componentDef','activeParts','buildPart',fn('buildComponentGroup','addInterferenceVisuals')+';return buildComponentGroup;')(E,{Group},()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0}),c=>!!c.asm,c=>c.def,d=>d.parts,(...args)=>calls.push(args));
+  const E={displayStyle:'solid'},calls=[],previews=[];
+  const run=new Function('E','THREE','normalizeTransform','isSubassembly','componentDef','activeParts','buildPart','addFlexibleSpringPreview',fn('buildComponentGroup','addInterferenceVisuals')+';return buildComponentGroup;')(E,{Group},()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0}),c=>!!c.asm,c=>c.def,d=>d.parts,(...args)=>calls.push(args),(_group,component)=>{previews.push(component);return false;});
   run(assembly,null,'',true);
   assert.equal(calls[0][3],true);
   assert.equal(calls[0][1],body);
   run(leaf,null,'');
   assert.equal(calls[1][3],false);
   assert.equal(E.buildComponent,null);
+  assert.deepEqual(previews,[leaf,leaf],'ordinary exact leaf bodies check the preview branch and keep native rendering');
 });
 
 test('assembly insertion choices use catalog metadata without copying mesh or topology payloads',()=>{
@@ -79,3 +80,12 @@ test('assembly insertion choices use catalog metadata without copying mesh or to
   assert.equal(select.options[0].textContent,'Fresh part');
 });
 
+
+test('transient flexible component renders its preview without also rendering the unchanged native endpoint',()=>{
+  const body={id:8},leaf={id:2,def:{parts:[body]},flexibleSpringState:{height:1.75,exact:false}};
+  const E={displayStyle:'solid'};let nativeCalls=0,previewCalls=0;
+  const run=new Function('E','THREE','normalizeTransform','isSubassembly','componentDef','activeParts','buildPart','addFlexibleSpringPreview',fn('buildComponentGroup','addInterferenceVisuals')+';return buildComponentGroup;')(E,{Group},()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0}),()=>false,c=>c.def,d=>d.parts,()=>nativeCalls++,(_group,component)=>{assert.equal(component,leaf);previewCalls++;return component.flexibleSpringState.exact===false;});
+  run(leaf,null,'');assert.equal(previewCalls,1);assert.equal(nativeCalls,0);
+  leaf.flexibleSpringState.exact=true;run(leaf,null,'');assert.equal(previewCalls,2);assert.equal(nativeCalls,1);
+  assert.equal(E.buildComponent,null);
+});

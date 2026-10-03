@@ -1,7 +1,38 @@
 // Exploded Views & Step Animations for Assemblies.
 import { composePlacement, isSubassembly } from './core/assembly_structure.js';
 
+let explodedIdSequence=0;
+function newExplodedId(prefix,records) {
+  let id;
+  do {
+    const suffix=globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+'_'+(++explodedIdSequence).toString(36);
+    id=prefix+suffix;
+  } while((records||[]).some(record=>record.id===id));
+  return id;
+}
+
+// Repair ambiguous legacy identities once a view is used. Keep the first
+// occurrence and every already distinct ID; vectors/order/placements stay put.
+export function normalizeExplodeStepIds(assembly) {
+  const steps=(assembly?.explodedViews||[]).flatMap(view=>view.steps||[]),seen=new Set();
+  let repaired=0;
+  for(const step of steps) {
+    if(step.id==null||step.id===''||seen.has(step.id)){step.id=newExplodedId('step_',steps);repaired++;}
+    seen.add(step.id);
+  }
+  return repaired;
+}
+
+// Document units are cm. Scale the default separation to the placed bodies,
+// leaving saved user-authored steps unchanged.
+export function defaultExplodeSpacing(bounds) {
+  const widths=(bounds||[]).map(b=>b?.x1-b?.x0).filter(width=>Number.isFinite(width)&&width>0);
+  const width=widths.length?Math.max(...widths):1;
+  return width+Math.max(.1,width*.2);
+}
+
 export function explodeTargets(assembly) {
+  normalizeExplodeStepIds(assembly);
   const targets=[];
   const walk=(components,parents,path,labels)=>{
     for(const component of components || []) {
@@ -34,7 +65,7 @@ export function explodedOccurrenceOffset(occurrence) {
 export function createExplodedView(assembly, name = "ExplodedView1") {
   if (!assembly.explodedViews) assembly.explodedViews = [];
   const ev = {
-    id: "ev_" + Date.now().toString(36),
+    id: newExplodedId("ev_",assembly.explodedViews),
     name,
     steps: [],
   };
@@ -44,7 +75,7 @@ export function createExplodedView(assembly, name = "ExplodedView1") {
 
 export function addExplodeStep(explodedView, componentIds, direction = { x: 0, y: 100, z: 0 }) {
   const step = {
-    id: "step_" + Date.now().toString(36),
+    id: newExplodedId("step_",explodedView.steps),
     components: (componentIds || []).slice(),
     direction: { ...direction },
   };
@@ -54,6 +85,7 @@ export function addExplodeStep(explodedView, componentIds, direction = { x: 0, y
 
 export function applyExplodedView(assembly, explodedViewId, factor = 1.0, stepFactors = null) {
   if (!assembly || !assembly.components) return;
+  normalizeExplodeStepIds(assembly);
   const ev = (assembly.explodedViews || []).find((v) => v.id === explodedViewId);
   const targets=explodeTargets(assembly);
   if (explodedViewId == null) { for (const target of targets) target.component.explodedOffset = null; assembly.exploded=false; return; }

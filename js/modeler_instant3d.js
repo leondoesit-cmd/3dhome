@@ -2,6 +2,11 @@
 // PropertyManager. The viewport builds meshes from these poses; this module
 // never touches Three.js.
 import {endConditionHidesDepth} from './core/extrude_extent.js';
+import {lengthToDocument,lengthFromDocument} from './core/document_length_units.js';
+
+export function instant3dDisplayValue(value,key,unit){return key==='angle'?Number(value):lengthToDocument(Number(value),unit);}
+export function instant3dModelValue(value,key,unit){return key==='angle'?Number(value):lengthFromDocument(Number(value),unit);}
+export function instant3dValueLabel(feature,field,key,unit){return feature+' · '+field+' ('+(key==='angle'?'°':unit)+')';}
 
 function num(value, fallback) {
   var n = Number(value);
