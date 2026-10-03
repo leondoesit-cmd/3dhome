@@ -3198,6 +3198,14 @@ export async function placeBrep(source, placement = {}) {
   } finally { disposeAll(owned); }
 }
 
+// Bounds of the placed solid, rather than a rotated local bounding box. Curved
+// solids can retain smaller extents than the eight corners of their local box.
+export async function placedBrepBounds(source, placement = {}) {
+  const placed=await placeBrep(source,placement);
+  try{return shapeBounds(placed.oc,placed.shape,false);}
+  finally{disposeBrep(placed);}
+}
+
 /* Coplanar faces welded back into one after a boolean.
  *
  * BRepAlgoAPI_Fuse keeps the argument faces as it found them, so fusing a run

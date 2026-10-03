@@ -44,3 +44,18 @@ test('pan screw viewport primitives and cutters remain one complete native evalu
   assert.equal(hasSingleToolboxKernelRecipe({...doc,rollbackIndex:0}),false);
   assert.equal(hasSingleToolboxKernelRecipe({...doc,features:[...doc.features,{type:'extrude',id:'later'}]}),false);
 });
+
+test('saved null rollback preserves the complete native screw recipe for interference',()=>{
+  const doc=assemblyToolboxDocument(toolboxFastener({kind:'shcs',size:'M6',sizeKey:'M6',lengthMm:25,lod:2}));
+  const reopened=JSON.parse(JSON.stringify({...doc,rollback:null,rollbackIndex:null}));
+  assert.ok(reopened.parts.length>1,'screw uses multiple display projections');
+  assert.equal(hasSingleToolboxKernelRecipe(reopened),true,'null denotes no legacy rollback');
+  const compiled=compileKernelFeatureTree(reopened);
+  assert.equal(compiled.ok,true,JSON.stringify(compiled.issues));
+  assert.equal(compiled.features.at(-1).id,reopened.features[0].id,'all projections lower to one native body');
+  for(const rollback of [0,1]) {
+    assert.equal(hasSingleToolboxKernelRecipe({...reopened,rollback}),false,'active legacy rollback cannot use the full recipe');
+  }
+  assert.equal(hasSingleToolboxKernelRecipe({...reopened,rollback:-1}),true);
+  assert.equal(hasSingleToolboxKernelRecipe({...reopened,rollbackIndex:0}),false);
+});

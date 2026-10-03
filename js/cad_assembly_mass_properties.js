@@ -33,7 +33,7 @@ export async function evaluateAssemblyMassProperties(assembly,options={}) {
   const occurrences=flattenAssembly(assembly,{visibleOnly:true}).filter(item=>
     !item.component.suppressed && !item.parents.some(parent=>parent.suppressed));
   const cache=new Map(),rows=[];
-  for(const occurrence of occurrences){
+  try { for(const occurrence of occurrences){
     const component=occurrence.component,def=options.resolveDefinition?.(component)||component.def;
     if(!def){rows.push({componentId:component.id,componentName:component.name,accuracy:'unavailable',volume:0,massKg:0,error:'Missing component definition'});continue;}
     const key=sourceKey(def,component);
@@ -45,8 +45,10 @@ export async function evaluateAssemblyMassProperties(assembly,options={}) {
       componentPath:occurrence.path,definitionKey:def.key,
       centerOfMass:body.centerOfMass?placedPoint(body.centerOfMass,occurrence.placement):undefined,
       inertia:body.inertia?placedTensor(body.inertia,occurrence.placement):undefined,
-      bounds:placedBounds(body.bounds,occurrence.placement),
+      bounds:evaluated.boundsAtPlacement ? await evaluated.boundsAtPlacement(body,occurrence.placement) : placedBounds(body.bounds,occurrence.placement),
     });
+  }} finally {
+    for(const evaluated of await Promise.allSettled(cache.values()))if(evaluated.status==='fulfilled')evaluated.value?.release?.();
   }
   const measured=rows.filter(row=>row.volume>0),volumeCm3=measured.reduce((sum,row)=>sum+row.volume,0);
   const massKg=measured.reduce((sum,row)=>sum+(row.massKg||0),0);

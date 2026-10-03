@@ -73,26 +73,39 @@ export async function workerAssemblyStep(components,rebuild,progress=()=>{},depe
   const limit={maxToleranceCm:dependencies.maxToleranceCm ?? .005};
   const validate=dependencies.validate || (body=>validateBrepForExport(body,limit));
   const placed=[];let assembled=null;
+  const keys=components.map(component=>component.document?JSON.stringify(component.document):null);
+  const remaining=new Map(),sources=new Map();
+  keys.forEach(key=>{if(key!==null)remaining.set(key,(remaining.get(key)||0)+1);});
   try {
-    for(const component of components){
+    for(let index=0;index<components.length;index++){
+      const component=components[index],key=keys[index];
       if(!component.document)throw new Error('STEP export needs an exact feature-built body for '+(component.label || component.id));
-      progress({stage:'rebuild',name:component.label,componentId:component.id});
-      const compiled=compile(component.document);
-      if(!compiled.ok)throw new Error(compiled.issues[0]?.message || 'Invalid STEP export feature history');
-      let run;
+      let run=sources.get(key);
+      if(!run){
+        progress({stage:'rebuild',name:component.label,componentId:component.id});
+        const compiled=compile(component.document);
+        if(!compiled.ok)throw new Error(compiled.issues[0]?.message || 'Invalid STEP export feature history');
+        let rebuilt;
+        try{
+          ({run:rebuilt}=await rebuild({...compiled.document,features:compiled.features},{},value=>progress({...value,componentId:component.id})));
+          if(!rebuilt.ok || !rebuilt.finalShape?.shape)throw new Error(rebuilt.issues?.[0]?.message || 'Exact STEP body could not be rebuilt');
+          sources.set(key,rebuilt);run=rebuilt;
+        }catch(error){if(rebuilt)release(rebuilt);throw error;}
+      }
       try {
-        ({run}=await rebuild({...compiled.document,features:compiled.features},{},value=>progress({...value,componentId:component.id})));
-        if(!run.ok || !run.finalShape?.shape)throw new Error(run.issues?.[0]?.message || 'Exact STEP body could not be rebuilt');
         progress({stage:'placement',name:component.label,componentId:component.id});
         const body=await place(run.finalShape,component.placement);
         placed.push(body);
         // Name the component whose body the exporter would refuse, not just the compound.
         try{await validate(body);}catch(error){throw new Error((component.label || component.id)+': '+error.message);}
-      }finally{if(run)release(run);}
+      }finally{
+        const left=remaining.get(key)-1;remaining.set(key,left);
+        if(left===0){sources.delete(key);release(run);}
+      }
     }
     if(!placed.length)throw new Error('STEP export needs at least one exact component');
     progress({stage:'export',name:'STEP'});
     assembled=await compound(placed);
     return {bytes:await writeStep(assembled,'assembly.step',limit),bodies:placed.length};
-  }finally{if(assembled)dispose(assembled);placed.forEach(dispose);}
+  }finally{sources.forEach(release);if(assembled)dispose(assembled);placed.forEach(dispose);}
 }

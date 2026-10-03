@@ -136,7 +136,7 @@ import { exportThreeMf } from "./cad_3mf.js";
 import { exportAmf } from "./cad_amf.js";
 import {
   exportStep, exportIges, importStep,
-  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, boundsMayOverlap, brepConnectedGroups, chamferBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, placeBrep, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
+  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, boundsMayOverlap, brepConnectedGroups, chamferBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, placeBrep, placedBrepBounds, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
   serializeBrep, transformBrep, translateBrep, unifyBrepFaces,
 } from "./cad_kernel.js";
 import { buildDrawingScene } from "./cad_drawings.js";
@@ -18721,8 +18721,18 @@ function assemblyBomProperties(host,component) {
     var source=component.def || component.asm;
     input.value=pair[1]==="Description" ? documentDescription(component) || documentDescription(source) : assemblyPartNumber(component,source);
     input.placeholder=pair[1]==="PartNo" ? "Source part number unless overridden" : "BOM description";
-    input.addEventListener("change",function(){
-      pushUndo("Component "+pair[0].toLowerCase());setDocumentProperty(component,pair[1],input.value);refreshSelection();
+    var committedValue=input.value;
+    function commitProperty(){
+      var next=input.value.trim();
+      if(next===committedValue)return;
+      committedValue=next;
+      pushUndo("Component "+pair[0].toLowerCase());setDocumentProperty(component,pair[1],next);refreshSelection();
+    }
+    input.addEventListener("change",commitProperty);
+    input.addEventListener("blur",commitProperty);
+    input.addEventListener("keydown",function(event){
+      if(event.key!=="Enter")return;
+      event.preventDefault();event.stopPropagation();commitProperty();
     });
     row.appendChild(input);host.appendChild(row);
   });
@@ -25336,11 +25346,21 @@ async function showMassProperties() {
     resolveDefinition:function(component){return component.def || componentDef(component);},
     evaluateDefinition:async function(def){
       var source=cloneData({...def,parts:activeParts(def)});
-      return evaluateMassProperties(source,{
+      var measuredSolids=new Map(),sourceReleases=new Map();
+      var measured;
+      try{measured=await evaluateMassProperties(source,{
         bodyKey:function(part){return source.metadata?.authoringSystem==="parametric-v1" && (source.features || []).some(function(feature){return feature.id===part.featureId;}) ? cutTargetFeatureId(part,source) : part;},
-        buildSolid:async function(part){var display=await exactDisplayBody(part,source,null,{massProperties:true});releases.set(display.brep,display.release);return display.brep;},
-        releaseSolid:function(solid){releases.get(solid)?.();releases.delete(solid);},
-      });
+        buildSolid:async function(part){var display=await exactDisplayBody(part,source,null,{massProperties:true});measuredSolids.set(part.id,display.brep);sourceReleases.set(display.brep,display.release);return display.brep;},
+        releaseSolid:function(){},
+      });}catch(error){sourceReleases.forEach(function(release){release();});throw error;}
+      return {...measured,
+        boundsAtPlacement:async function(row,placement){
+          var solid=measuredSolids.get(row.partId);
+          if(row.accuracy!=="exact" || !solid)return null;
+          return placedBrepBounds(solid,{matrix:[placement.x.x,placement.y.x,placement.z.x,placement.x.y,placement.y.y,placement.z.y,placement.x.z,placement.y.z,placement.z.z],translation:placement.origin});
+        },
+        release:function(){sourceReleases.forEach(function(release){release();});sourceReleases.clear();},
+      };
     },
   }) : await evaluateMassProperties(snapshot,{
     bodyKey:function(part){return snapshot.metadata?.authoringSystem==="parametric-v1" && (snapshot.features || []).some(function(feature){return feature.id===part.featureId;}) ? cutTargetFeatureId(part,snapshot) : part;},
@@ -25790,6 +25810,8 @@ function createDefaultMotionStudy() {
     const axisChoices=a=>axisName(a)==="custom"?axes.concat({value:"custom",label:t("motionSavedAxis")}):axes;
     openQuickForm({action:"motion",title:t("motionStudy"),hint:motorType==="screw"?"Turn a coupled Screw mate; the shaft advances by its pitch while the linkage follows.":t(motorType==="linear" ? "linearMotionHint" : relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"),fields:[
       {key:"study",label:t("motionStudy"),type:"select",value:studyId||"new",choices:[{value:"new",label:t("motionNewStudy")},...(E.assembly.motionStudies||[]).map(s=>({value:s.id,label:s.name}))]},
+      {key:"name",label:"Study name",type:"text",value:study?.name||"Motion Study "+((E.assembly.motionStudies||[]).length+1)},
+      ...(study ? [{key:"resetZero",label:"Use current pose as time zero",type:"boolean",value:false},{key:"deleteStudy",label:"Delete this study",type:"boolean",value:false}] : []),
       {key:"motorType",label:t("motionMotorType"),type:"select",value:motorType,choices:[{value:"rotary",label:t("motionRotary")},{value:"linear",label:t("motionLinear")},...(coupledScrews.length?[{value:"screw",label:"Screw mate"}]:[])]},
       ...(motorType==="rotary" ? [{key:"relation",label:t("motionRelation"),type:"select",value:relationId,choices:[{value:"none",label:t(study?.gearRelations?.length ? "motionKeepRelations" : "motionMotorOnly")},{value:"new",label:t("motionAddRelation")},...(study?.gearRelations||[]).map(r=>({value:r.id,label:(components.find(c=>c.id===r.driverId)?.name||r.driverId)+" → "+(components.find(c=>c.id===r.followerId)?.name||r.followerId)}))]}] : []),
       ...(motorType==="screw"?[{key:"screwMate",label:"Coupled Screw mate",type:"select",value:motor?.mateId||coupledScrews[0]?.id,choices:coupledScrews.map(m=>({value:m.id,label:m.name||m.id}))}]:[{key:"motor",label:t("motionMotor"),type:"select",value:motor?.componentId||driver,choices}]),
@@ -25811,12 +25833,28 @@ function createDefaultMotionStudy() {
       ] : []),
       {key:"time",label:t("motionTime"),type:"number",value:study?.time??1,step:.1}
     ],onLive:v=>{if(v.study!==(studyId||"new"))show(v.study);else if(v.motorType && v.motorType!==motorType)show(studyId,"none",v.motorType);else if(motorType==="rotary" && v.relation!==relationId)show(studyId,v.relation,motorType);},onApply:async v=>{
+      if(v.deleteStudy && study) {
+        pushUndo(t("motionStudy"));
+        E.assembly.motionStudies=(E.assembly.motionStudies||[]).filter(s=>s.id!==study.id);
+        refreshAll();flash("Motion study deleted");return true;
+      }
       // HTML selects return strings; occurrence IDs retain their saved type.
       // Resolve the chosen rows before the motion graph's strict ID comparisons.
       const selectedComponentId=value=>E.assembly.components.find(c=>String(c.id)===String(value))?.id;
       const selectedScrewMate=(E.assembly.topologyMates||[]).find(m=>m.type==="screw"&&m.coupledMotion&&String(m.id)===String(v.screwMate));
       v={...v,motor:selectedComponentId(v.motor),driver:selectedComponentId(v.driver),follower:selectedComponentId(v.follower),screwMate:selectedScrewMate?.id};
       const trial=structuredClone(E.assembly),target=(trial.motionStudies||[]).find(s=>s.id===studyId)||createMotionStudy(trial,"Motion Study "+((trial.motionStudies||[]).length+1));
+      if(v.name != null) {
+        const name=String(v.name).trim();
+        if(!name){flash("Enter a study name");return false;}
+        target.name=name;
+      }
+      if(v.resetZero) {
+        delete target.baseRotations;delete target.beltBaselines;
+        for(const savedMotor of target.motors||[]) {
+          delete savedMotor.baseRotation;delete savedMotor.basePosition;delete savedMotor.baseTurns;
+        }
+      }
       const axis=(k,saved)=>k==="custom"?saved:({x:k==="x"?1:0,y:k==="y"?1:0,z:k==="z"?1:0});
       if(target.motors[0] && (target.motors[0].componentId!==v.motor || target.motors[0].mateId!==v.screwMate || target.motors[0].type!==motorType)){delete target.motors[0].baseRotation;delete target.motors[0].basePosition;delete target.motors[0].baseTurns;delete target.baseRotations;}
       if(motorType==="linear"){
@@ -26093,8 +26131,8 @@ function showAssemblyDrawingSettings(focusNotes) {
     { value:"third", label:"Third angle" }, { value:"first", label:"First angle" }
   ], settings.projection || "third", function() {}));
   fields.projection.setAttribute("aria-label", "Projection");
-  ["Title", "Number", "Revision", "Drawn by", "Company", "Date"].forEach(function(label, index) {
-    var key = ["title", "number", "revision", "author", "company", "date"][index];
+  ["Title", "Number", "Revision", "Drawn by", "Company", "Date", "Material", "Finish", "Mass"].forEach(function(label, index) {
+    var key = ["title", "number", "revision", "author", "company", "date", "material", "finish", "mass"][index];
     textField(label, settings[key] || (key === "title" ? E.assembly.name : key === "revision" ? "A" : ""));
   });
   var notes=document.createElement("textarea");
@@ -26103,8 +26141,8 @@ function showAssemblyDrawingSettings(focusNotes) {
   fields.notes=sheetRow(dialog,"Drawing notes",notes);
   function apply() {
     var next = { size: fields.size.value, units: fields.units.value, scale: fields.scale.value === "fit" ? "fit" : fields.scale.value.split(":").map(Number), projection: fields.projection.value, orientation:"landscape", draftingStandard:"ANSI", notes:fields.notes.value.trim() };
-    ["Title", "Number", "Revision", "Drawn by", "Company", "Date"].forEach(function(label, index) {
-      next[["title", "number", "revision", "author", "company", "date"][index]] = fields[label].value.trim();
+    ["Title", "Number", "Revision", "Drawn by", "Company", "Date", "Material", "Finish", "Mass"].forEach(function(label, index) {
+      next[["title", "number", "revision", "author", "company", "date", "material", "finish", "mass"][index]] = fields[label].value.trim();
     });
     pushUndo("Assembly drawing settings");
     E.assembly.drawingSettings = next;

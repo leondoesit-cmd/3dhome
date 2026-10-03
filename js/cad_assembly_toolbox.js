@@ -20,7 +20,7 @@ export function assemblyToolboxDocument(generated, options = {}) {
 // A Toolbox feature lowers all its primitives and recess cutters to one final
 // union/cut shape. Its disposable viewport records are not separate body heads.
 export function hasSingleToolboxKernelRecipe(doc, parts = doc?.parts || []) {
-  if (doc?.metadata?.authoringSystem !== 'parametric-v1' || doc.rollbackIndex != null || Number(doc.rollback) >= 0) return false;
+  if (doc?.metadata?.authoringSystem !== 'parametric-v1' || doc.rollbackIndex != null || (doc.rollback != null && Number(doc.rollback) >= 0)) return false;
   const features = (doc.features || []).filter(feature => !feature.suppressed);
   if (features.length !== 1 || features[0].type !== 'toolbox' || !parts.length) return false;
   return parts.every(part => part.featureId === features[0].id && part.toolboxFeatureId === features[0].id);

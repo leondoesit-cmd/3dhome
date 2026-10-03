@@ -3,8 +3,36 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {evaluateAssemblyMassProperties} from '../js/cad_assembly_mass_properties.js';
 import {buildCommandCatalog,commandUnavailableReason} from '../js/modeler_commands.js';
+import {makeBrepPrimitive,shapeMassProperties,placedBrepBounds,disposeBrep} from '../js/cad_kernel.js';
 
 const near=(actual,expected,tolerance=1e-9)=>assert.ok(Math.abs(actual-expected)<tolerance,`${actual} != ${expected}`);
+
+test('rotated native cylinder bounds follow the placed surface, while source mass is measured once',async()=>{
+  const def={key:'wheel',parts:[{id:'wheel-body',density:7.7}]};
+  const assembly={components:[{id:'a',def,transform:{rz:22.5}},{id:'b',def:structuredClone(def),transform:{x:10,rz:-22.5}}]};
+  let evaluations=0,placements=0,releases=0;
+  const mass=await evaluateAssemblyMassProperties(assembly,{evaluateDefinition:async()=>{
+    evaluations++;
+    const solid=await makeBrepPrimitive({type:'cylinder',axis:'z',r:3.3,h:1.2});
+    const props=await shapeMassProperties(solid);
+    return {bodies:[{partId:'wheel-body',accuracy:'exact',...props,density:7.7,massKg:props.volume*7.7/1000}],
+      boundsAtPlacement:async(_row,p)=>{placements++;return placedBrepBounds(solid,{matrix:[p.x.x,p.y.x,p.z.x,p.x.y,p.y.y,p.z.y,p.x.z,p.y.z,p.z.z],translation:p.origin});},
+      release:()=>{releases++;disposeBrep(solid);}};
+  }});
+  assert.equal(evaluations,1);assert.equal(placements,2);assert.equal(releases,1);
+  near(mass.bounds.min.x,-3.3,1e-6);near(mass.bounds.max.x,13.3,1e-6);
+  near(mass.bounds.min.y,-3.3,1e-6);near(mass.bounds.max.y,3.3,1e-6);
+  near(mass.volumeCm3,2*Math.PI*3.3**2*1.2,1e-6);
+});
+
+test('placed bounds failure releases every retained source without publishing misleading bounds',async()=>{
+  let released=0;
+  const def={key:'same',parts:[]};
+  await assert.rejects(evaluateAssemblyMassProperties({components:[{id:1,def,transform:{}}]}, {
+    evaluateDefinition:async()=>({bodies:[{accuracy:'exact',volume:1}],boundsAtPlacement:async()=>{throw new Error('Placement failed');},release:()=>released++}),
+  }),/Placement failed/);
+  assert.equal(released,1);
+});
 
 test('assembly mass places native part centres, tensors and bounds and measures identical definitions once',async()=>{
   const def={key:'bar',parts:[{id:'solid',density:7.85}]};

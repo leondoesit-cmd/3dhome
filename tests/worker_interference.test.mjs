@@ -92,9 +92,57 @@ test('assembly STEP places every exact leaf body, writes one compound and releas
     validate:async()=>{},compound:async parts=>({shape:'compound',parts}),exportStep:async (body,name,limit)=>{assert.equal(body.parts.length,2);assert.equal(limit.maxToleranceCm,.005,'assembly export relaxes the tolerance gate to .005 cm');return new Uint8Array([1,2,3]);},dispose:r=>disposed.push(r),
   });
   assert.deepEqual([...result.bytes],[1,2,3]);assert.equal(result.bodies,2);
-  assert.equal(released.length,2);assert.equal(disposed.length,3,'both placed bodies and the compound are released');
+  assert.equal(released.length,1,'identical occurrences share one source lifetime');assert.equal(disposed.length,3,'both placed bodies and the compound are released');
   assert.ok(order.includes('export'));
   await assert.rejects(workerAssemblyStep([{id:'x'}],async()=>({}),()=>{},{}),/exact feature-built body/,'a component without an exact body must not silently vanish from the file');
+});
+
+test('28-occurrence STEP reuses exact sources without skipping placement, validation or variant geometry',async()=>{
+  const {workerAssemblyStep}=await import('../js/core/worker_interference.js');
+  const rebuilt=[],released=[],disposed=[],validated=[];
+  const components=Array.from({length:28},(_,index)=>({id:String(index),document:{features:[{id:'body',params:{width:index===27?2:1}}]},placement:{x:index*3}}));
+  const result=await workerAssemblyStep(components,async document=>{
+    const width=document.features[0].params.width;rebuilt.push(width);
+    return {run:{ok:true,finalShape:{shape:{width}},results:[]}};
+  },()=>{}, {
+    compile:document=>({ok:true,document,features:document.features}),
+    place:async(source,placement)=>({shape:{width:source.shape.width,x:placement.x}}),
+    release:run=>released.push(run),dispose:body=>disposed.push(body),validate:async body=>validated.push(body),
+    compound:async parts=>({shape:{parts}}),exportStep:async body=>{
+      assert.equal(body.shape.parts.length,28);
+      assert.equal(body.shape.parts[27].shape.width,2);
+      assert.deepEqual(body.shape.parts.map(part=>part.shape.x),components.map(part=>part.placement.x));
+      return new Uint8Array([1]);
+    },
+  });
+  assert.equal(result.bodies,28);assert.deepEqual(rebuilt,[1,2]);assert.equal(released.length,2);
+  assert.equal(validated.length,28);assert.equal(disposed.length,29);
+});
+
+test('reused STEP source and all prior placements are released if a later instance fails quality validation',async()=>{
+  const {workerAssemblyStep}=await import('../js/core/worker_interference.js');
+  const released=[],disposed=[];let validated=0;
+  await assert.rejects(workerAssemblyStep([{id:'one',document:{}},{id:'two',document:{}},{id:'three',document:{}}],
+    async()=>({run:{ok:true,finalShape:{shape:true}}}),()=>{}, {
+      compile:()=>({ok:true,document:{},features:[]}),place:async()=>({shape:true}),release:run=>released.push(run),dispose:body=>disposed.push(body),
+      validate:async()=>{if(++validated===2)throw new Error('Invalid placed body');},
+      compound:()=>{throw new Error('Invalid solids must never export');},
+    }),/two: Invalid placed body/);
+  assert.equal(released.length,1);assert.equal(disposed.length,2);
+});
+
+test('native 28-instance STEP roundtrip preserves every placed solid and changed source variant',async()=>{
+  const {importStep,shapeMassProperties,disposeBrep}=await import('../js/cad_kernel.js');
+  const execute=createCadWorkerExecutor();
+  const document=createPartDocument({metadata:{authoringSystem:'parametric-v1'}});
+  createFeatureDefinition(document,'box',{id:'box',name:'Box',params:{x:0,y:0,z:0,w:1,h:1,d:1}});
+  const variant=structuredClone(document);variant.features[0].params.w=2;
+  const identity=[1,0,0,0,1,0,0,0,1],stages=[];
+  const components=Array.from({length:28},(_,index)=>({id:String(index),document:index===27?variant:structuredClone(document),placement:{matrix:identity,translation:{x:index*3,y:0,z:0}}}));
+  const result=await execute({kind:'assembly-step',components},progress=>stages.push(progress));
+  assert.equal(result.bodies,28);assert.equal(stages.filter(stage=>stage.stage==='rebuild' && !stage.featureId).length,2);
+  const imported=await importStep(result.bytes,'reused-instances.step');
+  try{const mass=await shapeMassProperties(imported);assert.ok(Math.abs(mass.volume-29)<1e-6);assert.ok(Math.abs(mass.bounds.max.x-mass.bounds.min.x-83)<1e-6);}finally{disposeBrep(imported);}
 });
 
 test('assembly STEP names the component whose body fails export validation',async()=>{

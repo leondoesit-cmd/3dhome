@@ -77,6 +77,8 @@ function standardSheet(def, options, bodies) {
       author: options.author || "",
       company: options.company || "",
       material: options.material || drawingMaterialName(def),
+      finish: options.finish || "",
+      mass: options.mass || "",
       date: options.date || "",
     },
   });

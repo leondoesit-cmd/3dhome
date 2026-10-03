@@ -46,9 +46,17 @@ test('assembly drawing settings focus and persist multiline notes through the ac
   const dialog=root.children[0],notes=dialog.children.find(child=>child.tag==='textarea');
   assert.equal(notes.value,'OLD\nNOTE');assert.ok(notes.focused);
   notes.value='  REMOVE BURRS\nVERIFY FREE ROTATION  ';
+  for(const [label,value] of [['Material','SEE BOM'],['Finish','REMOVE BURRS'],['Mass','1.92143331 kg']]) {
+    const input=dialog.children.find(child=>child.label===label);
+    assert.ok(input,`${label} is a visible drawing field`);input.value=value;
+  }
   dialog.children.find(child=>child.textContent==='Apply drawing settings').onclick();
   assert.equal(E.assembly.drawingSettings.notes,'REMOVE BURRS\nVERIFY FREE ROTATION');
   assert.equal(JSON.parse(JSON.stringify(E.assembly)).drawingSettings.notes,E.assembly.drawingSettings.notes);
+  const restored=JSON.parse(JSON.stringify(E.assembly));
+  assert.equal(restored.drawingSettings.mass,'1.92143331 kg');
+  const scene=buildDrawingScene(body,{...restored.drawingSettings,views:['iso']});
+  for(const value of ['SEE BOM','REMOVE BURRS','1.92143331 kg'])assert.ok(scene.items.some(item=>item.type==='text'&&item.text===value),`${value} reaches the exported title block`);
   assert.equal(undo,1);assert.equal(refresh,1);
 });
 
@@ -59,10 +67,21 @@ test('component BOM fields update occurrence properties without touching the sou
   fn(host,component);
   const inputs=host.children.flatMap(row=>row.children).filter(child=>child.tag==='input');
   assert.equal(inputs[0].value,'Old long source description');
-  inputs[0].value='DISC';inputs[0].events.change();inputs[1].value='VALVE-003';inputs[1].events.change();
+  inputs[0].value='DISC';inputs[0].events.blur();inputs[0].events.change();
+  inputs[1].value='VALVE-003';
+  let prevented=false,stopped=false;
+  inputs[1].events.keydown({key:'Enter',preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});
+  inputs[1].events.blur();
   const bom=generateBOM({components:[component]});
   assert.equal(bom[0].description,'DISC');assert.equal(bom[0].partNumber,'VALVE-003');
   assert.equal(JSON.stringify(component.def),original);assert.equal(undo,2);assert.equal(refresh,2);
+  assert.ok(prevented&&stopped,'Enter commits the field without triggering a parent command');
+  const restored=JSON.parse(JSON.stringify(component));
+  const savedBom=generateBOM({components:[restored]});
+  assert.equal(savedBom[0].description,'DISC','blur commit survives saved occurrence roundtrip');
+  const svg=sceneToSvg(buildDrawingScene(body,{views:['iso'],balloons:savedBom.map((item,index)=>({item:index+1,qty:item.quantity,name:item.name,description:item.description,partNumber:item.partNumber,material:item.material}))}));
+  assert.match(svg,/>DISC<\/text>/,'exported BOM uses committed occurrence description');
+  assert.doesNotMatch(svg,/Old long source description/,'occurrence override wins over source description');
 });
 
 test('component BOM inspector shows book numbers from fresh browser-exported source models',()=>{
@@ -74,6 +93,27 @@ test('component BOM inspector shows book numbers from fresh browser-exported sou
     const inputs=host.children.flatMap(row=>row.children).filter(child=>child.tag==='input');
     assert.equal(inputs[1].value,expected,file);
   }
+});
+
+test('actual saved Double Pulley occurrence description commits over its verbose source into SVG',()=>{
+  const bundle=JSON.parse(fs.readFileSync(new URL('../artifacts/planchard/DP-assembly-browser-2026-10-03.mforge',import.meta.url),'utf8'));
+  const component=structuredClone(bundle.assemblies.find(assembly=>assembly.components.length===28).components.find(item=>item.name==='DP bracket left'));
+  const sourceDescription=documentDescription(component.def);
+  assert.match(sourceDescription,/Exercise/);
+  setDocumentProperty(component,'Description','Existing occurrence override');
+  const host=element('host');
+  const render=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','refreshSelection',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')
+    (el,documentDescription,assemblyPartNumber,()=>{},setDocumentProperty,()=>{});
+  render(host,component);
+  const input=host.children[0].children.find(child=>child.tag==='input');
+  assert.equal(input.value,'Existing occurrence override');
+  input.value='BRACKET';input.events.keydown({key:'Enter',preventDefault(){},stopPropagation(){}});
+  const restored=JSON.parse(JSON.stringify(component)),row=generateBOM({components:[restored]})[0];
+  assert.equal(documentDescription(restored.def),sourceDescription,'source book definition remains unchanged');
+  assert.equal(row.description,'BRACKET');
+  const svg=sceneToSvg(buildDrawingScene(body,{views:['iso'],balloons:[{item:1,qty:row.quantity,name:row.name,description:row.description,partNumber:row.partNumber,material:row.material}]}));
+  assert.match(svg,/>BRACKET<\/text>/);
+  assert.doesNotMatch(svg,/Existing occurrence override|Exercise 8\.14/);
 });
 
 test('viewport and drawing leaders start at assembled world bounds and apply explode offset once',()=>{
