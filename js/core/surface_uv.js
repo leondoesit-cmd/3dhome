@@ -6,6 +6,19 @@ const mul=(v,s)=>({x:v.x*s,y:v.y*s,z:v.z*s});
 
 export function supportsSurfaceUV(descriptor) { return ["cylinder","cone","sphere"].includes(descriptor?.surface); }
 
+// Native axisRange is measured from referenceOrigin; UV V is measured from origin.
+// U is periodic on a cylinder, so its circumference is not a finite trimming range.
+export function cylinderUVDomain(descriptor) {
+  if(descriptor?.surface !== 'cylinder' || !(descriptor.radius > 0))return null;
+  const result={uPeriod:2*Math.PI*descriptor.radius,vRange:null};
+  const range=descriptor.axisRange,reference=descriptor.referenceOrigin,origin=descriptor.origin,axis=descriptor.axis;
+  if(Array.isArray(range)&&range.length===2&&range.every(Number.isFinite)&&reference&&origin&&axis&&Math.hypot(axis.x,axis.y,axis.z)>0){
+    const offset=dot({x:reference.x-origin.x,y:reference.y-origin.y,z:reference.z-origin.z},unit(axis));
+    if(Number.isFinite(offset))result.vRange=range.map(value=>value+offset).sort((a,b)=>a-b);
+  }
+  return result;
+}
+
 function basis(descriptor) {
   const axis=unit(descriptor.axis || {x:0,y:1,z:0}),seed=Math.abs(axis.x)<.9?{x:1,y:0,z:0}:{x:0,y:0,z:1},uAxis=unit(cross(axis,seed)),radial=unit(cross(uAxis,axis));
   return {axis,radial,uAxis};

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-import {lengthFromDocument,lengthToDocument} from '../js/core/document_length_units.js';
+import {lengthFromDocument,lengthToDocument,formatDocumentLength,documentLengthUnit} from '../js/core/document_length_units.js';
 const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function node(tag,_class,text){return {tag,textContent:text,children:[],events:{},value:'',appendChild(child){this.children.push(child);},append(...children){this.children.push(...children);},addEventListener(event,fn){this.events[event]=fn;},setAttribute(){}};}
 function all(node){return [node,...node.children.flatMap(all)];}
@@ -27,4 +27,17 @@ for(const unit of ['mm','cm','in'])test('assembly placement displays and applies
 test('grounded component ignores inline and Apply placement changes',()=>{
   const f=fixture('mm',true),x=f.field('X (mm)');x.value='45';x.events.change();f.apply.onclick();
   assert.equal(f.tr.x,4.5);assert.equal(f.apply.disabled,true);assert.equal(f.rotations,0);
+});
+
+for(const unit of ['mm','cm','in'])test('selected component size summary uses assembly '+unit+' regardless of source part units',()=>{
+ const component={name:'Drill guide base',def:{context:{units:{length:'cm'}},parts:[{id:'base'}]}};
+ const E={docType:'assembly',assembly:{context:{units:{length:unit}}},sel:component},host=node('host');
+ const bounds={x0:-7,x1:7,y0:0,y1:4.6,z0:-7,z1:7},before=JSON.stringify(component);
+ const modelLengthUnit= new Function('E','documentLengthUnit',sourceFunctionText(source,'modelLengthUnit')+';return modelLengthUnit;')(E,documentLengthUnit);
+ const modelLengthText=new Function('modelLengthUnit','formatDocumentLength',sourceFunctionText(source,'modelLengthText')+';return modelLengthText;')(modelLengthUnit,formatDocumentLength);
+ const bindings={E,root:{querySelector:()=>host},el:node,t:x=>x,isSubassembly:()=>false,btn:text=>node('button','',text),componentDef:c=>c.def,activeParts:d=>d.parts,defBounds:()=>bounds,springSource:()=>{throw Error('not spring');},modelLengthText,modelLengthUnit};
+ new Function(...Object.keys(bindings),sourceFunctionText(source,'assemblyFlagsInspector')+';assemblyFlagsInspector();')(...Object.values(bindings));
+ const expected=[14,4.6,14].map(x=>formatDocumentLength(x,unit,6)).join('×');
+ assert.ok(all(host).some(n=>n.textContent==='1 partCount · '+expected+' '+unit));
+ assert.equal(JSON.stringify(component),before);
 });

@@ -160,6 +160,22 @@ test("a nested loop rides along as a hole rather than as its own area", () => {
   assert.deepEqual(areas[0].holeEntityIds[0].slice().sort(), ["ie0", "ie1", "ie2", "ie3"]);
 });
 
+test("a narrow browser-authored journal groove keeps its inner circle as a parametric hole", () => {
+  // DG02 uses Ø5.8 and Ø5.2 in centimetre authoring coordinates. Their
+  // 0.3 mm radial gap is narrower than the ordinary 0.5 mm endpoint tolerance.
+  // Welding those distinct circles together produces a solid disk cut and a
+  // buried void instead of an exposed retaining-ring groove.
+  const sketch = doc(circle("outer", 0, 0, .29), circle("inner", 0, 0, .26));
+  const run = sketchRegions(sketch, { tolerance:.05 });
+  const areas = featureAreas(analyzeSketchProfiles(sketch, { tolerance:.05 }), run);
+  assert.equal(run.regions.length, 1);
+  assert.equal(run.regions[0].holes.length, 1);
+  assert.equal(areas.length, 1);
+  assert.deepEqual(areas[0].entityIds, ["outer"]);
+  assert.deepEqual(areas[0].holeEntityIds, [["inner"]]);
+  assert.ok(areas[0].holes.length === 1);
+});
+
 /* An area born from a crossing has no chain of whole entities behind it, so it
    cannot claim to be parametric — resolveProfilePoints would never find it. */
 test("an area made by crossing geometry carries points, not a false profile reference", () => {

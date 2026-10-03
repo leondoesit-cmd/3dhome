@@ -152,6 +152,7 @@ import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBoun
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { ribSketchReady } from "./core/rib_profile.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
+import { refreshedCutProfile } from "./core/feature_profile_refresh.js";
 import { featureContourKey, selectFeatureContours } from "./core/feature_contours.js";
 import { createReferencePlane, createReferenceAxis, createReferencePoint, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
 import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath,circularHelixSweepProfile } from "./cad_helix.js";
@@ -222,7 +223,7 @@ import { circularPatternAxisFromHistory, circularPatternPivot, circularPatternSt
 import { cabinetDefinitionFromItem, finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
-import { createSurfaceSketch, supportsSurfaceUV, surfaceSketchWorldPolyline } from "./core/surface_uv.js";
+import { createSurfaceSketch, supportsSurfaceUV, surfaceSketchWorldPolyline, cylinderUVDomain } from "./core/surface_uv.js";
 import { clearMeshProjectionCache, meshFeatureEdges, meshSmoothFaces, projectMeshEdges } from "./core/mesh_projection.js";
 import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
@@ -6029,14 +6030,14 @@ function coachRebuildSuggestion(rebuildIssue) {
 function startBlankPart() {
   if (E.docType !== "part") setDocumentType("part");
   setTab("parts");
-  startSketchOnDefaultPlane("srect");
+  startSketchOnDefaultPlane("srect", "plane:top");
 }
 function startBlankAssembly() {
   setDocumentType("assembly");
   revealAssemblyTree();
 }
-function startSketchOnDefaultPlane(preferredTool) {
-  var plane = defaultSketchPlane(E.def && E.def.references, E.lastSketchReferenceId);
+function startSketchOnDefaultPlane(preferredTool, explicitReferenceId) {
+  var plane = defaultSketchPlane(E.def && E.def.references, explicitReferenceId || E.lastSketchReferenceId);
   if (!plane) { showReferencePicker(preferredTool); return; }
   chooseSketchReference(plane, preferredTool || "srect");
   if (document.body.classList.contains("compact-nav")) closeModelerSheet();
@@ -9926,7 +9927,7 @@ function addTerminatingFaceChoices(host,type,state,liveBadge,controls) {
   var choices=planarMateFaceChoices(activeParts(E.def).flatMap(topologyEntriesForPart).filter(function(entry){
     var owner=String(entry.ownerFeatureId || "");
     return allowed.has(owner) || history.some(function(feature){return owner.startsWith(feature.id+":");});
-  }),history);
+  }),history,modelLengthUnit());
   var row=el("label","md-row md-row-wide"),select=document.createElement("select");
   row.appendChild(el("span","t",t("terminatingFace")));
   select.setAttribute("aria-label",t("terminatingFace"));
@@ -10215,6 +10216,8 @@ function openQuickForm(spec) {
     inputs[key].addEventListener("input", function () { spec.onLive(read()); });
   });
 
+  var failure = spec.failureMessage ? el("p", "md-feature-error") : null;
+  if(failure){failure.setAttribute("role", "alert"); failure.hidden = true; host.appendChild(failure);}
   var close = function () { host.innerHTML = ""; E.quickAction = null; closeFeaturePanel(); };
   var actions = el("div", "md-feature-actions");
   actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> ' + t("m_cancel"), function () {
@@ -10224,7 +10227,11 @@ function openQuickForm(spec) {
   }, "md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> ' + t("quickApply"), async function () {
     if (!validateFeatureInputs(host)) return;
-    if (await spec.onApply(read()) === false) return;
+    if(failure)failure.hidden = true;
+    if (await spec.onApply(read()) === false) {
+      if (spec.failureMessage) { failure.textContent = spec.failureMessage(); failure.hidden = false; }
+      return;
+    }
     if(E.quickAction!==(spec.action || "quickform"))return;
     close();
     refreshAll();
@@ -16916,7 +16923,7 @@ function openNewContextPart() {
       if(leafDoc?.exactTopologyCache){var compiled=compileKernelFeatureTree(interferenceDocument(leafDoc));if(compiled.ok)return verifiedFinalTopology(leafDoc,compiled.features);}
       return pickPartsFor(leaf).flatMap(topologyEntriesForPart);
     });
-    exactMateReferenceChoices(entries,doc?.features || []).filter(function(choice){return choice.entry.descriptor?.surface==="plane";}).forEach(function(choice){
+    exactMateReferenceChoices(entries,doc?.features || [],modelLengthUnit()).filter(function(choice){return choice.entry.descriptor?.surface==="plane";}).forEach(function(choice){
       choices.push({value:String(component.id)+"|"+choice.entry.persistentId,label:component.name+" · "+choice.label,component:component,entry:choice.entry});
     });
   });
@@ -17395,7 +17402,7 @@ function openFeatureEditor(feature) {
     var targetCompiled=compileKernelFeatureTree(E.def);
     var targetStageEntries=(targetCompiled.ok && verifiedExactTopology(E.def,targetCompiled.features).get(targetStageId))
       || E.brepRun?.results?.get(targetStageId)?.topology || [];
-    finishTargetChoices=feature.type==="draft" ? draftFaceChoices(targetStageEntries,(E.def.features || [])) : planarMateFaceChoices(targetStageEntries,(E.def.features || []));
+    finishTargetChoices=feature.type==="draft" ? draftFaceChoices(targetStageEntries,(E.def.features || []),modelLengthUnit()) : planarMateFaceChoices(targetStageEntries,(E.def.features || []),modelLengthUnit());
     if(finishTargetChoices.length){
       var finishTargetRow=el("label","md-row md-row-wide");finishTargetRow.appendChild(el("span","t",t("featureTargetFace")));
       finishTargetSelect=document.createElement("select");finishTargetSelect.setAttribute("aria-label",t("featureTargetFace"));
@@ -17404,7 +17411,7 @@ function openFeatureEditor(feature) {
       finishTargetRow.appendChild(finishTargetSelect);host.appendChild(finishTargetRow);
     }
     if(feature.type==="draft"){
-      draftNeutralChoices=planarMateFaceChoices(targetStageEntries,(E.def.features || []));
+      draftNeutralChoices=planarMateFaceChoices(targetStageEntries,(E.def.features || []),modelLengthUnit());
       var draftNeutralRow=el("label","md-row md-row-wide");draftNeutralRow.appendChild(el("span","t",t("fcFldNeutralPlane")));
       draftNeutralSelect=document.createElement("select");draftNeutralSelect.setAttribute("aria-label",t("fcFldNeutralPlane"));
       var noNeutral=document.createElement("option");noNeutral.value="";noNeutral.textContent="Use axis and start/end settings";draftNeutralSelect.appendChild(noNeutral);
@@ -17423,8 +17430,8 @@ function openFeatureEditor(feature) {
           if(draftIndex<0)throw new Error("Draft is missing from the feature history");
           var refreshed=await topologyInCadWorker({...compiledFaces.document,features:compiledFaces.features.slice(0,draftIndex)},targetStageId,{onProgress:function(progress){refreshDraftStatus.textContent="Refreshing exact faces · "+(progress.name || progress.stage);flash(refreshDraftStatus.textContent);}});
           if(E.authoring.editFeatureId!==feature.id){refreshDraftStatus.textContent="Exact faces computed, but the edited feature changed. Reopen Draft and refresh its faces.";console.warn("Draft exact face refresh edit context changed",{expected:feature.id,current:E.authoring.editFeatureId});flash(refreshDraftStatus.textContent);return;}
-          finishTargetChoices=draftFaceChoices(refreshed.topology,E.def.features || []);
-          draftNeutralChoices=planarMateFaceChoices(refreshed.topology,E.def.features || []);
+          finishTargetChoices=draftFaceChoices(refreshed.topology,E.def.features || [],modelLengthUnit());
+          draftNeutralChoices=planarMateFaceChoices(refreshed.topology,E.def.features || [],modelLengthUnit());
           if(!finishTargetSelect)throw new Error("No target face selector is available");
           var selectedTarget=finishTargetSelect.value,selectedNeutral=draftNeutralSelect.value;
           finishTargetSelect.innerHTML="";draftNeutralSelect.innerHTML="";
@@ -17446,7 +17453,7 @@ function openFeatureEditor(feature) {
     var supportStageId=(feature.inputs || []).map(dependencyReferenceId).find(function(id){return allowedOwners.has(id);}) || earlier.at(-1)?.id;
     var supportStage=E.brepRun?.results?.get(supportStageId);
     var supportEntries=supportStage?.topology || (E.def.parts || []).flatMap(topologyEntriesForPart);
-    supportChoices=planarMateFaceChoices(supportEntries.filter(function(entry){return allowedOwners.has(entry.ownerFeatureId);}),earlier);
+    supportChoices=planarMateFaceChoices(supportEntries.filter(function(entry){return allowedOwners.has(entry.ownerFeatureId);}),earlier,modelLengthUnit());
     if(supportChoices.length){
       var supportRow=el("label","md-row md-row-wide");supportRow.appendChild(el("span","t",t("sketchSupportFace")));
       supportSelect=document.createElement("select");supportSelect.setAttribute("aria-label",t("sketchSupportFace"));
@@ -17462,6 +17469,19 @@ function openFeatureEditor(feature) {
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
   var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push(t("depSketch")+": "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push(t("depFeature")+": "+id);});
   host.appendChild(el("div","md-feature-selection-note",dependencies.length?dependencies.join(" · "):t("noUpstreamDeps")));
+  if(feature.type==="extrudeCut"){
+    var contourStatus=el("p","md-field-hint","Refresh after editing this cut's sketch to update its profile and inner holes.");
+    var contourRefresh=btn("Refresh sketch contour",function(){
+      try{
+        var sourceSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===feature.params?.sketchId;});
+        var refreshed=refreshedCutProfile(feature,sourceSketch);
+        feature.params=refreshed.params;feature.references=refreshed.references;
+        contourStatus.textContent="Sketch contour refreshed · "+refreshed.holeCount+" inner "+(refreshed.holeCount===1?"hole":"holes")+". Click Update feature to rebuild.";
+        contourStatus.removeAttribute("data-error");
+      }catch(error){contourStatus.textContent=String(error.message || error);contourStatus.setAttribute("data-error","true");}
+    },"md-wide");
+    host.appendChild(contourRefresh);host.appendChild(contourStatus);
+  }
   if(["fillet","chamfer"].includes(feature.type)){
     var edgeBox=el("div","md-finish-edges");edgeBox.setAttribute("data-finish-edges",feature.type);
     host.appendChild(edgeBox);renderFinishEdgeList();
@@ -18292,7 +18312,7 @@ function renderCreateSketchAction(host, legacy) {
     : t(legacy ? "newSketch" : "createSketchOnRef");
   var action = btn('<i class="ph ph-plus"></i><span>' + label + "</span>", function () {
     if (reference) chooseSketchReference(reference, emptyDoc ? "srect" : null);
-    else if (emptyDoc) startSketchOnDefaultPlane("srect");
+    else if (emptyDoc) startSketchOnDefaultPlane("srect", "plane:top");
     else beginSketchWorkflow(null, { forceNew: true });
   }, "md-tree-create-sketch md-dashed" + (emptyDoc ? " md-tree-start" : ""));
   action.title = label;
@@ -18876,7 +18896,7 @@ function assemblyFlagsInspector() {
         setComponentConfiguration(component,configurationSelect.value);invalidateInterference();refreshAll();refreshConfiguredComponent(component);
       });configurationRow.appendChild(configurationSelect);host.appendChild(configurationRow);
     }
-    host.appendChild(el("div", "md-note", shown.length + " " + t("partCount") + " · " + (bounds?[bounds.x1-bounds.x0,bounds.y1-bounds.y0,bounds.z1-bounds.z0].map(function(size){return Number(size.toFixed(6));}).join("×"):"—×—×—") + " cm"));
+    host.appendChild(el("div", "md-note", shown.length + " " + t("partCount") + " · " + (bounds?[bounds.x1-bounds.x0,bounds.y1-bounds.y0,bounds.z1-bounds.z0].map(function(size){return modelLengthText(size,6);}).join("×"):"—×—×—") + " "+modelLengthUnit()));
   }
 }
 
@@ -19808,6 +19828,25 @@ function appendSketchGeometryList(host, sketch) {
   host.appendChild(details);
 }
 
+function syncCommittedSketchPlane(sketch) {
+  E.def.activeSketch=sketch.id;E.view=sketch.plane;
+  (E.def.history || []).forEach(function(entry){if(entry.kind==="sketch" && entry.targetId===sketch.id)entry.name=sketch.name;});
+  E.poly=null;E.arcPts=null;E.wallPts=null;E.drag=null;E.dimPick=[];E.dimSel=null;
+  if(E.authoring?.phase==="sketch"){E.authoring.referenceId=sketch.referenceId;E.authoring.sketchId=sketch.id;}
+  E.lastSketchReferenceId=sketch.referenceId;
+  invalidateSketchProjection();syncModelPlane();
+  if(E.mode==="3d" && E.modelPlaneActive)orientModelToView(true);
+  syncTools();
+}
+
+function surfaceUVGuide(sketch) {
+  if(sketch.frameSpace!=="surface-uv")return "";
+  var domain=cylinderUVDomain(sketch.surface?.descriptor);if(!domain)return "";
+  var guide="U wraps every "+modelLengthText(domain.uPeriod,6)+" "+modelLengthUnit()+".";
+  if(domain.vRange)guide+=" V on this face: "+modelLengthText(domain.vRange[0],6)+" to "+modelLengthText(domain.vRange[1],6)+" "+modelLengthUnit()+" from the surface origin. Values outside this range leave the selected face.";
+  return guide;
+}
+
 function fillSketchPane() {
   var host = root && root.querySelector("#mdSketch");
   if (!host) return;
@@ -19816,6 +19855,8 @@ function fillSketchPane() {
   var si = E.solveInfo || (E.solveInfo = solveSketch(sketch));
   var pending=(sketch.repairs||[]).filter(r=>r.status==="pending").length;if(pending)host.appendChild(btn(t("sketchRepair")+" · "+pending,openSketchRepairs,"md-settings-btn"));
   var profileInfo = sketchProfileAnalysis();
+  var uvGuide=surfaceUVGuide(sketch);
+  if(uvGuide){var guide=el("p", "md-feature-hint");guide.textContent=uvGuide;host.appendChild(guide);}
 
   if (!sketch.entities.length) {
     emptyState(host, "ph-compass-tool", t("noSketch"), t("noSketchHint"));
@@ -19940,15 +19981,16 @@ function fillSketchPane() {
     if (selPoints().length === 1 && !selEntities().length) {
       host.appendChild(btn("Set point coordinates", function () {
         var point=selPoints()[0];if(!point)return;
-        openQuickForm({action:"pointcoordinates",title:"Point coordinates",hint:"Locate and constrain this point on its sketch plane.",fields:[
-          {key:"x",label:"Horizontal coordinate",type:"number",value:point.x,unit:"length"},
-          {key:"y",label:"Vertical coordinate",type:"number",value:point.y,unit:"length"}
+        var coordinateError="",surfaceUV=sketch.frameSpace==="surface-uv";
+        openQuickForm({action:"pointcoordinates",title:"Point coordinates",hint:surfaceUVGuide(sketch)||"Locate and constrain this point on its sketch plane.",failureMessage:function(){return coordinateError;},fields:[
+          {key:"x",label:surfaceUV?"U coordinate":"Horizontal coordinate",type:"number",value:point.x,unit:"length"},
+          {key:"y",label:surfaceUV?"V coordinate":"Vertical coordinate",type:"number",value:point.y,unit:"length"}
         ],onApply:function(values){
           var x=Number(values.x),y=Number(values.y);if(!Number.isFinite(x)||!Number.isFinite(y))return false;
           pushUndo("Point coordinates");var previous=cloneData(sketch.constraints),oldPoint={x:point.x,y:point.y,fixed:point.fixed};
           sketch.constraints=sketch.constraints.filter(function(c){return !(c.type==='fixed'&&c.point===point.id);});
           point.fixed=false;sketch.constraints.push({id:uid(),type:"fixed",point:point.id,x:x,y:y});
-          if(!resolveSketch(true)){var fixIds=addedConstraintIds(sketch,previous),fixWhy=explainSketchConflict(sketch,{keep:fixIds}),fixSubject=constraintCaption(sketch.constraints[sketch.constraints.length-1],sketch);sketch.constraints=previous;Object.assign(point,oldPoint);resolveSketch(false);H.discard();showSketchRefusal(sketch,fixSubject,fixIds,fixWhy);return false;}
+          if(!resolveSketch(true)){var fixIds=addedConstraintIds(sketch,previous),fixWhy=explainSketchConflict(sketch,{keep:fixIds}),fixSubject=constraintCaption(sketch.constraints[sketch.constraints.length-1],sketch);sketch.constraints=previous;Object.assign(point,oldPoint);resolveSketch(false);H.discard();coordinateError=refusalMessage(sketch,fixSubject,fixIds,fixWhy)+" For linked endpoints, use Translate sketch geometry to move them together, or edit the conflicting relation.";showSketchRefusal(sketch,fixSubject,fixIds,fixWhy);return false;}
           refreshAll();return true;
         }});
       },"md-wide"));
@@ -20039,8 +20081,7 @@ function fillSketchPane() {
       reassignSketchPlane(sketch,{id:principalId,type:"plane"},planeSel.value);
       sketch.name=planeLabel(sketch.plane)+" sketch";
     }
-    setView(sketch.plane);
-    E.def.activeSketch = sketch.id;
+    syncCommittedSketchPlane(sketch);
     refreshAll();
   });
   planeRow.appendChild(planeSel);
@@ -20111,7 +20152,7 @@ function fillSketchPane() {
   var allowed=new Set(before.map(function(feature){return feature.id;}));
   var supportChoices=planarMateFaceChoices((E.def.parts || []).flatMap(topologyEntriesForPart).filter(function(entry){
     return allowed.has(entry.ownerFeatureId) || allowed.has(String(entry.ownerFeatureId).replace(/:tool$/, ""));
-  }),before);
+  }),before,modelLengthUnit());
   if(supportChoices.length){
     var supportSelect=document.createElement("select");
     supportSelect.setAttribute("aria-label",t("sketchSupportFace"));

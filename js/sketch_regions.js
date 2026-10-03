@@ -88,6 +88,28 @@ function collectSegments(sketch, options) {
   return segments;
 }
 
+/* A circle pair may deliberately define a thin annular land or groove. The
+   ordinary endpoint weld tolerance is for nearly joined line endpoints; if
+   used across two separate circular boundaries it collapses the annulus into
+   a disk. Cap only this sketch's weld radius by the closest positive clearance
+   between nested circles. Intersecting circles still use the usual tolerance. */
+function nestedCircleClearance(sketch, options) {
+  const points = pointMap(sketch);
+  const wanted = options.entityIds ? new Set(options.entityIds) : null;
+  const circles = ((sketch && sketch.entities) || []).flatMap((entity) => {
+    if (entity.type !== "circle" || entity.construction || (wanted && !wanted.has(entity.id))) return [];
+    const center = points.get(entity.c ?? entity.center), radius = Math.abs(Number(entity.r) || 0);
+    return center && radius > 1e-4 ? [{ x:center.x, y:center.y, radius }] : [];
+  });
+  let clearance = Infinity;
+  for (let i = 0; i < circles.length; i++) for (let j = i + 1; j < circles.length; j++) {
+    const a = circles[i], b = circles[j];
+    const gap = Math.abs(a.radius - b.radius) - Math.hypot(a.x - b.x, a.y - b.y);
+    if (gap > 1e-7) clearance = Math.min(clearance, gap);
+  }
+  return clearance;
+}
+
 /* Buckets keep the crossing search near-linear on sketches the editor actually
    sees; a quadratic scan over a few thousand chords stalls the canvas. */
 function forEachNearbyPair(segments, visit) {
@@ -354,7 +376,8 @@ export function sketchRegions(sketch, options = {}) {
   segments.forEach((s) => { shortest = Math.min(shortest, Math.hypot(s.x2 - s.x1, s.y2 - s.y1)); });
   // Welding must never swallow a whole chord, or a small circle collapses to a
   // point and takes its region with it.
-  const weld = Math.max(1e-7, Math.min(tolerance, shortest * 0.35));
+  const weld = Math.max(1e-7, Math.min(tolerance, shortest * 0.35,
+    nestedCircleClearance(sketch, options) * 0.3));
   const cuts = splitParameters(segments, weld);
   const graph = buildGraph(segments, cuts, weld);
   const edges = pruneDanglingEdges(graph.vertices, graph.edges);

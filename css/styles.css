@@ -11902,6 +11902,8 @@ body.fold-span #zHud #zIntermission {
 }
 #modeler .md-tree-create-sketch.md-tree-start i { color: inherit; }
 #modeler .md-part.md-feature.error { border-color: var(--danger); color: var(--danger); }
+#modeler .md-feature-error { color: var(--danger); padding: 8px; border: 1px solid var(--danger); border-radius: 6px; white-space: normal; }
+#modeler .md-feature-hint { padding: 8px; font-size: 12px; white-space: normal; line-height: 1.5; }
 #modeler .md-diagnostics {
   display: grid; gap: 6px; margin: 0 0 4px; padding: 0;
 }

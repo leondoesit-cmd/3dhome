@@ -8,7 +8,7 @@ import {isUpToFace,resolveExtrudeExtent} from '../js/core/extrude_extent.js';
 
 function node(tag){return {tag,children:[],listeners:{},attributes:{},value:'',appendChild(child){this.children.push(child);return child;},setAttribute(key,value){this.attributes[key]=value;},addEventListener(key,handler){this.listeners[key]=handler;}};}
 function plane(id,owner,x){return {persistentId:id,ownerFeatureId:owner,kind:'face',semantic:id,descriptor:{surface:'plane',origin:{x,y:0,z:0},normal:{x:1,y:0,z:0}}};}
-function fixture(type='extrude'){
+function fixture(type='extrude',unit='cm'){
   const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
   const start=source.indexOf('function addTerminatingFaceChoices('),end=source.indexOf('\nfunction openParametricFeature(',start);
   assert.ok(start>=0 && end>start);
@@ -17,7 +17,7 @@ function fixture(type='extrude'){
   const host=node('div'),control=node('select'),state={params:{endCondition:'blind'}},calls=[];
   const context={E,Set,document:{createElement:node},el:(tag,cls,label)=>Object.assign(node(tag),{textContent:label}),t:key=>key,
     activeParts:doc=>doc.parts,topologyEntriesForPart:part=>part.entries,historyEntryRolled:(_doc,index)=>index===2,
-    planarMateFaceChoices,isUpToFace,topologyReferenceFromEntry:entry=>createTopologyReference(entry.ownerFeatureId,entry.kind,entry.persistentId,entry.descriptor),
+    planarMateFaceChoices,modelLengthUnit:()=>unit,isUpToFace,topologyReferenceFromEntry:entry=>createTopologyReference(entry.ownerFeatureId,entry.kind,entry.persistentId,entry.descriptor),
     syncActiveFeatureSelectionFeedback:()=>state.syncTerminatingFace(),queueNewFeaturePreview:(...args)=>calls.push(args)};
   runInNewContext(source.slice(start,end)+'\nthis.add=addTerminatingFaceChoices;',context);
   const row=context.add(host,type,state,'badge',[{field:{key:'endCondition'},input:control}]);
@@ -34,6 +34,16 @@ test('both extrusion commands expose exact hidden wall choices only for Up To Su
     f.state.params.endCondition='blind';f.control.listeners.change();assert.equal(f.row.hidden,true);
   }
   assert.equal(fixture('revolve').row,null);
+});
+
+test('new extrusion face labels follow document millimetres and inches without rescaling geometry',()=>{
+  for(const type of ['extrude','extrudeCut'])for(const [unit,text] of [['mm','X 116.000 mm'],['in','X 4.567 in']]){
+    const f=fixture(type,unit);
+    assert.ok(f.select.children[1].textContent.includes(text));
+    f.select.value='inner-wall';f.select.listeners.change();
+    assert.equal(f.E.topologySelection[0].descriptor.origin.x,11.6);
+    assert.deepEqual(f.E.topologySelection[0].descriptor,f.target.descriptor);
+  }
 });
 
 test('selecting the exact X116 wall keeps the active sketch and terminates the X39 extrusion at that plane',()=>{
