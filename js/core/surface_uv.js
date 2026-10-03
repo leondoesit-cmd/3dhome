@@ -40,3 +40,24 @@ export function surfaceSketchPolyline(sketch,entity) {
   const points=new Map((sketch.points || []).map((point)=>[point.id,point])),ids=entity.type==="line"?[entity.a,entity.b]:[];
   return ids.map((id)=>points.get(id)).filter(Boolean).map((point)=>surfacePoint(sketch.surface.descriptor,point.x+(sketch.seamOffset || 0),point.y));
 }
+
+// UV lines become curves on the owning surface. Sample between UV vertices so
+// the display follows the surface rather than cutting straight through it.
+export function surfaceSketchWorldPolyline(sketch,points) {
+  const descriptor=sketch.surface?.descriptor;
+  if(!supportsSurfaceUV(descriptor))throw new Error('Unsupported sketch surface');
+  if(!points?.length)return [];
+  const seam=Number(sketch.seamOffset)||0;
+  const step=Math.max(1e-6,Math.abs(Number(descriptor.radius)||1)*Math.PI/36);
+  const map=point=>surfacePoint(descriptor,point.u+seam,point.v);
+  const result=[map(points[0])];
+  for(let index=1;index<points.length;index++){
+    const a=points[index-1],b=points[index];
+    const count=Math.min(256,Math.max(1,Math.ceil(Math.hypot(b.u-a.u,b.v-a.v)/step)));
+    for(let sample=1;sample<=count;sample++){
+      const t=sample/count;
+      result.push(map({u:a.u+(b.u-a.u)*t,v:a.v+(b.v-a.v)*t}));
+    }
+  }
+  return result;
+}

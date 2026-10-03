@@ -1,3 +1,4 @@
+import {createExactSaveCache} from "./core/exact_save_cache.js";
 import {shortcutConflict,validShortcutBindings} from './core/command_shortcuts.js';
 import {sketchGeometryBounds} from './core/sketch_view_fit.js';
 import {reassignSketchPlane} from './core/sketch_plane_edit.js';
@@ -220,7 +221,7 @@ import { circularPatternAxisFromHistory, circularPatternPivot, circularPatternSt
 import { cabinetDefinitionFromItem, finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
-import { createSurfaceSketch, supportsSurfaceUV } from "./core/surface_uv.js";
+import { createSurfaceSketch, supportsSurfaceUV, surfaceSketchWorldPolyline } from "./core/surface_uv.js";
 import { clearMeshProjectionCache, meshFeatureEdges, meshSmoothFaces, projectMeshEdges } from "./core/mesh_projection.js";
 import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
@@ -2014,7 +2015,10 @@ function consumedSketchIds(def) {
     var direct = feature.params && feature.params.sketchId;
     if (direct) used.add(direct);
     var refs = feature.references && feature.references.sketches;
-    if (Array.isArray(refs)) refs.forEach(function (id) { if (id) used.add(id); });
+    if (Array.isArray(refs)) refs.forEach(function (reference) {
+      var id = typeof reference === "string" ? reference : reference && reference.id;
+      if (id) used.add(id);
+    });
   });
   return used;
 }
@@ -2042,11 +2046,14 @@ function documentSketchOverlays(def) {
     function toWorld(q) { return framePoint(frame, q.u, q.v, 0); }
     try {
       analyzeSketchProfiles(sketch).profiles.forEach(function (profile) {
-        var pts = (profile.points || []).map(toWorld);
-        if (pts.length > 1) { pts.push(pts[0]); out.push(pts); }
+        var points = (profile.points || []).slice();
+        if (points.length > 1) {
+          points.push(points[0]);
+          out.push(sketch.frameSpace === "surface-uv" ? surfaceSketchWorldPolyline(sketch, points) : points.map(toWorld));
+        }
       });
       analyzeSketchChains(sketch).chains.forEach(function (chain) {
-        var pts = (chain.points || []).map(toWorld);
+        var pts = sketch.frameSpace === "surface-uv" ? surfaceSketchWorldPolyline(sketch, chain.points || []) : (chain.points || []).map(toWorld);
         if (pts.length > 1) out.push(pts);
       });
     } catch (error) { /* a malformed sketch must not take the whole scene down */ }
@@ -25994,6 +26001,7 @@ function importStepDocument() {
   input.click();
 }
 
+const exactSaveCache=createExactSaveCache();
 async function saveModel() {
   if(E.contextEdit){finishContextPart();return saveAssemblyDocument();}
   /* Save validates its own snapshot with an authoritative exact rebuild below.
@@ -26033,15 +26041,19 @@ async function saveModel() {
   def.definitionId = E.def.definitionId || E.def.id || def.key;
   def.id = def.definitionId;
   if(canonical){
-    var saveCompiled=compileKernelFeatureTree(def),saveRun;
+    var saveCompiled=compileKernelFeatureTree(def),saveRun,saveGeometryReused=false;
     saveProgress("saveRebuilding",savingDoc);
     try{
       if(!saveCompiled.ok)throw new Error(saveCompiled.issues[0]?.message || "Invalid feature history");
-      saveRun=await regenerateFeatures({...saveCompiled.document,features:saveCompiled.features},{restoreMode:'mesh',onProgress:function(progress){if(E.def===savingDoc)flash(t("saveRebuilding")+" · "+(progress.name || progress.stage));}});
+      saveRun=exactSaveCache.get(savingDoc,saveCompiled);
+      saveGeometryReused=!!saveRun;
+      if(saveGeometryReused)saveProgress("saveReusingGeometry",savingDoc);
+      saveRun=saveRun || await regenerateFeatures({...saveCompiled.document,features:saveCompiled.features},{restoreMode:'mesh',onProgress:function(progress){if(E.def===savingDoc)flash(t("saveRebuilding")+" · "+(progress.name || progress.stage));}});
       if(!saveRun.ok)throw new Error(saveRun.issues.find(function(issue){return issue.code==='regeneration-failed' || issue.severity==='error';})?.message || "The model could not rebuild");
       def.exactTopologyCache=captureExactTopology(def,saveCompiled.features,saveRun);
       var savedReferenceRepairs=applyDocumentTopologyRebindings(def,saveRun.topologyBindings);
       if(savedReferenceRepairs.length){
+        saveGeometryReused=false;
         def.topologyBindings=(def.topologyBindings || []).concat(savedReferenceRepairs.map(function(entry){return Object.assign({savedAt:Date.now()},entry);}));
         releaseRegeneration(saveRun); saveRun=null;
         saveCompiled=compileKernelFeatureTree(def);
@@ -26060,6 +26072,7 @@ async function saveModel() {
         delete mesh.normals;delete mesh.colors;
         return mesh;
       });
+      exactSaveCache.put(savingDoc,saveCompiled,saveRun);
     }catch(error){report(t("reportKickerSave"),t("saveRebuildFailed"),String(error.message || error));return;}
     finally{if(saveRun)releaseRegeneration(saveRun);}
   }
@@ -26201,7 +26214,9 @@ async function saveModel() {
   refreshModelHistoryPane();
   refreshParts();
   syncCoach();
-  flash("✓ " + t("saved"));
+  var savedButton=root && root.querySelector("#mdSave");
+  if(savedButton && canonical)savedButton.dataset.exactSaveValidation=saveGeometryReused?"reused":"rebuilt";
+  flash("✓ " + t("saved") + (canonical ? " · " + t(saveGeometryReused ? "saveGeometryReused" : "saveGeometryValidated") : ""));
   markDocumentClean();
   discardModelerDraft();
   if (savingDoc.lastStandardsAudit && !savingDoc.lastStandardsAudit.ok) {
