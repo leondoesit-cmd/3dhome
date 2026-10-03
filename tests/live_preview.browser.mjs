@@ -21,6 +21,9 @@ import { openPage, findChrome } from "../tools/browser_harness.mjs";
 const chrome = await findChrome();
 const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
 let page = null;
+test.before(async () => {
+  if (chrome) page = await openPage({ width: 1280, height: 800, lang: "en", mobile: false, touch: false });
+});
 
 /* Two triangles of a real plate. Small enough to compare vertex by vertex,
    and off the origin in all three axes so a translation cannot hide in a zero. */
@@ -56,7 +59,6 @@ const MESH_DOC = {
 test.after(async () => { if (page) await page.close(); });
 
 test("dragging a pattern's count leaves the seed's own vertices untouched", opts, async () => {
-  page = await openPage({ width: 1280, height: 800, lang: "en", mobile: false, touch: false });
   const run = await page.eval(async (input) => {
     const { openModeler } = await import("/js/modeler.js");
     window.cadCloseFeatureForm();

@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {generateBOM} from '../js/cad_interference.js';
+import {assemblyPartNumber} from '../js/core/custom_properties.js';
 import {buildDrawingScene} from '../js/cad_drawings.js';
 import {sceneToSvg} from '../js/cad_sheet.js';
 
@@ -62,4 +64,32 @@ test('instance part number takes precedence without replacing the source documen
   assert.equal(row.partNumber,'INSTANCE');
   assert.equal(row.description,'INSTANCE DESCRIPTION');
   assert.equal(def.customProperties.PartNo,'SOURCE');
+});
+
+test('fresh browser-exported book part numbers appear in the BOM reader',()=>{
+  const source=(name)=>JSON.parse(readFileSync(new URL(`../artifacts/planchard/${name}-browser-2026-10-03.mforge`,import.meta.url),'utf8')).mainModel;
+  const base=source('DP01-base'),bracket=source('DP02-bracket'),brace=source('DP03-brace');
+  assert.equal(base.customProperties['Part number'],'6');
+  assert.equal(bracket.customProperties.BookPartNumber,'5');
+  assert.equal(brace.customProperties.BookPartNumber,'2');
+  const rows=generateBOM({components:[{modelKey:base.key,name:base.name,def:base},{modelKey:bracket.key,name:bracket.name,def:bracket},{modelKey:brace.key,name:brace.name,def:brace}]});
+  assert.deepEqual(rows.map(row=>row.partNumber),['6','5','2']);
+  assert.equal(assemblyPartNumber({def:base}),'6');
+  assert.equal(assemblyPartNumber({def:bracket}),'5');
+  assert.equal(assemblyPartNumber({def:brace}),'2');
+});
+
+test('canonical part numbers keep their existing priority over book aliases',()=>{
+  const source={customProperties:{PartNo:'SOURCE',BookPartNumber:'BOOK SOURCE','Part number':'HUMAN SOURCE'}};
+  const comp={def:source,customProperties:{PartNumber:'INSTANCE',BookPartNumber:'BOOK INSTANCE'}};
+  assert.equal(assemblyPartNumber(comp),'INSTANCE');
+  assert.equal(generateBOM({components:[{modelKey:'x',...comp}]})[0].partNumber,'INSTANCE');
+  delete comp.customProperties.PartNumber;
+  assert.equal(assemblyPartNumber(comp),'SOURCE');
+  delete source.customProperties.PartNo;
+  assert.equal(assemblyPartNumber(comp),'BOOK INSTANCE');
+  delete comp.customProperties.BookPartNumber;
+  assert.equal(assemblyPartNumber(comp),'BOOK SOURCE');
+  delete source.customProperties.BookPartNumber;
+  assert.equal(assemblyPartNumber(comp),'HUMAN SOURCE');
 });

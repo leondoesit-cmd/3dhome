@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {buildDrawingScene} from '../js/cad_drawings.js';
 import {sceneToSvg,titleBlockBox,createSheetDoc,layoutViews,sheetFrame} from '../js/cad_sheet.js';
-import {setDocumentProperty,documentDescription,documentProperty} from '../js/core/custom_properties.js';
+import {assemblyPartNumber,setDocumentProperty,documentDescription,documentProperty} from '../js/core/custom_properties.js';
 import {generateBOM} from '../js/cad_interference.js';
 import {createExplodedView,addExplodeStep,applyExplodedView,explodeLines} from '../js/cad_exploded_view.js';
 import {flattenAssembly} from '../js/core/assembly_structure.js';
@@ -55,7 +55,7 @@ test('assembly drawing settings focus and persist multiline notes through the ac
 test('component BOM fields update occurrence properties without touching the source geometry',()=>{
   const component={modelKey:'disc',def:{customProperties:{Description:'Old long source description'},parts:[{kind:'box'}]}},host=element('host');
   const original=JSON.stringify(component.def);let undo=0,refresh=0;
-  const fn=new Function('el','documentDescription','documentProperty','pushUndo','setDocumentProperty','refreshSelection',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')(el,documentDescription,documentProperty,()=>undo++,setDocumentProperty,()=>refresh++);
+  const fn=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','refreshSelection',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')(el,documentDescription,assemblyPartNumber,()=>undo++,setDocumentProperty,()=>refresh++);
   fn(host,component);
   const inputs=host.children.flatMap(row=>row.children).filter(child=>child.tag==='input');
   assert.equal(inputs[0].value,'Old long source description');
@@ -63,6 +63,17 @@ test('component BOM fields update occurrence properties without touching the sou
   const bom=generateBOM({components:[component]});
   assert.equal(bom[0].description,'DISC');assert.equal(bom[0].partNumber,'VALVE-003');
   assert.equal(JSON.stringify(component.def),original);assert.equal(undo,2);assert.equal(refresh,2);
+});
+
+test('component BOM inspector shows book numbers from fresh browser-exported source models',()=>{
+  const render=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','refreshSelection',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')
+    (el,documentDescription,assemblyPartNumber,()=>{},setDocumentProperty,()=>{});
+  for(const [file,expected] of [['DP01-base','6'],['DP02-bracket','5'],['DP03-brace','2']]){
+    const def=JSON.parse(fs.readFileSync(new URL(`../artifacts/planchard/${file}-browser-2026-10-03.mforge`,import.meta.url),'utf8')).mainModel;
+    const host=element('host');render(host,{def});
+    const inputs=host.children.flatMap(row=>row.children).filter(child=>child.tag==='input');
+    assert.equal(inputs[1].value,expected,file);
+  }
 });
 
 test('viewport and drawing leaders start at assembled world bounds and apply explode offset once',()=>{

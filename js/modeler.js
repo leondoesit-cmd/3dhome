@@ -231,7 +231,7 @@ import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
   bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
 } from "./modeler_commands.js";
-import { documentDescription, documentProperty, setDocumentDescription, setDocumentProperty, sheetTitleText } from "./core/custom_properties.js";
+import { assemblyPartNumber, documentDescription, documentProperty, setDocumentDescription, setDocumentProperty, sheetTitleText } from "./core/custom_properties.js";
 import { finishPreviewProofMatches } from "./core/finish_preview_proof.js";
 import { claimLegacyModelerDraft, modelerDraftKey, modelerDraftOwner, freshModelerDraftOwner, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
@@ -18561,6 +18561,11 @@ function renderCoreDiagnostics(host) {
     disclosure.appendChild(el("summary", "", '<i class="ph ph-caret-right"></i> ' + t("issueHelp")));
     disclosure.appendChild(el("small", "md-diagnostic-explanation", "<b>" + t("issueWhy") + "</b> " + help.meaning));
     disclosure.appendChild(el("small", "md-diagnostic-fix", "<b>" + t("issueFix") + "</b> " + help.fix));
+    (group.relatedFailures || []).forEach(function(failure){
+      var nativeFailure=el("small", "md-diagnostic-native-failure");
+      nativeFailure.textContent=(failure.code || "")+": "+(failure.message || "");
+      disclosure.appendChild(nativeFailure);
+    });
     disclosure.addEventListener("click", function (event) { event.stopPropagation(); });
     content.appendChild(disclosure);
     var actions = el("span", "md-diagnostic-actions");
@@ -18715,8 +18720,7 @@ function assemblyBomProperties(host,component) {
     var row=el("label","md-row md-row-wide"),input=el("input");
     row.appendChild(el("span","t",pair[0]));input.type="text";input.setAttribute("aria-label","Component "+pair[0].toLowerCase());
     var source=component.def || component.asm;
-    input.value=pair[1]==="Description" ? documentDescription(component) || documentDescription(source) :
-      [component,source].map(function(doc){return documentProperty(doc,"PartNo") || documentProperty(doc,"PartNumber") || documentProperty(doc,"Number") || doc?.partNumber || "";}).find(Boolean) || "";
+    input.value=pair[1]==="Description" ? documentDescription(component) || documentDescription(source) : assemblyPartNumber(component,source);
     input.placeholder=pair[1]==="PartNo" ? "Source part number unless overridden" : "BOM description";
     input.addEventListener("change",function(){
       pushUndo("Component "+pair[0].toLowerCase());setDocumentProperty(component,pair[1],input.value);refreshSelection();

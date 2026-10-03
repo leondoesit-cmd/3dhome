@@ -135,7 +135,9 @@ function frame(cam, box) {
 function render(g, type) {
   const f = FURN[type];
   buildItem(g.root, {
-    id: "thumb",
+    // A thumbnail is not a project instance. Registering the synthetic
+    // "thumb" item could replace a newer shared definition with the catalog
+    // snapshot and populate the project's runtime cache while browsing.
     type: type,
     x: 0,
     z: 0,

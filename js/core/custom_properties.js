@@ -12,6 +12,16 @@ export function documentProperty(doc, key) {
   return typeof value === "string" ? value : value == null ? "" : String(value);
 }
 
+/* The component inspector writes PartNo.  Imported and browser-authored book
+ * parts also use BookPartNumber or the human label Part number.  Keep the
+ * established component/source PartNo priority before reading those aliases. */
+export function assemblyPartNumber(component, source = component?.def || component?.asm) {
+  const canonical = (doc) => documentProperty(doc, "PartNo") || documentProperty(doc, "PartNumber") ||
+    documentProperty(doc, "Number") || doc?.partNumber || "";
+  const alternate = (doc) => documentProperty(doc, "BookPartNumber") || documentProperty(doc, "Part number");
+  return canonical(component) || canonical(source) || alternate(component) || alternate(source) || "";
+}
+
 export function setDocumentProperty(doc, key, value) {
   if (!doc) return;
   const text = String(value == null ? "" : value).trim();

@@ -16,10 +16,12 @@ for(const width of [344,717,1280]) test(`nonblocking recovery and expression col
  try{
   await start(page);
   await page.eval(async def=>{
-   const {closeModeler,openModeler}=await import('/js/modeler.js');closeModeler();
-   localStorage.setItem('home3d_modeler_draft',JSON.stringify({v:1,at:Date.now(),docType:'part',def}));
-   openModeler();
+   const {closeModeler}=await import('/js/modeler.js');closeModeler();
+   const {saveModelerDraftRecord}=await import('/js/core/model_library_store.js');
+   await saveModelerDraftRecord({v:1,at:Date.now(),docType:'part',def},sessionStorage.getItem('home3d_modeler_tab_id'));
   },model);
+  await page.goto('/');await page.waitForBoot();
+  await page.eval(async()=>{window.__blocking=0;window.confirm=window.prompt=()=>{window.__blocking++;return false;};const {openModeler}=await import('/js/modeler.js');openModeler();});
   await page.waitUntil(()=>document.getElementById('mdDecision')?.open);
   const recovery=await page.eval(async()=>{
    let frames=0;await new Promise(resolve=>requestAnimationFrame(()=>{frames++;requestAnimationFrame(()=>{frames++;resolve();});}));
@@ -29,7 +31,7 @@ for(const width of [344,717,1280]) test(`nonblocking recovery and expression col
   assert.equal(recovery.frames,2);assert.match(recovery.text,/Recovery <test>/);assert.ok(recovery.left>=0&&recovery.right<=recovery.screen);assert.ok(recovery.focus);
   // Escape dismisses the question without deleting recovery material.
   await page.eval(()=>document.getElementById('mdDecision').dispatchEvent(new Event('cancel',{cancelable:true})));
-  assert.ok(await page.eval(()=>localStorage.getItem('home3d_modeler_draft')));
+  assert.ok(await page.eval(async()=>{const {loadModelerDraftRecord}=await import('/js/core/model_library_store.js');return await loadModelerDraftRecord(sessionStorage.getItem('home3d_modeler_tab_id'));}));
   await page.eval(async()=>{const {closeModeler,openModeler}=await import('/js/modeler.js');closeModeler();openModeler();});
   await page.waitUntil(()=>document.getElementById('mdDecision')?.open);
   await page.eval(()=>document.querySelector('#mdDecision [data-decision="accept"]').click());
@@ -77,16 +79,22 @@ test('committed expressions repeat with fresh references and discard requires an
  try{
   await start(page);
   await page.eval(()=>{
+   document.querySelector('[data-selfilter="body"]').click();
    window.dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));
    window.cadOpenFeatureForm('pattern');
+   for(const [key,value] of [['axisX',true],['axisY',false],['axisZ',false]]){
+    const input=document.querySelector(`#mdQuickSettings input[data-parameter="${key}"]`);
+    input.checked=value;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));
+   }
    for(const [key,value] of [['countX','6/2'],['spacingX','80/4']]){
     const input=document.querySelector(`#mdQuickSettings input[data-parameter="${key}"]`);input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));
    }
+   window.expressionPatternBeforeCommit=window.cadFinishPreviewSnapshot();
    document.getElementById('mdAcceptCommand').click();
   });
   await page.waitUntil(()=>window.cadLoopSnapshot().authoring===null);
   const commit=await page.eval(()=>window.cadLoopSnapshot());
-  assert.equal(commit.parts,3);
+  assert.equal(commit.parts,3,JSON.stringify({commit,preview:await page.eval(()=>window.expressionPatternBeforeCommit)}));
   await page.eval(()=>{
    document.getElementById('mdCommandSearchBtn').click();
    const input=document.getElementById('mdCommandSearchInput');input.value='Repeat last';input.dispatchEvent(new Event('input',{bubbles:true}));

@@ -39,6 +39,17 @@ test("diagnostic guidance is bilingual and future codes have a safe fallback", (
   assert.equal(diagnosticHelp({ code: "future-new-code" }).action, "show");
 });
 
+test("native reference failures stay with their repair card without hiding another feature's failure", () => {
+  const missing = {severity:"error",code:"missing-topology-reference",featureId:"feature:fillet"};
+  const failed = {severity:"error",code:"regeneration-failed",featureId:"feature:fillet",message:"No native edge matched"};
+  const unrelated = {severity:"error",code:"regeneration-failed",featureId:"feature:shell",message:"Shell thickness invalid"};
+  const groups = groupDiagnostics([missing,missing,failed,unrelated]);
+  assert.equal(groups.length,2);
+  assert.equal(groups[0].count,2);
+  assert.deepEqual(groups[0].relatedFailures,[failed]);
+  assert.equal(groups[1].issue,unrelated);
+});
+
 test("duplicate topology losses on one feature collapse to a single recommended card", () => {
   const issues = [
     { severity: "warning", code: "under-constrained-sketch", sketchId: "s1", dof: 5 },

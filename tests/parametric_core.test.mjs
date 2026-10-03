@@ -99,6 +99,23 @@ test("instances share one definition while keeping placement and parameter overr
   assert.equal(state.parametric.definitions[def.id].revision, 2);
 });
 
+test("new custom instances adopt the latest shared revision instead of overwriting it from a stale catalog", () => {
+  const state = { items: [], parametric: null };
+  ensureParametricProject(state);
+  const old = boxDefinition();
+  const edited = migrateDefinition(old);
+  edited.revision = 7;
+  edited.features[0].name = "Latest authored body";
+  state.parametric.definitions[edited.id] = edited;
+  const item = { id: "new-instance", type: old.key, w: 150, d: 60, h: 90 };
+  const adopted = ensureItemDefinition(state, item, { custom: old });
+  assert.equal(adopted, edited);
+  assert.equal(state.parametric.definitions[edited.id].revision, 7);
+  assert.equal(adopted.features[0].name, "Latest authored body");
+  assert.equal(item.definitionId, edited.id);
+  assert.equal(item.parameterOverrides.width, 150);
+});
+
 test("runtime projection updates placement without rebuilding CAD history", () => {
   const state = { items: [], parametric: null };
   ensureParametricProject(state);

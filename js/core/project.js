@@ -85,8 +85,13 @@ export function ensureItemDefinition(state, item, catalogEntry = {}) {
   const project = ensureParametricProject(state);
   let definition = item.definitionId && project.definitions[item.definitionId];
   if (!definition && catalogEntry.custom) {
-    definition = migrateDefinition(catalogEntry.custom, { id: item.definitionId || catalogEntry.custom.key });
-    project.definitions[definition.id] = definition;
+    const source = catalogEntry.custom;
+    const id = source.definitionId || source.id || source.key || item.definitionId;
+    definition = project.definitions[id];
+    if (!definition) {
+      definition = migrateDefinition(source, { id: item.definitionId || source.key });
+      project.definitions[definition.id] = definition;
+    }
   }
   if (!definition) {
     definition = genericDefinition(item, catalogEntry);

@@ -43,9 +43,24 @@ test("Add Relations Intersection pins a sketch point to two crossing lines", chr
     const drawn = await page.eval(() => window.cadSketchSnapshot());
     assert.equal(drawn.entityTypes.filter((type) => type === "line").length, 2, JSON.stringify(drawn));
 
-    await clickCanvas(page, [[0.28, 0.50]]);
-    await clickCanvas(page, [[0.60, 0.50]], { ctrlKey: true });
-    await clickCanvas(page, [[0.50, 0.60]], { ctrlKey: true });
+    // Selection opens the inspector and can resize the canvas. Pick the
+    // geometry at its current projection after each layout update, rather
+    // than reusing the proportions of the canvas used to draw it.
+    const pickProjected = async (from, to, fraction, additive) => {
+      await page.eval(({from,to,fraction,additive}) => {
+        const canvas=document.querySelector('#mdCanvas'), rect=canvas.getBoundingClientRect();
+        const points=window.cadSketchSnapshot().screenPoints;
+        const a=points[from], b=points[to];
+        const init={bubbles:true,button:0,buttons:1,pointerId:1,pointerType:'mouse',
+          clientX:rect.left+a.x+(b.x-a.x)*fraction,
+          clientY:rect.top+a.y+(b.y-a.y)*fraction,ctrlKey:additive};
+        canvas.dispatchEvent(new PointerEvent('pointerdown',init));
+        canvas.dispatchEvent(new PointerEvent('pointerup',{...init,buttons:0}));
+      }, {from,to,fraction,additive});
+    };
+    await pickProjected(0,0,0,false);
+    await pickProjected(0,1,.72,true);
+    await pickProjected(2,3,.25,true);
 
     const ready = await page.eval(() => {
       document.querySelector('#modeler [data-tab="sketch"]')?.click();

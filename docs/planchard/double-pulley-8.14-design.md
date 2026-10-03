@@ -1,6 +1,6 @@
 # Exercise 8.14 — fresh double-pulley design plan
 
-Status: design plan, 3 October 2026. DP01 base, DP02 bracket and DP03 brace have since been authored and cold-reopened in Chrome; measured acceptance is recorded in `double-pulley-8.14-browser-progress-2026-10-03.md`. The remaining roles, assembly, motion and drawing are still pending. This supplements `remaining-book-audit-2026-10-03.md`; it does not replace its acceptance queue.
+Status: design plan, 3 October 2026. DP01 base through DP07 washer have since been authored and cold-reopened in Chrome; measured acceptance is recorded in `double-pulley-8.14-browser-progress-2026-10-03.md`. The remaining roles, assembly, motion and drawing are still pending. This supplements `remaining-book-audit-2026-10-03.md`; it does not replace its acceptance queue.
 
 ## Evidence and scope
 
@@ -45,7 +45,7 @@ World X separates the pulleys, Y is vertical, and Z is the parallel shaft direct
 |Brace, four|Right triangular side gusset, legs 48 Y and 36 Z, thickness 4 X. Foot datum Y6, upright datum Z−22; place at X±22 outside the guide, one per outer side of each bracket. Keep clear of the support opening and belt envelope.|
 |Support, twice|36 X × 32 Y × 18 Z block, centred on the nominal shaft axis, Z −30…−12; merged cylindrical Ø12 shaft from Z −12 to +28. Shaft is fixed to the support. Cut an axial Ø6.6 through-bore for its retention bolt. Add a transverse nominal M6 adjustment bore only after the turn-screw placement is established.|
 |Bushing, twice|Plain annulus OD16, ID12.2, length15.8 along Z; occupies Z12…27.8. No flange projects into the pulley or front washer. Separate purchased-style proxy, not a bearing-performance claim.|
-|Pulley, twice|Revolved annulus OD66, bore16.2, total axial width16, occupies Z12…28; bore clearance around bushing OD16. Groove centred at Z20: width4.4, root radius28, flange radius33. A rectangular-bottom groove is a simplified demonstrator form.|
+|Pulley, twice|Revolved annulus OD66, bore16.2, total axial width16, occupies Z12…28; bore clearance around bushing OD16. Groove centred at Z20: width4.4, root radius28, flange radius33. A rectangular-bottom groove is a simplified demonstrator form. The accepted Chrome part uses Revolve blank plus a separate editable Revolve Cut groove.|
 |Washer, twice|OD22, ID6.6, thickness2; captures the pulley front face without touching its rotating bore. Place just ahead of the pulley at Z28.2…30.2.|
 |Screw cap, four|One fresh definition with two length configurations: two M6×25 bracket fixing bolts and two M6×70 axial pulley-retention bolts. Axial bolts pass through the support Ø6.6 bore to rear nuts. Lengths are designer choices, not printed standard callouts.|
 |Hex nut, six|Two M6 fixing nuts below the base, two M6 retention nuts behind the support at Z−35…−30, and two M6 turn-screw jam nuts. Use one fresh editable M6 nut definition and six occurrences.|
@@ -60,7 +60,7 @@ The 16.2 pulley bore gives 0.1 radial clearance around the 16 bushing. The groov
 
 1. Set new-part units to mm; create the base from a fully defined centred rectangle and Extrude. Create a bracket through an L profile/Thin Extrude or separate merged foot/upright extrusions; cut its guide opening. Create the triangular brace as a separate part. Use native Hole Wizard for the fixing interfaces after their positions are fixed.
 2. Build the support from a fully defined rectangle and a merged concentric shaft extrusion. Add the actual axial retention and transverse adjustment holes. Save native, editable definitions; verify one body per intended part.
-3. Sketch each plain bushing annulus and extrude; no flange is added. Sketch the pulley radial/axial section and Revolve 360°; include its groove in that profile so the groove remains editable and native. Use native Bore and cap faces for later mates.
+3. Sketch each plain bushing annulus and extrude; no flange is added. Sketch the pulley radial/axial annular blank and Revolve 360°, then sketch the groove profile and Revolve Cut 360° as the accepted Chrome part does. Use native bore and cap faces for later mates.
 4. Build the belt's closed tangent line/arc centre path through real sketch tools. Make its Ø4 profile on a normal datum at the path start, then native Sweep. Require native success, a continuous closed solid and preserved path tangencies; never substitute a rendered tube mesh for a failed sweep.
 5. Create fresh native Toolbox M6 hardware through the visible picker, with chosen lengths and representative/cosmetic-thread limits retained. Build the knob/turn screw through native sketch/revolve/extrude if its form is absent from the picker.
 6. Save every part, export protected checkpoints, and reopen them before assembly insertion. Enter book part numbers, material/source wording and descriptions in actual custom-property controls.
@@ -79,7 +79,7 @@ The belt's capsule geometry is stationary in an ideal smooth-belt CAD animation;
 
 Create the actual **ANSI A / Letter landscape, 279.4 ×215.9 mm**, third-angle assembly drawing. Use a saved isometric exploded view with grouped offsets: hardware along Z, pulleys/bushings along Z, belt away from the groove plane, then brackets/supports and base. Add explode leaders, item balloons for all part types, BOM with true quantities/configurations, and notes declaring original dimensions, ideal belt kinematics, representative threads and absent companion files. Populate name/date, title `Double Pulley Assembly`, drawing number, revision, material policy and projection convention in the saved title block.
 
-Acceptance requires fresh Chrome construction, native one-body part checks, saved/cold reopened assembly and intended DOF, sampled motion, native clearance/contact audit, portable bundle, native STEP, and exported sheet inspected for BOM/balloon/leader completeness. DP01 base, DP02 bracket and DP03 brace meet the individual part construction, native, STEP and cold-reopen checks; the other eight roles and assembly-level acceptance remain open.
+Acceptance requires fresh Chrome construction, native one-body part checks, saved/cold reopened assembly and intended DOF, sampled motion, native clearance/contact audit, portable bundle, native STEP, and exported sheet inspected for BOM/balloon/leader completeness. DP01 base through DP07 washer meet the individual part construction, native, STEP and cold-reopen checks; the other four roles and assembly-level acceptance remain open.
 
 ## Source capability update — Belt mate
 

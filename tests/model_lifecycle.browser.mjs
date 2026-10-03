@@ -17,7 +17,8 @@ async function waitUntil(page, predicate, message, timeout = 10_000) {
     if (await page.eval(predicate)) return;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  assert.fail(message);
+  const state=await page.eval(async()=>{const {S}=await import('/js/state.js');return {hint:document.querySelector('#mdHint')?.textContent,definition:S.parametric?.definitions?.['definition:lifecycle']?.revision};});
+  assert.fail(message+' '+JSON.stringify(state));
 }
 
 test("a reusable model survives edit, instances, undo/redo, reload, and project import", opts, async () => {
@@ -49,7 +50,7 @@ test("a reusable model survives edit, instances, undo/redo, reload, and project 
 
     await waitUntil(page, async () => {
       const { S } = await import("/js/state.js");
-      return !!S.parametric.definitions["definition:lifecycle"];
+      return Number(S.parametric.definitions["definition:lifecycle"]?.revision) > 1;
     }, "the Model Editor did not commit the reusable definition");
 
     const initial = await page.eval(async () => {
@@ -76,6 +77,7 @@ test("a reusable model survives edit, instances, undo/redo, reload, and project 
     await page.eval(async () => {
       const { S } = await import("/js/state.js");
       const { openModeler } = await import("/js/modeler.js");
+      window.lifecycleBeforeSaveRevision = S.parametric.definitions["definition:lifecycle"].revision;
       const edited = structuredClone(S.parametric.definitions["definition:lifecycle"]);
       edited.name = "Lifecycle QA edited";
       edited.price = 225;
@@ -89,7 +91,8 @@ test("a reusable model survives edit, instances, undo/redo, reload, and project 
 
     await waitUntil(page, async () => {
       const { S } = await import("/js/state.js");
-      return S.parametric.definitions["definition:lifecycle"]?.name === "Lifecycle QA edited";
+      return S.parametric.definitions["definition:lifecycle"]?.name === "Lifecycle QA edited"
+        && S.parametric.definitions["definition:lifecycle"].revision > window.lifecycleBeforeSaveRevision;
     }, "editing a placed model did not update its shared definition");
 
     const edited = await page.eval(async () => {
@@ -106,7 +109,7 @@ test("a reusable model survives edit, instances, undo/redo, reload, and project 
         items: S.items.map((item) => ({ id: item.id, definitionId: item.definitionId, w: item.w, h: item.h, overrides: item.parameterOverrides })),
       };
     });
-    assert.ok(edited.revision > initial.revision, "shared definition revision did not advance");
+    assert.ok(edited.revision > initial.revision, "shared definition revision did not advance: " + JSON.stringify({initial:initial.revision,edited:edited.revision}));
     assert.deepEqual(edited.items.map((item) => item.definitionId), ["definition:lifecycle", "definition:lifecycle"]);
     assert.deepEqual(edited.items.map((item) => item.overrides.width), [120, 180], "shared save baked one instance width into the definition");
     assert.deepEqual(edited.items.map((item) => item.overrides.height), [80, 90], "shared save overwrote instance-local heights");

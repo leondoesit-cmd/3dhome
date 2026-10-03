@@ -336,7 +336,18 @@ export function groupDiagnostics(issues = []) {
     seen.set(key, group);
     groups.push(group);
   });
-  return groups;
+  // A missing reference can also make the native operation fail. Keep its
+  // exact failure text with the actionable repair card for that same feature;
+  // failures on other features remain independent cards.
+  return groups.filter((group) => {
+    if (group.issue.code !== "regeneration-failed" || !group.issue.featureId) return true;
+    const cause = groups.find((candidate) => candidate !== group
+      && candidate.issue.featureId === group.issue.featureId
+      && ["missing-topology-reference", "ambiguous-topology-reference"].includes(candidate.issue.code));
+    if (!cause) return true;
+    cause.relatedFailures = [...(cause.relatedFailures || []), ...group.issues];
+    return false;
+  });
 }
 
 export function recommendedDiagnostic(issues = []) {

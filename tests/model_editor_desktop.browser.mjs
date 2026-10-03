@@ -793,10 +793,12 @@ test("desktop model editor: rebuild diagnostics are grouped, compact, and expand
     open:document.querySelector("#mdDiagnostics .md-diagnostic-primary details").open,
     why:document.querySelector("#mdDiagnostics .md-diagnostic-primary .md-diagnostic-explanation").textContent,
     fix:document.querySelector("#mdDiagnostics .md-diagnostic-primary .md-diagnostic-fix").textContent,
+    nativeFailure:document.querySelector("#mdDiagnostics .md-diagnostic-primary .md-diagnostic-native-failure")?.textContent,
   }));
   assert.equal(expanded.open, true);
   assert.match(expanded.why, /selected face or edge/i);
   assert.match(expanded.fix, /reselect/i);
+  assert.match(expanded.nativeFailure, /regeneration-failed: .+/);
 });
 
 /* Assembly mode inherited the part editor's chrome wholesale: a breadcrumb

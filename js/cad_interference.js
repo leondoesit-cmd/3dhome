@@ -7,7 +7,7 @@ import {applyRigidMatrix,rotatedPatternBounds} from "./core/pattern_geometry.js"
 import { brepMaterialIntersection } from "./cad_kernel.js";
 import { framePoint } from "./core/frame.js";
 import { bomIdentity } from "./toolbox/schema.js";
-import { documentDescription, documentProperty } from "./core/custom_properties.js";
+import { assemblyPartNumber, documentDescription, documentProperty } from "./core/custom_properties.js";
 import { drawingMaterialName } from "./cad_appearances.js";
 
 export async function detectInterference(assemblyComponents, options={}) {
@@ -105,8 +105,7 @@ export function generateBOM(assembly) {
     const existing = map.get(key) || {
       key, name: (meta && meta.designation) || comp.name || key, quantity: 0,
       description: documentDescription(comp) || documentDescription(comp.def) || "",
-      partNumber: documentProperty(comp, "PartNo") || documentProperty(comp, "PartNumber") || documentProperty(comp, "Number") || comp.partNumber ||
-        documentProperty(comp.def, "PartNo") || documentProperty(comp.def, "PartNumber") || documentProperty(comp.def, "Number") || comp.def?.partNumber || "",
+      partNumber: assemblyPartNumber(comp, comp.def),
       standard: meta && meta.standard || "", material: (meta && meta.material) || comp.material || documentProperty(comp.def, "Material") || drawingMaterialName(comp.def) || "",
       finish: meta && meta.finish || "", category: meta && meta.category || "",
       materialId: meta && meta.materialId || "", propertyClass: meta && meta.propertyClass || "",

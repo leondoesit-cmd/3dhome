@@ -242,14 +242,16 @@ test("Shift and a digit switch the filter, and a held one snaps back", opts, asy
   const chord = (down) => (code) => window.dispatchEvent(new KeyboardEvent(down ? "keydown" : "keyup", { code, shiftKey: down, bubbles: true }));
   // A tap sticks.
   await page.eval(() => { const e = (t, c) => window.dispatchEvent(new KeyboardEvent(t, { code: c, shiftKey: t === "keydown", bubbles: true }));
-    e("keydown", "Digit3"); e("keyup", "Digit3"); });
+    const down=new KeyboardEvent('keydown',{key:'#',code:'Digit3',shiftKey:true,bubbles:true});
+    const up=new KeyboardEvent('keyup',{key:'3',code:'Digit3',bubbles:true});
+    window.dispatchEvent(down);window.dispatchEvent(up); });
   assert.equal(await page.eval(() => window.cadSelectionSnapshot().filter), "edge", "Shift+3 should select the Edge filter");
 
   // Held past the tap window, it borrows and gives back on release.
-  await page.eval(() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit2", shiftKey: true, bubbles: true })));
+  await page.eval(() => window.dispatchEvent(new KeyboardEvent("keydown", { key:"@", code: "Digit2", shiftKey: true, bubbles: true })));
   assert.equal(await page.eval(() => window.cadSelectionSnapshot().filter), "face");
   await new Promise((r) => setTimeout(r, 420));
-  await page.eval(() => window.dispatchEvent(new KeyboardEvent("keyup", { code: "Digit2", bubbles: true })));
+  await page.eval(() => window.dispatchEvent(new KeyboardEvent("keyup", { key:"2", code: "Digit2", bubbles: true })));
   assert.equal(await page.eval(() => window.cadSelectionSnapshot().filter), "edge",
     "a held filter must restore the one the user had chosen");
 });

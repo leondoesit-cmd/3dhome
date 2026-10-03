@@ -45,6 +45,7 @@ async function editor(model = MODEL) {
   }, [model]);
   await page.goto("/");
   await page.waitForBoot();
+  await page.eval((name) => { window.filletFixtureName = name; }, model.name);
   await page.eval(() => { window.confirm = () => true; });
   await page.eval(() => document.getElementById("openModelerTop").click());
   await page.waitUntil(() => {
@@ -62,9 +63,9 @@ async function editor(model = MODEL) {
   await page.waitUntil(() => typeof window.cadFinishPreviewSnapshot === "function", { what: "the editor test hooks" });
   await page.eval(() => document.querySelector('#modeler [data-tab="lib"]').click());
   await page.waitUntil(() => [...document.querySelectorAll("#mdLib .md-card")]
-    .some((card) => card.querySelector(".nm")?.textContent === model.name), { what: "the seeded model card" });
+    .some((card) => card.querySelector(".nm")?.textContent === window.filletFixtureName), { what: "the seeded model card" });
   await page.eval(() => [...document.querySelectorAll("#mdLib .md-card")]
-    .find((card) => card.querySelector(".nm")?.textContent === model.name).click());
+    .find((card) => card.querySelector(".nm")?.textContent === window.filletFixtureName).click());
   await page.waitUntil(() => window.cadSelectionSnapshot?.().mode === "3d", { what: "the loaded model" });
   return page;
 }
