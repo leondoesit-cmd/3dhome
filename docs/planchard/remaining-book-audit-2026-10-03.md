@@ -1,6 +1,6 @@
 # Remaining book work — 3 October 2026
 
-This is a continuation queue, not a claim that all earlier chapters are accepted. Fresh browser evidence and exact native checkpoints take precedence over older status summaries. The current active deliverable is Shock8.11, printed8-46/PDF424; its motion checkpoint is saved, final spring drawing cleanup is in progress.
+This is a continuation queue, not a claim that all earlier chapters are accepted. Fresh browser evidence and exact native checkpoints take precedence over older status summaries. Exercise8.12 Quick Acting Clamp is accepted at printed8-47/PDF425. The next active task is fresh Drill Guide8.13, printed8-48/PDF426.
 
 ## Next assembly projects
 
@@ -8,7 +8,7 @@ The printed designer briefs permit original parts and additional components. Com
 
 | Exercise | Printed / PDF page | Sheet | Project |
 |---|---|---|---|
-|8.12|8-47 /425|ANSI C landscape|Quick Acting Clamp; printed picture uses paired hinged arms, screw/trunnion and T-handle|
+
 |8.13|8-48 /426|ANSI C landscape|Drill Guide|
 |8.14|8-49 /427|ANSI A landscape|Double Pulley and belt|
 |8.15|8-50 /428|ANSI C landscape|Welder Arm|
@@ -18,7 +18,7 @@ The printed designer briefs permit original parts and additional components. Com
 |8.19|8-54 /432|ANSI A landscape|Arbor Press|
 |8.20|8-55 /433|ANSI C landscape|Shaper Tool Head|
 
-Exercise8.12 page425 was visually inspected. Its similar-mechanism reference research is underway; no clamp part has been created or marked accepted yet.
+Exercise8.12 is accepted as a declared designer example:15 fresh parts,23 instances, physical/guided configurations, native Screw motion and sampled clearance, nine grouped explode steps and ANSI C exploded drawing. See its browser progress report and accepted native bundle. Drill Guide8.13 has a fresh documented design plan; geometry remains unstarted at this checkpoint.
 
 ## Earlier and later follow-ups requiring reconciliation
 
@@ -33,3 +33,4 @@ Exercise8.12 page425 was visually inspected. Its similar-mechanism reference res
 - Physical printing remains pending; exported STL files establish digital output only.
 
 Source page requirements are in `exercise-inventory-2026-09-27.md`. This queue does not reopen completed parts or replace the detailed native acceptance reports.
+

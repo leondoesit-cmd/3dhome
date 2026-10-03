@@ -513,7 +513,16 @@ function assemblyBounds() {
   return Number.isFinite(out.x0) ? out : null;
 }
 
-function publishAssemblyMateResult(result) {
+function applyAssemblyMates(assembly) {
+  if (!assembly) return null;
+  mateSolveCount++;
+  /* The old align/distance mates are part of the system the solver solves —
+     they used to be applied by hand at the head of every pass, which is the
+     best a solver that placed one component at a time could do. Both kinds now
+     settle together because they are solved together. */
+  var result = solveTopologyMates(assembly);
+  var contextResult = updateAssemblyContexts(assembly);
+  if (contextResult.issues.length) result.issues.push(...contextResult.issues);
   /* The solver reports missing topology, ambiguous rebinds, frames it could
      not use, and — since it now measures the result — mates that another mate
      has overridden. That report used to be discarded at this line, which is
@@ -528,19 +537,6 @@ function publishAssemblyMateResult(result) {
   E.mateFreedom = (result && result.clusters) || [];
   E.mateDegreesOfFreedom = (result && result.degreesOfFreedom) || 0;
   return result;
-}
-
-function applyAssemblyMates(assembly) {
-  if (!assembly) return null;
-  mateSolveCount++;
-  /* The old align/distance mates are part of the system the solver solves —
-     they used to be applied by hand at the head of every pass, which is the
-     best a solver that placed one component at a time could do. Both kinds now
-     settle together because they are solved together. */
-  var result = solveTopologyMates(assembly);
-  var contextResult = updateAssemblyContexts(assembly);
-  if (contextResult.issues.length) result.issues.push(...contextResult.issues);
-  return publishAssemblyMateResult(result);
 }
 
 /* "1 mates" reads as a bug in the counter. Hebrew and English both want the
@@ -12017,7 +12013,7 @@ function syncSplitSketch3D() {
   var sketches = E.split && E.def && E.docType === "part" ? ensureSketchDoc(E.def) : [];
   var current = sketches.length ? ensureSketch(E.def) : null;
   var lines = sketches.map(function (sketch) { return { sketch: sketch, uv: sketchUvPolylines(sketch) }; });
-  var key = host ? JSON.stringify(lines.map(function (l) { return [l.sketch === current, sketchWorldFrame(l.sketch), l.uv]; })) : "";
+  var key = host ? JSON.stringify(lines.map(function (l) { return [l.sketch === current, sketchWorldFrame(l.sketch), l.sketch.frameSpace, l.sketch.surface, l.sketch.seamOffset, l.uv]; })) : "";
   var old = E._splitSketchGrp;
   if (old && old.parent === host && key === E._splitSketchKey) return;
   if (old) { if (old.parent) old.parent.remove(old); clearGroup(old); }
@@ -12029,7 +12025,7 @@ function syncSplitSketch3D() {
     lines.forEach(function (l) {
       var frame = sketchWorldFrame(l.sketch), on = l.sketch === current;
       l.uv.forEach(function (uv) {
-        addOverlayPolyline(grp, uv.map(function (q) { return framePoint(frame, q.u, q.v, 0); }), on ? 0x3aa0ff : 0x7d8b99, on ? 27 : 23, null, false);
+        addOverlayPolyline(grp, l.sketch.frameSpace === "surface-uv" ? surfaceSketchWorldPolyline(l.sketch, uv) : uv.map(function (q) { return framePoint(frame, q.u, q.v, 0); }), on ? 0x3aa0ff : 0x7d8b99, on ? 27 : 23, null, false);
       });
     });
     host.add(grp);
@@ -25723,8 +25719,7 @@ function createDefaultMotionStudy() {
         }
       }
       E.assembly.motionStudies=trial.motionStudies;await syncFlexibleSpringsAtMotionState(E.assembly);
-      invalidateInterference();publishAssemblyMateResult(result);assemblySolveFresh=true;
-      refreshAll();flash(t("motionStudyAdded"));return true;
+      invalidateInterference();refreshAll();flash(t("motionStudyAdded"));return true;
     }});
   };
   show(E.assembly.motionStudies?.at(-1)?.id);

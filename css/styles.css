@@ -5925,6 +5925,12 @@ body.compact-nav #modeler .md-quick-field select {
 }
 #modeler .md-quick-field.type-boolean { grid-template-columns: minmax(0,1fr) 34px; cursor: pointer; }
 #modeler .md-quick-field.type-helix-regions { display: block; grid-column: 1 / -1; }
+#modeler .md-quick-field.type-feature-seeds { grid-template-columns: minmax(0,1fr); grid-column: 1 / -1; }
+#modeler .md-feature-seed-collector { display: grid; gap: 3px; min-width: 0; max-height: min(240px,40vh); overflow-y: auto; scrollbar-width: thin; }
+#modeler .md-feature-seed-row { display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 8px; min-height: 44px; padding: 0 5px; box-sizing: border-box; border-radius: 5px; cursor: pointer; color: var(--text-main); }
+#modeler .md-feature-seed-row:hover,#modeler .md-feature-seed-row:focus-within { background: color-mix(in srgb,var(--accent) 12%,var(--input-bg)); }
+#modeler .md-feature-seed-row > span { min-width: 0; overflow-wrap: anywhere; }
+#modeler .md-feature-seed-row > input[type="checkbox"] { position: static; width: 20px; min-width: 20px; height: 20px; padding: 0; margin: 0; opacity: 1; appearance: auto; accent-color: var(--accent); cursor: pointer; }
 #modeler .md-helix-regions { overflow-x: auto; }
 #modeler .md-helix-regions table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: max(11px, var(--fs-floor, 0px)); }
 #modeler .md-helix-regions th,#modeler .md-helix-regions td { padding: 3px; text-align: start; }

@@ -140,7 +140,7 @@ function balloonNotes(doc, targets) {
   const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
   targets.forEach((target, index) => {
     doc.notes.push({
-      id: uid("n"), balloon: true, text: String(target.item),
+      id: uid("n"), balloon: true, autoBalloon: true, text: String(target.item),
       dx: index % 2 ? -16 : 16, dy: -10 - (index % 3) * 6,
       leader: { viewId: view.id, u: dot(target.point, basis.right), v: dot(target.point, basis.up) },
     });

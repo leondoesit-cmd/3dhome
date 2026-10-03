@@ -3,14 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {createMotionStudy,addRotaryMotor,addScrewMotor,addLinearMotor,addGearRelation,evaluateMotionStudy} from '../js/cad_motion_study.js';
-import {topologyReference} from '../js/cad_mates.js';
+import {solveTopologyMates,topologyReference} from '../js/cad_mates.js';
 
 const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 const start=source.indexOf('function createDefaultMotionStudy()');
 const end=source.indexOf('\n/* The Evaluate command',start);
-const publishStart=source.indexOf('function publishAssemblyMateResult(');
-const publishEnd=source.indexOf('\nfunction applyAssemblyMates(',publishStart);
-const formSource=source.slice(publishStart,publishEnd)+source.slice(start,end);
+const formSource=source.slice(start,end);
 
 test('linear motion form exposes signed travel and persists a stable zero pose',async()=>{
   const assembly={components:[{id:1,name:'Rod',transform:{y:4.5}}],mates:[],topologyMates:[]};
@@ -81,12 +79,12 @@ test('Motion Study form preserves the native numeric Screw mate ID through Apply
     {id:2787,name:'Lead screw',grounded:false,transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0}},
   ],mates:[],topologyMates:[{id:2799,type:'screw',pitch:0.4,coupledMotion:true,
     a:reference(2781,'bore'),b:reference(2787,'shaft')}]};
-  let form,undo=0,publishedDuringRefresh;
+  let form,undo=0,mobilityDuringRefresh;
   const context={E:{docType:'assembly',assembly,componentSel:[],mateDegreesOfFreedom:1},assemblySolveFresh:false,structuredClone,
     createMotionStudy,addRotaryMotor,addScrewMotor,addLinearMotor,addGearRelation,evaluateMotionStudy,
     syncFlexibleSpringsAtMotionState:async()=>{},t:s=>s,flash:()=>{},
-    openQuickForm:f=>{form=f;},pushUndo:()=>undo++,invalidateInterference:()=>{context.assemblySolveFresh=false;},
-    refreshAll:()=>{publishedDuringRefresh={dof:context.E.mateDegreesOfFreedom,fresh:context.assemblySolveFresh};}};
+    openQuickForm:f=>{form=f;},pushUndo:()=>undo++,invalidateInterference:()=>{},
+    refreshAll:()=>{mobilityDuringRefresh=solveTopologyMates(assembly).degreesOfFreedom;}};
   const run=()=>vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
   run();form.onLive({study:'new',motorType:'screw'});
   assert.equal(form.fields.find(f=>f.key==='screwMate').choices[0].value,2799);
@@ -94,9 +92,8 @@ test('Motion Study form preserves the native numeric Screw mate ID through Apply
   assert.equal(undo,1);
   assert.equal(assembly.motionStudies[0].motors[0].mateId,2799);
   assert.ok(Math.abs(assembly.components[1].transform.z-0.1)<1e-6);
-  assert.equal(context.E.mateDegreesOfFreedom,0,'the driven solver result replaces the stale free-joint status');
-  assert.equal(publishedDuringRefresh?.dof,0);
-  assert.equal(publishedDuringRefresh?.fresh,true,'refresh consumes the motion solve without resolving the pose');
+  assert.equal(mobilityDuringRefresh,1,'the undriven assembly retains one physical joint freedom');
+  assert.equal(assembly.topologyMates[0].driveTurns,undefined,'Motion Study sets a pose without fixing the Screw mate');
   run();
   assert.equal(await form.onApply({study:assembly.motionStudies[0].id,motorType:'screw',screwMate:'2799',rpm:60,time:0.5}),true);
   assert.equal(assembly.motionStudies[0].motors[0].mateId,2799);

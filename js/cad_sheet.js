@@ -1,4 +1,5 @@
 import { analyzeSectionBoundaries } from "./core/section_boundaries.js";
+import { BALLOON_RADIUS, layoutBalloonCenters } from "./core/balloon_layout.js";
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -1364,10 +1365,28 @@ export function buildSheetScene(doc, provider, options = {}) {
     }
   }
   const notes = new Map();
+  const automaticBalloonPositions = new Map();
+  for (const place of placements) {
+    const targets = (doc.notes || []).filter(note => note.balloon && note.autoBalloon && note.leader?.viewId === place.id)
+      .map(note => ({ id: note.id, point: place.toSheet(note.leader) }));
+    if (!targets.length) continue;
+    const title = titleBlockBox(doc);
+    const obstacles = [{ x0: title.x-4, y0: title.y-4, x1: title.x+title.w+4, y1: title.y+title.h+4 }];
+    if (provider?.bom?.length) obstacles.push({ x0: frame.x0+6, y0: frame.y0+6, x1: frame.x0+6+title.w, y1: frame.y0+12+provider.bom.length*6 });
+    const model = { x0: place.box.x, y0: place.box.y, x1: place.box.x+place.box.w, y1: place.box.y+place.box.h };
+    // Leave room for the view caption that follows the lowest annotation.
+    const paperBounds = { x0: frame.x0+6, y0: frame.y0+6, x1: frame.x1-6, y1: frame.y1-18-Math.max(title.h,Number(doc.notesBandHeight)||0) };
+    for (const [id, point] of layoutBalloonCenters(targets, model, paperBounds, obstacles)) automaticBalloonPositions.set(id, point);
+  }
   for (const note of doc.notes || []) {
     const place = note.leader ? byId.get(note.leader.viewId) : null;
     const basis = place ? (place.projection?.basis || viewBasis(place.view.dir)) : null;
     const resolved = resolveNote(note, provider?.callouts, topologyIndex, basis, doc, provider?.properties);
+    const automaticPosition = automaticBalloonPositions.get(note.id);
+    if (automaticPosition && place) {
+      const target = place.toSheet(resolved.note.leader);
+      resolved.note = { ...resolved.note, dx: automaticPosition.x-target.x, dy: automaticPosition.y-target.y };
+    }
     notes.set(note.id, resolved);
     items.push(...noteItems(resolved.note, byId, doc, { dangling: resolved.dangling }));
   }
@@ -1383,7 +1402,7 @@ export function buildSheetScene(doc, provider, options = {}) {
         : item.type === "text" ? item.y + item.size
           : item.type === "circle" || item.type === "arc" ? item.cy + item.r
             : item.type === "poly" ? Math.max(...item.pts.map((point) => point.y)) : -Infinity;
-      if (Number.isFinite(low) && low > bottom && low < label.record.box.y + label.record.box.h + 60) bottom = low;
+      if (Number.isFinite(low) && low > bottom && (item.balloon || low < label.record.box.y + label.record.box.h + 60)) bottom = low;
     }
     items.push(text(label.record.x, bottom + 7, label.caption, {
       size: TEXT_SIZES.view, anchor: "middle", weight: "bold", viewLabel: label.record.id,
@@ -1493,23 +1512,24 @@ function detailMarker(view, placements) {
   ];
 }
 
-/* A balloon is a circled item number on a leader that ends in a dot on the part
-   it names. It sits a fixed offset from its target so a numbered set never needs
-   hand placement, and the same number is the row in the bill of materials. */
+/* A balloon is a circled BOM item number, with a leader dot on its component.
+   Automatic offsets are distributed by the shared scene layout above; manually
+   placed balloons retain the offsets authored in the sheet. */
 function balloonItems(note, byId) {
   const place = note.leader ? byId.get(note.leader.viewId) : null;
   if (!place) return [];
   const target = place.toSheet(note.leader);
-  const cx = target.x + num(note.dx, 14), cy = target.y + num(note.dy, -12), radius = 3.6;
+  const cx = target.x + num(note.dx, 14), cy = target.y + num(note.dy, -12), radius = BALLOON_RADIUS;
   const dx = target.x - cx, dy = target.y - cy, distance = Math.hypot(dx, dy) || 1;
   const edge = { x: cx + dx / distance * radius, y: cy + dy / distance * radius };
   const dot = [];
+  const metadata = { noteId: note.id, viewId: place.id, balloon: true };
   for (let i = 0; i < 8; i++) dot.push({ x: target.x + Math.cos(i * Math.PI / 4) * 0.9, y: target.y + Math.sin(i * Math.PI / 4) * 0.9 });
   return [
-    line(edge.x, edge.y, target.x, target.y, "dim", { noteId: note.id }),
-    poly(dot, "fill", { fill: LINE_STYLES.dim.color, closed: true, noteId: note.id }),
-    circle(cx, cy, radius, "dim", { noteId: note.id }),
-    text(cx, cy + 1.3, note.text, { size: TEXT_SIZES.dim, anchor: "middle", noteId: note.id, weight: "bold", color: LINE_STYLES.dim.color }),
+    line(edge.x, edge.y, target.x, target.y, "dim", metadata),
+    poly(dot, "fill", { fill: LINE_STYLES.dim.color, closed: true, ...metadata }),
+    circle(cx, cy, radius, "dim", metadata),
+    text(cx, cy + 1.3, note.text, { size: TEXT_SIZES.dim, anchor: "middle", ...metadata, weight: "bold", color: LINE_STYLES.dim.color }),
   ];
 }
 

@@ -20,23 +20,41 @@ export async function workerInterference(components,rebuild,progress=()=>{},depe
   const dispose=dependencies.dispose || disposeBrep;
   const detect=dependencies.detect || detectInterference;
   const measured=components.map(component=>({...component})),placed=[];
+  // A saved part can occur many times in one assembly. Share only its rebuilt
+  // source during this check; each occurrence still needs its own placed BREP.
+  // The full authoring document is the key, so two instances with different
+  // overrides cannot accidentally share geometry merely by model name.
+  const keys=measured.map(component=>component.document?JSON.stringify(component.document):null);
+  const remaining=new Map(),sources=new Map();
+  keys.forEach(key=>{if(key!==null)remaining.set(key,(remaining.get(key)||0)+1);});
   try {
-    for(const component of measured){
+    for(let index=0;index<measured.length;index++){
+      const component=measured[index],key=keys[index];
       if(!component.document)continue;
-      progress({stage:'rebuild',name:component.label,componentId:component.id});
-      const compiled=compile(component.document);
-      if(!compiled.ok)throw new Error(compiled.issues[0]?.message || 'Invalid interference feature history');
-      let run;
+      let run=sources.get(key);
+      if(!run){
+        progress({stage:'rebuild',name:component.label,componentId:component.id});
+        const compiled=compile(component.document);
+        if(!compiled.ok)throw new Error(compiled.issues[0]?.message || 'Invalid interference feature history');
+        let rebuilt;
+        try{
+          ({run:rebuilt}=await rebuild({...compiled.document,features:compiled.features},{},value=>progress({...value,componentId:component.id})));
+          if(!rebuilt.ok || !rebuilt.finalShape?.shape)throw new Error(rebuilt.issues?.[0]?.message || 'Exact interference body could not be rebuilt');
+          sources.set(key,rebuilt);run=rebuilt;
+        }catch(error){if(rebuilt)release(rebuilt);throw error;}
+      }
       try {
-        ({run}=await rebuild({...compiled.document,features:compiled.features},{},value=>progress({...value,componentId:component.id})));
-        if(!run.ok || !run.finalShape?.shape)throw new Error(run.issues?.[0]?.message || 'Exact interference body could not be rebuilt');
         progress({stage:'placement',name:component.label,componentId:component.id});
         component.brep=await place(run.finalShape,component.placement);
         placed.push(component.brep);
-      }finally{if(run)release(run);}
+      }finally{
+        const left=remaining.get(key)-1;
+        remaining.set(key,left);
+        if(left===0){sources.delete(key);release(run);}
+      }
     }
     return await detect(measured,{onProgress:progress});
-  }finally{placed.forEach(dispose);}
+  }finally{sources.forEach(release);placed.forEach(dispose);}
 }
 
 // One STEP file for the whole assembly: every exact leaf body is rebuilt in the
