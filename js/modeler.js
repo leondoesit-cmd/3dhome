@@ -8028,14 +8028,18 @@ function renderFeatureParameterForm(host,type,state,onLive) {
   if(type==="thread"){
     var preset=controls.find(function(control){return control.field.key==="threadPreset";});
     var syncPreset=function(changed){
-      var unified=preset && preset.input.value==="unc-quarter-20";
+      var unified=preset && preset.input.value==="unc-quarter-20",custom=preset && preset.input.value==="custom";
       controls.forEach(function(control){
         var key=control.field.key,fixed={diameterMm:6.35,pitchMm:1.27,mode:"cosmetic",series:"coarse",useFitLimits:false};
+        if(["series","toleranceClass","useFitLimits"].includes(key)){var wrap=control.input.closest(".md-quick-field");if(wrap)wrap.classList.toggle("parameter-hidden",!!custom);}
         if(Object.prototype.hasOwnProperty.call(fixed,key)){
-          control.input.disabled=!!unified;
+          control.input.disabled=!!unified || !!custom && ["mode","series","useFitLimits"].includes(key);
+          if(custom && ["mode","useFitLimits"].includes(key)){state.params[key]=fixed[key];if(control.input.type==="checkbox")control.input.checked=false;else control.input.value=String(fixed[key]);}
           if(unified){state.params[key]=fixed[key];if(control.input.type==="checkbox")control.input.checked=false;else control.input.value=String(fixed[key]);}
         }
         if(key==="toleranceClass"){
+          control.input.disabled=!!custom;
+          if(custom){control.input.value="";state.params[key]="";}
           control.input.placeholder=unified?"2A / 2B":"6g / 6H";
           if(changed){control.input.value="";state.params[key]="";}
         }
@@ -8350,7 +8354,7 @@ function circleLoopAt(u, v, r, segments) {
 
 function selectedCylindricalFace() {
   return (E.topologySelection || []).find(function(reference){
-    return reference.kind==="face" && reference.descriptor && (reference.descriptor.surface==="cylinder" || Number(reference.descriptor.radius)>0);
+    return reference.kind==="face" && reference.descriptor && (reference.descriptor.surface==="cylinder" || !reference.descriptor.surface && Number(reference.descriptor.radius)>0);
   }) || null;
 }
 
@@ -8377,9 +8381,10 @@ function createHelixFeature(options) {
 
 function createThreadFeature(options) {
   var params={...featureDefaults("thread"),...(options || {})};
-  var face=selectedCylindricalFace();
+  var pickedFace=selectedCylindricalFace();
   var target=selectedSolid();
-  if(!face && !target){flash(t("threadNeed"));return false;}
+  if(!pickedFace){flash(t("threadNeed"));return false;}
+  var face=canonicalFeatureTopologyReferences(E.def,[cloneData(pickedFace)])[0];
   var placement=threadPlacementFromFace(face&&face.descriptor);
   var origin=placement.origin,axis=placement.axis;
   var targetFeatureId=target&&cutTargetFeatureId(target);
@@ -9752,6 +9757,7 @@ function syncNewFeaturePreview(type,state,liveBadge) {
       else previews.push(finish);
     }
   }
+  if(type==="thread" && liveBadge){liveBadge.classList.toggle("on",!!selectedCylindricalFace());liveBadge.textContent=selectedCylindricalFace()?"✓ "+t("selectedLabel")+" · "+t("opThread"):t("threadNeed");}
   if(!FINISH_FEATURES.includes(type)){E.authoring.approxFinishPreview=null;E.authoring.pendingExactPreview=null;}
   E.authoring.previewParts=previews;
   if(finish)queueExactFeaturePreview(finish,type,liveBadge || E.authoring.featurePreviewBadge);
@@ -9803,7 +9809,7 @@ function queueNewFeaturePreview(type,state,liveBadge) {
   E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshLivePreview();
     // a merged pattern's badge is owned by its own fuse pass: overwriting it
     // here would claim the views are synced while the copies are still unfused
-    if(liveBadge && !E.authoring.patternOverlap && !FINISH_FEATURES.includes(type) && !(E.authoring && E.authoring.mergedPatternPreview)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
+    if(liveBadge && type!=="thread" && !E.authoring.patternOverlap && !FINISH_FEATURES.includes(type) && !(E.authoring && E.authoring.mergedPatternPreview)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
 }
 
 /* The features that work on an existing body's topology rather than on a
@@ -9826,9 +9832,11 @@ function syncActiveFeatureSelectionFeedback() {
   if(!note)return;
   var type=note.getAttribute("data-live-selection");
   note.textContent=FINISH_FEATURES.includes(type)?finishSelectionMessage(type)
+    :type==="thread"?(selectedCylindricalFace()?"✓ "+t("selectedLabel")+" · "+t("opThread"):t("threadNeed"))
     :collectingEndFace()?(((E.topologySelection||[]).some(function(item){return item.kind==="face";})?"✓ ":"")+t("upToFacePick"))
     :["extrude","extrudeCut","revolve","revolveCut","sweep","sweepCut","loft","hole"].includes(type)?selectedSketchIds().length+" "+t("sketchesSelected"):selectedFeatureIds().length+" "+t("featuresSelected")+" · "+(E.topologySelection || []).length+" "+t("topologyRefs");
   note.classList.toggle("ready",note.textContent.indexOf("✓")===0);
+  if(type==="thread" && E.authoring.featurePreviewBadge){E.authoring.featurePreviewBadge.textContent=note.textContent;E.authoring.featurePreviewBadge.classList.toggle("on",!!selectedCylindricalFace());}
   /* Shell has no edge list to render, but it is just as much a collector — and
      the one whose picks were being silently dropped, since an edge clicked
      during Shell lands in the selection and finishFeatureTargets() then keeps

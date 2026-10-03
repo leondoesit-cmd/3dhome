@@ -811,14 +811,14 @@ export const FEATURE_CATALOG = Object.freeze({
     defaults: { threadPreset:"iso-metric", side: "external", mode: "cosmetic", diameterMm: 8, pitchMm: 1.25, length: 1.5, handedness: "rh", toleranceClass: "", series: "coarse", runoutStartMm:0, runoutEndMm:0, useFitLimits:false },
     parameters: {
       side: ENUM("external", "internal"), mode: ENUM("cosmetic", "modeled"),
-      threadPreset: ENUM("iso-metric", "unc-quarter-20", "inch-die-8-36"),
+      threadPreset: ENUM("iso-metric", "unc-quarter-20", "inch-die-8-36", "custom"),
       diameterMm: { type: "number", min: 1, max: 64 }, pitchMm: { type: "number", min: 0.2, max: 8 },
       runoutStartMm: {type:"number",min:0}, runoutEndMm: {type:"number",min:0},
-      length: LENGTH, handedness: ENUM("rh", "lh"), series: ENUM("coarse", "fine"),
+      length: LENGTH, handedness: ENUM("rh", "lh"), series: ENUM("coarse", "fine", "custom"),
     },
     editor: { groups: [
       { id: "spec", label: "Thread specification", icon: "ph-seal-check", fields: [
-        {key:"threadPreset",label:"Thread specification",type:"select",choices:[{value:"iso-metric",label:"ISO metric"},{value:"unc-quarter-20",label:"1/4-20 UNC · cosmetic"},{value:"inch-die-8-36",label:"#8-36 UNF · inch die · basic profile"}]},
+        {key:"threadPreset",label:"Thread specification",type:"select",choices:[{value:"iso-metric",label:"ISO metric"},{value:"custom",label:"Custom thread (designer specification)"},{value:"unc-quarter-20",label:"1/4-20 UNC · cosmetic"},{value:"inch-die-8-36",label:"#8-36 UNF · inch die · basic profile"}]},
         { key: "side", label: "Side", labelKey: "fcFldSide", type: "select", choices: [
           {value:"external",label:"External",labelKey:"fcOptExternal"},
           {value:"internal",label:"Internal",labelKey:"fcOptInternal"},

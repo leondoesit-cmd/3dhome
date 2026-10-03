@@ -1,0 +1,666 @@
+{
+  "schemaVersion": 8,
+  "authoringMode": "fully-parametric",
+  "localFrame": {
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "xAxis": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "zAxis": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "references": [
+    {
+      "id": "origin",
+      "type": "origin",
+      "name": "Origin",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:top",
+      "type": "plane",
+      "name": "Top Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:front",
+      "type": "plane",
+      "name": "Front Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:right",
+      "type": "plane",
+      "name": "Right Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "axis:x",
+      "type": "axis",
+      "name": "X Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:y",
+      "type": "axis",
+      "name": "Y Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:z",
+      "type": "axis",
+      "name": "Z Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    }
+  ],
+  "parameters": {},
+  "sketches": [
+    {
+      "id": "sk_1vq32",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 2601,
+          "x": -0.5999999999999992,
+          "y": 0.7000000000000032,
+          "fixed": false
+        },
+        {
+          "id": 2602,
+          "x": 0.6000000000000452,
+          "y": 0.7000000000000058
+        },
+        {
+          "id": 2603,
+          "x": 0.6000000000000456,
+          "y": -0.6999999999999921
+        },
+        {
+          "id": 2604,
+          "x": -0.5999999999999992,
+          "y": -0.6999999999999911
+        }
+      ],
+      "entities": [
+        {
+          "id": 2605,
+          "type": "line",
+          "name": "Line",
+          "a": 2601,
+          "b": 2602,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 2606,
+          "type": "line",
+          "name": "Line",
+          "a": 2602,
+          "b": 2603,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 2607,
+          "type": "line",
+          "name": "Line",
+          "a": 2603,
+          "b": 2604,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 2608,
+          "type": "line",
+          "name": "Line",
+          "a": 2604,
+          "b": 2601,
+          "construction": false,
+          "weight": 2
+        }
+      ],
+      "constraints": [
+        {
+          "id": 2609,
+          "type": "horizontal",
+          "entity": 2605,
+          "exprError": null
+        },
+        {
+          "id": 2610,
+          "type": "vertical",
+          "entity": 2606,
+          "exprError": null
+        },
+        {
+          "id": 2611,
+          "type": "horizontal",
+          "entity": 2607,
+          "exprError": null
+        },
+        {
+          "id": 2612,
+          "type": "vertical",
+          "entity": 2608,
+          "exprError": null
+        },
+        {
+          "id": "dim_ncxosz1",
+          "type": "distance",
+          "entity": 2605,
+          "value": 1.2,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": "dim_6ii7mpz",
+          "type": "distance",
+          "entity": 2606,
+          "value": 1.4,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 2613,
+          "type": "fixed",
+          "point": 2601,
+          "x": -0.6000000000000001,
+          "y": 0.7000000000000001,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_2zyez",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": -0.6000000000000001,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 2616,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 2615,
+          "type": "circle",
+          "name": "Circle",
+          "c": 2616,
+          "r": 0.409999999999999,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 2617,
+          "type": "fixed",
+          "point": 2616,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": "dim_wkaf4vc",
+          "type": "diameter",
+          "entity": 2615,
+          "value": 0.82,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_3kt9b",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": 0.5,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 2619,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 2618,
+          "type": "circle",
+          "name": "Circle",
+          "c": 2619,
+          "r": 0.290000000000001,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 2620,
+          "type": "fixed",
+          "point": 2619,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": "dim_xrlaiuc",
+          "type": "diameter",
+          "entity": 2618,
+          "value": 0.58,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_4arpy",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": -0.5,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 2623,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 2622,
+          "type": "circle",
+          "name": "Circle",
+          "c": 2623,
+          "r": 0.289999999999991,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 2624,
+          "type": "fixed",
+          "point": 2623,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": "dim_wwinhff",
+          "type": "diameter",
+          "entity": 2622,
+          "value": 0.58,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    }
+  ],
+  "features": [
+    {
+      "id": "feature_murwk1vt_1",
+      "type": "extrude",
+      "name": "Extrude / Boss 1",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 1,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": true,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          2605,
+          2606,
+          2607,
+          2608
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1vq32",
+        "from": -0.5,
+        "to": 0.5
+      },
+      "references": {
+        "sketches": [
+          "sk_1vq32"
+        ],
+        "features": [],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          2605,
+          2606,
+          2607,
+          2608
+        ]
+      },
+      "inputs": [],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_murwl9en_2",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 1",
+      "params": {
+        "operation": "subtract",
+        "endCondition": "through-all",
+        "depth": 1,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "x",
+        "profileEntityIds": [
+          2615
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2zyez",
+        "from": -0.6000000000000001,
+        "to": 0.6010000000000455
+      },
+      "references": {
+        "sketches": [
+          "sk_2zyez"
+        ],
+        "features": [
+          "feature_murwk1vt_1"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          2615
+        ]
+      },
+      "inputs": [
+        "feature_murwk1vt_1"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_murwm7jw_3",
+      "type": "extrude",
+      "name": "Extrude / Boss 2",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.67,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          2618
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_3kt9b",
+        "from": 0.5,
+        "to": 1.17
+      },
+      "references": {
+        "sketches": [
+          "sk_3kt9b"
+        ],
+        "features": [
+          "feature_murwl9en_2"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          2618
+        ]
+      },
+      "inputs": [
+        "feature_murwl9en_2"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_murwn92w_4",
+      "type": "extrude",
+      "name": "Extrude / Boss 3",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.67,
+        "offset": 0,
+        "direction": "reverse",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          2622
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_4arpy",
+        "from": -0.5,
+        "to": -1.17
+      },
+      "references": {
+        "sketches": [
+          "sk_4arpy"
+        ],
+        "features": [
+          "feature_murwm7jw_3"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          2622
+        ]
+      },
+      "inputs": [
+        "feature_murwm7jw_3"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    }
+  ],
+  "history": [
+    {
+      "id": "history:sketch:sk_1vq32",
+      "kind": "sketch",
+      "targetId": "sk_1vq32",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_murwk1vt_1",
+      "kind": "feature",
+      "targetId": "feature_murwk1vt_1",
+      "name": "Extrude / Boss 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_2zyez",
+      "kind": "sketch",
+      "targetId": "sk_2zyez",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_murwl9en_2",
+      "kind": "feature",
+      "targetId": "feature_murwl9en_2",
+      "name": "Extrude Cut 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_3kt9b",
+      "kind": "sketch",
+      "targetId": "sk_3kt9b",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_murwm7jw_3",
+      "kind": "feature",
+      "targetId": "feature_murwm7jw_3",
+      "name": "Extrude / Boss 2",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_4arpy",
+      "kind": "sketch",
+      "targetId": "sk_4arpy",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_murwn92w_4",
+      "kind": "feature",
+      "targetId": "feature_murwn92w_4",
+      "name": "Extrude / Boss 3",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  }
+}

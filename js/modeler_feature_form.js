@@ -231,7 +231,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     if (type === "thread") {
       if(changedKey === "threadPreset") {
         var preset=controls.find(function(item){return item.field.key==="threadPreset";})?.input.value;
-        var presetValues=preset === "inch-die-8-36" ? {diameterMm:4.1656,pitchMm:25.4/36,toleranceClass:"2A"} : preset === "unc-quarter-20" ? {diameterMm:6.35,pitchMm:1.27,toleranceClass:"2A",mode:"cosmetic"} : {toleranceClass:"6g"};
+        var presetValues=preset === "inch-die-8-36" ? {diameterMm:4.1656,pitchMm:25.4/36,toleranceClass:"2A"} : preset === "unc-quarter-20" ? {diameterMm:6.35,pitchMm:1.27,toleranceClass:"2A",mode:"cosmetic"} : preset === "custom" ? {toleranceClass:"",mode:"cosmetic",useFitLimits:false} : {toleranceClass:"6g"};
         Object.entries(presetValues).forEach(function(entry){var control=controls.find(function(item){return item.field.key===entry[0];});if(control)control.input.value=String(entry[1]);});
       }
       var enabled=controls.find(function(item){return item.field.key==="useFitLimits";});

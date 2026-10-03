@@ -1,4 +1,5 @@
 import { cylinderAxis } from "./cylinder_axis.js";
+import { canonicalFeatureTopologyReferences } from "./feature_input_stage.js";
 // Persistent topology naming for the canonical rebuild pipeline.
 //
 // A reference never stores an explorer index ("edge 7").  It stores the
@@ -1640,7 +1641,9 @@ export function applyDocumentTopologyRebindings(document, resolutions = []) {
     else Object.values(value).forEach(visit);
   };
   [document.features, document.sketches, document.references, document.referenceGeometry].forEach(visit);
-  return applyTopologyRebindings(bindings);
+  const canonicalBindings = bindings.map(binding => ({...binding,
+    topology:canonicalFeatureTopologyReferences(document,[binding.topology])[0]}));
+  return applyTopologyRebindings(canonicalBindings);
 }
 
 /* May an expected face NAME be given to this exact face?
