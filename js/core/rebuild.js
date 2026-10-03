@@ -276,6 +276,7 @@ const NON_BODY_RESULTS = new Set(["sketch", "helix", "knurl"]);
    way when the part the row was cut from — the one whose featureId starts the
    row's input chain — does not record the row. */
 export function leavesInputStanding(definition, feature) {
+  if (NON_BODY_RESULTS.has(feature?.type) || feature?.type === "thread" && feature.params?.mode !== "modeled") return true;
   // A separately extruded/revolved body can still depend on its support's
   // geometry. That dependency does not consume the existing support body.
   if (["extrude", "revolve", "sweep", "loft"].includes(feature?.type)
@@ -313,7 +314,8 @@ export function bodiesFromResults(definition, results) {
   features.forEach((feature) => {
     if (consumed.has(feature.id)) return;
     const result = results.get(feature.id);
-    if (!result || result.kind === "sketch" || NON_BODY_RESULTS.has(result.type)) return;
+    if (!result || result.kind === "sketch" || result.kind === "annotation" || NON_BODY_RESULTS.has(result.type)
+      || feature.type === "thread" && feature.params?.mode !== "modeled") return;
     bodies.push({
       id: "body:" + feature.id,
       featureId: feature.id,

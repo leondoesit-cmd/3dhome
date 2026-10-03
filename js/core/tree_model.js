@@ -123,7 +123,8 @@ export function predictedBodies(def) {
     });
   const order = historyFeatureOrder(def).filter((feature) =>
     !feature.suppressed && !rolledOut.has(feature.id)
-    && SOLID_FEATURES.has(feature.type) && !ANNOTATION_FEATURES.has(feature.type));
+    && SOLID_FEATURES.has(feature.type) && !ANNOTATION_FEATURES.has(feature.type)
+    && !(feature.type === "thread" && feature.params?.mode !== "modeled"));
   if (order.length) {
     const consumed = new Set();
     order.forEach((feature) => (feature.inputs || []).forEach((id) => consumed.add(id)));

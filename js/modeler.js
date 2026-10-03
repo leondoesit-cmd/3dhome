@@ -8868,7 +8868,7 @@ function extrudePreviewParts(type,params) {
   // Local distances already follow the frame normal. Multiplying by its world
   // sign again reverses previews on back-facing supports.
   var axis=planeAxis(sketch.plane),normal=sketch.frame && sketch.frame.normal,principalDirection=sketch.frameSpace==="local"?1:normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):1;
-  var direction=(params.direction==="reverse"?-1:1)*(principalDirection || 1),depth=Math.max(.1,Number(params.depth)||.1),offset=Number(params.offset)||0,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
+  var direction=(params.direction==="reverse"?-1:1)*(principalDirection || 1),depth=Math.max(1e-6,Number(params.depth)||1e-6),offset=Number(params.offset)||0,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(sketch.frameSpace==="local"?0:Number(sketch.offset)||0)+direction*offset,from=symmetric?center-direction*depth/2:center,to=symmetric?center+direction*depth/2:center+direction*depth;
   var extent={...params,axis:sketch.frameSpace==="local"?"frame":axis,frame:sketch.frameSpace==="local"?cloneData(sketch.frame):undefined,from:from,to:to,points:areas[0]&&areas[0].points};
   try {
@@ -13150,7 +13150,7 @@ async function extrudeClosedSketch(options) {
   if (!direction) direction=1;
   var localFrame=sketch.frameSpace==="local" && sketch.frame;
   if (localFrame) direction=1;
-  var depth=Math.max(.1,Number(params.depth)||E.depth),offset=Number.isFinite(Number(params.offset))?Number(params.offset):E.baseOff;
+  var depth=Math.max(1e-6,Number(params.depth)||E.depth),offset=Number.isFinite(Number(params.offset))?Number(params.offset):E.baseOff;
   var featureDirection=params.direction==="reverse"?-direction:direction,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(localFrame?0:sketch.offset)+featureDirection*offset;
   var start=symmetric?center-featureDirection*depth/2:center,end=symmetric?center+featureDirection*depth/2:center+featureDirection*depth;
@@ -17171,7 +17171,7 @@ function syncProjectionFromFeature(feature) {
     (E.def.parts || []).forEach(function(item){if(item.toolboxFeatureId===feature.id)markLiveDirtyPart(item);});
     return true;
   } else if(part && feature.type==="extrude"){
-    var depth=Math.max(.1,Number(feature.params.depth)||.1),offset=Number(feature.params.offset)||0,sketchId=feature.references.sketches[0],sketch=(E.def.sketches || []).find(function(item){return item.id===(sketchId && sketchId.id || sketchId);});
+    var depth=Math.max(1e-6,Number(feature.params.depth)||1e-6),offset=Number(feature.params.offset)||0,sketchId=feature.references.sketches[0],sketch=(E.def.sketches || []).find(function(item){return item.id===(sketchId && sketchId.id || sketchId);});
     var direction=extrusionPreviewDirection(sketch,part.axis,feature.params.direction),symmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane",center=(part.frame?0:(sketch&&Number(sketch.offset)||0))+direction*offset;
     part.from=symmetric?center-direction*depth/2:center;part.to=symmetric?center+direction*depth/2:center+direction*depth;part.supportDepth=depth;part.supportBaseOffset=offset;
     part.direction=feature.params.direction;part.symmetric=symmetric;part.draftAngle=Number(feature.params.draftAngle)||0;part.draftOutward=!!feature.params.draftOutward;delete part.meshData;part.exactPending=false;markLiveDirtyPart(part);scheduleExactMesh(part);
@@ -17179,7 +17179,7 @@ function syncProjectionFromFeature(feature) {
     /* A merged boss is not a part, so the branch above finds nothing. Its run
        still has to follow the depth the form is showing. */
     var record=mergeRecordFor(feature.id),host=record.part,merge=record.merge;
-    var mergedDepth=Math.max(.1,Number(feature.params.depth)||.1),mergedOffset=Number(feature.params.offset)||0;
+    var mergedDepth=Math.max(1e-6,Number(feature.params.depth)||1e-6),mergedOffset=Number(feature.params.offset)||0;
     var mergedSketchId=feature.references.sketches[0],mergedSketch=(E.def.sketches || []).find(function(item){return item.id===(mergedSketchId && mergedSketchId.id || mergedSketchId);});
     var mergedDirection=extrusionPreviewDirection(mergedSketch,merge.axis,feature.params.direction),mergedSymmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane";
     var mergedCentre=(merge.frame?0:(mergedSketch&&Number(mergedSketch.offset)||0))+mergedDirection*mergedOffset;
