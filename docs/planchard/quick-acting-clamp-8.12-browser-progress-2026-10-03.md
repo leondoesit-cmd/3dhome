@@ -14,6 +14,7 @@ Resume at **printed page 8-47 / PDF page 425**. The clamp exercise is incomplete
 | QC08 sliding T-handle | cm_murx0km4 | Ø4.8 rod, length60, symmetric Z±30 | QC08-T-handle-browser-2026-10-03 |
 | QC09 swivel eye | cm_murx4omr | Front X−10..6/Y±6, symmetric Z±6; Ø6 Z crosspin bore at origin; Ø6 axial recess X−10..−6 | QC09-swivel-eye-browser-2026-10-03 |
 | QC10 hanging jaw | cm_murxkr8f | Front X±6/Y−30..6, symmetric Z±6; Ø6 Z pivot through bore at origin | QC10-jaw-browser-2026-10-03 |
+| QC11 soft contact pad | cm_murxwbyo | Top X/Z±10; extrusion Y0..3; bonded to jaw underside | QC11-soft-pad-browser-2026-10-03 |
 
 Each prefix has a `.mforge` recovery bundle and `.jpg` browser proof under `artifacts/planchard/`. QC02 was widened from the first 90×10 plate through its original driving dimensions and fixed corner coordinates; its protected bundle contains the revised 96×12 profile. QC01/QC03/QC04 use Aluminum6061, density2.7g/cm³; QC02 uses Steel304, density8g/cm³.
 
@@ -29,7 +30,7 @@ QC10 uses Steel304, density8g/cm³, verified in its protected120376-byte bundle.
 
 ## Resume sequence
 
-1. Build the adjustable jaw pad, pins and retainers from blank models. Use `quick-acting-clamp-8.12-design.md` for frozen dimensions and assembly datums. The bracket feet are educational welded connections to the aluminum base; Lock mates represent those fixed joints.
+1. Build the pins and retainers from blank models. QC11 is a separate bonded nitrile pad, density1.30g/cm³, with one fully defined sketch, two history steps, one native body and zero rebuild issues. Translate it to jaw Y−33 so its top meets the jaw underside at Y−30; a Lock mate represents the adhesive bond. Use `quick-acting-clamp-8.12-design.md` for assembly datums. The bracket feet are educational welded connections to the aluminum base; Lock mates represent those fixed joints.
 2. Decide and implement T-handle end retention; corrected QC05/QC07 custom annotations have passed final cold reopen. The integral QC05 journals replace a separate A pin because a central transverse pin would block the axial screw bore.
 3. Assemble closed pose: rear pivot A(−35,80,0), arm pivot D(0,40,0), arms60° about Z, eye C(25,83.301,0), jaw pivot P(40,109.282,0). QC04 local origin translates X−35/Z−10. Duplicate QC02/QC03 only as new assembly instances of these freshly authored task parts.
 4. Verify native topology mates, one coupled screw DOF, open/closed motion and interference through Chrome. The native synthetic regression alone is not browser assembly acceptance.
@@ -39,4 +40,8 @@ The screw mechanism code has 28 passing focused native tests: grounded closed-lo
 
 ## Tabs and recovery
 
-The ten completed parts and earlier valve/shock are saved and independently exported. Their tabs can be closed without losing these models. Preserve browser local storage and the repository artifact files. Reload Model Editor → Saved models to resume. The Shock drawing tab is retained as a deliverable; the current ModelForge tab is marked for continued work. Finish any newly started feature and save/export its part before closing the working tab.
+The eleven completed parts and earlier valve/shock are saved and independently exported. Their tabs can be closed without losing these models. Preserve browser local storage and the repository artifact files. Reload Model Editor → Saved models to resume. The Shock drawing tab is retained as a deliverable; the current ModelForge tab is marked for continued work. Finish any newly started feature and save/export its part before closing the working tab.
+
+## Save performance checkpoint
+
+Completed current native viewport rebuilds now populate the existing Save proof cache. Geometry, topology and thread changes invalidate reuse; stale, failed, approximate and unverified results remain excluded. Thirty-one focused tests and all624 module/1490 source checks pass. In Chrome, cold-reopened QC05 completed native regeneration; its first Save returned from the click in494ms and subsequently reported `data-exact-save-validation="reused"`. This confirms reuse in the real workflow; it is not a controlled speed benchmark. Commit `c6625de` protects QC01–QC10 and both thread repairs; QC11 and this optimization form the next checkpoint.

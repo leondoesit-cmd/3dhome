@@ -24817,6 +24817,9 @@ async function regenerateExactModelNow(rebuild,queueIsCurrent=function(){return 
     /* Stamped after refreshParts(), so the run is only ever marked current
        once the document it belongs to has settled. */
     E.brepStamp = exactRunStamp();
+    // A current worker-proven restore can also validate a subsequent Save.
+    // The cache clones proof and rejects native handles or unverified results.
+    if(compiled && buildIsCurrent())exactSaveCache.put(rebuildingDocument,compiled,regenerated);
     syncAuthoringWorkflow();
     flash("✓ " + t("kernelReady")); return E.brepRun;
   } catch (error) {
