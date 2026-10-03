@@ -181,7 +181,9 @@ export function buildCommandCatalog(ctx) {
     { id:"drawing", icon:"ph-file-svg", label:t("drawingExport"), group:t("cmdEvaluate"),
       available:function(){ return partDoc() || (assemblyDoc() && E.assembly && E.assembly.components.length); },
       reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needPart(); } },
-    { id:"mass", icon:"ph-scales", label:t("massProps"), group:t("cmdEvaluate"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
+    { id:"mass", icon:"ph-scales", label:t("massProps"), group:t("cmdEvaluate"),
+      available:function(){ return partDoc()?solids():assemblyDoc()&&components(); },
+      reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
     /* Gated like Section: it needs something on screen to pick two points on,
        which in a part is a solid and in an assembly is a component. */
     { id:"measure", icon:"measure", label:t("measureTool"), group:t("cmdEvaluate"), terms:"measure distance delta angle between points vertices ruler",
@@ -207,6 +209,7 @@ export function buildCommandCatalog(ctx) {
     { id:"mates", icon:"ph-link", label:t("mate"), group:t("cmdAssembly") },
     { id:"screwmate", icon:"threadfeature", label:t("screwMate"), group:t("cmdAssembly"), terms:"screw thread pitch mate", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"gearmate", icon:"ph-gear", label:t("gearMate"), group:t("cmdAssembly"), terms:"gear ratio teeth rotation mate mechanical", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
+    { id:"beltmate", icon:"ph-circles-three-plus", label:t("beltMate"), group:t("cmdAssembly"), terms:"belt pulley diameter open crossed rotation coupling", available:function(){return assemblyDoc() && E.assembly && E.assembly.components.length>1;}, reason:function(){return assemblyDoc()?t("cmdNeedComponents"):needAsm();} },
     { id:"symmetricmate", icon:"ph-flip-horizontal", label:t("symmetricMate"), group:t("cmdAssembly"), terms:"symmetric mirror plane mate advanced", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"partdoc", icon:"ph-cube-focus", label:t("docPart"), group:t("cmdAssembly") },
     { id:"explode", icon:"ph-arrows-out", label:t("explodeView"), group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },

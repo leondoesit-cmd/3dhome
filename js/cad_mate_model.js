@@ -12,6 +12,7 @@ import { componentTopology, isStandardPlaneId, isSubassembly, standardPlaneEntri
 import {torusBoreSectionContact} from './core/torus_bore_contact.js';
 import { compileKernelFeatureTree } from './core/kernel_feature_adapter.js';
 import { verifiedFinalTopology } from './core/exact_topology_cache.js';
+import {beltRatio} from './cad_belt_mate.js';
 
 export const rad = (d) => d * Math.PI / 180;
 export const deg = (r) => r * 180 / Math.PI;
@@ -72,7 +73,7 @@ const finiteDirection = (direction) => finitePoint(direction) && len(direction) 
    to be is not an axis, and nothing can be placed without an origin. */
 export const MATE_REQUIREMENT = {
   coincident: "coincident", distance: "distance", limit: "planar", angle: "planar",
-  concentric: "axis", screw: "axis", gear: "axis",
+  concentric: "axis", screw: "axis", gear: "axis", belt: "axis",
   symmetric: "mirror",
   tangent: "tangent",
 };
@@ -110,6 +111,7 @@ export function mateFrameSupports(requirement, frame) {
 export function mateFramesSupport(type,a,b) {
   const requirement=mateRequirementFor(type);
   if(!mateFrameSupports(requirement,a) || !mateFrameSupports(requirement,b))return false;
+  if(type==='belt')return Math.abs(dot(norm(a.axis),norm(b.axis)))>1-1e-6;
   if(type==='coincident' || type==='distance')return !!planarDirection(a) || !!planarDirection(b);
   return true;
 }
@@ -521,7 +523,7 @@ export function angleBetween(a, b) {
    express it. */
 export function mateTarget(mate, fa, fb, moving, reader) {
   if (!fa || !fb) return null;
-  if (mate.type === "symmetric" || mate.type === "gear") return null;
+  if (mate.type === "symmetric" || mate.type === "gear" || mate.type === "belt") return null;
   if(mate.type==='coincident' && mateFramesSupport('coincident',fa,fb) && (!planarDirection(fa) || !planarDirection(fb))){
     const plane=planarDirection(fa)?fa:fb,line=plane===fa?fb:fa;
     const normal=norm(planarDirection(plane)),axis=norm(line.axis);
@@ -690,7 +692,7 @@ export function mateResidual(mate, fa, fb, moving, ctx = {}) {
     return {linear:Math.hypot(...rows.slice(0,3)),angular:Math.hypot(...rows.slice(3))/ANGULAR_SCALE};
   }
   if (mate.type === "symmetric") { const m = symmetricMeasure(mate, fa, fb, ctx.fc); return m && { linear: m.linear, angular: m.angular }; }
-  if (mate.type === "gear") { const g = gearMeasure(mate, fa, fb, ctx.reader, moving); return g && { linear: 0, angular: Math.abs(wrapAngle(g.theta)) }; }
+  if (mate.type === "gear" || mate.type === "belt") { const g = gearMeasure(mate, fa, fb, ctx.reader, moving); return g && { linear: 0, angular: Math.abs(wrapAngle(g.theta)) }; }
   const target = mateTarget(mate, fa, fb, moving, ctx.reader);
   if (!target) return null;
   if(target.pointPlane)return {linear:Math.abs(target.offsetResidual),angular:0};
@@ -737,7 +739,7 @@ function lockRows(mate,reader,moving) {
 export function mateResidualVector(mate, fa, fb, moving, ctx = {}) {
   if(mate.type==='lock')return lockRows(mate,ctx.reader,moving);
   if (mate.type === "symmetric") { const m = symmetricMeasure(mate, fa, fb, ctx.fc); return m && m.rows; }
-  if (mate.type === "gear") {
+  if (mate.type === "gear" || mate.type === "belt") {
     const g = gearMeasure(mate, fa, fb, ctx.reader, moving);
     return g && [Math.sin(g.theta) * ANGULAR_SCALE, (Math.cos(g.theta) - 1) * ANGULAR_SCALE];
   }
@@ -857,19 +859,34 @@ export function gearRatio(mate) {
 }
 export function gearMeasure(mate, fa, fb, reader, moving) {
   if (!fa || !fb || !reader || !moving) return null;
+  const ratio=mate.type==='belt'?beltRatio(mate):gearRatio(mate);
+  if(ratio===null)return null;
   const axis = norm(fa.axis || fa.normal);
   if (!finiteDirection(axis)) return null;
   const rollA = screwRoll(reader, axis), rollB = screwRoll(moving, axis);
   const startA = Number.isFinite(Number(mate.rollA0)) ? Number(mate.rollA0) : rollA;
   const startB = Number.isFinite(Number(mate.rollB0)) ? Number(mate.rollB0) : rollB;
-  const turnA = wrapAngle(rollA - startA), turnB = wrapAngle(rollB - startB);
-  return { turnA, turnB, theta: turnB + (mate.reverse ? -1 : 1) * gearRatio(mate) * turnA };
+  const turnA = mate.type==='belt' && Number.isFinite(mate.beltTurnA)
+    ? mate.beltTurnA+wrapAngle(rollA-mate.beltLastRollA) : wrapAngle(rollA - startA);
+  const turnB = wrapAngle(rollB - startB);
+  const sameDirection=mate.type==='belt'?mate.beltDirection==='open':mate.reverse;
+  return { turnA, turnB, theta: turnB + (sameDirection ? -1 : 1) * ratio * turnA };
 }
 /* A gear mate does not know where in its turn each gear stands until the
    components are placed, so the first solve records it. The capture is
    persisted with the mate, like the seed of any other stored mate value. */
 export function captureGearPhase(mate, fa, fb, reader, moving) {
-  if (mate.type !== "gear" || (Number.isFinite(Number(mate.rollA0)) && Number.isFinite(Number(mate.rollB0)))) return false;
+  if(mate.type==='belt'){
+    const axis=norm(fa.axis||fa.normal),rollA=screwRoll(reader,axis);
+    if(!Number.isFinite(mate.rollA0)||!Number.isFinite(mate.rollB0)){
+      mate.rollA0=rollA;mate.rollB0=screwRoll(moving,axis);
+    }
+    mate.beltTurnA=Number.isFinite(mate.beltMotorTurnA)?mate.beltMotorTurnA:
+      Number.isFinite(mate.beltTurnA)&&Number.isFinite(mate.beltLastRollA)?mate.beltTurnA+wrapAngle(rollA-mate.beltLastRollA):wrapAngle(rollA-mate.rollA0);
+    mate.beltLastRollA=rollA;
+    return true;
+  }
+  if (!["gear","belt"].includes(mate.type) || (Number.isFinite(Number(mate.rollA0)) && Number.isFinite(Number(mate.rollB0)))) return false;
   const axis = norm(fa.axis || fa.normal);
   mate.rollA0 = screwRoll(reader, axis);
   mate.rollB0 = screwRoll(moving, axis);

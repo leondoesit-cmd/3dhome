@@ -140,7 +140,7 @@ function acceptMates(assembly, entries, byId, resolvedFrame, issues) {
       issues.push({ mate: entry.id, code: FRAME_ISSUE[requirement] || "invalid-face-frame" });
       continue;
     }
-    if (mate.type === "gear") captureGearPhase(mate, fa, fb, a, b);
+    if (mate.type === "gear" || mate.type === "belt") captureGearPhase(mate, fa, fb, a, b);
     if (mate.type === "screw" && mate.coupledMotion) captureCoupledScrewZero(mate, fa, fb, a, b);
     const rows = mateResidualVector(mate, fa, fb, b, { fc, reader: a });
     if (!rows) { issues.push({ mate: entry.id, code: "unresolved-topology" }); continue; }
@@ -176,11 +176,39 @@ function decompose(accepted) {
     if (!mate.b.grounded && !movable.has(mate.b.id)) movable.set(mate.b.id, mate.b);
     if (mate.mate.type === "lock" && !mate.a.grounded && !movable.has(mate.a.id)) movable.set(mate.a.id, mate.a);
   }
+  /* A source-only reference is deliberately stationary in a free directional
+   * chain, so the picked reference leads and the target follows. Once that
+   * chain joins a grounded mechanism, however, leaving the ungrounded source
+   * out silently pins it in space. A spindle picked first for its bearing
+   * mates then appears to ground the entire slide. Find grounded connections
+   * before promoting only those source-only bodies into the physical solve. */
+  const neighbours = new Map();
+  for (const {a,b} of accepted) {
+    if (!neighbours.has(a.id)) neighbours.set(a.id,new Set());
+    if (!neighbours.has(b.id)) neighbours.set(b.id,new Set());
+    neighbours.get(a.id).add(b.id);
+    neighbours.get(b.id).add(a.id);
+  }
+  const anchored = new Set();
+  const queue = [];
+  for (const {a,b} of accepted) for (const component of [a,b]) if (component.grounded && !anchored.has(component.id)) {
+    anchored.add(component.id);queue.push(component.id);
+  }
+  for(let at=0;at<queue.length;at++)for(const next of neighbours.get(queue[at])||[])if(!anchored.has(next)){
+    anchored.add(next);queue.push(next);
+  }
+  const sourceOnly = new Set();
+  for (const mate of accepted) {
+    if (!mate.a.grounded && anchored.has(mate.a.id) && !movable.has(mate.a.id)) {
+      movable.set(mate.a.id, mate.a);
+      sourceOnly.add(mate.a.id);
+    }
+  }
   const edges = new Map([...movable.keys()].map((id) => [id, []]));
   for (const mate of accepted) {
     if (movable.has(mate.a.id) && movable.has(mate.b.id) && mate.a.id !== mate.b.id) {
       edges.get(mate.a.id).push(mate.b.id);
-      if (mate.mate.type === "lock") edges.get(mate.b.id).push(mate.a.id);
+      if (mate.mate.type === "lock" || sourceOnly.has(mate.a.id)) edges.get(mate.b.id).push(mate.a.id);
     }
     if (mate.c && movable.has(mate.c.id) && mate.c.id !== mate.b.id) edges.get(mate.c.id).push(mate.b.id);
   }
@@ -192,10 +220,10 @@ function decompose(accepted) {
    * cycle and let the movable members of that cycle solve together. Bridges
    * keep ordinary long assembly chains in their small, fast clusters. A shared
    * grounded bracket never joins two otherwise independent linkages. */
-  const joints = [], neighbours = new Map(), seenJoints = new Set();
+  const joints = [], cycleNeighbours = new Map(), seenJoints = new Set();
   const addNeighbour = (from, to, edge) => {
-    if (!neighbours.has(from)) neighbours.set(from, []);
-    neighbours.get(from).push({ to, edge });
+    if (!cycleNeighbours.has(from)) cycleNeighbours.set(from, []);
+    cycleNeighbours.get(from).push({ to, edge });
   };
   for (const { a, b } of accepted) {
     if (a.id === b.id) continue;
@@ -210,13 +238,13 @@ function decompose(accepted) {
   }
   const visited = new Map(), lowLink = new Map(), bridges = new Set();
   let visitIndex = 0;
-  for (const root of neighbours.keys()) {
+  for (const root of cycleNeighbours.keys()) {
     if (visited.has(root)) continue;
     visited.set(root, visitIndex); lowLink.set(root, visitIndex++);
     const work = [{ node: root, parent: null, incoming: -1, next: 0 }];
     while (work.length) {
       const frame = work[work.length - 1];
-      const edge = neighbours.get(frame.node)[frame.next++];
+      const edge = cycleNeighbours.get(frame.node)[frame.next++];
       if (edge) {
         if (edge.edge === frame.incoming) continue;
         if (!visited.has(edge.to)) {
@@ -280,7 +308,7 @@ function decompose(accepted) {
   groups.reverse();
   const home = new Map();
   groups.forEach((group, i) => group.forEach((component) => home.set(component.id, i)));
-  const clusters = groups.map((group) => ({ components: group, mates: [] }));
+  const clusters = groups.map((group) => ({ components: group, mates: [], sourceOnly }));
   for (const mate of accepted) {
     const owner = home.get(mate.b.id) ?? home.get(mate.a.id);
     if (owner !== undefined) clusters[owner].mates.push(mate);
@@ -667,7 +695,8 @@ function solveCluster(cluster, resolvedFrame, settings) {
      mate must not free the component that mate used to move, or an assembly
      would rearrange itself around a mate it had already given up on. */
   const movers = (mates) => {
-    const moved = new Set(mates.flatMap((entry) => entry.mate.type === "lock" ? [entry.a.id, entry.b.id] : [entry.b.id]));
+    const moved = new Set(mates.flatMap((entry) => entry.mate.type === "lock" ? [entry.a.id, entry.b.id] :
+      cluster.sourceOnly?.has(entry.a.id) ? [entry.a.id, entry.b.id] : [entry.b.id]));
     return cluster.components.filter((component) => moved.has(component.id));
   };
   const tryMates = (mates) => {

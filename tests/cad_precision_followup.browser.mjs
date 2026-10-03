@@ -30,15 +30,18 @@ test('applying a legacy countersink saves its conical cutter through the real co
    const {openModeler}=await import('/js/modeler.js');
    openModeler(null,{key:'hole_apply_fixture',name:'Hole apply fixture',metadata:{authoringSystem:'legacy-adapter'},sketches:[{id:'sketch',plane:'top',points:[{id:'c',x:2,y:2}],entities:[{id:'circle',type:'circle',c:'c',r:.5}],constraints:[]}],activeSketch:'sketch',parts:[{id:'stock',name:'Stock',kind:'box',x0:0,x1:4,y0:0,y1:10,z0:0,z1:4}]},null);
    window.cadOpenFeatureForm('hole');
-   for(const [key,value] of Object.entries({holeType:'countersink',endCondition:'blind',depth:2})){
+   for(const [key,value] of Object.entries({holeType:'countersink',endCondition:'blind',depth:2,drillPointAngle:180})){
     const input=document.querySelector('#mdQuickSettings input[data-parameter="'+key+'"],#mdQuickSettings select[data-parameter="'+key+'"]');
     input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));
    }
    const apply=Array.from(document.querySelectorAll('#mdQuickSettings button')).find(b=>b.textContent.trim()==='Apply');
    if(!apply)throw new Error('Apply button is missing');apply.click();
   });
-  await page.waitUntil(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')||'null')?.def?.parts?.[0]?.cuts3d?.length===2,{ms:60000});
-  const records=await page.eval(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')).def.parts[0].cuts3d);
-  assert.deepEqual(records.map(r=>r.kind),['hole','hole']);assert.equal(records[1].params.kind,'cone');assert.ok(records[1].params.diameter>records[1].params.diameter2);
+  await page.waitUntil(async()=>{const {loadModelerDraftRecord}=await import('/js/core/model_library_store.js');return (await loadModelerDraftRecord(sessionStorage.getItem('home3d_modeler_tab_id')))?.def?.parts?.[0]?.cuts3d?.length===2;},{ms:60000}).catch(async(error)=>{
+    const state=await page.eval(async()=>{const {loadModelerDraftRecord}=await import('/js/core/model_library_store.js');const draft=await loadModelerDraftRecord(sessionStorage.getItem('home3d_modeler_tab_id'));return {hint:document.querySelector('#mdHint').textContent,cuts:draft?.def?.parts?.[0]?.cuts3d};});
+    throw new Error(error.message+' '+JSON.stringify(state));
+  });
+  const records=await page.eval(async()=>{const {loadModelerDraftRecord}=await import('/js/core/model_library_store.js');return (await loadModelerDraftRecord(sessionStorage.getItem('home3d_modeler_tab_id'))).def.parts[0].cuts3d;});
+  assert.deepEqual(records.map(r=>r.kind),['hole','hole']);assert.equal(records[1].params.kind,'cone');assert.ok(records[1].params.diameter1>records[1].params.diameter2);
  }finally{await page.close();}
 });

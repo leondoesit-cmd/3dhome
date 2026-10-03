@@ -42,10 +42,12 @@ import {documentLengthUnit,formatDocumentLength,lengthFromDocument,lengthToDocum
 import {parseSketchDimensionEntry} from './core/sketch_dimension_entry.js';
 import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
 import {setGearMatePhase} from "./cad_gear_motion.js";
+import {beltMateSpec,beltDiameterValue} from './cad_belt_mate.js';
 import {addCubicSpline,splineControls,sampleBezier} from "./sketch_spline.js";
 import {repairReferences,restoreSketchConstraint} from "./sketch_edit_repair.js";
 import { MANUFACTURING_TABLES, validateManufacturingTables } from "./manufacturing_tables.js";
 import { centerOfMassInSystem, evaluateMassProperties } from "./cad_mass_properties.js";
+import { evaluateAssemblyMassProperties } from "./cad_assembly_mass_properties.js";
 import { holeToolPlacements, holeCutRecords, holePreviewParts, syncHoleCutPlacement, holePositionPointIds } from "./core/hole_geometry.js";
 import { cylindricalHoleSource } from './core/cylindrical_hole_placement.js';
 import { revolvePreviewAxis, revolveRecipe } from "./core/revolve_geometry.js";
@@ -3748,8 +3750,8 @@ function buildDOM() {
     '<button data-doc="assembly">' + cadIcon("assembly") + " " + t("docAssembly") + '</button>' +
     '</div>' +
     '<div class="md-head-inputs">' +
-    '<label class="md-field"><span>' + t("name") + '</span><input id="mdName" type="text" autocomplete="off"></label>' +
-    '<label class="md-field"><span>' + t("description") + '</span><input id="mdDescription" type="text" autocomplete="off" title="' + t("descriptionHint") + '"></label>' +
+    '<label class="md-field"><span>' + t("name") + '</span><input id="mdName" type="text" aria-label="' + t("name") + '" autocomplete="off"></label>' +
+    '<label class="md-field"><span>' + t("description") + '</span><input id="mdDescription" type="text" aria-label="' + t("description") + '" autocomplete="off" title="' + t("descriptionHint") + '"></label>' +
     '<label class="md-field md-field-sm"><span>' + t("price") + '</span><input id="mdPrice" type="number" min="0"></label>' +
     "</div>" +
     /* Regenerate / STEP / drawing all have a labelled home in the Evaluate tab
@@ -6185,6 +6187,7 @@ function syncCoach() {
     root.querySelector("#mdCoachText").textContent = sug.phrase || t(sug.text);
     var go = root.querySelector("#mdCoachGo");
     go.innerHTML = t(sug.act) + '<i class="ph ph-arrow-right"></i>';
+    go.setAttribute("aria-label", t(sug.act));
     var dots = root.querySelector("#mdCoachDots");
     if (E.docType === "assembly") {
       var assemblyState = assemblyWorkflowState();
@@ -6765,6 +6768,7 @@ function syncAssemblyWorkflow() {
     var heading = button.querySelector("b"), detail = button.querySelector("small");
     if (heading) heading.textContent = t(ASSEMBLY_WORKFLOW[index] || PART_WORKFLOW[index]);
     if (detail) detail.textContent = state.details[index] || "";
+    button.setAttribute("aria-label", [heading && heading.textContent, detail && detail.textContent].filter(Boolean).join(" · "));
     button.classList.toggle("active", index === state.active);
     button.classList.toggle("complete", index < state.active || (index === state.active && state.complete));
     if (index === state.active) button.setAttribute("aria-current", "step");
@@ -6798,6 +6802,9 @@ function syncAuthoringWorkflow() {
   var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E._solveSketchId===sketch.id&&E.solveInfo ? E.solveInfo : solveSketch(sketch);if(E._solveSketchId!==sketch.id){E.solveInfo=info;E._solveSketchId=sketch.id;}sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):info.status==="conflicting"?t("dofConflict"):info.status==="over-constrained"?t("dofOver"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
   var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? featureTypeLabel(E.authoring.featureType) : (closedSketchProfile() ? t("wfReadyExtrude") : t("wfTurnIntent"));
   var history=root.querySelector("#mdWorkflowHistory");if(history)history.textContent=(E.def.history || []).length+" "+t("wfEditableSteps");
+  root.querySelectorAll("[data-workflow-step]").forEach(function(button){
+    button.setAttribute("aria-label", Array.from(button.querySelectorAll("b,small")).map(function(label){return label.textContent;}).filter(Boolean).join(" · "));
+  });
   root.classList.toggle("md-authoring-sketch",phase==="sketch");
   syncCoach();
 }
@@ -7246,6 +7253,7 @@ function runCommand(id) {
   else if (id === "config") showConfigurations();
   else if (id === "screwmate") { setDocumentType("assembly"); setTab("ops"); addTopologyMate("screw"); }
   else if (id === "gearmate") { setDocumentType("assembly"); setTab("ops"); openMateGearForm(); }
+  else if (id === "beltmate") { setDocumentType("assembly"); setTab("ops"); openMateBeltForm(); }
   else if (id === "symmetricmate") { setDocumentType("assembly"); setTab("ops"); addTopologyMate("symmetric"); }
   else if (id === "dynamicmirror") toggleDynamicMirror();
   else if (id === "mirror") mirrorSelection();
@@ -8336,6 +8344,7 @@ async function createHoleFeature(options) {
     if(E.def!==documentAtStart || !E.def.parts.includes(target) || H.tree().find(function(node){return node.current;})?.i!==historyAtStart)throw new Error("The document changed while the hole was being checked; apply it again");
     target.cuts3d=candidate.cuts3d;
     invalidatePartMeshAfterEdit(target);
+    scheduleModelerDraft();
   } catch(error) {
     if(E.def===documentAtStart){if(feature)removeHistoryNode(E.def,"history:feature:"+feature.id);if(H.tree().find(function(node){return node.current;})?.i===historyAtStart)H.discard();}
     flash(String(error.message || error));return false;
@@ -16597,6 +16606,7 @@ var MATE_PALETTE = [
   ["limit", "ph-arrows-in-line-vertical", "limitMate"],
   ["symmetric", "ph-flip-horizontal", "symmetricMate"],
   ["gear", "ph-gear", "gearMate"],
+  ["belt", "ph-circles-three-plus", "beltMate"],
 ];
 
 function topologyMateLabel(type,mate) {
@@ -16606,7 +16616,7 @@ function topologyMateLabel(type,mate) {
     coincident: "coincidentMate", concentric: "concentricMate",
     screw: "screwMate", tangent: "tangentMate", limit: "limitMate",
     angle: "angleMate", distance: "topologyDistanceMate",
-    symmetric: "symmetricMate", gear: "gearMate",
+    symmetric: "symmetricMate", gear: "gearMate", belt: "beltMate",
   }[type];
   return key ? t(key) : t("mate");
 }
@@ -17468,7 +17478,7 @@ function openFeatureEditor(feature) {
   });
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
   var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push(t("depSketch")+": "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push(t("depFeature")+": "+id);});
-  host.appendChild(el("div","md-feature-selection-note",dependencies.length?dependencies.join(" · "):t("noUpstreamDeps")));
+  host.appendChild(el("div","md-feature-selection-note",dependencies.length?t("upstreamDependencies")+": "+dependencies.join(" · "):t("noUpstreamDeps")));
   if(feature.type==="extrudeCut"){
     var contourStatus=el("p","md-field-hint","Refresh after editing this cut's sketch to update its profile and inner holes.");
     var contourRefresh=btn("Refresh sketch contour",function(){
@@ -18965,6 +18975,7 @@ function addTopologyMate(type, value) {
     E.topologySelection=[];solveAssembly();refreshAll();return true;
   }
   if (!E.assembly) { flash(t("mateHint")); return false; }
+  if(type==='belt' && !beltMateSpec(value?.diameterA,value?.diameterB,value?.beltDirection)){flash(t('beltInvalid'));return false;}
   var fits = mateTypeFits(type);
   if (!fits.ok) { flash(fits.reason); return false; }
   /* Two picked faces beat two synthesized ones. The buttons used to mate the
@@ -18989,6 +19000,7 @@ function addTopologyMate(type, value) {
   var componentB = mateHolderById(b.componentId);
   if (componentB && componentB.grounded && componentA && !componentA.grounded) {
     var swap = a; a = b; b = swap;
+    if(type==='belt' && value)value={...value,diameterA:value.diameterB,diameterB:value.diameterA};
     var swapComponent = componentA; componentA = componentB; componentB = swapComponent;
   }
   if (componentB && componentB.grounded) { flash(t("mateIssueGroundedTarget")); return false; }
@@ -18998,6 +19010,7 @@ function addTopologyMate(type, value) {
   pushUndo(t("mate"));
   E.assembly.topologyMates ||= [];
   var gearSpec = type === "gear" && value && typeof value === "object" ? value : {};
+  var beltSpec = type === "belt" && value && typeof value === "object" ? value : {};
   E.assembly.topologyMates.push({
     id:uid(), type:type, a:a, b:b,
     c: triple ? mateReferenceFromPick(triple.c) : undefined,
@@ -19012,6 +19025,9 @@ function addTopologyMate(type, value) {
     ratioA: type === "gear" ? (fin(Number(gearSpec.ratioA)) && Number(gearSpec.ratioA) > 0 ? Number(gearSpec.ratioA) : 1) : undefined,
     ratioB: type === "gear" ? (fin(Number(gearSpec.ratioB)) && Number(gearSpec.ratioB) > 0 ? Number(gearSpec.ratioB) : 1) : undefined,
     reverse: type === "gear" ? !!gearSpec.reverse : undefined,
+    diameterA:type==='belt'?beltSpec.diameterA:undefined,
+    diameterB:type==='belt'?beltSpec.diameterB:undefined,
+    beltDirection:type==='belt'?beltSpec.beltDirection:undefined,
   });
   E.topologySelection = [];
   solveAssembly(); refreshAll();
@@ -19056,6 +19072,21 @@ function openMateGearForm() {
   });
 }
 
+function openMateBeltForm() {
+  openQuickForm({action:'beltmate',icon:'ph-circles-three-plus',title:t('beltMate'),
+    hint:t('beltHint'),fields:[
+      {key:'diameterA',label:t('beltDiameterA'),type:'number',unit:'length',value:6,min:1e-6,step:.1},
+      {key:'diameterB',label:t('beltDiameterB'),type:'number',unit:'length',value:6,min:1e-6,step:.1},
+      {key:'direction',label:t('gearDirection'),type:'select',value:'open',choices:[
+        {value:'open',label:t('beltOpen')},{value:'crossed',label:t('beltCrossed')}]}
+    ],onApply:function(values){
+      // featureControlValue already converts document lengths to canonical cm.
+      var spec=beltMateSpec(values.diameterA,values.diameterB,values.direction);
+      if(!spec){flash(t('beltInvalid'));return false;}
+      return addTopologyMate('belt',spec);
+    }});
+}
+
 function openMateDistanceForm() {
   openQuickForm({
     action: "distancemate", icon: "ph-ruler", title: t("topologyDistanceMate"),
@@ -19092,8 +19123,18 @@ function openMatePropertyManager() {
         choices: offered.map(function (entry) { return { value: entry[0], label: t(entry[2]) }; }) },
       { key: "angle", label: t("mateAngleValue"), type: "number", value: 45, step: 1, min: 0, max: 180, unit: "angle" },
       { key: "distance", label: t("topologyDistanceMate"), type: "number", value: 0.15875, step: 0.01, unit: "length" },
+      {key:'diameterA',label:t('beltDiameterA'),type:'number',value:6,step:.1,min:1e-6,unit:'length'},
+      {key:'diameterB',label:t('beltDiameterB'),type:'number',value:6,step:.1,min:1e-6,unit:'length'},
+      {key:'beltDirection',label:t('gearDirection'),type:'select',value:'open',choices:[{value:'open',label:t('beltOpen')},{value:'crossed',label:t('beltCrossed')}]},
     ],
-    onApply: function (values) { return addTopologyMate(values.type, values.type === "distance" ? values.distance : values.angle); },
+    onApply: function (values) {
+      if(values.type==='belt'){
+        var spec=beltMateSpec(values.diameterA,values.diameterB,values.beltDirection);
+        if(!spec){flash(t('beltInvalid'));return false;}
+        return addTopologyMate('belt',spec);
+      }
+      return addTopologyMate(values.type, values.type === "distance" ? values.distance : values.angle);
+    },
   });
   if (!inputs) return;
   // The two reference rows report the picks; they are not somewhere to type.
@@ -19114,6 +19155,7 @@ function openMatePropertyManager() {
   var syncAngleField = function () {
     if (angleField) angleField.classList.toggle("parameter-hidden", inputs.type.value !== "angle");
     if (distanceField) distanceField.classList.toggle("parameter-hidden", inputs.type.value !== "distance");
+    ['diameterA','diameterB','beltDirection'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='belt');});
   };
   inputs.type.addEventListener("change", syncAngleField);
   syncAngleField();
@@ -19359,6 +19401,7 @@ function assemblyMateInspectorBody() {
       if (entry[0] === "angle") openMateAngleForm();
       else if (entry[0] === "distance") openMateDistanceForm();
       else if (entry[0] === "gear") openMateGearForm();
+      else if (entry[0] === "belt") openMateBeltForm();
       else addTopologyMate(entry[0]);
     });
     mateButton.setAttribute("data-topology-mate", entry[0]);
@@ -19438,13 +19481,14 @@ function assemblyMateInspectorBody() {
       /* Screw, gear and angle-range mates carry numbers of their own. Each is
          edited where the mate is listed, one undo step per change, and the
          assembly is solved again so the motion is visible immediately. */
-      var extraField = function (title, current, step, commit) {
+      var extraField = function (title, current, step, commit, commitOnEnter) {
         var wrap = el("label", "md-mate-value"), input = el("input");
         wrap.appendChild(el("span", "", title));
         input.type = "number"; input.step = String(step);
         input.value = current == null || !fin(Number(current)) ? "" : String(Number(Number(current).toPrecision(10)));
         input.setAttribute("aria-label", title);
         input.addEventListener("change", function () { commit(input.value.trim() === "" ? null : Number(input.value), input); });
+        if(commitOnEnter)input.addEventListener('keydown',function(event){if(event.key==='Enter'){event.preventDefault();event.stopPropagation();commit(input.value.trim()===''?null:Number(input.value),input);}});
         wrap.appendChild(input); mateUiRow.appendChild(wrap);
       };
       if (mate.type === "screw") {
@@ -19507,6 +19551,20 @@ function assemblyMateInspectorBody() {
           pushUndo(t("gearMate")); mate.reverse = !mate.reverse; solveAssembly(); refreshAll();
         }, "md-mate-align");
         mateUiRow.appendChild(flip);
+      }
+      if(mate.type==='belt'){
+        mateUiRow.appendChild(el('div','md-note',t('beltHint')));
+        [['diameterA','beltDiameterA','a'],['diameterB','beltDiameterB','b']].forEach(function(pair){
+          extraField(t(pair[1])+' ('+modelLengthUnit()+')',beltDiameterValue(mate,pair[2],modelLengthUnit()),.1,function(next,input){
+            var cm=lengthFromDocument(next,modelLengthUnit());
+            if(next===null||!fin(cm)||!(cm>0)){flash(t('beltInvalid'));input.value=modelLengthText(mate[pair[0]]);return;}
+            if(cm===mate[pair[0]])return;
+            pushUndo(t('beltMate'));mate[pair[0]]=cm;solveAssembly();refreshAll();
+          },true);
+        });
+        mateUiRow.appendChild(btn(t(mate.beltDirection==='open'?'beltOpen':'beltCrossed'),function(){
+          pushUndo(t('beltMate'));mate.beltDirection=mate.beltDirection==='open'?'crossed':'open';solveAssembly();refreshAll();
+        },'md-mate-align'));
       }
       if (mate.type === "angle") {
         [["angleMin", "mateAngleMinimum"], ["angleMax", "mateAngleMaximum"]].forEach(function (pair) {
@@ -25251,7 +25309,8 @@ function evalRow(host, label, value) {
 var massDisplayUnits = "si";
 var massCoordinateSystemId = "";
 function massEvaluationChanged(evaluation) {
-  return evaluation.document!==E.def || evaluation.node!==currentHistoryNode() || evaluation.editRevision!==(E.massEditRevision || 0);
+  return evaluation.type!==E.docType || evaluation.document!==(E.docType==="assembly"?E.assembly:E.def)
+    || evaluation.node!==currentHistoryNode() || evaluation.editRevision!==(E.massEditRevision || 0);
 }
 
 function syncMassPropertiesEvaluation() {
@@ -25260,15 +25319,25 @@ function syncMassPropertiesEvaluation() {
 }
 
 async function showMassProperties() {
-  if (E.docType !== "part") return;
-  var documentAtStart=E.def, snapshot=cloneData({...E.def,parts:activeParts(E.def)});
+  if (E.docType !== "part" && E.docType !== "assembly") return;
+  var documentAtStart=E.docType==="assembly"?E.assembly:E.def;
+  var snapshot=E.docType==="assembly"?cloneData(E.assembly):cloneData({...E.def,parts:activeParts(E.def)});
   var body = openEvalCard("mass", t("cmdEvaluate"), t("massProps"));
   if (!body) return;
-  var evaluation={document:documentAtStart,node:currentHistoryNode(),editRevision:E.massEditRevision || 0};
+  var evaluation={type:E.docType,document:documentAtStart,node:currentHistoryNode(),editRevision:E.massEditRevision || 0};
   E.massEvaluation=evaluation;
   body.textContent=t("liveExactCalc");
   var releases=new Map();
-  var mass = await evaluateMassProperties(snapshot,{
+  var mass = E.docType==="assembly" ? await evaluateAssemblyMassProperties(snapshot,{
+    resolveDefinition:function(component){return component.def || componentDef(component);},
+    evaluateDefinition:async function(def){
+      var source=cloneData({...def,parts:activeParts(def)});
+      return evaluateMassProperties(source,{
+        buildSolid:async function(part){var display=await exactDisplayBody(part,source,null,{massProperties:true});releases.set(display.brep,display.release);return display.brep;},
+        releaseSolid:function(solid){releases.get(solid)?.();releases.delete(solid);},
+      });
+    },
+  }) : await evaluateMassProperties(snapshot,{
     buildSolid:async function(part){var display=await exactDisplayBody(part,snapshot,null,{massProperties:true});releases.set(display.brep,display.release);return display.brep;},
     releaseSolid:function(solid){releases.get(solid)?.();releases.delete(solid);},
   });
@@ -25296,7 +25365,7 @@ async function showMassProperties() {
     var massCoord=function(value){var v=value*system.length;return String(Math.abs(v)<1e-9?0:Number(v.toPrecision(7)));};
     /* "Report coordinate values relative to": the centre of mass expressed in a
        user coordinate system (origin plus possibly reversed axes). */
-    var coordinateSystems=(E.def.referenceGeometry || []).filter(function(r){return r.type==="coordinate_system";});
+    var coordinateSystems=((evaluation.type==="assembly"?E.assembly:E.def).referenceGeometry || []).filter(function(r){return r.type==="coordinate_system";});
     var chosen=coordinateSystems.find(function(r){return r.id===massCoordinateSystemId;}) || null;
     if(coordinateSystems.length){
       var pick=el("select","md-input");
@@ -25312,7 +25381,7 @@ async function showMassProperties() {
     }
     evalRow(body, t("massCentre")+(chosen?" · "+chosen.name:""), "X "+massCoord(com.x)+"   Y "+massCoord(com.y)+"   Z "+massCoord(com.z)+" "+system.lengthUnit);
     (mass.bodies || []).forEach(function(row,index){
-      var label=(row.materialName || t("massNoMaterial"));
+      var label=(row.componentName?row.componentName+" · ":"")+(row.materialName || t("massNoMaterial"));
       evalRow(body, t("massBodyRow")+" "+(index+1)+" · "+label, quantity(row.volume,"volume",6)+" · "+quantity(row.massKg||0,"mass",6)+" · "+quantity(row.density,"density",6));
       if(row.error) body.appendChild(el("div", "md-note", t("massBodyRow")+" "+(index+1)+": "+row.error));
     });
@@ -25612,8 +25681,8 @@ function createDefaultExplodedView() {
     openExplodedPlayback(); return;
   }
   pushUndo(t("explodeView"));
-  var saved=(E.assembly.explodedViews || []).find(function(view){return view.id===E.assembly.activeExplodedView;});
-  if(saved){applyExplodedView(E.assembly,saved.id,1);refreshAll();fitPreview();flash("✓ "+saved.name);openExplodedPlayback();return;}
+  var saved=(E.assembly.explodedViews || []).find(function(view){return view.id===E.assembly.activeExplodedView;}) || (E.assembly.explodedViews || [])[0];
+  if(saved){E.assembly.activeExplodedView=saved.id;applyExplodedView(E.assembly,saved.id,1);refreshAll();fitPreview();flash("✓ "+saved.name);openExplodedPlayback();return;}
   var view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1));
   var spacing=defaultExplodeSpacing(E.assembly.components.map(function(component){return componentWorldBounds(component,{exploded:false});}));
   E.assembly.components.forEach(function (component, index) {
@@ -25627,8 +25696,10 @@ function createDefaultExplodedView() {
 let explodedPlaybackStop = null;
 function openExplodedPlayback() {
   if(explodedPlaybackStop)explodedPlaybackStop();
-  const assembly=E.assembly,view=assembly?.explodedViews?.find(item=>item.id===assembly.activeExplodedView);
-  if(!view || !view.steps.length)return;
+  const assembly=E.assembly;
+  let view=assembly?.explodedViews?.find(item=>item.id===assembly.activeExplodedView) || assembly?.explodedViews?.[0];
+  if(!view)return;
+  assembly.activeExplodedView=view.id;
   let frame=0,progress=0,lastTime=0;
   const stop=()=>{if(frame)cancelAnimationFrame(frame);frame=0;lastTime=0;};
   explodedPlaybackStop=stop;
@@ -25643,13 +25714,20 @@ function openExplodedPlayback() {
     E.pv?.render();
     status.textContent=Math.round(progress*100)+"% · "+view.steps.length+" steps";
   };
-  const inputs=openQuickForm({action:"explodeplay",title:"Exploded animation",hint:"Play the saved steps in order. Stop pauses; Reset returns to the assembled position.",fields:[{key:"duration",label:"Duration (seconds)",type:"number",value:view.animationDurationSeconds || Math.max(4,view.steps.length),step:1}],onApply:()=>true,onCancel:stop});
+  const inputs=openQuickForm({action:"explodeplay",title:"Exploded animation",hint:"Play the saved steps in order. Stop pauses; Reset returns to the assembled position.",fields:[{key:"view",label:"Exploded view",type:"select",value:view.id,choices:assembly.explodedViews.map(item=>({value:item.id,label:item.name || item.id}))},{key:"duration",label:"Duration (seconds)",type:"number",value:view.animationDurationSeconds || Math.max(4,view.steps.length),step:1}],onApply:()=>true,onCancel:stop});
   const host=root.querySelector("#mdQuickSettings");
   if(!inputs || !host)return;
   const duration=inputs.duration,actions=host.querySelector('.md-feature-actions');
   actions.innerHTML="";
   duration.addEventListener("change",()=>{const seconds=Number(duration.value);if(Number.isFinite(seconds) && seconds>0 && seconds<=3600){pushUndo("Animation duration");view.animationDurationSeconds=seconds;syncHead();}});
   const status=el("div","md-note","Ready · "+view.steps.length+" steps");host.appendChild(status);
+  if(inputs.view)inputs.view.addEventListener("change",()=>{
+    const selected=assembly.explodedViews.find(item=>item.id===inputs.view.value);
+    if(!selected || selected===view || E.assembly!==assembly)return;
+    stop();pushUndo("Select exploded view");view=selected;assembly.activeExplodedView=view.id;
+    duration.value=String(view.animationDurationSeconds || Math.max(4,view.steps.length));
+    progress=1;update();refreshAll();fitPreview();syncHead();
+  });
   const tick=time=>{
     if(!host.isConnected || host.hidden || E.quickAction!=="explodeplay" || E.assembly!==assembly || E.docType!=="assembly"){stop();return;}
     if(lastTime)progress=Math.min(1,progress+(time-lastTime)/(Math.max(.1,Number(duration.value)||7)*1000));

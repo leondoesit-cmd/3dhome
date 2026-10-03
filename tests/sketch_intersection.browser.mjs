@@ -56,6 +56,8 @@ test("Add Relations Intersection pins a sketch point to two crossing lines", chr
         label: button?.textContent,
         tabs: [...document.querySelectorAll("#modeler [data-tab]")].map((tab) => tab.getAttribute("data-tab")),
         constraints: [...document.querySelectorAll("#modeler [data-constraint]")].map((item) => item.getAttribute("data-constraint")),
+        snapshot: window.cadSketchSnapshot(),
+        picked: [...document.querySelectorAll('.md-geometry-pick[aria-pressed="true"]')].map((item)=>item.textContent),
       };
     });
     assert.equal(ready.exists, true, JSON.stringify(ready));

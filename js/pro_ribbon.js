@@ -320,6 +320,7 @@ function fillRibbon(host, editor, tabIndex, key) {
   });
   var body = host.querySelector(".pr-groups");
   body.setAttribute("aria-labelledby", "pr-tab-" + editor + "-" + i);
+  body.setAttribute("aria-label", L(tabs[i][0]));
   body.innerHTML = "";
   tabs[i][1].forEach(function (group) {
     var g = document.createElement("div");

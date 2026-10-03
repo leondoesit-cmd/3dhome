@@ -5,6 +5,7 @@ import { axisAngleMatrix, mul, setRotation } from "./cad_mate_model.js";
 
 import {gearMotionState} from "./cad_gear_motion.js";
 import {linearMotionState} from "./cad_linear_motion.js";
+import {prepareBeltMotorTurns} from './cad_belt_motion.js';
 export {addLinearMotor} from "./cad_linear_motion.js";
 export {addGearRelation} from "./cad_gear_motion.js";
 
@@ -45,6 +46,9 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   // Solve on a copy so failed mates never publish a partially moved assembly.
   const trial={...assembly,components:(assembly.components||[]).map(c=>({...c,transform:structuredClone(c.transform||{})})),mates:structuredClone(assembly.mates||[]),topologyMates:structuredClone(assembly.topologyMates||[])};
   const ms=structuredClone(original),driven=new Set();
+  if(trial.topologyMates.some(m=>m.type==='belt' && !Number.isFinite(m.rollA0))){
+    const captured=solveAssemblyMates(trial);if(!captured.ok)return captured;
+  }
   // The saved face-centroid screw zero must be migrated at the saved pose,
   // before the motor assigns its first requested turn. Otherwise that first
   // increment becomes the new zero and disappears from the motion.
@@ -56,6 +60,8 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   const rotary={...ms,motors:ms.motors.filter(m=>m.type==='rotary')};
   const motion=gearMotionState(rotary,trial.components,timeInSeconds);
   if(!motion.ok)return motion;
+  const beltMotion=prepareBeltMotorTurns(trial,ms,motion.motions);
+  if(!beltMotion.ok)return beltMotion;
   const linear=linearMotionState(ms,trial.components,timeInSeconds);
   if(!linear.ok)return linear;
   const screwMotions=[];
@@ -99,6 +105,11 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   }else result=solveAssemblyMates(trial,{fixedComponentIds:[...driven]});
   if(!result.ok)return result;
   trial.components.forEach((c,i)=>{assembly.components[i].transform=c.transform;});
+  for(const mate of trial.topologyMates.filter(m=>m.type==='belt')){
+    const target=assembly.topologyMates.find(m=>m.id===mate.id);
+    for(const key of ['rollA0','rollB0','beltTurnA','beltLastRollA'])target[key]=mate[key];
+  }
+  if(Object.keys(ms.beltBaselines||{}).length)original.beltBaselines=ms.beltBaselines;
   // Persist a successful migration on the real document as well as its trial;
   // later timeline seeks must use the same axial zero.
   for(const item of screwMotions){

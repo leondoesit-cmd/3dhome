@@ -37,12 +37,19 @@ test('four canvas clicks create a persistent cubic spline with editable handles'
 test('gear form refuses undercut and creates the validated requested blank',chrome?{timeout:60000}:{skip:'Chrome unavailable'},async()=>{
  const page=await openPage({width:1440,height:1000,lang:'en'});
  try{const result=await page.eval(async()=>{
-   const {openModeler}=await import('/js/modeler.js');openModeler(null,{key:'rack_form',name:'Rack form',parts:[]},null);
+   const {openModeler}=await import('/js/modeler.js');openModeler(null,null,null);
    document.querySelector('[data-command="stdgear"]').click();
    const set=(key,value)=>{const input=document.querySelector('#mdQuickSettings [data-parameter="'+key+'"] input');input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));};
    set('teeth',10);document.querySelector('#mdQuickSettings .md-quick-apply').click();const failure=document.querySelector('#mdHint').textContent;
+   window.gearCompletionHints=[];
+   const hint=document.querySelector('#mdHint');
+   window.gearCompletionObserver=new MutationObserver(()=>window.gearCompletionHints.push(hint.textContent));
+   window.gearCompletionObserver.observe(hint,{childList:true,characterData:true,subtree:true});
    set('teeth',20);document.querySelector('#mdQuickSettings .md-quick-apply').click();
-   return {failure,text:document.querySelector('#modeler').textContent,hint:document.querySelector('#mdHint').textContent};
- });assert.match(result.failure,/undercut/);assert.match(result.text,/Rack-generated gear m2 z20/);assert.match(result.hint,/Mating geometry passed/);}
+   return {failure};
+ });assert.match(result.failure,/undercut/);
+ await page.waitUntil(()=>document.querySelector('#modeler').textContent.includes('Rack-generated gear m2 z20'),{what:'the applied generated gear in the feature tree'});
+ const created=await page.eval(()=>{window.gearCompletionObserver.disconnect();return {text:document.querySelector('#modeler').textContent,hint:window.gearCompletionHints.join('\n')};});
+ assert.match(created.text,/Rack-generated gear m2 z20/);assert.match(created.hint,/Mating geometry passed/);}
  finally{await page.close();}
 });

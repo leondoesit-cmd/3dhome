@@ -1,6 +1,6 @@
 # Remaining book work — 3 October 2026
 
-This is a continuation queue, not a claim that all earlier chapters are accepted. Fresh browser evidence and exact native checkpoints take precedence over older status summaries. Exercise8.12 Quick Acting Clamp is accepted at printed8-47/PDF425. The next active task is fresh Drill Guide8.13, printed8-48/PDF426.
+This is a continuation queue, not a claim that all earlier chapters are accepted. Fresh browser evidence and exact native checkpoints take precedence over older status summaries. Exercise8.12 Quick Acting Clamp and Exercise8.13 Drill Guide are accepted as declared designer examples at printed8-47/PDF425 and printed8-48/PDF426. The next assembly brief is Double Pulley and belt8.14, printed8-49/PDF427.
 
 ## Next assembly projects
 
@@ -9,7 +9,6 @@ The printed designer briefs permit original parts and additional components. Com
 | Exercise | Printed / PDF page | Sheet | Project |
 |---|---|---|---|
 
-|8.13|8-48 /426|ANSI C landscape|Drill Guide|
 |8.14|8-49 /427|ANSI A landscape|Double Pulley and belt|
 |8.15|8-50 /428|ANSI C landscape|Welder Arm|
 |8.16|8-51 /429|ANSI C landscape|Five-cylinder Radial Engine|
@@ -18,7 +17,7 @@ The printed designer briefs permit original parts and additional components. Com
 |8.19|8-54 /432|ANSI A landscape|Arbor Press|
 |8.20|8-55 /433|ANSI C landscape|Shaper Tool Head|
 
-Exercise8.12 is accepted as a declared designer example:15 fresh parts,23 instances, physical/guided configurations, native Screw motion and sampled clearance, nine grouped explode steps and ANSI C exploded drawing. See its browser progress report and accepted native bundle. Drill Guide8.13 has a fresh documented design plan; geometry remains unstarted at this checkpoint.
+Exercise8.12 is accepted as a declared designer example:15 fresh parts,23 instances, physical/guided configurations, native Screw motion and sampled clearance, nine grouped explode steps and ANSI C exploded drawing. Exercise8.13 is accepted as a declared designer example: nine fresh parts,17 instances,23 mates, seven configurations, five studies, tested feed/tilt clearance and ANSI C exploded drawing with nine BOM roles and17 balloons. Their browser progress reports and protected native bundles hold the evidence. The remaining rows above have not gained acceptance from this update.
 
 ## Earlier and later follow-ups requiring reconciliation
 

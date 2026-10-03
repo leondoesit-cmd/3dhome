@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {applyExplodedProgress} from '../js/cad_exploded_view.js';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 
 test('playback completes earlier steps before later steps and reset preserves poses',()=>{
   const component={id:'a',transform:{x:3,y:4,z:5}},other={id:'b',transform:{x:1}};
@@ -20,6 +21,20 @@ test('playback completes earlier steps before later steps and reset preserves po
   assert.equal(assembly.exploded,false);
   assert.deepEqual(component.explodedOffset,{x:0,y:0,z:0});
   assert.deepEqual(assembly.components.map(c=>c.transform),poses);
+});
+
+test('playback chooser restores named saved views and their durations while preserving grouped steps and assembly poses',()=>{
+ const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const assembly={activeExplodedView:null,components:[{id:'a',transform:{x:1,y:2,z:3}},{id:'b',transform:{x:4,y:5,z:6}}],explodedViews:[{id:'seven',name:'Book groups',animationDurationSeconds:14,steps:[{id:'s1',components:['a','b'],direction:{x:10,y:0,z:0}}]},{id:'detail',name:'Detail view',animationDurationSeconds:6,steps:[{id:'s2',components:['b'],direction:{x:0,y:5,z:0}}]}]};
+ const poses=JSON.stringify(assembly.components.map(c=>c.transform)),groups=JSON.stringify(assembly.explodedViews);let spec,change,undos=0,refreshes=0,frame;
+ const duration={value:'14',addEventListener(){}},chooser={value:'seven',addEventListener(event,fn){change=fn;}},actions={children:[],appendChild(x){this.children.push(x);}},host={isConnected:true,hidden:false,querySelector:()=>actions,appendChild(){}};
+ const E={docType:'assembly',assembly,quickAction:'explodeplay'};
+ const bindings={E,applyExplodedProgress,normalizeTransform:c=>c.transform,root:{querySelector:()=>host},openQuickForm:x=>{spec=x;return {duration,view:chooser};},el:()=>({}),btn:(label,callback)=>({label,callback}),requestAnimationFrame:callback=>{frame=callback;return 1;},cancelAnimationFrame:()=>frame=null,refreshAll:()=>refreshes++,fitPreview:()=>{},closeFeaturePanel:()=>{},pushUndo:()=>undos++,syncHead:()=>{}};
+ new Function(...Object.keys(bindings),'let explodedPlaybackStop=null;'+sourceFunctionText(source,'openExplodedPlayback')+';openExplodedPlayback();')(...Object.values(bindings));
+ assert.equal(assembly.activeExplodedView,'seven');assert.equal(spec.fields[0].label,'Exploded view');assert.deepEqual(spec.fields[0].choices,[{value:'seven',label:'Book groups'},{value:'detail',label:'Detail view'}]);
+ actions.children.find(x=>x.label==='Play').callback();assert.ok(frame);
+ chooser.value='detail';change();assert.equal(frame,null);assert.equal(assembly.activeExplodedView,'detail');assert.equal(duration.value,'6');assert.deepEqual(assembly.components[1].explodedOffset,{x:0,y:5,z:0});assert.equal(undos,1);assert.equal(refreshes,1);
+ actions.children.find(x=>x.label==='Reset').callback();assert.equal(assembly.exploded,false);assert.deepEqual(assembly.components[1].explodedOffset,{x:0,y:0,z:0});assert.equal(JSON.stringify(assembly.components.map(c=>c.transform)),poses);assert.equal(JSON.stringify(assembly.explodedViews),groups);
 });
 
 test('sequential progress follows nested occurrence paths and clamps endpoints',()=>{

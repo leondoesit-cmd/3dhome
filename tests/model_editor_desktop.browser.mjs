@@ -202,6 +202,36 @@ test("desktop model editor: ribbon tabs switch panes with full command visibilit
   }
 });
 
+test("desktop model editor: accessible workflow and ribbon labels follow incremental changes", opts, async () => {
+  const page = await ctx({ width: 1280, height: 800, lang: "en" });
+  const fields = await page.eval(() => ["mdName", "mdDescription"].map((id) => {
+    const field = document.getElementById(id);
+    return {name: field.getAttribute("aria-label"), visible: field.closest("label").querySelector("span").textContent};
+  }));
+  for (const field of fields) assert.equal(field.name, field.visible);
+  for (const mode of ["part", "assembly", "part"]) {
+    await page.eval((value) => document.querySelector(`#mdDocModes [data-doc="${value}"]`).click(), mode);
+    const labels = await page.eval(() => [...document.querySelectorAll("[data-workflow-step]")].map((button) => ({
+      accessible: button.getAttribute("aria-label"),
+      visible: [...button.querySelectorAll("b,small")].map((label) => label.textContent).filter(Boolean).join(" · "),
+    })));
+    for (const label of labels) assert.equal(label.accessible, label.visible);
+  }
+  const panels = await page.eval(() => {
+    const results = [];
+    for (const host of document.querySelectorAll(".pr-editor-ribbon")) {
+      for (const tab of host.querySelectorAll(".pr-tab")) {
+        tab.click();
+        const panel = host.querySelector('[role="tabpanel"]');
+        results.push({ name: panel.getAttribute("aria-label"), tab: tab.textContent.trim() });
+      }
+    }
+    return results;
+  });
+  assert.ok(panels.length > 0, "editor ribbon did not expose tab panels");
+  for (const panel of panels) assert.equal(panel.name, panel.tab);
+});
+
 test("desktop model editor: command search palette opens, filters, and closes via Escape", opts, async () => {
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
   await page.eval(() => document.getElementById("mdCommandSearchBtn").click());
@@ -520,7 +550,7 @@ test("desktop model editor: leaving an automatically oriented sketch restores th
   });
   await page.eval(() => document.querySelector(".md-tree-create-sketch.md-tree-start")?.click());
   await page.waitUntil(() => window.cadSketchSnapshot?.().hasFixedFrame, { what: "automatic Normal To on sketch entry" });
-  await page.eval(() => window.dispatchEvent(new KeyboardEvent("keydown", { key:"Escape", bubbles:true })));
+  await page.eval(() => document.getElementById("mdFinishPlane")?.click());
   await page.waitUntil(() => !window.cadSketchSnapshot?.().hasFixedFrame, { what: "the sketch to release its camera frame" });
   const after = await page.eval(() => window.cadSketchSnapshot().viewPose);
   assert.deepEqual(after, before, "sketch exit did not restore azimuth, elevation, distance, and target");

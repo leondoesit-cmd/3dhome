@@ -2,7 +2,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialMaterialProfile,assignMaterialProfile} from '../js/engineering_materials.js';
 import {evaluateMassProperties} from '../js/cad_mass_properties.js';
+import {STOCK_MATERIALS,drawingMaterialName,partMaterialDensity} from '../js/cad_appearances.js';
+import {validateMaterialProfile} from '../js/engineering_materials.js';
 const box=()=>({id:'body',kind:'box',x0:0,x1:2,y0:0,y1:2,z0:0,z1:2,density:7.85});
+test('SOLIDWORKS Alloy Steel reference remains distinct from Cast Alloy and has no qualified strength',async()=>{
+ const part={...box(),density:7.3,materialCatalogId:'stock:castAlloySteel'},def={parts:[part]};
+ const profile=initialMaterialProfile('stock:alloySteel','reference');
+ assignMaterialProfile(def,part,profile);
+ const saved=JSON.parse(JSON.stringify(def));
+ assert.equal(partMaterialDensity(saved.parts[0]),7.7);
+ assert.equal(drawingMaterialName(saved),'Alloy Steel (SOLIDWORKS reference)');
+ assert.match(saved.parts[0].densitySource,/7700 kg\/m³.*grade unspecified.*not a load certification/);
+ assert.match(STOCK_MATERIALS.alloySteel.densitySourceUrl,/help\.solidworks\.com/);
+ assert.equal(STOCK_MATERIALS.alloySteel.referenceYoungModulusMPa,210000);
+ assert.equal(STOCK_MATERIALS.alloySteel.referencePoissonRatio,.28);
+ assert.equal(STOCK_MATERIALS.castAlloySteel.density,7.3);
+ assert.equal(profile.youngModulusMPa,0,'reference modulus is not promoted to a qualified input');
+ assert.equal(profile.allowableBendingMPa,0);
+ assert.ok(validateMaterialProfile(profile,{elastic:true}).some(issue=>issue.field==='youngModulusMPa'));
+ const mass=await evaluateMassProperties(saved);
+ assert.equal(mass.accuracy,'exact');assert.ok(Math.abs(mass.massG-61.6)<1e-8);
+});
 test('PBT stock assignment replaces stale steel density and preserves reference in saved exact mass',async()=>{
  const part=box(),def={parts:[part]},profile=initialMaterialProfile('stock:pbtGeneralPurpose','pbt');
  assignMaterialProfile(def,part,profile);
