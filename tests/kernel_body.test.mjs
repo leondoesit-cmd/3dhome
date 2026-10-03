@@ -11,6 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { sourceFunctionText } from './helpers/source_function.mjs';
 
 import {
   KERNEL_BODY_KIND,
@@ -27,7 +28,8 @@ import { featureDefaults, featureSpec } from "../js/core/feature_catalog.js";
 import { createDefinition, migrateDefinition } from "../js/core/schema.js";
 import { computeMassProperties } from "../js/cad_interference.js";
 
-const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+modeler = modeler.replace(/\r\n/g,"\n");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = (await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
 /* The editor's [he, en] table lives in js/modeler_strings.js. */
@@ -216,7 +218,7 @@ test("a kernel body is refused by mirror rather than duplicated in place", () =>
 });
 
 test("a legacy parts-to-features rebuild re-emits the recipe instead of dropping the body", () => {
-  const rebuild = modeler.match(/function rebuildFeatureTreeFromDocument\(target\)[\s\S]*?\n\}\n/)[0];
+  const rebuild = sourceFunctionText(modeler, 'rebuildFeatureTreeFromDocument');
   assert.match(rebuild, /isKernelBody\(part\) && part\.kernel/);
   assert.match(rebuild, /type:part\.kernel\.type/, "the exact BREP tree still sees a sweep or a loft");
 });
@@ -229,7 +231,7 @@ test("sweep and loft push a body instead of only a history row", () => {
 });
 
 test("editing a sweep or loft feature rebuilds its body", () => {
-  const sync = modeler.match(/function syncProjectionFromFeature\(feature\)[\s\S]*?\n\}\n/)[0];
+  const sync = sourceFunctionText(modeler, 'syncProjectionFromFeature');
   assert.match(sync, /featureBuildsKernelBody\(feature\.type\)/);
   assert.match(sync, /scheduleKernelBody/, "live edits debounce the kernel so a dragged parameter does not start OpenCascade on every frame");
 });
@@ -241,7 +243,7 @@ test("a dragged kernel-body parameter is debounced", () => {
 });
 
 test("a failed kernel build leaves no ghost body", () => {
-  const queue = modeler.match(/function queueKernelBody\(p\)[\s\S]*?\n\}\n/)[0];
+  const queue = sourceFunctionText(modeler, 'queueKernelBody');
   assert.match(queue, /delete p\.meshData/, "the stale mesh goes before the rebuild starts");
   assert.match(queue, /delete p\.bounds/, "and so do the bounds, so nothing draws or snaps to a body that failed");
   assert.match(queue, /p\.exactError = /, "the failure is reported on the step that failed");

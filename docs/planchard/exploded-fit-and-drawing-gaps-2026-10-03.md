@@ -33,6 +33,14 @@ ANSI C is available as a physical 22 × 17 inch sheet (558.8 × 431.8 mm landsca
 
 Human saved-bundle review found a stale hidden header Description overwrote the newly committed custom property during assembly Save. Custom properties Save and assembly drawing settings apply now synchronize the header after committing document properties. Three regression tests exercise the actual dialog handlers and subsequent assembly Save, plus the part Save header read; the edited Description survives.
 
+## Full-suite harness audit
+
+The subsequent suite found stale source/test harness assumptions: CRLF reads extracted several functions through unrelated later declarations, history restore fixtures omitted the existing `syncHead` dependency, exact export asserted formatting around the stamp check, finish selection expected the old unwrapped canonical reference expression, assembly selection searched the whole remainder of the source instead of its pick handler, and pattern rendering expected the older function signature. These test assumptions were corrected without production edits. All 129 targeted modeler, drawing-history, preview, selection, kernel-body and pattern tests passed.
+
+Five `modeler_perf.test.mjs` browser runtime tests initially could not start their app assertions because the isolated headless CDP connection closed. A minimal isolated Chrome startup diagnosis succeeded at `Target.createTarget`, then lost its page socket at `Page.enable`; Chrome stderr showed repeated GPU subprocess exit -1073741790 and fatal “GPU process isn't usable. Goodbye.” The automatic approval reviewer authorized rerunning the unchanged existing tests outside the filesystem sandbox. All 15 performance tests then passed, including the five browser runtime checks for hover rebuild/disposal work, component edge isolation, selection core-run reuse, one canonical rebuild on open, and deferred inactive inspector tabs. No root Chrome tabs were touched and no harness or production performance code changed during this audit.
+
+The three missing Hebrew pro-ribbon captions (Print setup, Export 3MF, Export AMF) were added to `PRO_HE`; all eight pro-catalog tests passed.
+
 Verification: 21 targeted drawing, explode, selection and refresh tests passed; the new tests exercise the actual notes apply handler, save round trip, SVG escaping and wrapping, view reservation, component BOM overrides, and assembled-world leader generation. Browser confirmation is performed by the parent agent after reload. No geometry was authored by this source work.
 
 ```

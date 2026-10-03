@@ -219,6 +219,7 @@ export const PRO_HE = {
   "Evaluate": "הערכה", "Measure": "מדידה", "Mass props": "תכונות מסה", "Section view": "מבט חתך", "Fit check": "בדיקת התאמה", "Fit view": "התאם תצוגה",
   "Toolbox": "ארגז כלים", "Standard parts": "חלקים תקניים", "Std screw": "בורג תקני", "Std gear": "גלגל שיניים תקני",
   "Drawing": "שרטוט", "Sheet": "גיליון", "BOM": "רשימת חלקים", "Note": "הערה", "Appearance": "מראה", "Look": "מראה", "Paint": "צביעה",
+  "Print setup": "הגדרות הדפסה", "Export 3MF": "ייצוא 3MF", "Export AMF": "ייצוא AMF",
   "Exchange": "החלפת קבצים", "Project bundle": "חבילת פרויקט", "Open bundle": "פתח חבילה", "Import STEP": "ייבוא STEP", "Export STEP": "ייצוא STEP", "Export IGES": "ייצוא IGES", "Export STL": "ייצוא STL",
   "Design": "עיצוב", "Start": "התחלה", "Families": "משפחות", "Presets": "תבניות", "Blank carcass": "גוף ריק",
   "Horizontal partition": "מחיצה אופקית", "Vertical partition": "מחיצה אנכית", "Erase partition": "מחק מחיצה",

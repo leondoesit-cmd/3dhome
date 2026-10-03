@@ -902,6 +902,25 @@ export const CAD_ICONS = {
       colorPath("M4.5 12 L10 14.5 L15.5 12", "none", "#9b5de5", 0.9, ' stroke-dasharray="1.3 1"')
     );
   },
+  "3mfout": function () {
+    return (
+      p("M3 11 L9 14 L15 11 L15 5 L9 2 L3 5 Z", 0.18, 1.25) +
+      colorPath("M3 5 L9 8 L15 5 M9 8 L9 14", "none", "#2684c7", 1.1) +
+      colorPath("M3 14 L9 17 L15 14 M3 16 L9 19 L15 16", "none", "#17834f", 1.15) +
+      colorPath("M17 9 L17 1 M15 3 L17 1 L19 3", "none", "#e89a24", 1.5)
+    );
+  },
+  amfout: () => p("M3 3 H12 L16 7 V17 H3 Z", .12) +
+    l("M12 3 V7 H16 M5 14 L8 9 L12 14 Z M8 9 V14 M5 14 L10 11 L12 14", 1) +
+    colorPath("M17 14 V5 M15 7 L17 5 L19 7", "none", "#17834f", 1.5),
+  printsetup: () => p("M3 7 H17 V14 H14 V18 H6 V14 H3 Z", .16) +
+    l("M6 7 V2 H14 V7 M6 12 H14 V18 M9 15 H12 M15 10 H16", 1.2),
+  gearmate: () => p("M6 2 L7 4 L9 4 L10 6 L9 8 L7 8 L6 10 L4 9 L3 7 L2 6 L3 4 L4 3 Z", .18, 1) +
+    p("M14 10 L15 12 L17 12 L18 14 L17 16 L15 16 L14 18 L12 17 L11 15 L10 14 L11 12 L12 11 Z", .18, 1) +
+    l("M4.5 6 H6.5 M13 14 H15") + colorPath("M9 9 L11 11", "none", "#e89a24", 1.5),
+  symmetricmate: () => p("M2 6 H7 V14 H2 Z M13 6 H18 V14 H13 Z", .18) +
+    l("M10 2 V18", 1.1, ' stroke-dasharray="2 1"') +
+    colorPath("M4 4 H8 M6 2 L8 4 L6 6 M16 4 H12 M14 2 L12 4 L14 6", "none", "#2684c7", 1.1),
 
   // ==========================================
   // 4. ASSEMBLY TOOLS (SolidWorks Assembly)

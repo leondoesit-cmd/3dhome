@@ -16,7 +16,8 @@ import { selectionFilterAllows, cycleOverlappingHits, SELECTION_FILTERS } from "
 import { vertexEntriesFrom, vertexKey } from "../js/core/topology_selection.js";
 import { topologyForFeature } from "../js/core/topology.js";
 
-const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+source = source.replace(/\r\n/g,"\n");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
 /* The editor's [he, en] table lives in js/modeler_strings.js. */
@@ -284,7 +285,7 @@ test("the selection filter has keys that do not cost the sketch tools", () => {
 });
 
 test("an assembly selection is no longer capped at the mate's two references", () => {
-  const pick = source.slice(source.indexOf("function pickAssemblyComponent"));
+  const pick = body("pickAssemblyComponent");
   assert.doesNotMatch(pick, /\.slice\(-2\)/);
   /* The pair is taken where it is needed instead: the newest pick and the most
      recent one before it on a DIFFERENT component, so a third pick on the same

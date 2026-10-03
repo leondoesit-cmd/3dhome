@@ -9,11 +9,16 @@ test('native Q4 trimmed spline support excludes untrimmed control-surface overha
   const document=JSON.parse(readFileSync(new URL('../artifacts/planchard/CSWA-Q4-final-R6-fresh-browser-2026-09-30.mforge',import.meta.url),'utf8')).mainModel;
   const compiled=compileKernelFeatureTree(document),run=await regenerateFeatures({...compiled.document,features:compiled.features});
   try {
-    const mass=await shapeMassProperties(run.results.get(compiled.features.at(-1).id));
+    const body=run.results.get(compiled.features.at(-1).id),native=new body.oc.GProp_GProps_1();
+    let originalVolume;
+    try {body.oc.BRepGProp.VolumeProperties_1(body.shape,native,true,false,false);originalVolume=native.Mass();}
+    finally {native.delete();}
+    const mass=await shapeMassProperties(body);
     assert.ok(Math.abs((mass.bounds.max.x-mass.bounds.min.x)*10-127)<.03,'report actual trimmed support, not the 130 mm parameter-rectangle bound');
     assert.ok(Math.abs((mass.bounds.max.y-mass.bounds.min.y)*10-139)<.001);
     assert.ok(Math.abs((mass.bounds.max.z-mass.bounds.min.z)*10-254)<.001);
-    assert.ok(Math.abs(mass.volume-1227.6093488556)<.001,'bounds correction cannot alter the body');
+    assert.ok(Math.abs(mass.volume-originalVolume)<1e-9,'bounds correction cannot alter the body');
+    assert.ok(Math.abs(mass.volume-1227.6195416133357)<.001,'accepted accurate corner repair retains its documented fresh-build volume');
   } finally {releaseRegeneration(run);}
 });
 

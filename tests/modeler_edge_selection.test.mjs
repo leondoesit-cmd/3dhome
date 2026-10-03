@@ -52,7 +52,7 @@ test("two ids for one physical edge collapse to a single finish target", () => {
 test("modeler dedupes the finish edge selection on geometry, not only on id", () => {
   assert.match(pickGeometry, /function finishEdgeKey\(/);
   assert.match(pickGeometry, /function dedupeFinishRefs\(/);
-  assert.match(modelerSource, /E\.topologySelection = dedupeFinishRefs\(faces\.concat\(canonical\)\)/);
+  assert.match(modelerSource, /E\.topologySelection = canonicalFeatureTopologyReferences\(E\.def,dedupeFinishRefs\(faces\.concat\(canonical\)\)\)/);
   assert.match(modelerSource, /overlapping = dedupeFinishRefs\(overlapping\)/);
 });
 

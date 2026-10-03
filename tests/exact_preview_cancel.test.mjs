@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+let source = fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+source = source.replace(/\r\n/g,"\n");
 const cancelledCheck=source.slice(source.indexOf('function exactPreviewWasCancelled()'),source.indexOf('\n\n',source.indexOf('function exactPreviewWasCancelled()')));
 const cancel=source.slice(source.indexOf('function cancelExactModelRebuild()'),source.indexOf('\nfunction scheduleExactRestore()',source.indexOf('function cancelExactModelRebuild()')));
 test('Cancel suppresses same-head automatic previews, clears timers and invalidates pending publication',()=>{

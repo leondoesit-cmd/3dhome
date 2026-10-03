@@ -44,7 +44,7 @@ test("a cached exact solid is exported only for the document and revision it cam
   // Both exports consult the stamp rather than the mere existence of a shape.
   const step = body("exportStepDocument"), iges = body("exportIgesDocument");
   for (const [name, text] of [["STEP", step], ["IGES", iges]]) {
-    assert.match(text, /exactRunIsCurrent\(\) \? E\.brepRun : await regenerateExactModel\(\)/, `${name} export must check the stamp`);
+    assert.match(text, /exactRunIsCurrent\(\)\s*\?\s*E\.brepRun\s*:\s*await regenerateExactModel\(\)/, `${name} export must check the stamp`);
     assert.doesNotMatch(text, /E\.brepRun && E\.brepRun\.finalShape \? E\.brepRun/, `${name} export must not reuse any finished run`);
   }
 

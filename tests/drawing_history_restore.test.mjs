@@ -29,7 +29,7 @@ test('actual model-history Undo/Redo rebuilds the cached drawing without enterin
   E.sheet=controller;
   let paints=0,panels=0,projected='';
   const context={E,createHistory,snapDoc:()=>JSON.stringify({d:E.def,a:E.assembly}),
-    scanDoc:()=>[],docSubtree:()=>[],syncUndoButtons(){},invalidateInterference(){},resolveSketch(){},closeEvalCard(){},
+    scanDoc:()=>[],docSubtree:()=>[],syncUndoButtons(){},syncHead(){},invalidateInterference(){},resolveSketch(){},closeEvalCard(){},
     refreshAll(){paints++;projected=controller.svg();},syncSheetPanel(){panels++;}};
   vm.createContext(context);
   const invalidationStart=source.indexOf('function invalidateDrawing() {');
@@ -59,7 +59,7 @@ test('actual history Undo/Redo hides stale exact mass before replacing the docum
   const E={mode:'model',docType:'part',evalCard:'mass',def:{depth:8},assembly:null};
   const context={E,root:{querySelector:()=>card},createHistory,
     snapDoc:()=>JSON.stringify({d:E.def,a:E.assembly}),scanDoc:()=>[],docSubtree:()=>[],
-    syncUndoButtons(){},invalidateDrawing(){},invalidateInterference(){},resolveSketch(){},
+    syncUndoButtons(){},syncHead(){},invalidateDrawing(){},invalidateInterference(){},resolveSketch(){},
     endMeasure(){throw Error('mass restore must not stop a measurement');},
     cancelInterferenceCheck(){throw Error('mass restore must not cancel interference');},
     refreshAll(){assert.equal(card.hidden,true);assert.equal(E.evalCard,null);},syncSheetPanel(){}};

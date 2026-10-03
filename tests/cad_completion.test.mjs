@@ -34,7 +34,18 @@ test('trim archives dimensions and repair refuses conflicting restoration atomic
 });
 test('rack generation preserves pitch thickness, rejects undercut and checks mating clearance',()=>{
  const spec={moduleMm:2,teeth:20},gear=generatedRackGear(spec);
- assert.ok(gear.points.length>2000);assert.ok(Math.abs(Math.min(...gear.points.map(p=>Math.hypot(p.u,p.v)))-1.75)<1e-9);
+ const dense=generatedRackGear({...spec,outlineSimplificationMm:0});
+ assert.ok(gear.points.length<dense.points.length,'bounded simplification reduces kernel edge count');
+ for(const point of dense.points) {
+  let distance=Infinity;
+  gear.points.forEach((a,i)=>{
+   const b=gear.points[(i+1)%gear.points.length],du=b.u-a.u,dv=b.v-a.v,length=du*du+dv*dv;
+   const t=length?Math.max(0,Math.min(1,((point.u-a.u)*du+(point.v-a.v)*dv)/length)):0;
+   distance=Math.min(distance,Math.hypot(point.u-a.u-t*du,point.v-a.v-t*dv));
+  });
+  assert.ok(distance<=gear.outlineSimplificationMm/10+1e-9,'simplified tooth preserves every dense contour point within the declared tolerance');
+ }
+ assert.ok(Math.abs(Math.min(...gear.points.map(p=>Math.hypot(p.u,p.v)))-1.75)<1e-9);
  assert.ok(Math.abs(Math.max(...gear.points.map(p=>Math.hypot(p.u,p.v)))-2.2)<1e-9);
  assert.throws(()=>generatedRackGear({...spec,teeth:10}),/undercut/);
  const pair=validateGearPair(spec,spec);assert.equal(pair.ok,true);assert.ok(Math.abs(pair.contactRatio-1.5568383)<1e-6);assert.equal(pair.tipClearanceMm,.5);

@@ -17,7 +17,15 @@ test('browser-authored Q4 interacting fillets normalize redundant Boolean bounda
     const finished=run.results.get(last.id);
     assert.ok(finished?.shape,'normalization makes the chosen contours usable');
     const finishedMass=await shapeMassProperties(finished);
-    assert.ok(Math.abs(finishedMass.volume-1227.6093488556132)<.001,'the repaired result remains a measurable closed solid');
+    // The accepted Sept 30 corner repair refits inaccurate BSpline patches.
+    // Its documented fresh-build volume supersedes the loose-patch baseline.
+    assert.ok(Math.abs(finishedMass.volume-1227.6195416133357)<.001,'the repaired result preserves the accepted fresh-build volume');
+    const tolerance=new finished.oc.ShapeAnalysis_ShapeTolerance();
+    const validity=new finished.oc.BRepCheck_Analyzer(finished.shape,true,false);
+    try {
+      assert.equal(validity.IsValid_2(),true,'repaired contours form a valid native solid');
+      assert.ok(tolerance.Tolerance(finished.shape,1,finished.oc.TopAbs_ShapeEnum.TopAbs_SHAPE)<.001,'corner boundaries meet the unchanged STEP accuracy gate');
+    } finally {validity.delete();tolerance.delete();}
     const prior=run.results.get(last.inputs[0]);
     assert.ok(prior?.shape,'the usable sharp body remains available');
     const mass=await shapeMassProperties(prior);

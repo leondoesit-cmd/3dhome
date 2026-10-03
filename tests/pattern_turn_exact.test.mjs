@@ -27,7 +27,7 @@ import { regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.
 import { cloneData, exactBrepForPart, partPatternRotations, partPatternTransform, placePatternCopy } from "../js/modeler_part_geometry.js";
 import { disposeBrep, loadCadKernel, placeBrep } from "../js/cad_kernel.js";
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = (readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8")).replace(/\r\n/g,"\n");
 const tree = readFileSync(new URL("../js/cad_feature_tree.js", import.meta.url), "utf8");
 
 const centroid = async (brep) => {
@@ -227,7 +227,7 @@ test("patternRotationTransform composes in buildPart's order", () => {
      single rotation, which is every circular copy, and wrong for the three a
      curve copy carries. Two turns about different pivots that do not commute
      are the smallest case that can tell. */
-  const build = modeler.match(/function buildPart\(g, p, displayStyle\) \{[\s\S]*?var opt = \{/)[0];
+  const build = modeler.match(/function buildPart\(g, p, displayStyle, presentationOnly = false\) \{[\s\S]*?var opt = \{/)[0];
   assert.match(build, /for\(var rotationIndex=rotations\.length-1;rotationIndex>=0;rotationIndex--\)/,
     "newest turn outermost");
   const rotations = [{ axis:"y", angle:0.7, pivot:{ x:12, y:0, z:0 } }, { axis:"x", angle:-0.4, pivot:{ x:0, y:5, z:-3 } }];

@@ -13,7 +13,8 @@ import {
   projectToProfile,
 } from "../js/modeler_finish_preview.js";
 
-const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+modeler = modeler.replace(/\r\n/g,"\n");
 /* The editor's [he, en] table lives in js/modeler_strings.js. */
 const modelerStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 

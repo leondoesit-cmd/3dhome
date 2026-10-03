@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+modelerSource = modelerSource.replace(/\r\n/g,"\n");
 /* The editor's [he, en] table, split out of js/modeler.js. */
 const stringsSource = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 /* Pure mesh/edge/face geometry, split out of js/modeler.js. */
@@ -101,7 +102,9 @@ test("canonical save and exact regeneration compile history instead of reconstru
   assert.match(source, /compileKernelFeatureTree\(E\.def\)/);
   assert.match(source, /var canonical=isCanonicalAuthoring\(\)/);
   assert.match(source, /if \(!canonical[^\n]+rebuildFeatureTreeFromDocument/);
-  assert.match(source, /publishRebuildStatus\(E\.def,E\.coreRun\);\s*refreshModelHistoryPane\(\);\s*refreshParts\(\);\s*syncCoach\(\);\s*flash\("✓ " \+ t\("saved"\)\)/);
+  assert.match(source, /publishRebuildStatus\(E\.def,E\.coreRun\);\s*refreshModelHistoryPane\(\);\s*refreshParts\(\);\s*syncCoach\(\);/);
+  assert.match(source, /savedButton\.dataset\.exactSaveValidation=saveGeometryReused\?"reused":"rebuilt"/);
+  assert.match(source, /flash\("✓ " \+ t\("saved"\) \+ \(canonical \? " · "/);
 });
 
 test("feature parameters are grouped and drive every visual projection live", () => {
