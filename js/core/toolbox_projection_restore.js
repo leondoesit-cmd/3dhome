@@ -17,7 +17,14 @@ export function restoreToolboxProjections(document, feature, generated) {
       previous.find(part => !used.has(part) && part.kind === item.kind && part.name === item.name) || previous[index];
     if (old) used.add(old);
     const appearance = {};
-    if (old) for (const key of partAppearanceKeys) if (old[key] !== undefined) appearance[key] = old[key];
+    // Unqualified Toolbox appearances belong to the recipe. Changing its
+    // material/finish must replace those defaults, while a separately assigned
+    // stock or qualified material survives dimensional replay.
+    const recipeAppearance = old?.materialCatalogId?.startsWith("toolbox:") && !old.materialQualificationId;
+    if (old) for (const key of partAppearanceKeys) {
+      if (recipeAppearance && key !== "opacity" && key !== "customProperties") continue;
+      if (old[key] !== undefined) appearance[key] = old[key];
+    }
     return { ...item, ...appearance, id: old?.id || feature.id + ":projection:" + index,
       featureId: feature.id, toolboxFeatureId: feature.id, toolboxProjectionIndex: index };
   });

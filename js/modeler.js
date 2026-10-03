@@ -3603,6 +3603,21 @@ function btn(label, cb, cls) {
   b.addEventListener("click", cb);
   return b;
 }
+
+function bindDocumentTextField(selector, readValue, writeValue, undoLabel) {
+  var input=root.querySelector(selector);
+  function commit(){
+    var next=input.value.trim();
+    if(readValue()===next)return;
+    pushUndo(undoLabel);writeValue(next);syncUndoButtons();
+  }
+  input.addEventListener("change",commit);
+  input.addEventListener("blur",commit);
+  input.addEventListener("keydown",function(event){
+    if(event.key!=="Enter")return;
+    event.preventDefault();event.stopPropagation();commit();
+  });
+}
 /* The one greyed affordance in the editor: `aria-disabled` plus `.unavailable`,
    never the `disabled` attribute. A disabled button suppresses its own tooltip,
    and the tooltip is the only place the *reason* a command cannot run is
@@ -4721,24 +4736,13 @@ function buildDOM() {
      invisible by construction. A renamed model stayed "clean", closed without
      the unsaved-work prompt, and never reached a draft. `change` fires on blur
      or Enter, not per keystroke, so this is one undo step per rename. */
-  root.querySelector("#mdName").addEventListener("change", function () {
-    var assembly = E.docType === "assembly" && E.assembly;
-    if ((assembly ? E.assembly.name : E.def.name) === this.value) return;
-    pushUndo(t("renameDocument"));
-    if (assembly) E.assembly.name = this.value;
-    else E.def.name = this.value;
-    syncUndoButtons();
-  });
+  bindDocumentTextField("#mdName",function(){return (E.docType === "assembly" && E.assembly ? E.assembly : E.def).name;},
+    function(value){(E.docType === "assembly" && E.assembly ? E.assembly : E.def).name=value;},t("renameDocument"));
   /* Description is a named custom property (SOLIDWORKS $PRP:"Description"),
      not a second name: drawings put it in the title block and the BOM's
      Description column, while the name stays the file / part number. */
-  root.querySelector("#mdDescription").addEventListener("change", function () {
-    var doc = E.docType === "assembly" ? E.assembly : E.def;
-    if (!doc || documentDescription(doc) === this.value.trim()) return;
-    pushUndo(t("editDescription"));
-    setDocumentDescription(doc, this.value);
-    syncUndoButtons();
-  });
+  bindDocumentTextField("#mdDescription",function(){return documentDescription(E.docType === "assembly" ? E.assembly : E.def);},
+    function(value){setDocumentDescription(E.docType === "assembly" ? E.assembly : E.def,value);},t("editDescription"));
   root.querySelector("#mdPrice").addEventListener("change", function () {
     if (E.docType !== "part") return;
     var price = +this.value || 0;

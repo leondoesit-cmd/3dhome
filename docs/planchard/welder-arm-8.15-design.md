@@ -1,6 +1,6 @@
 # Exercise 8.15 — fresh welder arm designer example
 
-Status: original dimensional plan, 3 October 2026. WA01 is being authored from a blank part through visible Chrome controls. No assembly or drawing acceptance is claimed here.
+Status: original designer plan revised after actual browser assembly fit checks, 3 October 2026. Fresh parts are saved and checked; assembly and drawing acceptance remain pending.
 
 ## Source and scope
 
@@ -20,14 +20,14 @@ World Y is vertical. WA01 origin is the floor centre. WA02 origin is (0,83,0). W
 |WA02 Base2 yaw shoulder|1|Local cylinder Ø50 along Y−20–20, through bore Ø24.2; horizontal journal Ø20 along X24–105, local Y0/Z0. One millimetre overlap at cylinder tangent ensures fusion. Place at (0,83,0). Shoulder bore axis Y concentric to WA01, axial centre coincident.|
 |WA03 Base3 pitch housing|1|Lower cylinder Ø50 along X−20–20; through Ø20.2 bore along X. Upper vertical collar Ø36, Y20–60, bore Ø24.2 only through Y20–60. Lower cylinder top is Y25, giving 5 mm collar overlap. Place at (85,83,0); native X bore concentric to WA02 journal.|
 |WA04 Base4 wrist rotor|1|Spindle Ø24 along Y20–60, flange Ø50 along Y60–66. Place at (85,83,0). Spindle fits WA03 upper bore, leaving wrist yaw.|
-|WA05 Midpiece|1|24×20×24 block, X/Z±12, Y66–86. Fixed to WA04 top by native face/datum mates.|
-|WA06 Fixture|1|Ø50 disk along Y86–94, three Ø4.5 holes PCD30 at 0/120/240°. Fixed above WA05; three fresh screws represent fixture attachment.|
-|WA07 Support|2|Bearing plate 6×30×60, own X−3–3, Y102–132, Z−30–30; two Ø6.6 through-X bores at Y117, Z±18. Place X=85±15, Y83, Z0. Both plate feet at world Y185. Locked to holder at their actual seated locations.|
-|WA08 Holder|1|Bridge 36×8×60, X±18, Y94–102, Z±30. Two vertical Ø5.5 fixing bores at X±15/Z0. Fixed to fixture top at world Y177. Supports seat on world Y185, on bridge ends.|
+|WA05 Midpiece|1|24×20×24 block, X/Z±12, Y66–86. Three Ø4 nominal cosmetic M4 tapped envelopes, blind4 from Y86 toward−Y, PCD18 at30/150/270°. These are nominal mating envelopes, not the smaller tap-drill diameter. Fixed to WA04 top by native face/datum mates.|
+|WA06 Fixture|1|Ø50 disk along Y86–94, three Ø4.5 holes PCD18 at30/150/270°, plus two Ø5.5 vertical clearance bores X±15/Z0. Fixed above WA05.|
+|WA07 Support|2|Bearing plate 6×30×60, own X−3–3, Y102–132, Z−30–30; two Ø6.6 through-X bores at Y117, Z±18, plus a vertical Ø5.5 through-Y fixing bore at own X0/Z0. Place X=85±15, Y83, Z0. Both plate feet at world Y185. Locked to holder at their actual seated locations.|
+|WA08 Holder|1|Bridge 36×8×60, X±18, Y94–102, Z±30. Two vertical Ø5.5 fixing bores at X±15/Z0, plus three Ø4.5 through-Y fixture bores PCD18 at30/150/270°. Fixed to fixture top at world Y177. Supports seat on world Y185, on bridge ends.|
 |WA09 Thong|2|Each 8 mm thick along X±4, pivot boss Ø16 in Y/Z at (Y117,Z18). Stem Y117–162, Z18–23; inward toe Y157–162, Z4–23. Merge stem/boss/toe with finite overlap. Left occurrence mirrored by a native 180° rotation about local Y (not a geometry seed); its pivot Z−18 and toe Z−4. Closed tip gap8. Through-X Ø6.6 pivot bore. Native concentric and axial seat mates leave one angular freedom per jaw.|
-|WA10 fixture screw proxy|3|Fresh M4 socket-cap screw, chosen 12 mm shank, smooth nominal threaded shaft. Book tiny ANSI designation is not asserted as decoded.|
+|WA10 fixture screw proxy|3|Fresh M4 socket-cap screw, chosen 20 mm shank, smooth nominal threaded shaft. Book tiny ANSI designation is not asserted as decoded.|
 |WA11 jaw pivot screw proxy|2|Fresh M6 socket-cap screw, chosen 40 mm shank, smooth nominal threaded shaft, X axis. Spans the two supports and 8 mm jaw at each Z±18.|
-|WA12 support screw proxy|2|Fresh M5 socket-cap screw, chosen 16 mm shank, smooth nominal threaded shaft, Y axis at bridge X±15/Z0.|
+|WA12 support screw proxy|2|Fresh M5 socket-cap screw, chosen 40 mm shank, smooth nominal threaded shaft, Y axis at bridge X±15/Z0.|
 
 The page contains 12 roles / 18 occurrences: nine custom roles (Support and Thong each quantity two) plus hardware quantities 3/2/2. The metric hardware above is explicitly a designer proxy for the small printed ANSI hardware, not a transcription.
 
@@ -40,3 +40,8 @@ WA02–04: origin circles on Top and Right datum planes, exact offsets/depths ab
 Assembly: fixed WA01, native concentric and axial seating for the three rotary interfaces, fixed midpiece/fixture/holder/supports; jaw bores seat on two X-axis pivot screws. Preserve measurable rotary freedom, apply genuine angle limits only after native mating and interference checks. Demonstrate yaw, shoulder pitch, wrist yaw and jaw opening with user-visible motion controls; companion AVI is unavailable, so do not claim its exact trajectory. Record raw clashes separately from declared smooth-thread contact; do not hide intersections.
 
 Save/reopen each part and assembly, export native STEP and editable bundle, record actual Mass Properties, verify BOM18 occurrences, and generate the required ANSI C landscape third-angle exploded sheet. Include notes identifying original dimensions, material and hardware proxies, nominal cosmetic threads, and absent companion animation.
+
+## Physical fit corrections from the fresh assembly
+
+The original PCD30 M4 pattern collided with the support plates and did not align with the midpiece. PCD18 at30 degrees now places heads clear of the support inner faces X±12. M4 head seats at worldY185, tipsY165: Holder8 + Fixture8 + Midpiece4 mm nominal threaded engagement. M5 support screws now40 mm instead16, head seatsY215/tipsY175, through Support30 + Holder8 + Fixture2 mm clearance. M5 clearance bores in the fixture prevent a buried shank collision. Thread mating is represented by coincident nominal envelopes with cosmetic metadata, without helical flank geometry or a strength rating. These corrections retain the printed12 roles/18 occurrences.
+

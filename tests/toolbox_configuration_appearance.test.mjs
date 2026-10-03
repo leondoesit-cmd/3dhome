@@ -61,3 +61,21 @@ test("Toolbox feature replay preserves authored qualification and stable project
   assert.equal(reopened.parts[0].materialQualificationId, "qualified-alloy");
   assert.equal(reopened.parts[0].standardCompliance.lengthMm, 70);
 });
+
+test("editing recipe material and finish replaces unqualified catalog defaults through cold replay", () => {
+  const document = fixture(), feature = document.features[0];
+  restoreToolboxProjections(document, feature, toolboxFastener(feature.params));
+  const ids = document.parts.map(part => part.id);
+  assert.equal(document.parts[0].materialName, "Steel 8.8 Zinc");
+  feature.params.material = "steel";
+  feature.params.finish = "black-oxide";
+  restoreToolboxProjections(document, feature, toolboxFastener(feature.params));
+  const reopened = JSON.parse(JSON.stringify(document));
+  restoreToolboxProjections(reopened, reopened.features[0], toolboxFastener(reopened.features[0].params));
+  assert.deepEqual(reopened.parts.map(part => part.id), ids);
+  assert.ok(reopened.parts.every(part => part.materialName === "Steel" && part.materialCatalogId === "toolbox:steel"));
+  assert.equal(reopened.toolboxParts[0].material, "Steel");
+  assert.equal(reopened.toolboxParts[0].finish, "Black Oxide");
+  assert.ok(!reopened.toolboxParts[0].propertyClass, "generic steel does not certify 8.8");
+  assert.equal(reopened.parts.find(part => part.previewOnly).opacity, 0);
+});
