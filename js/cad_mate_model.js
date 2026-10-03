@@ -480,13 +480,30 @@ function coupledScrewPhase(fa, fb, reader, moving) {
   return signedAngle(norm(fa.axis), ma, mb);
 }
 
+/* An axis line has no distinguished point along its length. Exact cylinder
+ * rebuilds can move its reported centroid while leaving the shaft untouched.
+ * Measure helical travel between component origins instead; the face frames
+ * still control radial alignment and the axis direction. */
+function coupledScrewAlong(fa, reader, moving) {
+  if (!reader?.transform || !moving?.transform || !fa?.axis) return null;
+  const a = reader.transform, b = moving.transform;
+  return dot({ x: b.x-a.x, y: b.y-a.y, z: b.z-a.z }, norm(fa.axis));
+}
+
 export function captureCoupledScrewZero(mate, fa, fb, reader, moving) {
-  if (!mate.coupledMotion || (Number.isFinite(mate.coupledAxial0) && Number.isFinite(mate.coupledPhase0))) return;
+  if (!mate.coupledMotion || (mate.coupledAxialBasis === 'component-origin'
+    && Number.isFinite(mate.coupledAxial0) && Number.isFinite(mate.coupledPhase0))) return;
   const phase = coupledScrewPhase(fa, fb, reader, moving);
-  if (phase === null) return;
-  const axis = norm(fa.axis);
-  mate.coupledAxial0 = dot({ x: fb.origin.x-fa.origin.x, y: fb.origin.y-fa.origin.y, z: fb.origin.z-fa.origin.z }, axis);
-  mate.coupledPhase0 = phase;
+  const along = coupledScrewAlong(fa, reader, moving);
+  if (phase === null || along === null) return;
+  // Saved mates without a basis used cylinder centroids. Re-anchor their zero
+  // at the saved pose, preserving an already driven mate's requested turn.
+  const turns = Number.isFinite(mate.driveTurns) ? mate.driveTurns : 0;
+  const pitch = Math.max(1e-6, Number(mate.pitch) || 0);
+  const handed = mate.handedness === 'lh' || mate.handedness === 'left' ? -1 : 1;
+  mate.coupledAxial0 = along - handed*pitch*turns;
+  mate.coupledPhase0 = phase - 2*Math.PI*turns;
+  mate.coupledAxialBasis = 'component-origin';
 }
 
 export function distanceBetween(a, b) {
@@ -569,13 +586,15 @@ export function mateTarget(mate, fa, fb, moving, reader) {
       const handed = mate.handedness === "lh" || mate.handedness === "left" ? -1 : 1;
       // A helical surface is periodic. A sine/cosine pair stays smooth through
       // every full shaft turn while axial travel carries the winding number.
-      const helixPhase = 2*Math.PI*(actualAlong-mate.coupledAxial0)/(handed*pitch)-(phase-mate.coupledPhase0);
+      const screwAlong = coupledScrewAlong(fa, reader, moving);
+      if (screwAlong === null) return null;
+      const helixPhase = 2*Math.PI*(screwAlong-mate.coupledAxial0)/(handed*pitch)-(phase-mate.coupledPhase0);
       out.coupledScrew = true;
       out.helixPhase = helixPhase;
       out.helixScale = pitch/(2*Math.PI);
       out.helixError = wrapAngle(helixPhase)*out.helixScale;
       if (Number.isFinite(mate.driveTurns)) {
-        out.driveAxialError = actualAlong-mate.coupledAxial0-handed*pitch*mate.driveTurns;
+        out.driveAxialError = screwAlong-mate.coupledAxial0-handed*pitch*mate.driveTurns;
         out.driveRollError = wrapAngle(phase-mate.coupledPhase0-2*Math.PI*mate.driveTurns);
       }
     } else if (mate.type === "screw" && moving) {

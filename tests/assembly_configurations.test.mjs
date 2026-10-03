@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {ensureConfigurations,captureConfiguration,setActiveConfiguration,updateConfiguration} from '../js/cad_configurations.js';
+import {solveTopologyMates,captureLockPose} from '../js/cad_mates.js';
+import {proTools} from '../js/pro_catalog.js';
+import {sourceFunctionText} from './helpers/source_function.mjs';
+const pose=x=>({x,y:0,z:0,rx:0,ry:0,rz:0});
+
+test('assembly configurations preserve free and guided mate states through save and repeated solving',()=>{
+ const nativeGeometry={parts:[{id:'native',meshData:{vertices:[1,2,3]},topologyCache:{native:true}}]};
+ const base={id:'base',grounded:true,transform:pose(0),def:nativeGeometry};
+ const shaft={id:'shaft',transform:pose(2),def:nativeGeometry,configurationId:'small',parameterOverrides:{Diameter:8}};
+ const asm={components:[base,shaft],mates:[],topologyMates:[{id:'axis',type:'concentric',a:{componentId:'base',kind:'face',frame:{surface:'cylinder',origin:{x:0,y:0,z:0},axis:{x:1,y:0,z:0},radius:1}},b:{componentId:'shaft',kind:'face',frame:{surface:'cylinder',origin:{x:0,y:0,z:0},axis:{x:1,y:0,z:0},radius:1}}}],activeExplodedView:'free-view'};
+ ensureConfigurations(asm);const free=asm.activeConfiguration;
+ assert.equal(solveTopologyMates(asm).degreesOfFreedom,2);
+ const lock={id:'guide',type:'lock',a:{componentId:'base',kind:'body'},b:{componentId:'shaft',kind:'body'}};
+ captureLockPose(lock,base,shaft);asm.topologyMates.push(lock);
+ shaft.visible=false;asm.activeExplodedView='guided-view';
+ const guided=captureConfiguration(asm,{name:'Guided'});
+ const saved=JSON.parse(JSON.stringify(asm));
+ assert.equal(JSON.stringify(guided.modelValues).includes('meshData'),false,'snapshots never copy native component geometry');
+ setActiveConfiguration(saved,free);
+ assert.equal(saved.topologyMates[1].suppressed,true);
+ assert.equal(saved.components[1].visible,undefined);
+ assert.equal(saved.activeExplodedView,'free-view');
+ assert.equal(solveTopologyMates(saved).degreesOfFreedom,2);
+ saved.components[1].transform.x=99;saved.components[1].grounded=true;
+ setActiveConfiguration(saved,guided.id);
+ assert.equal(saved.components[1].transform.x,2);
+ assert.equal(saved.components[1].grounded,undefined);
+ assert.equal(saved.components[1].visible,false);
+ assert.equal(saved.topologyMates[1].suppressed,undefined);
+ assert.deepEqual(saved.topologyMates[1].relativePose,lock.relativePose);
+ assert.equal(solveTopologyMates(saved).degreesOfFreedom,0);
+ assert.deepEqual(saved.components[1].def,nativeGeometry);
+ saved.topologyMates[1].suppressed=true;saved.components[1].parameterOverrides.Diameter=10;
+ updateConfiguration(saved,guided.id,{capture:true});
+ setActiveConfiguration(saved,free);setActiveConfiguration(saved,guided.id);
+ assert.equal(solveTopologyMates(saved).degreesOfFreedom,2);
+ assert.equal(saved.components[1].parameterOverrides.Diameter,10);
+ assert.equal(asm.components[1].parameterOverrides.Diameter,8);
+});
+
+test('nested assembly snapshots restore missing mates, authored legacy axis mates and component suppression',()=>{
+ const document={assembly:{components:[{id:'a',transform:pose(0)}],topologyMates:[{id:'m',type:'angle',value:60}],mates:[{id:'legacy',type:'x',value:3}]}};
+ ensureConfigurations(document);const id=document.activeConfiguration;
+ document.assembly.topologyMates=[];document.assembly.mates=[];
+ document.assembly.components.push({id:'later',transform:pose(5)});
+ setActiveConfiguration(document,id);
+ assert.equal(document.assembly.topologyMates[0].value,60);
+ assert.equal(document.assembly.mates[0].value,3);
+ assert.equal(document.assembly.components[1].suppressed,true);
+});
+
+test('configuration UI captures assembly and solves on switch, with Output entry',()=>{
+ const source=sourceFunctionText(fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),'showConfigurations');
+ const E={docType:'assembly',assembly:{components:[{id:'a',transform:pose(0)}],topologyMates:[]},def:{features:[]}};
+ let choose,items,solves=0,refreshes=0;
+ const bindings={E,ensureConfigurations,circularSweepTableRows:()=>null,t:x=>x,showPickList:(a,b,list,cb)=>{items=list;choose=cb;},pushUndo:()=>{},updateConfiguration,captureConfiguration,setActiveConfiguration,refreshAll:()=>refreshes++,flash:()=>{},solveAssembly:()=>solves++,isCanonicalAuthoring:()=>false};
+ const run=new Function(...Object.keys(bindings),source+';return showConfigurations;')(...Object.values(bindings));
+ run();choose({id:'__capture__'});
+ assert.ok(E.assembly.configurations[0].modelValues.assembly);
+ assert.equal(E.def.configurations,undefined);
+ assert.match(items.find(x=>x.id==='__capture__').hint,/poses/);
+ choose({id:E.assembly.activeConfiguration,label:'Default'});
+ assert.equal(solves,1);assert.equal(refreshes,2);
+ const tools=proTools('model').filter(x=>x.bind==='mcmd:config');
+ assert.equal(tools.length,1);assert.equal(tools[0].tab,'Output');
+});

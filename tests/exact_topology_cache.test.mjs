@@ -27,7 +27,7 @@ test('verified topology survives appended features but expires when its inputs c
 
 test('assembly faces come only from verified surviving results and expire when geometry changes',()=>{
  const document={parameters:{},sketches:[]};
- const features=[{id:'sweep',type:'sweep',params:{radius:1},inputs:[]},{id:'thread',type:'thread',params:{pitch:.1},inputs:['sweep']}];
+ const features=[{id:'sweep',type:'sweep',params:{radius:1},inputs:[]},{id:'thread',type:'thread',params:{mode:'modeled',pitch:.1},inputs:['sweep']}];
  document.exactTopologyCache=captureExactTopology(document,features,{results:new Map([
   ['sweep',{shape:{},topology:[{persistentId:'sweep:old-face',kind:'face'}]}],
   ['thread',{shape:{},topology:[{persistentId:'thread:loop-torus',kind:'face'}]}]

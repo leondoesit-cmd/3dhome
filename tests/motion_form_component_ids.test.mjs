@@ -2,18 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {createMotionStudy,addRotaryMotor,addLinearMotor,addGearRelation,evaluateMotionStudy} from '../js/cad_motion_study.js';
+import {createMotionStudy,addRotaryMotor,addScrewMotor,addLinearMotor,addGearRelation,evaluateMotionStudy} from '../js/cad_motion_study.js';
+import {topologyReference} from '../js/cad_mates.js';
 
 const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 const start=source.indexOf('function createDefaultMotionStudy()');
 const end=source.indexOf('\n/* The Evaluate command',start);
+const publishStart=source.indexOf('function publishAssemblyMateResult(');
+const publishEnd=source.indexOf('\nfunction applyAssemblyMates(',publishStart);
+const formSource=source.slice(publishStart,publishEnd)+source.slice(start,end);
 
 test('linear motion form exposes signed travel and persists a stable zero pose',async()=>{
   const assembly={components:[{id:1,name:'Rod',transform:{y:4.5}}],mates:[],topologyMates:[]};
   let form,syncCalls=0;
   const context={E:{docType:'assembly',assembly,componentSel:[]},structuredClone,createMotionStudy,addRotaryMotor,addLinearMotor,addGearRelation,evaluateMotionStudy,
     syncFlexibleSpringsAtMotionState:async()=>{syncCalls++;},t:s=>s,flash:()=>{},openQuickForm:f=>{form=f;},pushUndo:()=>{},invalidateInterference:()=>{},refreshAll:()=>{}};
-  vm.runInNewContext(source.slice(start,end)+'\ncreateDefaultMotionStudy();',context);
+  vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
   form.onLive({study:'new',relation:'none',motorType:'linear'});
   assert.equal(form.hint,'linearMotionHint');
   assert.deepEqual(Array.from(form.fields,f=>f.key),['study','motorType','motor','stroke','duration','reciprocate','motorAxis','time']);
@@ -31,7 +35,7 @@ test('plain rotary motion shows motor controls, and gear editing exposes only re
   let form;
   const context={E:{docType:'assembly',assembly,componentSel:[]},structuredClone,createMotionStudy,addRotaryMotor,addGearRelation,evaluateMotionStudy,
     syncFlexibleSpringsAtMotionState:async()=>{},t:s=>s,flash:()=>{},openQuickForm:f=>{form=f;},pushUndo:()=>{},invalidateInterference:()=>{},refreshAll:()=>{}};
-  vm.runInNewContext(source.slice(start,end)+'\ncreateDefaultMotionStudy();',context);
+  vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
   assert.equal(form.hint,'rotaryMotionHint');
   assert.equal(form.fields.find(f=>f.key==='relation').choices[0].label,'motionMotorOnly');
   assert.deepEqual(Array.from(form.fields,f=>f.key),['study','motorType','relation','motor','rpm','motorAxis','time']);
@@ -58,7 +62,7 @@ for(const ids of [[1745,1746],['driver','follower']]){
     let form,undo=0;
     const context={E:{docType:'assembly',assembly,componentSel:[]},structuredClone,createMotionStudy,addRotaryMotor,addGearRelation,evaluateMotionStudy,
       syncFlexibleSpringsAtMotionState:async()=>{},t:s=>s,flash:()=>{},openQuickForm:f=>{form=f;},pushUndo:()=>undo++,invalidateInterference:()=>{},refreshAll:()=>{}};
-    vm.runInNewContext(source.slice(start,end)+'\ncreateDefaultMotionStudy();',context);
+    vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
     form.onLive({study:'new',relation:'new'});
     assert.equal(await form.onApply({motor:String(ids[0]),driver:String(ids[0]),follower:String(ids[1]),rpm:5,motorAxis:'y',driverAxis:'y',followerAxis:'y',driverTeeth:20,followerTeeth:40,mesh:'external',remove:false,time:1}),true);
     assert.equal(undo,1);
@@ -68,3 +72,33 @@ for(const ids of [[1745,1746],['driver','follower']]){
     assert.ok(Math.abs(assembly.components[1].transform.ry+15)<1e-8);
   });
 }
+
+test('Motion Study form preserves the native numeric Screw mate ID through Apply and reopen',async()=>{
+  const axis={x:0,y:0,z:1},origin={x:0,y:0,z:0};
+  const reference=(id,name)=>topologyReference(id,'face',name,{surface:'cylinder',origin,axis,radius:0.25});
+  const assembly={components:[
+    {id:2781,name:'Threaded trunnion',grounded:true,transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0}},
+    {id:2787,name:'Lead screw',grounded:false,transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0}},
+  ],mates:[],topologyMates:[{id:2799,type:'screw',pitch:0.4,coupledMotion:true,
+    a:reference(2781,'bore'),b:reference(2787,'shaft')}]};
+  let form,undo=0,publishedDuringRefresh;
+  const context={E:{docType:'assembly',assembly,componentSel:[],mateDegreesOfFreedom:1},assemblySolveFresh:false,structuredClone,
+    createMotionStudy,addRotaryMotor,addScrewMotor,addLinearMotor,addGearRelation,evaluateMotionStudy,
+    syncFlexibleSpringsAtMotionState:async()=>{},t:s=>s,flash:()=>{},
+    openQuickForm:f=>{form=f;},pushUndo:()=>undo++,invalidateInterference:()=>{context.assemblySolveFresh=false;},
+    refreshAll:()=>{publishedDuringRefresh={dof:context.E.mateDegreesOfFreedom,fresh:context.assemblySolveFresh};}};
+  const run=()=>vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
+  run();form.onLive({study:'new',motorType:'screw'});
+  assert.equal(form.fields.find(f=>f.key==='screwMate').choices[0].value,2799);
+  assert.equal(await form.onApply({study:'new',motorType:'screw',screwMate:'2799',rpm:60,time:0.25}),true);
+  assert.equal(undo,1);
+  assert.equal(assembly.motionStudies[0].motors[0].mateId,2799);
+  assert.ok(Math.abs(assembly.components[1].transform.z-0.1)<1e-6);
+  assert.equal(context.E.mateDegreesOfFreedom,0,'the driven solver result replaces the stale free-joint status');
+  assert.equal(publishedDuringRefresh?.dof,0);
+  assert.equal(publishedDuringRefresh?.fresh,true,'refresh consumes the motion solve without resolving the pose');
+  run();
+  assert.equal(await form.onApply({study:assembly.motionStudies[0].id,motorType:'screw',screwMate:'2799',rpm:60,time:0.5}),true);
+  assert.equal(assembly.motionStudies[0].motors[0].mateId,2799);
+  assert.ok(Math.abs(assembly.components[1].transform.z-0.2)<1e-6,'the saved screw zero survives a second UI Apply');
+});

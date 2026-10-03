@@ -17,6 +17,24 @@ test('exact mate chooser exposes real cylinders and circular rims for the book w
  assert.equal(planarMateFaceChoices([face,edge]).length,0);
 });
 
+test('exact mate chooser labels clamp axes, shoulders and vertices in assembly millimetres without rescaling references',()=>{
+ const cylinder={kind:'face',persistentId:'bore',ownerFeatureId:'hole',semantic:'bore',
+   descriptor:{surface:'cylinder',origin:{x:2.5,y:8.3301,z:.3},axis:{x:0,y:0,z:1},radius:.3}};
+ const shoulder={kind:'face',persistentId:'shoulder',ownerFeatureId:'base',semantic:'end',
+   descriptor:{surface:'plane',origin:{x:0,y:0,z:.6},normal:{x:0,y:0,z:1}}};
+ const edge={kind:'edge',persistentId:'edge',ownerFeatureId:'base',
+   descriptor:{curve:'line',endpoints:[{x:1,y:0,z:0},{x:1,y:0,z:.6}]}};
+ const entries=[cylinder,shoulder,edge];
+ const mm=exactMateReferenceChoices(entries,[], 'mm');
+ const cm=exactMateReferenceChoices(entries);
+ assert.match(mm.find(choice=>choice.entry.kind==='axis').label,/Exact axis.*R 3\.000 mm.*X 25\.000.*Y 83\.301.*Z 3\.000 mm/);
+ assert.match(mm.find(choice=>choice.entry.persistentId==='shoulder').label,/Z 6\.000 mm/);
+ assert.match(mm.find(choice=>choice.entry.kind==='vertex').label,/X 10\.000.*Z 0\.000 mm/);
+ assert.match(cm.find(choice=>choice.entry.kind==='axis').label,/R 0\.300 cm.*X 2\.500.*Y 8\.330.*Z 0\.300 cm/);
+ assert.deepEqual(mm.map(choice=>choice.entry),cm.map(choice=>choice.entry));
+ assert.equal(cylinder.descriptor.radius,.3);
+});
+
 test('registry resolved circular rims retain their planar geometry for coincident seating',()=>{
  const descriptor={curve:'circle',origin:{x:0,y:.635,z:0},axis:{x:0,y:1,z:0},radius:.1905};
  const entry={kind:'edge',persistentId:'rim',ownerFeatureId:'sweep',descriptor};

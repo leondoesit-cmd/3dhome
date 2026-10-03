@@ -12,3 +12,14 @@ test('explicit mate repair accepts either pick order and retains mate identity a
   assert.throws(()=>rebindTopologyMate(mate,a,{componentId:'other'}),/two components/);
   assert.equal(mate.b.persistentId,'new-b','a refused pick pair leaves the previous references intact');
 });
+
+test('repairing a coupled screw recaptures its component-origin travel zero',()=>{
+  const mate={id:'thread',type:'screw',pitch:0.4,coupledMotion:true,
+    coupledAxial0:1.2,coupledPhase0:0.5,coupledAxialBasis:'component-origin',
+    a:{componentId:'nut',persistentId:'old-a'},b:{componentId:'shaft',persistentId:'old-b'}};
+  rebindTopologyMate(mate,{componentId:'nut',persistentId:'new-a'},
+    {componentId:'shaft',persistentId:'new-b'});
+  assert.equal(mate.coupledAxial0,undefined);
+  assert.equal(mate.coupledPhase0,undefined);
+  assert.equal(mate.coupledAxialBasis,undefined);
+});

@@ -513,16 +513,7 @@ function assemblyBounds() {
   return Number.isFinite(out.x0) ? out : null;
 }
 
-function applyAssemblyMates(assembly) {
-  if (!assembly) return null;
-  mateSolveCount++;
-  /* The old align/distance mates are part of the system the solver solves —
-     they used to be applied by hand at the head of every pass, which is the
-     best a solver that placed one component at a time could do. Both kinds now
-     settle together because they are solved together. */
-  var result = solveTopologyMates(assembly);
-  var contextResult = updateAssemblyContexts(assembly);
-  if (contextResult.issues.length) result.issues.push(...contextResult.issues);
+function publishAssemblyMateResult(result) {
   /* The solver reports missing topology, ambiguous rebinds, frames it could
      not use, and — since it now measures the result — mates that another mate
      has overridden. That report used to be discarded at this line, which is
@@ -537,6 +528,19 @@ function applyAssemblyMates(assembly) {
   E.mateFreedom = (result && result.clusters) || [];
   E.mateDegreesOfFreedom = (result && result.degreesOfFreedom) || 0;
   return result;
+}
+
+function applyAssemblyMates(assembly) {
+  if (!assembly) return null;
+  mateSolveCount++;
+  /* The old align/distance mates are part of the system the solver solves —
+     they used to be applied by hand at the head of every pass, which is the
+     best a solver that placed one component at a time could do. Both kinds now
+     settle together because they are solved together. */
+  var result = solveTopologyMates(assembly);
+  var contextResult = updateAssemblyContexts(assembly);
+  if (contextResult.issues.length) result.issues.push(...contextResult.issues);
+  return publishAssemblyMateResult(result);
 }
 
 /* "1 mates" reads as a bug in the counter. Hebrew and English both want the
@@ -8628,64 +8632,69 @@ function pickToolboxSize(fam, done, extra) {
 }
 
 function showConfigurations() {
+  var assemblyConfiguration=E.docType==="assembly" && !!E.assembly;
+  var configurationDocument=assemblyConfiguration?E.assembly:E.def;
+  function documentIsCurrent(){return configurationDocument===(E.docType==="assembly"?E.assembly:E.def);}
   function refreshConfigurationGeometry(){
+    if(assemblyConfiguration){solveAssembly({quiet:true});refreshAll();return;}
     refreshAll();
     // A circular sweep has no analytic stand-in. Switching a design-table row
     // clears its old mesh, so the exact kernel body must be queued explicitly.
-    (E.def.parts||[]).filter(function(part){return isKernelBody(part)&&part.sketchSources?.kind==="circular-sweep"&&!part.meshData;}).forEach(scheduleKernelBody);
+    (configurationDocument.parts||[]).filter(function(part){return isKernelBody(part)&&part.sketchSources?.kind==="circular-sweep"&&!part.meshData;}).forEach(scheduleKernelBody);
     if(isCanonicalAuthoring())scheduleExactRestore();
   }
-  ensureConfigurations(E.def);
-  var items=E.def.configurations.map(function(cfg){
-    var active=cfg.id===E.def.activeConfiguration;
+  ensureConfigurations(configurationDocument);
+  var items=configurationDocument.configurations.map(function(cfg){
+    var active=cfg.id===configurationDocument.activeConfiguration;
     var size=cfg.designTableValues;
     return {id:cfg.id,label:cfg.name+(active?" ●":""),hint:size?"Path Ø "+size.pathDiameterMm+" mm · profile Ø "+size.profileDiameterMm+" mm":active?t("configSaved"):Object.keys(cfg.parameterOverrides||{}).length+" overrides"};
   });
-  if(circularSweepTableRows(E.def))items.push({id:"__sweep_table__",label:"Edit circular-sweep design table",hint:"Default, Small, Medium and Large · path and profile diameters"});
+  if(circularSweepTableRows(configurationDocument))items.push({id:"__sweep_table__",label:"Edit circular-sweep design table",hint:"Default, Small, Medium and Large · path and profile diameters"});
   items.push({id:"__edit__",label:"Rename active configuration",hint:"Name and description"});
-  items.push({id:"__capture__",label:"Update active configuration from model",hint:"Capture current dimensions, feature settings, suppression, material and properties"});
+  items.push({id:"__capture__",label:"Update active configuration from model",hint:assemblyConfiguration?"Capture component poses, grounding, mate settings and suppression":"Capture current dimensions, feature settings, suppression, material and properties"});
   items.push({id:"__new__",label:"+ "+t("configNew")});
   showPickList(t("configurations"), t("configurations"), items, function(item){
+    if(!documentIsCurrent())return;
     if(item.id==="__capture__"){
       pushUndo(t("configurations"));
-      updateConfiguration(E.def,E.def.activeConfiguration,{capture:true});
+      updateConfiguration(configurationDocument,configurationDocument.activeConfiguration,{capture:true});
       refreshAll();flash("✓ Active configuration updated");return;
     }
     if(item.id==="__edit__"){
-      var current=E.def.configurations.find(function(cfg){return cfg.id===E.def.activeConfiguration;});
+      var current=configurationDocument.configurations.find(function(cfg){return cfg.id===configurationDocument.activeConfiguration;});
       sheetForm("Configuration",[{key:"name",label:"Configuration name",value:current.name},{key:"description",label:"Description",value:current.description||""}],"Names identify configurations in parts, assemblies and drawings.").then(function(values){
-        if(!values)return;
+        if(!values||!documentIsCurrent())return;
         pushUndo(t("configurations"));
-        try{updateConfiguration(E.def,current.id,values);refreshAll();flash("✓ Configuration renamed");}
+        try{updateConfiguration(configurationDocument,current.id,values);refreshAll();flash("✓ Configuration renamed");}
         catch(error){H.discard();flash(String(error.message||error),4000);}
       });return;
     }
     if(item.id==="__sweep_table__"){
-      var rows=circularSweepTableRows(E.def);
+      var rows=circularSweepTableRows(configurationDocument);
       var fields=rows.flatMap(function(row,index){return [
         {key:"path"+index,label:row.name+" path Ø (mm)",value:String(row.pathDiameterMm)},
         {key:"profile"+index,label:row.name+" profile Ø (mm)",value:String(row.profileDiameterMm)}
       ];});
       sheetForm("Circular-sweep design table",fields,"Large profile: the book screenshot shows 5 mm; its written step 254 says 10 mm. Enter the value you intend.").then(function(values){
-        if(!values)return;
+        if(!values||!documentIsCurrent())return;
         var edited=rows.map(function(row,index){return {name:row.name,pathDiameterMm:Number(values["path"+index]),profileDiameterMm:Number(values["profile"+index])};});
         pushUndo("Design table");
-        try{setCircularSweepDesignTable(E.def,edited);refreshConfigurationGeometry();flash("✓ Design table · 4 configurations");}
+        try{setCircularSweepDesignTable(configurationDocument,edited);refreshConfigurationGeometry();flash("✓ Design table · 4 configurations");}
         catch(error){H.discard();flash(String(error.message||error),4000);}
       });
       return;
     }
     if(item.id==="__new__"){
-      var name="Config "+(E.def.configurations.length+1);
-      sheetForm("New configuration",[{key:"name",label:"Configuration name",value:name},{key:"description",label:"Description",value:""}],"Captures the current model. Edit dimensions and feature settings normally, then update the active configuration to retain the edits.").then(function(values){
-        if(!values)return;
+      var name="Config "+(configurationDocument.configurations.length+1);
+      sheetForm("New configuration",[{key:"name",label:"Configuration name",value:name},{key:"description",label:"Description",value:""}],assemblyConfiguration?"Captures component poses, grounding and mate settings. Add or edit mates, then update the active configuration to retain the edits.":"Captures the current model. Edit dimensions and feature settings normally, then update the active configuration to retain the edits.").then(function(values){
+        if(!values||!documentIsCurrent())return;
         pushUndo(t("configurations"));
-        try{var saved=captureConfiguration(E.def,values);flash("✓ "+t("configSaved")+" · "+saved.name);refreshAll();}
+        try{var saved=captureConfiguration(configurationDocument,values);flash("✓ "+t("configSaved")+" · "+saved.name);refreshAll();}
         catch(error){H.discard();flash(String(error.message||error),4000);}
       });return;
     }
     pushUndo(t("configurations"));
-    setActiveConfiguration(E.def,item.id);
+    setActiveConfiguration(configurationDocument,item.id);
     refreshConfigurationGeometry();flash("✓ "+item.label.replace(" ●",""));
   });
 }
@@ -10202,7 +10211,7 @@ function openQuickForm(spec) {
     var values = {};
     fields.forEach(function (field) {
       var raw = inputs[field.key].value;
-      values[field.key] = field.type === "boolean" ? inputs[field.key].checked : field.type === "number" ? featureControlValue({field:field,input:inputs[field.key]}) : String(raw);
+      values[field.key] = field.type === "boolean" ? inputs[field.key].checked : (field.type === "number" || field.type === "feature-seeds") ? featureControlValue({field:field,input:inputs[field.key]}) : String(raw);
     });
     return values;
   };
@@ -19263,7 +19272,7 @@ function assemblyMateInspectorBody() {
         }
         return pickPartsFor(leaf).flatMap(topologyEntriesForPart);
       });
-      var choices = exactMateReferenceChoices(entries, (doc && (doc.features || doc.featureHistory)) || []);
+      var choices = exactMateReferenceChoices(entries, (doc && (doc.features || doc.featureHistory)) || [], modelLengthUnit());
       var row = el("label", "md-mate-face-row");
       row.appendChild(el("span", "", t(index ? "matePmRefB" : "matePmRefA") + " · " + componentLabel(holder.id)));
       var select = document.createElement("select");
@@ -19432,13 +19441,13 @@ function assemblyMateInspectorBody() {
         screwModeInput.addEventListener("change", function () {
           pushUndo(t("screwMate"));
           mate.coupledMotion = screwModeInput.checked;
-          delete mate.coupledAxial0; delete mate.coupledPhase0; delete mate.driveTurns;
+          delete mate.coupledAxial0; delete mate.coupledPhase0; delete mate.coupledAxialBasis; delete mate.driveTurns;
           solveAssembly(); refreshAll();
         });
         mateUiRow.appendChild(screwMode);
         mateUiRow.appendChild(btn(mate.axisOpposed ? "Screw axes: Opposed" : "Screw axes: Aligned", function () {
           pushUndo(t("screwMate")); mate.axisOpposed = !mate.axisOpposed;
-          delete mate.coupledAxial0; delete mate.coupledPhase0;
+          delete mate.coupledAxial0; delete mate.coupledPhase0; delete mate.coupledAxialBasis;
           solveAssembly(); refreshAll();
         }, "md-mate-align"));
         var lengthUnit = modelLengthUnit();
@@ -25623,21 +25632,22 @@ function openExplodedPlayback() {
 function openExplodeStepForm() {
   if (E.docType !== "assembly" || !E.assembly || (E.assembly.components || []).length < 2) return;
   var targets=explodeTargets(E.assembly);
-  var selected = targets.find(function(target){return target.component===(E.componentSel && E.componentSel[0]);}) || targets[0];
+  var selected = targets.filter(function(target){return (E.componentSel || []).includes(target.component);}).map(function(target){return target.key;});
+  if(!selected.length)selected=[targets[0].key];
   openQuickForm({ action:"explodestep", icon:"ph-arrows-out", title:t("explodeStep"), hint:t("explodeStepHint"), fields:[
-    { key:"component", label:t("components"), type:"select", value:selected.key, choices:targets.map(function(target){return {value:target.key,label:target.label};}) },
+    { key:"components", label:t("components"), type:"feature-seeds", value:selected, choices:targets.map(function(target){return {value:target.key,label:target.label};}) },
     { key:"axis", label:t("explodeDirection"), type:"select", value:"z", choices:[{ value:"x", label:"X" }, { value:"y", label:"Y" }, { value:"z", label:"Z" }] },
     { key:"distance", label:t("explodeDistance"), type:"number", unit:"length", value:10, step:.1 },
     { key:"reverse", label:t("explodeReverse"), type:"boolean", value:false },
   ], onApply:function (values) {
-    var target = targets.find(function (item) { return item.key === String(values.component); });
+    var selectedTargets = targets.filter(function(item){return (values.components || []).includes(item.key);});
     var distance = Number(values.distance) * (values.reverse ? -1 : 1);
-    if (!target || !Number.isFinite(distance) || !distance) { flash(t("explodeStepInvalid")); return false; }
+    if (!selectedTargets.length || !Number.isFinite(distance) || !distance) { flash(t("explodeStepInvalid")); return false; }
     pushUndo(t("explodeStep"));
     var view = (E.assembly.explodedViews || []).find(function (v) { return v.id === E.assembly.activeExplodedView; });
     if (!view) { view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1)); E.assembly.activeExplodedView = view.id; }
     var vector = { x:0, y:0, z:0 }; vector[values.axis] = distance;
-    addExplodeStep(view, [target.key], vector);
+    addExplodeStep(view, selectedTargets.map(function(target){return target.key;}), vector);
     applyExplodedView(E.assembly, view.id, 1); invalidateInterference(); refreshAll(); fitPreview();
     flash("✓ " + view.name + " · " + view.steps.length);
     return true;
@@ -25683,7 +25693,8 @@ function createDefaultMotionStudy() {
       // HTML selects return strings; occurrence IDs retain their saved type.
       // Resolve the chosen rows before the motion graph's strict ID comparisons.
       const selectedComponentId=value=>E.assembly.components.find(c=>String(c.id)===String(value))?.id;
-      v={...v,motor:selectedComponentId(v.motor),driver:selectedComponentId(v.driver),follower:selectedComponentId(v.follower)};
+      const selectedScrewMate=(E.assembly.topologyMates||[]).find(m=>m.type==="screw"&&m.coupledMotion&&String(m.id)===String(v.screwMate));
+      v={...v,motor:selectedComponentId(v.motor),driver:selectedComponentId(v.driver),follower:selectedComponentId(v.follower),screwMate:selectedScrewMate?.id};
       const trial=structuredClone(E.assembly),target=(trial.motionStudies||[]).find(s=>s.id===studyId)||createMotionStudy(trial,"Motion Study "+((trial.motionStudies||[]).length+1));
       const axis=(k,saved)=>k==="custom"?saved:({x:k==="x"?1:0,y:k==="y"?1:0,z:k==="z"?1:0});
       if(target.motors[0] && (target.motors[0].componentId!==v.motor || target.motors[0].mateId!==v.screwMate || target.motors[0].type!==motorType)){delete target.motors[0].baseRotation;delete target.motors[0].basePosition;delete target.motors[0].baseTurns;delete target.baseRotations;}
@@ -25691,7 +25702,7 @@ function createDefaultMotionStudy() {
         if(target.gearRelations?.length){flash(t("linearGearConflict"));return false;}
         if(target.motors.length)Object.assign(target.motors[0],{type:"linear",componentId:v.motor,stroke:v.stroke,duration:v.duration,reciprocate:v.reciprocate,axis:axis(v.motorAxis,motor?.axis)});else addLinearMotor(target,v.motor,v.stroke,v.duration,axis(v.motorAxis,motor?.axis),v.reciprocate);
       }else if(motorType==="screw"){
-        if(!coupledScrews.some(m=>String(m.id)===String(v.screwMate))){flash("Choose a coupled Screw mate");return false;}
+        if(!selectedScrewMate){flash("Choose a coupled Screw mate");return false;}
         if(target.gearRelations?.length){flash(t("linearGearConflict"));return false;}
         if(target.motors.length)Object.assign(target.motors[0],{type:"screw",mateId:v.screwMate,rpm:v.rpm});else addScrewMotor(target,v.screwMate,v.rpm);
       }else if(target.motors.length)Object.assign(target.motors[0],{type:"rotary",componentId:v.motor,rpm:v.rpm,axis:axis(v.motorAxis,motor?.axis)});else addRotaryMotor(target,v.motor,v.rpm,axis(v.motorAxis,motor?.axis));
@@ -25703,7 +25714,17 @@ function createDefaultMotionStudy() {
       if(!result.ok){flash((result.issues||[]).concat(result.unsatisfied||[]).map(i=>i.code).join("; "));return false;}
       pushUndo(t("motionStudy"));
       trial.components.forEach((component,i)=>{E.assembly.components[i].transform=component.transform;});
-      E.assembly.motionStudies=trial.motionStudies;await syncFlexibleSpringsAtMotionState(E.assembly);invalidateInterference();refreshAll();flash(t("motionStudyAdded"));return true;
+      if(motorType==="screw"){
+        const solvedMate=trial.topologyMates.find(m=>m.id===v.screwMate);
+        if(solvedMate?.coupledAxialBasis==="component-origin"){
+          selectedScrewMate.coupledAxialBasis=solvedMate.coupledAxialBasis;
+          selectedScrewMate.coupledAxial0=solvedMate.coupledAxial0;
+          selectedScrewMate.coupledPhase0=solvedMate.coupledPhase0;
+        }
+      }
+      E.assembly.motionStudies=trial.motionStudies;await syncFlexibleSpringsAtMotionState(E.assembly);
+      invalidateInterference();publishAssemblyMateResult(result);assemblySolveFresh=true;
+      refreshAll();flash(t("motionStudyAdded"));return true;
     }});
   };
   show(E.assembly.motionStudies?.at(-1)?.id);

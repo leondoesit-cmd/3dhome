@@ -1,0 +1,1786 @@
+{
+  "schemaVersion": 8,
+  "authoringMode": "fully-parametric",
+  "localFrame": {
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "xAxis": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "zAxis": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "references": [
+    {
+      "id": "origin",
+      "type": "origin",
+      "name": "Origin",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:top",
+      "type": "plane",
+      "name": "Top Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:front",
+      "type": "plane",
+      "name": "Front Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:right",
+      "type": "plane",
+      "name": "Right Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "axis:x",
+      "type": "axis",
+      "name": "X Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:y",
+      "type": "axis",
+      "name": "Y Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:z",
+      "type": "axis",
+      "name": "Z Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    }
+  ],
+  "parameters": {},
+  "sketches": [
+    {
+      "id": "sk_6as6r",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": -4,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 2641,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 2640,
+          "type": "circle",
+          "name": "Circle",
+          "c": 2641,
+          "r": 0.4,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 2642,
+          "type": "fixed",
+          "point": 2641,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": "dim_wo8qdp2",
+          "type": "diameter",
+          "entity": 2640,
+          "value": 0.8,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_7om92",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 5.0091,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 2645,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 2644,
+          "type": "circle",
+          "name": "Circle",
+          "c": 2645,
+          "r": 0.290000000000001,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 2646,
+          "type": "fixed",
+          "point": 2645,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": "dim_d8vlkdl",
+          "type": "diameter",
+          "entity": 2644,
+          "value": 0.58,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_8nxrq",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": -4.800000000000001,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 2649,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 2648,
+          "type": "circle",
+          "name": "Circle",
+          "c": 2649,
+          "r": 0.59999999999999,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 2650,
+          "type": "fixed",
+          "point": 2649,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": "dim_ddtdq1c",
+          "type": "diameter",
+          "entity": 2648,
+          "value": 1.2,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_9y9ex",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": -0.6000000000000001,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 2653,
+          "x": -4.4,
+          "y": 0,
+          "fixed": false
+        }
+      ],
+      "entities": [
+        {
+          "id": 2652,
+          "type": "circle",
+          "name": "Circle",
+          "c": 2653,
+          "r": 0.249999999999995,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": "dim_hz9ob8y",
+          "type": "diameter",
+          "entity": 2652,
+          "value": 0.5,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 2654,
+          "type": "fixed",
+          "point": 2653,
+          "x": -4.4,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    }
+  ],
+  "features": [
+    {
+      "id": "feature_murwxcpm_6",
+      "type": "extrude",
+      "name": "Extrude / Boss 1",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 9.0091,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          2640
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_6as6r",
+        "from": -4,
+        "to": 5.0091
+      },
+      "references": {
+        "sketches": [
+          "sk_6as6r"
+        ],
+        "features": [],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          2640
+        ]
+      },
+      "inputs": [],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_murwy7ku_7",
+      "type": "extrude",
+      "name": "Extrude / Boss 2",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.4,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          2644
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_7om92",
+        "from": 5.0091,
+        "to": 5.4091000000000005
+      },
+      "references": {
+        "sketches": [
+          "sk_7om92"
+        ],
+        "features": [
+          "feature_murwxcpm_6"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          2644
+        ]
+      },
+      "inputs": [
+        "feature_murwxcpm_6"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_murwyys1_8",
+      "type": "extrude",
+      "name": "Extrude / Boss 3",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.8,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          2648
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_8nxrq",
+        "from": -4.800000000000001,
+        "to": -4.000000000000001
+      },
+      "references": {
+        "sketches": [
+          "sk_8nxrq"
+        ],
+        "features": [
+          "feature_murwy7ku_7"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          2648
+        ]
+      },
+      "inputs": [
+        "feature_murwy7ku_7"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_murwzyp5_9",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 1",
+      "params": {
+        "operation": "subtract",
+        "endCondition": "through-all",
+        "depth": 0.8,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "z",
+        "profileEntityIds": [
+          2652
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_9y9ex",
+        "from": -0.6000000000000001,
+        "to": 0.6009999999999898
+      },
+      "references": {
+        "sketches": [
+          "sk_9y9ex"
+        ],
+        "features": [
+          "feature_murwyys1_8"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          2652
+        ]
+      },
+      "inputs": [
+        "feature_murwyys1_8"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_murxswou_2",
+      "type": "thread",
+      "name": "Thread 1",
+      "params": {
+        "threadPreset": "custom",
+        "side": "external",
+        "mode": "cosmetic",
+        "diameterMm": 8,
+        "pitchMm": 4,
+        "length": 9.0091,
+        "handedness": "rh",
+        "toleranceClass": "",
+        "series": "custom",
+        "runoutStartMm": 0,
+        "runoutEndMm": 0,
+        "useFitLimits": false,
+        "family": "custom-thread",
+        "standard": null,
+        "flankAngleDeg": null,
+        "fitLimits": null,
+        "lengthMm": 90.09100000000001,
+        "diameter": 0.8,
+        "pitch": 0.4,
+        "origin": {
+          "x": 5.0091,
+          "y": 0,
+          "z": 0
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "turns": 22.522750000000002,
+        "startAngle": 0,
+        "designation": "Custom thread (designer specification) Ø8 mm × pitch 4 mm"
+      },
+      "references": {
+        "sketches": [],
+        "features": [
+          "feature_murwzyp5_9"
+        ],
+        "topology": [
+          {
+            "type": "topology-reference",
+            "ownerFeatureId": "feature_murwxcpm_6",
+            "kind": "face",
+            "persistentId": "feature_murwxcpm_6:face:side:2640",
+            "descriptor": {
+              "surface": "cylinder",
+              "origin": {
+                "x": 0.50455,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1.6538921594855151e-15,
+                "z": -1
+              },
+              "measure": 22.642337900364645,
+              "bounds": {
+                "min": {
+                  "x": -4.000000100000001,
+                  "y": -0.4000001000000009,
+                  "z": -0.4000001000000009
+                },
+                "max": {
+                  "x": 5.009100100000001,
+                  "y": 0.4000001000000009,
+                  "z": 0.4000001000000009
+                }
+              },
+              "axis": {
+                "x": -1,
+                "y": 0,
+                "z": 0
+              },
+              "radius": 0.4,
+              "referenceOrigin": {
+                "x": -4,
+                "y": 0,
+                "z": 0
+              },
+              "axisRange": [
+                -9.0091,
+                0
+              ],
+              "centroid": {
+                "x": 0.5045499999999998,
+                "y": 1.4026865606531214e-17,
+                "z": -5.551115123125783e-17
+              }
+            },
+            "signature": "cylinder:0.505:0:0:0:0:-1:22.642:"
+          }
+        ],
+        "references": []
+      },
+      "inputs": [
+        "feature_murwzyp5_9"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    }
+  ],
+  "history": [
+    {
+      "id": "history:sketch:sk_6as6r",
+      "kind": "sketch",
+      "targetId": "sk_6as6r",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_murwxcpm_6",
+      "kind": "feature",
+      "targetId": "feature_murwxcpm_6",
+      "name": "Extrude / Boss 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_7om92",
+      "kind": "sketch",
+      "targetId": "sk_7om92",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_murwy7ku_7",
+      "kind": "feature",
+      "targetId": "feature_murwy7ku_7",
+      "name": "Extrude / Boss 2",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_8nxrq",
+      "kind": "sketch",
+      "targetId": "sk_8nxrq",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_murwyys1_8",
+      "kind": "feature",
+      "targetId": "feature_murwyys1_8",
+      "name": "Extrude / Boss 3",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_9y9ex",
+      "kind": "sketch",
+      "targetId": "sk_9y9ex",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_murwzyp5_9",
+      "kind": "feature",
+      "targetId": "feature_murwzyp5_9",
+      "name": "Extrude Cut 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_murxswou_2",
+      "kind": "feature",
+      "targetId": "feature_murxswou_2",
+      "name": "Thread 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "exactTopologyCache": {
+    "feature_murwzyp5_9": {
+      "signature": "{\"features\":[{\"id\":\"feature:sketch:sk_6as6r\",\"inputs\":[],\"params\":{\"sketchId\":\"sk_6as6r\"},\"suppressed\":false,\"type\":\"sketch\"},{\"id\":\"feature_murwxcpm_6\",\"inputs\":[],\"params\":{\"axis\":\"x\",\"depth\":9.0091,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"blind\",\"from\":-4,\"holeProfileEntityIds\":[],\"holes\":[],\"mergeResult\":true,\"offset\":0,\"operation\":\"add\",\"profileEntityIds\":[2640],\"sketchId\":\"sk_6as6r\",\"symmetric\":false,\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":5.0091},\"references\":[],\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature:sketch:sk_7om92\",\"inputs\":[],\"params\":{\"sketchId\":\"sk_7om92\"},\"suppressed\":false,\"type\":\"sketch\"},{\"id\":\"feature_murwy7ku_7:tool\",\"inputs\":[],\"params\":{\"axis\":\"x\",\"depth\":0.4,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"blind\",\"from\":5.0091,\"holeProfileEntityIds\":[],\"holes\":[],\"mergeResult\":true,\"offset\":0,\"operation\":\"add\",\"profileEntityIds\":[2644],\"sketchId\":\"sk_7om92\",\"symmetric\":false,\"targetFeatureId\":\"feature_murwxcpm_6\",\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":5.4091000000000005},\"references\":[],\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature_murwy7ku_7\",\"inputs\":[\"feature_murwxcpm_6\",\"feature_murwy7ku_7:tool\"],\"params\":{},\"references\":[],\"suppressed\":false,\"type\":\"union\"},{\"id\":\"feature:sketch:sk_8nxrq\",\"inputs\":[],\"params\":{\"sketchId\":\"sk_8nxrq\"},\"suppressed\":false,\"type\":\"sketch\"},{\"id\":\"feature_murwyys1_8:tool\",\"inputs\":[],\"params\":{\"axis\":\"x\",\"depth\":0.8,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"blind\",\"from\":-4.800000000000001,\"holeProfileEntityIds\":[],\"holes\":[],\"mergeResult\":true,\"offset\":0,\"operation\":\"add\",\"profileEntityIds\":[2648],\"sketchId\":\"sk_8nxrq\",\"symmetric\":false,\"targetFeatureId\":\"feature_murwy7ku_7\",\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":-4.000000000000001},\"references\":[],\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature_murwyys1_8\",\"inputs\":[\"feature_murwy7ku_7\",\"feature_murwyys1_8:tool\"],\"params\":{},\"references\":[],\"suppressed\":false,\"type\":\"union\"},{\"id\":\"feature:sketch:sk_9y9ex\",\"inputs\":[],\"params\":{\"sketchId\":\"sk_9y9ex\"},\"suppressed\":false,\"type\":\"sketch\"},{\"id\":\"feature_murwzyp5_9:tool\",\"inputs\":[\"feature_murwyys1_8\"],\"params\":{\"axis\":\"z\",\"depth\":0.8,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"through-all\",\"from\":-0.6000000000000001,\"holeProfileEntityIds\":[],\"holes\":[],\"keepTool\":false,\"offset\":0,\"operation\":\"subtract\",\"profileEntityIds\":[2652],\"sketchId\":\"sk_9y9ex\",\"symmetric\":false,\"targetFeatureId\":\"feature_murwyys1_8\",\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":0.6009999999999898},\"references\":[],\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature_murwzyp5_9\",\"inputs\":[\"feature_murwyys1_8\",\"feature_murwzyp5_9:tool\"],\"params\":{},\"references\":[],\"suppressed\":false,\"type\":\"subtract\"}],\"parameters\":{},\"sketches\":[{\"constraints\":[{\"id\":2642,\"point\":2641,\"type\":\"fixed\",\"x\":0,\"y\":0},{\"driven\":false,\"entity\":2640,\"id\":\"dim_wo8qdp2\",\"type\":\"diameter\",\"value\":0.8}],\"entities\":[{\"c\":2641,\"construction\":false,\"id\":2640,\"name\":\"Circle\",\"r\":0.4,\"type\":\"circle\"}],\"id\":\"sk_6as6r\",\"offset\":-4,\"plane\":\"side\",\"points\":[{\"id\":2641,\"x\":0,\"y\":0}]},{\"constraints\":[{\"id\":2646,\"point\":2645,\"type\":\"fixed\",\"x\":0,\"y\":0},{\"driven\":false,\"entity\":2644,\"id\":\"dim_d8vlkdl\",\"type\":\"diameter\",\"value\":0.58}],\"entities\":[{\"c\":2645,\"construction\":false,\"id\":2644,\"name\":\"Circle\",\"r\":0.290000000000001,\"type\":\"circle\"}],\"id\":\"sk_7om92\",\"offset\":5.0091,\"plane\":\"side\",\"points\":[{\"id\":2645,\"x\":0,\"y\":0}]},{\"constraints\":[{\"id\":2650,\"point\":2649,\"type\":\"fixed\",\"x\":0,\"y\":0},{\"driven\":false,\"entity\":2648,\"id\":\"dim_ddtdq1c\",\"type\":\"diameter\",\"value\":1.2}],\"entities\":[{\"c\":2649,\"construction\":false,\"id\":2648,\"name\":\"Circle\",\"r\":0.59999999999999,\"type\":\"circle\"}],\"id\":\"sk_8nxrq\",\"offset\":-4.800000000000001,\"plane\":\"side\",\"points\":[{\"id\":2649,\"x\":0,\"y\":0}]},{\"constraints\":[{\"driven\":false,\"entity\":2652,\"id\":\"dim_hz9ob8y\",\"type\":\"diameter\",\"value\":0.5},{\"id\":2654,\"point\":2653,\"type\":\"fixed\",\"x\":-4.4,\"y\":0}],\"entities\":[{\"c\":2653,\"construction\":false,\"id\":2652,\"name\":\"Circle\",\"r\":0.249999999999995,\"type\":\"circle\"}],\"id\":\"sk_9y9ex\",\"offset\":-0.6000000000000001,\"plane\":\"front\",\"points\":[{\"fixed\":false,\"id\":2653,\"x\":-4.4,\"y\":0}]}],\"variables\":[]}",
+      "topology": [
+        {
+          "ownerFeatureId": "feature_murwyys1_8:tool",
+          "kind": "face",
+          "transportOrdinal": 0,
+          "persistentId": "feature_murwyys1_8:tool:face:side:2648",
+          "semantic": "side:2648",
+          "descriptor": {
+            "surface": "cylinder",
+            "origin": {
+              "x": -4.4000000353563244,
+              "y": 0,
+              "z": 0
+            },
+            "normal": {
+              "x": 0,
+              "y": 1.6538921594855151e-15,
+              "z": -1
+            },
+            "measure": 2.614116150209566,
+            "bounds": {
+              "min": {
+                "x": -4.800000100000001,
+                "y": -0.6000000999999899,
+                "z": -0.6000000999999899
+              },
+              "max": {
+                "x": -3.999999900000001,
+                "y": 0.6000000999999899,
+                "z": 0.6000000999999899
+              }
+            },
+            "axis": {
+              "x": -1,
+              "y": 0,
+              "z": 0
+            },
+            "radius": 0.59999999999999,
+            "referenceOrigin": {
+              "x": -4.800000000000001,
+              "y": 0,
+              "z": 0
+            },
+            "axisRange": [
+              -0.8,
+              0
+            ],
+            "centroid": {
+              "x": -4.4000000353563244,
+              "y": -2.0662243755616488e-7,
+              "z": 3.048386959525473e-8
+            }
+          },
+          "signature": "cylinder:-4.4:0:0:0:0:-1:2.614:side:2648"
+        },
+        {
+          "ownerFeatureId": "feature_murwzyp5_9:tool",
+          "kind": "face",
+          "transportOrdinal": 1,
+          "persistentId": "feature_murwzyp5_9:tool:face:side:2652",
+          "semantic": "side:2652",
+          "descriptor": {
+            "surface": "cylinder",
+            "origin": {
+              "x": -4.4,
+              "y": 0,
+              "z": -2.1442445929942267e-8
+            },
+            "normal": {
+              "x": 1,
+              "y": -1.2246467991473532e-16,
+              "z": 0
+            },
+            "measure": 1.8002664930373504,
+            "bounds": {
+              "min": {
+                "x": -4.650000099999996,
+                "y": -0.25000009999999506,
+                "z": -0.6000001
+              },
+              "max": {
+                "x": -4.149999900000005,
+                "y": 0.2500000999999949,
+                "z": 0.6000000999999898
+              }
+            },
+            "axis": {
+              "x": 0,
+              "y": 0,
+              "z": -1
+            },
+            "radius": 0.249999999999995,
+            "referenceOrigin": {
+              "x": -4.4,
+              "y": 0,
+              "z": -0.6000000000000001
+            },
+            "axisRange": [
+              -1.1999999999999902,
+              0
+            ],
+            "centroid": {
+              "x": -4.4000000001199,
+              "y": -9.467496664703834e-9,
+              "z": -2.144244595759555e-8
+            }
+          },
+          "signature": "cylinder:-4.4:0:0:1:0:0:1.8:side:2652"
+        },
+        {
+          "ownerFeatureId": "feature_murwyys1_8:tool",
+          "kind": "face",
+          "transportOrdinal": 2,
+          "persistentId": "feature_murwyys1_8:tool:face:start",
+          "semantic": "start",
+          "descriptor": {
+            "surface": "plane",
+            "origin": {
+              "x": -4.800000000000001,
+              "y": 4.216341781888208e-17,
+              "z": -2.220446049250313e-16
+            },
+            "normal": {
+              "x": -1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 1.13097335529229,
+            "bounds": {
+              "min": {
+                "x": -4.800000100000001,
+                "y": -0.6000000999999899,
+                "z": -0.6000000999999899
+              },
+              "max": {
+                "x": -4.7999999,
+                "y": 0.6000000999999899,
+                "z": 0.6000000999999899
+              }
+            }
+          },
+          "signature": "plane:-4.8:0:0:-1:0:0:1.131:start"
+        },
+        {
+          "ownerFeatureId": "feature_murwyys1_8:tool",
+          "kind": "face",
+          "transportOrdinal": 3,
+          "persistentId": "feature_murwyys1_8:tool:face:end",
+          "semantic": "end",
+          "descriptor": {
+            "surface": "plane",
+            "origin": {
+              "x": -4.000000000000001,
+              "y": 9.974659986867231e-17,
+              "z": -5.551115123125783e-17
+            },
+            "normal": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 0.6283185307179218,
+            "bounds": {
+              "min": {
+                "x": -4.000000100000002,
+                "y": -0.6000000999999908,
+                "z": -0.6000000999999908
+              },
+              "max": {
+                "x": -3.9999998999999993,
+                "y": 0.6000000999999908,
+                "z": 0.6000000999999908
+              }
+            }
+          },
+          "signature": "plane:-4:0:0:1:0:0:0.628:end"
+        },
+        {
+          "ownerFeatureId": "feature_murwxcpm_6",
+          "kind": "face",
+          "transportOrdinal": 4,
+          "persistentId": "feature_murwxcpm_6:face:side:2640",
+          "semantic": "side:2640",
+          "descriptor": {
+            "surface": "cylinder",
+            "origin": {
+              "x": 0.50455,
+              "y": 0,
+              "z": 0
+            },
+            "normal": {
+              "x": 0,
+              "y": 1.6538921594855151e-15,
+              "z": -1
+            },
+            "measure": 22.642337900364645,
+            "bounds": {
+              "min": {
+                "x": -4.000000100000001,
+                "y": -0.4000001000000009,
+                "z": -0.4000001000000009
+              },
+              "max": {
+                "x": 5.009100100000001,
+                "y": 0.4000001000000009,
+                "z": 0.4000001000000009
+              }
+            },
+            "axis": {
+              "x": -1,
+              "y": 0,
+              "z": 0
+            },
+            "radius": 0.4,
+            "referenceOrigin": {
+              "x": -4,
+              "y": 0,
+              "z": 0
+            },
+            "axisRange": [
+              -9.0091,
+              0
+            ],
+            "centroid": {
+              "x": 0.5045499999999998,
+              "y": 1.4026865606531214e-17,
+              "z": -5.551115123125783e-17
+            }
+          },
+          "signature": "cylinder:0.505:0:0:0:0:-1:22.642:side:2640"
+        },
+        {
+          "ownerFeatureId": "feature_murwxcpm_6",
+          "kind": "face",
+          "transportOrdinal": 5,
+          "persistentId": "feature_murwxcpm_6:face:end",
+          "semantic": "end",
+          "descriptor": {
+            "surface": "plane",
+            "origin": {
+              "x": 5.0091,
+              "y": 4.3925186829946586e-17,
+              "z": 2.775557561562892e-16
+            },
+            "normal": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 0.23844688240746403,
+            "bounds": {
+              "min": {
+                "x": 5.0090999,
+                "y": -0.4000001,
+                "z": -0.4000001
+              },
+              "max": {
+                "x": 5.0091001,
+                "y": 0.4000001,
+                "z": 0.4000001
+              }
+            }
+          },
+          "signature": "plane:5.009:0:0:1:0:0:0.238:end"
+        },
+        {
+          "ownerFeatureId": "feature_murwy7ku_7:tool",
+          "kind": "face",
+          "transportOrdinal": 6,
+          "persistentId": "feature_murwy7ku_7:tool:face:side:2644",
+          "semantic": "side:2644",
+          "descriptor": {
+            "surface": "cylinder",
+            "origin": {
+              "x": 5.2091,
+              "y": 0,
+              "z": 0
+            },
+            "normal": {
+              "x": 0,
+              "y": 1.6538921594855151e-15,
+              "z": -1
+            },
+            "measure": 0.7288494956328345,
+            "bounds": {
+              "min": {
+                "x": 5.0090999,
+                "y": -0.290000100000001,
+                "z": -0.290000100000001
+              },
+              "max": {
+                "x": 5.409100100000001,
+                "y": 0.290000100000001,
+                "z": 0.290000100000001
+              }
+            },
+            "axis": {
+              "x": -1,
+              "y": 0,
+              "z": 0
+            },
+            "radius": 0.290000000000001,
+            "referenceOrigin": {
+              "x": 5.0091,
+              "y": 0,
+              "z": 0
+            },
+            "axisRange": [
+              -0.40000000000000036,
+              0
+            ],
+            "centroid": {
+              "x": 5.2091,
+              "y": 5.7014079760013385e-18,
+              "z": 5.551115123125783e-17
+            }
+          },
+          "signature": "cylinder:5.209:0:0:0:0:-1:0.729:side:2644"
+        },
+        {
+          "ownerFeatureId": "feature_murwy7ku_7:tool",
+          "kind": "face",
+          "transportOrdinal": 7,
+          "persistentId": "feature_murwy7ku_7:tool:face:end",
+          "semantic": "end",
+          "descriptor": {
+            "surface": "plane",
+            "origin": {
+              "x": 5.409100000000001,
+              "y": -1.2891821313739567e-18,
+              "z": 0
+            },
+            "normal": {
+              "x": 1,
+              "y": -1.1762065381286417e-31,
+              "z": -1.0947644252537633e-47
+            },
+            "measure": 0.2642079421669034,
+            "bounds": {
+              "min": {
+                "x": 5.4090999,
+                "y": -0.290000100000001,
+                "z": -0.290000100000001
+              },
+              "max": {
+                "x": 5.409100100000001,
+                "y": 0.290000100000001,
+                "z": 0.290000100000001
+              }
+            }
+          },
+          "signature": "plane:5.409:0:0:1:0:0:0.264:end"
+        },
+        {
+          "ownerFeatureId": "feature_murwzyp5_9",
+          "kind": "edge",
+          "transportOrdinal": 0,
+          "persistentId": "feature_murwzyp5_9:edge:generated:bspline:2",
+          "semantic": "generated-2",
+          "descriptor": {
+            "curve": "bspline",
+            "origin": {
+              "x": -4.399999998738535,
+              "y": -0.15930513783037153,
+              "z": 0.5730370844601194
+            },
+            "axis": {
+              "x": 0.9999993451069813,
+              "y": -0.0010403890866545148,
+              "z": -0.0004768397605014115
+            },
+            "measure": 0.7946696149136293,
+            "bounds": {
+              "min": {
+                "x": -4.650000099999995,
+                "y": -0.25000009999999506,
+                "z": 0.5454355057317772
+              },
+              "max": {
+                "x": -4.149999900000005,
+                "y": 1.0000000005551115e-7,
+                "z": 0.6000000999999898
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4.649999999999995,
+                "y": 5.551115123125783e-17,
+                "z": 0.5999999999999899
+              },
+              {
+                "x": -4.150000000000006,
+                "y": -2.7755575615628914e-17,
+                "z": 0.5999999999999899
+              }
+            ]
+          },
+          "signature": "bspline:-4.4:-0.159:0.573:1:-0.001:0:0.795:generated-2"
+        },
+        {
+          "ownerFeatureId": "feature_murwzyp5_9",
+          "kind": "edge",
+          "transportOrdinal": 1,
+          "persistentId": "feature_murwzyp5_9:edge:generated:line:2",
+          "semantic": "generated-2",
+          "descriptor": {
+            "curve": "line",
+            "origin": {
+              "x": -4.724999999999997,
+              "y": 0,
+              "z": 0.59999999999999
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 0.15000000000000746,
+            "bounds": {
+              "min": {
+                "x": -4.800000100000001,
+                "y": -1e-7,
+                "z": 0.59999989999999
+              },
+              "max": {
+                "x": -4.649999899999993,
+                "y": 1e-7,
+                "z": 0.6000000999999899
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4.800000000000001,
+                "y": 0,
+                "z": 0.59999999999999
+              },
+              {
+                "x": -4.649999999999993,
+                "y": 0,
+                "z": 0.59999999999999
+              }
+            ]
+          },
+          "signature": "line:-4.725:0:0.6:1:0:0:0.15:generated-2"
+        },
+        {
+          "ownerFeatureId": "feature_murwyys1_8:tool",
+          "kind": "edge",
+          "transportOrdinal": 2,
+          "persistentId": "feature_murwyys1_8:tool:edge:profile:2648:start",
+          "semantic": "profile:2648:start",
+          "descriptor": {
+            "curve": "circle",
+            "origin": {
+              "x": -4.800000000000001,
+              "y": 0,
+              "z": 0
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 3.769911184307691,
+            "bounds": {
+              "min": {
+                "x": -4.800000100000001,
+                "y": -0.6000000999999899,
+                "z": -0.6000000999999899
+              },
+              "max": {
+                "x": -4.7999999,
+                "y": 0.6000000999999899,
+                "z": 0.6000000999999899
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4.800000000000001,
+                "y": -1.984670591382585e-15,
+                "z": 0.59999999999999
+              },
+              {
+                "x": -4.800000000000001,
+                "y": 0,
+                "z": 0.59999999999999
+              }
+            ],
+            "radius": 0.59999999999999,
+            "arcMidpoint": {
+              "x": -4.800000000000001,
+              "y": 9.923352956912925e-16,
+              "z": -0.59999999999999
+            }
+          },
+          "signature": "circle:-4.8:0:0:1:0:0:3.77:profile:2648:start"
+        },
+        {
+          "ownerFeatureId": "feature_murwzyp5_9",
+          "kind": "edge",
+          "transportOrdinal": 3,
+          "persistentId": "feature_murwzyp5_9:edge:generated:bspline:4",
+          "semantic": "generated-4",
+          "descriptor": {
+            "curve": "bspline",
+            "origin": {
+              "x": -4.400000001261466,
+              "y": 0.15930513783037148,
+              "z": 0.5730370844601193
+            },
+            "axis": {
+              "x": -0.9999993451069907,
+              "y": 0.001040389079044212,
+              "z": -0.00047683975701323054
+            },
+            "measure": 0.794669614913629,
+            "bounds": {
+              "min": {
+                "x": -4.650000099999996,
+                "y": -9.999999995713736e-8,
+                "z": 0.5454355057317771
+              },
+              "max": {
+                "x": -4.149999900000005,
+                "y": 0.2500000999999949,
+                "z": 0.6000000999999898
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4.649999999999996,
+                "y": 1.194030629168648e-16,
+                "z": 0.5999999999999899
+              },
+              {
+                "x": -4.150000000000006,
+                "y": 4.286263797015675e-17,
+                "z": 0.5999999999999899
+              }
+            ]
+          },
+          "signature": "bspline:-4.4:0.159:0.573:-1:0.001:0:0.795:generated-4"
+        },
+        {
+          "ownerFeatureId": "feature_murwzyp5_9",
+          "kind": "edge",
+          "transportOrdinal": 4,
+          "persistentId": "feature_murwzyp5_9:edge:generated:line:1",
+          "semantic": "generated-1",
+          "descriptor": {
+            "curve": "line",
+            "origin": {
+              "x": -4.075000000000003,
+              "y": 0,
+              "z": 0.59999999999999
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 0.15000000000000502,
+            "bounds": {
+              "min": {
+                "x": -4.150000100000006,
+                "y": -1e-7,
+                "z": 0.59999989999999
+              },
+              "max": {
+                "x": -3.999999900000001,
+                "y": 1e-7,
+                "z": 0.6000000999999899
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4.150000000000006,
+                "y": 0,
+                "z": 0.59999999999999
+              },
+              {
+                "x": -4.000000000000001,
+                "y": 0,
+                "z": 0.59999999999999
+              }
+            ]
+          },
+          "signature": "line:-4.075:0:0.6:1:0:0:0.15:generated-1"
+        },
+        {
+          "ownerFeatureId": "feature_murwyys1_8:tool",
+          "kind": "edge",
+          "transportOrdinal": 5,
+          "persistentId": "feature_murwyys1_8:tool:edge:profile:2648:end",
+          "semantic": "profile:2648:end",
+          "descriptor": {
+            "curve": "circle",
+            "origin": {
+              "x": -4.000000000000001,
+              "y": 0,
+              "z": 0
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 3.769911184307691,
+            "bounds": {
+              "min": {
+                "x": -4.000000100000001,
+                "y": -0.6000000999999899,
+                "z": -0.6000000999999899
+              },
+              "max": {
+                "x": -3.999999900000001,
+                "y": 0.6000000999999899,
+                "z": 0.6000000999999899
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4.000000000000001,
+                "y": -1.984670591382585e-15,
+                "z": 0.59999999999999
+              },
+              {
+                "x": -4.000000000000001,
+                "y": 0,
+                "z": 0.59999999999999
+              }
+            ],
+            "radius": 0.59999999999999,
+            "arcMidpoint": {
+              "x": -4.000000000000001,
+              "y": 9.923352956912925e-16,
+              "z": -0.59999999999999
+            }
+          },
+          "signature": "circle:-4:0:0:1:0:0:3.77:profile:2648:end"
+        },
+        {
+          "ownerFeatureId": "feature_murwzyp5_9",
+          "kind": "edge",
+          "transportOrdinal": 6,
+          "persistentId": "feature_murwzyp5_9:edge:generated:bspline:3",
+          "semantic": "generated-3",
+          "descriptor": {
+            "curve": "bspline",
+            "origin": {
+              "x": -4.400000000962141,
+              "y": 0.15930513854704853,
+              "z": -0.5730370834171261
+            },
+            "axis": {
+              "x": -0.9999994423297266,
+              "y": 0.000960062187302315,
+              "z": 0.00044002367236627615
+            },
+            "measure": 0.7946696141457275,
+            "bounds": {
+              "min": {
+                "x": -4.650000099329161,
+                "y": -1.0000000005551115e-7,
+                "z": -0.6000000999999899
+              },
+              "max": {
+                "x": -4.149999900000005,
+                "y": 0.2500000999999949,
+                "z": -0.545435505731777
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4.649999999329161,
+                "y": 9.93129189996722e-17,
+                "z": -0.5999999980238917
+              },
+              {
+                "x": -4.150000000000006,
+                "y": -5.551115123125783e-17,
+                "z": -0.59999999999999
+              }
+            ]
+          },
+          "signature": "bspline:-4.4:0.159:-0.573:-1:0.001:0:0.795:generated-3"
+        },
+        {
+          "ownerFeatureId": "feature_murwzyp5_9",
+          "kind": "edge",
+          "transportOrdinal": 7,
+          "persistentId": "feature_murwzyp5_9:edge:generated:bspline:1",
+          "semantic": "generated-1",
+          "descriptor": {
+            "curve": "bspline",
+            "origin": {
+              "x": -4.399999999712312,
+              "y": -0.1593051383580913,
+              "z": -0.57303708442869
+            },
+            "axis": {
+              "x": 0.9999999953957779,
+              "y": -0.00008723461340700425,
+              "z": 0.000039982074817640294
+            },
+            "measure": 0.7946696168532124,
+            "bounds": {
+              "min": {
+                "x": -4.650000099329161,
+                "y": -0.25000009999999506,
+                "z": -0.6000000999999899
+              },
+              "max": {
+                "x": -4.149999900000005,
+                "y": 1.0000000130451205e-7,
+                "z": -0.545435505731777
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4.649999999329161,
+                "y": 9.93129189996722e-17,
+                "z": -0.5999999980238917
+              },
+              {
+                "x": -4.150000000000006,
+                "y": -5.551115123125783e-17,
+                "z": -0.59999999999999
+              }
+            ]
+          },
+          "signature": "bspline:-4.4:-0.159:-0.573:1:0:0:0.795:generated-1"
+        },
+        {
+          "ownerFeatureId": "feature_murwzyp5_9:tool",
+          "kind": "edge",
+          "transportOrdinal": 8,
+          "persistentId": "feature_murwzyp5_9:tool:edge:generated:line:1",
+          "semantic": "generated-1",
+          "descriptor": {
+            "curve": "line",
+            "origin": {
+              "x": -4.150000000000006,
+              "y": 0,
+              "z": -5.134781488891349e-15
+            },
+            "axis": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "measure": 1.19999999999999,
+            "bounds": {
+              "min": {
+                "x": -4.150000100000006,
+                "y": -1.0000000000000002e-7,
+                "z": -0.6000001
+              },
+              "max": {
+                "x": -4.149999900000005,
+                "y": 1.0000000000000002e-7,
+                "z": 0.6000000999999898
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4.150000000000006,
+                "y": 0,
+                "z": -0.6000000000000001
+              },
+              {
+                "x": -4.150000000000006,
+                "y": 0,
+                "z": 0.5999999999999899
+              }
+            ]
+          },
+          "signature": "line:-4.15:0:0:0:0:1:1.2:generated-1"
+        },
+        {
+          "ownerFeatureId": "feature_murwxcpm_6",
+          "kind": "edge",
+          "transportOrdinal": 9,
+          "persistentId": "feature_murwxcpm_6:edge:profile:2640:start",
+          "semantic": "profile:2640:start",
+          "descriptor": {
+            "curve": "circle",
+            "origin": {
+              "x": -4,
+              "y": 0,
+              "z": 0
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 2.5132741228718363,
+            "bounds": {
+              "min": {
+                "x": -4.000000100000001,
+                "y": -0.4000001000000009,
+                "z": -0.4000001000000009
+              },
+              "max": {
+                "x": -3.9999998999999993,
+                "y": 0.4000001000000009,
+                "z": 0.4000001000000009
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4,
+                "y": -1.3231137275884122e-15,
+                "z": 0.4
+              },
+              {
+                "x": -4,
+                "y": 0,
+                "z": 0.4
+              }
+            ],
+            "radius": 0.4,
+            "arcMidpoint": {
+              "x": -4,
+              "y": 6.615568637942061e-16,
+              "z": -0.4
+            }
+          },
+          "signature": "circle:-4:0:0:1:0:0:2.513:profile:2640:start"
+        },
+        {
+          "ownerFeatureId": "feature_murwxcpm_6",
+          "kind": "edge",
+          "transportOrdinal": 10,
+          "persistentId": "feature_murwxcpm_6:edge:generated:line:1",
+          "semantic": "generated-1",
+          "descriptor": {
+            "curve": "line",
+            "origin": {
+              "x": 0.5045500000000003,
+              "y": 0,
+              "z": 0.4
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 9.0091,
+            "bounds": {
+              "min": {
+                "x": -4.0000001,
+                "y": -1e-7,
+                "z": 0.3999999
+              },
+              "max": {
+                "x": 5.0091001,
+                "y": 1e-7,
+                "z": 0.4000001
+              }
+            },
+            "endpoints": [
+              {
+                "x": -4,
+                "y": 0,
+                "z": 0.4
+              },
+              {
+                "x": 5.0091,
+                "y": 0,
+                "z": 0.4
+              }
+            ]
+          },
+          "signature": "line:0.505:0:0.4:1:0:0:9.009:generated-1"
+        },
+        {
+          "ownerFeatureId": "feature_murwxcpm_6",
+          "kind": "edge",
+          "transportOrdinal": 11,
+          "persistentId": "feature_murwxcpm_6:edge:profile:2640:end",
+          "semantic": "profile:2640:end",
+          "descriptor": {
+            "curve": "circle",
+            "origin": {
+              "x": 5.0091,
+              "y": 0,
+              "z": 0
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 2.5132741228718363,
+            "bounds": {
+              "min": {
+                "x": 5.0090999,
+                "y": -0.4000001,
+                "z": -0.4000001
+              },
+              "max": {
+                "x": 5.0091001,
+                "y": 0.4000001,
+                "z": 0.4000001
+              }
+            },
+            "endpoints": [
+              {
+                "x": 5.0091,
+                "y": -1.3231137275884122e-15,
+                "z": 0.4
+              },
+              {
+                "x": 5.0091,
+                "y": 0,
+                "z": 0.4
+              }
+            ],
+            "radius": 0.4,
+            "arcMidpoint": {
+              "x": 5.0091,
+              "y": 6.615568637942061e-16,
+              "z": -0.4
+            }
+          },
+          "signature": "circle:5.009:0:0:1:0:0:2.513:profile:2640:end"
+        },
+        {
+          "ownerFeatureId": "feature_murwy7ku_7:tool",
+          "kind": "edge",
+          "transportOrdinal": 12,
+          "persistentId": "feature_murwy7ku_7:tool:edge:profile:2644:start",
+          "semantic": "profile:2644:start",
+          "descriptor": {
+            "curve": "circle",
+            "origin": {
+              "x": 5.0091,
+              "y": 0,
+              "z": 0
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 1.8221237390820868,
+            "bounds": {
+              "min": {
+                "x": 5.0090999,
+                "y": -0.290000100000001,
+                "z": -0.290000100000001
+              },
+              "max": {
+                "x": 5.0091001,
+                "y": 0.290000100000001,
+                "z": 0.290000100000001
+              }
+            },
+            "endpoints": [
+              {
+                "x": 5.0091,
+                "y": -9.59257452501602e-16,
+                "z": 0.290000000000001
+              },
+              {
+                "x": 5.0091,
+                "y": 0,
+                "z": 0.290000000000001
+              }
+            ],
+            "radius": 0.290000000000001,
+            "arcMidpoint": {
+              "x": 5.0091,
+              "y": 4.79628726250801e-16,
+              "z": -0.290000000000001
+            }
+          },
+          "signature": "circle:5.009:0:0:1:0:0:1.822:profile:2644:start"
+        },
+        {
+          "ownerFeatureId": "feature_murwy7ku_7:tool",
+          "kind": "edge",
+          "transportOrdinal": 13,
+          "persistentId": "feature_murwy7ku_7:tool:edge:generated:line:1",
+          "semantic": "generated-1",
+          "descriptor": {
+            "curve": "line",
+            "origin": {
+              "x": 5.2091,
+              "y": 0,
+              "z": 0.290000000000001
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 0.4,
+            "bounds": {
+              "min": {
+                "x": 5.0090999,
+                "y": -1e-7,
+                "z": 0.289999900000001
+              },
+              "max": {
+                "x": 5.409100100000001,
+                "y": 1e-7,
+                "z": 0.290000100000001
+              }
+            },
+            "endpoints": [
+              {
+                "x": 5.0091,
+                "y": 0,
+                "z": 0.290000000000001
+              },
+              {
+                "x": 5.4091000000000005,
+                "y": 0,
+                "z": 0.290000000000001
+              }
+            ]
+          },
+          "signature": "line:5.209:0:0.29:1:0:0:0.4:generated-1"
+        },
+        {
+          "ownerFeatureId": "feature_murwy7ku_7:tool",
+          "kind": "edge",
+          "transportOrdinal": 14,
+          "persistentId": "feature_murwy7ku_7:tool:edge:profile:2644:end",
+          "semantic": "profile:2644:end",
+          "descriptor": {
+            "curve": "circle",
+            "origin": {
+              "x": 5.4091000000000005,
+              "y": 0,
+              "z": 0
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 1.8221237390820868,
+            "bounds": {
+              "min": {
+                "x": 5.4090999,
+                "y": -0.290000100000001,
+                "z": -0.290000100000001
+              },
+              "max": {
+                "x": 5.409100100000001,
+                "y": 0.290000100000001,
+                "z": 0.290000100000001
+              }
+            },
+            "endpoints": [
+              {
+                "x": 5.4091000000000005,
+                "y": -9.59257452501602e-16,
+                "z": 0.290000000000001
+              },
+              {
+                "x": 5.4091000000000005,
+                "y": 0,
+                "z": 0.290000000000001
+              }
+            ],
+            "radius": 0.290000000000001,
+            "arcMidpoint": {
+              "x": 5.4091000000000005,
+              "y": 4.79628726250801e-16,
+              "z": -0.290000000000001
+            }
+          },
+          "signature": "circle:5.409:0:0:1:0:0:1.822:profile:2644:end"
+        }
+      ]
+    }
+  },
+  "variables": []
+}

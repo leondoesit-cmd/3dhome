@@ -99,7 +99,9 @@ export function verifiedExactTopology(document, features) {
 // before their display meshes have been regenerated in the assembly tab.
 export function verifiedFinalTopology(document, features) {
   const verified = verifiedExactTopology(document, features);
-  const active = features.filter(feature => !feature.suppressed);
+  const active = features.filter(feature => !feature.suppressed
+    && !["sketch", "helix", "knurl"].includes(feature.type)
+    && !(feature.type === "thread" && feature.params?.mode !== "modeled"));
   const consumed = new Set(active.flatMap(feature => feature.inputs || []));
   return active.filter(feature => !consumed.has(feature.id))
     .flatMap(feature => verified.get(feature.id) || []);

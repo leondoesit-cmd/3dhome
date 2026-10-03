@@ -45,6 +45,14 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   // Solve on a copy so failed mates never publish a partially moved assembly.
   const trial={...assembly,components:(assembly.components||[]).map(c=>({...c,transform:structuredClone(c.transform||{})})),mates:structuredClone(assembly.mates||[]),topologyMates:structuredClone(assembly.topologyMates||[])};
   const ms=structuredClone(original),driven=new Set();
+  // The saved face-centroid screw zero must be migrated at the saved pose,
+  // before the motor assigns its first requested turn. Otherwise that first
+  // increment becomes the new zero and disappears from the motion.
+  if(ms.motors.some(m=>m.type==='screw') && trial.topologyMates.some(m=>m.type==='screw'
+    && m.coupledMotion && m.coupledAxialBasis!=='component-origin')){
+    const migrated=solveAssemblyMates(trial);
+    if(!migrated.ok)return migrated;
+  }
   const rotary={...ms,motors:ms.motors.filter(m=>m.type==='rotary')};
   const motion=gearMotionState(rotary,trial.components,timeInSeconds);
   if(!motion.ok)return motion;
@@ -91,6 +99,17 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   }else result=solveAssemblyMates(trial,{fixedComponentIds:[...driven]});
   if(!result.ok)return result;
   trial.components.forEach((c,i)=>{assembly.components[i].transform=c.transform;});
+  // Persist a successful migration on the real document as well as its trial;
+  // later timeline seeks must use the same axial zero.
+  for(const item of screwMotions){
+    const source=assembly.topologyMates.find(m=>m.id===item.mateId);
+    const settled=trial.topologyMates.find(m=>m.id===item.mateId);
+    if(source && settled?.coupledAxialBasis==='component-origin'){
+      source.coupledAxialBasis=settled.coupledAxialBasis;
+      source.coupledAxial0=settled.coupledAxial0;
+      source.coupledPhase0=settled.coupledPhase0;
+    }
+  }
   ms.motors.forEach((m,i)=>{if(m.baseRotation)original.motors[i].baseRotation=m.baseRotation;if(m.basePosition)original.motors[i].basePosition=m.basePosition;});
   screwMotions.forEach(m=>{const motor=original.motors.find(item=>item.type==='screw'&&item.mateId===m.mateId);if(motor)motor.baseTurns=m.baseTurns;});
   original.baseRotations=rotary.baseRotations;original.time=timeInSeconds;

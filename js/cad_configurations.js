@@ -3,15 +3,23 @@ import { circularSweepProfile } from "./core/swept_sources.js";
 
 const copy = value => JSON.parse(JSON.stringify(value));
 const appearanceKeys = ["color", "metal", "rough", "opacity", "density", "materialName", "materialCatalogId", "densitySource", "customProperties"];
+const componentKeys = ["transform", "grounded", "suppressed", "visible", "configurationId", "parameterOverrides", "explodedOffset"];
+const assemblyDocument = document => Array.isArray(document.components) ? document : document.assembly;
 
 // Store authored values only. Native meshes and topology caches belong to the
 // rebuilt document, never to a configuration snapshot.
 export function configurationModelValues(document) {
+  const assembly = assemblyDocument(document);
   return {
     sketches: (document.sketches || []).map(sketch => copy(sketch)),
     featureParameters: (document.features || []).map(feature => ({ id: feature.id, params: copy(feature.params || {}) })),
     appearances: (document.parts || []).map(part => ({ id: part.id, values: Object.fromEntries(appearanceKeys.filter(key => part[key] !== undefined).map(key => [key, copy(part[key])])) })),
     customProperties: copy(document.customProperties || {}),
+    ...(assembly ? { assembly: {
+      components: (assembly.components || []).map(component => ({ id: component.id, values: Object.fromEntries(componentKeys.filter(key => component[key] !== undefined).map(key => [key, copy(component[key])])) })),
+      topologyMates: copy(assembly.topologyMates || []),
+      mates: copy(assembly.mates || []),
+    } } : {}),
   };
 }
 
@@ -24,6 +32,7 @@ export function updateConfiguration(document, configurationId, options = {}) {
   cfg.description = String(options.description ?? cfg.description ?? "");
   if (options.capture) {
     cfg.modelValues = configurationModelValues(document);
+    cfg.explodedViewId = assemblyDocument(document)?.activeExplodedView || null;
     cfg.parameterOverrides = { ...(document.parameterOverrides || {}) };
     cfg.suppressedFeatureIds = (document.features || []).filter(feature => feature.suppressed).map(feature => feature.id);
   }
@@ -56,7 +65,7 @@ export function ensureConfigurations(document) {
       name: "Default",
       parameterOverrides: { ...(document.parameterOverrides || {}) },
       suppressedFeatureIds: (document.features || []).filter((feature) => feature.suppressed).map((feature) => feature.id),
-      explodedViewId: document.assembly?.activeExplodedView || null,
+      explodedViewId: assemblyDocument(document)?.activeExplodedView || null,
       modelValues: configurationModelValues(document),
     }));
   }
@@ -96,6 +105,27 @@ export function applyConfiguration(document, configuration) {
       delete part.meshData;
     });
     document.customProperties = copy(values.customProperties || {});
+    const assembly = assemblyDocument(document);
+    if (assembly && values.assembly) {
+      const saved = values.assembly;
+      const components = new Map((saved.components || []).map(component => [component.id, component.values]));
+      (assembly.components || []).forEach(component => {
+        if (!components.has(component.id)) { component.suppressed = true; return; }
+        componentKeys.forEach(key => { delete component[key]; });
+        Object.assign(component, copy(components.get(component.id)));
+      });
+      // Retain mates created in later configurations so switching back can
+      // reactivate them. A mate absent from this snapshot is suppressed.
+      const mates = new Map((saved.topologyMates || []).map(mate => [mate.id, mate]));
+      assembly.topologyMates = (assembly.topologyMates || []).map(mate => {
+        const restored = mates.get(mate.id);
+        mates.delete(mate.id);
+        return restored ? copy(restored) : { ...mate, suppressed: true };
+      }).concat([...mates.values()].map(copy));
+      // Legacy axis mates predate suppression; restore their authored list.
+      assembly.mates = copy(saved.mates || []);
+      delete assembly.diagnostics;
+    }
   }
   /* A configuration names the steps it removes; what those steps feed goes with
      them, the same cascade the tree's own suppress applies. Listing only the
@@ -116,7 +146,8 @@ export function applyConfiguration(document, configuration) {
     if (!entry || entry.kind !== "feature") return;
     entry.suppressed = suppressed.has(entry.targetId);
   });
-  if (document.assembly) document.assembly.activeExplodedView = cfg.explodedViewId || null;
+  const assembly = assemblyDocument(document);
+  if (assembly) assembly.activeExplodedView = cfg.explodedViewId || null;
   if (document.designTable?.kind === "circular-sweep" && cfg.designTableValues) {
     applyCircularSweepRow(document, cfg.designTableValues);
   }
@@ -216,7 +247,7 @@ export function captureConfiguration(document, options = {}) {
     name,
     parameterOverrides: { ...(document.parameterOverrides || options.parameterOverrides || {}) },
     suppressedFeatureIds: (document.features || []).filter((feature) => feature.suppressed).map((feature) => feature.id),
-    explodedViewId: document.assembly?.activeExplodedView || options.explodedViewId || null,
+    explodedViewId: assemblyDocument(document)?.activeExplodedView || options.explodedViewId || null,
     modelValues: configurationModelValues(document),
   });
   document.configurations.push(snapshot);

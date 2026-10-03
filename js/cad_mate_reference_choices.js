@@ -1,9 +1,13 @@
 import { mateFrameSupports, planarDirection, rotationOf } from "./cad_mate_model.js";
+import { documentLengthUnit, lengthToDocument } from "./core/document_length_units.js";
+
+const labelLength = (cm, unit) => Number(lengthToDocument(cm, unit)).toFixed(3);
 
 /* Exact topology is often easier to identify in a list than on a narrow or
    occluded shoulder. Keep the list restricted to real planar faces: a mesh
    patch with a guessed normal must not silently become a mate reference. */
-export function planarMateFaceChoices(entries, featureHistory = []) {
+export function planarMateFaceChoices(entries, featureHistory = [], unit = "cm") {
+  unit = documentLengthUnit(unit);
   const names = new Map(featureHistory.map((feature) => [feature.id, feature.name || feature.type || feature.id]));
   const seen = new Set();
   return (entries || []).filter((entry) => {
@@ -15,7 +19,7 @@ export function planarMateFaceChoices(entries, featureHistory = []) {
     const d = entry.descriptor;
     const axis = ["x", "y", "z"].find((key) => Math.abs(Number(d.normal[key])) > 0.9);
     const at = axis && Number.isFinite(Number(d.origin[axis]))
-      ? ` · ${axis.toUpperCase()} ${Number(d.origin[axis]).toFixed(3)} cm` : "";
+      ? ` · ${axis.toUpperCase()} ${labelLength(d.origin[axis], unit)} ${unit}` : "";
     const owner = entry.ownerFeatureId || "";
     const producingFeature = [...names.keys()].find((id) => owner === id || owner.startsWith(`${id}:`));
     const name = names.get(producingFeature) || owner || "Face";
@@ -23,8 +27,9 @@ export function planarMateFaceChoices(entries, featureHistory = []) {
   });
 }
 
-export function exactMateReferenceChoices(entries, featureHistory = []) {
-  const planar=planarMateFaceChoices(entries,featureHistory),seen=new Set(planar.map(choice=>choice.entry.persistentId));
+export function exactMateReferenceChoices(entries, featureHistory = [], unit = "cm") {
+  unit = documentLengthUnit(unit);
+  const planar=planarMateFaceChoices(entries,featureHistory,unit),seen=new Set(planar.map(choice=>choice.entry.persistentId));
   const names=new Map(featureHistory.map(feature=>[feature.id,feature.name || feature.type || feature.id]));
   const round=(entries || []).filter(entry=>{
     if(!entry || !entry.persistentId || seen.has(entry.persistentId)
@@ -35,9 +40,9 @@ export function exactMateReferenceChoices(entries, featureHistory = []) {
       const d=entry.descriptor,owner=entry.ownerFeatureId || '';
       const producing=[...names.keys()].find(id=>owner===id || owner.startsWith(`${id}:`));
       const type=entry.kind==='edge'?'Circular edge':d.surface==='torus'?'Torus':'Cylinder';
-      const at=['x','y','z'].map(key=>`${key.toUpperCase()} ${Number(d.origin[key]).toFixed(3)}`).join(' · ');
-      const radii=d.surface==='torus'?`R ${Number(d.majorRadius).toFixed(3)} / wire ${Number(d.minorRadius).toFixed(3)}`:`R ${Number(d.radius).toFixed(3)}`;
-      return {entry,label:`${names.get(producing) || owner || type} · ${type} · ${entry.semantic || d.semantic || entry.persistentId} · ${radii} cm · ${at} cm`};
+      const at=['x','y','z'].map(key=>`${key.toUpperCase()} ${labelLength(d.origin[key],unit)}`).join(' · ');
+      const radii=d.surface==='torus'?`R ${labelLength(d.majorRadius,unit)} / wire ${labelLength(d.minorRadius,unit)}`:`R ${labelLength(d.radius,unit)}`;
+      return {entry,label:`${names.get(producing) || owner || type} · ${type} · ${entry.semantic || d.semantic || entry.persistentId} · ${radii} ${unit} · ${at} ${unit}`};
     });
   const roundRank=choice=>choice.entry.descriptor.surface==='cylinder'?0:choice.entry.kind==='edge'?1:2;
   const planarRank=choice=>{
@@ -64,10 +69,10 @@ export function exactMateReferenceChoices(entries, featureHistory = []) {
       const key=['x','y','z'].map(axis=>Math.round(Number(point[axis])*1e7)).join(':');
       if(points.has(key))return;points.add(key);
       const owner=edge.ownerFeatureId || '',producing=[...names.keys()].find(id=>owner===id || owner.startsWith(`${id}:`));
-      const at=['x','y','z'].map(axis=>`${axis.toUpperCase()} ${Number(point[axis]).toFixed(3)}`).join(' · ');
+      const at=['x','y','z'].map(axis=>`${axis.toUpperCase()} ${labelLength(point[axis],unit)}`).join(' · ');
       vertices.push({entry:{kind:'vertex',ownerFeatureId:owner,persistentId:`vertex:${edge.persistentId}:${index}`,
         descriptor:{surface:'point',origin:{...point},endpointIndex:index,sourceEdge:{kind:'edge',persistentId:edge.persistentId,ownerFeatureId:owner,semantic:edge.semantic,descriptor:structuredClone(edge.descriptor)}}},
-        label:`${names.get(producing) || owner || 'Body'} · Vertex · ${at} cm`});
+        label:`${names.get(producing) || owner || 'Body'} · Vertex · ${at} ${unit}`});
     });
   }
   return [...axes,...round.sort((a,b)=>roundRank(a)-roundRank(b)),...planar.sort((a,b)=>planarRank(a)-planarRank(b)),...vertices];

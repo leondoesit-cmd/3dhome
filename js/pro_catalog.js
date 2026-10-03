@@ -97,7 +97,7 @@ const MODEL = [
   ]],
   ["Reference", [
     ["Geometry", [T("Plane", "ph-square-half", "mcmd:refplane"), T("Axis", "ph-line-vertical", "mcmd:refaxis"), T("Coordinate sys", "ph-crosshair-simple", "mcmd:coordsys"), T("Ref point", "ph-dot-outline", "mcmd:refpoint")]],
-    ["Setup", [T("Configurations", "ph-sliders", "mcmd:config"), T("Standards", "ph-seal-check", "mcmd:standards"), T("Rebuild", "ph-arrows-clockwise", "mcmd:regen"), T("Custom props", "ph-list-bullets", "mcmd:customprops"), T("Variables", "ph-function", "mcmd:equations")]],
+    ["Setup", [T("Standards", "ph-seal-check", "mcmd:standards"), T("Rebuild", "ph-arrows-clockwise", "mcmd:regen"), T("Custom props", "ph-list-bullets", "mcmd:customprops"), T("Variables", "ph-function", "mcmd:equations")]],
   ]],
   ["Assembly", [
     ["Parts", [T("Assembly", "ph-puzzle-piece", "mcmd:assembly"), T("Components", "ph-cube-focus", "mcmd:components"), T("Mates", "ph-link", "mcmd:mates"), T("Screw mate", "ph-nut", "mcmd:screwmate"), T("Part document", "ph-file", "mcmd:partdoc"), T("Smart mates", "ph-magnet", "mcmd:smartmates")]],
@@ -118,7 +118,7 @@ const MODEL = [
     ["Look", [T("Paint", "ph-paint-bucket", "mcmd:paint"), T("Finish preview", "ph-eye", "mcmd:finishpreview")]],
   ]],
   ["Output", [
-    ["Use", [T("Save to library", "ph-floppy-disk", "mclick:#mdSave"), T("Model library", "ph-books", "mclick:#mdLib"), T("Branch", "ph-git-branch", "mcmd:branch"), T("Print setup", "ph-printer", "mcmd:printsetup"), T("Export GLB", "ph-cube", "mcmd:exportglb")]],
+    ["Use", [T("Configurations", "ph-sliders", "mcmd:config"), T("Save to library", "ph-floppy-disk", "mclick:#mdSave"), T("Model library", "ph-books", "mclick:#mdLib"), T("Branch", "ph-git-branch", "mcmd:branch"), T("Print setup", "ph-printer", "mcmd:printsetup"), T("Export GLB", "ph-cube", "mcmd:exportglb")]],
     ["Exchange", [T("Project bundle", "ph-package", "mcmd:bundle"), T("Open bundle", "ph-folder-open", "mcmd:bundlein"), T("Import STEP", "ph-download-simple", "mcmd:stepin"), T("Export STEP", "ph-export", "mcmd:stepout"), T("Export IGES", "ph-export", "mcmd:igesout"), T("Export STL", "ph-export", "mcmd:stlout"), T("Export 3MF", "ph-printer", "mcmd:3mfout"), T("Export AMF", "ph-printer", "mcmd:amfout")]],
   ]],
 ];

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { solveTopologyMates, topologyReference } from '../js/cad_mates.js';
 import { worldFrame } from '../js/cad_mate_model.js';
 import { createMotionStudy, addScrewMotor, evaluateMotionStudy } from '../js/cad_motion_study.js';
@@ -123,4 +124,105 @@ test('book-like grounded trunnion, swivel eye, and hinged arm form a driven clos
   const freeAgain=solveTopologyMates(assembly);
   assert.equal(freeAgain.ok,true,JSON.stringify(freeAgain));
   assert.equal(freeAgain.degreesOfFreedom,1);
+});
+
+const nativeClampRecipe = () => JSON.parse(readFileSync(
+  new URL('./fixtures/clamp-coupled-screw-native-mates.json', import.meta.url), 'utf8'));
+const screwAxialPosition = (mate, reader, moving) => {
+  const axis = worldFrame(mate.a.frame, reader, 'component').axis;
+  const a = reader.transform, b = moving.transform;
+  return (b.x-a.x)*axis.x + (b.y-a.y)*axis.y + (b.z-a.z)*axis.z;
+};
+
+test('fresh clamp native axis faces migrate their screw zero without moving the closed assembly', () => {
+  const assembly = nativeClampRecipe();
+  const screw = assembly.topologyMates.find(m => m.id === 2799);
+  const trunnion = assembly.components.find(c => c.id === 2781);
+  const shaft = assembly.components.find(c => c.id === 2787);
+  const closed = structuredClone(shaft.transform);
+  assert.equal(screw.b.frame.axis.x, -1, 'the selected native shaft axis points toward −X');
+  assert.ok(Math.abs(screw.b.frame.origin.x - 0.50455) < 1e-8,
+    'exact cylinder centroid differs from the component origin by 5.0455 mm');
+  assert.ok(Math.abs(screw.coupledAxial0) < 1e-7,
+    'the old saved zero was captured before that exact centroid was published');
+  const result = solveTopologyMates(assembly);
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.deepEqual(result.unsatisfied, []);
+  assert.equal(screw.coupledAxialBasis, 'component-origin');
+  assert.ok(Math.abs(screw.coupledAxial0 - screwAxialPosition(screw, trunnion, shaft)) < 1e-7);
+  assert.ok(Math.abs(shaft.transform.x - closed.x) < 1e-4, 'migration preserves saved closed pose');
+
+  const reopened = structuredClone(JSON.parse(JSON.stringify(assembly)));
+  const next = solveTopologyMates(reopened);
+  assert.equal(next.ok, true, JSON.stringify(next));
+  assert.ok(Math.abs(reopened.components.find(c => c.id === 2787).transform.x - shaft.transform.x) < 1e-7,
+    'the new basis remains stable after JSON save and reopen');
+});
+
+test('native clamp screw motion opens smoothly with relative jaw guide and preserves the −X face direction', () => {
+  const assembly = nativeClampRecipe();
+  const right = { surface: 'plane', origin: p(0, 0), normal: p(1, 0) };
+  assembly.topologyMates.push({ id: 'jaw-study-guide', type: 'angle', value: 60,
+    a: topologyReference(2776, 'face', 'plane:right', right),
+    b: topologyReference(2788, 'face', 'plane:right', right) });
+  let result = solveTopologyMates(assembly);
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(result.degreesOfFreedom, 1);
+  const study = createMotionStudy(assembly);
+  addScrewMotor(study, 2799, 60);
+  const shaft = assembly.components.find(c => c.id === 2787);
+  const trunnion = assembly.components.find(c => c.id === 2781);
+  const screw = assembly.topologyMates.find(m => m.id === 2799);
+  const zero = screw.coupledAxial0;
+  for (const [turns, expectedArm] of [[0.01, 60.0547], [0.1, 60.5465], [1, 65.3866], [8.049523329, 100]]) {
+    result = evaluateMotionStudy(assembly, study.id, turns);
+    assert.equal(result.ok, true, `${turns}: ${JSON.stringify(result)}`);
+    assert.deepEqual(result.unsatisfied, []);
+    assert.equal(result.degreesOfFreedom, 0);
+    const arm = assembly.components.find(c => c.id === 2776).transform;
+    const jaw = assembly.components.find(c => c.id === 2788).transform;
+    assert.ok(Math.abs(arm.rz - expectedArm) < 0.003, `${turns}: arm ${arm.rz}°`);
+    assert.ok(Math.abs(jaw.rz - (arm.rz - 60)) < 1e-6, `${turns}: guided jaw ${jaw.rz}°`);
+    const along = screwAxialPosition(screw, trunnion, shaft);
+    assert.ok(Math.abs(along - zero - 0.4*turns) < 1e-6,
+      `${turns}: component-origin axial advance follows selected −X axis`);
+  }
+});
+
+test('migration of a saved driven screw preserves its current travel and next commanded increment', () => {
+  const assembly = { components: [
+    { id: 'nut', grounded: true, transform: T() },
+    { id: 'shaft', transform: T(0, 0, 0.8) },
+  ], topologyMates: [{ id: 'saved-thread', type: 'screw', pitch: 0.4, coupledMotion: true,
+    driveTurns: 2, coupledAxial0: 0, coupledPhase0: 0,
+    a: ref('nut', 'bore', p(0, 0), ax),
+    b: ref('shaft', 'exact-face-centroid', p(0, 0, 0.50455), ax) }] };
+  const mate = assembly.topologyMates[0], shaft = assembly.components[1];
+  let result = solveTopologyMates(assembly);
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(mate.coupledAxialBasis, 'component-origin');
+  assert.ok(Math.abs(shaft.transform.z - 0.8) < 1e-7);
+  mate.driveTurns = 2.25;
+  result = solveTopologyMates(assembly);
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.ok(Math.abs(shaft.transform.z - 0.9) < 1e-6);
+});
+
+test('Motion Study migrates a saved free screw before applying its first motor increment', () => {
+  const assembly = { components: [
+    { id: 'nut', grounded: true, transform: T() },
+    { id: 'shaft', transform: T() },
+  ], topologyMates: [{ id: 'saved-thread', type: 'screw', pitch: 0.4, coupledMotion: true,
+    coupledAxial0: 0, coupledPhase0: 0,
+    a: ref('nut', 'bore', p(0, 0), ax),
+    b: ref('shaft', 'exact-face-centroid', p(0, 0, 0.50455), ax) }] };
+  const study = createMotionStudy(assembly);
+  addScrewMotor(study, 'saved-thread', 60);
+  for (const time of [0.01, 0.1]) {
+    const result = evaluateMotionStudy(assembly, study.id, time);
+    assert.equal(result.ok, true, `${time}: ${JSON.stringify(result)}`);
+    assert.ok(Math.abs(assembly.components[1].transform.z - 0.4*time) < 1e-6,
+      `${time}: first drive must not be swallowed by migration`);
+    assert.equal(assembly.topologyMates[0].coupledAxialBasis, 'component-origin');
+  }
 });
