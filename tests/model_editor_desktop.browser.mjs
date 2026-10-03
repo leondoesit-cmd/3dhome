@@ -1047,7 +1047,7 @@ test("desktop model editor: an assembly is drawn by the FeatureManager tree", op
     sections: [...document.querySelectorAll("#mdParts .md-tree-section")].map((r) => r.dataset.nodeId),
     components: [...document.querySelectorAll("#mdParts .md-tree-component")].map((r) => r.textContent.replace(/\s+/g, " ").trim()),
   }));
-  assert.deepEqual(shape.sections, ["section:components", "section:mates"], "the assembly tree has both sections");
+  assert.deepEqual(shape.sections, ["section:planes", "section:components", "section:mates"], "the assembly tree exposes datum planes, components and mates");
   assert.equal(shape.components.length, 2);
   assert.match(shape.components[0], /grounded/, "the anchor says so on its row");
   assert.match(shape.components[1], /2 solids/, "and a component reports what is inside it");

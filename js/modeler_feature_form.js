@@ -164,6 +164,7 @@ export function featureField(host, field, value, options) {
     input.addEventListener("input", validate); input.addEventListener("change", validate); validate();
   }
   input.dataset.parameterLabel = field.label;
+  if (["input", "select", "textarea"].includes(String(input.tagName).toLowerCase())) input.setAttribute("aria-label", field.label);
   input.dataset.parameter = field.key;
   input.dataset.parameterType = field.type;
   host.appendChild(wrap);

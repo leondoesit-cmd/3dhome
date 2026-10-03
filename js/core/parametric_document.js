@@ -116,6 +116,7 @@ export function ensureParametricDocument(source, options = {}) {
   for (const feature of document.features) {
     if (["extrude", "extrudeCut"].includes(feature.type) && feature.params?.endCondition == null) feature.params.endCondition = "blind";
   }
+  discardIncidentalToolboxSketches(document);
   normalizeHistory(document);
   return document;
 }
@@ -194,6 +195,8 @@ export function createSketchDefinition(document, options = {}) {
 
 export function recordSketchInHistory(document, sketch) {
   if (!document || !sketch) return null;
+  document.sketches ||= [];
+  if (!document.sketches.some(item => item.id === sketch.id)) document.sketches.push(sketch);
   document.history ||= [];
   const existing = document.history.find((entry) => entry.kind === "sketch" && entry.targetId === sketch.id);
   if (existing) return existing;
@@ -526,3 +529,4 @@ export function applyHistoryToPreviewParts(document) {
   });
   return { dirtyPartIds: Array.from(dirty) };
 }
+import { discardIncidentalToolboxSketches } from "./toolbox_idle_sketch.js";

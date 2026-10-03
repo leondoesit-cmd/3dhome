@@ -3,11 +3,13 @@
 // stay separate even when the designation text matches.
 
 import { bomIdentity } from "./schema.js";
+import { assignedToolboxBody, toolboxAssignedMetadata } from "../core/toolbox_assigned_material.js";
 
 export function toolboxBOMRows(items = []) {
   const map = new Map();
   for (const item of items) {
-    const meta = item && (item.metadata || item.standardPart || (item.parts && item.parts[0] && item.parts[0].standardPart)) || {};
+    const source = item && (item.metadata || item.standardPart || (item.parts && item.parts[0] && item.parts[0].standardPart)) || {};
+    const meta = toolboxAssignedMetadata(source, assignedToolboxBody(item?.parts, source));
     const designation = meta.designation || item.callout || item.name || "Unknown";
     const key = bomIdentity(meta) || designation;
     const existing = map.get(key) || {
@@ -44,7 +46,8 @@ export function toolboxBOMFromParts(parts = []) {
       if (seen.has(group)) continue;
       seen.add(group);
     } else if (!meta) continue;
-    items.push({ metadata: meta, callout: part.name, quantity: 1, parts: [part] });
+    const members = group ? parts.filter(member => member.standardGroupId === group) : [part];
+    items.push({ metadata: toolboxAssignedMetadata(meta, assignedToolboxBody(members, meta)), callout: part.name, quantity: 1, parts: [part] });
   }
   return toolboxBOMRows(items);
 }
@@ -67,12 +70,12 @@ export function collectToolboxItems(assembly) {
   for (const comp of assembly && assembly.components || []) {
     const meta = comp.standardPart || (comp.def && comp.def.standardPart);
     if (meta) {
-      items.push({ metadata: meta, name: comp.name, quantity: 1 });
+      items.push({ metadata: meta, name: comp.name, quantity: 1, parts: comp.def?.parts || comp.parts || [] });
       continue;
     }
     const parts = (comp.def && comp.def.parts) || comp.parts || [];
     const fromParts = toolboxBOMFromParts(parts);
-    fromParts.forEach((row) => items.push({ ...row, quantity: row.quantity }));
+    fromParts.forEach((row) => items.push({ metadata: row, quantity: row.quantity }));
   }
   return toolboxBOMRows(items);
 }

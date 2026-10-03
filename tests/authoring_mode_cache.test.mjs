@@ -18,3 +18,10 @@ test('real triangle bodies still count as direct geometry', () => {
   assert.equal(inferAuthoringMode({ features: [{ type: 'extrude' }], parts: [{ kind: 'direct', meshData: mesh() }] }), 'hybrid');
   assert.equal(inferAuthoringMode({ features: [{ type: 'extrude' }], parts: [{ meshData: mesh() }] }), 'hybrid');
 });
+
+test('a native editable Toolbox recipe needs no sketch to be fully parametric', () => {
+  const source={features:[{id:'screw',type:'toolbox',params:{size:'M6',lengthMm:25}}],parts:[{kind:'cyl',meshData:mesh()}],sketches:[]};
+  assert.equal(inferAuthoringMode(source),'fully-parametric');
+  assert.equal(inferAuthoringMode({...source,metadata:{import:true}}),'hybrid','import provenance remains conservative');
+  assert.equal(inferAuthoringMode({...source,parts:[{kind:'mesh',meshData:mesh()}]}),'hybrid','a separate direct body is still direct');
+});

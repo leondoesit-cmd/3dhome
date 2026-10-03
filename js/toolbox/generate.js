@@ -509,8 +509,10 @@ function generateHexNut(row, options, group, family, standard) {
       r: mmToCm(row.flangeDiaMm) / 2, h: mmToCm(row.flangeH || 1.2), standardRole: "flange",
     });
   }
-  return pack(family, family, row, options, parts, {
+  const generated = pack(family, family, row, options, parts, {
     group, standard, spec,
+    designation: standard + " - " + row.size,
+    catalogKey: catalogDefinitionKey(family, { ...options, lengthMm: undefined }, row),
     callout: row.size + " " + standard.replace(/:.*$/, ""),
     matePorts: [
       matePort({ id: "axis", type: "axis", diameterMm: row.diameterMm, gender: "female", thread: row.imperial ? "UNC" : "ISO-metric", pitchMm: row.pitchMm }),
@@ -518,6 +520,11 @@ function generateHexNut(row, options, group, family, standard) {
     ],
     dimensionsMm: { pitch: row.pitchMm, acrossFlats: row.af, height: row.h, diameter: row.diameterMm, flangeDia: row.flangeDiaMm },
   });
+  // The common picker may carry its previous screw length. A nut's physical
+  // dimensions and catalog identity contain no shaft-length variant.
+  delete generated.metadata.dimensionsMm.lengthMm;
+  generated.metadata.id = family + ":" + row.size;
+  return generated;
 }
 
 function generateWingNut(row, options, group) {

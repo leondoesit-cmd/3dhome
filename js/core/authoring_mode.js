@@ -13,7 +13,7 @@ const RECIPE_PART_KINDS = new Set(["ext", "rev", "loft", "box", "cyl", "sph", "k
 const EDITABLE_FEATURES = new Set([
   "box", "cylinder", "sphere", "extrude", "cut", "revolve", "sweep", "loft",
   "fillet", "chamfer", "shell", "mirror", "linearPattern", "circularPattern",
-  "pattern", "union", "subtract", "intersect", "component", "assembly",
+  "pattern", "union", "subtract", "intersect", "component", "assembly", "toolbox",
 ]);
 
 export function inferAuthoringMode(source = {}) {

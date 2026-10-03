@@ -175,6 +175,8 @@ import { expectedContactFor, recordExpectedContact, removeExpectedContact, conta
 import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart, drawingMaterialName, pruneSketchTargetedBodyAppearances, pruneSketchMaterialFields } from "./cad_appearances.js";
 import { appearanceGroups } from "./core/appearance_groups.js";
 import { captureConfiguration, circularSweepTableRows, ensureConfigurations, setActiveConfiguration, setCircularSweepDesignTable, updateConfiguration } from "./cad_configurations.js";
+import { restoreToolboxProjections } from "./core/toolbox_projection_restore.js";
+import { synchronizeToolboxMaterial } from "./core/toolbox_assigned_material.js";
 import {replaceComponentDefinition,setComponentConfiguration} from './core/component_configuration.js';
 import {rebindTopologyMate} from './core/topology_mate_rebind.js';
 import { evaluateFit, fitCallout, fitLimitSource } from "./cad_fits.js";
@@ -1141,7 +1143,7 @@ function addTopologyPickEdges(parent, part, explicitMesh) {
   var show = E.showModelEdges !== false;
   var finish = finishCommandActive();
   overlayEntriesForPart(part, mesh).forEach(function (entry) {
-    var points = edgePoints(entry.descriptor);
+    var points = entry.displayPoints || edgePoints(entry.descriptor);
     if (points.length < 2) return;
     var selected = topologySelected(entry.persistentId, entry), hovered = topologyHovered(entry.persistentId, entry);
     var visible = show || finish || selected || hovered;
@@ -17185,10 +17187,7 @@ function syncProjectionFromFeature(feature) {
       if(historyEntry)historyEntry.name=feature.name;
     }
     var selectedWasToolbox=E.sel && E.sel.toolboxFeatureId===feature.id;
-    E.def.parts=(E.def.parts || []).filter(function(item){return item.toolboxFeatureId!==feature.id;});
-    generated.parts.forEach(function(item){E.def.parts.push(Object.assign({id:uid(),featureId:feature.id,toolboxFeatureId:feature.id},item));});
-    E.def.toolboxParts=(E.def.toolboxParts || []).filter(function(item){return item.featureId!==feature.id;});
-    E.def.toolboxParts.push(Object.assign({featureId:feature.id},generated.metadata));
+    restoreToolboxProjections(E.def,feature,generated);
     if(selectedWasToolbox)E.sel=E.def.parts.filter(function(item){return item.toolboxFeatureId===feature.id&&!item.previewOnly;}).slice(-1)[0] || null;
     (E.def.parts || []).forEach(function(item){if(item.toolboxFeatureId===feature.id)markLiveDirtyPart(item);});
     return true;
@@ -17556,7 +17555,7 @@ function openFeatureEditor(feature) {
       else flash("✓ "+t("featureRebuiltFromHistory"));
     }
     catch(error){flash(String(error.message||error));}
-  },"md-quick-apply"));host.appendChild(actions);syncAuthoringWorkflow();syncCommandManager();
+  },"md-quick-apply"));actions.querySelector(".md-quick-apply").setAttribute("aria-label",t("updateFeature"));host.appendChild(actions);syncAuthoringWorkflow();syncCommandManager();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
 }
 
@@ -20619,6 +20618,7 @@ function fillLook() {
       } else {
         p.color=mat.color; p.metal=mat.metal; p.rough=mat.rough; p.materialName=mat.name; p.density=mat.density; p.densitySource=mat.densitySource||"";
         if(p.materialCatalogId!=="stock:"+key){delete p.materialQualificationId;delete p.gearVerificationReport;delete E.def.lastStandardsAudit;}p.materialCatalogId="stock:"+key;
+        if(p.toolboxFeatureId)synchronizeToolboxMaterial(E.def,p.toolboxFeatureId,p);
         E.def.appearances=upsertAppearanceOverride(E.def.appearances, createAppearanceOverride({persistentId:p.id,kind:"body",material:key,color:mat.color,metal:mat.metal,rough:mat.rough,name:mat.name}));
       }
       updatePreview(); refreshParts(); fillLook();
@@ -25337,11 +25337,13 @@ async function showMassProperties() {
     evaluateDefinition:async function(def){
       var source=cloneData({...def,parts:activeParts(def)});
       return evaluateMassProperties(source,{
+        bodyKey:function(part){return source.metadata?.authoringSystem==="parametric-v1" && (source.features || []).some(function(feature){return feature.id===part.featureId;}) ? cutTargetFeatureId(part,source) : part;},
         buildSolid:async function(part){var display=await exactDisplayBody(part,source,null,{massProperties:true});releases.set(display.brep,display.release);return display.brep;},
         releaseSolid:function(solid){releases.get(solid)?.();releases.delete(solid);},
       });
     },
   }) : await evaluateMassProperties(snapshot,{
+    bodyKey:function(part){return snapshot.metadata?.authoringSystem==="parametric-v1" && (snapshot.features || []).some(function(feature){return feature.id===part.featureId;}) ? cutTargetFeatureId(part,snapshot) : part;},
     buildSolid:async function(part){var display=await exactDisplayBody(part,snapshot,null,{massProperties:true});releases.set(display.brep,display.release);return display.brep;},
     releaseSolid:function(solid){releases.get(solid)?.();releases.delete(solid);},
   });

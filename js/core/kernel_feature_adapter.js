@@ -52,9 +52,26 @@ export function lowerToolboxFeature(feature) {
   if (!generated?.ok) throw new Error(generated?.message || "Toolbox part could not be generated");
   const solids = [], cutters = [];
   (generated.parts || []).forEach((part, index) => {
-    const primitive = toolboxPrimitive(part, feature.id + ":part:" + index, part.name);
+    // Toolbox nut previews use a polygonal circle loop. Keep that lightweight
+    // projection for the viewport, but construct the exported bore as a true
+    // cylinder so its diameter, volume and STEP topology do not depend on LOD.
+    const exactNutBore = feature.params?.kind === "hex-nut" && part.kind === "ext" && part.standardRole === "head"
+      ? Number(part.standardCompliance?.diameterMm) / 20 : NaN;
+    const primitivePart = Number.isFinite(exactNutBore) && exactNutBore > 0
+      ? { ...part, holes: [] } : part;
+    const primitive = toolboxPrimitive(primitivePart, feature.id + ":part:" + index, part.name);
     if (!primitive) throw new Error("Unsupported Toolbox primitive: " + part.kind);
     (part.previewOnly ? cutters : solids).push(primitive);
+    if (Number.isFinite(exactNutBore) && exactNutBore > 0) {
+      const from = Math.min(Number(part.from), Number(part.to));
+      const height = Math.abs(Number(part.to) - Number(part.from));
+      if (!(height > 0)) throw new Error("Toolbox hex nut needs a positive height");
+      cutters.push({
+        id:feature.id + ":exact-bore:" + index, name:part.name + " bore",
+        type:"cylinder", params:{x:0,y:from-0.001,z:0,r:exactNutBore,h:height+0.002},
+        inputs:[], references:[], suppressed:false,
+      });
+    }
   });
   if (!solids.length) throw new Error("Toolbox feature generated no solid");
   const compiled = [...solids, ...cutters];

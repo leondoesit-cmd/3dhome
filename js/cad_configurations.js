@@ -1,8 +1,10 @@
 import { dependentTargetIds } from "./core/parametric_document.js";
 import { circularSweepProfile } from "./core/swept_sources.js";
+import { partAppearanceKeys, restoreToolboxProjections } from "./core/toolbox_projection_restore.js";
+import { toolboxFastener } from "./cad_toolbox.js";
 
 const copy = value => JSON.parse(JSON.stringify(value));
-const appearanceKeys = ["color", "metal", "rough", "opacity", "density", "materialName", "materialCatalogId", "densitySource", "customProperties"];
+const appearanceKeys = partAppearanceKeys;
 const componentKeys = ["transform", "grounded", "suppressed", "visible", "configurationId", "parameterOverrides", "explodedOffset"];
 const assemblyDocument = document => Array.isArray(document.components) ? document : document.assembly;
 
@@ -13,7 +15,7 @@ export function configurationModelValues(document) {
   return {
     sketches: (document.sketches || []).map(sketch => copy(sketch)),
     featureParameters: (document.features || []).map(feature => ({ id: feature.id, params: copy(feature.params || {}) })),
-    appearances: (document.parts || []).map(part => ({ id: part.id, values: Object.fromEntries(appearanceKeys.filter(key => part[key] !== undefined).map(key => [key, copy(part[key])])) })),
+    appearances: (document.parts || []).map((part, index) => ({ id: part.id, ...(part.toolboxFeatureId ? { toolboxFeatureId: part.toolboxFeatureId, toolboxProjectionIndex: part.toolboxProjectionIndex ?? document.parts.slice(0, index).filter(previous => previous.toolboxFeatureId === part.toolboxFeatureId).length } : {}), values: Object.fromEntries(appearanceKeys.filter(key => part[key] !== undefined).map(key => [key, copy(part[key])])) })),
     customProperties: copy(document.customProperties || {}),
     ...(assembly ? { assembly: {
       components: (assembly.components || []).map(component => ({ id: component.id, values: Object.fromEntries(componentKeys.filter(key => component[key] !== undefined).map(key => [key, copy(component[key])])) })),
@@ -97,12 +99,23 @@ export function applyConfiguration(document, configuration) {
     document.sketches = (document.sketches || []).map(sketch => sketches.has(sketch.id) ? copy(sketches.get(sketch.id)) : sketch);
     const parameters = new Map((values.featureParameters || []).map(feature => [feature.id, feature.params]));
     (document.features || []).forEach(feature => { if (parameters.has(feature.id)) feature.params = copy(parameters.get(feature.id)); });
-    const appearances = new Map((values.appearances || []).map(part => [part.id, part.values]));
-    (document.parts || []).forEach(part => {
-      if (!appearances.has(part.id)) return;
+    const savedAppearances = values.appearances || [];
+    const appearances = new Map(savedAppearances.filter(part => part.id != null).map(part => [part.id, part.values]));
+    const toolboxIds = new Set((document.parts || []).map(part => part.toolboxFeatureId));
+    const legacySingleToolbox = toolboxIds.size === 1 && !toolboxIds.has(undefined) && savedAppearances.length === document.parts.length;
+    (document.parts || []).forEach((part, index) => {
+      const projectionIndex = part.toolboxProjectionIndex ?? document.parts.slice(0, index).filter(previous => previous.toolboxFeatureId === part.toolboxFeatureId).length;
+      const role = savedAppearances.find(saved => saved.toolboxFeatureId === part.toolboxFeatureId && part.toolboxFeatureId && saved.toolboxProjectionIndex === projectionIndex);
+      const legacy = legacySingleToolbox && savedAppearances[index]?.id == null ? savedAppearances[index].values : undefined;
+      const appearance = appearances.get(part.id) || role?.values || legacy;
+      if (!appearance) return;
       appearanceKeys.forEach(key => { delete part[key]; });
-      Object.assign(part, copy(appearances.get(part.id)));
+      Object.assign(part, copy(appearance));
       delete part.meshData;
+    });
+    (document.features || []).filter(feature => feature.type === "toolbox").forEach(feature => {
+      const generated = toolboxFastener(copy(feature.params || {}));
+      if (generated?.ok && generated.parts?.length) restoreToolboxProjections(document, feature, generated);
     });
     document.customProperties = copy(values.customProperties || {});
     const assembly = assemblyDocument(document);

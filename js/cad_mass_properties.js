@@ -20,14 +20,25 @@ function fallbackRow(part, density, error) {
 export async function evaluateMassProperties(def, options = {}) {
   const fallbackDensity = Number(options.density) > 0 ? Number(options.density) : DEFAULT_MASS_DENSITY;
   const rows = [];
+  // Several viewport projections can resolve to one fused native body (e.g.
+  // a Toolbox screw's head, shank and thread). Identity is supplied by the
+  // native resolver; legacy analytic parts must still be measured separately.
+  const groups = new Map();
   for (const part of def.parts || []) {
-    if (!part || part.suppressed) continue;
+    if (!part || part.suppressed || part.previewOnly) continue;
+    const key = options.bodyKey?.(part) ?? part;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(part);
+  }
+  for (const projections of groups.values()) {
+    const part = projections.find(item => item.materialQualificationId)
+      || projections.find(item => String(item.materialCatalogId || '').startsWith('stock:')) || projections[0];
     const density = partMaterialDensity(part, fallbackDensity);
     let solid;
     try {
       solid = await (options.buildSolid || exactBrepForPart)(part);
       const props = solid.workerMassProperties || await shapeMassProperties(solid);
-      rows.push({partId:part.id, accuracy:'exact', ...props, density, massKg:props.volume*density/1000,
+      rows.push({partId:part.id, sourcePartIds:projections.map(item=>item.id), accuracy:'exact', ...props, density, massKg:props.volume*density/1000,
         materialName:part.materialName || stockMaterialForPart(part)?.name || null,
         materialCatalogId:part.materialCatalogId || null});
     } catch (error) {

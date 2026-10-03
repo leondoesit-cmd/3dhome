@@ -15,6 +15,7 @@ import { framePoint } from "./core/frame.js";
 import { cutWallTopology, fitProfileCircle, mergeSmoothTopology, pointWithinCylinderArc } from "./core/topology.js";
 import { curveSegments } from "./sketch_profiles.js";
 import { circularEdgeSweep } from "./modeler_topology_pick.js";
+import { circularMeshBoundary } from "./core/circular_edge_display.js";
 
 export function holeLoop(hl, includeSuppressed) {
   if (!hl) return [];
@@ -366,7 +367,10 @@ export function exactOverlayEntries(part, features) {
     entries.push(descriptor === entry.descriptor ? entry : Object.assign({}, entry, { descriptor: descriptor }));
   });
   if (!entries.length) return [];
-  return mergeSmoothTopology(entries).filter(function (entry) { return entry.kind === "edge"; });
+  return mergeSmoothTopology(entries).filter(function (entry) { return entry.kind === "edge"; }).map(function (entry) {
+    var displayPoints = circularMeshBoundary(entry.descriptor, features && features.circles);
+    return displayPoints ? Object.assign({}, entry, { displayPoints: displayPoints }) : entry;
+  });
 }
 
 export function matchingMeshChain(descriptor, chains) {

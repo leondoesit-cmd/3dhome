@@ -919,9 +919,14 @@ export function planeLabel(plane) {
 /* Normalise the document's sketch list, migrating the single plane-less
    `def.sketch` that older models carry. Those were always drawn on the top
    plane, which is the view the editor opens in. */
+const idleToolboxSketches = new WeakMap();
+
 export function ensureSketchDoc(def) {
   if (!Array.isArray(def.sketches)) def.sketches = [];
-  if (def.sketch && typeof def.sketch === "object" && !def.sketches.length) {
+  discardIncidentalToolboxSketches(def);
+  const existingToolboxBody = (def.features || []).some(feature => feature.type === "toolbox");
+  const emptyLegacyAlias = def.sketch && !["points", "entities", "constraints"].some(key => (def.sketch[key] || []).length);
+  if (def.sketch && typeof def.sketch === "object" && !def.sketches.length && !(existingToolboxBody && emptyLegacyAlias)) {
     const legacy = blankSketch("top", 0);
     legacy.points = def.sketch.points || [];
     legacy.entities = def.sketch.entities || [];
@@ -930,7 +935,7 @@ export function ensureSketchDoc(def) {
     def.activeSketch = legacy.id;
   }
   delete def.sketch;
-  if (!def.sketches.length) {
+  if (!def.sketches.length && !existingToolboxBody) {
     const first = blankSketch("top", 0);
     def.sketches.push(first);
     def.activeSketch = first.id;
@@ -945,7 +950,7 @@ export function ensureSketchDoc(def) {
     s.entities ||= [];
     s.constraints ||= [];
   });
-  if (!def.sketches.some((s) => s.id === def.activeSketch)) def.activeSketch = def.sketches[0].id;
+  if (!def.sketches.some((s) => s.id === def.activeSketch)) def.activeSketch = def.sketches[0]?.id || null;
   return def.sketches;
 }
 
@@ -953,7 +958,11 @@ export function ensureSketchDoc(def) {
 // keep working unchanged; which one that is now depends on the active plane.
 export function ensureSketch(def) {
   const list = ensureSketchDoc(def);
-  return list.find((s) => s.id === def.activeSketch) || list[0];
+  if (list.length) return list.find((s) => s.id === def.activeSketch) || list[0];
+  // Read-only editor badges and camera controls need a working plane, not a
+  // newly authored history step in an existing sketch-free standard part.
+  if (!idleToolboxSketches.has(def)) idleToolboxSketches.set(def, blankSketch("top", 0));
+  return idleToolboxSketches.get(def);
 }
 
 export function sketchById(def, id) {
@@ -1075,3 +1084,4 @@ export function pruneOrphanPoints(sketch) {
   });
   return dropped.size;
 }
+import { discardIncidentalToolboxSketches } from "./core/toolbox_idle_sketch.js";
