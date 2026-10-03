@@ -13,6 +13,7 @@
 
 import {
   buildSheetScene, createProjector, createSheetDoc, createView, ensureSheetDoc, sceneToSvg,
+  sheetFrame, titleBlockBox, TEXT_SIZES,
 } from "./cad_sheet.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
@@ -146,12 +147,37 @@ function balloonNotes(doc, targets) {
   });
 }
 
+function sheetNotes(doc,value) {
+  if(typeof value!=='string')return;
+  doc.notes=doc.notes.filter(note=>note.id!=='sheet-user-notes');
+  delete doc.notesBandHeight;
+  if(!value.trim())return;
+  const frame=sheetFrame(doc),title=titleBlockBox(doc),x=frame.x0+6;
+  const maxChars=Math.max(12,Math.floor((title.x-x-8)/(TEXT_SIZES.dim*.55)));
+  const lines=['NOTES'];
+  for(const paragraph of value.trim().replace(/\r\n?/g,'\n').split('\n')){
+    let line='';
+    for(const word of paragraph.split(/\s+/).filter(Boolean)){
+      if(line && line.length+word.length+1>maxChars){lines.push(line);line='';}
+      let remainder=word;
+      while(remainder.length>maxChars){if(line){lines.push(line);line='';}lines.push(remainder.slice(0,maxChars));remainder=remainder.slice(maxChars);}
+      line+=(line?' ':'')+remainder;
+    }
+    lines.push(line);
+  }
+  doc.notesBandHeight=Math.max(title.h,lines.length*TEXT_SIZES.dim*1.35+12);
+  doc.notes.push({id:'sheet-user-notes',x,y:frame.y1-doc.notesBandHeight+6,text:lines.join('\n')});
+}
+
 export function buildDrawingScene(def, options = {}) {
   const bodies = tessellateParts(def?.parts);
   const doc = options.doc || (def?.drawing && options.useStored !== false ? ensureSheetDoc(def) : standardSheet(def, options, bodies));
+  doc.assemblyLayout=def?.kind==="assembly";
+  doc.enforceFit=options.requireFit===true;
   const project = createProjector(doc, bodies, { bodiesForView: view => configuredBodiesForView(def, view, bodies) });
   if (options.overallDimensions !== false && !doc.dims?.length) autoOverallDims(doc, project);
   if (options.holeCallouts !== false && !doc.notes?.length) calloutNotes(doc, collectHoleCallouts(def));
+  sheetNotes(doc,options.notes);
   if (options.balloonTargets?.length) balloonNotes(doc, options.balloonTargets);
   const balloons = Array.isArray(options.balloons) ? options.balloons
     : options.balloons === false ? []
@@ -161,6 +187,7 @@ export function buildDrawingScene(def, options = {}) {
     callouts: calloutTextById(def),
     meta: { title: options.title || sheetTitle(def, doc) },
     properties: def?.customProperties || {},
+    explodeLines: options.explodeLines,
     bom: balloons.map((row) => ({ item: row.item, qty: row.qty, name: row.name, description: row.description, partNumber: row.partNumber, material: row.material })),
   });
 }

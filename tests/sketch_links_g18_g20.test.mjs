@@ -174,7 +174,7 @@ const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url
 
 test("the editor binds, offers and applies all three", () => {
   assert.match(modeler, /bindModelEdgeTargets\(sketch, resolveIntersectionEdge\)[\s\S]{0,160}bindPierceTargets\(sketch, E\.def\.sketches \|\| \[\], sketchWorldPoint\)/, "live solve binds both links");
-  assert.match(tree, /resolveSketchRelationSources\(executionDef,relationSourceSketchIds\(feature,sketchId\),edgeLookup\)/, "rebuild resolves relations on all driving source sketches");
+  assert.match(tree, /resolveSketchRelationSources\(executionDef,relationSourceSketchIds\(feature,sketchId\),edgeLookup,\(ref,origin,direction\)=>brepFaceLineIntersections\(results\.get\(ref\.ownerFeatureId\),ref,origin,direction\)\)/, "rebuild resolves relations on all driving source sketches with native section intersections");
   assert.match(relationSources, /bindModelEdgeTargets\(updated,resolveEdge\);\s*bindPierceTargets\(updated,document\.sketches,sketchWorldPoint\);/, "source relation helper binds both links before solving");
   assert.match(modeler, /case "coincident": return points\.length === 2 \|\| \(points\.length === 1 && !ents\.length && \(selectedModelEdges\(\)\.length === 1 \|\| \(selectedModelVertices\(\)\.length === 1/, "Coincident takes a point and one model edge");
   assert.match(modeler, /add\(\{ type: "onModelEdge", point: points\[0\]\.id, edge:/, "and records the edge");

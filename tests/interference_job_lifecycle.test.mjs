@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {detectInterference} from '../js/cad_interference.js';
+import {assemblyInterferenceScope} from '../js/core/assembly_interference_scope.js';
+import {contactAuditSummary,expectedContactFor} from '../js/core/assembly_contact_audit.js';
+import {hasSingleToolboxKernelRecipe} from '../js/cad_assembly_toolbox.js';
+import {rotationOf} from '../js/cad_mate_model.js';
 
 function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};}
 function fixture(exact,detect){
@@ -12,14 +16,15 @@ function fixture(exact,detect){
   assert.ok(start>=0 && end>start);
   const reports=[],released=[],messages=[],card={children:[],appendChild(item){this.children.push(item);}};
   const E={docType:'assembly',assembly:{},interferenceRevision:0,interferenceChecked:false,evalCard:null};
-  const context={E,AbortController,Map,cadWorkerAvailable:()=>false,el:()=>({textContent:''}),btn:(label,action)=>({label,action}),t:key=>key,
+  const context={E,AbortController,Map,assemblyInterferenceScope,contactAuditSummary,expectedContactFor,hasSingleToolboxKernelRecipe,rotationOf,
+    cadWorkerAvailable:()=>false,el:(tag,className,textContent='')=>({tag,className,textContent}),btn:(label,action)=>({label,action}),t:key=>key,
     flattenAssembly:()=>[{component:{id:'a',name:'A'},path:['a'],parents:[],placement:{}},{component:{id:'b',name:'B'},path:['b'],parents:[],placement:{}}],
     occurrenceWorldBounds:()=>({x0:0,x1:1,y0:0,y1:1,z0:0,z1:1}),
     openEvalCard:owner=>{E.evalCard=owner;return card;},evalCardActions:()=>card,closeEvalCard:()=>{E.evalCard=null;},
     exactInterferenceBrep:exact,detectInterference:detect,disposeBrep:body=>released.push(body),
     flash:text=>messages.push(text),report:(...args)=>reports.push(args),syncAssemblyWorkflow:()=>{},updatePreview:()=>{},tf:()=>'',componentLabel:id=>id};
   runInNewContext(source.slice(start,end)+'\nthis.run=runInterferenceCheck;this.cancel=cancelInterferenceCheck;',context);
-  return {context,E,reports,released,messages,card};
+  return {context,E,reports,released,messages,card,progressText:()=>card.children.find(item=>item.textContent?.startsWith('interferenceStage'))};
 }
 
 test('a second Check cannot duplicate an active job; cancel aborts scoped work and frees already placed solids',async()=>{
@@ -43,7 +48,7 @@ test('comparison progress persists in the evaluation card and a stale result can
     options.onProgress({a:'a',b:'b',stage:'intersection'});comparing.resolve();return pending.promise;
   });
   const run=f.context.run();await comparing.promise;
-  assert.equal(f.card.children[0].textContent,'interferenceStageintersection · A ↔ B');
+  assert.equal(f.progressText().textContent,'interferenceStageintersection · A ↔ B');
   f.E.interferenceRevision++;
   pending.resolve([]);await run;
   assert.equal(f.E.interferenceChecked,false);assert.equal(f.reports.length,0);
@@ -81,7 +86,7 @@ test('browser interference remains a single scoped worker job and never restores
     return pending.promise;
   };
   const run=f.context.run();await f.context.run();assert.equal(calls,1);
-  assert.equal(f.card.children[0].textContent,'interferenceStageplacement · A · A');
+  assert.equal(f.progressText().textContent,'interferenceStageplacement · A · A');
   f.context.cancel();assert.equal(signal.aborted,true);await run;
   assert.equal(f.E.interferenceChecked,false);assert.equal(f.reports.length,0);
 });

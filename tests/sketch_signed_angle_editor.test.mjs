@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {dimensionUnit} from '../js/sketch_equations.js';
 
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 const start=source.indexOf('function applyDimensionEditor() {');
@@ -12,7 +13,7 @@ function apply(type,value) {
   const fields={mdDimValue:{value:String(value),focus(){}},mdDimMode:{value:'driving'},mdDimName:{value:''}};
   const E={def:{},dimEditor:{constraint,sketch:{},before:{text:String(value),value,driven:false,name:''},historyAlreadyOpen:true}};
   let resolved=0,hidden=0;
-  const context={E,root:{querySelector:s=>fields[s.slice(1)]||null},fin:Number.isFinite,
+  const context={E,dimensionUnit,root:{querySelector:s=>fields[s.slice(1)]||null},fin:Number.isFinite,
     clearDimensionRefusal(){},nameAvailable:()=>true,activateDrawingSketch(){},
     resolveSketch:()=>{resolved++;return true;},hideDimensionEditor:()=>{hidden++;},refreshAll(){}};
   vm.createContext(context);

@@ -227,7 +227,7 @@ import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
   bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
 } from "./modeler_commands.js";
-import { documentDescription, setDocumentDescription, setDocumentProperty, sheetTitleText } from "./core/custom_properties.js";
+import { documentDescription, documentProperty, setDocumentDescription, setDocumentProperty, sheetTitleText } from "./core/custom_properties.js";
 import { finishPreviewProofMatches } from "./core/finish_preview_proof.js";
 import { claimLegacyModelerDraft, modelerDraftKey, modelerDraftOwner, freshModelerDraftOwner, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
@@ -6718,7 +6718,7 @@ function assemblyWorkflowState() {
   var dirty = documentDirty();
   var workflow = resolveAssemblyWorkflow({
     components: components.length,
-    hasLibrary: !!(loadLib() || []).length,
+    hasLibrary: modelLibraryCache.length > 0,
     grounded: grounded,
     mates: mates,
     broken: broken,
@@ -7284,7 +7284,7 @@ function runCommand(id) {
   else if (id === "bom") showAssemblyBOM();
   else if (id === "isolate") toggleIsolate();
   else if (id === "paint") { setMode("3d"); setTool("paint"); }
-  else if (id === "note") { setMode("3d"); setTool("note"); }
+  else if (id === "note") { if(E.docType==="assembly")showAssemblyDrawingSettings(true);else{setMode("3d");setTool("note");} }
   closeCommandSearch();
   syncCommandManager();
 }
@@ -7442,7 +7442,7 @@ function openCustomProperties() {
       pushUndo("Custom properties");
       doc.customProperties = {};
       Object.entries(next).forEach(function (entry) { setDocumentProperty(doc, entry[0], entry[1]); });
-      refreshAll();
+      syncHead();refreshAll();
     }
     dialog.close();
   }; dialog.appendChild(save);
@@ -9524,7 +9524,7 @@ function queueExactFeaturePreview(preview,type,liveBadge) {
       console.warn("exact feature preview failed:",preview.exactError);
       if(liveBadge){
         var message=preview.exactError;
-        var caption=/no resolved edges/i.test(message)?t("previewNoResolvedEdges"):/fillet failed/i.test(message)?t("previewFilletConflict"):/chamfer failed/i.test(message)?t("previewRadiusTooLarge"):type==="shell"?"Shell could not be built · check thickness and opening faces":t("previewUnavailable");
+        var caption=/no resolved edges/i.test(message)?t("previewNoResolvedEdges"):/fillet failed/i.test(message)?t("previewFilletConflict"):/chamfer failed/i.test(message)?t("previewChamferConflict"):type==="shell"?"Shell could not be built · check thickness and opening faces":t("previewUnavailable");
         liveBadge.classList.remove("approx");liveBadge.setAttribute("data-preview-state","error");
         liveBadge.innerHTML='<i class="ph ph-warning"></i> '+caption;
         if(type==='shell' || (type==='fillet' && (activeFilletParams()?.fullRound || /valid closed solid/.test(message))))liveBadge.appendChild(document.createTextNode(' · '+message));
@@ -16501,14 +16501,14 @@ function insertAssemblyComponent(modelKey) {
      (book p.387–402: LENSANDBULB into CAPANDLENS into FLASHLIGHT). Its mates are
      settled once here; the parent then moves it as a rigid body. */
   if (String(modelKey).indexOf("asm:") === 0) {
-    var record = loadAssemblies().find(function (a) { return a.key === modelKey.slice(4); });
+    var record = assemblyLibraryCache.find(function (a) { return a.key === modelKey.slice(4); });
     if (!record) return;
     if (containsAssembly(record, E.assembly.key)) { flash(t("subassemblyContainsThis")); return; }
     pushUndo(t("addComponent"));
     component = subassemblyComponent(compactAssemblyTopologySnapshots(record), { id: uid(), grounded: i === 0, transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } });
     solveTopologyMates(component.asm);
   } else {
-    var def = loadLib().find(function (m) { return m.key === modelKey; });
+    var def = modelLibraryCache.find(function (m) { return m.key === modelKey; });
     if (!def) return;
     pushUndo(t("addComponent"));
     component = {
@@ -16778,7 +16778,7 @@ function assemblyTreeHandlers(model) {
         E.topologySelection = additive ? (E.topologySelection || []).concat(reference) : [reference];
         var holder = assemblyComponentById(parts[2]);
         if (holder) { E.componentSel = additive ? E.componentSel.filter(function (c) { return c !== holder; }).concat(holder) : [holder]; E.sel = holder; }
-        refreshAll();
+        refreshSelection();
         return;
       }
       if (node.kind === "mate") {
@@ -16786,7 +16786,7 @@ function assemblyTreeHandlers(model) {
         var pair = assemblyMatePair(node.id);
         E.componentSel = pair.filter(Boolean);
         E.sel = E.componentSel[E.componentSel.length - 1] || null;
-        refreshAll();
+        refreshSelection();
         return;
       }
       var component = assemblyComponentForNode(node);
@@ -16796,7 +16796,7 @@ function assemblyTreeHandlers(model) {
         if (at === -1) E.componentSel.push(component); else E.componentSel.splice(at, 1);
       } else E.componentSel = [component];
       E.sel = E.componentSel[E.componentSel.length - 1] || null;
-      refreshAll();
+      refreshSelection();
     },
     onEdit: function () {},
     onRename: function (node, name) {
@@ -18658,6 +18658,20 @@ function addSketchOffsetControl(host,sketchId) {
    texture picker and ten operation buttons, all competing for the same scroll.
    It is three panes now — the size of the thing, how it looks, and what you can
    do to it — behind the icon row at the top of the panel. */
+function assemblyBomProperties(host,component) {
+  [["Description","Description"],["Part number","PartNo"]].forEach(function(pair){
+    var row=el("label","md-row md-row-wide"),input=el("input");
+    row.appendChild(el("span","t",pair[0]));input.type="text";input.setAttribute("aria-label","Component "+pair[0].toLowerCase());
+    var source=component.def || component.asm;
+    input.value=pair[1]==="Description" ? documentDescription(component) || documentDescription(source) :
+      [component,source].map(function(doc){return documentProperty(doc,"PartNo") || documentProperty(doc,"PartNumber") || documentProperty(doc,"Number") || doc?.partNumber || "";}).find(Boolean) || "";
+    input.placeholder=pair[1]==="PartNo" ? "Source part number unless overridden" : "BOM description";
+    input.addEventListener("change",function(){
+      pushUndo("Component "+pair[0].toLowerCase());setDocumentProperty(component,pair[1],input.value);refreshSelection();
+    });
+    row.appendChild(input);host.appendChild(row);
+  });
+}
 function assemblyTransformInspector() {
   var host = root.querySelector("#mdInsp"); host.innerHTML = "";
   var component = E.sel;
@@ -18667,6 +18681,7 @@ function assemblyTransformInspector() {
   var name = el("input"); name.type = "text"; name.value = component.name || component.modelKey;
   name.addEventListener("change", function () { pushUndo(t("partName")); component.name = name.value.slice(0, 80) || component.modelKey; refreshAll(); });
   nameRow.appendChild(name); host.appendChild(nameRow);
+  assemblyBomProperties(host,component);
   if (component.modelKey || isSubassembly(component)) {
     if(!isSubassembly(component))host.appendChild(btn("Replace part from library",function(){
       var models=loadLib().filter(function(model){return (model.parts||[]).length;});
@@ -23584,6 +23599,10 @@ function fitPreview() {
       ? Math.max(1, Math.hypot(box.x1 - box.x0, box.y1 - box.y0, box.z1 - box.z0))
       : 180;
     E.pv.frame(span * 1.5);
+    if(box){
+      var origin=E.pv.fixedFrame?.origin || {x:0,y:0,z:0};
+      E.pv.target.set((box.x0+box.x1)/2-origin.x,(box.y0+box.y1)/2-origin.y,(box.z0+box.z1)/2-origin.z);
+    }
     E.pv.render();
     return;
   }
@@ -23635,14 +23654,17 @@ function buildAssembly(parent) {
 
 /* Explode lines: a dashed leader from each moved component's mated centre to
    where the exploded view drew it. Never part of the model, only of the view. */
-function addExplodeLeaders(parent) {
+function assemblyExplodeLines() {
   var occurrences=flattenAssembly(E.assembly,{visibleOnly:true});
-  explodeLines(E.assembly, function (component,target) {
+  return explodeLines(E.assembly, function (component,target) {
     var matching=occurrences.filter(function(occurrence){return target.path.every(function(id,index){return String(occurrence.path[index])===id;});});
     var b=null;
     matching.forEach(function(occurrence){var next=occurrenceWorldBounds(occurrence.component,occurrence.placement);if(!next)return;if(!b)b=Object.assign({},next);else ['x','y','z'].forEach(function(axis){b[axis+'0']=Math.min(b[axis+'0'],next[axis+'0']);b[axis+'1']=Math.max(b[axis+'1'],next[axis+'1']);});});
     return b ? { x:(b.x0 + b.x1) / 2, y:(b.y0 + b.y1) / 2, z:(b.z0 + b.z1) / 2 } : null;
-  }).forEach(function (line) {
+  });
+}
+function addExplodeLeaders(parent) {
+  assemblyExplodeLines().forEach(function (line) {
     var geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(line.from.x, line.from.y, line.from.z), new THREE.Vector3(line.to.x, line.to.y, line.to.z)]);
     var leader = new THREE.Line(geometry, new THREE.LineDashedMaterial({ color:0x4dabf7, dashSize:.6, gapSize:.35, depthTest:false }));
     leader.computeLineDistances(); leader.renderOrder = 60; leader.userData.cadExplodeLine = line.id; parent.add(leader);
@@ -25528,12 +25550,13 @@ function createDefaultMotionStudy() {
     const axisName=a=>!a?"y":a.x===1&&a.y===0&&a.z===0?"x":a.z===1&&a.x===0&&a.y===0?"z":a.y===1&&a.x===0&&a.z===0?"y":"custom";
     const axes=["x","y","z"].map(value=>({value,label:value.toUpperCase()}));
     const axisChoices=a=>axisName(a)==="custom"?axes.concat({value:"custom",label:t("motionSavedAxis")}):axes;
-    openQuickForm({action:"motion",title:t("motionStudy"),hint:t("gearMotionHint"),fields:[
+    openQuickForm({action:"motion",title:t("motionStudy"),hint:t(relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"),fields:[
       {key:"study",label:t("motionStudy"),type:"select",value:studyId||"new",choices:[{value:"new",label:t("motionNewStudy")},...(E.assembly.motionStudies||[]).map(s=>({value:s.id,label:s.name}))]},
-      {key:"relation",label:t("motionRelation"),type:"select",value:relationId,choices:[{value:"none",label:t("motionKeepRelations")},{value:"new",label:t("motionAddRelation")},...(study?.gearRelations||[]).map(r=>({value:r.id,label:(components.find(c=>c.id===r.driverId)?.name||r.driverId)+" → "+(components.find(c=>c.id===r.followerId)?.name||r.followerId)}))]},
+      {key:"relation",label:t("motionRelation"),type:"select",value:relationId,choices:[{value:"none",label:t(study?.gearRelations?.length ? "motionKeepRelations" : "motionMotorOnly")},{value:"new",label:t("motionAddRelation")},...(study?.gearRelations||[]).map(r=>({value:r.id,label:(components.find(c=>c.id===r.driverId)?.name||r.driverId)+" → "+(components.find(c=>c.id===r.followerId)?.name||r.followerId)}))]},
       {key:"motor",label:t("motionMotor"),type:"select",value:motor?.componentId||driver,choices},
       {key:"rpm",label:t("motionRPM"),type:"number",value:motor?.rpm??12,step:1},
       {key:"motorAxis",label:t("motionMotorAxis"),type:"select",value:axisName(motor?.axis),choices:axisChoices(motor?.axis)},
+      ...(relationId!=="none" ? [
       {key:"driver",label:t("motionDriver"),type:"select",value:driver,choices},
       {key:"follower",label:t("motionFollower"),type:"select",value:relation?.followerId||components.find(c=>c.id!==driver)?.id||driver,choices},
       {key:"driverTeeth",label:t("gearTeeth"),type:"number",value:relation?.driverTeeth??20,min:1,step:1},
@@ -25541,7 +25564,8 @@ function createDefaultMotionStudy() {
       {key:"driverAxis",label:t("motionDriverAxis"),type:"select",value:axisName(relation?.driverAxis),choices:axisChoices(relation?.driverAxis)},
       {key:"followerAxis",label:t("motionFollowerAxis"),type:"select",value:axisName(relation?.followerAxis),choices:axisChoices(relation?.followerAxis)},
       {key:"mesh",label:t("motionMesh"),type:"select",value:relation?.mesh||"external",choices:[{value:"external",label:t("motionExternal")},{value:"internal",label:t("motionInternal")}]},
-      {key:"remove",label:t("motionRemoveRelation"),type:"boolean",value:false},
+      ...(relation ? [{key:"remove",label:t("motionRemoveRelation"),type:"boolean",value:false}] : []),
+      ] : []),
       {key:"time",label:t("motionTime"),type:"number",value:study?.time??1,step:.1}
     ],onLive:v=>{if(v.study!==(studyId||"new"))show(v.study);else if(v.relation!==relationId)show(studyId,v.relation);},onApply:v=>{
       // HTML selects return strings; occurrence IDs retain their saved type.
@@ -25776,7 +25800,7 @@ function assemblyDrawingDocument() {
 /* Export what Drawing mode shows. An unopened document has no sheet yet, so it
    gets the standard three-view one the exporter builds — the same engine, so
    the file and the screen can never drift apart. */
-function showAssemblyDrawingSettings() {
+function showAssemblyDrawingSettings(focusNotes) {
   if (!E.assembly) return;
   root.querySelector("#mdAssemblySheetDialog")?.remove();
   var dialog = document.createElement("dialog");
@@ -25792,7 +25816,7 @@ function showAssemblyDrawingSettings() {
     fields[label] = sheetRow(dialog, label, field);
   }
   fields.size = sheetRow(dialog, "Sheet size", sheetSelect(Object.keys(SHEET_SIZES).map(function(key) {
-    return { value: key, label: key === "Letter" ? "A (ANSI) Landscape / Letter" : key };
+    return { value: key, label: key === "Letter" ? "A (ANSI) Landscape / Letter" : key === "ANSI_C" ? "C (ANSI) / 22 × 17 in" : key };
   }), settings.size || "A3", function() {}));
   fields.size.setAttribute("aria-label", "Sheet size");
   fields.units = sheetRow(dialog, "Drawing units", sheetSelect(["mm", "cm", "in"].map(function(unit) {
@@ -25812,8 +25836,12 @@ function showAssemblyDrawingSettings() {
     var key = ["title", "number", "revision", "author", "company", "date"][index];
     textField(label, settings[key] || (key === "title" ? E.assembly.name : key === "revision" ? "A" : ""));
   });
+  var notes=document.createElement("textarea");
+  notes.value=settings.notes || "";notes.rows=5;notes.setAttribute("aria-label","Drawing notes");
+  notes.style.cssText="width:100%;min-height:6rem;resize:vertical";
+  fields.notes=sheetRow(dialog,"Drawing notes",notes);
   function apply() {
-    var next = { size: fields.size.value, units: fields.units.value, scale: fields.scale.value === "fit" ? "fit" : fields.scale.value.split(":").map(Number), projection: fields.projection.value, orientation:"landscape", draftingStandard:"ANSI" };
+    var next = { size: fields.size.value, units: fields.units.value, scale: fields.scale.value === "fit" ? "fit" : fields.scale.value.split(":").map(Number), projection: fields.projection.value, orientation:"landscape", draftingStandard:"ANSI", notes:fields.notes.value.trim() };
     ["Title", "Number", "Revision", "Drawn by", "Company", "Date"].forEach(function(label, index) {
       next[["title", "number", "revision", "author", "company", "date"][index]] = fields[label].value.trim();
     });
@@ -25822,7 +25850,7 @@ function showAssemblyDrawingSettings() {
     ["Number", "Revision", "DrawnBy", "CompanyName", "DrawnDate", "Description"].forEach(function(key, index) {
       setDocumentProperty(E.assembly, key, next[["number", "revision", "author", "company", "date", "title"][index]]);
     });
-    refreshAll();
+    syncHead();refreshAll();
   }
   var save = el("button", "", "Apply drawing settings");
   save.type = "button";
@@ -25837,6 +25865,7 @@ function showAssemblyDrawingSettings() {
   dialog.addEventListener("close", function() { dialog.remove(); }, { once:true });
   root.appendChild(dialog);
   dialog.showModal();
+  if(focusNotes)notes.focus();
 }
 
 async function exportThreeMfDocument(settings,format,unqualifiedDraft) {
@@ -25858,7 +25887,7 @@ function exportDrawingSvg() {
     var sheet = assemblyDrawingDocument();
     if (!sheet.def.parts.length) { flash(t("noComponents")); return; }
     sheet.def.customProperties = E.assembly.customProperties || {};
-    svg = sceneToSvg(buildDrawingScene(sheet.def, { ...(E.assembly.drawingSettings || {}), balloons: sheet.balloons, balloonTargets: sheet.targets, overallDimensions: false, views: ["iso"], title: E.assembly.drawingSettings?.title || E.assembly.name, useStored: false }));
+    try { svg = sceneToSvg(buildDrawingScene(sheet.def, { requireFit:true, ...(E.assembly.drawingSettings || {}), balloons: sheet.balloons, balloonTargets: sheet.targets, explodeLines: assemblyExplodeLines(), overallDimensions: false, views: ["iso"], title: E.assembly.drawingSettings?.title || E.assembly.name, useStored: false })); } catch(error) { flash(String(error.message || error),6000);return; }
   } else if (E.mode === "drawing" || (E.def && E.def.drawing)) svg = drawingSheet().svg();
   else svg = sceneToSvg(buildDrawingScene(E.def, { section: true, holeCallouts: true, useStored: false }));
   var blob = new Blob([svg], { type: "image/svg+xml" });

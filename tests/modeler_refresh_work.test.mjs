@@ -12,7 +12,7 @@ function refreshFixture() {
     isCanonicalAuthoring: () => false, syncPreviewFromHistory() { work.historySyncs++; },
     refreshViewportSelection() { work.selections++; }, addExplodeLeaders() {}, addInterferenceVisuals() {},
     updatePreview() { work.builds++; context.buildAssembly({ add() {} }); } };
-  for (const name of ['refreshParts', 'refreshModelHistoryPane', 'fillInspector', 'drawSketch', 'syncStatus', 'syncHint',
+  for (const name of ['syncAssemblyContextBar', 'refreshParts', 'refreshModelHistoryPane', 'fillInspector', 'drawSketch', 'syncStatus', 'syncHint',
     'syncFacePrompt', 'syncExtrudeButton', 'syncActiveFeatureSelectionFeedback', 'syncMassPropertiesEvaluation',
     'syncAuthoringWorkflow', 'syncContextActions', 'updateTourProgress', 'syncModelerMobile']) context[name] = () => {};
   vm.createContext(context);

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import {frameFromPlane,framePoint} from '../js/core/frame.js';
 import {alignExtrusionToSupport} from '../js/cad_feature_tree.js';
+import {dimensionUnit} from '../js/sketch_equations.js';
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function load(name, context) {
   let start=source.indexOf(`function ${name}(`);
@@ -30,7 +31,7 @@ test('face-local extrusion previews agree with exact support direction on revers
   const sketch={plane:'front',frameSpace:'local',frame,support};
   const preview=load('extrudePreviewParts',{
    E:{def:{}},ensureSketch:()=>sketch,planeAxis:()=> 'z',cloneData:structuredClone,
-   sketchFeatureAreas:()=>[{points:[{u:0,v:0},{u:1,v:0},{u:0,v:1}],holes:[]}],
+   extrusionSketchAreas:()=>[{points:[{u:0,v:0},{u:1,v:0},{u:0,v:1}],holes:[]}],
    resolveExtrudeExtent:params=>params,isUpToFace:()=>false,featureTypeLabel:type=>type,
   });
   for(const direction of ['forward','reverse']) {
@@ -55,7 +56,7 @@ test('opening and accepting a fractional-millimeter dimension preserves its exac
  assert.equal(show(sketch,constraint),true);
  assert.equal(controls.get('#mdDimValue').value,'0.635');
  let undos=0;
- const apply=load('applyDimensionEditor',{...context,fin:Number.isFinite,nameAvailable:()=>true,pushUndo(){undos++;},activateDrawingSketch(){},resolveSketch:()=>true,refreshAll(){}});
+ const apply=load('applyDimensionEditor',{...context,dimensionUnit,fin:Number.isFinite,nameAvailable:()=>true,pushUndo(){undos++;},activateDrawingSketch(){},resolveSketch:()=>true,refreshAll(){}});
  assert.equal(apply(),true);
  assert.equal(constraint.value,.635);
  assert.equal(undos,0);
@@ -114,7 +115,8 @@ test('editing an offset plane keeps its parent despite a retained face selection
   {id:'plane:front',type:'plane',name:'Front Plane'},
  ]}};
  let form;
- const open=load('openOffsetPlaneForm',{E,t:key=>key,openQuickForm:config=>{form=config;return null;}});
+ const threePointCoordinateFields=load('threePointCoordinateFields',{vertexPointOf:load('vertexPointOf',{})});
+ const open=load('openOffsetPlaneForm',{E,threePointCoordinateFields,t:key=>key,openQuickForm:config=>{form=config;return null;}});
  const field=key=>form.fields.find(item=>item.key===key);
  open({id:'plane1',type:'plane',name:'Plane1',refType:'offset',baseReferenceId:'plane:top',offset:1.27});
  assert.equal(field('parent').value,'plane:top');

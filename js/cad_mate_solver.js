@@ -34,14 +34,14 @@
 //    only the mates that actually conflict are named. A plain least-squares
 //    answer would split the difference and satisfy neither.
 //
-// Which component a mate moves is deliberately not symmetric: a mate moves its
-// `b` component and reads its `a` component, exactly as the old solver did, so
-// a reference component is never dragged around by something mated to it.
+// Directional mates move `b` and read `a`, preserving reference components.
+// A lock instead joins a rigid group: either pick order permits the same motion,
+// and a grounded or prescribed member anchors the entire connected group.
 
 import {
   axisAngleMatrix, captureGearPhase, captureLockPose, lockTarget, createFrameResolver, mateFrameSupports, mateFramesSupport, mateRequirementFor, mateResidual,
   mateResidualVector, mateTarget, matrixEuler, mul, normalizePose, normalizeQuat, quatMatrix,
-  rotationFromTo, rotationOf, rotationVectorMatrix, setRotation, FRAME_ISSUE,
+  rotationFromTo, rotationOf, rotationVectorMatrix, setRotation, transpose, apply, FRAME_ISSUE,
 } from "./cad_mate_model.js";
 import { gaussNewtonStep, normOf, rankOf } from "./core/least_squares.js";
 import { ASSEMBLY_ORIGIN_ID, assemblyOriginComponent } from "./core/assembly_structure.js";
@@ -112,7 +112,7 @@ function acceptMates(assembly, entries, byId, resolvedFrame, issues) {
     const a = byId.get(entry.legacy ? mate.a : mate.a?.componentId);
     const b = byId.get(entry.legacy ? mate.b : mate.b?.componentId);
     if (!a || !b) { issues.push({ mate: entry.id, code: "missing-component" }); continue; }
-    if (b.grounded) { issues.push({ mate: entry.id, code: "grounded-target" }); continue; }
+    if (b.grounded && mate.type !== "lock") { issues.push({ mate: entry.id, code: "grounded-target" }); continue; }
     normalizeTransform(a); normalizeTransform(b);
     if (entry.legacy) { accepted.push({ ...entry, a, b, width: 1 }); continue; }
     if(mate.type==='lock'){
@@ -151,13 +151,15 @@ function acceptMates(assembly, entries, byId, resolvedFrame, issues) {
 /* Break the assembly into the smallest systems that can be solved one after
    another, and put them in the order they have to be solved in.
  *
- * A mate reads one component and moves another, which is a direction: the one
+ * A directional mate reads one component and moves another: the one
  * it moves depends on the one it reads. Follow those directions and most
  * assemblies fall apart into small pieces — a chain of forty brackets is forty
  * systems of six variables each, not one system of two hundred and forty, and a
  * dense solve costs the cube of its size. What does not fall apart is a loop,
  * where two components each depend on the other; those have to be solved
- * together, and that is exactly what a simultaneous solver is for.
+ * together, and that is exactly what a simultaneous solver is for. Rigid locks
+ * also join both endpoints into one group so their selection order cannot add
+ * an artificial fixed component or prevent motion through the lock chain.
  *
  * So: the strongly connected components of the dependency graph, in dependency
  * order. Every one is solved with the ones it depends on already in place, and
@@ -169,10 +171,16 @@ function acceptMates(assembly, entries, byId, resolvedFrame, issues) {
  * the end. */
 function decompose(accepted) {
   const movable = new Map();
-  for (const mate of accepted) if (!movable.has(mate.b.id)) movable.set(mate.b.id, mate.b);
+  for (const mate of accepted) {
+    if (!mate.b.grounded && !movable.has(mate.b.id)) movable.set(mate.b.id, mate.b);
+    if (mate.mate.type === "lock" && !mate.a.grounded && !movable.has(mate.a.id)) movable.set(mate.a.id, mate.a);
+  }
   const edges = new Map([...movable.keys()].map((id) => [id, []]));
   for (const mate of accepted) {
-    if (movable.has(mate.a.id) && mate.a.id !== mate.b.id) edges.get(mate.a.id).push(mate.b.id);
+    if (movable.has(mate.a.id) && movable.has(mate.b.id) && mate.a.id !== mate.b.id) {
+      edges.get(mate.a.id).push(mate.b.id);
+      if (mate.mate.type === "lock") edges.get(mate.b.id).push(mate.a.id);
+    }
     if (mate.c && movable.has(mate.c.id) && mate.c.id !== mate.b.id) edges.get(mate.c.id).push(mate.b.id);
   }
 
@@ -217,7 +225,11 @@ function decompose(accepted) {
   const home = new Map();
   groups.forEach((group, i) => group.forEach((component) => home.set(component.id, i)));
   const clusters = groups.map((group) => ({ components: group, mates: [] }));
-  for (const mate of accepted) clusters[home.get(mate.b.id)].mates.push(mate);
+  for (const mate of accepted) {
+    const owner = home.get(mate.b.id) ?? home.get(mate.a.id);
+    if (owner !== undefined) clusters[owner].mates.push(mate);
+    else clusters.push({components: [], mates: [mate]});
+  }
   return clusters;
 }
 
@@ -402,10 +414,38 @@ function seedCluster(cluster, resolvedFrame) {
     resolvedFrame(entry.mate.a, entry.a, entry.id, false),
     resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b);
   const movable=new Set(cluster.components.map(c=>c.id));
+  // Seed rigid followers outward from grounded or motor-prescribed members.
+  // Either selection order describes the same physical lock relation.
+  const held = new Set();
+  const locks = cluster.mates.filter(entry => entry.mate.type === "lock");
+  for (const entry of locks) for (const component of [entry.a, entry.b])
+    if (!movable.has(component.id)) held.add(component.id);
+  const seededLocks = new Set();
+  for (let pass = 0; pass < locks.length; pass++) {
+    let advanced = false;
+    for (const entry of locks) {
+      const aHeld = held.has(entry.a.id), bHeld = held.has(entry.b.id);
+      if (aHeld === bHeld) continue;
+      const moving = aHeld ? entry.b : entry.a;
+      if (!movable.has(moving.id)) continue;
+      let target;
+      if (aHeld) target = lockTarget(entry.mate, entry.a);
+      else {
+        const relative = entry.mate.relativePose;
+        const rotation = mul(rotationOf(entry.b.transform), transpose(relative.rotation));
+        const delta = apply(rotation, relative.position), b = entry.b.transform;
+        target = {rotation, position: {x:b.x-delta.x, y:b.y-delta.y, z:b.z-delta.z}};
+      }
+      if (target) { Object.assign(moving.transform, target.position); setRotation(moving.transform, target.rotation); }
+      held.add(moving.id); seededLocks.add(entry.id); advanced = true;
+    }
+    if (!advanced) break;
+  }
   const heldDirections=new Map();
   for (const entry of cluster.mates) {
     if (entry.legacy || !movable.has(entry.b.id)) continue;
     if(entry.mate.type==='lock'){
+      if (seededLocks.has(entry.id) || held.has(entry.b.id)) continue;
       const target=lockTarget(entry.mate,entry.a);
       if(target){Object.assign(entry.b.transform,target.position);setRotation(entry.b.transform,target.rotation);}
       continue;
@@ -510,6 +550,7 @@ function analyzeFreedom(cluster, run) {
   // that removes sliding freedom. Retain its orientation rows and retain all
   // rows when the two stops coincide (a fixed distance).
   const boundedRows=new Set();
+  const rigidRotationRows=[];
   let offset=0;
   for(const entry of cluster.mates){
     const mate=entry.mate;
@@ -518,9 +559,24 @@ function analyzeFreedom(cluster, run) {
     // An angle range is the same inequality: it removes no freedom inside its interval.
     if(!entry.legacy && mate.type==='angle' && Number(mate.angleMin)<Number(mate.angleMax))
       for(let row=0;row<entry.width;row++)boundedRows.add(offset+row);
+    if (!entry.legacy && mate.type === "lock") {
+      // Nine matrix entries describe only three rotational constraints. Map
+      // their derivatives to the local angular vector before the rank walk;
+      // otherwise near-zero diagonal rows magnify numerical noise when scaled.
+      const rotation = rotationOf(entry.b.transform);
+      const pairs = [[2,1],[0,2],[1,0]];
+      for (const [a,b] of pairs) {
+        const row = Array(run.variables).fill(0);
+        for (let column=0; column<run.variables; column++) for (let j=0; j<3; j++)
+          row[column] += (run.jacobian[offset+3+a*3+j][column]*rotation[b][j]
+            -run.jacobian[offset+3+b*3+j][column]*rotation[a][j])/2;
+        rigidRotationRows.push(row);
+      }
+      for (let row=3; row<entry.width; row++) boundedRows.add(offset+row);
+    }
     offset+=entry.width;
   }
-  const jacobian=run.jacobian.filter((_row,index)=>!boundedRows.has(index));
+  const jacobian=run.jacobian.filter((_row,index)=>!boundedRows.has(index)).concat(rigidRotationRows);
   const rank = jacobian.length ? rankOf(jacobian) : 0;
   const report = {
     components: cluster.components.map((component) => component.id),
@@ -555,7 +611,7 @@ function solveCluster(cluster, resolvedFrame, settings) {
      mate must not free the component that mate used to move, or an assembly
      would rearrange itself around a mate it had already given up on. */
   const movers = (mates) => {
-    const moved = new Set(mates.map((mate) => mate.b.id));
+    const moved = new Set(mates.flatMap((entry) => entry.mate.type === "lock" ? [entry.a.id, entry.b.id] : [entry.b.id]));
     return cluster.components.filter((component) => moved.has(component.id));
   };
   const tryMates = (mates) => {

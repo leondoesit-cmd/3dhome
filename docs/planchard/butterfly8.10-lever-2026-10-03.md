@@ -39,3 +39,25 @@ Protected accepted exports are `BUTTERFLY-stem-cross-pins-browser-2026-10-03.mfo
 After reloading the performance change, a cold-opened seat's first Save reported `data-exact-save-validation=rebuilt`; repeated Save reported `reused`. Both saves finished clean. Browser timing was inconclusive, so no speedup percentage is claimed.
 
 The completed parts are durable in the library and protected bundles; tabs can close safely after Save. Remaining work is assembly mates/motion/interference and the required ANSI A landscape third-angle exploded drawing with explode lines, BOM, balloons, notes and properties. Full Exercise 8.10 remains incomplete, at printed page 8-45 / PDF page 423.
+
+## Disc rotation clearance and assembled mechanism
+
+Through Chrome rollback controls, inserted a 6 mm equal-distance chamfer on both outer disc rims after the hub boss and before the stem bore. Released the rollback bar, rebuilt both bore cuts, saved, and exported `BUTTERFLY-disc-swept-clearance-chamfer-browser-2026-10-03.mforge`. Nine history entries, one native body, no rebuild issues. The disc is diameter 59.8 mm, symmetric **14 mm** plate thickness, with a symmetric 20 mm hub; an older saved description incorrectly stated 8 mm.
+
+The beveled rim has a maximum swept radius about 29.917 mm, within the seat's 30 mm bore radius. This is geometric clearance for the declared example, not sealing or production qualification. The original large bevel failed after the transverse stem bore; its valid feature order was established by native-kernel diagnosis and then authored through the browser.
+
+Created the seven-component assembly `asm_murpeeoj`, with grounded body, fixed seat, concentric stem, axial alignment, four rotating rigid attachments, and a 0–90 degree plane-angle range. Eight mates, **one rotational degree of freedom**. A saved 15 RPM Y-axis motor drives the stem and attached disc, lever and two pins. Chrome's exact interference checker reported **All visible components / No two components overlap** at 45 and 90 degrees. Returned the motor to time zero and saved.
+
+Seven explode steps separate seat Z+8 cm, disc Z+16 cm, stem Y+18 cm, lever Y+32 cm, disc pin Z+26 cm, and lever pin Y+32 cm then Z+12 cm. Chrome animation reached `Complete · 7 steps`. The protected browser bundle `BUTTERFLY-assembly-motion-explode-browser-2026-10-03.mforge` independently retains all seven steps, the time-zero motor and the committed 0/90 angle limits. Cold library reopening preserves eight mates and one DOF.
+
+Browser acceptance also confirmed the revised motor-only form and centered exploded Fit view, including the previously clipped lever.
+
+## Exercise 8.10 accepted checkpoint
+
+The final native SVG is ANSI A landscape, 279.4 × 215.9 mm, third angle, with an automatically fitted 1:4 isometric exploded view, seven BOM rows, seven balloons, dashed explode leaders, four general notes and the PL-8.10 revision A title block. Chrome visual inspection confirmed that parts, balloons, notes, BOM and title block remain inside the sheet. Component descriptions explicitly retain the corrected 14 mm disc thickness and individual material choices.
+
+Accepted files: `artifacts/planchard/BUTTERFLY-ANSI-A-exploded-browser-2026-10-03.svg`, its `.jpg` browser proof, and `BUTTERFLY-assembly-accepted-browser-2026-10-03.mforge`. After fixing property-dialog/header synchronization, root reloaded Chrome, changed Description through Custom properties, saved the assembly and exported again. Read-only inspection confirms Description `BUTTERFLY VALVE - DESIGNER EXAMPLE`, seven components, one legacy mate plus seven topology mates, seven explode steps, the time-zero motor and 0–90 degree limits. All geometry was authored through browser controls.
+
+Exercise 8.10 is complete as a labeled designer example, at **printed page 8-45 / PDF page 423**. The next exercise is 8.11 Shock on printed 8-46 / PDF 424. The library save and protected bundle make this checkpoint independent of open tabs; closing tabs is safe. Preserve browser storage or recover from the committed native bundle.
+
+Validation: module/link/source checks passed; focused motion, drawing, persistence and browser harness tests passed. The full test run exposed additional pre-existing/native-kernel and stale-harness failures, so full CI is not claimed green. Repairs and follow-up verification are tracked separately.

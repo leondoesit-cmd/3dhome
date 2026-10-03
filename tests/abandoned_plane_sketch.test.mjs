@@ -49,6 +49,6 @@ test("the only sketch is never removed", () => {
 
 test("the editor prunes after a view swaps the sketch and before saving", () => {
   const src = fs.readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
-  assert.match(src, /adoptSketchForView\(\);\n  if \(swapped\) pruneAbandonedSketches\(E\.def\);/);
-  assert.match(src, /pruneAbandonedSketches\(E\.def\);\n  if\(canonical\)rebindReplacedSketchProfiles\(E\.def\);\n  var def = JSON\.parse\(JSON\.stringify\(E\.def\)\);/);
+  assert.match(src, /adoptSketchForView\(\);\r?\n  if \(swapped\) pruneAbandonedSketches\(E\.def\);/);
+  assert.match(src, /pruneAbandonedSketches\(E\.def\);\r?\n  if\(canonical\)rebindReplacedSketchProfiles\(E\.def\);\r?\n  var def = JSON\.parse\(JSON\.stringify\(E\.def\)\);/);
 });

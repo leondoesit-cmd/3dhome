@@ -19,7 +19,7 @@ import {
   ORTHO_VIEWS, cropProjection, isOrthoView, projectSolid, projectionBounds, sectionBodies, viewBasis,
 } from "./core/hidden_line.js";
 
-/* ISO 216 in millimetres, landscape. A sheet is described by the paper it is
+/* ISO and ANSI paper sizes in millimetres, landscape. A sheet is described by the paper it is
    printed on, so the same document prints right on any of them. */
 export const SHEET_SIZES = Object.freeze({
   A4: { w: 297, h: 210, label: "A4" },
@@ -29,6 +29,7 @@ export const SHEET_SIZES = Object.freeze({
   A0: { w: 1189, h: 841, label: "A0" },
   Letter: { w: 279.4, h: 215.9, label: "Letter" },
   Tabloid: { w: 431.8, h: 279.4, label: "Tabloid" },
+  ANSI_C: { w: 558.8, h: 431.8, label: "C (ANSI)" },
 });
 
 /* The scales a drawing is allowed to be at. "Fit" picks from this list rather
@@ -283,9 +284,11 @@ function drawingArea(doc, columnW) {
   const column = Math.max(0, columnW || 0);
   const x1 = frame.x1 - 6 - column;
   const extendsOverTitle = x1 > title.x - 4;
+  const notesBottom = Number(doc.notesBandHeight) > 0
+    ? frame.y1 - Math.max(title.h, Number(doc.notesBandHeight)) - 6 : frame.y1 - 6;
   return {
     x0: frame.x0 + 6, y0: frame.y0 + 6 + (doc.bomRowCount ? 6 + doc.bomRowCount * 6 + 12 : 0),
-    x1, y1: extendsOverTitle ? title.y - 6 : frame.y1 - 6,
+    x1, y1: Math.min(extendsOverTitle ? title.y - 6 : frame.y1 - 6, notesBottom),
     get w() { return this.x1 - this.x0; },
     get h() { return this.y1 - this.y0; },
     column, frame, title,
@@ -450,6 +453,18 @@ function uniquePositive(values) {
    pictorials or sections on top of each other or the principal cluster. */
 function placeAtScale(doc, extents, sheetScale, mustFit) {
   const frame = sheetFrame(doc), title = titleBlockBox(doc);
+  if(doc.assemblyLayout && doc.views.length===1 && /^iso/.test(doc.views[0].dir || "") && doc.views[0].x==null && doc.views[0].y==null) {
+    var view=doc.views[0],size=paperSizeOf(view,extents,doc,sheetScale),area=drawingArea(doc,0);
+    var regions=[area];
+    if(doc.bomRowCount)regions.push({x0:frame.x0+6+title.w+12,y0:frame.y0+6,x1:frame.x1-6,y1:area.y1});
+    var labelHeight=view.labelled!==false ? LABEL_PAD : 0;
+    var region=regions.find(function(box){return size.w<=box.x1-box.x0+.5 && size.h+labelHeight<=box.y1-box.y0+.5;});
+    if(region){
+      var x=(region.x0+region.x1)/2,y=(region.y0+region.y1-labelHeight)/2;
+      return {placements:new Map([[view.id,{x,y,w:size.w,h:size.h,align:null,scale:viewScaleOf(doc,view,sheetScale)}]]),sheetScale,primaryId:view.id,anchor:{x,y}};
+    }
+    if(mustFit || doc.enforceFit)return null;
+  }
   const metrics = clusterMetrics(doc, extents);
   const sizeOf = (view) => paperSizeOf(view, extents, doc, sheetScale);
   const floats = metrics.floating.map((view) => {
@@ -473,7 +488,8 @@ function placeAtScale(doc, extents, sheetScale, mustFit) {
 
   let fallback = null;
   const titleOcc = { x: title.x - 4, y: title.y - 4, w: title.w + 8, h: title.h + 8 };
-  const bounds = { x0: frame.x0 + 6, y0: frame.y0 + 6, x1: frame.x1 - 6, y1: frame.y1 - 6 };
+  const bounds = { x0: frame.x0 + 6, y0: frame.y0 + 6, x1: frame.x1 - 6,
+    y1: frame.y1 - (Number(doc.notesBandHeight) > 0 ? Math.max(title.h, Number(doc.notesBandHeight)) : 0) - 6 };
 
   for (const columnW of columnCandidates) {
     const area = drawingArea(doc, columnW);
@@ -552,7 +568,8 @@ export function fitScale(doc, extents) {
    stacking on the same point once the reserved column runs out. */
 export function layoutViews(doc, extents) {
   const sheetScale = doc.scale === "fit" ? fitScale(doc, extents) : doc.scale;
-  const placed = placeAtScale(doc, extents, sheetScale, false);
+  const placed = placeAtScale(doc, extents, sheetScale, doc.enforceFit===true);
+  if(!placed && doc.enforceFit)throw new Error("Drawing scale does not fit the available sheet. Choose Fit to sheet or a larger sheet size.");
   if (placed) return placed;
   const frame = sheetFrame(doc);
   const primary = doc.views[0];
@@ -1190,6 +1207,24 @@ function exactArcStroke(segment, topologyIndex, basis, toSheet, k, style, viewId
   return null;
 }
 
+/* Actual assembled/exploded world endpoints share the view's geometry mapper.
+   Presentation lines carry no geometry or mate changes. */
+export function explodeLeaderItems(place, leaders) {
+  const basis = place.projection?.basis || viewBasis(place.view.dir);
+  const valid = point => point && [point.x,point.y,point.z].every(Number.isFinite);
+  const items=[];
+  for (const leader of leaders || []) {
+    if (!valid(leader.from) || !valid(leader.to)) continue;
+    const from=place.toSheet(projectToView(leader.from,basis));
+    const to=place.toSheet(projectToView(leader.to,basis));
+    if (Math.hypot(to.x-from.x,to.y-from.y)<1e-7) continue;
+    items.push(line(from.x,from.y,to.x,to.y,"center",{
+      viewId:place.id,explodeLeader:true,componentId:leader.id,
+    }));
+  }
+  return items;
+}
+
 export function buildSheetScene(doc, provider, options = {}) {
   if (provider?.bom?.length) doc = { ...doc, bomRowCount: provider.bom.length };
   const items = [], diagnostics = [];
@@ -1288,6 +1323,10 @@ export function buildSheetScene(doc, provider, options = {}) {
       if (showCenters && round.visible && round.kind === "round") items.push(...centreMark(round, toSheet, k, view.id));
     }
     if (showCenters) items.push(...axisCentrelines(projection.circles || [], toSheet, k, view.id));
+    const explodedView = doc.views.find(item => /^iso/.test(item.dir || ""));
+    const explodeLeaders = (provider?.explodeLines || []).filter(leader =>
+      leader.viewId ? leader.viewId === view.id : view.id === explodedView?.id);
+    items.push(...explodeLeaderItems(record,explodeLeaders));
     /* A detail is bounded by the bubble it was called out with — the reader has
        to see that the geometry stops because the callout does. */
     if (projection.crop) {

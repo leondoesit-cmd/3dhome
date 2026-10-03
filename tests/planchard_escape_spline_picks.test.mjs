@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 // HOUSING step 331: a stray double-click armed the Cubic spline tool with two
 // picks, and two Escapes left the dashed handle following the cursor. Only a
 // tool switch cleared E.splinePts.
-const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 test('Escape abandons half-picked spline points before it drops the tool', () => {
   const start = src.indexOf('if (e.key === "Escape") {\n    /* Before any of the branches that return');
