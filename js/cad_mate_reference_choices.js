@@ -97,3 +97,12 @@ export function mateAlignmentForLockedOrientation(frameA, frameB, transformA, tr
   const wa = world(a, transformA), wb = world(b, transformB);
   return wa.x * wb.x + wa.y * wb.y + wa.z * wb.z >= 0;
 }
+
+/* Datum planes selected through the tree have referencePlane=true; the exact
+   reference chooser stores the same plane:front/top/right persistent IDs but
+   does not carry that UI marker. Respect orientation fixed by existing mates:
+   an Rx180 crankpin really needs Opposed against an unturned bushing. */
+export function defaultTopologyMateAlignment(pickA, pickB, lockedAlignment) {
+  const datum = pick => !!pick?.referencePlane || /^plane:(front|top|right)$/.test(String(pick?.persistentId || ''));
+  return lockedAlignment == null ? datum(pickA) && datum(pickB) : !!lockedAlignment;
+}

@@ -5,6 +5,7 @@ import {parse} from '../vendor/acorn/acorn.mjs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {defaultSketchPlane} from '../js/modeler_workflow.js';
 import {reassignSketchPlane} from '../js/core/sketch_plane_edit.js';
+import {synchronizeSketchExtrusionFrames} from '../js/core/extrusion_projection.js';
 const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function load(name,bindings){return new Function(...Object.keys(bindings),sourceFunctionText(source,name)+';return '+name+';')(...Object.values(bindings));}
 
@@ -27,7 +28,7 @@ test('committing Right to Top updates authored reference, active working frame, 
  const sketchCameraFrame=load('sketchCameraFrame',{E,activeSketchFrame:()=>sketch.frame||null,ensureSketch:()=>sketch,standardPlaneFrame});
  const orientModelToView=load('orientModelToView',{E,sketchCameraFrame});
  const syncCommittedSketchPlane=load('syncCommittedSketchPlane',{E,invalidateSketchProjection:load('invalidateSketchProjection',{E}),syncModelPlane:()=>chip=E.authoring.referenceId,orientModelToView,syncTools:()=>{}});
- const callback=new Function('E','sketch','planeSel','pushUndo','t','reassignSketchPlane','planeLabel','syncCommittedSketchPlane','refreshAll','return '+planeCallback())(E,sketch,{value:'top'},()=>{},x=>x,reassignSketchPlane,x=>x,syncCommittedSketchPlane,()=>refresh++);
+ const callback=new Function('E','sketch','planeSel','pushUndo','t','reassignSketchPlane','planeLabel','synchronizeSketchExtrusionFrames','syncCommittedSketchPlane','refreshAll','return '+planeCallback())(E,sketch,{value:'top'},()=>{},x=>x,reassignSketchPlane,x=>x,synchronizeSketchExtrusionFrames,syncCommittedSketchPlane,()=>refresh++);
  callback();assert.equal(sketch.plane,'top');assert.equal(sketch.referenceId,'plane:top');assert.equal(E.view,'top');assert.equal(E.authoring.referenceId,'plane:top');assert.equal(chip,'plane:top');assert.equal(E.def.activeSketch,'s');assert.equal(E.lastSketchReferenceId,'plane:top');assert.equal(E._proj,undefined);assert.equal(E.drag,null);assert.equal(refresh,1);
  assert.equal(E.def.history[0].name,'top sketch');assert.deepEqual(camera.normal,{x:0,y:1,z:0});assert.deepEqual(camera.yAxis,{x:0,y:0,z:1});assert.equal(JSON.stringify({points:sketch.points,constraints:sketch.constraints}),geometry);
 });

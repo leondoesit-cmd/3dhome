@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { exactMateReferenceChoices, planarMateFaceChoices } from "../js/cad_mate_reference_choices.js";
-import { mateAlignmentForLockedOrientation } from "../js/cad_mate_reference_choices.js";
-import { solveTopologyMates, topologyReference } from "../js/cad_mates.js";
+import { defaultTopologyMateAlignment, mateAlignmentForLockedOrientation } from "../js/cad_mate_reference_choices.js";
+import { captureLockPose, solveTopologyMates, topologyReference } from "../js/cad_mates.js";
 import {createFrameResolver,worldFrame} from '../js/cad_mate_model.js';
 
 test('exact mate chooser exposes real cylinders and circular rims for the book weight-hook mates',()=>{
@@ -100,6 +100,33 @@ test("the third lens and bulb face mate preserves orientation fixed by two plane
   assert.equal(final.unsatisfied.length, 0);
   assert.equal(final.degreesOfFreedom, 0);
   assert.ok(Math.abs(assembly.components[1].transform.z + 5.588) < 1e-5);
+});
+
+test('datum-plane picks from the tree or exact chooser use Aligned until an existing mate fixes orientation', () => {
+ const datum={referencePlane:true}, exactDatum={persistentId:'plane:front'}, face={referencePlane:false};
+ assert.equal(defaultTopologyMateAlignment(datum,datum,null),true);
+ assert.equal(defaultTopologyMateAlignment(exactDatum,exactDatum,null),true);
+ assert.equal(defaultTopologyMateAlignment(datum,exactDatum,null),true);
+ assert.equal(defaultTopologyMateAlignment(datum,datum,false),false);
+ assert.equal(defaultTopologyMateAlignment(exactDatum,exactDatum,false),false);
+ assert.equal(defaultTopologyMateAlignment(face,face,false),false);
+ assert.equal(defaultTopologyMateAlignment(face,face,true),true);
+ const P=(x,y,z)=>({x,y,z});
+ const front={surface:'plane',origin:P(0,0,0),normal:P(0,0,1)};
+ const body={id:'master',grounded:true,transform:P(0,0,0)};
+ const pin={id:'pin',grounded:true,transform:P(0,0,0)};
+ const bushing={id:'bushing',transform:P(0,0,0)};
+ const lock={id:'seat',type:'lock',a:{componentId:'master',kind:'body'},b:{componentId:'bushing',kind:'body'}};
+ captureLockPose(lock,body,bushing);
+ const planeMate={id:'front-seat',type:'distance',value:0,aligned:defaultTopologyMateAlignment(datum,datum,null),
+   a:topologyReference('pin','face','plane:front',front),
+   b:topologyReference('bushing','face','plane:front',front)};
+ const assembly={components:[body,pin,bushing],topologyMates:[lock,planeMate]};
+ bushing.transform.rx=180;
+ const result=solveTopologyMates(assembly);
+ assert.equal(result.unsatisfied.length,0,JSON.stringify(result));
+ assert.ok(Math.abs(bushing.transform.rx)<1e-6 || Math.abs(Math.abs(bushing.transform.rx)-360)<1e-6,
+   JSON.stringify(bushing.transform));
 });
 
 test("removing a conflicting face mate heals two aligned planes from a saved half-turn pose", () => {

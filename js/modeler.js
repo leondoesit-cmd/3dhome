@@ -18,7 +18,7 @@ import {dimensionTargetFromSelection} from './core/sketch_dimension_selection.js
 import {resolveOffsetPlanes, throughVertexBinding, referencePlaneOffset} from './core/offset_planes.js';
 import {revolveThinProfile,thinSketchProfile} from './core/thin_profile.js';
 import {threadPlacementFromFace} from './core/thread_placement.js';
-import { synchronizeExtrusionProjections, extrusionPreviewDirection } from "./core/extrusion_projection.js";
+import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
 import { deduplicateBooleanProjections } from "./core/boolean_projection.js";
 import { rebindReplacedSketchProfiles } from "./core/sketch_profile_rebind.js";
@@ -147,7 +147,8 @@ import { tessellateParts } from "./core/part_tessellate.js";
 import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern, flatPatternSvg } from "./cad_sheet_metal.js";
 import { captureLockPose, mateFrameSupports, mateFramesSupport, mateRequirementFor, solveTopologyMates, topologyReference } from "./cad_mates.js";
-import { exactMateReferenceChoices, mateAlignmentForLockedOrientation, planarMateFaceChoices } from "./cad_mate_reference_choices.js";
+import { defaultTopologyMateAlignment, exactMateReferenceChoices, mateAlignmentForLockedOrientation, planarMateFaceChoices } from "./cad_mate_reference_choices.js";
+import {applyDrivenAssemblyPlacement} from "./core/assembly_placement.js";
 import { draftFaceChoices } from "./core/draft_face_choices.js";
 import { ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, lookupAssemblyComponent, refreshSubassemblyFromRecord, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
 import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds } from "./cad_mate_model.js";
@@ -523,14 +524,14 @@ function assemblyBounds() {
   return Number.isFinite(out.x0) ? out : null;
 }
 
-function applyAssemblyMates(assembly) {
+function applyAssemblyMates(assembly, solveOptions) {
   if (!assembly) return null;
   mateSolveCount++;
   /* The old align/distance mates are part of the system the solver solves —
      they used to be applied by hand at the head of every pass, which is the
      best a solver that placed one component at a time could do. Both kinds now
      settle together because they are solved together. */
-  var result = solveTopologyMates(assembly);
+  var result = solveTopologyMates(assembly, solveOptions);
   var contextResult = updateAssemblyContexts(assembly);
   if (contextResult.issues.length) result.issues.push(...contextResult.issues);
   /* The solver reports missing topology, ambiguous rebinds, frames it could
@@ -673,7 +674,7 @@ function solveAssembly(options) {
      until the document type changed. */
   invalidateInterference();
   var dropped = pruneAssemblyMates(E.assembly);
-  var result = applyAssemblyMates(E.assembly);
+  var result = applyAssemblyMates(E.assembly, options);
   assemblySolveFresh = true;
   if (options && options.quiet) return result;
   var notes = [];
@@ -7100,6 +7101,7 @@ function setTab(id) {
     o.setAttribute("aria-selected", active ? "true" : "false");
   });
   panel.querySelectorAll(".md-pane").forEach(function (p) { p.classList.toggle("on", p.getAttribute("data-pane") === id); });
+  if (id === "lib") scheduleLibThumbs();
   if (id === "hist" && histPanel) histPanel.refresh();
   if (typeof inspectorDirty !== "undefined" && inspectorDirty[id]) {
     fillInspectorTab(id);
@@ -17182,6 +17184,8 @@ function mergeRecordFor(featureId) {
 }
 
 function syncProjectionFromFeature(feature) {
+  if((feature.type==="extrude" || feature.type==="extrudeCut") && feature.params?.sketchId)
+    synchronizeSketchExtrusionFrames(E.def,feature.params.sketchId);
   var changedProjections=transitionExtrudeProjection(E.def,feature);
   if(changedProjections.length){
     if(E.sel && !E.def.parts.includes(E.sel))E.sel=changedProjections[0];
@@ -18670,7 +18674,7 @@ function rollbackBar() {
 
 // bumped on blur so a second visit to the same field is its own history step
 var propGen = 0;
-function numRow(host, label, get, set, step, tourKey) {
+function numRow(host, label, get, set, step, tourKey, deferUntilApply) {
   var w = el("label", "md-grid-cell");
   if (tourKey) w.setAttribute("data-tour-prop", tourKey);
   var span = el("span", "t");
@@ -18681,6 +18685,7 @@ function numRow(host, label, get, set, step, tourKey) {
   inp.step = step || 1;
   inp.value = String(get());
   inp.addEventListener("change", function () {
+    if (deferUntilApply) return;
     var v = parseFloat(inp.value);
     /* One history step per visit to a field, not one per keystroke: the tag
        coalesces while the field stays focused, and blurring it ends the run so
@@ -18696,20 +18701,21 @@ function numRow(host, label, get, set, step, tourKey) {
   host.appendChild(w);
   return inp;
 }
-function numLengthRow(host, label, get, set, step, tourKey) {
+function numLengthRow(host, label, get, set, step, tourKey, deferUntilApply) {
   var unit=modelLengthUnit();
   return numRow(host, label+" ("+unit+")", function () {
     var value=lengthToDocument(get(),unit);
     return Math.abs(value)<1e-9 ? 0 : Number(value.toPrecision(12));
   }, function (value) {
     set(lengthFromDocument(value,unit));
-  }, lengthToDocument(step || 0.1,unit), tourKey);
+  }, lengthToDocument(step || 0.1,unit), tourKey, deferUntilApply);
 }
 
 function addSketchOffsetControl(host,sketchId) {
   var currentOffset=function(){return sketchOffsetValue((E.def.sketches || []).find(function(item){return item.id===sketchId;}));};
   var input=numLengthRow(host,t("sketchOffset"),currentOffset,function(value){
     if(!setSketchOffset(E.def,sketchId,value))return;
+    synchronizeSketchExtrusionFrames(E.def,sketchId);
     invalidateSketchProjection();syncSketchDrivenParts();
     if(isCanonicalAuthoring() && (E.def.features || []).some(function(feature){return feature.params?.sketchId===sketchId || (feature.references?.sketches || []).some(function(ref){return (typeof ref==="string"?ref:ref.id)===sketchId;});}))scheduleExactRestore();
   },0.5);
@@ -18760,7 +18766,22 @@ function assemblyTransformInspector() {
   var nameRow = el("label", "md-row md-row-wide");
   nameRow.appendChild(el("span", "t", t("partName")));
   var name = el("input"); name.type = "text"; name.value = component.name || component.modelKey;
-  name.addEventListener("change", function () { pushUndo(t("partName")); component.name = name.value.slice(0, 80) || component.modelKey; refreshAll(); });
+  var committedName = name.value;
+  function commitComponentName() {
+    var nextName = name.value.slice(0, 80) || component.modelKey;
+    if (nextName === committedName) return;
+    committedName = nextName;
+    pushUndo(t("partName")); component.name = nextName;
+    /* Renaming is metadata-only. Replacing the inspector here discards the
+       six staged placement fields when clicking Apply first blurs the name. */
+    refreshParts(); invalidateDrawing(); syncDirty();
+  }
+  name.addEventListener("change", commitComponentName);
+  name.addEventListener("blur", commitComponentName);
+  name.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter") return;
+    event.preventDefault(); event.stopPropagation(); commitComponentName();
+  });
   nameRow.appendChild(name); host.appendChild(nameRow);
   assemblyBomProperties(host,component);
   if (component.modelKey || isSubassembly(component)) {
@@ -18795,20 +18816,12 @@ function assemblyTransformInspector() {
     }, "md-wide"));
   }
   host.appendChild(el("h5", "md-h5", t("transform")));
-  var grid = el("div", "md-prop-grid"), tr = normalizeTransform(component),placementInputs={};
+  var grid = el("div", "md-prop-grid"), committedPose=cloneData(normalizeTransform(component)),placementDraft=cloneData(committedPose),placementInputs={};
   [["X", "x"], ["Y", "y"], ["Z", "z"], ["RX°", "rx"], ["RY°", "ry"], ["RZ°", "rz"]].forEach(function (pair) {
     var turns = pair[1] !== "x" && pair[1] !== "y" && pair[1] !== "z";
-    placementInputs[pair[1]]=(turns?numRow:numLengthRow)(grid, pair[0], function () { return tr[pair[1]]; }, function (v) {
-      if (!component.grounded) {
-        tr[pair[1]] = v;
-        /* A typed angle is an edit to the orientation, and the orientation is
-           the quaternion. Writing only the mirror would leave `q` describing
-           where the component used to be, and the next normalize — which
-           believes `q` — would put it straight back. */
-        if (turns) setRotation(tr, eulerMatrix(tr));
-      }
-      solveAssembly({ quiet: true });
-    }, 0.1);
+    placementInputs[pair[1]]=(turns?numRow:numLengthRow)(grid, pair[0], function () { return placementDraft[pair[1]]; }, function (v) {
+      placementDraft[pair[1]] = v;
+    }, 0.1, null, true);
   });
   host.appendChild(grid);
   var applyPlacement=btn("Apply placement",function(){
@@ -18816,10 +18829,28 @@ function assemblyTransformInspector() {
     var values={};Object.keys(placementInputs).forEach(function(key){var value=Number(placementInputs[key].value);values[key]=["x","y","z"].includes(key)?lengthFromDocument(value,modelLengthUnit()):value;});
     if(Object.values(values).some(function(value){return !Number.isFinite(value);})){flash("Enter finite placement values.");return;}
     var nextName=name.value.slice(0,80) || component.modelKey;
-    if(nextName===component.name && Object.keys(values).every(function(key){return values[key]===tr[key];}))return;
-    pushUndo("Apply component placement");component.name=nextName;
-    Object.assign(tr,values);setRotation(tr,eulerMatrix(tr));
-    solveAssembly({quiet:true});refreshAll();fitPreview();
+    if(nextName===component.name && Object.keys(values).every(function(key){return values[key]===committedPose[key];}))return;
+    pushUndo("Apply component placement");
+    var beforeName=component.name;
+    var physicalFreedom=E.mateFreedom,physicalDegreesOfFreedom=E.mateDegreesOfFreedom;
+    var beforeMateStatus={issues:E.mateIssues,rebindings:E.mateRebindings,unsatisfied:E.mateUnsatisfied};
+    component.name=nextName;
+    /* A component the user typed is the temporary driver of this solve. It
+       must not be one of the least-squares variables, or a free linkage can
+       compromise its exact entered pose while moving the other members. */
+    var placement=applyDrivenAssemblyPlacement(E.assembly,component,values,function(opts){return solveAssembly({...opts,quiet:true});});
+    if(!placement.ok){
+      component.name=beforeName;
+      E.mateIssues=beforeMateStatus.issues;E.mateRebindings=beforeMateStatus.rebindings;E.mateUnsatisfied=beforeMateStatus.unsatisfied;
+      E.mateFreedom=physicalFreedom;E.mateDegreesOfFreedom=physicalDegreesOfFreedom;
+      refreshAll({assemblyPoseOnly:true});
+      flash("Placement conflicts with assembly mates; previous pose restored.");
+      return;
+    }
+    /* The anchor was only a placement driver, not a saved mate. Keep the
+       physical mobility count from the unchanged mate graph after it leaves. */
+    E.mateFreedom=physicalFreedom;E.mateDegreesOfFreedom=physicalDegreesOfFreedom;
+    refreshAll({assemblyPoseOnly:true});fitPreview();
   },"md-wide");
   applyPlacement.disabled=!!component.grounded;host.appendChild(applyPlacement);
   if (component.grounded) host.appendChild(el("div", "md-note", t("grounded") + " · " + t("constraintDriven")));
@@ -19001,7 +19032,7 @@ function addTopologyMate(type, value) {
     var mate={id:uid(),type:"lock",a:{componentId:pair[0].id,kind:"body"},b:{componentId:pair[1].id,kind:"body"}};
     captureLockPose(mate,pair[0],pair[1]);
     (E.assembly.topologyMates ||= []).push(mate);
-    E.topologySelection=[];solveAssembly();refreshAll();return true;
+    E.topologySelection=[];solveAssembly();refreshAll({assemblyPoseOnly:true});return true;
   }
   if (!E.assembly) { flash(t("mateHint")); return false; }
   if(type==='belt' && !beltMateSpec(value?.diameterA,value?.diameterB,value?.beltDirection)){flash(t('beltInvalid'));return false;}
@@ -19043,8 +19074,8 @@ function addTopologyMate(type, value) {
   E.assembly.topologyMates.push({
     id:uid(), type:type, a:a, b:b,
     c: triple ? mateReferenceFromPick(triple.c) : undefined,
-    // two reference planes mate Aligned, the SOLIDWORKS default for planes
-    aligned: lockedAlignment == null ? !!(picked.a.referencePlane && picked.b.referencePlane) : lockedAlignment,
+    // Datum planes default Aligned until existing mates fix an opposed orientation.
+    aligned: defaultTopologyMateAlignment(picked.a, picked.b, lockedAlignment),
     value: type === "angle" ? clampMateAngle(value) : type === "distance" ? Number(value) : 0,
     pitch: type === "screw" ? 0.125 : undefined,
     turns: type === "screw" ? 0 : undefined,
@@ -19059,7 +19090,7 @@ function addTopologyMate(type, value) {
     beltDirection:type==='belt'?beltSpec.beltDirection:undefined,
   });
   E.topologySelection = [];
-  solveAssembly(); refreshAll();
+  solveAssembly(); refreshAll({assemblyPoseOnly:true});
   return true;
 }
 
@@ -19268,7 +19299,11 @@ function mateRow(host, label, detail, issues, remove, rebound, valueEdit, alignm
     note.title = t("mateRebound");
     row.appendChild(note);
   }
-  row.appendChild(btn('<i class="ph ph-x"></i>', remove, "md-part-x"));
+  var removeButton = btn('<i class="ph ph-x"></i>', remove, "md-part-x");
+  var removeLabel = t("del") + " · " + text.textContent;
+  removeButton.setAttribute("aria-label", removeLabel);
+  removeButton.title = removeLabel;
+  row.appendChild(removeButton);
   host.appendChild(row);
   return row;
 }
@@ -19469,7 +19504,7 @@ function assemblyMateInspectorBody() {
             if (degrees === clampMateAngle(mate.value)) return;
             pushUndo(t("angleMate"));
             mate.value = degrees;
-            solveAssembly(); refreshAll();
+            solveAssembly(); refreshAll({assemblyPoseOnly:true});
           },
         } : mate.type === "distance" ? {
           label: t("topologyDistanceMate") + " (" + modelLengthUnit() + ")",
@@ -19480,7 +19515,7 @@ function assemblyMateInspectorBody() {
             if (!fin(cm) || Math.abs(cm - Number(mate.value || 0)) < 1e-9) return;
             pushUndo(t("topologyDistanceMate"));
             mate.value = cm;
-            solveAssembly(); refreshAll();
+            solveAssembly(); refreshAll({assemblyPoseOnly:true});
           },
         } : null,
         ["coincident", "distance", "limit", "tangent"].includes(mate.type) ? {
@@ -19488,7 +19523,7 @@ function assemblyMateInspectorBody() {
           onToggle: function () {
             pushUndo(t("mateAlignment"));
             mate.aligned = !mate.aligned;
-            solveAssembly(); refreshAll();
+            solveAssembly(); refreshAll({assemblyPoseOnly:true});
           },
         } : null,
         mate.type==="tangent" && [mate.a?.frame?.surface,mate.b?.frame?.surface].includes("torus") ? {
@@ -20175,6 +20210,7 @@ function fillSketchPane() {
       reassignSketchPlane(sketch,{id:principalId,type:"plane"},planeSel.value);
       sketch.name=planeLabel(sketch.plane)+" sketch";
     }
+    synchronizeSketchExtrusionFrames(E.def,sketch.id);
     syncCommittedSketchPlane(sketch);
     refreshAll();
   });
@@ -24450,8 +24486,15 @@ async function recoverLegacyModelerDraft() {
    has usually made it before the list is opened). A picture not made yet is
    filled in a moment later, one per tick, so the list never waits on WebGL. */
 var libThumbQueue = [], libThumbTimer = 0;
+function libraryThumbnailsVisible() {
+  var host = root && root.querySelector("#mdLib"), pane = host && host.closest('.md-pane[data-pane="lib"]');
+  return !!(E.open && !document.hidden && pane && pane.classList.contains("on"));
+}
+function scheduleLibThumbs() {
+  if (libraryThumbnailsVisible() && libThumbQueue.length && !libThumbTimer) libThumbTimer = setTimeout(fillLibThumbs, 0);
+}
 function libThumb(type, icon) {
-  if (type && FURN[type] && hasThumb(type)) {
+  if (libraryThumbnailsVisible() && type && FURN[type] && hasThumb(type)) {
     var url = modelThumb(type);
     if (url) { var img = el("img", "md-card-thumb"); img.src = url; img.alt = ""; return img; }
   }
@@ -24459,13 +24502,15 @@ function libThumb(type, icon) {
   box.appendChild(el("i", "ph " + icon));
   if (type && FURN[type]) {
     libThumbQueue.push({ box: box, type: type });
-    if (!libThumbTimer) libThumbTimer = setTimeout(fillLibThumbs, 0);
+    scheduleLibThumbs();
   }
   return box;
 }
 function fillLibThumbs() {
   libThumbTimer = 0;
+  if (!libraryThumbnailsVisible()) return;
   loadThumbCache().then(function () {
+    if (!libraryThumbnailsVisible()) return;
     var job = libThumbQueue.shift(), wait = 16;
     if (job && job.box.isConnected) {
       var url = modelThumb(job.type);
@@ -24473,7 +24518,7 @@ function fillLibThumbs() {
       // the renderer was still starting (nothing stored): ask again shortly
       else if (!hasThumb(job.type) && (job.tries = (job.tries || 0) + 1) < 40) { libThumbQueue.push(job); wait = 150; }
     }
-    if (libThumbQueue.length) libThumbTimer = setTimeout(fillLibThumbs, wait);
+    if (libThumbQueue.length && libraryThumbnailsVisible()) libThumbTimer = setTimeout(fillLibThumbs, wait);
   });
 }
 
@@ -26665,6 +26710,41 @@ function refreshSelection() {
   else { coreRunFresh = true; refreshAll(); }
 }
 
+/* A mate changes component poses, not their solids. Keep the existing GPU
+   buffers and their topology pick metadata when the viewport still contains
+   exactly this assembly. Missing/extra groups or explode leaders fall back to
+   the ordinary full rebuild. */
+function refreshAssemblyPosePreview() {
+  if(!E.pv?.grp || !E.assembly || E.pv.inRoom)return false;
+  const visible=(E.assembly.components || []).filter(component=>component.visible!==false);
+  const groups=new Map(),overlays=[];
+  for(const child of E.pv.grp.children){
+    if(child===E.pv.liveGrp)continue;
+    if(child.userData?.cadInterference!==undefined){overlays.push(child);continue;}
+    if(child.userData?.cadExplodeLine || child.userData?.cadAssemblyContext)return false;
+    const id=child.userData?.cadComponent;
+    if(id===undefined || groups.has(id))return false;
+    groups.set(id,child);
+  }
+  if(groups.size!==visible.length || visible.some(component=>!groups.has(component.id)))return false;
+  for(const component of visible){
+    const group=groups.get(component.id),tr=normalizeTransform(component),blown=component.explodedOffset;
+    group.position.set(tr.x+(blown?.x||0),tr.y+(blown?.y||0),tr.z+(blown?.z||0));
+    group.rotation.set(tr.rx*Math.PI/180,tr.ry*Math.PI/180,tr.rz*Math.PI/180);
+  }
+  for(const overlay of overlays){
+    overlay.traverse(object=>{
+      object.geometry?.dispose();
+      if(object.material)[].concat(object.material).forEach(material=>material.dispose());
+    });
+    E.pv.grp.remove(overlay);
+  }
+  const box=new THREE.Box3().setFromObject(E.pv.grp);
+  E.pv.pickBounds=box.isEmpty()?null:box.getBoundingSphere(new THREE.Sphere());
+  invalidateDrawing();
+  return true;
+}
+
 /* ================= open / close ================= */
 function refreshAll(options = {}) {
   syncAssemblyContextBar();
@@ -26693,7 +26773,7 @@ function refreshAll(options = {}) {
     refreshParts();
     refreshModelHistoryPane();
     fillInspector();
-    if (selectionOnly) refreshViewportSelection();
+    if (selectionOnly || (options.assemblyPoseOnly && E.docType==="assembly" && refreshAssemblyPosePreview())) refreshViewportSelection();
     else updatePreview();
     drawSketch();
     if (histPanel) histPanel.refresh();
@@ -27026,6 +27106,7 @@ export function closeModeler() {
    Both handlers already no-opped unless E.open, and E.open cannot be true
    before this module has loaded — so nothing is missed by registering late. */
 window.addEventListener("mf-posture", queueModelerChrome);
+document.addEventListener("visibilitychange", scheduleLibThumbs);
 window.addEventListener("resize", queueModelerChrome);
 window.addEventListener("resize", function () {
   if (E.open && E.def) { sizeSketch(); drawSketch(); layout3DHost(); renderPreview(); }

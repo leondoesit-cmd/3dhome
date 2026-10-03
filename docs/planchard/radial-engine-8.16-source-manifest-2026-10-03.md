@@ -45,3 +45,11 @@ Input: [actual browser diagnostic checkpoint](../../artifacts/planchard/RE-assem
 - [Ring and native joint reference report](../../scratch/planchard/RE-69-rings-mates-audit-2026-10-03.json), [complete native interference pair report](../../scratch/planchard/RE-assembly-55-69-interference-audit-2026-10-03.json), [earlier home placement audit](radial-engine-8.16-placement-audit-2026-10-03.md).
 
 Remaining assembly gates: close all guided crank loops, verify one physical driving DOF, cold reopen the solved mechanism, exercise a full native crank cycle with clearance checks, and produce the requested ANSI C exploded drawing. Exercise 8.16 is not yet complete.
+
+## Solved 75-joint checkpoint audit — supersedes diagnostic clearance
+
+The [new actual browser checkpoint](../../artifacts/planchard/RE-assembly-55-75-mates-browser-2026-10-03.mforge) contains all 55 occurrences and 75 native joints. The parent reports zero unresolved joints and one physical DOF. Independent read-only native replay at its saved crank phase **−2.267906474°** finds **zero positive-volume interference pairs** across all fourteen native recipes. Summed solid volume is 960.996474169 cm³. No artifact or app state was changed by this audit.
+
+All five rod bearing-axis distances are 68 mm (maximum numerical deviation 1.42×10⁻¹⁴ mm); wrist/piston XY mismatch is at most 4.2702×10⁻⁷ mm and piston/guide radial-axis offset at most 5.0432×10⁻⁹ mm. All five piston centers retain Z6 mm, and their local Y axes match the five intended radial guide directions to within 8.27×10⁻¹³ in unit-vector length. Rear/front journals retain Rx/Ry0, origin placement, and native Z−32..0 / Z32..48 mm extents. Rear/front cheeks occupy Z−10..0 / Z22..32 mm. This is clearance evidence for this saved phase; a full-cycle audit remains required.
+
+Protected read-only reports: [native pairwise interference](../../scratch/planchard/RE-assembly-55-75-interference-audit-2026-10-03.json), [rod spacing and native guide topology](../../scratch/planchard/RE-assembly-55-75-pose-audit-2026-10-03.json), [rings and native joint references](../../scratch/planchard/RE-75-rings-mates-audit-2026-10-03.json). The earlier 69-joint conflicted pose and its 35 collisions remain preserved as diagnostics, not the current accepted clearance state. Full-cycle motion, cold mechanism acceptance and ANSI C drawing remain pending.

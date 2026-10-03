@@ -1,6 +1,8 @@
 // Keep the editable body's cut/boss recipes on the same support as the exact
 // feature history. A recipe stored at creation time is not a fixed workplane.
 import { alignExtrusionToSupport } from '../cad_feature_tree.js';
+import { resolveProfilePoints } from '../sketch_solver.js';
+import { sketchProfileSegments } from './profile_curves.js';
 
 export function extrusionPreviewDirection(sketch,axis,direction) {
   // Local frame coordinates already carry their oriented normal. World-axis
@@ -9,6 +11,73 @@ export function extrusionPreviewDirection(sketch,axis,direction) {
   const normal=sketch?.frame?.normal;
   const principal=axis==='frame' || !normal ? 1 : Math.sign(normal[axis] || 1);
   return (direction==='reverse'?-1:1)*principal;
+}
+
+// A principal-plane or offset edit changes the extrusion's working frame.
+// Exact compilation already reads that frame from the sketch, but the saved
+// feature extent and lightweight body/merge/cut records must move with it as
+// well. Otherwise an ordinary Depth edit can briefly show (and save) a boss
+// along the sketch's *former* axis while the native rebuild is pending.
+export function synchronizeSketchExtrusionFrames(document, sketchId) {
+  const sketch=(document?.sketches || []).find(item=>item.id===sketchId);
+  if(!sketch)return [];
+  const axis=sketch.frameSpace==='local' && sketch.frame ? 'frame'
+    : sketch.plane==='front' ? 'z' : sketch.plane==='side' ? 'x' : 'y';
+  const frame=axis==='frame' ? structuredClone(sketch.frame) : undefined;
+  const changed=[];
+  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  const assign=(item,key,value)=>{
+    if(value===undefined){if(key in item){delete item[key];return true;}return false;}
+    if(same(item[key],value))return false;
+    item[key]=structuredClone(value);return true;
+  };
+  for(const feature of document.features || []){
+    if(!['extrude','extrudeCut'].includes(feature.type))continue;
+    const references=feature.references?.sketches || [];
+    if(feature.params?.sketchId!==sketchId && !references.some(ref=>(ref?.id || ref)===sketchId))continue;
+    const params=feature.params || (feature.params={});
+    const reverse=params.direction==='reverse' ? -1 : 1;
+    const measured=!['blind','mid-plane',undefined].includes(params.endCondition);
+    const storedSpan=Math.abs((Number(params.to)||0)-(Number(params.from)||0));
+    const depth=(measured ? storedSpan : Math.abs(Number(params.depth))) || storedSpan;
+    const offset=Number(params.offset)||0;
+    const base=(axis==='frame' ? 0 : Number(sketch.offset)||0)+reverse*offset;
+    const symmetric=!!params.symmetric || params.endCondition==='mid-plane';
+    const from=symmetric ? base-reverse*depth/2 : base;
+    const to=symmetric ? base+reverse*depth/2 : base+reverse*depth;
+    let edited=assign(params,'axis',axis) | assign(params,'frame',frame)
+      | assign(params,'from',from) | assign(params,'to',to);
+    // The sketch, not an old face attachment, owns the current support.
+    edited|=assign(params,'support',sketch.support ? structuredClone(sketch.support) : undefined);
+    const profileIds=params.profileEntityIds || feature.references?.profileEntityIds;
+    const points=profileIds?.length ? resolveProfilePoints(sketch,profileIds) : null;
+    const holeIds=params.holeProfileEntityIds || [];
+    const holes=holeIds.map(ids=>resolveProfilePoints(sketch,ids));
+    if(points && 'points' in params)edited|=assign(params,'points',points);
+    if(holes.length && holes.every(Boolean))edited|=assign(params,'holes',holes);
+    for(const part of document.parts || []){
+      const records=[];
+      if(part.featureId===feature.id && part.kind==='ext')records.push({record:part,body:true});
+      for(const record of [...(part.merges3d || []),...(part.cuts3d || [])])
+        if(record.featureId===feature.id)records.push({record,body:false});
+      for(const {record,body} of records){
+        let projectionEdited=assign(record,'axis',axis) | assign(record,'frame',frame)
+          | assign(record,'from',from) | assign(record,'to',to);
+        projectionEdited|=assign(record,'support',sketch.support ? structuredClone(sketch.support) : undefined);
+        if(points){
+          projectionEdited|=assign(record,body?'pts':'loop',points);
+          if(!body)projectionEdited|=assign(record,'segments',sketchProfileSegments(sketch,profileIds));
+        }
+        if(holes.length && holes.every(Boolean)){
+          const next=body ? holes : holes.map((loop,index)=>({points:loop,segments:sketchProfileSegments(sketch,holeIds[index])}));
+          projectionEdited|=assign(record,'holes',next);
+        }
+        if(projectionEdited){delete part.meshData;changed.push(part.id);}
+      }
+    }
+    if(edited)changed.push(feature.id);
+  }
+  return [...new Set(changed)];
 }
 
 export function synchronizeExtrusionProjections(document, compiled, run) {

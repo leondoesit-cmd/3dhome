@@ -2,6 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+test('mate removal exposes its type and occurrence detail to accessibility and keeps callback intact',()=>{
+  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const start=source.indexOf('function mateRow('),end=source.indexOf('\n}',start)+2;
+  const el=tag=>({tag,children:[],attributes:{},appendChild(child){this.children.push(child);},setAttribute(key,value){this.attributes[key]=value;}});
+  const row=vm.runInNewContext(`(${source.slice(start,end)})`,{el,btn:(text,action)=>Object.assign(el('button'),{text,action}),t:key=>key==='del'?'Delete':key});
+  const host=el('div');let removed=0;
+  row(host,'Lock 4','Crank ↔ Piston pin',null,()=>removed++);
+  const button=host.children[0].children.find(node=>node.tag==='button');
+  assert.equal(button.attributes['aria-label'],'Delete · Lock 4 · Crank ↔ Piston pin');
+  assert.equal(button.title,button.attributes['aria-label']);button.action();assert.equal(removed,1);
+  const other=el('div');row(other,'Lock 5','Crank ↔ Rod',null,()=>{});
+  assert.notEqual(other.children[0].children.at(-1).attributes['aria-label'],button.attributes['aria-label']);
+});
 test('Enter commits a listed mate value without relying on browser blur dispatch',()=>{
   const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
   const start=source.indexOf('function mateRow('),end=source.indexOf('\n}',start)+2;
