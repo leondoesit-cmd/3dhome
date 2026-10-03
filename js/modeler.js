@@ -396,7 +396,12 @@ async function refreshLibraryFromOtherTab() {
   // Catalogue normalization adds render defaults. Keep the library snapshot
   // byte-for-byte equal to its stored record for optimistic save baselines.
   models.forEach(function(model){registerCustomModel(cloneData(model));});
-  if(root && E && E.open){refreshCatalogSelect();refreshLib();}
+  if(root && E && E.open){
+    refreshCatalogSelect();refreshLib();
+    // Assembly insertion has its own dropdown outside the saved-model panel.
+    // Redraw names after a shared-library save without replacing occurrences.
+    if(E.docType==="assembly")refreshComponents();
+  }
 }
 if(libraryChannel)libraryChannel.addEventListener("message",function(){refreshLibraryFromOtherTab().catch(function(){});});
 function signalLibraryChange() { if(libraryChannel)libraryChannel.postMessage("changed"); }
@@ -10490,6 +10495,7 @@ function clearMobileSelection() {
   E.ssel = [];
   E.componentSel = [];
   E.topologySelection = [];
+  if (E.authoring) E.authoring.featureSelection = [];
   E.mobileAddSelection = false;
   refreshAll();
 }
@@ -16423,8 +16429,10 @@ function onKey(e) {
     }
     if (E.mode === "3d" && E.modelPlaneActive) { finishModelPlane(); return; }
     if (E.docType === "assembly" && E.componentSel.length) { E.componentSel = []; E.sel = null; refreshAll(); return; }
-    if (E.sel || (E.ssel && E.ssel.length) || (E.topologySelection && E.topologySelection.length)) {
-      E.sel = null; E.ssel = []; E.topologySelection = []; refreshAll(); return;
+    if (E.sel || (E.ssel && E.ssel.length) || (E.topologySelection && E.topologySelection.length) || (E.authoring && E.authoring.featureSelection?.length)) {
+      E.sel = null; E.ssel = []; E.topologySelection = [];
+      if (E.authoring) E.authoring.featureSelection = [];
+      refreshAll(); return;
     }
     // Esc cancels tools and clears selection. It does not close the document —
     // that is what the Close button is for, and it asks when work is unsaved.
@@ -16670,8 +16678,9 @@ function assemblyTreeModel() {
 
   var componentRows = components.map(function (component, index) {
     var def = componentDef(component), sub = isSubassembly(component);
-    var solids = def ? activeParts(def).length : 0;
-    if (hasSingleToolboxKernelRecipe(def,activeParts(def)) && def.features[0].params.kind === "ansi-pan-cross") solids=1;
+    var bodyParts = def ? activeParts(def) : [];
+    var singleToolboxBody = hasSingleToolboxKernelRecipe(def,bodyParts);
+    var solids = singleToolboxBody ? 1 : bodyParts.length;
     var label = componentLabelOf(component);
     if (labelCounts.get(label) > 1) {
       labelSeen.set(label, (labelSeen.get(label) || 0) + 1);
@@ -16680,13 +16689,14 @@ function assemblyTreeModel() {
     /* The component's own solids, so the tree answers "what is inside this"
        without leaving the assembly. They select the component — an assembly
        does not edit a component's geometry in place. */
-    var children = def ? activeParts(def).map(function (part) {
+    var treeBodyParts = singleToolboxBody ? [bodyParts.find(function (part) { return !part.previewOnly; }) || bodyParts[0]] : bodyParts;
+    var children = treeBodyParts.map(function (part) {
       return assemblyTreeNode({
         id: "compbody:" + component.id + ":" + part.id, kind: "body",
-        targetId: component.id, name: part.name || part.kind || t("part"),
+        targetId: component.id, name: singleToolboxBody ? (def.features.find(function (feature) { return !feature.suppressed; }).name || t("part")) : (part.name || part.kind || t("part")),
         icon: "components", can: { select: true },
       });
-    }) : [];
+    });
     /* A sub-assembly lists what it contains; its components are part of one
        rigid body here, so a row selects the sub-assembly itself. */
     if (isSubassembly(component)) children = subassemblyTreeRows(component, component.asm.components, "sub:" + component.id);
@@ -17747,6 +17757,7 @@ function toggleTreeSelection(list, id) {
 
 function selectTreeNode(node, model, event) {
   var additive = !!(event && (event.ctrlKey || event.metaKey)) || E.mobileAddSelection;
+  if (!additive && node.kind !== "feature" && E.authoring) E.authoring.featureSelection = [];
   if (node.kind === "sketch") {
     E.authoring.sketchSelection ||= [];
     if (additive) toggleTreeSelection(E.authoring.sketchSelection, node.targetId);
@@ -17762,6 +17773,7 @@ function selectTreeNode(node, model, event) {
     if (additive) toggleTreeSelection(E.authoring.featureSelection, node.targetId);
     else {
       E.authoring.featureSelection = [node.targetId];
+      E.topologySelection = [];
       E.sel = (E.def.parts || []).find(function (item) {
         return item.featureId === node.targetId || item.derivedFeatureId === node.targetId
           || cutTargetFeatureId(item) === node.targetId;
@@ -19649,6 +19661,12 @@ function topologySelectionFeature() {
   }) || null;
 }
 
+function inspectorHistoryFeature() {
+  var ids = E.authoring && E.authoring.featureSelection || [];
+  if (ids.length !== 1) return null;
+  return (E.def.features || []).find(function (feature) { return feature.id === ids[0]; }) || null;
+}
+
 function fillInspector() {
   if (E.docType === "assembly") {
     assemblyTransformInspector();
@@ -19661,8 +19679,8 @@ function fillInspector() {
     return;
   }
   var nm = root.querySelector("#mdSelName"), topologyCount = (E.topologySelection || []).length;
-  var ownerFeature = topologyCount ? topologySelectionFeature() : null;
-  if (nm) nm.textContent = E.sel ? ((ownerFeature && (ownerFeature.name || ownerFeature.type)) || E.sel.name || E.sel.kind || E.sel.type || t("sketch")) + (topologyCount ? " · " + topologyCount + " " + (E.topologySelection[0].kind || "reference") + (topologyCount === 1 ? "" : "s") + " selected" : "") : "";
+  var ownerFeature = inspectorHistoryFeature() || (topologyCount ? topologySelectionFeature() : null);
+  if (nm) nm.textContent = (E.sel || ownerFeature) ? ((ownerFeature && (ownerFeature.name || ownerFeature.type)) || E.sel.name || E.sel.kind || E.sel.type || t("sketch")) + (topologyCount ? " · " + topologyCount + " " + (E.topologySelection[0].kind || "reference") + (topologyCount === 1 ? "" : "s") + " selected" : "") : "";
 
   inspectorDirty.sketch = true;
   inspectorDirty.shape = true;
@@ -19709,12 +19727,13 @@ function fillShape() {
   host.innerHTML = "";
   fillCabinetParameters(host);
   var p = E.sel;
-  if (!p) { if (!E.def.metadata || E.def.metadata.adapter !== "cabinet") emptyState(host, "ph-cursor-click", t("noSel"), t("noSelHint")); return; }
+  var historyFeature = isCanonicalAuthoring() ? inspectorHistoryFeature() : null;
+  if (!p && !historyFeature) { if (!E.def.metadata || E.def.metadata.adapter !== "cabinet") emptyState(host, "ph-cursor-click", t("noSel"), t("noSelHint")); return; }
 
   // Generated solids are read-only projections in a canonical document. The
   // editable source of truth is the feature definition in design history.
-  if (isCanonicalAuthoring() && p.kind && !p.type) {
-    var pickedFeature=topologySelectionFeature();
+  if (isCanonicalAuthoring() && (historyFeature || (p.kind && !p.type))) {
+    var pickedFeature=historyFeature || topologySelectionFeature();
     var featureId=pickedFeature ? pickedFeature.id : (p.derivedFeatureId || p.featureId);
     var feature=(E.def.features || []).find(function(item){return item.id===featureId;});
     if(feature){
@@ -22210,6 +22229,7 @@ function pickAssemblyComponent(event, view) {
   if (E.tool === "paint") { pickPaintAction(event, view); return; }
   if (E.tool === "note" && (!E.noteMode || E.noteMode === "callout")) { pickNoteAction(event, view); return; }
   if (E.docType === "part") {
+    if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !E.mobileAddSelection && E.authoring) E.authoring.featureSelection = [];
     var found = resolveTopologyPick(event, view, { prefer: commandSelectionPrefer() }) || {};
     if (found.helixId && !E.facePick) {
       if(found.helixId.indexOf("plane:")===0){
@@ -25724,6 +25744,17 @@ function createDefaultExplodedView() {
 }
 
 let explodedPlaybackStop = null;
+function createEmptyExplodedView() {
+  if (E.docType !== "assembly" || !E.assembly) return;
+  if (explodedPlaybackStop) explodedPlaybackStop();
+  pushUndo("New exploded view");
+  var view=createExplodedView(E.assembly,"Exploded View " + ((E.assembly.explodedViews || []).length + 1));
+  E.assembly.activeExplodedView=view.id;
+  applyExplodedView(E.assembly,null);
+  refreshAll();fitPreview();syncHead();
+  openExplodedPlayback();
+}
+
 function openExplodedPlayback() {
   if(explodedPlaybackStop)explodedPlaybackStop();
   const assembly=E.assembly;
@@ -25768,6 +25799,7 @@ function openExplodedPlayback() {
   actions.appendChild(btn("Stop",()=>{stop();status.textContent="Paused · "+Math.round(progress*100)+"%";}));
   actions.appendChild(btn("Reset",()=>{stop();progress=0;update();}));
   actions.appendChild(btn("Close",()=>{stop();host.innerHTML="";E.quickAction=null;closeFeaturePanel();refreshAll();}));
+  actions.appendChild(btn("New exploded view",()=>{if(E.assembly===assembly)createEmptyExplodedView();}));
 }
 
 
@@ -25825,6 +25857,11 @@ function createDefaultMotionStudy() {
       {key:"reciprocate",label:t("motionReciprocate"),type:"boolean",value:motor?.reciprocate??false}
       ] : [{key:"rpm",label:t("motionRPM"),type:"number",value:motor?.rpm??12,step:1}]),
       ...(motorType==="screw"?[]:[{key:"motorAxis",label:t("motionMotorAxis"),type:"select",value:axisName(motor?.axis),choices:axisChoices(motor?.axis)}]),
+      ...(motorType==="rotary" ? [
+      {key:"pivotX",label:"Pivot X (local)",type:"number",unit:"length",value:motor?.pivot?.x??0,step:.1},
+      {key:"pivotY",label:"Pivot Y (local)",type:"number",unit:"length",value:motor?.pivot?.y??0,step:.1},
+      {key:"pivotZ",label:"Pivot Z (local)",type:"number",unit:"length",value:motor?.pivot?.z??0,step:.1}
+      ] : []),
       ...(motorType==="rotary" && relationId!=="none" ? [
       {key:"driver",label:t("motionDriver"),type:"select",value:driver,choices},
       {key:"follower",label:t("motionFollower"),type:"select",value:relation?.followerId||components.find(c=>c.id!==driver)?.id||driver,choices},
@@ -25868,7 +25905,12 @@ function createDefaultMotionStudy() {
         if(!selectedScrewMate){flash("Choose a coupled Screw mate");return false;}
         if(target.gearRelations?.length){flash(t("linearGearConflict"));return false;}
         if(target.motors.length)Object.assign(target.motors[0],{type:"screw",mateId:v.screwMate,rpm:v.rpm});else addScrewMotor(target,v.screwMate,v.rpm);
-      }else if(target.motors.length)Object.assign(target.motors[0],{type:"rotary",componentId:v.motor,rpm:v.rpm,axis:axis(v.motorAxis,motor?.axis)});else addRotaryMotor(target,v.motor,v.rpm,axis(v.motorAxis,motor?.axis));
+      }else {
+        const pivot={x:v.pivotX??0,y:v.pivotY??0,z:v.pivotZ??0};
+        if(!Object.values(pivot).every(Number.isFinite)){flash("Enter finite local pivot coordinates");return false;}
+        if(target.motors.length)Object.assign(target.motors[0],{type:"rotary",componentId:v.motor,rpm:v.rpm,axis:axis(v.motorAxis,motor?.axis),pivot});
+        else addRotaryMotor(target,v.motor,v.rpm,axis(v.motorAxis,motor?.axis),pivot);
+      }
       if(motorType==="rotary" && relationId!=="none"){
         target.gearRelations=(target.gearRelations||[]).filter(r=>r.id!==relationId);
         if(!v.remove)addGearRelation(target,v.driver,v.follower,{driverTeeth:v.driverTeeth,followerTeeth:v.followerTeeth,mesh:v.mesh,driverAxis:axis(v.driverAxis,relation?.driverAxis),followerAxis:axis(v.followerAxis,relation?.followerAxis)});
@@ -26161,10 +26203,13 @@ function showAssemblyDrawingSettings(focusNotes) {
   var output = el("button", "", "Export drawing SVG");
   output.type = "button";
   output.onclick = function() { apply(); exportDrawingSvg(); dialog.close(); };
+  var preview = el("button", "", "Preview drawing");
+  preview.type = "button";
+  preview.onclick = function() { apply(); if(showDrawingPreview())dialog.close(); };
   var cancel = el("button", "", "Cancel");
   cancel.type = "button";
   cancel.onclick = function() { dialog.close(); };
-  dialog.append(save, output, cancel);
+  dialog.append(save, preview, output, cancel);
   dialog.addEventListener("close", function() { dialog.remove(); }, { once:true });
   root.appendChild(dialog);
   dialog.showModal();
@@ -26184,20 +26229,56 @@ async function exportThreeMfDocument(settings,format,unqualifiedDraft) {
   } catch(error) {flash(format.toUpperCase()+" export failed: "+String(error.message || error),6000);}
 }
 
-function exportDrawingSvg() {
-  if(rejectFlexibleSpringPreview())return;
+function drawingSvgContent() {
   var svg;
   if (E.docType === "assembly" && E.assembly) {
     var sheet = assemblyDrawingDocument();
-    if (!sheet.def.parts.length) { flash(t("noComponents")); return; }
+    if (!sheet.def.parts.length) throw new Error(t("noComponents"));
     sheet.def.customProperties = E.assembly.customProperties || {};
-    try { svg = sceneToSvg(buildDrawingScene(sheet.def, { requireFit:true, ...(E.assembly.drawingSettings || {}), balloons: sheet.balloons, balloonTargets: sheet.targets, explodeLines: assemblyExplodeLines(), overallDimensions: false, views: ["iso"], title: E.assembly.drawingSettings?.title || E.assembly.name, useStored: false })); } catch(error) { flash(String(error.message || error),6000);return; }
+    svg = sceneToSvg(buildDrawingScene(sheet.def, { requireFit:true, ...(E.assembly.drawingSettings || {}), balloons: sheet.balloons, balloonTargets: sheet.targets, explodeLines: assemblyExplodeLines(), overallDimensions: false, views: ["iso"], title: E.assembly.drawingSettings?.title || E.assembly.name, useStored: false }));
   } else if (E.mode === "drawing" || (E.def && E.def.drawing)) svg = drawingSheet().svg();
   else svg = sceneToSvg(buildDrawingScene(E.def, { section: true, holeCallouts: true, useStored: false }));
+  return svg;
+}
+
+function drawingSvgFilename() {
+  return ((E.docType === "assembly" && E.assembly ? E.assembly.name : E.def && E.def.name) || "drawing").replace(/[^a-z0-9_-]+/gi, "_") + ".svg";
+}
+
+function showDrawingPreview() {
+  if(rejectFlexibleSpringPreview())return false;
+  var svg;
+  try { svg = drawingSvgContent(); } catch(error) { flash(String(error.message || error),6000);return false; }
+  root.querySelector("#mdDrawingPreviewDialog")?.remove();
+  var dialog=document.createElement("dialog");
+  dialog.id="mdDrawingPreviewDialog";
+  dialog.setAttribute("aria-label","Drawing preview");
+  dialog.style.cssText="width:min(94vw,110rem);max-width:94vw;max-height:92vh;overflow:auto;border-radius:12px;padding:1rem";
+  dialog.appendChild(el("h2","","Drawing preview"));
+  var sheet=el("div","md-drawing-preview");
+  // Only the app's SVG writer supplies this markup. This is the exact exported
+  // sheet, including its paper dimensions, title block, BOM and notes.
+  sheet.innerHTML=svg;
+  var rendered=sheet.querySelector("svg");
+  if(rendered){rendered.style.width="100%";rendered.style.height="auto";rendered.setAttribute("aria-label","Drawing sheet");}
+  var url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));
+  var download=el("a","btn","Download SVG");
+  download.href=url;download.download=drawingSvgFilename();
+  var close=el("button","","Close preview");close.type="button";close.onclick=function(){dialog.close();};
+  dialog.append(download,close,sheet);
+  dialog.addEventListener("close",function(){URL.revokeObjectURL(url);dialog.remove();},{once:true});
+  root.appendChild(dialog);dialog.showModal();
+  return true;
+}
+
+function exportDrawingSvg() {
+  if(rejectFlexibleSpringPreview())return;
+  var svg;
+  try { svg = drawingSvgContent(); } catch(error) { flash(String(error.message || error),6000);return; }
   var blob = new Blob([svg], { type: "image/svg+xml" });
   var link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = ((E.docType === "assembly" && E.assembly ? E.assembly.name : E.def && E.def.name) || "drawing").replace(/[^a-z0-9_-]+/gi, "_") + ".svg";
+  link.download = drawingSvgFilename();
   link.click();
   setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
   flash(t("drawExported"));

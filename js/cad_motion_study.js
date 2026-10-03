@@ -1,13 +1,30 @@
 // Motion Study Timeline & Motor Simulation for Assemblies.
 
 import {solveAssemblyMates} from "./cad_mate_solver.js";
-import { axisAngleMatrix, mul, setRotation } from "./cad_mate_model.js";
+import { axisAngleMatrix, mul, setRotation, apply } from "./cad_mate_model.js";
 
 import {gearMotionState} from "./cad_gear_motion.js";
 import {linearMotionState} from "./cad_linear_motion.js";
 import {prepareBeltMotorTurns} from './cad_belt_motion.js';
 export {addLinearMotor} from "./cad_linear_motion.js";
 export {addGearRelation} from "./cad_gear_motion.js";
+
+// A study starts from a whole assembly pose. The motor's own base rotation is
+// insufficient: an unconstrained wrist can inherit the pose left by a prior
+// study even when that prior timeline is sought back to zero. Keep this inside
+// baseRotations so the existing Reset zero and gear-phase reset also clear it.
+const ASSEMBLY_POSES = '__assemblyPoses';
+const snapshotPoses = components => (components || []).map(component => ({
+  id: component.id, transform: structuredClone(component.transform || {}),
+}));
+function restoreStudyPose(study, components) {
+  study.baseRotations ||= {};
+  study.baseRotations[ASSEMBLY_POSES] ||= snapshotPoses(components);
+  const baseline = new Map(study.baseRotations[ASSEMBLY_POSES].map(item => [item.id, item.transform]));
+  for (const component of components) {
+    if (baseline.has(component.id)) component.transform = structuredClone(baseline.get(component.id));
+  }
+}
 
 export function createMotionStudy(assembly, name = "MotionStudy1") {
   if (!assembly.motionStudies) assembly.motionStudies = [];
@@ -16,18 +33,20 @@ export function createMotionStudy(assembly, name = "MotionStudy1") {
     name,
     duration: 10, // seconds
     motors: [],
+    baseRotations: { [ASSEMBLY_POSES]: snapshotPoses(assembly.components) },
   };
   assembly.motionStudies.push(ms);
   return ms;
 }
 
-export function addRotaryMotor(motionStudy, componentId, rpm = 60, axis = { x: 0, y: 1, z: 0 }) {
+export function addRotaryMotor(motionStudy, componentId, rpm = 60, axis = { x: 0, y: 1, z: 0 }, pivot) {
   const motor = {
     id: "motor_" + crypto.randomUUID(),
     type: "rotary",
     componentId,
     rpm,
     axis,
+    ...(pivot !== undefined ? { pivot: { ...pivot } } : {}),
   };
   motionStudy.motors.push(motor);
   return motor;
@@ -46,6 +65,7 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   // Solve on a copy so failed mates never publish a partially moved assembly.
   const trial={...assembly,components:(assembly.components||[]).map(c=>({...c,transform:structuredClone(c.transform||{})})),mates:structuredClone(assembly.mates||[]),topologyMates:structuredClone(assembly.topologyMates||[])};
   const ms=structuredClone(original),driven=new Set();
+  restoreStudyPose(ms,trial.components);
   if(trial.topologyMates.some(m=>m.type==='belt' && !Number.isFinite(m.rollA0))){
     const captured=solveAssemblyMates(trial);if(!captured.ok)return captured;
   }
@@ -78,7 +98,20 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   if(linear.motions.some(item=>motion.motions.some(rot=>rot.componentId===item.componentId)))return {ok:false,issues:[{code:'conflicting-motion-motors'}]};
   for(const item of motion.motions){
     const comp=trial.components.find(c=>c.id===item.componentId);driven.add(comp.id);
-    setRotation(comp.transform,mul(axisAngleMatrix(item.axis,(item.angleDeg%360)*Math.PI/180),item.baseRotation));
+    const rotation=mul(axisAngleMatrix(item.axis,(item.angleDeg%360)*Math.PI/180),item.baseRotation);
+    const motor=ms.motors.find(m=>m.type==='rotary'&&m.componentId===comp.id);
+    if(motor?.pivot !== undefined){
+      if(!['x','y','z'].every(key=>Number.isFinite(motor.pivot?.[key])))
+        return {ok:false,issues:[{code:'invalid-motion-pivot',motorId:motor.id}]};
+      motor.basePosition ||= {x:comp.transform.x||0,y:comp.transform.y||0,z:comp.transform.z||0};
+      if(!['x','y','z'].every(key=>Number.isFinite(motor.basePosition[key])))
+        return {ok:false,issues:[{code:'invalid-motion-baseline',motorId:motor.id}]};
+      // Keep the chosen local point fixed in world space. A hinge can lie far
+      // from the document origin; rotating orientation alone would unseat it.
+      const before=apply(item.baseRotation,motor.pivot),after=apply(rotation,motor.pivot);
+      for(const key of ['x','y','z'])comp.transform[key]=motor.basePosition[key]+before[key]-after[key];
+    }
+    setRotation(comp.transform,rotation);
   }
   for(const item of linear.motions){
     const comp=trial.components.find(c=>c.id===item.componentId);driven.add(comp.id);
@@ -88,14 +121,13 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   if(unsupported)return {ok:false,issues:[{code:'unsupported-motion-mate',mate:unsupported.id}]};
   let result;
   if(screwMotions.length){
-    // A linkage has several pose branches. Advance a helical motor in small
-    // turn increments so a seek from closed to open follows the same branch
-    // as playback, including across complete revolutions of the shaft.
-    const prior=Number.isFinite(original.time)?original.time:0;
-    const largest=Math.max(...screwMotions.map(m=>Math.abs(m.rpm*(timeInSeconds-prior)/60)));
-    const steps=Math.max(1,Math.ceil(largest/0.25));
-    for(let step=1;step<=steps;step++){
-      const at=prior+(timeInSeconds-prior)*step/steps;
+    // Every seek starts from this study's saved whole-assembly pose. Walk a
+    // helical linkage forward in small steps from that pose; using the last
+    // seek time with a restored home pose would jump branches on repeat seeks.
+    const largest=Math.max(...screwMotions.map(m=>Math.abs(m.rpm*timeInSeconds/60)));
+    const steps=Math.ceil(largest/0.25);
+    for(let step=0;step<=steps;step++){
+      const at=steps?timeInSeconds*step/steps:0;
       for(const item of screwMotions){
         trial.topologyMates.find(m=>m.id===item.mateId).driveTurns=item.baseTurns+item.rpm*at/60;
       }

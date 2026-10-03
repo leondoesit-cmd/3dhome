@@ -17,7 +17,7 @@ export function setGearMatePhase(assembly,mateId,degrees){
   if(!result.ok)return result;
   for(const study of trial.motionStudies){
     delete study.baseRotations;
-    for(const motor of study.motors||[])delete motor.baseRotation;
+    for(const motor of study.motors||[]){delete motor.baseRotation;delete motor.basePosition;}
     study.time=0;
   }
   return {...result,assembly:trial};

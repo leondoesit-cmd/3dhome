@@ -1,0 +1,1271 @@
+{
+  "provenance": "Fresh browser-authored Planchard Exercise 8.15 assembly, 23 mates, 18 occurrences; joint frames only",
+  "components": [
+    {
+      "id": 3388,
+      "name": "Planchard 8.15 - WA01 pedestal - fresh designer example 2026-10-03",
+      "grounded": true,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3389,
+      "name": "Planchard 8.15 - Welder arm Base2 yaw shoulder - fresh example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3390,
+      "name": "Planchard 8.15 - WA03 pitch housing - fresh designer example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 8.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3391,
+      "name": "Planchard 8.15 - WA04 wrist rotor - fresh designer example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 8.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3392,
+      "name": "Planchard 8.15 - WA05 midpiece - fresh designer example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 8.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3393,
+      "name": "Planchard 8.15 - WA06 Fixture - fresh designer example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 8.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3394,
+      "name": "Planchard 8.15 - WA08 holder - fresh designer example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 8.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3395,
+      "name": "Planchard 8.15 - WA09 pivot jaw - fresh designer example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 8.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3396,
+      "name": "Planchard 8.15 - WA09 pivot jaw - fresh designer example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 8.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 180,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 3397,
+      "name": "Planchard 8.15 - WA11 Jaw pivot screw - fresh designer proxy 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 6.3,
+        "y": 20,
+        "z": 1.8,
+        "rx": 0,
+        "ry": 0,
+        "rz": -89.99999999999997,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.7071067811865474,
+          "w": 0.7071067811865478
+        }
+      }
+    },
+    {
+      "id": 3398,
+      "name": "Planchard 8.15 - WA11 Jaw pivot screw - fresh designer proxy 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 6.3,
+        "y": 20,
+        "z": -1.8,
+        "rx": 0,
+        "ry": 0,
+        "rz": -89.99999999999997,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.7071067811865474,
+          "w": 0.7071067811865478
+        }
+      }
+    },
+    {
+      "id": 3399,
+      "name": "Planchard 8.15 - WA12 M5x40 support screw - fresh designer proxy 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 7,
+        "y": 17.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3400,
+      "name": "Planchard 8.15 - WA12 M5x40 support screw - fresh designer proxy 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 10,
+        "y": 17.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3423,
+      "name": "Planchard 8.15 - WA07 jaw support - fresh designer example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 7,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3424,
+      "name": "Planchard 8.15 - WA07 jaw support - fresh designer example 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 10,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3426,
+      "name": "Planchard 8.15 - WA10 M4x20 fixture screw - fresh proxy 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 9.279422863,
+        "y": 16.5,
+        "z": 0.45,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3427,
+      "name": "Planchard 8.15 - WA10 M4x20 fixture screw - fresh proxy 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 7.720577137,
+        "y": 16.5,
+        "z": 0.45,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 3428,
+      "name": "Planchard 8.15 - WA10 M4x20 fixture screw - fresh proxy 2026-10-03",
+      "grounded": false,
+      "transform": {
+        "x": 8.5,
+        "y": 16.5,
+        "z": -0.9,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    }
+  ],
+  "mates": [],
+  "topologyMates": [
+    {
+      "id": 3429,
+      "type": "concentric",
+      "a": {
+        "componentId": 3388,
+        "kind": "axis",
+        "persistentId": "axis:feature_muse6d9i_3:tool:face:side:3310",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 8.3,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3389,
+        "kind": "axis",
+        "persistentId": "axis:feature_musejw1t_1:face:generated:cylinder:1",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 3430,
+      "type": "distance",
+      "a": {
+        "componentId": 3388,
+        "kind": "face",
+        "persistentId": "feature_muse6d9i_3:tool:face:end",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": -6.264279218805126e-17,
+            "y": 10.3,
+            "z": 2.220446049250313e-16
+          },
+          "normal": {
+            "x": 2.630385822409662e-32,
+            "y": 1,
+            "z": 4.565167275584559e-32
+          }
+        }
+      },
+      "b": {
+        "componentId": 3389,
+        "kind": "face",
+        "persistentId": "feature_musejw1t_1:face:end",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": -2.073302468206051e-16,
+            "y": 2,
+            "z": -4.440892098500626e-16
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        }
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 3431,
+      "type": "concentric",
+      "a": {
+        "componentId": 3389,
+        "kind": "axis",
+        "persistentId": "axis:feature_muser2cr_2:tool:face:side:3320",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 6.46570969191299,
+            "y": 0,
+            "z": 0
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3390,
+        "kind": "axis",
+        "persistentId": "axis:feature_musemh6q_1:face:generated:cylinder:1",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 3432,
+      "type": "distance",
+      "a": {
+        "componentId": 3389,
+        "kind": "face",
+        "persistentId": "feature_muser2cr_2:tool:face:end",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 10.5,
+            "y": 4.3151246464923095e-17,
+            "z": -4.440892098500626e-16
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3390,
+        "kind": "face",
+        "persistentId": "feature_musemh6q_1:face:end",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 2,
+            "y": 1.406380148404683e-16,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 3433,
+      "type": "concentric",
+      "a": {
+        "componentId": 3390,
+        "kind": "axis",
+        "persistentId": "axis:feature_museqatt_2:tool:face:generated:cylinder:1",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 4.171542502970084,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3391,
+        "kind": "axis",
+        "persistentId": "axis:feature_muselng6_1:face:side:3313",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 4,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 3434,
+      "type": "distance",
+      "a": {
+        "componentId": 3390,
+        "kind": "face",
+        "persistentId": "feature_museqatt_2:tool:face:end",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": -2.529947521132905e-16,
+            "y": 6,
+            "z": 4.440892098500626e-16
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3391,
+        "kind": "face",
+        "persistentId": "feature_musenf6m_2:tool:face:start",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": -1.7743949068203516e-16,
+            "y": 6,
+            "z": 2.220446049250313e-16
+          },
+          "normal": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 3435,
+      "type": "lock",
+      "a": {
+        "componentId": 3392,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3391,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3436,
+      "type": "lock",
+      "a": {
+        "componentId": 3393,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3392,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3437,
+      "type": "lock",
+      "a": {
+        "componentId": 3394,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3393,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3438,
+      "type": "lock",
+      "a": {
+        "componentId": 3423,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3394,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 1.5,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3439,
+      "type": "lock",
+      "a": {
+        "componentId": 3424,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3394,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": -1.5,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3440,
+      "type": "lock",
+      "a": {
+        "componentId": 3397,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3423,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 11.7,
+          "y": 0.6999999999999967,
+          "z": -1.8
+        },
+        "rotation": [
+          [
+            2.220446049250313e-16,
+            -1,
+            0
+          ],
+          [
+            1,
+            2.220446049250313e-16,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3441,
+      "type": "lock",
+      "a": {
+        "componentId": 3398,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3424,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 11.7,
+          "y": 3.6999999999999966,
+          "z": 1.8
+        },
+        "rotation": [
+          [
+            2.220446049250313e-16,
+            -1,
+            0
+          ],
+          [
+            1,
+            2.220446049250313e-16,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3442,
+      "type": "lock",
+      "a": {
+        "componentId": 3399,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3423,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": -9.2,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3443,
+      "type": "lock",
+      "a": {
+        "componentId": 3400,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3424,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": -9.2,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3444,
+      "type": "lock",
+      "a": {
+        "componentId": 3426,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3394,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": -0.7794228634000007,
+          "y": -8.2,
+          "z": -0.45
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3445,
+      "type": "lock",
+      "a": {
+        "componentId": 3427,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3394,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0.7794228634000007,
+          "y": -8.2,
+          "z": -0.45
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3446,
+      "type": "lock",
+      "a": {
+        "componentId": 3428,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 3394,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": -8.2,
+          "z": 0.9
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3447,
+      "type": "concentric",
+      "a": {
+        "componentId": 3423,
+        "kind": "axis",
+        "persistentId": "axis:feature_musfxtda_2:tool:face:generated:cylinder:1",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 11.7,
+            "z": 1.8
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3395,
+        "kind": "axis",
+        "persistentId": "axis:feature_musfbuwj_5:tool:face:generated:cylinder:1",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 11.700000000000001,
+            "z": 1.8
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 3448,
+      "type": "distance",
+      "a": {
+        "componentId": 3423,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3395,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": true,
+      "value": 1.5
+    },
+    {
+      "id": 3449,
+      "type": "concentric",
+      "a": {
+        "componentId": 3423,
+        "kind": "axis",
+        "persistentId": "axis:feature_musfxtda_2:tool:face:side:3416",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 11.7,
+            "z": -1.8
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3396,
+        "kind": "axis",
+        "persistentId": "axis:feature_musfbuwj_5:tool:face:generated:cylinder:1",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 11.700000000000001,
+            "z": 1.8
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 3450,
+      "type": "distance",
+      "a": {
+        "componentId": 3423,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3396,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 1.5
+    },
+    {
+      "id": 3451,
+      "type": "gear",
+      "a": {
+        "componentId": 3395,
+        "kind": "axis",
+        "persistentId": "axis:feature_musfbuwj_5:tool:face:generated:cylinder:1",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 11.700000000000001,
+            "z": 1.8
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 3396,
+        "kind": "axis",
+        "persistentId": "axis:feature_musfbuwj_5:tool:face:generated:cylinder:1",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 11.700000000000001,
+            "z": 1.8
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 0,
+      "ratioA": 1,
+      "ratioB": 1,
+      "reverse": true,
+      "rollA0": 0,
+      "rollB0": 0
+    }
+  ]
+}

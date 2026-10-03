@@ -76,7 +76,7 @@ test('plain rotary motion shows motor controls, and gear editing exposes only re
   vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
   assert.equal(form.hint,'rotaryMotionHint');
   assert.equal(form.fields.find(f=>f.key==='relation').choices[0].label,'motionMotorOnly');
-  assert.deepEqual(Array.from(form.fields,f=>f.key),['study','name','motorType','relation','motor','rpm','motorAxis','time']);
+  assert.deepEqual(Array.from(form.fields,f=>f.key),['study','name','motorType','relation','motor','rpm','motorAxis','pivotX','pivotY','pivotZ','time']);
   assert.equal(await form.onApply({motor:'1',rpm:5,motorAxis:'y',time:1,study:'new',relation:'none'}),true);
   assert.equal((assembly.motionStudies[0].gearRelations || []).length,0);
   assert.ok(Math.abs(assembly.components[0].transform.ry-30)<1e-8);

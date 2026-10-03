@@ -47,7 +47,7 @@ function gears(teethA, teethB, reverse = false) {
 
 test('gear phase reindexes teeth while preserving ratio and resetting the timeline zero pose',()=>{
   const assembly=gears(20,40);solveTopologyMates(assembly);
-  const study=createMotionStudy(assembly);addRotaryMotor(study,'gearA',5,{x:0,y:0,z:1});
+  const study=createMotionStudy(assembly);addRotaryMotor(study,'gearA',5,{x:0,y:0,z:1},{x:0,y:0,z:0});
   addGearRelation(study,'gearA','gearB',{driverTeeth:20,followerTeeth:40,driverAxis:{x:0,y:0,z:1},followerAxis:{x:0,y:0,z:1}});
   assert.equal(evaluateMotionStudy(assembly,study.id,1).ok,true);
   const before=JSON.stringify(assembly);
@@ -59,6 +59,7 @@ test('gear phase reindexes teeth while preserving ratio and resetting the timeli
   assert.equal(phased.motionStudies[0].time,0);
   assert.equal(phased.motionStudies[0].motors[0].rpm,5);
   assert.equal(phased.motionStudies[0].baseRotations,undefined);
+  assert.equal(phased.motionStudies[0].motors[0].basePosition,undefined);
   assert.equal(evaluateMotionStudy(phased,study.id,1).ok,true);
   assert.ok(Math.abs(deg(screwRoll(phased.components[1],{x:0,y:0,z:1}))-60)<1e-4);
   assert.ok(Math.abs(deg(screwRoll(phased.components[2],{x:0,y:0,z:1}))+25.5)<1e-4);
