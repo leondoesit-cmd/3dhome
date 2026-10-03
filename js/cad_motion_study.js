@@ -14,6 +14,11 @@ export {addGearRelation} from "./cad_gear_motion.js";
 // study even when that prior timeline is sought back to zero. Keep this inside
 // baseRotations so the existing Reset zero and gear-phase reset also clear it.
 const ASSEMBLY_POSES = '__assemblyPoses';
+const playbackCursors = new WeakMap();
+const poseStamp = components => JSON.stringify((components || []).map(c => [c.id,c.transform]));
+const studyStamp = (assembly,study) => JSON.stringify([
+  assembly.mates || [],assembly.topologyMates || [],study.motors || [],study.gearRelations || [],study.baseRotations || {},
+]);
 const snapshotPoses = components => (components || []).map(component => ({
   id: component.id, transform: structuredClone(component.transform || {}),
 }));
@@ -58,14 +63,19 @@ export function addScrewMotor(motionStudy, mateId, rpm = 60) {
   return motor;
 }
 
-export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
+export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, options = {}) {
   const original=(assembly?.motionStudies||[]).find(m=>m.id===motionStudyId);
   if(!original)return {ok:false,issues:[{code:'missing-motion-study'}]};
   if(!Number.isFinite(timeInSeconds))return {ok:false,issues:[{code:'invalid-motion-time'}]};
   // Solve on a copy so failed mates never publish a partially moved assembly.
+  const requestedIncremental=options.incremental===true;
+  const prior=playbackCursors.get(assembly);
+  const resume=requestedIncremental && prior?.studyId===motionStudyId && prior?.study===original
+    && original.time===prior.time && timeInSeconds>prior.time
+    && prior.pose===poseStamp(assembly.components) && prior.graph===studyStamp(assembly,original);
   const trial={...assembly,components:(assembly.components||[]).map(c=>({...c,transform:structuredClone(c.transform||{})})),mates:structuredClone(assembly.mates||[]),topologyMates:structuredClone(assembly.topologyMates||[])};
   const ms=structuredClone(original),driven=new Set();
-  restoreStudyPose(ms,trial.components);
+  if(!resume)restoreStudyPose(ms,trial.components);
   if(trial.topologyMates.some(m=>m.type==='belt' && !Number.isFinite(m.rollA0))){
     const captured=solveAssemblyMates(trial);if(!captured.ok)return captured;
   }
@@ -96,7 +106,7 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   if(screwMotions.length && (motion.motions.length || linear.motions.length))
     return {ok:false,issues:[{code:'mixed-screw-motion-motors'}]};
   if(linear.motions.some(item=>motion.motions.some(rot=>rot.componentId===item.componentId)))return {ok:false,issues:[{code:'conflicting-motion-motors'}]};
-  for(const item of motion.motions){
+  const placeRotary = motions => {for(const item of motions){
     const comp=trial.components.find(c=>c.id===item.componentId);driven.add(comp.id);
     const rotation=mul(axisAngleMatrix(item.axis,(item.angleDeg%360)*Math.PI/180),item.baseRotation);
     const motor=ms.motors.find(m=>m.type==='rotary'&&m.componentId===comp.id);
@@ -112,7 +122,7 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
       for(const key of ['x','y','z'])comp.transform[key]=motor.basePosition[key]+before[key]-after[key];
     }
     setRotation(comp.transform,rotation);
-  }
+  }};
   for(const item of linear.motions){
     const comp=trial.components.find(c=>c.id===item.componentId);driven.add(comp.id);
     Object.assign(comp.transform,item.position);
@@ -120,7 +130,21 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   const unsupported=(trial.mates||[]).find(m=>!['alignX','alignY','alignZ','distanceX'].includes(m.type));
   if(unsupported)return {ok:false,issues:[{code:'unsupported-motion-mate',mate:unsupported.id}]};
   let result;
-  if(screwMotions.length){
+  const rates=motion.motions.map(item=>Math.abs(item.rpm)*6);
+  const stepped=resume && rates.length && !screwMotions.length && !linear.motions.length
+    && !trial.topologyMates.some(m=>m.type==='belt');
+  let motionSubsteps=1;
+  if(stepped){
+    motionSubsteps=Math.max(1,Math.ceil(Math.max(...rates)*(timeInSeconds-prior.time)/5));
+    for(let step=1;step<=motionSubsteps;step++){
+      const at=prior.time+(timeInSeconds-prior.time)*step/motionSubsteps;
+      const current=step===motionSubsteps?motion:gearMotionState(rotary,trial.components,at);
+      if(!current.ok)return current;
+      placeRotary(current.motions);
+      result=solveAssemblyMates(trial,{fixedComponentIds:[...driven]});
+      if(!result.ok)return result;
+    }
+  }else if(screwMotions.length){
     // Every seek starts from this study's saved whole-assembly pose. Walk a
     // helical linkage forward in small steps from that pose; using the last
     // seek time with a restored home pose would jump branches on repeat seeks.
@@ -134,7 +158,10 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
       result=solveAssemblyMates(trial);
       if(!result.ok)return result;
     }
-  }else result=solveAssemblyMates(trial,{fixedComponentIds:[...driven]});
+  }else{
+    placeRotary(motion.motions);
+    result=solveAssemblyMates(trial,{fixedComponentIds:[...driven]});
+  }
   if(!result.ok)return result;
   trial.components.forEach((c,i)=>{assembly.components[i].transform=c.transform;});
   for(const mate of trial.topologyMates.filter(m=>m.type==='belt')){
@@ -156,5 +183,8 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
   ms.motors.forEach((m,i)=>{if(m.baseRotation)original.motors[i].baseRotation=m.baseRotation;if(m.basePosition)original.motors[i].basePosition=m.basePosition;});
   screwMotions.forEach(m=>{const motor=original.motors.find(item=>item.type==='screw'&&item.mateId===m.mateId);if(motor)motor.baseTurns=m.baseTurns;});
   original.baseRotations=rotary.baseRotations;original.time=timeInSeconds;
-  return {...result,motions:[...motion.motions,...linear.motions,...screwMotions]};
+  if(requestedIncremental)playbackCursors.set(assembly,{studyId:motionStudyId,study:original,time:timeInSeconds,
+    pose:poseStamp(assembly.components),graph:studyStamp(assembly,original)});
+  else playbackCursors.delete(assembly);
+  return {...result,motionSubsteps,motions:[...motion.motions,...linear.motions,...screwMotions]};
 }

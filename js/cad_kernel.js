@@ -1153,6 +1153,15 @@ export async function makeBrepCone(spec) {
 
 // Unit-density volume inertia about the centroid, in cm^5. Density scaling
 // belongs to the mass report; the kernel must not assume a material.
+export async function shapeSolidCount(brep) {
+  if(!brep?.shape)throw new Error("Solid count requires an exact shape");
+  const oc=brep.oc || await loadCadKernel();
+  const explorer=new oc.TopExp_Explorer_2(brep.shape,oc.TopAbs_ShapeEnum.TopAbs_SOLID,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+  let count=0;
+  try{while(explorer.More()){count++;explorer.Next();}return count;}
+  finally{explorer.delete();}
+}
+
 export async function shapeMassProperties(brep) {
   if (!brep?.shape) throw new Error("Mass properties require an exact solid");
   const oc = brep.oc || await loadCadKernel(), owned = [];
@@ -1164,7 +1173,7 @@ export async function shapeMassProperties(brep) {
     const centerOfMass = {x:centre.X(), y:centre.Y(), z:centre.Z()};
     const inertia = Array.from({length:3}, (_,i) => Array.from({length:3}, (_,j) => matrix.Value(i+1,j+1)));
     if (!(volume > 0) || ![volume,...Object.values(centerOfMass),...inertia.flat()].every(Number.isFinite)) throw new Error("Body has no measurable closed solid volume");
-    return {volume, centerOfMass, inertia, bounds:shapeBounds(oc, brep.shape, false)};
+    return {volume, centerOfMass, inertia, solidCount:await shapeSolidCount(brep), bounds:shapeBounds(oc, brep.shape, false)};
   } finally { disposeAll(owned); }
 }
 

@@ -1,0 +1,15 @@
+Item,Qty,Name,Material
+1,1,Planchard 8.16 - RE12 five-cylinder radial carrier - fresh designer example 2026-10-03,Aluminum 6061
+2,2,RE11 rear crank cheek,Aluminum 6061
+3,1,RE10 eccentric crankpin,Plain Carbon Steel (grade unspecified)
+4,1,RE01 master rod,Aluminum 6061
+5,1,RE09 master bearing bushing,C95400 aluminum bronze mass proxy
+6,4,RE02 articulated rod alpha72,Aluminum 6061
+7,5,RE03 piston alpha0 master,Aluminum 6061
+8,5,RE05 wrist pin alpha0,Plain Carbon Steel (grade unspecified)
+9,5,RE06 wrist bushing alpha0,C95400 aluminum bronze mass proxy
+10,4,RE07 knuckle bushing alpha72,C95400 aluminum bronze mass proxy
+11,4,RE08 cap pin alpha72,Plain Carbon Steel (grade unspecified)
+12,1,RE13 rear drive journal,Plain Carbon Steel (grade unspecified)
+13,1,RE14 front drive journal,Plain Carbon Steel (grade unspecified)
+14,20,RE04 piston0 ring11,Parker E0529 EPDM - book rubber mass proxy

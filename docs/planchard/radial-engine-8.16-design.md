@@ -95,10 +95,10 @@ Every piston origin uses its Pxy, world Z6, Rz=-alpha. Pins share Pxy/Z6. Master
 7. Drive the crank about Z through360 degrees, starting with <=5 degree increments to stay on the outward slider branch. Audit native intersections, guide engagement, crank/rod/pin alignment and cold seek/replay throughout. No matching claim against the absent AVI.
 8. Save normal and exploded configurations. Produce ANSI C22×17 inch landscape, Third Angle isometric exploded drawing with leaders, role BOM, balloons, title properties and explicit designer/proxy notes. Add extra fixture roles openly. Verify exports and cold reopening.
 
-## Remaining gates before authoring is accepted
+## Current build status — 3 October 2026
 
-- Resolve/carry forward blurred Cap Pin and Counterweight quantity readings honestly.
-- Confirm a supported actual density for the chosen rubber proxy; preserve cast-grade distinction.
-- Native guide pattern must fuse into a single carrier, and all moving loops must solve without forced transforms.
-- Full crank-cycle exact clearance is pending; these chosen dimensions have not been validated as model geometry.
-- No parts, motion result, fabrication claim or book-exercise completion is asserted by this planning document.
+All 14 definitions were authored from blank documents through visible Chrome controls, saved and exported. The fresh assembly has 55 occurrences, 75 native mates and one physical crank degree of freedom. The actual ANSI C third-angle exploded drawing has 14 BOM rows and 55 balloons; see `radial-engine-8.16-drawing-audit-2026-10-03.md` for export details. The 12-rpm saved crank motor closes all five rod–piston loops and returns all component poses exactly to home after 360°.
+
+The read-only [native-cycle audit](radial-engine-8.16-native-cycle-audit-2026-10-03.md) found zero positive-volume collisions at 25 sampled poses spaced 15° apart. It also found that the original saved RE03 piston had five disconnected native solids because its groove cut omitted the existing inner-circle profile. The browser author corrected and exported RE03; independent native and STEP replays now each show one valid solid. Cold UI reopening, refresh of all five assembly occurrences, and a new sampled clearance/assembly STEP audit remain required before declaring this exercise's geometry accepted. The sampled audit is not a continuous swept-volume proof.
+
+RE08 cap-pin and RE11 counterweight book quantities remain provisional readings of the low-resolution page. Material densities are documented proxies. No fabrication, loading, combustion or book-companion-model equivalence is claimed.

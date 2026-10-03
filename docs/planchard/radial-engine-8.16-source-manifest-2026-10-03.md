@@ -12,7 +12,7 @@ Mass is per occurrence, in grams. H/S denotes editable history steps / sketches.
 |---|---:|---|---:|---:|---:|---|
 | RE01 master rod | 1 | cm_musgpbe1 | 18/9 | 24.668524 | 66.605015 | [Bundle](../../artifacts/planchard/RE01-master-rod-browser-2026-10-03.mforge), [STEP](../../artifacts/planchard/RE01-master-rod-browser-2026-10-03.step) |
 | RE02 articulated rod | 4 | cm_muskji8q | 10/5 | 5.663851 | 15.292397 | [Bundle](../../artifacts/planchard/RE02-articulated-rod-browser-2026-10-03.mforge), [STEP](../../artifacts/planchard/RE02-articulated-rod-browser-2026-10-03.step) |
-| RE03 piston head | 5 | cm_musjttll | 9/4 | 23.80330 | 64.26891 | [Bundle](../../artifacts/planchard/RE03-piston-head-browser-2026-10-03.mforge), [STEP](../../artifacts/planchard/RE03-piston-head-browser-2026-10-03.step) |
+| RE03 piston head | 5 | cm_musjttll | 9/4 | 26.743833 | 72.208349 | [Repaired bundle](../../artifacts/planchard/RE03-piston-head-annular-repair-browser-2026-10-03.mforge), [Repaired STEP](../../artifacts/planchard/RE03-piston-head-annular-repair-browser-2026-10-03.step) |
 | RE04 piston ring | 20 | cm_muskzlqo | 2/1 | 0.3981026 | 0.4180078 | [Bundle](../../artifacts/planchard/RE04-piston-ring-browser-2026-10-03.mforge), [STEP](../../artifacts/planchard/RE04-piston-ring-browser-2026-10-03.step) |
 | RE05 piston pin | 5 | cm_muse9out | 2/1 | 2.211681 | 17.361698 | [Bundle](../../artifacts/planchard/RE05-piston-pin-browser-2026-10-03.mforge), [STEP](../../artifacts/planchard/RE05-piston-pin-browser-2026-10-03.step) |
 | RE06 small-end bushing | 5 | cm_musk4mt2 | 2/1 | 0.361723 | 2.694836 | [Bundle](../../artifacts/planchard/RE06-small-end-bushing-browser-2026-10-03.mforge), [STEP](../../artifacts/planchard/RE06-small-end-bushing-browser-2026-10-03.step) |
@@ -29,6 +29,7 @@ Mass is per occurrence, in grams. H/S denotes editable history steps / sketches.
 
 ## Materials and acceptance evidence
 
+- RE03's original export contained five disconnected native solids because the groove cut omitted its inner contour. It is superseded by the [human UI annular repair and cold acceptance](radial-engine-RE03-annular-repair-2026-10-03.md). The saved library key and authored IDs are unchanged. Assembly exports and clearance reports below predate that repair; all five occurrences must be refreshed and checked again.
 - RE01/02/03/11 preserve the book label **C355.0-T61 Permanent Mold cast (SS)**; selected Aluminum 6061 at 2.70 g/cm³ is a disclosed mass proxy. RE12 uses the same proxy as an additional fixture. No casting certification or crank balance is inferred.
 - RE04 preserves **Rubber** and uses Parker E0529 EPDM at 1.05 g/cm³ solely as a rigid mass proxy; no combustion suitability is claimed.
 - RE06/07/09 preserve **Aluminum Bronze**, with disclosed C95400 density 7.45 g/cm³. RE05/08/10/13/14 use unspecified-grade Plain Carbon Steel at 7.85 g/cm³. All bearings and retention are ideal educational representations without load ratings.
@@ -53,3 +54,13 @@ The [new actual browser checkpoint](../../artifacts/planchard/RE-assembly-55-75-
 All five rod bearing-axis distances are 68 mm (maximum numerical deviation 1.42×10⁻¹⁴ mm); wrist/piston XY mismatch is at most 4.2702×10⁻⁷ mm and piston/guide radial-axis offset at most 5.0432×10⁻⁹ mm. All five piston centers retain Z6 mm, and their local Y axes match the five intended radial guide directions to within 8.27×10⁻¹³ in unit-vector length. Rear/front journals retain Rx/Ry0, origin placement, and native Z−32..0 / Z32..48 mm extents. Rear/front cheeks occupy Z−10..0 / Z22..32 mm. This is clearance evidence for this saved phase; a full-cycle audit remains required.
 
 Protected read-only reports: [native pairwise interference](../../scratch/planchard/RE-assembly-55-75-interference-audit-2026-10-03.json), [rod spacing and native guide topology](../../scratch/planchard/RE-assembly-55-75-pose-audit-2026-10-03.json), [rings and native joint references](../../scratch/planchard/RE-75-rings-mates-audit-2026-10-03.json). The earlier 69-joint conflicted pose and its 35 collisions remain preserved as diagnostics, not the current accepted clearance state. Full-cycle motion, cold mechanism acceptance and ANSI C drawing remain pending.
+
+## Drawing export continuation
+
+The actual browser ANSI C third-angle SVG and saved assembly passed [the drawing and preserved mechanism audit](radial-engine-8.16-drawing-audit-2026-10-03.md): 55 occurrences, 14 definitions, 75 joints, 10 manually authored explode steps, 53 exploded guide lines, 55 balloons with leaders, and fourteen BOM rows totaling 55. Motor data and all 55 home baseline poses survive the export unchanged. These drawing exports predate the RE03 annular repair.
+
+## Repaired assembly continuation
+
+The [final repaired assembly audit](radial-engine-8.16-annular-assembly-audit-2026-10-03.md) supersedes the earlier geometry checks: all five pistons retain their annular binding; all fourteen native recipes are connected single solids; the actual STEP contains 55 valid solids. All 25 crank samples at 15° increments solve without unresolved joints or positive-volume native clashes, and the mechanism returns exactly to home in translation and rotation. Saved mechanism structure remains 55 occurrences / 14 definitions / 75 native mates with one physical DOF. [Final repaired drawing and actual completed Chrome Play](radial-engine-8.16-drawing-audit-2026-10-03.md) also pass, with the clean exploded export preserving time zero, ten steps and unchanged physical home.
+
+The [final assembled home export](../../artifacts/planchard/RE-assembly-annular-repair-home-browser-2026-10-03.mforge) preserves the same audited geometry and drawing metadata, zero presentation offsets and time-zero physical home. [Final acceptance](radial-engine-8.16-browser-progress-2026-10-03.md) records Exercise 8.16 complete as the disclosed original designer example; earlier incomplete checkpoints remain historical evidence.

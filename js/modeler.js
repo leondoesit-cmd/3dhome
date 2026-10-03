@@ -70,6 +70,9 @@ import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
 import { render as gpuRender } from "./gpu.js";
 import { S, uid, clamp, fin, hexStr } from "./state.js";
 import { nextDocumentNumericId } from "./core/document_ids.js";
+import {createMotionPlayback,motionPreviewDuration} from './core/motion_playback.js';
+import {createMotionPlaybackExecutor} from './core/motion_playback_executor.js';
+import {nativeSolidSummary} from './core/native_solid_summary.js';
 import { reattachFeatureSketchSupport, reattachSketchSupport, sketchSupportNeedsUpdate } from "./core/sketch_support_edit.js";
 import {compactAssemblyTopologySnapshots,compactDocumentTopologySnapshots} from './core/project_topology_budget.js';
 import { FURN, PRICE, CATALOG, flabel, clearVSpanCache, buildItem } from "./furniture.js";
@@ -7140,7 +7143,8 @@ function setCommandTab(id) {
   }
 }
 
-function closeFeaturePanel() {
+function closeFeaturePanel(options = {}) {
+  if(motionPlaybackCancel)motionPlaybackCancel();
   E.collectingFeature = false;
   if (!root) return;
   var host = root.querySelector("#mdQuickSettings");
@@ -7153,7 +7157,8 @@ function closeFeaturePanel() {
   /* The badge goes with the form it lives on, and a debounced downstream run
      left armed would re-lay the document after the edit was dismissed. */
   clearLiveDownstream(null);
-  updatePreview();
+  if(options.assemblyPoseOnly && E.docType==="assembly" && refreshAssemblyPosePreview())refreshViewportSelection();
+  else updatePreview();
   syncCommandManager(); // puts the ribbon button that opened the form back out
 }
 
@@ -10205,6 +10210,7 @@ function segmentLengthForm(from, to) {
 }
 
 function openQuickForm(spec) {
+  if(motionPlaybackCancel)motionPlaybackCancel();
   var host = root && root.querySelector("#mdQuickSettings");
   if (!host) return null;
   if (E.leftCollapsed) setPanelCollapsed("left", false);
@@ -10240,12 +10246,12 @@ function openQuickForm(spec) {
 
   var failure = spec.failureMessage ? el("p", "md-feature-error") : null;
   if(failure){failure.setAttribute("role", "alert"); failure.hidden = true; host.appendChild(failure);}
-  var close = function () { host.innerHTML = ""; E.quickAction = null; closeFeaturePanel(); };
+  var close = function () { host.innerHTML = ""; E.quickAction = null; closeFeaturePanel({assemblyPoseOnly:!!spec.presentationOnly}); };
   var actions = el("div", "md-feature-actions");
   actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> ' + t("m_cancel"), function () {
     close();
     if (spec.onCancel) spec.onCancel();
-    refreshAll();
+    if(!spec.presentationOnly)refreshAll();
   }, "md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> ' + t("quickApply"), async function () {
     if (!validateFeatureInputs(host)) return;
@@ -10256,7 +10262,7 @@ function openQuickForm(spec) {
     }
     if(E.quickAction!==(spec.action || "quickform"))return;
     close();
-    refreshAll();
+    if(!spec.presentationOnly)refreshAll();
   }, "md-quick-apply"));
   host.appendChild(actions);
 
@@ -11123,6 +11129,7 @@ function saveProgress(key, document) {
   syncDraftStatus(key);flash(t(key));
 }
 function saveCurrentDocument() {
+  if(motionPlaybackCancel){flash("Keep current pose or cancel the motion preview before saving.");return Promise.resolve();}
   var document=E.docType === "assembly" ? E.assembly : E.def;
   if(!document)return Promise.resolve();
   var pending=documentSaveTasks.get(document);
@@ -11410,10 +11417,13 @@ function syncStatusLine() {
     var mode=inferAuthoringMode(Object.assign({}, E.def, {authoringMode:null}));
     var recognition=E.def && E.def.metadata && E.def.metadata.import && E.def.metadata.import.recognition;
     var solids = E.coreRun && Array.isArray(E.coreRun.bodies) ? E.coreRun.bodies.length : E.def ? activeParts(E.def).length : 0;
+    var nativeSummary=nativeSolidSummary(E.def?activeParts(E.def):[],{singleRecipe:hasSingleToolboxKernelRecipe(E.def,E.def?activeParts(E.def):[])});
     st.innerHTML='<b>'+mode.replace(/-/g," ")+'</b>'+
       (recognition && recognition!=="none" ? '<span class="md-st-sep"></span>'+recognition+' '+t("reconstruction") : "")+
       '<span class="md-st-sep"></span>'+rebuildStatusCaption()+
       (solids ? '<span class="md-st-sep"></span>'+solids+" "+t("parts").toLowerCase() : "")+
+      (nativeSummary.known ? '<span class="md-st-sep"></span>Native solids: '+nativeSummary.count : "")+
+      (nativeSummary.disconnected ? '<span class="md-st-sep"></span><b class="md-st-dirty">Disconnected solids</b>' : "")+
       (topologyStatusCaption() ? '<span class="md-st-sep"></span><b class="md-st-selection">'+topologyStatusCaption()+"</b>" : "")+
       (documentDirty() ? '<span class="md-st-sep"></span><b class="md-st-dirty">'+t("dirtySave")+"</b>" : "");
     return;
@@ -16682,7 +16692,8 @@ function assemblyTreeModel() {
     var def = componentDef(component), sub = isSubassembly(component);
     var bodyParts = def ? activeParts(def) : [];
     var singleToolboxBody = hasSingleToolboxKernelRecipe(def,bodyParts);
-    var solids = singleToolboxBody ? 1 : bodyParts.length;
+    var solidSummary=nativeSolidSummary(bodyParts,{singleRecipe:singleToolboxBody});
+    var solids = solidSummary.count;
     var label = componentLabelOf(component);
     if (labelCounts.get(label) > 1) {
       labelSeen.set(label, (labelSeen.get(label) || 0) + 1);
@@ -16709,7 +16720,8 @@ function assemblyTreeModel() {
       detail: [component.grounded ? t("treeGrounded") : "",
         component.inContext ? "→ In context"+(component.contextIssue?" · "+component.contextIssue:"") : "",
         sub ? tf("subassemblyParts", { n: component.asm.components.length }) : "",
-        solids ? countLabel(solids, "treeComponentPartOne", "treeComponentParts") : "",
+        solidSummary.known ? countLabel(solids, "treeComponentPartOne", "treeComponentParts") : solidSummary.projections+" body projection"+(solidSummary.projections===1?"":"s")+" · solid count not yet measured",
+        solidSummary.disconnected ? "Disconnected solids" : "",
         /* What its mates have left free. Only for components a mate actually
            moves: an ungrounded component nothing is mated to is not "six
            degrees free", it is simply not being solved for. */
@@ -25479,6 +25491,8 @@ async function showMassProperties() {
       var label=(row.componentName?row.componentName+" · ":"")+(row.materialName || t("massNoMaterial"));
       evalRow(body, t("massBodyRow")+" "+(index+1)+" · "+label, quantity(row.volume,"volume",6)+" · "+quantity(row.massKg||0,"mass",6)+" · "+quantity(row.density,"density",6));
       if(row.error) body.appendChild(el("div", "md-note", t("massBodyRow")+" "+(index+1)+": "+row.error));
+      if(Number.isInteger(row.solidCount))evalRow(body,"Native solids · "+(row.componentName || t("massBodyRow")+" "+(index+1)),String(row.solidCount));
+      if(row.solidCount>1)body.appendChild(el("div","md-note","Disconnected solids · "+row.solidCount+" in "+(row.componentName || t("massBodyRow")+" "+(index+1))));
     });
     if(mass.inertiaKgM2){
       evalRow(body,t("massInertia"),system.inertiaUnit);
@@ -25772,19 +25786,19 @@ function createDefaultExplodedView() {
   if (exploded) {
     pushUndo(t("collapseExplodeView"));
     applyExplodedView(E.assembly,null);
-    refreshAll(); fitPreview(); flash("\u2713 " + t("collapseExplodeView"));
+    refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true}); fitPreview(); flash("\u2713 " + t("collapseExplodeView"));
     openExplodedPlayback(); return;
   }
   pushUndo(t("explodeView"));
   var saved=(E.assembly.explodedViews || []).find(function(view){return view.id===E.assembly.activeExplodedView;}) || (E.assembly.explodedViews || [])[0];
-  if(saved){E.assembly.activeExplodedView=saved.id;applyExplodedView(E.assembly,saved.id,1);refreshAll();fitPreview();flash("✓ "+saved.name);openExplodedPlayback();return;}
+  if(saved){E.assembly.activeExplodedView=saved.id;applyExplodedView(E.assembly,saved.id,1);refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});fitPreview();flash("✓ "+saved.name);openExplodedPlayback();return;}
   var view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1));
   var spacing=defaultExplodeSpacing(E.assembly.components.map(function(component){return componentWorldBounds(component,{exploded:false});}));
   E.assembly.components.forEach(function (component, index) {
     if (index) addExplodeStep(view, [component.id], {x:index * spacing,y:0,z:0});
   });
   E.assembly.activeExplodedView = view.id;
-  applyExplodedView(E.assembly, view.id, 1); refreshAll(); fitPreview(); flash("\u2713 " + view.name);
+  applyExplodedView(E.assembly, view.id, 1); refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true}); fitPreview(); flash("\u2713 " + view.name);
   openExplodedPlayback();
 }
 
@@ -25796,7 +25810,7 @@ function createEmptyExplodedView() {
   var view=createExplodedView(E.assembly,"Exploded View " + ((E.assembly.explodedViews || []).length + 1));
   E.assembly.activeExplodedView=view.id;
   applyExplodedView(E.assembly,null);
-  refreshAll();fitPreview();syncHead();
+  refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});fitPreview();syncHead();
   openExplodedPlayback();
 }
 
@@ -25820,7 +25834,7 @@ function openExplodedPlayback() {
     E.pv?.render();
     status.textContent=Math.round(progress*100)+"% · "+view.steps.length+" steps";
   };
-  const inputs=openQuickForm({action:"explodeplay",title:"Exploded animation",hint:"Play the saved steps in order. Stop pauses; Reset returns to the assembled position.",fields:[{key:"view",label:"Exploded view",type:"select",value:view.id,choices:assembly.explodedViews.map(item=>({value:item.id,label:item.name || item.id}))},{key:"duration",label:"Duration (seconds)",type:"number",value:view.animationDurationSeconds || Math.max(4,view.steps.length),step:1}],onApply:()=>true,onCancel:stop});
+  const inputs=openQuickForm({action:"explodeplay",presentationOnly:true,title:"Exploded animation",hint:"Play the saved steps in order. Stop pauses; Reset returns to the assembled position.",fields:[{key:"view",label:"Exploded view",type:"select",value:view.id,choices:assembly.explodedViews.map(item=>({value:item.id,label:item.name || item.id}))},{key:"duration",label:"Duration (seconds)",type:"number",value:view.animationDurationSeconds || Math.max(4,view.steps.length),step:1}],onApply:()=>true,onCancel:stop});
   const host=root.querySelector("#mdQuickSettings");
   if(!inputs || !host)return;
   const duration=inputs.duration,actions=host.querySelector('.md-feature-actions');
@@ -25832,7 +25846,7 @@ function openExplodedPlayback() {
     if(!selected || selected===view || E.assembly!==assembly)return;
     stop();pushUndo("Select exploded view");view=selected;assembly.activeExplodedView=view.id;
     duration.value=String(view.animationDurationSeconds || Math.max(4,view.steps.length));
-    progress=1;update();refreshAll();fitPreview();syncHead();
+    progress=1;update();refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});fitPreview();syncHead();
   });
   const tick=time=>{
     if(!host.isConnected || host.hidden || E.quickAction!=="explodeplay" || E.assembly!==assembly || E.docType!=="assembly"){stop();return;}
@@ -25843,7 +25857,7 @@ function openExplodedPlayback() {
   actions.appendChild(btn("Play",()=>{stop();if(progress>=1)progress=0;update();frame=requestAnimationFrame(tick);},"md-quick-apply"));
   actions.appendChild(btn("Stop",()=>{stop();status.textContent="Paused · "+Math.round(progress*100)+"%";}));
   actions.appendChild(btn("Reset",()=>{stop();progress=0;update();}));
-  actions.appendChild(btn("Close",()=>{stop();host.innerHTML="";E.quickAction=null;closeFeaturePanel();refreshAll();}));
+  actions.appendChild(btn("Close",()=>{stop();host.innerHTML="";E.quickAction=null;closeFeaturePanel({assemblyPoseOnly:true});refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});}));
   actions.appendChild(btn("New exploded view",()=>{if(E.assembly===assembly)createEmptyExplodedView();}));
 }
 
@@ -25856,7 +25870,7 @@ function openExplodeStepForm() {
   var targets=explodeTargets(E.assembly);
   var selected = targets.filter(function(target){return (E.componentSel || []).includes(target.component);}).map(function(target){return target.key;});
   if(!selected.length)selected=[targets[0].key];
-  openQuickForm({ action:"explodestep", icon:"ph-arrows-out", title:t("explodeStep"), hint:t("explodeStepHint"), fields:[
+  openQuickForm({ action:"explodestep", presentationOnly:true, icon:"ph-arrows-out", title:t("explodeStep"), hint:t("explodeStepHint"), fields:[
     { key:"components", label:t("components"), type:"feature-seeds", value:selected, choices:targets.map(function(target){return {value:target.key,label:target.label};}) },
     { key:"axis", label:t("explodeDirection"), type:"select", value:"z", choices:[{ value:"x", label:"X" }, { value:"y", label:"Y" }, { value:"z", label:"Z" }] },
     { key:"distance", label:t("explodeDistance"), type:"number", unit:"length", value:10, step:.1 },
@@ -25870,12 +25884,52 @@ function openExplodeStepForm() {
     if (!view) { view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1)); E.assembly.activeExplodedView = view.id; }
     var vector = { x:0, y:0, z:0 }; vector[values.axis] = distance;
     addExplodeStep(view, selectedTargets.map(function(target){return target.key;}), vector);
-    applyExplodedView(E.assembly, view.id, 1); invalidateInterference(); refreshAll(); fitPreview();
+    applyExplodedView(E.assembly, view.id, 1); invalidateInterference(); refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true}); fitPreview();
     flash("✓ " + view.name + " · " + view.steps.length);
     return true;
   } });
 }
 
+var motionPlaybackCancel=null;
+function openMotionPlayback(studyId) {
+  const assembly=E.assembly,study=assembly?.motionStudies?.find(item=>item.id===studyId);
+  if(E.docType!=="assembly" || !study)return;
+  let playback,executor;const controls={};
+  const cancel=()=>{if(playback)playback.cancel();executor?.dispose();motionPlaybackCancel=null;};
+  const inputs=openQuickForm({action:"motionplay",presentationOnly:true,title:"Motion playback · "+study.name,
+    hint:"Preview the assembled mechanism using the saved motor and mates. Reset seeks time zero. Cancel restores the opening pose; Keep current pose commits it. The opening exploded view returns when this preview closes.",
+    fields:[{key:"duration",label:"Preview duration (seconds)",type:"number",value:motionPreviewDuration(study),min:.1,step:.1}],onApply:()=>false,onCancel:cancel});
+  const host=root.querySelector("#mdQuickSettings");if(!inputs || !host)return;
+  const status=el("div","md-note","Ready"),timeRow=el("label","md-row md-row-wide"),scrub=el("input");
+  scrub.type="range";scrub.min="0";scrub.step=".01";scrub.setAttribute("aria-label","Motion time (seconds)");
+  timeRow.appendChild(el("span","t","Time (seconds)"));timeRow.appendChild(scrub);host.append(timeRow,status);
+  const showPose=()=>{
+    if(E.assembly!==assembly)return;
+    invalidateInterference();if(!refreshAssemblyPosePreview())updatePreview();
+    renderPreview();syncDirty();
+  };
+  try {executor=createMotionPlaybackExecutor(assembly);}catch(error){flash(String(error.message||error));return;}
+  playback=createMotionPlayback(assembly,studyId,{evaluate:executor.evaluate,requestFrame:callback=>requestAnimationFrame(callback),cancelFrame:id=>cancelAnimationFrame(id),
+    isCurrent:()=>E.assembly===assembly && E.docType==="assembly",
+    onClose:()=>{executor.dispose();if(motionPlaybackCancel===cancel)motionPlaybackCancel=null;},
+    beforeCommit:()=>pushUndo("Keep motion preview pose"),onPose:showPose,
+    onState:state=>{scrub.max=String(state.duration);scrub.value=String(state.time);scrub.disabled=state.busy;inputs.duration.disabled=state.busy;
+      if(controls.play)controls.play.disabled=state.busy || state.running;
+      if(controls.reset)controls.reset.disabled=state.busy;
+      if(controls.keep)controls.keep.disabled=state.busy || state.running;
+      status.textContent=state.message+" · "+state.time.toFixed(2)+" / "+state.duration.toFixed(2)+" s";}
+  });
+  motionPlaybackCancel=cancel;
+  showPose();
+  inputs.duration.addEventListener("change",()=>{if(!playback.setDuration(inputs.duration.value))inputs.duration.value=String(playback.state.duration);});
+  scrub.addEventListener("input",()=>{const time=Number(scrub.value);playback.pause();scrub.value=String(time);status.textContent="Time "+time.toFixed(2)+" s · release to solve";});
+  scrub.addEventListener("change",()=>{const time=Number(scrub.value);playback.pause();playback.seek(time);});
+  const actions=host.querySelector('.md-feature-actions');actions.innerHTML="";
+  controls.play=btn("Play",()=>playback.play(),"md-quick-apply");actions.appendChild(controls.play);actions.appendChild(btn("Pause",()=>playback.pause()));
+  controls.reset=btn("Reset",()=>playback.reset());actions.appendChild(controls.reset);
+  controls.keep=btn("Keep current pose",()=>{if(!playback.keep())return;executor.dispose();motionPlaybackCancel=null;E.quickAction=null;closeFeaturePanel({assemblyPoseOnly:true});refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});});actions.appendChild(controls.keep);
+  actions.appendChild(btn("Cancel preview",()=>{cancel();E.quickAction=null;closeFeaturePanel({assemblyPoseOnly:true});refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});}));
+}
 function createDefaultMotionStudy() {
   if (E.docType !== "assembly" || !E.assembly || !E.assembly.components.length) return;
   const show=(studyId,relationId="none",motorType)=>{
@@ -25975,6 +26029,10 @@ function createDefaultMotionStudy() {
       E.assembly.motionStudies=trial.motionStudies;await syncFlexibleSpringsAtMotionState(E.assembly);
       invalidateInterference();refreshAll();flash(t("motionStudyAdded"));return true;
     }});
+    if(study && typeof root!=="undefined"){
+      const actions=root?.querySelector('#mdQuickSettings .md-feature-actions');
+      if(actions)actions.appendChild(btn("Preview saved motion",()=>openMotionPlayback(study.id),"md-quick-apply"));
+    }
   };
   show(E.assembly.motionStudies?.at(-1)?.id);
 }
@@ -26710,18 +26768,16 @@ function refreshSelection() {
   else { coreRunFresh = true; refreshAll(); }
 }
 
-/* A mate changes component poses, not their solids. Keep the existing GPU
-   buffers and their topology pick metadata when the viewport still contains
-   exactly this assembly. Missing/extra groups or explode leaders fall back to
-   the ordinary full rebuild. */
+/* Mate and exploded-view edits change poses, not solids. Retain the native
+   buffers and topology pick metadata, while replacing transient leader lines. */
 function refreshAssemblyPosePreview() {
   if(!E.pv?.grp || !E.assembly || E.pv.inRoom)return false;
   const visible=(E.assembly.components || []).filter(component=>component.visible!==false);
   const groups=new Map(),overlays=[];
   for(const child of E.pv.grp.children){
     if(child===E.pv.liveGrp)continue;
-    if(child.userData?.cadInterference!==undefined){overlays.push(child);continue;}
-    if(child.userData?.cadExplodeLine || child.userData?.cadAssemblyContext)return false;
+    if(child.userData?.cadInterference!==undefined || child.userData?.cadExplodeLine){overlays.push(child);continue;}
+    if(child.userData?.cadAssemblyContext)return false;
     const id=child.userData?.cadComponent;
     if(id===undefined || groups.has(id))return false;
     groups.set(id,child);
@@ -26739,6 +26795,10 @@ function refreshAssemblyPosePreview() {
     });
     E.pv.grp.remove(overlay);
   }
+  if(visible.some(component=>{
+    const offset=component.explodedOffset;
+    return offset && (offset.x || offset.y || offset.z);
+  }))addExplodeLeaders(E.pv.grp);
   const box=new THREE.Box3().setFromObject(E.pv.grp);
   E.pv.pickBounds=box.isEmpty()?null:box.getBoundingSphere(new THREE.Sphere());
   invalidateDrawing();
@@ -26754,7 +26814,7 @@ function refreshAll(options = {}) {
     /* Solve before the panels and viewport consume the assembly. Selection
        keeps the existing solution; a full refresh consumes an explicit solve
        or performs one before allowing its viewport/drawing builds to reuse it. */
-    if (!selectionOnly && E.docType === "assembly" && E.assembly && !assemblySolveFresh) applyAssemblyMates(E.assembly);
+    if (!selectionOnly && E.docType === "assembly" && E.assembly && !assemblySolveFresh && !options.skipAssemblySolve) applyAssemblyMates(E.assembly);
     if (!selectionOnly) assemblySolveFresh = false;
     assemblyPreviewSolved = E.docType === "assembly";
     if (!selectionOnly) syncFaceSupportedSketchFrames();
@@ -26905,6 +26965,7 @@ function queueModelerChrome() {
 }
 
 export function openModeler(editKey, def, srcItem) {
+  if(motionPlaybackCancel)motionPlaybackCancel();
   cancelExactModelRebuild();
   dismissModelerDecision();
   // Evaluations belong to the previous document, including a card whose
@@ -27075,6 +27136,7 @@ export function openModelerForItem(it) {
 }
 
 export function closeModeler() {
+  if(motionPlaybackCancel)motionPlaybackCancel();
   cancelExactModelRebuild();
   dismissModelerDecision();
   closeTour();

@@ -154,9 +154,16 @@ export function normOf(vector) {
 export function gaussNewtonStep(J, r, damping) {
   const n = J[0]?.length || 0;
   const A = Array.from({ length: n }, () => Array(n).fill(0)), b = Array(n).fill(0);
-  for (let i = 0; i < r.length; i++) for (let j = 0; j < n; j++) {
-    b[j] -= J[i][j] * r[i];
-    for (let k = 0; k < n; k++) A[j][k] += J[i][j] * J[i][k];
+  for (let i = 0; i < r.length; i++) {
+    // Numerical mate Jacobians have many exact zero columns per row. Keep
+    // the dense solver and accumulation order, but avoid multiplying those
+    // zeros into every normal-equation entry.
+    const row=J[i], nonzero=[];
+    for(let column=0;column<n;column++)if(row[column]!==0)nonzero.push(column);
+    for (const j of nonzero) {
+      b[j] -= row[j] * r[i];
+      for (const k of nonzero) A[j][k] += row[j] * row[k];
+    }
   }
   for (let i = 0; i < n; i++) A[i][i] += damping;
   return solveLinear(A, b);

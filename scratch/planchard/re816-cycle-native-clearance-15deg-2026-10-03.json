@@ -1,0 +1,426 @@
+{
+  "source": "artifacts/planchard/RE-assembly-motion-zero-browser-2026-10-03.mforge",
+  "study": {
+    "id": "ms_bdf6cf38-4e9a-42c4-879b-afa28ce0125e",
+    "name": "RE crank cycle - five closed rod-piston loops",
+    "motors": [
+      {
+        "id": "motor_18ee13fa-bfc0-4818-9981-5c107f479d41",
+        "type": "rotary",
+        "componentId": 3548,
+        "rpm": 12,
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "pivot": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "baseRotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "basePosition": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    ]
+  },
+  "occurrences": 55,
+  "uniqueNativeRecipes": 14,
+  "poses": [
+    {
+      "timeSeconds": 0,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 0,
+      "pinPositionCm": {
+        "x": 0,
+        "y": 1.8,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 0,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 0.20833333333333334,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 15.000000000000044,
+      "pinPositionCm": {
+        "x": -0.465874281,
+        "y": 1.738666487,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 0.5957110526288407,
+      "elapsedSeconds": 13
+    },
+    {
+      "timeSeconds": 0.4166666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 29.999999999999993,
+      "pinPositionCm": {
+        "x": -0.9,
+        "y": 1.558845727,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 1.1877708133867262,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 0.625,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 45,
+      "pinPositionCm": {
+        "x": -1.272792206,
+        "y": 1.272792206,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 1.7507222842910461,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 0.8333333333333334,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 59.99999999999999,
+      "pinPositionCm": {
+        "x": -1.558845727,
+        "y": 0.9,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 2.261545341667116,
+      "elapsedSeconds": 11
+    },
+    {
+      "timeSeconds": 1.0416666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 75.00000000000001,
+      "pinPositionCm": {
+        "x": -1.738666487,
+        "y": 0.465874281,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 2.7021780202078785,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 1.25,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 89.99999999999999,
+      "pinPositionCm": {
+        "x": -1.8,
+        "y": 0,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.061157999505024,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 1.4583333333333333,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 105.00000000000016,
+      "pinPositionCm": {
+        "x": -1.738666487,
+        "y": -0.465874281,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.334060555031517,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 1.6666666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 119.99999999999997,
+      "pinPositionCm": {
+        "x": -1.558845727,
+        "y": -0.9,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.522730621721768,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 1.875,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 135,
+      "pinPositionCm": {
+        "x": -1.272792206,
+        "y": -1.272792206,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.6400096827111974,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 2.0833333333333335,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 150.00000000000003,
+      "pinPositionCm": {
+        "x": -0.9,
+        "y": -1.558845727,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.7111738380797195,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 2.2916666666666665,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 164.99999999999997,
+      "pinPositionCm": {
+        "x": -0.465874281,
+        "y": -1.738666487,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.695304070557144,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 2.5,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 180,
+      "pinPositionCm": {
+        "x": 0,
+        "y": -1.8,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.6000000000000005,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 2.7083333333333335,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -165.00000000000006,
+      "pinPositionCm": {
+        "x": 0.465874281,
+        "y": -1.738666487,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.695304070557144,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 2.9166666666666665,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -150.00000000000003,
+      "pinPositionCm": {
+        "x": 0.9,
+        "y": -1.558845727,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.7111738380797195,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 3.125,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -135.00000000000003,
+      "pinPositionCm": {
+        "x": 1.272792206,
+        "y": -1.272792206,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.6400096827111974,
+      "elapsedSeconds": 9
+    },
+    {
+      "timeSeconds": 3.3333333333333335,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -120.00000000000006,
+      "pinPositionCm": {
+        "x": 1.558845727,
+        "y": -0.9,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.522730621721768,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 3.5416666666666665,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -105,
+      "pinPositionCm": {
+        "x": 1.738666487,
+        "y": -0.465874281,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.334060555031517,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 3.75,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -90.00000000000001,
+      "pinPositionCm": {
+        "x": 1.8,
+        "y": 0,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.061157999505024,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 3.9583333333333335,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -74.99999999999999,
+      "pinPositionCm": {
+        "x": 1.738666487,
+        "y": 0.465874281,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 2.7021780202078785,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 4.166666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -59.99999999999999,
+      "pinPositionCm": {
+        "x": 1.558845727,
+        "y": 0.9,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 2.261545341667116,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 4.375,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -45.00000000000001,
+      "pinPositionCm": {
+        "x": 1.272792206,
+        "y": 1.272792206,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 1.7507222842910461,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 4.583333333333333,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -30.00000000000003,
+      "pinPositionCm": {
+        "x": 0.9,
+        "y": 1.558845727,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 1.1877708133867262,
+      "elapsedSeconds": 9
+    },
+    {
+      "timeSeconds": 4.791666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -15.000000000000039,
+      "pinPositionCm": {
+        "x": 0.465874281,
+        "y": 1.738666487,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 0.5957110526288407,
+      "elapsedSeconds": 15
+    },
+    {
+      "timeSeconds": 5,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 0,
+      "pinPositionCm": {
+        "x": 0,
+        "y": 1.8,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 0,
+      "elapsedSeconds": 8
+    }
+  ]
+}

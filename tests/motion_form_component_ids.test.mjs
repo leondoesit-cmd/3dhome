@@ -10,6 +10,16 @@ const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8')
 const start=source.indexOf('function createDefaultMotionStudy()');
 const end=source.indexOf('\n/* The Evaluate command',start);
 const formSource=source.slice(start,end);
+test('saved study exposes a native Preview saved motion action for that exact study',()=>{
+  const assembly={components:[{id:'crank',name:'Crank',transform:{}}],topologyMates:[]};
+  const study=createMotionStudy(assembly,'Five-loop radial crank');addRotaryMotor(study,'crank',12,{x:0,y:0,z:1});
+  const buttons=[];let preview;
+  const context={E:{docType:'assembly',assembly,componentSel:[]},t:s=>s,openQuickForm:()=>{},
+    root:{querySelector:selector=>{assert.equal(selector,'#mdQuickSettings .md-feature-actions');return {appendChild:button=>buttons.push(button)};}},
+    btn:(label,action)=>({label,action}),openMotionPlayback:id=>preview=id};
+  vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
+  assert.equal(buttons.length,1);assert.equal(buttons[0].label,'Preview saved motion');buttons[0].action();assert.equal(preview,study.id);
+});
 
 test('named saved study reopens and seeks from its captured zero without duplicating studies',async()=>{
   let assembly={components:[{id:'shaft',name:'Shaft',grounded:false,transform:{rz:12}}],mates:[],topologyMates:[]};

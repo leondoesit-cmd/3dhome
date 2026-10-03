@@ -5510,6 +5510,10 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-pane.on { display: flex; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 /* every pane holds one refresh target; it is the column, not a block inside it */
 #modeler .md-pane > div { display: flex; flex-direction: column; gap: 7px; min-height: 0; }
+/* Keep the library's full content height inside the pane that owns scrolling.
+   Shrinking this nested flex column can leave its final card beyond the
+   pane's measured content box and its bottom padding unreachable. */
+#modeler #mdLib { flex: none; }
 /* Sticky, so the tree scrolls under it: --input-bg and --bg-panel are both
    translucent in the dark themes and the rows read through. The input tint
    over the panel over --bg-app is the field as it looks, made opaque — the

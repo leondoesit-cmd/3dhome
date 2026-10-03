@@ -1,0 +1,1225 @@
+{
+  "source": "artifacts/planchard/RE-assembly-annular-repair-browser-2026-10-03.mforge",
+  "study": {
+    "id": "ms_bdf6cf38-4e9a-42c4-879b-afa28ce0125e",
+    "name": "RE crank cycle - five closed rod-piston loops",
+    "motors": [
+      {
+        "id": "motor_18ee13fa-bfc0-4818-9981-5c107f479d41",
+        "type": "rotary",
+        "componentId": 3548,
+        "rpm": 12,
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "pivot": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "baseRotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "basePosition": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    ]
+  },
+  "occurrences": 55,
+  "uniqueNativeRecipes": 14,
+  "canonicalMates": 75,
+  "nativeRecipes": [
+    {
+      "name": "Planchard 8.16 - RE12 five-cylinder radial carrier - fresh designer example 2026-10-03",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 679.0437434805763
+    },
+    {
+      "name": "RE11 rear crank cheek",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 38.37706753772218
+    },
+    {
+      "name": "RE10 eccentric crankpin",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 4.7500880922277675
+    },
+    {
+      "name": "RE01 master rod",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 24.668524130155394
+    },
+    {
+      "name": "RE09 master bearing bushing",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 4.025888153722248
+    },
+    {
+      "name": "RE02 articulated rod alpha72",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 5.663850921634427
+    },
+    {
+      "name": "RE03 piston alpha0 master",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 26.743832886562956
+    },
+    {
+      "name": "RE05 wrist pin alpha0",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 2.211681228127215
+    },
+    {
+      "name": "RE06 wrist bushing alpha0",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.36172297813432897
+    },
+    {
+      "name": "RE07 knuckle bushing alpha72",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.29009466563248143
+    },
+    {
+      "name": "RE08 cap pin alpha72",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.6660176425610297
+    },
+    {
+      "name": "RE13 rear drive journal",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 3.619114736935442
+    },
+    {
+      "name": "RE14 front drive journal",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 1.809557368467721
+    },
+    {
+      "name": "RE04 piston0 ring11",
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.39810262106289906
+    }
+  ],
+  "pistonBindings": [
+    {
+      "id": 3525,
+      "name": "RE03 piston alpha0 master",
+      "seed": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 0.2,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "y",
+        "sketchId": "sk_4s09a",
+        "from": 1,
+        "to": 1.2,
+        "profileEntityIds": [
+          3480
+        ],
+        "holeProfileEntityIds": [
+          [
+            3483
+          ]
+        ],
+        "holes": [
+          [
+            {
+              "u": 2.1,
+              "v": 0
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": 0.4842933285591243
+            },
+            {
+              "u": 1.876628544679166,
+              "v": 0.9424782784209704
+            },
+            {
+              "u": 1.6086933305498539,
+              "v": 1.3498539803417324
+            },
+            {
+              "u": 1.2540330425758512,
+              "v": 1.684458704785592
+            },
+            {
+              "u": 0.8317675086822295,
+              "v": 1.9282538244485754
+            },
+            {
+              "u": 0.3646611731005539,
+              "v": 2.0680962813256367
+            },
+            {
+              "u": -0.12210414071199913,
+              "v": 2.096447132369663
+            },
+            {
+              "u": -0.602286788693289,
+              "v": 2.0117779758625267
+            },
+            {
+              "u": -1.0499999999999996,
+              "v": 1.8186533479473213
+            },
+            {
+              "u": -1.4411074395243404,
+              "v": 1.5274846473034027
+            },
+            {
+              "u": -1.7545244039671661,
+              "v": 1.1539688539486932
+            },
+            {
+              "u": -1.9733545036504077,
+              "v": 0.7182423009839046
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": 0.24379511966298376
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": -0.24379511966298326
+            },
+            {
+              "u": -1.9733545036504079,
+              "v": -0.7182423009839042
+            },
+            {
+              "u": -1.7545244039671672,
+              "v": -1.1539688539486916
+            },
+            {
+              "u": -1.4411074395243406,
+              "v": -1.5274846473034023
+            },
+            {
+              "u": -1.050000000000001,
+              "v": -1.8186533479473206
+            },
+            {
+              "u": -0.6022867886932904,
+              "v": -2.0117779758625267
+            },
+            {
+              "u": -0.12210414071200011,
+              "v": -2.096447132369663
+            },
+            {
+              "u": 0.36466117310055296,
+              "v": -2.068096281325637
+            },
+            {
+              "u": 0.8317675086822287,
+              "v": -1.9282538244485756
+            },
+            {
+              "u": 1.2540330425758504,
+              "v": -1.6844587047855923
+            },
+            {
+              "u": 1.6086933305498534,
+              "v": -1.349853980341733
+            },
+            {
+              "u": 1.8766285446791657,
+              "v": -0.9424782784209712
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": -0.48429332855912494
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3526,
+      "name": "RE03 piston alpha72",
+      "seed": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 0.2,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "y",
+        "sketchId": "sk_4s09a",
+        "from": 1,
+        "to": 1.2,
+        "profileEntityIds": [
+          3480
+        ],
+        "holeProfileEntityIds": [
+          [
+            3483
+          ]
+        ],
+        "holes": [
+          [
+            {
+              "u": 2.1,
+              "v": 0
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": 0.4842933285591243
+            },
+            {
+              "u": 1.876628544679166,
+              "v": 0.9424782784209704
+            },
+            {
+              "u": 1.6086933305498539,
+              "v": 1.3498539803417324
+            },
+            {
+              "u": 1.2540330425758512,
+              "v": 1.684458704785592
+            },
+            {
+              "u": 0.8317675086822295,
+              "v": 1.9282538244485754
+            },
+            {
+              "u": 0.3646611731005539,
+              "v": 2.0680962813256367
+            },
+            {
+              "u": -0.12210414071199913,
+              "v": 2.096447132369663
+            },
+            {
+              "u": -0.602286788693289,
+              "v": 2.0117779758625267
+            },
+            {
+              "u": -1.0499999999999996,
+              "v": 1.8186533479473213
+            },
+            {
+              "u": -1.4411074395243404,
+              "v": 1.5274846473034027
+            },
+            {
+              "u": -1.7545244039671661,
+              "v": 1.1539688539486932
+            },
+            {
+              "u": -1.9733545036504077,
+              "v": 0.7182423009839046
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": 0.24379511966298376
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": -0.24379511966298326
+            },
+            {
+              "u": -1.9733545036504079,
+              "v": -0.7182423009839042
+            },
+            {
+              "u": -1.7545244039671672,
+              "v": -1.1539688539486916
+            },
+            {
+              "u": -1.4411074395243406,
+              "v": -1.5274846473034023
+            },
+            {
+              "u": -1.050000000000001,
+              "v": -1.8186533479473206
+            },
+            {
+              "u": -0.6022867886932904,
+              "v": -2.0117779758625267
+            },
+            {
+              "u": -0.12210414071200011,
+              "v": -2.096447132369663
+            },
+            {
+              "u": 0.36466117310055296,
+              "v": -2.068096281325637
+            },
+            {
+              "u": 0.8317675086822287,
+              "v": -1.9282538244485756
+            },
+            {
+              "u": 1.2540330425758504,
+              "v": -1.6844587047855923
+            },
+            {
+              "u": 1.6086933305498534,
+              "v": -1.349853980341733
+            },
+            {
+              "u": 1.8766285446791657,
+              "v": -0.9424782784209712
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": -0.48429332855912494
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3527,
+      "name": "RE03 piston alpha144",
+      "seed": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 0.2,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "y",
+        "sketchId": "sk_4s09a",
+        "from": 1,
+        "to": 1.2,
+        "profileEntityIds": [
+          3480
+        ],
+        "holeProfileEntityIds": [
+          [
+            3483
+          ]
+        ],
+        "holes": [
+          [
+            {
+              "u": 2.1,
+              "v": 0
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": 0.4842933285591243
+            },
+            {
+              "u": 1.876628544679166,
+              "v": 0.9424782784209704
+            },
+            {
+              "u": 1.6086933305498539,
+              "v": 1.3498539803417324
+            },
+            {
+              "u": 1.2540330425758512,
+              "v": 1.684458704785592
+            },
+            {
+              "u": 0.8317675086822295,
+              "v": 1.9282538244485754
+            },
+            {
+              "u": 0.3646611731005539,
+              "v": 2.0680962813256367
+            },
+            {
+              "u": -0.12210414071199913,
+              "v": 2.096447132369663
+            },
+            {
+              "u": -0.602286788693289,
+              "v": 2.0117779758625267
+            },
+            {
+              "u": -1.0499999999999996,
+              "v": 1.8186533479473213
+            },
+            {
+              "u": -1.4411074395243404,
+              "v": 1.5274846473034027
+            },
+            {
+              "u": -1.7545244039671661,
+              "v": 1.1539688539486932
+            },
+            {
+              "u": -1.9733545036504077,
+              "v": 0.7182423009839046
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": 0.24379511966298376
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": -0.24379511966298326
+            },
+            {
+              "u": -1.9733545036504079,
+              "v": -0.7182423009839042
+            },
+            {
+              "u": -1.7545244039671672,
+              "v": -1.1539688539486916
+            },
+            {
+              "u": -1.4411074395243406,
+              "v": -1.5274846473034023
+            },
+            {
+              "u": -1.050000000000001,
+              "v": -1.8186533479473206
+            },
+            {
+              "u": -0.6022867886932904,
+              "v": -2.0117779758625267
+            },
+            {
+              "u": -0.12210414071200011,
+              "v": -2.096447132369663
+            },
+            {
+              "u": 0.36466117310055296,
+              "v": -2.068096281325637
+            },
+            {
+              "u": 0.8317675086822287,
+              "v": -1.9282538244485756
+            },
+            {
+              "u": 1.2540330425758504,
+              "v": -1.6844587047855923
+            },
+            {
+              "u": 1.6086933305498534,
+              "v": -1.349853980341733
+            },
+            {
+              "u": 1.8766285446791657,
+              "v": -0.9424782784209712
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": -0.48429332855912494
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3528,
+      "name": "RE03 piston alpha216",
+      "seed": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 0.2,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "y",
+        "sketchId": "sk_4s09a",
+        "from": 1,
+        "to": 1.2,
+        "profileEntityIds": [
+          3480
+        ],
+        "holeProfileEntityIds": [
+          [
+            3483
+          ]
+        ],
+        "holes": [
+          [
+            {
+              "u": 2.1,
+              "v": 0
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": 0.4842933285591243
+            },
+            {
+              "u": 1.876628544679166,
+              "v": 0.9424782784209704
+            },
+            {
+              "u": 1.6086933305498539,
+              "v": 1.3498539803417324
+            },
+            {
+              "u": 1.2540330425758512,
+              "v": 1.684458704785592
+            },
+            {
+              "u": 0.8317675086822295,
+              "v": 1.9282538244485754
+            },
+            {
+              "u": 0.3646611731005539,
+              "v": 2.0680962813256367
+            },
+            {
+              "u": -0.12210414071199913,
+              "v": 2.096447132369663
+            },
+            {
+              "u": -0.602286788693289,
+              "v": 2.0117779758625267
+            },
+            {
+              "u": -1.0499999999999996,
+              "v": 1.8186533479473213
+            },
+            {
+              "u": -1.4411074395243404,
+              "v": 1.5274846473034027
+            },
+            {
+              "u": -1.7545244039671661,
+              "v": 1.1539688539486932
+            },
+            {
+              "u": -1.9733545036504077,
+              "v": 0.7182423009839046
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": 0.24379511966298376
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": -0.24379511966298326
+            },
+            {
+              "u": -1.9733545036504079,
+              "v": -0.7182423009839042
+            },
+            {
+              "u": -1.7545244039671672,
+              "v": -1.1539688539486916
+            },
+            {
+              "u": -1.4411074395243406,
+              "v": -1.5274846473034023
+            },
+            {
+              "u": -1.050000000000001,
+              "v": -1.8186533479473206
+            },
+            {
+              "u": -0.6022867886932904,
+              "v": -2.0117779758625267
+            },
+            {
+              "u": -0.12210414071200011,
+              "v": -2.096447132369663
+            },
+            {
+              "u": 0.36466117310055296,
+              "v": -2.068096281325637
+            },
+            {
+              "u": 0.8317675086822287,
+              "v": -1.9282538244485756
+            },
+            {
+              "u": 1.2540330425758504,
+              "v": -1.6844587047855923
+            },
+            {
+              "u": 1.6086933305498534,
+              "v": -1.349853980341733
+            },
+            {
+              "u": 1.8766285446791657,
+              "v": -0.9424782784209712
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": -0.48429332855912494
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3529,
+      "name": "RE03 piston alpha288",
+      "seed": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 0.2,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "y",
+        "sketchId": "sk_4s09a",
+        "from": 1,
+        "to": 1.2,
+        "profileEntityIds": [
+          3480
+        ],
+        "holeProfileEntityIds": [
+          [
+            3483
+          ]
+        ],
+        "holes": [
+          [
+            {
+              "u": 2.1,
+              "v": 0
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": 0.4842933285591243
+            },
+            {
+              "u": 1.876628544679166,
+              "v": 0.9424782784209704
+            },
+            {
+              "u": 1.6086933305498539,
+              "v": 1.3498539803417324
+            },
+            {
+              "u": 1.2540330425758512,
+              "v": 1.684458704785592
+            },
+            {
+              "u": 0.8317675086822295,
+              "v": 1.9282538244485754
+            },
+            {
+              "u": 0.3646611731005539,
+              "v": 2.0680962813256367
+            },
+            {
+              "u": -0.12210414071199913,
+              "v": 2.096447132369663
+            },
+            {
+              "u": -0.602286788693289,
+              "v": 2.0117779758625267
+            },
+            {
+              "u": -1.0499999999999996,
+              "v": 1.8186533479473213
+            },
+            {
+              "u": -1.4411074395243404,
+              "v": 1.5274846473034027
+            },
+            {
+              "u": -1.7545244039671661,
+              "v": 1.1539688539486932
+            },
+            {
+              "u": -1.9733545036504077,
+              "v": 0.7182423009839046
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": 0.24379511966298376
+            },
+            {
+              "u": -2.0858005512580804,
+              "v": -0.24379511966298326
+            },
+            {
+              "u": -1.9733545036504079,
+              "v": -0.7182423009839042
+            },
+            {
+              "u": -1.7545244039671672,
+              "v": -1.1539688539486916
+            },
+            {
+              "u": -1.4411074395243406,
+              "v": -1.5274846473034023
+            },
+            {
+              "u": -1.050000000000001,
+              "v": -1.8186533479473206
+            },
+            {
+              "u": -0.6022867886932904,
+              "v": -2.0117779758625267
+            },
+            {
+              "u": -0.12210414071200011,
+              "v": -2.096447132369663
+            },
+            {
+              "u": 0.36466117310055296,
+              "v": -2.068096281325637
+            },
+            {
+              "u": 0.8317675086822287,
+              "v": -1.9282538244485756
+            },
+            {
+              "u": 1.2540330425758504,
+              "v": -1.6844587047855923
+            },
+            {
+              "u": 1.6086933305498534,
+              "v": -1.349853980341733
+            },
+            {
+              "u": 1.8766285446791657,
+              "v": -0.9424782784209712
+            },
+            {
+              "u": 2.0433942282176303,
+              "v": -0.48429332855912494
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "poses": [
+    {
+      "timeSeconds": 0,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 0,
+      "pinPositionCm": {
+        "x": 0,
+        "y": 1.8,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 0,
+      "elapsedSeconds": 9
+    },
+    {
+      "timeSeconds": 0.20833333333333334,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 15.000000000000044,
+      "pinPositionCm": {
+        "x": -0.465874281,
+        "y": 1.738666487,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 0.5957110526288407,
+      "elapsedSeconds": 12
+    },
+    {
+      "timeSeconds": 0.4166666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 29.999999999999993,
+      "pinPositionCm": {
+        "x": -0.9,
+        "y": 1.558845727,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 1.1877708133867262,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 0.625,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 45,
+      "pinPositionCm": {
+        "x": -1.272792206,
+        "y": 1.272792206,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 1.7507222842910461,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 0.8333333333333334,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 59.99999999999999,
+      "pinPositionCm": {
+        "x": -1.558845727,
+        "y": 0.9,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 2.261545341667116,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 1.0416666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 75.00000000000001,
+      "pinPositionCm": {
+        "x": -1.738666487,
+        "y": 0.465874281,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 2.7021780202078785,
+      "elapsedSeconds": 11
+    },
+    {
+      "timeSeconds": 1.25,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 89.99999999999999,
+      "pinPositionCm": {
+        "x": -1.8,
+        "y": 0,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.061157999505024,
+      "elapsedSeconds": 13
+    },
+    {
+      "timeSeconds": 1.4583333333333333,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 105.00000000000016,
+      "pinPositionCm": {
+        "x": -1.738666487,
+        "y": -0.465874281,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.334060555031517,
+      "elapsedSeconds": 11
+    },
+    {
+      "timeSeconds": 1.6666666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 119.99999999999997,
+      "pinPositionCm": {
+        "x": -1.558845727,
+        "y": -0.9,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.522730621721768,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 1.875,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 135,
+      "pinPositionCm": {
+        "x": -1.272792206,
+        "y": -1.272792206,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.6400096827111974,
+      "elapsedSeconds": 11
+    },
+    {
+      "timeSeconds": 2.0833333333333335,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 150.00000000000003,
+      "pinPositionCm": {
+        "x": -0.9,
+        "y": -1.558845727,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.7111738380797195,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 2.2916666666666665,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 164.99999999999997,
+      "pinPositionCm": {
+        "x": -0.465874281,
+        "y": -1.738666487,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.695304070557144,
+      "elapsedSeconds": 11
+    },
+    {
+      "timeSeconds": 2.5,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 180,
+      "pinPositionCm": {
+        "x": 0,
+        "y": -1.8,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.6000000000000005,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 2.7083333333333335,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -165.00000000000006,
+      "pinPositionCm": {
+        "x": 0.465874281,
+        "y": -1.738666487,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.695304070557144,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 2.9166666666666665,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -150.00000000000003,
+      "pinPositionCm": {
+        "x": 0.9,
+        "y": -1.558845727,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.7111738380797195,
+      "elapsedSeconds": 12
+    },
+    {
+      "timeSeconds": 3.125,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -135.00000000000003,
+      "pinPositionCm": {
+        "x": 1.272792206,
+        "y": -1.272792206,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.6400096827111974,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 3.3333333333333335,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -120.00000000000006,
+      "pinPositionCm": {
+        "x": 1.558845727,
+        "y": -0.9,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.522730621721768,
+      "elapsedSeconds": 11
+    },
+    {
+      "timeSeconds": 3.5416666666666665,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -105,
+      "pinPositionCm": {
+        "x": 1.738666487,
+        "y": -0.465874281,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.334060555031517,
+      "elapsedSeconds": 12
+    },
+    {
+      "timeSeconds": 3.75,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -90.00000000000001,
+      "pinPositionCm": {
+        "x": 1.8,
+        "y": 0,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 3.061157999505024,
+      "elapsedSeconds": 11
+    },
+    {
+      "timeSeconds": 3.9583333333333335,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -74.99999999999999,
+      "pinPositionCm": {
+        "x": 1.738666487,
+        "y": 0.465874281,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 2.7021780202078785,
+      "elapsedSeconds": 11
+    },
+    {
+      "timeSeconds": 4.166666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -59.99999999999999,
+      "pinPositionCm": {
+        "x": 1.558845727,
+        "y": 0.9,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 2.261545341667116,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 4.375,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -45.00000000000001,
+      "pinPositionCm": {
+        "x": 1.272792206,
+        "y": 1.272792206,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 1.7507222842910461,
+      "elapsedSeconds": 10
+    },
+    {
+      "timeSeconds": 4.583333333333333,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -30.00000000000003,
+      "pinPositionCm": {
+        "x": 0.9,
+        "y": 1.558845727,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 1.1877708133867262,
+      "elapsedSeconds": 9
+    },
+    {
+      "timeSeconds": 4.791666666666667,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": -15.000000000000039,
+      "pinPositionCm": {
+        "x": 0.465874281,
+        "y": 1.738666487,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 0.5957110526288407,
+      "elapsedSeconds": 16
+    },
+    {
+      "timeSeconds": 5,
+      "solveOk": true,
+      "unresolvedMates": 0,
+      "exactPositiveVolumePairs": 0,
+      "hits": [],
+      "journalRzDegrees": 0,
+      "pinPositionCm": {
+        "x": 0,
+        "y": 1.8,
+        "z": 0
+      },
+      "maxHomePositionDeltaCm": 0,
+      "elapsedSeconds": 9
+    }
+  ]
+}

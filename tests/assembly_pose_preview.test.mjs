@@ -10,10 +10,10 @@ function scene(ids){
   const grp={children,remove(child){this.children.splice(this.children.indexOf(child),1);}};
   return {grp,children};
 }
-function poseRefresh(E,notify){
+function poseRefresh(E,notify,leaders=()=>{}){
   const THREE={Box3:class{setFromObject(group){this.size=group.children.length;return this;}isEmpty(){return !this.size;}getBoundingSphere(){return {size:this.size};}},Sphere:class{}};
-  return new Function('E','normalizeTransform','invalidateDrawing','THREE',sourceFunctionText(source,'refreshAssemblyPosePreview')+';return refreshAssemblyPosePreview;')(
-    E,component=>component.transform,notify,THREE);
+  return new Function('E','normalizeTransform','invalidateDrawing','addExplodeLeaders','THREE',sourceFunctionText(source,'refreshAssemblyPosePreview')+';return refreshAssemblyPosePreview;')(
+    E,component=>component.transform,notify,leaders,THREE);
 }
 
 test('55-component mate pose refresh retains native meshes and updates transforms',()=>{
@@ -30,20 +30,53 @@ test('55-component mate pose refresh retains native meshes and updates transform
   assert.deepEqual(E.pv.pickBounds,{size:55});
 });
 
-test('pose refresh removes obsolete interference overlays and falls back on changed scene identity',()=>{
+test('pose refresh updates explosion leaders without rebuilding native meshes',()=>{
   const {grp}=scene(['a']);let disposals=0,drawings=0;
   const overlay={userData:{cadInterference:0},geometry:{dispose(){disposals++;}},material:{dispose(){disposals++;}},traverse(fn){fn(this);}};
   grp.children.push(overlay);
   const E={assembly:{components:[{id:'a',transform:{x:1,y:2,z:3,rx:0,ry:0,rz:0}}]},pv:{grp,inRoom:false}};
-  const refresh=poseRefresh(E,()=>drawings++);
+  const mesh=grp.children[0].geometry;
+  let leaders=0;
+  const refresh=poseRefresh(E,()=>drawings++,parent=>{
+    leaders++;
+    parent.children.push({userData:{cadExplodeLine:'leader'},geometry:{dispose(){disposals++;}},material:{dispose(){disposals++;}},traverse(fn){fn(this);}});
+  });
   assert.equal(refresh(),true);
   assert.equal(grp.children.includes(overlay),false);
   assert.equal(disposals,2);
   assert.equal(drawings,1);
-  grp.children.push({userData:{cadExplodeLine:'leader'}});
-  assert.equal(refresh(),false);
-  assert.equal(drawings,1);
-  grp.children.pop();
+  E.assembly.components[0].explodedOffset={x:10,y:0,z:0};
+  assert.equal(refresh(),true);
+  assert.equal(leaders,1);
+  assert.deepEqual(grp.children[0].position.value,[11,2,3]);
+  assert.equal(grp.children[0].geometry,mesh);
+  assert.equal(refresh(),true);
+  assert.equal(leaders,2);
+  assert.equal(disposals,4);
+  E.assembly.components[0].explodedOffset={x:0,y:0,z:0};
+  assert.equal(refresh(),true);
+  assert.equal(leaders,2);
+  assert.equal(disposals,6);
+  assert.equal(grp.children.length,1);
+  assert.deepEqual(grp.children[0].position.value,[1,2,3]);
   E.assembly.components.push({id:'new',transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0}});
   assert.equal(refresh(),false);
+});
+
+test('closing a presentation-only assembly form preserves the current viewport buffers',()=>{
+  let rebuilt=0,selected=0,cleared=0;
+  const E={docType:'assembly',quickAction:'explodestep',authoring:{repairMarker:'stale'}};
+  const host={hidden:false};
+  const root={querySelector(selector){assert.equal(selector,'#mdQuickSettings');return host;}};
+  const close=new Function('E','root','motionPlaybackCancel','clearFeaturePreview','clearLiveDownstream','refreshAssemblyPosePreview','refreshViewportSelection','updatePreview','syncCommandManager',
+    sourceFunctionText(source,'closeFeaturePanel')+';return closeFeaturePanel;')(
+    E,root,null,()=>cleared++,()=>{},()=>true,()=>selected++,()=>rebuilt++,()=>{});
+  close({assemblyPoseOnly:true});
+  assert.equal(host.hidden,true);
+  assert.equal(E.authoring.repairMarker,null);
+  assert.equal(cleared,1);
+  assert.equal(selected,1);
+  assert.equal(rebuilt,0);
+  close();
+  assert.equal(rebuilt,1);
 });

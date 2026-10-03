@@ -11,7 +11,7 @@ import { toolFeatureRecipe } from './tool_recipe.js';
 import {collectNativeSections} from './native_section_query.js';
 import {nativeOperationRevisions} from './native_operation_revision.js';
 import {
-  serializeBrep, deserializeBrep, extractBrepTopology, hydrateSerializedBrepTopology, disposeBrep, shapeToMeshData, shapeMassProperties, exportStep,
+  serializeBrep, deserializeBrep, extractBrepTopology, hydrateSerializedBrepTopology, disposeBrep, shapeToMeshData, shapeMassProperties, shapeSolidCount, exportStep,
   shellBrep, filletBrep, chamferBrep, domeBrep, draftBrep, makeBrepExtrusion, brepMaterialIntersection, brepFaceLineIntersections,
 } from '../cad_kernel.js';
 
@@ -109,9 +109,11 @@ export function nativeWorkerHeads(document,run,requestedHead) {
 async function packBody(body,mesh=false,mass=false,meshOnly=false) {
   if(!body?.shape)return {metadata:metadata(body || {}),topology:body?.topology || []};
   const payload={metadata:metadata(body),topology:structuredClone(body.topology || [])};
+  if(!body.invalid && !body.approximate)payload.metadata.nativeSolidCount=await shapeSolidCount(body);
   if(meshOnly && !body.invalid && !body.approximate)payload.proof='exact-native-mesh';
   else payload.bytes=await serializeBrep(body);
   if(mesh)payload.meshData=await shapeToMeshData(body,{deflection:.24,angle:.16});
+  if(payload.meshData && payload.metadata.nativeSolidCount!==undefined)payload.meshData.nativeSolidCount=payload.metadata.nativeSolidCount;
   if(mass)payload.massProperties=await shapeMassProperties(body);
   return payload;
 }

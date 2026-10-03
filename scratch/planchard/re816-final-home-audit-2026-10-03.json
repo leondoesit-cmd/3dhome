@@ -1,0 +1,80 @@
+{
+  "nativeSource": "artifacts/planchard/RE-assembly-annular-repair-browser-2026-10-03.mforge",
+  "homeSource": "artifacts/planchard/RE-assembly-annular-repair-home-browser-2026-10-03.mforge",
+  "occurrences": 55,
+  "definitions": 14,
+  "canonicalMates": 75,
+  "timeSeconds": 0,
+  "baselineCount": 55,
+  "maxSavedVsBaselineFieldError": 0,
+  "changedGeometryComparedWithAuditedNativeSource": [],
+  "bindings": [
+    {
+      "id": 3525,
+      "holeProfileEntityIds": [
+        [
+          3483
+        ]
+      ]
+    },
+    {
+      "id": 3526,
+      "holeProfileEntityIds": [
+        [
+          3483
+        ]
+      ]
+    },
+    {
+      "id": 3527,
+      "holeProfileEntityIds": [
+        [
+          3483
+        ]
+      ]
+    },
+    {
+      "id": 3528,
+      "holeProfileEntityIds": [
+        [
+          3483
+        ]
+      ]
+    },
+    {
+      "id": 3529,
+      "holeProfileEntityIds": [
+        [
+          3483
+        ]
+      ]
+    }
+  ],
+  "exploded": false,
+  "nonzeroPresentationOffsets": 0,
+  "views": [
+    {
+      "id": "ev_1bea4613-f061-4b6b-9461-c19bb49089ba",
+      "name": "Exploded View 1",
+      "stepCount": 10
+    }
+  ],
+  "drawingSettings": {
+    "size": "ANSI_C",
+    "units": "mm",
+    "scale": "fit",
+    "projection": "third",
+    "orientation": "landscape",
+    "draftingStandard": "ANSI",
+    "notes": "Source: Planchard 2021 Exercise 8.16, printed 8-51 / PDF 429. Fresh designer dimensions; companion parts and AVI not supplied. 14 definitions / 55 occurrences; RE12-14 are additional support fixtures. Ideal bearing interfaces, 18 mm crank throw, 68 mm rods. Casting callout C355.0-T61 permanent mold; 6061 density proxy for mass. Bronze C95400, carbon steel grade unspecified; ring EPDM mass proxy only. Book cap-pin and counterweight quantities require source confirmation.",
+    "title": "RADIAL ENGINE - FIVE CYLINDER DESIGNER EXAMPLE",
+    "number": "RE-8.16",
+    "revision": "A",
+    "author": "ModelForge / Liron",
+    "company": "",
+    "date": "2026-10-03",
+    "material": "",
+    "finish": "",
+    "mass": ""
+  }
+}
