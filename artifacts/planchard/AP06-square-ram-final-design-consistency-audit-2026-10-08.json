@@ -1,0 +1,133 @@
+{
+  "source": "artifacts/planchard/AP06-square-ram-final-browser-2026-10-08.mforge",
+  "bytes": 94959,
+  "inputSha256": "e1e25da948cc9a8445501a5cf9fe7e061efc5a6946f5bf41fe3ac5a79ece5ad1",
+  "inputUnchanged": true,
+  "checks": {
+    "counts": true,
+    "fullyDefined": true,
+    "planes": true,
+    "rectangle": true,
+    "centerAnchored": true,
+    "constructionExcluded": true,
+    "socket": true,
+    "boss": true,
+    "socketCut": true,
+    "featureParams": true
+  },
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP06-square-ram-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 59.34629740064103,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 59.34629740064103,
+    "boundsCm": {
+      "min": {
+        "x": -1,
+        "y": 0,
+        "z": -1
+      },
+      "max": {
+        "x": 1,
+        "y": 15,
+        "z": 1
+      }
+    },
+    "centerOfMassCm": {
+      "x": -1.9332456106211054e-19,
+      "y": 7.578206874880765,
+      "z": 1.6486016538587817e-17
+    },
+    "seconds": 6.5213472999999995
+  },
+  "step": {
+    "source": "artifacts/planchard/AP06-square-ram-final-browser-2026-10-08.step",
+    "bytes": 19909,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 59.34629740064101,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 59.34629740064101,
+      "centerOfMass": {
+        "x": -7.968443482065558e-20,
+        "y": 7.578206874880768,
+        "z": -1.4112497845443618e-16
+      },
+      "inertia": [
+        [
+          1111.6065001506372,
+          -1.815268173992001e-15,
+          1.4610713765562625e-16
+        ],
+        [
+          -1.815268173992001e-15,
+          39.91498597695336,
+          -4.885602823676759e-14
+        ],
+        [
+          1.4610713765562625e-16,
+          -4.885602823676759e-14,
+          1111.6065001506372
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1,
+          "y": 0,
+          "z": -1
+        },
+        "max": {
+          "x": 1,
+          "y": 15,
+          "z": 1
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/AP06-square-ram-final-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/AP06-square-ram-final-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticVolumeCm3": 59.346297400641035,
+  "nativeAnalyticVolumeErrorCm3": -7.105427357601002e-15,
+  "material": {
+    "name": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "source": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "catalogId": "stock:alloySteel",
+    "massG": 456.96648998493595
+  },
+  "customProperties": {
+    "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational square peg/rack ram; ideal rack coupling, teeth omitted. Book AISI1035 role uses Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+    "PartNo": "AP06",
+    "BookItemNo": "1.6 SQUARE PEG"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent Chrome UI observation",
+    "driving": "Width20→20.2 changed native59.34630→59.94630cm3 /0.4569665→0.4615865kg; Undo/Redo/Undo restored20 then Save",
+    "coldReopen": "Parent actual Chrome cold reload/saved-library reopen:4fullydefinedsteps,1native solid,20x150x20mm,59.34630cm3/0.4569665kg;20x20rectangle/offset0 and socket10.2/offset0 retained. Coldmass/socket/final screenshots protected.",
+    "status": "passed"
+  }
+}

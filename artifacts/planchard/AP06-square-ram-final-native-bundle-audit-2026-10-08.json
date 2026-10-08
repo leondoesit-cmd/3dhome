@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP06-square-ram-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 5,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 59.34629740064103,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "volumeCm3": 59.34629740064103,
+  "boundsCm": {
+    "min": {
+      "x": -1,
+      "y": 0,
+      "z": -1
+    },
+    "max": {
+      "x": 1,
+      "y": 15,
+      "z": 1
+    }
+  },
+  "centerOfMassCm": {
+    "x": -1.9332456106211054e-19,
+    "y": 7.578206874880765,
+    "z": 1.6486016538587817e-17
+  },
+  "seconds": 6.5213472999999995
+}
