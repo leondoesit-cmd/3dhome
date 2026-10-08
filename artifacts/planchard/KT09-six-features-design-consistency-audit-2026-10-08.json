@@ -1,0 +1,430 @@
+{
+  "source": "artifacts/planchard/KT09-six-features-browser-2026-10-08.mforge",
+  "inputSha256": "5e954363b8218d0d9a2988538a0934c509dedc62fe270d000c51e396244917f8",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Barrel",
+      "sketchId": "sk_1t5av",
+      "featureId": "feature_muztqp3s_1",
+      "plane": "front",
+      "offsetMm": -10,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 16,
+      "drivingConstraint": {
+        "id": 4280,
+        "type": "diameter",
+        "entity": 4279,
+        "value": 1.6,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 2,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4279
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1t5av",
+        "from": -1,
+        "to": 1
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Positive journal",
+      "sketchId": "sk_219he",
+      "featureId": "feature_muztr49i_2",
+      "plane": "front",
+      "offsetMm": 10,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 6.000000000000001,
+      "drivingConstraint": {
+        "id": 4285,
+        "type": "diameter",
+        "entity": 4284,
+        "value": 0.6000000000000001,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.42000000000000004,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4284
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_219he",
+        "from": 1,
+        "to": 1.42
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Negative journal",
+      "sketchId": "sk_3iy1y",
+      "featureId": "feature_muztrhsy_3",
+      "plane": "front",
+      "offsetMm": -14.2,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 6.000000000000001,
+      "drivingConstraint": {
+        "id": 4290,
+        "type": "diameter",
+        "entity": 4289,
+        "value": 0.6000000000000001,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.42000000000000004,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4289
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_3iy1y",
+        "from": -1.42,
+        "to": -0.9999999999999999
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Negative retaining flange",
+      "sketchId": "sk_4k6xl",
+      "featureId": "feature_muztrvyo_4",
+      "plane": "front",
+      "offsetMm": -16.8,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 10,
+      "drivingConstraint": {
+        "id": 4295,
+        "type": "diameter",
+        "entity": 4294,
+        "value": 1,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.26,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4294
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_4k6xl",
+        "from": -1.6800000000000002,
+        "to": -1.4200000000000002
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Spindle crossbore",
+      "sketchId": "sk_5ul9f",
+      "featureId": "feature_muzts9eo_5",
+      "plane": "top",
+      "offsetMm": -8,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 10.2,
+      "drivingConstraint": {
+        "id": 4300,
+        "type": "diameter",
+        "entity": 4299,
+        "value": 1.02,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "subtract",
+        "endCondition": "through-all",
+        "depth": 0.26,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "y",
+        "profileEntityIds": [
+          4299
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_5ul9f",
+        "from": -0.8,
+        "to": 0.8009999999999999
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Positive retaining bore",
+      "sketchId": "sk_6xakw",
+      "featureId": "feature_muztsto0_6",
+      "plane": "front",
+      "offsetMm": 11.2,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 3.2000000000000006,
+      "drivingConstraint": {
+        "id": 4304,
+        "type": "diameter",
+        "entity": 4303,
+        "value": 0.32000000000000006,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 0.30000000000000004,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "z",
+        "profileEntityIds": [
+          4303
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_6xakw",
+        "from": 1.1199999999999999,
+        "to": 1.42
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    }
+  ],
+  "featureCount": 6,
+  "sketchCount": 6,
+  "historyCount": 12,
+  "historyRebuilt": true,
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT09-six-features-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "volumeCm3": 3.201720694089142,
+    "boundsCm": {
+      "min": {
+        "x": -0.8000001,
+        "y": -0.800000100388199,
+        "z": -1.6800000000000002
+      },
+      "max": {
+        "x": 0.8000001,
+        "y": 0.8000001003881995,
+        "z": 1.42
+      }
+    },
+    "centerOfMassCm": {
+      "x": 6.482061022397707e-7,
+      "y": 0.0000017239527144214285,
+      "z": -0.10842857868875344
+    },
+    "seconds": 6.6034768
+  },
+  "step": {
+    "source": "artifacts/planchard/KT09-six-features-browser-2026-10-08.step",
+    "bytes": 102453,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 3.2017246497074097,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 3.2017246497074097,
+      "centerOfMass": {
+        "x": 6.087062922939808e-7,
+        "y": 0.000001322062630204603,
+        "z": -0.10842735433706878
+      },
+      "inertia": [
+        [
+          2.4473154778646564,
+          -4.1825716404479695e-7,
+          -4.254576241863853e-7
+        ],
+        [
+          -4.1825716404479695e-7,
+          2.6102532943530217,
+          -0.0000013106185648652996
+        ],
+        [
+          -4.254576241863853e-7,
+          -0.0000013106185648652996,
+          1.0082991237238552
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.8000001,
+          "y": -0.8000001003885003,
+          "z": -1.68
+        },
+        "max": {
+          "x": 0.8000001,
+          "y": 0.8000001003884992,
+          "z": 1.42
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/KT09-six-features-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/KT09-six-features-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "nativeStepVolumeDifferenceCm3": 0.000003955618267603711,
+  "material": {
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "densityGPerCm3": 7.7,
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "materialCatalogId": "stock:alloySteel",
+    "appearances": [
+      {
+        "id": "app_muztt2jdv7d",
+        "persistentId": 4282,
+        "kind": "body",
+        "material": "alloySteel",
+        "opacity": 1,
+        "name": "Alloy Steel (SOLIDWORKS reference)",
+        "color": "#a6adb4",
+        "metal": 0.78,
+        "rough": 0.42
+      }
+    ],
+    "nativeMassG": 24.653249344486394,
+    "stepMassG": 24.653279802747054
+  },
+  "customProperties": {
+    "Description": "Exercise8.18 printed8-53/PDF431, original educational moving trunnion with integral journals and nominal smooth lead2mm threaded crossbore. Companion CAD/AVI unavailable; no rated capacity.",
+    "PartNo": "KT09",
+    "BookItemNo": "9"
+  },
+  "metadataPass": true,
+  "browserDurability": "Pending parent driving diameter Undo/Redo and cold library reopen; no independent browser claim",
+  "retainingSpindleInterface": {
+    "spindleCrossboreMaxAbsZMm": 5.1,
+    "retainingBoreBottomZMm": 11.2,
+    "minAxialWebMm": 6.1,
+    "blindBoreBottomAboveJournalRootMm": 1.2,
+    "pass": true,
+    "note": "Ideal cylinders remain separated; retaining blind bore is entirely in positive journal and does not open into spindle crossbore."
+  }
+}
