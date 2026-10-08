@@ -63,6 +63,23 @@ test("both precision ribbon commands invoke their adopted modeler control",()=>{
   }finally{detach();connect(null);}
 });
 
+test("precise polygon migration runs once, preserving previous precision removals and moved polygon controls",()=>{
+  const doc=defaultLayout(),id="cmd:grpSketch:dimensionedpolygon",circle="cmd:grpSketch:dimensionedcircle";
+  delete doc.precisionPolygonRibbonVersion;
+  for(const key of [id,circle]){delete doc.nodes[key];doc.nodes["md:grpSketch"].children=doc.nodes["md:grpSketch"].children.filter(child=>child!==key);}
+  const out=migrateSavedLayout(doc),children=out.nodes["md:grpSketch"].children;
+  assert.equal(children.indexOf(id),children.indexOf("cmd:grpSketch:spoly")+1);
+  assert.ok(!out.nodes[circle]);
+  children.splice(children.indexOf(id),1);delete out.nodes[id];
+  assert.deepEqual(migrateSavedLayout(out),out);
+  const moved=defaultLayout();delete moved.precisionPolygonRibbonVersion;
+  moved.nodes["md:grpSketch"].children=moved.nodes["md:grpSketch"].children.filter(child=>child!==id);
+  moved.nodes["panel:tb-start"].children.push(id);
+  const migrated=migrateSavedLayout(moved);
+  assert.ok(migrated.nodes["panel:tb-start"].children.includes(id));
+  assert.ok(!migrated.nodes["md:grpSketch"].children.includes(id));
+});
+
 /* The shape the previous build wrote: menus were leaves, their items lived in
    slot-bound containers parked at the root, and the three toolbar-centre
    regions were called panel:* before that prefix came to mean "one of the

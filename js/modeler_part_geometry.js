@@ -113,8 +113,8 @@ export function partBounds(p) {
 }
 
 /* Which bodies the exact kernel can rebuild from their own definition — and so
-   which ones a 3D cut can be applied to at all. A sphere or an imported mesh
-   has no profile to rebuild from: a cut through one has to be refused out loud
+   which ones a 3D cut can be applied to at all. An imported mesh
+   has no native recipe to rebuild from: a cut through one has to be refused out loud
    rather than dropped on the floor, which is what "it cut the box but not the
    shape on top of it" was. */
 export function partSupportsExactMesh(p) {
@@ -126,6 +126,7 @@ export function partSupportsExactMesh(p) {
   if (isKernelBody(p)) return !!(p.kernel && p.kernel.type);
   if (p.kind === "box" || p.kind === "ext") return true;
   if (p.kind === "cyl") return fin(p.r) && fin(p.h);
+  if (p.kind === "sph") return fin(p.r) && p.r > 0;
   if (p.kind === "loft") return (p.pts0 || []).length >= 3 && (p.pts1 || []).length === (p.pts0 || []).length;
   // The shared radial recipe now includes start angle and end caps.
   if (p.kind === "rev") return (p.pts || []).length >= 3 && Number(p.angle ?? 360)>0 && Number(p.angle ?? 360)<=360;
@@ -470,6 +471,10 @@ export async function exactBrepForPart(p) {
     var boxParams={x:Math.min(p.x0,p.x1),y:Math.min(p.y0,p.y1),z:Math.min(p.z0,p.z1),w:Math.abs(p.x1-p.x0),h:Math.abs(p.y1-p.y0),d:Math.abs(p.z1-p.z0)};
     solid=await makeBrepPrimitive({type:"box",...boxParams});
     expectedTopology=topologyForFeature({id:ownerFeatureId,type:"box"},boxParams);
+  } else if (p.kind==="sph") {
+    var sphereParams={x:p.x,y:p.y,z:p.z,r:p.r};
+    solid=await makeBrepPrimitive({type:"sphere",...sphereParams});
+    expectedTopology=topologyForFeature({id:ownerFeatureId,type:"sphere"},sphereParams);
   } else if (p.kind==="cyl" && (p.r2==null || Math.abs(p.r2-p.r)<1e-6)) {
     var cylParams={x:p.x,y:p.y,z:p.z,r:p.r,h:p.h,axis:p.axis};
     solid=await makeBrepPrimitive({type:"cylinder",...cylParams});

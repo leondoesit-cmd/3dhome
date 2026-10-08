@@ -631,6 +631,10 @@ export const CAD_ICONS = {
     );
   },
 
+  dimensionedpolygon: function () {
+    return CAD_ICONS.spoly() + colorPath("M2 18.5 H18 M2 17.5 V19.5 M18 17.5 V19.5", "none", "#2684c7", 0.8);
+  },
+
   // Ellipse: major axis, minor axis, and center point
   sell: function () {
     return (

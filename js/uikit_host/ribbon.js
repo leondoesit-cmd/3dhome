@@ -108,6 +108,7 @@ export const RIBBON_BUTTONS = {
     { id: "tangentarc", textKey: "tangentArc", fallback: "Tangent Arc", icon: "tangentarc" },
     { id: "sslot", textKey: "tool_sslot", fallback: "Slot", icon: "sslot" },
     { id: "spoly", textKey: "tool_spoly", fallback: "Polygon", icon: "spoly" },
+    { id: "dimensionedpolygon", textKey: "dimensionedPolygon", fallback: "Dimensioned polygon", icon: "spoly" },
     { id: "sell", textKey: "tool_sell", fallback: "Ellipse", icon: "sell" },
     { id: "sspline", textKey: "tool_sspline", fallback: "Cubic spline", icon: "sspline" },
     { id: "sketchrepair", textKey: "sketchRepair", fallback: "Repair sketch relationships", icon: "sketchrepair" },

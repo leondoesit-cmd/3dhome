@@ -194,10 +194,12 @@ test("a parametric-v1 part greys the Direct primitives a legacy part still offer
     assembly: null,
   };
   const canonicalCatalog = catalogFor(canonical);
-  ["directbox", "directcyl", "directsph", "directpoly", "directrev"].forEach((id) => {
+  ["directbox", "directcyl", "directpoly", "directrev"].forEach((id) => {
     assert.equal(commandUnavailableReason(id, legacyCatalog, "fallback"), "", id + " works on a legacy part");
     assert.equal(commandUnavailableReason(id, canonicalCatalog, "fallback"), "needSketchThenFeature", id + " is a trap in parametric-v1");
   });
+  assert.equal(commandUnavailableReason("directsph",canonicalCatalog,"fallback"),"","Sphere has a declarative form in parametric-v1");
+  assert.equal(commandUnavailableReason("directsph",legacyCatalog,"fallback"),"","legacy Sphere retains direct drawing");
 });
 
 /* The helper is optional so a caller that omits it still builds a sane catalog. */

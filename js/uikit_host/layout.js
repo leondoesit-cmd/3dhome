@@ -262,6 +262,7 @@ export function defaultLayout() {
     v: 1,
     plannerDockVersion: 3,
     precisionSketchRibbonVersion: 1,
+    precisionPolygonRibbonVersion: 1,
     variants: {
       base: { root: "n:app", patch: {} },
       compact: { root: "n:app", patch: {} },
@@ -390,6 +391,17 @@ export function migrateSavedLayout(saved) {
       }
     }
     doc.precisionSketchRibbonVersion=1;
+  }
+
+  if (doc.precisionPolygonRibbonVersion !== 1) {
+    const group=doc.nodes["md:grpSketch"], id="cmd:grpSketch:dimensionedpolygon";
+    if (group && Array.isArray(group.children) && !doc.nodes[id] && !placed.has(id)) {
+      const at=group.children.indexOf("cmd:grpSketch:spoly");
+      group.children.splice(at<0 ? group.children.length : at+1,0,id);
+      doc.nodes[id]=ribbonLayoutNodes()[id];
+      placed.add(id);
+    }
+    doc.precisionPolygonRibbonVersion=1;
   }
 
   const MENU_DEFAULTS = {

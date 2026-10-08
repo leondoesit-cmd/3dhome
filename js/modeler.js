@@ -28,6 +28,7 @@ import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
 import { addCenterRectangle } from "./sketch_center_rectangle.js";
 import { addDimensionedCircle } from "./sketch_dimensioned_circle.js";
+import { addDimensionedPolygon } from "./sketch_dimensioned_polygon.js";
 import { addCenterSlot } from "./sketch_center_slot.js";
 import { rasterTextContours } from "./sketch_text.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
@@ -3894,6 +3895,7 @@ function buildDOM() {
         commandButton("faceboundary", t("faceBoundary"), ""),
         commandButton("scirc", t("cap_scirc"), "G", "primary", t("tool_scirc")),
         commandButton("dimensionedcircle", "Dimensioned circle", ""),
+        commandButton("dimensionedpolygon", "Dimensioned polygon", ""),
         commandButton("sarc", t("centerpointArc"), "A", "", t("centerpointArc")),
         commandButton("arc3point", t("arcThreePoint"), ""),
         commandButton("tangentarc", t("tangentArc"), ""),
@@ -7206,6 +7208,7 @@ function runCommand(id) {
   }
   var blocked = commandUnavailableReason(id);
   if (blocked) { flash(blocked); closeCommandSearch(); return; }
+  if (id === "directsph" && isCanonicalAuthoring()) { openSphereForm(); closeCommandSearch(); return; }
   if (DIRECT_COMMAND_TOOLS[id]) { setTool(DIRECT_COMMAND_TOOLS[id]); closeCommandSearch(); syncCommandManager(); return; }
   if (id === "directcone") { openConeForm(); closeCommandSearch(); return; }
   if (id === "sketchtext") {
@@ -7245,6 +7248,7 @@ function runCommand(id) {
   else if(id==="sketchrepair")openSketchRepairs();
   else if(id==="centerrectangle")openCenterRectangle();
   else if(id==="dimensionedcircle")openDimensionedCircle();
+  else if(id==="dimensionedpolygon")openDimensionedPolygon();
   else if(id==="centerslot")openCenterSlot();
   else if(id==="sketchfillet")openSketchFillet();
   else if(id==="faceboundary")openFaceBoundary();
@@ -7326,6 +7330,31 @@ function runCommand(id) {
   else if (id === "note") { if(E.docType==="assembly")showAssemblyDrawingSettings(true);else{setMode("3d");setTool("note");} }
   closeCommandSearch();
   syncCommandManager();
+}
+
+function openSphereForm() {
+  openQuickForm({
+    action:"directsph",icon:"ph-sphere",title:"Sphere",
+    hint:"Enter a center and driving diameter. Creates an editable native Sphere feature without a sketch.",
+    fields:[
+      {key:"x",label:"Center X",type:"number",unit:"length",value:0},
+      {key:"y",label:"Center Y",type:"number",unit:"length",value:0},
+      {key:"z",label:"Center Z",type:"number",unit:"length",value:0},
+      {key:"diameter",label:"Diameter",type:"number",unit:"length",min:1e-6,value:1.2},
+    ],
+    failureMessage:function(){return "Enter finite center coordinates and a positive diameter.";},
+    onApply:function(values){
+      var x=Number(values.x),y=Number(values.y),z=Number(values.z),diameter=Number(values.diameter);
+      if(![x,y,z,diameter].every(Number.isFinite) || diameter<=0)return false;
+      pushUndo("Sphere");
+      try{
+        var params={x:x,y:y,z:z,r:diameter/2};
+        var feature=createFeatureDefinition(E.def,"sphere",{params:params});
+        E.sel=addPart({id:uid(),featureId:feature.id,kind:"sph",name:feature.name,x:x,y:y,z:z,r:params.r,color:"#b89a6e",metal:.08,rough:.7});
+        refreshAll();return true;
+      }catch(error){H.discard();flash(String(error.message || error));return false;}
+    },
+  });
 }
 
 function openConeForm() {
@@ -14057,6 +14086,37 @@ function openDimensionedCircle() {
         flash("Enter a positive diameter and finite center coordinates"); return false;
       }
       var made = appendToSketch("Dimensioned circle", function(sketch) { return addDimensionedCircle(sketch,values,uid); });
+      if (!made) return false;
+      markDrawnSelection(made); E.sel=E.ssel[E.ssel.length-1];
+      return true;
+    },
+  });
+}
+
+function openDimensionedPolygon() {
+  if (!E.authoring || E.authoring.phase !== "sketch") startSketchOnDefaultPlane("spoly");
+  setTool("select");
+  openQuickForm({
+    action:"dimensionedpolygon", icon:"ph-hexagon", title:"Dimensioned polygon",
+    hint:"Diameter is the circumscribed circle. Rotation sets the first vertex from +U. Fix center and rotation makes the polygon fully defined.",
+    fields:[
+      {key:"sides",label:"Sides",type:"number",value:6,min:3,max:24,step:1},
+      {key:"x",label:"Center U",type:"number",value:0,unit:"length"},
+      {key:"y",label:"Center V",type:"number",value:0,unit:"length"},
+      {key:"diameter",label:"Circumscribed diameter",type:"number",value:1,min:0.000001,unit:"length"},
+      {key:"rotation",label:"Rotation (degrees)",type:"number",value:0},
+      {key:"fixCenter",label:"Fix center",type:"boolean",value:true},
+      {key:"fixRotation",label:"Fix rotation",type:"boolean",value:true},
+    ],
+    onApply:function(values) {
+      if (!Number.isInteger(values.sides) || values.sides < 3 || values.sides > 24 ||
+          ![values.x,values.y,values.diameter,values.rotation].every(fin) || values.diameter <= 0) {
+        flash("Enter 3–24 integer sides, a positive diameter, and finite center and rotation"); return false;
+      }
+      var made = appendToSketch("Dimensioned polygon", function(sketch) {
+        try { return addDimensionedPolygon(sketch,values,uid); }
+        catch (error) { flash(error.message); return null; }
+      });
       if (!made) return false;
       markDrawnSelection(made); E.sel=E.ssel[E.ssel.length-1];
       return true;

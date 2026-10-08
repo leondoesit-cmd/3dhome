@@ -219,7 +219,7 @@ export var TXT = {
   cutHint: ["שרטטו את קו החיתוך על חלק קיים · קליק כפול/Enter: ביצוע חיתוך", "Sketch the cut on an existing part · Dbl-click/Enter: apply cut"],
   cutcHint: ["גררו ממרכז הקדח החוצה על חלק קיים", "Drag from bore center outward on an existing part"],
   cutDone: ["החיתוך בוצע", "Cut applied"],
-  cutNone: ["אין חלק מתאים מתחת לחיתוך (עובד על אקסטרוזיה, תיבה, גליל, סיבוב ולופט)", "No suitable body under the cut (works on extrude, box, cylinder, revolve and loft)"],
+  cutNone: ["אין גוף מוצק מתאים מתחת לחיתוך", "No suitable solid body under the cut"],
   cutSkipped: ["לא נחתך", "not cut"],
   fillet: ["רדיוס פינה, או c+מרחק לקיטום ישר (למשל 5 או c5):", "Corner radius, or c+distance for a chamfer (e.g. 5 or c5):"],
   vertexHint: ["לחיצה כפולה על פינה: Fillet/Chamfer", "Dbl-click a corner: fillet/chamfer"],
