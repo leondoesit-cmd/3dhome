@@ -880,12 +880,15 @@ window.addEventListener("keydown", function (e) {
 }, true);
 
 /* A tool of one editor by its exact name (English or Hebrew). */
+function editorToolNames(tool) {
+  return [tool.label,proLabel(tool.label,"he")].concat(tool.aliases || []).map(function(name){return name.toLowerCase();});
+}
 function editorToolNamed(editor, text) {
   var q = String(text || "").trim().toLowerCase();
   if (!q) return null;
   var hit = null;
   proTools(editor).some(function (t) {
-    if (t.bind && (t.label.toLowerCase() === q || proLabel(t.label, "he") === q)) { hit = t; return true; }
+    if (t.bind && editorToolNames(t).includes(q)) { hit = t; return true; }
     return false;
   });
   return hit;
@@ -898,8 +901,7 @@ export function suggestTools(editor, text) {
   var starts = [], contains = [];
   proTools(editor).forEach(function (t) {
     if (!t.bind) return;
-    var en = t.label.toLowerCase(), hv = proLabel(t.label, "he");
-    var at = Math.min(en.indexOf(q) < 0 ? 99 : en.indexOf(q), hv.indexOf(q) < 0 ? 99 : hv.indexOf(q));
+    var at = Math.min.apply(null,editorToolNames(t).map(function(name){return name.indexOf(q)<0 ? 99 : name.indexOf(q);}));
     if (at === 99) return;
     (at === 0 ? starts : contains).push(t);
   });

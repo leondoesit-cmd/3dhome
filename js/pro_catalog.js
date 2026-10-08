@@ -30,8 +30,8 @@
 
 export const PRO_EDITORS = ["plan", "model", "cab"];
 
-function T(label, icon, bind, key) {
-  return { label: label, icon: icon, bind: bind || null, key: key || "" };
+function T(label, icon, bind, key, aliases) {
+  return { label: label, icon: icon, bind: bind || null, key: key || "", aliases: aliases || [] };
 }
 
 const PLAN = [
@@ -97,7 +97,7 @@ const MODEL = [
   ]],
   ["Reference", [
     ["Geometry", [T("Plane", "ph-square-half", "mcmd:refplane"), T("Axis", "ph-line-vertical", "mcmd:refaxis"), T("Coordinate sys", "ph-crosshair-simple", "mcmd:coordsys"), T("Ref point", "ph-dot-outline", "mcmd:refpoint")]],
-    ["Setup", [T("Standards", "ph-seal-check", "mcmd:standards"), T("Rebuild", "ph-arrows-clockwise", "mcmd:regen"), T("Custom props", "ph-list-bullets", "mcmd:customprops"), T("Variables", "ph-function", "mcmd:equations")]],
+    ["Setup", [T("Standards", "ph-seal-check", "mcmd:standards"), T("Rebuild", "ph-arrows-clockwise", "mcmd:regen"), T("Custom properties", "ph-list-bullets", "mcmd:customprops", "", ["Custom props"]), T("Variables", "ph-function", "mcmd:equations")]],
   ]],
   ["Assembly", [
     ["Parts", [T("Assembly", "ph-puzzle-piece", "mcmd:assembly"), T("Components", "ph-cube-focus", "mcmd:components"), T("Mates", "ph-link", "mcmd:mates"), T("Screw mate", "ph-nut", "mcmd:screwmate"), T("Part document", "ph-file", "mcmd:partdoc"), T("Smart mates", "ph-magnet", "mcmd:smartmates")]],
@@ -159,7 +159,7 @@ export function proTools(editor) {
     PRO_CATALOG[ed].tabs.forEach(function (tab) {
       tab[1].forEach(function (group) {
         group[1].forEach(function (tool) {
-          out.push({ editor: ed, tab: tab[0], group: group[0], label: tool.label, icon: tool.icon, bind: tool.bind, key: tool.key });
+          out.push({ editor: ed, tab: tab[0], group: group[0], label: tool.label, icon: tool.icon, bind: tool.bind, key: tool.key, aliases: tool.aliases });
         });
       });
     });
@@ -237,7 +237,7 @@ Object.assign(PRO_HE, {
   "Cost estimate": "אומדן עלות", "Area summary": "סיכום שטחים", "Clearances": "מרווחים", "Layout check": "בדיקת פריסה", "Sun & sky": "שמש ושמיים",
   "glTF / Blender": "glTF / Blender", "Walls guide": "מדריך קירות", "Planning guide": "מדריך תכנון",
   "Centreline": "קו עזר", "Midpoint": "נקודת אמצע", "Dimension": "מידה", "Print sheet": "הדפס גיליון", "Sheet SVG": "גיליון SVG", "IFC": "IFC", "Plan SVG": "תוכנית SVG", "Schedules CSV": "טבלאות CSV", "Text": "טקסט", "Intersection": "חיתוך", "Concentric": "משותף מרכז", "Fix": "קבע", "Equations": "משוואות", "Cone": "חרוט",
-  "Ref point": "נקודת ייחוס", "Custom props": "מאפיינים מותאמים", "Variables": "משתנים", "Smart mates": "התאמות חכמות", "Material check": "בדיקת חומר",
+  "Ref point": "נקודת ייחוס", "Custom props": "מאפיינים מותאמים", "Custom properties": "מאפיינים מותאמים", "Variables": "משתנים", "Smart mates": "התאמות חכמות", "Material check": "בדיקת חומר",
   "Rebuild errors": "שגיאות בנייה", "Engineering": "הנדסה", "Sheet metal": "פח", "Stock size": "מידת גלם", "To walls": "המר לקירות",
   "Finish preview": "תצוגת גימור", "Use": "שימוש", "Save to library": "שמור לספרייה", "Model library": "ספריית מודלים", "Branch": "ענף", "Export GLB": "ייצוא GLB",
   "Run": "שורת ארונות", "Kitchen run": "שורת מטבח", "Worktop": "משטח עבודה", "Part labels": "תוויות חלקים", "Send to shop": "שלח לנגרייה",
