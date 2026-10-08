@@ -927,6 +927,7 @@ export var TXT = {
   mateSurfaceContact: ["משיקות למשטח", "Surface tangency"],
   mateAligned: ["מיושר", "Aligned"],
   mateLimitMinimum: ["מרחק מינימלי", "Minimum travel"],
+  parallelPlanesMate: ["מישורים מקבילים (זווית 0°)", "Parallel planes (0° angle)"],
   mateLimitMaximum: ["מרחק מקסימלי", "Maximum travel"],
   mateLimitInvalidRange: ["יש להזין גבולות סופיים, כאשר המינימום אינו גדול מהמקסימום", "Enter finite limits with minimum no greater than maximum"],
   mateOpposed: ["הפוך", "Opposed"],

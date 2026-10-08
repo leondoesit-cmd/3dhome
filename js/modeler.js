@@ -19179,6 +19179,8 @@ function addTopologyMate(type, value) {
   }
   if (!E.assembly) { flash(t("mateHint")); return false; }
   if(type==='belt' && !beltMateSpec(value?.diameterA,value?.diameterB,value?.beltDirection)){flash(t('beltInvalid'));return false;}
+  var limitSpec=type==='limit' ? validLimitMateBounds(value && typeof value==='object' ? value.min : 0,value && typeof value==='object' ? value.max : 2) : null;
+  if(type==='limit' && !limitSpec){flash(t('mateLimitInvalidRange'));return false;}
   var fits = mateTypeFits(type);
   if (!fits.ok) { flash(fits.reason); return false; }
   /* Two picked faces beat two synthesized ones. The buttons used to mate the
@@ -19223,8 +19225,8 @@ function addTopologyMate(type, value) {
     pitch: type === "screw" ? 0.125 : undefined,
     turns: type === "screw" ? 0 : undefined,
     coupledMotion: type === "screw" ? true : undefined,
-    min: type === "limit" ? 0 : undefined,
-    max: type === "limit" ? 2 : undefined,
+    min: limitSpec ? limitSpec.min : undefined,
+    max: limitSpec ? limitSpec.max : undefined,
     ratioA: type === "gear" ? (fin(Number(gearSpec.ratioA)) && Number(gearSpec.ratioA) > 0 ? Number(gearSpec.ratioA) : 1) : undefined,
     ratioB: type === "gear" ? (fin(Number(gearSpec.ratioB)) && Number(gearSpec.ratioB) > 0 ? Number(gearSpec.ratioB) : 1) : undefined,
     reverse: type === "gear" ? !!gearSpec.reverse : undefined,
@@ -19310,6 +19312,9 @@ function openMatePropertyManager() {
   setTab("ops");
   if (!E.assembly) { flash(t("mateHint")); return; }
   var offered = MATE_PALETTE.filter(function (entry) { return mateTypeFits(entry[0]).ok; });
+  // This is an orientation-only shortcut to the native zero-angle mate. It
+  // intentionally does not add a distance or capture either plane's origin.
+  if(offered.some(function(entry){return entry[0]==='angle';}))offered.push(['parallel','','parallelPlanesMate']);
   if (!offered.length) { flash(t("mate") + " — " + mateTypeFits("coincident").reason); return; }
   var picked = assemblyPickedRefs();
   var referenceLabel = function (reference) {
@@ -19326,11 +19331,15 @@ function openMatePropertyManager() {
         choices: offered.map(function (entry) { return { value: entry[0], label: t(entry[2]) }; }) },
       { key: "angle", label: t("mateAngleValue"), type: "number", value: 45, step: 1, min: 0, max: 180, unit: "angle" },
       { key: "distance", label: t("topologyDistanceMate"), type: "number", value: 0.15875, step: 0.01, unit: "length" },
+      { key: "limitMin", label: t("mateLimitMinimum"), type: "number", value: 0, step: 0.01, unit: "length" },
+      { key: "limitMax", label: t("mateLimitMaximum"), type: "number", value: 2, step: 0.01, unit: "length" },
       {key:'diameterA',label:t('beltDiameterA'),type:'number',value:6,step:.1,min:1e-6,unit:'length'},
       {key:'diameterB',label:t('beltDiameterB'),type:'number',value:6,step:.1,min:1e-6,unit:'length'},
       {key:'beltDirection',label:t('gearDirection'),type:'select',value:'open',choices:[{value:'open',label:t('beltOpen')},{value:'crossed',label:t('beltCrossed')}]},
     ],
     onApply: function (values) {
+      if(values.type==='parallel')return addTopologyMate('angle',0);
+      if(values.type==='limit')return addTopologyMate('limit',{min:values.limitMin,max:values.limitMax});
       if(values.type==='belt'){
         var spec=beltMateSpec(values.diameterA,values.diameterB,values.beltDirection);
         if(!spec){flash(t('beltInvalid'));return false;}
@@ -19358,6 +19367,7 @@ function openMatePropertyManager() {
   var syncAngleField = function () {
     if (angleField) angleField.classList.toggle("parameter-hidden", inputs.type.value !== "angle");
     if (distanceField) distanceField.classList.toggle("parameter-hidden", inputs.type.value !== "distance");
+    ['limitMin','limitMax'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='limit');});
     ['diameterA','diameterB','beltDirection'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='belt');});
   };
   inputs.type.addEventListener("change", syncAngleField);
