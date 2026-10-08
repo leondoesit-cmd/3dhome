@@ -1,0 +1,152 @@
+{
+  "scope": "Read-only JSON preservation comparison. Native solver, clearance and STEP results are reused only after exact definition/mate/home/study preservation checks; no fresh native replay or browser operation is claimed.",
+  "source": "artifacts/planchard/SH-assembly-final-browser-2026-10-09.mforge",
+  "bytes": 3799023,
+  "sha256": "17c1661ca6526edd8a90224cfd6170ed6670d24c61da06cd560683bd5fc8907c",
+  "baseline": "artifacts/planchard/SH-assembly-recaptured-studies-browser-2026-10-09.mforge",
+  "baselineSha256": "0e5003317da1714f8f0f2dab60c15b29493d61710bd56b8d1a844afcccf7035f",
+  "counts": {
+    "definitions": 16,
+    "occurrences": 16,
+    "nativeMates": 23,
+    "legacyMates": 0,
+    "studies": 2,
+    "explodedSteps": 15
+  },
+  "preservation": {
+    "definitions": true,
+    "occurrenceIdentity": true,
+    "physicalHome": true,
+    "nativeMates": true,
+    "legacyMates": true,
+    "descriptionsAndBOMProperties": true,
+    "studiesAndCapturedNativeDrives": true,
+    "explodedViewDefinitions": true,
+    "activeExplodedView": true,
+    "drawingSettings": true,
+    "drawings": true,
+    "assemblyProperties": true
+  },
+  "presentation": {
+    "baselineExploded": false,
+    "finalExploded": true,
+    "offsetsMatchAuthoredSteps": true
+  },
+  "physicalHomeChecks": {
+    "slide": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "dragPlate": {
+      "x": 0,
+      "y": -1,
+      "z": 4.22,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "globalFeedFree": true,
+    "globalClapperFree": true
+  },
+  "studies": [
+    {
+      "id": "ms_f119bcee-b92a-40bd-9ab5-e29164311c76",
+      "name": "SH Feed - RH1mm - 120RPM - 20mm downfeed",
+      "time": 10,
+      "nativeDriveConfiguration": [
+        {
+          "mateId": 5276,
+          "type": "screw",
+          "field": "driveTurns",
+          "value": null
+        },
+        {
+          "mateId": 5283,
+          "type": "rotationlimit",
+          "field": "driveAngle",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "ms_c9a2899e-c50c-450e-b7c9-59cfd95620f1",
+      "name": "SH Clapper - outward 20deg - fixed feed",
+      "time": 10,
+      "nativeDriveConfiguration": [
+        {
+          "mateId": 5276,
+          "type": "screw",
+          "field": "driveTurns",
+          "value": 0
+        },
+        {
+          "mateId": 5283,
+          "type": "rotationlimit",
+          "field": "driveAngle",
+          "value": null
+        }
+      ]
+    }
+  ],
+  "differences": [
+    "bundle.createdAt",
+    "bundle.mainModel.id",
+    "bundle.mainModel.key",
+    "bundle.mainModel.sketches.0.id",
+    "bundle.mainModel.lastRebuild.signature",
+    "bundle.mainModel.lastRebuild.rebuiltAt",
+    "bundle.mainModel.activeSketch",
+    "bundle.mainModel.definitionId",
+    "bundle.assemblies.0.components.1.explodedOffset",
+    "bundle.assemblies.0.components.2.explodedOffset",
+    "bundle.assemblies.0.components.3.explodedOffset",
+    "bundle.assemblies.0.components.4.explodedOffset",
+    "bundle.assemblies.0.components.5.explodedOffset",
+    "bundle.assemblies.0.components.6.explodedOffset",
+    "bundle.assemblies.0.components.7.explodedOffset",
+    "bundle.assemblies.0.components.8.explodedOffset",
+    "bundle.assemblies.0.components.9.explodedOffset",
+    "bundle.assemblies.0.components.10.explodedOffset",
+    "bundle.assemblies.0.components.11.explodedOffset",
+    "bundle.assemblies.0.components.12.explodedOffset",
+    "bundle.assemblies.0.components.13.explodedOffset",
+    "bundle.assemblies.0.components.14.explodedOffset",
+    "bundle.assemblies.0.components.15.explodedOffset",
+    "bundle.assemblies.0.exploded"
+  ],
+  "unexplainedDifferences": [],
+  "blankPartPlaceholder": {
+    "bothEmpty": true,
+    "explanation": "Unrelated empty New model placeholder was recreated during cold load. Identity/empty sketch ID/rebuild metadata differ; active document remains the assembly and all embedded SH definitions are identical."
+  },
+  "drawing": {
+    "source": "artifacts/planchard/SH-drawing-final-browser-2026-10-09.svg",
+    "bytes": 423538,
+    "sha256": "f2c7f465ca7cfa89f9b288af274b98b7941e81e24951a202cc91dc5219ba38a1",
+    "byteIdenticalToAuditedDrawing": true,
+    "matchesAuditedHash": true
+  },
+  "reusedNativeEvidence": {
+    "source": "artifacts/planchard/SH-assembly-recaptured-studies-native-audit-2026-10-09.json",
+    "sha256": "5d3ada8f3a20f7a6cbb1b9bc2d07e338bfb4dd5ca42626671a9ed1a2491275c2",
+    "sourceMatchesAuditedHash": true,
+    "pass": true
+  },
+  "pass": true
+}
