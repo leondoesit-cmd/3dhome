@@ -1,0 +1,170 @@
+{
+  "source": "artifacts/planchard/AP04-table-plate-final-browser-2026-10-08.mforge",
+  "bytes": 267696,
+  "inputSha256": "2edfe4c9d797c1fee6f1beaa19c9e86d64cee80881a5f0155c7ff3c226ec5a80",
+  "inputUnchanged": true,
+  "checks": {
+    "counts": true,
+    "fullyDefined": true,
+    "bosses": true,
+    "notches": true,
+    "constructionExcluded": true,
+    "cut": true,
+    "commonFeatureParams": true
+  },
+  "circles": [
+    {
+      "diameterMm": 56,
+      "pass": true
+    },
+    {
+      "diameterMm": 10,
+      "pass": true
+    }
+  ],
+  "notches": [
+    {
+      "centerMm": [
+        25,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "centerMm": [
+        -25,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "centerMm": [
+        0,
+        25
+      ],
+      "pass": true
+    },
+    {
+      "centerMm": [
+        0,
+        -25
+      ],
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP04-table-plate-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 8,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 18.407764158754752,
+      "maxToleranceCm": 1.5000000177635683e-7
+    },
+    "volumeCm3": 18.407764158754752,
+    "boundsCm": {
+      "min": {
+        "x": -2.771281292110204,
+        "y": -0.6000000000000001,
+        "z": -2.7712812921102223
+      },
+      "max": {
+        "x": 2.771281292110204,
+        "y": 0.8,
+        "z": 2.771281292110204
+      }
+    },
+    "centerOfMassCm": {
+      "x": 2.2885516903389267e-16,
+      "y": 0.3820799948444564,
+      "z": 4.1132829747651303e-16
+    },
+    "seconds": 5.6832112
+  },
+  "step": {
+    "source": "artifacts/planchard/AP04-table-plate-final-browser-2026-10-08.step",
+    "bytes": 65108,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 18.407764158755672,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 18.407764158755672,
+      "centerOfMass": {
+        "x": 2.357617751595196e-13,
+        "y": 0.38207999484445543,
+        "z": 1.184928474102454e-13
+      },
+      "inertia": [
+        [
+          34.47901689623784,
+          -4.264285415274489e-14,
+          -1.4122440704998194e-12
+        ],
+        [
+          -4.264285415274489e-14,
+          66.56653842225383,
+          -1.6762121937728133e-14
+        ],
+        [
+          -1.4122440704998194e-12,
+          -1.6762121937728133e-14,
+          34.47901689624388
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -2.7712812921101992,
+          "y": -0.6,
+          "z": -2.7712812921101992
+        },
+        "max": {
+          "x": 2.7712812921101992,
+          "y": 0.8,
+          "z": 2.7712812921101992
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/AP04-table-plate-final-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/AP04-table-plate-final-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticVolumeCm3": 18.40776415875478,
+  "nativeAnalyticVolumeErrorCm3": -2.842170943040401e-14,
+  "material": {
+    "name": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "source": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "catalogId": "stock:alloySteel",
+    "massG": 141.73978402241158
+  },
+  "customProperties": {
+    "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational four-notch table plate and locating peg. Book AISI1035 role uses available Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+    "PartNo": "AP04",
+    "BookItemNo": "1.4 TABLE PLATE"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent Chrome UI observation",
+    "driving": "D56→58 changed native18.40776→19.58348cm3 /0.1417398→0.1507928kg; Undo/Redo/Undo restored56 then Save",
+    "coldReopen": "Parent actual Chrome cold reload/saved-library reopen:6fullydefinedsteps,1native solid,18.40776cm3/0.1417398kg; four notch loops/eight driving8mm dimensions atoffset0 retained. Coldmass/notch/final screenshots protected.",
+    "status": "passed"
+  }
+}

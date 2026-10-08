@@ -40,7 +40,7 @@ import { sketchProfileSegments } from "./core/profile_curves.js";
 import { captureExactTopology, verifiedExactTopology, verifiedFinalTopology } from './core/exact_topology_cache.js';
 import { parallelStraightEdges } from "./core/edge_selection.js";
 import { modelDimensions, formatModelLength } from "./core/model_dimensions.js";
-import {documentLengthUnit,formatDocumentLength,lengthFromDocument,lengthToDocument} from './core/document_length_units.js';
+import {documentLengthUnit,formatDocumentLength,formatDocumentScreenScale,lengthFromDocument,lengthToDocument} from './core/document_length_units.js';
 import {parseSketchDimensionEntry} from './core/sketch_dimension_entry.js';
 import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
 import {setGearMatePhase} from "./cad_gear_motion.js";
@@ -11519,7 +11519,7 @@ function syncStatusLine() {
     '<span class="md-st-sep"></span>' +
     '<i class="ph ph-grid-four"></i> ' + modelLengthText(E.grid,6) + " " + modelLengthUnit() +
     (E.osnap ? '<span class="md-st-sep"></span><i class="ph ph-magnet"></i>' : "") +
-    '<span class="md-st-sep"></span>' + Math.round(E.scl * 50) + "%" +
+    '<span class="md-st-sep"></span>'+formatDocumentScreenScale(E.scl,modelLengthUnit()) +
     (E.docType === "part" && E.solveInfo && ensureSketch(E.def).entities.length
       ? '<span class="md-st-sep"></span><span class="md-st-dof md-dof-' + E.solveInfo.status + '">' +
         (E.solveInfo.status === "fully-constrained" ? t("dofFull")

@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP04-table-plate-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 8,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 18.407764158754752,
+    "maxToleranceCm": 1.5000000177635683e-7
+  },
+  "volumeCm3": 18.407764158754752,
+  "boundsCm": {
+    "min": {
+      "x": -2.771281292110204,
+      "y": -0.6000000000000001,
+      "z": -2.7712812921102223
+    },
+    "max": {
+      "x": 2.771281292110204,
+      "y": 0.8,
+      "z": 2.771281292110204
+    }
+  },
+  "centerOfMassCm": {
+    "x": 2.2885516903389267e-16,
+    "y": 0.3820799948444564,
+    "z": 4.1132829747651303e-16
+  },
+  "seconds": 5.6832112
+}

@@ -20,3 +20,11 @@ export function formatDocumentLength(cm, unit, digits = 10) {
   if (Math.abs(Number(cm)) < 1e-12) return '0';
   return String(Number(value.toPrecision(digits)));
 }
+
+// The sketch projection supplies CSS pixels per canonical centimetre.
+export function formatDocumentScreenScale(pixelsPerCm, unit) {
+  const documentUnit=documentLengthUnit(unit);
+  const scale=Number(pixelsPerCm)/lengthToDocument(1,documentUnit);
+  if(!Number.isFinite(scale)||scale<=0)return '—';
+  return String(Number(scale.toPrecision(4)))+' px/'+documentUnit;
+}
