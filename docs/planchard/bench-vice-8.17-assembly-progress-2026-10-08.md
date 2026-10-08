@@ -31,3 +31,5 @@ Parent also revised global library BV01 Circle3/4 to U170 through Chrome, saved 
 - Saved views/presentation quality review after explosion UI changes.
 
 Use ADVANCE.md for the exact latest browser state. This remains a checkpoint, not final exercise or entire-book acceptance.
+
+Final status superseded by [8.17 final acceptance](bench-vice-8.17-final-acceptance-2026-10-08.md): global revised base, cold motion replay, final assembled STEP and corrected exploded drawing all accepted.

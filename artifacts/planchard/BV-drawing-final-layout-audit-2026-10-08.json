@@ -1,0 +1,32 @@
+{
+  "source": "artifacts\\planchard\\BV-drawing-final-browser-2026-10-08.svg",
+  "sheetMm": [
+    279.4,
+    215.9
+  ],
+  "balloons": 16,
+  "items": [
+    "1",
+    "2",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "7",
+    "8",
+    "8",
+    "8",
+    "8",
+    "9",
+    "10",
+    "10"
+  ],
+  "allCirclesInsideBorder": true,
+  "minimumCircleEdgeGapMm": 2.0000000000000173,
+  "leaderObstacleCrossings": 0,
+  "dashedLineCount": 16,
+  "explodedLeaderLines": 15,
+  "bomRows": 10
+}
