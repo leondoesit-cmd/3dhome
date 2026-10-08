@@ -26,6 +26,13 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 Earlier paragraphs below are historical unless explicitly superseding this current pointer.
 
+### Current SH06 checkpoint — 2026-10-09
+
+SH01..SH05fullyaccepted; latestcommitsSH03b7e7d22/SH04+offsetUI5457c95;SH05commitnext. SH05final109348bytes/download1 librarycm_mv01mi81 nativeone2.474946692498039cm3/.01955207887073451kg/cold20x14x14/2steps/SH05Book5Description;STEPsymdiff0/drivingPASS. ParentChromeoffsetUIQAcreation/edit/Cancel PASS.
+
+CurrentChrome710862239 authorsSH06HandleBar fromblank: RightD6center0 X−25..25 Blind50/featureoffset−25/sketchoffset0,onefeature2stepsfullydefined. AISI1020reference7.9/SH06Book6Description. NominalChrome1.413717cm3/.01116836kg; D6→6.2 gives1.509535/.01192533,Undo6Redo6.2Undo6 PASS. Saveheaderclicked; awaitcleanactualaria-label thenProjectBundle/STEP/nominaljpg/coldlibraryverification/finalexport/independentaudit. NextSH07TopD4stemY−4..0 plusD8roundhead0..3proxy fromblank. Onlysixpartsstartedof16; assembly/motion/CANSI stillfuture.
+
+Fullnpmtest session35076 redirected scratch/planchard/full-tests-2026-10-09.log was STOPPED CtrlC after repeatedChromeCDP3sectimeouts; cannotclaimfullsuitePASS. Browserresponseimmediatelyrecovered. Existing focusedtests/checkpassed; fullsuite lastcompletedbaseline predateslatestchanges. Do not run defaultallparallel fullsuite alongsidebrowsernativeauthoring; deferorboundedconcurrency whenuseful.
 ### Current SH05 checkpoint — 2026-10-09
 
 SH04 SpacerBush finalfullyacceptednative1.1860140585832188cm3/.009310210359878267kg; PlainCarbonSteelreference7.85. Librarycm_mv01hz92 cold16x8x16/2fullydefinedsteps/Book4SH04Description PASS. Final107459bytes/download1 plusnativeSTEPzeroresidual, reportsandjpgprotected. Commitnext.

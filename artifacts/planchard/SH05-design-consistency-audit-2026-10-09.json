@@ -1,0 +1,206 @@
+{
+  "source": "artifacts/planchard/SH05-nominal-browser-2026-10-09.mforge",
+  "bytes": 108666,
+  "inputSha256": "a7afaa491cd4f774f57194b66488349891aedf352e7e7d14f99fdc7f9648cf37",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Outer annulus",
+      "diameterMm": 14.000000000000002,
+      "fixedCenterMm": [
+        0,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "role": "Inner bore",
+      "diameterMm": 6.200000000000001,
+      "fixedCenterMm": [
+        0,
+        0
+      ],
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH05-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 2,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 2.474946692498039,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 2.474946692498039,
+    "boundsCm": {
+      "min": {
+        "x": -3,
+        "y": -0.7000000000000001,
+        "z": -0.7000000000000001
+      },
+      "max": {
+        "x": -1,
+        "y": 0.7000000000000001,
+        "z": 0.7000000000000001
+      }
+    },
+    "centerOfMassCm": {
+      "x": -2.0000000000000004,
+      "y": -5.522164530462155e-18,
+      "z": -1.1214615530815482e-16
+    },
+    "seconds": 8.112523600000001
+  },
+  "step": {
+    "source": "artifacts/planchard/SH05-nominal-browser-2026-10-09.step",
+    "bytes": 9455,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 2.474946692498093,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 2.474946692498093,
+      "centerOfMass": {
+        "x": -2,
+        "y": -1.1078735070460669e-17,
+        "z": 1.2313647852835128e-14
+      },
+      "inertia": [
+        [
+          0.7252831282365721,
+          -1.7562814397322527e-18,
+          -9.71445146547012e-17
+        ],
+        [
+          -1.7562814397322527e-18,
+          1.1876237949509818,
+          -2.380155183644878e-17
+        ],
+        [
+          -9.71445146547012e-17,
+          -2.380155183644878e-17,
+          1.1876237949509694
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3,
+          "y": -0.7,
+          "z": -0.7
+        },
+        "max": {
+          "x": -1,
+          "y": 0.7,
+          "z": 0.7
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH05-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH05-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "analyticVolumeCm3": 2.474946692498039,
+  "nativeAnalyticVolumeErrorCm3": 0,
+  "nativeStepEquivalent": true,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.01955207887073451
+  },
+  "properties": {
+    "Description": "Handle grip; original smooth cylindrical annulus OD14 ID6.2 length20 mm, book item5",
+    "PartNo": "SH05",
+    "BookItemNo": "5"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent actualChrome observation",
+    "driving": "OuterD16→16.2 native1.186014→1.226478cm3/mass.009310210→.009627851kg;Undo16Redo16.2Undo16Saveclean",
+    "coldReopen": "ParentChromePASScm_mv01mi81:1solid20×14×14mm/2steps/SH05Book5Descriptionretained"
+  },
+  "geometryPass": true,
+  "finalCold": {
+    "source": "artifacts/planchard/SH05-final-browser-2026-10-09.mforge",
+    "bytes": 109348,
+    "sha256": "a404ee9054e5fe24a5f55cefc77991a653a6d738f541169dd9fee8db7ef8a01a",
+    "inputUnchanged": true,
+    "featuresBitIdentical": true,
+    "sketchesBitIdentical": true,
+    "historyBitIdentical": true,
+    "propertiesBitIdentical": true,
+    "appearancesBitIdentical": true,
+    "authoredPartsEquivalent": true,
+    "native": {
+      "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH05-final-browser-2026-10-09.mforge",
+      "exact": true,
+      "featureCount": 2,
+      "issues": [],
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 2.474946692498039,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 2.474946692498039,
+      "boundsCm": {
+        "min": {
+          "x": -3,
+          "y": -0.7000000000000001,
+          "z": -0.7000000000000001
+        },
+        "max": {
+          "x": -1,
+          "y": 0.7000000000000001,
+          "z": 0.7000000000000001
+        }
+      },
+      "centerOfMassCm": {
+        "x": -2.0000000000000004,
+        "y": -5.522164530462155e-18,
+        "z": -1.1214615530815482e-16
+      },
+      "seconds": 5.0966536
+    },
+    "properties": {
+      "Description": "Handle grip; original smooth cylindrical annulus OD14 ID6.2 length20 mm, book item5",
+      "PartNo": "SH05",
+      "BookItemNo": "5"
+    },
+    "parentCold": {
+      "source": "Parent actualChrome",
+      "pass": true,
+      "libraryKey": "cm_mv01mi81",
+      "nativeSolidCount": 1,
+      "boundsMm": [
+        20,
+        14,
+        14
+      ],
+      "fullyDefinedEditableHistorySteps": 2,
+      "metadataRetained": true
+    },
+    "validationScope": "Native geometryaudit and parentbrowserdurability; stoppedparallelfullnpmtest is not a passedgate.",
+    "stepReuse": "Exactnominalfeatures/sketchesunchanged;nativeSTEPbothzero residualaudit remainsapplicable.",
+    "pass": true
+  },
+  "acceptancePass": true
+}

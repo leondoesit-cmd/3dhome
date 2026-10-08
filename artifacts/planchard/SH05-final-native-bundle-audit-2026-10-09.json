@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH05-final-browser-2026-10-09.mforge",
+  "exact": true,
+  "featureCount": 2,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 2.474946692498039,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "volumeCm3": 2.474946692498039,
+  "boundsCm": {
+    "min": {
+      "x": -3,
+      "y": -0.7000000000000001,
+      "z": -0.7000000000000001
+    },
+    "max": {
+      "x": -1,
+      "y": 0.7000000000000001,
+      "z": 0.7000000000000001
+    }
+  },
+  "centerOfMassCm": {
+    "x": -2.0000000000000004,
+    "y": -5.522164530462155e-18,
+    "z": -1.1214615530815482e-16
+  },
+  "seconds": 5.0966536
+}
