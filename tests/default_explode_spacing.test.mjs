@@ -59,10 +59,13 @@ test('compact default rows fit a vice and its small fasteners proportionately wi
 test('explode action labels and accessible pressed state show both main and Pro ribbon presentation state',()=>{
   const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
   const button=()=>({label:{},attributes:{},querySelector(){return this.label;},setAttribute(key,value){this.attributes[key]=value;}}),main=button(),pro=button();
-  const E={assembly:{components:[{id:1,explodedOffset:null},{id:2,explodedOffset:{x:50,y:0,z:0}}]}};
+  const E={docType:'assembly',assembly:{components:[{id:1,explodedOffset:null},{id:2,explodedOffset:{x:50,y:0,z:0}}]}};
   const context={E,assemblyHasExplodedOffsets,t:key=>key,root:{querySelectorAll:()=>[main],ownerDocument:{querySelectorAll:()=>[pro]}}};
   vm.runInNewContext(sourceFunctionText(source,'syncExplodeCommandState')+';syncExplodeCommandState();',context);
   for(const b of [main,pro]){assert.equal(b.label.textContent,'collapseExplodeView');assert.equal(b.attributes['aria-pressed'],'true');assert.match(b.title,/assemblyExploded/);}
+  const saved=JSON.stringify(E.assembly);E.docType='part';vm.runInNewContext('syncExplodeCommandState();',context);
+  for(const b of [main,pro]){assert.equal(b.label.textContent,'explodeAssembly');assert.equal(b.attributes['aria-pressed'],'false');assert.equal(b.attributes['aria-disabled'],'true');}
+  assert.equal(JSON.stringify(E.assembly),saved);E.docType='assembly';
   applyExplodedView(E.assembly,null);vm.runInNewContext('syncExplodeCommandState();',context);
   for(const b of [main,pro]){assert.equal(b.label.textContent,'explodeAssembly');assert.equal(b.attributes['aria-pressed'],'false');assert.match(b.title,/assemblyAssembled/);}
 });

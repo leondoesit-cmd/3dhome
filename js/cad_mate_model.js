@@ -14,6 +14,7 @@ import { compileKernelFeatureTree } from './core/kernel_feature_adapter.js';
 import { verifiedFinalTopology } from './core/exact_topology_cache.js';
 import {beltRatio} from './cad_belt_mate.js';
 import {rackPinionMeasure} from './cad_rack_pinion_mate.js';
+import {rotationLimitMeasure} from './cad_rotation_limit_mate.js';
 
 export const rad = (d) => d * Math.PI / 180;
 export const deg = (r) => r * 180 / Math.PI;
@@ -74,7 +75,7 @@ const finiteDirection = (direction) => finitePoint(direction) && len(direction) 
    to be is not an axis, and nothing can be placed without an origin. */
 export const MATE_REQUIREMENT = {
   coincident: "coincident", distance: "distance", limit: "planar", angle: "planar",
-  concentric: "axis", screw: "axis", gear: "axis", belt: "axis", rackpinion: "axis",
+  concentric: "axis", screw: "axis", gear: "axis", belt: "axis", rackpinion: "axis", rotationlimit: "axis",
   symmetric: "mirror",
   tangent: "tangent",
 };
@@ -114,6 +115,7 @@ export function mateFramesSupport(type,a,b) {
   if(!mateFrameSupports(requirement,a) || !mateFrameSupports(requirement,b))return false;
   if(type==='belt')return Math.abs(dot(norm(a.axis),norm(b.axis)))>1-1e-6;
   if(type==='rackpinion')return Math.abs(dot(norm(a.axis),norm(b.axis)))<1e-6;
+  if(type==='rotationlimit')return Math.abs(dot(norm(a.axis),norm(b.axis)))>1-1e-6;
   if(type==='coincident' || type==='distance')return !!planarDirection(a) || !!planarDirection(b);
   return true;
 }
@@ -525,7 +527,7 @@ export function angleBetween(a, b) {
    express it. */
 export function mateTarget(mate, fa, fb, moving, reader) {
   if (!fa || !fb) return null;
-  if (mate.type === "symmetric" || mate.type === "gear" || mate.type === "belt" || mate.type === "rackpinion") return null;
+  if (mate.type === "symmetric" || mate.type === "gear" || mate.type === "belt" || mate.type === "rackpinion" || mate.type === "rotationlimit") return null;
   if(mate.type==='coincident' && mateFramesSupport('coincident',fa,fb) && (!planarDirection(fa) || !planarDirection(fb))){
     const plane=planarDirection(fa)?fa:fb,line=plane===fa?fb:fa;
     const normal=norm(planarDirection(plane)),axis=norm(line.axis);
@@ -689,6 +691,10 @@ export function mateTarget(mate, fa, fb, moving, reader) {
    the step that placed it: a mate that another mate has overridden looks
    identical to one that holds unless something checks. */
 export function mateResidual(mate, fa, fb, moving, ctx = {}) {
+  if(mate.type==='rotationlimit'){
+    const state=rotationLimitMeasure(mate,fa,fb,ctx.reader,moving);
+    return state && {linear:state.linear,angular:state.angular};
+  }
   if(mate.type==='rackpinion'){
     const state=rackPinionMeasure(mate,fa,fb,ctx.reader,moving);
     return state && {linear:state.linear,angular:state.angular};
@@ -743,6 +749,7 @@ function lockRows(mate,reader,moving) {
 }
 
 export function mateResidualVector(mate, fa, fb, moving, ctx = {}) {
+  if(mate.type==='rotationlimit')return rotationLimitMeasure(mate,fa,fb,ctx.reader,moving)?.rows || null;
   if(mate.type==='rackpinion')return rackPinionMeasure(mate,fa,fb,ctx.reader,moving)?.rows || null;
   if(mate.type==='lock')return lockRows(mate,ctx.reader,moving);
   if (mate.type === "symmetric") { const m = symmetricMeasure(mate, fa, fb, ctx.fc); return m && m.rows; }

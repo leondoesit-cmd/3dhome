@@ -1,0 +1,72 @@
+# Exercise8.20 Shaper tool head — original design proposal
+
+Status: future source/design proposal for parent review; no final part geometry, assembly or browser model has been authored. Parent is currently building8.19 Arbor Press. Printed8-55/PDF433 is the source; render `scratch/planchard/p/designer-433.png`, read-only enlarged BOM renders `shaper-8.20-bom-readonly.png` and `shaper-8.20-bom-bottom-readonly.png`. All dimensions here are original millimetres, not recovered vendor dimensions.
+
+## Source and interpretation
+
+Book requests web research, original parts, complete ANSI assembly/mates and correct movement from companionAVI. It specifically requests C-ANSI landscape third-angle exploded isometric drawing, explode lines, BOM/balloons, notes and title-block custom properties. Companion sample CAD/AVI are unavailable. Illustration/BOM contains16 roles, eachqty1: Back Plate, Down Bit, Vertical Slide, Spacer Bush, Handle, Handle Bar, standard bolt/fastener, Swivel Plate, Swivel Screw Pin, Clamping Screw, Small Washer, Pivot Pin, Tool Holder, Tool Fixing Screw, item15 plate (small label appears Drag Plate; retain transcription uncertainty pending parent review), and Washer. Most source materials are AISI1020, spacer bush plain carbon steel and standard hardware cast stainless steel. These are role labels, not certification of our available material substitutes.
+
+Primary comparable mechanism: [Rockford manufacturer commercial literature authenticated in Army TM9-3418-201-14&P](https://www.airgraver.com/shaper/rockford/rockfordarmy16shaper.pdf), printedoperatingpage8 and toolheadparts43/illustration44. It identifies manual downfeed screw/handle, slide/bushing/nut/gib, swivel, clapper box/block/pivot and toolpost. Its dimensions, hydraulic ram or load ratings are not copied. The proposal concerns the head alone: whole-machine reciprocating ram and workpiece are absent, so passive clapper lift is demonstrated separately rather than falsely synchronized to a nonexistent cutting stroke.
+
+Three functions are distinct: screw downfeed sets depth; apron swivel sets tool orientation and is clamped for cutting; clapper lifts away on return and seats against its rear stop for cutting. Original simplification maps integral guide and bearing arm into Back Plate and integral feed nut into Vertical Slide. Spacer Bush is the upper captured screw journal. SH15 is a functional clapper plate; SH13 holds the tool. Empty tool slot is shown; no seventeenth cutting-bit role is silently added.
+
+## Native capability and concrete gap
+
+Existing native coupled Screw can connect a translating nonrotating slide's +Y nut axis to a rotating axially captured screw +Y axis. Nonparallel aligned datum-plane distances guide translation; Concentric plus axial datum capture makes a hinge. Existing angleMin/Max uses unsigned angleBetween0..180 and cannot distinguish outward negativeRx clapper lift from backward positiveRx intrusion into its stop. A **new directed rotational limit** is being prepared by the source solver agent; existing unsigned plane Angle semantics must remain unchanged. No source files or final models were edited by this proposal agent.
+
+Required directed limit: reader SH08, moving SH15; exact hinge +X; relative home phase0; signedrange−20..0degrees. Home worldpivot(0,4,49.2), which follows feed to(0,−16,49.2) at full depth. Positive opening parameter beta means negative native Rx. Limit must be relative to moving box/hinge, preserve branch acrossreopen, reject positiveRx/backward and below−20 atomically, and report free/drive mobility honestly. Until this native command passes UI/persistence/solver tests, one-sided clapper motion acceptance remains pending. A physical stop alone is not a mate or automatic collision controller.
+
+## Original frozen coordinate recipes
+
+WorldYup, Zforward/outward from machine ram, Xclapper hinge. FrontXYextrudes+Z; TopXZextrudes+Y; RightZYextrudes+X. Rectangles and circles use visible exact numeric forms, fixed center and ordinary driving dimensions; all sketches fully defined. Only the listed local coordinates are used. Features must rebuild into one native solid per definition.
+
+| ID / source role | Local native recipes |
+|---|---|
+|SH01 Back Plate|Front D100 disk center0,Z−12..0. Front guide body rectangle40×100 center(0,20),Z0..12 (X±20,Y−30..70), merged. Front rail rectangle20×100 samecenter,Z12..18. Front bearing-arm rectangle40×12 center(0,76),Z0..34.2 (Y70..82), merged. Top bearing hole D8.2 center(U0,V26.2),Y70..82 blind12. Four Front mount holes D6 at(U±30,V±25),Z−12 ThroughAll+Z; these lie outside guidebodyX±20. Six features.|
+|SH02 Down Bit / feed screw|Top D8 shaft center0,Y−45..90. Top D12 lower capture collarY68..70. Top D16 upper hubY90..106. Right crossbore D6.2 at(U0,V96),X−8 ThroughAll+X. Top terminal fastener socketD4.2 center0,Y102..106 blind4. Five features. Smooth nominal RH lead1mm envelope; helical teeth omitted.|
+|SH03 Vertical Slide|Front rectangle40×60 center(0,10),Z12..34.2. Front guide groove rectangle20.4×60 samecenter,Z12..18.2 blind6.2; leaves frontweb16mm and sidecheeks. Front clamping ear16×12 center(−26,−10),Z18.2..34.2 merged with sidewallX−20..−18. Top feed nut boreD8.2 center(U0,V26.2),offsetY−20 ThroughAll+Y. Front apron pivot socketD8.2 center(0,−10),Z32.2..34.2 blind2. Front clamp socketD6.2 center(−26,−10),Z28.2..34.2 blind6. Six features.|
+|SH04 Spacer Bush|Top annulusOD16/ID8.2 center0,Y0..8. One feature.|
+|SH05 Handle grip|Right annulusOD14/ID6.2 center0,X−30..−10. One feature; smooth cylindrical grip, not vendor shape.|
+|SH06 Handle Bar|Right D6 center0,X−25..25. One feature.|
+|SH07 Standard fastener proxy|Top D4 stemcenter0,Y−4..0; Top D8 roundheadY0..3, merged. Two features. Source standard hardware role retained, original M4 nominal proxy, thread omitted; exact source designation is not claimed.|
+|SH08 Swivel Plate / clapper box|Front backplate rectangle64×44 center0,Z0..6. Two Front ears4×44 centers(−18,0),(18,0),Z6..28, merged. Front pivot boreD8.2 center0,Z0 ThroughAll+Z. Front rectangular clamp-adjustment slot7.2×16 center(−26,0),Z0 ThroughAll+Z. Right hinge holesD6.2 center(U15,V14),X−20 ThroughAll+X, crosses both ears. Six features. No bottom shelf: closure seats on rear striker described below, avoiding a shelf collision as the clapper arcs.|
+|SH09 Swivel Screw Pin|Front D8 shaftcenter0,Z−2..6; Front D12 headZ6..8. Two features.|
+|SH10 Clamping Screw|Front D6 stemcenter0,Z−14..0; D10 headZ0..4. Two features.|
+|SH11 Small Washer|Front annulusOD12/ID6.2 center0,Z0..2. One feature.|
+|SH12 Pivot Pin|Right D6 center0,X−24..24. One feature. Smooth pin, retention omitted/disclosed.|
+|SH13 Tool Holder|Front D12 neckcenter0,Z−8..0; D20 shoulderZ0..5; D12 postZ5..35. Right rectangular tool slot8.2×6.2 center(U20,V0),X−6 ThroughAll+X. Front terminal screw socketD5.2 center0,Z25..35 blind10. Five features; empty square tool slot, no hidden cutting bit.|
+|SH14 Tool Fixing Screw|Front D5 stemcenter0,Z−10..0; D9 headZ0..3. Two features.|
+|SH15 Clapper plate / bookitem15|Front rectangle31.6×38 center(0,−1),Z0..10 (Y−20..18). Front rear-stop striker rectangle10×8 center(0,−14),Z−2..0, merged. Right hinge boreD6.2 center(U7,V14),X−15.8 ThroughAll+X. Front tool neck socketD12.2 center(0,−6),Z4..10 blind6. Four features.|
+|SH16 Tool Washer|Front annulusOD20/ID12.2 center0,Z0..2. One feature.|
+
+Material choices must record actual available UI material/density and preserve source role reference in Description. AlloySteel7.7 is acceptable only as a disclosed substitute, not an assertion of AISI1020 equivalence. Standard-fastener stainless reference may use an available documented stainless selection/density; if unavailable, disclose substitution. PartNoSH01..SH16, BookItemNo1..16, sourcepage and original-proxy Description persist. No previously accepted KT/AP identities or geometry are reused.
+
+## Frozen home transforms
+
+All rotationsidentity. SH01 origin0 grounded. SH02(0,0,26.2); SH03(0,0,0); SH04(0,82,26.2); SH05/SH06(0,96,26.2); SH07(0,106,26.2); SH08/SH09(0,−10,34.2); SH10(−26,−10,42.2); SH11(−26,−10,40.2); SH12(0,4,49.2); SH13(0,−16,54.2); SH14(0,−16,89.2); SH15(0,−10,42.2); SH16(0,−16,52.2). Sixteen definitions/16 occurrences, no hidden supports or extra role. Parent review must confirm interpretation of small item15 label before source metadata is finalized.
+
+## Native mates and movement
+
+SH02 shaft Y axis is concentric to SH01 bearing-arm Y axis. Top distance captures axial position while rotation remains free. Lock SH04 to Back Plate after verifying its bore and seat; lock SH05/06/07 to Screw after crossbore/terminal verification. SH03 aligned Front and Right plane distances0 restrain Z/X and all rotation while leaving Y free. Coupled Screw uses reader SH03 nut axis, moving SH02 shaft axis, RH pitch0.1cm and captured home phase/axial zero. Since the shaft is axially fixed and the nut translates, positive Drive lowers Slide: deltaY=−1mm×turns. Twenty turns give20mm downfeed. Separate signed aligned SH01Top→SH03Top Limit is−20..0mm. A10-second study at120RPM gives20 turns; confirm the actual selected cut-axis direction before UI acceptance.
+
+SH08 backplane seats Slide front Z34.2. Lock SH09 to SH08; its pin pivots in SH03 socket. Concentric Z plus Front distance0 leaves apron swivel adjustment1DOF; cutting configuration adds ordinary Top Angle0 to clamp it. Lock SH10/11 to Slide after socket/seat verification, representing the tightened clamp. The rectangular7.2×16 clamp slot permits a proposed ±10° apron adjustment: the bolt center moves at most0.395mm in X and4.515mm in Y, with nominal D6 stock remaining inside the slot. Release adjustment only in a declared unclamped configuration, and verify this separate range natively before accepting it.
+
+Lock SH12 pin to SH08. SH15 hinges through native Concentric X plus Right datum distance0. New directed limit−20..0 selects the outward branch. Lock SH13/14/16 to SH15 after neck/washer/slot verification. Free feed plus free clapper gives2DOF in cutting configuration: driving one leaves1DOF, driving both gives0DOF. A seated fixed Angle0 on the clapper temporarily gives feed-only1DOF; fixed feed gives clapper-only1DOF. Releasing apron swivel adds one adjustment DOF (total3). Native clone audits must confirm these counts for each configuration.
+
+Analytic clapper poses use the moving reader frame: pivot P=(0,4−d,49.2), d0..20mm. For each clapper-group home origin C, new origin=P+Rx(−beta)×(C−P_home), beta0..20degrees. All clapper-group orientations are Rx(−beta). Shaft rotates about+Y by2πd (lead1mm); handle/grip follow it. These formulas are for read-only verification, never scripted pose authoring.
+
+## Clearance reasoning and pending validation
+
+Rail20wide sits20.4widegroove:0.2mm Xsideclearance. Railfront18 versusgroovecavityend18.2 gives0.2mm Zclearance. GroovehomeY−20..40/fullfeed−40..20 overlapsrailY−30..70 over60/50mm, sufficientguideengagement. SlidefrontwebZ18.2..34.2 containsfeedboreZ22.1..30.3, leaves3.9mmminimumwall. Apronpin beginsZ32.2, leaving1.9mm from feedborefront30.3; no shaft/pin intersection. Clamp socketX−26 isclearofcentralfeedshaft andclapper width±15.8; washermaxX−20 leaves4.2mm gap.
+
+Uppercrossbar/OD14grip liesY96±7 whenrolledaboutY, so gripminimumY89. Bearing-armmaxY82 gives7mm clearance forfull360roll; it also staysabovehomeSlideY40 andfullfeedSlideY20. ShaftterminalfastenerstemstartsY102, crossboreends99.1, giving2.9mm axialseparation. Bearingandspacerhave0.1mm radialclearance; bothcapturingcollarsseatfacesatY70/90. Smoothfeedshaftpassesinside8.2nutboreanddoesnotrelyonpositivevolumecontact.
+
+Clapperwidth31.6 leaves0.2mm toeachearinnerX±16. HingeY4/Z49.2: closedrearfaceZ42.2 is2mm fromboxfront40.2. At beta20 the top rear corner(relativeY4,Z−7) reachesZ41.254≈1.054mm forwardofbox, stillclear. LowerrearstrikerclosedfaceZ40.2 seatsbox; its rear vertices lie at least24mm below hinge andmoveforwardfornegativeRx throughout0..20. ReversepositiveRx immediatelyintrudesintophysicalstop, hence directedlimitrequirement. No bottom shelf ismodeledbecauserearcornersinitiallydipinYduringlift; acloselyfittedfloorwouldcauseanavoidableclash. Holder/toolwasherremaininsideearXclearance andprojectforwardofthebox. Theseareproposalbounds, notnativeclearanceacceptance.
+
+## Acceptance plan before final models
+
+Parentreviewfirst. Everyfreshbrowserpartmustshowfullydefinedexactsketches, editableordinarydrivingdimension, nativevalidsingle solid, protectedactualbundle/STEP, UndoRedoUndoSaveandcoldlibraryreopen. Recorddensityprovenanceandgeometryequivalence; do notclaimmanufacturedthread/tooth/loadvalidation.
+
+Read-only authoredassemblyaudit:16definitions/16occurrences;sourceunchanged;physicalhome;allrefsbound;geometryseat/clearance;nativeDOFconfigurationchecks. Sweepfeed21posesd0..20mm plusclapper21posesbeta0..20 atfeedhome/mid/end. Ideallyfull21×21grid verifiesnativeexactinterference forbothfreedoms (boundedmotion), whileanalyticfullrollgripboundsseparatecontinuousargumentfromsamples. Driveendpoint/beyond-rangeatomicreject/coldhome/mid/end/rankflags; preservefailures. Nativehingedlimitmustrejectbeta−1(backwards) and21(outwards) withoutchangingposes/mates. Actualbrowsermotionstudiesseparatefeedandreturn-lift; nodemonstrationisclaimedaswholemachinesynchronizedcuttingstroke. Explodedviewpresentationmustretainphysicalposes/limits.
+
+Final deliverables: actual assembly STEP with16 valid solids and matching physical mass; C-ANSI558.8×431.8 landscape third-angle exploded isometric drawing;16 BOM rows/16 balloons; explode lines with circle gaps and no BOM/title crossings. Notes must disclose missing CAD/AVI, original dimensions, material substitutes, ideal1mm lead, passive clapper and head-only scope. Future acceptance and ADVANCE remain parent-owned.

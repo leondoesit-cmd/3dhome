@@ -46,6 +46,8 @@ import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
 import {setGearMatePhase} from "./cad_gear_motion.js";
 import {beltMateSpec,beltDiameterValue} from './cad_belt_mate.js';
 import {rackPinionMateSpec} from './cad_rack_pinion_mate.js';
+import {rotationLimitMateSpec} from './cad_rotation_limit_mate.js';
+import {addRotationLimitMate,setRotationLimitMateSettings,setRotationLimitMateDrive,setRotationLimitMateReferences} from './cad_rotation_limit_controls.js';
 import {addRackPinionMate,setRackPinionMateSettings,setRackPinionMateDrive,setRackPinionMateReferences} from './cad_rack_pinion_controls.js';
 import {addCubicSpline,splineControls,sampleBezier} from "./sketch_spline.js";
 import {repairReferences,restoreSketchConstraint} from "./sketch_edit_repair.js";
@@ -7290,6 +7292,7 @@ function runCommand(id) {
   else if (id === "gearmate") { setDocumentType("assembly"); setTab("ops"); openMateGearForm(); }
   else if (id === "beltmate") { setDocumentType("assembly"); setTab("ops"); openMateBeltForm(); }
   else if (id === "rackpinionmate") { setDocumentType("assembly"); setTab("ops"); openMateRackPinionForm(); }
+  else if (id === "rotationlimitmate") { setDocumentType("assembly"); setTab("ops"); openMateRotationLimitForm(); }
   else if (id === "symmetricmate") { setDocumentType("assembly"); setTab("ops"); addTopologyMate("symmetric"); }
   else if (id === "dynamicmirror") toggleDynamicMirror();
   else if (id === "mirror") mirrorSelection();
@@ -10347,12 +10350,13 @@ function syncRelationCommands() {
 }
 
 function syncExplodeCommandState() {
-  var exploded=assemblyHasExplodedOffsets(E.assembly),label=t(exploded?"collapseExplodeView":"explodeAssembly");
+  var assemblyMode=E.docType==='assembly',exploded=assemblyMode&&assemblyHasExplodedOffsets(E.assembly),label=t(exploded?"collapseExplodeView":"explodeAssembly");
   var buttons=Array.from(root.querySelectorAll('[data-command="explode"]'));
   if(root.ownerDocument)buttons.push(...root.ownerDocument.querySelectorAll('[data-pro-bind="mcmd:explode"]'));
   buttons.forEach(function(button){
     var text=button.querySelector('span');if(text)text.textContent=label;
     button.setAttribute('aria-label',label);button.setAttribute('aria-pressed',String(exploded));
+    if(!assemblyMode)button.setAttribute('aria-disabled','true');
     button.title=label+' · '+t(exploded?'assemblyExploded':'assemblyAssembled');
   });
 }
@@ -16753,6 +16757,7 @@ var MATE_PALETTE = [
   ["gear", "ph-gear", "gearMate"],
   ["belt", "ph-circles-three-plus", "beltMate"],
   ["rackpinion", "ph-gear", "rackPinionMate"],
+  ["rotationlimit", "ph-angle", "rotationLimitMate"],
 ];
 
 function topologyMateLabel(type,mate) {
@@ -16762,7 +16767,7 @@ function topologyMateLabel(type,mate) {
     coincident: "coincidentMate", concentric: "concentricMate",
     screw: "screwMate", tangent: "tangentMate", limit: "limitMate",
     angle: "angleMate", distance: "topologyDistanceMate",
-    symmetric: "symmetricMate", gear: "gearMate", belt: "beltMate", rackpinion:"rackPinionMate",
+    symmetric: "symmetricMate", gear: "gearMate", belt: "beltMate", rackpinion:"rackPinionMate",rotationlimit:"rotationLimitMate",
   }[type];
   return key ? t(key) : t("mate");
 }
@@ -19185,6 +19190,8 @@ function addTopologyMate(type, value) {
   if(type==='belt' && !beltMateSpec(value?.diameterA,value?.diameterB,value?.beltDirection)){flash(t('beltInvalid'));return false;}
   var rackSpec=type==='rackpinion' ? rackPinionMateSpec(value?.pitchRadius,value?.reverse ?? false,value?.driveTurns ?? null) : null;
   if(type==='rackpinion' && !rackSpec){flash(t('rackPinionInvalid'));return false;}
+  var rotationSpec=type==='rotationlimit'?rotationLimitMateSpec(value?.angleMin,value?.angleMax,value?.reverse ?? false,value?.driveAngle ?? null):null;
+  if(type==='rotationlimit'&&!rotationSpec){flash(t('rotationLimitInvalid'));return false;}
   var limitSpec=type==='limit' ? validLimitMateBounds(value && typeof value==='object' ? value.min : 0,value && typeof value==='object' ? value.max : 2) : null;
   if(type==='limit' && !limitSpec){flash(t('mateLimitInvalidRange'));return false;}
   var fits = mateTypeFits(type);
@@ -19209,7 +19216,7 @@ function addTopologyMate(type, value) {
      they want it on. Swap rather than refuse, or the button does nothing. */
   var componentA = mateHolderById(a.componentId);
   var componentB = mateHolderById(b.componentId);
-  if (type!=='rackpinion' && componentB && componentB.grounded && componentA && !componentA.grounded) {
+  if (!['rackpinion','rotationlimit'].includes(type) && componentB && componentB.grounded && componentA && !componentA.grounded) {
     var swap = a; a = b; b = swap;
     if(type==='belt' && value)value={...value,diameterA:value.diameterB,diameterB:value.diameterA};
     var swapComponent = componentA; componentA = componentB; componentB = swapComponent;
@@ -19221,6 +19228,11 @@ function addTopologyMate(type, value) {
     var rackResult=addRackPinionMate(E.assembly,{id:uid(),type,a,b,...rackSpec},function(){pushUndo(t('rackPinionMate'));});
     if(!rackResult.ok){flash(t('rackPinionUnsatisfied'));return false;}
     E.topologySelection=[];acceptRackPinionSolve(rackResult);return true;
+  }
+  if(type==='rotationlimit'){
+    var rotationResult=addRotationLimitMate(E.assembly,{id:uid(),type,a,b,...rotationSpec},function(){pushUndo(t('rotationLimitMate'));});
+    if(!rotationResult.ok){flash(t('rotationLimitUnsatisfied'));return false;}
+    E.topologySelection=[];acceptRackPinionSolve(rotationResult);return true;
   }
   var lockedAlignment = ["coincident", "distance", "limit"].includes(type)
     ? mateAlignmentForLockedOrientation(a.frame, b.frame, componentA && componentA.transform,
@@ -19299,6 +19311,19 @@ function acceptRackPinionSolve(result) {
   assemblySolveFresh=true;refreshAll({assemblyPoseOnly:true});
 }
 
+function openMateRotationLimitForm() {
+  openQuickForm({action:'rotationlimitmate',icon:'ph-angle',title:t('rotationLimitMate'),hint:t('rotationLimitHint'),fields:[
+    {key:'angleMin',label:t('mateAngleMinimum'),type:'number',unit:'angle',value:-20,step:1},
+    {key:'angleMax',label:t('mateAngleMaximum'),type:'number',unit:'angle',value:0,step:1},
+    {key:'reverse',label:t('rotationLimitReverse'),type:'boolean',value:false},
+    {key:'driveAngle',label:t('rotationLimitDrive'),type:'text',value:''},
+  ],onApply:function(values){
+    var drive=String(values.driveAngle ?? '').trim();
+    var spec=rotationLimitMateSpec(values.angleMin,values.angleMax,!!values.reverse,drive===''?null:Number(drive));
+    if(!spec){flash(t('rotationLimitInvalid'));return false;}
+    return addTopologyMate('rotationlimit',spec);
+  }});
+}
 function openMateRackPinionForm() {
   openQuickForm({action:'rackpinionmate',icon:'ph-gear',title:t('rackPinionMate'),hint:t('rackPinionHint'),fields:[
     {key:'pitchRadius',label:t('rackPinionRadius'),type:'number',unit:'length',value:1,min:1e-6,step:.1},
@@ -19373,10 +19398,20 @@ function openMatePropertyManager() {
       {key:'pitchRadius',label:t('rackPinionRadius'),type:'number',unit:'length',value:1,min:1e-6,step:.1},
       {key:'rackReverse',label:t('rackPinionReverse'),type:'boolean',value:false},
       {key:'rackDriveTurns',label:t('rackPinionDrive'),type:'text',value:''},
+      {key:'rotationMin',label:t('mateAngleMinimum'),type:'number',unit:'angle',value:-20,step:1},
+      {key:'rotationMax',label:t('mateAngleMaximum'),type:'number',unit:'angle',value:0,step:1},
+      {key:'rotationReverse',label:t('rotationLimitReverse'),type:'boolean',value:false},
+      {key:'rotationDrive',label:t('rotationLimitDrive'),type:'text',value:''},
       {key:'beltDirection',label:t('gearDirection'),type:'select',value:'open',choices:[{value:'open',label:t('beltOpen')},{value:'crossed',label:t('beltCrossed')}]},
     ],
     onApply: function (values) {
       if(values.type==='parallel')return addTopologyMate('angle',0);
+      if(values.type==='rotationlimit'){
+        var rotationDrive=String(values.rotationDrive ?? '').trim();
+        var rotationSpec=rotationLimitMateSpec(values.rotationMin,values.rotationMax,!!values.rotationReverse,rotationDrive===''?null:Number(rotationDrive));
+        if(!rotationSpec){flash(t('rotationLimitInvalid'));return false;}
+        return addTopologyMate('rotationlimit',rotationSpec);
+      }
       if(values.type==='limit')return addTopologyMate('limit',{min:values.limitMin,max:values.limitMax});
       if(values.type==='belt'){
         var spec=beltMateSpec(values.diameterA,values.diameterB,values.beltDirection);
@@ -19414,6 +19449,7 @@ function openMatePropertyManager() {
     ['limitMin','limitMax'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='limit');});
     ['diameterA','diameterB','beltDirection'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='belt');});
     ['pitchRadius','rackReverse','rackDriveTurns'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='rackpinion');});
+    ['rotationMin','rotationMax','rotationReverse','rotationDrive'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='rotationlimit');});
   };
   inputs.type.addEventListener("change", syncAngleField);
   syncAngleField();
@@ -19665,6 +19701,7 @@ function assemblyMateInspectorBody() {
       else if (entry[0] === "gear") openMateGearForm();
       else if (entry[0] === "belt") openMateBeltForm();
       else if (entry[0] === "rackpinion") openMateRackPinionForm();
+      else if (entry[0] === "rotationlimit") openMateRotationLimitForm();
       else addTopologyMate(entry[0]);
     });
     mateButton.setAttribute("data-topology-mate", entry[0]);
@@ -19736,6 +19773,11 @@ function assemblyMateInspectorBody() {
         } : null);
       if(picked && [picked.a.componentId,picked.b.componentId].includes(mate.a?.componentId) && [picked.a.componentId,picked.b.componentId].includes(mate.b?.componentId) && mateTypeFits(mate.type).ok){
         mateUiRow.appendChild(btn("Replace references with selection",function(){
+          if(mate.type==='rotationlimit'){
+            var rotationRepair=setRotationLimitMateReferences(E.assembly,mate.id,mateReferenceFromPick(picked.a),mateReferenceFromPick(picked.b),function(){pushUndo('Replace mate references');});
+            if(!rotationRepair.ok){flash(t('rotationLimitUnsatisfied'));return;}
+            acceptRackPinionSolve(rotationRepair);return;
+          }
           if(mate.type==='rackpinion'){
             var repaired=setRackPinionMateReferences(E.assembly,mate.id,mateReferenceFromPick(picked.a),mateReferenceFromPick(picked.b),function(){pushUndo("Replace mate references");});
             if(!repaired.ok){flash(t('rackPinionUnsatisfied'));return;}
@@ -19882,6 +19924,22 @@ function assemblyMateInspectorBody() {
           var changed=setRackPinionMateSettings(E.assembly,mate.id,{reverse:!mate.reverse},function(){pushUndo(t('rackPinionMate'));});
           if(!changed.ok){flash(t('rackPinionUnsatisfied'));return;}
           acceptRackPinionSolve(changed);
+        },'md-mate-align'));
+      }
+      if(mate.type==='rotationlimit'){
+        mateUiRow.appendChild(el('div','md-note',t('rotationLimitHint')));
+        [['angleMin','mateAngleMinimum'],['angleMax','mateAngleMaximum'],['driveAngle','rotationLimitDrive']].forEach(function(pair){
+          extraField(t(pair[1])+' (°)',mate[pair[0]],1,function(next,input){
+            if(next===mate[pair[0]] || (pair[0]==='driveAngle'&&next===null&&mate.driveAngle==null))return;
+            var result=pair[0]==='driveAngle'?setRotationLimitMateDrive(E.assembly,mate.id,next,function(){pushUndo(t('rotationLimitMate'));}):setRotationLimitMateSettings(E.assembly,mate.id,{[pair[0]]:next},function(){pushUndo(t('rotationLimitMate'));});
+            if(!result.ok){flash(t('rotationLimitInvalid'));input.value=mate[pair[0]]==null?'':String(mate[pair[0]]);return;}
+            acceptRackPinionSolve(result);
+          });
+        });
+        mateUiRow.appendChild(btn(t(mate.reverse?'rotationLimitReversed':'rotationLimitForward'),function(){
+          var result=setRotationLimitMateSettings(E.assembly,mate.id,{reverse:!mate.reverse},function(){pushUndo(t('rotationLimitMate'));});
+          if(!result.ok){flash(t('rotationLimitUnsatisfied'));return;}
+          acceptRackPinionSolve(result);
         },'md-mate-align'));
       }
       if (mate.type === "angle") {

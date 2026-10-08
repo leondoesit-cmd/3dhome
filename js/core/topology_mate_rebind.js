@@ -6,5 +6,6 @@ export function rebindTopologyMate(mate, first, second) {
   mate.a=JSON.parse(JSON.stringify(a));mate.b=JSON.parse(JSON.stringify(b));
   if(mate.type==='screw' && mate.coupledMotion){delete mate.coupledAxial0;delete mate.coupledPhase0;delete mate.coupledAxialBasis;}
   if(mate.type==='rackpinion'){delete mate.pinionRoll0;delete mate.rackTravel0;}
+  if(mate.type==='rotationlimit'){delete mate.rotationMarkerA;delete mate.rotationMarkerB;}
   return mate;
 }

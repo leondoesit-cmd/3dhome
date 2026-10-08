@@ -29,7 +29,7 @@ Every rectangle uses an exact numeric centered rectangle with ordinary driving w
 | AP07 Handle |1|Top D8 center0,Y−70..70. Top D12 end caps center0,Y−76..−70 and70..76, merged. Three features; both end caps are integral.|
 | AP08 Press head |1|Top D20 face body center0,Y−8..0. Top D10 locating neck center0,Y0..8, merged. Two features. Smooth cylindrical pressing head; removable tooling detail omitted.|
 
-Material authoring: preserve book role labels in Description. Use an available documented steel material/density consistently, recording the actual UI selection and density rather than claiming an unavailable exact grade. If the library only offers AlloySteel7.7, disclose that as the educational material substitute for book AISI1020/AISI1035. PartNo AP01..AP08, BookItemNo role text/number and original-proxy Description must survive Save/Undo/Redo/cold library reopen. Do not reuse Kant Twist identities.
+Material authoring: AP01's actual Chrome UI offers and selected **AISI 1020 (SOLIDWORKS reference),7.90g/cm³**, catalog `stock:aisi1020`; provenance is SOLIDWORKS Student Workbook2011 AppendixA,0.0079g/mm³. AP02 should use the same available reference material for its book AISI1020 role. This is a CAD reference choice, not a certification of manufactured material. Other roles retain the book AISI1035 label; record their actual available material and density, and disclose any substitute if that grade remains unavailable. PartNo AP01..AP08, BookItemNo role text/number and original-proxy Description must survive Save/Undo/Redo/cold library reopen. Do not reuse Kant Twist identities.
 
 ## Frozen home placement
 

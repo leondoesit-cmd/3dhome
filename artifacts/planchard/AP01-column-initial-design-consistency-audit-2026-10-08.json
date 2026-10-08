@@ -1,0 +1,275 @@
+{
+  "source": "artifacts/planchard/AP01-column-initial-browser-2026-10-08.mforge",
+  "inputSha256": "b71cdceeff692f9cd6c9fc269291185dedf80c98f149fa3ae6417d1cf5fe4018",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Base",
+      "planeCorrect": true,
+      "fullyDefined": true,
+      "dimensionsCorrect": true,
+      "anchorsCorrect": true,
+      "constructionExcluded": true,
+      "featureCorrect": true,
+      "sketchId": "sk_1jy4e",
+      "featureId": "feature_muzwwepw_1",
+      "actualOffsetMm": 0,
+      "actualFromMm": 0,
+      "actualToMm": 12.000000000000002,
+      "ordinaryProfileCount": 4,
+      "pass": true
+    },
+    {
+      "role": "Post",
+      "planeCorrect": true,
+      "fullyDefined": true,
+      "dimensionsCorrect": true,
+      "anchorsCorrect": true,
+      "constructionExcluded": true,
+      "featureCorrect": true,
+      "sketchId": "sk_2lesn",
+      "featureId": "feature_muzwx0qm_2",
+      "actualOffsetMm": -20,
+      "actualFromMm": -20,
+      "actualToMm": 20,
+      "ordinaryProfileCount": 4,
+      "pass": true
+    },
+    {
+      "role": "Head",
+      "planeCorrect": true,
+      "fullyDefined": true,
+      "dimensionsCorrect": true,
+      "anchorsCorrect": true,
+      "constructionExcluded": true,
+      "featureCorrect": true,
+      "sketchId": "sk_1lhxe",
+      "featureId": "feature_muzx1fwb_1",
+      "actualOffsetMm": -20,
+      "actualFromMm": -20,
+      "actualToMm": 20,
+      "ordinaryProfileCount": 4,
+      "pass": true
+    },
+    {
+      "role": "Ram guide",
+      "planeCorrect": true,
+      "fullyDefined": true,
+      "dimensionsCorrect": true,
+      "anchorsCorrect": true,
+      "constructionExcluded": true,
+      "featureCorrect": true,
+      "sketchId": "sk_2se0l",
+      "featureId": "feature_muzx2eia_2",
+      "actualOffsetMm": 128,
+      "actualFromMm": 128,
+      "actualToMm": 172.00000000000003,
+      "ordinaryProfileCount": 4,
+      "pass": true
+    },
+    {
+      "role": "Journal",
+      "planeCorrect": true,
+      "fullyDefined": true,
+      "dimensionsCorrect": true,
+      "anchorsCorrect": true,
+      "constructionExcluded": true,
+      "featureCorrect": true,
+      "sketchId": "sk_3d99r",
+      "featureId": "feature_muzx2y6o_3",
+      "actualOffsetMm": -20,
+      "actualFromMm": -20,
+      "actualToMm": 40.010000000000005,
+      "ordinaryProfileCount": 1,
+      "pass": true
+    },
+    {
+      "role": "Pinion cavity",
+      "planeCorrect": true,
+      "fullyDefined": true,
+      "dimensionsCorrect": true,
+      "anchorsCorrect": true,
+      "constructionExcluded": true,
+      "featureCorrect": true,
+      "sketchId": "sk_41rvm",
+      "featureId": "feature_muzx3s6y_4",
+      "actualOffsetMm": -12.000000000000002,
+      "actualFromMm": -12.000000000000002,
+      "actualToMm": 12.000000000000002,
+      "ordinaryProfileCount": 1,
+      "pass": true
+    },
+    {
+      "role": "Four cover sockets",
+      "planeCorrect": true,
+      "fullyDefined": true,
+      "dimensionsCorrect": true,
+      "anchorsCorrect": true,
+      "constructionExcluded": true,
+      "featureCorrect": true,
+      "sketchId": "sk_5rind",
+      "featureId": "feature_muzx4f2k_5",
+      "actualOffsetMm": 12.000000000000002,
+      "actualFromMm": 12.000000000000002,
+      "actualToMm": 20,
+      "ordinaryProfileCount": 4,
+      "pass": true
+    },
+    {
+      "role": "Table locator",
+      "planeCorrect": true,
+      "fullyDefined": true,
+      "dimensionsCorrect": true,
+      "anchorsCorrect": true,
+      "constructionExcluded": true,
+      "featureCorrect": true,
+      "sketchId": "sk_60pos",
+      "featureId": "feature_muzx5aki_6",
+      "actualOffsetMm": 6.000000000000001,
+      "actualFromMm": 6.000000000000001,
+      "actualToMm": 12.000000000000002,
+      "ordinaryProfileCount": 1,
+      "pass": true
+    },
+    {
+      "role": "Four mount holes",
+      "planeCorrect": true,
+      "fullyDefined": true,
+      "dimensionsCorrect": true,
+      "anchorsCorrect": true,
+      "constructionExcluded": true,
+      "featureCorrect": true,
+      "sketchId": "sk_7l8pp",
+      "featureId": "feature_muzx5wei_7",
+      "actualOffsetMm": 0,
+      "actualFromMm": 0,
+      "actualToMm": 184.01000000000005,
+      "ordinaryProfileCount": 4,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 471.4812247847438,
+      "maxToleranceCm": 1.5000000133226762e-7
+    },
+    "mass": {
+      "volume": 471.4812247847438,
+      "centerOfMass": {
+        "x": 0.11002133035050912,
+        "y": 8.209265380834465,
+        "z": -0.0032785274052786087
+      },
+      "inertia": [
+        [
+          19248.499381825233,
+          136.44137842037992,
+          5.240107383349973
+        ],
+        [
+          136.44137842037992,
+          5499.796569396393,
+          10.496873899191556
+        ],
+        [
+          5.240107383349973,
+          10.496873899191556,
+          22467.581150511658
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -5,
+          "y": 0,
+          "z": -4
+        },
+        "max": {
+          "x": 8,
+          "y": 18.400000000000002,
+          "z": 4
+        }
+      }
+    },
+    "issues": []
+  },
+  "step": {
+    "source": "artifacts/planchard/AP01-column-initial-browser-2026-10-08.step",
+    "bytes": 138239,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 471.4812247847423,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 471.4812247847423,
+      "centerOfMass": {
+        "x": 0.11002133035049959,
+        "y": 8.209265380834449,
+        "z": -0.003278527405282451
+      },
+      "inertia": [
+        [
+          19248.499381825175,
+          136.44137842040516,
+          5.24010738335422
+        ],
+        [
+          136.44137842040516,
+          5499.796569396374,
+          10.496873899186578
+        ],
+        [
+          5.24010738335422,
+          10.496873899186578,
+          22467.581150511585
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -5,
+          "y": 0,
+          "z": -4
+        },
+        "max": {
+          "x": 8,
+          "y": 18.4,
+          "z": 4
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/AP01-column-initial-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/AP01-column-initial-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "customProperties": {
+    "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational column/base/guide design; companion CAD and AVI unavailable. AISI1020 SOLIDWORKS reference density 7.90 g/cm3. Ideal rack-pinion envelopes; no rated capacity.",
+    "PartNo": "AP01",
+    "BookItemNo": "1.1 COLUMN"
+  },
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "densityGPerCm3": 7.9,
+    "densitySource": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massG": 3724.701675799476
+  },
+  "metadataPass": true,
+  "browserDurability": "Pending parent Chrome width20.4→20.6 Undo/Redo/Undo and cold reopen observation"
+}

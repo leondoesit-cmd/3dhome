@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP01-column-initial-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 26,
+  "issues": [],
+  "volumeCm3": 471.4812247847438,
+  "boundsCm": {
+    "min": {
+      "x": -5,
+      "y": 0,
+      "z": -4
+    },
+    "max": {
+      "x": 8,
+      "y": 18.400000000000002,
+      "z": 4
+    }
+  },
+  "centerOfMassCm": {
+    "x": 0.11002133035050912,
+    "y": 8.209265380834465,
+    "z": -0.0032785274052786087
+  },
+  "seconds": 6.4657606
+}

@@ -274,6 +274,9 @@ function syncExplodeBinding(button) {
     if(button.getAttribute('aria-label')!==label)button.setAttribute('aria-label',label);
   }
   if(pressed!==null && button.getAttribute('aria-pressed')!==pressed)button.setAttribute('aria-pressed',pressed);
+  var unavailable=source.getAttribute('aria-disabled')==='true';
+  button.disabled=unavailable;
+  if(button.getAttribute('aria-disabled')!==String(unavailable))button.setAttribute('aria-disabled',String(unavailable));
   if(source.title && button.title!==source.title)button.title=source.title;
 }
 function toolButton(tool) {
@@ -423,7 +426,22 @@ function watchEditorCommandState(root) {
 }
 
 /* The floating rail stays the source of truth for the active tool. */
+function syncModelDocumentRibbon() {
+  var root=document.querySelector('#modeler');
+  var host=root&&root.querySelector('.pr-editor-ribbon[data-pro-editor="model"]');
+  if(!host)return;
+  var mode=root.classList.contains('md-assembly')?'assembly':'part';
+  var previous=host.dataset.proDocumentType;
+  host.dataset.proDocumentType=mode;
+  if(previous===mode || mode!=='part')return;
+  var selected=host.querySelector('.pr-tab.on');
+  var tabs=PRO_CATALOG.model.tabs;
+  if(!selected || tabs[+selected.dataset.proTab]?.[0]!=='Assembly')return;
+  var features=tabs.findIndex(function(tab){return tab[0]==='Features';});
+  if(features>=0)fillRibbon(host,'model',features,LS_TAB+'.model');
+}
 function syncActive() {
+  syncModelDocumentRibbon();
   var on = document.querySelector("#plan-toolbar [data-tool].active, #plan-toolbar [data-tool].on");
   var active = on ? "tool:" + on.getAttribute("data-tool") : "";
   if (ribbon) ribbon.querySelectorAll(".pr-tool").forEach(function (b) { b.classList.toggle("on", !!active && b.dataset.proBind === active); });

@@ -44,6 +44,7 @@ import {
   rotationFromTo, rotationOf, rotationVectorMatrix, setRotation, transpose, apply, FRAME_ISSUE,
 } from "./cad_mate_model.js";
 import {captureRackPinionZero,seedRackPinion,rackPinionMateSpec} from './cad_rack_pinion_mate.js';
+import {captureRotationLimitZero,rotationLimitMateSpec,seedRotationLimit} from './cad_rotation_limit_mate.js';
 import { gaussNewtonStep, normOf, stableColumnRank } from "./core/least_squares.js";
 import { ASSEMBLY_ORIGIN_ID, assemblyOriginComponent } from "./core/assembly_structure.js";
 
@@ -147,6 +148,13 @@ function acceptMates(assembly, entries, byId, resolvedFrame, issues) {
         issues.push({mate:entry.id,code:'invalid-rack-pinion-spec'});continue;
       }
       captureRackPinionZero(mate,fa,fb,a,b);
+    }
+    if(mate.type==='rotationlimit'){
+      if(!Number.isFinite(mate.angleMin) || !Number.isFinite(mate.angleMax)
+        || !rotationLimitMateSpec(mate.angleMin,mate.angleMax,mate.reverse ?? false,mate.driveAngle ?? null)){
+        issues.push({mate:entry.id,code:'invalid-rotation-limit-spec'});continue;
+      }
+      captureRotationLimitZero(mate,fa,fb,a,b);
     }
     if (mate.type === "screw" && mate.coupledMotion) captureCoupledScrewZero(mate, fa, fb, a, b);
     const rows = mateResidualVector(mate, fa, fb, b, { fc, reader: a });
@@ -510,6 +518,10 @@ function seedCluster(cluster, resolvedFrame) {
     resolvedFrame(entry.mate.a, entry.a, entry.id, false),
     resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b, entry.a);
   const movable=new Set(cluster.components.map(c=>c.id));
+  for(const entry of cluster.mates)if(entry.mate.type==='rotationlimit'){
+    const fa=resolvedFrame(entry.mate.a,entry.a,entry.id,false),fb=resolvedFrame(entry.mate.b,entry.b,entry.id,false);
+    seedRotationLimit(entry.mate,fa,fb,entry.a,entry.b,movable.has(entry.b.id));
+  }
   for(const entry of cluster.mates)if(entry.mate.type==='rackpinion'){
     const fa=resolvedFrame(entry.mate.a,entry.a,entry.id,false),fb=resolvedFrame(entry.mate.b,entry.b,entry.id,false);
     seedRackPinion(entry.mate,fa,fb,entry.a,entry.b,movable.has(entry.a.id),movable.has(entry.b.id));
@@ -658,6 +670,8 @@ function analyzeFreedom(cluster, run) {
       for(let row=0;row<Math.min(3,entry.width);row++)boundedRows.add(offset+row);
     // An angle range is the same inequality: it removes no freedom inside its interval.
     if(!entry.legacy && mate.type==='angle' && Number(mate.angleMin)<Number(mate.angleMax))
+      for(let row=0;row<entry.width;row++)boundedRows.add(offset+row);
+    if(!entry.legacy && mate.type==='rotationlimit' && mate.angleMin<mate.angleMax && !Number.isFinite(mate.driveAngle))
       for(let row=0;row<entry.width;row++)boundedRows.add(offset+row);
     if (!entry.legacy && mate.type === "lock") {
       // Nine matrix entries describe only three rotational constraints. Map
