@@ -39,13 +39,13 @@ Most definitions use world-like local coordinates and identity home placements; 
 4. Through-Y bed slot X20..160,Z−8..8. It leaves two longitudinal rails and connected front/rear bridges.
 5. Through-X front pedestal journal bore Ø20.2 centeredY34,Z0, X0..16 only.
 6. Retention bolt hole centeredX8,Z0: nominalØ6 vertical holeY44..58; lowerØ4.2 nose passageY42.2..44, meeting it. It opens into the journal bore. Avoid extending a drill cut through the lower bed.
-7. Four nominalØ6 blind foot fixing bores fromY0 toY4 at(X30,Z±25),(X146,Z±25). These are smooth nominal thread envelopes. Foot screw tips reachY2, leaving2mm to blind bottoms.
+7. Four nominalØ6 blind foot fixing bores fromY0 toY4 at(X30,Z±25),(X170,Z±25). These are smooth nominal thread envelopes. Foot screw tips reachY2, leaving2mm to blind bottoms.
 
 Identity placement. Native clearance audit must confirm the groove bolt passage and no unrelated shaft removal; dimensions are proposed nominal representations.
 
 ### BV02 base plate — two feet
 
-Local box X−10..10,Y−12..0,Z−45..45. Through-YØ6.6 bores atlocalX0,Z±25. Two instances translateX30 andX146; other coordinates0. TopY0 contacts bed underside, endsZ±45 extend10mm beyond bed. Foot screw head seatsY−12.
+Local box X−10..10,Y−12..0,Z−45..45. Through-YØ6.6 bores atlocalX0,Z±25. Two instances translateX30 andX170; other coordinates0. TopY0 contacts bed underside, endsZ±45 extend10mm beyond bed. Foot screw head seatsY−12.
 
 ### BV03 vice jaw — integral carriage and tongue
 
@@ -73,7 +73,7 @@ Fresh Ø12 sphere centeredorigin, withØ8.2 blind socket along+Z fromlocalZ−6 
 
 ### BV08 foot hex screws — four original nominal M6×14 proxies
 
-Fresh local+Y screw: nominalØ6 stemY−14..0; hex head AF10,Y0..4, no loaded thread model. PlaceheadseatY−12 atX30/146,Z±25 withRx180 (tipY2, headY−16..−12). This matches the source quantity and nominal M6×14; the printed `14WN` suffix is not a dimensional authority. Lock feet and four screws to base only after independent source update/clearance acceptance.
+Fresh local+Y screw: nominalØ6 stemY−14..0; hex head AF10,Y0..4, no loaded thread model. PlaceheadseatY−12 atX30/170,Z±25 withRx180 (tipY2, headY−16..−12). This matches the source quantity and nominal M6×14; the printed `14WN` suffix is not a dimensional authority. Lock feet and four screws to base only after independent source update/clearance acceptance.
 
 ### BV09 stepped retention bolt — original nose bolt
 
@@ -106,3 +106,7 @@ Author BV01/03/05 first to verify interfaces; parallel BV02/04/06/07 and new BV0
 Name assembly `Planchard 8.17 - Bench vice assembly - fresh designer example 2026-10-03`. Protect raw16-occurrence placement checkpoint before mates. Drawing: A(ANSI)/Letter landscape279.4×215.9mm, third angle, isometric exploded native bodies, manually authored explode steps/lines, sixteen balloon leaders and ten-row BOM, original dimensions/material/thread notes and title BENCH VICE. Preserve the conflicting book artwork title only in notes. Final acceptance requires fully resolved native mechanism, measured screw/jaw travel, cold solved reopen, actual clearances and drawing export; no completion is claimed by this plan.
 
 
+
+## Clearance revision — 2026-10-08
+
+Original rear mounting center146mm collided with the moving keeper/tongue from29mm travel and keeper screw from44mm. Revised original designer center170mm, including both base fixing bores and rear foot fasteners, retains planned50mm travel. Foot spansX160..180 (4mm beyondbaseend176), with16×70mm nominal base contact and2mm keeper clearance atfulltravel. In-memory nativeproposal51poses areclear; final browserbase-hole edit, native persistent-reference validation, motionplayback and drawing remainpending. Strength is not certified.

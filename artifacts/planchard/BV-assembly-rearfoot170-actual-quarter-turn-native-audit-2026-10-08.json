@@ -1,0 +1,2264 @@
+{
+  "source": "artifacts/planchard/BV-assembly-rearfoot170-base-holes-journal-repair-browser-2026-10-08.mforge",
+  "inputSha256": "057b017bfce242453dff81d5f46fb08bb500a398a90899f6545387ef667d607f",
+  "designProposal": null,
+  "occurrences": 16,
+  "canonicalMateCount": 19,
+  "activeMateCount": 18,
+  "suppressedMates": [
+    {
+      "id": 4047,
+      "type": "concentric",
+      "a": 4018,
+      "b": 4023
+    }
+  ],
+  "uniqueNativeRecipes": 10,
+  "linearLimitCm": {
+    "min": 0,
+    "max": 5
+  },
+  "pitchCm": 0.4,
+  "savedPose": {
+    "label": "Browser-saved 50mm end stop",
+    "targetJawMm": 50,
+    "solve": {
+      "ok": true,
+      "settled": false,
+      "degreesOfFreedom": 1,
+      "issues": [],
+      "unsatisfied": []
+    },
+    "measuredJawMm": 50,
+    "jawTargetErrorMm": 0,
+    "jawTransform": {
+      "x": 5,
+      "y": 0,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "shaftTransform": {
+      "x": 0,
+      "y": 1.442386931,
+      "z": 2.779883284,
+      "rx": -54.84652802325908,
+      "ry": 4.0685891415288403e-10,
+      "rz": 2.1110525899444312e-10,
+      "q": {
+        "x": -0.4605602297160255,
+        "y": 4.000000000000221e-12,
+        "z": 0,
+        "w": 0.887628455382049
+      }
+    },
+    "positiveVolumePairs": []
+  },
+  "quarterTurnPoses": [
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 0,
+      "driveTurns": 0,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 0,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 1,
+      "driveTurns": -0.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 1,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0.1,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 2,
+      "driveTurns": -0.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 2,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0.2,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 3,
+      "driveTurns": -0.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 3,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0.3,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 4,
+      "driveTurns": -1,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 4,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0.4,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 5,
+      "driveTurns": -1.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 5,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 6,
+      "driveTurns": -1.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 6,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0.6,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 7,
+      "driveTurns": -1.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 7,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0.7,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 8,
+      "driveTurns": -2,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 8,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0.8,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 9,
+      "driveTurns": -2.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 9,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 0.9,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 10,
+      "driveTurns": -2.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 10,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 11,
+      "driveTurns": -2.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 11,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1.1,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 12,
+      "driveTurns": -3,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 12,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1.2,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 13,
+      "driveTurns": -3.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 13,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1.3,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 14,
+      "driveTurns": -3.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 14,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1.4,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 15,
+      "driveTurns": -3.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 15,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1.5,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 16,
+      "driveTurns": -4,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 16,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1.6,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 17,
+      "driveTurns": -4.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 17,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1.7,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 18,
+      "driveTurns": -4.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 18,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1.8,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 19,
+      "driveTurns": -4.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 19,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 1.9,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 20,
+      "driveTurns": -5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 20,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 21,
+      "driveTurns": -5.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 21,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2.1,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 22,
+      "driveTurns": -5.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 22,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2.2,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 23,
+      "driveTurns": -5.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 23,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2.3,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 24,
+      "driveTurns": -6,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 24,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2.4,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 25,
+      "driveTurns": -6.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 25,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2.5,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 26,
+      "driveTurns": -6.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 26,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2.6,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 27,
+      "driveTurns": -6.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 27,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2.7,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 28,
+      "driveTurns": -7,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 28,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2.8,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 29,
+      "driveTurns": -7.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 29,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 2.9,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 30,
+      "driveTurns": -7.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 30,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 31,
+      "driveTurns": -7.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 31,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3.1,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 32,
+      "driveTurns": -8,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 32,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3.2,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 33,
+      "driveTurns": -8.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 33,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3.3,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 34,
+      "driveTurns": -8.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 34,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3.4,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 35,
+      "driveTurns": -8.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 35,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3.5,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 36,
+      "driveTurns": -9,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 36,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3.6,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 37,
+      "driveTurns": -9.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 37,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3.7,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 38,
+      "driveTurns": -9.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 38,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3.8,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 39,
+      "driveTurns": -9.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 39,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 3.9,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 40,
+      "driveTurns": -10,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 40,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 41,
+      "driveTurns": -10.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 41,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4.1,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 42,
+      "driveTurns": -10.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 42,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4.2,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 43,
+      "driveTurns": -10.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 43,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4.3,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 44,
+      "driveTurns": -11,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 44,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4.4,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 45,
+      "driveTurns": -11.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 45,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4.5,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 46,
+      "driveTurns": -11.5,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 46,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4.6,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 0,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 47,
+      "driveTurns": -11.75,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 47,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4.7,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 6.179883284,
+        "z": 1.957613069,
+        "rx": -144.8465280232381,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9533133615517678,
+          "y": 0,
+          "z": 0,
+          "w": 0.3019828383979264
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 48,
+      "driveTurns": -12,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 48,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4.8,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 5.357613069,
+        "z": -2.779883284,
+        "rx": 125.15347197674093,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": 0,
+          "w": 0.4605602297160255
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 49,
+      "driveTurns": -12.25,
+      "solve": {
+        "ok": true,
+        "settled": true,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 49,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 4.9,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 0.620116716,
+        "z": -1.957613069,
+        "rx": 35.15347197676189,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.30198283839792633,
+          "y": 0,
+          "z": 0,
+          "w": 0.953313361551768
+        }
+      },
+      "positiveVolumePairs": []
+    },
+    {
+      "label": "Read-only solver quarter-turn sample",
+      "targetJawMm": 50,
+      "driveTurns": -12.5,
+      "solve": {
+        "ok": true,
+        "settled": false,
+        "degreesOfFreedom": 0,
+        "issues": [],
+        "unsatisfied": []
+      },
+      "measuredJawMm": 50,
+      "jawTargetErrorMm": 0,
+      "jawTransform": {
+        "x": 5,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "shaftTransform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 9.154325568439889e-10,
+        "rz": 4.749868327374969e-10,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 9.000000000000496e-12,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      },
+      "positiveVolumePairs": []
+    }
+  ],
+  "collisionThresholdCm3": 1e-10,
+  "note": "Discrete native exact intersection samples at 1mm travel increments; not a continuous swept-volume proof.",
+  "inputUnchanged": true,
+  "complete": true,
+  "allSamplesClear": true
+}

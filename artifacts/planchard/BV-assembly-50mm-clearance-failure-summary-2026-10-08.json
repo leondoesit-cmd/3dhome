@@ -1,0 +1,33 @@
+{
+  "source": "artifacts/planchard/BV-assembly-50mm-atomic-drive-browser-2026-10-08.mforge",
+  "complete": true,
+  "inputUnchanged": true,
+  "allSamplesClear": false,
+  "quarterTurnSamples": 51,
+  "firstClashTravelMm": 29,
+  "pairs": [
+    {
+      "pair": "BV02 / BV03",
+      "firstTravelMm": 29,
+      "lastTravelMm": 50,
+      "maxVolumeCm3": 0.056510760502301305
+    },
+    {
+      "pair": "BV02 / BV04",
+      "firstTravelMm": 29,
+      "lastTravelMm": 50,
+      "maxVolumeCm3": 3.2341157409890204
+    },
+    {
+      "pair": "BV02 / BV10",
+      "firstTravelMm": 44,
+      "lastTravelMm": 50,
+      "maxVolumeCm3": 0.14137166941154078
+    }
+  ],
+  "unsettledSamples": [
+    50
+  ],
+  "allMateSolvesOk": true,
+  "maxJawTargetErrorMm": 0
+}

@@ -1,0 +1,22 @@
+{
+  "instances": 16,
+  "uniqueExactRecipes": 10,
+  "totalVolumeCm3": 384.55439016722516,
+  "totalMassG": 2961.068804287633,
+  "grounded": [
+    "Planchard 8.17 - BV01 Base - fresh designer example 2026-10-03"
+  ],
+  "countByModel": {
+    "cm_musrulf4": 1,
+    "cm_muzm9dqr": 2,
+    "cm_muzmi3fn": 1,
+    "cm_muzmtncg": 1,
+    "cm_muzn0fyf": 1,
+    "cm_muzn8rnv": 1,
+    "cm_muznugz2": 2,
+    "cm_muznghhy": 4,
+    "cm_muznh9mo": 1,
+    "cm_muznir9n": 2
+  },
+  "hits": []
+}
