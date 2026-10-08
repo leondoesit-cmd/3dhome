@@ -43,10 +43,34 @@ test('parts-only drawing BOM retains document properties and assigned stock mate
 test('long BOM descriptions fit their cell and preserve the full exported tooltip',()=>{
   const description='A long source description '.repeat(30);
   const scene=buildDrawingScene({kind:'assembly',parts:[]},{views:['iso'],balloons:[{item:1,name:'Source',description,qty:1}]});
-  const cell=scene.items.find(item=>item.fullText===description);
+  const cell=scene.items.find(item=>item.fullText===description && item.text.endsWith('…'));
   assert.ok(cell.text.endsWith('…'));
   assert.ok(cell.text.length<description.length);
   assert.ok(cell.size>=1.8);
+});
+
+test('ANSI A bench vice BOM wraps full descriptions and materials without changing properties',()=>{
+  const descriptions=['Base','Base Plate','Movable jaw','Clamping plate underside keeper','Jaw screw','Screw bar','Socketed bar globe','Foot hex screw','Stepped retention bolt','Keeper screw'];
+  const rows=descriptions.map((name,index)=>({item:index+1,partNumber:`BV${String(index+1).padStart(2,'0')}`,description:`BENCH VICE - ${name} - original designer example`,material:'Alloy Steel (SOLIDWORKS reference)',qty:1}));
+  const before=JSON.stringify(rows);
+  const scene=buildDrawingScene({kind:'assembly',parts:[]},{size:'Letter',views:['iso'],balloons:rows,overallDimensions:false});
+  const frame=scene.items.find(item=>item.type==='rect' && item.fill==='#ffffff' && item.w===120);
+  // The title block has the same width; the BOM is the upper white frame.
+  const table=scene.items.filter(item=>item.type==='rect' && item.fill==='#ffffff' && item.w===120).sort((a,b)=>a.y-b.y)[0];
+  assert.ok(frame && table);
+  assert.ok(table.h>66,'rows grow to accommodate wrapping');
+  assert.ok(table.y+table.h<165.9,'table stays above the title block on ANSI A');
+  for(const row of rows){
+    for(const value of [row.description,row.material]){
+      const lines=scene.items.filter(item=>item.fullText===value && item.x>=table.x && item.x<table.x+table.w);
+      // Repeated materials appear once for every row; each occurrence is fully visible.
+      const expected=value===row.material ? value.repeat(rows.length) : value;
+      assert.equal(lines.map(item=>item.text).join(' ').replace(/\s/g,''),expected.replace(/\s/g,''));
+      for(const item of lines){assert.ok(item.size>=2);assert.ok(item.y>table.y && item.y<table.y+table.h);}
+    }
+  }
+  assert.equal(JSON.stringify(rows),before);
+  assert.match(sceneToSvg(scene),/<title>BENCH VICE - Clamping plate underside keeper - original designer example<\/title>/);
 });
 
 test('Letter assembly BOM reserves a band above a sole isometric view',()=>{

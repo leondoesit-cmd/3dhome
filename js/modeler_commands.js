@@ -2,6 +2,7 @@
 // modeler.js so the ribbon, search, and key handler share one vocabulary.
 
 import { documentDescription } from "./core/custom_properties.js";
+import {assemblyHasExplodedOffsets} from './cad_exploded_view.js';
 
 export const KEY_VIEW = { 4: "top", 5: "front", 6: "side" };
 
@@ -214,7 +215,7 @@ export function buildCommandCatalog(ctx) {
     { id:"beltmate", icon:"ph-circles-three-plus", label:t("beltMate"), group:t("cmdAssembly"), terms:"belt pulley diameter open crossed rotation coupling", available:function(){return assemblyDoc() && E.assembly && E.assembly.components.length>1;}, reason:function(){return assemblyDoc()?t("cmdNeedComponents"):needAsm();} },
     { id:"symmetricmate", icon:"ph-flip-horizontal", label:t("symmetricMate"), group:t("cmdAssembly"), terms:"symmetric mirror plane mate advanced", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"partdoc", icon:"ph-cube-focus", label:t("docPart"), group:t("cmdAssembly") },
-    { id:"explode", icon:"ph-arrows-out", label:t("explodeView"), group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
+    { id:"explode", icon:"ph-arrows-out", label:t(assemblyHasExplodedOffsets(E.assembly)?"collapseExplodeView":"explodeAssembly"), terms:"explode exploded collapse assembled", group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"explodestep", icon:"ph-arrows-out-line-horizontal", label:t("explodeStep"), group:t("cmdAssembly"), terms:"explode step chain distance direction leader line", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"motion", icon:"ph-play-circle", label:t("motionStudy"), group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length; }, reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needAsm(); } },
     { id:"interference", icon:"ph-intersect", label:t("interferenceCheck"), group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },

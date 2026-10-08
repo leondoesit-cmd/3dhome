@@ -264,6 +264,18 @@ export function runProBinding(bind, label) {
 
 /* ---------------------------------------------------------------- desktop ribbon */
 
+function syncExplodeBinding(button) {
+  if(button.dataset.proBind!=="mcmd:explode")return;
+  var source=document.querySelector('#modeler [data-command="explode"]');
+  if(!source)return;
+  var label=source.getAttribute('aria-label'),pressed=source.getAttribute('aria-pressed');
+  if(label){
+    var text=button.querySelector('span');if(text && text.textContent!==label)text.textContent=label;
+    if(button.getAttribute('aria-label')!==label)button.setAttribute('aria-label',label);
+  }
+  if(pressed!==null && button.getAttribute('aria-pressed')!==pressed)button.setAttribute('aria-pressed',pressed);
+  if(source.title && button.title!==source.title)button.title=source.title;
+}
 function toolButton(tool) {
   var b = document.createElement("button");
   b.type = "button";
@@ -278,6 +290,7 @@ function toolButton(tool) {
   b.querySelector("span").textContent = name;
   if (tool.key) b.querySelector("kbd").textContent = keyLabel(tool.key);
   b.addEventListener("click", function () { runProBinding(tool.bind, tool.label); syncActive(); });
+  syncExplodeBinding(b);
   return b;
 }
 
@@ -393,8 +406,11 @@ function mountEditorRibbon(editor, root) {
     }).observe(el);
   }
   placeEditorChrome(proDesk());
-  /* The armed command lives on the editor's own (hidden) buttons, which mark
-     it with .on: follow their class changes, a frame at a time. */
+  watchEditorCommandState(root);
+}
+function watchEditorCommandState(root) {
+  /* Follow both armed tools and presentation labels on the source commands.
+     Pro buttons may be recreated after the editor has already synchronized. */
   if (window.MutationObserver && !root._psRibbonWatch) {
     var queued = false;
     root._psRibbonWatch = new MutationObserver(function () {
@@ -402,7 +418,7 @@ function mountEditorRibbon(editor, root) {
       queued = true;
       requestAnimationFrame(function () { queued = false; syncActive(); });
     });
-    root._psRibbonWatch.observe(root, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    root._psRibbonWatch.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["class","aria-label","aria-pressed","title"] });
   }
 }
 
@@ -417,6 +433,7 @@ function syncActive() {
   document.querySelectorAll(".pro-rail-grid [data-pro-bind], .pr-editor-ribbon [data-pro-bind]").forEach(function (b) {
     b.classList.toggle("on", railBindActive(b.dataset.proBind, active));
   });
+  document.querySelectorAll('[data-pro-bind="mcmd:explode"]').forEach(syncExplodeBinding);
 }
 function railBindActive(bind, plannerActive) {
   if (!bind) return false;

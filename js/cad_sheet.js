@@ -288,7 +288,7 @@ function drawingArea(doc, columnW) {
   const notesBottom = Number(doc.notesBandHeight) > 0
     ? frame.y1 - Math.max(title.h, Number(doc.notesBandHeight)) - 6 : frame.y1 - 6;
   return {
-    x0: frame.x0 + 6, y0: frame.y0 + 6 + (doc.bomRowCount ? 6 + doc.bomRowCount * 6 + 12 : 0),
+    x0: frame.x0 + 6, y0: frame.y0 + 6 + (doc.bomRowCount ? (doc.bomHeight ?? 6 + doc.bomRowCount * 6) + 12 : 0),
     x1, y1: Math.min(extendsOverTitle ? title.y - 6 : frame.y1 - 6, notesBottom),
     get w() { return this.x1 - this.x0; },
     get h() { return this.y1 - this.y0; },
@@ -1227,7 +1227,8 @@ export function explodeLeaderItems(place, leaders) {
 }
 
 export function buildSheetScene(doc, provider, options = {}) {
-  if (provider?.bom?.length) doc = { ...doc, bomRowCount: provider.bom.length };
+  const bomLayout = provider?.bom?.length ? layoutBomTable(doc, provider.bom) : null;
+  if (bomLayout) doc = { ...doc, bomRowCount: provider.bom.length, bomHeight: bomLayout.height };
   const items = [], diagnostics = [];
   const frame = sheetFrame(doc), paper = frame.paper;
   /* null, not an empty index: "no topology was offered" and "this id is gone"
@@ -1372,7 +1373,7 @@ export function buildSheetScene(doc, provider, options = {}) {
     if (!targets.length) continue;
     const title = titleBlockBox(doc);
     const obstacles = [{ x0: title.x-4, y0: title.y-4, x1: title.x+title.w+4, y1: title.y+title.h+4 }];
-    if (provider?.bom?.length) obstacles.push({ x0: frame.x0+6, y0: frame.y0+6, x1: frame.x0+6+title.w, y1: frame.y0+12+provider.bom.length*6 });
+    if (bomLayout) obstacles.push({ x0: bomLayout.x, y0: bomLayout.y, x1: bomLayout.x+bomLayout.width, y1: bomLayout.y+bomLayout.height });
     const model = { x0: place.box.x, y0: place.box.y, x1: place.box.x+place.box.w, y1: place.box.y+place.box.h };
     // Leave room for the view caption that follows the lowest annotation.
     const paperBounds = { x0: frame.x0+6, y0: frame.y0+6, x1: frame.x1-6, y1: frame.y1-18-Math.max(title.h,Number(doc.notesBandHeight)||0) };
@@ -1411,7 +1412,7 @@ export function buildSheetScene(doc, provider, options = {}) {
 
   if (options.paper !== false) {
     items.push(...titleBlockItems(doc, provider, layout.sheetScale));
-    if (provider?.bom?.length) items.push(...bomTableItems(doc, provider.bom));
+    if (bomLayout) items.push(...bomTableItems(bomLayout));
   }
   return {
     diagnostics,
@@ -1704,15 +1705,58 @@ function titleBlockItems(doc, provider, sheetScale) {
   return items;
 }
 
-/* Reserve a top band for the parts list so it cannot cover a view or caption. */
-function bomTableItems(doc, rows) {
+/* Wrap at word boundaries, including long unbroken part numbers. Only unusually
+   long cells truncate; their complete document property remains in the tooltip. */
+function bomCellLines(value, width, size, maxLines) {
+  let remaining = String(value || "—").trim().replace(/\s+/g, " ");
+  const lines = [];
+  while (remaining && lines.length < maxLines) {
+    if (sheetTextWidth(remaining, size) <= width) { lines.push(remaining); remaining = ""; break; }
+    let count = remaining.length;
+    while (count > 1 && sheetTextWidth(remaining.slice(0, count), size) > width) count--;
+    if (lines.length === maxLines - 1) {
+      while (count > 0 && sheetTextWidth(remaining.slice(0, count) + "…", size) > width) count--;
+      lines.push(remaining.slice(0, count).trimEnd() + "…");
+      break;
+    }
+    const space = remaining.lastIndexOf(" ", count);
+    if (space > 0) count = space;
+    lines.push(remaining.slice(0, count).trimEnd());
+    remaining = remaining.slice(count).trimStart();
+  }
+  return lines.length ? lines : ["—"];
+}
+
+/* One measurement drives view clearance, balloon obstacles and the table itself.
+   A maximum of three lines keeps the parts list inside the drawing area. */
+function layoutBomTable(doc, rows) {
   const box = titleBlockBox(doc);
-  const width = box.w, rowHeight = 6, header = 6;
-  const height = header + rows.length * rowHeight;
+  const width = box.w, header = 6, lineHeight = 3.2;
   const frame = sheetFrame(doc);
   const x = frame.x0 + 6, y = frame.y0 + 6;
-  const items = [rect(x, y, width, height, "frame", { fill: "#ffffff" })];
+  const available = Math.max(6, box.y - y - header - 12);
+  const maxLines = clamp(Math.floor((available / rows.length - 2) / lineHeight), 1, 3);
   const columns = [0.1, 0.25, 0.3, 0.25, 0.1];
+  const measured = rows.map((row, index) => {
+    const values = [String(row.item ?? index + 1), row.partNumber || "", row.description || row.name || "", row.material || "", String(row.qty ?? row.quantity ?? 1)];
+    const cells = values.map((value, column) => {
+      const cellWidth = columns[column] * width - 3;
+      let size = TEXT_SIZES.meta, lines = bomCellLines(value, cellWidth, size, maxLines);
+      if (lines.at(-1).endsWith("…")) {
+        size = TEXT_SIZES.small;
+        lines = bomCellLines(value, cellWidth, size, maxLines);
+      }
+      return {value, size, lines};
+    });
+    return {cells, height: Math.max(6, 2 + Math.max(...cells.map(cell => cell.lines.length)) * lineHeight)};
+  });
+  return {x, y, width, header, lineHeight, columns, rows: measured, height: header + measured.reduce((sum, row) => sum + row.height, 0)};
+}
+
+/* Reserve a top band for the parts list so it cannot cover a view or caption. */
+function bomTableItems(layout) {
+  const {x, y, width, height, header, columns, rows, lineHeight} = layout;
+  const items = [rect(x, y, width, height, "frame", { fill: "#ffffff" })];
   let cursor = x;
   const edges = columns.map((fraction) => { cursor += fraction * width; return cursor; });
   edges.slice(0, -1).forEach((edge) => items.push(line(edge, y, edge, y + height, "frame")));
@@ -1723,15 +1767,16 @@ function bomTableItems(doc, rows) {
     items.push(text(left + 1.5, y + header - 1.6, caption, { size: TEXT_SIZES.small, weight: "600", color: "#6b7280" }));
     left = edges[index];
   });
-  rows.forEach((row, index) => {
-    const rowY = y + header + (index + 1) * rowHeight - 1.6;
+  let rowTop = y + header;
+  rows.forEach((row) => {
     let cell = x;
-    [String(row.item ?? index + 1), row.partNumber || "", row.description || row.name || "", row.material || "", String(row.qty ?? row.quantity ?? 1)].forEach((value, column) => {
-      const fitted = sheetFieldText(value, edges[column] - cell - 3);
-      items.push(text(cell + 1.5, rowY, fitted.label, { size: fitted.size, fullText: value }));
+    row.cells.forEach((fitted, column) => {
+      const firstBaseline = rowTop + (row.height - fitted.lines.length * lineHeight) / 2 + 2.8;
+      fitted.lines.forEach((label, index) => items.push(text(cell + 1.5, firstBaseline + index * lineHeight, label, { size: fitted.size, fullText: fitted.value })));
       cell = edges[column];
     });
-    items.push(line(x, y + header + (index + 1) * rowHeight, x + width, y + header + (index + 1) * rowHeight, "thin"));
+    rowTop += row.height;
+    items.push(line(x, rowTop, x + width, rowTop, "thin"));
   });
   return items;
 }

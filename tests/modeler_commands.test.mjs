@@ -119,6 +119,14 @@ function catalogFor(editor, options) {
   });
 }
 
+test('explode search command names the current action and remains searchable by exploded or collapse',()=>{
+  const editor={docType:'assembly',assembly:{components:[{id:'base'},{id:'bolt'}]}};
+  let command=catalogFor(editor).find(item=>item.id==='explode');
+  assert.equal(command.label,'explodeAssembly');assert.match(command.terms,/collapse/);
+  editor.assembly.components[1].explodedOffset={x:5,y:0,z:0};
+  command=catalogFor(editor).find(item=>item.id==='explode');assert.equal(command.label,'collapseExplodeView');assert.match(command.terms,/exploded/);
+});
+
 test("an assembly document greys every sketch command and every finish feature", () => {
   const editor = { docType: "assembly", def: { parts: [], sketches: [] }, assembly: { components: [] } };
   const catalog = catalogFor(editor);

@@ -31,6 +31,36 @@ export function defaultExplodeSpacing(bounds) {
   return width+Math.max(.1,width*.2);
 }
 
+export function assemblyHasExplodedOffsets(assembly) {
+  return (assembly?.components || []).some(component=>
+    ['x','y','z'].some(axis=>Math.abs(Number(component.explodedOffset?.[axis]) || 0)>1e-9)
+    || isSubassembly(component) && assemblyHasExplodedOffsets(component.asm));
+}
+
+// Pack the default presentation in compact rows using each placed body's
+// footprint, rather than adding the widest body's length for every fastener.
+// Offsets remain cm and do not change physical transforms or authored views.
+export function defaultExplodeLayout(bounds) {
+  const boxes=(bounds || []).map(box=>{
+    const valid=box && ['x0','x1','z0','z1'].every(key=>Number.isFinite(box[key])) && box.x1>box.x0 && box.z1>box.z0;
+    return valid?box:{x0:0,x1:1,z0:0,z1:1};
+  });
+  if(!boxes.length)return [];
+  const columns=Math.ceil(Math.sqrt(boxes.length)),rows=Math.ceil(boxes.length/columns);
+  const widths=Array(columns).fill(0),depths=Array(rows).fill(0);
+  boxes.forEach((box,index)=>{
+    widths[index%columns]=Math.max(widths[index%columns],box.x1-box.x0);
+    depths[Math.floor(index/columns)]=Math.max(depths[Math.floor(index/columns)],box.z1-box.z0);
+  });
+  const gap=Math.max(.1,Math.max(...widths,...depths)*.12),xs=[0],zs=[0];
+  for(let column=1;column<columns;column++)xs[column]=xs[column-1]+widths[column-1]+gap;
+  for(let row=1;row<rows;row++)zs[row]=zs[row-1]+depths[row-1]+gap;
+  return boxes.map((box,index)=>index===0?{x:0,y:0,z:0}:{
+    x:boxes[0].x0+xs[index%columns]-box.x0,y:0,
+    z:boxes[0].z0+zs[Math.floor(index/columns)]-box.z0,
+  });
+}
+
 export function explodeTargets(assembly) {
   normalizeExplodeStepIds(assembly);
   const targets=[];

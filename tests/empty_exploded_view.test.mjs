@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-import {createExplodedView,applyExplodedView,applyExplodedProgress} from '../js/cad_exploded_view.js';
+import {createExplodedView,applyExplodedView,applyExplodedProgress,assemblyHasExplodedOffsets} from '../js/cad_exploded_view.js';
 
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 test('New exploded view preserves the previous groups, resets nested offsets and leaves assembly poses unchanged',()=>{
@@ -29,7 +29,7 @@ test('New exploded view preserves the previous groups, resets nested offsets and
 test('playback exposes New exploded view and ignores a callback belonging to a replaced assembly',()=>{
   const assembly={components:[],activeExplodedView:'v',explodedViews:[{id:'v',steps:[]}]},E={assembly,docType:'assembly'};
   let created=0;const actions={children:[],appendChild:x=>actions.children.push(x)};
-  const context={E,applyExplodedProgress,explodedPlaybackStop:null,root:{querySelector:()=>({querySelector:()=>actions,appendChild(){}})},
+  const context={E,applyExplodedProgress,assemblyHasExplodedOffsets,t:key=>key,explodedPlaybackStop:null,root:{querySelector:()=>({querySelector:()=>actions,appendChild(){}})},
     openQuickForm:()=>({duration:{value:4,addEventListener(){}}}),el:()=>({}),btn:(label,click)=>({label,click}),createEmptyExplodedView:()=>created++};
   const open=Function(...Object.keys(context),'return ('+sourceFunctionText(source,'openExplodedPlayback')+')')(...Object.values(context));
   open();const button=actions.children.find(x=>x.label==='New exploded view');assert.ok(button);

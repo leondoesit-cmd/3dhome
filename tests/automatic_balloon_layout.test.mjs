@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {layoutBalloonCenters,distanceToSegment,BALLOON_RADIUS} from '../js/core/balloon_layout.js';
+import {layoutBalloonCenters,distanceToSegment,segmentIntersectsBox,BALLOON_RADIUS} from '../js/core/balloon_layout.js';
 import {buildDrawingScene} from '../js/cad_drawings.js';
 import {sceneToSvg,createSheetDoc,buildSheetScene,createProjector} from '../js/cad_sheet.js';
 import {tessellateParts} from '../js/core/part_tessellate.js';
 const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/clamp-balloon-browser-anchors.json',import.meta.url),'utf8'));
+const viceSvg=fs.readFileSync(new URL('../artifacts/planchard/BV-drawing-ten-step-exploded-wrapped-browser-2026-10-08.svg',import.meta.url),'utf8');
 function clear(centres) {
  const points=[...centres.values()];
  for(let i=0;i<points.length;i++)for(let j=0;j<i;j++){
@@ -24,6 +25,48 @@ test('actual 23-instance browser drawing anchors receive separate balloon circle
   assert.ok(p.x-BALLOON_RADIUS>=fixture.paper.x0&&p.x+BALLOON_RADIUS<=fixture.paper.x1&&p.y-BALLOON_RADIUS>=fixture.paper.y0&&p.y+BALLOON_RADIUS<=fixture.paper.y1);
  }
  assert.deepEqual(layoutBalloonCenters(fixture.targets,fixture.model,{...fixture.paper,y1:fixture.paper.y1-18},fixture.obstacles),positions,'stable layout across regeneration');
+});
+
+test('actual ten-step bench vice export keeps every balloon and leader clear of BOM and page edges',()=>{
+ const number=(attrs,key)=>Number(attrs.match(new RegExp(`\\b${key}="([^"]+)"`))[1]);
+ // Extract actual browser-authored component anchors, not synthetic model poses.
+ const targets=[...viceSvg.matchAll(/<line([^>]*)\/><polygon([^>]*)\/><circle([^>]*)\/><text[^>]*>([^<]*)<\/text>/g)]
+  .map((match,index)=>({id:index,point:{x:number(match[1],'x2'),y:number(match[1],'y2')}}));
+ assert.equal(targets.length,16);
+ const outlines=[...viceSvg.matchAll(/<line([^>]*)\/>/g)].filter(match=>/stroke-width="0.5"/.test(match[1]));
+ const model={x0:Infinity,y0:Infinity,x1:-Infinity,y1:-Infinity};
+ for(const [_,attrs] of outlines)for(const end of [1,2]){
+  const x=number(attrs,`x${end}`),y=number(attrs,`y${end}`);
+  model.x0=Math.min(model.x0,x);model.x1=Math.max(model.x1,x);model.y0=Math.min(model.y0,y);model.y1=Math.max(model.y1,y);
+ }
+ const rectangles=[...viceSvg.matchAll(/<rect([^>]*)\/>/g)].filter(match=>/stroke-width="0.35"/.test(match[1]));
+ const obstacles=rectangles.map(([_,attrs])=>({x0:number(attrs,'x'),y0:number(attrs,'y'),x1:number(attrs,'x')+number(attrs,'width'),y1:number(attrs,'y')+number(attrs,'height')}));
+ const paper={x0:22,y0:14,x1:265.4,y1:147.9};
+ const positions=layoutBalloonCenters(targets,model,paper,obstacles);
+ assert.equal(positions.size,targets.length,'no automatic note falls back to an unchecked offset');
+ clear(positions);
+ for(const [id,p] of positions){
+  assert.deepEqual(p.target,targets[id].point);
+  assert.ok(p.x-BALLOON_RADIUS>=paper.x0 && p.x+BALLOON_RADIUS<=paper.x1 && p.y-BALLOON_RADIUS>=paper.y0 && p.y+BALLOON_RADIUS<=paper.y1);
+  for(const obstacle of obstacles){
+   // Independent sampling verifies the emitted route, not the allocator's
+   // own clipping predicate. Its one-mm clearance exceeds the sample spacing.
+   for(let step=0;step<=512;step++){
+    const t=step/512,x=p.x+(p.target.x-p.x)*t,y=p.y+(p.target.y-p.y)*t;
+    assert.ok(x<obstacle.x0 || x>obstacle.x1 || y<obstacle.y0 || y>obstacle.y1,'leader stays outside BOM/title frame');
+   }
+  }
+ }
+ assert.deepEqual(layoutBalloonCenters(targets,model,paper,obstacles),positions);
+});
+
+test('leader clipping catches crossings with both endpoints outside the annotation obstacle',()=>{
+ const box={x0:20,y0:20,x1:80,y1:80};
+ assert.equal(segmentIntersectsBox({x:10,y:50},{x:90,y:50},box),true);
+ assert.equal(segmentIntersectsBox({x:50,y:10},{x:50,y:90},box),true);
+ assert.equal(segmentIntersectsBox({x:10,y:10},{x:90,y:90},box),true);
+ assert.equal(segmentIntersectsBox({x:10,y:10},{x:90,y:10},box),false);
+ assert.equal(segmentIntersectsBox({x:10,y:19.5},{x:90,y:19.5},box,1),true);
 });
 
 test('shared drawing scene and SVG apply automatic clearance but preserve manual balloons',()=>{

@@ -166,7 +166,7 @@ import { featureContourKey, selectFeatureContours } from "./core/feature_contour
 import { createReferencePlane, createReferenceAxis, createReferencePoint, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
 import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath,circularHelixSweepProfile } from "./cad_helix.js";
 import { circularSweepProfile, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
-import { defaultExplodeSpacing, createExplodedView, addExplodeStep, applyExplodedView, applyExplodedProgress, explodeLines, explodeTargets, explodedOccurrenceOffset } from "./cad_exploded_view.js";
+import { defaultExplodeLayout, assemblyHasExplodedOffsets, createExplodedView, addExplodeStep, applyExplodedView, applyExplodedProgress, explodeLines, explodeTargets, explodedOccurrenceOffset } from "./cad_exploded_view.js";
 import { createMotionStudy, addRotaryMotor, addScrewMotor, addLinearMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
 import { detectInterference, generateBOM } from "./cad_interference.js";
 import { createProjectBundle, exportProjectBundle, importProjectBundle, importProjectBundleText, activeProjectDocument } from "./cad_project_bundle.js";
@@ -10339,6 +10339,16 @@ function syncRelationCommands() {
   });
 }
 
+function syncExplodeCommandState() {
+  var exploded=assemblyHasExplodedOffsets(E.assembly),label=t(exploded?"collapseExplodeView":"explodeAssembly");
+  var buttons=Array.from(root.querySelectorAll('[data-command="explode"]'));
+  if(root.ownerDocument)buttons.push(...root.ownerDocument.querySelectorAll('[data-pro-bind="mcmd:explode"]'));
+  buttons.forEach(function(button){
+    var text=button.querySelector('span');if(text)text.textContent=label;
+    button.setAttribute('aria-label',label);button.setAttribute('aria-pressed',String(exploded));
+    button.title=label+' · '+t(exploded?'assemblyExploded':'assemblyAssembled');
+  });
+}
 function syncCommandManager() {
   if (!root) return;
   syncRelationCommands();
@@ -10367,6 +10377,7 @@ function syncCommandManager() {
     else if (COMMAND_TOOLTIP[id]) b.title = COMMAND_TOOLTIP[id]();
     else if (def) b.title = def.label + (def.shortcut ? " · " + def.shortcut : "");
   });
+  syncExplodeCommandState();
 }
 
 function openCommandSearch(seed) {
@@ -25978,11 +25989,7 @@ async function openImportedBundle(bundle) {
    back, and the offsets follow the assembly into the saved document. */
 function createDefaultExplodedView() {
   if (E.docType !== "assembly" || !E.assembly) return;
-  var exploded = explodeTargets(E.assembly).some(function (target) {
-    var component=target.component;
-    var offset = component.explodedOffset;
-    return offset && (offset.x || offset.y || offset.z);
-  });
+  var exploded = assemblyHasExplodedOffsets(E.assembly);
   if (exploded) {
     pushUndo(t("collapseExplodeView"));
     applyExplodedView(E.assembly,null);
@@ -25993,9 +26000,9 @@ function createDefaultExplodedView() {
   var saved=(E.assembly.explodedViews || []).find(function(view){return view.id===E.assembly.activeExplodedView;}) || (E.assembly.explodedViews || [])[0];
   if(saved){E.assembly.activeExplodedView=saved.id;applyExplodedView(E.assembly,saved.id,1);refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});fitPreview();flash("✓ "+saved.name);openExplodedPlayback();return;}
   var view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1));
-  var spacing=defaultExplodeSpacing(E.assembly.components.map(function(component){return componentWorldBounds(component,{exploded:false});}));
+  var layout=defaultExplodeLayout(E.assembly.components.map(function(component){return componentWorldBounds(component,{exploded:false});}));
   E.assembly.components.forEach(function (component, index) {
-    if (index) addExplodeStep(view, [component.id], {x:index * spacing,y:0,z:0});
+    if (index) addExplodeStep(view, [component.id], layout[index]);
   });
   E.assembly.activeExplodedView = view.id;
   applyExplodedView(E.assembly, view.id, 1); refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true}); fitPreview(); flash("\u2713 " + view.name);
@@ -26032,7 +26039,8 @@ function openExplodedPlayback() {
       if(object.userData.cadExplodeLine || object.userData.cadInterference !== undefined)object.visible=false;
     });
     E.pv?.render();
-    status.textContent=Math.round(progress*100)+"% · "+view.steps.length+" steps";
+    syncExplodeCommandState();
+    status.textContent=t(assemblyHasExplodedOffsets(assembly)?'assemblyExploded':'assemblyAssembled')+" · "+Math.round(progress*100)+"% · "+view.steps.length+" steps";
   };
   const inputs=openQuickForm({action:"explodeplay",presentationOnly:true,title:"Exploded animation",hint:"Play the saved steps in order. Stop pauses; Reset returns to the assembled position.",fields:[{key:"view",label:"Exploded view",type:"select",value:view.id,choices:assembly.explodedViews.map(item=>({value:item.id,label:item.name || item.id}))},{key:"duration",label:"Duration (seconds)",type:"number",value:view.animationDurationSeconds || Math.max(4,view.steps.length),step:1}],onApply:()=>true,onCancel:stop});
   const host=root.querySelector("#mdQuickSettings");
@@ -26040,7 +26048,7 @@ function openExplodedPlayback() {
   const duration=inputs.duration,actions=host.querySelector('.md-feature-actions');
   actions.innerHTML="";
   duration.addEventListener("change",()=>{const seconds=Number(duration.value);if(Number.isFinite(seconds) && seconds>0 && seconds<=3600){pushUndo("Animation duration");view.animationDurationSeconds=seconds;syncHead();}});
-  const status=el("div","md-note","Ready · "+view.steps.length+" steps");host.appendChild(status);
+  const status=el("div","md-note",t(assemblyHasExplodedOffsets(assembly)?'assemblyExploded':'assemblyAssembled')+" · "+view.steps.length+" steps");host.appendChild(status);
   if(inputs.view)inputs.view.addEventListener("change",()=>{
     const selected=assembly.explodedViews.find(item=>item.id===inputs.view.value);
     if(!selected || selected===view || E.assembly!==assembly)return;
