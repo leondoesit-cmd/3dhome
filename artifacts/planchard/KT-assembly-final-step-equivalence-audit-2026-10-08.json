@@ -1,0 +1,15 @@
+{
+  "bundlePath": "artifacts/planchard/KT-assembly-final-exploded-browser-2026-10-08.mforge",
+  "stepPath": "artifacts/planchard/KT-assembly-final-browser-2026-10-08.step",
+  "definitions": 16,
+  "occurrences": 25,
+  "nativeOutsideStep": {
+    "volume": 0,
+    "solidCount": 0
+  },
+  "stepOutsideNative": {
+    "volume": 0,
+    "solidCount": 0
+  },
+  "symmetricDifferenceVolumeCm3": 0
+}

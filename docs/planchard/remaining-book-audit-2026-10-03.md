@@ -13,11 +13,11 @@ The printed designer briefs permit original parts and additional components. Com
 |8.15|8-50 /428|ANSI C landscape|Welder Arm|Accepted original designer example:18 occurrences,23 mates,4 physical DOF, four native studies, home clearance and final cold export/exploded sheet. [Final acceptance](welder-arm-8.15-final-acceptance-2026-10-03.md)|
 |8.16|8-51 /429|ANSI C landscape|Five-cylinder Radial Engine|Accepted original designer example:55 connected valid solids,14 definitions,75 mates,1 physical DOF, actual Chrome full-cycle Play,25 sampled clearances and corrected native STEP/exploded sheet. [Final sections](radial-engine-8.16-browser-progress-2026-10-03.md)|
 |8.17|8-52 /430|ANSI A landscape|Bench Vice|Accepted original designer example:16occurrences,19active mates,1DOF,full10secChrome motion,51sampled clearances,16solidnativeSTEP and ANSI A exploded drawing. [Final acceptance](bench-vice-8.17-final-acceptance-2026-10-08.md)|
-|8.18|8-53 /431|ANSI C landscape|Kant-Twist Clamp|In progress: KT01–KT16 accepted; fresh assembly in progress. Remaining definitions/assembly/drawing unfinished.|
+|8.18|8-53 /431|ANSI C landscape|Kant-Twist Clamp|Accepted original designer example:16 definitions/25 occurrences,36 mates,1 free Screw actuator, two actual Chrome10sec Play runs/cold reopen,42 native clear poses,25-solidSTEP and ANSI C exploded sheet. See kant-twist-8.18-final-acceptance-2026-10-08.md.|
 |8.19|8-54 /432|ANSI A landscape|Arbor Press|Remaining|
 |8.20|8-55 /433|ANSI C landscape|Shaper Tool Head|Remaining|
 
-Exercise8.12 is accepted as a declared designer example:15 fresh parts,23 instances, physical/guided configurations, native Screw motion and sampled clearance, nine grouped explode steps and ANSI C exploded drawing. Exercise8.13 is accepted as a declared designer example: nine fresh parts,17 instances,23 mates, seven configurations, five studies, tested feed/tilt clearance and ANSI C exploded drawing with nine BOM roles and17 balloons. Their browser progress reports and protected native bundles hold the evidence. Exercises8.14–8.17 have superseding final reports linked above; earlier incomplete checkpoints inside those reports remain historical. The belt stays a static visual part with ideal no-slip pulley coupling; the welder and engine retain disclosed material/quantity assumptions, and sampled clearance does not establish continuous swept clearance or load capacity. Exercises8.18–8.20 and the earlier/later reconciliation items below remain unfinished.
+Exercise8.12 is accepted as a declared designer example:15 fresh parts,23 instances, physical/guided configurations, native Screw motion and sampled clearance, nine grouped explode steps and ANSI C exploded drawing. Exercise8.13 is accepted as a declared designer example: nine fresh parts,17 instances,23 mates, seven configurations, five studies, tested feed/tilt clearance and ANSI C exploded drawing with nine BOM roles and17 balloons. Their browser progress reports and protected native bundles hold the evidence. Exercises8.14–8.17 have superseding final reports linked above; earlier incomplete checkpoints inside those reports remain historical. The belt stays a static visual part with ideal no-slip pulley coupling; the welder and engine retain disclosed material/quantity assumptions, and sampled clearance does not establish continuous swept clearance or load capacity. Exercises8.19–8.20 and the earlier/later reconciliation items below remain unfinished.
 
 ## Earlier and later follow-ups requiring reconciliation
 
@@ -32,6 +32,7 @@ Exercise8.12 is accepted as a declared designer example:15 fresh parts,23 instan
 - Physical printing remains pending; exported STL files establish digital output only.
 
 Source page requirements are in `exercise-inventory-2026-09-27.md`. This queue does not reopen completed parts or replace the detailed native acceptance reports.
+
 
 
 

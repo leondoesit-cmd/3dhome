@@ -1,0 +1,477 @@
+{
+  "source": "artifacts/planchard/KT-assembly-final-exploded-browser-2026-10-08.mforge",
+  "svgSource": "artifacts/planchard/KT-drawing-first-browser-2026-10-08.svg",
+  "inputSha256": "e861709d8fef70be072d7ebebfd0eaaddbc0d6d81e3bde5d617a3d9e69c2aa67",
+  "definitions": 16,
+  "occurrences": 25,
+  "activeMateCount": 36,
+  "mateDifferencesAgainstEarlierHome": [],
+  "allHomeTranslationsMatch": true,
+  "allDefinitionObjectsMatchEarlierHome": true,
+  "occurrenceDescriptions": [
+    {
+      "id": 4397,
+      "part": "KT01",
+      "description": "Bench base"
+    },
+    {
+      "id": 4398,
+      "part": "KT02",
+      "description": "Hinge A"
+    },
+    {
+      "id": 4399,
+      "part": "KT03",
+      "description": "Brace A"
+    },
+    {
+      "id": 4400,
+      "part": "KT03",
+      "description": "Brace A"
+    },
+    {
+      "id": 4401,
+      "part": "KT04",
+      "description": "Pivot pin A"
+    },
+    {
+      "id": 4402,
+      "part": "KT04",
+      "description": "Pivot pin A"
+    },
+    {
+      "id": 4403,
+      "part": "KT04",
+      "description": "Pivot pin A"
+    },
+    {
+      "id": 4404,
+      "part": "KT04",
+      "description": "Pivot pin A"
+    },
+    {
+      "id": 4405,
+      "part": "KT05",
+      "description": "Grip A"
+    },
+    {
+      "id": 4406,
+      "part": "KT06",
+      "description": "Retainer screw"
+    },
+    {
+      "id": 4407,
+      "part": "KT06",
+      "description": "Retainer screw"
+    },
+    {
+      "id": 4408,
+      "part": "KT06",
+      "description": "Retainer screw"
+    },
+    {
+      "id": 4409,
+      "part": "KT07",
+      "description": "Brace B"
+    },
+    {
+      "id": 4410,
+      "part": "KT07",
+      "description": "Brace B"
+    },
+    {
+      "id": 4411,
+      "part": "KT08",
+      "description": "Retaining cap B"
+    },
+    {
+      "id": 4412,
+      "part": "KT08",
+      "description": "Retaining cap B"
+    },
+    {
+      "id": 4413,
+      "part": "KT09",
+      "description": "Hinge B"
+    },
+    {
+      "id": 4414,
+      "part": "KT10",
+      "description": "Grip B"
+    },
+    {
+      "id": 4415,
+      "part": "KT11",
+      "description": "Spindle"
+    },
+    {
+      "id": 4416,
+      "part": "KT12",
+      "description": "Handle shaft"
+    },
+    {
+      "id": 4417,
+      "part": "KT13",
+      "description": "Rubber handle grip"
+    },
+    {
+      "id": 4418,
+      "part": "KT14",
+      "description": "Grip screw"
+    },
+    {
+      "id": 4419,
+      "part": "KT15",
+      "description": "Main pin retainer"
+    },
+    {
+      "id": 4420,
+      "part": "KT16",
+      "description": "Added spacer sleeve"
+    },
+    {
+      "id": 4421,
+      "part": "KT16",
+      "description": "Added spacer sleeve"
+    }
+  ],
+  "all25OccurrenceDescriptionsPresent": true,
+  "explosion": {
+    "active": "ev_590b3e5f-9350-4549-91ef-a3636e505e35",
+    "enabled": true,
+    "steps": 15,
+    "moved": 24
+  },
+  "study": {
+    "duration": 10,
+    "time": 0,
+    "motors": [
+      {
+        "id": "motor_97e25f11-0cc5-4bb8-8f0e-ee1c4d5027f8",
+        "type": "screw",
+        "mateId": 4450,
+        "rpm": -61.289674428888,
+        "baseTurns": 0
+      }
+    ],
+    "basePoseCount": 25,
+    "allCurrentPosesExactlyMatchStudyBase": true
+  },
+  "drawingSettings": {
+    "size": "ANSI_C",
+    "units": "mm",
+    "scale": "fit",
+    "projection": "third",
+    "orientation": "landscape",
+    "draftingStandard": "ANSI",
+    "notes": "ORIGINAL EDUCATIONAL DESIGN - printed 8-53 / PDF 431. Companion CAD and AVI unavailable.\n25 occurrences / 16 definitions; two KT16 sleeves and one extra KT06 retainer added.\nDimensions in mm. Ideal RH 2 mm lead; smooth nominal thread envelopes.\nGuided flat-workpiece mode: jaw opening 56 to 10 mm; native travel limit retained.\nAlloy Steel 7.70 g/cm3; KT13 NBR-770 1.30 g/cm3 reference. No rated load capacity.\nExploded offsets are for presentation; physical home and 36 native mates are preserved.",
+    "title": "KANT TWIST CLAMP",
+    "number": "PL-8.18-KT",
+    "revision": "A",
+    "author": "ModelForge designer example",
+    "company": "Planchard Exercise 8.18",
+    "date": "2026-10-08",
+    "material": "See BOM - reference grades",
+    "finish": "Unspecified",
+    "mass": "1.367471 kg - reference"
+  },
+  "svg": {
+    "header": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"558.8mm\" height=\"431.8mm\" viewBox=\"0 0 558.8 431.8\">",
+    "bom": [
+      {
+        "part": "KT01",
+        "qty": 1,
+        "description": "Bench base"
+      },
+      {
+        "part": "KT02",
+        "qty": 1,
+        "description": "Hinge A"
+      },
+      {
+        "part": "KT03",
+        "qty": 2,
+        "description": "Brace A"
+      },
+      {
+        "part": "KT04",
+        "qty": 4,
+        "description": "Pivot pin A"
+      },
+      {
+        "part": "KT05",
+        "qty": 1,
+        "description": "Grip A"
+      },
+      {
+        "part": "KT06",
+        "qty": 3,
+        "description": "Retainer screw"
+      },
+      {
+        "part": "KT07",
+        "qty": 2,
+        "description": "Brace B"
+      },
+      {
+        "part": "KT08",
+        "qty": 2,
+        "description": "Retaining cap B"
+      },
+      {
+        "part": "KT09",
+        "qty": 1,
+        "description": "Hinge B"
+      },
+      {
+        "part": "KT10",
+        "qty": 1,
+        "description": "Grip B"
+      },
+      {
+        "part": "KT11",
+        "qty": 1,
+        "description": "Spindle"
+      },
+      {
+        "part": "KT12",
+        "qty": 1,
+        "description": "Handle shaft"
+      },
+      {
+        "part": "KT13",
+        "qty": 1,
+        "description": "Rubber handle grip"
+      },
+      {
+        "part": "KT14",
+        "qty": 1,
+        "description": "Grip screw"
+      },
+      {
+        "part": "KT15",
+        "qty": 1,
+        "description": "Main pin retainer"
+      },
+      {
+        "part": "KT16",
+        "qty": 2,
+        "description": "Added spacer sleeve"
+      }
+    ],
+    "quantitiesCorrect": true,
+    "quantitySum": 25,
+    "balloonCount": 25,
+    "balloonCircleOverlaps": [],
+    "balloonsInsideBorder": true,
+    "explodeLines": 25,
+    "explodeCircleIntrusions": [],
+    "annotationLineBomCrossings": [],
+    "annotationLineTitleCrossings": [],
+    "visibleMaterialLabels": [
+      "MATERIAL",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Nitrile rubber (NBR-770",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)",
+      "Alloy Steel (SOLIDWORKS",
+      "reference)"
+    ],
+    "visualScreenshot": "KT-drawing-first-sheet-browser-2026-10-08.jpg",
+    "visualReview": "Whole-sheet browser screenshot read: coherent exploded isometric, readable BOM/notes/title, circles spaced outside view, no obvious BOM/title crossings.",
+    "balloonLabels": [
+      "1",
+      "2",
+      "3",
+      "3",
+      "4",
+      "4",
+      "4",
+      "4",
+      "5",
+      "6",
+      "6",
+      "6",
+      "7",
+      "7",
+      "8",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "16"
+    ],
+    "balloonLabelCounts": {
+      "1": 1,
+      "2": 1,
+      "3": 2,
+      "4": 4,
+      "5": 1,
+      "6": 3,
+      "7": 2,
+      "8": 2,
+      "9": 1,
+      "10": 1,
+      "11": 1,
+      "12": 1,
+      "13": 1,
+      "14": 1,
+      "15": 1,
+      "16": 2
+    },
+    "balloonQuantitiesMatchBom": true
+  },
+  "nativeStep": {
+    "source": "artifacts/planchard/KT-assembly-final-browser-2026-10-08.step",
+    "bytes": 769890,
+    "validation": {
+      "valid": true,
+      "solidCount": 25,
+      "volumeCm3": 180.16180685859985,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 180.16180685859965,
+      "centerOfMass": {
+        "x": 1.472932586743832,
+        "y": 9.823540944350091,
+        "z": -0.005346014977285944
+      },
+      "inertia": [
+        [
+          8543.049118596002,
+          -934.5591280132799,
+          2.5917527589004217
+        ],
+        [
+          -934.5591280132799,
+          2330.375815177555,
+          5.472628726189743
+        ],
+        [
+          2.5917527589004217,
+          5.472628726189743,
+          10368.198075136763
+        ]
+      ],
+      "solidCount": 25,
+      "bounds": {
+        "min": {
+          "x": -6.8,
+          "y": 0,
+          "z": -3
+        },
+        "max": {
+          "x": 7.7,
+          "y": 21.5,
+          "z": 3
+        }
+      }
+    }
+  },
+  "nativeDefinitionAudit": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 44,
+    "clusters": [
+      {
+        "components": [
+          4405,
+          4406,
+          4403,
+          4408,
+          4402,
+          4411,
+          4398,
+          4418,
+          4417,
+          4416,
+          4415,
+          4412,
+          4413,
+          4414,
+          4421,
+          4420,
+          4407,
+          4404,
+          4410,
+          4409,
+          4419,
+          4401,
+          4400,
+          4399
+        ],
+        "variableCount": 144,
+        "rank": 143,
+        "degreesOfFreedom": 1,
+        "iterations": 43,
+        "converged": true,
+        "perComponent": {}
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "inputUnchanged": true,
+  "nativeHome": {
+    "instances": 25,
+    "uniqueExactRecipes": 16,
+    "totalVolumeCm3": 180.1617864487095,
+    "totalMassG": 1367.4709127324477,
+    "grounded": [
+      "KT01 Bench base"
+    ],
+    "countByModel": {
+      "cm_muzrb8n4": 1,
+      "cm_muzs3cnz": 1,
+      "cm_muzscwb3": 2,
+      "cm_muzslh3n": 4,
+      "cm_muzss7hl": 1,
+      "cm_muzt4ln7": 3,
+      "cm_muztcbk6": 2,
+      "cm_muztklz2": 2,
+      "cm_muztqbrg": 1,
+      "cm_muztxzqs": 1,
+      "cm_muzu3x2i": 1,
+      "cm_muzuacdn": 1,
+      "cm_muzufld4": 1,
+      "cm_muzup8x1": 1,
+      "cm_muzuv4qd": 1,
+      "cm_muzuzl1q": 2
+    },
+    "hits": []
+  }
+}

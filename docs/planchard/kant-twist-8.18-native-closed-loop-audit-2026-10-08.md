@@ -30,7 +30,7 @@ Actual Chrome end-stop exports also pass geometric and transaction checks. At Dr
 
 The original cold endpoint solve reported `ok=false`, with mate4432 `non-convergent` despite reported linear/angular residuals both0: rank142/144,2DOF and unchanged transforms. Its report remains preserved. The source solver agent repaired convergence checking to apply the existing1×10⁻¹¹ threshold per residual row rather than requiring the combined norm of317 already-tolerated roundoff rows to fall below the same threshold. An independent post-fix cold audit of the **unchanged actual closed export now accepts all36 mates**, with no issues/rebindings/unsatisfied constraints, settled/converged true, rank144/144 and0DOF after47 iterations. Translation delta is0 and rotation-matrix delta3.33×10⁻¹⁶. The actual open export also cold-solves successfully with rank144/144,0DOF and unchanged transforms. Original failure and post-fix success are separate artifacts; browser durability remains parent-owned.
 
-Parent initiated browser Motion Study Apply for10 seconds at−61.289674428888RPM. That browser operation was still pending at this checkpoint; **Play completion is not certified by this audit**.
+Parent subsequently observed actual Chrome Motion Study Play reaching10/10seconds at−61.289674428888RPM and Cancel restoring home36mates/free1DOF. Final exported study preserves all25 exact home baseline poses, duration10 and time0. This is parent-observed browser execution plus independent saved-data verification; see final deliverables report.
 
 Evidence in `artifacts/planchard`:
 
@@ -51,4 +51,4 @@ Evidence in `artifacts/planchard`:
 - `KT-assembly-actual-endstop-transactions-audit-2026-10-08.json`
 - Historical home definition/native/sign-trial audits retain the earlier36-mate source.
 
-Repeatable read-only scripts: `audit-kt-mated-references-readonly.mjs`, `audit-kt-screw-trials-readonly.mjs`, `audit-kt-screw-cycle-readonly.mjs`, `audit-kt-drive-transactions-readonly.mjs`, `audit-bv-assembly-readonly.mjs`, `verify-dp-assembly-all-native.mjs`. Assembly final acceptance still requires parent browser durability/animation completion and actual assembly STEP/drawing deliverables.
+Repeatable read-only scripts: `audit-kt-mated-references-readonly.mjs`, `audit-kt-screw-trials-readonly.mjs`, `audit-kt-screw-cycle-readonly.mjs`, `audit-kt-drive-transactions-readonly.mjs`, `audit-bv-assembly-readonly.mjs`, `verify-dp-assembly-all-native.mjs`. Actual final editable bundle,25-solid STEP equivalence and drawing acceptance evidence are audited in `kant-twist-8.18-final-deliverables-audit-2026-10-08.md`. Final browser cold reopen and ADVANCE acceptance remain parent-owned.
