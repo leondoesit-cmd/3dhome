@@ -12,8 +12,38 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/assets/icon-192.png" />
     <title>ModelForge · Parametric CAD</title>
+    <style>
+      #boot-screen { display: none; }
+      html[data-boot="loading"] body > * { visibility: hidden; }
+      html[data-boot="loading"] #boot-screen {
+        visibility: visible;
+        display: flex;
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
+        background: var(--bg-app, #f7f8fc);
+        color: var(--text, #202334);
+        font: 16px system-ui, sans-serif;
+      }
+      html[data-theme="dark"] #boot-screen { background: #171923; color: #eef0f8; }
+    </style>
     <script>
       (function () {
+        document.documentElement.setAttribute("data-boot", "loading");
+        // Both entry points restore visible preferences. Keep their measured
+        // layout intact while withholding intermediate chrome from first paint.
+        var readyParts = {};
+        window.addEventListener("planner-boot-ready", function (e) {
+          readyParts[e.detail] = true;
+          if (readyParts.main && readyParts.chrome) {
+            window.__home3dBooted = true;
+            document.documentElement.removeAttribute("data-boot");
+          }
+        });
         var he = false;
         try {
           var l = localStorage.getItem("home3d_lang");
@@ -51,6 +81,7 @@
            a file:// open dies before that, and the HTML shell looks like a
            loaded editor with an empty plan. Catch those here. */
         function fatal(msg) {
+          document.documentElement.removeAttribute("data-boot");
           function paint() {
             if (document.getElementById("fatal-banner")) return;
             var b = document.createElement("div");
@@ -107,6 +138,9 @@
     <link rel="stylesheet" href="css/pro_menus.css" />
   </head>
   <body>
+    <div id="boot-screen" role="status" aria-live="polite">
+      <strong>ModelForge</strong><span>Loading…</span>
+    </div>
     <div id="app">
       <header id="topbar">
         <div class="tb-start">

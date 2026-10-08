@@ -1,6 +1,6 @@
 # Exercise 8.17 — original bench vice design plan
 
-Status: planning only, 2026-10-03. No parts or assembly authored. All eventual geometry must start from blank documents and be authored through visible desktop Chrome controls. Dimensions below are designer choices, not recovered companion dimensions or certified manufacturing fits.
+Status: BV01 base has six browser-authored features saved; remaining base holes and assembly work are pending. See [ADVANCE.md](ADVANCE.md) and the 2026-10-04 browser checkpoint for the current state. All new geometry must start from blank documents and be authored through visible desktop Chrome controls. Dimensions below are designer choices, not recovered companion dimensions or certified manufacturing fits.
 
 ## Source and references
 

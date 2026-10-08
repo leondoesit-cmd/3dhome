@@ -526,6 +526,7 @@ function initPlannerChrome() {
   }
 
   maybeShowStart();
+  window.dispatchEvent(new CustomEvent("planner-boot-ready", { detail: "chrome" }));
 }
 
 if (document.readyState === "loading") {

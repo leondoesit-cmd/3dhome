@@ -19826,6 +19826,28 @@ function fillCabinetParameters(host) {
   host.appendChild(grid);
 }
 
+/* Coordinate cells are edits to the sketch, including its fixed anchor,
+   rather than solver starting guesses. Preserve other relations and reject an
+   edit they prevent, instead of silently snapping the displayed value back. */
+function setSketchCenterCoordinate(point, axis, value) {
+  var sketch=ensureSketch(E.def);
+  if(!point || !["x","y"].includes(axis) || !fin(value))return false;
+  var oldPoints=sketch.points.map(function(p){return {point:p,x:p.x,y:p.y};});
+  var oldEntities=sketch.entities.map(function(entity){return {entity:entity,values:cloneData(entity)};});
+  var anchors=(sketch.constraints || []).filter(function(rule){return rule.type==="fixed" && rule.point===point.id;});
+  var oldAnchors=anchors.map(function(rule){return {rule:rule,had:Object.prototype.hasOwnProperty.call(rule,axis),value:rule[axis]};});
+  anchors.forEach(function(rule){rule[axis]=value;});
+  point[axis]=value;
+  if(resolveSketch(true) && Math.abs(point[axis]-value)<=1e-7)return true;
+  oldAnchors.forEach(function(old){if(old.had)old.rule[axis]=old.value;else delete old.rule[axis];});
+  oldPoints.forEach(function(old){old.point.x=old.x;old.point.y=old.y;});
+  oldEntities.forEach(function(old){Object.assign(old.entity,old.values);});
+  resolveSketch(false);
+  H.discard();
+  flash("The center coordinate is controlled by another sketch relation. Edit that relation to move the center.");
+  return false;
+}
+
 function fillShape() {
   var host = root.querySelector("#mdInsp");
   host.innerHTML = "";
@@ -19930,8 +19952,8 @@ function fillShape() {
   } else if (p.type === "circle" || p.type === "arc") {
     var oc = circleData(p, new Map((ensureSketch(E.def).points || []).map(function (q) { return [q.id, q]; })));
     if (oc) {
-      numLengthRow(grid, "X", function () { return oc.center.x; }, function (v) { oc.center.x = v; resolveSketch(false); }, 0.1);
-      numLengthRow(grid, "Y", function () { return oc.center.y; }, function (v) { oc.center.y = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "Center U", function () { return oc.center.x; }, function (v) { setSketchCenterCoordinate(oc.center,"x",v); }, 0.1);
+      numLengthRow(grid, "Center V", function () { return oc.center.y; }, function (v) { setSketchCenterCoordinate(oc.center,"y",v); }, 0.1);
       // an arc's radius is carried by its rim points, so the driver is the
       // radius dimension rather than a stored scalar
       if (p.type === "circle") numLengthRow(grid, "R", function () { return p.r; }, function (v) { setEntityDimension(p,"radius",Math.max(1e-6,v)); }, 0.1);

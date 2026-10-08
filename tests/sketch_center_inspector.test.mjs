@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {sourceFunctionText} from './helpers/source_function.mjs';
+import {solveSketch} from '../js/sketch_solver.js';
+import {addDimensionedCircle} from '../js/sketch_dimensioned_circle.js';
+
+const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+function fixture({fixCenter=true,linked=false}={}) {
+  let serial=0,discarded=0;
+  const sketch={plane:'right',offset:1.6,points:[],entities:[],constraints:[]};
+  const [circle]=addDimensionedCircle(sketch,{diameter:2.02,x:0,y:3.4,fixCenter},()=>++serial);
+  const center=sketch.points[0],messages=[];
+  if(linked){
+    const anchor={id:++serial,x:0,y:3.4};sketch.points.push(anchor);
+    sketch.constraints.push({id:++serial,type:'fixed',point:anchor.id,x:0,y:3.4},{id:++serial,type:'coincident',a:center.id,b:anchor.id});
+  }
+  solveSketch(sketch);
+  const set=new Function('E','ensureSketch','fin','cloneData','resolveSketch','H','flash',
+    sourceFunctionText(source,'setSketchCenterCoordinate')+';return setSketchCenterCoordinate;')(
+      {def:sketch},def=>def,Number.isFinite,value=>JSON.parse(JSON.stringify(value)),
+      ()=>!['conflicting','over-constrained'].includes(solveSketch(sketch).status),
+      {discard:()=>discarded++},message=>messages.push(message));
+  return {sketch,circle,center,set,messages,get discarded(){return discarded;}};
+}
+
+test('circle inspector edits its fixed center anchor, preserves diameter and persists on the Right datum',()=>{
+  const f=fixture();
+  assert.equal(f.set(f.center,'x',1.25),true);
+  assert.equal(f.set(f.center,'y',4.8),true);
+  const reopened=JSON.parse(JSON.stringify(f.sketch)),report=solveSketch(reopened);
+  assert.equal(report.status,'fully-constrained');
+  assert.equal(report.degreesOfFreedom,0);
+  assert.ok(Math.abs(reopened.points[0].x-1.25)<1e-7);
+  assert.ok(Math.abs(reopened.points[0].y-4.8)<1e-7);
+  assert.equal(reopened.constraints.find(c=>c.type==='fixed').x,1.25);
+  assert.equal(reopened.constraints.find(c=>c.type==='fixed').y,4.8);
+  assert.equal(reopened.constraints.find(c=>c.type==='diameter').value,2.02);
+  assert.ok(Math.abs(reopened.entities[0].r-1.01)<1e-7);
+  assert.equal(reopened.plane,'right');assert.equal(reopened.offset,1.6);
+  assert.equal(f.discarded,0);assert.equal(f.messages.length,0);
+});
+
+test('an unfixed circle center can move without acquiring fixed constraints',()=>{
+  const f=fixture({fixCenter:false});
+  assert.equal(f.set(f.center,'x',2),true);
+  assert.equal(f.set(f.center,'y',-1),true);
+  assert.equal(solveSketch(f.sketch).degreesOfFreedom,2);
+  assert.equal(f.sketch.constraints.some(c=>c.type==='fixed'),false);
+  assert.ok(Math.abs(f.center.x-2)<1e-7&&Math.abs(f.center.y+1)<1e-7);
+});
+
+test('another relation controlling an unfixed center refuses its coordinate edit without removing the relation',()=>{
+  const f=fixture({fixCenter:false,linked:true}),before=JSON.parse(JSON.stringify(f.sketch));
+  assert.equal(f.set(f.center,'x',2),false);
+  assert.deepEqual(f.sketch.constraints,before.constraints);
+  assert.ok(Math.abs(f.center.x-before.points[0].x)<1e-7);
+  assert.ok(Math.abs(f.center.y-before.points[0].y)<1e-7);
+  assert.ok(Math.abs(f.circle.r-before.entities[0].r)<1e-7);
+  assert.equal(solveSketch(f.sketch).status,'fully-constrained');
+  assert.equal(f.discarded,1);assert.match(f.messages[0],/another sketch relation/);
+});
+
+test('a conflicting relation also rolls back changed fixed anchor values',()=>{
+  const f=fixture({linked:true}),before=JSON.parse(JSON.stringify(f.sketch));
+  assert.equal(f.set(f.center,'y',8),false);
+  assert.deepEqual(f.sketch.constraints,before.constraints);
+  assert.ok(Math.abs(f.center.y-3.4)<1e-7);
+  assert.equal(f.discarded,1);
+});

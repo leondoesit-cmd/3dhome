@@ -412,13 +412,12 @@ initPersistence({
    never fetches the module at all, and a failure here must not take the app
    down with it — the layout is a convenience, the planner underneath it is
    not. */
+var chromeCustomizationReady = Promise.resolve();
 if (localStorage.getItem("mf_uikit") === "1") {
-  import("./uikit_host/index.js")
+  chromeCustomizationReady = import("./uikit_host/index.js")
     .then(function (m) { m.initUIKit(); })
     .catch(function (e) { console.warn("uikit did not start", e); });
 }
-
-window.__home3dBooted = true;
 
 /* Bring the 3D renderer up the first time its pane is really on screen.
    Cheap and idempotent: init3D() returns its own in-flight promise, and a
@@ -908,3 +907,8 @@ if (has3D()) {
   resizeAll();
   frameView();
 }
+
+// Reveal only after the final layout/plan pass and optional saved UI adoption.
+chromeCustomizationReady.then(function () {
+  window.dispatchEvent(new CustomEvent("planner-boot-ready", { detail: "main" }));
+});
