@@ -1,0 +1,128 @@
+{
+  "source": "artifacts/planchard/AP03-hex-screw-final-browser-2026-10-08.mforge",
+  "bytes": 138679,
+  "inputSha256": "8504fa3ebe8c76d38a38d1e2dd13ccc9e16f1b6d228844b3c60e231393b5b171",
+  "inputUnchanged": true,
+  "checks": {
+    "counts": true,
+    "fullyDefined": true,
+    "frontPlanes": true,
+    "stem": true,
+    "hexCenterFixed": true,
+    "hexDiameter": true,
+    "hexRegular": true,
+    "hexExactRotation": true,
+    "AF10": true,
+    "constructionExcluded": true,
+    "bossFeatures": true
+  },
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP03-hex-screw-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "volumeCm3": 0.7422508358660888,
+    "boundsCm": {
+      "min": {
+        "x": -0.4999999999999995,
+        "y": -0.5773502691896251,
+        "z": -1.4000000000000001
+      },
+      "max": {
+        "x": 0.4999999999999995,
+        "y": 0.5773502691896251,
+        "z": 0.4
+      }
+    },
+    "centerOfMassCm": {
+      "x": 2.629251212895898e-18,
+      "y": 1.5318460171351064e-17,
+      "z": -0.27996794304904743
+    },
+    "seconds": 6.5730933
+  },
+  "step": {
+    "source": "artifacts/planchard/AP03-hex-screw-final-browser-2026-10-08.step",
+    "bytes": 27579,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.7422508358663247,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 0.7422508358663247,
+      "centerOfMass": {
+        "x": 4.808608329361414e-15,
+        "y": -1.0986266031567207e-15,
+        "z": -0.27996794304890893
+      },
+      "inertia": [
+        [
+          0.2518746507594081,
+          9.893164105444595e-16,
+          8.72777904074983e-16
+        ],
+        [
+          9.893164105444595e-16,
+          0.2518746507593785,
+          4.583612242549234e-16
+        ],
+        [
+          8.72777904074983e-16,
+          4.583612242549234e-16,
+          0.06592535277838586
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.5000000000000178,
+          "y": -0.57735026919,
+          "z": -1.4
+        },
+        "max": {
+          "x": 0.5000000000000178,
+          "y": 0.57735026919,
+          "z": 0.4
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/AP03-hex-screw-final-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/AP03-hex-screw-final-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticVolumeCm3": 0.7422508358660885,
+  "nativeAnalyticVolumeErrorCm3": 2.220446049250313e-16,
+  "material": {
+    "name": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "source": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "catalogId": "stock:alloySteel",
+    "massG": 5.715331436168883
+  },
+  "customProperties": {
+    "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational AF10 hex screw; smooth nominal stem, threads omitted. Book AISI1035 role uses available Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+    "PartNo": "AP03",
+    "BookItemNo": "1.3 HEX SCREW"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent Chrome UI observation",
+    "driving": "Stem6→6.2 changed native0.7422508→0.7690800cm3; Undo/Redo/Undo restored6 then Save",
+    "coldReopen": "Parent actual Chrome cold reload/saved-library reopen passed:4fullydefinedsteps,1native solid,0.7422508cm3/0.005715331kg; stemD6/offset-14 and hexdrivingdiameter11.5470053838/offset0 persisted. Coldmass/coldhex/finalgeometry screenshots protected.",
+    "status": "passed"
+  }
+}
