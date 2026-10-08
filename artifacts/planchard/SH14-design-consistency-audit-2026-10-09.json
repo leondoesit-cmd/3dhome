@@ -1,0 +1,210 @@
+{
+  "source": "artifacts/planchard/SH14-nominal-browser-2026-10-09.mforge",
+  "bytes": 119985,
+  "inputSha256": "748156b94cebfa09e6b0cb256da34a3002c5a5d0103c5ae325e75dee714348f7",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "diameterMm": 5,
+      "fromMm": -10,
+      "toMm": 0,
+      "pass": true
+    },
+    {
+      "diameterMm": 9,
+      "fromMm": 0,
+      "toMm": 3,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH14-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.38720129455494207,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 0.38720129455494207,
+    "boundsCm": {
+      "min": {
+        "x": -0.45,
+        "y": -0.45,
+        "z": -1
+      },
+      "max": {
+        "x": 0.45,
+        "y": 0.45,
+        "z": 0.30000000000000004
+      }
+    },
+    "centerOfMassCm": {
+      "x": -4.928175216376307e-17,
+      "y": 2.3861244566871648e-18,
+      "z": -0.17961460446247463
+    },
+    "seconds": 5.9633189
+  },
+  "step": {
+    "source": "artifacts/planchard/SH14-nominal-browser-2026-10-09.step",
+    "bytes": 9700,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.38720129455494046,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 0.38720129455494046,
+      "centerOfMass": {
+        "x": -3.942540173101062e-16,
+        "y": 4.2197016601559885e-18,
+        "z": -0.17961460446247127
+      },
+      "inertia": [
+        [
+          0.07141357294796723,
+          1.3121551180787345e-18,
+          -4.220910336654284e-16
+        ],
+        [
+          1.3121551180787345e-18,
+          0.07141357294796707,
+          -1.073083614582751e-18
+        ],
+        [
+          -4.220910336654284e-16,
+          -1.073083614582751e-18,
+          0.02545966321423275
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.45,
+          "y": -0.45,
+          "z": -1
+        },
+        "max": {
+          "x": 0.45,
+          "y": 0.45,
+          "z": 0.3
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH14-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH14-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "analyticVolumeCm3": 0.387201294554942,
+  "nativeAnalyticVolumeErrorCm3": 5.551115123125783e-17,
+  "nativeStepEquivalent": true,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.0030588902269840425
+  },
+  "properties": {
+    "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH14 item 14 tool fixing screw: Front D5 mm smooth stem Z -10..0, D9 mm head Z0..3. Companion CAD/AVI unavailable; assumed dimensions, threads omitted, representative AISI 1020 density, not certified or rated.",
+    "PartNo": "SH14",
+    "BookItemNo": "14"
+  },
+  "metadataPass": true,
+  "presetProvenanceGap": false,
+  "browserDurability": {
+    "source": "Parent actual Chrome observations; auditor did not control browser",
+    "library": "Parent actual saved-library reopen",
+    "driving": "StemD5→5.2 native.3872013→.4032234cm3/mass.003058890→.003185465kg;Undo5Redo5.2Undo5Saveclean",
+    "coldReopen": "PASS: saved-library reopen retains four fully defined editable steps, one native solid 9×9×13mm and SH14/BookItem14/Description.",
+    "pass": true
+  },
+  "geometryPass": true,
+  "finalCold": {
+    "source": "artifacts/planchard/SH14-final-browser-2026-10-09.mforge",
+    "bytes": 120662,
+    "inputSha256": "30699381a736deab1680d6c4eb220f2082088dd5e8e48472f86431d3655eec4c",
+    "inputUnchanged": true,
+    "checks": {
+      "featuresExact": true,
+      "sketchesExact": true,
+      "historyExact": true,
+      "authoredPartsPreserved": true,
+      "originalPropertiesPreserved": true,
+      "nativeVolumeUnchanged": true,
+      "nativeBoundsUnchanged": true,
+      "singleValidSolid": true
+    },
+    "pass": true,
+    "native": {
+      "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH14-final-browser-2026-10-09.mforge",
+      "exact": true,
+      "featureCount": 5,
+      "issues": [],
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.38720129455494207,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.38720129455494207,
+      "boundsCm": {
+        "min": {
+          "x": -0.45,
+          "y": -0.45,
+          "z": -1
+        },
+        "max": {
+          "x": 0.45,
+          "y": 0.45,
+          "z": 0.30000000000000004
+        }
+      },
+      "centerOfMassCm": {
+        "x": -4.928175216376307e-17,
+        "y": 2.3861244566871648e-18,
+        "z": -0.17961460446247463
+      },
+      "seconds": 5.2239415000000005
+    },
+    "material": {
+      "name": "AISI 1020 (SOLIDWORKS reference)",
+      "density": 7.9,
+      "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+      "massKg": 0.0030588902269840425
+    },
+    "properties": {
+      "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH14 item 14 tool fixing screw: Front D5 mm smooth stem Z -10..0, D9 mm head Z0..3. Companion CAD/AVI unavailable; assumed dimensions, threads omitted, representative AISI 1020 density, not certified or rated.",
+      "PartNo": "SH14",
+      "BookItemNo": "14"
+    },
+    "priorStepEquivalence": {
+      "evidence": "SH14-step-equivalence-audit-2026-10-09.json",
+      "symmetricDifferenceVolumeCm3": 0,
+      "reuseReason": "Final authored features, sketches and history are exactly nominal; fresh final native regeneration has unchanged volume and bounds."
+    },
+    "browserDurability": {
+      "source": "Parent actual Chrome observations; auditor did not control browser",
+      "library": "Parent actual saved-library reopen",
+      "driving": "StemD5→5.2 native.3872013→.4032234cm3/mass.003058890→.003185465kg;Undo5Redo5.2Undo5Saveclean",
+      "coldReopen": "PASS: saved-library reopen retains four fully defined editable steps, one native solid 9×9×13mm and SH14/BookItem14/Description.",
+      "pass": true
+    }
+  },
+  "finalAccepted": true
+}

@@ -1,0 +1,71 @@
+{
+  "source": "artifacts/planchard/SH14-final-browser-2026-10-09.mforge",
+  "bytes": 120662,
+  "inputSha256": "30699381a736deab1680d6c4eb220f2082088dd5e8e48472f86431d3655eec4c",
+  "inputUnchanged": true,
+  "checks": {
+    "featuresExact": true,
+    "sketchesExact": true,
+    "historyExact": true,
+    "authoredPartsPreserved": true,
+    "originalPropertiesPreserved": true,
+    "nativeVolumeUnchanged": true,
+    "nativeBoundsUnchanged": true,
+    "singleValidSolid": true
+  },
+  "pass": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH14-final-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.38720129455494207,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 0.38720129455494207,
+    "boundsCm": {
+      "min": {
+        "x": -0.45,
+        "y": -0.45,
+        "z": -1
+      },
+      "max": {
+        "x": 0.45,
+        "y": 0.45,
+        "z": 0.30000000000000004
+      }
+    },
+    "centerOfMassCm": {
+      "x": -4.928175216376307e-17,
+      "y": 2.3861244566871648e-18,
+      "z": -0.17961460446247463
+    },
+    "seconds": 5.2239415000000005
+  },
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "massKg": 0.0030588902269840425
+  },
+  "properties": {
+    "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH14 item 14 tool fixing screw: Front D5 mm smooth stem Z -10..0, D9 mm head Z0..3. Companion CAD/AVI unavailable; assumed dimensions, threads omitted, representative AISI 1020 density, not certified or rated.",
+    "PartNo": "SH14",
+    "BookItemNo": "14"
+  },
+  "priorStepEquivalence": {
+    "evidence": "SH14-step-equivalence-audit-2026-10-09.json",
+    "symmetricDifferenceVolumeCm3": 0,
+    "reuseReason": "Final authored features, sketches and history are exactly nominal; fresh final native regeneration has unchanged volume and bounds."
+  },
+  "browserDurability": {
+    "source": "Parent actual Chrome observations; auditor did not control browser",
+    "library": "Parent actual saved-library reopen",
+    "driving": "StemD5→5.2 native.3872013→.4032234cm3/mass.003058890→.003185465kg;Undo5Redo5.2Undo5Saveclean",
+    "coldReopen": "PASS: saved-library reopen retains four fully defined editable steps, one native solid 9×9×13mm and SH14/BookItem14/Description.",
+    "pass": true
+  }
+}
