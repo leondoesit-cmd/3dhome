@@ -1,0 +1,71 @@
+{
+  "source": "artifacts/planchard/SH10-final-browser-2026-10-09.mforge",
+  "bytes": 129867,
+  "inputSha256": "28622dfb6fe84f05f53dafd1182fb635c7433c721eeab515298675f6feb0b81d",
+  "inputUnchanged": true,
+  "checks": {
+    "featuresExact": true,
+    "sketchesExact": true,
+    "historyExact": true,
+    "authoredPartsPreserved": true,
+    "originalPropertiesPreserved": true,
+    "nativeVolumeUnchanged": true,
+    "nativeBoundsUnchanged": true,
+    "singleValidSolid": true
+  },
+  "pass": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH10-final-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.7099999397112935,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 0.7099999397112935,
+    "boundsCm": {
+      "min": {
+        "x": -0.5,
+        "y": -0.5,
+        "z": -1.4000000000000001
+      },
+      "max": {
+        "x": 0.5,
+        "y": 0.5,
+        "z": 0.4
+      }
+    },
+    "centerOfMassCm": {
+      "x": -1.465963625305824e-17,
+      "y": -3.8708656102842535e-18,
+      "z": -0.30176991150442484
+    },
+    "seconds": 5.2790634
+  },
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "massKg": 0.005608999523719219
+  },
+  "properties": {
+    "Description": "Clamping screw; original smooth D6 stem length14 mm with D10 head, ideal threads omitted, book item10",
+    "PartNo": "SH10",
+    "BookItemNo": "10"
+  },
+  "priorStepEquivalence": {
+    "evidence": "SH10-step-equivalence-audit-2026-10-09.json",
+    "symmetricDifferenceVolumeCm3": 0,
+    "reuseReason": "Final authored features, sketches and history are exactly nominal; fresh final native regeneration has unchanged volume and bounds."
+  },
+  "browserDurability": {
+    "source": "Parent actual Chrome observations; auditor did not control browser",
+    "library": "cm_mv02ff27",
+    "driving": "StemD6→6.2 native.7099999→.7368291cm3/mass.005609000→.005820950kg;Undo6Redo6.2Undo6Saveclean",
+    "coldReopen": "PASS: saved-library reopen retains four fully defined editable steps, one native solid 10×10×18mm and SH10/BookItem10/Description.",
+    "pass": true
+  }
+}

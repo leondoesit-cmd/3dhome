@@ -1,0 +1,210 @@
+{
+  "source": "artifacts/planchard/SH10-nominal-browser-2026-10-09.mforge",
+  "bytes": 128960,
+  "inputSha256": "a2249d813c3d38a27065c1e3a5f543599c56ece093cd2f595243a17e989d3886",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "diameterMm": 6,
+      "fromMm": -14,
+      "toMm": 0,
+      "pass": true
+    },
+    {
+      "diameterMm": 10,
+      "fromMm": 0,
+      "toMm": 4,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH10-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.7099999397112935,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 0.7099999397112935,
+    "boundsCm": {
+      "min": {
+        "x": -0.5,
+        "y": -0.5,
+        "z": -1.4000000000000001
+      },
+      "max": {
+        "x": 0.5,
+        "y": 0.5,
+        "z": 0.4
+      }
+    },
+    "centerOfMassCm": {
+      "x": -1.465963625305824e-17,
+      "y": -3.8708656102842535e-18,
+      "z": -0.30176991150442484
+    },
+    "seconds": 6.915183799999999
+  },
+  "step": {
+    "source": "artifacts/planchard/SH10-nominal-browser-2026-10-09.step",
+    "bytes": 9745,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.7099999397112904,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 0.7099999397112904,
+      "centerOfMass": {
+        "x": -7.916203576651484e-16,
+        "y": -8.74018067697811e-18,
+        "z": -0.3017699115044208
+      },
+      "inertia": [
+        [
+          0.2392562363732504,
+          6.850562027949429e-18,
+          -1.0143388710091983e-15
+        ],
+        [
+          6.850562027949429e-18,
+          0.23925623637325008,
+          3.7772755618181345e-18
+        ],
+        [
+          -1.0143388710091983e-15,
+          3.7772755618181345e-18,
+          0.057082738515726844
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.5,
+          "y": -0.5,
+          "z": -1.4
+        },
+        "max": {
+          "x": 0.5,
+          "y": 0.5,
+          "z": 0.4
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH10-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH10-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "analyticVolumeCm3": 0.7099999397112933,
+  "nativeAnalyticVolumeErrorCm3": 2.220446049250313e-16,
+  "nativeStepEquivalent": true,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.005608999523719219
+  },
+  "properties": {
+    "Description": "Clamping screw; original smooth D6 stem length14 mm with D10 head, ideal threads omitted, book item10",
+    "PartNo": "SH10",
+    "BookItemNo": "10"
+  },
+  "metadataPass": true,
+  "presetProvenanceGap": false,
+  "browserDurability": {
+    "source": "Parent actual Chrome observations; auditor did not control browser",
+    "library": "cm_mv02ff27",
+    "driving": "StemD6→6.2 native.7099999→.7368291cm3/mass.005609000→.005820950kg;Undo6Redo6.2Undo6Saveclean",
+    "coldReopen": "PASS: saved-library reopen retains four fully defined editable steps, one native solid 10×10×18mm and SH10/BookItem10/Description.",
+    "pass": true
+  },
+  "geometryPass": true,
+  "finalCold": {
+    "source": "artifacts/planchard/SH10-final-browser-2026-10-09.mforge",
+    "bytes": 129867,
+    "inputSha256": "28622dfb6fe84f05f53dafd1182fb635c7433c721eeab515298675f6feb0b81d",
+    "inputUnchanged": true,
+    "checks": {
+      "featuresExact": true,
+      "sketchesExact": true,
+      "historyExact": true,
+      "authoredPartsPreserved": true,
+      "originalPropertiesPreserved": true,
+      "nativeVolumeUnchanged": true,
+      "nativeBoundsUnchanged": true,
+      "singleValidSolid": true
+    },
+    "pass": true,
+    "native": {
+      "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH10-final-browser-2026-10-09.mforge",
+      "exact": true,
+      "featureCount": 5,
+      "issues": [],
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.7099999397112935,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.7099999397112935,
+      "boundsCm": {
+        "min": {
+          "x": -0.5,
+          "y": -0.5,
+          "z": -1.4000000000000001
+        },
+        "max": {
+          "x": 0.5,
+          "y": 0.5,
+          "z": 0.4
+        }
+      },
+      "centerOfMassCm": {
+        "x": -1.465963625305824e-17,
+        "y": -3.8708656102842535e-18,
+        "z": -0.30176991150442484
+      },
+      "seconds": 5.2790634
+    },
+    "material": {
+      "name": "AISI 1020 (SOLIDWORKS reference)",
+      "density": 7.9,
+      "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+      "massKg": 0.005608999523719219
+    },
+    "properties": {
+      "Description": "Clamping screw; original smooth D6 stem length14 mm with D10 head, ideal threads omitted, book item10",
+      "PartNo": "SH10",
+      "BookItemNo": "10"
+    },
+    "priorStepEquivalence": {
+      "evidence": "SH10-step-equivalence-audit-2026-10-09.json",
+      "symmetricDifferenceVolumeCm3": 0,
+      "reuseReason": "Final authored features, sketches and history are exactly nominal; fresh final native regeneration has unchanged volume and bounds."
+    },
+    "browserDurability": {
+      "source": "Parent actual Chrome observations; auditor did not control browser",
+      "library": "cm_mv02ff27",
+      "driving": "StemD6→6.2 native.7099999→.7368291cm3/mass.005609000→.005820950kg;Undo6Redo6.2Undo6Saveclean",
+      "coldReopen": "PASS: saved-library reopen retains four fully defined editable steps, one native solid 10×10×18mm and SH10/BookItem10/Description.",
+      "pass": true
+    }
+  },
+  "finalAccepted": true
+}
