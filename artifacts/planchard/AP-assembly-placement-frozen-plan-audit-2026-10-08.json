@@ -1,0 +1,332 @@
+{
+  "source": "artifacts/planchard/AP-assembly-placement-browser-2026-10-08.mforge",
+  "bytes": 3375159,
+  "inputSha256": "f63bbb35b82f93742a5fae426635195e9ad4d0488d6532513b2023258567783b",
+  "inputUnchanged": true,
+  "occurrences": 11,
+  "definitions": 8,
+  "mates": 0,
+  "grounded": [
+    {
+      "id": 4796,
+      "part": "AP01"
+    }
+  ],
+  "poseChecks": [
+    {
+      "id": 4796,
+      "part": "AP01",
+      "expectedMm": [
+        0,
+        0,
+        0
+      ],
+      "actualMm": [
+        0,
+        0,
+        0
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "Column, base and ram guide; AISI1020 reference"
+    },
+    {
+      "id": 4797,
+      "part": "AP02",
+      "expectedMm": [
+        35,
+        150,
+        20
+      ],
+      "actualMm": [
+        35,
+        150,
+        20
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "Front cover; AISI1020 reference"
+    },
+    {
+      "id": 4798,
+      "part": "AP03",
+      "expectedMm": [
+        10,
+        134,
+        26
+      ],
+      "actualMm": [
+        10,
+        134,
+        26
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "AF10 hex screw; ideal smooth stem"
+    },
+    {
+      "id": 4799,
+      "part": "AP03",
+      "expectedMm": [
+        10,
+        166,
+        26
+      ],
+      "actualMm": [
+        10,
+        166,
+        26
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "AF10 hex screw; ideal smooth stem"
+    },
+    {
+      "id": 4800,
+      "part": "AP03",
+      "expectedMm": [
+        60,
+        134,
+        26
+      ],
+      "actualMm": [
+        60,
+        134,
+        26
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "AF10 hex screw; ideal smooth stem"
+    },
+    {
+      "id": 4801,
+      "part": "AP03",
+      "expectedMm": [
+        60,
+        166,
+        26
+      ],
+      "actualMm": [
+        60,
+        166,
+        26
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "AF10 hex screw; ideal smooth stem"
+    },
+    {
+      "id": 4802,
+      "part": "AP04",
+      "expectedMm": [
+        45,
+        12,
+        0
+      ],
+      "actualMm": [
+        45,
+        12.000000000000002,
+        0
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "Four-notch table plate; locating peg"
+    },
+    {
+      "id": 4803,
+      "part": "AP05",
+      "expectedMm": [
+        23,
+        150,
+        0
+      ],
+      "actualMm": [
+        23.000000000000004,
+        150,
+        0
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "Pinion shaft; smooth envelope; pitch diameter20mm"
+    },
+    {
+      "id": 4804,
+      "part": "AP06",
+      "expectedMm": [
+        45,
+        90,
+        0
+      ],
+      "actualMm": [
+        45,
+        90,
+        0
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "Square ram; ideal rack; teeth omitted"
+    },
+    {
+      "id": 4805,
+      "part": "AP07",
+      "expectedMm": [
+        23,
+        150,
+        -34
+      ],
+      "actualMm": [
+        23.000000000000004,
+        150,
+        -34
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "Handle with integral caps"
+    },
+    {
+      "id": 4806,
+      "part": "AP08",
+      "expectedMm": [
+        45,
+        90,
+        0
+      ],
+      "actualMm": [
+        45,
+        90,
+        0
+      ],
+      "identityRotation": true,
+      "translationPass": true,
+      "description": "Pressing head; locating neck"
+    }
+  ],
+  "allFrozenHomePosesMatch": true,
+  "allOccurrenceDescriptionsPresent": true,
+  "records": [
+    {
+      "part": "AP01",
+      "source": "AP01-column-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true,
+      "materialProvenanceMatch": true,
+      "materialName": "AISI 1020 (SOLIDWORKS reference)",
+      "density": 7.9
+    },
+    {
+      "part": "AP02",
+      "source": "AP02-front-cover-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true,
+      "materialProvenanceMatch": true,
+      "materialName": "AISI 1020 (SOLIDWORKS reference)",
+      "density": 7.9
+    },
+    {
+      "part": "AP03",
+      "source": "AP03-hex-screw-final-browser-2026-10-08.mforge",
+      "occurrences": 4,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true,
+      "materialProvenanceMatch": true,
+      "materialName": "Alloy Steel (SOLIDWORKS reference)",
+      "density": 7.7
+    },
+    {
+      "part": "AP04",
+      "source": "AP04-table-plate-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true,
+      "materialProvenanceMatch": true,
+      "materialName": "Alloy Steel (SOLIDWORKS reference)",
+      "density": 7.7
+    },
+    {
+      "part": "AP05",
+      "source": "AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true,
+      "materialProvenanceMatch": true,
+      "materialName": "Alloy Steel (SOLIDWORKS reference)",
+      "density": 7.7
+    },
+    {
+      "part": "AP06",
+      "source": "AP06-square-ram-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true,
+      "materialProvenanceMatch": true,
+      "materialName": "Alloy Steel (SOLIDWORKS reference)",
+      "density": 7.7
+    },
+    {
+      "part": "AP07",
+      "source": "AP07-handle-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true,
+      "materialProvenanceMatch": true,
+      "materialName": "Alloy Steel (SOLIDWORKS reference)",
+      "density": 7.7
+    },
+    {
+      "part": "AP08",
+      "source": "AP08-press-head-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true,
+      "materialProvenanceMatch": true,
+      "materialName": "Alloy Steel (SOLIDWORKS reference)",
+      "density": 7.7
+    }
+  ],
+  "allAcceptedSourceRecipesAndProvenanceMatch": true,
+  "correctQuantities": true,
+  "allNativeDefinitionsSingleValid": true,
+  "native": {
+    "instances": 11,
+    "uniqueExactRecipes": 8,
+    "totalVolumeCm3": 600.1580396978882,
+    "totalMassG": 4719.336856673411,
+    "grounded": [
+      "Planchard 8.19 - AP01 Column - fresh designer example 2026-10-08"
+    ],
+    "countByModel": {
+      "cm_muzwv8zb": 1,
+      "cm_muzxlswc": 1,
+      "cm_muzxsp6x": 4,
+      "cm_muzxybjk": 1,
+      "cm_muzy3qea": 1,
+      "cm_muzy9knj": 1,
+      "cm_muzyer0p": 1,
+      "cm_muzyjjp1": 1
+    },
+    "hits": []
+  },
+  "zeroMateSolverCaveat": "Unmated solver reports zeroDOF because no constraint cluster exists; this is not a physical mobility certification. Ten occurrences remain unconstrained until parent UI mates them.",
+  "expectedFrameToRamClearanceMm": 0.2,
+  "expectedHeadTableHomeGapMm": 62,
+  "unintendedPositiveVolumeInterference": [],
+  "browserAssemblyMating": "Parent currently authoring native mates through Chrome; this audit covers raw saved placement only."
+}

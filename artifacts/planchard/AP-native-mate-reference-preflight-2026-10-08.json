@@ -1,0 +1,1675 @@
+{
+  "kind": "Read-only reference preflight on actual Chrome final parts. No assembly authorship, native motion or geometry acceptance is claimed.",
+  "parts": [
+    {
+      "source": "artifacts/planchard/AP01-column-final-browser-2026-10-08.mforge",
+      "sha256": "1d40d6e8038b3eff8d807718e308d23790ab3528678bf463bfa70d94652ce3b4",
+      "partNo": "AP01",
+      "authoredFeatures": 9,
+      "compiledSteps": 26,
+      "verifiedTopologyEntries": 152,
+      "inputUnchanged": true,
+      "cylindricalAxes": [
+        {
+          "persistentId": "feature_muzx4f2k_5:tool:face:generated:cylinder:1",
+          "radiusCm": 0.31000000000000005,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 1,
+            "y": 13.4,
+            "z": 1.6
+          }
+        },
+        {
+          "persistentId": "feature_muzx3s6y_4:face:generated:cylinder:2",
+          "radiusCm": 0.61,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": 1.6
+          }
+        },
+        {
+          "persistentId": "feature_muzx4f2k_5:tool:face:side:4550",
+          "radiusCm": 0.31000000000000005,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 6,
+            "y": 13.4,
+            "z": 1.6
+          }
+        },
+        {
+          "persistentId": "feature_muzx4f2k_5:tool:face:generated:cylinder:2",
+          "radiusCm": 0.31000000000000005,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 1,
+            "y": 16.6,
+            "z": 1.6
+          }
+        },
+        {
+          "persistentId": "feature_muzx4f2k_5:tool:face:generated:cylinder:3",
+          "radiusCm": 0.31000000000000005,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 6,
+            "y": 16.6,
+            "z": 1.6
+          }
+        },
+        {
+          "persistentId": "feature_muzx5wei_7:face:generated:cylinder:2",
+          "radiusCm": 0.30000000000000004,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": -4,
+            "y": 0.6000000000000001,
+            "z": 3
+          }
+        },
+        {
+          "persistentId": "feature_muzx5wei_7:face:generated:cylinder:1",
+          "radiusCm": 0.30000000000000004,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": -4,
+            "y": 0.6000000000000001,
+            "z": -3
+          }
+        },
+        {
+          "persistentId": "feature_muzx5wei_7:face:generated:cylinder:4",
+          "radiusCm": 0.30000000000000004,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 7,
+            "y": 0.6000000000000001,
+            "z": 3
+          }
+        },
+        {
+          "persistentId": "feature_muzx5aki_6:tool:face:side:4558",
+          "radiusCm": 0.51,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 4.5,
+            "y": 0.9000000000000001,
+            "z": 0
+          }
+        },
+        {
+          "persistentId": "feature_muzx5wei_7:face:generated:cylinder:3",
+          "radiusCm": 0.30000000000000004,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 7,
+            "y": 0.6000000000000001,
+            "z": -3
+          }
+        },
+        {
+          "persistentId": "feature_muzx3s6y_4:face:generated:cylinder:1",
+          "radiusCm": 0.61,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": -1.6
+          }
+        },
+        {
+          "persistentId": "feature_muzx2y6o_3:tool:face:side:4534",
+          "radiusCm": 1.22,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": 0
+          }
+        }
+      ],
+      "circularEdges": [
+        {
+          "label": "Extrude Cut 4 · Circular edge · generated-2 · R 3.100 mm · X 10.000 · Y 134.000 · Z 20.000 mm",
+          "persistentId": "feature_muzx4f2k_5:tool:edge:generated:circle:2",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 1,
+            "y": 13.4,
+            "z": 2
+          },
+          "radiusCm": 0.31000000000000005
+        },
+        {
+          "label": "Extrude Cut 2 · Circular edge · generated-1 · R 6.100 mm · X 23.000 · Y 150.000 · Z 20.000 mm",
+          "persistentId": "feature_muzx2y6o_3:edge:generated:circle:1",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": 2
+          },
+          "radiusCm": 0.61
+        },
+        {
+          "label": "Extrude Cut 4 · Circular edge · profile:4550:end · R 3.100 mm · X 60.000 · Y 134.000 · Z 20.000 mm",
+          "persistentId": "feature_muzx4f2k_5:tool:edge:profile:4550:end",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 6,
+            "y": 13.4,
+            "z": 2
+          },
+          "radiusCm": 0.31000000000000005
+        },
+        {
+          "label": "Extrude Cut 4 · Circular edge · generated-4 · R 3.100 mm · X 10.000 · Y 166.000 · Z 20.000 mm",
+          "persistentId": "feature_muzx4f2k_5:tool:edge:generated:circle:4",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 1,
+            "y": 16.6,
+            "z": 2
+          },
+          "radiusCm": 0.31000000000000005
+        },
+        {
+          "label": "Extrude Cut 4 · Circular edge · generated-6 · R 3.100 mm · X 60.000 · Y 166.000 · Z 20.000 mm",
+          "persistentId": "feature_muzx4f2k_5:tool:edge:generated:circle:6",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 6,
+            "y": 16.6,
+            "z": 2
+          },
+          "radiusCm": 0.31000000000000005
+        },
+        {
+          "label": "Extrude Cut 4 · Circular edge · generated-1 · R 3.100 mm · X 10.000 · Y 134.000 · Z 12.000 mm",
+          "persistentId": "feature_muzx4f2k_5:tool:edge:generated:circle:1",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 1,
+            "y": 13.4,
+            "z": 1.2000000000000002
+          },
+          "radiusCm": 0.31000000000000005
+        },
+        {
+          "label": "Extrude Cut 3 · Circular edge · generated-6 · R 6.100 mm · X 23.000 · Y 150.000 · Z 12.000 mm",
+          "persistentId": "feature_muzx3s6y_4:edge:generated:circle:6",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": 1.2000000000000002
+          },
+          "radiusCm": 0.61
+        },
+        {
+          "label": "Extrude Cut 4 · Circular edge · profile:4550:start · R 3.100 mm · X 60.000 · Y 134.000 · Z 12.000 mm",
+          "persistentId": "feature_muzx4f2k_5:tool:edge:profile:4550:start",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 6,
+            "y": 13.4,
+            "z": 1.2000000000000002
+          },
+          "radiusCm": 0.31000000000000005
+        },
+        {
+          "label": "Extrude Cut 4 · Circular edge · generated-3 · R 3.100 mm · X 10.000 · Y 166.000 · Z 12.000 mm",
+          "persistentId": "feature_muzx4f2k_5:tool:edge:generated:circle:3",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 1,
+            "y": 16.6,
+            "z": 1.2000000000000002
+          },
+          "radiusCm": 0.31000000000000005
+        },
+        {
+          "label": "Extrude Cut 4 · Circular edge · generated-5 · R 3.100 mm · X 60.000 · Y 166.000 · Z 12.000 mm",
+          "persistentId": "feature_muzx4f2k_5:tool:edge:generated:circle:5",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 6,
+            "y": 16.6,
+            "z": 1.2000000000000002
+          },
+          "radiusCm": 0.31000000000000005
+        },
+        {
+          "label": "Extrude Cut 6 · Circular edge · generated-2 · R 3.000 mm · X -40.000 · Y 12.000 · Z 30.000 mm",
+          "persistentId": "feature_muzx5wei_7:edge:generated:circle:2",
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": -4,
+            "y": 1.2000000000000002,
+            "z": 3
+          },
+          "radiusCm": 0.30000000000000004
+        },
+        {
+          "label": "Extrude Cut 6 · Circular edge · generated-1 · R 3.000 mm · X -40.000 · Y 12.000 · Z -30.000 mm",
+          "persistentId": "feature_muzx5wei_7:edge:generated:circle:1",
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": -4,
+            "y": 1.2000000000000002,
+            "z": -3
+          },
+          "radiusCm": 0.30000000000000004
+        },
+        {
+          "label": "Extrude Cut 6 · Circular edge · generated-4 · R 3.000 mm · X 70.000 · Y 12.000 · Z 30.000 mm",
+          "persistentId": "feature_muzx5wei_7:edge:generated:circle:4",
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 7,
+            "y": 1.2000000000000002,
+            "z": 3
+          },
+          "radiusCm": 0.30000000000000004
+        },
+        {
+          "label": "Extrude Cut 5 · Circular edge · profile:4558:end · R 5.100 mm · X 45.000 · Y 12.000 · Z 0.000 mm",
+          "persistentId": "feature_muzx5aki_6:tool:edge:profile:4558:end",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 4.5,
+            "y": 1.2000000000000002,
+            "z": 0
+          },
+          "radiusCm": 0.51
+        },
+        {
+          "label": "Extrude Cut 6 · Circular edge · generated-3 · R 3.000 mm · X 70.000 · Y 12.000 · Z -30.000 mm",
+          "persistentId": "feature_muzx5wei_7:edge:generated:circle:3",
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 7,
+            "y": 1.2000000000000002,
+            "z": -3
+          },
+          "radiusCm": 0.30000000000000004
+        },
+        {
+          "label": "Extrude Cut 2 · Circular edge · profile:4534:start · R 6.100 mm · X 23.000 · Y 150.000 · Z -20.000 mm",
+          "persistentId": "feature_muzx2y6o_3:tool:edge:profile:4534:start",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": -2
+          },
+          "radiusCm": 0.61
+        },
+        {
+          "label": "Extrude Cut 3 · Circular edge · generated-1 · R 12.200 mm · X 23.000 · Y 150.000 · Z -10.200 mm",
+          "persistentId": "feature_muzx3s6y_4:edge:generated:circle:1",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": -1.02
+          },
+          "radiusCm": 1.22
+        },
+        {
+          "label": "Extrude Cut 3 · Circular edge · generated-2 · R 12.200 mm · X 23.000 · Y 150.000 · Z -10.200 mm",
+          "persistentId": "feature_muzx3s6y_4:edge:generated:circle:2",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": -1.02
+          },
+          "radiusCm": 1.22
+        },
+        {
+          "label": "Extrude Cut 3 · Circular edge · generated-4 · R 12.200 mm · X 23.000 · Y 150.000 · Z 10.200 mm",
+          "persistentId": "feature_muzx3s6y_4:edge:generated:circle:4",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": 1.02
+          },
+          "radiusCm": 1.22
+        },
+        {
+          "label": "Extrude Cut 3 · Circular edge · generated-5 · R 12.200 mm · X 23.000 · Y 150.000 · Z 10.200 mm",
+          "persistentId": "feature_muzx3s6y_4:edge:generated:circle:5",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": 1.02
+          },
+          "radiusCm": 1.22
+        },
+        {
+          "label": "Extrude Cut 3 · Circular edge · profile:4538:end · R 12.200 mm · X 23.000 · Y 150.000 · Z 12.000 mm",
+          "persistentId": "feature_muzx3s6y_4:tool:edge:profile:4538:end",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": 1.2000000000000002
+          },
+          "radiusCm": 1.22
+        },
+        {
+          "label": "Extrude Cut 6 · Circular edge · generated-1 · R 3.000 mm · X -40.000 · Y 0.000 · Z 30.000 mm",
+          "persistentId": "feature_muzx5wei_7:tool:edge:generated:circle:1",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": -4,
+            "y": 0,
+            "z": 3
+          },
+          "radiusCm": 0.30000000000000004
+        },
+        {
+          "label": "Extrude Cut 6 · Circular edge · profile:4562:start · R 3.000 mm · X -40.000 · Y 0.000 · Z -30.000 mm",
+          "persistentId": "feature_muzx5wei_7:tool:edge:profile:4562:start",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": -4,
+            "y": 0,
+            "z": -3
+          },
+          "radiusCm": 0.30000000000000004
+        },
+        {
+          "label": "Extrude Cut 6 · Circular edge · generated-4 · R 3.000 mm · X 70.000 · Y 0.000 · Z 30.000 mm",
+          "persistentId": "feature_muzx5wei_7:tool:edge:generated:circle:4",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 7,
+            "y": 0,
+            "z": 3
+          },
+          "radiusCm": 0.30000000000000004
+        },
+        {
+          "label": "Extrude Cut 5 · Circular edge · profile:4558:start · R 5.100 mm · X 45.000 · Y 6.000 · Z 0.000 mm",
+          "persistentId": "feature_muzx5aki_6:tool:edge:profile:4558:start",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 4.5,
+            "y": 0.6000000000000001,
+            "z": 0
+          },
+          "radiusCm": 0.51
+        },
+        {
+          "label": "Extrude Cut 6 · Circular edge · generated-3 · R 3.000 mm · X 70.000 · Y 0.000 · Z -30.000 mm",
+          "persistentId": "feature_muzx5wei_7:tool:edge:generated:circle:3",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 7,
+            "y": 0,
+            "z": -3
+          },
+          "radiusCm": 0.30000000000000004
+        },
+        {
+          "label": "Extrude Cut 3 · Circular edge · generated-3 · R 6.100 mm · X 23.000 · Y 150.000 · Z -12.000 mm",
+          "persistentId": "feature_muzx3s6y_4:edge:generated:circle:3",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": -1.2000000000000002
+          },
+          "radiusCm": 0.61
+        },
+        {
+          "label": "Extrude Cut 3 · Circular edge · profile:4538:start · R 12.200 mm · X 23.000 · Y 150.000 · Z -12.000 mm",
+          "persistentId": "feature_muzx3s6y_4:tool:edge:profile:4538:start",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": -1.2000000000000002
+          },
+          "radiusCm": 1.22
+        }
+      ]
+    },
+    {
+      "source": "artifacts/planchard/AP02-front-cover-final-browser-2026-10-08.mforge",
+      "sha256": "1ae65fbe9de8afa7bb0f5797c36857c84848f8909b3600cb408308a414c7c030",
+      "partNo": "AP02",
+      "authoredFeatures": 2,
+      "compiledSteps": 5,
+      "verifiedTopologyEntries": 38,
+      "inputUnchanged": true,
+      "cylindricalAxes": [
+        {
+          "persistentId": "feature_muzxn0uc_2:tool:face:generated:cylinder:1",
+          "radiusCm": 0.32000000000000006,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": -2.5,
+            "y": -1.6,
+            "z": 0.30000000000000004
+          }
+        },
+        {
+          "persistentId": "feature_muzxn0uc_2:tool:face:generated:cylinder:3",
+          "radiusCm": 0.32000000000000006,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.5,
+            "y": -1.6,
+            "z": 0.30000000000000004
+          }
+        },
+        {
+          "persistentId": "feature_muzxn0uc_2:tool:face:side:4597",
+          "radiusCm": 0.61,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": -1.2000000000000002,
+            "y": 0,
+            "z": 0.30000000000000004
+          }
+        },
+        {
+          "persistentId": "feature_muzxn0uc_2:tool:face:generated:cylinder:2",
+          "radiusCm": 0.32000000000000006,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": -2.5,
+            "y": 1.6,
+            "z": 0.30000000000000004
+          }
+        },
+        {
+          "persistentId": "feature_muzxn0uc_2:tool:face:generated:cylinder:4",
+          "radiusCm": 0.32000000000000006,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.5,
+            "y": 1.6,
+            "z": 0.30000000000000004
+          }
+        }
+      ],
+      "circularEdges": [
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-1 · R 3.200 mm · X -25.000 · Y -16.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:generated:circle:1",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": -2.5,
+            "y": -1.6,
+            "z": 0
+          },
+          "radiusCm": 0.32000000000000006
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-5 · R 3.200 mm · X 25.000 · Y -16.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:generated:circle:5",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 2.5,
+            "y": -1.6,
+            "z": 0
+          },
+          "radiusCm": 0.32000000000000006
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · profile:4597:start · R 6.100 mm · X -12.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:profile:4597:start",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": -1.2000000000000002,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 0.61
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-3 · R 3.200 mm · X -25.000 · Y 16.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:generated:circle:3",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": -2.5,
+            "y": 1.6,
+            "z": 0
+          },
+          "radiusCm": 0.32000000000000006
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-7 · R 3.200 mm · X 25.000 · Y 16.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:generated:circle:7",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 2.5,
+            "y": 1.6,
+            "z": 0
+          },
+          "radiusCm": 0.32000000000000006
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-2 · R 3.200 mm · X -25.000 · Y -16.000 · Z 6.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:generated:circle:2",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": -2.5,
+            "y": -1.6,
+            "z": 0.6000000000000001
+          },
+          "radiusCm": 0.32000000000000006
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · profile:4597:end · R 6.100 mm · X -12.000 · Y 0.000 · Z 6.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:profile:4597:end",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": -1.2000000000000002,
+            "y": 0,
+            "z": 0.6000000000000001
+          },
+          "radiusCm": 0.61
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-6 · R 3.200 mm · X 25.000 · Y -16.000 · Z 6.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:generated:circle:6",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.5,
+            "y": -1.6,
+            "z": 0.6000000000000001
+          },
+          "radiusCm": 0.32000000000000006
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-4 · R 3.200 mm · X -25.000 · Y 16.000 · Z 6.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:generated:circle:4",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": -2.5,
+            "y": 1.6,
+            "z": 0.6000000000000001
+          },
+          "radiusCm": 0.32000000000000006
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-8 · R 3.200 mm · X 25.000 · Y 16.000 · Z 6.000 mm",
+          "persistentId": "feature_muzxn0uc_2:tool:edge:generated:circle:8",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 2.5,
+            "y": 1.6,
+            "z": 0.6000000000000001
+          },
+          "radiusCm": 0.32000000000000006
+        }
+      ]
+    },
+    {
+      "source": "artifacts/planchard/AP03-hex-screw-final-browser-2026-10-08.mforge",
+      "sha256": "8504fa3ebe8c76d38a38d1e2dd13ccc9e16f1b6d228844b3c60e231393b5b171",
+      "partNo": "AP03",
+      "authoredFeatures": 2,
+      "compiledSteps": 5,
+      "verifiedTopologyEntries": 31,
+      "inputUnchanged": true,
+      "cylindricalAxes": [
+        {
+          "persistentId": "feature_muzxsx0t_1:face:side:4617",
+          "radiusCm": 0.30000000000000004,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": -0.7000000000000001
+          }
+        }
+      ],
+      "circularEdges": [
+        {
+          "label": "Extrude / Boss 1 · Circular edge · profile:4617:start · R 3.000 mm · X 0.000 · Y 0.000 · Z -14.000 mm",
+          "persistentId": "feature_muzxsx0t_1:edge:profile:4617:start",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": -1.4000000000000001
+          },
+          "radiusCm": 0.30000000000000004
+        },
+        {
+          "label": "Extrude / Boss 1 · Circular edge · profile:4617:end · R 3.000 mm · X 0.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxsx0t_1:edge:profile:4617:end",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 0.30000000000000004
+        }
+      ]
+    },
+    {
+      "source": "artifacts/planchard/AP04-table-plate-final-browser-2026-10-08.mforge",
+      "sha256": "2edfe4c9d797c1fee6f1beaa19c9e86d64cee80881a5f0155c7ff3c226ec5a80",
+      "partNo": "AP04",
+      "authoredFeatures": 3,
+      "compiledSteps": 8,
+      "verifiedTopologyEntries": 71,
+      "inputUnchanged": true,
+      "cylindricalAxes": [
+        {
+          "persistentId": "feature_muzxzfwf_3:face:generated:cylinder:4",
+          "radiusCm": 2.8000000000000003,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.4,
+            "z": 0
+          }
+        },
+        {
+          "persistentId": "feature_muzxzfwf_3:face:generated:cylinder:2",
+          "radiusCm": 2.8000000000000003,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.4,
+            "z": 0
+          }
+        },
+        {
+          "persistentId": "feature_muzxzfwf_3:face:generated:cylinder:1",
+          "radiusCm": 2.8000000000000003,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.4,
+            "z": 0
+          }
+        },
+        {
+          "persistentId": "feature_muzxzfwf_3:face:generated:cylinder:3",
+          "radiusCm": 2.8000000000000003,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.4,
+            "z": 0
+          }
+        },
+        {
+          "persistentId": "feature_muzxyv1w_2:tool:face:side:4655",
+          "radiusCm": 0.5,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": -0.30000000000000004,
+            "z": 0
+          }
+        }
+      ],
+      "circularEdges": [
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-1 · R 28.000 mm · X 0.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxzfwf_3:edge:generated:circle:1",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 2.8000000000000003
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-5 · R 28.000 mm · X 0.000 · Y 8.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxzfwf_3:edge:generated:circle:5",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.8,
+            "z": 0
+          },
+          "radiusCm": 2.8000000000000003
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-2 · R 28.000 mm · X 0.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxzfwf_3:edge:generated:circle:2",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 2.8000000000000003
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-3 · R 28.000 mm · X 0.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxzfwf_3:edge:generated:circle:3",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 2.8000000000000003
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-4 · R 28.000 mm · X 0.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxzfwf_3:edge:generated:circle:4",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 2.8000000000000003
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · profile:4655:end · R 5.000 mm · X 0.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxyv1w_2:tool:edge:profile:4655:end",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 0.5
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-6 · R 28.000 mm · X 0.000 · Y 8.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxzfwf_3:edge:generated:circle:6",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.8,
+            "z": 0
+          },
+          "radiusCm": 2.8000000000000003
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-7 · R 28.000 mm · X 0.000 · Y 8.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxzfwf_3:edge:generated:circle:7",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.8,
+            "z": 0
+          },
+          "radiusCm": 2.8000000000000003
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · generated-8 · R 28.000 mm · X 0.000 · Y 8.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxzfwf_3:edge:generated:circle:8",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.8,
+            "z": 0
+          },
+          "radiusCm": 2.8000000000000003
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · profile:4655:start · R 5.000 mm · X 0.000 · Y -6.000 · Z 0.000 mm",
+          "persistentId": "feature_muzxyv1w_2:tool:edge:profile:4655:start",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": -0.6000000000000001,
+            "z": 0
+          },
+          "radiusCm": 0.5
+        }
+      ]
+    },
+    {
+      "source": "artifacts/planchard/AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+      "sha256": "2863a26023d905656efc55168a0843b608f22536a037bca8ccbe9ec84ce10be6",
+      "partNo": "AP05",
+      "authoredFeatures": 4,
+      "compiledSteps": 11,
+      "verifiedTopologyEntries": 27,
+      "inputUnchanged": true,
+      "cylindricalAxes": [
+        {
+          "persistentId": "feature_muzy4h5l_3:tool:face:side:4742",
+          "radiusCm": 1.2000000000000002,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": -3.399999863332619
+          }
+        },
+        {
+          "persistentId": "feature_muzy4qzv_4:tool:face:side:4747",
+          "radiusCm": 0.41,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": -1.3100631690576847e-14,
+            "z": -3.4000000000000004
+          }
+        },
+        {
+          "persistentId": "feature_muzy483o_2:face:generated:cylinder:1",
+          "radiusCm": 0.6000000000000001,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": -1.9000000000000006
+          }
+        },
+        {
+          "persistentId": "feature_muzy3tqw_1:face:side:4732",
+          "radiusCm": 1.2000000000000002,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "persistentId": "feature_muzy483o_2:face:generated:cylinder:2",
+          "radiusCm": 0.6000000000000001,
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 1.899999999999999
+          }
+        }
+      ],
+      "circularEdges": [
+        {
+          "label": "Extrude / Boss 3 · Circular edge · profile:4742:start · R 12.000 mm · X 0.000 · Y 0.000 · Z -40.000 mm",
+          "persistentId": "feature_muzy4h5l_3:tool:edge:profile:4742:start",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": -4
+          },
+          "radiusCm": 1.2000000000000002
+        },
+        {
+          "label": "Extrude / Boss 3 · Circular edge · profile:4742:end · R 12.000 mm · X 0.000 · Y 0.000 · Z -28.000 mm",
+          "persistentId": "feature_muzy4h5l_3:tool:edge:profile:4742:end",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": -2.8
+          },
+          "radiusCm": 1.2000000000000002
+        },
+        {
+          "label": "Extrude / Boss 1 · Circular edge · profile:4732:start · R 6.000 mm · X 0.000 · Y 0.000 · Z -28.000 mm",
+          "persistentId": "feature_muzy3tqw_1:edge:profile:4732:start",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": -2.8000000000000003
+          },
+          "radiusCm": 0.6000000000000001
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · generated-1 · R 6.000 mm · X 0.000 · Y 0.000 · Z -10.000 mm",
+          "persistentId": "feature_muzy483o_2:edge:generated:circle:1",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "radiusCm": 0.6000000000000001
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · profile:4737:start · R 12.000 mm · X 0.000 · Y 0.000 · Z -10.000 mm",
+          "persistentId": "feature_muzy483o_2:tool:edge:profile:4737:start",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "radiusCm": 1.2000000000000002
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · profile:4737:end · R 12.000 mm · X 0.000 · Y 0.000 · Z 10.000 mm",
+          "persistentId": "feature_muzy483o_2:tool:edge:profile:4737:end",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "radiusCm": 1.2000000000000002
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · generated-2 · R 6.000 mm · X 0.000 · Y 0.000 · Z 10.000 mm",
+          "persistentId": "feature_muzy483o_2:edge:generated:circle:2",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "radiusCm": 0.6000000000000001
+        },
+        {
+          "label": "Extrude / Boss 1 · Circular edge · profile:4732:end · R 6.000 mm · X 0.000 · Y 0.000 · Z 28.000 mm",
+          "persistentId": "feature_muzy3tqw_1:edge:profile:4732:end",
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 2.8000000000000003
+          },
+          "radiusCm": 0.6000000000000001
+        }
+      ]
+    },
+    {
+      "source": "artifacts/planchard/AP06-square-ram-final-browser-2026-10-08.mforge",
+      "sha256": "e1e25da948cc9a8445501a5cf9fe7e061efc5a6946f5bf41fe3ac5a79ece5ad1",
+      "partNo": "AP06",
+      "authoredFeatures": 2,
+      "compiledSteps": 5,
+      "verifiedTopologyEntries": 23,
+      "inputUnchanged": true,
+      "cylindricalAxes": [
+        {
+          "persistentId": "feature_muzya4a3_2:tool:face:side:4770",
+          "radiusCm": 0.51,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.4000000000000001,
+            "z": 0
+          }
+        }
+      ],
+      "circularEdges": [
+        {
+          "label": "Extrude Cut 1 · Circular edge · profile:4770:start · R 5.100 mm · X 0.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzya4a3_2:tool:edge:profile:4770:start",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 0.51
+        },
+        {
+          "label": "Extrude Cut 1 · Circular edge · profile:4770:end · R 5.100 mm · X 0.000 · Y 8.000 · Z 0.000 mm",
+          "persistentId": "feature_muzya4a3_2:tool:edge:profile:4770:end",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.8,
+            "z": 0
+          },
+          "radiusCm": 0.51
+        }
+      ]
+    },
+    {
+      "source": "artifacts/planchard/AP07-handle-final-browser-2026-10-08.mforge",
+      "sha256": "49c00d67fd9bb3e2cb0f3e129aa46ec8617d5e811bc4b1ba2807a18428df67ff",
+      "partNo": "AP07",
+      "authoredFeatures": 3,
+      "compiledSteps": 8,
+      "verifiedTopologyEntries": 16,
+      "inputUnchanged": true,
+      "cylindricalAxes": [
+        {
+          "persistentId": "feature_muzyfjse_3:tool:face:side:4784",
+          "radiusCm": 0.6000000000000001,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 7.299999999999999,
+            "z": 0
+          }
+        },
+        {
+          "persistentId": "feature_muzyeugr_1:face:side:4774",
+          "radiusCm": 0.4,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "persistentId": "feature_muzyf907_2:tool:face:side:4779",
+          "radiusCm": 0.6000000000000001,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": -7.299999999999999,
+            "z": 0
+          }
+        }
+      ],
+      "circularEdges": [
+        {
+          "label": "Extrude / Boss 3 · Circular edge · profile:4784:start · R 6.000 mm · X 0.000 · Y 70.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyfjse_3:tool:edge:profile:4784:start",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 7,
+            "z": 0
+          },
+          "radiusCm": 0.6000000000000001
+        },
+        {
+          "label": "Extrude / Boss 3 · Circular edge · profile:4784:end · R 6.000 mm · X 0.000 · Y 76.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyfjse_3:tool:edge:profile:4784:end",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 7.6,
+            "z": 0
+          },
+          "radiusCm": 0.6000000000000001
+        },
+        {
+          "label": "Extrude / Boss 1 · Circular edge · profile:4774:end · R 4.000 mm · X 0.000 · Y 70.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyeugr_1:edge:profile:4774:end",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 7,
+            "z": 0
+          },
+          "radiusCm": 0.4
+        },
+        {
+          "label": "Extrude / Boss 1 · Circular edge · profile:4774:start · R 4.000 mm · X 0.000 · Y -70.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyeugr_1:edge:profile:4774:start",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": -7,
+            "z": 0
+          },
+          "radiusCm": 0.4
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · profile:4779:end · R 6.000 mm · X 0.000 · Y -70.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyf907_2:tool:edge:profile:4779:end",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": -7,
+            "z": 0
+          },
+          "radiusCm": 0.6000000000000001
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · profile:4779:start · R 6.000 mm · X 0.000 · Y -76.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyf907_2:tool:edge:profile:4779:start",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": -7.6000000000000005,
+            "z": 0
+          },
+          "radiusCm": 0.6000000000000001
+        }
+      ]
+    },
+    {
+      "source": "artifacts/planchard/AP08-press-head-final-browser-2026-10-08.mforge",
+      "sha256": "1e423d1de7a715abeb309da99ca522e11da033cd0381d83b18026e5c3a72ea63",
+      "partNo": "AP08",
+      "authoredFeatures": 2,
+      "compiledSteps": 5,
+      "verifiedTopologyEntries": 11,
+      "inputUnchanged": true,
+      "cylindricalAxes": [
+        {
+          "persistentId": "feature_muzyjn2u_1:face:side:4788",
+          "radiusCm": 1,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": -0.4,
+            "z": 0
+          }
+        },
+        {
+          "persistentId": "feature_muzyk1kv_2:tool:face:side:4793",
+          "radiusCm": 0.5,
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.4,
+            "z": 0
+          }
+        }
+      ],
+      "circularEdges": [
+        {
+          "label": "Extrude / Boss 1 · Circular edge · profile:4788:start · R 10.000 mm · X 0.000 · Y -8.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyjn2u_1:edge:profile:4788:start",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": -0.8,
+            "z": 0
+          },
+          "radiusCm": 1
+        },
+        {
+          "label": "Extrude / Boss 1 · Circular edge · profile:4788:end · R 10.000 mm · X 0.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyjn2u_1:edge:profile:4788:end",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 1
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · profile:4793:start · R 5.000 mm · X 0.000 · Y 0.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyk1kv_2:tool:edge:profile:4793:start",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "radiusCm": 0.5
+        },
+        {
+          "label": "Extrude / Boss 2 · Circular edge · profile:4793:end · R 5.000 mm · X 0.000 · Y 8.000 · Z 0.000 mm",
+          "persistentId": "feature_muzyk1kv_2:tool:edge:profile:4793:end",
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "originCm": {
+            "x": 0,
+            "y": 0.8,
+            "z": 0
+          },
+          "radiusCm": 0.5
+        }
+      ]
+    }
+  ],
+  "preferredRackReferences": {
+    "a": {
+      "partNo": "AP05",
+      "persistentId": "feature_muzy3tqw_1:edge:profile:4732:end",
+      "axis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    "b": {
+      "partNo": "AP06",
+      "persistentId": "feature_muzya4a3_2:tool:edge:profile:4770:start",
+      "axis": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    }
+  },
+  "expectedMateCount": {
+    "locks": 8,
+    "shaftConcentricAndAxial": 2,
+    "ramGuides": 2,
+    "rack": 1,
+    "limit": 1,
+    "total": 14
+  },
+  "theoreticalPreferredPair": {
+    "pitchRadiusCm": 1,
+    "reverse": false,
+    "driveTurnsClosed": -0.954929658551372,
+    "rpmFor10SecondClosing": -5.729577951308232,
+    "ramOriginRangeCm": [
+      3,
+      9
+    ],
+    "worldEquation": "deltaY(cm)=1*deltaThetaAboutWorldPlusZ(rad)"
+  },
+  "allInputsUnchanged": true
+}

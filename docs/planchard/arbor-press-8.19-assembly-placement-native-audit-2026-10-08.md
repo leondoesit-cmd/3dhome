@@ -1,0 +1,9 @@
+# Exercise8.19 Arbor Press — raw placement native audit
+
+Actual Chrome-authored `AP-assembly-placement-browser-2026-10-08.mforge`,3375159 bytes. Read-only audit confirms11 occurrences/eight accepted source definitions, four AP03 screws and one of every other part. Only AP01 is grounded;0 mates at this placement checkpoint. All11 saved translations match the frozen millimetre placements within numerical roundoff, and every orientation is identity. All concise occurrence Descriptions persist independently of detailed source provenance.
+
+Every embedded source feature/sketch recipe, custom property, appearance and physical material/density/provenance matches its protected accepted standalone bundle. All eight rebuilt definitions are valid single native solids. Exact home interference over all11 placed solids has hits=[]. Aggregate native volume600.1580396978882cm³ and mixed-material physical mass4719.336856673411g: AP01/AP02 AISI1020 reference7.9g/cm³, other parts disclosed AlloySteel reference7.7g/cm³. Repeated screws are counted four times. Table/peg and screw/bore seats retain planned clearances; pressing face atY82 and table topY20 give62mm home gap.
+
+The empty-mate clone solver returns0DOF because it has no constraint cluster. This does not certify mobility: ten nongrounded occurrences are still unconstrained at this checkpoint. Parent is authoring real shaft capture, ram guides, locks, native Rack and Limit through Chrome. Their eventual1DOF path and range are separate acceptance work. Neither scripted authored placement nor model mutation was performed by this audit.
+
+Artifacts: `AP-assembly-placement-definition-audit-2026-10-08.json`, `AP-assembly-placement-native-home-audit-2026-10-08.json`, `AP-assembly-placement-frozen-plan-audit-2026-10-08.json`. Repeatable read-only script `scratch/planchard/audit-ap-assembly-placement-readonly.mjs`. Authored input checksum stayed unchanged; ADVANCE remains parent-owned.
