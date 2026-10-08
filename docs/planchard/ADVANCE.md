@@ -26,6 +26,11 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 Earlier paragraphs below are historical unless explicitly superseding this current pointer.
 
+### Current SH07 checkpoint — 2026-10-09
+
+SH01..SH06fullyaccepted. LatestSH05commit59a848b; SH06final59804bytes/download1 savedlibrarycm_mv01sjr2, native1.4137166941154076cm3/.01116836188351172kg/cold50x6x6/2fullydefinedsteps/SH06Book6Description; nativeSTEPzeroresidual/drivingPASS. CommitSH06next.
+
+Chrome710862239 nowauthorsSH07Standardfastenerproxyfromblank: TopD4stemY−4..0,TopD8headY0..3,twofeatures/foursteps/fullydefined. Steel304reference8.0 substitutionforbookcaststainlessexplicitDescriptionandMaterialNote,SH07Book7. OriginalnominalM4roundhead/smooththreadomittedproxy,notclaimedexactcatalogstandard. NominalChrome.2010619cm3/.001608495kg;stemD4→4.2 changes.2062141/.001649713 Undo4Redo4.2Undo4passed. Saveheaderclicked;awaitactualcleanaria-labelthenProjectBundle/STEP/nominaljpg/cold/finalnativeaudit. NextSH08SwivelPlate/clapperboxfromblank (6features) frozenrecipeinshaper-tool-head-8.20-design.md. Bookprinted8-55/PDF433 stillactive; allmodelssolelyChromecontrols; nofinalassemblyyet.
 ### Current SH06 checkpoint — 2026-10-09
 
 SH01..SH05fullyaccepted; latestcommitsSH03b7e7d22/SH04+offsetUI5457c95;SH05commitnext. SH05final109348bytes/download1 librarycm_mv01mi81 nativeone2.474946692498039cm3/.01955207887073451kg/cold20x14x14/2steps/SH05Book5Description;STEPsymdiff0/drivingPASS. ParentChromeoffsetUIQAcreation/edit/Cancel PASS.

@@ -1,0 +1,185 @@
+{
+  "source": "artifacts/planchard/SH06-nominal-browser-2026-10-09.mforge",
+  "bytes": 59129,
+  "inputSha256": "c9c51d60f7698df598dbea545c4019e9b7f1df28341ed8f9f2123ac03e10ed95",
+  "inputUnchanged": true,
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH06-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 2,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 1.4137166941154076,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 1.4137166941154076,
+    "boundsCm": {
+      "min": {
+        "x": -2.5,
+        "y": -0.30000000000000004,
+        "z": -0.30000000000000004
+      },
+      "max": {
+        "x": 2.5,
+        "y": 0.30000000000000004,
+        "z": 0.30000000000000004
+      }
+    },
+    "centerOfMassCm": {
+      "x": -3.9266107178561916e-17,
+      "y": -1.0010047141107482e-17,
+      "z": -1.472479019196072e-17
+    },
+    "seconds": 5.4307341
+  },
+  "step": {
+    "source": "artifacts/planchard/SH06-nominal-browser-2026-10-09.step",
+    "bytes": 5771,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 1.413716694115407,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 1.413716694115407,
+      "centerOfMass": {
+        "x": 0,
+        "y": 2.815913975761279e-18,
+        "z": -2.454131698660121e-17
+      },
+      "inertia": [
+        [
+          0.06361725123519364,
+          -2.2352672869319494e-18,
+          1.734723475976807e-17
+        ],
+        [
+          -2.2352672869319494e-18,
+          2.977051738358028,
+          2.213979027055303e-19
+        ],
+        [
+          1.734723475976807e-17,
+          2.213979027055303e-19,
+          2.977051738358028
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -2.5,
+          "y": -0.3,
+          "z": -0.3
+        },
+        "max": {
+          "x": 2.5,
+          "y": 0.3,
+          "z": 0.3
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH06-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH06-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "analyticVolumeCm3": 1.413716694115407,
+  "nativeAnalyticErrorCm3": 6.661338147750939e-16,
+  "nativeStepEquivalent": true,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.01116836188351172
+  },
+  "properties": {
+    "Description": "Handle bar; original D6 length50 mm smooth rod, book item6",
+    "PartNo": "SH06",
+    "BookItemNo": "6"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "ParentactualChromeobservation",
+    "driving": "D6→6.2 native1.413717→1.509535cm3/mass.01116836→.01192533kg;Undo6Redo6.2Undo6Saveclean",
+    "coldReopen": "ParentChromePASScm_mv01sjr2:1solid50×6×6mm/2fullydefinedsteps/SH06Book6Descriptionretained"
+  },
+  "geometryPass": true,
+  "finalCold": {
+    "source": "artifacts/planchard/SH06-final-browser-2026-10-09.mforge",
+    "bytes": 59804,
+    "sha256": "5ec524b3cb89250f73649b6afc56c3eafa7cca313ae7156b3bab36000b0c4754",
+    "inputUnchanged": true,
+    "featuresBitIdentical": true,
+    "sketchesBitIdentical": true,
+    "historyBitIdentical": true,
+    "propertiesBitIdentical": true,
+    "appearancesBitIdentical": true,
+    "authoredPartsEquivalent": true,
+    "native": {
+      "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH06-final-browser-2026-10-09.mforge",
+      "exact": true,
+      "featureCount": 2,
+      "issues": [],
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.4137166941154076,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 1.4137166941154076,
+      "boundsCm": {
+        "min": {
+          "x": -2.5,
+          "y": -0.30000000000000004,
+          "z": -0.30000000000000004
+        },
+        "max": {
+          "x": 2.5,
+          "y": 0.30000000000000004,
+          "z": 0.30000000000000004
+        }
+      },
+      "centerOfMassCm": {
+        "x": -3.9266107178561916e-17,
+        "y": -1.0010047141107482e-17,
+        "z": -1.472479019196072e-17
+      },
+      "seconds": 5.188847399999999
+    },
+    "properties": {
+      "Description": "Handle bar; original D6 length50 mm smooth rod, book item6",
+      "PartNo": "SH06",
+      "BookItemNo": "6"
+    },
+    "parentCold": {
+      "source": "ParentactualChrome",
+      "pass": true,
+      "libraryKey": "cm_mv01sjr2",
+      "nativeSolidCount": 1,
+      "boundsMm": [
+        50,
+        6,
+        6
+      ],
+      "fullyDefinedEditableHistorySteps": 2,
+      "metadataRetained": true
+    },
+    "stepReuse": "Unchangednominalfeatures/sketches;exactSTEPzeroresidualaudit remainsapplicable.",
+    "pass": true
+  },
+  "acceptancePass": true
+}
