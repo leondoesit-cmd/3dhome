@@ -1,0 +1,1305 @@
+{
+  "source": "artifacts/planchard/KT-assembly-drive-negative-quarter-browser-2026-10-08.mforge",
+  "inputSha256": "4e0070b71aa9f100d6d2a1af886c43098d2dc5bf66bb3401bb917603ad381e55",
+  "inputUnchanged": true,
+  "storedMates": 36,
+  "activeMates": 36,
+  "refs": [
+    {
+      "mateId": 4422,
+      "type": "concentric",
+      "side": "a",
+      "componentId": 4397,
+      "name": "KT01 Bench base",
+      "persistentId": "axis:feature_muzrsi64_5:face:generated:cylinder:1",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 0,
+          "y": 15,
+          "z": 1.1102230246251565e-16
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4422,
+      "type": "concentric",
+      "side": "b",
+      "componentId": 4399,
+      "name": "KT03 Brace A +Z",
+      "persistentId": "axis:feature_muzsfcdh_2:tool:face:generated:cylinder:2",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 0,
+          "y": 15,
+          "z": 1.8499999999999999
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4423,
+      "type": "concentric",
+      "side": "a",
+      "componentId": 4397,
+      "name": "KT01 Bench base",
+      "persistentId": "axis:feature_muzrsi64_5:face:generated:cylinder:2",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 4.5,
+          "y": 17.423076923076902,
+          "z": -1.1102230246251565e-16
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4423,
+      "type": "concentric",
+      "side": "b",
+      "componentId": 4399,
+      "name": "KT03 Brace A +Z",
+      "persistentId": "axis:feature_muzsfcdh_2:tool:face:side:4188",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 4.5,
+          "y": 17.4230769230769,
+          "z": 1.8499999999999999
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4424,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4397,
+      "name": "KT01 Bench base",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4424,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4399,
+      "name": "KT03 Brace A +Z",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 15,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4432,
+      "type": "concentric",
+      "side": "a",
+      "componentId": 4401,
+      "name": "KT04 Pin P",
+      "persistentId": "axis:feature_muzslncw_1:face:side:4196",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 0,
+          "y": 15,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4432,
+      "type": "concentric",
+      "side": "b",
+      "componentId": 4409,
+      "name": "KT07 Brace B +Z",
+      "persistentId": "axis:feature_muztfvy5_2:tool:face:generated:cylinder:2",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 0,
+          "y": 15,
+          "z": 1.25
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4433,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4397,
+      "name": "KT01 Bench base",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4433,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4409,
+      "name": "KT07 Brace B +Z",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 15,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4439,
+      "type": "concentric",
+      "side": "a",
+      "componentId": 4399,
+      "name": "KT03 Brace A +Z",
+      "persistentId": "axis:feature_muzsfcdh_2:tool:face:generated:cylinder:1",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": -2.5,
+          "y": 10.5,
+          "z": 1.8499999999999996
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4439,
+      "type": "concentric",
+      "side": "b",
+      "componentId": 4398,
+      "name": "KT02 Hinge A",
+      "persistentId": "axis:feature_muzs4bzc_2:tool:face:side:4138",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": -2.5,
+          "y": 10.5,
+          "z": 1.81
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4440,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4399,
+      "name": "KT03 Brace A +Z",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 15,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4440,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4398,
+      "name": "KT02 Hinge A",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": -2.5,
+          "y": 10.5,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4441,
+      "type": "concentric",
+      "side": "a",
+      "componentId": 4409,
+      "name": "KT07 Brace B +Z",
+      "persistentId": "axis:feature_muztfvy5_2:tool:face:generated:cylinder:1",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": -2.588708661683411,
+          "y": 19.44956036760097,
+          "z": 1.25
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4441,
+      "type": "concentric",
+      "side": "b",
+      "componentId": 4413,
+      "name": "KT09 Hinge B",
+      "persistentId": "axis:feature_muztr49i_2:tool:face:side:4284",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": -2.588708662,
+          "y": 19.449560368,
+          "z": 1.21
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4442,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4409,
+      "name": "KT07 Brace B +Z",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 15,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4442,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4413,
+      "name": "KT09 Hinge B",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": -2.588708662,
+          "y": 19.449560368,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4445,
+      "type": "concentric",
+      "side": "a",
+      "componentId": 4398,
+      "name": "KT02 Hinge A",
+      "persistentId": "axis:feature_muzs5r9u_5:tool:face:side:4153",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": -2.5000000220071663,
+          "y": 10.500002220239375,
+          "z": 0
+        },
+        "axis": {
+          "x": 0.009911582311201872,
+          "y": -0.9999508790616106,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4445,
+      "type": "concentric",
+      "side": "b",
+      "componentId": 4415,
+      "name": "KT11 Shaft",
+      "persistentId": "axis:feature_muzu48u6_1:face:side:4330",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": -2.560064188799659,
+          "y": 16.55970232711342,
+          "z": 1.0512424264419449e-17
+        },
+        "axis": {
+          "x": 0.009911582310174763,
+          "y": -0.9999508790616208,
+          "z": -1.7347234759768067e-18
+        }
+      }
+    },
+    {
+      "mateId": 4446,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4398,
+      "name": "KT02 Hinge A",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": -2.5,
+          "y": 10.5,
+          "z": 0
+        },
+        "normal": {
+          "x": -0.009911582311201872,
+          "y": 0.9999508790616106,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4446,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4415,
+      "name": "KT11 Shaft",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": -2.5,
+          "y": 10.5,
+          "z": 0
+        },
+        "normal": {
+          "x": -0.009911582310174763,
+          "y": 0.9999508790616208,
+          "z": 1.7347234759768067e-18
+        }
+      }
+    },
+    {
+      "mateId": 4450,
+      "type": "screw",
+      "side": "a",
+      "componentId": 4413,
+      "name": "KT09 Hinge B",
+      "persistentId": "axis:feature_muzts9eo_5:tool:face:side:4299",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": -2.5887086840071665,
+          "y": 19.449562588239353,
+          "z": 0
+        },
+        "axis": {
+          "x": 0.009911582311201872,
+          "y": -0.9999508790616106,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4450,
+      "type": "screw",
+      "side": "b",
+      "componentId": 4415,
+      "name": "KT11 Shaft",
+      "persistentId": "axis:feature_muzu48u6_1:face:side:4330",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": -2.560064188799659,
+          "y": 16.55970232711342,
+          "z": 1.0512424264419449e-17
+        },
+        "axis": {
+          "x": 0.009911582310174763,
+          "y": -0.9999508790616208,
+          "z": -1.7347234759768067e-18
+        }
+      }
+    },
+    {
+      "mateId": 4451,
+      "type": "concentric",
+      "side": "a",
+      "componentId": 4403,
+      "name": "KT04 Pin JA",
+      "persistentId": "axis:feature_muzslncw_1:face:side:4196",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 6.5,
+          "y": 18.5,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4451,
+      "type": "concentric",
+      "side": "b",
+      "componentId": 4405,
+      "name": "KT05 Grip A",
+      "persistentId": "axis:feature_muzsthcx_2:tool:face:side:4226",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 6.5,
+          "y": 18.5,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4452,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4403,
+      "name": "KT04 Pin JA",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 6.5,
+          "y": 18.5,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4452,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4405,
+      "name": "KT05 Grip A",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 6.5,
+          "y": 18.5,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4453,
+      "type": "concentric",
+      "side": "a",
+      "componentId": 4404,
+      "name": "KT04 Pin JB",
+      "persistentId": "axis:feature_muzslncw_1:face:side:4196",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 6.568100555,
+          "y": 11.629531917,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4453,
+      "type": "concentric",
+      "side": "b",
+      "componentId": 4414,
+      "name": "KT10 Grip B",
+      "persistentId": "axis:feature_muztyu0k_2:tool:face:side:4326",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 6.568100555,
+          "y": 11.629531917,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4454,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4404,
+      "name": "KT04 Pin JB",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 6.568100555,
+          "y": 11.629531917,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4454,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4414,
+      "name": "KT10 Grip B",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 6.568100555,
+          "y": 11.629531917,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4456,
+      "type": "angle",
+      "side": "a",
+      "componentId": 4397,
+      "name": "KT01 Bench base",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4456,
+      "type": "angle",
+      "side": "b",
+      "componentId": 4414,
+      "name": "KT10 Grip B",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 6.568100555,
+          "y": 11.629531917,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4457,
+      "type": "limit",
+      "side": "a",
+      "componentId": 4398,
+      "name": "KT02 Hinge A",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": -2.5,
+          "y": 10.5,
+          "z": 0
+        },
+        "normal": {
+          "x": -0.009911582311201872,
+          "y": 0.9999508790616106,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4457,
+      "type": "limit",
+      "side": "b",
+      "componentId": 4413,
+      "name": "KT09 Hinge B",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": -2.588708662,
+          "y": 19.449560368,
+          "z": 0
+        },
+        "normal": {
+          "x": -0.009911582311201872,
+          "y": 0.9999508790616106,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4458,
+      "type": "angle",
+      "side": "a",
+      "componentId": 4397,
+      "name": "KT01 Bench base",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4458,
+      "type": "angle",
+      "side": "b",
+      "componentId": 4405,
+      "name": "KT05 Grip A",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 6.5,
+          "y": 18.5,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "resolverIssues": [],
+  "resolverRebindings": [],
+  "allReferencesBound": true,
+  "recipes": [
+    {
+      "partNo": "KT01",
+      "source": "artifacts/planchard/KT01-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT02",
+      "source": "artifacts/planchard/KT02-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT03",
+      "source": "artifacts/planchard/KT03-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT04",
+      "source": "artifacts/planchard/KT04-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT05",
+      "source": "artifacts/planchard/KT05-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT06",
+      "source": "artifacts/planchard/KT06-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT07",
+      "source": "artifacts/planchard/KT07-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT08",
+      "source": "artifacts/planchard/KT08-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT09",
+      "source": "artifacts/planchard/KT09-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT10",
+      "source": "artifacts/planchard/KT10-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT11",
+      "source": "artifacts/planchard/KT11-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT12",
+      "source": "artifacts/planchard/KT12-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT13",
+      "source": "artifacts/planchard/KT13-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT14",
+      "source": "artifacts/planchard/KT14-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT15",
+      "source": "artifacts/planchard/KT15-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "KT16",
+      "source": "artifacts/planchard/KT16-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    }
+  ],
+  "allRecipesAndProvenanceMatch": true,
+  "savedMotion": {
+    "driveTurns": -0.25,
+    "thetaDegrees": 1.135802266718496,
+    "spanMm": 89.50000000401684,
+    "gapMm": 54.70468083,
+    "hingeA": {
+      "x": -2.5,
+      "y": 10.5,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0.5679011333710346,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0.004955852014999997,
+        "w": 0.9999877196899997
+      }
+    },
+    "hingeB": {
+      "x": -2.588708662,
+      "y": 19.449560368,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0.5679011333710346,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0.004955852014999997,
+        "w": 0.9999877196899997
+      }
+    },
+    "shaft": {
+      "x": -2.5,
+      "y": 10.5,
+      "z": 0,
+      "rx": -90.0000000000013,
+      "ry": 89.43209886668781,
+      "rz": 90.0000000000013,
+      "q": {
+        "x": -0.003504316566000362,
+        "y": 0.7070980976960731,
+        "z": 0.003504316566000362,
+        "w": 0.7070980976960729
+      }
+    },
+    "jawB": {
+      "x": 6.568100555,
+      "y": 11.629531917,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    }
+  },
+  "mateSummary": [
+    {
+      "id": 4422,
+      "type": "concentric",
+      "a": 4397,
+      "b": 4399,
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4423,
+      "type": "concentric",
+      "a": 4397,
+      "b": 4399,
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4424,
+      "type": "distance",
+      "a": 4397,
+      "b": 4399,
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4425,
+      "type": "lock",
+      "a": 4399,
+      "b": 4400
+    },
+    {
+      "id": 4426,
+      "type": "lock",
+      "a": 4399,
+      "b": 4401
+    },
+    {
+      "id": 4427,
+      "type": "lock",
+      "a": 4399,
+      "b": 4402
+    },
+    {
+      "id": 4428,
+      "type": "lock",
+      "a": 4399,
+      "b": 4403
+    },
+    {
+      "id": 4429,
+      "type": "lock",
+      "a": 4403,
+      "b": 4406
+    },
+    {
+      "id": 4430,
+      "type": "lock",
+      "a": 4402,
+      "b": 4408
+    },
+    {
+      "id": 4431,
+      "type": "lock",
+      "a": 4401,
+      "b": 4419
+    },
+    {
+      "id": 4432,
+      "type": "concentric",
+      "a": 4401,
+      "b": 4409,
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4433,
+      "type": "distance",
+      "a": 4397,
+      "b": 4409,
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4434,
+      "type": "lock",
+      "a": 4409,
+      "b": 4410
+    },
+    {
+      "id": 4435,
+      "type": "lock",
+      "a": 4409,
+      "b": 4404
+    },
+    {
+      "id": 4436,
+      "type": "lock",
+      "a": 4404,
+      "b": 4407
+    },
+    {
+      "id": 4437,
+      "type": "lock",
+      "a": 4404,
+      "b": 4420
+    },
+    {
+      "id": 4438,
+      "type": "lock",
+      "a": 4404,
+      "b": 4421
+    },
+    {
+      "id": 4439,
+      "type": "concentric",
+      "a": 4399,
+      "b": 4398,
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4440,
+      "type": "distance",
+      "a": 4399,
+      "b": 4398,
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4441,
+      "type": "concentric",
+      "a": 4409,
+      "b": 4413,
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4442,
+      "type": "distance",
+      "a": 4409,
+      "b": 4413,
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4443,
+      "type": "lock",
+      "a": 4398,
+      "b": 4411
+    },
+    {
+      "id": 4444,
+      "type": "lock",
+      "a": 4413,
+      "b": 4412
+    },
+    {
+      "id": 4445,
+      "type": "concentric",
+      "a": 4398,
+      "b": 4415,
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4446,
+      "type": "distance",
+      "a": 4398,
+      "b": 4415,
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4447,
+      "type": "lock",
+      "a": 4415,
+      "b": 4416
+    },
+    {
+      "id": 4448,
+      "type": "lock",
+      "a": 4416,
+      "b": 4417
+    },
+    {
+      "id": 4449,
+      "type": "lock",
+      "a": 4416,
+      "b": 4418
+    },
+    {
+      "id": 4450,
+      "type": "screw",
+      "a": 4413,
+      "b": 4415,
+      "aligned": false,
+      "value": 0,
+      "pitch": 0.2,
+      "driveTurns": -0.25,
+      "coupledMotion": true,
+      "coupledAxial0": 9,
+      "coupledPhase0": 0,
+      "coupledAxialBasis": "component-origin"
+    },
+    {
+      "id": 4451,
+      "type": "concentric",
+      "a": 4403,
+      "b": 4405,
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4452,
+      "type": "distance",
+      "a": 4403,
+      "b": 4405,
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4453,
+      "type": "concentric",
+      "a": 4404,
+      "b": 4414,
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4454,
+      "type": "distance",
+      "a": 4404,
+      "b": 4414,
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4456,
+      "type": "angle",
+      "a": 4397,
+      "b": 4414,
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4457,
+      "type": "limit",
+      "a": 4398,
+      "b": 4413,
+      "aligned": true,
+      "value": 0,
+      "min": 6.9570108523703995,
+      "max": 9
+    },
+    {
+      "id": 4458,
+      "type": "angle",
+      "a": 4397,
+      "b": 4405,
+      "aligned": true,
+      "value": 0
+    }
+  ]
+}

@@ -1,0 +1,379 @@
+{
+  "scope": "Read-only actual Chrome exports. Action rejection wording is parent-observed; object restoration is independently compared.",
+  "files": {
+    "closed": {
+      "source": "artifacts/planchard/KT-assembly-drive-closed-endpoint-browser-2026-10-08.mforge",
+      "bytes": 5557133,
+      "inputSha256": "79215e5a394c97c8e488c8425916eab534385b9d314ea164ed0874c350659a60",
+      "inputUnchanged": true
+    },
+    "closedRejected": {
+      "source": "artifacts/planchard/KT-assembly-beyond-closed-rejected-browser-2026-10-08.mforge",
+      "bytes": 5557133,
+      "inputSha256": "82477b8a2e3883e76acaffc0138c417dcfa48b272d38bc7d6ffd7394554c001a",
+      "inputUnchanged": true
+    },
+    "open": {
+      "source": "artifacts/planchard/KT-assembly-drive-zero-open-browser-2026-10-08.mforge",
+      "bytes": 5556219,
+      "inputSha256": "8366eab02feb0aa731cd3af998c0a7eda36deff08c0f5e1f45421372c26684ca",
+      "inputUnchanged": true
+    },
+    "openRejected": {
+      "source": "artifacts/planchard/KT-assembly-beyond-open-rejected-browser-2026-10-08.mforge",
+      "bytes": 5556219,
+      "inputSha256": "5930f2b90581f89220ef8a66512e583308d8bb5f9e6e22a01d26731e2ec7784e",
+      "inputUnchanged": true
+    }
+  },
+  "closedRejected": {
+    "acceptedSource": "artifacts/planchard/KT-assembly-drive-closed-endpoint-browser-2026-10-08.mforge",
+    "rejectedSource": "artifacts/planchard/KT-assembly-beyond-closed-rejected-browser-2026-10-08.mforge",
+    "parentObservedRequestedTurns": -10.5,
+    "driveBefore": -10.214945738148,
+    "driveAfter": -10.214945738148,
+    "all25TransformObjectsExactlyPreserved": true,
+    "allMateObjectsExactlyPreserved": true,
+    "allEmbeddedDefinitionObjectsExactlyPreserved": true,
+    "assemblyPropertiesExactlyPreserved": true
+  },
+  "openRejected": {
+    "acceptedSource": "artifacts/planchard/KT-assembly-drive-zero-open-browser-2026-10-08.mforge",
+    "rejectedSource": "artifacts/planchard/KT-assembly-beyond-open-rejected-browser-2026-10-08.mforge",
+    "parentObservedRequestedTurns": 0.25,
+    "driveBefore": 0,
+    "driveAfter": 0,
+    "all25TransformObjectsExactlyPreserved": true,
+    "allMateObjectsExactlyPreserved": true,
+    "allEmbeddedDefinitionObjectsExactlyPreserved": true,
+    "assemblyPropertiesExactlyPreserved": true
+  },
+  "closedSavedPose": {
+    "driveTurns": -10.214945738148,
+    "thetaDegrees": 36.86989764573529,
+    "spanMm": 69.57010852370436,
+    "gapMm": 10,
+    "hingeA": {
+      "x": -2.5,
+      "y": 10.5,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 18.434948822916503,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0.16018224300691977,
+        "w": 0.9870874576375046
+      }
+    },
+    "hingeB": {
+      "x": -4.7,
+      "y": 17.1,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 18.434948822916514,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0.16018224300691986,
+        "w": 0.9870874576375046
+      }
+    },
+    "shaft": {
+      "x": -2.5,
+      "y": 10.5,
+      "z": 0,
+      "rx": -54.70208267862704,
+      "ry": 67.78404338443478,
+      "rz": 56.758049595349405,
+      "q": {
+        "x": -0.10013145918998323,
+        "y": 0.6170378540458967,
+        "z": 0.12502816424797908,
+        "w": 0.7704582634378709
+      }
+    },
+    "jawB": {
+      "x": 7.3,
+      "y": 16.1,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    }
+  },
+  "openSavedPose": {
+    "driveTurns": 0,
+    "thetaDegrees": 1.1459155902616464e-10,
+    "spanMm": 90,
+    "gapMm": 56,
+    "hingeA": {
+      "x": -2.5,
+      "y": 10.5,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "hingeB": {
+      "x": -2.5,
+      "y": 19.5,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "shaft": {
+      "x": -2.5,
+      "y": 10.5,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "jawB": {
+      "x": 6.5,
+      "y": 11.5,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    }
+  },
+  "closedReferencesBound": true,
+  "openReferencesBound": true,
+  "closedSourceRecipesAndProvenanceMatch": true,
+  "openSourceRecipesAndProvenanceMatch": true,
+  "closedNative": {
+    "instances": 25,
+    "uniqueExactRecipes": 16,
+    "totalVolumeCm3": 180.1617864487095,
+    "totalMassG": 1367.4709127324477,
+    "grounded": [
+      "KT01 Bench base"
+    ],
+    "countByModel": {
+      "cm_muzrb8n4": 1,
+      "cm_muzs3cnz": 1,
+      "cm_muzscwb3": 2,
+      "cm_muzslh3n": 4,
+      "cm_muzss7hl": 1,
+      "cm_muzt4ln7": 3,
+      "cm_muztcbk6": 2,
+      "cm_muztklz2": 2,
+      "cm_muztqbrg": 1,
+      "cm_muztxzqs": 1,
+      "cm_muzu3x2i": 1,
+      "cm_muzuacdn": 1,
+      "cm_muzufld4": 1,
+      "cm_muzup8x1": 1,
+      "cm_muzuv4qd": 1,
+      "cm_muzuzl1q": 2
+    },
+    "hits": []
+  },
+  "openNative": {
+    "instances": 25,
+    "uniqueExactRecipes": 16,
+    "totalVolumeCm3": 180.1617864487095,
+    "totalMassG": 1367.4709127324477,
+    "grounded": [
+      "KT01 Bench base"
+    ],
+    "countByModel": {
+      "cm_muzrb8n4": 1,
+      "cm_muzs3cnz": 1,
+      "cm_muzscwb3": 2,
+      "cm_muzslh3n": 4,
+      "cm_muzss7hl": 1,
+      "cm_muzt4ln7": 3,
+      "cm_muztcbk6": 2,
+      "cm_muztklz2": 2,
+      "cm_muztqbrg": 1,
+      "cm_muztxzqs": 1,
+      "cm_muzu3x2i": 1,
+      "cm_muzuacdn": 1,
+      "cm_muzufld4": 1,
+      "cm_muzup8x1": 1,
+      "cm_muzuv4qd": 1,
+      "cm_muzuzl1q": 2
+    },
+    "hits": []
+  },
+  "closedColdCloneSolve": {
+    "ok": false,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [
+      {
+        "mate": 4432,
+        "code": "non-convergent",
+        "linear": 0,
+        "angular": 0
+      }
+    ],
+    "settled": true,
+    "passes": 22,
+    "clusters": [
+      {
+        "components": [
+          4405,
+          4406,
+          4403,
+          4408,
+          4402,
+          4411,
+          4398,
+          4418,
+          4417,
+          4416,
+          4415,
+          4412,
+          4413,
+          4414,
+          4421,
+          4420,
+          4407,
+          4404,
+          4410,
+          4409,
+          4419,
+          4401,
+          4400,
+          4399
+        ],
+        "variableCount": 144,
+        "rank": 142,
+        "degreesOfFreedom": 2,
+        "iterations": 21,
+        "converged": true,
+        "perComponent": {}
+      }
+    ],
+    "degreesOfFreedom": 2
+  },
+  "closedColdPostfixCloneSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 48,
+    "clusters": [
+      {
+        "components": [
+          4405,
+          4406,
+          4403,
+          4408,
+          4402,
+          4411,
+          4398,
+          4418,
+          4417,
+          4416,
+          4415,
+          4412,
+          4413,
+          4414,
+          4421,
+          4420,
+          4407,
+          4404,
+          4410,
+          4409,
+          4419,
+          4401,
+          4400,
+          4399
+        ],
+        "variableCount": 144,
+        "rank": 144,
+        "degreesOfFreedom": 0,
+        "iterations": 47,
+        "converged": true,
+        "perComponent": {}
+      }
+    ],
+    "degreesOfFreedom": 0
+  },
+  "openColdCloneSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 98,
+    "clusters": [
+      {
+        "components": [
+          4405,
+          4406,
+          4403,
+          4408,
+          4402,
+          4411,
+          4398,
+          4418,
+          4417,
+          4416,
+          4415,
+          4412,
+          4413,
+          4414,
+          4421,
+          4420,
+          4407,
+          4404,
+          4410,
+          4409,
+          4419,
+          4401,
+          4400,
+          4399
+        ],
+        "variableCount": 144,
+        "rank": 144,
+        "degreesOfFreedom": 0,
+        "iterations": 97,
+        "converged": true,
+        "perComponent": {}
+      }
+    ],
+    "degreesOfFreedom": 0
+  },
+  "coldEndpointAcceptance": "Post-fix independent cold endpoint solve accepted all36mates, settled/converged true, rank144/144 and0DOF; original pre-fix numerical failure preserved above. Browser durability remains separately parent-observed.",
+  "browserMotionPlay": "Not certified by this audit."
+}

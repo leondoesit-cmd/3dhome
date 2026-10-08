@@ -1,0 +1,1365 @@
+{
+  "source": "artifacts/planchard/KT-assembly-drive-zero-open-browser-2026-10-08.mforge",
+  "inputSha256": "8366eab02feb0aa731cd3af998c0a7eda36deff08c0f5e1f45421372c26684ca",
+  "definitions": 16,
+  "occurrences": 25,
+  "geometry": [
+    {
+      "partNo": "KT01",
+      "definitionId": "cm_muzrb8n4",
+      "sourceFile": "KT01-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 104.12044755680049,
+        "maxToleranceCm": 1.500000004440892e-7
+      },
+      "kernelOperations": 17,
+      "issues": [],
+      "volumeCm3": 104.12044755680049,
+      "boundsCm": {
+        "min": {
+          "x": -4.9999999999999805,
+          "y": 0,
+          "z": -3
+        },
+        "max": {
+          "x": 5.3127425537743,
+          "y": 18.2358194768512,
+          "z": 3
+        }
+      }
+    },
+    {
+      "partNo": "KT02",
+      "definitionId": "cm_muzs3cnz",
+      "sourceFile": "KT02-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 5.6144638520461365,
+        "maxToleranceCm": 1.0048372264596354e-7
+      },
+      "kernelOperations": 17,
+      "issues": [],
+      "volumeCm3": 5.6144638520461365,
+      "boundsCm": {
+        "min": {
+          "x": -0.8000001,
+          "y": -0.800000100388199,
+          "z": -2.2800000000000002
+        },
+        "max": {
+          "x": 0.8000001,
+          "y": 0.8000001003881995,
+          "z": 2.02
+        }
+      }
+    },
+    {
+      "partNo": "KT03",
+      "definitionId": "cm_muzscwb3",
+      "sourceFile": "KT03-final-browser-2026-10-08.mforge",
+      "occurrences": 2,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 5.2848315034916284,
+        "maxToleranceCm": 1.000000004440892e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 5.2848315034916284,
+      "boundsCm": {
+        "min": {
+          "x": -3.4518601451101,
+          "y": -5.4518601451101,
+          "z": 1.7000000000000002
+        },
+        "max": {
+          "x": 7.448199646070001,
+          "y": 4.448199646070001,
+          "z": 2
+        }
+      }
+    },
+    {
+      "partNo": "KT04",
+      "definitionId": "cm_muzslh3n",
+      "sourceFile": "KT04-final-browser-2026-10-08.mforge",
+      "occurrences": 4,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 2.3197520154107036,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 8,
+      "issues": [],
+      "volumeCm3": 2.3197520154107036,
+      "boundsCm": {
+        "min": {
+          "x": -0.6000000000000001,
+          "y": -0.6000000000000001,
+          "z": -2.32
+        },
+        "max": {
+          "x": 0.6000000000000001,
+          "y": 0.6000000000000001,
+          "z": 2.02
+        }
+      }
+    },
+    {
+      "partNo": "KT05",
+      "definitionId": "cm_muzss7hl",
+      "sourceFile": "KT05-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 9.062074479781002,
+        "maxToleranceCm": 1.000000002220446e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 9.062074479781002,
+      "boundsCm": {
+        "min": {
+          "x": -1.1999999999999995,
+          "y": -0.6999999999999995,
+          "z": -1.6
+        },
+        "max": {
+          "x": 1.2000000000000017,
+          "y": 0.7000000000000031,
+          "z": 1.6
+        }
+      }
+    },
+    {
+      "partNo": "KT06",
+      "definitionId": "cm_muzt4ln7",
+      "sourceFile": "KT06-final-browser-2026-10-08.mforge",
+      "occurrences": 3,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.27646015351590186,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 0.27646015351590186,
+      "boundsCm": {
+        "min": {
+          "x": -0.6000000000000001,
+          "y": -0.6000000000000001,
+          "z": -0.4
+        },
+        "max": {
+          "x": 0.6000000000000001,
+          "y": 0.6000000000000001,
+          "z": 0.2
+        }
+      }
+    },
+    {
+      "partNo": "KT07",
+      "definitionId": "cm_muztcbk6",
+      "sourceFile": "KT07-final-browser-2026-10-08.mforge",
+      "occurrences": 2,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 5.443262021012166,
+        "maxToleranceCm": 1.000000002220446e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 5.443262021012166,
+      "boundsCm": {
+        "min": {
+          "x": -3.4518601451101,
+          "y": -4.448199646070001,
+          "z": 1.1
+        },
+        "max": {
+          "x": 7.448199646070001,
+          "y": 5.4518601451101,
+          "z": 1.4000000000000001
+        }
+      }
+    },
+    {
+      "partNo": "KT08",
+      "definitionId": "cm_muztklz2",
+      "sourceFile": "KT08-final-browser-2026-10-08.mforge",
+      "occurrences": 2,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.17828538309122077,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 0.17828538309122077,
+      "boundsCm": {
+        "min": {
+          "x": -0.5,
+          "y": -0.5,
+          "z": -0.30000000000000004
+        },
+        "max": {
+          "x": 0.5,
+          "y": 0.5,
+          "z": 0.2
+        }
+      }
+    },
+    {
+      "partNo": "KT09",
+      "definitionId": "cm_muztqbrg",
+      "sourceFile": "KT09-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 3.201720694089142,
+        "maxToleranceCm": 1.0048372300003832e-7
+      },
+      "kernelOperations": 17,
+      "issues": [],
+      "volumeCm3": 3.201720694089142,
+      "boundsCm": {
+        "min": {
+          "x": -0.8000001,
+          "y": -0.800000100388199,
+          "z": -1.6800000000000002
+        },
+        "max": {
+          "x": 0.8000001,
+          "y": 0.8000001003881995,
+          "z": 1.42
+        }
+      }
+    },
+    {
+      "partNo": "KT10",
+      "definitionId": "cm_muztxzqs",
+      "sourceFile": "KT10-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 5.663796549863113,
+        "maxToleranceCm": 1.0000000010042103e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 5.663796549863113,
+      "boundsCm": {
+        "min": {
+          "x": -1.2000000000000002,
+          "y": -0.7000000000000001,
+          "z": -1
+        },
+        "max": {
+          "x": 1.2000000000000002,
+          "y": 0.7000000000000001,
+          "z": 1
+        }
+      }
+    },
+    {
+      "partNo": "KT11",
+      "definitionId": "cm_muzu3x2i",
+      "sourceFile": "KT11-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 14.314429546021731,
+        "maxToleranceCm": 1.0011614340526038e-7
+      },
+      "kernelOperations": 11,
+      "issues": [],
+      "volumeCm3": 14.314429546021731,
+      "boundsCm": {
+        "min": {
+          "x": -0.9000001,
+          "y": -2.8000001,
+          "z": -0.9000001
+        },
+        "max": {
+          "x": 0.9000001,
+          "y": 11,
+          "z": 0.9000001
+        }
+      }
+    },
+    {
+      "partNo": "KT12",
+      "definitionId": "cm_muzuacdn",
+      "sourceFile": "KT12-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.7592918860102849,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 1.7592918860102849,
+      "boundsCm": {
+        "min": {
+          "x": -3.2,
+          "y": -0.30000000000000004,
+          "z": -0.30000000000000004
+        },
+        "max": {
+          "x": 3.2,
+          "y": 0.30000000000000004,
+          "z": 0.30000000000000004
+        }
+      }
+    },
+    {
+      "partNo": "KT13",
+      "definitionId": "cm_muzufld4",
+      "sourceFile": "KT13-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 3.089819206658635,
+        "maxToleranceCm": 1.000000004440892e-7
+      },
+      "kernelOperations": 8,
+      "issues": [],
+      "volumeCm3": 3.089819206658635,
+      "boundsCm": {
+        "min": {
+          "x": -4,
+          "y": -0.7000000000000001,
+          "z": -0.7000000000000001
+        },
+        "max": {
+          "x": -1.5999999999999996,
+          "y": 0.7000000000000001,
+          "z": 0.7000000000000001
+        }
+      }
+    },
+    {
+      "partNo": "KT14",
+      "definitionId": "cm_muzup8x1",
+      "sourceFile": "KT14-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.3015928947446202,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 0.3015928947446202,
+      "boundsCm": {
+        "min": {
+          "x": -1.2000000000000002,
+          "y": -0.4,
+          "z": -0.4
+        },
+        "max": {
+          "x": 0.30000000000000004,
+          "y": 0.4,
+          "z": 0.4
+        }
+      }
+    },
+    {
+      "partNo": "KT15",
+      "definitionId": "cm_muzuv4qd",
+      "sourceFile": "KT15-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.38955748904513454,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 0.38955748904513454,
+      "boundsCm": {
+        "min": {
+          "x": -0.6000000000000001,
+          "y": -0.6000000000000001,
+          "z": -0.4
+        },
+        "max": {
+          "x": 0.6000000000000001,
+          "y": 0.6000000000000001,
+          "z": 0.30000000000000004
+        }
+      }
+    },
+    {
+      "partNo": "KT16",
+      "definitionId": "cm_muzuzl1q",
+      "sourceFile": "KT16-final-browser-2026-10-08.mforge",
+      "occurrences": 2,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.3617229781343291,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 2,
+      "issues": [],
+      "volumeCm3": 0.3617229781343291,
+      "boundsCm": {
+        "min": {
+          "x": -0.6000000000000001,
+          "y": -0.6000000000000001,
+          "z": 0
+        },
+        "max": {
+          "x": 0.6000000000000001,
+          "y": 0.6000000000000001,
+          "z": 0.6000000000000001
+        }
+      }
+    }
+  ],
+  "canonicalMates": 36,
+  "mateSummary": [
+    {
+      "id": 4422,
+      "type": "concentric",
+      "a": 4397,
+      "b": 4399,
+      "aligned": false
+    },
+    {
+      "id": 4423,
+      "type": "concentric",
+      "a": 4397,
+      "b": 4399,
+      "aligned": false
+    },
+    {
+      "id": 4424,
+      "type": "distance",
+      "a": 4397,
+      "b": 4399,
+      "aligned": true
+    },
+    {
+      "id": 4425,
+      "type": "lock",
+      "a": 4399,
+      "b": 4400
+    },
+    {
+      "id": 4426,
+      "type": "lock",
+      "a": 4399,
+      "b": 4401
+    },
+    {
+      "id": 4427,
+      "type": "lock",
+      "a": 4399,
+      "b": 4402
+    },
+    {
+      "id": 4428,
+      "type": "lock",
+      "a": 4399,
+      "b": 4403
+    },
+    {
+      "id": 4429,
+      "type": "lock",
+      "a": 4403,
+      "b": 4406
+    },
+    {
+      "id": 4430,
+      "type": "lock",
+      "a": 4402,
+      "b": 4408
+    },
+    {
+      "id": 4431,
+      "type": "lock",
+      "a": 4401,
+      "b": 4419
+    },
+    {
+      "id": 4432,
+      "type": "concentric",
+      "a": 4401,
+      "b": 4409,
+      "aligned": false
+    },
+    {
+      "id": 4433,
+      "type": "distance",
+      "a": 4397,
+      "b": 4409,
+      "aligned": true
+    },
+    {
+      "id": 4434,
+      "type": "lock",
+      "a": 4409,
+      "b": 4410
+    },
+    {
+      "id": 4435,
+      "type": "lock",
+      "a": 4409,
+      "b": 4404
+    },
+    {
+      "id": 4436,
+      "type": "lock",
+      "a": 4404,
+      "b": 4407
+    },
+    {
+      "id": 4437,
+      "type": "lock",
+      "a": 4404,
+      "b": 4420
+    },
+    {
+      "id": 4438,
+      "type": "lock",
+      "a": 4404,
+      "b": 4421
+    },
+    {
+      "id": 4439,
+      "type": "concentric",
+      "a": 4399,
+      "b": 4398,
+      "aligned": false
+    },
+    {
+      "id": 4440,
+      "type": "distance",
+      "a": 4399,
+      "b": 4398,
+      "aligned": true
+    },
+    {
+      "id": 4441,
+      "type": "concentric",
+      "a": 4409,
+      "b": 4413,
+      "aligned": false
+    },
+    {
+      "id": 4442,
+      "type": "distance",
+      "a": 4409,
+      "b": 4413,
+      "aligned": true
+    },
+    {
+      "id": 4443,
+      "type": "lock",
+      "a": 4398,
+      "b": 4411
+    },
+    {
+      "id": 4444,
+      "type": "lock",
+      "a": 4413,
+      "b": 4412
+    },
+    {
+      "id": 4445,
+      "type": "concentric",
+      "a": 4398,
+      "b": 4415,
+      "aligned": false
+    },
+    {
+      "id": 4446,
+      "type": "distance",
+      "a": 4398,
+      "b": 4415,
+      "aligned": true
+    },
+    {
+      "id": 4447,
+      "type": "lock",
+      "a": 4415,
+      "b": 4416
+    },
+    {
+      "id": 4448,
+      "type": "lock",
+      "a": 4416,
+      "b": 4417
+    },
+    {
+      "id": 4449,
+      "type": "lock",
+      "a": 4416,
+      "b": 4418
+    },
+    {
+      "id": 4450,
+      "type": "screw",
+      "a": 4413,
+      "b": 4415,
+      "pitch": 0.2,
+      "turns": 0,
+      "aligned": false,
+      "coupledMotion": true
+    },
+    {
+      "id": 4451,
+      "type": "concentric",
+      "a": 4403,
+      "b": 4405,
+      "aligned": false
+    },
+    {
+      "id": 4452,
+      "type": "distance",
+      "a": 4403,
+      "b": 4405,
+      "aligned": true
+    },
+    {
+      "id": 4453,
+      "type": "concentric",
+      "a": 4404,
+      "b": 4414,
+      "aligned": false
+    },
+    {
+      "id": 4454,
+      "type": "distance",
+      "a": 4404,
+      "b": 4414,
+      "aligned": true
+    },
+    {
+      "id": 4456,
+      "type": "angle",
+      "a": 4397,
+      "b": 4414,
+      "aligned": true
+    },
+    {
+      "id": 4457,
+      "type": "limit",
+      "a": 4398,
+      "b": 4413,
+      "min": 6.9570108523703995,
+      "max": 9,
+      "aligned": true
+    },
+    {
+      "id": 4458,
+      "type": "angle",
+      "a": 4397,
+      "b": 4405,
+      "aligned": true
+    }
+  ],
+  "savedPoses": [
+    {
+      "id": 4397,
+      "partNo": "KT01",
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4398,
+      "partNo": "KT02",
+      "transform": {
+        "x": -2.5,
+        "y": 10.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4399,
+      "partNo": "KT03",
+      "transform": {
+        "x": 0,
+        "y": 15,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4400,
+      "partNo": "KT03",
+      "transform": {
+        "x": 0,
+        "y": 15,
+        "z": -3.7,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4401,
+      "partNo": "KT04",
+      "transform": {
+        "x": 0,
+        "y": 15,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4402,
+      "partNo": "KT04",
+      "transform": {
+        "x": 4.5,
+        "y": 17.423076923,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4403,
+      "partNo": "KT04",
+      "transform": {
+        "x": 6.5,
+        "y": 18.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4404,
+      "partNo": "KT04",
+      "transform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 1.1459155902616464e-10,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 1e-12,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4405,
+      "partNo": "KT05",
+      "transform": {
+        "x": 6.5,
+        "y": 18.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4406,
+      "partNo": "KT06",
+      "transform": {
+        "x": 6.5,
+        "y": 18.5,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4407,
+      "partNo": "KT06",
+      "transform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 1.1459155902616464e-10,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 1e-12,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4408,
+      "partNo": "KT06",
+      "transform": {
+        "x": 4.5,
+        "y": 17.423076923,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4409,
+      "partNo": "KT07",
+      "transform": {
+        "x": 0,
+        "y": 15,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 1.1459155902616464e-10,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 1e-12,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4410,
+      "partNo": "KT07",
+      "transform": {
+        "x": 0,
+        "y": 15,
+        "z": -2.5,
+        "rx": 0,
+        "ry": 0,
+        "rz": 1.1459155902616464e-10,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 1e-12,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4411,
+      "partNo": "KT08",
+      "transform": {
+        "x": -2.5,
+        "y": 10.5,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4412,
+      "partNo": "KT08",
+      "transform": {
+        "x": -2.5,
+        "y": 19.5,
+        "z": 1.42,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4413,
+      "partNo": "KT09",
+      "transform": {
+        "x": -2.5,
+        "y": 19.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4414,
+      "partNo": "KT10",
+      "transform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4415,
+      "partNo": "KT11",
+      "transform": {
+        "x": -2.5,
+        "y": 10.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4416,
+      "partNo": "KT12",
+      "transform": {
+        "x": -2.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4417,
+      "partNo": "KT13",
+      "transform": {
+        "x": -2.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4418,
+      "partNo": "KT14",
+      "transform": {
+        "x": -6.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 180,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 4419,
+      "partNo": "KT15",
+      "transform": {
+        "x": 0,
+        "y": 15,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4420,
+      "partNo": "KT16",
+      "transform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": 1.42,
+        "rx": 0,
+        "ry": 0,
+        "rz": 1.1459155902616464e-10,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 1e-12,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4421,
+      "partNo": "KT16",
+      "transform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": -2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 1.1459155902616464e-10,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 1e-12,
+          "w": 1
+        }
+      }
+    }
+  ],
+  "cloneSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 98,
+    "clusters": [
+      {
+        "components": [
+          4405,
+          4406,
+          4403,
+          4408,
+          4402,
+          4411,
+          4398,
+          4418,
+          4417,
+          4416,
+          4415,
+          4412,
+          4413,
+          4414,
+          4421,
+          4420,
+          4407,
+          4404,
+          4410,
+          4409,
+          4419,
+          4401,
+          4400,
+          4399
+        ],
+        "variableCount": 144,
+        "rank": 144,
+        "degreesOfFreedom": 0,
+        "iterations": 97,
+        "converged": true,
+        "perComponent": {}
+      }
+    ],
+    "degreesOfFreedom": 0
+  },
+  "cloneTransformDeltas": [
+    {
+      "id": 4397,
+      "partNo": "KT01",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4398,
+      "partNo": "KT02",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4399,
+      "partNo": "KT03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4400,
+      "partNo": "KT03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4401,
+      "partNo": "KT04",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4402,
+      "partNo": "KT04",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4403,
+      "partNo": "KT04",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4404,
+      "partNo": "KT04",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4405,
+      "partNo": "KT05",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4406,
+      "partNo": "KT06",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4407,
+      "partNo": "KT06",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4408,
+      "partNo": "KT06",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4409,
+      "partNo": "KT07",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4410,
+      "partNo": "KT07",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4411,
+      "partNo": "KT08",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4412,
+      "partNo": "KT08",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4413,
+      "partNo": "KT09",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4414,
+      "partNo": "KT10",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4415,
+      "partNo": "KT11",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4416,
+      "partNo": "KT12",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4417,
+      "partNo": "KT13",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4418,
+      "partNo": "KT14",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4419,
+      "partNo": "KT15",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4420,
+      "partNo": "KT16",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4421,
+      "partNo": "KT16",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    }
+  ],
+  "inputUnchanged": true
+}

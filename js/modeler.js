@@ -26158,6 +26158,12 @@ function openMotionPlayback(studyId) {
   controls.keep=btn("Keep current pose",()=>{if(!commitDuration() || !playback.keep())return;executor.dispose();motionPlaybackCancel=null;E.quickAction=null;closeFeaturePanel({assemblyPoseOnly:true});refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});});actions.appendChild(controls.keep);
   actions.appendChild(btn("Cancel preview",()=>{cancel();E.quickAction=null;closeFeaturePanel({assemblyPoseOnly:true});refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});}));
 }
+function motionScrewMateLabel(mate) {
+  var labelOf=function(id){var component=E.assembly.components.find(function(item){return String(item.id)===String(id);});return component?.name || component?.modelKey || String(id);};
+  var hand=mate.handedness==='lh' || mate.handedness==='left' ? 'LH' : 'RH';
+  return (mate.name || 'Screw mate')+' · '+labelOf(mate.a?.componentId)+' ↔ '+labelOf(mate.b?.componentId)
+    +' · lead '+modelLengthText(Number(mate.pitch)||0,6)+' '+modelLengthUnit()+'/turn · '+hand+' · #'+mate.id;
+}
 function createDefaultMotionStudy() {
   if (E.docType !== "assembly" || !E.assembly || !E.assembly.components.length) return;
   const show=(studyId,relationId="none",motorType)=>{
@@ -26171,13 +26177,13 @@ function createDefaultMotionStudy() {
     const axisName=a=>!a?"y":a.x===1&&a.y===0&&a.z===0?"x":a.z===1&&a.x===0&&a.y===0?"z":a.y===1&&a.x===0&&a.z===0?"y":"custom";
     const axes=["x","y","z"].map(value=>({value,label:value.toUpperCase()}));
     const axisChoices=a=>axisName(a)==="custom"?axes.concat({value:"custom",label:t("motionSavedAxis")}):axes;
-    openQuickForm({action:"motion",title:t("motionStudy"),hint:motorType==="screw"?"Turn a coupled Screw mate; the shaft advances by its pitch while the linkage follows.":t(motorType==="linear" ? "linearMotionHint" : relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"),fields:[
+    openQuickForm({action:"motion",title:t("motionStudy"),hint:motorType==="screw"?"Turn a coupled Screw mate: relative axial travel follows its lead, and the linkage follows the assembly constraints.":t(motorType==="linear" ? "linearMotionHint" : relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"),fields:[
       {key:"study",label:t("motionStudy"),type:"select",value:studyId||"new",choices:[{value:"new",label:t("motionNewStudy")},...(E.assembly.motionStudies||[]).map(s=>({value:s.id,label:s.name}))]},
       {key:"name",label:"Study name",type:"text",value:study?.name||"Motion Study "+((E.assembly.motionStudies||[]).length+1)},
       ...(study ? [{key:"resetZero",label:"Use current pose as time zero",type:"boolean",value:false},{key:"deleteStudy",label:"Delete this study",type:"boolean",value:false}] : []),
       {key:"motorType",label:t("motionMotorType"),type:"select",value:motorType,choices:[{value:"rotary",label:t("motionRotary")},{value:"linear",label:t("motionLinear")},...(coupledScrews.length?[{value:"screw",label:"Screw mate"}]:[])]},
       ...(motorType==="rotary" ? [{key:"relation",label:t("motionRelation"),type:"select",value:relationId,choices:[{value:"none",label:t(study?.gearRelations?.length ? "motionKeepRelations" : "motionMotorOnly")},{value:"new",label:t("motionAddRelation")},...(study?.gearRelations||[]).map(r=>({value:r.id,label:(components.find(c=>c.id===r.driverId)?.name||r.driverId)+" → "+(components.find(c=>c.id===r.followerId)?.name||r.followerId)}))]}] : []),
-      ...(motorType==="screw"?[{key:"screwMate",label:"Coupled Screw mate",type:"select",value:motor?.mateId||coupledScrews[0]?.id,choices:coupledScrews.map(m=>({value:m.id,label:m.name||m.id}))}]:[{key:"motor",label:t("motionMotor"),type:"select",value:motor?.componentId||driver,choices}]),
+      ...(motorType==="screw"?[{key:"screwMate",label:"Coupled Screw mate",type:"select",value:motor?.mateId||coupledScrews[0]?.id,choices:coupledScrews.map(m=>({value:m.id,label:motionScrewMateLabel(m)}))}]:[{key:"motor",label:t("motionMotor"),type:"select",value:motor?.componentId||driver,choices}]),
       ...(motorType==="linear" ? [
       {key:"stroke",label:t("motionStroke"),type:"number",unit:"length",value:motor?.stroke??-1.5,step:.1},
       {key:"duration",label:t("motionTravelDuration"),type:"number",value:motor?.duration??1,min:.001,step:.1},

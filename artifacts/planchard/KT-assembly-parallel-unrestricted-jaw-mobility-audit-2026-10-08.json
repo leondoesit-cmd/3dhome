@@ -1,0 +1,78 @@
+{
+  "source": "artifacts/planchard/KT-assembly-parallel-free-home-browser-2026-10-08.mforge",
+  "suppressedGuides": [
+    4456,
+    4458
+  ],
+  "result": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4406,
+          4403,
+          4408,
+          4402,
+          4411,
+          4398,
+          4418,
+          4417,
+          4416,
+          4415,
+          4412,
+          4413,
+          4421,
+          4420,
+          4407,
+          4404,
+          4410,
+          4409,
+          4419,
+          4401,
+          4400,
+          4399
+        ],
+        "variableCount": 132,
+        "rank": 131,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {}
+      },
+      {
+        "components": [
+          4405
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4405": 1
+        }
+      },
+      {
+        "components": [
+          4414
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4414": 1
+        }
+      }
+    ],
+    "degreesOfFreedom": 3
+  },
+  "inputUnchanged": true,
+  "note": "Disposable saved-home clone, two jaw orientation guides suppressed; maximum one Newton iteration for mobility audit."
+}

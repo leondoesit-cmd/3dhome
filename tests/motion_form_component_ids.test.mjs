@@ -7,7 +7,7 @@ import {solveTopologyMates,topologyReference} from '../js/cad_mates.js';
 import {setRotation,axisAngleMatrix} from '../js/cad_mate_model.js';
 
 const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
-const start=source.indexOf('function createDefaultMotionStudy()');
+const start=source.indexOf('function motionScrewMateLabel(');
 const end=source.indexOf('\n/* The Evaluate command',start);
 const formSource=source.slice(start,end);
 test('saved study exposes a native Preview saved motion action for that exact study',()=>{
@@ -19,6 +19,27 @@ test('saved study exposes a native Preview saved motion action for that exact st
     btn:(label,action)=>({label,action}),openMotionPlayback:id=>preview=id};
   vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
   assert.equal(buttons.length,1);assert.equal(buttons[0].label,'Preview saved motion');buttons[0].action();assert.equal(preview,study.id);
+});
+
+test('multiple coupled screws show occurrence pair, lead, handedness and identity in current document units',()=>{
+  const assembly={components:[{id:1,name:'Captured trunnion'},{id:2,name:'Spindle'},{id:3,name:'Moving nut'}],topologyMates:[
+    {id:4450,type:'screw',coupledMotion:true,pitch:.2,handedness:'lh',a:{componentId:1},b:{componentId:2}},
+    {id:'other',name:'Adjustment',type:'screw',coupledMotion:true,pitch:2.54,handedness:'right',a:{componentId:2},b:{componentId:3}},
+  ]};
+  let form;
+  const context={E:{docType:'assembly',assembly,componentSel:[]},t:key=>key,openQuickForm:spec=>{form=spec;},
+    modelLengthText:value=>String(Number((value/2.54).toPrecision(8))),modelLengthUnit:()=> 'in'};
+  vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
+  form.onLive({study:'new',motorType:'screw'});
+  const choices=form.fields.find(field=>field.key==='screwMate').choices;
+  assert.deepEqual(Array.from(choices,choice=>choice.value),[4450,'other']);
+  assert.equal(choices[0].label,'Screw mate · Captured trunnion ↔ Spindle · lead 0.078740157 in/turn · LH · #4450');
+  assert.equal(choices[1].label,'Adjustment · Spindle ↔ Moving nut · lead 1 in/turn · RH · #other');
+  assembly.components[0].name='Home bearing';
+  vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
+  form.onLive({study:'new',motorType:'screw'});
+  assert.match(form.fields.find(field=>field.key==='screwMate').choices[0].label,/Home bearing ↔ Spindle/);
+  assert.deepEqual(Array.from(form.fields.find(field=>field.key==='screwMate').choices,choice=>choice.value),[4450,'other'],'caption changes never replace stored IDs');
 });
 
 test('named saved study reopens and seeks from its captured zero without duplicating studies',async()=>{
@@ -131,6 +152,7 @@ test('Motion Study form preserves the native numeric Screw mate ID through Apply
     a:reference(2781,'bore'),b:reference(2787,'shaft')}]};
   let form,undo=0,mobilityDuringRefresh;
   const context={E:{docType:'assembly',assembly,componentSel:[],mateDegreesOfFreedom:1},assemblySolveFresh:false,structuredClone,
+    modelLengthText:value=>String(value*10),modelLengthUnit:()=> 'mm',
     createMotionStudy,addRotaryMotor,addScrewMotor,addLinearMotor,addGearRelation,evaluateMotionStudy,
     syncFlexibleSpringsAtMotionState:async()=>{},t:s=>s,flash:()=>{},
     openQuickForm:f=>{form=f;},pushUndo:()=>undo++,invalidateInterference:()=>{},
@@ -138,6 +160,9 @@ test('Motion Study form preserves the native numeric Screw mate ID through Apply
   const run=()=>vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
   run();form.onLive({study:'new',motorType:'screw'});
   assert.equal(form.fields.find(f=>f.key==='screwMate').choices[0].value,2799);
+  assert.equal(form.fields.find(f=>f.key==='screwMate').choices[0].label,'Screw mate · Threaded trunnion ↔ Lead screw · lead 4 mm/turn · RH · #2799');
+  assert.match(form.hint,/relative axial travel follows its lead/);
+  assert.doesNotMatch(form.hint,/shaft advances/);
   assert.equal(await form.onApply({study:'new',motorType:'screw',screwMate:'2799',rpm:60,time:0.25}),true);
   assert.equal(undo,1);
   assert.equal(assembly.motionStudies[0].motors[0].mateId,2799);

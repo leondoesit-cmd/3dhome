@@ -1,0 +1,28 @@
+{
+  "instances": 25,
+  "uniqueExactRecipes": 16,
+  "totalVolumeCm3": 180.1617864487095,
+  "totalMassG": 1367.4709127324477,
+  "grounded": [
+    "KT01 Bench base"
+  ],
+  "countByModel": {
+    "cm_muzrb8n4": 1,
+    "cm_muzs3cnz": 1,
+    "cm_muzscwb3": 2,
+    "cm_muzslh3n": 4,
+    "cm_muzss7hl": 1,
+    "cm_muzt4ln7": 3,
+    "cm_muztcbk6": 2,
+    "cm_muztklz2": 2,
+    "cm_muztqbrg": 1,
+    "cm_muztxzqs": 1,
+    "cm_muzu3x2i": 1,
+    "cm_muzuacdn": 1,
+    "cm_muzufld4": 1,
+    "cm_muzup8x1": 1,
+    "cm_muzuv4qd": 1,
+    "cm_muzuzl1q": 2
+  },
+  "hits": []
+}

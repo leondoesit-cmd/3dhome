@@ -411,7 +411,12 @@ function runCluster(cluster, resolvedFrame, settings) {
   const vector = new Array(variables).fill(0);
   let residual = evaluate(vector), error = normOf(residual);
   let damping = 1e-4, iterations = 0, flat = 0;
-  let converged = error < settings.tolerance, stalled = false;
+  // Convergence is per residual, independent of how many redundant rows an
+  // assembly contains. The least-squares objective still uses the L2 norm.
+  // Summing hundreds of individually sub-tolerance saved-pose roundoff rows
+  // can otherwise exhaust a valid closed loop and falsely drop a mate.
+  const withinTolerance = rows => rows.every(value => Math.abs(value) < settings.tolerance);
+  let converged = withinTolerance(residual), stalled = false;
   for (; iterations < settings.maxIterations && variables && width && !converged && !stalled; iterations++) {
     const J = sparseJacobian(vector, residual);
     const step = gaussNewtonStep(J, residual, damping);
@@ -430,7 +435,7 @@ function runCluster(cluster, resolvedFrame, settings) {
     residual = next; error = nextError; damping = Math.max(1e-12, damping * 0.35);
     rebaseline(components, bases, vector);
     residual = evaluate(vector);
-    if (error < settings.tolerance) { converged = true; break; }
+    if (withinTolerance(residual)) { converged = true; break; }
     /* Steps that are still accepted but no longer buy anything: the solve has
        reached the closest it can come, which is what a set of mates that
        contradict each other looks like from inside. Left to run it would use
