@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH16-nominal-browser-2026-10-09.mforge",
+  "exact": true,
+  "featureCount": 2,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 0.39452120543780617,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "volumeCm3": 0.39452120543780617,
+  "boundsCm": {
+    "min": {
+      "x": -1,
+      "y": -1,
+      "z": 0
+    },
+    "max": {
+      "x": 1,
+      "y": 1,
+      "z": 0.2
+    }
+  },
+  "centerOfMassCm": {
+    "x": -1.143229052170864e-16,
+    "y": -3.9023680678726555e-17,
+    "z": 0.1
+  },
+  "seconds": 6.191016800000001
+}

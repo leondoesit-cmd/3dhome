@@ -1,0 +1,623 @@
+{
+  "scope": "Read-only actual Chrome raw assembly, regenerated definitions and actual saved home transforms; no assembly writes or authored mates.",
+  "source": "artifacts/planchard/SH-assembly-raw-home-browser-2026-10-09.mforge",
+  "sha256": "28afe277718ef2aba9d3ae8e08f435fb479f366d655a6a9c4e9c702224674700",
+  "components": [
+    {
+      "id": 5245,
+      "partNo": "SH01",
+      "source": "artifacts/planchard/SH01-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 168.6728895112609,
+        "maxToleranceCm": 1.0000005473399511e-7
+      },
+      "volumeCm3": 168.6728895112609,
+      "massKg": 1.3325158271389612
+    },
+    {
+      "id": 5246,
+      "partNo": "SH02",
+      "source": "artifacts/planchard/SH02-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 9.599271130905295,
+        "maxToleranceCm": 1.000736418121698e-7
+      },
+      "volumeCm3": 9.599271130905295,
+      "massKg": 0.07583424193415184
+    },
+    {
+      "id": 5247,
+      "partNo": "SH03",
+      "source": "artifacts/planchard/SH03-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 44.92382507216966,
+        "maxToleranceCm": 1.500000008005932e-7
+      },
+      "volumeCm3": 44.92382507216966,
+      "massKg": 0.3548982180701403
+    },
+    {
+      "id": 5248,
+      "partNo": "SH04",
+      "source": "artifacts/planchard/SH04-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": 8.200000000000001,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.1860140585832188,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 1.1860140585832188,
+      "massKg": 0.009310210359878267
+    },
+    {
+      "id": 5249,
+      "partNo": "SH05",
+      "source": "artifacts/planchard/SH05-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": 9.600000000000001,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 2.474946692498039,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 2.474946692498039,
+      "massKg": 0.01955207887073451
+    },
+    {
+      "id": 5250,
+      "partNo": "SH06",
+      "source": "artifacts/planchard/SH06-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": 9.600000000000001,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.4137166941154076,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 1.4137166941154076,
+      "massKg": 0.01116836188351172
+    },
+    {
+      "id": 5251,
+      "partNo": "SH07",
+      "source": "artifacts/planchard/SH07-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": 10.600000000000001,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.20106192982974677,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.20106192982974677,
+      "massKg": 0.0016084954386379742
+    },
+    {
+      "id": 5252,
+      "partNo": "SH08",
+      "source": "artifacts/planchard/SH08-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": -1,
+        "z": 3.4200000000000004,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 23.39041332175095,
+        "maxToleranceCm": 1.500000001110223e-7
+      },
+      "volumeCm3": 23.39041332175095,
+      "massKg": 0.18478426524183247
+    },
+    {
+      "id": 5253,
+      "partNo": "SH09",
+      "source": "artifacts/planchard/SH09-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": -1,
+        "z": 3.4200000000000004,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.6283185307179586,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.6283185307179586,
+      "massKg": 0.004963716392671873
+    },
+    {
+      "id": 5254,
+      "partNo": "SH10",
+      "source": "artifacts/planchard/SH10-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": -2.6,
+        "y": -1,
+        "z": 4.220000000000001,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.7099999397112935,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.7099999397112935,
+      "massKg": 0.005608999523719219
+    },
+    {
+      "id": 5255,
+      "partNo": "SH11",
+      "source": "artifacts/planchard/SH11-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": -2.6,
+        "y": -1,
+        "z": 4.0200000000000005,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.0966982218774938,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.0966982218774938,
+      "massKg": 0.000763915952832201
+    },
+    {
+      "id": 5256,
+      "partNo": "SH12",
+      "source": "artifacts/planchard/SH12-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": 0.4,
+        "z": 4.920000000000001,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.3571680263507913,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 1.3571680263507913,
+      "massKg": 0.010721627408171251
+    },
+    {
+      "id": 5257,
+      "partNo": "SH13",
+      "source": "artifacts/planchard/SH13-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": -1.6,
+        "z": 5.420000000000001,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 5.074392717358961,
+        "maxToleranceCm": 1.0000000062803698e-7
+      },
+      "volumeCm3": 5.074392717358961,
+      "massKg": 0.04008770246713579
+    },
+    {
+      "id": 5258,
+      "partNo": "SH14",
+      "source": "artifacts/planchard/SH14-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": -1.6,
+        "z": 8.92,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.38720129455494207,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.38720129455494207,
+      "massKg": 0.0030588902269840425
+    },
+    {
+      "id": 5259,
+      "partNo": "SH15",
+      "source": "artifacts/planchard/SH15-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": -1,
+        "z": 4.220000000000001,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 10.51588321612872,
+        "maxToleranceCm": 1.0000000336014459e-7
+      },
+      "volumeCm3": 10.51588321612872,
+      "massKg": 0.0830754774074169
+    },
+    {
+      "id": 5260,
+      "partNo": "SH16",
+      "source": "artifacts/planchard/SH16-final-browser-2026-10-09.mforge",
+      "checks": {
+        "role": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "parts": true,
+        "properties": true,
+        "grounded": true,
+        "position": true,
+        "identityRotation": true
+      },
+      "transform": {
+        "x": 0,
+        "y": -1.6,
+        "z": 5.220000000000001,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.39452120543780617,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.39452120543780617,
+      "massKg": 0.0031167175229586687
+    }
+  ],
+  "mates": 0,
+  "topologyMates": 0,
+  "componentCount": 16,
+  "exactNativeHits": [],
+  "totalVolumeCm3": 271.02632156325114,
+  "totalMassKg": 2.141068745839738,
+  "inputsUnchanged": true,
+  "pass": true
+}

@@ -1,0 +1,1298 @@
+{
+  "scope": "Actual16 browser part definitions regenerated natively; disposable frozen-home and analytic proposal poses only. No authored assembly/native mate binding or final movement acceptance.",
+  "definitions": [
+    {
+      "partNo": "SH01",
+      "source": "artifacts/planchard/SH01-final-browser-2026-10-09.mforge",
+      "sha256": "2a370988ddccd663d59c4057ba1b06ce4bd16e9c23f3ac0f2d202ca273272175",
+      "volumeCm3": 168.6728895112609,
+      "boundsCm": {
+        "min": {
+          "x": -5,
+          "y": -5,
+          "z": -1.2000000000000002
+        },
+        "max": {
+          "x": 5,
+          "y": 8.200000000000001,
+          "z": 3.4200000000000004
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 168.6728895112609,
+        "maxToleranceCm": 1.0000005473399511e-7
+      },
+      "features": 6,
+      "sketches": 6,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Back plate with integral slide guide and feed bearing; original educational dimensions; printed 8-55 / PDF433",
+        "PartNo": "SH01",
+        "BookItemNo": "1"
+      }
+    },
+    {
+      "partNo": "SH02",
+      "source": "artifacts/planchard/SH02-final-browser-2026-10-09.mforge",
+      "sha256": "b28bda6e1d04bad32bc1225c4d96f106635845dcc28acf8e3f21237d32523e2f",
+      "volumeCm3": 9.599271130905295,
+      "boundsCm": {
+        "min": {
+          "x": -0.8000001,
+          "y": -4.5,
+          "z": -0.8000001
+        },
+        "max": {
+          "x": 0.8000001,
+          "y": 10.600000099999999,
+          "z": 0.8000001
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 9.599271130905295,
+        "maxToleranceCm": 1.000736418121698e-7
+      },
+      "features": 5,
+      "sketches": 5,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Down bit / captured feed screw; ideal smooth RH lead 1 mm envelope, threads omitted; original educational dimensions",
+        "PartNo": "SH02",
+        "BookItemNo": "2"
+      }
+    },
+    {
+      "partNo": "SH03",
+      "source": "artifacts/planchard/SH03-final-browser-2026-10-09.mforge",
+      "sha256": "263c7b5d32680de38b9352db64d6825106d4bcf6ebd739351d89d02d820211cd",
+      "volumeCm3": 44.92382507216966,
+      "boundsCm": {
+        "min": {
+          "x": -3.4000000000000004,
+          "y": -2,
+          "z": 1.2000000000000002
+        },
+        "max": {
+          "x": 2,
+          "y": 4,
+          "z": 3.420000000000001
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 44.92382507216966,
+        "maxToleranceCm": 1.500000008005932e-7
+      },
+      "features": 6,
+      "sketches": 6,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Vertical slide with integral guide cheeks and feed nut; original educational dimensions, printed 8-55 / PDF433",
+        "PartNo": "SH03",
+        "BookItemNo": "3"
+      }
+    },
+    {
+      "partNo": "SH04",
+      "source": "artifacts/planchard/SH04-final-browser-2026-10-09.mforge",
+      "sha256": "4a31108f5c7827df020aa971e622a6dc5ccb3c0acee001d91c7f122cc3be1ee1",
+      "volumeCm3": 1.1860140585832188,
+      "boundsCm": {
+        "min": {
+          "x": -0.8,
+          "y": 0,
+          "z": -0.8
+        },
+        "max": {
+          "x": 0.8,
+          "y": 0.8,
+          "z": 0.8
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.1860140585832188,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 1,
+      "sketches": 1,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "Plain Carbon Steel (grade unspecified)",
+          "density": 7.85,
+          "source": "Alleima 20C carbon steel material datasheet: 7.85 g/cm³; representative reference density, not a certified grade"
+        }
+      ],
+      "properties": {
+        "Description": "Spacer bush / upper feed-screw journal; original OD16 ID8.2 length8 mm educational dimensions",
+        "PartNo": "SH04",
+        "BookItemNo": "4"
+      }
+    },
+    {
+      "partNo": "SH05",
+      "source": "artifacts/planchard/SH05-final-browser-2026-10-09.mforge",
+      "sha256": "a404ee9054e5fe24a5f55cefc77991a653a6d738f541169dd9fee8db7ef8a01a",
+      "volumeCm3": 2.474946692498039,
+      "boundsCm": {
+        "min": {
+          "x": -3,
+          "y": -0.7000000000000001,
+          "z": -0.7000000000000001
+        },
+        "max": {
+          "x": -1,
+          "y": 0.7000000000000001,
+          "z": 0.7000000000000001
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 2.474946692498039,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 1,
+      "sketches": 1,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Handle grip; original smooth cylindrical annulus OD14 ID6.2 length20 mm, book item5",
+        "PartNo": "SH05",
+        "BookItemNo": "5"
+      }
+    },
+    {
+      "partNo": "SH06",
+      "source": "artifacts/planchard/SH06-final-browser-2026-10-09.mforge",
+      "sha256": "5ec524b3cb89250f73649b6afc56c3eafa7cca313ae7156b3bab36000b0c4754",
+      "volumeCm3": 1.4137166941154076,
+      "boundsCm": {
+        "min": {
+          "x": -2.5,
+          "y": -0.30000000000000004,
+          "z": -0.30000000000000004
+        },
+        "max": {
+          "x": 2.5,
+          "y": 0.30000000000000004,
+          "z": 0.30000000000000004
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.4137166941154076,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 1,
+      "sketches": 1,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Handle bar; original D6 length50 mm smooth rod, book item6",
+        "PartNo": "SH06",
+        "BookItemNo": "6"
+      }
+    },
+    {
+      "partNo": "SH07",
+      "source": "artifacts/planchard/SH07-final-browser-2026-10-09.mforge",
+      "sha256": "aad372a1ead29a49ba180a5614959dfc3e39120fe59c67d8efcc9d933b87dbb0",
+      "volumeCm3": 0.20106192982974677,
+      "boundsCm": {
+        "min": {
+          "x": -0.4,
+          "y": -0.4,
+          "z": -0.4
+        },
+        "max": {
+          "x": 0.4,
+          "y": 0.30000000000000004,
+          "z": 0.4
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.20106192982974677,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 2,
+      "sketches": 2,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "Steel 304",
+          "density": 8,
+          "source": "Atlas Steels Product Reference Manual, Section 9 Physical Properties, p. 7 (October 2016): 304/S30400, 8000 kg/m³ (8.0 g/cm³); representative CAD reference density, not cast-grade certification"
+        }
+      ],
+      "properties": {
+        "Description": "Book standard-fastener role, original smooth nominal M4 round-head proxy; threads omitted; Steel304 reference substitutes cast stainless steel",
+        "PartNo": "SH07",
+        "BookItemNo": "7",
+        "MaterialNote": "Steel 304 reference substitute for book cast stainless steel; no grade or strength certification",
+        "DensityReference": "Atlas Steels Product Reference Manual Section 9 Physical Properties p7 (Oct 2016): 304/S30400 8000 kg/m3 = 8.0 g/cm3; representative CAD reference, not cast-grade certification; https://atlassteels.com.au/documents/9-Appendices.pdf#page=7"
+      }
+    },
+    {
+      "partNo": "SH08",
+      "source": "artifacts/planchard/SH08-final-browser-2026-10-09.mforge",
+      "sha256": "259e112e0ac55a882ab08893d1852d19fc00dccdf90d5d13bf8186e08d31c311",
+      "volumeCm3": 23.39041332175095,
+      "boundsCm": {
+        "min": {
+          "x": -3.2,
+          "y": -2.2,
+          "z": 0
+        },
+        "max": {
+          "x": 3.2,
+          "y": 2.2,
+          "z": 2.8000000000000003
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 23.39041332175095,
+        "maxToleranceCm": 1.500000001110223e-7
+      },
+      "features": 6,
+      "sketches": 6,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Swivel plate / clapper box with rear pivot, adjustment slot and hinge ears; original educational dimensions, book item8",
+        "PartNo": "SH08",
+        "BookItemNo": "8"
+      }
+    },
+    {
+      "partNo": "SH09",
+      "source": "artifacts/planchard/SH09-final-browser-2026-10-09.mforge",
+      "sha256": "f75899e97efa97852f263de43fc37cb23d61ff183a101e6212b6c2a9e8110018",
+      "volumeCm3": 0.6283185307179586,
+      "boundsCm": {
+        "min": {
+          "x": -0.6000000000000001,
+          "y": -0.6000000000000001,
+          "z": -0.2
+        },
+        "max": {
+          "x": 0.6000000000000001,
+          "y": 0.6000000000000001,
+          "z": 0.8
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.6283185307179586,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 2,
+      "sketches": 2,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Swivel screw pin; original smooth D8 captured pivot with D12 head, ideal threads omitted, book item9",
+        "PartNo": "SH09",
+        "BookItemNo": "9"
+      }
+    },
+    {
+      "partNo": "SH10",
+      "source": "artifacts/planchard/SH10-final-browser-2026-10-09.mforge",
+      "sha256": "28622dfb6fe84f05f53dafd1182fb635c7433c721eeab515298675f6feb0b81d",
+      "volumeCm3": 0.7099999397112935,
+      "boundsCm": {
+        "min": {
+          "x": -0.5,
+          "y": -0.5,
+          "z": -1.4000000000000001
+        },
+        "max": {
+          "x": 0.5,
+          "y": 0.5,
+          "z": 0.4
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.7099999397112935,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 2,
+      "sketches": 2,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Clamping screw; original smooth D6 stem length14 mm with D10 head, ideal threads omitted, book item10",
+        "PartNo": "SH10",
+        "BookItemNo": "10"
+      }
+    },
+    {
+      "partNo": "SH11",
+      "source": "artifacts/planchard/SH11-final-browser-2026-10-09.mforge",
+      "sha256": "855577f774778a0ceaefa6b57671e4cf39088a544c1f995c134241aa07ca371c",
+      "volumeCm3": 0.0966982218774938,
+      "boundsCm": {
+        "min": {
+          "x": -0.5,
+          "y": -0.5,
+          "z": 0
+        },
+        "max": {
+          "x": 0.5,
+          "y": 0.5,
+          "z": 0.2
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.0966982218774938,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 1,
+      "sketches": 1,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Small washer OD10 ID6.2 thickness2 mm; approved original clearance correction avoids clapper-ear clash at +/-10 degree apron swivel; book item11",
+        "PartNo": "SH11",
+        "BookItemNo": "11"
+      }
+    },
+    {
+      "partNo": "SH12",
+      "source": "artifacts/planchard/SH12-final-browser-2026-10-09.mforge",
+      "sha256": "60323a6dd33d5941e10b7b9f3152c539489e60d156f570feee77036c84e795bb",
+      "volumeCm3": 1.3571680263507913,
+      "boundsCm": {
+        "min": {
+          "x": -2.4000000000000004,
+          "y": -0.30000000000000004,
+          "z": -0.30000000000000004
+        },
+        "max": {
+          "x": 2.4000000000000004,
+          "y": 0.30000000000000004,
+          "z": 0.30000000000000004
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.3571680263507913,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 1,
+      "sketches": 1,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH12 item 12 pivot pin: Right Plane D6 mm, X -24..24 mm. Companion CAD/AVI unavailable; assumed dimensions, smooth cylindrical pin, representative AISI 1020 density, not a certified design.",
+        "PartNo": "SH12",
+        "BookItemNo": "12"
+      }
+    },
+    {
+      "partNo": "SH13",
+      "source": "artifacts/planchard/SH13-final-browser-2026-10-09.mforge",
+      "sha256": "991ee3026b1642717cde0c45f3c130a518859177e65df2c27f5688da7eab2894",
+      "volumeCm3": 5.074392717358961,
+      "boundsCm": {
+        "min": {
+          "x": -1,
+          "y": -1,
+          "z": -0.8
+        },
+        "max": {
+          "x": 1,
+          "y": 1,
+          "z": 3.5
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 5.074392717358961,
+        "maxToleranceCm": 1.0000000062803698e-7
+      },
+      "features": 5,
+      "sketches": 5,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH13 item 13 tool holder: D12 neck Z -8..0, D20 shoulder 0..5, D12 post 5..35 mm; transverse 8.2x6.2 slot at Z20 and D5.2 terminal socket Z25..35. Companion CAD/AVI unavailable; assumed dimensions, empty tool slot, representative AISI 1020 density, not a certified design.",
+        "PartNo": "SH13",
+        "BookItemNo": "13"
+      }
+    },
+    {
+      "partNo": "SH14",
+      "source": "artifacts/planchard/SH14-final-browser-2026-10-09.mforge",
+      "sha256": "30699381a736deab1680d6c4eb220f2082088dd5e8e48472f86431d3655eec4c",
+      "volumeCm3": 0.38720129455494207,
+      "boundsCm": {
+        "min": {
+          "x": -0.45,
+          "y": -0.45,
+          "z": -1
+        },
+        "max": {
+          "x": 0.45,
+          "y": 0.45,
+          "z": 0.30000000000000004
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.38720129455494207,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 2,
+      "sketches": 2,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH14 item 14 tool fixing screw: Front D5 mm smooth stem Z -10..0, D9 mm head Z0..3. Companion CAD/AVI unavailable; assumed dimensions, threads omitted, representative AISI 1020 density, not certified or rated.",
+        "PartNo": "SH14",
+        "BookItemNo": "14"
+      }
+    },
+    {
+      "partNo": "SH15",
+      "source": "artifacts/planchard/SH15-final-browser-2026-10-09.mforge",
+      "sha256": "d8223510fa93ce61bc264511424efd2488cc26092fadb0ea4bc442486cbc8e4d",
+      "volumeCm3": 10.51588321612872,
+      "boundsCm": {
+        "min": {
+          "x": -1.58,
+          "y": -2,
+          "z": -0.2
+        },
+        "max": {
+          "x": 1.58,
+          "y": 1.8,
+          "z": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 10.51588321612872,
+        "maxToleranceCm": 1.0000000336014459e-7
+      },
+      "features": 4,
+      "sketches": 4,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH15 item 15 Drag Plate functional clapper: Front 31.6x38 center(0,-1) Z0..10, rear stop 10x8 center(0,-14) Z-2..0; Right D6.2 hinge center(U7,V14), Front D12.2 tool socket center(0,-6) Z4..10. Companion CAD/AVI unavailable; assumed dimensions, passive clapper motion, AISI 1020 reference density, not certified or rated.",
+        "PartNo": "SH15",
+        "BookItemNo": "15"
+      }
+    },
+    {
+      "partNo": "SH16",
+      "source": "artifacts/planchard/SH16-nominal-browser-2026-10-09.mforge",
+      "sha256": "b4316335e0473847d1db6e2aa0837437498f60e1b14c52896c12f9d9525b7492",
+      "volumeCm3": 0.39452120543780617,
+      "boundsCm": {
+        "min": {
+          "x": -1,
+          "y": -1,
+          "z": 0
+        },
+        "max": {
+          "x": 1,
+          "y": 1,
+          "z": 0.2
+        }
+      },
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.39452120543780617,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "features": 1,
+      "sketches": 1,
+      "allSketchesFullyDefined": true,
+      "material": [
+        {
+          "name": "AISI 1020 (SOLIDWORKS reference)",
+          "density": 7.9,
+          "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density"
+        }
+      ],
+      "properties": {
+        "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH16 item 16 tool washer: Front annulus OD20/ID12.2 mm, Z0..2 mm. Companion CAD/AVI unavailable; assumed dimensions, representative AISI 1020 reference density, not certified or rated.",
+        "PartNo": "SH16",
+        "BookItemNo": "16"
+      }
+    }
+  ],
+  "samples": [
+    {
+      "feedMm": 0,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 1,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 2,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 3,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 4,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 5,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 6,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 7,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 8,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 9,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 11,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 12,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 13,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 14,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 15,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 16,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 17,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 18,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 19,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 1,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 2,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 3,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 4,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 5,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 6,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 7,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 8,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 9,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 10,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 11,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 12,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 13,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 14,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 15,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 16,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 17,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 18,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 19,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 20,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 1,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 2,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 3,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 4,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 5,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 6,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 7,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 8,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 9,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 10,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 11,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 12,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 13,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 14,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 15,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 16,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 17,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 18,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 19,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10,
+      "betaDegrees": 20,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 1,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 2,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 3,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 4,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 5,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 6,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 7,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 8,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 9,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 10,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 11,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 12,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 13,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 14,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 15,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 16,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 17,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 18,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 19,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 20,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 0,
+      "swivelDegrees": -10,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 0,
+      "swivelDegrees": -5,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 0,
+      "swivelDegrees": 5,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 0,
+      "swivelDegrees": 10,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 20,
+      "swivelDegrees": -10,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 20,
+      "swivelDegrees": -5,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 20,
+      "swivelDegrees": 5,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": 20,
+      "swivelDegrees": 10,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 0,
+      "swivelDegrees": -10,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 0,
+      "swivelDegrees": -5,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 0,
+      "swivelDegrees": 5,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 0,
+      "swivelDegrees": 10,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 20,
+      "swivelDegrees": -10,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 20,
+      "swivelDegrees": -5,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 20,
+      "swivelDegrees": 5,
+      "hits": []
+    },
+    {
+      "feedMm": 20,
+      "betaDegrees": 20,
+      "swivelDegrees": 10,
+      "hits": []
+    },
+    {
+      "feedMm": 0.125,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0.25,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0.5,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0.75,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0.875,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 10.25,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 19.75,
+      "betaDegrees": 0,
+      "swivelDegrees": 0,
+      "hits": []
+    },
+    {
+      "feedMm": 0,
+      "betaDegrees": -1,
+      "swivelDegrees": 0,
+      "hits": [
+        {
+          "a": "SH08",
+          "b": "SH15",
+          "volume": 0.0389896692475942,
+          "exact": true,
+          "bounds": {
+            "x0": -0.5,
+            "y0": -2.7847778913051098,
+            "z0": 3.9642893737599407,
+            "x1": 0.5,
+            "y1": -1.983927302581784,
+            "z1": 4.0200000000000005
+          }
+        },
+        {
+          "a": "SH09",
+          "b": "SH15",
+          "volume": 0.027758293742365565,
+          "exact": true,
+          "bounds": {
+            "x0": -0.6000000000000001,
+            "y0": -1.6,
+            "z0": 4.184983240512829,
+            "x1": 0.6000000000000001,
+            "y1": -0.3999999999999999,
+            "z1": 4.220000000000001
+          }
+        }
+      ]
+    }
+  ],
+  "wrongBranchClashesAsExpected": true,
+  "intendedSamples": 104,
+  "allIntendedSamplesClear": true,
+  "inputsUnchanged": true,
+  "complete": true,
+  "accepted": true
+}

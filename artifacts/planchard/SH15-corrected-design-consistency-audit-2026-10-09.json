@@ -1,0 +1,195 @@
+{
+  "source": "artifacts/planchard/SH15-corrected-nominal-browser-2026-10-09.mforge",
+  "bytes": 257651,
+  "inputSha256": "e245aafec6d32716cc18d2d8a264fc59a4b8c2090ba042f58081a14b1eb5f423",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "name": "Clapper body",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 0,
+      "actualStoredSpanMm": [
+        0,
+        10
+      ],
+      "expectedSpanMm": [
+        0,
+        10
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Rear stop",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": -2,
+      "effectiveStartMm": -2,
+      "actualStoredSpanMm": [
+        -2,
+        0
+      ],
+      "expectedSpanMm": [
+        -2,
+        0
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Hinge bore",
+      "sketchOffsetMm": -15.8,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": -15.8,
+      "actualStoredSpanMm": [
+        -15.8,
+        15.809999999999999
+      ],
+      "expectedSpanMm": [
+        -15.8,
+        null
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Tool socket",
+      "sketchOffsetMm": 4,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 4,
+      "actualStoredSpanMm": [
+        4,
+        10
+      ],
+      "expectedSpanMm": [
+        4,
+        10
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH15-corrected-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 11,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 10.51588321612872,
+      "maxToleranceCm": 1.0000000336014459e-7
+    },
+    "volumeCm3": 10.51588321612872,
+    "boundsCm": {
+      "min": {
+        "x": -1.58,
+        "y": -2,
+        "z": -0.2
+      },
+      "max": {
+        "x": 1.58,
+        "y": 1.8,
+        "z": 1
+      }
+    },
+    "centerOfMassCm": {
+      "x": 2.2390399903341728e-17,
+      "y": -0.22204312255556527,
+      "z": 0.4595450349838341
+    },
+    "seconds": 6.1678473
+  },
+  "step": {
+    "source": "artifacts/planchard/SH15-nominal-browser-2026-10-09.step",
+    "bytes": 40775,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 10.746036293930825,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 10.746036293930825,
+      "centerOfMass": {
+        "x": -5.439484388312106e-16,
+        "y": -0.2301380085433615,
+        "z": 0.4646949757394361
+      },
+      "inertia": [
+        [
+          13.189432852031688,
+          -3.575770438111207e-15,
+          8.287560446390149e-16
+        ],
+        [
+          -3.575770438111207e-15,
+          10.137184239412885,
+          0.16116098717909288
+        ],
+        [
+          8.287560446390149e-16,
+          0.16116098717909288,
+          21.422264943185358
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1.58,
+          "y": -2,
+          "z": -0.2
+        },
+        "max": {
+          "x": 1.58,
+          "y": 1.8,
+          "z": 1.0000000000000162
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH15-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH15-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticFrozenVolumeCm3": 10.515883216128717,
+  "nativeFrozenVolumeErrorCm3": 3.552713678800501e-15,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.0830754774074169
+  },
+  "properties": {
+    "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH15 item 15 Drag Plate functional clapper: Front 31.6x38 center(0,-1) Z0..10, rear stop 10x8 center(0,-14) Z-2..0; Right D6.2 hinge center(U7,V14), Front D12.2 tool socket center(0,-6) Z4..10. Companion CAD/AVI unavailable; assumed dimensions, passive clapper motion, AISI 1020 reference density, not certified or rated.",
+    "PartNo": "SH15",
+    "BookItemNo": "15"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent actualChrome observation",
+    "initialDriving": "BodyWidth31.6→31.8 native10.51588→10.58887cm3/.08307548→.08365211kg Undo31.6Redo31.8Undo31.6Saveclean",
+    "coldReopen": "Pending parentactualcold observation"
+  },
+  "pass": true
+}

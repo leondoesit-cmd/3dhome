@@ -1,0 +1,13 @@
+{
+  "bundle": "artifacts/planchard/SH15-corrected-nominal-browser-2026-10-09.mforge",
+  "step": "artifacts/planchard/SH15-corrected-nominal-browser-2026-10-09.step",
+  "nativeOutsideStep": {
+    "volume": 0,
+    "solidCount": 0
+  },
+  "stepOutsideNative": {
+    "volume": 0,
+    "solidCount": 0
+  },
+  "symmetricDifferenceVolumeCm3": 0
+}

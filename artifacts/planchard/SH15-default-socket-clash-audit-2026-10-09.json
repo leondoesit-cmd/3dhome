@@ -1,0 +1,29 @@
+{
+  "sources": [
+    "artifacts/planchard/SH13-final-browser-2026-10-09.mforge",
+    "artifacts/planchard/SH15-default-socket-diagnostic-browser-2026-10-09.mforge"
+  ],
+  "scope": "Actual protected D10 socket diagnostic in nominal home with actual accepted SH13; no authored model mutation.",
+  "volumesCm3": [
+    5.074392717358961,
+    10.746036293930707
+  ],
+  "intersection": {
+    "intersects": true,
+    "volume": 0.20734511513692644,
+    "bounds": {
+      "min": {
+        "x": -0.6000000000000001,
+        "y": -2.2,
+        "z": 4.62
+      },
+      "max": {
+        "x": 0.6000000000000001,
+        "y": -1,
+        "z": 5.22
+      }
+    }
+  },
+  "expectedMissingNeckClearanceVolumeCm3": 0.2073451151369263,
+  "inputsUnchanged": true
+}
