@@ -26,6 +26,11 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 Earlier paragraphs below are historical unless explicitly superseding this current pointer.
 
+### Current SH10 checkpoint — 2026-10-09
+
+SH01..SH09fullyaccepted;SH07/08+Steel304sourcecommitted11aa9bd. SH09finalnominalnative.6283185307179586cm3/.004963716392671873kg/12x12x10/4fullydefinedsteps/librarycm_mv02b8ll/SH09Book9Description;finalcold/nativeSTEPdiff0/drivingPASS reportsready,commitSH09next.
+
+CurrentChrome710862239 authorsSH10ClampingScrewfromblank: FrontD6stemZ−14..0/FrontD10head0..4,twofeatures4fullydefinedsteps. AISI1020ref7.9/SH10Book10Descriptionthreadsmoothomitted. NativeChrome.7099999cm3/.005609000kg;stemD6→6.2 gives.7368291/.005820950 Undo6Redo6.2Undo6PASS Saveheaderclicked. Awaitactualcleanaria-label→ProjectBundle/STEP/nominaljpg→coldlibrary/finalnativeaudit. NextSH11SmallWasherFrontannulusOD10/ID6.2Z0..2 (APPROVEDcorrectedOD10,notoriginalOD12whichclashedat10degswivel) fromblank. AllfinalpartsChromeonly;book8.20printed8-55/PDF433active noassemblyyet.
 ### Current SH09 checkpoint — 2026-10-09
 
 SH01..SH08fullyaccepted. SH07final116172bytes/download2 native.20106192982974677cm3/.0016084954386379742kg, repairedAtlasSteel3048.0bodydensitySource+visibleDensityReferenceretained, source/catalogpresetchangesparent6materialtestsPASS/gates646/1489agentPASS. Repairedsavedlibrarycm_mv01xvut reopenedagainafterSH08 confirmsDensitysource/8.0/oneSolid4steps; sourceprovenancejpgandcoldfinaljpgprotected. SH08final517737bytes/download1 librarycm_mv02341q native23.39041332175095cm3/.18478426524183247kg64x44x28/all6frozenfeatures12fullydefinedsteps/coldmetadataPASS/STEPdiff0. ReportsandJSONsready;commitSH07+catalog/SH08next.

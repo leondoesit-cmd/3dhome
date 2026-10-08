@@ -1,0 +1,210 @@
+{
+  "source": "artifacts/planchard/SH09-nominal-browser-2026-10-09.mforge",
+  "bytes": 137571,
+  "inputSha256": "aae8b5e93de9b3e79c545c3f47262dee908625a4f3db152e241148d7c834cae6",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "diameterMm": 8,
+      "fromMm": -2,
+      "toMm": 6,
+      "pass": true
+    },
+    {
+      "diameterMm": 12,
+      "fromMm": 6,
+      "toMm": 8,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH09-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.6283185307179586,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 0.6283185307179586,
+    "boundsCm": {
+      "min": {
+        "x": -0.6000000000000001,
+        "y": -0.6000000000000001,
+        "z": -0.2
+      },
+      "max": {
+        "x": 0.6000000000000001,
+        "y": 0.6000000000000001,
+        "z": 0.8
+      }
+    },
+    "centerOfMassCm": {
+      "x": -6.073975954183799e-17,
+      "y": 1.2475101247161337e-17,
+      "z": 0.38000000000000006
+    },
+    "seconds": 5.838959399999999
+  },
+  "step": {
+    "source": "artifacts/planchard/SH09-nominal-browser-2026-10-09.step",
+    "bytes": 9755,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.628318530717956,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 0.628318530717956,
+      "centerOfMass": {
+        "x": -1.4687978216480887e-15,
+        "y": -3.335615746287716e-18,
+        "z": 0.38000000000000156
+      },
+      "inertia": [
+        [
+          0.09483421023636411,
+          6.63927604868467e-18,
+          -4.669181707939188e-16
+        ],
+        [
+          6.63927604868467e-18,
+          0.09483421023636364,
+          3.0947328808221068e-18
+        ],
+        [
+          -4.669181707939188e-16,
+          3.0947328808221068e-18,
+          0.07288494956328337
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.6,
+          "y": -0.6,
+          "z": -0.2
+        },
+        "max": {
+          "x": 0.6,
+          "y": 0.6,
+          "z": 0.8
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH09-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH09-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "analyticVolumeCm3": 0.6283185307179586,
+  "nativeAnalyticVolumeErrorCm3": 0,
+  "nativeStepEquivalent": true,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.004963716392671873
+  },
+  "properties": {
+    "Description": "Swivel screw pin; original smooth D8 captured pivot with D12 head, ideal threads omitted, book item9",
+    "PartNo": "SH09",
+    "BookItemNo": "9"
+  },
+  "metadataPass": true,
+  "presetProvenanceGap": false,
+  "browserDurability": {
+    "source": "Parent actual Chrome observations; auditor did not control browser",
+    "library": "cm_mv02b8ll",
+    "driving": "ShaftD8→8.2 native.6283185→.6486761cm3/mass.004963716→.005124541kg;Undo8Redo8.2Undo8Saveclean",
+    "coldReopen": "PASS: saved-library reopen retains four fully defined editable steps, one native solid 12×12×10mm and SH09/BookItem9/Description.",
+    "pass": true
+  },
+  "geometryPass": true,
+  "finalCold": {
+    "source": "artifacts/planchard/SH09-final-browser-2026-10-09.mforge",
+    "bytes": 138866,
+    "inputSha256": "f75899e97efa97852f263de43fc37cb23d61ff183a101e6212b6c2a9e8110018",
+    "inputUnchanged": true,
+    "checks": {
+      "featuresExact": true,
+      "sketchesExact": true,
+      "historyExact": true,
+      "authoredPartsPreserved": true,
+      "originalPropertiesPreserved": true,
+      "nativeVolumeUnchanged": true,
+      "nativeBoundsUnchanged": true,
+      "singleValidSolid": true
+    },
+    "pass": true,
+    "native": {
+      "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH09-final-browser-2026-10-09.mforge",
+      "exact": true,
+      "featureCount": 5,
+      "issues": [],
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.6283185307179586,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.6283185307179586,
+      "boundsCm": {
+        "min": {
+          "x": -0.6000000000000001,
+          "y": -0.6000000000000001,
+          "z": -0.2
+        },
+        "max": {
+          "x": 0.6000000000000001,
+          "y": 0.6000000000000001,
+          "z": 0.8
+        }
+      },
+      "centerOfMassCm": {
+        "x": -6.073975954183799e-17,
+        "y": 1.2475101247161337e-17,
+        "z": 0.38000000000000006
+      },
+      "seconds": 5.1267688
+    },
+    "material": {
+      "name": "AISI 1020 (SOLIDWORKS reference)",
+      "density": 7.9,
+      "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+      "massKg": 0.004963716392671873
+    },
+    "properties": {
+      "Description": "Swivel screw pin; original smooth D8 captured pivot with D12 head, ideal threads omitted, book item9",
+      "PartNo": "SH09",
+      "BookItemNo": "9"
+    },
+    "priorStepEquivalence": {
+      "evidence": "SH09-step-equivalence-audit-2026-10-09.json",
+      "symmetricDifferenceVolumeCm3": 0,
+      "reuseReason": "Final authored features, sketches and history are exactly nominal; fresh final native regeneration has unchanged volume and bounds."
+    },
+    "browserDurability": {
+      "source": "Parent actual Chrome observations; auditor did not control browser",
+      "library": "cm_mv02b8ll",
+      "driving": "ShaftD8→8.2 native.6283185→.6486761cm3/mass.004963716→.005124541kg;Undo8Redo8.2Undo8Saveclean",
+      "coldReopen": "PASS: saved-library reopen retains four fully defined editable steps, one native solid 12×12×10mm and SH09/BookItem9/Description.",
+      "pass": true
+    }
+  },
+  "finalAccepted": true
+}
