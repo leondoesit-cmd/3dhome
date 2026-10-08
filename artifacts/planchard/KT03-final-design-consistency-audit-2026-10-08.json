@@ -1,0 +1,215 @@
+{
+  "source": "artifacts/planchard/KT03-final-browser-2026-10-08.mforge",
+  "inputSha256": "d454a9164e6deec3240ed6d6b6614b8dd738ebe88361fad7e63fbf6b925dc430",
+  "inputUnchanged": true,
+  "checks": {
+    "outline": true,
+    "closedOrderedOutline": true,
+    "bores": true,
+    "planes": true,
+    "fullyDefined": true,
+    "boss": true,
+    "cut": true,
+    "featureCommon": true,
+    "history": true
+  },
+  "pointChecks": [
+    {
+      "expectedMm": [
+        -34.518601451101,
+        -47.7196004146
+      ],
+      "actualMm": [
+        -34.518601451101,
+        -47.71960041460001
+      ],
+      "pass": true
+    },
+    {
+      "expectedMm": [
+        -5.123579703923,
+        5.191438730321
+      ],
+      "actualMm": [
+        -5.123579703923,
+        5.191438730321
+      ],
+      "pass": true
+    },
+    {
+      "expectedMm": [
+        67.84459893821,
+        44.4819964607
+      ],
+      "actualMm": [
+        67.84459893821,
+        44.48199646070001
+      ],
+      "pass": true
+    },
+    {
+      "expectedMm": [
+        74.4819964607,
+        32.15540106179
+      ],
+      "actualMm": [
+        74.4819964607,
+        32.15540106179
+      ],
+      "pass": true
+    },
+    {
+      "expectedMm": [
+        5.123579703923,
+        -5.191438730321
+      ],
+      "actualMm": [
+        5.123579703923,
+        -5.191438730321
+      ],
+      "pass": true
+    },
+    {
+      "expectedMm": [
+        -22.2803995854,
+        -54.518601451101
+      ],
+      "actualMm": [
+        -22.2803995854,
+        -54.518601451101
+      ],
+      "pass": true
+    }
+  ],
+  "circleChecks": [
+    {
+      "role": "RA",
+      "u": -25,
+      "v": -45,
+      "d": 6.2,
+      "pointId": 4179,
+      "entityId": 4180,
+      "dimensionId": 4181,
+      "pass": true
+    },
+    {
+      "role": "P",
+      "u": 0,
+      "v": 0,
+      "d": 8.2,
+      "pointId": 4183,
+      "entityId": 4184,
+      "dimensionId": 4185,
+      "pass": true
+    },
+    {
+      "role": "Q",
+      "u": 45,
+      "v": 24.230769230769,
+      "d": 8.2,
+      "pointId": 4187,
+      "entityId": 4188,
+      "dimensionId": 4189,
+      "pass": true
+    },
+    {
+      "role": "JA",
+      "u": 65,
+      "v": 35,
+      "d": 8.2,
+      "pointId": 4191,
+      "entityId": 4192,
+      "dimensionId": 4193,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT03-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "volumeCm3": 5.2848315034916284,
+    "boundsCm": {
+      "min": {
+        "x": -3.4518601451101,
+        "y": -5.4518601451101,
+        "z": 1.7000000000000002
+      },
+      "max": {
+        "x": 7.448199646070001,
+        "y": 4.448199646070001,
+        "z": 2
+      }
+    },
+    "centerOfMassCm": {
+      "x": 1.3333376190514779,
+      "y": -0.05222107806947905,
+      "z": 1.8499999999999996
+    },
+    "seconds": 5.366390099999999
+  },
+  "step": {
+    "source": "artifacts/planchard/KT03-two-features-browser-2026-10-08.step",
+    "bytes": 41716,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 5.284831503491074,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 5.284831503491074,
+      "centerOfMass": {
+        "x": 1.3333376190519732,
+        "y": -0.05222107806917278,
+        "z": 1.8499999999999999
+      },
+      "inertia": [
+        [
+          33.83089407112982,
+          -36.35666903814951,
+          3.552713678800501e-15
+        ],
+        [
+          -36.35666903814951,
+          44.49188222237514,
+          -1.3322676295501878e-15
+        ],
+        [
+          3.552713678800501e-15,
+          -1.3322676295501878e-15,
+          78.2435038209526
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.45186014511,
+          "y": -5.45186014511,
+          "z": 1.7
+        },
+        "max": {
+          "x": 7.4481996460700834,
+          "y": 4.448199646070315,
+          "z": 2
+        }
+      }
+    }
+  },
+  "nativeStepVolumeDifferenceCm3": 5.542233338928781e-13,
+  "nativeStepMatches": true,
+  "material": {
+    "density": 7.7,
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "massG": 40.69320257688554
+  },
+  "customProperties": {
+    "Description": "Exercise8.18 printed8-53/PDF431, original educational Kant-Twist designer example. Outer fixed brace, paired in assembly. Exact designer coordinates; companion CAD/AVI unavailable; nominal holes, no rated capacity.",
+    "PartNo": "KT03",
+    "BookItemNo": "3"
+  },
+  "metadataPass": true,
+  "browserDurability": "Parent observed Chrome durability PASS: bore6.2->6.4mm native volume5.278894cm3/mass0.04064748kg; Undo/Redo/Undo thenSave. Cold reload preserve draft, actual librarycm_muzscwb3 reopen: one solid4steps, native5.284832cm3/0.04069320kg, nominal bore restored."
+}

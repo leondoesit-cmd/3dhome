@@ -1,0 +1,13 @@
+# Exercise8.18 — KT03 Brace A acceptance
+
+Accepted2026-10-08, printed8-53/PDF431. Fresh original educational designer example, companion CAD/AVI unavailable. Parent authored every point/sketch/feature from blank in visible desktop Chrome dark theme/mm. Librarycm_muzscwb3, `Planchard 8.18 - KT03 Brace A - fresh designer example 2026-10-08`.
+
+Two features/four history steps, two fully defined sketches, one native solid. First Front sketch uses the six exact ordered outline vertices in `kant-twist-8.18-design.md`, each shared vertex with editable fixed U/V anchor; planeZ17, boss3mm→Z20. Four nominal Through All holes on another FrontZ17 sketch: rearRA(−25,−45)Ø6.2; mainP(0,0), tieQ(45,24.230769230769) and jawJA(65,35)Ø8.2. Circle centers fixed and diameters driving. This definition is used twice in the eventual mechanism, with source-side placement offsets; no earlier model reused.
+
+AlloySteel SOLIDWORKS educational reference7.70g/cm³, grade unspecified/not load-certified; Description/PartNoKT03/BookItemNo3 saved. Native dimensions109.0005979118×99.0005979118×3mm. Volume5.2848315034916284cm³, mass0.04069320257688554kg. Imported STEP is one valid solid5.284831503491074cm³; difference5.54e−13cm³. Exact point/plane/feature/constraint/material checks pass in the read-only independent report `kant-twist-8.18-KT03-native-audit-2026-10-08.md`.
+
+Browser driving check changed rear circle radius3.1→3.2mm (diameter6.2→6.4); native volume decreased to5.278894cm³/mass0.04064748kg. Undo/Redo/Undo executed and final save restored nominal diameter. Cold Chrome reload, preserve draft, actual saved-library reopen verified four editable steps/one native solid/original volume and mass. Actual final browser bundle `KT03-final-browser-2026-10-08.mforge`, download1,349922bytes. STEP `KT03-two-features-browser-2026-10-08.step`,41716bytes. Earlier two-feature bundle is the pre-durability checkpoint.
+
+Screenshots in artifacts/planchard: `KT03-native-mass-browser-2026-10-08.jpg`, `KT03-bore6_4-edit-browser-2026-10-08.jpg`, `KT03-cold-library-mass-browser-2026-10-08.jpg`, `KT03-cold-library-final-browser-2026-10-08.jpg`. Independent consistency/native/STEP audits are alongside actual exports. No script-authored geometry; native verification rebuilds only read-only copies.
+
+NextKT04 common Pin A from a new blank mm document. OnlyKT01–KT03 have standalone acceptance. Remaining definitions,25-occurrence mechanism/native travel/clearance andC-ANSI exploded drawing remain unfinished.
