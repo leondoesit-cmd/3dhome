@@ -1,0 +1,209 @@
+{
+  "source": "artifacts/planchard/SH02-final-browser-2026-10-09.mforge",
+  "bytes": 434174,
+  "inputSha256": "b28bda6e1d04bad32bc1225c4d96f106635845dcc28acf8e3f21237d32523e2f",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "name": "Shaft",
+      "diameterMm": 8,
+      "centerMm": [
+        0,
+        0
+      ],
+      "sketchOffsetMm": 0,
+      "storedFeatureSpanMm": [
+        -45,
+        90
+      ],
+      "pass": true
+    },
+    {
+      "name": "Lower capture collar",
+      "diameterMm": 12.000000000000002,
+      "centerMm": [
+        0,
+        0
+      ],
+      "sketchOffsetMm": 0,
+      "storedFeatureSpanMm": [
+        68,
+        70.00000000000001
+      ],
+      "pass": true
+    },
+    {
+      "name": "Upper hub",
+      "diameterMm": 16,
+      "centerMm": [
+        0,
+        0
+      ],
+      "sketchOffsetMm": 0,
+      "storedFeatureSpanMm": [
+        90,
+        106
+      ],
+      "pass": true
+    },
+    {
+      "name": "Crossbore",
+      "diameterMm": 6.200000000000001,
+      "centerMm": [
+        0,
+        96.00000000000001
+      ],
+      "sketchOffsetMm": -8,
+      "storedFeatureSpanMm": [
+        -8,
+        6.01
+      ],
+      "pass": true
+    },
+    {
+      "name": "Terminal socket",
+      "diameterMm": 4.2,
+      "centerMm": [
+        0,
+        0
+      ],
+      "sketchOffsetMm": 102.00000000000001,
+      "storedFeatureSpanMm": [
+        102.00000000000001,
+        106.00000000000001
+      ],
+      "pass": true
+    }
+  ],
+  "features": 5,
+  "sketches": 5,
+  "historySteps": 10,
+  "historyRebuiltUnsuppressed": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH02-final-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 14,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 9.599271130905295,
+      "maxToleranceCm": 1.000736418121698e-7
+    },
+    "volumeCm3": 9.599271130905295,
+    "boundsCm": {
+      "min": {
+        "x": -0.8000001,
+        "y": -4.5,
+        "z": -0.8000001
+      },
+      "max": {
+        "x": 0.8000001,
+        "y": 10.600000099999999,
+        "z": 0.8000001
+      }
+    },
+    "centerOfMassCm": {
+      "x": -6.489290523020441e-8,
+      "y": 4.431258288265855,
+      "z": -6.8215433877875e-8
+    },
+    "seconds": 5.7125527
+  },
+  "step": {
+    "source": "artifacts/planchard/SH02-nominal-browser-2026-10-09.step",
+    "bytes": 86127,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 9.599271922761229,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 9.599271922761229,
+      "centerOfMass": {
+        "x": -6.582226768505408e-8,
+        "y": 4.4312586939817,
+        "z": -7.294380989731387e-8
+      },
+      "inertia": [
+        [
+          215.66946759175042,
+          0.000003111085288402659,
+          1.624979073286378e-8
+        ],
+        [
+          0.000003111085288402659,
+          1.4952372790180475,
+          0.000003442951099240662
+        ],
+        [
+          1.624979073286378e-8,
+          0.000003442951099240662,
+          215.58326693647345
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.8000001,
+          "y": -4.5,
+          "z": -0.8000001
+        },
+        "max": {
+          "x": 0.8000001,
+          "y": 10.600000099999999,
+          "z": 0.8000001
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH02-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH02-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nominalFinal": {
+    "featuresBitIdentical": true,
+    "sketchesBitIdentical": true,
+    "historyBitIdentical": true,
+    "propertiesBitIdentical": true,
+    "appearancesBitIdentical": true,
+    "authoredPartsEquivalent": true
+  },
+  "analytic": {
+    "volumeCm3": 9.59927111259349,
+    "crossboreVolumeCm3": 0.473805908170679,
+    "nativeVolumeErrorCm3": 1.8311805405346604e-8
+  },
+  "crossboreNotes": "Stored through-all end .601cm is a prior measured span; native regeneration resolves ThroughAll against current16mmhub host bounds. Exact shape equivalence, volume and nearly symmetric COM verify the final native cut, rather than requiring stale span metadata to equal currentbounds.",
+  "terminalSocketCrossboreClearanceMm": 2.9000000000000057,
+  "crossboreLowerHubEndClearanceMm": 2.9000000000000057,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.07583424193415184
+  },
+  "customProperties": {
+    "Description": "Down bit / captured feed screw; ideal smooth RH lead 1 mm envelope, threads omitted; original educational dimensions",
+    "PartNo": "SH02",
+    "BookItemNo": "2"
+  },
+  "browserDurability": {
+    "source": "Parent actualChrome observation",
+    "diagnostic": "Initial upperhubD10 export preserved separately; correctednominalhubD16 beforeacceptance",
+    "driving": "ShaftD8→8.2 native9.599271→9.937715cm3/mass.07583424→.07850795kg;Undo8→Redo8.2→Undo8Saveclean",
+    "cold": "Actuallibrarycm_mv012esp reopened10editablesteps/1nativesolid16×151×16mm;Description/PartNoSH02/BookItemNo2retained; finalcoldimageprotected"
+  },
+  "pass": true
+}
