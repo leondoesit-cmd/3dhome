@@ -6,7 +6,7 @@ Updated: **2026-10-09**. Read this first when resuming; older plans and STOP-HER
 
 Recreate the entire `David Planchard - Engineering Graphics with SOLIDWORKS 2021-SDC Publications (2021).pdf` through human-like, visible desktop Chrome interactions in dark theme. Start each new definition from blank; keep already browser-authored fresh exercise checkpoints. Do not reuse older model definitions, inject model JSON, call internal geometry APIs, or substitute scripts for UI authoring. The latest request explicitly excludes native Computer Use. Browser controls are required. Fix concrete CAD, sketch-plane, UI and performance gaps as encountered; use subagents for source repairs. Keep this file current after each saved/accepted part or task.
 
-The previous usage instruction is to continue toward 3–2% usage remaining, finish the active task and commit work before stopping; check live usage when work resumes. Latest live quota: 44% used, 56% remaining. Do not claim the entire book is finished.
+The previous usage instruction is to continue toward 3–2% usage remaining, finish the active task and commit work before stopping; check live usage when work resumes. Latest live quota: 47% used, 53% remaining. Do not claim the entire book is finished.
 
 ## Current location
 
@@ -16,16 +16,54 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 **Protected final browser exports:** `BV-assembly-final-browser-2026-10-08.mforge` (4570130bytes, actual Chrome download13); `BV-assembly-final-assembled-browser-2026-10-08.step` (16 valid native solids,384.5543884304419cm³); `BV-drawing-final-browser-2026-10-08.svg` (ANSI A landscape,third-angle,ten wrapped BOM rows,sixteen balloons,fifteen component explode lines). Independent final layout audit: all circles within border,minimum2mm edge gap,no leaders crossing BOM/title. Native STEP/layout audits and actual whole-sheet Chrome screenshot `BV-drawing-final-sheet-browser-2026-10-08.jpg` are in artifacts/planchard. Cold global BV01 saved-library reopen verified matching holes30/170mm. Final bundle preserves accepted home transforms/mates and active authored ten-step Exploded View2. Assembly library asm_muzoei6e.
 
-**Current browser:** desktop Chrome dark tab710862239 localhost8765. Exercise8.20 all16 parts fully accepted; actual16-component assembly has13native mates (11Locks+shaftConcentric+TopDistance0),19DOF; remaining10mates pending. All definitions started blank through actual UI. AP8.19 final assembly/drawing accepted and committed4e6e80c; final drawing tab710862242 retained. Read newest checkpoint below for exact part/parameters.
+**Current browser:** desktop Chrome dark tab710862239 localhost8765. Exercise8.20 all16 parts fully accepted; actual16-component assembly has23native mates,2freeDOF; save/export protected, browser movement/cold/STEP/drawing pending. All definitions started blank through actual UI. AP8.19 final assembly/drawing accepted and committed4e6e80c; final drawing tab710862242 retained. Read newest checkpoint below for exact part/parameters.
 
 **8.18 accepted:** all16 fresh part definitions/25 native occurrences/36active topology mates, RH2mm free Screw, jaw gap56→10mm, native signed Limit span69.570108523704..90mm. Actual drive endpoints and both beyond-stop atomic rollbacks passed; all42 native poses settled/converged/no clashes, unrestricted jaw clone3DOF. Native home browser interference clear. Final STEP25validsolids/exact bidirectional difference0. ANSI C landscape third-angle exploded drawing16BOMrows/25balloons/25explode segments; no border/overlap/BOM-title crossings. All source definitions and36mateobjects unchanged;25 concise occurrence descriptions;15 explosionsteps/24moved. See `kant-twist-8.18-final-acceptance-2026-10-08.md` and independent final/native audit reports. Protected final bundle5564185bytes, STEP769890bytes, SVG657530bytes and whole-sheet/coldPlay screenshots in artifacts/planchard. Companion CAD/AVI missing; original dimensions/two added sleeves/extra retainer/ideal threads/material references/unrated status disclosed.
 
 **Source progress:** Latest committed repair11aa9bd adds verified Atlas Steel304 density provenance;5457c95 adds effective extrusion extent UI;1e9097e fixes transformed-world-axis mate eligibility. Directed rotation limit core/UI available for upcoming SH hinge but final actual assembly acceptance pending. Current source gates646modules/1489assertions/no free IDs PASS; parent material6/readout3/world-axis and document/workflow10 targeted tests PASS. Default parallel fullnpmtest was stopped after it overloaded browser responsiveness, so no recent full-suite pass is claimed.
 
-**Next exact actions:** Finish actualassemblyremaining10mates: slideFront0/Right0, RH1mmScrew+feedLimit−20..0, apronConcentric+FrontDistance34.2+TopAngle0, clapperConcentric+Right0+Directed−20..0; verify mobility/stops/travel/motion/cold/STEP, and create required ANSI C landscape third-angle exploded drawing/BOM16/balloons16/title/notes. Missing sample CAD/AVI and original dimensions/proxies/material substitutions must be disclosed. Entire book remains unfinished; remaining-book-audit-2026-10-03.md tracks other earlier/later items.
+**Next exact actions:** All23 mates and actual endpoint/rejection checks are done. Finish saved feed/clapper motion previews; verify source numerical/status repairs after cold reload; export/verify STEP16 solids; create ANSI C landscape third-angle exploded drawing/BOM16/balloons16/title/notes. Missing sample CAD/AVI and original dimensions/proxies/material substitutions must be disclosed. Entire book remains unfinished; remaining-book-audit-2026-10-03.md tracks other earlier/later items.
 
 Earlier paragraphs below are historical unless explicitly superseding this current pointer.
 
+### Cold durable feed accepted / clapper playing — 2026-10-09
+
+CURRENTactualChrome710862239 MotionplaybackSHClapper−20deg10sec is PLAYING aftercoldlibraryreopen/free2globalmates/ResetPlay. ColdFeed COMPLETE10/10 screenshotSH-feed-cold-play-complete-browser...jpg; CancelactualSH15home0/−10/42.2RX0 andSH03origin0/0/0 bothverified. BothsavedstudyhintsSettingscaptured2. Finalactualdownload5 nativeauditPASSbothcold0/10correctindependenttravel/lift/0DOF/noclashes/globalmatesunchanged/free2afterrefresh/fullpreservation. Parentfinalgates647/1489PASS and6newform/configtestsPASS; diffwhitespacefixed. Finalcoldclappercomplete/screenshotCancelhome thenrestore15stepsexplodedview/exportSVGbytecompare/protectfinalbundle/reportacceptance/commit remains. Finalacceptancereportdraft explicitlypending. Source+actualSHgeometry/checkpointcommitprepared; nofullsuitepassyet bounded2longHOUSINGtestsRUNNINGpolygonagent.
+
+Read-onlynextqueue reconciliationcompleted docs/planchard/remaining-book-next-browser-leg-2026-10-09.md: Bottle7.11/Cone7.12 September30finalaccepted supersedeoldpartials, donotredo. AfterSHactiveacceptedcontinueAdvancedQ5PDF509–510printed10-29–30 existingfresh8stepcore/bevelcheckpoint; sourcetracewitnessendpointsfirst, remainingpockets/reliefs/holes/nativeprintedmassCOM/cold/Undo. NextQ6/Q6APDF511–512 andChainLink514–515; sourceambiguities/notargetmassfitting. Wholebookunfinished/quota53%latest.
+### Recaptured durable studies / drawing checkpoint — 2026-10-09
+
+CURRENTChrome710862239 freshlyreloadedafteractualcleanSave, coldlibraryreopenNEXT. All16parts/23mates/free2DOF/native104posepostfix/actualstops/STEP16exactacceptedgeometry. NativeassembledSTEP actualbrowser477174bytes SH-assembly-assembled-browser...step:16validnative+16validSTEPsolids/bidirectionalBoolean0/boundsidentical/volume271.02632156325114cm3 PASS. ActualANSICmmthirdangleisometricexplodedSVG SH-drawing-browser...svg423538bytes:16conciseBOMoccurrenceDescriptions/16balloons/15defaultUIexplode steps/15centerlines. NativeSVG layout allinborder/minballoongap2.393mm/no BOM/titlecrossing PASS. WholeactualChromeSVGtab710862250 screenshotSH-drawing-sheet-browser...jpg2560x1632visuallyverified (fullPagescreenshotfirsttimeoutthenretryPASS). DrawingtabmarkedDeliverablethisturn. SourcefixCSSseconditeration preventsflexshrink23rowoverlap; actualcoldChromeCSSnowreadable/notclipped screenshotSH-mate-inspector-repaired-browser...jpg. ActualzeroDOFstatus0 and−4pose nativeRX−4/bothdriven0PASS; restoredfree2.
+
+Durabilitygapfoundactualsavedfeedstudywithbothglobalfree liftedclapper−14.1424786679deg, originalfailedreportSH-assembly-two-studies-native-audit...jsonpreserved. SourcecaptureMotionStudyBaseline nowstoresnativeactuatorDrives+freevaluesintrial-onlystudyconfig; motorsoverrideowndrive; oldstudiesunchangeduntilUIexplicitrecapture. ActualparentBOTHstudiesrecapturedclosedhome: feedDirected0/Screwblank checkedUsecurrentposeandactuatorDrivesastimezero/time0Applythenordinarytime10Apply; clapperScrew0/Directedblank similarlytime0thenordinary10. Explicitglobalhinge0thenblank/feedblank restoresclosedhomefree2; cleanSave/exportactualdownload5 SH-assembly-recaptured-studies-browser...mforge3798383bytes. Kantagentread-onlyfinalcoldstoredstudiesauditRUNNING. HintsbothSettingscaptured2. Parent6motionform/configtestsPASS; agent64core/39UI tests and647module1489gatesPASS. Fullbounded2suiteRUNNINGpolygon heavyHOUSINGshell15minfiletests; nofullsuitepassyet.
+
+NEXTdismissoldplannerbackupClose→Model editor→Savedmodels→Savedassemblies30→Savedmodels→exactShaperassemblyfresh09load→DesignTree; provefree2/23mates2studieshome. OpenMotionstudychooseFeed→Preview savedmotion→Reset→Play10/10withglobalbothfree, clapperstaysclosed; Cancelopeninghome. Repeatclapperstudy10/10fixedfeed0/lift20Cancelhome. Saveifneeded. Restoresaved15stepexplodedview viaExplodeassembly/closepreview andexportSVGcompare423538originalbytesexact; finalnativebundle/coldwholeacceptance report. Commitallsource+SHactualartifacts (forceaddmforge) leavingunrelatedBVwhitejpeguntracked. Entirebook8.20printed8-55/PDF433active untilfinalcoldPlay/reports/commit. Latestquota53%remaining; continuebooknextqueueafteractiveaccepted.
+
+Bindingsvar tab/fs/quick/shReadPose persist; currenttabcoldplannerprompt. shDrawingTab710862250. Partsourcefullnotesretained; all16occurrenceDescriptionsonlyeditedviaPlacementComponentdescriptionEnter; puremetadata nativeaudited.
+### Two actual completed studies / cold reload checkpoint — 2026-10-09
+
+BOTH actualChrome10secPlay COMPLETE10/10, evidence SH-feed-play-complete-browser...jpg and SH-clapper-play-complete-browser...jpg. Feed +120RPM/RH1mm; clapper−1/3RPM/worldX/localpivot0/14/7mm actualSH15component5259. AfterCancelopeningendpose, explicitUIhinge0thenblank/feed0thenblank restoredSH15home0/−10/42.2RX0 andfree2DOF. ActualSaveclean verified; Projectbundleactualdownload3 protected SH-assembly-two-studies-browser-2026-10-09.mforge3897385bytes. Kantagentauditingstored2studies/coldtime0/10 now. Numericalfull104postfixactualnativeaudit COMPLETEPASSallsettled/converged/correcttravel/lift/expectedDOF/exactclashes0. Parent7newtests+14motion/KTtests+647module/1489sourcegatesPASS. BridgeisolatedtestfailsandboxlocalhostEACCES; identicaloutside-sandboxtestPASS172ms. No fullsuitepassyet; polygonagentboundedconcurrency2fullsuiteRUNNING. UIagent CSSmatepaneoverflowfix loadable/newisolatedCSSbrowserharnessfailedlaunch(noQApassclaimed), sourcegatespending.
+
+CURRENTChrome710862239 tab.reload performedaftercleanSave, newcore/status/CSSsourcewillload. NEXTinspectcoldbackuppromptClose(ifpresent)→Model editor→Savedmodels exactShapertoolheadfreshassembly09 reopen→confirmhome23mates2studies2DOF; testbothdriven0explicitUIstatus0, −4degsolverpose/coldrestorefreehome, actualMatespanecontrolswithin280px/longlabelswrapped sourceQA. SaveexportnativeassembledSTEP16solids→ANSI C landscape thirdangle16BOM16balloonsnotes/customproperties/explodedview browserauthoring/independentnativefinalacceptance. Book8.20printed8-55/PDF433stillACTIVE/wholebookunfinished. Latestquota53%remaining.
+### Live feed playback / source repair checkpoint — 2026-10-09
+
+ActualChrome710862239 Motion playback · SH Feed - RH1mm - 120RPM - 20mm downfeed is PLAYING after Reset thenPlay, latest5.37/10sec. MotionstudyApply creates savedstudy and evaluates its10sec end pose; it does not open playback. ReopenMotionstudy→Preview saved motion→Reset→Play is required. Cancel preview restores opening pose (here endfeed20), so restore ScrewDrive0 thenblank afterward rather than claimingCancelreturnsoriginalhome. CurrentclapperDrive0/feedDriveblank1DOF. Feedstudyactualmotor RH1mm#5276,+120RPM,time10 persisted in currentunsavedassembly. Do notduplicateApply. WaitReady10/10/protectscreenshot→Cancel→feed0thenblank→save. Nextclapperstudy usesfeedDrive0/clapperblank, rotarySH15worldX/localpivot0/14/7mm,−1/3RPM10sec. Save/coldthenrepeatactualsourceQA/STEP/drawing.
+
+Narrowcorefix preserves tiny nonzero Rodrigues rotations withoutrelaxingtolerances; actualsaved−4°fixture andatomicbounds regressionsPASS. UIstatusfix explicitlyshowschecked0DOF andunknown/stale Mobility not checked, snapshot tied tophysicalassembly; metadata edits preserve it. Parent7focusednewtestsPASS. Agent25status/22mechanismtestsPASS and647module/1489assertiongatesPASS; parentgatesrunning. Full104postfixexactauditpending. Two highparallel fullCIattempts stopped forChrome responsiveness; no fullsuitepassclaimed. Browserstilloldloadedsource untilsafeSave+coldreload. Allsourcefilesuncommitted pendingactualChromeQA.
+### Current actual drive / movement checkpoint — 2026-10-09
+
+CurrentChrome710862239 actual23mateassembly2DOF restoredfreehome after realUIchecks. Whole visible assemblyInterferenceNo two components overlap, screenshotSH-assembly-home-interference-browser...jpgprotected. ActualScrewDrive0/10/20 givesSH03Y0/−10/−20mm; rejected21/−1retainsDrive20 andY−20; restored0thenblankreturnsY0. ActualDirectedDrive0/−10/−20 givesSH15home0/−10/42.2RX0;−10degY−11.00284579Z44.73742022RX−10;−20degY−11.54983769Z47.41043366RX−20. Rejected+1/−21retainsDrive−20/exactvisiblepose/UndoTitleunchangedDirectedrotationlimit; restored0thenblankreturnsclosedhome. ActualDOMconfigurationstatusFree2/feedonly1/clapperonly1;bothdriven0omitscountline (native0verified)—UIagentfixinghonestexplicitzero/successcount. CURRENTfieldsbothblank/free2,Saveafterconfigspending.
+
+Actual23nativeauditkant_solvercriticalmateobjects/lead0.1cm/coupledhomephase0/FeedLimit−2..0cm/apron3.42cm/Directed−20..0+/both+X PASS,defsunchanged/coldhomeconverges2DOF/allvalid/noissues/rebindings/unsatisfied. NativeclonesDOF2/1/1/0/3 andatomicrejectionsPASS. Full104 actualsavedassemblysolvedposeauditRUNNINGfoundcold−4degliftpose physicallycorrect/noclashes/noissues butsettled/convergedfalse8passes; agentauthorizedfixrealnumericalreportinggap, noacceptallcoldanglesuntilresolved. Inputassemblyprotectedreadonly.
+
+NEXTSavecurrentfreehome→temporaryclapperDrive0/feedblank1DOF→AssemblyMotionstudyconfigureScrewmotor+120RPM10sec,actualPlay10/10Cancelrestorehome; separatelyScrewDrive0/clapperblank1DOF RotarySH15X−1/3RPM10sec componentLOCALpivotX0Y14Z7, actualPlay/Cancelrestorehome. SourcefixesQA/coldfullassembly/drives/STEP16solids; requiredANSI C landscape explodedthirdangle16BOM16balloons/title/notes. Book8.20printed8-55/PDF433active/entirebookunfinished. NativeUI23snapshotdownload2 acceptedmateauditpendingfix, notfinalassemblyacceptance.
+### Current assembly 23-mate checkpoint — 2026-10-09
+
+All16partsaccepted/raw16home/104posepreflight/11locksnapshot/tests committed0fdb0e2. CurrentChrome710862239 authorsactualassembly23native mates UI2DOF expected. All11Locks, shaftConcentric+TopDistance0; slideFront0/Right0; RHcoupledScrewSH03F3→SH02F2lead1mmDriveblank; feedTopLimit−20..0; apronConcentricA1/A2+FrontDistance34.2+TopAngle0; clapperConcentricH1/H2+Right0+Directed−20..0ReverseoffDriveblank. ExactnativeaxisIDsUIverified. IMPORTANTPitchinitialfill1Tabdidnotpersist (lateractualDOM1.25); explicitEntercommit1 thennewselectionactualDOM1 persisted. FeedMin−20/Max0explicitEntercommit; allotherDistanceQuickApply andAngleQuick0. No sourcebugclaim. Saveactualclean/Projectbundledownload2protectedSH-assembly-23-mates-browser-2026-10-09.mforge+jpeg. Nativeactualmateauditdispatchedkant_solver.
+
+ParentinitialChromeInterference withSH08/SH15selectedclearonly2components,closedresultthenfreshscreenshotblankcanvasclick[800,500] clearsselection; WholeassemblyInterferenceclickedASYNCcurrent. NEXTreadwholeNointerference result scope (mustall16),protectjpg; Close dialog. Browser DriveScrew0/10/20 and−1/21atomicrejections plusClapper0/−10/−20 and+1/−21atomicrejections/restoreblank; verifyexpected2/1/1/0/3configDOFs, actual10secfeed120RPM andclapper−1/3RPM aboutlocalpivotX0Y14Z7, cancelreturnsclosedhome. ThenSave/coldnativeassembly/STEP16solids/ANSIClandscape3rdangleexplodedBOM16/16balloons/title/notes. Book8.20printed8-55/PDF433active/wholebookunfinished. Latestquota56%remaining continue.
+
+PersistentCUAafterkernelresetonlytab710862239/fs/quick; createcmdetcwhenneeded. Avoidlong>30secbatches defaulttimeout;≤3matebatches/timeout60000. Browserdark2560x1296realGPU. Needre-markapp/APsheetandKT/BVsheetsbeforeend/pausefinal, buttaskcurrentlycontinues. NativeeditorfieldsEntercommitpreferoverTab. Projectdownloads0raw,1elevenlocks,2twentythreemates.
 ### Current assembly 13-mate checkpoint — 2026-10-09
 
 All16freshpartsfullyaccepted; SH15correctedfinal/nativeSTEPsymdiff0, SH16finalnative.39452120543780617cm3/.0031167175229586687kg20x20x2/cold20&12.2/materialsource, reportsPASS. Testcircle3regressionsparentPASS/agentgates646/1489PASS. Fullactual16nativepreflight104feed/lift/apron/fractionalposesexactclashes0, signedwrongbranch+1degactualphysicalclashconfirmsbackstop;allDOF/stopsPASS. ActualUIassemblyraw16homeplacements/identityrots/onlySH01grounded/native16validsolids/accepteddefs&custompropsexact/nativehomeclearPASStotal271.02632156325114cm3/mixedmass2.141068745839738kg. ProtectedSH-assembly-raw-home-browser...mforge3875866+jpeg; sourcepartbytesunchanged. NolegacyBatteryafterimmediateUndoofinitialmistakeninsert.
@@ -263,53 +301,3 @@ Exact mass panel:198.6972cm³,1.529968kg,7.70000g/cm³ Alloy Steel reference; CO
 Commit `232a298` protects BV01 final bundle/STEP, two browser proof images, independent native audit JSON and detailed acceptance report. Cold library reopen confirmed nominal volume/mass and16 steps. Source/UI fixes and original failure triage included; source gates and focused corrected tests passed, but full suite not rerun clean. Queue reconciled accepted8.14–8.16; corrected Welder Arm23 topology mates from actual final bundle.
 
 BV02 now authored from blank in visible Chrome: Top fixed-center20×90mm rectangle, offset-12mm, Blind boss12mm Along normal. Second Top sketch offset-12mm with fixed-center drivingØ6.6 atU0/V±25, Through all Along normal. Two features/four fully-defined history steps, one native solid. Alloy Steel reference applied. PartNo BV02,Description,Source,BookItemNo2,BookMaterial,OriginalDesignerExample saved. Exact mass/parametric/Undo/reopen/export acceptance still in progress; not accepted yet. Future remains BV03–BV10/16-occurrence vice and drawing, then8.18–8.20 and earlier/later unfinished audit items.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

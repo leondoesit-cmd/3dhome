@@ -1,0 +1,1233 @@
+{
+  "scope": "Actual saved two studies, unmodified free-home assembly; cold native evaluation clones only.",
+  "source": "artifacts/planchard/SH-assembly-two-studies-browser-2026-10-09.mforge",
+  "sha256": "fe28fa1569788226bfcfd55eb4598736f4aa12309edc595c32df5247fcaa7ab9",
+  "preservation": {
+    "definitions": true,
+    "mates": true,
+    "legacy": true,
+    "home": true
+  },
+  "studies": [
+    {
+      "id": "ms_f119bcee-b92a-40bd-9ab5-e29164311c76",
+      "name": "SH Feed - RH1mm - 120RPM - 20mm downfeed",
+      "duration": 10,
+      "time": 10,
+      "motors": [
+        {
+          "id": "motor_e09bc947-52a3-4cf2-b3a5-717e5d160532",
+          "type": "screw",
+          "mateId": 5276,
+          "rpm": 120,
+          "baseTurns": 0
+        }
+      ],
+      "baselineCount": 16,
+      "baselineMatchesHome": true,
+      "parametersPass": true
+    },
+    {
+      "id": "ms_c9a2899e-c50c-450e-b7c9-59cfd95620f1",
+      "name": "SH Clapper - outward 20deg - fixed feed",
+      "duration": 10,
+      "time": 10,
+      "motors": [
+        {
+          "id": "motor_be96a861-9148-45fd-9d40-17129403f430",
+          "type": "rotary",
+          "componentId": 5259,
+          "rpm": -0.3333333333333333,
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "pivot": {
+            "x": 0,
+            "y": 1.4000000000000001,
+            "z": 0.7000000000000001
+          },
+          "baseRotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "basePosition": {
+            "x": 0,
+            "y": -1,
+            "z": 4.22
+          }
+        }
+      ],
+      "baselineCount": 16,
+      "baselineMatchesHome": true,
+      "parametersPass": true
+    }
+  ],
+  "cases": [
+    {
+      "studyId": "ms_f119bcee-b92a-40bd-9ab5-e29164311c76",
+      "type": "screw",
+      "time": 0,
+      "result": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              5255,
+              5254,
+              5247,
+              5251,
+              5250,
+              5246,
+              5249
+            ],
+            "variableCount": 42,
+            "rank": 42,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5246": 0,
+              "5247": 0,
+              "5249": 0,
+              "5250": 0,
+              "5251": 0,
+              "5254": 0,
+              "5255": 0
+            }
+          },
+          {
+            "components": [
+              5256,
+              5253,
+              5252
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5252": 0,
+              "5253": 0,
+              "5256": 0
+            }
+          },
+          {
+            "components": [
+              5260,
+              5258,
+              5257,
+              5259
+            ],
+            "variableCount": 24,
+            "rank": 23,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5257": 1,
+              "5258": 1,
+              "5259": 1,
+              "5260": 1
+            }
+          },
+          {
+            "components": [
+              5248
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5248": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 1,
+        "motionSubsteps": 1,
+        "motions": [
+          {
+            "mateId": 5276,
+            "mateType": "screw",
+            "turns": 0,
+            "rpm": 120,
+            "baseTurns": 0
+          }
+        ]
+      },
+      "expectedFeedMm": 0,
+      "expectedLiftDegrees": 0,
+      "actualLiftDegrees": 0,
+      "poseErrors": [
+        {
+          "partNo": "SH01",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH02",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH03",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH04",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH05",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH06",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH07",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH08",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH09",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH10",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH11",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH12",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH13",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH14",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH15",
+          "positionErrorCm": 1.1102230246251565e-16
+        },
+        {
+          "partNo": "SH16",
+          "positionErrorCm": 0
+        }
+      ],
+      "exactHits": [],
+      "matesUnchanged": true,
+      "refresh": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              5255,
+              5254,
+              5247,
+              5251,
+              5250,
+              5246,
+              5249
+            ],
+            "variableCount": 42,
+            "rank": 41,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5246": 1,
+              "5247": 1,
+              "5249": 1,
+              "5250": 1,
+              "5251": 1,
+              "5254": 1,
+              "5255": 1
+            }
+          },
+          {
+            "components": [
+              5256,
+              5253,
+              5252
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5252": 0,
+              "5253": 0,
+              "5256": 0
+            }
+          },
+          {
+            "components": [
+              5260,
+              5258,
+              5257,
+              5259
+            ],
+            "variableCount": 24,
+            "rank": 23,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5257": 1,
+              "5258": 1,
+              "5259": 1,
+              "5260": 1
+            }
+          },
+          {
+            "components": [
+              5248
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5248": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 2
+      },
+      "pass": true
+    },
+    {
+      "studyId": "ms_f119bcee-b92a-40bd-9ab5-e29164311c76",
+      "type": "screw",
+      "time": 10,
+      "result": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 10,
+        "clusters": [
+          {
+            "components": [
+              5255,
+              5254,
+              5247,
+              5251,
+              5250,
+              5246,
+              5249
+            ],
+            "variableCount": 42,
+            "rank": 42,
+            "degreesOfFreedom": 0,
+            "iterations": 9,
+            "converged": true,
+            "perComponent": {
+              "5246": 0,
+              "5247": 0,
+              "5249": 0,
+              "5250": 0,
+              "5251": 0,
+              "5254": 0,
+              "5255": 0
+            }
+          },
+          {
+            "components": [
+              5256,
+              5253,
+              5252
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 2,
+            "converged": true,
+            "perComponent": {
+              "5252": 0,
+              "5253": 0,
+              "5256": 0
+            }
+          },
+          {
+            "components": [
+              5260,
+              5258,
+              5257,
+              5259
+            ],
+            "variableCount": 24,
+            "rank": 23,
+            "degreesOfFreedom": 1,
+            "iterations": 2,
+            "converged": true,
+            "perComponent": {
+              "5257": 1,
+              "5258": 1,
+              "5259": 1,
+              "5260": 1
+            }
+          },
+          {
+            "components": [
+              5248
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5248": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 1,
+        "motionSubsteps": 1,
+        "motions": [
+          {
+            "mateId": 5276,
+            "mateType": "screw",
+            "turns": 20,
+            "rpm": 120,
+            "baseTurns": 0
+          }
+        ]
+      },
+      "expectedFeedMm": 20,
+      "expectedLiftDegrees": 0,
+      "actualLiftDegrees": -14.142478667909096,
+      "poseErrors": [
+        {
+          "partNo": "SH01",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH02",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH03",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH04",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH05",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH06",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH07",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH08",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH09",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH10",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH11",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH12",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH13",
+          "positionErrorCm": 0.47351356899999963
+        },
+        {
+          "partNo": "SH14",
+          "positionErrorCm": 1.0379537340000002
+        },
+        {
+          "partNo": "SH15",
+          "positionErrorCm": 0.3632838070000002
+        },
+        {
+          "partNo": "SH16",
+          "positionErrorCm": 0.4795753420000004
+        }
+      ],
+      "exactHits": [],
+      "matesUnchanged": true,
+      "refresh": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              5255,
+              5254,
+              5247,
+              5251,
+              5250,
+              5246,
+              5249
+            ],
+            "variableCount": 42,
+            "rank": 41,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5246": 1,
+              "5247": 1,
+              "5249": 1,
+              "5250": 1,
+              "5251": 1,
+              "5254": 1,
+              "5255": 1
+            }
+          },
+          {
+            "components": [
+              5256,
+              5253,
+              5252
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5252": 0,
+              "5253": 0,
+              "5256": 0
+            }
+          },
+          {
+            "components": [
+              5260,
+              5258,
+              5257,
+              5259
+            ],
+            "variableCount": 24,
+            "rank": 23,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5257": 1,
+              "5258": 1,
+              "5259": 1,
+              "5260": 1
+            }
+          },
+          {
+            "components": [
+              5248
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5248": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 2
+      },
+      "pass": false
+    },
+    {
+      "studyId": "ms_c9a2899e-c50c-450e-b7c9-59cfd95620f1",
+      "type": "rotary",
+      "time": 0,
+      "result": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              5255,
+              5254,
+              5247,
+              5251,
+              5250,
+              5246,
+              5249
+            ],
+            "variableCount": 42,
+            "rank": 41,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5246": 1,
+              "5247": 1,
+              "5249": 1,
+              "5250": 1,
+              "5251": 1,
+              "5254": 1,
+              "5255": 1
+            }
+          },
+          {
+            "components": [
+              5256,
+              5253,
+              5252
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5252": 0,
+              "5253": 0,
+              "5256": 0
+            }
+          },
+          {
+            "components": [
+              5260,
+              5258,
+              5257
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5257": 0,
+              "5258": 0,
+              "5260": 0
+            }
+          },
+          {
+            "components": [
+              5248
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5248": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 1,
+        "motionSubsteps": 1,
+        "motions": [
+          {
+            "componentId": 5259,
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "angleDeg": 0,
+            "rpm": -0.3333333333333333,
+            "baseRotation": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      "expectedFeedMm": 0,
+      "expectedLiftDegrees": 0,
+      "actualLiftDegrees": 0,
+      "poseErrors": [
+        {
+          "partNo": "SH01",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH02",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH03",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH04",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH05",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH06",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH07",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH08",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH09",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH10",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH11",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH12",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH13",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH14",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH15",
+          "positionErrorCm": 1.1102230246251565e-16
+        },
+        {
+          "partNo": "SH16",
+          "positionErrorCm": 0
+        }
+      ],
+      "exactHits": [],
+      "matesUnchanged": true,
+      "refresh": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              5255,
+              5254,
+              5247,
+              5251,
+              5250,
+              5246,
+              5249
+            ],
+            "variableCount": 42,
+            "rank": 41,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5246": 1,
+              "5247": 1,
+              "5249": 1,
+              "5250": 1,
+              "5251": 1,
+              "5254": 1,
+              "5255": 1
+            }
+          },
+          {
+            "components": [
+              5256,
+              5253,
+              5252
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5252": 0,
+              "5253": 0,
+              "5256": 0
+            }
+          },
+          {
+            "components": [
+              5260,
+              5258,
+              5257,
+              5259
+            ],
+            "variableCount": 24,
+            "rank": 23,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5257": 1,
+              "5258": 1,
+              "5259": 1,
+              "5260": 1
+            }
+          },
+          {
+            "components": [
+              5248
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5248": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 2
+      },
+      "pass": true
+    },
+    {
+      "studyId": "ms_c9a2899e-c50c-450e-b7c9-59cfd95620f1",
+      "type": "rotary",
+      "time": 10,
+      "result": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              5255,
+              5254,
+              5247,
+              5251,
+              5250,
+              5246,
+              5249
+            ],
+            "variableCount": 42,
+            "rank": 41,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5246": 1,
+              "5247": 1,
+              "5249": 1,
+              "5250": 1,
+              "5251": 1,
+              "5254": 1,
+              "5255": 1
+            }
+          },
+          {
+            "components": [
+              5256,
+              5253,
+              5252
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5252": 0,
+              "5253": 0,
+              "5256": 0
+            }
+          },
+          {
+            "components": [
+              5260,
+              5258,
+              5257
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5257": 0,
+              "5258": 0,
+              "5260": 0
+            }
+          },
+          {
+            "components": [
+              5248
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5248": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 1,
+        "motionSubsteps": 1,
+        "motions": [
+          {
+            "componentId": 5259,
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "angleDeg": -20,
+            "rpm": -0.3333333333333333,
+            "baseRotation": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ]
+          }
+        ]
+      },
+      "expectedFeedMm": 0,
+      "expectedLiftDegrees": -20,
+      "actualLiftDegrees": -20.00000000000004,
+      "poseErrors": [
+        {
+          "partNo": "SH01",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH02",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH03",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH04",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH05",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH06",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH07",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH08",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH09",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH10",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH11",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH12",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH13",
+          "positionErrorCm": 9.101763787100481e-11
+        },
+        {
+          "partNo": "SH14",
+          "positionErrorCm": 2.691419864753186e-10
+        },
+        {
+          "partNo": "SH15",
+          "positionErrorCm": 0
+        },
+        {
+          "partNo": "SH16",
+          "positionErrorCm": 4.258837726922593e-10
+        }
+      ],
+      "exactHits": [],
+      "matesUnchanged": true,
+      "refresh": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              5255,
+              5254,
+              5247,
+              5251,
+              5250,
+              5246,
+              5249
+            ],
+            "variableCount": 42,
+            "rank": 41,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5246": 1,
+              "5247": 1,
+              "5249": 1,
+              "5250": 1,
+              "5251": 1,
+              "5254": 1,
+              "5255": 1
+            }
+          },
+          {
+            "components": [
+              5256,
+              5253,
+              5252
+            ],
+            "variableCount": 18,
+            "rank": 18,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5252": 0,
+              "5253": 0,
+              "5256": 0
+            }
+          },
+          {
+            "components": [
+              5260,
+              5258,
+              5257,
+              5259
+            ],
+            "variableCount": 24,
+            "rank": 23,
+            "degreesOfFreedom": 1,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5257": 1,
+              "5258": 1,
+              "5259": 1,
+              "5260": 1
+            }
+          },
+          {
+            "components": [
+              5248
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "5248": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 2
+      },
+      "pass": true
+    }
+  ],
+  "homeSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          5255,
+          5254,
+          5247,
+          5251,
+          5250,
+          5246,
+          5249
+        ],
+        "variableCount": 42,
+        "rank": 41,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5246": 1,
+          "5247": 1,
+          "5249": 1,
+          "5250": 1,
+          "5251": 1,
+          "5254": 1,
+          "5255": 1
+        }
+      },
+      {
+        "components": [
+          5256,
+          5253,
+          5252
+        ],
+        "variableCount": 18,
+        "rank": 18,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5252": 0,
+          "5253": 0,
+          "5256": 0
+        }
+      },
+      {
+        "components": [
+          5260,
+          5258,
+          5257,
+          5259
+        ],
+        "variableCount": 24,
+        "rank": 23,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5257": 1,
+          "5258": 1,
+          "5259": 1,
+          "5260": 1
+        }
+      },
+      {
+        "components": [
+          5248
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5248": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 2
+  },
+  "inputsUnchanged": true,
+  "pass": false
+}

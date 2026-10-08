@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {createMotionStudy,addRotaryMotor,addScrewMotor,addLinearMotor,addGearRelation,evaluateMotionStudy} from '../js/cad_motion_study.js';
+import {createMotionStudy,captureMotionStudyBaseline,addRotaryMotor,addScrewMotor,addLinearMotor,addGearRelation,evaluateMotionStudy} from '../js/cad_motion_study.js';
 import {solveTopologyMates,topologyReference} from '../js/cad_mates.js';
 import {setRotation,axisAngleMatrix} from '../js/cad_mate_model.js';
 
@@ -45,7 +45,7 @@ test('multiple coupled screws show occurrence pair, lead, handedness and identit
 test('named saved study reopens and seeks from its captured zero without duplicating studies',async()=>{
   let assembly={components:[{id:'shaft',name:'Shaft',grounded:false,transform:{rz:12}}],mates:[],topologyMates:[]};
   let form,undo=0;
-  const context={E:{docType:'assembly',assembly,componentSel:[]},structuredClone,createMotionStudy,addRotaryMotor,addGearRelation,evaluateMotionStudy,
+  const context={E:{docType:'assembly',assembly,componentSel:[]},structuredClone,createMotionStudy,captureMotionStudyBaseline,addRotaryMotor,addGearRelation,evaluateMotionStudy,
     syncFlexibleSpringsAtMotionState:async()=>{},t:s=>s,flash:()=>{},openQuickForm:f=>{form=f;},pushUndo:()=>undo++,invalidateInterference:()=>{},refreshAll:()=>{}};
   const open=()=>vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
   open();
@@ -88,7 +88,7 @@ test('linear motion form exposes signed travel and persists a stable zero pose',
     syncFlexibleSpringsAtMotionState:async()=>{syncCalls++;},t:s=>s,flash:()=>{},openQuickForm:f=>{form=f;},pushUndo:()=>{},invalidateInterference:()=>{},refreshAll:()=>{}};
   vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
   form.onLive({study:'new',relation:'none',motorType:'linear'});
-  assert.equal(form.hint,'linearMotionHint');
+  assert.ok(form.hint.startsWith('linearMotionHint '));
   assert.deepEqual(Array.from(form.fields,f=>f.key),['study','name','motorType','motor','stroke','duration','reciprocate','motorAxis','time']);
   assert.equal(form.fields.find(f=>f.key==='stroke').unit,'length');
   assert.equal(await form.onApply({motor:'1',stroke:-1.5,duration:1,reciprocate:true,motorAxis:'y',time:1,study:'new',motorType:'linear'}),true);
@@ -105,20 +105,20 @@ test('plain rotary motion shows motor controls, and gear editing exposes only re
   const context={E:{docType:'assembly',assembly,componentSel:[]},structuredClone,createMotionStudy,addRotaryMotor,addGearRelation,evaluateMotionStudy,
     syncFlexibleSpringsAtMotionState:async()=>{},t:s=>s,flash:()=>{},openQuickForm:f=>{form=f;},pushUndo:()=>{},invalidateInterference:()=>{},refreshAll:()=>{}};
   vm.runInNewContext(formSource+'\ncreateDefaultMotionStudy();',context);
-  assert.equal(form.hint,'rotaryMotionHint');
+  assert.ok(form.hint.startsWith('rotaryMotionHint '));
   assert.equal(form.fields.find(f=>f.key==='relation').choices[0].label,'motionMotorOnly');
   assert.deepEqual(Array.from(form.fields,f=>f.key),['study','name','motorType','relation','motor','rpm','motorAxis','pivotX','pivotY','pivotZ','time']);
   assert.equal(await form.onApply({motor:'1',rpm:5,motorAxis:'y',time:1,study:'new',relation:'none'}),true);
   assert.equal((assembly.motionStudies[0].gearRelations || []).length,0);
   assert.ok(Math.abs(assembly.components[0].transform.ry-30)<1e-8);
   form.onLive({study:'new',relation:'new'});
-  assert.equal(form.hint,'gearMotionHint');
+  assert.ok(form.hint.startsWith('gearMotionHint '));
   for(const key of ['driver','follower','driverTeeth','followerTeeth','driverAxis','followerAxis','mesh'])assert.ok(form.fields.some(f=>f.key===key));
   assert.equal(form.fields.some(f=>f.key==='remove'),false,'a new relation cannot be removed');
   const study=assembly.motionStudies[0];
   const relation=addGearRelation(study,1,2,{driverTeeth:20,followerTeeth:40});
   form.onLive({study:study.id,relation:'none'});
-  assert.equal(form.hint,'gearMotionHint','retained existing relations still affect the motor');
+  assert.ok(form.hint.startsWith('gearMotionHint '),'retained existing relations still affect the motor');
   assert.equal(form.fields.find(f=>f.key==='relation').choices[0].label,'motionKeepRelations');
   assert.equal(form.fields.some(f=>f.key==='driver'),false,'retained relations are edited only when selected');
   form.onLive({study:study.id,relation:relation.id});

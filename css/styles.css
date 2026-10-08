@@ -5542,9 +5542,19 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
    which is exactly how an empty model library made Assembly look. */
 #modeler .md-insert-component button:disabled { opacity: .45; cursor: not-allowed; }
 #modeler .md-component { grid-template-columns: auto minmax(0, 1fr) auto auto; }
-#modeler .md-mate-row { display: flex !important; flex-direction: row !important; align-items: center; gap: 6px; justify-content: space-between; min-height: 32px; padding: 4px 7px; border: 1px solid var(--btn-border); border-radius: 6px; }
-#modeler .md-mate-row .md-mate-align { flex: none; min-height: 25px; padding: 2px 6px; font-size: max(10px, var(--fs-floor, 0px)); }
-#modeler .md-mate-row > span:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modeler #mdOps { flex: none; min-width: 0; max-width: 100%; }
+#modeler .md-mate-row { display: flex !important; flex: none; flex-direction: row !important; flex-wrap: wrap; min-width: 0; max-width: 100%; box-sizing: border-box; align-items: center; gap: 6px; justify-content: flex-start; min-height: 32px; padding: 4px 7px; border: 1px solid var(--btn-border); border-radius: 6px; }
+#modeler .md-mate-row .md-mate-align { flex: none; min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; min-height: 25px; padding: 2px 6px; font-size: max(10px, var(--fs-floor, 0px)); }
+#modeler .md-mate-row > span:first-child { flex: 1 1 calc(100% - 30px); min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+#modeler .md-mate-row > :not(:first-child):not(.md-part-x) { order: 1; }
+#modeler .md-mate-row > .md-part-x { opacity: .75; align-self: flex-start; }
+#modeler .md-mate-row .md-mate-value { flex: 1 1 100%; min-width: 0; max-width: 100%; flex-wrap: wrap; }
+#modeler .md-mate-row .md-mate-value > span { flex: 1 1 120px; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+#modeler .md-mate-row .md-mate-value input { flex: 0 1 84px; min-width: 0; max-width: 100%; }
+#modeler .md-mate-row .md-mate-value input[type="checkbox"] { flex: none; width: auto; }
+#modeler .md-mate-row .md-mate-value select { flex: 0 1 110px; min-width: 0; max-width: 100%; }
+#modeler #mdOps .md-ops { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#modeler #mdOps .md-ops button { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 /* A mate the solver could not honour has to look different from one that
    holds, or the assembly reads as fine while a component sits loose. */
 #modeler .md-mate-row.md-mate-broken { border-color: var(--danger); }
@@ -5553,13 +5563,13 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 /* The two references a mate will be built from, in pick order: A is the one
    that stays put, B is the one that moves. */
 #modeler .md-mate-picks { display: flex; flex-wrap: wrap; gap: 5px; margin: 5px 0 2px; }
-#modeler .md-mate-pick { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font-size: max(11px, var(--fs-floor, 0px)); border: 1px solid var(--btn-border); }
+#modeler .md-mate-pick { display: inline-flex; min-width: 0; max-width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font-size: max(11px, var(--fs-floor, 0px)); border: 1px solid var(--btn-border); }
 #modeler .md-mate-pick.a { border-color: var(--accent); color: var(--accent); }
 #modeler .md-mate-pick.b { border-color: var(--warn); color: var(--warn); }
 #modeler .md-mate-pick.a::before { content: "A"; font-weight: 700; }
 #modeler .md-mate-pick.b::before { content: "B"; font-weight: 700; }
 #modeler .md-mate-face-chooser { display: grid; gap: 6px; margin: 8px 0; }
-#modeler .md-mate-face-row { display: grid; gap: 3px; min-width: 0; font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-mate-face-row { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; font-size: max(11px, var(--fs-floor, 0px)); }
 #modeler .md-mate-face-row select { min-width: 0; width: 100%; color: var(--text); background: var(--input-bg, var(--btn-bg)); border: 1px solid var(--btn-border); border-radius: 5px; padding: 5px; }
 /* Nothing in an assembly is sketched, so the pane and its tab step out. */
 #modeler.md-assembly [data-tab="sketch"],

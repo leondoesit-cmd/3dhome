@@ -1,0 +1,274 @@
+{
+  "scope": "Read-only actual browser drawing checkpoint and exported SVG; geometric annotation checks, not a rendered screenshot claim.",
+  "sources": [
+    "artifacts/planchard/SH-assembly-drawing-checkpoint-browser-2026-10-09.mforge",
+    "artifacts/planchard/SH-drawing-browser-2026-10-09.svg"
+  ],
+  "sha256": [
+    "7085d3d001a45aba21c9999ba0e3ec6677b13369799c4edc2c83c69e5f9838fe",
+    "f2c7f465ca7cfa89f9b288af274b98b7941e81e24951a202cc91dc5219ba38a1"
+  ],
+  "preservation": {
+    "definitions": true,
+    "poses": true,
+    "mates": true,
+    "studies": true
+  },
+  "occurrenceDescriptions": [
+    {
+      "id": 5245,
+      "partNo": "SH01",
+      "description": "Back plate - integral slide guide and feed bearing"
+    },
+    {
+      "id": 5246,
+      "partNo": "SH02",
+      "description": "Down-bit feed screw - smooth RH1 mm lead proxy"
+    },
+    {
+      "id": 5247,
+      "partNo": "SH03",
+      "description": "Vertical slide - guide, feed nut and clamp ear"
+    },
+    {
+      "id": 5248,
+      "partNo": "SH04",
+      "description": "Spacer bush - OD16 / ID8.2 x 8 mm"
+    },
+    {
+      "id": 5249,
+      "partNo": "SH05",
+      "description": "Handle grip - OD14 / ID6.2 x 20 mm"
+    },
+    {
+      "id": 5250,
+      "partNo": "SH06",
+      "description": "Handle bar - D6 x 50 mm"
+    },
+    {
+      "id": 5251,
+      "partNo": "SH07",
+      "description": "Fastener proxy - smooth M4 / round head; Steel304 substitute"
+    },
+    {
+      "id": 5252,
+      "partNo": "SH08",
+      "description": "Swivel plate / clapper box - slotted apron"
+    },
+    {
+      "id": 5253,
+      "partNo": "SH09",
+      "description": "Swivel pin - D8 / D12 head; smooth"
+    },
+    {
+      "id": 5254,
+      "partNo": "SH10",
+      "description": "Clamping screw - D6 / D10 head; smooth"
+    },
+    {
+      "id": 5255,
+      "partNo": "SH11",
+      "description": "Small washer - OD10 / ID6.2 x 2; clearance corrected"
+    },
+    {
+      "id": 5256,
+      "partNo": "SH12",
+      "description": "Pivot pin - D6 x 48 mm; smooth reference"
+    },
+    {
+      "id": 5257,
+      "partNo": "SH13",
+      "description": "Tool holder - neck D12, shoulder D20, slotted post"
+    },
+    {
+      "id": 5258,
+      "partNo": "SH14",
+      "description": "Tool fixing screw - D5 / D9 head; smooth"
+    },
+    {
+      "id": 5259,
+      "partNo": "SH15",
+      "description": "Drag plate - 31.6 x 38; socket D12.2 corrected"
+    },
+    {
+      "id": 5260,
+      "partNo": "SH16",
+      "description": "Tool washer - OD20 / ID12.2 x 2 mm"
+    }
+  ],
+  "explosion": {
+    "enabled": true,
+    "steps": 15,
+    "movedOccurrences": 15,
+    "stepTargets": [
+      "5246",
+      "5247",
+      "5248",
+      "5249",
+      "5250",
+      "5251",
+      "5252",
+      "5253",
+      "5254",
+      "5255",
+      "5256",
+      "5257",
+      "5258",
+      "5259",
+      "5260"
+    ]
+  },
+  "drawing": {
+    "size": "ANSI_C",
+    "units": "mm",
+    "scale": "fit",
+    "projection": "third",
+    "bomScope": "partsOnly",
+    "orientation": "landscape",
+    "draftingStandard": "ANSI",
+    "notes": "Original designer example for Exercise 8.20, printed 8-55 / PDF 433. Companion CAD and AVI unavailable.\n16 browser-authored parts; dimensions assumed. RH feed lead 1 mm/rev, travel 0-20 mm; apron adjustable, clapper outward 0-20 deg.\nSmooth ideal threads and fastener proxy; Steel304 substitute explicitly labeled. SH11 OD10 and SH15 socket D12.2 clearance corrections.\nMaterial densities are references. Not load-rated; no full machine cutting-stroke model.",
+    "title": "SHAPER TOOL HEAD - EXPLODED ASSEMBLY",
+    "number": "PLANCHARD-8.20-SH",
+    "revision": "A",
+    "author": "Browser reconstruction",
+    "company": "",
+    "date": "2026-10-09",
+    "material": "Mixed reference steels; see parts",
+    "finish": "Not specified",
+    "mass": "2.141069 kg (reference densities)"
+  },
+  "svg": {
+    "header": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"558.8mm\" height=\"431.8mm\" viewBox=\"0 0 558.8 431.8\">",
+    "bom": [
+      {
+        "item": 1,
+        "part": "SH01",
+        "qty": 1
+      },
+      {
+        "item": 2,
+        "part": "SH02",
+        "qty": 1
+      },
+      {
+        "item": 3,
+        "part": "SH03",
+        "qty": 1
+      },
+      {
+        "item": 4,
+        "part": "SH04",
+        "qty": 1
+      },
+      {
+        "item": 5,
+        "part": "SH05",
+        "qty": 1
+      },
+      {
+        "item": 6,
+        "part": "SH06",
+        "qty": 1
+      },
+      {
+        "item": 7,
+        "part": "SH07",
+        "qty": 1
+      },
+      {
+        "item": 8,
+        "part": "SH08",
+        "qty": 1
+      },
+      {
+        "item": 9,
+        "part": "SH09",
+        "qty": 1
+      },
+      {
+        "item": 10,
+        "part": "SH10",
+        "qty": 1
+      },
+      {
+        "item": 11,
+        "part": "SH11",
+        "qty": 1
+      },
+      {
+        "item": 12,
+        "part": "SH12",
+        "qty": 1
+      },
+      {
+        "item": 13,
+        "part": "SH13",
+        "qty": 1
+      },
+      {
+        "item": 14,
+        "part": "SH14",
+        "qty": 1
+      },
+      {
+        "item": 15,
+        "part": "SH15",
+        "qty": 1
+      },
+      {
+        "item": 16,
+        "part": "SH16",
+        "qty": 1
+      }
+    ],
+    "balloonLabels": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "balloonCount": 16,
+    "minCircleGapMm": 2.393000000000018,
+    "border": {
+      "x0": 20,
+      "y0": 12,
+      "x1": 546.8,
+      "y1": 419.8
+    },
+    "bomBox": {
+      "x0": 26,
+      "y0": 18,
+      "x1": 206,
+      "y1": 158.4
+    },
+    "titleBox": {
+      "x0": 366.8,
+      "y0": 377.8,
+      "x1": 546.8,
+      "y1": 419.8
+    },
+    "insideBorder": true,
+    "leaderCount": 16,
+    "explodedLineCount": 15,
+    "projectionCenterlineCount": 1,
+    "annotationBomCrossings": [],
+    "annotationTitleCrossings": [],
+    "explodeCircleIntrusions": [],
+    "titleMatches": true,
+    "disclosurePresent": true
+  },
+  "inputsUnchanged": true,
+  "pass": true
+}

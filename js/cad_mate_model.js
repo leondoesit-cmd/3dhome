@@ -322,7 +322,10 @@ export function setRotation(transform, matrix) {
 }
 
 export function axisAngleMatrix(axis, angle) {
-  if (Math.abs(angle) < 1e-10) return identity();
+  // Tiny nonzero corrections still move long lever arms measurably. Dropping
+  // them prevents the mate solver from reaching its existing residual target.
+  // Rodrigues' sine terms remain accurate near zero; only exact zero is identity.
+  if (angle === 0) return identity();
   const n=norm(axis), c=Math.cos(angle), s=Math.sin(angle), t=1-c;
   return [
     [t*n.x*n.x+c,t*n.x*n.y-s*n.z,t*n.x*n.z+s*n.y],
@@ -338,7 +341,7 @@ export function axisAngleMatrix(axis, angle) {
    stores, and they are only written back out at the end of a step. */
 export function rotationVectorMatrix(vector) {
   const angle = Math.hypot(vector.x, vector.y, vector.z);
-  if (angle < 1e-12) return identity();
+  if (angle === 0) return identity();
   return axisAngleMatrix(vector, angle);
 }
 

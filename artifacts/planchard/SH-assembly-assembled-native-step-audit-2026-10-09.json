@@ -1,0 +1,118 @@
+{
+  "scope": "Actual Chrome16-part assembly STEP compared bidirectionally against natively regenerated actual saved home; read-only.",
+  "sources": [
+    "artifacts/planchard/SH-assembly-two-studies-browser-2026-10-09.mforge",
+    "artifacts/planchard/SH-assembly-assembled-browser-2026-10-09.step"
+  ],
+  "sha256": [
+    "fe28fa1569788226bfcfd55eb4598736f4aa12309edc595c32df5247fcaa7ab9",
+    "9d692b85831391f97f76e055a19917fce0d01095c59688b0544a14ba4aabeedd"
+  ],
+  "definitions": 16,
+  "occurrences": 16,
+  "native": {
+    "validation": {
+      "valid": true,
+      "solidCount": 16,
+      "volumeCm3": 271.02632156325114,
+      "maxToleranceCm": 1.500000008005932e-7
+    },
+    "solidCount": 16,
+    "mass": {
+      "volume": 271.026321563251,
+      "centerOfMass": {
+        "x": -0.04441197502282797,
+        "y": 1.2007574792216145,
+        "z": 1.3390327675905187
+      },
+      "inertia": [
+        [
+          4015.588480118062,
+          25.97876739394693,
+          15.980100728829697
+        ],
+        [
+          25.97876739394693,
+          1881.376359011897,
+          25.868983013789716
+        ],
+        [
+          15.980100728829697,
+          25.868983013789716,
+          3860.878278936997
+        ]
+      ],
+      "solidCount": 16,
+      "bounds": {
+        "min": {
+          "x": -5,
+          "y": -5,
+          "z": -1.2000000000000002
+        },
+        "max": {
+          "x": 5,
+          "y": 10.9,
+          "z": 9.22
+        }
+      }
+    }
+  },
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 16,
+      "volumeCm3": 271.0263223551106,
+      "maxToleranceCm": 1e-7
+    },
+    "solidCount": 16,
+    "mass": {
+      "volume": 271.02632235511055,
+      "centerOfMass": {
+        "x": -0.04441197492593606,
+        "y": 1.2007575030298767,
+        "z": 1.3390327711656147
+      },
+      "inertia": [
+        [
+          4015.588533840504,
+          25.978767188541802,
+          15.980100691008879
+        ],
+        [
+          25.978767188541802,
+          1881.3763604923638,
+          25.868975160930177
+        ],
+        [
+          15.980100691008879,
+          25.868975160930177,
+          3860.8783314609095
+        ]
+      ],
+      "solidCount": 16,
+      "bounds": {
+        "min": {
+          "x": -5,
+          "y": -5,
+          "z": -1.2
+        },
+        "max": {
+          "x": 5,
+          "y": 10.9,
+          "z": 9.22
+        }
+      }
+    }
+  },
+  "nativeOutsideStep": {
+    "solidCount": 0,
+    "volumeCm3": 0
+  },
+  "stepOutsideNative": {
+    "solidCount": 0,
+    "volumeCm3": 0
+  },
+  "inputsUnchanged": true,
+  "symmetricDifferenceVolumeCm3": 0,
+  "pass": true
+}

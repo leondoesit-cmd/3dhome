@@ -1,0 +1,3506 @@
+{
+  "source": "artifacts/planchard/SH-assembly-23-mates-browser-2026-10-09.mforge",
+  "note": "Actual Chrome component transforms and all23 native mate objects retained; definitions/display meshes omitted; native reference descriptors independently audited in full original fixture.",
+  "components": [
+    {
+      "id": 5245,
+      "name": "SH01",
+      "grounded": true,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5246,
+      "name": "SH02",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5247,
+      "name": "SH03",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5248,
+      "name": "SH04",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 8.2,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5249,
+      "name": "SH05",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 9.6,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5250,
+      "name": "SH06",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 9.6,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5251,
+      "name": "SH07",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 10.6,
+        "z": 2.62,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5252,
+      "name": "SH08",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": -1,
+        "z": 3.42,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5253,
+      "name": "SH09",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": -1,
+        "z": 3.42,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5254,
+      "name": "SH10",
+      "grounded": false,
+      "transform": {
+        "x": -2.6,
+        "y": -1,
+        "z": 4.22,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5255,
+      "name": "SH11",
+      "grounded": false,
+      "transform": {
+        "x": -2.6,
+        "y": -1,
+        "z": 4.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5256,
+      "name": "SH12",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 0.4,
+        "z": 4.92,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5257,
+      "name": "SH13",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": -1.6,
+        "z": 5.42,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5258,
+      "name": "SH14",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": -1.6,
+        "z": 8.92,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5259,
+      "name": "SH15",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": -1,
+        "z": 4.22,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 5260,
+      "name": "SH16",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": -1.6,
+        "z": 5.22,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    }
+  ],
+  "topologyMates": [
+    {
+      "id": 5261,
+      "type": "lock",
+      "a": {
+        "componentId": 5245,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5248,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 8.200000000000001,
+          "z": 2.62
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5262,
+      "type": "lock",
+      "a": {
+        "componentId": 5246,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5249,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 9.600000000000001,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5263,
+      "type": "lock",
+      "a": {
+        "componentId": 5246,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5250,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 9.600000000000001,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5264,
+      "type": "lock",
+      "a": {
+        "componentId": 5246,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5251,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 10.600000000000001,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5265,
+      "type": "lock",
+      "a": {
+        "componentId": 5252,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5253,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5266,
+      "type": "lock",
+      "a": {
+        "componentId": 5247,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5254,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": -2.6,
+          "y": -1,
+          "z": 4.220000000000001
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5267,
+      "type": "lock",
+      "a": {
+        "componentId": 5247,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5255,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": -2.6,
+          "y": -1,
+          "z": 4.0200000000000005
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5268,
+      "type": "lock",
+      "a": {
+        "componentId": 5252,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5256,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 1.4,
+          "z": 1.5000000000000009
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5269,
+      "type": "lock",
+      "a": {
+        "componentId": 5259,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5257,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": -0.6000000000000001,
+          "z": 1.2000000000000002
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5270,
+      "type": "lock",
+      "a": {
+        "componentId": 5259,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5258,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": -0.6000000000000001,
+          "z": 4.7
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5271,
+      "type": "lock",
+      "a": {
+        "componentId": 5259,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 5260,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": -0.6000000000000001,
+          "z": 1.0000000000000009
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5272,
+      "type": "concentric",
+      "a": {
+        "componentId": 5245,
+        "kind": "edge",
+        "persistentId": "feature_mv00s1js_5:tool:edge:profile:4886:start",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": 7,
+            "z": 2.62
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 2.57610597594363,
+          "bounds": {
+            "min": {
+              "x": -0.4100001,
+              "y": 6.9999999,
+              "z": 2.2099999
+            },
+            "max": {
+              "x": 0.4100001,
+              "y": 7.0000001,
+              "z": 3.0300001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.0042103753008296e-16,
+              "y": 7,
+              "z": 3.0300000000000002
+            },
+            {
+              "x": 0,
+              "y": 7,
+              "z": 3.0300000000000002
+            }
+          ],
+          "radius": 0.41,
+          "arcMidpoint": {
+            "x": 5.021051876504148e-17,
+            "y": 7,
+            "z": 2.21
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": 7,
+            "z": 2.62
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 2.57610597594363,
+          "bounds": {
+            "min": {
+              "x": -0.4100001,
+              "y": 6.9999999,
+              "z": 2.2099999
+            },
+            "max": {
+              "x": 0.4100001,
+              "y": 7.0000001,
+              "z": 3.0300001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.0042103753008296e-16,
+              "y": 7,
+              "z": 3.0300000000000002
+            },
+            {
+              "x": 0,
+              "y": 7,
+              "z": 3.0300000000000002
+            }
+          ],
+          "radius": 0.41,
+          "arcMidpoint": {
+            "x": 5.021051876504148e-17,
+            "y": 7,
+            "z": 2.21
+          }
+        },
+        "signature": "plane:0:7:2.62:0:0:0"
+      },
+      "b": {
+        "componentId": 5246,
+        "kind": "edge",
+        "persistentId": "feature_mv012idg_1:edge:profile:4906:start",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": -4.5,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 2.5132741228718363,
+          "bounds": {
+            "min": {
+              "x": -0.4000001,
+              "y": -4.5000001,
+              "z": -0.4000001
+            },
+            "max": {
+              "x": 0.4000001,
+              "y": -4.4999999,
+              "z": 0.4000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0,
+              "y": -4.5,
+              "z": 0.4
+            },
+            {
+              "x": 1.3231137275884122e-15,
+              "y": -4.5,
+              "z": 0.4
+            }
+          ],
+          "radius": 0.4,
+          "arcMidpoint": {
+            "x": -6.615568637942061e-16,
+            "y": -4.5,
+            "z": -0.4
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": -4.5,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 2.5132741228718363,
+          "bounds": {
+            "min": {
+              "x": -0.4000001,
+              "y": -4.5000001,
+              "z": -0.4000001
+            },
+            "max": {
+              "x": 0.4000001,
+              "y": -4.4999999,
+              "z": 0.4000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0,
+              "y": -4.5,
+              "z": 0.4
+            },
+            {
+              "x": 1.3231137275884122e-15,
+              "y": -4.5,
+              "z": 0.4
+            }
+          ],
+          "radius": 0.4,
+          "arcMidpoint": {
+            "x": -6.615568637942061e-16,
+            "y": -4.5,
+            "z": -0.4
+          }
+        },
+        "signature": "plane:0:-4.5:0:0:0:0"
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 5273,
+      "type": "distance",
+      "a": {
+        "componentId": 5245,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:0:1:0"
+      },
+      "b": {
+        "componentId": 5246,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:0:1:0"
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 5274,
+      "type": "distance",
+      "a": {
+        "componentId": 5245,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "signature": "plane:0:0:0:0:0:1"
+      },
+      "b": {
+        "componentId": 5247,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "signature": "plane:0:0:0:0:0:1"
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 5275,
+      "type": "distance",
+      "a": {
+        "componentId": 5245,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:1:0:0"
+      },
+      "b": {
+        "componentId": 5247,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:1:0:0"
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 5276,
+      "type": "screw",
+      "a": {
+        "componentId": 5247,
+        "kind": "edge",
+        "persistentId": "feature_mv01b2ie_6:edge:generated:circle:1",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": -2,
+            "z": 2.62
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 2.57610597594363,
+          "bounds": {
+            "min": {
+              "x": -0.4100001,
+              "y": -2.0000001,
+              "z": 2.2099999
+            },
+            "max": {
+              "x": 0.4100001,
+              "y": -1.9999999,
+              "z": 3.0300001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.0042103753008296e-16,
+              "y": -2,
+              "z": 3.0300000000000002
+            },
+            {
+              "x": 0,
+              "y": -2,
+              "z": 3.0300000000000002
+            }
+          ],
+          "radius": 0.41,
+          "arcMidpoint": {
+            "x": 5.021051876504148e-17,
+            "y": -2,
+            "z": 2.21
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": -2,
+            "z": 2.62
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 2.57610597594363,
+          "bounds": {
+            "min": {
+              "x": -0.4100001,
+              "y": -2.0000001,
+              "z": 2.2099999
+            },
+            "max": {
+              "x": 0.4100001,
+              "y": -1.9999999,
+              "z": 3.0300001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.0042103753008296e-16,
+              "y": -2,
+              "z": 3.0300000000000002
+            },
+            {
+              "x": 0,
+              "y": -2,
+              "z": 3.0300000000000002
+            }
+          ],
+          "radius": 0.41,
+          "arcMidpoint": {
+            "x": 5.021051876504148e-17,
+            "y": -2,
+            "z": 2.21
+          }
+        },
+        "signature": "plane:0:-2:2.62:0:0:0"
+      },
+      "b": {
+        "componentId": 5246,
+        "kind": "edge",
+        "persistentId": "feature_mv012idg_1:edge:profile:4906:start",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": -4.5,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 2.5132741228718363,
+          "bounds": {
+            "min": {
+              "x": -0.4000001,
+              "y": -4.5000001,
+              "z": -0.4000001
+            },
+            "max": {
+              "x": 0.4000001,
+              "y": -4.4999999,
+              "z": 0.4000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0,
+              "y": -4.5,
+              "z": 0.4
+            },
+            {
+              "x": 1.3231137275884122e-15,
+              "y": -4.5,
+              "z": 0.4
+            }
+          ],
+          "radius": 0.4,
+          "arcMidpoint": {
+            "x": -6.615568637942061e-16,
+            "y": -4.5,
+            "z": -0.4
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": -4.5,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 2.5132741228718363,
+          "bounds": {
+            "min": {
+              "x": -0.4000001,
+              "y": -4.5000001,
+              "z": -0.4000001
+            },
+            "max": {
+              "x": 0.4000001,
+              "y": -4.4999999,
+              "z": 0.4000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0,
+              "y": -4.5,
+              "z": 0.4
+            },
+            {
+              "x": 1.3231137275884122e-15,
+              "y": -4.5,
+              "z": 0.4
+            }
+          ],
+          "radius": 0.4,
+          "arcMidpoint": {
+            "x": -6.615568637942061e-16,
+            "y": -4.5,
+            "z": -0.4
+          }
+        },
+        "signature": "plane:0:-4.5:0:0:0:0"
+      },
+      "aligned": false,
+      "value": 0,
+      "pitch": 0.1,
+      "turns": 0,
+      "coupledMotion": true,
+      "coupledAxial0": 0,
+      "coupledPhase0": 0,
+      "coupledAxialBasis": "component-origin"
+    },
+    {
+      "id": 5277,
+      "type": "limit",
+      "a": {
+        "componentId": 5245,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:0:1:0"
+      },
+      "b": {
+        "componentId": 5247,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:0:1:0"
+      },
+      "aligned": true,
+      "value": 0,
+      "min": -2,
+      "max": 0
+    },
+    {
+      "id": 5278,
+      "type": "concentric",
+      "a": {
+        "componentId": 5247,
+        "kind": "edge",
+        "persistentId": "feature_mv01aqsy_5:tool:edge:profile:4989:end",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": -1,
+            "z": 3.420000000000001
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 2.57610597594363,
+          "bounds": {
+            "min": {
+              "x": -0.4100001,
+              "y": -1.4100001,
+              "z": 3.419999900000001
+            },
+            "max": {
+              "x": 0.4100001,
+              "y": -0.5899999000000001,
+              "z": 3.4200001000000007
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0.41,
+              "y": -1,
+              "z": 3.420000000000001
+            },
+            {
+              "x": 0.41,
+              "y": -1,
+              "z": 3.420000000000001
+            }
+          ],
+          "radius": 0.41,
+          "arcMidpoint": {
+            "x": -0.41,
+            "y": -1,
+            "z": 3.420000000000001
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": -1,
+            "z": 3.420000000000001
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 2.57610597594363,
+          "bounds": {
+            "min": {
+              "x": -0.4100001,
+              "y": -1.4100001,
+              "z": 3.419999900000001
+            },
+            "max": {
+              "x": 0.4100001,
+              "y": -0.5899999000000001,
+              "z": 3.4200001000000007
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0.41,
+              "y": -1,
+              "z": 3.420000000000001
+            },
+            {
+              "x": 0.41,
+              "y": -1,
+              "z": 3.420000000000001
+            }
+          ],
+          "radius": 0.41,
+          "arcMidpoint": {
+            "x": -0.41,
+            "y": -1,
+            "z": 3.420000000000001
+          }
+        },
+        "signature": "plane:0:-1:3.42:0:0:0"
+      },
+      "b": {
+        "componentId": 5252,
+        "kind": "edge",
+        "persistentId": "feature_mv0246s2_4:tool:edge:profile:5086:start",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 2.57610597594363,
+          "bounds": {
+            "min": {
+              "x": -0.4100001,
+              "y": -0.4100001,
+              "z": -1e-7
+            },
+            "max": {
+              "x": 0.4100001,
+              "y": 0.4100001,
+              "z": 1e-7
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0.41,
+              "y": -1.0042103753008296e-16,
+              "z": 0
+            },
+            {
+              "x": 0.41,
+              "y": 0,
+              "z": 0
+            }
+          ],
+          "radius": 0.41,
+          "arcMidpoint": {
+            "x": -0.41,
+            "y": 5.021051876504148e-17,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 2.57610597594363,
+          "bounds": {
+            "min": {
+              "x": -0.4100001,
+              "y": -0.4100001,
+              "z": -1e-7
+            },
+            "max": {
+              "x": 0.4100001,
+              "y": 0.4100001,
+              "z": 1e-7
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0.41,
+              "y": -1.0042103753008296e-16,
+              "z": 0
+            },
+            {
+              "x": 0.41,
+              "y": 0,
+              "z": 0
+            }
+          ],
+          "radius": 0.41,
+          "arcMidpoint": {
+            "x": -0.41,
+            "y": 5.021051876504148e-17,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:0:0:0"
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 5279,
+      "type": "distance",
+      "a": {
+        "componentId": 5247,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "signature": "plane:0:0:0:0:0:1"
+      },
+      "b": {
+        "componentId": 5252,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "signature": "plane:0:0:0:0:0:1"
+      },
+      "aligned": true,
+      "value": 3.4200000000000004
+    },
+    {
+      "id": 5280,
+      "type": "angle",
+      "a": {
+        "componentId": 5247,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:0:1:0"
+      },
+      "b": {
+        "componentId": 5252,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:0:1:0"
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 5281,
+      "type": "concentric",
+      "a": {
+        "componentId": 5252,
+        "kind": "edge",
+        "persistentId": "feature_mv024o0u_6:tool:edge:profile:5108:start",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": -2,
+            "y": 1.4000000000000001,
+            "z": 1.5
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 1.947787445225672,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": 1.0899999,
+              "z": 1.1899998999999999
+            },
+            "max": {
+              "x": -1.9999999,
+              "y": 1.7100001000000002,
+              "z": 1.8100001000000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -2,
+              "y": 1.4000000000000001,
+              "z": 1.81
+            },
+            {
+              "x": -2,
+              "y": 1.4000000000000001,
+              "z": 1.81
+            }
+          ],
+          "radius": 0.31000000000000005,
+          "arcMidpoint": {
+            "x": -2,
+            "y": 1.4000000000000001,
+            "z": 1.19
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": -2,
+            "y": 1.4000000000000001,
+            "z": 1.5
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 1.947787445225672,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": 1.0899999,
+              "z": 1.1899998999999999
+            },
+            "max": {
+              "x": -1.9999999,
+              "y": 1.7100001000000002,
+              "z": 1.8100001000000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -2,
+              "y": 1.4000000000000001,
+              "z": 1.81
+            },
+            {
+              "x": -2,
+              "y": 1.4000000000000001,
+              "z": 1.81
+            }
+          ],
+          "radius": 0.31000000000000005,
+          "arcMidpoint": {
+            "x": -2,
+            "y": 1.4000000000000001,
+            "z": 1.19
+          }
+        },
+        "signature": "plane:-2:1.4:1.5:0:0:0"
+      },
+      "b": {
+        "componentId": 5259,
+        "kind": "edge",
+        "persistentId": "feature_mv03c90j_3:tool:edge:profile:5228:start",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": -1.58,
+            "y": 1.4000000000000001,
+            "z": 0.7000000000000001
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 1.7898808515786593,
+          "bounds": {
+            "min": {
+              "x": -1.5800001000000001,
+              "y": 1.0899999,
+              "z": 0.3899999
+            },
+            "max": {
+              "x": -1.5799999,
+              "y": 1.7100001000000002,
+              "z": 1.0000000999999994
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.58,
+              "y": 1.32189750324093,
+              "z": 0.9999999999999991
+            },
+            {
+              "x": -1.58,
+              "y": 1.47810249675907,
+              "z": 0.9999999999999993
+            }
+          ],
+          "radius": 0.31000000000000005,
+          "arcMidpoint": {
+            "x": -1.58,
+            "y": 1.4000000000000004,
+            "z": 0.39
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": -1.58,
+            "y": 1.4000000000000001,
+            "z": 0.7000000000000001
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 1.7898808515786593,
+          "bounds": {
+            "min": {
+              "x": -1.5800001000000001,
+              "y": 1.0899999,
+              "z": 0.3899999
+            },
+            "max": {
+              "x": -1.5799999,
+              "y": 1.7100001000000002,
+              "z": 1.0000000999999994
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.58,
+              "y": 1.32189750324093,
+              "z": 0.9999999999999991
+            },
+            {
+              "x": -1.58,
+              "y": 1.47810249675907,
+              "z": 0.9999999999999993
+            }
+          ],
+          "radius": 0.31000000000000005,
+          "arcMidpoint": {
+            "x": -1.58,
+            "y": 1.4000000000000004,
+            "z": 0.39
+          }
+        },
+        "signature": "plane:-1.58:1.4:0.7:0:0:0"
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 5282,
+      "type": "distance",
+      "a": {
+        "componentId": 5252,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:1:0:0"
+      },
+      "b": {
+        "componentId": 5259,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:1:0:0"
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 5283,
+      "type": "rotationlimit",
+      "a": {
+        "componentId": 5252,
+        "kind": "edge",
+        "persistentId": "feature_mv024o0u_6:tool:edge:profile:5108:start",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": -2,
+            "y": 1.4000000000000001,
+            "z": 1.5
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 1.947787445225672,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": 1.0899999,
+              "z": 1.1899998999999999
+            },
+            "max": {
+              "x": -1.9999999,
+              "y": 1.7100001000000002,
+              "z": 1.8100001000000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -2,
+              "y": 1.4000000000000001,
+              "z": 1.81
+            },
+            {
+              "x": -2,
+              "y": 1.4000000000000001,
+              "z": 1.81
+            }
+          ],
+          "radius": 0.31000000000000005,
+          "arcMidpoint": {
+            "x": -2,
+            "y": 1.4000000000000001,
+            "z": 1.19
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": -2,
+            "y": 1.4000000000000001,
+            "z": 1.5
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 1.947787445225672,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": 1.0899999,
+              "z": 1.1899998999999999
+            },
+            "max": {
+              "x": -1.9999999,
+              "y": 1.7100001000000002,
+              "z": 1.8100001000000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -2,
+              "y": 1.4000000000000001,
+              "z": 1.81
+            },
+            {
+              "x": -2,
+              "y": 1.4000000000000001,
+              "z": 1.81
+            }
+          ],
+          "radius": 0.31000000000000005,
+          "arcMidpoint": {
+            "x": -2,
+            "y": 1.4000000000000001,
+            "z": 1.19
+          }
+        },
+        "signature": "plane:-2:1.4:1.5:0:0:0"
+      },
+      "b": {
+        "componentId": 5259,
+        "kind": "edge",
+        "persistentId": "feature_mv03c90j_3:tool:edge:profile:5228:start",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": -1.58,
+            "y": 1.4000000000000001,
+            "z": 0.7000000000000001
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 1.7898808515786593,
+          "bounds": {
+            "min": {
+              "x": -1.5800001000000001,
+              "y": 1.0899999,
+              "z": 0.3899999
+            },
+            "max": {
+              "x": -1.5799999,
+              "y": 1.7100001000000002,
+              "z": 1.0000000999999994
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.58,
+              "y": 1.32189750324093,
+              "z": 0.9999999999999991
+            },
+            {
+              "x": -1.58,
+              "y": 1.47810249675907,
+              "z": 0.9999999999999993
+            }
+          ],
+          "radius": 0.31000000000000005,
+          "arcMidpoint": {
+            "x": -1.58,
+            "y": 1.4000000000000004,
+            "z": 0.39
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": -1.58,
+            "y": 1.4000000000000001,
+            "z": 0.7000000000000001
+          },
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 1.7898808515786593,
+          "bounds": {
+            "min": {
+              "x": -1.5800001000000001,
+              "y": 1.0899999,
+              "z": 0.3899999
+            },
+            "max": {
+              "x": -1.5799999,
+              "y": 1.7100001000000002,
+              "z": 1.0000000999999994
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.58,
+              "y": 1.32189750324093,
+              "z": 0.9999999999999991
+            },
+            {
+              "x": -1.58,
+              "y": 1.47810249675907,
+              "z": 0.9999999999999993
+            }
+          ],
+          "radius": 0.31000000000000005,
+          "arcMidpoint": {
+            "x": -1.58,
+            "y": 1.4000000000000004,
+            "z": 0.39
+          }
+        },
+        "signature": "plane:-1.58:1.4:0.7:0:0:0"
+      },
+      "angleMin": -20,
+      "angleMax": 0,
+      "reverse": false,
+      "rotationMarkerA": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "rotationMarkerB": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    }
+  ],
+  "mates": [],
+  "motionStudies": [
+    {
+      "id": "ms_f119bcee-b92a-40bd-9ab5-e29164311c76",
+      "name": "SH Feed - RH1mm - 120RPM - 20mm downfeed",
+      "duration": 10,
+      "motors": [
+        {
+          "id": "motor_e09bc947-52a3-4cf2-b3a5-717e5d160532",
+          "type": "screw",
+          "mateId": 5276,
+          "rpm": 120,
+          "baseTurns": 0
+        }
+      ],
+      "baseRotations": {
+        "__assemblyPoses": [
+          {
+            "id": 5245,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5246,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5247,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5248,
+            "transform": {
+              "x": 0,
+              "y": 8.2,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5249,
+            "transform": {
+              "x": 0,
+              "y": 9.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5250,
+            "transform": {
+              "x": 0,
+              "y": 9.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5251,
+            "transform": {
+              "x": 0,
+              "y": 10.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5252,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 3.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5253,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 3.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5254,
+            "transform": {
+              "x": -2.6,
+              "y": -1,
+              "z": 4.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5255,
+            "transform": {
+              "x": -2.6,
+              "y": -1,
+              "z": 4.02,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5256,
+            "transform": {
+              "x": 0,
+              "y": 0.4,
+              "z": 4.92,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5257,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 5.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5258,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 8.92,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5259,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 4.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5260,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 5.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          }
+        ]
+      },
+      "time": 10
+    },
+    {
+      "id": "ms_c9a2899e-c50c-450e-b7c9-59cfd95620f1",
+      "name": "SH Clapper - outward 20deg - fixed feed",
+      "duration": 10,
+      "motors": [
+        {
+          "id": "motor_be96a861-9148-45fd-9d40-17129403f430",
+          "type": "rotary",
+          "componentId": 5259,
+          "rpm": -0.3333333333333333,
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "pivot": {
+            "x": 0,
+            "y": 1.4000000000000001,
+            "z": 0.7000000000000001
+          },
+          "baseRotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "basePosition": {
+            "x": 0,
+            "y": -1,
+            "z": 4.22
+          }
+        }
+      ],
+      "baseRotations": {
+        "5259": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "__assemblyPoses": [
+          {
+            "id": 5245,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5246,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5247,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5248,
+            "transform": {
+              "x": 0,
+              "y": 8.2,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5249,
+            "transform": {
+              "x": 0,
+              "y": 9.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5250,
+            "transform": {
+              "x": 0,
+              "y": 9.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5251,
+            "transform": {
+              "x": 0,
+              "y": 10.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5252,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 3.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5253,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 3.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5254,
+            "transform": {
+              "x": -2.6,
+              "y": -1,
+              "z": 4.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5255,
+            "transform": {
+              "x": -2.6,
+              "y": -1,
+              "z": 4.02,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5256,
+            "transform": {
+              "x": 0,
+              "y": 0.4,
+              "z": 4.92,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5257,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 5.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5258,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 8.92,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5259,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 4.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5260,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 5.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          }
+        ]
+      },
+      "time": 10
+    }
+  ],
+  "studySource": "artifacts/planchard/SH-assembly-two-studies-browser-2026-10-09.mforge",
+  "recapturedMotionStudies": [
+    {
+      "id": "ms_f119bcee-b92a-40bd-9ab5-e29164311c76",
+      "name": "SH Feed - RH1mm - 120RPM - 20mm downfeed",
+      "duration": 10,
+      "motors": [
+        {
+          "id": "motor_e09bc947-52a3-4cf2-b3a5-717e5d160532",
+          "type": "screw",
+          "mateId": 5276,
+          "rpm": 120,
+          "baseTurns": 0
+        }
+      ],
+      "time": 10,
+      "baseRotations": {
+        "__assemblyPoses": [
+          {
+            "id": 5245,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5246,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5247,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5248,
+            "transform": {
+              "x": 0,
+              "y": 8.2,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5249,
+            "transform": {
+              "x": 0,
+              "y": 9.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5250,
+            "transform": {
+              "x": 0,
+              "y": 9.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5251,
+            "transform": {
+              "x": 0,
+              "y": 10.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5252,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 3.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5253,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 3.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5254,
+            "transform": {
+              "x": -2.6,
+              "y": -1,
+              "z": 4.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5255,
+            "transform": {
+              "x": -2.6,
+              "y": -1,
+              "z": 4.02,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5256,
+            "transform": {
+              "x": 0,
+              "y": 0.4,
+              "z": 4.92,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5257,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 5.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5258,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 8.92,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5259,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 4.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5260,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 5.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          }
+        ]
+      },
+      "nativeDriveConfiguration": [
+        {
+          "mateId": 5276,
+          "type": "screw",
+          "field": "driveTurns",
+          "value": null
+        },
+        {
+          "mateId": 5283,
+          "type": "rotationlimit",
+          "field": "driveAngle",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "ms_c9a2899e-c50c-450e-b7c9-59cfd95620f1",
+      "name": "SH Clapper - outward 20deg - fixed feed",
+      "duration": 10,
+      "motors": [
+        {
+          "id": "motor_be96a861-9148-45fd-9d40-17129403f430",
+          "type": "rotary",
+          "componentId": 5259,
+          "rpm": -0.3333333333333333,
+          "axis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "pivot": {
+            "x": 0,
+            "y": 1.4000000000000001,
+            "z": 0.7000000000000001
+          },
+          "baseRotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "basePosition": {
+            "x": 0,
+            "y": -1,
+            "z": 4.22
+          }
+        }
+      ],
+      "time": 10,
+      "baseRotations": {
+        "5259": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "__assemblyPoses": [
+          {
+            "id": 5245,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5246,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5247,
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5248,
+            "transform": {
+              "x": 0,
+              "y": 8.2,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5249,
+            "transform": {
+              "x": 0,
+              "y": 9.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5250,
+            "transform": {
+              "x": 0,
+              "y": 9.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5251,
+            "transform": {
+              "x": 0,
+              "y": 10.6,
+              "z": 2.62,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5252,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 3.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5253,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 3.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5254,
+            "transform": {
+              "x": -2.6,
+              "y": -1,
+              "z": 4.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5255,
+            "transform": {
+              "x": -2.6,
+              "y": -1,
+              "z": 4.02,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5256,
+            "transform": {
+              "x": 0,
+              "y": 0.4,
+              "z": 4.92,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5257,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 5.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5258,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 8.92,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5259,
+            "transform": {
+              "x": 0,
+              "y": -1,
+              "z": 4.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          },
+          {
+            "id": 5260,
+            "transform": {
+              "x": 0,
+              "y": -1.6,
+              "z": 5.22,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0,
+              "q": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              }
+            }
+          }
+        ]
+      },
+      "nativeDriveConfiguration": [
+        {
+          "mateId": 5276,
+          "type": "screw",
+          "field": "driveTurns",
+          "value": 0
+        },
+        {
+          "mateId": 5283,
+          "type": "rotationlimit",
+          "field": "driveAngle",
+          "value": null
+        }
+      ]
+    }
+  ],
+  "recapturedStudySource": "artifacts/planchard/SH-assembly-recaptured-studies-browser-2026-10-09.mforge"
+}

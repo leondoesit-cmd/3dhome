@@ -1,0 +1,44 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {sourceFunctionText} from './helpers/source_function.mjs';
+import {assemblyMobilityReport,currentAssemblyMobility} from '../js/core/assembly_mobility_status.js';
+import {solveTopologyMates} from '../js/cad_mates.js';
+
+const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const fixture=()=>({components:[{id:'fixed',grounded:true,transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0}}],mates:[],topologyMates:[]});
+test('assembly status explicitly shows native checked zero mobility and distinguishes fresh 1/2 from unknown/stale results',()=>{
+ const assembly=fixture(),E={docType:'assembly',assembly,componentSel:[],mateDegreesOfFreedom:0},status={innerHTML:''};
+ const context={E,root:{querySelector:()=>status},currentAssemblyMobility,assemblyMateCount:a=>a.mates.length+a.topologyMates.length,brokenMateCount:()=>0,documentDirty:()=>false,t:key=>({mateDof:'degrees of freedom',mateDofOne:'degree of freedom',mateMobilityUnchecked:'Mobility not checked'})[key]||key};
+ context.countLabel=(count,one,many)=>count+' '+context.t(count===1?one:many);
+ const sync=new Function(...Object.keys(context),sourceFunctionText(source,'syncStatusLine')+';return syncStatusLine;')(...Object.values(context));
+ sync();assert.match(status.innerHTML,/Mobility not checked/);assert.doesNotMatch(status.innerHTML,/0 degrees/);
+ const native=solveTopologyMates(assembly);assert.equal(native.ok,true);assert.equal(native.degreesOfFreedom,0);
+ E.mateMobilityReport=assemblyMobilityReport(assembly,native,native.issues);sync();assert.match(status.innerHTML,/0 degrees of freedom/);
+ for(const count of [1,2]){E.mateMobilityReport=assemblyMobilityReport(assembly,{ok:true,degreesOfFreedom:count});sync();assert.match(status.innerHTML,new RegExp(count+' degree'));}
+ assembly.components[0].transform.x=1;sync();assert.match(status.innerHTML,/Mobility not checked/);
+});
+test('mobility snapshot rejects failed/incomplete solve, changed mate drive and reopened document, while metadata edits keep a valid report',()=>{
+ const assembly=fixture();assembly.topologyMates=[{id:'stop',type:'rotationlimit',driveAngle:0}];
+ const report=assemblyMobilityReport(assembly,{ok:true,degreesOfFreedom:0});assert.equal(currentAssemblyMobility(assembly,report),0);
+ assembly.components[0].description='Readable description';assert.equal(currentAssemblyMobility(assembly,report),0);
+ assert.equal(currentAssemblyMobility(JSON.parse(JSON.stringify(assembly)),report),null);
+ assembly.topologyMates[0].driveAngle=-4;assert.equal(currentAssemblyMobility(assembly,report),null);
+ for(const result of [{ok:false,degreesOfFreedom:0},{ok:true},{ok:true,degreesOfFreedom:NaN},{ok:true,degreesOfFreedom:0,unsatisfied:[{mate:'stop'}]}])assert.equal(currentAssemblyMobility(assembly,assemblyMobilityReport(assembly,result)),null);
+ assert.equal(currentAssemblyMobility(assembly,assemblyMobilityReport(assembly,{ok:true,degreesOfFreedom:0},[{mate:'stop'}])),null);
+ assembly.components[0].asm=fixture();const nested=assemblyMobilityReport(assembly,{ok:true,degreesOfFreedom:0});
+ assembly.components[0].asm.components[0].transform.x=2;assert.equal(currentAssemblyMobility(assembly,nested),null);
+});
+test('actual assembly solve records current mobility, including zero, without promoting a missing count to checked zero',()=>{
+ const assembly=fixture(),E={};let result={ok:true,degreesOfFreedom:0,issues:[]};
+ const context={E,mateSolveCount:0,solveTopologyMates:()=>result,updateAssemblyContexts:()=>({issues:[]}),assemblyMobilityReport};
+ const apply=new Function(...Object.keys(context),sourceFunctionText(source,'applyAssemblyMates')+';return applyAssemblyMates;')(...Object.values(context));
+ apply(assembly);assert.equal(currentAssemblyMobility(assembly,E.mateMobilityReport),0);
+ result={ok:true,issues:[]};apply(assembly);assert.equal(currentAssemblyMobility(assembly,E.mateMobilityReport),null);
+});
+test('atomic mechanical-mate commit refreshes the mobility snapshot used by the status bar',()=>{
+ const E={assembly:fixture()},context={E,assemblyMobilityReport,invalidateInterference(){},updateAssemblyContexts:()=>({issues:[]}),refreshAll(){},assemblySolveFresh:false};
+ const accept=new Function(...Object.keys(context),sourceFunctionText(source,'acceptRackPinionSolve')+';return acceptRackPinionSolve;')(...Object.values(context));
+ accept({ok:true,degreesOfFreedom:0});assert.equal(currentAssemblyMobility(E.assembly,E.mateMobilityReport),0);
+ accept({ok:false,degreesOfFreedom:0,issues:[{mate:'hinge'}]});assert.equal(currentAssemblyMobility(E.assembly,E.mateMobilityReport),null);
+});

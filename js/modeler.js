@@ -162,6 +162,7 @@ import { draftFaceChoices } from "./core/draft_face_choices.js";
 import { ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, lookupAssemblyComponent, refreshSubassemblyFromRecord, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
 import {formSubassembly} from './core/assembly_form_subassembly.js';
 import {assemblyDrawingBOM,occurrenceBOMKey} from './core/assembly_drawing_bom.js';
+import {assemblyMobilityReport,currentAssemblyMobility} from './core/assembly_mobility_status.js';
 import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds, worldFrame } from "./cad_mate_model.js";
 import { setScrewMateCoupledMotion, setScrewMateDrive, setScrewMateHandedness } from "./cad_screw_controls.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
@@ -173,7 +174,7 @@ import { createReferencePlane, createReferenceAxis, createReferencePoint, create
 import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath,circularHelixSweepProfile } from "./cad_helix.js";
 import { circularSweepProfile, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
 import { defaultExplodeLayout, assemblyHasExplodedOffsets, createExplodedView, addExplodeStep, applyExplodedView, applyExplodedProgress, explodeLines, explodeTargets, explodedOccurrenceOffset } from "./cad_exploded_view.js";
-import { createMotionStudy, addRotaryMotor, addScrewMotor, addRackPinionMotor, addLinearMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
+import { createMotionStudy, captureMotionStudyBaseline, addRotaryMotor, addScrewMotor, addRackPinionMotor, addLinearMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
 import { detectInterference, generateBOM } from "./cad_interference.js";
 import { createProjectBundle, exportProjectBundle, importProjectBundle, importProjectBundleText, activeProjectDocument } from "./cad_project_bundle.js";
 import { measureAngleBetweenNormals, measureDistance } from "./cad_evaluate.js";
@@ -559,6 +560,7 @@ function applyAssemblyMates(assembly, solveOptions) {
      and this bracket can still slide and spin". */
   E.mateFreedom = (result && result.clusters) || [];
   E.mateDegreesOfFreedom = (result && result.degreesOfFreedom) || 0;
+  E.mateMobilityReport=assemblyMobilityReport(assembly,result,E.mateIssues);
   return result;
 }
 
@@ -2398,6 +2400,7 @@ var E = {
   mateUnsatisfied: [],    // mates another mate has overridden
   mateFreedom: [],        // per-cluster degrees of freedom from the last solve
   mateDegreesOfFreedom: 0,
+  mateMobilityReport: null,
   interferenceChecked: false,
   interferenceRevision: 0,
   dependencyHighlight: null,
@@ -11508,11 +11511,12 @@ function syncStatusLine() {
     var selected = E.componentSel && E.componentSel.length || 0;
     var picked = (E.topologySelection || []).filter(function (reference) { return reference.componentId; }).length;
     var broken = brokenMateCount();
+    var mobility=currentAssemblyMobility(E.assembly,E.mateMobilityReport);
     st.innerHTML = '<b>' + t("docAssembly") + '</b>' +
       '<span class="md-st-sep"></span>' + countLabel(components.length, "assemblyComponentOne", "assemblyComponents") +
       '<span class="md-st-sep"></span>' + countLabel(mates, "matesCountOne", "matesCount") +
       (broken ? '<span class="md-st-sep"></span><b class="md-st-dirty">' + countLabel(broken, "mateIssueOne", "mateIssues") + "</b>" : "") +
-      (E.mateDegreesOfFreedom ? '<span class="md-st-sep"></span>' + countLabel(E.mateDegreesOfFreedom, "mateDofOne", "mateDof") : "") +
+      '<span class="md-st-sep"></span>' + (mobility===null?t('mateMobilityUnchecked'):countLabel(mobility, "mateDofOne", "mateDof")) +
       (selected ? '<span class="md-st-sep"></span><b class="md-st-selection">' + selected + " " + t("assemblySelected") + "</b>" : "") +
       (picked ? '<span class="md-st-sep"></span><b class="md-st-selection">' + countLabel(picked, "matePickedOne", "matePicked") + "</b>" : "") +
       (documentDirty() ? '<span class="md-st-sep"></span><b class="md-st-dirty">' + t("dirtySave") + "</b>" : "");
@@ -19033,7 +19037,7 @@ function assemblyTransformInspector() {
     pushUndo("Apply component placement");
     var beforeName=component.name;
     var physicalFreedom=E.mateFreedom,physicalDegreesOfFreedom=E.mateDegreesOfFreedom;
-    var beforeMateStatus={issues:E.mateIssues,rebindings:E.mateRebindings,unsatisfied:E.mateUnsatisfied};
+    var beforeMateStatus={issues:E.mateIssues,rebindings:E.mateRebindings,unsatisfied:E.mateUnsatisfied,mobility:E.mateMobilityReport};
     component.name=nextName;
     /* A component the user typed is the temporary driver of this solve. It
        must not be one of the least-squares variables, or a free linkage can
@@ -19043,6 +19047,7 @@ function assemblyTransformInspector() {
       component.name=beforeName;
       E.mateIssues=beforeMateStatus.issues;E.mateRebindings=beforeMateStatus.rebindings;E.mateUnsatisfied=beforeMateStatus.unsatisfied;
       E.mateFreedom=physicalFreedom;E.mateDegreesOfFreedom=physicalDegreesOfFreedom;
+      E.mateMobilityReport=beforeMateStatus.mobility;
       refreshAll({assemblyPoseOnly:true});
       flash("Placement conflicts with assembly mates; previous pose restored.");
       return;
@@ -19050,6 +19055,7 @@ function assemblyTransformInspector() {
     /* The anchor was only a placement driver, not a saved mate. Keep the
        physical mobility count from the unchanged mate graph after it leaves. */
     E.mateFreedom=physicalFreedom;E.mateDegreesOfFreedom=physicalDegreesOfFreedom;
+    E.mateMobilityReport=beforeMateStatus.mobility;
     refreshAll({assemblyPoseOnly:true});fitPreview();
   },"md-wide");
   applyPlacement.disabled=!!component.grounded;host.appendChild(applyPlacement);
@@ -19395,6 +19401,7 @@ function acceptRackPinionSolve(result) {
   E.mateIssues=(result.issues || []).concat(contextResult.issues);
   E.mateRebindings=result.rebindings || [];E.mateUnsatisfied=result.unsatisfied || [];
   E.mateFreedom=result.clusters || [];E.mateDegreesOfFreedom=result.degreesOfFreedom || 0;
+  E.mateMobilityReport=assemblyMobilityReport(E.assembly,result,E.mateIssues);
   assemblySolveFresh=true;refreshAll({assemblyPoseOnly:true});
 }
 
@@ -19894,6 +19901,7 @@ function assemblyMateInspectorBody() {
         E.mateIssues=(result.issues || []).concat(contextResult.issues);
         E.mateRebindings=result.rebindings || [];E.mateUnsatisfied=result.unsatisfied || [];
         E.mateFreedom=result.clusters || [];E.mateDegreesOfFreedom=result.degreesOfFreedom || 0;
+        E.mateMobilityReport=assemblyMobilityReport(E.assembly,result,E.mateIssues);
         assemblySolveFresh=true;
         refreshAll();
       };
@@ -26405,10 +26413,11 @@ function createDefaultMotionStudy() {
     const axisName=a=>!a?"y":a.x===1&&a.y===0&&a.z===0?"x":a.z===1&&a.x===0&&a.y===0?"z":a.y===1&&a.x===0&&a.z===0?"y":"custom";
     const axes=["x","y","z"].map(value=>({value,label:value.toUpperCase()}));
     const axisChoices=a=>axisName(a)==="custom"?axes.concat({value:"custom",label:t("motionSavedAxis")}):axes;
-    openQuickForm({action:"motion",title:t("motionStudy"),hint:motorType==='rackpinion'?t('rackPinionHint'):motorType==="screw"?"Turn a coupled Screw mate: relative axial travel follows its lead, and the linkage follows the assembly constraints.":t(motorType==="linear" ? "linearMotionHint" : relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"),fields:[
+    const baselineCaption=!study?t("motionNewDriveBaseline"):Array.isArray(study.nativeDriveConfiguration)?t("motionCapturedDriveBaseline")+" "+study.nativeDriveConfiguration.length:study.nativeDriveConfiguration===undefined?t("motionPoseOnlyBaseline"):t("motionInvalidDriveBaseline");
+    openQuickForm({action:"motion",title:t("motionStudy"),hint:(motorType==='rackpinion'?t('rackPinionHint'):motorType==="screw"?"Turn a coupled Screw mate: relative axial travel follows its lead, and the linkage follows the assembly constraints.":t(motorType==="linear" ? "linearMotionHint" : relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"))+" "+baselineCaption,fields:[
       {key:"study",label:t("motionStudy"),type:"select",value:studyId||"new",choices:[{value:"new",label:t("motionNewStudy")},...(E.assembly.motionStudies||[]).map(s=>({value:s.id,label:s.name}))]},
       {key:"name",label:"Study name",type:"text",value:study?.name||"Motion Study "+((E.assembly.motionStudies||[]).length+1)},
-      ...(study ? [{key:"resetZero",label:"Use current pose as time zero",type:"boolean",value:false},{key:"deleteStudy",label:"Delete this study",type:"boolean",value:false}] : []),
+      ...(study ? [{key:"resetZero",label:t("motionResetDriveBaseline"),type:"boolean",value:false},{key:"deleteStudy",label:"Delete this study",type:"boolean",value:false}] : []),
       {key:"motorType",label:t("motionMotorType"),type:"select",value:motorType,choices:[{value:"rotary",label:t("motionRotary")},{value:"linear",label:t("motionLinear")},...(coupledScrews.length?[{value:"screw",label:"Screw mate"}]:[]),...(rackMates.length?[{value:'rackpinion',label:t('rackPinionMate')}]:[])]},
       ...(motorType==="rotary" ? [{key:"relation",label:t("motionRelation"),type:"select",value:relationId,choices:[{value:"none",label:t(study?.gearRelations?.length ? "motionKeepRelations" : "motionMotorOnly")},{value:"new",label:t("motionAddRelation")},...(study?.gearRelations||[]).map(r=>({value:r.id,label:(components.find(c=>c.id===r.driverId)?.name||r.driverId)+" → "+(components.find(c=>c.id===r.followerId)?.name||r.followerId)}))]}] : []),
       ...(coupledMotor?[{key:"screwMate",label:motorType==='rackpinion'?t('rackPinionMate'):"Coupled Screw mate",type:"select",value:motor?.mateId||coupledMates[0]?.id,choices:coupledMates.map(m=>({value:m.id,label:motionScrewMateLabel(m)}))}]:[{key:"motor",label:t("motionMotor"),type:"select",value:motor?.componentId||driver,choices}]),
@@ -26478,6 +26487,7 @@ function createDefaultMotionStudy() {
         target.gearRelations=(target.gearRelations||[]).filter(r=>r.id!==relationId);
         if(!v.remove)addGearRelation(target,v.driver,v.follower,{driverTeeth:v.driverTeeth,followerTeeth:v.followerTeeth,mesh:v.mesh,driverAxis:axis(v.driverAxis,relation?.driverAxis),followerAxis:axis(v.followerAxis,relation?.followerAxis)});
       }
+      if(v.resetZero)captureMotionStudyBaseline(trial,target);
       const result=evaluateMotionStudy(trial,target.id,v.time);
       if(!result.ok){flash((result.issues||[]).concat(result.unsatisfied||[]).map(i=>i.code).join("; "));return false;}
       pushUndo(t("motionStudy"));

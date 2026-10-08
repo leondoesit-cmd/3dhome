@@ -17,7 +17,7 @@ const ASSEMBLY_POSES = '__assemblyPoses';
 const playbackCursors = new WeakMap();
 const poseStamp = components => JSON.stringify((components || []).map(c => [c.id,c.transform]));
 const studyStamp = (assembly,study) => JSON.stringify([
-  assembly.mates || [],assembly.topologyMates || [],study.motors || [],study.gearRelations || [],study.baseRotations || {},
+  assembly.mates || [],assembly.topologyMates || [],study.motors || [],study.gearRelations || [],study.baseRotations || {},study.nativeDriveConfiguration,
 ]);
 const snapshotPoses = components => (components || []).map(component => ({
   id: component.id, transform: structuredClone(component.transform || {}),
@@ -31,6 +31,40 @@ function restoreStudyPose(study, components) {
   }
 }
 
+const nativeDriveField = type => type==='rotationlimit'?'driveAngle':
+  (type==='screw'||type==='rackpinion'?'driveTurns':null);
+// A pose alone cannot retain a temporarily seated clapper while the saved
+// assembly is returned to its free configuration. Capture only explicit native
+// actuator Drive settings; geometry, suppression and grounding remain live.
+export function captureMotionStudyBaseline(assembly,study) {
+  study.baseRotations ||= {};
+  study.baseRotations[ASSEMBLY_POSES]=snapshotPoses(assembly.components);
+  study.nativeDriveConfiguration=(assembly.topologyMates||[]).flatMap(mate=>{
+    const field=nativeDriveField(mate.type);if(!field)return [];
+    const value=mate[field]??null;
+    return [{mateId:mate.id,type:mate.type,field,value,
+      ...(value!==null&&!Number.isFinite(value)?{invalid:true}:{})}];
+  });
+  return study;
+}
+function restoreNativeDriveConfiguration(study,trial) {
+  // Older studies retain their original live-mate behavior until the user
+  // explicitly recaptures their baseline. Never infer a missing configuration.
+  if(!Object.hasOwn(study,'nativeDriveConfiguration'))return null;
+  const entries=study.nativeDriveConfiguration,seen=new Set();
+  if(!Array.isArray(entries))return {ok:false,issues:[{code:'invalid-motion-drive-configuration'}]};
+  for(const entry of entries){
+    const mate=trial.topologyMates.find(m=>m.id===entry?.mateId);
+    if(!mate||mate.type!==entry.type)return {ok:false,issues:[{code:'stale-motion-drive-configuration',mate:entry?.mateId}]};
+    if(seen.has(mate)||entry.invalid||entry.field!==nativeDriveField(mate.type)
+      ||!entry.field||(entry.value!==null&&!Number.isFinite(entry.value)))
+      return {ok:false,issues:[{code:'invalid-motion-drive-configuration',mate:mate.id}]};
+    seen.add(mate);
+    if(entry.value===null)delete mate[entry.field];else mate[entry.field]=entry.value;
+  }
+  return null;
+}
+
 export function createMotionStudy(assembly, name = "MotionStudy1") {
   if (!assembly.motionStudies) assembly.motionStudies = [];
   const ms = {
@@ -38,8 +72,9 @@ export function createMotionStudy(assembly, name = "MotionStudy1") {
     name,
     duration: 10, // seconds
     motors: [],
-    baseRotations: { [ASSEMBLY_POSES]: snapshotPoses(assembly.components) },
+    baseRotations: {},
   };
+  captureMotionStudyBaseline(assembly,ms);
   assembly.motionStudies.push(ms);
   return ms;
 }
@@ -80,6 +115,8 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
     && prior.pose===poseStamp(assembly.components) && prior.graph===studyStamp(assembly,original);
   const trial={...assembly,components:(assembly.components||[]).map(c=>({...c,transform:structuredClone(c.transform||{})})),mates:structuredClone(assembly.mates||[]),topologyMates:structuredClone(assembly.topologyMates||[])};
   const ms=structuredClone(original),driven=new Set();
+  const configuration=restoreNativeDriveConfiguration(ms,trial);
+  if(configuration)return configuration;
   if(!resume)restoreStudyPose(ms,trial.components);
   if(trial.topologyMates.some(m=>m.type==='belt' && !Number.isFinite(m.rollA0))){
     const captured=solveAssemblyMates(trial);if(!captured.ok)return captured;
