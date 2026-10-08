@@ -1,0 +1,135 @@
+{
+  "source": "artifacts/planchard/AP08-press-head-final-browser-2026-10-08.mforge",
+  "bytes": 118778,
+  "inputSha256": "1e423d1de7a715abeb309da99ca522e11da033cd0381d83b18026e5c3a72ea63",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "diameterMm": 20,
+      "fromMm": -8,
+      "toMm": 0,
+      "pass": true
+    },
+    {
+      "diameterMm": 10,
+      "fromMm": 0,
+      "toMm": 8,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP08-press-head-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 3.1415926535897927,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 3.1415926535897927,
+    "boundsCm": {
+      "min": {
+        "x": -1,
+        "y": -0.8,
+        "z": -1
+      },
+      "max": {
+        "x": 1,
+        "y": 0.8,
+        "z": 1
+      }
+    },
+    "centerOfMassCm": {
+      "x": -8.219607720155734e-18,
+      "y": -0.24000000000000002,
+      "z": -2.142456972930286e-16
+    },
+    "seconds": 6.802581699999999
+  },
+  "step": {
+    "source": "artifacts/planchard/AP08-press-head-final-browser-2026-10-08.step",
+    "bytes": 9689,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 3.141592653589807,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 3.141592653589807,
+      "centerOfMass": {
+        "x": -4.64174055095296e-18,
+        "y": -0.24000000000000296,
+        "z": 5.742668174864658e-15
+      },
+      "inertia": [
+        [
+          1.156839134806895,
+          -1.955679256372649e-17,
+          5.643411251706981e-17
+        ],
+        [
+          -1.955679256372649e-17,
+          1.3351768777756892,
+          5.832140326233972e-15
+        ],
+        [
+          5.643411251706981e-17,
+          5.832140326233972e-15,
+          1.1568391348068887
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1,
+          "y": -0.8,
+          "z": -1
+        },
+        "max": {
+          "x": 1,
+          "y": 0.8,
+          "z": 1
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/AP08-press-head-final-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/AP08-press-head-final-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticVolumeCm3": 3.141592653589793,
+  "nativeAnalyticVolumeErrorCm3": -4.440892098500626e-16,
+  "material": {
+    "name": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "source": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "catalogId": "stock:alloySteel",
+    "massG": 24.190263432641405
+  },
+  "customProperties": {
+    "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational pressing head and locating neck for book Part1 ARBOR PRESS role. Book AISI1035 role uses Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+    "PartNo": "AP08",
+    "BookItemNo": "1.8 PART1 ARBOR PRESS"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent Chrome UI observation",
+    "driving": "NeckD10→10.1 changed native3.141593→3.154222cm3 /0.02419026→0.02428751kg; Undo/Redo/Undo restored10 then Save",
+    "coldReopen": "Parent actual Chrome cold reload/saved-library reopen:4fullydefinedsteps,1native solid,20x16x20mm,3.141593cm3/0.02419026kg; drivingneck10/offset0 retained. Coldmass/colddim/finalgeometry screenshots protected.",
+    "status": "passed"
+  }
+}

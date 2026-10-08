@@ -1,0 +1,9 @@
+# Exercise8.19 AP08 Press Head — native audit
+
+Actual Chrome-authored final bundle118778 bytes and STEP9689 bytes pass the frozen two-feature design. Top fixed-center ordinaryD20 pressing bodyY−8..0 and ordinaryD10 locating neckY0..8 are merged. Two fully defined sketches/four rebuilt history steps; exact offsets/depths and ordinary diameters retained, no draft/thin/symmetric changes.
+
+Native rebuild yields one valid solid with no issues: volume3.1415926535897927cm³, matching analytic two-cylinder sumπcm³ within roundoff. Mass24.190263432641405g at actual AlloySteel reference7.7g/cm³. Bounds20×16×20mm; COM(≈0,−2.4,≈0)mm, expected toward the larger pressing body. Description preserves original interpretation of the book Part1 ARBOR PRESS role and explicit AISI1035 substitute; PartNoAP08/BookItemNo1.8 PART1 ARBOR PRESS and actual material provenance persist.
+
+Independent STEP imports as one valid solid, exact subtraction both ways0solids/0volume and symmetric difference0. Parent observed neckD10→10.1 produce3.141593→3.154222cm³/0.02419026→0.02428751kg, then Undo/Redo/Undo/Save restored10. Parent subsequently observed actual Chrome cold reload/saved-library reopen PASS:4 fully defined editable steps, one native solid,20×16×20mm,3.141593cm³/0.02419026kg; driving neck10 atoffset0 retained. Protected cold mass/dimension/final geometry screenshots provide browser evidence. Authored geometry and ADVANCE were not changed.
+
+Four JSONs: `AP08-press-head-final-native-bundle-audit-2026-10-08.json`, `AP08-press-head-final-native-step-audit-2026-10-08.json`, `AP08-press-head-final-step-equivalence-audit-2026-10-08.json`, `AP08-press-head-final-design-consistency-audit-2026-10-08.json`. Read-only script `scratch/planchard/audit-ap08-readonly.mjs`. Helper featureCount5 counts kernel operations; authored count is2.
