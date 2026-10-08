@@ -1,0 +1,9 @@
+# Exercise8.19 AP02 Front Cover — native audit
+
+Actual Chrome-authored `AP02-front-cover-final-browser-2026-10-08.mforge` and matching STEP independently pass the frozen recipe. Front centered rectangle66×52mm extrudes Z0..6; fixed center, midpoint on excluded construction diagonal, two horizontal/two vertical constraints and ordinary width/height driving dimensions persist. Front five-circle ThroughAll +Z cut retains the complete exact profile set: journalD12.2 at(−12,0), fourD6.4 clearance holes at(±25,±16). Two sketches fully defined, two features/four rebuilt history steps, no draft/thin/symmetric changes.
+
+Native rebuilt geometry is one valid solid, no issues: volume19.11853021361332cm³, bounds66×52×6mm, COM(0.4402380107699078,≈0,3)mm. AISI1020 SOLIDWORKS reference density7.9g/cm³ gives151.0363886875452g. Actual material catalog/provenance and Description/PartNoAP02/BookItemNo1.2 FRONT COVER persist. The positive X COM offset follows the left-offset journal hole; it is expected.
+
+Independent STEP imports as one valid solid. Bidirectional Boolean subtraction is0solids/0volume both ways, symmetric difference0. Inputs were not modified. Parent observed width66→68 change native volume19.11853→19.74253cm³, then Undo/Redo/Undo/Save restored66. Parent subsequently observed actual Chrome cold reload/saved-library reopen PASS:4 fully defined editable steps, one native solid,19.11853cm³/0.1510364kg; five ordinary diameters12.2+4×6.4 at Front offset0 were retained. Protected cold mass/diameter/final geometry screenshots provide browser evidence.
+
+Artifacts: `AP02-front-cover-final-native-bundle-audit-2026-10-08.json`, `AP02-front-cover-final-native-step-audit-2026-10-08.json`, `AP02-front-cover-final-step-equivalence-audit-2026-10-08.json`, `AP02-front-cover-final-design-consistency-audit-2026-10-08.json`. Repeatable read-only script `scratch/planchard/audit-ap02-readonly.mjs`. ADVANCE and authored geometry remain parent-owned.

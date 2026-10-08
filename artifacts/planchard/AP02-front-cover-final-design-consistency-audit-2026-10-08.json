@@ -1,0 +1,194 @@
+{
+  "source": "artifacts/planchard/AP02-front-cover-final-browser-2026-10-08.mforge",
+  "bytes": 359662,
+  "inputSha256": "1ae65fbe9de8afa7bb0f5797c36857c84848f8909b3600cb408308a414c7c030",
+  "inputUnchanged": true,
+  "checks": {
+    "featureSketchHistoryCounts": true,
+    "fullyDefined": true,
+    "frontOffsets": true,
+    "rectangleDimensions": true,
+    "centerAnchored": true,
+    "constructionExcluded": true,
+    "boss": true,
+    "allFiveCutProfiles": true,
+    "cut": true,
+    "noDraftOrThin": true
+  },
+  "circleChecks": [
+    {
+      "entity": 4597,
+      "centerMm": [
+        -12.000000000000002,
+        0
+      ],
+      "diameterMm": 12.2,
+      "pass": true
+    },
+    {
+      "entity": 4601,
+      "centerMm": [
+        -25,
+        -16
+      ],
+      "diameterMm": 6.400000000000001,
+      "pass": true
+    },
+    {
+      "entity": 4605,
+      "centerMm": [
+        -25,
+        16
+      ],
+      "diameterMm": 6.400000000000001,
+      "pass": true
+    },
+    {
+      "entity": 4609,
+      "centerMm": [
+        25,
+        -16
+      ],
+      "diameterMm": 6.400000000000001,
+      "pass": true
+    },
+    {
+      "entity": 4613,
+      "centerMm": [
+        25,
+        16
+      ],
+      "diameterMm": 6.400000000000001,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 19.11853021361332,
+      "maxToleranceCm": 1.000000001494069e-7
+    },
+    "mass": {
+      "volume": 19.11853021361332,
+      "centerOfMass": {
+        "x": 0.04402380107699078,
+        "y": 1.0162341306501647e-17,
+        "z": 0.3000000000000001
+      },
+      "inertia": [
+        [
+          44.91266453090755,
+          1.7849101809780093e-15,
+          -4.996003610813204e-16
+        ],
+        [
+          1.7849101809780093e-15,
+          69.36495943579604,
+          -2.4980018054066007e-17
+        ],
+        [
+          -4.996003610813204e-16,
+          -2.4980018054066007e-17,
+          113.13051215388677
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.3000000000000003,
+          "y": -2.6,
+          "z": 0
+        },
+        "max": {
+          "x": 3.3000000000000003,
+          "y": 2.6,
+          "z": 0.6000000000000001
+        }
+      }
+    },
+    "issues": []
+  },
+  "step": {
+    "source": "artifacts/planchard/AP02-front-cover-final-browser-2026-10-08.step",
+    "bytes": 36559,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 19.118530213613315,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 19.118530213613315,
+      "centerOfMass": {
+        "x": 0.04402380107696354,
+        "y": 2.9035260875718998e-18,
+        "z": 0.30000000000000004
+      },
+      "inertia": [
+        [
+          44.91266453090748,
+          1.4457337438920617e-15,
+          -1.6653345369377348e-16
+        ],
+        [
+          1.4457337438920617e-15,
+          69.36495943579568,
+          3.053113317719181e-17
+        ],
+        [
+          -1.6653345369377348e-16,
+          3.053113317719181e-17,
+          113.13051215388636
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.3,
+          "y": -2.6,
+          "z": 0
+        },
+        "max": {
+          "x": 3.3,
+          "y": 2.6,
+          "z": 0.6
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/AP02-front-cover-final-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/AP02-front-cover-final-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massG": 151.0363886875452
+  },
+  "customProperties": {
+    "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational front cover; companion CAD and AVI unavailable. AISI1020 SOLIDWORKS reference density 7.90 g/cm3. No rated capacity.",
+    "PartNo": "AP02",
+    "BookItemNo": "1.2 FRONT COVER"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent Chrome UI observation",
+    "driving": "Width66→68 changed native volume19.11853→19.74253cm3; Undo/Redo/Undo restored66 and Save",
+    "coldReopen": "Parent observed actual Chrome cold reload and saved-library reopen:4 fullydefinedsteps,1native solid,19.11853cm3/0.1510364kg; five ordinary driving diameters12.2+4x6.4 atFrontoffset0. Protected coldmass/holedim/finalgeometry screenshots.",
+    "status": "passed"
+  }
+}

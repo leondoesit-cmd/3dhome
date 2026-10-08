@@ -273,7 +273,8 @@
   "metadataPass": true,
   "browserDurability": {
     "parentObservedTrial": "Guide width20.4→20.6 changed native volume471.3314cm3/mass3.723518kg; Undo/Redo/Undo restored20.4, saved",
-    "coldReopen": "Pending parent Chrome observation"
+    "coldReopen": "Parent actual Chrome cold library/native nominal restoration:guide20.4x20.4 atY128; accepted checkpoint6c79aca.",
+    "status": "passed"
   },
   "initialFinalComparison": {
     "featuresExactlyEqual": true,

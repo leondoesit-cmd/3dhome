@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP02-front-cover-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 5,
+  "issues": [],
+  "volumeCm3": 19.11853021361332,
+  "boundsCm": {
+    "min": {
+      "x": -3.3000000000000003,
+      "y": -2.6,
+      "z": 0
+    },
+    "max": {
+      "x": 3.3000000000000003,
+      "y": 2.6,
+      "z": 0.6000000000000001
+    }
+  },
+  "centerOfMassCm": {
+    "x": 0.04402380107699078,
+    "y": 1.0162341306501647e-17,
+    "z": 0.3000000000000001
+  },
+  "seconds": 6.0329749
+}
