@@ -91,7 +91,7 @@ test('a late exact mesh refreshes the visible drawing and inspector without a We
   E.sheet=controller;
   const lightweight=controller.svg();
   let paints=0,panels=0,sizes=0,projected='';
-  const context={E,syncLiveDownstreamBadge(){},syncSizeReadout(){sizes++;},
+  const context={E,retainExactPreview:()=>false,syncLiveDownstreamBadge(){},syncSizeReadout(){sizes++;},
     drawSketch(){paints++;projected=controller.svg();},syncSheetPanel(){panels++;}};
   vm.createContext(context);
   const invalidationStart=source.indexOf('function invalidateDrawing() {');

@@ -14,6 +14,54 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { migrateSavedLayout, defaultLayout } from "../js/uikit_host/layout.js";
+import {connect,attach,detach,ribbonEntries} from "../js/uikit_host/ribbon.js";
+
+test("an older sketch ribbon receives precise circle and rectangle commands beside the drawing tools",()=>{
+  const doc=defaultLayout();
+  delete doc.precisionSketchRibbonVersion;
+  const group=doc.nodes["md:grpSketch"],ids=["cmd:grpSketch:centerrectangle","cmd:grpSketch:dimensionedcircle"];
+  group.children=group.children.filter(id=>!ids.includes(id));
+  for(const id of ids)delete doc.nodes[id];
+  const before=structuredClone(doc),out=migrateSavedLayout(doc),children=out.nodes["md:grpSketch"].children;
+  for(const [command,neighbour] of [["centerrectangle","srect"],["dimensionedcircle","scirc"]]){
+    const id="cmd:grpSketch:"+command;
+    assert.equal(children.indexOf(id),children.indexOf("cmd:grpSketch:"+neighbour)+1);
+    assert.equal(out.nodes[id].ref,id);
+  }
+  assert.deepEqual(doc,before);
+  assert.deepEqual(migrateSavedLayout(out),out);
+});
+
+test("precision ribbon migration preserves moved commands and a later deliberate removal",()=>{
+  const doc=defaultLayout(),id="cmd:grpSketch:centerrectangle";
+  delete doc.precisionSketchRibbonVersion;
+  doc.nodes["md:grpSketch"].children=doc.nodes["md:grpSketch"].children.filter(child=>child!==id);
+  doc.nodes["panel:tb-start"].children.push(id);
+  const out=migrateSavedLayout(doc);
+  assert.ok(out.nodes["panel:tb-start"].children.includes(id));
+  assert.ok(!out.nodes["md:grpSketch"].children.includes(id));
+  const circle="cmd:grpSketch:dimensionedcircle";
+  out.nodes["md:grpSketch"].children=out.nodes["md:grpSketch"].children.filter(child=>child!==circle);
+  delete out.nodes[circle];
+  assert.deepEqual(migrateSavedLayout(out),out);
+});
+
+test("both precision ribbon commands invoke their adopted modeler control",()=>{
+  const clicks=[],root={querySelector(selector){
+    const command=selector.match(/data-command="([^"]+)"/);
+    return command ? {click:()=>clicks.push(command[1])} : null;
+  }};
+  connect({doc:defaultLayout(),registerSlot(){},unregisterSlot(){}});
+  attach(root);
+  try{
+    const entries=ribbonEntries();
+    for(const command of ["centerrectangle","dimensionedcircle"]){
+      const entry=entries.find(item=>item.id==="cmd:grpSketch:"+command);
+      assert.ok(entry);entry.run();
+    }
+    assert.deepEqual(clicks,["centerrectangle","dimensionedcircle"]);
+  }finally{detach();connect(null);}
+});
 
 /* The shape the previous build wrote: menus were leaves, their items lived in
    slot-bound containers parked at the root, and the three toolbar-centre

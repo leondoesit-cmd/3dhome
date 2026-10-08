@@ -146,12 +146,15 @@ test("every path that replaces the open document asks about unsaved work first",
 test("renaming or repricing a model makes it dirty like any other edit", () => {
   // documentDirty() is defined by the undo tree, so an edit that creates no
   // history node cannot be seen by it at all.
-  assert.match(source, /#mdName"\)\.addEventListener\("change"[\s\S]{0,400}?pushUndo\(t\("renameDocument"\)\)/);
+  assert.match(source, /bindDocumentTextField\("#mdName",[\s\S]{0,400}?t\("renameDocument"\)\)/);
+  const textField=body("bindDocumentTextField");
+  assert.match(textField,/if\(readValue\(\)===next\)return;/);
+  assert.match(textField,/pushUndo\(undoLabel\);writeValue\(next\);syncUndoButtons\(\);/);
+  assert.match(textField,/input\.addEventListener\("change",commit\)/);
   assert.match(source, /#mdPrice"\)\.addEventListener\("change"[\s\S]{0,400}?pushUndo\(t\("setPrice"\)\)/);
   // Assigning straight into the document is what put them outside the flag.
   assert.doesNotMatch(source, /addEventListener\("change", function \(\) \{\s*if \(E\.docType === "assembly" && E\.assembly\) E\.assembly\.name = this\.value;/);
   // Re-entering the same value is not an edit and must not stack undo steps.
-  assert.match(source, /if \(\(assembly \? E\.assembly\.name : E\.def\.name\) === this\.value\) return/);
   assert.match(source, /if \(E\.def\.price === price\) return/);
   for (const key of ["renameDocument", "setPrice"]) assert.match(strings, new RegExp(`${key}: \\["[^"]+", "[^"]+"\\]`));
 });

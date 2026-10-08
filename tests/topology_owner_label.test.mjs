@@ -46,7 +46,7 @@ test('mixed owners, or none, fall back to the selected part', () => {
 });
 
 test('the selection name and the Shape panel both use the owning feature', () => {
-  assert.match(src, /var ownerFeature = topologyCount \? topologySelectionFeature\(\) : null;/);
+  assert.match(src, /var ownerFeature = inspectorHistoryFeature\(\) \|\| \(topologyCount \? topologySelectionFeature\(\) : null\);/);
   assert.match(src, /\(ownerFeature && \(ownerFeature\.name \|\| ownerFeature\.type\)\) \|\| E\.sel\.name/);
-  assert.match(src, /var pickedFeature=topologySelectionFeature\(\);\s*var featureId=pickedFeature \? pickedFeature\.id : \(p\.derivedFeatureId \|\| p\.featureId\);/);
+  assert.match(src, /var pickedFeature=historyFeature \|\| topologySelectionFeature\(\);\s*var featureId=pickedFeature \? pickedFeature\.id : \(p\.derivedFeatureId \|\| p\.featureId\);/);
 });

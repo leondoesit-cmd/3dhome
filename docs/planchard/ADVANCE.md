@@ -12,25 +12,23 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 **Exercise 8.17 Bench Vice — printed page 8-52 / PDF page 430.**
 
-BV01 base is in progress. Saved browser library key: `cm_musrulf4`; name: `Planchard 8.17 - BV01 Base - fresh designer example 2026-10-03`. Six finished features: bed, merged front pedestal, merged fixed jaw, through-bed slot, Ø20.2 Right-datum journal bore with 16 mm blind depth, Ø6 Top-datum retention bore at X8/Z0 and Y44 with 14 mm blind depth. UI reported one native solid and 176 × 66 × 70 mm bounds. The cleaned history and whole-body Alloy Steel density 7.70 g/cm³ were saved before reload.
+**BV01 base accepted 2026-10-08.** Saved library key `cm_musrulf4`, name `Planchard 8.17 - BV01 Base - fresh designer example 2026-10-03`. Eight features/16 fully-defined sketch/history steps, one native solid,176×66×70mm. Nose passage and four foot holes completed through browser UI. Exact volume198.69716711709407cm³, mass1.529968kg at Alloy Steel reference7.70g/cm³. Driving edit/Undo/Redo/cold library reopen passed. Actual editable bundle and STEP protected; independent recipe/STEP validations passed. See `bench-vice-8.17-BV01-acceptance-2026-10-08.md`. Remaining vice parts and assembly are unfinished.
 
 Protected Chrome recovery export: `artifacts/planchard/BV01-base-retention-checkpoint-browser-2026-10-03.mforge`. It predates removal of an empty sketch and final material assignment. Preserve that distinction when recovering from export instead of the saved library. Detailed evidence: `bench-vice-8.17-browser-checkpoint-2026-10-04.md`. Frozen geometry/interface and part quantities: `bench-vice-8.17-design.md`.
 
 ### Next exact actions
 
-1. Reconnect browser controls, inspect desktop Chrome at `http://localhost:8765/`, verify dark theme, and open the saved BV01 library entry. Inspect it before editing.
-2. Use Sketch → Dimensioned circle on Top: U8/V0, diameter4.2 mm, fixed center, sketch offset42.2 mm; blind cut1.8 mm along+Y for the retention nose passage.
-3. New Top sketch at offset0: four fixed-center Ø6 mm circles at U30/146, V±25; blind cut4 mm along+Y. Verify profiles/cut extent and one connected native solid.
-4. Add source/custom properties, perform driving-dimension/undo/reopen acceptance, export actual native bundle and STEP, preserve proof and read-only native audit. Replace the partial checkpoint only with documented final evidence.
-5. Build BV02..BV10 from blank, then the sixteen-occurrence vice assembly. Check 4 mm/rev guided screw movement with 0..50 mm travel, native clearance and mates; create ANSI A landscape third-angle exploded drawing with BOM/balloons. Disclose designer dimensions, missing companion parts/AVI, ideal thread representation, material proxies and the book image's ARBOR PRESS title discrepancy.
-6. Continue Exercise8.18 Kant-Twist Clamp (8-53/PDF431),8.19 Arbor Press (8-54/PDF432),8.20 Shaper Tool Head (8-55/PDF433), then reconcile earlier/later unfinished rows in `remaining-book-audit-2026-10-03.md` against their newer detailed reports.
+1. Reconnect browser controls in desktop Chrome at `http://localhost:8765/`, preserve saved site storage and dark theme. BV01 is accepted; preserve its final bundle/STEP and library entry.
+2. Build BV02 mounting foot from blank: Top rectangle X-10..10/Z±45, offsetY-12, extrude12 along+Y; through-YØ6.6 atX0/Z±25. Unitsmm, Alloy Steel reference, source/custom properties. Then BV03..BV10 per frozen design, all from blank and browser UI.
+3. Perform driving edit/Undo/Redo/cold reopen, actual bundle/STEP and independent audit for each part. Create16-occurrence assembly, check4mm/rev guided screw with0..50mm travel, native clearances/mates, ANSI A landscape third-angle exploded drawing/BOM/balloons. Disclose designer dimensions, missing companion parts/AVI, ideal threads and book artwork title discrepancy.
+4. Continue8.18 Kant-Twist Clamp(8-53/PDF431),8.19 Arbor Press(8-54/PDF432),8.20 Shaper Tool Head(8-55/PDF433), then reconcile earlier/later uncertainties in `remaining-book-audit-2026-10-03.md`.
 
 ## Latest accepted work
 
 | Exercise | Printed / PDF | Accepted evidence |
 |---|---|---|
 |8.14 Double Pulley|8-49 /427|`double-pulley-8.14-browser-progress-2026-10-03.md`;28 occurrences,30 mates,1 physical DOF; protected native/export/drawing evidence|
-|8.15 Welder Arm|8-50 /428|`welder-arm-8.15-final-acceptance-2026-10-03.md`;18 occurrences,26 mates,4 physical DOF, native motion and ANSI C sheet; commit`fba69cd`|
+|8.15 Welder Arm|8-50 /428|`welder-arm-8.15-final-acceptance-2026-10-03.md`;18 occurrences,23 topology mates,4 physical DOF, native motion and ANSI C sheet; commit`fba69cd`|
 |8.16 Radial Engine|8-51 /429|`radial-engine-8.16-browser-progress-2026-10-03.md` final sections;55 connected valid solids,14 definitions,75 mates,1 physical DOF; actual Chrome full-cycle Play,25 sampled clearances, corrected annular piston, ANSI C exploded sheet; commit`12c88eb`|
 
 Earlier brief/plan claims that these exercises have not started are stale. Earlier chapters still have reconciliation items; this table does not certify all earlier work.
@@ -49,3 +47,33 @@ Browser-only CUA startup failed with `helper_unknown_error: setup refresh had er
 ## Tabs and durability
 
 Completed exercise exports survive closing their CAD tabs. BV01's saved library checkpoint survives closing its tab; keep the Chrome profile/site storage, or recover the protected partial bundle and reapply its documented later edits. Unrelated tabs have not been audited. Save/export any new work before closing tabs. Keep this file and all acceptance evidence in Git checkpoints.
+<!-- Resume note: 2026-10-08, current chat 01a119fd-60d8-72e3-8664-af800e15d372 -->
+## Earlier interrupted session status — 2026-10-08 (superseded below)
+
+Caught up through the previous chat's committed checkpoint `b14f5ed` (startup recovery and sketch-center coordinate editing). Repository contents and PDF could not be freshly inspected in this session: PowerShell process creation failed with `helper_unknown_error: setup refresh had errors`; Node and browser runtimes exited before initialization. The requested UI subagent independently confirmed the same blocker. No new geometry, UI repairs, or test passes are claimed for this session.
+
+Resume remains Exercise **8.17, printed 8-52 / PDF page 430**. Open the saved BV01 Base in desktop Chrome at `http://localhost:8765/`, preserve browser site storage, and use Chrome dark theme. Author models through visible browser controls; the current user explicitly excludes native computer use and script-only model creation.
+
+Next: finish BV01's Ø4.2 mm nose passage (X8/Z0, Y42.2..44), four Ø6 mm blind foot holes (X30/146, Z±25, Y0..4), source properties and final export/cold-reopen audit; then author BV02–BV10 and the sixteen-occurrence vice assembly per `bench-vice-8.17-design.md`. Verify screw motion, native solids and exports; produce the book's ANSI A landscape third-angle exploded drawing, lines, BOM, balloons and title properties. Continue remaining-book tracking below. Exercise 8.16 is complete according to the prior protected acceptance reports; 8.17 and the rest of the book remain unfinished.
+
+First recover the Codex local runtime/browser connection, then read this file and current git status before resuming. A restart was already requested in the prior chat; this new session still exhibits runtime startup failures. Update this advance file after each accepted modeling milestone and each app repair with evidence and next action.
+
+## Active browser continuation — 2026-10-08
+
+Local shell and browser controls recovered in this chat. Read current Git history through `b14f5ed`; only this advance file was initially modified. Freshly rendered and visually inspected PDF430/printed8-52 from the user's actual Downloads PDF. Exercise asks for original parts, proper assembly movement, and ANSI A landscape third-angle exploded drawing with lines/BOM/balloons; companion dimensions remain unavailable.
+
+Desktop Chrome browser-only extension controls connected; no native Computer Use actions. Chrome tab `710861699` at `http://localhost:8765/` displays the dark app and working WebGL model editor. Local relay launched outside restricted-network sandbox after restarting only our verified server process; logs `scratch/planchard/relay-2026-10-08.*.log`. Opened existing BV01 library entry through visible UI: 12 history steps (six features and six fully-defined sketches), one native solid, 176 × 66 × 70 mm. Exact rebuild initially computing. No new geometry accepted yet.
+
+UI subagent `/root/ui_current` is fixing plane-local coordinate labels and constraint-aware edits for points, line endpoints, and ellipse centers. Parent owns this advance file. Next action remains BV01 nose passage, then foot holes, properties and acceptance/export, followed by BV02–BV10 and assembly. Browser click calls can time out after dispatch while their action succeeds; inspect fresh DOM before retrying to avoid double actions.
+
+### Milestone: BV01 nose passage saved
+
+Browser authored Ø4.2 circle at Top U8/V0 with driving diameter and fixed center, offset42.2mm; Blind Extrude Cut depth1.8mm Along normal. Fresh tree/status:14 steps/seven features, all sketches fully defined, Rebuild succeeded, Native solids1. Saved via library control. Remaining: four Ø6 holes, properties, driving edit/undo/reopen and actual native exports. Precision-circle commands had been omitted from both visible pro ribbon and UIKit catalog; UI agent repaired both plus old saved-layout migration. Hard reload verified visible Dimensioned circle and the actual form/application works.
+
+Full unit run logged4091 tests,4052 pass,39 failures; no clean-suite claim. UI agent triages stale source/VM fixtures and environment failures. Separate `/root/rotary_gap` agent confirmed malformed rotary pivot errors were ignored by seek/incremental callers and is fixing success/rollback behavior. Do not confuse these test failures with model acceptance.
+
+### Milestone: BV01 complete geometry and properties saved
+
+Four Top circles Ø6 at U30/146,V±25, all fixed centers/driving diameters, offset0; one Blind Extrude Cut4mm Along normal. Eight features/16 history steps, one native solid,176×66×70mm. Added PartNo BV01,Description,Source PDF430/8-52,OriginalDesignerExample,BookItemNo1,BookMaterial and RetentionRepresentation through Custom props UI. Saved library.
+
+Exact mass panel:198.6972cm³,1.529968kg,7.70000g/cm³ Alloy Steel reference; COM X95.20954,Y18.38893,Z approximately0mm. Driving one foot diameter6→7mm updates volume198.6563cm³ (delta≈0.0409cm³, analytic expected0.0408407cm³ within display rounding). Undo→Redo→Undo exercised through visible controls; final nominal restoration/reopen/export still to verify. Export milestone pending; geometry is not final acceptance yet.

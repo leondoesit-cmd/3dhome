@@ -29,7 +29,7 @@ test('Explode step seeds all selected components and authors a grouped step with
 test('quick form Apply reads component checkbox selections as an array rather than a text value',async()=>{
  const element=()=>({appendChild(){},addEventListener(){},focus(){},classList:{contains:()=>false}});
  const host=element(),E={def:{},authoring:{}};let apply,received;
- const bindings={E,root:{querySelector:()=>host},el:element,t:x=>x,featureField:()=>({getSeedIds:()=>['a','b']}),featureControlValue,modelLengthUnit:()=> 'mm',namedButton:x=>x,btn:(label,callback,style)=>{if(style==='md-quick-apply')apply=callback;return element();},validateFeatureInputs:()=>true,syncCommandManager:()=>{},document:{body:element()},requestAnimationFrame:fn=>fn(),closeFeaturePanel:()=>{},refreshAll:()=>{}};
+ const bindings={E,motionPlaybackCancel:null,root:{querySelector:()=>host},el:element,t:x=>x,featureField:()=>({getSeedIds:()=>['a','b']}),featureControlValue,modelLengthUnit:()=> 'mm',namedButton:x=>x,btn:(label,callback,style)=>{if(style==='md-quick-apply')apply=callback;return element();},validateFeatureInputs:()=>true,syncCommandManager:()=>{},document:{body:element()},requestAnimationFrame:fn=>fn(),closeFeaturePanel:()=>{},refreshAll:()=>{}};
  const spec={action:'explodestep',title:'Explode',fields:[{key:'components',type:'feature-seeds',value:['a']}],onApply:values=>{received=values;}};
  const fn=new Function(...Object.keys(bindings),sourceFunctionText(source,'openQuickForm')+';return openQuickForm;')(...Object.values(bindings));
  fn(spec);await apply();assert.deepEqual(received,{components:['a','b']});

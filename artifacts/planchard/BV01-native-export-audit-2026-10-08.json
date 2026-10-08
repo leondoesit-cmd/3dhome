@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\BV01-base-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 23,
+  "issues": [],
+  "volumeCm3": 198.69716711709407,
+  "boundsCm": {
+    "min": {
+      "x": -1e-7,
+      "y": 0,
+      "z": -3.5
+    },
+    "max": {
+      "x": 17.6,
+      "y": 6.6000000000000005,
+      "z": 3.5
+    }
+  },
+  "centerOfMassCm": {
+    "x": 9.520954163625664,
+    "y": 1.8388931915765736,
+    "z": -1.5966767992472823e-9
+  },
+  "seconds": 5.8541592
+}

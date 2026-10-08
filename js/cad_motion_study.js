@@ -140,7 +140,8 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
       const at=prior.time+(timeInSeconds-prior.time)*step/motionSubsteps;
       const current=step===motionSubsteps?motion:gearMotionState(rotary,trial.components,at);
       if(!current.ok)return current;
-      placeRotary(current.motions);
+      const placed=placeRotary(current.motions);
+      if(placed?.ok===false)return placed;
       result=solveAssemblyMates(trial,{fixedComponentIds:[...driven]});
       if(!result.ok)return result;
     }
@@ -159,7 +160,8 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
       if(!result.ok)return result;
     }
   }else{
-    placeRotary(motion.motions);
+    const placed=placeRotary(motion.motions);
+    if(placed?.ok===false)return placed;
     result=solveAssemblyMates(trial,{fixedComponentIds:[...driven]});
   }
   if(!result.ok)return result;

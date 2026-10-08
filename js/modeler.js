@@ -19829,7 +19829,7 @@ function fillCabinetParameters(host) {
 /* Coordinate cells are edits to the sketch, including its fixed anchor,
    rather than solver starting guesses. Preserve other relations and reject an
    edit they prevent, instead of silently snapping the displayed value back. */
-function setSketchCenterCoordinate(point, axis, value) {
+function setSketchCenterCoordinate(point, axis, value, coordinateName) {
   var sketch=ensureSketch(E.def);
   if(!point || !["x","y"].includes(axis) || !fin(value))return false;
   var oldPoints=sketch.points.map(function(p){return {point:p,x:p.x,y:p.y};});
@@ -19844,7 +19844,8 @@ function setSketchCenterCoordinate(point, axis, value) {
   oldEntities.forEach(function(old){Object.assign(old.entity,old.values);});
   resolveSketch(false);
   H.discard();
-  flash("The center coordinate is controlled by another sketch relation. Edit that relation to move the center.");
+  var name=coordinateName || "center";
+  flash("The "+name+" coordinate is controlled by another sketch relation. Edit that relation to move the "+name+".");
   return false;
 }
 
@@ -19942,10 +19943,10 @@ function fillShape() {
   if(importRecognition && importRecognition!=="none" && E.def.parameters){host.appendChild(el("h5","md-h5","Recognized feature parameters"));Object.values(E.def.parameters).filter(function(parameter){return parameter && parameter.adjustable!==false && parameter.exposure!=="internal" && typeof parameter.value==="number";}).forEach(function(parameter){numRow(grid,parameter.label || parameter.name,function(){return parameter.value;},function(value){parameter.value=parameter.step===1?Math.round(value):value;regenerateExactModel(false);},parameter.step || .1);});}
   if (p.type === "line") {
     var linePts = sketchLinePoints(p), pa = linePts.a, pb = linePts.b;
-    numLengthRow(grid, "X1", function () { return pa.x; }, function (v) { pa.x = v; resolveSketch(false); }, 0.1);
-    numLengthRow(grid, "Y1", function () { return pa.y; }, function (v) { pa.y = v; resolveSketch(false); }, 0.1);
-    numLengthRow(grid, "X2", function () { return pb.x; }, function (v) { pb.x = v; resolveSketch(false); }, 0.1);
-    numLengthRow(grid, "Y2", function () { return pb.y; }, function (v) { pb.y = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "U1", function () { return pa.x; }, function (v) { setSketchCenterCoordinate(pa,"x",v,"point"); }, 0.1);
+    numLengthRow(grid, "V1", function () { return pa.y; }, function (v) { setSketchCenterCoordinate(pa,"y",v,"point"); }, 0.1);
+    numLengthRow(grid, "U2", function () { return pb.x; }, function (v) { setSketchCenterCoordinate(pb,"x",v,"point"); }, 0.1);
+    numLengthRow(grid, "V2", function () { return pb.y; }, function (v) { setSketchCenterCoordinate(pb,"y",v,"point"); }, 0.1);
     numLengthRow(grid, t("constraintLength"), function () { return Math.hypot(pb.x - pa.x, pb.y - pa.y); }, function (v) { setLineConstraint(p, "distance", Math.max(1e-6, v)); }, 0.1, "length");
     numRow(grid, t("constraintAngle"), function () { return (Math.atan2(pb.y - pa.y, pb.x - pa.x) * 180) / Math.PI; }, function (v) { setLineConstraint(p, "angle", v); }, 0.1);
     numRow(grid, t("wallWidth"), function () { return p.weight || 1; }, function (v) { p.weight = clamp(v, 1, 6); }, 0.1);
@@ -19962,8 +19963,8 @@ function fillShape() {
   } else if (p.type === "ellipse") {
     var oe = ellipseData(p, new Map((ensureSketch(E.def).points || []).map(function (q) { return [q.id, q]; })));
     if (oe) {
-      numLengthRow(grid, "X", function () { return oe.center.x; }, function (v) { oe.center.x = v; resolveSketch(false); }, 0.1);
-      numLengthRow(grid, "Y", function () { return oe.center.y; }, function (v) { oe.center.y = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "Center U", function () { return oe.center.x; }, function (v) { setSketchCenterCoordinate(oe.center,"x",v); }, 0.1);
+      numLengthRow(grid, "Center V", function () { return oe.center.y; }, function (v) { setSketchCenterCoordinate(oe.center,"y",v); }, 0.1);
       // the three scalars the solver drives, edited directly
       numLengthRow(grid, t("dyn_major"), function () { return p.rx; }, function (v) { p.rx = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
       numLengthRow(grid, t("dyn_minor"), function () { return p.ry; }, function (v) { p.ry = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
@@ -19971,8 +19972,8 @@ function fillShape() {
         function (v) { p.rot = (v * Math.PI) / 180; resolveSketch(false); }, 0.5);
     }
   } else if (p.type === undefined && "x" in p && "y" in p && p.id) {
-    numLengthRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; resolveSketch(false); }, 0.1);
-    numLengthRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "U", function () { return p.x; }, function (v) { setSketchCenterCoordinate(p,"x",v,"point"); }, 0.1);
+    numLengthRow(grid, "V", function () { return p.y; }, function (v) { setSketchCenterCoordinate(p,"y",v,"point"); }, 0.1);
   } else if (p.kind === "box") {
     numLengthRow(grid, "X", function () { return (p.x0 + p.x1) / 2; }, function (v) { var w = p.x1 - p.x0; p.x0 = v - w / 2; p.x1 = v + w / 2; });
     numLengthRow(grid, "Y", function () { return p.y0; }, function (v) { var h = p.y1 - p.y0; p.y0 = v; p.y1 = v + h; });

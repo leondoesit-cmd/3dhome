@@ -261,6 +261,7 @@ export function defaultLayout() {
   return {
     v: 1,
     plannerDockVersion: 3,
+    precisionSketchRibbonVersion: 1,
     variants: {
       base: { root: "n:app", patch: {} },
       compact: { root: "n:app", patch: {} },
@@ -371,6 +372,24 @@ export function migrateSavedLayout(saved) {
   const placed = new Set();
   for (const id of Object.keys(doc.nodes)) {
     for (const kid of doc.nodes[id].children || []) placed.add(kid);
+  }
+
+  // Saved layouts predate precision tools. Add only absent commands, beside
+  // their drawing tools; existing placement and later customization survive.
+  if (doc.precisionSketchRibbonVersion !== 1) {
+    const group=doc.nodes["md:grpSketch"];
+    const defaults=ribbonLayoutNodes();
+    if (group && Array.isArray(group.children)) {
+      for (const [command, neighbour] of [["centerrectangle","srect"],["dimensionedcircle","scirc"]]) {
+        const id="cmd:grpSketch:"+command;
+        if (doc.nodes[id] || placed.has(id)) continue;
+        const at=group.children.indexOf("cmd:grpSketch:"+neighbour);
+        group.children.splice(at<0 ? group.children.length : at+1,0,id);
+        doc.nodes[id]=defaults[id];
+        placed.add(id);
+      }
+    }
+    doc.precisionSketchRibbonVersion=1;
   }
 
   const MENU_DEFAULTS = {

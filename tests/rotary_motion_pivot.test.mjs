@@ -45,6 +45,25 @@ test('invalid local rotary pivot leaves assembly and study baseline untouched',(
   assert.equal(result.ok,false);assert.equal(result.issues[0].code,'invalid-motion-pivot');
   assert.deepEqual(assembly,before);
 });
+test('invalid rotary position baseline leaves assembly and study untouched',()=>{
+  const {assembly,pivot}=offsetHinge(),study=createMotionStudy(assembly);
+  const motor=addRotaryMotor(study,'jaw',15,{x:1,y:0,z:0},pivot);
+  motor.basePosition={x:NaN,y:0,z:0};
+  const before=structuredClone(assembly),result=evaluateMotionStudy(assembly,study.id,1);
+  assert.equal(result.ok,false);assert.equal(result.issues[0].code,'invalid-motion-baseline');
+  assert.deepEqual(assembly,before);
+});
+test('an edited invalid motor preserves the last successful incremental pose',()=>{
+  const {assembly,pivot}=offsetHinge(),study=createMotionStudy(assembly);
+  const motor=addRotaryMotor(study,'jaw',15,{x:1,y:0,z:0},pivot);
+  assert.equal(evaluateMotionStudy(assembly,study.id,.25,{incremental:true}).ok,true);
+  motor.pivot.y=Infinity;
+  // Editing the motor invalidates the playback cursor and restores the study
+  // baseline on its trial. Failure must leave the real moved pose untouched.
+  const before=structuredClone(assembly),result=evaluateMotionStudy(assembly,study.id,.5,{incremental:true});
+  assert.equal(result.ok,false);assert.equal(result.issues[0].code,'invalid-motion-pivot');
+  assert.deepEqual(assembly,before);
+});
 test('origin-only rotation cannot silently unseat a constrained offset hinge',()=>{
   const {assembly}=offsetHinge(),study=createMotionStudy(assembly);
   addRotaryMotor(study,'jaw',15,{x:1,y:0,z:0});

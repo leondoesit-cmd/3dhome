@@ -12041,6 +12041,26 @@ body.fold-span #zHud #zIntermission {
 }
 #modeler .md-cons-row .md-dim-value:focus { border-color: var(--accent); }
 #modeler .md-cons-row .md-dim-value:disabled { opacity: .62; cursor: default; border-style: dashed; }
+/* The sketch inspector also fits the standard 280px sidebar. Offset is one
+   setting, and a dimension's subject/readout need their own line above edits. */
+#modeler #mdSketch .md-prop-grid { grid-template-columns: minmax(0, 1fr); }
+#modeler #mdSketch .md-prop-grid .md-grid-cell { min-width: 0; }
+#modeler #mdSketch .md-prop-grid .md-grid-cell .t { max-width: none; white-space: normal; text-align: start; }
+#modeler #mdSketch .md-prop-grid .md-wide { white-space: normal; }
+#modeler #mdSketch .md-cons-row:has(.md-dim-value) {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) repeat(3, 24px);
+  align-items: center; gap: 4px;
+}
+#modeler #mdSketch .md-cons-row:has(.md-dim-value) .n {
+  grid-row: 1; grid-column: 1 / 4; white-space: normal; overflow-wrap: anywhere;
+}
+#modeler #mdSketch .md-cons-row .md-var-val { grid-row: 1; grid-column: 4 / -1; min-width: 0; overflow-wrap: anywhere; }
+#modeler #mdSketch .md-cons-row .md-dim-name { grid-row: 2; grid-column: 1; }
+#modeler #mdSketch .md-cons-row .md-dim-value { grid-row: 2; grid-column: 2; }
+#modeler #mdSketch .md-cons-row .md-dim-name,
+#modeler #mdSketch .md-cons-row .md-dim-value { min-width: 0; width: 100%; box-sizing: border-box; }
+#modeler #mdSketch .md-cons-row:has(.md-dim-value) .md-mini { grid-row: 2; min-width: 0; width: 24px; box-sizing: border-box; }
+#modeler #mdSketch .md-cons-pal button { white-space: normal; overflow-wrap: anywhere; }
 #modeler .md-var-val {
   flex: none; min-width: 34px; text-align: end; font-size: max(10.5px, var(--fs-floor, 0px));
   color: var(--text-muted); font-variant-numeric: tabular-nums;

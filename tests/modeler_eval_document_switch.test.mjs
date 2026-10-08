@@ -9,7 +9,7 @@ const close=source.slice(source.indexOf('function closeEvalCard() {'),source.ind
 test('opening a different model hides its predecessor evaluation before replacing the definition',()=>{
   let ended=0;
   const card={hidden:false}, E={evalCard:'mass'};
-  const context={E,root:{querySelector:()=>card},endMeasure(){ended++;},cancelExactModelRebuild(){},dismissModelerDecision(){}};
+  const context={E,motionPlaybackCancel:null,root:{querySelector:()=>card},endMeasure(){ended++;},cancelExactModelRebuild(){},dismissModelerDecision(){}};
   vm.createContext(context); vm.runInContext(close,context);
   const start=source.indexOf('export function openModeler(editKey, def, srcItem) {');
   const stop=source.indexOf('// Whether this call REPLACES',start);

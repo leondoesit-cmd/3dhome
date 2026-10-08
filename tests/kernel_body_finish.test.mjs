@@ -116,7 +116,7 @@ test("a 3D cut through a swept body removes exactly the tool", async () => {
 
 /* --- the editor wiring: js/modeler.js is a browser module ---------------- */
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 

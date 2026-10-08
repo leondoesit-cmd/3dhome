@@ -902,6 +902,17 @@ export const CAD_ICONS = {
       colorPath("M4.5 12 L10 14.5 L15.5 12", "none", "#9b5de5", 0.9, ' stroke-dasharray="1.3 1"')
     );
   },
+  dimensionedcircle: function () {
+    return '<circle cx="10" cy="10" r="6" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.3"/>' +
+      '<path d="M3 17L17 3M3 13V17H7M13 3H17V7" fill="none" stroke="#2684c7" stroke-width="1.3"/>' +
+      '<circle cx="10" cy="10" r="1" fill="currentColor"/>';
+  },
+  beltmate: function () {
+    return '<path d="M6 4H14A6 6 0 0 1 14 16H6A6 6 0 0 1 6 4Z" fill="none" stroke="currentColor" stroke-width="1.4"/>' +
+      '<circle cx="6" cy="10" r="3.5" fill="currentColor" fill-opacity=".12" stroke="#2684c7" stroke-width="1.2"/>' +
+      '<circle cx="14" cy="10" r="3.5" fill="currentColor" fill-opacity=".12" stroke="#2684c7" stroke-width="1.2"/>' +
+      '<path d="M5 9H7M6 8V12M13 9H15M14 8V12" stroke="currentColor" stroke-width="1"/>';
+  },
   "3mfout": function () {
     return (
       p("M3 11 L9 14 L15 11 L15 5 L9 2 L3 5 Z", 0.18, 1.25) +

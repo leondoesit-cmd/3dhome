@@ -11,7 +11,7 @@ test('selected body decorations remain intact while another body is hovered',()=
   const b={part:{id:'b',featureId:'fb'},group:{children:[{}]},dirty:true};
   const E={pv:{render(){}},topologySelection:[{partId:'a',persistentId:'face-a'}]};
   let builds=0;
-  const ctx={E,decoGroups:[a,b],lastDecoratedHover:null,clearGroup(g){g.children=[];},addTopologyPickEdges(g){g.children.push({build:++builds});},addFaceHighlights(){},addTemporaryAxes(){}};
+  const ctx={E,retainExactPreview:()=>false,decoGroups:[a,b],lastDecoratedHover:null,clearGroup(g){g.children=[];},addTopologyPickEdges(g){g.children.push({build:++builds});},addFaceHighlights(){},addTemporaryAxes(){}};
   runInNewContext(source.slice(source.indexOf('function isEntryAffectedByHover('),source.indexOf('/* Called after each frame:')),ctx);
   ctx.refreshDecorations(); const identity=a.group.children[0];
   for(let i=0;i<20;i++){E.hoverTopology={partId:'b',persistentId:'edge-'+i};ctx.refreshDecorations();}

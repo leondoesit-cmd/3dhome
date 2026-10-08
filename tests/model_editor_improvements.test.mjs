@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
 import { runInNewContext } from "node:vm";
+import {defaultTopologyMateAlignment} from '../js/cad_mate_reference_choices.js';
 
 const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
@@ -186,7 +187,7 @@ test("Angle is a mate the palette offers and the ribbon's PropertyManager can bu
   const source=code.slice(code.indexOf('function addTopologyMate('),code.indexOf('function openMateAngleForm('));
   const a={componentId:'anchor',frame:{surface:'plane',origin:{x:0,y:0,z:0},normal:{x:0,y:0,z:1}}};
   const b={componentId:'moving',frame:{surface:'plane',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}}};
-  const environment={E:{assembly:{topologyMates:[]}},fin:Number.isFinite,
+  const environment={E:{assembly:{topologyMates:[]}},fin:Number.isFinite,defaultTopologyMateAlignment,
     mateTypeFits:()=>({ok:true}),assemblyPickedRefs:()=>({a,b}),mateReferenceFromPick:pick=>pick,
     mateHolderById:id=>({id,grounded:id==='anchor'}),pushUndo:()=>{},t:key=>key,flash:()=>{},
     uid:()=>String(environment.E.assembly.topologyMates.length),solveAssembly:()=>{},refreshAll:()=>{}};

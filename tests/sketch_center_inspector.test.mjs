@@ -68,3 +68,57 @@ test('a conflicting relation also rolls back changed fixed anchor values',()=>{
   assert.ok(Math.abs(f.center.y-3.4)<1e-7);
   assert.equal(f.discarded,1);
 });
+
+function coordinateFixture(sketch) {
+  const messages=[];
+  let discarded=0;
+  const set=new Function('E','ensureSketch','fin','cloneData','resolveSketch','H','flash',
+    sourceFunctionText(source,'setSketchCenterCoordinate')+';return setSketchCenterCoordinate;')(
+      {def:sketch},def=>def,Number.isFinite,value=>JSON.parse(JSON.stringify(value)),
+      ()=>!['conflicting','over-constrained'].includes(solveSketch(sketch).status),
+      {discard:()=>discarded++},message=>messages.push(message));
+  return {set,messages,get discarded(){return discarded;}};
+}
+
+test('a fixed line endpoint can move while its horizontal and length relations drive the other endpoint',()=>{
+  const sketch={plane:'top',points:[{id:'a',x:3,y:2},{id:'b',x:7,y:2}],
+    entities:[{id:'line',type:'line',a:'a',b:'b'}],constraints:[
+      {id:'anchor',type:'fixed',point:'a',x:3,y:2},
+      {id:'horizontal',type:'horizontal',entity:'line'},
+      {id:'length',type:'distance',entity:'line',value:4}]};
+  const f=coordinateFixture(sketch);
+  assert.equal(f.set(sketch.points[0],'y',6,'point'),true);
+  const reopened=JSON.parse(JSON.stringify(sketch));
+  assert.equal(solveSketch(reopened).status,'fully-constrained');
+  assert.ok(Math.abs(reopened.points[0].y-6)<1e-7);
+  assert.ok(Math.abs(reopened.points[1].y-6)<1e-7);
+  assert.ok(Math.abs(reopened.points[1].x-7)<1e-7);
+  assert.equal(reopened.constraints.length,3);
+  assert.equal(f.discarded,0);
+});
+
+test('an ellipse fixed center edit persists while preserving its axes and rotation',()=>{
+  const sketch={plane:'right',points:[{id:'c',x:1,y:2}],
+    entities:[{id:'ellipse',type:'ellipse',c:'c',rx:3,ry:2,rot:.4,fixed:true}],
+    constraints:[{id:'anchor',type:'fixed',point:'c',x:1,y:2}]};
+  const f=coordinateFixture(sketch);
+  assert.equal(f.set(sketch.points[0],'x',5),true);
+  const reopened=JSON.parse(JSON.stringify(sketch));
+  assert.equal(solveSketch(reopened).status,'fully-constrained');
+  assert.equal(reopened.points[0].x,5);
+  assert.deepEqual(reopened.entities[0],sketch.entities[0]);
+  assert.equal(reopened.entities[0].rx,3);
+  assert.equal(reopened.entities[0].ry,2);
+  assert.equal(reopened.entities[0].rot,.4);
+});
+
+test('a selected point constrained coincident to another anchor rejects edits with a point-specific message',()=>{
+  const sketch={points:[{id:'a',x:1,y:2},{id:'b',x:1,y:2}],entities:[],constraints:[
+    {id:'anchor',type:'fixed',point:'a',x:1,y:2},
+    {id:'coincident',type:'coincident',a:'a',b:'b'}]};
+  const f=coordinateFixture(sketch),before=JSON.parse(JSON.stringify(sketch));
+  assert.equal(f.set(sketch.points[1],'x',9,'point'),false);
+  assert.deepEqual(sketch,before);
+  assert.equal(f.discarded,1);
+  assert.match(f.messages[0],/point coordinate.*move the point/);
+});

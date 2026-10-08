@@ -270,7 +270,7 @@ test("both Hebrew and English are present for every new preview string", () => {
 });
 
 test("closing the feature form tears the preview down", () => {
-  const close = modeler.slice(modeler.indexOf("function closeFeaturePanel()"));
+  const close = modeler.slice(modeler.indexOf("function closeFeaturePanel(options = {})"));
   const body = close.slice(0, close.indexOf("\n}\n"));
   assert.match(body, /clearFeaturePreview\(false\);/);
   assert.match(body, /updatePreview\(\);/);

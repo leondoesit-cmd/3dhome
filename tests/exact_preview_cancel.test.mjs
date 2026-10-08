@@ -9,9 +9,9 @@ const cancel=source.slice(source.indexOf('function cancelExactModelRebuild()'),s
 test('Cancel suppresses same-head automatic previews, clears timers and invalidates pending publication',()=>{
   const part={exactBuildToken:7,exactPending:true},E={def:{parts:[part]},kernelBusy:true};
   const timers=new WeakMap([[part,23]]);let node=4,resets=0,workerCancels=0,cleared=[];
-  const actions=new Function('E','currentHistoryNode','exactBuildTimers','clearTimeout','exactRebuildQueue','cancelCadWorkerWork',
+  const actions=new Function('E','currentHistoryNode','exactBuildTimers','clearTimeout','exactRebuildQueue','cancelCadWorkerWork','retainingExactPreview',
     'var cancelledExactPreview=null,pendingCutController=null;'+cancelledCheck+cancel+';return {cancel:cancelExactModelRebuild,blocked:exactPreviewWasCancelled};')(
-    E,()=>node,timers,value=>cleared.push(value),{reset(){resets++;}},()=>workerCancels++);
+    E,()=>node,timers,value=>cleared.push(value),{reset(){resets++;}},()=>workerCancels++,()=>false);
   actions.cancel();assert.equal(actions.blocked(),true);assert.deepEqual(cleared,[23]);assert.equal(timers.has(part),false);
   assert.equal(part.exactBuildToken,8);assert.equal(part.exactPending,false);assert.equal(E.kernelBusy,false);
   assert.equal(resets,1);assert.equal(workerCancels,1);
