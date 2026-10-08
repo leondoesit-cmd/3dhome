@@ -19,7 +19,7 @@ Protected Chrome recovery export: `artifacts/planchard/BV01-base-retention-check
 ### Next exact actions
 
 1. Reconnect browser controls in desktop Chrome at `http://localhost:8765/`, preserve saved site storage and dark theme. BV01 is accepted; preserve its final bundle/STEP and library entry.
-2. Build BV02 mounting foot from blank: Top rectangle X-10..10/Z±45, offsetY-12, extrude12 along+Y; through-YØ6.6 atX0/Z±25. Unitsmm, Alloy Steel reference, source/custom properties. Then BV03..BV10 per frozen design, all from blank and browser UI.
+2. **BV02 also accepted** (`bench-vice-8.17-BV02-acceptance-2026-10-08.md`), named `Planchard 8.17 - BV02 Base Plate - fresh designer example 2026-10-08`; one solid20×12×90mm,20.77891334405777cm³, source props/material and driving edit/Undo/Redo/cold reopen/native exports passed. Next BV03 movable jaw from blank: carriageX70..110/Y12..20/Z±28, uprightX96..110/Y20..66/Z±28, tongueX72..108/Y-0.2..12/Z±7.8; Ø20.2 nut boreX96..110 atY34/Z0 and Ø6.6 keeper holesX80/90 alongY. Then BV04..BV10 per frozen design, all from blank/browser UI.
 3. Perform driving edit/Undo/Redo/cold reopen, actual bundle/STEP and independent audit for each part. Create16-occurrence assembly, check4mm/rev guided screw with0..50mm travel, native clearances/mates, ANSI A landscape third-angle exploded drawing/BOM/balloons. Disclose designer dimensions, missing companion parts/AVI, ideal threads and book artwork title discrepancy.
 4. Continue8.18 Kant-Twist Clamp(8-53/PDF431),8.19 Arbor Press(8-54/PDF432),8.20 Shaper Tool Head(8-55/PDF433), then reconcile earlier/later uncertainties in `remaining-book-audit-2026-10-03.md`.
 
@@ -77,3 +77,9 @@ Full unit run logged4091 tests,4052 pass,39 failures; no clean-suite claim. UI a
 Four Top circles Ø6 at U30/146,V±25, all fixed centers/driving diameters, offset0; one Blind Extrude Cut4mm Along normal. Eight features/16 history steps, one native solid,176×66×70mm. Added PartNo BV01,Description,Source PDF430/8-52,OriginalDesignerExample,BookItemNo1,BookMaterial and RetentionRepresentation through Custom props UI. Saved library.
 
 Exact mass panel:198.6972cm³,1.529968kg,7.70000g/cm³ Alloy Steel reference; COM X95.20954,Y18.38893,Z approximately0mm. Driving one foot diameter6→7mm updates volume198.6563cm³ (delta≈0.0409cm³, analytic expected0.0408407cm³ within display rounding). Undo→Redo→Undo exercised through visible controls; final nominal restoration/reopen/export still to verify. Export milestone pending; geometry is not final acceptance yet.
+
+### BV01 accepted and BV02 underway
+
+Commit `232a298` protects BV01 final bundle/STEP, two browser proof images, independent native audit JSON and detailed acceptance report. Cold library reopen confirmed nominal volume/mass and16 steps. Source/UI fixes and original failure triage included; source gates and focused corrected tests passed, but full suite not rerun clean. Queue reconciled accepted8.14–8.16; corrected Welder Arm23 topology mates from actual final bundle.
+
+BV02 now authored from blank in visible Chrome: Top fixed-center20×90mm rectangle, offset-12mm, Blind boss12mm Along normal. Second Top sketch offset-12mm with fixed-center drivingØ6.6 atU0/V±25, Through all Along normal. Two features/four fully-defined history steps, one native solid. Alloy Steel reference applied. PartNo BV02,Description,Source,BookItemNo2,BookMaterial,OriginalDesignerExample saved. Exact mass/parametric/Undo/reopen/export acceptance still in progress; not accepted yet. Future remains BV03–BV10/16-occurrence vice and drawing, then8.18–8.20 and earlier/later unfinished audit items.
