@@ -1,0 +1,304 @@
+{
+  "source": "artifacts/planchard/SH03-corrected-nominal-browser-2026-10-09.mforge",
+  "bytes": 498270,
+  "inputSha256": "e2ca68cab85ceadf11297f02462de4ad59676dc9e1664fba9a666e4a334c2162",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "name": "Slide body",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 12.000000000000002,
+      "effectiveStartMm": 12.000000000000002,
+      "actualStoredSpanMm": [
+        12.000000000000002,
+        34.2
+      ],
+      "expectedSpanMm": [
+        12,
+        34.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Guide groove",
+      "sketchOffsetMm": 12.000000000000002,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 12.000000000000002,
+      "actualStoredSpanMm": [
+        12.000000000000002,
+        18.200000000000003
+      ],
+      "expectedSpanMm": [
+        12,
+        18.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Clamping ear",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 18.2,
+      "effectiveStartMm": 18.2,
+      "actualStoredSpanMm": [
+        18.2,
+        34.2
+      ],
+      "expectedSpanMm": [
+        18.2,
+        34.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Feed nut bore",
+      "sketchOffsetMm": -20,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": -20,
+      "actualStoredSpanMm": [
+        -20,
+        40.010000000000005
+      ],
+      "expectedSpanMm": [
+        -20,
+        null
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Apron pivot socket",
+      "sketchOffsetMm": 32.2,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 32.2,
+      "actualStoredSpanMm": [
+        32.2,
+        34.20000000000001
+      ],
+      "expectedSpanMm": [
+        32.2,
+        34.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Clamp socket",
+      "sketchOffsetMm": 28.200000000000003,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 28.200000000000003,
+      "actualStoredSpanMm": [
+        28.200000000000003,
+        34.2
+      ],
+      "expectedSpanMm": [
+        28.2,
+        34.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH03-corrected-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 44.92382507216966,
+      "maxToleranceCm": 1.500000008005932e-7
+    },
+    "volumeCm3": 44.92382507216966,
+    "boundsCm": {
+      "min": {
+        "x": -3.4000000000000004,
+        "y": -2,
+        "z": 1.2000000000000002
+      },
+      "max": {
+        "x": 2,
+        "y": 4,
+        "z": 3.420000000000001
+      }
+    },
+    "centerOfMassCm": {
+      "x": -0.15106961584063233,
+      "y": 0.893097463596532,
+      "z": 2.4361835430432164
+    },
+    "seconds": 6.3630732
+  },
+  "step": {
+    "source": "artifacts/planchard/SH03-corrected-nominal-browser-2026-10-09.step",
+    "bytes": 59799,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 44.923825072169485,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 44.923825072169485,
+      "centerOfMass": {
+        "x": -0.15106961584063328,
+        "y": 0.8930974635965311,
+        "z": 2.436183543043213
+      },
+      "inertia": [
+        [
+          153.20167712024096,
+          -12.847742565824717,
+          1.0120058592843506
+        ],
+        [
+          -12.847742565824717,
+          102.27961826350145,
+          0.5537604599705048
+        ],
+        [
+          1.0120058592843506,
+          0.5537604599705048,
+          223.02410842237026
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.4,
+          "y": -2,
+          "z": 1.2
+        },
+        "max": {
+          "x": 2,
+          "y": 4,
+          "z": 3.42
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH03-corrected-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH03-corrected-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticFrozenVolumeCm3": 44.923825072169656,
+  "nativeFrozenVolumeErrorCm3": 7.105427357601002e-15,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.3548982180701403
+  },
+  "properties": {
+    "Description": "Vertical slide with integral guide cheeks and feed nut; original educational dimensions, printed 8-55 / PDF433",
+    "PartNo": "SH03",
+    "BookItemNo": "3"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent actualChrome observation",
+    "initialDriving": "BodyWidth40→42 native47.52886→50.00086cm3/.375478→.3950068kg Undo40Redo42Undo40Saveclean; this initialgeometryrequiresgroovestartrepair",
+    "coldReopen": "ParentChromePASS cm_mv019d3u: nativeone54×60×22.2mm/12editablesteps;44.92383cm3/.3548982kg;PartNoSH03/Book3/Descriptionretained.",
+    "correctedDriving": "Parent actualChromePASS: grooveStartoffset12→0 repaired; bodyWidth40→42 native44.92383→47.39583cm3/mass.3548982→.3744270kg;Undo40Redo42Undo40Saveclean."
+  },
+  "pass": true,
+  "finalCold": {
+    "source": "artifacts/planchard/SH03-final-browser-2026-10-09.mforge",
+    "bytes": 498195,
+    "sha256": "263c7b5d32680de38b9352db64d6825106d4bcf6ebd739351d89d02d820211cd",
+    "inputUnchanged": true,
+    "featuresBitIdentical": true,
+    "sketchesBitIdentical": true,
+    "historyBitIdentical": true,
+    "propertiesBitIdentical": true,
+    "appearancesBitIdentical": true,
+    "materialPartsAuthoredEquivalent": true,
+    "groove": {
+      "sketchOffsetMm": 12.000000000000002,
+      "featureOffsetMm": 0,
+      "fromMm": 12.000000000000002,
+      "toMm": 18.200000000000003
+    },
+    "native": {
+      "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH03-final-browser-2026-10-09.mforge",
+      "exact": true,
+      "featureCount": 17,
+      "issues": [],
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 44.92382507216966,
+        "maxToleranceCm": 1.500000008005932e-7
+      },
+      "volumeCm3": 44.92382507216966,
+      "boundsCm": {
+        "min": {
+          "x": -3.4000000000000004,
+          "y": -2,
+          "z": 1.2000000000000002
+        },
+        "max": {
+          "x": 2,
+          "y": 4,
+          "z": 3.420000000000001
+        }
+      },
+      "centerOfMassCm": {
+        "x": -0.15106961584063233,
+        "y": 0.893097463596532,
+        "z": 2.4361835430432164
+      },
+      "seconds": 5.57522
+    },
+    "customProperties": {
+      "Description": "Vertical slide with integral guide cheeks and feed nut; original educational dimensions, printed 8-55 / PDF433",
+      "PartNo": "SH03",
+      "BookItemNo": "3"
+    },
+    "parentCold": {
+      "source": "ParentactualChrome",
+      "pass": true,
+      "libraryKey": "cm_mv019d3u",
+      "nativeSolidCount": 1,
+      "editableHistorySteps": 12,
+      "boundsMm": [
+        54,
+        60,
+        22.2
+      ],
+      "volumeCm3": 44.92383,
+      "massKg": 0.3548982,
+      "metadataRetained": true
+    },
+    "exactStepReuse": "Correctedrecipefeatures/sketches unchanged; acceptedcorrectedSTEPzeroresidualbothways applies.",
+    "pass": true
+  },
+  "acceptancePass": true
+}

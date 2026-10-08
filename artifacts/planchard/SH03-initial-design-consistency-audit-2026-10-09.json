@@ -1,0 +1,231 @@
+{
+  "source": "artifacts/planchard/SH03-nominal-browser-2026-10-09.mforge",
+  "bytes": 518375,
+  "inputSha256": "2a7328106e04f85e152ea012955d5a36d54147cd6169652ef5de6b3a475ffce1",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "name": "Slide body",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 12.000000000000002,
+      "effectiveStartMm": 12.000000000000002,
+      "actualStoredSpanMm": [
+        12.000000000000002,
+        34.2
+      ],
+      "expectedSpanMm": [
+        12,
+        34.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Guide groove",
+      "sketchOffsetMm": 12.000000000000002,
+      "featureOffsetMm": 12.000000000000002,
+      "effectiveStartMm": 24.000000000000004,
+      "actualStoredSpanMm": [
+        24.000000000000004,
+        30.200000000000003
+      ],
+      "expectedSpanMm": [
+        12,
+        18.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": false
+    },
+    {
+      "name": "Clamping ear",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 18.2,
+      "effectiveStartMm": 18.2,
+      "actualStoredSpanMm": [
+        18.2,
+        34.2
+      ],
+      "expectedSpanMm": [
+        18.2,
+        34.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Feed nut bore",
+      "sketchOffsetMm": -20,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": -20,
+      "actualStoredSpanMm": [
+        -20,
+        40.010000000000005
+      ],
+      "expectedSpanMm": [
+        -20,
+        null
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Apron pivot socket",
+      "sketchOffsetMm": 32.2,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 32.2,
+      "actualStoredSpanMm": [
+        32.2,
+        34.20000000000001
+      ],
+      "expectedSpanMm": [
+        32.2,
+        34.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Clamp socket",
+      "sketchOffsetMm": 28.200000000000003,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 28.200000000000003,
+      "actualStoredSpanMm": [
+        28.200000000000003,
+        34.2
+      ],
+      "expectedSpanMm": [
+        28.2,
+        34.2
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": false,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH03-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 47.528858259338406,
+      "maxToleranceCm": 1.500000008005932e-7
+    },
+    "volumeCm3": 47.528858259338406,
+    "boundsCm": {
+      "min": {
+        "x": -3.4000000000000004,
+        "y": -2,
+        "z": 1.2000000000000002
+      },
+      "max": {
+        "x": 2,
+        "y": 4,
+        "z": 3.420000000000001
+      }
+    },
+    "centerOfMassCm": {
+      "x": -0.14278956499888162,
+      "y": 0.8989567386837649,
+      "z": 2.258081762142414
+    },
+    "seconds": 6.782726900000001
+  },
+  "step": {
+    "source": "artifacts/planchard/SH03-nominal-browser-2026-10-09.step",
+    "bytes": 75413,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 47.52885825933824,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 47.52885825933824,
+      "centerOfMass": {
+        "x": -0.14278956499888332,
+        "y": 0.898956738683765,
+        "z": 2.258081762142412
+      },
+      "inertia": [
+        [
+          165.70722543020196,
+          -12.887507268588678,
+          2.2207158573323564
+        ],
+        [
+          -12.887507268588678,
+          107.11700068897593,
+          1.4090890702178456
+        ],
+        [
+          2.2207158573323564,
+          1.4090890702178456,
+          231.0424196564574
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.4,
+          "y": -2,
+          "z": 1.2
+        },
+        "max": {
+          "x": 2,
+          "y": 4,
+          "z": 3.42
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH03-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH03-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticFrozenVolumeCm3": 44.923825072169656,
+  "nativeFrozenVolumeErrorCm3": 2.6050331871687504,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.3754779802487734
+  },
+  "properties": {
+    "Description": "Vertical slide with integral guide cheeks and feed nut; original educational dimensions, printed 8-55 / PDF433",
+    "PartNo": "SH03",
+    "BookItemNo": "3"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent actualChrome observation",
+    "initialDriving": "BodyWidth40→42 native47.52886→50.00086cm3/.375478→.3950068kg Undo40Redo42Undo40Saveclean; this initialgeometryrequiresgroovestartrepair",
+    "coldReopen": "Pending corrected model parent observation"
+  },
+  "pass": false
+}

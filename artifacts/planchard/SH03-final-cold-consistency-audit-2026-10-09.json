@@ -1,0 +1,71 @@
+{
+  "source": "artifacts/planchard/SH03-final-browser-2026-10-09.mforge",
+  "bytes": 498195,
+  "sha256": "263c7b5d32680de38b9352db64d6825106d4bcf6ebd739351d89d02d820211cd",
+  "inputUnchanged": true,
+  "featuresBitIdentical": true,
+  "sketchesBitIdentical": true,
+  "historyBitIdentical": true,
+  "propertiesBitIdentical": true,
+  "appearancesBitIdentical": true,
+  "materialPartsAuthoredEquivalent": true,
+  "groove": {
+    "sketchOffsetMm": 12.000000000000002,
+    "featureOffsetMm": 0,
+    "fromMm": 12.000000000000002,
+    "toMm": 18.200000000000003
+  },
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH03-final-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 44.92382507216966,
+      "maxToleranceCm": 1.500000008005932e-7
+    },
+    "volumeCm3": 44.92382507216966,
+    "boundsCm": {
+      "min": {
+        "x": -3.4000000000000004,
+        "y": -2,
+        "z": 1.2000000000000002
+      },
+      "max": {
+        "x": 2,
+        "y": 4,
+        "z": 3.420000000000001
+      }
+    },
+    "centerOfMassCm": {
+      "x": -0.15106961584063233,
+      "y": 0.893097463596532,
+      "z": 2.4361835430432164
+    },
+    "seconds": 5.57522
+  },
+  "customProperties": {
+    "Description": "Vertical slide with integral guide cheeks and feed nut; original educational dimensions, printed 8-55 / PDF433",
+    "PartNo": "SH03",
+    "BookItemNo": "3"
+  },
+  "parentCold": {
+    "source": "ParentactualChrome",
+    "pass": true,
+    "libraryKey": "cm_mv019d3u",
+    "nativeSolidCount": 1,
+    "editableHistorySteps": 12,
+    "boundsMm": [
+      54,
+      60,
+      22.2
+    ],
+    "volumeCm3": 44.92383,
+    "massKg": 0.3548982,
+    "metadataRetained": true
+  },
+  "exactStepReuse": "Correctedrecipefeatures/sketches unchanged; acceptedcorrectedSTEPzeroresidualbothways applies.",
+  "pass": true
+}
