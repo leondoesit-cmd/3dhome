@@ -1,0 +1,813 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT01-final-browser-2026-10-08.mforge",
+  "inputSha256": "0120ab04700acfba7c8c3d2d1f22a817d48d4ed9a2b99f16df697b70a27fb0ce",
+  "inputUnchanged": true,
+  "scope": "Read-only exported document, verification rebuild, and imported STEP; no browser durability claim",
+  "designRevision": "post X40, base 100x60, head 60x24 centered X18; frozen pre-authoring original educational design",
+  "featureCount": 6,
+  "sketchCount": 6,
+  "historyCount": 12,
+  "activeHistory": true,
+  "checks": [
+    {
+      "role": "Foot",
+      "sketchId": "sk_174mu",
+      "featureId": "feature_muzrl4s9_1",
+      "plane": "top",
+      "offsetMm": 0,
+      "pointsMm": [
+        [
+          50.0000000000002,
+          30
+        ],
+        [
+          -49.999999999999794,
+          30
+        ],
+        [
+          -49.999999999999794,
+          -30
+        ],
+        [
+          50.0000000000002,
+          -30
+        ]
+      ],
+      "fixedConstraintCount": 1,
+      "drivingDimensionsMm": [
+        {
+          "id": 4070,
+          "type": "distance",
+          "value": 100,
+          "driven": false
+        },
+        {
+          "id": 4071,
+          "type": "distance",
+          "value": 60,
+          "driven": false
+        }
+      ],
+      "fullyDefined": true,
+      "planeMatches": true,
+      "pointsMatch": true,
+      "anchorsMatch": true,
+      "rectRelationsMatch": true,
+      "dimensionsMatch": true,
+      "profilesMatch": true,
+      "featureMatches": true,
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.8,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "y",
+        "profileEntityIds": [
+          4062,
+          4063,
+          4064,
+          4065
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_174mu",
+        "from": 0,
+        "to": 0.8
+      },
+      "pass": true
+    },
+    {
+      "role": "Post",
+      "sketchId": "sk_2pse9",
+      "featureId": "feature_muzrmmyg_2",
+      "plane": "top",
+      "offsetMm": 8,
+      "pointsMm": [
+        [
+          40,
+          0
+        ]
+      ],
+      "fixedConstraintCount": 1,
+      "drivingDimensionsMm": [
+        {
+          "id": 4076,
+          "type": "diameter",
+          "value": 16,
+          "driven": false
+        }
+      ],
+      "fullyDefined": true,
+      "planeMatches": true,
+      "pointsMatch": true,
+      "anchorsMatch": true,
+      "rectRelationsMatch": true,
+      "dimensionsMatch": true,
+      "profilesMatch": true,
+      "featureMatches": true,
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 13.600000000000001,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "y",
+        "profileEntityIds": [
+          4075
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2pse9",
+        "from": 0.8,
+        "to": 14.400000000000002
+      },
+      "pass": true
+    },
+    {
+      "role": "Head",
+      "sketchId": "sk_3nmm2",
+      "featureId": "feature_muzroli8_3",
+      "plane": "front",
+      "offsetMm": -9,
+      "pointsMm": [
+        [
+          -11.999999999999966,
+          138
+        ],
+        [
+          48.00000000000006,
+          138
+        ],
+        [
+          48.00000000000007,
+          162
+        ],
+        [
+          -11.99999999999996,
+          162
+        ]
+      ],
+      "fixedConstraintCount": 1,
+      "drivingDimensionsMm": [
+        {
+          "id": 4091,
+          "type": "distance",
+          "value": 24.000000000000004,
+          "driven": false
+        },
+        {
+          "id": 4092,
+          "type": "distance",
+          "value": 60,
+          "driven": false
+        }
+      ],
+      "fullyDefined": true,
+      "planeMatches": true,
+      "pointsMatch": true,
+      "anchorsMatch": true,
+      "rectRelationsMatch": true,
+      "dimensionsMatch": true,
+      "profilesMatch": true,
+      "featureMatches": true,
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 1.8,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4083,
+          4084,
+          4085,
+          4086
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_3nmm2",
+        "from": -0.9,
+        "to": 0.9
+      },
+      "pass": true
+    },
+    {
+      "role": "Ground rail",
+      "sketchId": "sk_4ygg9",
+      "featureId": "feature_muzrrtou_4",
+      "plane": "front",
+      "offsetMm": -9,
+      "pointsMm": [
+        [
+          -8.127425537743,
+          152.438227661323
+        ],
+        [
+          47.438227661323,
+          182.35819476851202
+        ],
+        [
+          53.127425537743,
+          171.79254156944603
+        ],
+        [
+          -2.438227661323,
+          141.872574462257
+        ]
+      ],
+      "fixedConstraintCount": 4,
+      "drivingDimensionsMm": [],
+      "fullyDefined": true,
+      "planeMatches": true,
+      "pointsMatch": true,
+      "anchorsMatch": true,
+      "rectRelationsMatch": true,
+      "dimensionsMatch": true,
+      "profilesMatch": true,
+      "featureMatches": true,
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 1.8,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4097,
+          4099,
+          4101,
+          4102
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_4ygg9",
+        "from": -0.9,
+        "to": 0.9
+      },
+      "pass": true
+    },
+    {
+      "role": "Pivot bores",
+      "sketchId": "sk_507a8",
+      "featureId": "feature_muzrsi64_5",
+      "plane": "front",
+      "offsetMm": -9,
+      "pointsMm": [
+        [
+          0,
+          150
+        ],
+        [
+          45,
+          174.23076923076903
+        ]
+      ],
+      "fixedConstraintCount": 2,
+      "drivingDimensionsMm": [
+        {
+          "id": 4110,
+          "type": "diameter",
+          "value": 8.2,
+          "driven": false
+        },
+        {
+          "id": 4114,
+          "type": "diameter",
+          "value": 8.2,
+          "driven": false
+        }
+      ],
+      "fullyDefined": true,
+      "planeMatches": true,
+      "pointsMatch": true,
+      "anchorsMatch": true,
+      "rectRelationsMatch": true,
+      "dimensionsMatch": true,
+      "profilesMatch": true,
+      "featureMatches": true,
+      "params": {
+        "operation": "subtract",
+        "endCondition": "through-all",
+        "depth": 1.8,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "z",
+        "profileEntityIds": [
+          4109
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "regions": [
+          [
+            {
+              "u": 4.91,
+              "v": 17.423076923076902
+            },
+            {
+              "u": 4.878790608329627,
+              "v": 17.579977130346588
+            },
+            {
+              "u": 4.789913780286485,
+              "v": 17.712990703363385
+            },
+            {
+              "u": 4.656900207269687,
+              "v": 17.80186753140653
+            },
+            {
+              "u": 4.5,
+              "v": 17.833076923076902
+            },
+            {
+              "u": 4.343099792730313,
+              "v": 17.80186753140653
+            },
+            {
+              "u": 4.210086219713515,
+              "v": 17.712990703363385
+            },
+            {
+              "u": 4.121209391670373,
+              "v": 17.579977130346588
+            },
+            {
+              "u": 4.09,
+              "v": 17.423076923076902
+            },
+            {
+              "u": 4.121209391670372,
+              "v": 17.266176715807216
+            },
+            {
+              "u": 4.210086219713515,
+              "v": 17.13316314279042
+            },
+            {
+              "u": 4.343099792730313,
+              "v": 17.044286314747275
+            },
+            {
+              "u": 4.5,
+              "v": 17.013076923076902
+            },
+            {
+              "u": 4.656900207269687,
+              "v": 17.044286314747275
+            },
+            {
+              "u": 4.789913780286485,
+              "v": 17.13316314279042
+            },
+            {
+              "u": 4.878790608329627,
+              "v": 17.266176715807216
+            }
+          ]
+        ],
+        "regionProfileEntityIds": [
+          [
+            4113
+          ]
+        ],
+        "sketchId": "sk_507a8",
+        "from": -0.9,
+        "to": 3.001
+      },
+      "pass": true
+    },
+    {
+      "role": "Mounting bores",
+      "sketchId": "sk_6mcmn",
+      "featureId": "feature_muzrt75n_6",
+      "plane": "top",
+      "offsetMm": 0,
+      "pointsMm": [
+        [
+          -35,
+          -20
+        ],
+        [
+          35,
+          -20
+        ],
+        [
+          35,
+          20
+        ],
+        [
+          -35,
+          20
+        ]
+      ],
+      "fixedConstraintCount": 4,
+      "drivingDimensionsMm": [
+        {
+          "id": 4118,
+          "type": "diameter",
+          "value": 6.000000000000001,
+          "driven": false
+        },
+        {
+          "id": 4122,
+          "type": "diameter",
+          "value": 6.000000000000001,
+          "driven": false
+        },
+        {
+          "id": 4126,
+          "type": "diameter",
+          "value": 6.000000000000001,
+          "driven": false
+        },
+        {
+          "id": 4130,
+          "type": "diameter",
+          "value": 6.000000000000001,
+          "driven": false
+        }
+      ],
+      "fullyDefined": true,
+      "planeMatches": true,
+      "pointsMatch": true,
+      "anchorsMatch": true,
+      "rectRelationsMatch": true,
+      "dimensionsMatch": true,
+      "profilesMatch": true,
+      "featureMatches": true,
+      "params": {
+        "operation": "subtract",
+        "endCondition": "through-all",
+        "depth": 1.8,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "y",
+        "profileEntityIds": [
+          4121
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "regions": [
+          [
+            {
+              "u": 3.8,
+              "v": 2
+            },
+            {
+              "u": 3.777163859753386,
+              "v": 2.114805029709527
+            },
+            {
+              "u": 3.7121320343559643,
+              "v": 2.2121320343559643
+            },
+            {
+              "u": 3.614805029709527,
+              "v": 2.277163859753386
+            },
+            {
+              "u": 3.5,
+              "v": 2.3
+            },
+            {
+              "u": 3.385194970290473,
+              "v": 2.277163859753386
+            },
+            {
+              "u": 3.2878679656440357,
+              "v": 2.2121320343559643
+            },
+            {
+              "u": 3.222836140246614,
+              "v": 2.114805029709527
+            },
+            {
+              "u": 3.2,
+              "v": 2
+            },
+            {
+              "u": 3.222836140246614,
+              "v": 1.8851949702904731
+            },
+            {
+              "u": 3.2878679656440357,
+              "v": 1.7878679656440357
+            },
+            {
+              "u": 3.3851949702904727,
+              "v": 1.722836140246614
+            },
+            {
+              "u": 3.5,
+              "v": 1.7
+            },
+            {
+              "u": 3.614805029709527,
+              "v": 1.722836140246614
+            },
+            {
+              "u": 3.7121320343559643,
+              "v": 1.7878679656440357
+            },
+            {
+              "u": 3.777163859753386,
+              "v": 1.885194970290473
+            }
+          ],
+          [
+            {
+              "u": -3.2,
+              "v": -2
+            },
+            {
+              "u": -3.222836140246614,
+              "v": -1.8851949702904731
+            },
+            {
+              "u": -3.2878679656440357,
+              "v": -1.7878679656440357
+            },
+            {
+              "u": -3.385194970290473,
+              "v": -1.722836140246614
+            },
+            {
+              "u": -3.5,
+              "v": -1.7
+            },
+            {
+              "u": -3.614805029709527,
+              "v": -1.722836140246614
+            },
+            {
+              "u": -3.7121320343559643,
+              "v": -1.7878679656440357
+            },
+            {
+              "u": -3.777163859753386,
+              "v": -1.8851949702904731
+            },
+            {
+              "u": -3.8,
+              "v": -2
+            },
+            {
+              "u": -3.777163859753386,
+              "v": -2.114805029709527
+            },
+            {
+              "u": -3.7121320343559643,
+              "v": -2.2121320343559643
+            },
+            {
+              "u": -3.6148050297095273,
+              "v": -2.277163859753386
+            },
+            {
+              "u": -3.5,
+              "v": -2.3
+            },
+            {
+              "u": -3.385194970290473,
+              "v": -2.277163859753386
+            },
+            {
+              "u": -3.2878679656440357,
+              "v": -2.2121320343559643
+            },
+            {
+              "u": -3.222836140246614,
+              "v": -2.1148050297095273
+            }
+          ],
+          [
+            {
+              "u": -3.2,
+              "v": 2
+            },
+            {
+              "u": -3.222836140246614,
+              "v": 2.114805029709527
+            },
+            {
+              "u": -3.2878679656440357,
+              "v": 2.2121320343559643
+            },
+            {
+              "u": -3.385194970290473,
+              "v": 2.277163859753386
+            },
+            {
+              "u": -3.5,
+              "v": 2.3
+            },
+            {
+              "u": -3.614805029709527,
+              "v": 2.277163859753386
+            },
+            {
+              "u": -3.7121320343559643,
+              "v": 2.2121320343559643
+            },
+            {
+              "u": -3.777163859753386,
+              "v": 2.114805029709527
+            },
+            {
+              "u": -3.8,
+              "v": 2
+            },
+            {
+              "u": -3.777163859753386,
+              "v": 1.8851949702904731
+            },
+            {
+              "u": -3.7121320343559643,
+              "v": 1.7878679656440357
+            },
+            {
+              "u": -3.6148050297095273,
+              "v": 1.722836140246614
+            },
+            {
+              "u": -3.5,
+              "v": 1.7
+            },
+            {
+              "u": -3.385194970290473,
+              "v": 1.722836140246614
+            },
+            {
+              "u": -3.2878679656440357,
+              "v": 1.7878679656440357
+            },
+            {
+              "u": -3.222836140246614,
+              "v": 1.885194970290473
+            }
+          ]
+        ],
+        "regionProfileEntityIds": [
+          [
+            4125
+          ],
+          [
+            4117
+          ],
+          [
+            4129
+          ]
+        ],
+        "sketchId": "sk_6mcmn",
+        "from": 0,
+        "to": 18.236819476851203
+      },
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT01-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "volumeCm3": 104.12044755680049,
+    "boundsCm": {
+      "min": {
+        "x": -4.9999999999999805,
+        "y": 0,
+        "z": -3
+      },
+      "max": {
+        "x": 5.3127425537743,
+        "y": 18.2358194768512,
+        "z": 3
+      }
+    },
+    "centerOfMassCm": {
+      "x": 1.644538435639395,
+      "y": 6.572015738057829,
+      "z": 3.4121191006813536e-17
+    },
+    "seconds": 5.5209617
+  },
+  "step": {
+    "source": "artifacts/planchard/KT01-six-features-browser-2026-10-08.step",
+    "bytes": 89312,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 104.12044755679652,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 104.12044755679652,
+      "centerOfMass": {
+        "x": 1.6445384356393031,
+        "y": 6.572015738057396,
+        "z": 1.492802106548149e-15
+      },
+      "inertia": [
+        [
+          4751.722931589096,
+          -678.1956655168049,
+          -1.6037889005843215e-12
+        ],
+        [
+          -678.1956655168049,
+          917.3116372587033,
+          -2.0018628939765966e-12
+        ],
+        [
+          -1.6037889005843215e-12,
+          -2.0018628939765966e-12,
+          5363.270262385436
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -5,
+          "y": 0,
+          "z": -3
+        },
+        "max": {
+          "x": 5.312742553774,
+          "y": 18.235819476851077,
+          "z": 3
+        }
+      }
+    }
+  },
+  "nativeStepVolumeDifferenceCm3": 3.964828465541359e-12,
+  "nativeStepMatches": true,
+  "material": {
+    "densityGPerCm3": 7.7,
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "materialCatalogId": "stock:alloySteel",
+    "appearances": [
+      {
+        "id": "app_muzrtp07dn1",
+        "persistentId": 4073,
+        "kind": "body",
+        "material": "alloySteel",
+        "opacity": 1,
+        "name": "Alloy Steel (SOLIDWORKS reference)",
+        "color": "#a6adb4",
+        "metal": 0.78,
+        "rough": 0.42
+      }
+    ],
+    "massG": 801.7274461873637
+  },
+  "customProperties": {
+    "Description": "Exercise 8.18, printed 8-53 / PDF 431. Original educational designer example; companion CAD/AVI unavailable. Bench fixture revised for full handle rotation clearance. Six fully defined sketches. Ideal nominal holes and Alloy Steel reference; no rated capacity.",
+    "PartNo": "KT01",
+    "BookItemNo": "1"
+  },
+  "metadataGap": null
+}

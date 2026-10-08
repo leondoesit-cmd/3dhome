@@ -3617,18 +3617,22 @@ function btn(label, cb, cls) {
   return b;
 }
 
-function bindDocumentTextField(selector, readValue, writeValue, undoLabel) {
+function bindDocumentTextField(selector, readValue, writeValue, undoLabel, commitOnInput) {
   var input=root.querySelector(selector);
+  var gesture=0;
   function commit(){
     var next=input.value.trim();
     if(readValue()===next)return;
-    pushUndo(undoLabel);writeValue(next);syncUndoButtons();
+    pushUndo(undoLabel,commitOnInput ? selector+":"+gesture : undefined);writeValue(next);syncUndoButtons();
   }
+  // Description must survive another Settings control refreshing the header
+  // before blur. Consecutive input events still share a single undo step.
+  if(commitOnInput)input.addEventListener("input",commit);
   input.addEventListener("change",commit);
-  input.addEventListener("blur",commit);
+  input.addEventListener("blur",function(){commit();gesture++;});
   input.addEventListener("keydown",function(event){
     if(event.key!=="Enter")return;
-    event.preventDefault();event.stopPropagation();commit();
+    event.preventDefault();event.stopPropagation();commit();gesture++;
   });
 }
 /* The one greyed affordance in the editor: `aria-disabled` plus `.unavailable`,
@@ -4757,7 +4761,7 @@ function buildDOM() {
      not a second name: drawings put it in the title block and the BOM's
      Description column, while the name stays the file / part number. */
   bindDocumentTextField("#mdDescription",function(){return documentDescription(E.docType === "assembly" ? E.assembly : E.def);},
-    function(value){setDocumentDescription(E.docType === "assembly" ? E.assembly : E.def,value);},t("editDescription"));
+    function(value){setDocumentDescription(E.docType === "assembly" ? E.assembly : E.def,value);},t("editDescription"),true);
   root.querySelector("#mdPrice").addEventListener("change", function () {
     if (E.docType !== "part") return;
     var price = +this.value || 0;

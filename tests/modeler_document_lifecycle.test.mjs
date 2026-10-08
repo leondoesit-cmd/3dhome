@@ -149,7 +149,7 @@ test("renaming or repricing a model makes it dirty like any other edit", () => {
   assert.match(source, /bindDocumentTextField\("#mdName",[\s\S]{0,400}?t\("renameDocument"\)\)/);
   const textField=body("bindDocumentTextField");
   assert.match(textField,/if\(readValue\(\)===next\)return;/);
-  assert.match(textField,/pushUndo\(undoLabel\);writeValue\(next\);syncUndoButtons\(\);/);
+  assert.match(textField,/pushUndo\(undoLabel,commitOnInput \? selector\+":"\+gesture : undefined\);writeValue\(next\);syncUndoButtons\(\);/);
   assert.match(textField,/input\.addEventListener\("change",commit\)/);
   assert.match(source, /#mdPrice"\)\.addEventListener\("change"[\s\S]{0,400}?pushUndo\(t\("setPrice"\)\)/);
   // Assigning straight into the document is what put them outside the flag.
