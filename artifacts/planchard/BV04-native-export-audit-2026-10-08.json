@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\BV04-clamping-plate-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 5,
+  "issues": [],
+  "volumeCm3": 5.76525666117692,
+  "boundsCm": {
+    "min": {
+      "x": 7.2,
+      "y": -0.6400000000000001,
+      "z": -1.4000000000000001
+    },
+    "max": {
+      "x": 10.8,
+      "y": -0.04000000000000001,
+      "z": 1.4000000000000001
+    }
+  },
+  "centerOfMassCm": {
+    "x": 9.024521314092318,
+    "y": -0.3424521314092318,
+    "z": -7.183812520931461e-17
+  },
+  "seconds": 5.6767455
+}

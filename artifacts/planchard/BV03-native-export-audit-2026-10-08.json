@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\BV03-vice-jaw-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 14,
+  "issues": [],
+  "volumeCm3": 54.96672333019949,
+  "boundsCm": {
+    "min": {
+      "x": 7,
+      "y": -0.020000000000000004,
+      "z": -2.8000000000000003
+    },
+    "max": {
+      "x": 11.000000000000002,
+      "y": 6.6000000000000005,
+      "z": 2.8000000000000003
+    }
+  },
+  "centerOfMassCm": {
+    "x": 9.759398675558872,
+    "y": 3.1140058833381192,
+    "z": 3.686152088363091e-17
+  },
+  "seconds": 5.715678199999999
+}

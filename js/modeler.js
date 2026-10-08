@@ -24007,6 +24007,11 @@ function fitPreview() {
   if (E.pv.fixedFrame) {
     var origin = E.pv.fixedFrame.origin;
     E.pv.target.set((b.x0+b.x1)/2-origin.x,(b.y0+b.y1)/2-origin.y,(b.z0+b.z1)/2-origin.z);
+  } else {
+    // The orbit view adds the solid's Y center in createEditorView.place().
+    // X/Z have no automatic baseline; fit their offset as well as the size.
+    var modelBox=defBounds(E.def),centerY=(modelBox.y0+modelBox.y1)/2;
+    E.pv.target.set((b.x0+b.x1)/2,(b.y0+b.y1)/2-centerY,(b.z0+b.z1)/2);
   }
   E.pv.render();
 }

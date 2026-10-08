@@ -12,6 +12,8 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 **Exercise 8.17 Bench Vice — printed page 8-52 / PDF page 430.**
 
+Latest checkpoint: **BV01–BV04 accepted.** Actual editable bundles/STEP independently valid, driving edit/Undo/Redo and cold library reopen passed. UI agent repaired off-origin orbit Zoom-to-fit; fresh Chrome BV04 centered proof passed. Full host unit rerun has2491 passes/zero failures at last ordered output, still completing expensive native housing-shell tests. Account usage read on2026-10-08:10% used/90% remaining in weekly Codex window; no reset used.
+
 **BV01 base accepted 2026-10-08.** Saved library key `cm_musrulf4`, name `Planchard 8.17 - BV01 Base - fresh designer example 2026-10-03`. Eight features/16 fully-defined sketch/history steps, one native solid,176×66×70mm. Nose passage and four foot holes completed through browser UI. Exact volume198.69716711709407cm³, mass1.529968kg at Alloy Steel reference7.70g/cm³. Driving edit/Undo/Redo/cold library reopen passed. Actual editable bundle and STEP protected; independent recipe/STEP validations passed. See `bench-vice-8.17-BV01-acceptance-2026-10-08.md`. Remaining vice parts and assembly are unfinished.
 
 Protected Chrome recovery export: `artifacts/planchard/BV01-base-retention-checkpoint-browser-2026-10-03.mforge`. It predates removal of an empty sketch and final material assignment. Preserve that distinction when recovering from export instead of the saved library. Detailed evidence: `bench-vice-8.17-browser-checkpoint-2026-10-04.md`. Frozen geometry/interface and part quantities: `bench-vice-8.17-design.md`.
@@ -19,7 +21,7 @@ Protected Chrome recovery export: `artifacts/planchard/BV01-base-retention-check
 ### Next exact actions
 
 1. Reconnect browser controls in desktop Chrome at `http://localhost:8765/`, preserve saved site storage and dark theme. BV01 is accepted; preserve its final bundle/STEP and library entry.
-2. **BV02 also accepted** (`bench-vice-8.17-BV02-acceptance-2026-10-08.md`), named `Planchard 8.17 - BV02 Base Plate - fresh designer example 2026-10-08`; one solid20×12×90mm,20.77891334405777cm³, source props/material and driving edit/Undo/Redo/cold reopen/native exports passed. Next BV03 movable jaw from blank: carriageX70..110/Y12..20/Z±28, uprightX96..110/Y20..66/Z±28, tongueX72..108/Y-0.2..12/Z±7.8; Ø20.2 nut boreX96..110 atY34/Z0 and Ø6.6 keeper holesX80/90 alongY. Then BV04..BV10 per frozen design, all from blank/browser UI.
+2. **BV02–BV04 also accepted** (their `bench-vice-8.17-BV0*-acceptance-2026-10-08.md` reports). BV02 one solid20×12×90mm,20.77891334405777cm³. BV03 five features/ten fully-defined steps, one solid40×66.2×56mm,54.96672333019949cm³. BV04 two features/four fully-defined steps, one solid36×6×28mm,5.76525666117692cm³. Next BV05 jaw screw from blank: Right circleØ20 U0/V34 offset−12, Blind170 Along normal; mergedØ30 hub offset−30 depth29.8 and thrust flange offset16.2 depth4. Cut annular grooveX5.8..10.2 down toØ16, and FrontØ8.2 crossbar bore centeredX−20/Y34 throughZ hub. Then BV06..BV10 per frozen design, all from blank/browser UI.
 3. Perform driving edit/Undo/Redo/cold reopen, actual bundle/STEP and independent audit for each part. Create16-occurrence assembly, check4mm/rev guided screw with0..50mm travel, native clearances/mates, ANSI A landscape third-angle exploded drawing/BOM/balloons. Disclose designer dimensions, missing companion parts/AVI, ideal threads and book artwork title discrepancy.
 4. Continue8.18 Kant-Twist Clamp(8-53/PDF431),8.19 Arbor Press(8-54/PDF432),8.20 Shaper Tool Head(8-55/PDF433), then reconcile earlier/later uncertainties in `remaining-book-audit-2026-10-03.md`.
 
@@ -33,14 +35,14 @@ Protected Chrome recovery export: `artifacts/planchard/BV01-base-retention-check
 
 Earlier brief/plan claims that these exercises have not started are stale. Earlier chapters still have reconciliation items; this table does not certify all earlier work.
 
-## App/source reconciliation on 2026-10-08
+## Earlier app/source reconciliation on 2026-10-08 — superseded by active milestones below
 
 - Last committed checkpoint: `439cf46` (six-feature BV01 recovery export, dimensioned-circle UI, screw handedness, pending rebuild GPU retention, accurate remembered-plane coach;15 focused tests and gates passed).
 - Other coder's uncommitted startup changes are in `index.html`, `js/main.js`, `js/planner_chrome.js`, `tests/boot_guard.test.mjs`: withhold initial app chrome until both boot entry points finish, reveal fatal errors, await optional UIKit adoption. Preserve these changes.
 - Explicitly requested UI subagent found circle/arc center inspector fields labeled X/Y on all planes and fixed-center edits snapping back. Its narrow repair uses Center U/V, updates fixed anchors and rolls back edits rejected by other constraints. Twelve combined circle/boot tests passed; module/link gates passed (639 modules), and1490 source assertions passed. Browser QA remains pending.
 - No further BV01 geometry was authored on 2026-10-08. New source fixes do not constitute browser acceptance.
 
-## Browser runtime interruption
+## Earlier browser runtime interruption — recovered in this chat
 
 Browser-only CUA startup failed with `helper_unknown_error: setup refresh had errors`. Local logs identify OS error32 while opening the Codex `cua_node/.../bin/node_repl.exe` runtime for normal read/execute validation. Sandbox bookkeeping was22 bytes but not all-zero; it was not moved or edited. Supported runtime resets failed. At the user's request to fix it, root stopped only two verified stuck browser-runtime helper processes. The current browser transport then closed; normal sandbox execution still failed. The latest log identifies another locked runtime file, `@oai/sky/bin/windows/swift/x64/VCRUNTIME140_1.dll`. Reconnect through a fresh Codex app session and inspect the latest setup error before any more repairs. Security/permission settings were not changed. Do not use native Computer Use or internal/scripted model authoring as a workaround.
 
