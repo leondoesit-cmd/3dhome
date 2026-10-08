@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT11-four-features-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 11,
+  "issues": [],
+  "volumeCm3": 14.314429546021731,
+  "boundsCm": {
+    "min": {
+      "x": -0.9000001,
+      "y": -2.8000001,
+      "z": -0.9000001
+    },
+    "max": {
+      "x": 0.9000001,
+      "y": 11,
+      "z": 0.9000001
+    }
+  },
+  "centerOfMassCm": {
+    "x": -1.418095556603862e-7,
+    "y": 2.781974764301573,
+    "z": -1.6013850249229719e-7
+  },
+  "seconds": 6.9506053
+}

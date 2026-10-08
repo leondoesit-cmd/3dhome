@@ -1,0 +1,324 @@
+{
+  "source": "artifacts/planchard/KT11-final-browser-2026-10-08.mforge",
+  "inputSha256": "8a1f6a3254e8bab8da004b988c4298837e63b721777aa988c03c85d6bf3d2edd",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Spindle stock",
+      "sketchId": "sk_1kzyc",
+      "featureId": "feature_muzu48u6_1",
+      "plane": "top",
+      "offsetMm": -28.000000000000004,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 10,
+      "drivingConstraint": {
+        "id": 4331,
+        "type": "diameter",
+        "entity": 4330,
+        "value": 1,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 13.8,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "y",
+        "profileEntityIds": [
+          4330
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1kzyc",
+        "from": -2.8000000000000003,
+        "to": 11
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Handle hub",
+      "sketchId": "sk_2vkwd",
+      "featureId": "feature_muzu4u31_2",
+      "plane": "top",
+      "offsetMm": -28.000000000000004,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 18,
+      "drivingConstraint": {
+        "id": 4336,
+        "type": "diameter",
+        "entity": 4335,
+        "value": 1.8,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 1.9800000000000002,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "y",
+        "profileEntityIds": [
+          4335
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2vkwd",
+        "from": -2.8000000000000003,
+        "to": -0.8200000000000001
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Capture collar",
+      "sketchId": "sk_3gj3q",
+      "featureId": "feature_muzu57cl_3",
+      "plane": "top",
+      "offsetMm": 8.2,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 18,
+      "drivingConstraint": {
+        "id": 4341,
+        "type": "diameter",
+        "entity": 4340,
+        "value": 1.8,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.30000000000000004,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "y",
+        "profileEntityIds": [
+          4340
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_3gj3q",
+        "from": 0.82,
+        "to": 1.12
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Crossbar bore",
+      "sketchId": "sk_4w75x",
+      "featureId": "feature_muzu5odq_4",
+      "plane": "side",
+      "offsetMm": -9,
+      "centerMm": [
+        0,
+        -22
+      ],
+      "diameterMm": 6.200000000000001,
+      "drivingConstraint": {
+        "id": 4346,
+        "type": "diameter",
+        "entity": 4345,
+        "value": 0.6200000000000001,
+        "driven": false,
+        "exprError": null
+      },
+      "params": {
+        "operation": "subtract",
+        "endCondition": "through-all",
+        "depth": 0.30000000000000004,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "x",
+        "profileEntityIds": [
+          4345
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_4w75x",
+        "from": -0.9,
+        "to": 0.9009999999999999
+      },
+      "fullyDefined": true,
+      "centerFixed": true,
+      "planeCorrect": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    }
+  ],
+  "featureCount": 4,
+  "sketchCount": 4,
+  "historyCount": 8,
+  "historyRebuilt": true,
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT11-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 11,
+    "issues": [],
+    "volumeCm3": 14.314429546021731,
+    "boundsCm": {
+      "min": {
+        "x": -0.9000001,
+        "y": -2.8000001,
+        "z": -0.9000001
+      },
+      "max": {
+        "x": 0.9000001,
+        "y": 11,
+        "z": 0.9000001
+      }
+    },
+    "centerOfMassCm": {
+      "x": -1.418095556603862e-7,
+      "y": 2.781974764301573,
+      "z": -1.6013850249229719e-7
+    },
+    "seconds": 6.7576952
+  },
+  "step": {
+    "source": "artifacts/planchard/KT11-four-features-browser-2026-10-08.step",
+    "bytes": 78513,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 14.314442044688912,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 14.314442044688912,
+      "centerOfMass": {
+        "x": -1.4543402640562747e-7,
+        "y": 2.7819710511547435,
+        "z": -2.1960258148611904e-7
+      },
+      "inertia": [
+        [
+          255.59208946015394,
+          -0.000009305594449169905,
+          3.498033931571573e-7
+        ],
+        [
+          -0.000009305594449169905,
+          3.32778683277907,
+          -0.000014698370679978092
+        ],
+        [
+          3.498033931571573e-7,
+          -0.000014698370679978092,
+          255.46445290365992
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.9000001,
+          "y": -2.8000000999999997,
+          "z": -0.9000001
+        },
+        "max": {
+          "x": 0.9000001,
+          "y": 11,
+          "z": 0.9000001
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/KT11-final-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/KT11-four-features-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "nativeStepVolumeDifferenceCm3": 0.00001249866718033843,
+  "material": {
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "densityGPerCm3": 7.7,
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "materialCatalogId": "stock:alloySteel",
+    "appearances": [
+      {
+        "id": "app_muzu5q55kgb",
+        "persistentId": 4333,
+        "kind": "body",
+        "material": "alloySteel",
+        "opacity": 1,
+        "name": "Alloy Steel (SOLIDWORKS reference)",
+        "color": "#a6adb4",
+        "metal": 0.78,
+        "rough": 0.42
+      }
+    ],
+    "nativeMassG": 110.22110750436734,
+    "stepMassG": 110.22120374410463
+  },
+  "customProperties": {
+    "Description": "Exercise8.18 printed8-53/PDF431, original educational spindle with capture collar and crossbar hub. Smooth nominal thread envelope, ideal RH2mm lead Y11.2..110mm; companion CAD/AVI unavailable, no rated capacity.",
+    "PartNo": "KT11",
+    "BookItemNo": "11"
+  },
+  "metadataPass": true,
+  "browserDurability": "Parent observed Chrome durability PASS: bore6.2->6.4mm native14.27992cm3/0.1099554kg thenUndoRedoUndoSave. Coldreload preserve draft/librarycm_muzu3x2i reopened8fullydefinedsteps4features1solid18x138x18mm native14.31443cm3/0.1102211kgdensity7.7 COMY2.781975cm; screenshots protected."
+}
