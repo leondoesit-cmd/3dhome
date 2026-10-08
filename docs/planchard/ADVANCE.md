@@ -26,6 +26,18 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 Earlier paragraphs below are historical unless explicitly superseding this current pointer.
 
+### Current SH09 checkpoint — 2026-10-09
+
+SH01..SH08fullyaccepted. SH07final116172bytes/download2 native.20106192982974677cm3/.0016084954386379742kg, repairedAtlasSteel3048.0bodydensitySource+visibleDensityReferenceretained, source/catalogpresetchangesparent6materialtestsPASS/gates646/1489agentPASS. Repairedsavedlibrarycm_mv01xvut reopenedagainafterSH08 confirmsDensitysource/8.0/oneSolid4steps; sourceprovenancejpgandcoldfinaljpgprotected. SH08final517737bytes/download1 librarycm_mv02341q native23.39041332175095cm3/.18478426524183247kg64x44x28/all6frozenfeatures12fullydefinedsteps/coldmetadataPASS/STEPdiff0. ReportsandJSONsready;commitSH07+catalog/SH08next.
+
+CurrentChrome710862239 authorsSH09SwivelScrewPin fromblank: FrontD8shaftZ−2..6/FrontD12head6..8,twofeatures4fullydefinedsteps. AISI1020reference7.9/SH09Book9Description explicit smooththreadomitted. NativeChrome.6283185cm3/.004963716kg;shaftD8→8.2 gives.6486761/.005124541 Undo8Redo8.2Undo8PASS;Saveheaderclicked,awaitactualcleanaria-label thenProjectBundle/STEP/nominaljpg/cold/finalnativeaudit. NextSH10FrontD6stemZ−14..0/D10head0..4 originalclampscrew fromblank.
+### Latest SH08 / SH07 material checkpoint — 2026-10-09
+
+SH01..SH06fullyacceptedcommittedthroughf551118. SH07geometry/nativeSTEP/driving/coldoriginalmetadataPASS butfinalmaterialprovenancepending. Librarycm_mv01xvut, nominal.20106192982974677cm3/.0016084954386379742kg8.0. Steel304presetoriginaldensitySourceblank wasfound; parentaddedvisibleDensityReference AtlasSteelsSection9p7Oct2016 row304/S304008000kg/m3=8.0, representativeCADreference/notcastgradecertification. Metadataexportdownload1 SH07-density-metadata-checkpoint-browser-2026-10-09.mforgeprotected. AgentfixedpresetprimarysupplierURL https://atlassteels.com.au/documents/9-Appendices.pdf#page=7;parent6materialtestsPASS/gates646/1489agentPASS. Sourcejs/cad_appearances.js+tests/material_density_assignment.test.mjspendingcommit. Needcurrentcoldreload→librarySH07→selectfinalbody/materialFinish→reapplySteel304newsource→Saveactualclean→finalexport/coldjpg→nativeaudittopopulatebodydensitySource aswellasmetadata. Nochange8.0density/certification.
+
+SH08SwivelPlate/clapperbox nowbrowserauthoredfromblank all6nativefeatures12fullydefinedsteps. NominalChrome23.39041cm3/.1847843kg/AISI1020reference7.9/SH08Book8Description. Width64→66 gives23.91841/.1889555 Undo64Redo66Undo64PASS Saveclean; nominalbundle/STEP/jpgprotected independentaudit running. Currenttab710862239coldreloadunderway; afterSH07provenancereapplyloadlatestSH08librarycoldverifygeometry64x44x28/native1solid12steps/metadata, finalexport/jpg andnativefinalacceptance. NextSH09FrontD8shaftZ−2..6/D12head6..8fromblank.
+
+ParentvisuallyreadenlargedsourceBOMitem15labelDragPlateconfirmed;proposalupdated. OriginalfrozenSH11OD10correctionstillrequired. Book8.20printed8-55/PDF433active;8of16partsstartednoassembly/drawingyet. Fullnpmteststoppedincomplete;neverclaimPASS. Browseronlyactualgeometry,source/testing/auditscriptsallowedread-only. Continuewhile59%remainingatlatestquota.
 ### Current SH07 checkpoint — 2026-10-09
 
 SH01..SH06fullyaccepted. LatestSH05commit59a848b; SH06final59804bytes/download1 savedlibrarycm_mv01sjr2, native1.4137166941154076cm3/.01116836188351172kg/cold50x6x6/2fullydefinedsteps/SH06Book6Description; nativeSTEPzeroresidual/drivingPASS. CommitSH06next.

@@ -5,6 +5,19 @@ import {evaluateMassProperties} from '../js/cad_mass_properties.js';
 import {STOCK_MATERIALS,drawingMaterialName,partMaterialDensity} from '../js/cad_appearances.js';
 import {validateMaterialProfile} from '../js/engineering_materials.js';
 const box=()=>({id:'body',kind:'box',x0:0,x1:2,y0:0,y1:2,z0:0,z1:2,density:7.85});
+
+test('Steel 304 reference keeps the existing density and supplier provenance through assignment and serialization without certifying cast material',async()=>{
+ const part=box(),def={parts:[part]},profile=initialMaterialProfile('stock:steel','steel304-reference');
+ assert.equal(STOCK_MATERIALS.steel.density,8.00);
+ assert.equal(STOCK_MATERIALS.steel.densitySourceUrl,'https://atlassteels.com.au/documents/9-Appendices.pdf#page=7');
+ assignMaterialProfile(def,part,profile);const saved=JSON.parse(JSON.stringify(def));
+ assert.equal(partMaterialDensity(saved.parts[0]),8.00);assert.equal(drawingMaterialName(saved),'Steel 304');
+ assert.match(saved.parts[0].densitySource,/Atlas Steels.*Section 9.*p\. 7.*2016.*304\/S30400.*8000 kg\/m³.*not cast-grade certification/);
+ assert.equal(profile.youngModulusMPa,0);assert.equal(profile.allowableBendingMPa,0);
+ assert.ok(validateMaterialProfile(profile,{elastic:true}).some(issue=>issue.field==='youngModulusMPa'));
+ const mass=await evaluateMassProperties(saved);assert.equal(mass.accuracy,'exact');assert.ok(Math.abs(mass.massG-64)<1e-8);
+ assert.equal(partMaterialDensity({materialCatalogId:'stock:steel',density:7.9}),7.9,'existing authored density retains priority');
+});
 test('SOLIDWORKS Alloy Steel reference remains distinct from Cast Alloy and has no qualified strength',async()=>{
  const part={...box(),density:7.3,materialCatalogId:'stock:castAlloySteel'},def={parts:[part]};
  const profile=initialMaterialProfile('stock:alloySteel','reference');

@@ -1,0 +1,71 @@
+{
+  "source": "artifacts/planchard/SH08-final-browser-2026-10-09.mforge",
+  "bytes": 517737,
+  "inputSha256": "259e112e0ac55a882ab08893d1852d19fc00dccdf90d5d13bf8186e08d31c311",
+  "inputUnchanged": true,
+  "checks": {
+    "featuresExact": true,
+    "sketchesExact": true,
+    "historyExact": true,
+    "authoredPartsPreserved": true,
+    "originalPropertiesPreserved": true,
+    "nativeVolumeUnchanged": true,
+    "nativeBoundsUnchanged": true,
+    "singleValidSolid": true
+  },
+  "pass": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH08-final-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 23.39041332175095,
+      "maxToleranceCm": 1.500000001110223e-7
+    },
+    "volumeCm3": 23.39041332175095,
+    "boundsCm": {
+      "min": {
+        "x": -3.2,
+        "y": -2.2,
+        "z": 0
+      },
+      "max": {
+        "x": 3.2,
+        "y": 2.2,
+        "z": 2.8000000000000003
+      }
+    },
+    "centerOfMassCm": {
+      "x": 0.07683147686530349,
+      "y": -0.014456174666086011,
+      "z": 0.7511151249447243
+    },
+    "seconds": 5.6013998
+  },
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "massKg": 0.18478426524183247
+  },
+  "properties": {
+    "Description": "Swivel plate / clapper box with rear pivot, adjustment slot and hinge ears; original educational dimensions, book item8",
+    "PartNo": "SH08",
+    "BookItemNo": "8"
+  },
+  "priorStepEquivalence": {
+    "evidence": "SH08-step-equivalence-audit-2026-10-09.json",
+    "symmetricDifferenceVolumeCm3": 0,
+    "reuseReason": "Final authored features, sketches and history are exactly nominal; fresh final native regeneration has unchanged volume and bounds."
+  },
+  "browserDurability": {
+    "source": "Parent actual Chrome observations; auditor did not control browser",
+    "library": "cm_mv02341q",
+    "driving": "BaseWidth64→66 native23.39041→23.91841cm3/.1847843→.1889555kg Undo64Redo66Undo64Saveclean",
+    "coldReopen": "PASS: saved-library reopen retains twelve fully defined editable steps, one native solid 64×44×28mm and SH08/BookItem8/Description.",
+    "pass": true
+  }
+}

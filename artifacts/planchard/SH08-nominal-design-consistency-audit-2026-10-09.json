@@ -1,0 +1,305 @@
+{
+  "source": "artifacts/planchard/SH08-nominal-browser-2026-10-09.mforge",
+  "bytes": 507631,
+  "inputSha256": "904c6e487df0da7436f579774b7867057562fef904bbc8ecc6f635130dec5a40",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "name": "Swivel base",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 0,
+      "actualStoredSpanMm": [
+        0,
+        6.000000000000001
+      ],
+      "expectedSpanMm": [
+        0,
+        6
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Left hinge ear",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 6.000000000000001,
+      "effectiveStartMm": 6.000000000000001,
+      "actualStoredSpanMm": [
+        6.000000000000001,
+        28.000000000000004
+      ],
+      "expectedSpanMm": [
+        6,
+        28
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Right hinge ear",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 6.000000000000001,
+      "effectiveStartMm": 6.000000000000001,
+      "actualStoredSpanMm": [
+        6.000000000000001,
+        28.000000000000004
+      ],
+      "expectedSpanMm": [
+        6,
+        28
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Rear pivot bore",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 0,
+      "actualStoredSpanMm": [
+        0,
+        28.01
+      ],
+      "expectedSpanMm": [
+        0,
+        null
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Adjustment clamp slot",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 0,
+      "actualStoredSpanMm": [
+        0,
+        28.01
+      ],
+      "expectedSpanMm": [
+        0,
+        null
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Transverse hinge bore",
+      "sketchOffsetMm": -20,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": -20,
+      "actualStoredSpanMm": [
+        -20,
+        32.010000000000005
+      ],
+      "expectedSpanMm": [
+        -20,
+        null
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH08-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 23.39041332175095,
+      "maxToleranceCm": 1.500000001110223e-7
+    },
+    "volumeCm3": 23.39041332175095,
+    "boundsCm": {
+      "min": {
+        "x": -3.2,
+        "y": -2.2,
+        "z": 0
+      },
+      "max": {
+        "x": 3.2,
+        "y": 2.2,
+        "z": 2.8000000000000003
+      }
+    },
+    "centerOfMassCm": {
+      "x": 0.07683147686530349,
+      "y": -0.014456174666086011,
+      "z": 0.7511151249447243
+    },
+    "seconds": 5.9315864000000005
+  },
+  "step": {
+    "source": "artifacts/planchard/SH08-nominal-browser-2026-10-09.step",
+    "bytes": 74937,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 23.390413321750884,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 23.390413321750884,
+      "centerOfMass": {
+        "x": 0.07683147686530392,
+        "y": -0.01445617466608736,
+        "z": 0.7511151249447237
+      },
+      "inertia": [
+        [
+          52.77230941117112,
+          -0.0259794806159246,
+          0.8107080133406624
+        ],
+        [
+          -0.0259794806159246,
+          90.89059582746772,
+          0.2532248615910634
+        ],
+        [
+          0.8107080133406624,
+          0.2532248615910634,
+          116.33364678115981
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.2,
+          "y": -2.2,
+          "z": 0
+        },
+        "max": {
+          "x": 3.2,
+          "y": 2.2,
+          "z": 2.8
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH08-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH08-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticFrozenVolumeCm3": 23.39041332175095,
+  "nativeFrozenVolumeErrorCm3": 0,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.18478426524183247
+  },
+  "properties": {
+    "Description": "Swivel plate / clapper box with rear pivot, adjustment slot and hinge ears; original educational dimensions, book item8",
+    "PartNo": "SH08",
+    "BookItemNo": "8"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent actual Chrome observations; auditor did not control browser",
+    "library": "cm_mv02341q",
+    "driving": "BaseWidth64→66 native23.39041→23.91841cm3/.1847843→.1889555kg Undo64Redo66Undo64Saveclean",
+    "coldReopen": "PASS: saved-library reopen retains twelve fully defined editable steps, one native solid 64×44×28mm and SH08/BookItem8/Description.",
+    "pass": true
+  },
+  "pass": true,
+  "finalCold": {
+    "source": "artifacts/planchard/SH08-final-browser-2026-10-09.mforge",
+    "bytes": 517737,
+    "inputSha256": "259e112e0ac55a882ab08893d1852d19fc00dccdf90d5d13bf8186e08d31c311",
+    "inputUnchanged": true,
+    "checks": {
+      "featuresExact": true,
+      "sketchesExact": true,
+      "historyExact": true,
+      "authoredPartsPreserved": true,
+      "originalPropertiesPreserved": true,
+      "nativeVolumeUnchanged": true,
+      "nativeBoundsUnchanged": true,
+      "singleValidSolid": true
+    },
+    "pass": true,
+    "native": {
+      "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH08-final-browser-2026-10-09.mforge",
+      "exact": true,
+      "featureCount": 17,
+      "issues": [],
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 23.39041332175095,
+        "maxToleranceCm": 1.500000001110223e-7
+      },
+      "volumeCm3": 23.39041332175095,
+      "boundsCm": {
+        "min": {
+          "x": -3.2,
+          "y": -2.2,
+          "z": 0
+        },
+        "max": {
+          "x": 3.2,
+          "y": 2.2,
+          "z": 2.8000000000000003
+        }
+      },
+      "centerOfMassCm": {
+        "x": 0.07683147686530349,
+        "y": -0.014456174666086011,
+        "z": 0.7511151249447243
+      },
+      "seconds": 5.6013998
+    },
+    "material": {
+      "name": "AISI 1020 (SOLIDWORKS reference)",
+      "density": 7.9,
+      "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+      "massKg": 0.18478426524183247
+    },
+    "properties": {
+      "Description": "Swivel plate / clapper box with rear pivot, adjustment slot and hinge ears; original educational dimensions, book item8",
+      "PartNo": "SH08",
+      "BookItemNo": "8"
+    },
+    "priorStepEquivalence": {
+      "evidence": "SH08-step-equivalence-audit-2026-10-09.json",
+      "symmetricDifferenceVolumeCm3": 0,
+      "reuseReason": "Final authored features, sketches and history are exactly nominal; fresh final native regeneration has unchanged volume and bounds."
+    },
+    "browserDurability": {
+      "source": "Parent actual Chrome observations; auditor did not control browser",
+      "library": "cm_mv02341q",
+      "driving": "BaseWidth64→66 native23.39041→23.91841cm3/.1847843→.1889555kg Undo64Redo66Undo64Saveclean",
+      "coldReopen": "PASS: saved-library reopen retains twelve fully defined editable steps, one native solid 64×44×28mm and SH08/BookItem8/Description.",
+      "pass": true
+    }
+  },
+  "finalAccepted": true
+}

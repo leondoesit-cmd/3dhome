@@ -1,0 +1,74 @@
+{
+  "source": "artifacts/planchard/SH07-final-browser-2026-10-09.mforge",
+  "bytes": 116172,
+  "inputSha256": "aad372a1ead29a49ba180a5614959dfc3e39120fe59c67d8efcc9d933b87dbb0",
+  "inputUnchanged": true,
+  "checks": {
+    "featuresExact": true,
+    "sketchesExact": true,
+    "historyExact": true,
+    "authoredPartsPreserved": true,
+    "originalPropertiesPreserved": true,
+    "nativeVolumeUnchanged": true,
+    "nativeBoundsUnchanged": true,
+    "singleValidSolid": true,
+    "correctedProvenance": true
+  },
+  "pass": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH07-final-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.20106192982974677,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 0.20106192982974677,
+    "boundsCm": {
+      "min": {
+        "x": -0.4,
+        "y": -0.4,
+        "z": -0.4
+      },
+      "max": {
+        "x": 0.4,
+        "y": 0.30000000000000004,
+        "z": 0.4
+      }
+    },
+    "centerOfMassCm": {
+      "x": -1.1129880578023496e-17,
+      "y": 0.06250000000000006,
+      "z": -7.765026077791788e-17
+    },
+    "seconds": 5.508058
+  },
+  "material": {
+    "name": "Steel 304",
+    "density": 8,
+    "source": "Atlas Steels Product Reference Manual, Section 9 Physical Properties, p. 7 (October 2016): 304/S30400, 8000 kg/m³ (8.0 g/cm³); representative CAD reference density, not cast-grade certification",
+    "massKg": 0.0016084954386379742
+  },
+  "properties": {
+    "Description": "Book standard-fastener role, original smooth nominal M4 round-head proxy; threads omitted; Steel304 reference substitutes cast stainless steel",
+    "PartNo": "SH07",
+    "BookItemNo": "7",
+    "MaterialNote": "Steel 304 reference substitute for book cast stainless steel; no grade or strength certification",
+    "DensityReference": "Atlas Steels Product Reference Manual Section 9 Physical Properties p7 (Oct 2016): 304/S30400 8000 kg/m3 = 8.0 g/cm3; representative CAD reference, not cast-grade certification; https://atlassteels.com.au/documents/9-Appendices.pdf#page=7"
+  },
+  "priorStepEquivalence": {
+    "evidence": "SH07-step-equivalence-audit-2026-10-09.json",
+    "symmetricDifferenceVolumeCm3": 0,
+    "reuseReason": "Final authored features, sketches and history are exactly nominal; fresh final native regeneration has unchanged volume and bounds."
+  },
+  "browserDurability": {
+    "source": "Parent actual Chrome observations; auditor did not control browser",
+    "library": "cm_mv01xvut",
+    "driving": "StemD4→4.2 native.2010619→.2062141cm3/mass.001608495→.001649713kg;Undo4Redo4.2Undo4Saveclean",
+    "coldReopen": "PASS: fresh saved-library reopen after material-source reapply retains four fully defined editable steps, one native solid 8×7×8mm, Steel304 density8.00 and Atlas Section9 p7 source/direct reference.",
+    "pass": true
+  }
+}
