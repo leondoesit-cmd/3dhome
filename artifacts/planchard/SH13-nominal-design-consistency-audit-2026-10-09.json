@@ -1,0 +1,213 @@
+{
+  "source": "artifacts/planchard/SH13-nominal-browser-2026-10-09.mforge",
+  "bytes": 358438,
+  "inputSha256": "9f91b1ca8ec6f204d7082c711f8ceed34893189e40aab2d74aaf491ce63980de",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "name": "Neck",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": -8,
+      "effectiveStartMm": -8,
+      "actualStoredSpanMm": [
+        -8,
+        0
+      ],
+      "expectedSpanMm": [
+        -8,
+        0
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Shoulder",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 0,
+      "actualStoredSpanMm": [
+        0,
+        5
+      ],
+      "expectedSpanMm": [
+        0,
+        5
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Post",
+      "sketchOffsetMm": 0,
+      "featureOffsetMm": 5,
+      "effectiveStartMm": 5,
+      "actualStoredSpanMm": [
+        5,
+        35
+      ],
+      "expectedSpanMm": [
+        5,
+        35
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Tool slot",
+      "sketchOffsetMm": -6.000000000000001,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": -6.000000000000001,
+      "actualStoredSpanMm": [
+        -6.000000000000001,
+        10.009999999999998
+      ],
+      "expectedSpanMm": [
+        -6,
+        null
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Terminal socket",
+      "sketchOffsetMm": 25,
+      "featureOffsetMm": 0,
+      "effectiveStartMm": 25,
+      "actualStoredSpanMm": [
+        25,
+        35
+      ],
+      "expectedSpanMm": [
+        25,
+        35
+      ],
+      "profileCoordinatesAndConstraintsMatch": true,
+      "fullyDefined": true,
+      "profileExcludesConstruction": true,
+      "featureMatches": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH13-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 14,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 5.074392717358961,
+      "maxToleranceCm": 1.0000000062803698e-7
+    },
+    "volumeCm3": 5.074392717358961,
+    "boundsCm": {
+      "min": {
+        "x": -1,
+        "y": -1,
+        "z": -0.8
+      },
+      "max": {
+        "x": 1,
+        "y": 1,
+        "z": 3.5
+      }
+    },
+    "centerOfMassCm": {
+      "x": -2.4613800552539047e-17,
+      "y": -2.794309017735038e-19,
+      "z": 0.9885027897276326
+    },
+    "seconds": 5.8764794
+  },
+  "step": {
+    "source": "artifacts/planchard/SH13-nominal-browser-2026-10-09.step",
+    "bytes": 40124,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 5.074392717358852,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 5.074392717358852,
+      "centerOfMass": {
+        "x": 1.0285833764233482e-14,
+        "y": -4.836930813736102e-15,
+        "z": 0.9885027897275885
+      },
+      "inertia": [
+        [
+          7.951355657148744,
+          -3.8834430797216355e-15,
+          2.7722740660949545e-14
+        ],
+        [
+          -3.8834430797216355e-15,
+          7.905406942389217,
+          2.298433340859708e-14
+        ],
+        [
+          2.7722740660949545e-14,
+          2.298433340859708e-14,
+          1.4700686082653078
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1,
+          "y": -1,
+          "z": -0.8
+        },
+        "max": {
+          "x": 1,
+          "y": 1,
+          "z": 3.5
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH13-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH13-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticFrozenVolumeCm3": 5.07439271735896,
+  "nativeFrozenVolumeErrorCm3": 8.881784197001252e-16,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 0.04008770246713579
+  },
+  "properties": {
+    "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH13 item 13 tool holder: D12 neck Z -8..0, D20 shoulder 0..5, D12 post 5..35 mm; transverse 8.2x6.2 slot at Z20 and D5.2 terminal socket Z25..35. Companion CAD/AVI unavailable; assumed dimensions, empty tool slot, representative AISI 1020 density, not a certified design.",
+    "PartNo": "SH13",
+    "BookItemNo": "13"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent actualChrome observation",
+    "initialDriving": "NeckD12→12.2 native5.074393→5.104803cm3/.04008770→.04032795kg Undo12Redo12.2Undo12Saveclean",
+    "coldReopen": "Pending parentactualcold observation"
+  },
+  "pass": true
+}

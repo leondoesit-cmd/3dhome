@@ -35,3 +35,13 @@ test('blank drawing-tool shortcuts, active sessions and selected-face/solid work
  solids=true;begin(null,{forceNew:true});assert.deepEqual(calls.pop(),['face-pick',null]);
  face={kind:'face',descriptor:{surface:'plane'}};begin('sslot',{forceNew:true});assert.deepEqual(calls.pop(),['selected-face','sslot']);
 });
+test('visible face prompt switches to datum-plane choices without recording a sketch or hiding the editor',()=>{
+ const def=createPartDocument({name:'Existing-solid reference flow'}),E={docType:'part',mode:'3d',def,authoring:{phase:'model'}},before=JSON.stringify(def);
+ const prompt={hidden:true},canvas={style:{}},picker={hidden:true},options={innerHTML:'',children:[],appendChild(button){this.children.push(button);}};
+ const root={querySelector:selector=>({'#mdFacePrompt':prompt,'#mdPrev':canvas,'#mdReferencePicker':picker,'#mdReferenceOptions':options})[selector]};
+ const context={E,root,flash(){},refreshAll(){},syncAuthoringWorkflow(){},t:key=>key,referenceLabel:ref=>ref.name||ref.id,el:()=>({addEventListener(){}})};
+ context.syncFacePrompt=load('syncFacePrompt',context);context.showReferencePicker=load('showReferencePicker',context);
+ const begin=load('beginFacePick',context),planes=load('cancelFacePick',context);
+ begin('sslot');assert.equal(prompt.hidden,false);assert.equal(canvas.style.cursor,'crosshair');assert.equal(E.authoring.phase,'reference');assert.equal(JSON.stringify(def),before);
+ planes(true);assert.equal(prompt.hidden,true);assert.equal(canvas.style.cursor,'');assert.equal(picker.hidden,false);assert.equal(options.children.length,3);assert.equal(E.authoring.preferredTool,'sslot');assert.equal(JSON.stringify(def),before);
+});
