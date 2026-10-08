@@ -1,0 +1,141 @@
+{
+  "source": "artifacts/planchard/AP07-handle-final-browser-2026-10-08.mforge",
+  "bytes": 197029,
+  "inputSha256": "49c00d67fd9bb3e2cb0f3e129aa46ec8617d5e811bc4b1ba2807a18428df67ff",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "diameterMm": 8,
+      "fromMm": -70,
+      "toMm": 70,
+      "pass": true
+    },
+    {
+      "diameterMm": 12,
+      "fromMm": -76,
+      "toMm": -70,
+      "pass": true
+    },
+    {
+      "diameterMm": 12,
+      "fromMm": 70,
+      "toMm": 76,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP07-handle-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 8,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 8.394335570391927,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 8.394335570391927,
+    "boundsCm": {
+      "min": {
+        "x": -0.6000000000000001,
+        "y": -7.6000000000000005,
+        "z": -0.6000000000000001
+      },
+      "max": {
+        "x": 0.6000000000000001,
+        "y": 7.6,
+        "z": 0.6000000000000001
+      }
+    },
+    "centerOfMassCm": {
+      "x": -5.890683023599668e-18,
+      "y": -8.464550050468441e-16,
+      "z": -2.0500082153478256e-16
+    },
+    "seconds": 6.5833698
+  },
+  "step": {
+    "source": "artifacts/planchard/AP07-handle-final-browser-2026-10-08.step",
+    "bytes": 13638,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 8.394335570391831,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 8.394335570391831,
+      "centerOfMass": {
+        "x": 1.554888744372955e-17,
+        "y": 0,
+        "z": -4.8671162790194096e-15
+      },
+      "inertia": [
+        [
+          187.708234208495,
+          -8.464212126515648e-17,
+          6.58025789622283e-17
+        ],
+        [
+          -8.464212126515648e-17,
+          0.8072636482664204,
+          4.440892098500626e-16
+        ],
+        [
+          6.58025789622283e-17,
+          4.440892098500626e-16,
+          187.70823420849507
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.6,
+          "y": -7.6,
+          "z": -0.6
+        },
+        "max": {
+          "x": 0.6,
+          "y": 7.6,
+          "z": 0.6
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/AP07-handle-final-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/AP07-handle-final-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticVolumeCm3": 8.394335570391927,
+  "nativeAnalyticVolumeErrorCm3": 0,
+  "material": {
+    "name": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "source": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "catalogId": "stock:alloySteel",
+    "massG": 64.63638389201785
+  },
+  "customProperties": {
+    "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational handle with integral end caps. Book AISI1035 role uses Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+    "PartNo": "AP07",
+    "BookItemNo": "1.7 HANDLE"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent Chrome UI observation",
+    "driving": "D8→8.1 changed native8.394336→8.571364cm3 /0.06463638→0.06599951kg; Undo/Redo/Undo restored8 then Save",
+    "coldReopen": "Parent actual Chrome cold reload/saved-library reopen:6fullydefinedsteps,1native solid,12x152x12mm,8.394336cm3/0.06463638kg; drivingstem8/offset-70 retained. Coldmass/colddim/finalgeometry screenshots protected.",
+    "status": "passed"
+  }
+}

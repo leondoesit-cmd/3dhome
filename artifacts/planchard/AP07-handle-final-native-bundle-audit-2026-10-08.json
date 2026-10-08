@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP07-handle-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 8,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 8.394335570391927,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "volumeCm3": 8.394335570391927,
+  "boundsCm": {
+    "min": {
+      "x": -0.6000000000000001,
+      "y": -7.6000000000000005,
+      "z": -0.6000000000000001
+    },
+    "max": {
+      "x": 0.6000000000000001,
+      "y": 7.6,
+      "z": 0.6000000000000001
+    }
+  },
+  "centerOfMassCm": {
+    "x": -5.890683023599668e-18,
+    "y": -8.464550050468441e-16,
+    "z": -2.0500082153478256e-16
+  },
+  "seconds": 6.5833698
+}
