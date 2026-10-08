@@ -1,0 +1,1070 @@
+{
+  "source": "artifacts/planchard/AP-assembly-free-home-browser-2026-10-08.mforge",
+  "inputSha256": "1feb560f2ab2b2a3ca7a630049a2bc0c78f8ec24b499765acce989190ebb67b8",
+  "inputUnchanged": true,
+  "occurrenceCounts": {
+    "AP01": 1,
+    "AP02": 1,
+    "AP03": 4,
+    "AP04": 1,
+    "AP05": 1,
+    "AP06": 1,
+    "AP07": 1,
+    "AP08": 1
+  },
+  "actualCountsValid": true,
+  "occurrences": 11,
+  "definitions": 8,
+  "recipes": [
+    {
+      "partNo": "AP01",
+      "definitionId": "cm_muzwv8zb",
+      "source": "artifacts/planchard/AP01-column-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP02",
+      "definitionId": "cm_muzxlswc",
+      "source": "artifacts/planchard/AP02-front-cover-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP03",
+      "definitionId": "cm_muzxsp6x",
+      "source": "artifacts/planchard/AP03-hex-screw-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP04",
+      "definitionId": "cm_muzxybjk",
+      "source": "artifacts/planchard/AP04-table-plate-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP05",
+      "definitionId": "cm_muzy3qea",
+      "source": "artifacts/planchard/AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP06",
+      "definitionId": "cm_muzy9knj",
+      "source": "artifacts/planchard/AP06-square-ram-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP07",
+      "definitionId": "cm_muzyer0p",
+      "source": "artifacts/planchard/AP07-handle-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP08",
+      "definitionId": "cm_muzyjjp1",
+      "source": "artifacts/planchard/AP08-press-head-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    }
+  ],
+  "allRecipesAndProvenanceMatch": true,
+  "references": [
+    {
+      "mateId": 4815,
+      "type": "concentric",
+      "side": "a",
+      "partNo": "AP01",
+      "persistentId": "axis:feature_muzx3s6y_4:face:generated:cylinder:2",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 2.3000000000000003,
+          "y": 15,
+          "z": 1.6
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4815,
+      "type": "concentric",
+      "side": "b",
+      "partNo": "AP05",
+      "persistentId": "axis:feature_muzy483o_2:face:generated:cylinder:2",
+      "kind": "axis",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 1.899999999999999
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4816,
+      "type": "distance",
+      "side": "a",
+      "partNo": "AP01",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4816,
+      "type": "distance",
+      "side": "b",
+      "partNo": "AP05",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4817,
+      "type": "distance",
+      "side": "a",
+      "partNo": "AP01",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4817,
+      "type": "distance",
+      "side": "b",
+      "partNo": "AP06",
+      "persistentId": "plane:front",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4818,
+      "type": "distance",
+      "side": "a",
+      "partNo": "AP01",
+      "persistentId": "plane:right",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4818,
+      "type": "distance",
+      "side": "b",
+      "partNo": "AP06",
+      "persistentId": "plane:right",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4819,
+      "type": "rackpinion",
+      "side": "a",
+      "partNo": "AP05",
+      "persistentId": "feature_muzy3tqw_1:edge:profile:4732:end",
+      "kind": "edge",
+      "frame": {
+        "curve": "circle",
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 2.8000000000000003
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "radius": 0.6000000000000001,
+        "measure": 3.7699111843077544
+      }
+    },
+    {
+      "mateId": 4819,
+      "type": "rackpinion",
+      "side": "b",
+      "partNo": "AP06",
+      "persistentId": "feature_muzya4a3_2:tool:edge:profile:4770:start",
+      "kind": "edge",
+      "frame": {
+        "curve": "circle",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "radius": 0.51,
+        "measure": 3.204424506661589
+      }
+    },
+    {
+      "mateId": 4820,
+      "type": "limit",
+      "side": "a",
+      "partNo": "AP01",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4820,
+      "type": "limit",
+      "side": "b",
+      "partNo": "AP06",
+      "persistentId": "plane:top",
+      "kind": "face",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "resolverIssues": [],
+  "resolverRebindings": [],
+  "allReferencesBound": true,
+  "activeMates": 14,
+  "mateTypes": [
+    "lock",
+    "lock",
+    "lock",
+    "lock",
+    "lock",
+    "lock",
+    "lock",
+    "lock",
+    "concentric",
+    "distance",
+    "distance",
+    "distance",
+    "rackpinion",
+    "limit"
+  ],
+  "rack": {
+    "id": 4819,
+    "type": "rackpinion",
+    "a": {
+      "componentId": 4803,
+      "kind": "edge",
+      "persistentId": "feature_muzy3tqw_1:edge:profile:4732:end",
+      "frameSpace": "component",
+      "frame": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 2.8000000000000003
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 3.7699111843077544,
+        "bounds": {
+          "min": {
+            "x": -0.6000001,
+            "y": -0.6000001,
+            "z": 2.7999999000000004
+          },
+          "max": {
+            "x": 0.6000001,
+            "y": 0.6000001,
+            "z": 2.8000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 0.6000000000000001,
+            "y": 0,
+            "z": 2.8000000000000003
+          },
+          {
+            "x": 0.6000000000000001,
+            "y": 1.9846705913826186e-15,
+            "z": 2.8000000000000003
+          }
+        ],
+        "radius": 0.6000000000000001,
+        "arcMidpoint": {
+          "x": -0.6000000000000001,
+          "y": -9.923352956913093e-16,
+          "z": 2.8000000000000003
+        }
+      },
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 2.8000000000000003
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 3.7699111843077544,
+        "bounds": {
+          "min": {
+            "x": -0.6000001,
+            "y": -0.6000001,
+            "z": 2.7999999000000004
+          },
+          "max": {
+            "x": 0.6000001,
+            "y": 0.6000001,
+            "z": 2.8000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 0.6000000000000001,
+            "y": 0,
+            "z": 2.8000000000000003
+          },
+          {
+            "x": 0.6000000000000001,
+            "y": 1.9846705913826186e-15,
+            "z": 2.8000000000000003
+          }
+        ],
+        "radius": 0.6000000000000001,
+        "arcMidpoint": {
+          "x": -0.6000000000000001,
+          "y": -9.923352956913093e-16,
+          "z": 2.8000000000000003
+        }
+      },
+      "signature": "plane:0:0:2.8:0:0:0"
+    },
+    "b": {
+      "componentId": 4804,
+      "kind": "edge",
+      "persistentId": "feature_muzya4a3_2:tool:edge:profile:4770:start",
+      "frameSpace": "component",
+      "frame": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 3.204424506661589,
+        "bounds": {
+          "min": {
+            "x": -0.5100001,
+            "y": -1e-7,
+            "z": -0.5100001
+          },
+          "max": {
+            "x": 0.5100001,
+            "y": 1e-7,
+            "z": 0.5100001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -1.2491397351303002e-16,
+            "y": 0,
+            "z": 0.51
+          },
+          {
+            "x": 0,
+            "y": 0,
+            "z": 0.51
+          }
+        ],
+        "radius": 0.51,
+        "arcMidpoint": {
+          "x": 6.245698675651501e-17,
+          "y": 0,
+          "z": -0.51
+        }
+      },
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 3.204424506661589,
+        "bounds": {
+          "min": {
+            "x": -0.5100001,
+            "y": -1e-7,
+            "z": -0.5100001
+          },
+          "max": {
+            "x": 0.5100001,
+            "y": 1e-7,
+            "z": 0.5100001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -1.2491397351303002e-16,
+            "y": 0,
+            "z": 0.51
+          },
+          {
+            "x": 0,
+            "y": 0,
+            "z": 0.51
+          }
+        ],
+        "radius": 0.51,
+        "arcMidpoint": {
+          "x": 6.245698675651501e-17,
+          "y": 0,
+          "z": -0.51
+        }
+      },
+      "signature": "plane:0:0:0:0:0:0"
+    },
+    "pitchRadius": 1,
+    "reverse": false,
+    "pinionRoll0": 0,
+    "rackTravel0": -6
+  },
+  "limit": {
+    "id": 4820,
+    "type": "limit",
+    "a": {
+      "componentId": 4796,
+      "kind": "face",
+      "persistentId": "plane:top",
+      "frameSpace": "component",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      "signature": "plane:0:0:0:0:1:0"
+    },
+    "b": {
+      "componentId": 4804,
+      "kind": "face",
+      "persistentId": "plane:top",
+      "frameSpace": "component",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      "signature": "plane:0:0:0:0:1:0"
+    },
+    "aligned": true,
+    "value": 0,
+    "min": 3,
+    "max": 9
+  },
+  "rackNativeDirections": {
+    "a": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    },
+    "b": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    }
+  },
+  "savedMetrics": {
+    "ramOriginYmm": 90,
+    "ramTravelFromHomeMm": 0,
+    "pressFaceYmm": 82,
+    "tableTopYmm": 20,
+    "pressGapMm": 62,
+    "shaftPose": {
+      "x": 2.3,
+      "y": 15,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "handlePose": {
+      "x": 2.3,
+      "y": 15,
+      "z": -3.4,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "headPose": {
+      "x": 4.5,
+      "y": 9,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    }
+  },
+  "savedPoses": [
+    {
+      "id": 4796,
+      "partNo": "AP01",
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4797,
+      "partNo": "AP02",
+      "transform": {
+        "x": 3.5,
+        "y": 15,
+        "z": 2,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4798,
+      "partNo": "AP03",
+      "transform": {
+        "x": 1,
+        "y": 13.4,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4799,
+      "partNo": "AP03",
+      "transform": {
+        "x": 1,
+        "y": 16.6,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4800,
+      "partNo": "AP03",
+      "transform": {
+        "x": 6,
+        "y": 13.4,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4801,
+      "partNo": "AP03",
+      "transform": {
+        "x": 6,
+        "y": 16.6,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4802,
+      "partNo": "AP04",
+      "transform": {
+        "x": 4.5,
+        "y": 1.2,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4803,
+      "partNo": "AP05",
+      "transform": {
+        "x": 2.3,
+        "y": 15,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4804,
+      "partNo": "AP06",
+      "transform": {
+        "x": 4.5,
+        "y": 9,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4805,
+      "partNo": "AP07",
+      "transform": {
+        "x": 2.3,
+        "y": 15,
+        "z": -3.4,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4806,
+      "partNo": "AP08",
+      "transform": {
+        "x": 4.5,
+        "y": 9,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    }
+  ],
+  "coldCloneSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4806,
+          4804,
+          4803,
+          4805
+        ],
+        "variableCount": 24,
+        "rank": 23,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 1,
+          "4804": 1,
+          "4805": 1,
+          "4806": 1
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      },
+      {
+        "components": [
+          4801
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4801": 0
+        }
+      },
+      {
+        "components": [
+          4800
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4800": 0
+        }
+      },
+      {
+        "components": [
+          4799
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4799": 0
+        }
+      },
+      {
+        "components": [
+          4798
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4798": 0
+        }
+      },
+      {
+        "components": [
+          4797
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4797": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "coldClonePoseDeltas": [
+    {
+      "id": 4796,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4797,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4798,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4799,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4800,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4801,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4802,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4803,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4804,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4805,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 4806,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    }
+  ],
+  "acceptanceScope": "Reference/provenance/count/saved-pose/cold-clone audit only; no native exact interference or final drawing acceptance is established."
+}

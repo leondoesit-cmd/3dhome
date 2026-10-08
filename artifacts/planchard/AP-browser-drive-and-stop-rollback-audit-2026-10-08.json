@@ -1,0 +1,771 @@
+{
+  "rollback": [
+    {
+      "before": "closed-endpoint",
+      "after": "lower-stop-rejected",
+      "posesExact": true,
+      "definitionsExact": true,
+      "matesExact": true,
+      "componentsExact": true,
+      "assemblyExact": true
+    },
+    {
+      "before": "driven-home",
+      "after": "upper-stop-rejected",
+      "posesExact": true,
+      "definitionsExact": true,
+      "matesExact": true,
+      "componentsExact": true,
+      "assemblyExact": true
+    }
+  ],
+  "samples": [
+    {
+      "name": "quarter-close",
+      "source": "artifacts/planchard/AP-rack-quarter-close-browser-2026-10-08.mforge",
+      "sha256": "1135cb7a489d7cf190d4018a929de102b3c385e0c553d319d75f91a82df79696",
+      "drive": -0.25,
+      "expectedDrive": -0.25,
+      "ramOriginYmm": 74.29203673,
+      "pressGapMm": 46.29203673000001,
+      "translationErrorMm": 2.051034897476711e-9,
+      "rotationMatrixError": 1.6081226496766364e-16,
+      "definitionsMatchHome": true,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          },
+          {
+            "components": [
+              4801
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4801": 0
+            }
+          },
+          {
+            "components": [
+              4800
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4800": 0
+            }
+          },
+          {
+            "components": [
+              4799
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4799": 0
+            }
+          },
+          {
+            "components": [
+              4798
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4798": 0
+            }
+          },
+          {
+            "components": [
+              4797
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4797": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "coldSolveTranslationDeltaMm": 0,
+      "coldSolveRotationDelta": 2.220446049250313e-16,
+      "hits": [],
+      "accepted": true
+    },
+    {
+      "name": "half-close",
+      "source": "artifacts/planchard/AP-rack-half-close-browser-2026-10-08.mforge",
+      "sha256": "1e4899467cd54bf2760e9a68f65b0a9742d17d811eb6ed59a2639d0a9857e273",
+      "drive": -0.5,
+      "expectedDrive": -0.5,
+      "ramOriginYmm": 58.58407346,
+      "pressGapMm": 30.58407346,
+      "translationErrorMm": 4.102069794953422e-9,
+      "rotationMatrixError": 1.2246467991473532e-16,
+      "definitionsMatchHome": true,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          },
+          {
+            "components": [
+              4801
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4801": 0
+            }
+          },
+          {
+            "components": [
+              4800
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4800": 0
+            }
+          },
+          {
+            "components": [
+              4799
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4799": 0
+            }
+          },
+          {
+            "components": [
+              4798
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4798": 0
+            }
+          },
+          {
+            "components": [
+              4797
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4797": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "coldSolveTranslationDeltaMm": 0,
+      "coldSolveRotationDelta": 0,
+      "hits": [],
+      "accepted": true
+    },
+    {
+      "name": "closed-endpoint",
+      "source": "artifacts/planchard/AP-rack-closed-endpoint-browser-2026-10-08.mforge",
+      "sha256": "9f7f4bb27a898bc7011d749fb2c8ac00ab3b4d621bee01a51135a3d719c20b2a",
+      "drive": -0.954929658551372,
+      "expectedDrive": -0.954929658551372,
+      "ramOriginYmm": 30,
+      "pressGapMm": 2,
+      "translationErrorMm": 0,
+      "rotationMatrixError": 3.725353359129713e-13,
+      "definitionsMatchHome": true,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          },
+          {
+            "components": [
+              4801
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4801": 0
+            }
+          },
+          {
+            "components": [
+              4800
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4800": 0
+            }
+          },
+          {
+            "components": [
+              4799
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4799": 0
+            }
+          },
+          {
+            "components": [
+              4798
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4798": 0
+            }
+          },
+          {
+            "components": [
+              4797
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4797": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "coldSolveTranslationDeltaMm": 0,
+      "coldSolveRotationDelta": 1.6653345369377348e-16,
+      "hits": [],
+      "accepted": true
+    },
+    {
+      "name": "lower-stop-rejected",
+      "source": "artifacts/planchard/AP-rack-lower-stop-rejected-browser-2026-10-08.mforge",
+      "sha256": "6de838e2e8ad5e22e5c573f5e80c0c1dbe128233e2fffe9213aadd47030c65e2",
+      "drive": -0.954929658551372,
+      "expectedDrive": -0.954929658551372,
+      "ramOriginYmm": 30,
+      "pressGapMm": 2,
+      "translationErrorMm": 0,
+      "rotationMatrixError": 3.725353359129713e-13,
+      "definitionsMatchHome": true,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          },
+          {
+            "components": [
+              4801
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4801": 0
+            }
+          },
+          {
+            "components": [
+              4800
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4800": 0
+            }
+          },
+          {
+            "components": [
+              4799
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4799": 0
+            }
+          },
+          {
+            "components": [
+              4798
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4798": 0
+            }
+          },
+          {
+            "components": [
+              4797
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4797": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "coldSolveTranslationDeltaMm": 0,
+      "coldSolveRotationDelta": 1.6653345369377348e-16,
+      "hits": [],
+      "accepted": true
+    },
+    {
+      "name": "driven-home",
+      "source": "artifacts/planchard/AP-rack-driven-home-browser-2026-10-08.mforge",
+      "sha256": "c9fbd814dc951a441c6503a48853568405ce04467c247e32ab3a9ad37b8acea5",
+      "drive": 0,
+      "expectedDrive": 0,
+      "ramOriginYmm": 90,
+      "pressGapMm": 62,
+      "translationErrorMm": 0,
+      "rotationMatrixError": 0,
+      "definitionsMatchHome": true,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          },
+          {
+            "components": [
+              4801
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4801": 0
+            }
+          },
+          {
+            "components": [
+              4800
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4800": 0
+            }
+          },
+          {
+            "components": [
+              4799
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4799": 0
+            }
+          },
+          {
+            "components": [
+              4798
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4798": 0
+            }
+          },
+          {
+            "components": [
+              4797
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4797": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "coldSolveTranslationDeltaMm": 0,
+      "coldSolveRotationDelta": 0,
+      "hits": [],
+      "accepted": true
+    },
+    {
+      "name": "upper-stop-rejected",
+      "source": "artifacts/planchard/AP-rack-upper-stop-rejected-browser-2026-10-08.mforge",
+      "sha256": "80b764ca1d576ea0df01bc49bce84b8faea9750a738e0983b2e6b769892dc9c0",
+      "drive": 0,
+      "expectedDrive": 0,
+      "ramOriginYmm": 90,
+      "pressGapMm": 62,
+      "translationErrorMm": 0,
+      "rotationMatrixError": 0,
+      "definitionsMatchHome": true,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          },
+          {
+            "components": [
+              4801
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4801": 0
+            }
+          },
+          {
+            "components": [
+              4800
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4800": 0
+            }
+          },
+          {
+            "components": [
+              4799
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4799": 0
+            }
+          },
+          {
+            "components": [
+              4798
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4798": 0
+            }
+          },
+          {
+            "components": [
+              4797
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4797": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "coldSolveTranslationDeltaMm": 0,
+      "coldSolveRotationDelta": 0,
+      "hits": [],
+      "accepted": true
+    }
+  ],
+  "scope": "Actual Chrome exported Drive positions and rejected-stop snapshots; input files read only.",
+  "inputsUnchanged": true,
+  "accepted": true
+}

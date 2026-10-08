@@ -1,0 +1,20 @@
+{
+  "instances": 11,
+  "uniqueExactRecipes": 8,
+  "totalVolumeCm3": 600.1580396978882,
+  "totalMassG": 4719.336856673411,
+  "grounded": [
+    "Planchard 8.19 - AP01 Column - fresh designer example 2026-10-08"
+  ],
+  "countByModel": {
+    "cm_muzwv8zb": 1,
+    "cm_muzxlswc": 1,
+    "cm_muzxsp6x": 4,
+    "cm_muzxybjk": 1,
+    "cm_muzy3qea": 1,
+    "cm_muzy9knj": 1,
+    "cm_muzyer0p": 1,
+    "cm_muzyjjp1": 1
+  },
+  "hits": []
+}

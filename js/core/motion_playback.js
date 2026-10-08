@@ -1,11 +1,12 @@
 // Snapshot poses and motion state only; component meshes and definitions stay shared.
 export function motionPreviewDuration(study) {
   if(Number.isFinite(study?.previewDurationSeconds) && study.previewDurationSeconds>0)return study.previewDurationSeconds;
+  const authoredTime=Number(study?.time);
+  if(Number.isFinite(authoredTime)&&authoredTime>0)return authoredTime;
   const motor=study?.motors?.[0];
   const period=motor?.type==='linear'?Math.max(.1,Number(motor.duration)||1)*(motor.reciprocate?2:1)
     : Math.abs(Number(motor?.rpm))>0?60/Math.abs(motor.rpm):5;
-  const authoredTime=Number(study?.time);
-  return Math.max(period,Number.isFinite(authoredTime)&&authoredTime>0?authoredTime:0);
+  return period;
 }
 
 // Slow native solves should advance by a useful, bounded amount rather than

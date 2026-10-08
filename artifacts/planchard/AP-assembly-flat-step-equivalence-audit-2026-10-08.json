@@ -1,0 +1,15 @@
+{
+  "bundlePath": "artifacts/planchard/AP-assembly-motion-home-browser-2026-10-08.mforge",
+  "stepPath": "artifacts/planchard/AP-assembly-flat-assembled-browser-2026-10-08.step",
+  "definitions": 8,
+  "occurrences": 11,
+  "nativeOutsideStep": {
+    "volume": 0,
+    "solidCount": 0
+  },
+  "stepOutsideNative": {
+    "volume": 0,
+    "solidCount": 0
+  },
+  "symmetricDifferenceVolumeCm3": 0
+}

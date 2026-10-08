@@ -1,0 +1,711 @@
+{
+  "source": "artifacts/planchard/AP-assembly-free-home-browser-2026-10-08.mforge",
+  "inputSha256": "1feb560f2ab2b2a3ca7a630049a2bc0c78f8ec24b499765acce989190ebb67b8",
+  "definitions": 8,
+  "occurrences": 11,
+  "geometry": [
+    {
+      "partNo": "AP01",
+      "definitionId": "cm_muzwv8zb",
+      "sourceFile": "AP01-column-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 471.4812247847438,
+        "maxToleranceCm": 1.5000000133226762e-7
+      },
+      "kernelOperations": 26,
+      "issues": [],
+      "volumeCm3": 471.4812247847438,
+      "boundsCm": {
+        "min": {
+          "x": -5,
+          "y": 0,
+          "z": -4
+        },
+        "max": {
+          "x": 8,
+          "y": 18.400000000000002,
+          "z": 4
+        }
+      }
+    },
+    {
+      "partNo": "AP02",
+      "definitionId": "cm_muzxlswc",
+      "sourceFile": "AP02-front-cover-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 19.11853021361332,
+        "maxToleranceCm": 1.000000001494069e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 19.11853021361332,
+      "boundsCm": {
+        "min": {
+          "x": -3.3000000000000003,
+          "y": -2.6,
+          "z": 0
+        },
+        "max": {
+          "x": 3.3000000000000003,
+          "y": 2.6,
+          "z": 0.6000000000000001
+        }
+      }
+    },
+    {
+      "partNo": "AP03",
+      "definitionId": "cm_muzxsp6x",
+      "sourceFile": "AP03-hex-screw-final-browser-2026-10-08.mforge",
+      "occurrences": 4,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.7422508358660888,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 0.7422508358660888,
+      "boundsCm": {
+        "min": {
+          "x": -0.4999999999999995,
+          "y": -0.5773502691896251,
+          "z": -1.4000000000000001
+        },
+        "max": {
+          "x": 0.4999999999999995,
+          "y": 0.5773502691896251,
+          "z": 0.4
+        }
+      }
+    },
+    {
+      "partNo": "AP04",
+      "definitionId": "cm_muzxybjk",
+      "sourceFile": "AP04-table-plate-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 18.407764158754752,
+        "maxToleranceCm": 1.5000000177635683e-7
+      },
+      "kernelOperations": 8,
+      "issues": [],
+      "volumeCm3": 18.407764158754752,
+      "boundsCm": {
+        "min": {
+          "x": -2.771281292110204,
+          "y": -0.6000000000000001,
+          "z": -2.7712812921102223
+        },
+        "max": {
+          "x": 2.771281292110204,
+          "y": 0.8,
+          "z": 2.771281292110204
+        }
+      }
+    },
+    {
+      "partNo": "AP05",
+      "definitionId": "cm_muzy3qea",
+      "sourceFile": "AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 17.299291572689178,
+        "maxToleranceCm": 1.0082029696050093e-7
+      },
+      "kernelOperations": 11,
+      "issues": [],
+      "volumeCm3": 17.299291572689178,
+      "boundsCm": {
+        "min": {
+          "x": -1.2000001000000002,
+          "y": -1.2000001008138317,
+          "z": -4.0000001
+        },
+        "max": {
+          "x": 1.2000001000000002,
+          "y": 1.2000001008138317,
+          "z": 2.8000000000000003
+        }
+      }
+    },
+    {
+      "partNo": "AP06",
+      "definitionId": "cm_muzy9knj",
+      "sourceFile": "AP06-square-ram-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 59.34629740064103,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 59.34629740064103,
+      "boundsCm": {
+        "min": {
+          "x": -1,
+          "y": 0,
+          "z": -1
+        },
+        "max": {
+          "x": 1,
+          "y": 15,
+          "z": 1
+        }
+      }
+    },
+    {
+      "partNo": "AP07",
+      "definitionId": "cm_muzyer0p",
+      "sourceFile": "AP07-handle-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 8.394335570391927,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 8,
+      "issues": [],
+      "volumeCm3": 8.394335570391927,
+      "boundsCm": {
+        "min": {
+          "x": -0.6000000000000001,
+          "y": -7.6000000000000005,
+          "z": -0.6000000000000001
+        },
+        "max": {
+          "x": 0.6000000000000001,
+          "y": 7.6,
+          "z": 0.6000000000000001
+        }
+      }
+    },
+    {
+      "partNo": "AP08",
+      "definitionId": "cm_muzyjjp1",
+      "sourceFile": "AP08-press-head-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 3.1415926535897927,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 3.1415926535897927,
+      "boundsCm": {
+        "min": {
+          "x": -1,
+          "y": -0.8,
+          "z": -1
+        },
+        "max": {
+          "x": 1,
+          "y": 0.8,
+          "z": 1
+        }
+      }
+    }
+  ],
+  "canonicalMates": 14,
+  "mateSummary": [
+    {
+      "id": 4807,
+      "type": "lock",
+      "a": 4796,
+      "b": 4797
+    },
+    {
+      "id": 4808,
+      "type": "lock",
+      "a": 4796,
+      "b": 4798
+    },
+    {
+      "id": 4809,
+      "type": "lock",
+      "a": 4796,
+      "b": 4799
+    },
+    {
+      "id": 4810,
+      "type": "lock",
+      "a": 4796,
+      "b": 4800
+    },
+    {
+      "id": 4811,
+      "type": "lock",
+      "a": 4796,
+      "b": 4801
+    },
+    {
+      "id": 4812,
+      "type": "lock",
+      "a": 4796,
+      "b": 4802
+    },
+    {
+      "id": 4813,
+      "type": "lock",
+      "a": 4803,
+      "b": 4805
+    },
+    {
+      "id": 4814,
+      "type": "lock",
+      "a": 4804,
+      "b": 4806
+    },
+    {
+      "id": 4815,
+      "type": "concentric",
+      "a": 4796,
+      "b": 4803,
+      "aligned": false
+    },
+    {
+      "id": 4816,
+      "type": "distance",
+      "a": 4796,
+      "b": 4803,
+      "aligned": true
+    },
+    {
+      "id": 4817,
+      "type": "distance",
+      "a": 4796,
+      "b": 4804,
+      "aligned": true
+    },
+    {
+      "id": 4818,
+      "type": "distance",
+      "a": 4796,
+      "b": 4804,
+      "aligned": true
+    },
+    {
+      "id": 4819,
+      "type": "rackpinion",
+      "a": 4803,
+      "b": 4804
+    },
+    {
+      "id": 4820,
+      "type": "limit",
+      "a": 4796,
+      "b": 4804,
+      "min": 3,
+      "max": 9,
+      "aligned": true
+    }
+  ],
+  "savedPoses": [
+    {
+      "id": 4796,
+      "partNo": "AP01",
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4797,
+      "partNo": "AP02",
+      "transform": {
+        "x": 3.5,
+        "y": 15,
+        "z": 2,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4798,
+      "partNo": "AP03",
+      "transform": {
+        "x": 1,
+        "y": 13.4,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4799,
+      "partNo": "AP03",
+      "transform": {
+        "x": 1,
+        "y": 16.6,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4800,
+      "partNo": "AP03",
+      "transform": {
+        "x": 6,
+        "y": 13.4,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4801,
+      "partNo": "AP03",
+      "transform": {
+        "x": 6,
+        "y": 16.6,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4802,
+      "partNo": "AP04",
+      "transform": {
+        "x": 4.5,
+        "y": 1.2,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4803,
+      "partNo": "AP05",
+      "transform": {
+        "x": 2.3,
+        "y": 15,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4804,
+      "partNo": "AP06",
+      "transform": {
+        "x": 4.5,
+        "y": 9,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4805,
+      "partNo": "AP07",
+      "transform": {
+        "x": 2.3,
+        "y": 15,
+        "z": -3.4,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4806,
+      "partNo": "AP08",
+      "transform": {
+        "x": 4.5,
+        "y": 9,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    }
+  ],
+  "cloneSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4806,
+          4804,
+          4803,
+          4805
+        ],
+        "variableCount": 24,
+        "rank": 23,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 1,
+          "4804": 1,
+          "4805": 1,
+          "4806": 1
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      },
+      {
+        "components": [
+          4801
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4801": 0
+        }
+      },
+      {
+        "components": [
+          4800
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4800": 0
+        }
+      },
+      {
+        "components": [
+          4799
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4799": 0
+        }
+      },
+      {
+        "components": [
+          4798
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4798": 0
+        }
+      },
+      {
+        "components": [
+          4797
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4797": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "cloneTransformDeltas": [
+    {
+      "id": 4796,
+      "partNo": "AP01",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4797,
+      "partNo": "AP02",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4798,
+      "partNo": "AP03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4799,
+      "partNo": "AP03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4800,
+      "partNo": "AP03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4801,
+      "partNo": "AP03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4802,
+      "partNo": "AP04",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4803,
+      "partNo": "AP05",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4804,
+      "partNo": "AP06",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4805,
+      "partNo": "AP07",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4806,
+      "partNo": "AP08",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    }
+  ],
+  "inputUnchanged": true
+}

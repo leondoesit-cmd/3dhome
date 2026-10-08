@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createMotionPlayback,motionPreviewDuration,motionPlaybackStepSeconds} from '../js/core/motion_playback.js';
 import {createMotionPlaybackExecutor} from '../js/core/motion_playback_executor.js';
-import {createMotionStudy,addRotaryMotor,evaluateMotionStudy} from '../js/cad_motion_study.js';
+import {createMotionStudy,addRotaryMotor,addRackPinionMotor,evaluateMotionStudy} from '../js/cad_motion_study.js';
 import vm from 'node:vm';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 const original=JSON.parse(readFileSync(new URL('./fixtures/welder_arm_23_mate_motion.json',import.meta.url)));
@@ -126,15 +126,29 @@ test('browser playback frame callbacks avoid an illegal options receiver and clo
   assert.equal((body.match(/refreshAll\(\{assemblyPoseOnly:true,skipAssemblySolve:true\}\)/g)||[]).length,2);
 });
 
-test('preview duration includes the authored study time while preserving an explicit saved duration',()=>{
+test('preview duration honors the authored endpoint while preserving an explicit saved duration',()=>{
   assert.equal(motionPreviewDuration({time:10,motors:[{type:'screw',rpm:-75}]}),10);
   assert.equal(motionPreviewDuration({time:0,motors:[{type:'screw',rpm:-75}]}),.8);
   assert.equal(motionPreviewDuration({time:10,previewDurationSeconds:12,motors:[{rpm:-75}]}),12);
   assert.equal(motionPreviewDuration({time:Infinity,motors:[{rpm:12}]}),5);
+  assert.equal(motionPreviewDuration({time:10,motors:[{type:'rackpinion',rpm:-5.72957795130823}]}),10);
+  assert.equal(motionPreviewDuration({time:2,motors:[{type:'linear',duration:5,reciprocate:true}]}),2);
+});
+
+test('browser-authored Arbor press full stroke preview ends at saved ten seconds before the native rack stop',async()=>{
+ const bundle=JSON.parse(readFileSync(new URL('../artifacts/planchard/AP-assembly-free-home-browser-2026-10-08.mforge',import.meta.url)));
+ const assembly=structuredClone(bundle.assemblies[0]),rack=assembly.topologyMates.find(mate=>mate.type==='rackpinion');
+ const study=createMotionStudy(assembly,'Test saved browser endpoint');addRackPinionMotor(study,rack.id,-5.72957795130823);study.time=10;
+ const playback=createMotionPlayback(assembly,study.id,{evaluate:evaluateMotionStudy,requestFrame:()=>1,cancelFrame(){}});
+ assert.equal(playback.state.duration,10);assert.equal(await playback.reset(),true);assert.equal(await playback.seek(10),true);
+ assert.ok(Math.abs(assembly.components.find(component=>component.id===rack.b.componentId).transform.y-3)<1e-9,'native full stroke reaches the30mm stop');
+ const accepted=JSON.stringify(assembly.components.map(component=>component.transform));
+ assert.equal(await playback.seek(60/5.72957795130823),false,'one whole turn must fall outside the default preview');
+ assert.equal(JSON.stringify(assembly.components.map(component=>component.transform)),accepted);playback.cancel();
 });
 
 test('actual preview UI commits duration on Enter, Play, Reset and Keep without depending on blur',async()=>{
-  const assembly={components:[{id:'shaft',transform:{x:0}}],topologyMates:[],motionStudies:[{id:'study',name:'Bench vice',time:10,motors:[{type:'screw',rpm:-75}]}]};
+  const assembly={components:[{id:'shaft',transform:{x:0}}],topologyMates:[],motionStudies:[{id:'study',name:'Arbor press full stroke',time:10,motors:[{type:'rackpinion',rpm:-5.72957795130823}]}]};
   const buttons=[],node=()=>({children:[],listeners:{},appendChild(child){this.children.push(child);},append(...children){this.children.push(...children);},setAttribute(){},addEventListener(name,callback){this.listeners[name]=callback;}});
   const actions=node(),host=node();host.querySelector=()=>actions;
   let inputs,playback,undos=0;

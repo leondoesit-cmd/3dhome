@@ -19180,6 +19180,12 @@ function addTopologyMate(type, value) {
   if(type==='lock'){
     var pair=lockMateComponentPair();
     if(!pair){flash(t("lockMateNeedTwoComponents"));return false;}
+    if((E.assembly.topologyMates||[]).some(function(mate){
+      var a=String(mate.a?.componentId),b=String(mate.b?.componentId),first=String(pair[0].id),second=String(pair[1].id);
+      return mate.type==='lock'&&!mate.suppressed&&((a===first&&b===second)||(a===second&&b===first));
+    })){
+      flash(t('lockMateAlreadyExists'));return false;
+    }
     pushUndo(t("lockMate"));
     var mate={id:uid(),type:"lock",a:{componentId:pair[0].id,kind:"body"},b:{componentId:pair[1].id,kind:"body"}};
     captureLockPose(mate,pair[0],pair[1]);
@@ -19270,6 +19276,18 @@ function clampMateAngle(value) {
   return Math.max(0, Math.min(180, degrees));
 }
 
+function addInspectorTopologyMate(type) {
+  if(!addTopologyMate(type))return false;
+  // An inspector commit completes the pending mate command too. Otherwise
+  // its selection collector keeps routing later tree clicks to stale picks.
+  if(['mate','anglemate','distancemate','gearmate','beltmate','rackpinionmate','rotationlimitmate'].includes(E.quickAction)){
+    var host=root&&root.querySelector('#mdQuickSettings');if(host)host.innerHTML='';
+    E.quickAction=null;
+    closeFeaturePanel({assemblyPoseOnly:true});
+    syncContextActions();
+  }
+  return true;
+}
 /* Angle asks for its degrees before it is built. 45° rather than 0° as the
    seed, because a zero-degree angle mate IS a parallel mate — the cusp
    cad_mate_model handles specially — and a button that silently makes one
@@ -19702,7 +19720,7 @@ function assemblyMateInspectorBody() {
       else if (entry[0] === "belt") openMateBeltForm();
       else if (entry[0] === "rackpinion") openMateRackPinionForm();
       else if (entry[0] === "rotationlimit") openMateRotationLimitForm();
-      else addTopologyMate(entry[0]);
+      else addInspectorTopologyMate(entry[0]);
     });
     mateButton.setAttribute("data-topology-mate", entry[0]);
     markUnavailable(mateButton, fits.ok ? "" : label + " — " + fits.reason, label + " — " + (entry[0]==="lock"?t("lockMatePreservesPose"):source));

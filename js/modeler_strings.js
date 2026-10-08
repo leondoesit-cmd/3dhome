@@ -892,6 +892,7 @@ export var TXT = {
   beltMate: ["קשר רצועה", "Belt mate"],
   rackPinionMate: ["קשר מסרק וגלגל שיניים", "Rack and pinion mate"],
   rotationLimitMate: ["הגבלת סיבוב מכוונת", "Directed rotation limit"],
+  lockMateAlreadyExists: ["כבר קיים קשר נעילה פעיל בין הרכיבים האלה.", "An active Lock mate already joins these components."],
   rotationLimitHint: ["בחרו את ציר הציר הקבוע ואחריו את ציר החלק הנע. המצב הנוכחי הוא אפס; זוויות חתומות נמדדות סביב הציר הראשון. קשרי הציר נפרדים.", "Pick the reader hinge axis first, then the moving hinge axis. The current pose is zero; signed angles follow the first axis. Bearing and capture mates remain separate."],
   rotationLimitReverse: ["הפוך כיוון מדידה", "Reverse angle direction"],
   rotationLimitForward: ["זווית: עם הציר החיובי", "Angle: positive axis"],

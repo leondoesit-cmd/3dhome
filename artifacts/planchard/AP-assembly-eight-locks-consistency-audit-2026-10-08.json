@@ -1,0 +1,448 @@
+{
+  "source": "artifacts/planchard/AP-assembly-eight-locks-browser-2026-10-08.mforge",
+  "bytes": 3377776,
+  "inputSha256": "12a5475d0f8e8877c3c850ae8dcbcb348b421cbea08306c4fe2abf4d6fbc7360",
+  "inputUnchanged": true,
+  "comparisonSource": "artifacts/planchard/AP-assembly-placement-browser-2026-10-08.mforge",
+  "components": [
+    {
+      "id": 4796,
+      "part": "AP01",
+      "transformBitIdentical": true,
+      "maxTranslationDifferenceCm": 0,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4797,
+      "part": "AP02",
+      "transformBitIdentical": true,
+      "maxTranslationDifferenceCm": 0,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4798,
+      "part": "AP03",
+      "transformBitIdentical": true,
+      "maxTranslationDifferenceCm": 0,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4799,
+      "part": "AP03",
+      "transformBitIdentical": true,
+      "maxTranslationDifferenceCm": 0,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4800,
+      "part": "AP03",
+      "transformBitIdentical": true,
+      "maxTranslationDifferenceCm": 0,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4801,
+      "part": "AP03",
+      "transformBitIdentical": true,
+      "maxTranslationDifferenceCm": 0,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4802,
+      "part": "AP04",
+      "transformBitIdentical": false,
+      "maxTranslationDifferenceCm": 2.220446049250313e-16,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4803,
+      "part": "AP05",
+      "transformBitIdentical": false,
+      "maxTranslationDifferenceCm": 4.440892098500626e-16,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4804,
+      "part": "AP06",
+      "transformBitIdentical": true,
+      "maxTranslationDifferenceCm": 0,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4805,
+      "part": "AP07",
+      "transformBitIdentical": false,
+      "maxTranslationDifferenceCm": 4.440892098500626e-16,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    },
+    {
+      "id": 4806,
+      "part": "AP08",
+      "transformBitIdentical": true,
+      "maxTranslationDifferenceCm": 0,
+      "transformUnchanged": true,
+      "definitionUnchanged": true,
+      "propertiesUnchanged": true,
+      "groundingUnchanged": true
+    }
+  ],
+  "mates": [
+    {
+      "id": 4807,
+      "type": "lock",
+      "pair": [
+        4796,
+        4797
+      ],
+      "occurrencePair": [
+        1,
+        2
+      ],
+      "suppressed": false,
+      "expectedPair": true,
+      "capturedPositionMatchesSaved": true,
+      "capturedRotationIdentity": true
+    },
+    {
+      "id": 4808,
+      "type": "lock",
+      "pair": [
+        4796,
+        4798
+      ],
+      "occurrencePair": [
+        1,
+        3
+      ],
+      "suppressed": false,
+      "expectedPair": true,
+      "capturedPositionMatchesSaved": true,
+      "capturedRotationIdentity": true
+    },
+    {
+      "id": 4809,
+      "type": "lock",
+      "pair": [
+        4796,
+        4799
+      ],
+      "occurrencePair": [
+        1,
+        4
+      ],
+      "suppressed": false,
+      "expectedPair": true,
+      "capturedPositionMatchesSaved": true,
+      "capturedRotationIdentity": true
+    },
+    {
+      "id": 4810,
+      "type": "lock",
+      "pair": [
+        4796,
+        4800
+      ],
+      "occurrencePair": [
+        1,
+        5
+      ],
+      "suppressed": false,
+      "expectedPair": true,
+      "capturedPositionMatchesSaved": true,
+      "capturedRotationIdentity": true
+    },
+    {
+      "id": 4811,
+      "type": "lock",
+      "pair": [
+        4796,
+        4801
+      ],
+      "occurrencePair": [
+        1,
+        6
+      ],
+      "suppressed": false,
+      "expectedPair": true,
+      "capturedPositionMatchesSaved": true,
+      "capturedRotationIdentity": true
+    },
+    {
+      "id": 4812,
+      "type": "lock",
+      "pair": [
+        4796,
+        4802
+      ],
+      "occurrencePair": [
+        1,
+        7
+      ],
+      "suppressed": false,
+      "expectedPair": true,
+      "capturedPositionMatchesSaved": true,
+      "capturedRotationIdentity": true
+    },
+    {
+      "id": 4813,
+      "type": "lock",
+      "pair": [
+        4803,
+        4805
+      ],
+      "occurrencePair": [
+        8,
+        10
+      ],
+      "suppressed": false,
+      "expectedPair": true,
+      "capturedPositionMatchesSaved": true,
+      "capturedRotationIdentity": true
+    },
+    {
+      "id": 4814,
+      "type": "lock",
+      "pair": [
+        4804,
+        4806
+      ],
+      "occurrencePair": [
+        9,
+        11
+      ],
+      "suppressed": false,
+      "expectedPair": true,
+      "capturedPositionMatchesSaved": true,
+      "capturedRotationIdentity": true
+    }
+  ],
+  "exactEightUniqueActiveExpectedLocks": true,
+  "allElevenTransformsDefinitionsPropertiesGroundingUnchanged": true,
+  "nativeDefinitionsValidSingleSolid": true,
+  "nativeSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4804,
+          4806
+        ],
+        "variableCount": 12,
+        "rank": 6,
+        "degreesOfFreedom": 6,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4804": 6,
+          "4806": 6
+        }
+      },
+      {
+        "components": [
+          4803,
+          4805
+        ],
+        "variableCount": 12,
+        "rank": 6,
+        "degreesOfFreedom": 6,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 6,
+          "4805": 6
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      },
+      {
+        "components": [
+          4801
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4801": 0
+        }
+      },
+      {
+        "components": [
+          4800
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4800": 0
+        }
+      },
+      {
+        "components": [
+          4799
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4799": 0
+        }
+      },
+      {
+        "components": [
+          4798
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4798": 0
+        }
+      },
+      {
+        "components": [
+          4797
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4797": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 12
+  },
+  "cloneTransformDeltas": [
+    {
+      "id": 4796,
+      "partNo": "AP01",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4797,
+      "partNo": "AP02",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4798,
+      "partNo": "AP03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4799,
+      "partNo": "AP03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4800,
+      "partNo": "AP03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4801,
+      "partNo": "AP03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4802,
+      "partNo": "AP04",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4803,
+      "partNo": "AP05",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4804,
+      "partNo": "AP06",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4805,
+      "partNo": "AP07",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4806,
+      "partNo": "AP08",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    }
+  ],
+  "homeInterference": {
+    "method": "Fresh independent native compilation and all-pairs intersection at the actual eight-lock saved poses; comparison to placement shows only <=4.44e-16cm serialization roundoff.",
+    "source": "artifacts/planchard/AP-assembly-eight-locks-native-home-audit-2026-10-08.json",
+    "positiveVolumeClashes": [],
+    "totalVolumeCm3": 600.1580396978882,
+    "totalMassG": 4719.336856673411
+  },
+  "stage": "Eight locks only; shaft/handle and ram/head each retain six rigid-body degrees of freedom. Remaining guides, limit, and rack coupling are parent Chrome work in progress.",
+  "pass": true
+}
