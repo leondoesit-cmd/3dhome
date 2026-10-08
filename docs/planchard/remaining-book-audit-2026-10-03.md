@@ -13,7 +13,7 @@ The printed designer briefs permit original parts and additional components. Com
 |8.15|8-50 /428|ANSI C landscape|Welder Arm|Accepted original designer example:18 occurrences,23 mates,4 physical DOF, four native studies, home clearance and final cold export/exploded sheet. [Final acceptance](welder-arm-8.15-final-acceptance-2026-10-03.md)|
 |8.16|8-51 /429|ANSI C landscape|Five-cylinder Radial Engine|Accepted original designer example:55 connected valid solids,14 definitions,75 mates,1 physical DOF, actual Chrome full-cycle Play,25 sampled clearances and corrected native STEP/exploded sheet. [Final sections](radial-engine-8.16-browser-progress-2026-10-03.md)|
 |8.17|8-52 /430|ANSI A landscape|Bench Vice|Accepted original designer example:16occurrences,19active mates,1DOF,full10secChrome motion,51sampled clearances,16solidnativeSTEP and ANSI A exploded drawing. [Final acceptance](bench-vice-8.17-final-acceptance-2026-10-08.md)|
-|8.18|8-53 /431|ANSI C landscape|Kant-Twist Clamp|In progress: KT01–KT14 accepted; KT15 in progress. Remaining definitions/assembly/drawing unfinished.|
+|8.18|8-53 /431|ANSI C landscape|Kant-Twist Clamp|In progress: KT01–KT15 accepted; KT16 in progress. Remaining definitions/assembly/drawing unfinished.|
 |8.19|8-54 /432|ANSI A landscape|Arbor Press|Remaining|
 |8.20|8-55 /433|ANSI C landscape|Shaper Tool Head|Remaining|
 
@@ -32,6 +32,7 @@ Exercise8.12 is accepted as a declared designer example:15 fresh parts,23 instan
 - Physical printing remains pending; exported STL files establish digital output only.
 
 Source page requirements are in `exercise-inventory-2026-09-27.md`. This queue does not reopen completed parts or replace the detailed native acceptance reports.
+
 
 
 
