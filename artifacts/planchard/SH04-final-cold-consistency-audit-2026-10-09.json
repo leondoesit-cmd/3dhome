@@ -1,0 +1,63 @@
+{
+  "source": "artifacts/planchard/SH04-final-browser-2026-10-09.mforge",
+  "bytes": 107459,
+  "sha256": "4a31108f5c7827df020aa971e622a6dc5ccb3c0acee001d91c7f122cc3be1ee1",
+  "inputUnchanged": true,
+  "featuresBitIdentical": true,
+  "sketchesBitIdentical": true,
+  "historyBitIdentical": true,
+  "propertiesBitIdentical": true,
+  "appearancesBitIdentical": true,
+  "authoredPartsEquivalent": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH04-final-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 2,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 1.1860140585832188,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 1.1860140585832188,
+    "boundsCm": {
+      "min": {
+        "x": -0.8,
+        "y": 0,
+        "z": -0.8
+      },
+      "max": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      }
+    },
+    "centerOfMassCm": {
+      "x": -2.2738320355620842e-17,
+      "y": 0.39999999999999997,
+      "z": 5.558070042261081e-17
+    },
+    "seconds": 5.3245569
+  },
+  "properties": {
+    "Description": "Spacer bush / upper feed-screw journal; original OD16 ID8.2 length8 mm educational dimensions",
+    "PartNo": "SH04",
+    "BookItemNo": "4"
+  },
+  "parentCold": {
+    "source": "Parent actualChrome",
+    "pass": true,
+    "libraryKey": "cm_mv01hz92",
+    "nativeSolidCount": 1,
+    "boundsMm": [
+      16,
+      8,
+      16
+    ],
+    "fullyDefinedEditableHistorySteps": 2,
+    "metadataRetained": true
+  },
+  "stepReuse": "Exactnominalfeatures/sketchesunchanged;nativeSTEPbothzero residualaudit remainsapplicable.",
+  "pass": true
+}

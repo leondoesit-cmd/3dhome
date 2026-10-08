@@ -1,0 +1,205 @@
+{
+  "source": "artifacts/planchard/SH04-nominal-browser-2026-10-09.mforge",
+  "bytes": 106764,
+  "inputSha256": "74389aa06c818bdfdb69159b4177f3b055f5538b5fa4313423882f81cc08d6fe",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Outer annulus",
+      "diameterMm": 16,
+      "fixedCenterMm": [
+        0,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "role": "Inner bore",
+      "diameterMm": 8.2,
+      "fixedCenterMm": [
+        0,
+        0
+      ],
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH04-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 2,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 1.1860140585832188,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 1.1860140585832188,
+    "boundsCm": {
+      "min": {
+        "x": -0.8,
+        "y": 0,
+        "z": -0.8
+      },
+      "max": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      }
+    },
+    "centerOfMassCm": {
+      "x": -2.2738320355620842e-17,
+      "y": 0.39999999999999997,
+      "z": 5.558070042261081e-17
+    },
+    "seconds": 6.4552818
+  },
+  "step": {
+    "source": "artifacts/planchard/SH04-nominal-browser-2026-10-09.step",
+    "bytes": 9446,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 1.186014058583245,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 1.186014058583245,
+      "centerOfMass": {
+        "x": -3.732760578745543e-17,
+        "y": 0.4,
+        "z": 1.4196481007943384e-14
+      },
+      "inertia": [
+        [
+          0.3028585733097242,
+          -5.4136044863500705e-18,
+          4.5670938630072874e-17
+        ],
+        [
+          -5.4136044863500705e-18,
+          0.47920898037056386,
+          -1.3183898417423576e-17
+        ],
+        [
+          4.5670938630072874e-17,
+          -1.3183898417423576e-17,
+          0.3028585733097179
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.8,
+          "y": 0,
+          "z": -0.8
+        },
+        "max": {
+          "x": 0.8,
+          "y": 0.8,
+          "z": 0.8
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH04-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH04-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "analyticVolumeCm3": 1.1860140585832186,
+  "nativeAnalyticVolumeErrorCm3": 2.220446049250313e-16,
+  "nativeStepEquivalent": true,
+  "material": {
+    "name": "Plain Carbon Steel (grade unspecified)",
+    "density": 7.85,
+    "source": "Alleima 20C carbon steel material datasheet: 7.85 g/cm³; representative reference density, not a certified grade",
+    "catalogId": "stock:plainCarbonSteel",
+    "massKg": 0.009310210359878267
+  },
+  "properties": {
+    "Description": "Spacer bush / upper feed-screw journal; original OD16 ID8.2 length8 mm educational dimensions",
+    "PartNo": "SH04",
+    "BookItemNo": "4"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent actualChrome observation",
+    "driving": "OuterD16→16.2 native1.186014→1.226478cm3/mass.009310210→.009627851kg;Undo16Redo16.2Undo16Saveclean",
+    "coldReopen": "Parent actualChromePASScm_mv01hz92:1solid16×8×16mm/2fullydefinedsteps/SH04Book4Descriptionretained"
+  },
+  "geometryPass": true,
+  "finalCold": {
+    "source": "artifacts/planchard/SH04-final-browser-2026-10-09.mforge",
+    "bytes": 107459,
+    "sha256": "4a31108f5c7827df020aa971e622a6dc5ccb3c0acee001d91c7f122cc3be1ee1",
+    "inputUnchanged": true,
+    "featuresBitIdentical": true,
+    "sketchesBitIdentical": true,
+    "historyBitIdentical": true,
+    "propertiesBitIdentical": true,
+    "appearancesBitIdentical": true,
+    "authoredPartsEquivalent": true,
+    "native": {
+      "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH04-final-browser-2026-10-09.mforge",
+      "exact": true,
+      "featureCount": 2,
+      "issues": [],
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.1860140585832188,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 1.1860140585832188,
+      "boundsCm": {
+        "min": {
+          "x": -0.8,
+          "y": 0,
+          "z": -0.8
+        },
+        "max": {
+          "x": 0.8,
+          "y": 0.8,
+          "z": 0.8
+        }
+      },
+      "centerOfMassCm": {
+        "x": -2.2738320355620842e-17,
+        "y": 0.39999999999999997,
+        "z": 5.558070042261081e-17
+      },
+      "seconds": 5.3245569
+    },
+    "properties": {
+      "Description": "Spacer bush / upper feed-screw journal; original OD16 ID8.2 length8 mm educational dimensions",
+      "PartNo": "SH04",
+      "BookItemNo": "4"
+    },
+    "parentCold": {
+      "source": "Parent actualChrome",
+      "pass": true,
+      "libraryKey": "cm_mv01hz92",
+      "nativeSolidCount": 1,
+      "boundsMm": [
+        16,
+        8,
+        16
+      ],
+      "fullyDefinedEditableHistorySteps": 2,
+      "metadataRetained": true
+    },
+    "stepReuse": "Exactnominalfeatures/sketchesunchanged;nativeSTEPbothzero residualaudit remainsapplicable.",
+    "pass": true
+  },
+  "acceptancePass": true
+}

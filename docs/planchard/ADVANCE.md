@@ -26,9 +26,16 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 Earlier paragraphs below are historical unless explicitly superseding this current pointer.
 
+### Current SH05 checkpoint — 2026-10-09
+
+SH04 SpacerBush finalfullyacceptednative1.1860140585832188cm3/.009310210359878267kg; PlainCarbonSteelreference7.85. Librarycm_mv01hz92 cold16x8x16/2fullydefinedsteps/Book4SH04Description PASS. Final107459bytes/download1 plusnativeSTEPzeroresidual, reportsandjpgprotected. Commitnext.
+
+Chrome710862239 nowauthorsSH05HandleGrip fromblank: RightannulusOD14/ID6.2 X−30..−10 (onefeature2steps). AISI1020reference7.9,Book5SH05Description. NominalChrome2.474947cm3/.01955208kg; outerD14→14.2 gives2.563540/.02025196;Undo14Redo14.2Undo14 passed;headerSaveclicked, awaitcleanactualaria-label beforeexports/cold. NextSH06RightD6barX−25..25 fromblank.
+
+New sharedExtrudecreation/edithelp saysStartoffsetrelative tosketchplane andselecteddirection. ActualChromeSH03readoutZ12/Start12/End18.2; stagedoffset12shows24..30.2;Cancelrestorescorrect12..18.2andcleanSave/disabledUndo. SH04same0→1readout1..9/Cancelclean. ActualSH05creationreadoutX0/Start−30/End−10. QA jpgSH-offset-effective-extent-qa-browser-2026-10-09.jpg showsintentionaldoubledoffsettrial, notfinalacceptedgeometry. Parent3readouttestsPASS;agent6focused/gates646modules1489assertionsPASS. Sourcecommitnext; geometry/defaultsunmodifiedbyUIrepair.
 ### Latest active shaper pointer — 2026-10-09
 
-SH01 accepted/committed1e9097e; SH02accepted/committed288fc31; SH03correctedgeometry/nativeSTEP/driving/coldPASS, finalconsistencyauditrunning, commitnext. InitialSH03groovehadsketchZ12+featureStart12=Z24..30.2, notacceptable; diagnosticinitialnominal/doubled-offsetexportsretained. ActualChromefeatureStartoffset0 correction leavesZ12..18.2, nominal44.92382507216966cm3/.35489821807014033kg. RepeatbodyWidth40→42 gives47.39583/.374427kg Undo40Redo42Undo40 PASS. Correctednominalbundle498270bytes/STEP59799; finaldownload2; librarycm_mv019d3u. Correctedcoldvolume/metadataBookItem3/SH03/native1solid54x60x22.2confirmed. Do not treatold47.528858/STEP75413 asaccepted.
+SH01 accepted/committed1e9097e; SH02accepted/committed288fc31; SH03fullyaccepted/committedb7e7d22; final498195bytes/download2 native44.92382507216966cm3. InitialSH03groovehadsketchZ12+featureStart12=Z24..30.2, notacceptable; diagnosticinitialnominal/doubled-offsetexportsretained. ActualChromefeatureStartoffset0 correction leavesZ12..18.2, nominal44.92382507216966cm3/.35489821807014033kg. RepeatbodyWidth40→42 gives47.39583/.374427kg Undo40Redo42Undo40 PASS. Correctednominalbundle498270bytes/STEP59799; finaldownload2; librarycm_mv019d3u. Correctedcoldvolume/metadataBookItem3/SH03/native1solid54x60x22.2confirmed. Do not treatold47.528858/STEP75413 asaccepted.
 
 CurrentChrome710862239 authorsSH04SpacerBush fromblank: TopconcentricD16/D8.2, Y0..8, onenativeSolid/twohistory/fullydefined. PlainCarbonSteelreference7.85(notcertifiedgrade)/PartNoSH04/Book4savedmetadata. NominalChrome1.186014cm3/.009310210kg. CurrentouterD16→16.2drivingeditnativeMassPropsopen; readchangedvolume thenClose,Undo16Redo16.2Undo16, Save/cold/exportnativeSTEP/independentaudit. NextSH05RightannulusOD14/ID6.2X−30..−10fromblank. Sixteenroles/assembly/DirectedhingeactualUI/movement/CANSIdrawingstillpending. Continuewhile59%quota remains. UIagent nowpreparingrelativeoffsethelp/effectiveextents fromSH03pitfall; no automaticgeometrychange.
 ### SH03 live browser progress — 2026-10-09

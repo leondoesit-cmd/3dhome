@@ -5917,6 +5917,7 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
 #modeler .md-quick-settings { display: grid; align-content: start; gap: 7px; flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; }
 #modeler .md-quick-settings[hidden] { display: none; }
 #modeler .md-quick-field { position: relative; display: grid; grid-template-columns: minmax(0,1fr) minmax(92px,42%); align-items: center; gap: 9px; min-height: 31px; color: var(--text-muted); font-size: max(10px, var(--fs-floor, 0px)); }
+#modeler .md-quick-field .md-extrusion-extent-note { grid-column: 1 / -1; }
 #modeler .md-feature-field-label { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
 #modeler .md-feature-unit { color: var(--accent); font-size: max(8px, var(--fs-floor, 0px)); font-weight: 700; }
 #modeler .md-quick-field input,#modeler .md-quick-field select { width: 100%; min-width: 0; padding: 6px 7px; border: 1px solid var(--input-border); border-radius: 7px; background: var(--input-bg); color: var(--text-main); font-size: max(11px, var(--fs-floor, 0px)); }

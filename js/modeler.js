@@ -8094,14 +8094,46 @@ function featureReferenceOptions(type) {
   return (E.def.references || []).filter(function(reference){return reference.type===expected;}).map(function(reference){return {value:reference.id,label:reference.name || reference.id};});
 }
 
+function featureExtrusionExtentText(type,state,params) {
+  if(!['extrude','extrudeCut'].includes(type))return '';
+  if(!['blind','mid-plane'].includes(params.endCondition || 'blind'))return '';
+  var reference=state.references?.sketches?.[0],sketchId=params.sketchId || (typeof reference==='string'?reference:reference?.id);
+  var sketch=sketchId?(E.def.sketches || []).find(function(item){return item.id===sketchId;}):!state.id?ensureSketch(E.def):null;
+  if(!sketch)return '';
+  var axis=planeAxis(sketch.plane),local=sketch.frameSpace==='local'&&sketch.frame;
+  if(sketch.frame&&!local)return '';
+  var principal=local || !sketch.frame?.normal?1:Math.sign(sketch.frame.normal[axis] || 1);
+  var direction=(params.direction==='reverse'?-1:1)*principal;
+  var plane=local?0:Number(sketch.offset || 0),offset=Number(params.offset || 0),depth=Number(params.depth);
+  if(![plane,offset,depth].every(Number.isFinite)||depth<=0)return '';
+  var center=plane+direction*offset,symmetric=params.symmetric || params.endCondition==='mid-plane';
+  var from=symmetric?center-direction*depth/2:center,to=symmetric?center+direction*depth/2:center+direction*depth;
+  var unit=modelLengthUnit(),length=function(value){return formatDocumentLength(value,unit)+' '+unit;};
+  return (local?t('featureExtentSketchNormal'):tf('featureExtentPlane',{axis:axis.toUpperCase(),plane:length(plane)}))+' · '+tf('featureExtentStartEnd',{start:length(from),end:length(to)});
+}
+
 function renderFeatureParameterForm(host,type,state,onLive) {
-  var controls=renderFeatureParameterFormCore(host,type,state,onLive,{
+  var extentNote=null;
+  var controls=renderFeatureParameterFormCore(host,type,state,function(next){
+    if(extentNote)extentNote.textContent=featureExtrusionExtentText(type,state,next.params);
+    if(onLive)onLive(next);
+  },{
     el:el,
     units:{length:modelLengthUnit(),angle:E.def?.context?.units?.angle || "deg"},
     referenceOptions:featureReferenceOptions,
     featureSeeds:(E.def.features || []).filter(function(feature,index,features){var current=features.findIndex(function(item){return item.id===state.id;});return !feature.suppressed && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length && (current<0 || index<current);}).map(function(feature){return {value:feature.id,label:feature.name || feature.type};}),
     advancedLabel:t("featureMoreOptions"),
   });
+  if(['extrude','extrudeCut'].includes(type)){
+    var offsetControl=controls.find(function(control){return control.field.key==='offset';});
+    var offsetRow=offsetControl?.input.closest('.md-quick-field');
+    if(offsetRow){
+      offsetRow.appendChild(el('small','md-note md-extrusion-extent-note',t('featureStartOffsetHint')));
+      extentNote=el('output','md-note md-extrusion-extent-note',featureExtrusionExtentText(type,state,state.params));
+      extentNote.setAttribute('aria-live','polite');extentNote.setAttribute('data-extrusion-extent','');
+      offsetRow.appendChild(extentNote);
+    }
+  }
   if(type==="thread"){
     var preset=controls.find(function(control){return control.field.key==="threadPreset";});
     var syncPreset=function(changed){
