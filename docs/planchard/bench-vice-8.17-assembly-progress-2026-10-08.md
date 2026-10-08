@@ -16,11 +16,18 @@ The first complete exact audit found rear foot X146 interfering from 29 mm trave
 
 The repaired browser export contains sixteen valid native solids. Its independent exact audit found zero positive-volume clashes in all 51 quarter-turn samples from 0–50 mm. The revised base volume remains 198.6971671170941 cm³. Foot contact is nominally 16×70 mm; its outer edge projects 4 mm beyond the base. These checks do not certify strength.
 
+## Current verified checkpoint
+
+Finish component now awaits fresh native regeneration before publishing the component. Browser reopened BV01 in context, finished, and recreated journal4057 against current exact axes. All19 stored mates are active with no issues or unresolved references. Final51-pose clearance audit confirms the revised assembly. Numerical settled:false reports stricter optimization convergence; all engineering mate checks pass, endpoint maximum linear error4.58e-10cm.
+
+Full browser motion Play completed10.00/10.00 seconds. Cancel restored its opening pose, then Drive0 and blank returned a free home. Saved exploded offsets, spanning3.38m, explained the tiny viewport model. Visible Exploded view collapsed the presentation and restored normal rendering; meshes were intact. Latest actual protected export is `BV-assembly-rearfoot170-collapsed-home-browser-2026-10-08.mforge`.
+
+Parent also revised global library BV01 Circle3/4 to U170 through Chrome, saved and exported `BV01-base-rearfoot170-browser-2026-10-08.mforge` and `.step`. Independent verification pending.
+
 ## Outstanding acceptance
 
-- Base in-context editing left stale exact topology stamps. The original journal4047 became unresolved; Start Here suppressed it. Source repair must preserve native reference availability after Finish component. Recreate an active journal and verify every stored mate is active.
-- The modified BV01 is assembly-local. Update and protect its revised library part/export before final acceptance.
-- Chrome motion preview stopped at 2.20 seconds because forward frames replayed from zero while retaining the moved pose. The source fix passes an actual-export regression; full browser Play remains pending.
-- ANSI A landscape/mm/third-angle title settings and source notes are authored. Exploded drawing, lines, BOM, sixteen balloons, layout QA and exports remain pending.
+- Revised global BV01 independent native/STEP consistency audit and cold library verification.
+- Proportionate exploded presentation, then exploded-isometric drawing with lines,10BOM rows,16balloons and export/layout QA. First assembled drawing preview confirms automatic10rowBOM/16balloons and correct ANSI A landscape/mm/third-angle settings. Existing long descriptions/materials ellipsize; UI agent investigating readability.
+- Saved views/presentation quality review after explosion UI changes.
 
-Use ADVANCE.md for the exact latest browser state; this report documents the checkpoint rather than overriding newer resume notes.
+Use ADVANCE.md for the exact latest browser state. This remains a checkpoint, not final exercise or entire-book acceptance.

@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\BV01-base-rearfoot170-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 23,
+  "issues": [],
+  "volumeCm3": 198.6971671170941,
+  "boundsCm": {
+    "min": {
+      "x": -1e-7,
+      "y": 0,
+      "z": -3.5
+    },
+    "max": {
+      "x": 17.6,
+      "y": 6.6000000000000005,
+      "z": 3.5
+    }
+  },
+  "centerOfMassCm": {
+    "x": 9.51822203020816,
+    "y": 1.8388931915765738,
+    "z": -1.596676752312172e-9
+  },
+  "seconds": 6.815554099999999
+}

@@ -1,0 +1,150 @@
+{
+  "sources": [
+    "artifacts\\planchard\\BV-assembly-rearfoot170-collapsed-home-browser-2026-10-08.mforge",
+    "artifacts\\planchard\\BV-assembly-ten-step-exploded-browser-2026-10-08.mforge"
+  ],
+  "components": 16,
+  "mates": 19,
+  "physicalTransformsUnchanged": true,
+  "mateRecordsUnchanged": true,
+  "definitionsUnchanged": true,
+  "activeView": "ev_f2ffb141-3d07-4f02-afe7-4250e12ba980",
+  "views": [
+    {
+      "name": "Exploded View 1",
+      "id": "ev_604da914-3381-42b8-9921-c143063825ff",
+      "steps": 15
+    },
+    {
+      "name": "Exploded View 2",
+      "id": "ev_f2ffb141-3d07-4f02-afe7-4250e12ba980",
+      "steps": 10
+    }
+  ],
+  "offsets": [
+    {
+      "part": "BV01",
+      "offset": null
+    },
+    {
+      "part": "BV02",
+      "offset": {
+        "x": 0,
+        "y": -3,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV02",
+      "offset": {
+        "x": 0,
+        "y": -3,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV03",
+      "offset": {
+        "x": 0,
+        "y": 6,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV04",
+      "offset": {
+        "x": 0,
+        "y": -3,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV05",
+      "offset": {
+        "x": -7,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV06",
+      "offset": {
+        "x": -11,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV07",
+      "offset": {
+        "x": -11,
+        "y": 0,
+        "z": 2.5
+      }
+    },
+    {
+      "part": "BV07",
+      "offset": {
+        "x": -11,
+        "y": 0,
+        "z": -2.5
+      }
+    },
+    {
+      "part": "BV08",
+      "offset": {
+        "x": 0,
+        "y": -5.5,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV08",
+      "offset": {
+        "x": 0,
+        "y": -5.5,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV08",
+      "offset": {
+        "x": 0,
+        "y": -5.5,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV08",
+      "offset": {
+        "x": 0,
+        "y": -5.5,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV09",
+      "offset": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV10",
+      "offset": {
+        "x": 0,
+        "y": 9.5,
+        "z": 0
+      }
+    },
+    {
+      "part": "BV10",
+      "offset": {
+        "x": 0,
+        "y": 9.5,
+        "z": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,944 @@
+{
+  "source": "artifacts/planchard/BV-assembly-rearfoot170-19-active-mates-browser-2026-10-08.mforge",
+  "inputSha256": "471ccb81c8ce7f3b00d57cb0ffc5981031dd15d110124911732b837f40f5ff75",
+  "definitions": 10,
+  "occurrences": 16,
+  "geometry": [
+    {
+      "partNo": "BV01",
+      "definitionId": "cm_musrulf4",
+      "sourceFile": "BV01-base-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": false,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 198.6971671170941,
+        "maxToleranceCm": 1.500000001110223e-7
+      },
+      "kernelOperations": 23,
+      "issues": [],
+      "volumeCm3": 198.6971671170941,
+      "boundsCm": {
+        "min": {
+          "x": -1e-7,
+          "y": 0,
+          "z": -3.5
+        },
+        "max": {
+          "x": 17.6,
+          "y": 6.6000000000000005,
+          "z": 3.5
+        }
+      }
+    },
+    {
+      "partNo": "BV02",
+      "definitionId": "cm_muzm9dqr",
+      "sourceFile": "BV02-base-plate-final-browser-2026-10-08.mforge",
+      "occurrences": 2,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 20.77891334405777,
+        "maxToleranceCm": 1.000000002220446e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 20.77891334405777,
+      "boundsCm": {
+        "min": {
+          "x": -1,
+          "y": -1.2000000000000002,
+          "z": -4.5
+        },
+        "max": {
+          "x": 1,
+          "y": 2.220446049250313e-16,
+          "z": 4.5
+        }
+      }
+    },
+    {
+      "partNo": "BV03",
+      "definitionId": "cm_muzmi3fn",
+      "sourceFile": "BV03-vice-jaw-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 54.96672333019949,
+        "maxToleranceCm": 1.0000000177635683e-7
+      },
+      "kernelOperations": 14,
+      "issues": [],
+      "volumeCm3": 54.96672333019949,
+      "boundsCm": {
+        "min": {
+          "x": 7,
+          "y": -0.020000000000000004,
+          "z": -2.8000000000000003
+        },
+        "max": {
+          "x": 11.000000000000002,
+          "y": 6.6000000000000005,
+          "z": 2.8000000000000003
+        }
+      }
+    },
+    {
+      "partNo": "BV04",
+      "definitionId": "cm_muzmtncg",
+      "sourceFile": "BV04-clamping-plate-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 5.76525666117692,
+        "maxToleranceCm": 1.0000000008326672e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 5.76525666117692,
+      "boundsCm": {
+        "min": {
+          "x": 7.2,
+          "y": -0.6400000000000001,
+          "z": -1.4000000000000001
+        },
+        "max": {
+          "x": 10.8,
+          "y": -0.04000000000000001,
+          "z": 1.4000000000000001
+        }
+      }
+    },
+    {
+      "partNo": "BV05",
+      "definitionId": "cm_muzn0fyf",
+      "sourceFile": "BV05-jaw-screw-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 70.26817722521028,
+        "maxToleranceCm": 1.0000001931788062e-7
+      },
+      "kernelOperations": 14,
+      "issues": [],
+      "volumeCm3": 70.26817722521028,
+      "boundsCm": {
+        "min": {
+          "x": -3.0000001,
+          "y": 1.8999999000000003,
+          "z": -1.5000001
+        },
+        "max": {
+          "x": 15.8,
+          "y": 4.900000100000001,
+          "z": 1.5000001
+        }
+      }
+    },
+    {
+      "partNo": "BV06",
+      "definitionId": "cm_muzn8rnv",
+      "sourceFile": "BV06-screw-bar-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 6.031857894892402,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 2,
+      "issues": [],
+      "volumeCm3": 6.031857894892402,
+      "boundsCm": {
+        "min": {
+          "x": -0.4,
+          "y": -0.4,
+          "z": -6
+        },
+        "max": {
+          "x": 0.4,
+          "y": 0.4,
+          "z": 6
+        }
+      }
+    },
+    {
+      "partNo": "BV07",
+      "definitionId": "cm_muznugz2",
+      "sourceFile": "BV07-bar-globe-final-browser-2026-10-08.mforge",
+      "occurrences": 2,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.6284535494268735,
+        "maxToleranceCm": 1.0000000189554304e-7
+      },
+      "kernelOperations": 4,
+      "issues": [],
+      "volumeCm3": 0.6284535494268735,
+      "boundsCm": {
+        "min": {
+          "x": -0.6000000000000001,
+          "y": -0.6000000000000001,
+          "z": -0.43806392227619034
+        },
+        "max": {
+          "x": 0.6000000000000001,
+          "y": 0.6000000000000001,
+          "z": 0.6000000000000001
+        }
+      }
+    },
+    {
+      "partNo": "BV08",
+      "definitionId": "cm_muznghhy",
+      "sourceFile": "BV08-foot-screw-final-browser-2026-10-08.mforge",
+      "occurrences": 4,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.7422508358660889,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 0.7422508358660889,
+      "boundsCm": {
+        "min": {
+          "x": -0.4999999999999995,
+          "y": -1.4000000000000001,
+          "z": -0.5773502691896251
+        },
+        "max": {
+          "x": 0.4999999999999995,
+          "y": 0.4,
+          "z": 0.5773502691896251
+        }
+      }
+    },
+    {
+      "partNo": "BV09",
+      "definitionId": "cm_muznh9mo",
+      "sourceFile": "BV09-retention-bolt-final-browser-2026-10-08.mforge",
+      "occurrences": 1,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.9349337910752327,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 8,
+      "issues": [],
+      "volumeCm3": 0.9349337910752327,
+      "boundsCm": {
+        "min": {
+          "x": -0.4999999999999995,
+          "y": -1.58,
+          "z": -0.5773502691896251
+        },
+        "max": {
+          "x": 0.4999999999999995,
+          "y": 0.6000000000000001,
+          "z": 0.5773502691896251
+        }
+      }
+    },
+    {
+      "partNo": "BV10",
+      "definitionId": "cm_muznir9n",
+      "sourceFile": "BV10-keeper-screw-final-browser-2026-10-08.mforge",
+      "occurrences": 2,
+      "matchesFinalBrowserFeatures": true,
+      "matchesFinalBrowserSketches": true,
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 1.0532685085714784,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "kernelOperations": 5,
+      "issues": [],
+      "volumeCm3": 1.0532685085714784,
+      "boundsCm": {
+        "min": {
+          "x": -0.4999999999999995,
+          "y": -2.5,
+          "z": -0.5773502691896251
+        },
+        "max": {
+          "x": 0.4999999999999995,
+          "y": 0.4,
+          "z": 0.5773502691896251
+        }
+      }
+    }
+  ],
+  "canonicalMates": 19,
+  "mateSummary": [
+    {
+      "id": 4034,
+      "type": "lock",
+      "a": 4018,
+      "b": 4019
+    },
+    {
+      "id": 4036,
+      "type": "lock",
+      "a": 4018,
+      "b": 4027
+    },
+    {
+      "id": 4037,
+      "type": "lock",
+      "a": 4018,
+      "b": 4028
+    },
+    {
+      "id": 4040,
+      "type": "lock",
+      "a": 4018,
+      "b": 4031
+    },
+    {
+      "id": 4041,
+      "type": "lock",
+      "a": 4021,
+      "b": 4022
+    },
+    {
+      "id": 4042,
+      "type": "lock",
+      "a": 4021,
+      "b": 4032
+    },
+    {
+      "id": 4043,
+      "type": "lock",
+      "a": 4021,
+      "b": 4033
+    },
+    {
+      "id": 4044,
+      "type": "lock",
+      "a": 4023,
+      "b": 4024
+    },
+    {
+      "id": 4045,
+      "type": "lock",
+      "a": 4024,
+      "b": 4025
+    },
+    {
+      "id": 4046,
+      "type": "lock",
+      "a": 4024,
+      "b": 4026
+    },
+    {
+      "id": 4048,
+      "type": "distance",
+      "a": 4018,
+      "b": 4023,
+      "aligned": true
+    },
+    {
+      "id": 4049,
+      "type": "distance",
+      "a": 4018,
+      "b": 4021,
+      "aligned": true
+    },
+    {
+      "id": 4050,
+      "type": "distance",
+      "a": 4018,
+      "b": 4021,
+      "aligned": true
+    },
+    {
+      "id": 4051,
+      "type": "limit",
+      "a": 4018,
+      "b": 4021,
+      "min": 0,
+      "max": 5,
+      "aligned": true
+    },
+    {
+      "id": 4053,
+      "type": "screw",
+      "a": 4023,
+      "b": 4021,
+      "pitch": 0.4,
+      "turns": 0,
+      "aligned": false,
+      "coupledMotion": true
+    },
+    {
+      "id": 4054,
+      "type": "lock",
+      "a": 4018,
+      "b": 4020
+    },
+    {
+      "id": 4055,
+      "type": "lock",
+      "a": 4018,
+      "b": 4029
+    },
+    {
+      "id": 4056,
+      "type": "lock",
+      "a": 4018,
+      "b": 4030
+    },
+    {
+      "id": 4057,
+      "type": "concentric",
+      "a": 4018,
+      "b": 4023,
+      "aligned": false
+    }
+  ],
+  "savedPoses": [
+    {
+      "id": 4018,
+      "partNo": "BV01",
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4019,
+      "partNo": "BV02",
+      "transform": {
+        "x": 3,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4020,
+      "partNo": "BV02",
+      "transform": {
+        "x": 17,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4021,
+      "partNo": "BV03",
+      "transform": {
+        "x": 5,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4022,
+      "partNo": "BV04",
+      "transform": {
+        "x": 5,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4023,
+      "partNo": "BV05",
+      "transform": {
+        "x": 0,
+        "y": 1.442386931,
+        "z": 2.779883284,
+        "rx": -54.84652802325908,
+        "ry": 4.0685891415288403e-10,
+        "rz": 2.1110525899444312e-10,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 4.000000000000221e-12,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      }
+    },
+    {
+      "id": 4024,
+      "partNo": "BV06",
+      "transform": {
+        "x": -2,
+        "y": 3.4,
+        "z": 0,
+        "rx": -54.84652802325908,
+        "ry": 4.0685891415288403e-10,
+        "rz": 2.1110525899444312e-10,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 4.000000000000221e-12,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      }
+    },
+    {
+      "id": 4025,
+      "partNo": "BV07",
+      "transform": {
+        "x": -2,
+        "y": 8.305676384,
+        "z": 3.454611298,
+        "rx": -54.84652802325908,
+        "ry": 4.0685891415288403e-10,
+        "rz": 2.1110525899444312e-10,
+        "q": {
+          "x": -0.4605602297160255,
+          "y": 4.000000000000221e-12,
+          "z": 0,
+          "w": 0.887628455382049
+        }
+      }
+    },
+    {
+      "id": 4026,
+      "partNo": "BV07",
+      "transform": {
+        "x": -2,
+        "y": -1.505676384,
+        "z": -3.454611298,
+        "rx": 125.15347197674093,
+        "ry": -4.068589141528841e-10,
+        "rz": -2.1110525899444312e-10,
+        "q": {
+          "x": 0.887628455382049,
+          "y": 0,
+          "z": -4.000000000000221e-12,
+          "w": 0.4605602297160255
+        }
+      }
+    },
+    {
+      "id": 4027,
+      "partNo": "BV08",
+      "transform": {
+        "x": 3,
+        "y": -1.2,
+        "z": 2.5,
+        "rx": -180,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 4028,
+      "partNo": "BV08",
+      "transform": {
+        "x": 3,
+        "y": -1.2,
+        "z": -2.5,
+        "rx": -180,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 4029,
+      "partNo": "BV08",
+      "transform": {
+        "x": 17,
+        "y": -1.2,
+        "z": 2.5,
+        "rx": -180,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 4030,
+      "partNo": "BV08",
+      "transform": {
+        "x": 17,
+        "y": -1.2,
+        "z": -2.5,
+        "rx": -180,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 4031,
+      "partNo": "BV09",
+      "transform": {
+        "x": 0.8,
+        "y": 5.8,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4032,
+      "partNo": "BV10",
+      "transform": {
+        "x": 13,
+        "y": 2,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4033,
+      "partNo": "BV10",
+      "transform": {
+        "x": 14,
+        "y": 2,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    }
+  ],
+  "cloneSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": false,
+    "passes": 35,
+    "clusters": [
+      {
+        "components": [
+          4030
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4030": 0
+        }
+      },
+      {
+        "components": [
+          4029
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4029": 0
+        }
+      },
+      {
+        "components": [
+          4020
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4020": 0
+        }
+      },
+      {
+        "components": [
+          4026,
+          4025,
+          4024,
+          4023,
+          4033,
+          4032,
+          4021,
+          4022
+        ],
+        "variableCount": 48,
+        "rank": 47,
+        "degreesOfFreedom": 1,
+        "iterations": 34,
+        "converged": false,
+        "perComponent": {
+          "4021": 1,
+          "4022": 1,
+          "4023": 1,
+          "4024": 1,
+          "4025": 1,
+          "4026": 1,
+          "4032": 1,
+          "4033": 1
+        }
+      },
+      {
+        "components": [
+          4031
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4031": 0
+        }
+      },
+      {
+        "components": [
+          4028
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4028": 0
+        }
+      },
+      {
+        "components": [
+          4027
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4027": 0
+        }
+      },
+      {
+        "components": [
+          4019
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4019": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "cloneTransformDeltas": [
+    {
+      "id": 4018,
+      "partNo": "BV01",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4019,
+      "partNo": "BV02",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4020,
+      "partNo": "BV02",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4021,
+      "partNo": "BV03",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4022,
+      "partNo": "BV04",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4023,
+      "partNo": "BV05",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4024,
+      "partNo": "BV06",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4025,
+      "partNo": "BV07",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4026,
+      "partNo": "BV07",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4027,
+      "partNo": "BV08",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4028,
+      "partNo": "BV08",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4029,
+      "partNo": "BV08",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4030,
+      "partNo": "BV08",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4031,
+      "partNo": "BV09",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4032,
+      "partNo": "BV10",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    },
+    {
+      "id": 4033,
+      "partNo": "BV10",
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0
+    }
+  ],
+  "inputUnchanged": true
+}

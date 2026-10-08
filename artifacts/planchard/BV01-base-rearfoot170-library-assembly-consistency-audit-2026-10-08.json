@@ -1,0 +1,78 @@
+{
+  "source": "artifacts/planchard/BV01-base-rearfoot170-browser-2026-10-08.mforge",
+  "assemblySource": "artifacts/planchard/BV-assembly-rearfoot170-collapsed-home-browser-2026-10-08.mforge",
+  "definitionId": "cm_musrulf4",
+  "featureCount": 8,
+  "sketchCount": 8,
+  "historyCount": 16,
+  "sketchStatuses": [
+    {
+      "id": "sk_19j9r",
+      "status": "fully-defined",
+      "diagnostics": []
+    },
+    {
+      "id": "sk_2u0xb",
+      "status": "fully-defined",
+      "diagnostics": []
+    },
+    {
+      "id": "sk_3tf2x",
+      "status": "fully-defined",
+      "diagnostics": []
+    },
+    {
+      "id": "sk_4immv",
+      "status": "fully-defined",
+      "diagnostics": []
+    },
+    {
+      "id": "sk_5ridj",
+      "status": "fully-defined",
+      "diagnostics": []
+    },
+    {
+      "id": "sk_758b6",
+      "status": "fully-defined",
+      "diagnostics": []
+    },
+    {
+      "id": "sk_1p2zy",
+      "status": "fully-defined",
+      "diagnostics": []
+    },
+    {
+      "id": "sk_16wn7",
+      "status": "fully-defined",
+      "diagnostics": []
+    }
+  ],
+  "footHolePoints": [
+    {
+      "id": 3734,
+      "x": 3,
+      "y": 2.5
+    },
+    {
+      "id": 3738,
+      "x": 3,
+      "y": -2.5
+    },
+    {
+      "id": 3742,
+      "x": 17,
+      "y": 2.5
+    },
+    {
+      "id": 3746,
+      "x": 17,
+      "y": -2.5
+    }
+  ],
+  "matchingRawFeatures": true,
+  "matchingRawSketches": true,
+  "matchingCompiledFeatures": true,
+  "matchingCompiledSketches": true,
+  "compiledFeatureHash": "316cb848ab436e28f56564abea695b35a0c43c3829fb44b75b09b667671b3044",
+  "assemblyFeatureHash": "316cb848ab436e28f56564abea695b35a0c43c3829fb44b75b09b667671b3044"
+}
