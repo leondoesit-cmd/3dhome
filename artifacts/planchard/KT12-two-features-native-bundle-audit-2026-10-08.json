@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT12-two-features-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 5,
+  "issues": [],
+  "volumeCm3": 1.7592918860102849,
+  "boundsCm": {
+    "min": {
+      "x": -3.2,
+      "y": -0.30000000000000004,
+      "z": -0.30000000000000004
+    },
+    "max": {
+      "x": 3.2,
+      "y": 0.30000000000000004,
+      "z": 0.30000000000000004
+    }
+  },
+  "centerOfMassCm": {
+    "x": 0.08571428571428599,
+    "y": -1.7116115769874379e-18,
+    "z": 2.3418332615562528e-17
+  },
+  "seconds": 5.8508004
+}

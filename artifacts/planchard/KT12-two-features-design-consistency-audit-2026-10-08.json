@@ -1,0 +1,223 @@
+{
+  "source": "artifacts/planchard/KT12-two-features-browser-2026-10-08.mforge",
+  "inputSha256": "1353b46b6335bb35cd7dcb8f5df8f7945de055b77eb8ab359072b130917be10d",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Crossbar stock",
+      "plane": "side",
+      "d": 6,
+      "from": -32,
+      "to": 32,
+      "sketchId": "sk_1wiyy",
+      "featureId": "feature_muzuaqqz_1",
+      "points": [
+        {
+          "id": 4348,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4350,
+          "type": "diameter",
+          "entity": 4349,
+          "value": 0.6000000000000001,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4351,
+          "type": "fixed",
+          "point": 4348,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 6.4,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          4349
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1wiyy",
+        "from": -3.2,
+        "to": 3.2
+      },
+      "fullyDefined": true,
+      "planeCorrect": true,
+      "centerFixed": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Blind retaining envelope",
+      "plane": "side",
+      "d": 4,
+      "from": -32,
+      "to": -28,
+      "cut": true,
+      "sketchId": "sk_2wu7g",
+      "featureId": "feature_muzubdon_2",
+      "points": [
+        {
+          "id": 4353,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4355,
+          "type": "diameter",
+          "entity": 4354,
+          "value": 0.4,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4356,
+          "type": "fixed",
+          "point": 4353,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "params": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 0.4,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "x",
+        "profileEntityIds": [
+          4354
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2wu7g",
+        "from": -3.2,
+        "to": -2.8000000000000003
+      },
+      "fullyDefined": true,
+      "planeCorrect": true,
+      "centerFixed": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT12-two-features-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "volumeCm3": 1.7592918860102849,
+    "boundsCm": {
+      "min": {
+        "x": -3.2,
+        "y": -0.30000000000000004,
+        "z": -0.30000000000000004
+      },
+      "max": {
+        "x": 3.2,
+        "y": 0.30000000000000004,
+        "z": 0.30000000000000004
+      }
+    },
+    "centerOfMassCm": {
+      "x": 0.08571428571428599,
+      "y": -1.7116115769874379e-18,
+      "z": 2.3418332615562528e-17
+    },
+    "seconds": 5.8508004
+  },
+  "step": {
+    "source": "artifacts/planchard/KT12-two-features-browser-2026-10-08.step",
+    "bytes": 9768,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 1.7592918860102977,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 1.7592918860102977,
+      "centerOfMass": {
+        "x": 0.08571428571428168,
+        "y": 1.2871270657063351e-17,
+        "z": 2.198118651925995e-15
+      },
+      "inertia": [
+        [
+          0.08042477193190022,
+          -2.6215975036131744e-17,
+          2.087008641301767e-15
+        ],
+        [
+          -2.6215975036131744e-17,
+          5.750849912011342,
+          -6.608940278362078e-18
+        ],
+        [
+          2.087008641301767e-15,
+          -6.608940278362078e-18,
+          5.750849912011341
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.2,
+          "y": -0.3,
+          "z": -0.3
+        },
+        "max": {
+          "x": 3.2,
+          "y": 0.3,
+          "z": 0.3
+        }
+      }
+    }
+  },
+  "nativeStepVolumeDifferenceCm3": 1.2878587085651816e-14,
+  "nativeStepMatches": true,
+  "material": {
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "massG": 13.546547522279194
+  },
+  "customProperties": {
+    "Description": "Exercise8.18 printed8-53/PDF431, original educational crossbar with nominal blind grip-retaining thread envelope. Companion CAD/AVI unavailable; no rated capacity.",
+    "PartNo": "KT12",
+    "BookItemNo": "12"
+  },
+  "metadataPass": true,
+  "browserDurability": "Pending parent observation"
+}
