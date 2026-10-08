@@ -1,0 +1,13 @@
+# Exercise8.18 — KT02 Hinge A acceptance
+
+Accepted2026-10-08, book printed8-53/PDF431, original educational Kant-Twist designer example. Source companion CAD/AVI unavailable. Parent authored from blank through visible desktop Chrome dark theme, mm. Six fully defined circle sketches/six features/twelve active history steps, one native solid. Saved library `cm_muzs3cnz`, `Planchard 8.18 - KT02 Hinge A - fresh designer example 2026-10-08`.
+
+Geometry: Ø16 barrelZ−16..16; two integralØ6 side journalsZ16..20.2 and−20.2..−16; Ø10 retaining flangeZ−22.8..−20.2. Top datumØ10.2 spindle crossbore runs throughY; Front datumØ3.2 blind retaining bore runsZ17.2..20.2. All centers0; each circle has a driving diameter and fixed center. Integral journals avoid a through-pin crossing the spindle path. Nominal smooth holes/retainers are educational, without thread-load or rated-capacity claims.
+
+Alloy Steel SOLIDWORKS educational reference7.70g/cm³, grade unspecified. SourceDescription/PartNoKT02/BookItemNo2 persist. Native dimensions16×16×43mm. Native volume5.6144638520461365cm³/mass0.04323137166075525kg. Imported STEP volume5.614467807664072cm³ differs3.96e−6cm³ (0.7045ppm curved-Boolean mass integration); exact native-minus-STEP and STEP-minus-native operations produce zero solids and zero volume. Both shapes are valid and equivalent at kernel tolerance.
+
+Browser verification: driving crossbore10.2→10.4mm decreased native volume to5.568592cm³/mass0.04287816kg. Undo/Redo/Undo showed10.2/10.4/10.2; finalSave restored nominal geometry. Cold Chrome reload, keep draft then actual library reopen verified12editable steps/one native solid/nominal mass and dimensions. Actual final bundle is `KT02-final-browser-2026-10-08.mforge`, Chrome download1,465399bytes. STEP `KT02-six-features-browser-2026-10-08.step`,102632bytes. Earlier six-feature bundle remains a pre-durability checkpoint.
+
+Evidence in artifacts/planchard: `KT02-six-features-native-mass-browser-2026-10-08.jpg`, `KT02-bore10_4-edit-browser-2026-10-08.jpg`, `KT02-cold-library-mass-browser-2026-10-08.jpg`, `KT02-cold-library-final-browser-2026-10-08.jpg`, independent design/native/STEP/difference audits. Detailed read-only report: `kant-twist-8.18-KT02-native-audit-2026-10-08.md`. Geometry was never authored by script; verification rebuilt only a read-only clone of the actual UI export.
+
+NextKT03 Brace A from a blank document. OnlyKT01/KT02 have part acceptance; remaining definitions,25-occurrence mechanism, motion andC-ANSI exploded drawing remain unfinished.

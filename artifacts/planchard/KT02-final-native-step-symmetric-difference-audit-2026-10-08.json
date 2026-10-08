@@ -1,0 +1,13 @@
+{
+  "bundle": "artifacts/planchard/KT02-final-browser-2026-10-08.mforge",
+  "step": "artifacts/planchard/KT02-six-features-browser-2026-10-08.step",
+  "nativeOutsideStep": {
+    "volume": 0,
+    "solidCount": 0
+  },
+  "stepOutsideNative": {
+    "volume": 0,
+    "solidCount": 0
+  },
+  "symmetricDifferenceVolumeCm3": 0
+}
