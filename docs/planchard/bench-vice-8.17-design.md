@@ -1,6 +1,6 @@
 # Exercise 8.17 — original bench vice design plan
 
-Status: BV01 base has six browser-authored features saved; remaining base holes and assembly work are pending. See [ADVANCE.md](ADVANCE.md) and the 2026-10-04 browser checkpoint for the current state. All new geometry must start from blank documents and be authored through visible desktop Chrome controls. Dimensions below are designer choices, not recovered companion dimensions or certified manufacturing fits.
+Status: BV01–BV06 and BV08–BV10 are accepted with browser/native evidence. BV07 sphere and socket sketch are saved, with sphere-cut eligibility repair underway. Assembly, motion and drawing remain pending. See [ADVANCE.md](ADVANCE.md) and the 2026-10-04 browser checkpoint for the current state. All new geometry must start from blank documents and be authored through visible desktop Chrome controls. Dimensions below are designer choices, not recovered companion dimensions or certified manufacturing fits.
 
 ## Source and references
 
@@ -104,3 +104,4 @@ The human hole-authoring workflow now has **Sketch → Dimensioned circle**, als
 Author BV01/03/05 first to verify interfaces; parallel BV02/04/06/07 and new BV08/09/10 only after the frozen layout is agreed. Use visible Settings→mm before entering geometry. Rectangles/circles fixed to named planes and fully dimensioned; normal extrusions and cuts must merge to one body. Use a proper revolved hemisphere profile for globes if no Sphere feature exists, then blind axial socket cut. Every source gets native mass7.70×volume(cm³), one-body validation, visible cold reload/library reopen, editable bundle+STEP and proof screenshot. No part mass target is inferred from book.
 
 Name assembly `Planchard 8.17 - Bench vice assembly - fresh designer example 2026-10-03`. Protect raw16-occurrence placement checkpoint before mates. Drawing: A(ANSI)/Letter landscape279.4×215.9mm, third angle, isometric exploded native bodies, manually authored explode steps/lines, sixteen balloon leaders and ten-row BOM, original dimensions/material/thread notes and title BENCH VICE. Preserve the conflicting book artwork title only in notes. Final acceptance requires fully resolved native mechanism, measured screw/jaw travel, cold solved reopen, actual clearances and drawing export; no completion is claimed by this plan.
+

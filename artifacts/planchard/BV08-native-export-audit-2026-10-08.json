@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\BV08-foot-screw-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 5,
+  "issues": [],
+  "volumeCm3": 0.7422508358660889,
+  "boundsCm": {
+    "min": {
+      "x": -0.4999999999999995,
+      "y": -1.4000000000000001,
+      "z": -0.5773502691896251
+    },
+    "max": {
+      "x": 0.4999999999999995,
+      "y": 0.4,
+      "z": 0.5773502691896251
+    }
+  },
+  "centerOfMassCm": {
+    "x": 1.6514965285871075e-17,
+    "y": -0.27996794304904743,
+    "z": 1.5191229230065187e-17
+  },
+  "seconds": 6.1403494
+}

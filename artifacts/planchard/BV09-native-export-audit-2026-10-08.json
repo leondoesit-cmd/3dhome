@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\BV09-retention-bolt-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 8,
+  "issues": [],
+  "volumeCm3": 0.9349337910752327,
+  "boundsCm": {
+    "min": {
+      "x": -0.4999999999999995,
+      "y": -1.58,
+      "z": -0.5773502691896251
+    },
+    "max": {
+      "x": 0.4999999999999995,
+      "y": 0.6000000000000001,
+      "z": 0.5773502691896251
+    }
+  },
+  "centerOfMassCm": {
+    "x": 2.1052168389741725e-17,
+    "y": -0.16101684739783778,
+    "z": 8.11759643286636e-18
+  },
+  "seconds": 5.9719373000000004
+}
