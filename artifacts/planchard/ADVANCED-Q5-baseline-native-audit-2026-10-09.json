@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q5-eight-step-cold-browser-2026-10-09.mforge",
+  "exact": true,
+  "featureCount": 11,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 238.028505132642,
+    "maxToleranceCm": 1.0000000177635683e-7
+  },
+  "volumeCm3": 238.028505132642,
+  "boundsCm": {
+    "min": {
+      "x": 0,
+      "y": 0,
+      "z": -10.000000000000002
+    },
+    "max": {
+      "x": 5,
+      "y": 6.300000000000002,
+      "z": 5.5511151168975915e-17
+    }
+  },
+  "centerOfMassCm": {
+    "x": 2.5292869162900913,
+    "y": 2.949798960410067,
+    "z": -6.155326476063867
+  },
+  "seconds": 6.4827116
+}

@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q5-upper-recess-Copper-browser-2026-10-09.mforge",
+  "exact": true,
+  "featureCount": 17,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 206.228505132642,
+    "maxToleranceCm": 1.0000000177635686e-7
+  },
+  "volumeCm3": 206.228505132642,
+  "boundsCm": {
+    "min": {
+      "x": 0,
+      "y": 0,
+      "z": -10.000000000000002
+    },
+    "max": {
+      "x": 5,
+      "y": 6.300000000000002,
+      "z": 5.5511151168975915e-17
+    }
+  },
+  "centerOfMassCm": {
+    "x": 2.5503864434152383,
+    "y": 2.5488534509336844,
+    "z": -5.892702169950926
+  },
+  "seconds": 6.1873073
+}

@@ -1,0 +1,228 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q5-upper-recess-browser-2026-10-09.mforge",
+  "baseline": "artifacts/planchard/ADVANCED-Q5-eight-step-cold-browser-2026-10-09.mforge",
+  "inputUnchanged": true,
+  "sourceSha256": "c47569c13fba3c885a52bdb5ee80b235835f8daf2fb33f8f95bb2f4eb6f7d032",
+  "sourceBytes": 367115,
+  "originalPreserved": {
+    "features": true,
+    "sketches": true,
+    "history": true
+  },
+  "checks": [
+    {
+      "widthMm": 50,
+      "heightMm": 40,
+      "centerMm": [
+        25,
+        -80
+      ],
+      "profileAndConstraints": true,
+      "fullyDefined": true,
+      "sketchPlaneOffsetMm": 63.00000000000001,
+      "featureAdditionalOffsetMm": 0,
+      "correctCut": true
+    },
+    {
+      "widthMm": 12,
+      "heightMm": 10,
+      "centerMm": [
+        6,
+        -55
+      ],
+      "profileAndConstraints": true,
+      "fullyDefined": true,
+      "sketchPlaneOffsetMm": 63.00000000000001,
+      "featureAdditionalOffsetMm": 0,
+      "correctCut": true
+    }
+  ],
+  "historyPass": true,
+  "before": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q5-eight-step-cold-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 11,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 238.028505132642,
+      "maxToleranceCm": 1.0000000177635683e-7
+    },
+    "volumeCm3": 238.028505132642,
+    "boundsCm": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": -10.000000000000002
+      },
+      "max": {
+        "x": 5,
+        "y": 6.300000000000002,
+        "z": 5.5511151168975915e-17
+      }
+    },
+    "centerOfMassCm": {
+      "x": 2.5292869162900913,
+      "y": 2.949798960410067,
+      "z": -6.155326476063867
+    },
+    "seconds": 6.4827116
+  },
+  "after": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q5-upper-recess-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 206.228505132642,
+      "maxToleranceCm": 1.0000000177635686e-7
+    },
+    "volumeCm3": 206.228505132642,
+    "boundsCm": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": -10.000000000000002
+      },
+      "max": {
+        "x": 5,
+        "y": 6.300000000000002,
+        "z": 5.5511151168975915e-17
+      }
+    },
+    "centerOfMassCm": {
+      "x": 2.5503864434152383,
+      "y": 2.5488534509336844,
+      "z": -5.892702169950926
+    },
+    "seconds": 7.128487600000001
+  },
+  "removedMass": {
+    "volume": 31.80000000000001,
+    "centerOfMass": {
+      "x": 2.3924528301886796,
+      "y": 5.55,
+      "z": -7.8584905660377355
+    },
+    "inertia": [
+      [
+        56.72570754717117,
+        -1.1368683772161603e-13,
+        8.066037735849022
+      ],
+      [
+        -1.1368683772161603e-13,
+        119.60939622641581,
+        4.547473508864641e-13
+      ],
+      [
+        8.066037735849022,
+        4.547473508864641e-13,
+        74.80868867924573
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 4.800000000000001,
+        "z": -10.000000000000002
+      },
+      "max": {
+        "x": 5,
+        "y": 6.300000000000002,
+        "z": -5
+      }
+    }
+  },
+  "addedMass": {
+    "volume": 0,
+    "solidCount": 0
+  },
+  "expectedRemovedMm3": {
+    "main": 30000,
+    "jog": 1800,
+    "total": 31800
+  },
+  "actualRemovedMm3": 31800.00000000001,
+  "volumeDifferenceMm3": 31800.00000000001,
+  "boundsUnchanged": true,
+  "step": {
+    "source": "artifacts/planchard/ADVANCED-Q5-upper-recess-browser-2026-10-09.step",
+    "bytes": 56421,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 206.22850513264243,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 206.22850513264243,
+      "centerOfMass": {
+        "x": 2.5503864434152455,
+        "y": 2.5488534509337275,
+        "z": -5.892702169950919
+      },
+      "inertia": [
+        [
+          1670.2615216189806,
+          -15.996557846296128,
+          -26.39571124902932
+        ],
+        [
+          -15.996557846296128,
+          1542.2389268409534,
+          37.25708365282708
+        ],
+        [
+          -26.39571124902932,
+          37.25708365282708,
+          996.1340969632279
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": 0,
+          "y": 0,
+          "z": -10
+        },
+        "max": {
+          "x": 5,
+          "y": 6.300000000000001,
+          "z": 5.551115116898e-17
+        }
+      }
+    }
+  },
+  "equivalence": {
+    "bundle": "artifacts/planchard/ADVANCED-Q5-upper-recess-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/ADVANCED-Q5-upper-recess-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "material": {
+    "sourceEvidence": "Independently viewed original rendered PDF509 / printed10-29: Given MaterialCopper, density.0089g/mm3",
+    "bookDensityGcm3": 8.9,
+    "actualMaterialFields": [
+      {}
+    ],
+    "persistedCopperVerified": false,
+    "materialAbsent": true,
+    "referenceOnlyMassKg": 1.835433695680514,
+    "scope": "Book density is a reference; actual persisted material assignment is absent in this checkpoint. No material-based acceptance or answer fit."
+  },
+  "checkpointOnly": true,
+  "remainingSourceUncertainties": "Unresolved side/rear profiles, lower relief width and hole datum; complete Q5 remains pending",
+  "geometryPass": true
+}

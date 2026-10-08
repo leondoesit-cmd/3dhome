@@ -1,0 +1,89 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q5-upper-recess-Copper-browser-2026-10-09.mforge",
+  "baseline": "artifacts/planchard/ADVANCED-Q5-upper-recess-browser-2026-10-09.mforge",
+  "bytes": 368306,
+  "inputSha256": "8ed81ed98a268dbcb2e26c6029eeb7f939b5de327baacb689b0472bcff669972",
+  "inputUnchanged": true,
+  "checks": {
+    "featuresExact": true,
+    "sketchesExact": true,
+    "historyExact": true,
+    "partGeometryExact": true,
+    "nativeVolumeUnchanged": true,
+    "nativeBoundsUnchanged": true,
+    "oneValidSolid": true,
+    "copperBody": true,
+    "sourceMatchesBook": true,
+    "engineeringRecordMatches": true,
+    "noMechanicalRating": true
+  },
+  "pass": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q5-upper-recess-Copper-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 206.228505132642,
+      "maxToleranceCm": 1.0000000177635686e-7
+    },
+    "volumeCm3": 206.228505132642,
+    "boundsCm": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": -10.000000000000002
+      },
+      "max": {
+        "x": 5,
+        "y": 6.300000000000002,
+        "z": 5.5511151168975915e-17
+      }
+    },
+    "centerOfMassCm": {
+      "x": 2.5503864434152383,
+      "y": 2.5488534509336844,
+      "z": -5.892702169950926
+    },
+    "seconds": 6.1873073
+  },
+  "massKg": 1.835433695680514,
+  "material": {
+    "name": "Copper (grade unspecified)",
+    "catalogId": "stock:copper",
+    "density": 8.9,
+    "densitySource": "Planchard, Engineering Graphics with SOLIDWORKS 2021, Advanced Question 5, printed 10-29 / PDF 509: Copper, density 0.0089 g/mm^3 = 8.9 g/cm^3; grade unspecified. Exercise reference, not a qualified material rating.",
+    "engineeringRecord": {
+      "catalogId": "stock:copper",
+      "grade": "Copper (grade unspecified)",
+      "density": 8.9,
+      "densitySource": "Planchard, Engineering Graphics with SOLIDWORKS 2021, Advanced Question 5, printed 10-29 / PDF 509: Copper, density 0.0089 g/mm^3 = 8.9 g/cm^3; grade unspecified. Exercise reference, not a qualified material rating.",
+      "condition": "",
+      "source": "",
+      "model": "qualified-rating",
+      "youngModulusMPa": 0,
+      "poissonRatio": 0,
+      "allowableBendingMPa": 0,
+      "allowableContactMPa": 0,
+      "minTemperatureC": 0,
+      "maxTemperatureC": 0,
+      "maxCycles": 0,
+      "maxHours": 0,
+      "maxRpm": 0,
+      "environment": "",
+      "lubrication": "",
+      "id": 5320
+    },
+    "scope": "Explicit exercise reference density only; generic stored model discriminator qualified-rating has no rated mechanical properties or supplier qualification."
+  },
+  "stepEquivalenceReuse": {
+    "evidence": "ADVANCED-Q5-upper-recess-step-equivalence-2026-10-09.json",
+    "symmetricDifferenceVolumeCm3": 0,
+    "reason": "Authored geometry/history exactly unchanged and fresh native geometry unchanged."
+  },
+  "checkpointOnly": true,
+  "completeQ5Accepted": false,
+  "coldBrowser": "Pending parent actual cold verification"
+}
