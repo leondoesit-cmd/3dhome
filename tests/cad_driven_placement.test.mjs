@@ -58,18 +58,32 @@ test('typed component pose drives a closed linkage for one solve without groundi
   });
 });
 
-test('fresh 55-occurrence five-loop crank reaches exact home even when optimizer settles above its strict threshold',()=>{
+test('fresh 55-occurrence five-loop crank converges to exact home and preserves every pose on a cold solve',()=>{
   const assembly=JSON.parse(fs.readFileSync(new URL('./fixtures/re75_native_mates.json',import.meta.url),'utf8'));
   const journal=assembly.components.find(c=>c.id===assembly.journalId);
   const entered={...Object.fromEntries(['x','y','z','rx','ry','rz'].map(key=>[key,journal.transform[key]])),rz:0};
   const driven=applyDrivenAssemblyPlacement(assembly,journal,entered,opts=>solveTopologyMates(assembly,opts));
   assert.equal(driven.ok,true,JSON.stringify(driven.result?.unsatisfied));
   assert.equal(driven.result.ok,true);
-  assert.equal(driven.result.settled,false,'the numerical convergence flag is stricter than the audited mate tolerances');
+  assert.equal(driven.result.settled,true,'tiny nonzero rotational corrections must reach numerical convergence');
+  assert.equal(driven.result.degreesOfFreedom,0);
+  assert.ok(driven.result.clusters.every(c=>c.converged&&c.rank===c.variableCount));
+  assert.deepEqual(driven.result.issues,[]);
   assert.deepEqual(driven.result.unsatisfied,[]);
   assert.ok(Math.abs(journal.transform.rz)<1e-10);
   const crankpin=assembly.components.find(c=>c.name==='RE10 eccentric crankpin');
   assert.ok(Math.abs(crankpin.transform.x)<1e-6);
   assert.ok(Math.abs(crankpin.transform.y-1.8)<1e-6);
   assert.equal(journal.grounded,false);
+  const reopened=structuredClone(assembly);
+  const replay=solveTopologyMates(reopened,{fixedComponentIds:[journal.id]});
+  assert.equal(replay.ok,true,JSON.stringify(replay));
+  assert.equal(replay.settled,true);
+  assert.deepEqual(replay.unsatisfied,[]);
+  reopened.components.forEach((component,i)=>{
+    for(const key of ['x','y','z','rx','ry','rz']){
+      assert.ok(Math.abs(component.transform[key]-assembly.components[i].transform[key])<1e-6,
+        `cold solve preserves ${component.name||component.id} ${key}`);
+    }
+  });
 });

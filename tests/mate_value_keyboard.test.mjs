@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import {validLimitMateBounds} from '../js/cad_mate_model.js';
 import {defaultTopologyMateAlignment} from '../js/cad_mate_reference_choices.js';
 import {solveTopologyMates} from '../js/cad_mates.js';
+import {assemblyMobilityReport} from '../js/core/assembly_mobility_status.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 test('mate removal exposes its type and occurrence detail to accessibility and keeps callback intact',()=>{
   const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
@@ -28,7 +29,7 @@ function numericInspector(mate){
   let solves=0,refreshes=0;
   const context={mate,E:{assembly:{topologyMates:[mate]}},el,mateUiRow:el('div'),btn:()=>el('button'),t:key=>key,fin:Number.isFinite,
     modelLengthUnit:()=> 'mm',lengthToDocument:value=>value*10,lengthFromDocument:value=>value/10,
-    validLimitMateBounds,flash:value=>messages.push(value),pushUndo:()=>undos.push(JSON.parse(JSON.stringify(mate))),
+    validLimitMateBounds,assemblyMobilityReport,flash:value=>messages.push(value),pushUndo:()=>undos.push(JSON.parse(JSON.stringify(mate))),
     solveAssembly:()=>solves++,refreshAll:()=>refreshes++,invalidateInterference:()=>{},updateAssemblyContexts:()=>({issues:[]}),
     setScrewMateDrive(assembly,id,turns,beforeCommit){
       assert.equal(assembly.topologyMates[0],mate);assert.equal(id,mate.id);

@@ -19335,7 +19335,7 @@ function openFormSubassembly() {
   var selected=(E.componentSel||[]).filter(function(component){return assembly?.components?.includes(component);});
   if(E.docType!=='assembly'||selected.length<2){flash(t('formSubassemblySelection'));return;}
   var selectedIds=selected.map(function(component){return component.id;});
-  openQuickForm({action:'formsubassembly',icon:'ph-stack',title:t('formSubassembly'),hint:t('formSubassemblyHint')+' '+selected.map(function(component){return component.name||component.modelKey||String(component.id);}).join(', '),fields:[
+  openQuickForm({action:'formsubassembly',icon:'formsubassembly',title:t('formSubassembly'),hint:t('formSubassemblyHint')+' '+selected.map(function(component){return component.name||component.modelKey||String(component.id);}).join(', '),fields:[
     {key:'name',label:t('name'),type:'text',value:t('formSubassemblyDefaultName')},
   ],onApply:function(values){
     if(E.docType!=='assembly'||E.assembly!==assembly)return false;

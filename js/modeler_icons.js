@@ -942,6 +942,25 @@ export const CAD_ICONS = {
   // ==========================================
 
   // Assembly: yellow component + green component mated together
+  // Form subassembly: two distinct solids enclosed in one rigid group.
+  formsubassembly: function () {
+    return l("M4 2 H2 V18 H4 M16 2 H18 V18 H16", 1.2) +
+      colorPath("M4 6 L8 4 L12 6 L12 10 L8 12 L4 10 Z", "#e89a24", "#e89a24", 1.1, ' fill-opacity="0.4"') +
+      l("M4 6 L8 8 L12 6 M8 8 V12", 1) +
+      colorPath("M8 12 L12 10 L16 12 L16 16 L12 18 L8 16 Z", "#17834f", "#17834f", 1.1, ' fill-opacity="0.4"') +
+      l("M8 12 L12 14 L16 12 M12 14 V18", 1);
+  },
+  rackpinionmate: function () {
+    return '<circle cx="10" cy="7" r="3" fill="currentColor" fill-opacity=".15" stroke="currentColor" stroke-width="1.2"/>' +
+      l("M10 2 V4 M10 10 V12 M5 7 H7 M13 7 H15 M6.5 3.5 L8 5 M12 9 L13.5 10.5 M13.5 3.5 L12 5 M8 9 L6.5 10.5", 1.2) +
+      p("M2 17 V14 H4 V12 H6 V14 H8 V12 H10 V14 H12 V12 H14 V14 H16 V12 H18 V17 Z", .2, 1) +
+      colorPath("M4 19 H16 M4 19 L6 18 M16 19 L14 18", "none", "#2684c7", 1);
+  },
+  rotationlimitmate: function () {
+    return l("M4 16 L4 4 M4 16 L16 8", 1.5) +
+      colorPath("M4 7 A9 9 0 0 1 11.5 11 M2 7 H6 M10 9 L13 12", "none", "#e89a24", 1.3) +
+      '<circle cx="4" cy="16" r="2" fill="currentColor"/>';
+  },
   assembly: function () {
     return (
       // Yellow component block
