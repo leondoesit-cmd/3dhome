@@ -4,6 +4,8 @@ import {readFileSync} from 'node:fs';
 import {createMotionPlayback,motionPreviewDuration} from '../js/core/motion_playback.js';
 import {createMotionPlaybackExecutor} from '../js/core/motion_playback_executor.js';
 import {createMotionStudy,addRotaryMotor,evaluateMotionStudy} from '../js/cad_motion_study.js';
+import vm from 'node:vm';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 const original=JSON.parse(readFileSync(new URL('./fixtures/welder_arm_23_mate_motion.json',import.meta.url)));
 function fixture(evaluate=evaluateMotionStudy){
   const assembly=structuredClone(original);assembly.topologyMates.find(m=>m.type==='gear').reverse=false;
@@ -104,4 +106,40 @@ test('browser playback frame callbacks avoid an illegal options receiver and clo
   const id=options.requestFrame(()=>{});options.cancelFrame(id);assert.ok(requested&&cancelled);
   assert.equal((body.match(/closeFeaturePanel\(\{assemblyPoseOnly:true\}\)/g)||[]).length,2);
   assert.equal((body.match(/refreshAll\(\{assemblyPoseOnly:true,skipAssemblySolve:true\}\)/g)||[]).length,2);
+});
+
+test('preview duration includes the authored study time while preserving an explicit saved duration',()=>{
+  assert.equal(motionPreviewDuration({time:10,motors:[{type:'screw',rpm:-75}]}),10);
+  assert.equal(motionPreviewDuration({time:0,motors:[{type:'screw',rpm:-75}]}),.8);
+  assert.equal(motionPreviewDuration({time:10,previewDurationSeconds:12,motors:[{rpm:-75}]}),12);
+  assert.equal(motionPreviewDuration({time:Infinity,motors:[{rpm:12}]}),5);
+});
+
+test('actual preview UI commits duration on Enter, Play, Reset and Keep without depending on blur',async()=>{
+  const assembly={components:[{id:'shaft',transform:{x:0}}],topologyMates:[],motionStudies:[{id:'study',name:'Bench vice',time:10,motors:[{type:'screw',rpm:-75}]}]};
+  const buttons=[],node=()=>({children:[],listeners:{},appendChild(child){this.children.push(child);},append(...children){this.children.push(...children);},setAttribute(){},addEventListener(name,callback){this.listeners[name]=callback;}});
+  const actions=node(),host=node();host.querySelector=()=>actions;
+  let inputs,playback,undos=0;
+  const context={E:{assembly,docType:'assembly'},root:{querySelector:()=>host},motionPreviewDuration,
+    openQuickForm:spec=>{inputs={duration:Object.assign(node(),{value:String(spec.fields[0].value)})};return inputs;},
+    el:()=>node(),btn:(label,action)=>{const button={label,action};buttons.push(button);return button;},
+    createMotionPlayback:(...args)=>playback=createMotionPlayback(...args),
+    createMotionPlaybackExecutor:()=>({dispose(){},evaluate:async(trial,id,time)=>{trial.motionStudies[0].time=time;return{ok:true};}}),
+    requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},invalidateInterference:()=>{},refreshAssemblyPosePreview:()=>true,
+    renderPreview:()=>{},syncDirty:()=>{},pushUndo:()=>undos++,closeFeaturePanel:()=>{},refreshAll:()=>{}};
+  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  vm.runInNewContext('var motionPlaybackCancel=null;'+sourceFunctionText(source,'openMotionPlayback')+';openMotionPlayback("study");',context);
+  assert.equal(inputs.duration.value,'10');assert.equal(playback.state.duration,10);
+  inputs.duration.value='12';let prevented=false,stopped=false;
+  inputs.duration.listeners.keydown({key:'Enter',preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});
+  assert.equal(playback.state.duration,12);assert.ok(prevented&&stopped);
+  inputs.duration.value='10';await buttons.find(button=>button.label==='Reset').action();
+  assert.equal(playback.state.duration,10);assert.equal(playback.state.time,0);
+  inputs.duration.value='20';await buttons.find(button=>button.label==='Play').action();
+  assert.equal(playback.state.duration,20);assert.equal(playback.state.running,true);
+  buttons.find(button=>button.label==='Pause').action();inputs.duration.value='0';
+  await buttons.find(button=>button.label==='Play').action();
+  assert.equal(inputs.duration.value,'20');assert.equal(playback.state.running,false,'invalid duration cannot start playback');
+  inputs.duration.value='14';buttons.find(button=>button.label==='Keep current pose').action();
+  assert.equal(assembly.motionStudies[0].previewDurationSeconds,14);assert.equal(undos,1);
 });

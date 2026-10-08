@@ -1,0 +1,1058 @@
+{
+  "key": "asm_muzoei6e",
+  "name": "Planchard 8.17 - Bench vice assembly - fresh designer example 2026-10-08",
+  "components": [
+    {
+      "id": 4018,
+      "name": "Planchard 8.17 - BV01 Base - fresh designer example 2026-10-03",
+      "grounded": true,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4019,
+      "name": "Planchard 8.17 - BV02 Base Plate - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 3,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4020,
+      "name": "Planchard 8.17 - BV02 Base Plate - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 14.6,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4021,
+      "name": "Planchard 8.17 - BV03 Vice Jaw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 1.28e-7,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4022,
+      "name": "Planchard 8.17 - BV04 Clamping Plate - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 1.28e-7,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4023,
+      "name": "Planchard 8.17 - BV05 Jaw Screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 0,
+        "y": 6.758141429,
+        "z": 0.531870418,
+        "rx": -171.00011539796003,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9969174127438486,
+          "y": 0,
+          "z": 0,
+          "w": 0.07845809179498808
+        }
+      }
+    },
+    {
+      "id": 4024,
+      "name": "Planchard 8.17 - BV06 Screw Bar - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": -2,
+        "y": 3.4,
+        "z": 0,
+        "rx": -171.00011539796003,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9969174127438486,
+          "y": 0,
+          "z": 0,
+          "w": 0.07845809179498808
+        }
+      }
+    },
+    {
+      "id": 4025,
+      "name": "Planchard 8.17 - BV07 Bar Globe - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": -2,
+        "y": 4.338594855,
+        "z": -5.926131934,
+        "rx": -171.00011539796003,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": -0.9969174127438486,
+          "y": 0,
+          "z": 0,
+          "w": 0.07845809179498808
+        }
+      }
+    },
+    {
+      "id": 4026,
+      "name": "Planchard 8.17 - BV07 Bar Globe - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": -2,
+        "y": 2.461405145,
+        "z": 5.926131934,
+        "rx": 8.999884602039934,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0.07845809179498808,
+          "y": 0,
+          "z": 0,
+          "w": 0.9969174127438487
+        }
+      }
+    },
+    {
+      "id": 4027,
+      "name": "Planchard 8.17 - BV08 Foot Hex Screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 3,
+        "y": -1.2,
+        "z": 2.5,
+        "rx": -180,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 4028,
+      "name": "Planchard 8.17 - BV08 Foot Hex Screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 3,
+        "y": -1.2,
+        "z": -2.5,
+        "rx": -180,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 4029,
+      "name": "Planchard 8.17 - BV08 Foot Hex Screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 14.6,
+        "y": -1.2,
+        "z": 2.5,
+        "rx": -180,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 4030,
+      "name": "Planchard 8.17 - BV08 Foot Hex Screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 14.6,
+        "y": -1.2,
+        "z": -2.5,
+        "rx": -180,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "w": 0
+        }
+      }
+    },
+    {
+      "id": 4031,
+      "name": "Planchard 8.17 - BV09 Retention Bolt - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 0.8,
+        "y": 5.8,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4032,
+      "name": "Planchard 8.17 - BV10 Keeper Screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 8.000000128,
+        "y": 2,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 4033,
+      "name": "Planchard 8.17 - BV10 Keeper Screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 9.000000128,
+        "y": 2,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    }
+  ],
+  "mates": [],
+  "context": {
+    "units": {
+      "length": "mm"
+    }
+  },
+  "topologyMates": [
+    {
+      "id": 4034,
+      "type": "lock",
+      "a": {
+        "componentId": 4018,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4019,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 3,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4035,
+      "type": "lock",
+      "a": {
+        "componentId": 4018,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4020,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 14.600000000000001,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4036,
+      "type": "lock",
+      "a": {
+        "componentId": 4018,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4027,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 3,
+          "y": -1.2000000000000002,
+          "z": 2.5
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            -1,
+            -1.2246467991473532e-16
+          ],
+          [
+            0,
+            1.2246467991473532e-16,
+            -1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4037,
+      "type": "lock",
+      "a": {
+        "componentId": 4018,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4028,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 3,
+          "y": -1.2000000000000002,
+          "z": -2.5
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            -1,
+            -1.2246467991473532e-16
+          ],
+          [
+            0,
+            1.2246467991473532e-16,
+            -1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4038,
+      "type": "lock",
+      "a": {
+        "componentId": 4018,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4029,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 14.600000000000001,
+          "y": -1.2000000000000002,
+          "z": 2.5
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            -1,
+            -1.2246467991473532e-16
+          ],
+          [
+            0,
+            1.2246467991473532e-16,
+            -1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4039,
+      "type": "lock",
+      "a": {
+        "componentId": 4018,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4030,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 14.600000000000001,
+          "y": -1.2000000000000002,
+          "z": -2.5
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            -1,
+            -1.2246467991473532e-16
+          ],
+          [
+            0,
+            1.2246467991473532e-16,
+            -1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4040,
+      "type": "lock",
+      "a": {
+        "componentId": 4018,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4031,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0.8,
+          "y": 5.800000000000001,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4041,
+      "type": "lock",
+      "a": {
+        "componentId": 4021,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4022,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4042,
+      "type": "lock",
+      "a": {
+        "componentId": 4021,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4032,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 8,
+          "y": 2,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4043,
+      "type": "lock",
+      "a": {
+        "componentId": 4021,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4033,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 9,
+          "y": 2,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4044,
+      "type": "lock",
+      "a": {
+        "componentId": 4023,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4024,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": -2,
+          "y": 3.4000000000000004,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4045,
+      "type": "lock",
+      "a": {
+        "componentId": 4024,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4025,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 4.440892098500626e-16,
+          "z": 6
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4046,
+      "type": "lock",
+      "a": {
+        "componentId": 4024,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4026,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 4.440892098500626e-16,
+          "z": -6
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            -1,
+            -1.2246467991473532e-16
+          ],
+          [
+            0,
+            1.2246467991473532e-16,
+            -1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4047,
+      "type": "concentric",
+      "a": {
+        "componentId": 4018,
+        "kind": "axis",
+        "persistentId": "axis:feature_mussuutp_5:tool:face:side:3724",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0.8,
+            "y": 3.4,
+            "z": 0
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 4023,
+        "kind": "axis",
+        "persistentId": "axis:feature_muzn0wjw_1:face:side:3874",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 8.91,
+            "y": 3.4000000000000004,
+            "z": 0
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4048,
+      "type": "distance",
+      "a": {
+        "componentId": 4018,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 4023,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4049,
+      "type": "distance",
+      "a": {
+        "componentId": 4018,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 4021,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        }
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4050,
+      "type": "distance",
+      "a": {
+        "componentId": 4018,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        }
+      },
+      "b": {
+        "componentId": 4021,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        }
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4051,
+      "type": "limit",
+      "a": {
+        "componentId": 4018,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 4021,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": true,
+      "value": 0,
+      "min": 0,
+      "max": 5
+    },
+    {
+      "id": 4052,
+      "type": "screw",
+      "a": {
+        "componentId": 4023,
+        "kind": "axis",
+        "persistentId": "axis:feature_muzn0wjw_1:face:side:3874",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 8.91,
+            "y": 3.4000000000000004,
+            "z": 0
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "b": {
+        "componentId": 4021,
+        "kind": "axis",
+        "persistentId": "axis:feature_muzmn0sj_4:tool:face:side:3835",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 10.3,
+            "y": 3.4000000000000004,
+            "z": 0
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      "aligned": false,
+      "value": 0,
+      "pitch": 0.4,
+      "turns": 0,
+      "coupledMotion": true,
+      "coupledAxial0": 1.39,
+      "coupledPhase0": 0,
+      "coupledAxialBasis": "component-origin"
+    }
+  ]
+}

@@ -15,6 +15,7 @@ test('six placement fields defer all mutation until Apply, while ordinary proper
  let placed=3,ordinary=7;
  const deferred=row(host,'X',()=>placed,value=>{placed=value;},.1,null,true);
  deferred.value='18';deferred.events.change();
+ deferred.events.keydown({key:'Enter',preventDefault(){},stopPropagation(){}});
  assert.equal(placed,3);
  assert.deepEqual(track,{undo:0,refresh:0});
  const normal=row(host,'Width',()=>ordinary,value=>{ordinary=value;},.1);

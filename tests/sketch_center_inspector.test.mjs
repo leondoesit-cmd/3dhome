@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {solveSketch} from '../js/sketch_solver.js';
 import {addDimensionedCircle} from '../js/sketch_dimensioned_circle.js';
+import {lengthFromDocument,lengthToDocument} from '../js/core/document_length_units.js';
 
 const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function fixture({fixCenter=true,linked=false}={}) {
@@ -121,4 +122,40 @@ test('a selected point constrained coincident to another anchor rejects edits wi
   assert.deepEqual(sketch,before);
   assert.equal(f.discarded,1);
   assert.match(f.messages[0],/point coordinate.*move the point/);
+});
+
+function propertyRows(f){
+  const element=tag=>({tag,children:[],events:{},appendChild(child){this.children.push(child);},setAttribute(){},addEventListener(name,handler){this.events[name]=handler;}});
+  const undos=[];let refreshes=0;
+  const bindings={el:element,fin:Number.isFinite,pushUndo:()=>undos.push(JSON.parse(JSON.stringify(f.sketch))),refreshAll:()=>refreshes++,t:key=>key,
+    modelLengthUnit:()=> 'mm',lengthToDocument,lengthFromDocument,E:{def:f.sketch},ensureSketch:def=>def,uid:()=> 'new-radius',
+    resolveSketch:()=>!['conflicting','over-constrained'].includes(solveSketch(f.sketch).status),detachDrivenSketchDimension:()=>{}};
+  const api=new Function(...Object.keys(bindings),'var propGen=0;'+sourceFunctionText(source,'numRow')+sourceFunctionText(source,'numLengthRow')+sourceFunctionText(source,'setEntityDimension')+';return {numLengthRow,setEntityDimension};')(...Object.values(bindings));
+  const host=element('div');
+  return {undos,get refreshes(){return refreshes;},coordinate:axis=>api.numLengthRow(host,'Center '+axis.toUpperCase(),()=>f.center[axis],value=>f.set(f.center,axis,value),.1),
+    radius:()=>api.numLengthRow(host,'R',()=>f.circle.r,value=>api.setEntityDimension(f.circle,'radius',Math.max(1e-6,value)),.1)};
+}
+function commitEnter(input,value){
+  input.value=value;let prevented=false,stopped=false;
+  input.events.keydown({key:'Enter',preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});
+  assert.ok(prevented&&stopped);
+}
+
+test('Shape circle Center U/V and R commit Enter in document mm through fixed anchors and radial driver',()=>{
+  const f=fixture();f.set(f.center,'x',14.6);f.set(f.center,'y',2.5);
+  const rows=propertyRows(f),u=rows.coordinate('x'),v=rows.coordinate('y'),radius=rows.radius();
+  assert.equal(u.value,'146');commitEnter(u,'170');assert.equal(f.center.x,17);
+  u.events.change();assert.equal(rows.undos.length,1,'Enter followed by change does not duplicate history');
+  commitEnter(v,'40');assert.equal(f.center.y,4);
+  commitEnter(radius,'12');assert.ok(Math.abs(f.circle.r-1.2)<1e-8);
+  const reopened=JSON.parse(JSON.stringify(f.sketch));assert.equal(solveSketch(reopened).status,'fully-constrained');
+  const anchor=reopened.constraints.find(constraint=>constraint.type==='fixed');assert.equal(anchor.x,17);assert.equal(anchor.y,4);
+  assert.ok(Math.abs(reopened.constraints.find(constraint=>constraint.type==='diameter').value-2.4)<1e-8);
+  assert.equal(rows.undos.length,3);assert.equal(rows.refreshes,3);
+});
+
+test('Shape coordinate Enter preserves conflicting controlling relations and refuses nonfinite input',()=>{
+  const f=fixture({linked:true}),before=JSON.parse(JSON.stringify(f.sketch)),rows=propertyRows(f),input=rows.coordinate('x');
+  commitEnter(input,'20');assert.deepEqual(f.sketch,before);assert.equal(f.discarded,1);assert.match(f.messages[0],/another sketch relation/);
+  commitEnter(input,'');assert.equal(input.value,'0');assert.equal(rows.undos.length,1,'nonfinite text adds no history');
 });

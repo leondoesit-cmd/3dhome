@@ -146,13 +146,14 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
       if(!result.ok)return result;
     }
   }else if(screwMotions.length){
-    // Every seek starts from this study's saved whole-assembly pose. Walk a
-    // helical linkage forward in small steps from that pose; using the last
-    // seek time with a restored home pose would jump branches on repeat seeks.
-    const largest=Math.max(...screwMotions.map(m=>Math.abs(m.rpm*timeInSeconds/60)));
+    // Random seeks restore the saved home pose. A validated forward cursor
+    // retains the last solved pose, so walk only its remaining time span;
+    // restarting at zero from that moved pose can strand the helical solver.
+    const start=resume?prior.time:0;
+    const largest=Math.max(...screwMotions.map(m=>Math.abs(m.rpm*(timeInSeconds-start)/60)));
     const steps=Math.ceil(largest/0.25);
     for(let step=0;step<=steps;step++){
-      const at=steps?timeInSeconds*step/steps:0;
+      const at=steps?start+(timeInSeconds-start)*step/steps:start;
       for(const item of screwMotions){
         trial.topologyMates.find(m=>m.id===item.mateId).driveTurns=item.baseTurns+item.rpm*at/60;
       }

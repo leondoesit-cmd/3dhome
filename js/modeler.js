@@ -157,7 +157,7 @@ import {applyDrivenAssemblyPlacement} from "./core/assembly_placement.js";
 import { draftFaceChoices } from "./core/draft_face_choices.js";
 import { ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, lookupAssemblyComponent, refreshSubassemblyFromRecord, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
 import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds } from "./cad_mate_model.js";
-import { setScrewMateHandedness } from "./cad_screw_controls.js";
+import { setScrewMateCoupledMotion, setScrewMateDrive, setScrewMateHandedness } from "./cad_screw_controls.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { ribSketchReady } from "./core/rib_profile.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
@@ -17140,10 +17140,19 @@ function beginContextPart(component,isNew) {
   setTab("parts");refreshAll();fitPreview();
 }
 
-function finishContextPart() {
+async function finishContextPart() {
   var edit=E.contextEdit;if(!edit)return;
+  if(edit.finishing)return false;
+  edit.finishing=true;
+  try {
   var component=assemblyComponentById(edit.componentId);
   var working=E.def;
+  // Finish must publish the edited native bodies and their matching topology
+  // before leaving the part document; switching first cancels that publication.
+  if(isCanonicalAuthoring() && activeParts(working).length){
+    var exact=await regenerateExactModel(false,{restoreMode:'mesh'});
+    if(!exact?.ok || E.contextEdit!==edit || E.def!==working)return false;
+  }
   E.def=edit.previousDef;E.contextEdit=null;
   setDocumentType("assembly");E.sel=component;E.componentSel=component?[component]:[];
   // Part Undo is local to the isolated working copy. The assembly gets one
@@ -17151,6 +17160,8 @@ function finishContextPart() {
   H.clear().seed();
   if(component){pushUndo("Edit component");commitComponentEdit(component,working);}
   solveAssembly({quiet:true});refreshAll();fitPreview();
+  return true;
+  } finally {edit.finishing=false;}
 }
 
 function cancelContextPart() {
@@ -18797,9 +18808,11 @@ function numRow(host, label, get, set, step, tourKey, deferUntilApply) {
   inp.type = "number";
   inp.step = step || 1;
   inp.value = String(get());
-  inp.addEventListener("change", function () {
+  var commit = function () {
     if (deferUntilApply) return;
     var v = parseFloat(inp.value);
+    if (!fin(v)) { inp.value=String(get()); return; }
+    if (Math.abs(v-Number(get()))<1e-12) return;
     /* One history step per visit to a field, not one per keystroke: the tag
        coalesces while the field stays focused, and blurring it ends the run so
        coming back later is a step of its own. */
@@ -18808,7 +18821,9 @@ function numRow(host, label, get, set, step, tourKey, deferUntilApply) {
       set(v);
       refreshAll();
     }
-  });
+  };
+  inp.addEventListener("change", commit);
+  inp.addEventListener("keydown",function(event){if(event.key==='Enter'){event.preventDefault();event.stopPropagation();commit();}});
   inp.addEventListener("blur", function () { propGen++; });
   w.appendChild(inp);
   host.appendChild(w);
@@ -19192,7 +19207,7 @@ function addTopologyMate(type, value) {
     value: type === "angle" ? clampMateAngle(value) : type === "distance" ? Number(value) : 0,
     pitch: type === "screw" ? 0.125 : undefined,
     turns: type === "screw" ? 0 : undefined,
-    coupledMotion: type === "screw" ? false : undefined,
+    coupledMotion: type === "screw" ? true : undefined,
     min: type === "limit" ? 0 : undefined,
     max: type === "limit" ? 2 : undefined,
     ratioA: type === "gear" ? (fin(Number(gearSpec.ratioA)) && Number(gearSpec.ratioA) > 0 ? Number(gearSpec.ratioA) : 1) : undefined,
@@ -19658,15 +19673,24 @@ function assemblyMateInspectorBody() {
       /* Screw, gear and angle-range mates carry numbers of their own. Each is
          edited where the mate is listed, one undo step per change, and the
          assembly is solved again so the motion is visible immediately. */
-      var extraField = function (title, current, step, commit, commitOnEnter) {
+      var extraField = function (title, current, step, commit) {
         var wrap = el("label", "md-mate-value"), input = el("input");
         wrap.appendChild(el("span", "", title));
         input.type = "number"; input.step = String(step);
         input.value = current == null || !fin(Number(current)) ? "" : String(Number(Number(current).toPrecision(10)));
         input.setAttribute("aria-label", title);
         input.addEventListener("change", function () { commit(input.value.trim() === "" ? null : Number(input.value), input); });
-        if(commitOnEnter)input.addEventListener('keydown',function(event){if(event.key==='Enter'){event.preventDefault();event.stopPropagation();commit(input.value.trim()===''?null:Number(input.value),input);}});
+        input.addEventListener('keydown',function(event){if(event.key==='Enter'){event.preventDefault();event.stopPropagation();commit(input.value.trim()===''?null:Number(input.value),input);}});
         wrap.appendChild(input); mateUiRow.appendChild(wrap);
+      };
+      var acceptScrewSolve = function(result){
+        invalidateInterference();
+        var contextResult=updateAssemblyContexts(E.assembly);
+        E.mateIssues=(result.issues || []).concat(contextResult.issues);
+        E.mateRebindings=result.rebindings || [];E.mateUnsatisfied=result.unsatisfied || [];
+        E.mateFreedom=result.clusters || [];E.mateDegreesOfFreedom=result.degreesOfFreedom || 0;
+        assemblySolveFresh=true;
+        refreshAll();
       };
       if (mate.type === "screw") {
         var screwHand = el("label", "md-mate-value"), screwHandInput = el("select");
@@ -19692,10 +19716,9 @@ function assemblyMateInspectorBody() {
         screwMode.appendChild(screwModeInput);
         screwMode.appendChild(el("span", "", "Couple rotation and travel (free screw joint)"));
         screwModeInput.addEventListener("change", function () {
-          pushUndo(t("screwMate"));
-          mate.coupledMotion = screwModeInput.checked;
-          delete mate.coupledAxial0; delete mate.coupledPhase0; delete mate.coupledAxialBasis; delete mate.driveTurns;
-          solveAssembly(); refreshAll();
+          var changed=setScrewMateCoupledMotion(E.assembly,mate.id,screwModeInput.checked,function(){pushUndo(t("screwMate"));});
+          if(!changed.ok){screwModeInput.checked=!!mate.coupledMotion;flash("Screw mode could not satisfy the assembly mates");return;}
+          acceptScrewSolve(changed);
         });
         mateUiRow.appendChild(screwMode);
         mateUiRow.appendChild(btn(mate.axisOpposed ? "Screw axes: Opposed" : "Screw axes: Aligned", function () {
@@ -19714,9 +19737,12 @@ function assemblyMateInspectorBody() {
         if (mate.coupledMotion) extraField("Drive turns (blank = free)", mate.driveTurns, 0.25, function (next, input) {
           if (next !== null && !fin(next)) { flash(t("mateScrewInvalid")); input.value = mate.driveTurns == null ? "" : String(mate.driveTurns); return; }
           if (next === mate.driveTurns || (next === null && mate.driveTurns == null)) return;
-          pushUndo(t("screwMate"));
-          if (next === null) delete mate.driveTurns; else mate.driveTurns = next;
-          solveAssembly(); refreshAll();
+          var driven = setScrewMateDrive(E.assembly,mate.id,next,function(){pushUndo(t("screwMate"));});
+          if(!driven.ok){
+            input.value=mate.driveTurns==null?"":String(mate.driveTurns);
+            flash("Screw drive could not satisfy the assembly mates");return;
+          }
+          acceptScrewSolve(driven);
         });
         else extraField(t("mateScrewTurns"), mate.turns, 0.25, function (next, input) {
           if (!fin(next)) { flash(t("mateScrewInvalid")); input.value = String(Number(mate.turns) || 0); return; }
@@ -19753,7 +19779,7 @@ function assemblyMateInspectorBody() {
             if(next===null||!fin(cm)||!(cm>0)){flash(t('beltInvalid'));input.value=modelLengthText(mate[pair[0]]);return;}
             if(cm===mate[pair[0]])return;
             pushUndo(t('beltMate'));mate[pair[0]]=cm;solveAssembly();refreshAll();
-          },true);
+          });
         });
         mateUiRow.appendChild(btn(t(mate.beltDirection==='open'?'beltOpen':'beltCrossed'),function(){
           pushUndo(t('beltMate'));mate.beltDirection=mate.beltDirection==='open'?'crossed':'open';solveAssembly();refreshAll();
@@ -19780,14 +19806,16 @@ function assemblyMateInspectorBody() {
           input.type = "number"; input.step = "0.001";
           input.value = String(Number(lengthToDocument(Number(mate[key]), unit).toPrecision(10)));
           input.setAttribute("aria-label", title);
-          input.addEventListener("change", function () {
+          var commitLimit = function () {
             var next = input.value.trim() === "" ? NaN : lengthFromDocument(Number(input.value), unit);
             var bounds = validLimitMateBounds(key === "min" ? next : mate.min, key === "max" ? next : mate.max);
             if (!bounds) { flash(t("mateLimitInvalidRange")); input.value = String(lengthToDocument(Number(mate[key]), unit)); return; }
             if (Math.abs(bounds[key] - Number(mate[key])) < 1e-9) return;
             pushUndo(t("mate")); mate.min = bounds.min; mate.max = bounds.max;
             solveAssembly(); refreshAll();
-          });
+          };
+          input.addEventListener("change", commitLimit);
+          input.addEventListener("keydown",function(event){if(event.key==='Enter'){event.preventDefault();event.stopPropagation();commitLimit();}});
           wrap.appendChild(input); mateUiRow.appendChild(wrap);
         });
       }
@@ -26093,13 +26121,19 @@ function openMotionPlayback(studyId) {
   });
   motionPlaybackCancel=cancel;
   showPose();
-  inputs.duration.addEventListener("change",()=>{if(!playback.setDuration(inputs.duration.value))inputs.duration.value=String(playback.state.duration);});
+  const commitDuration=()=>{
+    if(Number(inputs.duration.value)===playback.state.duration)return true;
+    if(playback.setDuration(inputs.duration.value))return true;
+    inputs.duration.value=String(playback.state.duration);return false;
+  };
+  inputs.duration.addEventListener("change",commitDuration);
+  inputs.duration.addEventListener("keydown",event=>{if(event.key==='Enter'){event.preventDefault();event.stopPropagation();commitDuration();}});
   scrub.addEventListener("input",()=>{const time=Number(scrub.value);playback.pause();scrub.value=String(time);status.textContent="Time "+time.toFixed(2)+" s · release to solve";});
   scrub.addEventListener("change",()=>{const time=Number(scrub.value);playback.pause();playback.seek(time);});
   const actions=host.querySelector('.md-feature-actions');actions.innerHTML="";
-  controls.play=btn("Play",()=>playback.play(),"md-quick-apply");actions.appendChild(controls.play);actions.appendChild(btn("Pause",()=>playback.pause()));
-  controls.reset=btn("Reset",()=>playback.reset());actions.appendChild(controls.reset);
-  controls.keep=btn("Keep current pose",()=>{if(!playback.keep())return;executor.dispose();motionPlaybackCancel=null;E.quickAction=null;closeFeaturePanel({assemblyPoseOnly:true});refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});});actions.appendChild(controls.keep);
+  controls.play=btn("Play",()=>{if(commitDuration())return playback.play();},"md-quick-apply");actions.appendChild(controls.play);actions.appendChild(btn("Pause",()=>playback.pause()));
+  controls.reset=btn("Reset",()=>{if(commitDuration())return playback.reset();});actions.appendChild(controls.reset);
+  controls.keep=btn("Keep current pose",()=>{if(!commitDuration() || !playback.keep())return;executor.dispose();motionPlaybackCancel=null;E.quickAction=null;closeFeaturePanel({assemblyPoseOnly:true});refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});});actions.appendChild(controls.keep);
   actions.appendChild(btn("Cancel preview",()=>{cancel();E.quickAction=null;closeFeaturePanel({assemblyPoseOnly:true});refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});}));
 }
 function createDefaultMotionStudy() {
@@ -26693,7 +26727,7 @@ function importStepDocument() {
 
 const exactSaveCache=createExactSaveCache();
 async function saveModel() {
-  if(E.contextEdit){finishContextPart();return saveAssemblyDocument();}
+  if(E.contextEdit){if(!await finishContextPart())return;return saveAssemblyDocument();}
   /* Save validates its own snapshot with an authoritative exact rebuild below.
      A display restoration can remain pending after its worker has finished;
      waiting on that unrelated publication barrier prevented any library write,

@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {topologyReference,solveTopologyMates} from '../js/cad_mates.js';
 import {createMotionStudy,addScrewMotor,evaluateMotionStudy} from '../js/cad_motion_study.js';
-import {setScrewMateHandedness} from '../js/cad_screw_controls.js';
+import {setScrewMateHandedness,setScrewMateDrive,setScrewMateCoupledMotion} from '../js/cad_screw_controls.js';
+import {readFileSync} from 'node:fs';
 
 const transform=()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0});
 const point=(x,y,z)=>({x,y,z});
@@ -60,4 +61,66 @@ test('left hand signed motor reverses winding and retains positive jaw advance a
  assert.equal(result.ok,true,JSON.stringify(result));
  assert.ok(Math.abs(reopened.components[2].transform.x-1)<1e-5);
  assert.equal(reopened.topologyMates.find(m=>m.id==='thread').coupledAxial0,0);
+});
+
+const browserVice=()=>JSON.parse(readFileSync(new URL('./fixtures/bench-vice-browser-native-mates.json',import.meta.url),'utf8'));
+test('actual browser vice recouples at its saved phase and drives signed guided travel',()=>{
+ const assembly=browserVice(),mate=assembly.topologyMates.find(m=>m.type==='screw');
+ // The browser export had a wrongly captured centroid zero labelled as an
+ // origin zero. Recreating the coupled joint at home explicitly clears it.
+ for(const key of ['coupledAxial0','coupledPhase0','coupledAxialBasis'])delete mate[key];
+ const jaw=assembly.components.find(c=>c.id===4021),home=structuredClone(jaw.transform);
+ assert.equal(solveTopologyMates(assembly).ok,true);
+ assert.ok(Math.abs(mate.coupledAxial0+home.x)<1e-7);
+ assert.ok(Math.abs(mate.coupledPhase0+2.984515034984657)<1e-7);
+ setScrewMateHandedness(mate,'lh');
+ let commits=0;
+ for(const turns of [.25,.5,.75,1,0]){
+  const result=setScrewMateDrive(assembly,mate.id,turns,()=>{commits++;});
+  assert.equal(result.ok,true,JSON.stringify(result));
+  assert.ok(Math.abs(jaw.transform.x-home.x-.4*turns)<1e-5);
+  for(const key of ['y','z','rx','ry','rz'])assert.ok(Math.abs(jaw.transform[key]-home[key])<1e-5,key);
+ }
+ assert.equal(commits,5);
+ const before=structuredClone(assembly);
+ const result=setScrewMateDrive(assembly,mate.id,-1,()=>{commits++;});
+ assert.equal(result.ok,false,'drive outside the native end stop is rejected');
+ assert.deepEqual(assembly,before,'failure preserves mate, follower poses and zero');
+ assert.equal(commits,5,'failed requests do not create undo entries');
+});
+
+test('actual browser vice with stale zero rejects a requested drive atomically',()=>{
+ const assembly=browserVice(),mate=assembly.topologyMates.find(m=>m.type==='screw');
+ const before=structuredClone(assembly);
+ assert.equal(setScrewMateDrive(assembly,mate.id,1).ok,false);
+ assert.deepEqual(assembly,before);
+});
+
+test('first direct drive captures an uncaptured browser joint before moving',()=>{
+ const assembly=browserVice(),mate=assembly.topologyMates.find(m=>m.type==='screw');
+ for(const key of ['coupledAxial0','coupledPhase0','coupledAxialBasis'])delete mate[key];
+ setScrewMateHandedness(mate,'lh');
+ const jaw=assembly.components.find(c=>c.id===4021),start=jaw.transform.x;
+ const result=setScrewMateDrive(assembly,mate.id,1);
+ assert.equal(result.ok,true,JSON.stringify(result));
+ assert.ok(Math.abs(jaw.transform.x-start-.4)<1e-5);
+});
+
+test('native new screw captures home without moving unequal axis centroids',()=>{
+ const assembly=browserVice(),mate=assembly.topologyMates.find(m=>m.type==='screw');
+ for(const key of ['coupledAxial0','coupledPhase0','coupledAxialBasis'])delete mate[key];
+ assert.equal(mate.a.frame.origin.x,8.91);
+ assert.equal(mate.b.frame.origin.x,10.3);
+ const before=assembly.components.map(c=>structuredClone(c.transform));
+ const result=solveTopologyMates(assembly);
+ assert.equal(result.ok,true,JSON.stringify(result));
+ assembly.components.forEach((c,i)=>{
+  for(const key of ['x','y','z','rx','ry','rz'])assert.ok(Math.abs(c.transform[key]-before[i][key])<1e-5);
+ });
+ assert.ok(Math.abs(mate.coupledAxial0)<1e-5,'axis centroid delta never becomes component-origin zero');
+ const saved=structuredClone(assembly);let commits=0;
+ assert.equal(setScrewMateCoupledMotion(assembly,mate.id,false,()=>{commits++;}).ok,false,
+  'legacy centroid prescription contradicts the guided home');
+ assert.deepEqual(assembly,saved);
+ assert.equal(commits,0);
 });
