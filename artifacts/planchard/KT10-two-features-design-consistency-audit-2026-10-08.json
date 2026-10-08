@@ -1,0 +1,341 @@
+{
+  "source": "artifacts/planchard/KT10-two-features-browser-2026-10-08.mforge",
+  "inputSha256": "c8503e0331259b3051966d3f780f2f54fc0517d53a6d81723210d694a536625c",
+  "inputUnchanged": true,
+  "checks": {
+    "rectanglePoints": true,
+    "rectangleLines": true,
+    "rectangleRelations": true,
+    "drivingDimensions": true,
+    "fixedCenter": true,
+    "constructionMidpoint": true,
+    "bore": true,
+    "planes": true,
+    "fullyDefined": true,
+    "boss": true,
+    "cut": true,
+    "featureCommon": true,
+    "history": true
+  },
+  "geometryMatchesFrozenPlan": true,
+  "sketches": [
+    {
+      "id": "sk_1y7ci",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": -1,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 4306,
+          "x": -1.2000000000000002,
+          "y": -0.7000000000000001
+        },
+        {
+          "id": 4307,
+          "x": 1.2000000000000002,
+          "y": -0.7000000000000001
+        },
+        {
+          "id": 4308,
+          "x": 1.2000000000000002,
+          "y": 0.7000000000000001
+        },
+        {
+          "id": 4309,
+          "x": -1.2000000000000002,
+          "y": 0.7000000000000001
+        },
+        {
+          "id": 4310,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 4311,
+          "type": "line",
+          "name": "Line",
+          "a": 4306,
+          "b": 4307,
+          "construction": false
+        },
+        {
+          "id": 4312,
+          "type": "line",
+          "name": "Line",
+          "a": 4307,
+          "b": 4308,
+          "construction": false
+        },
+        {
+          "id": 4313,
+          "type": "line",
+          "name": "Line",
+          "a": 4308,
+          "b": 4309,
+          "construction": false
+        },
+        {
+          "id": 4314,
+          "type": "line",
+          "name": "Line",
+          "a": 4309,
+          "b": 4306,
+          "construction": false
+        },
+        {
+          "id": 4315,
+          "type": "line",
+          "name": "Center rectangle diagonal",
+          "a": 4306,
+          "b": 4308,
+          "construction": true
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4316,
+          "type": "horizontal",
+          "entity": 4311,
+          "exprError": null
+        },
+        {
+          "id": 4317,
+          "type": "vertical",
+          "entity": 4312,
+          "exprError": null
+        },
+        {
+          "id": 4318,
+          "type": "horizontal",
+          "entity": 4313,
+          "exprError": null
+        },
+        {
+          "id": 4319,
+          "type": "vertical",
+          "entity": 4314,
+          "exprError": null
+        },
+        {
+          "id": 4320,
+          "type": "fixed",
+          "point": 4310,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": 4321,
+          "type": "midpoint",
+          "point": 4310,
+          "entity": 4315,
+          "exprError": null
+        },
+        {
+          "id": 4322,
+          "type": "distance",
+          "entity": 4311,
+          "value": 2.4000000000000004,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4323,
+          "type": "distance",
+          "entity": 4312,
+          "value": 1.4000000000000001,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_2w3eh",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": -1,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 4325,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 4326,
+          "type": "circle",
+          "name": "Circle",
+          "c": 4325,
+          "r": 0.41,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4327,
+          "type": "diameter",
+          "entity": 4326,
+          "value": 0.82,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4328,
+          "type": "fixed",
+          "point": 4325,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    }
+  ],
+  "featureParams": [
+    {
+      "operation": "add",
+      "endCondition": "blind",
+      "depth": 2,
+      "offset": 0,
+      "direction": "forward",
+      "symmetric": false,
+      "draftAngle": 0,
+      "draftOutward": false,
+      "thinFeature": false,
+      "thickness": 0.1,
+      "thinMode": "mid-plane",
+      "mergeResult": true,
+      "axis": "z",
+      "profileEntityIds": [
+        4311,
+        4312,
+        4313,
+        4314
+      ],
+      "holeProfileEntityIds": [],
+      "holes": [],
+      "sketchId": "sk_1y7ci",
+      "from": -1,
+      "to": 1
+    },
+    {
+      "operation": "subtract",
+      "endCondition": "through-all",
+      "depth": 2,
+      "offset": 0,
+      "direction": "forward",
+      "symmetric": false,
+      "draftAngle": 0,
+      "draftOutward": false,
+      "thinFeature": false,
+      "thickness": 0.1,
+      "thinMode": "mid-plane",
+      "keepTool": false,
+      "axis": "z",
+      "profileEntityIds": [
+        4326
+      ],
+      "holeProfileEntityIds": [],
+      "holes": [],
+      "sketchId": "sk_2w3eh",
+      "from": -1,
+      "to": 1.001
+    }
+  ],
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT10-two-features-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "volumeCm3": 5.663796549863113,
+    "boundsCm": {
+      "min": {
+        "x": -1.2000000000000002,
+        "y": -0.7000000000000001,
+        "z": -1
+      },
+      "max": {
+        "x": 1.2000000000000002,
+        "y": 0.7000000000000001,
+        "z": 1
+      }
+    },
+    "centerOfMassCm": {
+      "x": -2.1439796124264266e-18,
+      "y": -1.759877863999291e-18,
+      "z": 2.970943177219477e-17
+    },
+    "seconds": 5.6189885
+  },
+  "step": {
+    "source": "artifacts/planchard/KT10-two-features-browser-2026-10-08.step",
+    "bytes": 19840,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 5.663796549863074,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 5.663796549863074,
+      "centerOfMass": {
+        "x": -2.197885385538878e-15,
+        "y": 5.359591453078071e-19,
+        "z": 1.2251312071008237e-18
+      },
+      "inertia": [
+        [
+          2.941145233295693,
+          -1.3770862575041308e-16,
+          -4.605690828718576e-19
+        ],
+        [
+          -1.3770862575041308e-16,
+          5.069145233295689,
+          2.355561011405581e-19
+        ],
+        [
+          -4.605690828718576e-19,
+          2.355561011405581e-19,
+          4.234426100015989
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1.2,
+          "y": -0.7,
+          "z": -1
+        },
+        "max": {
+          "x": 1.2,
+          "y": 0.7,
+          "z": 1
+        }
+      }
+    }
+  },
+  "nativeStepVolumeDifferenceCm3": 3.907985046680551e-14,
+  "nativeStepMatches": true,
+  "material": {
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "massG": 43.61123343394597
+  },
+  "customProperties": {
+    "Description": "Exercise8.18 printed8-53/PDF431, original educational Kant-Twist inner floating jaw block with nominal pivot bore. Companion CAD/AVI unavailable; no rated capacity.",
+    "PartNo": "KT10",
+    "BookItemNo": "10"
+  },
+  "metadataPass": true,
+  "browserDurability": "Pending parent observation"
+}
