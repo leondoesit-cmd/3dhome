@@ -34,6 +34,22 @@ test('PBT stock assignment replaces stale steel density and preserves reference 
  assert.equal(mass.accuracy,'exact');
  assert.ok(Math.abs(mass.massG-10.48)<1e-8);
 });
+
+test('NBR-770 rubber assignment preserves manufacturer grade and reference density without qualifying strength',async()=>{
+ const part=box(),def={parts:[part]},profile=initialMaterialProfile('stock:rubber','rubber-reference');
+ assignMaterialProfile(def,part,profile);
+ const saved=JSON.parse(JSON.stringify(def));
+ assert.equal(drawingMaterialName(saved),'Nitrile rubber (NBR-770 reference)');
+ assert.equal(partMaterialDensity(saved.parts[0]),1.30);
+ assert.match(saved.parts[0].densitySource,/Burly Seal Products.*NBR-770.*70 Shore A.*specific gravity 1\.30/);
+ assert.match(saved.parts[0].densitySource,/not the book's unspecified Rubber library value.*certification/);
+ assert.equal(STOCK_MATERIALS.rubber.densitySourceUrl,'https://www.burlyseal.com/materials/');
+ assert.equal(profile.youngModulusMPa,0);assert.equal(profile.allowableBendingMPa,0);
+ assert.ok(validateMaterialProfile(profile,{elastic:true}).some(issue=>issue.field==='youngModulusMPa'));
+ const mass=await evaluateMassProperties(saved);
+ assert.equal(mass.accuracy,'exact');assert.ok(Math.abs(mass.massG-10.4)<1e-8);
+ assert.equal(partMaterialDensity({materialCatalogId:'stock:rubber',density:1.15}),1.15,'existing authored density retains priority');
+});
 test('1060 assignment replaces stale density and survives library serialization in exact mass',async()=>{
  const part=box(),def={parts:[part]},profile=initialMaterialProfile('stock:aluminum1060','profile');
  assignMaterialProfile(def,part,profile);

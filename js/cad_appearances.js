@@ -40,7 +40,9 @@ export const STOCK_MATERIALS = Object.freeze({
     densitySource: "Celanese, Celanex PBT Short-Term Properties Guide: unfilled 2002 specific gravity 1.31 (ASTM D792); representative grade reference, not the SOLIDWORKS library value",
     densitySourceUrl: "https://www.celanese.com/-/media/Engineered-Materials/Files/Product-Technical-Guides/POM-031R1_HostaformPOM-PTXfuelPPT_AM_0314.pdf" },
   titanium: { name: "Titanium Grade 5", color: "#9aa3ad", metal: 0.7, rough: 0.35, density: 4.43 },
-  rubber: { name: "Nitrile rubber", color: "#2a2a2c", metal: 0.02, rough: 0.72, density: 1.30 },
+  rubber: { name: "Nitrile rubber (NBR-770 reference)", color: "#2a2a2c", metal: 0.02, rough: 0.72, density: 1.30,
+    densitySource: "Burly Seal Products, NBR-770 Nitrile 70 Shore A: specific gravity 1.30; nominal CAD reference density 1.30 g/cm³, not the book's unspecified Rubber library value or a material/load certification",
+    densitySourceUrl: "https://www.burlyseal.com/materials/" },
   polycarbonate: { name: "Polycarbonate", color: "#c5d4dc", metal: 0.04, rough: 0.22, density: 1.20 },
 });
 
