@@ -1,0 +1,7 @@
+# Exercise 8.18 — fresh assembly placement checkpoint
+
+2026-10-08,printed8-53/PDF431. Fresh blank mm assembly `Planchard 8.18 - Kant Twist assembly - fresh designer example 2026-10-08`, savedlibraryasm_muzv3owb. All25occurrences inserted through Chrome Component model→Insertcomponent,uniquenames/Placementfields→Applyplacement. Sourceonlythe16freshacceptedKTdefinitions. KT01firstidentitygrounded;24othercomponentsfree. Zero mates at this protected placement checkpoint.
+
+Actual Chrome download `KT-assembly-placement-browser-2026-10-08.mforge`5514396bytes,screenshotmatchingopenposeprotected. Independent frozen-transform/source-recipe/properties/materialauditpasses. Sixteensourcedefinitions eachonevalidnative solid→25occurrences. Exacthomepositivevolumeclashesnone. Volume180.1617864487095cm³,totalmass1367.4709127324477g includingNBR1.30. COM(15.713245198761,98.455725382178,−0.054233582355)mm. See `kant-twist-8.18-assembly-placement-native-audit-2026-10-08.md`.
+
+This is placement acceptance only. Zero-mate solver count does not certify physicalmobility. Nativejointgroups currentlybeingauthored inChrome,notpartofthisprotectedbundle. Coupled Screw2mm/rev,spanLimit69.570108523704..90mm,fullmotion/beyondstopatomicity/nativeclearance/guidedandfreeswivelconfiguration/C-ANSIexplodeddrawingunfinished. Idealnominalthreads/designer dimensions/addedsleeves+Qretainer/missingcompanionCAD/AVI/no ratedcapacityexplicitlydisclosed.

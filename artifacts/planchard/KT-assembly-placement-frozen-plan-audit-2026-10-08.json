@@ -1,0 +1,1128 @@
+{
+  "source": "artifacts/planchard/KT-assembly-placement-browser-2026-10-08.mforge",
+  "inputSha256": "6676091fc22dcf7168f5528507eedc10248db03ace2c0f44f22745288ffb4a74",
+  "inputUnchanged": true,
+  "assemblyKey": "asm_muzv3owb",
+  "occurrences": 25,
+  "definitions": 16,
+  "poses": [
+    {
+      "id": 4397,
+      "name": "KT01 Bench base",
+      "expectedTranslationMm": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT01",
+      "grounded": true,
+      "pass": true
+    },
+    {
+      "id": 4398,
+      "name": "KT02 Hinge A",
+      "expectedTranslationMm": {
+        "x": -25,
+        "y": 105,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": -2.5,
+        "y": 10.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT02",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4399,
+      "name": "KT03 Brace A +Z",
+      "expectedTranslationMm": {
+        "x": 0,
+        "y": 150,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": 0,
+        "y": 15,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT03",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4400,
+      "name": "KT03 Brace A -Z",
+      "expectedTranslationMm": {
+        "x": 0,
+        "y": 150,
+        "z": -37
+      },
+      "actualTransform": {
+        "x": 0,
+        "y": 15,
+        "z": -3.7,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT03",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4401,
+      "name": "KT04 Pin P",
+      "expectedTranslationMm": {
+        "x": 0,
+        "y": 150,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": 0,
+        "y": 15,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT04",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4402,
+      "name": "KT04 Pin Q",
+      "expectedTranslationMm": {
+        "x": 45,
+        "y": 174.230769230769,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": 4.5,
+        "y": 17.423076923076902,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT04",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4403,
+      "name": "KT04 Pin JA",
+      "expectedTranslationMm": {
+        "x": 65,
+        "y": 185,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": 6.5,
+        "y": 18.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT04",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4404,
+      "name": "KT04 Pin JB",
+      "expectedTranslationMm": {
+        "x": 65,
+        "y": 115,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT04",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4405,
+      "name": "KT05 Grip A",
+      "expectedTranslationMm": {
+        "x": 65,
+        "y": 185,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": 6.5,
+        "y": 18.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT05",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4406,
+      "name": "KT06 Retainer JA",
+      "expectedTranslationMm": {
+        "x": 65,
+        "y": 185,
+        "z": 20.2
+      },
+      "actualTransform": {
+        "x": 6.5,
+        "y": 18.5,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT06",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4407,
+      "name": "KT06 Retainer JB",
+      "expectedTranslationMm": {
+        "x": 65,
+        "y": 115,
+        "z": 20.2
+      },
+      "actualTransform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT06",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4408,
+      "name": "KT06 Retainer Q",
+      "expectedTranslationMm": {
+        "x": 45,
+        "y": 174.230769230769,
+        "z": 20.2
+      },
+      "actualTransform": {
+        "x": 4.5,
+        "y": 17.423076923076902,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT06",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4409,
+      "name": "KT07 Brace B +Z",
+      "expectedTranslationMm": {
+        "x": 0,
+        "y": 150,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": 0,
+        "y": 15,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT07",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4410,
+      "name": "KT07 Brace B -Z",
+      "expectedTranslationMm": {
+        "x": 0,
+        "y": 150,
+        "z": -25
+      },
+      "actualTransform": {
+        "x": 0,
+        "y": 15,
+        "z": -2.5,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT07",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4411,
+      "name": "KT08 Cap RA",
+      "expectedTranslationMm": {
+        "x": -25,
+        "y": 105,
+        "z": 20.2
+      },
+      "actualTransform": {
+        "x": -2.5,
+        "y": 10.5,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT08",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4412,
+      "name": "KT08 Cap RB",
+      "expectedTranslationMm": {
+        "x": -25,
+        "y": 195,
+        "z": 14.2
+      },
+      "actualTransform": {
+        "x": -2.5,
+        "y": 19.5,
+        "z": 1.42,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT08",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4413,
+      "name": "KT09 Hinge B",
+      "expectedTranslationMm": {
+        "x": -25,
+        "y": 195,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": -2.5,
+        "y": 19.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT09",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4414,
+      "name": "KT10 Grip B",
+      "expectedTranslationMm": {
+        "x": 65,
+        "y": 115,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT10",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4415,
+      "name": "KT11 Shaft",
+      "expectedTranslationMm": {
+        "x": -25,
+        "y": 105,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": -2.5,
+        "y": 10.5,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT11",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4416,
+      "name": "KT12 Handle shaft",
+      "expectedTranslationMm": {
+        "x": -25,
+        "y": 83,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": -2.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT12",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4417,
+      "name": "KT13 Handle grip",
+      "expectedTranslationMm": {
+        "x": -25,
+        "y": 83,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": -2.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT13",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4418,
+      "name": "KT14 Grip screw",
+      "expectedTranslationMm": {
+        "x": -65,
+        "y": 83,
+        "z": 0
+      },
+      "actualTransform": {
+        "x": -6.5,
+        "y": 8.3,
+        "z": 0,
+        "rx": 0,
+        "ry": 180,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "w": 6.123233995736766e-17
+        }
+      },
+      "partNo": "KT14",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4419,
+      "name": "KT15 Retainer P",
+      "expectedTranslationMm": {
+        "x": 0,
+        "y": 150,
+        "z": 20.2
+      },
+      "actualTransform": {
+        "x": 0,
+        "y": 15,
+        "z": 2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT15",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4420,
+      "name": "KT16 Spacer JB +Z",
+      "expectedTranslationMm": {
+        "x": 65,
+        "y": 115,
+        "z": 14.2
+      },
+      "actualTransform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": 1.42,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT16",
+      "grounded": false,
+      "pass": true
+    },
+    {
+      "id": 4421,
+      "name": "KT16 Spacer JB -Z",
+      "expectedTranslationMm": {
+        "x": 65,
+        "y": 115,
+        "z": -20.2
+      },
+      "actualTransform": {
+        "x": 6.5,
+        "y": 11.5,
+        "z": -2.02,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "partNo": "KT16",
+      "grounded": false,
+      "pass": true
+    }
+  ],
+  "allFrozenPosesMatch": true,
+  "provenance": [
+    {
+      "partNo": "KT01",
+      "definitionId": "cm_muzrb8n4",
+      "finalSource": "artifacts/planchard/KT01-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzrb8n4"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise 8.18, printed 8-53 / PDF 431. Original educational designer example; companion CAD/AVI unavailable. Bench fixture revised for full handle rotation clearance. Six fully defined sketches. Ideal nominal holes and Alloy Steel reference; no rated capacity.",
+        "PartNo": "KT01",
+        "BookItemNo": "1"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT02",
+      "definitionId": "cm_muzs3cnz",
+      "finalSource": "artifacts/planchard/KT02-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzs3cnz"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise 8.18 printed 8-53/PDF431, original educational designer example. Hinge A with integral side journals and nominal blind retaining bore; ideal geometry, companion CAD/AVI unavailable.",
+        "PartNo": "KT02",
+        "BookItemNo": "2"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT03",
+      "definitionId": "cm_muzscwb3",
+      "finalSource": "artifacts/planchard/KT03-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzscwb3",
+        "cm_muzscwb3"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational Kant-Twist designer example. Outer fixed brace, paired in assembly. Exact designer coordinates; companion CAD/AVI unavailable; nominal holes, no rated capacity.",
+        "PartNo": "KT03",
+        "BookItemNo": "3"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT04",
+      "definitionId": "cm_muzslh3n",
+      "finalSource": "artifacts/planchard/KT04-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzslh3n",
+        "cm_muzslh3n",
+        "cm_muzslh3n",
+        "cm_muzslh3n"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational Kant-Twist designer example. Common pivot pin, four occurrences. Nominal blind retaining bore, no physical thread load claim; companion CAD/AVI unavailable.",
+        "PartNo": "KT04",
+        "BookItemNo": "4"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT05",
+      "definitionId": "cm_muzss7hl",
+      "finalSource": "artifacts/planchard/KT05-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzss7hl"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational Kant-Twist designer example. Outer floating jaw block with nominal pivot bore. Companion CAD/AVI unavailable; no rated capacity.",
+        "PartNo": "KT05",
+        "BookItemNo": "5"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT06",
+      "definitionId": "cm_muzt4ln7",
+      "finalSource": "artifacts/planchard/KT06-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzt4ln7",
+        "cm_muzt4ln7",
+        "cm_muzt4ln7"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational designer retainer proxy. Nominal smooth thread envelope; original oversized head, no standard or rated capacity. Qty3 includes disclosed additional Q retainer.",
+        "PartNo": "KT06",
+        "BookItemNo": "6"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT07",
+      "definitionId": "cm_muztcbk6",
+      "finalSource": "artifacts/planchard/KT07-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muztcbk6",
+        "cm_muztcbk6"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational Kant-Twist designer example. Mirrored moving brace; companion CAD/AVI unavailable, no rated capacity.",
+        "PartNo": "KT07",
+        "BookItemNo": "7"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT08",
+      "definitionId": "cm_muztklz2",
+      "finalSource": "artifacts/planchard/KT08-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muztklz2",
+        "cm_muztklz2"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational Pin B retaining cap proxy. Nominal smooth thread envelope, no standard inferred; companion CAD/AVI unavailable, no rated capacity.",
+        "PartNo": "KT08",
+        "BookItemNo": "8"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT09",
+      "definitionId": "cm_muztqbrg",
+      "finalSource": "artifacts/planchard/KT09-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muztqbrg"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational moving trunnion with integral journals and nominal smooth lead2mm threaded crossbore. Companion CAD/AVI unavailable; no rated capacity.",
+        "PartNo": "KT09",
+        "BookItemNo": "9"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT10",
+      "definitionId": "cm_muztxzqs",
+      "finalSource": "artifacts/planchard/KT10-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muztxzqs"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational Kant-Twist inner floating jaw block with nominal pivot bore. Companion CAD/AVI unavailable; no rated capacity.",
+        "PartNo": "KT10",
+        "BookItemNo": "10"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT11",
+      "definitionId": "cm_muzu3x2i",
+      "finalSource": "artifacts/planchard/KT11-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzu3x2i"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational spindle with capture collar and crossbar hub. Smooth nominal thread envelope, ideal RH2mm lead Y11.2..110mm; companion CAD/AVI unavailable, no rated capacity.",
+        "PartNo": "KT11",
+        "BookItemNo": "11"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT12",
+      "definitionId": "cm_muzuacdn",
+      "finalSource": "artifacts/planchard/KT12-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzuacdn"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational crossbar with nominal blind grip-retaining thread envelope. Companion CAD/AVI unavailable; no rated capacity.",
+        "PartNo": "KT12",
+        "BookItemNo": "12"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT13",
+      "definitionId": "cm_muzufld4",
+      "finalSource": "artifacts/planchard/KT13-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzufld4"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise8.18 printed8-53/PDF431, original educational rubber grip proxy. NBR-770 manufacturer reference density1.30g/cm3 replaces unspecified book Rubber assumption; not book-library identity or certification. Companion CAD/AVI unavailable; no rated capacity.",
+        "PartNo": "KT13",
+        "BookItemNo": "13"
+      },
+      "materials": [
+        {
+          "density": 1.3,
+          "densitySource": "Burly Seal Products, NBR-770 Nitrile 70 Shore A: specific gravity 1.30; nominal CAD reference density 1.30 g/cm³, not the book's unspecified Rubber library value or a material/load certification",
+          "materialName": "Nitrile rubber (NBR-770 reference)",
+          "materialCatalogId": "stock:rubber"
+        }
+      ]
+    },
+    {
+      "partNo": "KT14",
+      "definitionId": "cm_muzup8x1",
+      "finalSource": "artifacts/planchard/KT14-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzup8x1"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise 8.18 printed8-53/PDF431; original educational grip retaining screw with smooth nominal thread envelope. Companion CAD/AVI unavailable, designer dimensions, no rated capacity.",
+        "PartNo": "KT14",
+        "BookItemNo": "14"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT15",
+      "definitionId": "cm_muzuv4qd",
+      "finalSource": "artifacts/planchard/KT15-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzuv4qd"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise 8.18 printed8-53/PDF431; original educational stand pin retainer with smooth nominal thread envelope. Companion CAD/AVI unavailable, designer dimensions, no rated capacity.",
+        "PartNo": "KT15",
+        "BookItemNo": "15"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    },
+    {
+      "partNo": "KT16",
+      "definitionId": "cm_muzuzl1q",
+      "finalSource": "artifacts/planchard/KT16-final-browser-2026-10-08.mforge",
+      "modelKeys": [
+        "cm_muzuzl1q",
+        "cm_muzuzl1q"
+      ],
+      "matchesFinalFeatures": true,
+      "matchesFinalSketches": true,
+      "matchesFinalProperties": true,
+      "matchesFinalMaterial": true,
+      "matchesFinalAppearances": true,
+      "properties": {
+        "Description": "Exercise 8.18 printed8-53/PDF431; original educational additional jaw spacer sleeve, quantity2. Companion CAD/AVI unavailable, designer dimensions and added hardware disclosed, no rated capacity.",
+        "PartNo": "KT16",
+        "BookItemNo": "Additional spacer"
+      },
+      "materials": [
+        {
+          "density": 7.7,
+          "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+          "materialName": "Alloy Steel (SOLIDWORKS reference)",
+          "materialCatalogId": "stock:alloySteel"
+        }
+      ]
+    }
+  ],
+  "allFinalRecipesAndProvenanceMatch": true,
+  "allNativeDefinitionsValidSingleSolid": true,
+  "home": {
+    "instances": 25,
+    "uniqueExactRecipes": 16,
+    "totalVolumeCm3": 180.1617864487095,
+    "totalMassG": 1367.4709127324477,
+    "grounded": [
+      "KT01 Bench base"
+    ],
+    "countByModel": {
+      "cm_muzrb8n4": 1,
+      "cm_muzs3cnz": 1,
+      "cm_muzscwb3": 2,
+      "cm_muzslh3n": 4,
+      "cm_muzss7hl": 1,
+      "cm_muzt4ln7": 3,
+      "cm_muztcbk6": 2,
+      "cm_muztklz2": 2,
+      "cm_muztqbrg": 1,
+      "cm_muztxzqs": 1,
+      "cm_muzu3x2i": 1,
+      "cm_muzuacdn": 1,
+      "cm_muzufld4": 1,
+      "cm_muzup8x1": 1,
+      "cm_muzuv4qd": 1,
+      "cm_muzuzl1q": 2
+    },
+    "hits": []
+  },
+  "nativeSolidOccurrences": 25,
+  "centerOfMassCm": {
+    "x": 1.5713245198761332,
+    "y": 9.845572538217777,
+    "z": -0.005423358235466665
+  },
+  "canonicalMates": 0,
+  "legacyMates": 0,
+  "placementOnly": "Zero mates. KT01 alone grounded. Reported clone solver DOF0 at zero mates is not a physical mobility acceptance; 24 unconnected free occurrences remain to be mated.",
+  "assemblyAcceptance": "Pending native mate/reference binding, guided/free-swivel DOF and driven continuous-motion interference verification."
+}
