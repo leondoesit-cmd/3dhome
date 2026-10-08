@@ -1,0 +1,222 @@
+{
+  "source": "artifacts/planchard/KT14-two-features-browser-2026-10-08.mforge",
+  "inputSha256": "c3ebb0e9faf49ddfc9d7954259e67dfd060e86ef7711d2c18f4bf2b99f8f6a8b",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Nominal stem",
+      "plane": "side",
+      "d": 4,
+      "from": -12,
+      "to": 0,
+      "sketchId": "sk_1lkpr",
+      "featureId": "feature_muzupwa3_1",
+      "points": [
+        {
+          "id": 4370,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4372,
+          "type": "diameter",
+          "entity": 4371,
+          "value": 0.4,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4373,
+          "type": "fixed",
+          "point": 4370,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 1.2000000000000002,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          4371
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1lkpr",
+        "from": -1.2000000000000002,
+        "to": 0
+      },
+      "fullyDefined": true,
+      "planeCorrect": true,
+      "centerFixed": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Retaining head",
+      "plane": "side",
+      "d": 8,
+      "from": 0,
+      "to": 3,
+      "sketchId": "sk_2w48o",
+      "featureId": "feature_muzuqah0_2",
+      "points": [
+        {
+          "id": 4375,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4377,
+          "type": "diameter",
+          "entity": 4376,
+          "value": 0.8,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4378,
+          "type": "fixed",
+          "point": 4375,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.30000000000000004,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          4376
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2w48o",
+        "from": 0,
+        "to": 0.30000000000000004
+      },
+      "fullyDefined": true,
+      "planeCorrect": true,
+      "centerFixed": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT14-two-features-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "volumeCm3": 0.3015928947446202,
+    "boundsCm": {
+      "min": {
+        "x": -1.2000000000000002,
+        "y": -0.4,
+        "z": -0.4
+      },
+      "max": {
+        "x": 0.30000000000000004,
+        "y": 0.4,
+        "z": 0.4
+      }
+    },
+    "centerOfMassCm": {
+      "x": -0.22500000000000006,
+      "y": 5.754530085408903e-18,
+      "z": -5.1766840518611916e-17
+    },
+    "seconds": 6.2129681
+  },
+  "step": {
+    "source": "artifacts/planchard/KT14-two-features-browser-2026-10-08.step",
+    "bytes": 9706,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.3015928947446185,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 0.3015928947446185,
+      "centerOfMass": {
+        "x": -0.22499999999999537,
+        "y": 8.360038724202513e-18,
+        "z": -4.572737579144079e-16
+      },
+      "inertia": [
+        [
+          0.015079644737231147,
+          -3.92435765643197e-19,
+          -3.7879855502298615e-16
+        ],
+        [
+          -3.92435765643197e-19,
+          0.06917787023204688,
+          -1.4863196941854655e-18
+        ],
+        [
+          -3.7879855502298615e-16,
+          -1.4863196941854655e-18,
+          0.06917787023204701
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1.2,
+          "y": -0.4,
+          "z": -0.4
+        },
+        "max": {
+          "x": 0.3,
+          "y": 0.4,
+          "z": 0.4
+        }
+      }
+    }
+  },
+  "nativeStepVolumeDifferenceCm3": 1.7208456881689926e-15,
+  "nativeStepMatches": true,
+  "material": {
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "massG": 2.3222652895335756
+  },
+  "customProperties": {
+    "Description": "Exercise 8.18 printed8-53/PDF431; original educational grip retaining screw with smooth nominal thread envelope. Companion CAD/AVI unavailable, designer dimensions, no rated capacity.",
+    "PartNo": "KT14",
+    "BookItemNo": "14"
+  },
+  "metadataPass": true,
+  "browserDurability": "Pending parent observation"
+}

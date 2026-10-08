@@ -1,6 +1,6 @@
 # Planchard book completion plan
 
-**Current continuation pointer (2026-10-08): [ADVANCE.md](ADVANCE.md).** Exercise8.17 Bench Vice accepted; resume Exercise8.18 Kant-Twist Clamp, printed8-53/PDF431. KT01–KT13 standalone definitions accepted; KT14 grip screw in progress. Remaining clamp definitions, assembly, motion and drawing are unfinished. Exercises8.14–8.17 have superseding accepted browser reports. Historical tables below require reconciliation against these reports.
+**Current continuation pointer (2026-10-08): [ADVANCE.md](ADVANCE.md).** Exercise8.17 Bench Vice accepted; resume Exercise8.18 Kant-Twist Clamp, printed8-53/PDF431. KT01–KT14 standalone definitions accepted; KT15 stand pin retainer in progress. Remaining clamp definitions, assembly, motion and drawing are unfinished. Exercises8.14–8.17 have superseding accepted browser reports. Historical tables below require reconciliation against these reports.
 
 Source book: David C. Planchard, *Engineering Graphics with SOLIDWORKS 2021* (587 PDF pages; text extract at `scratch/planchard/book.txt`). Page references below are **PDF pages**.
 Status log: [workflow-audit.md](workflow-audit.md). This plan replaces the audit's "Remaining project coverage" table as the working to-do list. The audit stays as the history log.
@@ -389,5 +389,6 @@ Consequences for this plan:
 Re-authoring cost, measured: Base Extrude took about twelve UI operations at a
 desktop viewport, so a loss is recoverable but not free. The per-step parameters
 in this section are what made the rebuild quick — keep them current.
+
 
 
