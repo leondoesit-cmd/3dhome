@@ -1,0 +1,220 @@
+{
+  "source": "artifacts/planchard/KT06-two-features-browser-2026-10-08.mforge",
+  "inputSha256": "1f46b44d41651fd950e19e630ab2cbf7f109c9e28cab2122ba4fba73f237d8ac",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Nominal stem",
+      "d": 4,
+      "from": -4,
+      "to": 0,
+      "sketchId": "sk_1ab6q",
+      "featureId": "feature_muzt5hcl_1",
+      "points": [
+        {
+          "id": 4229,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4231,
+          "type": "diameter",
+          "entity": 4230,
+          "value": 0.4,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4232,
+          "type": "fixed",
+          "point": 4229,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.4,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4230
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1ab6q",
+        "from": -0.4,
+        "to": 0
+      },
+      "fullyDefined": true,
+      "planeCorrect": true,
+      "centerFixed": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Original oversized head",
+      "d": 12,
+      "from": 0,
+      "to": 2,
+      "sketchId": "sk_2ho9y",
+      "featureId": "feature_muzt61gr_2",
+      "points": [
+        {
+          "id": 4234,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4236,
+          "type": "diameter",
+          "entity": 4235,
+          "value": 1.2000000000000002,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4237,
+          "type": "fixed",
+          "point": 4234,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.2,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4235
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2ho9y",
+        "from": 0,
+        "to": 0.2
+      },
+      "fullyDefined": true,
+      "planeCorrect": true,
+      "centerFixed": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT06-two-features-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 5,
+    "issues": [],
+    "volumeCm3": 0.27646015351590186,
+    "boundsCm": {
+      "min": {
+        "x": -0.6000000000000001,
+        "y": -0.6000000000000001,
+        "z": -0.4
+      },
+      "max": {
+        "x": 0.6000000000000001,
+        "y": 0.6000000000000001,
+        "z": 0.2
+      }
+    },
+    "centerOfMassCm": {
+      "x": -5.019814838168428e-17,
+      "y": -9.490619159008401e-19,
+      "z": 0.04545454545454545
+    },
+    "seconds": 5.7054350000000005
+  },
+  "step": {
+    "source": "artifacts/planchard/KT06-two-features-browser-2026-10-08.step",
+    "bytes": 9748,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.2764601535159029,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 0.2764601535159029,
+      "centerOfMass": {
+        "x": 4.611954882567226e-15,
+        "y": -2.685864472748237e-17,
+        "z": 0.045454545454547295
+      },
+      "inertia": [
+        [
+          0.025985731234056883,
+          2.5390507553558367e-18,
+          -1.4045346325380162e-16
+        ],
+        [
+          2.5390507553558367e-18,
+          0.025985731234057324,
+          3.564782618070862e-19
+        ],
+        [
+          -1.4045346325380162e-16,
+          3.564782618070862e-19,
+          0.041720350439673565
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.6,
+          "y": -0.6,
+          "z": -0.4
+        },
+        "max": {
+          "x": 0.6,
+          "y": 0.6,
+          "z": 0.2
+        }
+      }
+    }
+  },
+  "nativeStepVolumeDifferenceCm3": 1.0547118733938987e-15,
+  "nativeStepMatches": true,
+  "material": {
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "massG": 2.1287431820724443
+  },
+  "customProperties": {
+    "Description": "Exercise8.18 printed8-53/PDF431, original educational designer retainer proxy. Nominal smooth thread envelope; original oversized head, no standard or rated capacity. Qty3 includes disclosed additional Q retainer.",
+    "PartNo": "KT06",
+    "BookItemNo": "6"
+  },
+  "metadataPass": true,
+  "browserDurability": "Pending parent observation"
+}

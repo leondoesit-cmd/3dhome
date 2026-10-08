@@ -24,3 +24,9 @@ test('Cmd resolves canonical Custom properties, legacy caption and Hebrew to the
   assert.equal(api.editorToolNamed('plan','Custom properties'),null,'alias respects editor scope');
   assert.equal(api.suggestTools('model','Custom').filter(item=>item.label==='Custom properties').length,1,'alias does not duplicate a suggestion');
 });
+
+test('precise Center rectangle is reachable by its canonical and previous Cmd names',()=>{
+  const lookup=new Function('proTools','proLabel',['editorToolNames','editorToolNamed'].map(name=>sourceFunctionText(source,name)).join('\n')+';return editorToolNamed;')(proTools,proLabel);
+  for(const name of ['Center rectangle','Centre rect','Centre rectangle','Dimensioned rectangle',proLabel('Center rectangle','he')])
+    assert.equal(lookup('model',name)?.bind,'mcmd:centerrectangle',name);
+});

@@ -1,6 +1,6 @@
 # Exercise 8.18 — original Kant Twist clamp proposal
 
-**KT01–KT05 accepted through Chrome2026-10-08; remaining definitions and assembly pending.** See `kant-twist-8.18-KT01-acceptance-2026-10-08.md`. Book location: printed8-53/PDF431, following the vice at8-52/PDF430. 8.17 is accepted in `bench-vice-8.17-final-acceptance-2026-10-08.md`. This is an original educational cantilever mechanism, not a reconstruction of unavailable companion dimensions or a rated commercial clamp. The analytic layout below precedes browser authoring; actual native solids, reference binding, motion and exact interference acceptance remain required.
+**KT01–KT06 accepted through Chrome2026-10-08; remaining definitions and assembly pending.** See `kant-twist-8.18-KT01-acceptance-2026-10-08.md`. Book location: printed8-53/PDF431, following the vice at8-52/PDF430. 8.17 is accepted in `bench-vice-8.17-final-acceptance-2026-10-08.md`. This is an original educational cantilever mechanism, not a reconstruction of unavailable companion dimensions or a rated commercial clamp. The analytic layout below precedes browser authoring; actual native solids, reference binding, motion and exact interference acceptance remain required.
 
 Frozen revision: **postX40,100×60 foot,60×24 stand head centeredX18, handle setback22mm**. Earlier draft postX0 and handle setback14.2mm are rejected: the former crossed the handle bar; the latter admitted a grip/BraceA rear-cap clash during full roll. These revisions were made before any8.18 geometry was authored. Read the current dimensions below, not the earlier chat proposals.
 
@@ -135,4 +135,4 @@ These are analytic geometry bounds for the frozen layout. They do not substitute
 
 ## Resume queue
 
-Current status: **KT01–KT05 accepted, KT05 next from blank**. Exact arbitrary-polyline numeric authoring was verified through visible Line clicks, shared point Fix anchors and Shape U/V edits. Native assembly limit/solver workflow remains pending. Resume details are in `ADVANCE.md`. A capability gap found during authoring should get a focused repair and browser revalidation. KT01–KT04 have separate part acceptance; native full-loop solver and drawing acceptance remain pending.
+Current status: **KT01–KT06 accepted, KT07 next from blank**. Exact arbitrary-polyline numeric authoring was verified through visible Line clicks, shared point Fix anchors and Shape U/V edits. Native assembly limit/solver workflow remains pending. Resume details are in `ADVANCE.md`. A capability gap found during authoring should get a focused repair and browser revalidation. KT01–KT06 have separate part acceptance; native full-loop solver and drawing acceptance remain pending.
