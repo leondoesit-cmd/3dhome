@@ -1,0 +1,286 @@
+{
+  "source": "artifacts/planchard/KT04-final-browser-2026-10-08.mforge",
+  "inputSha256": "ceda3aa3b29cb4fd5f7e87ac9d72b1d976bbbb3c337d092c81eacb4db9c5cdd8",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Pin shaft",
+      "d": 8,
+      "from": -20.2,
+      "to": 20.2,
+      "depth": 40.4,
+      "sketchId": "sk_1acf7",
+      "featureId": "feature_muzslncw_1",
+      "points": [
+        {
+          "id": 4195,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4197,
+          "type": "diameter",
+          "entity": 4196,
+          "value": 0.8,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4198,
+          "type": "fixed",
+          "point": 4195,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 4.04,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4196
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1acf7",
+        "from": -2.02,
+        "to": 2.02
+      },
+      "fullyDefined": true,
+      "planeCorrect": true,
+      "centerFixed": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Integral head",
+      "d": 12,
+      "from": -23.2,
+      "to": -20.2,
+      "depth": 3,
+      "sketchId": "sk_2vcak",
+      "featureId": "feature_muzsm3bh_2",
+      "points": [
+        {
+          "id": 4200,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4202,
+          "type": "diameter",
+          "entity": 4201,
+          "value": 1.2000000000000002,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4203,
+          "type": "fixed",
+          "point": 4200,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.30000000000000004,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          4201
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2vcak",
+        "from": -2.32,
+        "to": -2.0199999999999996
+      },
+      "fullyDefined": true,
+      "planeCorrect": true,
+      "centerFixed": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    },
+    {
+      "role": "Nominal retaining bore",
+      "d": 4,
+      "from": 16.2,
+      "to": 20.2,
+      "depth": 4,
+      "cut": true,
+      "sketchId": "sk_3viik",
+      "featureId": "feature_muzsmkuq_3",
+      "points": [
+        {
+          "id": 4205,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "constraints": [
+        {
+          "id": 4207,
+          "type": "diameter",
+          "entity": 4206,
+          "value": 0.4,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 4208,
+          "type": "fixed",
+          "point": 4205,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "params": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 0.4,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "z",
+        "profileEntityIds": [
+          4206
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_3viik",
+        "from": 1.62,
+        "to": 2.02
+      },
+      "fullyDefined": true,
+      "planeCorrect": true,
+      "centerFixed": true,
+      "diameterCorrect": true,
+      "featureCorrect": true,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT04-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 8,
+    "issues": [],
+    "volumeCm3": 2.3197520154107036,
+    "boundsCm": {
+      "min": {
+        "x": -0.6000000000000001,
+        "y": -0.6000000000000001,
+        "z": -2.32
+      },
+      "max": {
+        "x": 0.6000000000000001,
+        "y": 0.6000000000000001,
+        "z": 2.02
+      }
+    },
+    "centerOfMassCm": {
+      "x": -9.497130727141514e-17,
+      "y": 1.9947029405763248e-18,
+      "z": -0.3568255687973999
+    },
+    "seconds": 5.307366
+  },
+  "step": {
+    "source": "artifacts/planchard/KT04-three-features-browser-2026-10-08.step",
+    "bytes": 13828,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 2.31975201541071,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 2.31975201541071,
+      "centerOfMass": {
+        "x": 1.4230739979330909e-15,
+        "y": 5.565823212456503e-18,
+        "z": -0.3568255687974007
+      },
+      "inertia": [
+        [
+          4.01102607202533,
+          1.2259057331929959e-17,
+          2.7373258912654952e-15
+        ],
+        [
+          1.2259057331929959e-17,
+          4.011026072025333,
+          -4.991487546117047e-18
+        ],
+        [
+          2.7373258912654952e-15,
+          -4.991487546117047e-18,
+          0.2225252908390751
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.6,
+          "y": -0.6,
+          "z": -2.32
+        },
+        "max": {
+          "x": 0.6,
+          "y": 0.6,
+          "z": 2.02
+        }
+      }
+    }
+  },
+  "nativeStepVolumeDifferenceCm3": 6.217248937900877e-15,
+  "nativeStepMatches": true,
+  "material": {
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "massG": 17.86209051866242
+  },
+  "customProperties": {
+    "Description": "Exercise8.18 printed8-53/PDF431, original educational Kant-Twist designer example. Common pivot pin, four occurrences. Nominal blind retaining bore, no physical thread load claim; companion CAD/AVI unavailable.",
+    "PartNo": "KT04",
+    "BookItemNo": "4"
+  },
+  "metadataPass": true,
+  "browserDurability": "Parent observed Chrome durability PASS: bore4->4.2mm native2.314600cm3/0.01782242kg; Undo/Redo/Undo thenSave. Cold Chrome/librarycm_muzslh3n reopened6steps/1solid12x12x43.4mm, restored2.319752cm3/0.01786209kg; metadata retained."
+}
