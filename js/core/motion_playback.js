@@ -7,6 +7,15 @@ export function motionPreviewDuration(study) {
   const authoredTime=Number(study?.time);
   return Math.max(period,Number.isFinite(authoredTime)&&authoredTime>0?authoredTime:0);
 }
+
+// Slow native solves should advance by a useful, bounded amount rather than
+// spending a full solve on every tenth of a second. Coupled motors retain the
+// evaluator's quarter-turn continuation limit; other motor pacing stays intact.
+export function motionPlaybackStepSeconds(study) {
+  const rates=(study?.motors || []).filter(motor=>['screw','rackpinion'].includes(motor.type))
+    .map(motor=>Math.abs(Number(motor.rpm))).filter(rate=>Number.isFinite(rate)&&rate>0);
+  return rates.length ? Math.min(.5,60/(4*Math.max(...rates))) : .1;
+}
 export function createMotionPlayback(assembly,studyId,options) {
   const study=assembly.motionStudies?.find(item=>item.id===studyId);
   if(!study)throw new Error('Choose a saved motion study');
@@ -55,8 +64,10 @@ export function createMotionPlayback(assembly,studyId,options) {
     frame=0;if(!valid()){cancel();return;}if(!running)return;
     if(!last){last=now;frame=options.requestFrame(tick);return;}
     if(now-last<100){frame=options.requestFrame(tick);return;}
-    // Ten solved poses per second at most; slow solves enqueue no stale frames.
-    const elapsed=Math.min(.1,(now-last)/1000);last=now;
+    // Ten displayed poses per second at most; slow solves enqueue no stale
+    // frames, while guarded coupled motion can use a whole quarter-turn step.
+    const currentStudy=assembly.motionStudies.find(item=>item.id===studyId);
+    const elapsed=Math.min(motionPlaybackStepSeconds(currentStudy),(now-last)/1000);last=now;
     if(!await seek(Math.min(duration,time+elapsed)))return;
     if(time>=duration){pause();notify('Complete');return;}
     if(running)frame=options.requestFrame(tick);

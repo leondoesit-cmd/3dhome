@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {createMotionPlayback,motionPreviewDuration} from '../js/core/motion_playback.js';
+import {createMotionPlayback,motionPreviewDuration,motionPlaybackStepSeconds} from '../js/core/motion_playback.js';
 import {createMotionPlaybackExecutor} from '../js/core/motion_playback_executor.js';
 import {createMotionStudy,addRotaryMotor,evaluateMotionStudy} from '../js/cad_motion_study.js';
 import vm from 'node:vm';
@@ -41,6 +41,24 @@ test('Play is paced, Pause cancels pending frames, and no overlapping native sol
   frame=f.frames.entries().next().value;f.frames.delete(frame[0]);const pending=frame[1](1100);
   assert.equal(calls,1);assert.equal(f.playback.state.busy,true);assert.equal(await f.playback.seek(.2),false);assert.equal(calls,1);
   f.playback.pause();finish();await pending;assert.equal(f.frames.size,0);assert.equal(f.playback.state.running,false);
+});
+
+test('slow coupled playback advances by at most a quarter turn per request and reaches the exact endpoint',async()=>{
+ const rpm=-61.289674428888,duration=10,calls=[],frames=new Map();let serial=0;
+ const assembly={components:[{id:'shaft',transform:{}}],topologyMates:[],motionStudies:[{id:'study',time:0,previewDurationSeconds:duration,motors:[{type:'screw',rpm}]}]};
+ const playback=createMotionPlayback(assembly,'study',{evaluate:async(trial,id,time,options)=>{calls.push({time,options});trial.motionStudies[0].time=time;return {ok:true};},
+  requestFrame:fn=>{frames.set(++serial,fn);return serial;},cancelFrame:id=>frames.delete(id)});
+ await playback.play();let now=1000;
+ while(frames.size){const [id,fn]=frames.entries().next().value;frames.delete(id);await fn(now);now+=2500;}
+ assert.equal(playback.state.time,duration);assert.equal(playback.state.running,false);
+ assert.equal(calls.length,41,'10.2149457 revolutions need 41 bounded requests instead of 100');
+ let prior=0;
+ for(const call of calls){assert.equal(call.options.incremental,true);assert.ok(Math.abs(rpm*(call.time-prior)/60)<=.250000001);prior=call.time;}
+ assert.equal(calls.at(-1).time,duration);
+ assert.equal(motionPlaybackStepSeconds({motors:[{type:'screw',rpm:600}]}),.025);
+ assert.equal(motionPlaybackStepSeconds({motors:[{type:'screw',rpm:1}]}),.5);
+ assert.equal(motionPlaybackStepSeconds({motors:[{type:'rotary',rpm:12}]}),.1);
+ assert.equal(motionPlaybackStepSeconds({motors:[{type:'rackpinion',rpm:60}]}),.25);
 });
 test('cancel during an asynchronous solve prevents its late result from moving the assembly',async()=>{
   let finish;const f=fixture((assembly,id,time)=>new Promise(resolve=>finish=()=>resolve(evaluateMotionStudy(assembly,id,time))));

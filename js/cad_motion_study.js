@@ -63,6 +63,11 @@ export function addScrewMotor(motionStudy, mateId, rpm = 60) {
   return motor;
 }
 
+export function addRackPinionMotor(motionStudy,mateId,rpm=60) {
+  const motor={id:"motor_"+crypto.randomUUID(),type:"rackpinion",mateId,rpm};
+  motionStudy.motors.push(motor);return motor;
+}
+
 export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, options = {}) {
   const original=(assembly?.motionStudies||[]).find(m=>m.id===motionStudyId);
   if(!original)return {ok:false,issues:[{code:'missing-motion-study'}]};
@@ -94,14 +99,18 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
   if(!beltMotion.ok)return beltMotion;
   const linear=linearMotionState(ms,trial.components,timeInSeconds);
   if(!linear.ok)return linear;
+  if(ms.motors.some(m=>m.type==='rackpinion') && trial.topologyMates.some(m=>m.type==='rackpinion'
+    && (!Number.isFinite(m.pinionRoll0) || !Number.isFinite(m.rackTravel0)))){
+    const captured=solveAssemblyMates(trial);if(!captured.ok)return captured;
+  }
   const screwMotions=[];
-  for(const motor of ms.motors.filter(m=>m.type==='screw')){
-    const mate=trial.topologyMates.find(m=>m.id===motor.mateId&&m.type==='screw'&&m.coupledMotion);
-    if(!mate)return {ok:false,issues:[{code:'missing-coupled-screw-mate',mate:motor.mateId}]};
-    if(!Number.isFinite(motor.rpm))return {ok:false,issues:[{code:'invalid-screw-speed',mate:motor.mateId}]};
+  for(const motor of ms.motors.filter(m=>m.type==='screw' || m.type==='rackpinion')){
+    const mate=trial.topologyMates.find(m=>m.id===motor.mateId && (motor.type==='screw'?m.type==='screw'&&m.coupledMotion:m.type==='rackpinion'));
+    if(!mate)return {ok:false,issues:[{code:motor.type==='rackpinion'?'missing-rack-pinion-mate':'missing-coupled-screw-mate',mate:motor.mateId}]};
+    if(!Number.isFinite(motor.rpm))return {ok:false,issues:[{code:motor.type==='rackpinion'?'invalid-rack-pinion-speed':'invalid-screw-speed',mate:motor.mateId}]};
     const base=Number.isFinite(motor.baseTurns)?motor.baseTurns:(Number.isFinite(mate.driveTurns)?mate.driveTurns:0);
     mate.driveTurns=base+motor.rpm*timeInSeconds/60;
-    screwMotions.push({mateId:mate.id,turns:mate.driveTurns,rpm:motor.rpm,baseTurns:base});
+    screwMotions.push({mateId:mate.id,mateType:motor.type,turns:mate.driveTurns,rpm:motor.rpm,baseTurns:base});
   }
   if(screwMotions.length && (motion.motions.length || linear.motions.length))
     return {ok:false,issues:[{code:'mixed-screw-motion-motors'}]};
@@ -151,8 +160,8 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
     // restarting at zero from that moved pose can strand the helical solver.
     const start=resume?prior.time:0;
     const largest=Math.max(...screwMotions.map(m=>Math.abs(m.rpm*(timeInSeconds-start)/60)));
-    const steps=Math.ceil(largest/0.25);
-    for(let step=0;step<=steps;step++){
+    const steps=Math.max(resume?1:0,Math.ceil(largest/0.25));
+    for(let step=resume?1:0;step<=steps;step++){
       const at=steps?start+(timeInSeconds-start)*step/steps:start;
       for(const item of screwMotions){
         trial.topologyMates.find(m=>m.id===item.mateId).driveTurns=item.baseTurns+item.rpm*at/60;
@@ -177,6 +186,7 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
   for(const item of screwMotions){
     const source=assembly.topologyMates.find(m=>m.id===item.mateId);
     const settled=trial.topologyMates.find(m=>m.id===item.mateId);
+    if(source && settled?.type==='rackpinion'){source.pinionRoll0=settled.pinionRoll0;source.rackTravel0=settled.rackTravel0;}
     if(source && settled?.coupledAxialBasis==='component-origin'){
       source.coupledAxialBasis=settled.coupledAxialBasis;
       source.coupledAxial0=settled.coupledAxial0;
@@ -184,7 +194,7 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
     }
   }
   ms.motors.forEach((m,i)=>{if(m.baseRotation)original.motors[i].baseRotation=m.baseRotation;if(m.basePosition)original.motors[i].basePosition=m.basePosition;});
-  screwMotions.forEach(m=>{const motor=original.motors.find(item=>item.type==='screw'&&item.mateId===m.mateId);if(motor)motor.baseTurns=m.baseTurns;});
+  screwMotions.forEach(m=>{const motor=original.motors.find(item=>item.type===m.mateType&&item.mateId===m.mateId);if(motor)motor.baseTurns=m.baseTurns;});
   original.baseRotations=rotary.baseRotations;original.time=timeInSeconds;
   if(requestedIncremental)playbackCursors.set(assembly,{studyId:motionStudyId,study:original,time:timeInSeconds,
     pose:poseStamp(assembly.components),graph:studyStamp(assembly,original)});

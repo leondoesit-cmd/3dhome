@@ -15,6 +15,7 @@ import { solveAssemblyMates } from "./cad_mate_solver.js";
 export {
   MATE_REQUIREMENT, captureLockPose, frameSignature, mateFrameSupports, mateFramesSupport, mateRequirementFor, planarDirection, topologyReference,
 } from "./cad_mate_model.js";
+export {rackPinionMateSpec,captureRackPinionZero,rackPinionMeasure} from './cad_rack_pinion_mate.js';
 
 /* Places every component the mates can move, and reports what it could not do.
  *

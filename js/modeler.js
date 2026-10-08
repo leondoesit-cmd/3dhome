@@ -45,6 +45,8 @@ import {parseSketchDimensionEntry} from './core/sketch_dimension_entry.js';
 import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
 import {setGearMatePhase} from "./cad_gear_motion.js";
 import {beltMateSpec,beltDiameterValue} from './cad_belt_mate.js';
+import {rackPinionMateSpec} from './cad_rack_pinion_mate.js';
+import {addRackPinionMate,setRackPinionMateSettings,setRackPinionMateDrive,setRackPinionMateReferences} from './cad_rack_pinion_controls.js';
 import {addCubicSpline,splineControls,sampleBezier} from "./sketch_spline.js";
 import {repairReferences,restoreSketchConstraint} from "./sketch_edit_repair.js";
 import { MANUFACTURING_TABLES, validateManufacturingTables } from "./manufacturing_tables.js";
@@ -167,7 +169,7 @@ import { createReferencePlane, createReferenceAxis, createReferencePoint, create
 import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath,circularHelixSweepProfile } from "./cad_helix.js";
 import { circularSweepProfile, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
 import { defaultExplodeLayout, assemblyHasExplodedOffsets, createExplodedView, addExplodeStep, applyExplodedView, applyExplodedProgress, explodeLines, explodeTargets, explodedOccurrenceOffset } from "./cad_exploded_view.js";
-import { createMotionStudy, addRotaryMotor, addScrewMotor, addLinearMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
+import { createMotionStudy, addRotaryMotor, addScrewMotor, addRackPinionMotor, addLinearMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
 import { detectInterference, generateBOM } from "./cad_interference.js";
 import { createProjectBundle, exportProjectBundle, importProjectBundle, importProjectBundleText, activeProjectDocument } from "./cad_project_bundle.js";
 import { measureAngleBetweenNormals, measureDistance } from "./cad_evaluate.js";
@@ -7287,6 +7289,7 @@ function runCommand(id) {
   else if (id === "screwmate") { setDocumentType("assembly"); setTab("ops"); addTopologyMate("screw"); }
   else if (id === "gearmate") { setDocumentType("assembly"); setTab("ops"); openMateGearForm(); }
   else if (id === "beltmate") { setDocumentType("assembly"); setTab("ops"); openMateBeltForm(); }
+  else if (id === "rackpinionmate") { setDocumentType("assembly"); setTab("ops"); openMateRackPinionForm(); }
   else if (id === "symmetricmate") { setDocumentType("assembly"); setTab("ops"); addTopologyMate("symmetric"); }
   else if (id === "dynamicmirror") toggleDynamicMirror();
   else if (id === "mirror") mirrorSelection();
@@ -16749,6 +16752,7 @@ var MATE_PALETTE = [
   ["symmetric", "ph-flip-horizontal", "symmetricMate"],
   ["gear", "ph-gear", "gearMate"],
   ["belt", "ph-circles-three-plus", "beltMate"],
+  ["rackpinion", "ph-gear", "rackPinionMate"],
 ];
 
 function topologyMateLabel(type,mate) {
@@ -16758,7 +16762,7 @@ function topologyMateLabel(type,mate) {
     coincident: "coincidentMate", concentric: "concentricMate",
     screw: "screwMate", tangent: "tangentMate", limit: "limitMate",
     angle: "angleMate", distance: "topologyDistanceMate",
-    symmetric: "symmetricMate", gear: "gearMate", belt: "beltMate",
+    symmetric: "symmetricMate", gear: "gearMate", belt: "beltMate", rackpinion:"rackPinionMate",
   }[type];
   return key ? t(key) : t("mate");
 }
@@ -19179,6 +19183,8 @@ function addTopologyMate(type, value) {
   }
   if (!E.assembly) { flash(t("mateHint")); return false; }
   if(type==='belt' && !beltMateSpec(value?.diameterA,value?.diameterB,value?.beltDirection)){flash(t('beltInvalid'));return false;}
+  var rackSpec=type==='rackpinion' ? rackPinionMateSpec(value?.pitchRadius,value?.reverse ?? false,value?.driveTurns ?? null) : null;
+  if(type==='rackpinion' && !rackSpec){flash(t('rackPinionInvalid'));return false;}
   var limitSpec=type==='limit' ? validLimitMateBounds(value && typeof value==='object' ? value.min : 0,value && typeof value==='object' ? value.max : 2) : null;
   if(type==='limit' && !limitSpec){flash(t('mateLimitInvalidRange'));return false;}
   var fits = mateTypeFits(type);
@@ -19203,12 +19209,19 @@ function addTopologyMate(type, value) {
      they want it on. Swap rather than refuse, or the button does nothing. */
   var componentA = mateHolderById(a.componentId);
   var componentB = mateHolderById(b.componentId);
-  if (componentB && componentB.grounded && componentA && !componentA.grounded) {
+  if (type!=='rackpinion' && componentB && componentB.grounded && componentA && !componentA.grounded) {
     var swap = a; a = b; b = swap;
     if(type==='belt' && value)value={...value,diameterA:value.diameterB,diameterB:value.diameterA};
     var swapComponent = componentA; componentA = componentB; componentB = swapComponent;
   }
   if (componentB && componentB.grounded) { flash(t("mateIssueGroundedTarget")); return false; }
+  // Rack coupling is directional: A is always the pinion, B the rack. Its
+  // transactional helper captures the authored home zero before any drive.
+  if(type==='rackpinion'){
+    var rackResult=addRackPinionMate(E.assembly,{id:uid(),type,a,b,...rackSpec},function(){pushUndo(t('rackPinionMate'));});
+    if(!rackResult.ok){flash(t('rackPinionUnsatisfied'));return false;}
+    E.topologySelection=[];acceptRackPinionSolve(rackResult);return true;
+  }
   var lockedAlignment = ["coincident", "distance", "limit"].includes(type)
     ? mateAlignmentForLockedOrientation(a.frame, b.frame, componentA && componentA.transform,
       componentB && componentB.transform, componentB && componentFreedom(componentB.id)) : null;
@@ -19277,6 +19290,28 @@ function openMateGearForm() {
   });
 }
 
+function acceptRackPinionSolve(result) {
+  invalidateInterference();
+  var contextResult=updateAssemblyContexts(E.assembly);
+  E.mateIssues=(result.issues || []).concat(contextResult.issues);
+  E.mateRebindings=result.rebindings || [];E.mateUnsatisfied=result.unsatisfied || [];
+  E.mateFreedom=result.clusters || [];E.mateDegreesOfFreedom=result.degreesOfFreedom || 0;
+  assemblySolveFresh=true;refreshAll({assemblyPoseOnly:true});
+}
+
+function openMateRackPinionForm() {
+  openQuickForm({action:'rackpinionmate',icon:'ph-gear',title:t('rackPinionMate'),hint:t('rackPinionHint'),fields:[
+    {key:'pitchRadius',label:t('rackPinionRadius'),type:'number',unit:'length',value:1,min:1e-6,step:.1},
+    {key:'reverse',label:t('rackPinionReverse'),type:'boolean',value:false},
+    {key:'driveTurns',label:t('rackPinionDrive'),type:'text',value:''},
+  ],onApply:function(values){
+    var drive=String(values.driveTurns ?? '').trim();
+    var spec=rackPinionMateSpec(values.pitchRadius,!!values.reverse,drive===''?null:Number(drive));
+    if(!spec){flash(t('rackPinionInvalid'));return false;}
+    return addTopologyMate('rackpinion',spec);
+  }});
+}
+
 function openMateBeltForm() {
   openQuickForm({action:'beltmate',icon:'ph-circles-three-plus',title:t('beltMate'),
     hint:t('beltHint'),fields:[
@@ -19335,6 +19370,9 @@ function openMatePropertyManager() {
       { key: "limitMax", label: t("mateLimitMaximum"), type: "number", value: 2, step: 0.01, unit: "length" },
       {key:'diameterA',label:t('beltDiameterA'),type:'number',value:6,step:.1,min:1e-6,unit:'length'},
       {key:'diameterB',label:t('beltDiameterB'),type:'number',value:6,step:.1,min:1e-6,unit:'length'},
+      {key:'pitchRadius',label:t('rackPinionRadius'),type:'number',unit:'length',value:1,min:1e-6,step:.1},
+      {key:'rackReverse',label:t('rackPinionReverse'),type:'boolean',value:false},
+      {key:'rackDriveTurns',label:t('rackPinionDrive'),type:'text',value:''},
       {key:'beltDirection',label:t('gearDirection'),type:'select',value:'open',choices:[{value:'open',label:t('beltOpen')},{value:'crossed',label:t('beltCrossed')}]},
     ],
     onApply: function (values) {
@@ -19344,6 +19382,12 @@ function openMatePropertyManager() {
         var spec=beltMateSpec(values.diameterA,values.diameterB,values.beltDirection);
         if(!spec){flash(t('beltInvalid'));return false;}
         return addTopologyMate('belt',spec);
+      }
+      if(values.type==='rackpinion'){
+        var rackDrive=String(values.rackDriveTurns ?? '').trim();
+        var rackSpec=rackPinionMateSpec(values.pitchRadius,!!values.rackReverse,rackDrive===''?null:Number(rackDrive));
+        if(!rackSpec){flash(t('rackPinionInvalid'));return false;}
+        return addTopologyMate('rackpinion',rackSpec);
       }
       return addTopologyMate(values.type, values.type === "distance" ? values.distance : values.angle);
     },
@@ -19369,6 +19413,7 @@ function openMatePropertyManager() {
     if (distanceField) distanceField.classList.toggle("parameter-hidden", inputs.type.value !== "distance");
     ['limitMin','limitMax'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='limit');});
     ['diameterA','diameterB','beltDirection'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='belt');});
+    ['pitchRadius','rackReverse','rackDriveTurns'].forEach(function(key){var field=inputs[key]?.closest('.md-quick-field');if(field)field.classList.toggle('parameter-hidden',inputs.type.value!=='rackpinion');});
   };
   inputs.type.addEventListener("change", syncAngleField);
   syncAngleField();
@@ -19619,6 +19664,7 @@ function assemblyMateInspectorBody() {
       else if (entry[0] === "distance") openMateDistanceForm();
       else if (entry[0] === "gear") openMateGearForm();
       else if (entry[0] === "belt") openMateBeltForm();
+      else if (entry[0] === "rackpinion") openMateRackPinionForm();
       else addTopologyMate(entry[0]);
     });
     mateButton.setAttribute("data-topology-mate", entry[0]);
@@ -19690,6 +19736,11 @@ function assemblyMateInspectorBody() {
         } : null);
       if(picked && [picked.a.componentId,picked.b.componentId].includes(mate.a?.componentId) && [picked.a.componentId,picked.b.componentId].includes(mate.b?.componentId) && mateTypeFits(mate.type).ok){
         mateUiRow.appendChild(btn("Replace references with selection",function(){
+          if(mate.type==='rackpinion'){
+            var repaired=setRackPinionMateReferences(E.assembly,mate.id,mateReferenceFromPick(picked.a),mateReferenceFromPick(picked.b),function(){pushUndo("Replace mate references");});
+            if(!repaired.ok){flash(t('rackPinionUnsatisfied'));return;}
+            acceptRackPinionSolve(repaired);return;
+          }
           pushUndo("Replace mate references");
           rebindTopologyMate(mate,mateReferenceFromPick(picked.a),mateReferenceFromPick(picked.b));
           solveAssembly();refreshAll();
@@ -19808,6 +19859,29 @@ function assemblyMateInspectorBody() {
         });
         mateUiRow.appendChild(btn(t(mate.beltDirection==='open'?'beltOpen':'beltCrossed'),function(){
           pushUndo(t('beltMate'));mate.beltDirection=mate.beltDirection==='open'?'crossed':'open';solveAssembly();refreshAll();
+        },'md-mate-align'));
+      }
+      if(mate.type==='rackpinion'){
+        mateUiRow.appendChild(el('div','md-note',t('rackPinionHint')));
+        extraField(t('rackPinionRadius')+' ('+modelLengthUnit()+')',lengthToDocument(mate.pitchRadius,modelLengthUnit()),.1,function(next,input){
+          var radius=next===null?NaN:lengthFromDocument(next,modelLengthUnit());
+          if(!fin(radius)||!(radius>0)){flash(t('rackPinionInvalid'));input.value=modelLengthText(mate.pitchRadius);return;}
+          if(Math.abs(radius-mate.pitchRadius)<1e-12)return;
+          var changed=setRackPinionMateSettings(E.assembly,mate.id,{pitchRadius:radius},function(){pushUndo(t('rackPinionMate'));});
+          if(!changed.ok){flash(t('rackPinionUnsatisfied'));input.value=modelLengthText(mate.pitchRadius);return;}
+          acceptRackPinionSolve(changed);
+        });
+        extraField(t('rackPinionDrive'),mate.driveTurns,.05,function(next,input){
+          if(next!==null&&!fin(next)){flash(t('rackPinionInvalid'));input.value=mate.driveTurns==null?'':String(mate.driveTurns);return;}
+          if(next===mate.driveTurns || (next===null&&mate.driveTurns==null))return;
+          var driven=setRackPinionMateDrive(E.assembly,mate.id,next,function(){pushUndo(t('rackPinionMate'));});
+          if(!driven.ok){flash(t('rackPinionUnsatisfied'));input.value=mate.driveTurns==null?'':String(mate.driveTurns);return;}
+          acceptRackPinionSolve(driven);
+        });
+        mateUiRow.appendChild(btn(t(mate.reverse?'rackPinionReversed':'rackPinionForward'),function(){
+          var changed=setRackPinionMateSettings(E.assembly,mate.id,{reverse:!mate.reverse},function(){pushUndo(t('rackPinionMate'));});
+          if(!changed.ok){flash(t('rackPinionUnsatisfied'));return;}
+          acceptRackPinionSolve(changed);
         },'md-mate-align'));
       }
       if (mate.type === "angle") {
@@ -26160,6 +26234,8 @@ function openMotionPlayback(studyId) {
 }
 function motionScrewMateLabel(mate) {
   var labelOf=function(id){var component=E.assembly.components.find(function(item){return String(item.id)===String(id);});return component?.name || component?.modelKey || String(id);};
+  if(mate.type==='rackpinion')return (mate.name || t('rackPinionMate'))+' · '+labelOf(mate.a?.componentId)+' → '+labelOf(mate.b?.componentId)
+    +' · radius '+modelLengthText(Number(mate.pitchRadius)||0,6)+' '+modelLengthUnit()+' · #'+mate.id;
   var hand=mate.handedness==='lh' || mate.handedness==='left' ? 'LH' : 'RH';
   return (mate.name || 'Screw mate')+' · '+labelOf(mate.a?.componentId)+' ↔ '+labelOf(mate.b?.componentId)
     +' · lead '+modelLengthText(Number(mate.pitch)||0,6)+' '+modelLengthUnit()+'/turn · '+hand+' · #'+mate.id;
@@ -26172,24 +26248,26 @@ function createDefaultMotionStudy() {
     const relation=study?.gearRelations?.find(r=>r.id===relationId);
     const components=E.assembly.components.filter(c=>!c.grounded),choices=components.map(c=>({value:c.id,label:c.name||c.id}));
     const coupledScrews=(E.assembly.topologyMates||[]).filter(m=>m.type==="screw"&&m.coupledMotion);
+    const rackMates=(E.assembly.topologyMates||[]).filter(m=>m.type==='rackpinion');
+    const coupledMotor=['screw','rackpinion'].includes(motorType),coupledMates=motorType==='rackpinion'?rackMates:coupledScrews;
     if(!components.length){flash(t("motionNeedsMovable"));return;}
     const driver=relation?.driverId||motor?.componentId||E.componentSel[0]?.id||components[0].id;
     const axisName=a=>!a?"y":a.x===1&&a.y===0&&a.z===0?"x":a.z===1&&a.x===0&&a.y===0?"z":a.y===1&&a.x===0&&a.z===0?"y":"custom";
     const axes=["x","y","z"].map(value=>({value,label:value.toUpperCase()}));
     const axisChoices=a=>axisName(a)==="custom"?axes.concat({value:"custom",label:t("motionSavedAxis")}):axes;
-    openQuickForm({action:"motion",title:t("motionStudy"),hint:motorType==="screw"?"Turn a coupled Screw mate: relative axial travel follows its lead, and the linkage follows the assembly constraints.":t(motorType==="linear" ? "linearMotionHint" : relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"),fields:[
+    openQuickForm({action:"motion",title:t("motionStudy"),hint:motorType==='rackpinion'?t('rackPinionHint'):motorType==="screw"?"Turn a coupled Screw mate: relative axial travel follows its lead, and the linkage follows the assembly constraints.":t(motorType==="linear" ? "linearMotionHint" : relationId!=="none" || study?.gearRelations?.length ? "gearMotionHint" : "rotaryMotionHint"),fields:[
       {key:"study",label:t("motionStudy"),type:"select",value:studyId||"new",choices:[{value:"new",label:t("motionNewStudy")},...(E.assembly.motionStudies||[]).map(s=>({value:s.id,label:s.name}))]},
       {key:"name",label:"Study name",type:"text",value:study?.name||"Motion Study "+((E.assembly.motionStudies||[]).length+1)},
       ...(study ? [{key:"resetZero",label:"Use current pose as time zero",type:"boolean",value:false},{key:"deleteStudy",label:"Delete this study",type:"boolean",value:false}] : []),
-      {key:"motorType",label:t("motionMotorType"),type:"select",value:motorType,choices:[{value:"rotary",label:t("motionRotary")},{value:"linear",label:t("motionLinear")},...(coupledScrews.length?[{value:"screw",label:"Screw mate"}]:[])]},
+      {key:"motorType",label:t("motionMotorType"),type:"select",value:motorType,choices:[{value:"rotary",label:t("motionRotary")},{value:"linear",label:t("motionLinear")},...(coupledScrews.length?[{value:"screw",label:"Screw mate"}]:[]),...(rackMates.length?[{value:'rackpinion',label:t('rackPinionMate')}]:[])]},
       ...(motorType==="rotary" ? [{key:"relation",label:t("motionRelation"),type:"select",value:relationId,choices:[{value:"none",label:t(study?.gearRelations?.length ? "motionKeepRelations" : "motionMotorOnly")},{value:"new",label:t("motionAddRelation")},...(study?.gearRelations||[]).map(r=>({value:r.id,label:(components.find(c=>c.id===r.driverId)?.name||r.driverId)+" → "+(components.find(c=>c.id===r.followerId)?.name||r.followerId)}))]}] : []),
-      ...(motorType==="screw"?[{key:"screwMate",label:"Coupled Screw mate",type:"select",value:motor?.mateId||coupledScrews[0]?.id,choices:coupledScrews.map(m=>({value:m.id,label:motionScrewMateLabel(m)}))}]:[{key:"motor",label:t("motionMotor"),type:"select",value:motor?.componentId||driver,choices}]),
+      ...(coupledMotor?[{key:"screwMate",label:motorType==='rackpinion'?t('rackPinionMate'):"Coupled Screw mate",type:"select",value:motor?.mateId||coupledMates[0]?.id,choices:coupledMates.map(m=>({value:m.id,label:motionScrewMateLabel(m)}))}]:[{key:"motor",label:t("motionMotor"),type:"select",value:motor?.componentId||driver,choices}]),
       ...(motorType==="linear" ? [
       {key:"stroke",label:t("motionStroke"),type:"number",unit:"length",value:motor?.stroke??-1.5,step:.1},
       {key:"duration",label:t("motionTravelDuration"),type:"number",value:motor?.duration??1,min:.001,step:.1},
       {key:"reciprocate",label:t("motionReciprocate"),type:"boolean",value:motor?.reciprocate??false}
       ] : [{key:"rpm",label:t("motionRPM"),type:"number",value:motor?.rpm??12,step:1}]),
-      ...(motorType==="screw"?[]:[{key:"motorAxis",label:t("motionMotorAxis"),type:"select",value:axisName(motor?.axis),choices:axisChoices(motor?.axis)}]),
+      ...(coupledMotor?[]:[{key:"motorAxis",label:t("motionMotorAxis"),type:"select",value:axisName(motor?.axis),choices:axisChoices(motor?.axis)}]),
       ...(motorType==="rotary" ? [
       {key:"pivotX",label:"Pivot X (local)",type:"number",unit:"length",value:motor?.pivot?.x??0,step:.1},
       {key:"pivotY",label:"Pivot Y (local)",type:"number",unit:"length",value:motor?.pivot?.y??0,step:.1},
@@ -26215,7 +26293,7 @@ function createDefaultMotionStudy() {
       // HTML selects return strings; occurrence IDs retain their saved type.
       // Resolve the chosen rows before the motion graph's strict ID comparisons.
       const selectedComponentId=value=>E.assembly.components.find(c=>String(c.id)===String(value))?.id;
-      const selectedScrewMate=(E.assembly.topologyMates||[]).find(m=>m.type==="screw"&&m.coupledMotion&&String(m.id)===String(v.screwMate));
+      const selectedScrewMate=(E.assembly.topologyMates||[]).find(m=>(motorType==='rackpinion'?m.type==='rackpinion':m.type==='screw'&&m.coupledMotion)&&String(m.id)===String(v.screwMate));
       v={...v,motor:selectedComponentId(v.motor),driver:selectedComponentId(v.driver),follower:selectedComponentId(v.follower),screwMate:selectedScrewMate?.id};
       const trial=structuredClone(E.assembly),target=(trial.motionStudies||[]).find(s=>s.id===studyId)||createMotionStudy(trial,"Motion Study "+((trial.motionStudies||[]).length+1));
       if(v.name != null) {
@@ -26234,10 +26312,12 @@ function createDefaultMotionStudy() {
       if(motorType==="linear"){
         if(target.gearRelations?.length){flash(t("linearGearConflict"));return false;}
         if(target.motors.length)Object.assign(target.motors[0],{type:"linear",componentId:v.motor,stroke:v.stroke,duration:v.duration,reciprocate:v.reciprocate,axis:axis(v.motorAxis,motor?.axis)});else addLinearMotor(target,v.motor,v.stroke,v.duration,axis(v.motorAxis,motor?.axis),v.reciprocate);
-      }else if(motorType==="screw"){
-        if(!selectedScrewMate){flash("Choose a coupled Screw mate");return false;}
+      }else if(coupledMotor){
+        if(!selectedScrewMate){flash(motorType==='rackpinion'?t('rackPinionMate'):"Choose a coupled Screw mate");return false;}
         if(target.gearRelations?.length){flash(t("linearGearConflict"));return false;}
-        if(target.motors.length)Object.assign(target.motors[0],{type:"screw",mateId:v.screwMate,rpm:v.rpm});else addScrewMotor(target,v.screwMate,v.rpm);
+        if(target.motors.length)Object.assign(target.motors[0],{type:motorType,mateId:v.screwMate,rpm:v.rpm});
+        else if(motorType==='rackpinion')addRackPinionMotor(target,v.screwMate,v.rpm);
+        else addScrewMotor(target,v.screwMate,v.rpm);
       }else {
         const pivot={x:v.pivotX??0,y:v.pivotY??0,z:v.pivotZ??0};
         if(!Object.values(pivot).every(Number.isFinite)){flash("Enter finite local pivot coordinates");return false;}
@@ -26259,6 +26339,11 @@ function createDefaultMotionStudy() {
           selectedScrewMate.coupledAxial0=solvedMate.coupledAxial0;
           selectedScrewMate.coupledPhase0=solvedMate.coupledPhase0;
         }
+      }
+      if(motorType==='rackpinion'){
+        const solvedMate=trial.topologyMates.find(m=>m.id===v.screwMate);
+        selectedScrewMate.pinionRoll0=solvedMate.pinionRoll0;
+        selectedScrewMate.rackTravel0=solvedMate.rackTravel0;
       }
       E.assembly.motionStudies=trial.motionStudies;await syncFlexibleSpringsAtMotionState(E.assembly);
       invalidateInterference();refreshAll();flash(t("motionStudyAdded"));return true;

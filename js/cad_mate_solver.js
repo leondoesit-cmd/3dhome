@@ -43,6 +43,7 @@ import {
   mateResidualVector, mateTarget, matrixEuler, mul, normalizePose, normalizeQuat, quatMatrix,
   rotationFromTo, rotationOf, rotationVectorMatrix, setRotation, transpose, apply, FRAME_ISSUE,
 } from "./cad_mate_model.js";
+import {captureRackPinionZero,seedRackPinion,rackPinionMateSpec} from './cad_rack_pinion_mate.js';
 import { gaussNewtonStep, normOf, stableColumnRank } from "./core/least_squares.js";
 import { ASSEMBLY_ORIGIN_ID, assemblyOriginComponent } from "./core/assembly_structure.js";
 
@@ -141,6 +142,12 @@ function acceptMates(assembly, entries, byId, resolvedFrame, issues) {
       continue;
     }
     if (mate.type === "gear" || mate.type === "belt") captureGearPhase(mate, fa, fb, a, b);
+    if(mate.type==='rackpinion'){
+      if(!rackPinionMateSpec(mate.pitchRadius,mate.reverse ?? false,mate.driveTurns ?? null)){
+        issues.push({mate:entry.id,code:'invalid-rack-pinion-spec'});continue;
+      }
+      captureRackPinionZero(mate,fa,fb,a,b);
+    }
     if (mate.type === "screw" && mate.coupledMotion) captureCoupledScrewZero(mate, fa, fb, a, b);
     const rows = mateResidualVector(mate, fa, fb, b, { fc, reader: a });
     if (!rows) { issues.push({ mate: entry.id, code: "unresolved-topology" }); continue; }
@@ -503,6 +510,10 @@ function seedCluster(cluster, resolvedFrame) {
     resolvedFrame(entry.mate.a, entry.a, entry.id, false),
     resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b, entry.a);
   const movable=new Set(cluster.components.map(c=>c.id));
+  for(const entry of cluster.mates)if(entry.mate.type==='rackpinion'){
+    const fa=resolvedFrame(entry.mate.a,entry.a,entry.id,false),fb=resolvedFrame(entry.mate.b,entry.b,entry.id,false);
+    seedRackPinion(entry.mate,fa,fb,entry.a,entry.b,movable.has(entry.a.id),movable.has(entry.b.id));
+  }
   // Seed rigid followers outward from grounded or motor-prescribed members.
   // Either selection order describes the same physical lock relation.
   const held = new Set();
