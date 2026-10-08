@@ -1,0 +1,19 @@
+# 8.20 Shaper head — disposable native proposal preflight
+
+The frozen proposal is viable for browser authorship with one approved dimension correction: **SH11 small washer OD10/ID6.2**, replacing OD12. The original washer collides with the swiveling SH08 left ear at ±5°/±10°. Exact native overlap at ±10° is0.00227047459717 cm³. A washer radius5 mm leaves0.605mm minimum radial clearance because the bolt center becomes apron-localX−25.605mm,5.605mm from the outer ear faceX−20. Parent approved this correction before SH11 authorship; the design document is updated.
+
+All sixteen proposal parts were constructed as exact ephemeral native primitives and Boolean unions/cuts and independently validated as one solid each. No authored part, assembly, model, STEP or mesh artifact was written. This tests dimensional solids, not sketch constraints/parametric authoring or native reference persistence. The original frozen snapshot passes21 feed positions0..20mm and12 additional clapper lift samples5/10/15/20° at feed0/10/20mm, all with the apron seated. Corrected OD10 passes16 combined poses at feed0/20mm, lift0/20° and apron−10/−5/+5/+10°. All sampled intended poses have zero exact positive-volume intersections among all16 native solids. Backward1° immediately intersects SH08 and SH09, confirming the physical stop and need for a directed limit. These samples do not certify a continuous swept volume or clamp release/loading behavior.
+
+Continuous handle clearance has a separate bound: spinning aboutY preserves its minimumY89mm while bearing arm endsY82mm, leaving7mm. Grip radial inner end is10mm from the shaft axis while the hub radius is8mm, leaving2mm. Native feed samples at integer millimetres correspond to complete ideal1mm-lead screw turns, so they should not be mistaken for a full fractional-angle handle sweep. Actual browser assembly audits should include fractional-turn samples and the proposed full feed/lift grid.
+
+The temporary native mechanism uses23 mates:11 Locks and12 bearing/guide/coupling/linear-limit/apron/clapper mates. Synthetic frames at the proposed joints solve with expected mobility: free feed+clapper2DOF, either driven1DOF, both driven0DOF, released apron3DOF. All nine combinations of feed0/10/20mm and lift0/10/20° follow the frozen negative slideY and negative clapperRx signs. Feed−1/+21 turns and hinge+1/−21° reject atomically, preserving all poses/mates and producing no Undo callback. This does not certify future authored persistent references.
+
+For assembly authoring, signed offsets must reflect selected references. Apron Distance0 applies to actual SH03 frontfaceZ34.2 and SH08 backfaceZ0; named Front origin planes require34.2mm instead. Hinge Right datum planes can use0 because both origins haveX0. Feed reader SH03 +Y nut axis and moving SH02 +Y shaft axis with RH pitch1mm make positive Drive lower the slide; actual cut-axis directions must be checked rather than assumed. Choose native circular edges providing intended axes if cylindrical cut faces resolve negative directions.
+
+Evidence under`artifacts/planchard/`:
+
+- `SH-frozen-proposal-native-preflight-2026-10-08.json`: original OD12 failure preserved, native validation, feed/clapper samples and wrong-branch collisions.
+- `SH-washer10-candidate-native-preflight-2026-10-08.json`: approved OD10 clearance samples and native validation.
+- `SH-native-mechanism-preflight-2026-10-08.json`: synthetic native solver counts, combined feed/lift poses and transactional stop rejection.
+
+The design input remained unchanged during native runs and was subsequently updated only to record the approved correction and current source capability. No solver defect or source repair was found. Parent remains responsible for all final Chrome-authored parts, actual assembly/reference audits, metadata/material provenance, save/reopen, motion, STEP and drawing acceptance.

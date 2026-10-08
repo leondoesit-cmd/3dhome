@@ -1,0 +1,340 @@
+{
+  "source": "artifacts/planchard/SH01-nominal-browser-2026-10-09.mforge",
+  "bytes": 648323,
+  "inputSha256": "9fabf4e0f735ff007d925098c941ba3e4cc395ee5be7c90ed7fc0445effed791",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "name": "Disk",
+      "sketchId": "sk_081hs",
+      "plane": "front",
+      "sketchOffsetMm": 0,
+      "featureFromMm": -12.000000000000002,
+      "featureToMm": 0,
+      "dimensionValuesMm": [
+        {
+          "type": "diameter",
+          "value": 100
+        }
+      ],
+      "profileCoordinatesAndOrdinaryConstraintsMatch": true,
+      "profileExcludesConstruction": true,
+      "planeOffsetMatches": true,
+      "fullyDefined": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Guide body",
+      "sketchId": "sk_1zir4",
+      "plane": "front",
+      "sketchOffsetMm": 0,
+      "featureFromMm": 0,
+      "featureToMm": 12.000000000000002,
+      "dimensionValuesMm": [
+        {
+          "type": "distance",
+          "value": 40
+        },
+        {
+          "type": "distance",
+          "value": 100
+        }
+      ],
+      "profileCoordinatesAndOrdinaryConstraintsMatch": true,
+      "profileExcludesConstruction": true,
+      "planeOffsetMatches": true,
+      "fullyDefined": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Rail",
+      "sketchId": "sk_2u30c",
+      "plane": "front",
+      "sketchOffsetMm": 0,
+      "featureFromMm": 12.000000000000002,
+      "featureToMm": 18.000000000000004,
+      "dimensionValuesMm": [
+        {
+          "type": "distance",
+          "value": 20
+        },
+        {
+          "type": "distance",
+          "value": 100
+        }
+      ],
+      "profileCoordinatesAndOrdinaryConstraintsMatch": true,
+      "profileExcludesConstruction": true,
+      "planeOffsetMatches": true,
+      "fullyDefined": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Bearing arm",
+      "sketchId": "sk_3v2r4",
+      "plane": "front",
+      "sketchOffsetMm": 0,
+      "featureFromMm": 0,
+      "featureToMm": 34.2,
+      "dimensionValuesMm": [
+        {
+          "type": "distance",
+          "value": 40
+        },
+        {
+          "type": "distance",
+          "value": 12.000000000000002
+        }
+      ],
+      "profileCoordinatesAndOrdinaryConstraintsMatch": true,
+      "profileExcludesConstruction": true,
+      "planeOffsetMatches": true,
+      "fullyDefined": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Bearing bore",
+      "sketchId": "sk_46gd3",
+      "plane": "top",
+      "sketchOffsetMm": 70,
+      "featureFromMm": 70,
+      "featureToMm": 82,
+      "dimensionValuesMm": [
+        {
+          "type": "diameter",
+          "value": 8.2
+        }
+      ],
+      "profileCoordinatesAndOrdinaryConstraintsMatch": true,
+      "profileExcludesConstruction": true,
+      "planeOffsetMatches": true,
+      "fullyDefined": true,
+      "featureMatches": true
+    },
+    {
+      "name": "Mount bores",
+      "sketchId": "sk_54qy6",
+      "plane": "front",
+      "sketchOffsetMm": -12.000000000000002,
+      "featureFromMm": -12.000000000000002,
+      "featureToMm": 34.21000000000001,
+      "dimensionValuesMm": [
+        {
+          "type": "diameter",
+          "value": 6.000000000000001
+        },
+        {
+          "type": "diameter",
+          "value": 6.000000000000001
+        },
+        {
+          "type": "diameter",
+          "value": 6.000000000000001
+        },
+        {
+          "type": "diameter",
+          "value": 6.000000000000001
+        }
+      ],
+      "profileCoordinatesAndOrdinaryConstraintsMatch": true,
+      "profileExcludesConstruction": true,
+      "planeOffsetMatches": true,
+      "fullyDefined": true,
+      "featureMatches": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "physicalBodyCount": 1,
+  "helperGeometryExcluded": "Three center-rectangle construction diagonals and fixed center points are excluded from ordinary extrusion boundaries; all four mount-circle groups remain ordinary driven profiles.",
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH01-nominal-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 168.6728895112609,
+      "maxToleranceCm": 1.0000005473399511e-7
+    },
+    "volumeCm3": 168.6728895112609,
+    "boundsCm": {
+      "min": {
+        "x": -5,
+        "y": -5,
+        "z": -1.2000000000000002
+      },
+      "max": {
+        "x": 5,
+        "y": 8.200000000000001,
+        "z": 3.4200000000000004
+      }
+    },
+    "centerOfMassCm": {
+      "x": -4.2652054046247387e-16,
+      "y": 1.4225481816469194,
+      "z": 0.10361262724684794
+    },
+    "seconds": 6.004601299999999
+  },
+  "step": {
+    "source": "artifacts/planchard/SH01-nominal-browser-2026-10-09.step",
+    "bytes": 73204,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 168.6728895112646,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 168.6728895112646,
+      "centerOfMass": {
+        "x": 7.972774695237254e-14,
+        "y": 1.4225481816468983,
+        "z": 0.10361262724683747
+      },
+      "inertia": [
+        [
+          2045.4829047239425,
+          1.1105607116870864e-11,
+          5.5527127688254e-12
+        ],
+        [
+          1.1105607116870864e-11,
+          819.4675815585326,
+          -269.462297940936
+        ],
+        [
+          5.5527127688254e-12,
+          -269.462297940936,
+          2559.3452068861984
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -5,
+          "y": -5,
+          "z": -1.2
+        },
+        "max": {
+          "x": 5,
+          "y": 8.2,
+          "z": 3.42
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/SH01-nominal-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/SH01-nominal-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "analyticVolumeCm3": 168.67288951126088,
+  "nativeAnalyticErrorCm3": 2.842170943040401e-14,
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "catalogId": "stock:aisi1020",
+    "massKg": 1.3325158271389612
+  },
+  "customProperties": {
+    "Description": "Back plate with integral slide guide and feed bearing; original educational dimensions; printed 8-55 / PDF433",
+    "PartNo": "SH01"
+  },
+  "metadataRoleAndMaterialPass": true,
+  "bookItemNoPresent": true,
+  "browserDurability": {
+    "source": "Parent actual Chrome observation",
+    "driving": "DiskD100→102 native168.6729→172.4805cm3/mass1.332516→1.362596kg; Undo100→Redo102→Undo100",
+    "coldReopen": "Parent actualChromePASS cm_mv00dber: nativeone100×132×46.2mm/12editablehistory; CustompropsBookItemNo1/PartNoSH01/Descriptionretained."
+  },
+  "geometryPass": true,
+  "finalCold": {
+    "source": "artifacts/planchard/SH01-final-browser-2026-10-09.mforge",
+    "bytes": 648231,
+    "sha256": "2a370988ddccd663d59c4057ba1b06ce4bd16e9c23f3ac0f2d202ca273272175",
+    "inputUnchanged": true,
+    "featuresBitIdentical": true,
+    "sketchesBitIdentical": true,
+    "historyBitIdentical": true,
+    "materialPartsBitIdentical": false,
+    "appearancesBitIdentical": true,
+    "customProperties": {
+      "Description": "Back plate with integral slide guide and feed bearing; original educational dimensions; printed 8-55 / PDF433",
+      "PartNo": "SH01",
+      "BookItemNo": "1"
+    },
+    "bookItemNoPass": true,
+    "partNoPass": true,
+    "descriptionUnchanged": true,
+    "definitionDifferenceKeys": [
+      "parts",
+      "lastRebuild",
+      "customProperties",
+      "lastStandardsAudit"
+    ],
+    "nativeAuditReuse": "Exact unchanged nominal feature/sketch/history/material/appearance data, independently regenerated native valid solid and exact STEP difference audit retained.",
+    "parentBrowserCold": {
+      "pass": true,
+      "libraryKey": "cm_mv00dber",
+      "nativeSolidCount": 1,
+      "boundsMm": [
+        100,
+        132,
+        46.2
+      ],
+      "editableHistorySteps": 12,
+      "BookItemNo": "1",
+      "PartNo": "SH01"
+    },
+    "pass": true,
+    "materialPartsAuthoredEquivalent": true,
+    "previewDifferenceKeys": [
+      "exactBuildToken",
+      "meshData"
+    ],
+    "finalNative": {
+      "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH01-final-browser-2026-10-09.mforge",
+      "exact": true,
+      "featureCount": 17,
+      "issues": [],
+      "nativeValidation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 168.6728895112609,
+        "maxToleranceCm": 1.0000005473399511e-7
+      },
+      "volumeCm3": 168.6728895112609,
+      "boundsCm": {
+        "min": {
+          "x": -5,
+          "y": -5,
+          "z": -1.2000000000000002
+        },
+        "max": {
+          "x": 5,
+          "y": 8.200000000000001,
+          "z": 3.4200000000000004
+        }
+      },
+      "centerOfMassCm": {
+        "x": -4.2652054046247387e-16,
+        "y": 1.4225481816469194,
+        "z": 0.10361262724684794
+      },
+      "seconds": 5.6507541
+    }
+  },
+  "acceptancePass": true
+}

@@ -1,0 +1,76 @@
+{
+  "source": "artifacts/planchard/SH01-final-browser-2026-10-09.mforge",
+  "bytes": 648231,
+  "sha256": "2a370988ddccd663d59c4057ba1b06ce4bd16e9c23f3ac0f2d202ca273272175",
+  "inputUnchanged": true,
+  "featuresBitIdentical": true,
+  "sketchesBitIdentical": true,
+  "historyBitIdentical": true,
+  "materialPartsBitIdentical": false,
+  "appearancesBitIdentical": true,
+  "customProperties": {
+    "Description": "Back plate with integral slide guide and feed bearing; original educational dimensions; printed 8-55 / PDF433",
+    "PartNo": "SH01",
+    "BookItemNo": "1"
+  },
+  "bookItemNoPass": true,
+  "partNoPass": true,
+  "descriptionUnchanged": true,
+  "definitionDifferenceKeys": [
+    "parts",
+    "lastRebuild",
+    "customProperties",
+    "lastStandardsAudit"
+  ],
+  "nativeAuditReuse": "Exact unchanged nominal feature/sketch/history/material/appearance data, independently regenerated native valid solid and exact STEP difference audit retained.",
+  "parentBrowserCold": {
+    "pass": true,
+    "libraryKey": "cm_mv00dber",
+    "nativeSolidCount": 1,
+    "boundsMm": [
+      100,
+      132,
+      46.2
+    ],
+    "editableHistorySteps": 12,
+    "BookItemNo": "1",
+    "PartNo": "SH01"
+  },
+  "pass": true,
+  "materialPartsAuthoredEquivalent": true,
+  "previewDifferenceKeys": [
+    "exactBuildToken",
+    "meshData"
+  ],
+  "finalNative": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH01-final-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 17,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 168.6728895112609,
+      "maxToleranceCm": 1.0000005473399511e-7
+    },
+    "volumeCm3": 168.6728895112609,
+    "boundsCm": {
+      "min": {
+        "x": -5,
+        "y": -5,
+        "z": -1.2000000000000002
+      },
+      "max": {
+        "x": 5,
+        "y": 8.200000000000001,
+        "z": 3.4200000000000004
+      }
+    },
+    "centerOfMassCm": {
+      "x": -4.2652054046247387e-16,
+      "y": 1.4225481816469194,
+      "z": 0.10361262724684794
+    },
+    "seconds": 5.6507541
+  }
+}

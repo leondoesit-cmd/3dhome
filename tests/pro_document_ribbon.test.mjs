@@ -4,6 +4,16 @@ import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
 const source=readFileSync(new URL('../js/pro_ribbon.js',import.meta.url),'utf8');
+test('selecting Evaluate replaces the panel accessible name and selected-tab relationship',()=>{
+ const tabs=['Features','Evaluate'].map(()=>({attrs:{},classList:{toggle(){}},setAttribute(key,value){this.attrs[key]=value;}}));
+ const panel={attrs:{'aria-label':'Features','aria-labelledby':'pr-tab-model-0'},setAttribute(key,value){this.attrs[key]=value;}};
+ const host={querySelectorAll:()=>tabs,querySelector:selector=>selector==='.pr-groups'?panel:{scrollIntoView(){}},classList:{contains:()=>false}};
+ const context={PRO_CATALOG:{model:{tabs:[['Features',[]],['Evaluate',[]]]}},L:value=>value,store(){},syncActive(){}};
+ const fill=new Function(...Object.keys(context),sourceFunctionText(source,'fillRibbon')+';return fillRibbon;')(...Object.values(context));
+ fill(host,'model',1,'tabs.model');
+ assert.equal(panel.attrs['aria-label'],'Evaluate');assert.equal(panel.attrs['aria-labelledby'],'pr-tab-model-1');
+ assert.equal(tabs[0].attrs['aria-selected'],'false');assert.equal(tabs[1].attrs['aria-selected'],'true');
+});
 test('Pro ribbon leaves the Assembly tab on a Part transition without resetting deliberate Part tab selections',()=>{
  let assembly=true,index=3;const calls=[];
  const host={dataset:{proDocumentType:'assembly'},querySelector:()=>({dataset:{proTab:String(index)}})};

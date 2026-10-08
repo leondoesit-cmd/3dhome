@@ -1,6 +1,6 @@
 # Planchard ebook — live advance file
 
-Updated: **2026-10-08**. Read this first when resuming; older plans and STOP-HERE files contain superseded status.
+Updated: **2026-10-09**. Read this first when resuming; older plans and STOP-HERE files contain superseded status.
 
 ## Standing task
 
@@ -10,7 +10,7 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 ## Current location
 
-**Exercise 8.19 accepted; next Exercise 8.20 Shaper Tool Head — printed page 8-55 / PDF page433.** Arbor press is printed8-54/PDF432; Kant-Twist printed8-53/PDF431; bench vice8-52/PDF430. Entire ebook remains unfinished.
+**Exercise 8.20 Shaper Tool Head active — printed page 8-55 / PDF page433. Exercise8.19 accepted.** Arbor press is printed8-54/PDF432; Kant-Twist printed8-53/PDF431; bench vice8-52/PDF430. Entire ebook remains unfinished.
 
 **8.17 final acceptance:** ten fresh definitions,16 occurrences,19 active valid mates, zero suppressed mates, one free Screw actuator. Revised base/foot/bolt rear locations X170mm; native51-pose travel audit0..50mm has zero clashes. Two actual Chrome motion studies completed10/10sec (-75RPM,4mm/rev); Cancel restores home. Final source repairs committed5933d26 (drawing wrapping/balloon placement, proportional explosion and explicit assembled/exploded command labels). Earlier mechanical fixes65f48c3; revised home/explosion evidence6daf62c. See `bench-vice-8.17-final-acceptance-2026-10-08.md` for scope and limitations.
 
@@ -26,11 +26,18 @@ The previous usage instruction is to continue toward 3–2% usage remaining, fin
 
 Earlier paragraphs below are historical unless explicitly superseding this current pointer.
 
+### Current shaper browser checkpoint — 2026-10-09
+
+SH01 Back Plate is browser-authored from blank and saved library cm_mv00dber. Six native features/twelve history steps/all six sketches fully defined; volume168.6728895112609cm3, mass1.332515827138961kg with AISI1020reference7.9. D100→102 actual driving edit changes volume168.6729→172.4805; Undo100/Redo102/Undo100 passed. Actual STEP73204bytes one valid solid/zero bidirectional residual. Cold latest library reopen confirms nominal X100/Y132/Z46.2mm/native1solid and BookItemNo1/PartNoSH01/Description. Protected SH01-final-browser-2026-10-09.mforge648231bytes, nominalSTEP and coldjpg. Independent final/cold metadata and native audit PASS.
+
+Current Chrome710862239 now authors SH02 from blank, named Planchard 8.20 - SH02 Down bit feed screw - fresh designer example 2026-10-09. TopD8shaftY−45..90, TopD12collar68..70, TopD16hub90..106 authored (six steps). SH02 completed all five features/ten steps, upperhubdefault10 corrected to16 through drivingdimension beforeacceptance; diagnosticprotected. Chrome nominal9.599271cm3/.07583424kg; shaftD8→8.2 volume9.937715/.07850795,Undo8Redo8.2Undo8 passed. Librarycm_mv012esp saved/coldnative1solid16x151x16mm; metadataPartNoSH02/BookItem2/Descriptionretained. Nominal431465bytebundle/86127STEP plus finalcoldbundle/download2 andjpgprotected. Independentnative/STEP/finalaudit running. Next SH03 VerticalSlide fromblank.
+
+Preflight all16ephemeral native proposals/geometry/DOF/stops passed within report scope. Approved frozen change SH11OD10/ID6.2 instead ofOD12 to clear apron ears at±10deg; oldclashdiagnostic preserved. Finalgeometry remains browser-only. Agents completed sourceworld-frame axis gate fix for Directedrotationlimit/Rack/Belt; parent10focusedtestsPASS/check646modules1489assertionsPASS; checkpointcommitnext. Book8.20 printed8-55/PDF433 active. AP8.19final fullyaccepted committed4e6e80c. Continue entire book; no final completion claimed.
 ### Latest acceptance and resume pointer
 
 Exercise8.19 is accepted within the disclosed original designer/educational scope. Read `arbor-press-8.19-final-acceptance-2026-10-08.md` and `arbor-press-8.19-final-deliverables-audit-2026-10-08.md`. Actual final cold bundle `AP-assembly-final-browser-2026-10-08.mforge`3390000bytes/download16 has assembly JSON exactly identical to audited drawing bundle15; only the unrelated mainModel draft/container timestamps differ. Final groupedSTEP487111bytes/11validsolids/zero Boolean residual; final SVG290709bytes/ANSI A/third angle/nine indented BOM rows/eleven balloons/ten explode lines, cold byte-identical to first verified SVG. All parts, eleven home poses, nine parent/five internal mates, one free DOF, six study baselines, material properties, ten explosionsteps, drawing settings and notes accepted. Final Chrome modeltab710862239 and sheettab710862242. Final metadataQA258/211ms, staged fields retained, Undo restored nominal. Parent56targeted tests PASS; allgates646modules/1489assertionsPASS.
 
-Commit these tested source improvements and final artifacts before proceeding. Native CAD subagent core/source review and UI subagent tasks are done. Then resume **8.20 at printed8-55/PDF433**, read `shaper-tool-head-8.20-design.md` and its core gap report. Sixteen proposed fresh roles/16occurrences and signed Directed rotation limit are source/design-ready; zero actual8.20 parts authored. Start SH01 from blank with visible Chrome controls, save independent source entry, run driving edit/Undo/Redo/cold/native/STEP acceptance, then remaining roles/assembly/hinge travel/exploded drawing. Read current book page image before authoring. Do not reuse previous definition geometry or silently treat the design proposal as accepted. Earlier/later book items remain in `remaining-book-audit-2026-10-03.md`. Continue while quota64% remains; check live usage at future milestones.
+Committed tested source improvements and final artifacts as 4e6e80c. Native CAD subagent core/source review and UI subagent tasks are done. Then resume **8.20 at printed8-55/PDF433**, read `shaper-tool-head-8.20-design.md` and its core gap report. Sixteen proposed fresh roles/16occurrences and signed Directed rotation limit are source/design-ready. Parent visually read PDF433 and started a blank part in Chrome710862239; SH01 authoring now active, no accepted geometry yet. CAD preflight and UI readiness subagents resumed. Start SH01 from blank with visible Chrome controls, save independent source entry, run driving edit/Undo/Redo/cold/native/STEP acceptance, then remaining roles/assembly/hinge travel/exploded drawing. Read current book page image before authoring. Do not reuse previous definition geometry or silently treat the design proposal as accepted. Earlier/later book items remain in `remaining-book-audit-2026-10-03.md`. Continue while quota64% remains; check live usage at future milestones.
 
 ### Latest protected checkpoint — d9c0998
 

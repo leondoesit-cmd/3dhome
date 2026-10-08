@@ -910,6 +910,7 @@ export var TXT = {
   rotationLimitReversed: ["זווית: נגד הציר החיובי", "Angle: reverse axis"],
   rotationLimitDrive: ["זווית הנעה (ריק = חופשי)", "Drive angle (blank = free)"],
   rotationLimitInvalid: ["הזינו תחום זוויות סופי עד 360 מעלות וזווית הנעה בתוכו, או ריק.", "Enter finite ordered angle bounds spanning at most 360°, and a drive angle within them, or blank."],
+  rotationLimitNeedsParallelAxes: ["בחרו צירי ציר מקבילים או מנוגדים בכיוון במצב ההרכבה הנוכחי.", "Choose hinge axes that are parallel or opposed in the current assembled pose."],
   rotationLimitUnsatisfied: ["הגבלת הסיבוב לא הצליחה לקיים את קשרי ההרכבה.", "Directed rotation limit could not satisfy the assembly mates."],
   rackPinionRadius: ["רדיוס פסיעה של הגלגל", "Pinion pitch radius"],
   rackPinionReverse: ["הפוך כיוון מסרק", "Reverse rack travel"],

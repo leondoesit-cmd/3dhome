@@ -162,7 +162,7 @@ import { draftFaceChoices } from "./core/draft_face_choices.js";
 import { ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, lookupAssemblyComponent, refreshSubassemblyFromRecord, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
 import {formSubassembly} from './core/assembly_form_subassembly.js';
 import {assemblyDrawingBOM,occurrenceBOMKey} from './core/assembly_drawing_bom.js';
-import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds } from "./cad_mate_model.js";
+import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds, worldFrame } from "./cad_mate_model.js";
 import { setScrewMateCoupledMotion, setScrewMateDrive, setScrewMateHandedness } from "./cad_screw_controls.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { ribSketchReady } from "./core/rib_profile.js";
@@ -23069,6 +23069,7 @@ function mateRequirementLabel(requirement) {
 function mateFramesFit(type, frameA, frameB) {
   var requirement = mateRequirementFor(type);
   if (!mateFramesSupport(type, frameA, frameB)) {
+    if(type==='rotationlimit'&&mateFrameSupports('axis',frameA)&&mateFrameSupports('axis',frameB))return {ok:false,reason:t('rotationLimitNeedsParallelAxes')};
     return { ok: false, reason: mateRequirementLabel(requirement) };
   }
   return { ok: true, reason: "" };
@@ -23104,7 +23105,10 @@ function mateTypeFits(type) {
      picked. This used to fall back to the bounding-box frames and answer from
      those, so the palette offered mates whose geometry did not exist. */
   if (!picked) return { ok: false, reason: t("mateNeedTwoFaces") };
-  var frameOf = function (reference) { return mateReferenceFromPick(reference).frame; };
+  var frameOf = function (reference) {
+    var stored=mateReferenceFromPick(reference);
+    return ['rotationlimit','rackpinion','belt'].includes(type)?worldFrame(stored.frame,mateHolderById(stored.componentId),stored.frameSpace):stored.frame;
+  };
   return mateFramesFit(type, frameOf(picked.a), frameOf(picked.b));
 }
 
