@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 11,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 17.299291572689178,
+    "maxToleranceCm": 1.0082029696050093e-7
+  },
+  "volumeCm3": 17.299291572689178,
+  "boundsCm": {
+    "min": {
+      "x": -1.2000001000000002,
+      "y": -1.2000001008138317,
+      "z": -4.0000001
+    },
+    "max": {
+      "x": 1.2000001000000002,
+      "y": 1.2000001008138317,
+      "z": 2.8000000000000003
+    }
+  },
+  "centerOfMassCm": {
+    "x": -4.889557599865627e-8,
+    "y": -3.4142705882944145e-15,
+    "z": -0.821536694655916
+  },
+  "seconds": 7.236318099999999
+}

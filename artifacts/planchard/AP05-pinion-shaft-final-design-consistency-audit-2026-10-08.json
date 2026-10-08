@@ -1,0 +1,193 @@
+{
+  "source": "artifacts/planchard/AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+  "bytes": 359306,
+  "inputSha256": "2863a26023d905656efc55168a0843b608f22536a037bca8ccbe9ec84ce10be6",
+  "inputUnchanged": true,
+  "checks": [
+    {
+      "role": "Stock",
+      "plane": "front",
+      "offsetMm": -28.000000000000004,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 12.000000000000002,
+      "fromMm": -28.000000000000004,
+      "toMm": 28.000000000000004,
+      "planeCorrect": true,
+      "circleCorrect": true,
+      "drivingAndFixed": true,
+      "featureCorrect": true,
+      "fullyDefined": true,
+      "pass": true
+    },
+    {
+      "role": "Pinion envelope",
+      "plane": "front",
+      "offsetMm": -10,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 24.000000000000004,
+      "fromMm": -10,
+      "toMm": 10,
+      "planeCorrect": true,
+      "circleCorrect": true,
+      "drivingAndFixed": true,
+      "featureCorrect": true,
+      "fullyDefined": true,
+      "pass": true
+    },
+    {
+      "role": "Hub",
+      "plane": "front",
+      "offsetMm": -40,
+      "centerMm": [
+        0,
+        0
+      ],
+      "diameterMm": 24.000000000000004,
+      "fromMm": -40,
+      "toMm": -28,
+      "planeCorrect": true,
+      "circleCorrect": true,
+      "drivingAndFixed": true,
+      "featureCorrect": true,
+      "fullyDefined": true,
+      "pass": true
+    },
+    {
+      "role": "Handle crossbore",
+      "plane": "top",
+      "offsetMm": -12.000000000000002,
+      "centerMm": [
+        0,
+        -34
+      ],
+      "diameterMm": 8.2,
+      "fromMm": -12.000000000000002,
+      "toMm": 12.000000000000002,
+      "planeCorrect": true,
+      "circleCorrect": true,
+      "drivingAndFixed": true,
+      "featureCorrect": true,
+      "fullyDefined": true,
+      "pass": true
+    }
+  ],
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 11,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 17.299291572689178,
+      "maxToleranceCm": 1.0082029696050093e-7
+    },
+    "volumeCm3": 17.299291572689178,
+    "boundsCm": {
+      "min": {
+        "x": -1.2000001000000002,
+        "y": -1.2000001008138317,
+        "z": -4.0000001
+      },
+      "max": {
+        "x": 1.2000001000000002,
+        "y": 1.2000001008138317,
+        "z": 2.8000000000000003
+      }
+    },
+    "centerOfMassCm": {
+      "x": -4.889557599865627e-8,
+      "y": -3.4142705882944145e-15,
+      "z": -0.821536694655916
+    },
+    "seconds": 7.236318099999999
+  },
+  "step": {
+    "source": "artifacts/planchard/AP05-pinion-shaft-final-browser-2026-10-08.step",
+    "bytes": 86235,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 17.299291301156092,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 17.299291301156092,
+      "centerOfMass": {
+        "x": -4.7614754744221896e-8,
+        "y": -3.453964186507288e-15,
+        "z": -0.8215366547184169
+      },
+      "inertia": [
+        [
+          61.05301639579173,
+          6.055222492061866e-14,
+          -0.000001485969554652982
+        ],
+        [
+          6.055222492061866e-14,
+          61.583473076483635,
+          -9.336113698514845e-14
+        ],
+        [
+          -0.000001485969554652982,
+          -9.336113698514845e-14,
+          10.522104090990206
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1.2000001,
+          "y": -1.2000001008138044,
+          "z": -4.0000001
+        },
+        "max": {
+          "x": 1.2000001,
+          "y": 1.2000001008138044,
+          "z": 2.8
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+    "step": "artifacts/planchard/AP05-pinion-shaft-final-browser-2026-10-08.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeStepEquivalent": true,
+  "material": {
+    "name": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "source": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "catalogId": "stock:alloySteel",
+    "massG": 133.2045451097067
+  },
+  "customProperties": {
+    "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational stubby peg/pinion shaft. Smooth pinion envelope diameter24, ideal pitch diameter20; teeth omitted. Book AISI1035 role uses Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+    "PartNo": "AP05",
+    "BookItemNo": "1.5 STUBBY PEG"
+  },
+  "metadataPass": true,
+  "browserDurability": {
+    "source": "Parent Chrome UI observation",
+    "driving": "Crossbore8.2→8.4 changed native17.29929→17.23863cm3 /0.1332045→0.1327374kg; Undo/Redo/Undo restored8.2 then Save",
+    "coldReopen": "Parent actual Chrome cold reload/saved-library reopen:8fullydefinedsteps,1native solid,24x24x68mm,17.29929cm3/0.1332045kg; drivingcrossbore8.2/offset-12 retained, coldmass/colddim/final screenshots protected.",
+    "status": "passed"
+  }
+}
