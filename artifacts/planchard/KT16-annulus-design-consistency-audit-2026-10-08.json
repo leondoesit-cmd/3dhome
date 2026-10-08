@@ -1,0 +1,218 @@
+{
+  "source": "artifacts/planchard/KT16-annulus-browser-2026-10-08.mforge",
+  "inputSha256": "229613344efd290fcbcf283f8ef9fb309b1ce16a8c01360573a3801a987a8ba1",
+  "inputUnchanged": true,
+  "checks": {
+    "fullyDefined": true,
+    "plane": true,
+    "circles": true,
+    "outerProfile": true,
+    "innerHole": true,
+    "feature": true,
+    "history": true
+  },
+  "circles": [
+    {
+      "entityId": 4389,
+      "diameterMm": 12.000000000000002,
+      "centerMm": [
+        0,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "entityId": 4393,
+      "diameterMm": 8.2,
+      "centerMm": [
+        0,
+        0
+      ],
+      "pass": true
+    }
+  ],
+  "params": {
+    "operation": "add",
+    "endCondition": "blind",
+    "depth": 0.6000000000000001,
+    "offset": 0,
+    "direction": "forward",
+    "symmetric": false,
+    "draftAngle": 0,
+    "draftOutward": false,
+    "thinFeature": false,
+    "thickness": 0.1,
+    "thinMode": "mid-plane",
+    "mergeResult": true,
+    "axis": "z",
+    "profileEntityIds": [
+      4389
+    ],
+    "holeProfileEntityIds": [
+      [
+        4393
+      ]
+    ],
+    "holes": [
+      [
+        {
+          "u": 0.41,
+          "v": 0
+        },
+        {
+          "u": 0.3787906083296275,
+          "v": 0.15690020726968681
+        },
+        {
+          "u": 0.2899137802864845,
+          "v": 0.28991378028648446
+        },
+        {
+          "u": 0.15690020726968681,
+          "v": 0.3787906083296275
+        },
+        {
+          "u": 2.510525938252074e-17,
+          "v": 0.41
+        },
+        {
+          "u": -0.1569002072696868,
+          "v": 0.3787906083296275
+        },
+        {
+          "u": -0.28991378028648446,
+          "v": 0.2899137802864845
+        },
+        {
+          "u": -0.3787906083296275,
+          "v": 0.15690020726968684
+        },
+        {
+          "u": -0.41,
+          "v": 5.021051876504148e-17
+        },
+        {
+          "u": -0.3787906083296276,
+          "v": -0.15690020726968676
+        },
+        {
+          "u": -0.2899137802864845,
+          "v": -0.28991378028648446
+        },
+        {
+          "u": -0.15690020726968704,
+          "v": -0.37879060832962747
+        },
+        {
+          "u": -7.531577814756222e-17,
+          "v": -0.41
+        },
+        {
+          "u": 0.1569002072696869,
+          "v": -0.3787906083296275
+        },
+        {
+          "u": 0.2899137802864844,
+          "v": -0.2899137802864845
+        },
+        {
+          "u": 0.37879060832962747,
+          "v": -0.15690020726968706
+        }
+      ]
+    ],
+    "sketchId": "sk_1g4ib",
+    "from": 0,
+    "to": 0.6000000000000001
+  },
+  "geometryMatchesFrozenPlan": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT16-annulus-browser-2026-10-08.mforge",
+    "exact": true,
+    "featureCount": 2,
+    "issues": [],
+    "volumeCm3": 0.3617229781343291,
+    "boundsCm": {
+      "min": {
+        "x": -0.6000000000000001,
+        "y": -0.6000000000000001,
+        "z": 0
+      },
+      "max": {
+        "x": 0.6000000000000001,
+        "y": 0.6000000000000001,
+        "z": 0.6000000000000001
+      }
+    },
+    "centerOfMassCm": {
+      "x": -1.8463536424911656e-16,
+      "y": -3.5723397532281314e-18,
+      "z": 0.3
+    },
+    "seconds": 6.1359601
+  },
+  "step": {
+    "source": "artifacts/planchard/KT16-annulus-browser-2026-10-08.step",
+    "bytes": 9446,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 0.36172297813433674,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 0.36172297813433674,
+      "centerOfMass": {
+        "x": 1.1377854589117396e-14,
+        "y": -1.7432076357597533e-17,
+        "z": 0.3000000000000001
+      },
+      "inertia": [
+        [
+          0.058608165532215505,
+          2.4647760166501924e-18,
+          -4.3368086899380734e-19
+        ],
+        [
+          2.4647760166501924e-18,
+          0.05860816553221664,
+          5.854271465782778e-21
+        ],
+        [
+          -4.3368086899380734e-19,
+          5.854271465782778e-21,
+          0.09551295237637217
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -0.6,
+          "y": -0.6,
+          "z": 0
+        },
+        "max": {
+          "x": 0.6,
+          "y": 0.6,
+          "z": 0.6
+        }
+      }
+    }
+  },
+  "nativeStepVolumeDifferenceCm3": 7.66053886991358e-15,
+  "nativeStepMatches": true,
+  "analyticVolumeCm3": 0.3617229781343288,
+  "material": {
+    "materialName": "Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.7,
+    "densitySource": "SOLIDWORKS Simulation API, Apply Material to Bodies example: Alloy Steel DENS 7700 kg/m³; educational reference, grade unspecified, not a load certification",
+    "massG": 2.785266931634334
+  },
+  "customProperties": {
+    "Description": "Exercise 8.18 printed8-53/PDF431; original educational additional jaw spacer sleeve, quantity2. Companion CAD/AVI unavailable, designer dimensions and added hardware disclosed, no rated capacity.",
+    "PartNo": "KT16",
+    "BookItemNo": "Additional spacer"
+  },
+  "metadataPass": true,
+  "browserDurability": "Pending parent observation"
+}

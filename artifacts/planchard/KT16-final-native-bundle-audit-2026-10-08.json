@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\KT16-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 2,
+  "issues": [],
+  "volumeCm3": 0.3617229781343291,
+  "boundsCm": {
+    "min": {
+      "x": -0.6000000000000001,
+      "y": -0.6000000000000001,
+      "z": 0
+    },
+    "max": {
+      "x": 0.6000000000000001,
+      "y": 0.6000000000000001,
+      "z": 0.6000000000000001
+    }
+  },
+  "centerOfMassCm": {
+    "x": -1.8463536424911656e-16,
+    "y": -3.5723397532281314e-18,
+    "z": 0.3
+  },
+  "seconds": 5.5156358999999995
+}
