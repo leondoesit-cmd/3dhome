@@ -39,8 +39,8 @@ for(const type of ['assembly','part'])test('custom properties dialog synchronize
 test('drawing settings title updates Description and survives actual assembly Save header read',async()=>{
   const f=fixture();
   const el=(tag,_class,text)=>Object.assign(node(tag),{textContent:text});
-  const show=new Function('E','root','document','el','sheetRow','sheetSelect','SHEET_SIZES','pushUndo','setDocumentProperty','refreshAll','exportDrawingSvg','syncHead',sourceFunctionText(source,'showAssemblyDrawingSettings')+';return showAssemblyDrawingSettings;')
-    (f.E,f.root,{createElement:node},el,(host,label,input)=>{input.label=label;host.appendChild(input);return input;},(_options,value)=>Object.assign(node('select'),{value}),{Letter:{}},()=>{},setDocumentProperty,()=>{},()=>{},f.syncHead);
+  const show=new Function('E','root','document','el','sheetRow','sheetSelect','SHEET_SIZES','pushUndo','setDocumentProperty','refreshAll','exportDrawingSvg','syncHead','t',sourceFunctionText(source,'showAssemblyDrawingSettings')+';return showAssemblyDrawingSettings;')
+    (f.E,f.root,{createElement:node},el,(host,label,input)=>{input.label=label;host.appendChild(input);return input;},(_options,value)=>Object.assign(node('select'),{value}),{Letter:{}},()=>{},setDocumentProperty,()=>{},()=>{},f.syncHead,key=>key);
   show();const dialog=f.root.children[0];
   dialog.children.find(child=>child.label==='Title').value='BUTTERFLY ASSEMBLY';
   dialog.children.find(child=>child.textContent==='Apply drawing settings').onclick();

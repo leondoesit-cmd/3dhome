@@ -1,12 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {layoutBalloonCenters,distanceToSegment,segmentIntersectsBox,BALLOON_RADIUS} from '../js/core/balloon_layout.js';
+import {layoutBalloonCenters,distanceToSegment,segmentIntersectsBox,BALLOON_RADIUS,balloonRadius} from '../js/core/balloon_layout.js';
 import {buildDrawingScene} from '../js/cad_drawings.js';
 import {sceneToSvg,createSheetDoc,buildSheetScene,createProjector} from '../js/cad_sheet.js';
 import {tessellateParts} from '../js/core/part_tessellate.js';
 const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/clamp-balloon-browser-anchors.json',import.meta.url),'utf8'));
 const viceSvg=fs.readFileSync(new URL('../artifacts/planchard/BV-drawing-ten-step-exploded-wrapped-browser-2026-10-08.svg',import.meta.url),'utf8');
+test('deep hierarchical balloon labels expand their circles and retain paper, obstacle and circle clearance',()=>{
+ const labels=['1.2.12.3','2','3.10.1'],paper={x0:0,y0:0,x1:200,y1:160},model={x0:60,y0:50,x1:140,y1:110};
+ const targets=labels.map((text,id)=>({id,text,point:{x:70+id*20,y:80}})),obstacles=[{x0:5,y0:5,x1:195,y1:25}];
+ const positions=layoutBalloonCenters(targets,model,paper,obstacles);assert.equal(positions.size,3);
+ const radius=Math.max(...labels.map(label=>balloonRadius(label)));assert.ok(radius>BALLOON_RADIUS);
+ for(const position of positions.values()){
+  assert.ok(position.x-radius>=paper.x0&&position.x+radius<=paper.x1&&position.y-radius>=paper.y0&&position.y+radius<=paper.y1);
+  assert.equal(segmentIntersectsBox(position,position.target,obstacles[0]),false);
+ }
+ const points=[...positions.values()];for(let i=0;i<points.length;i++)for(let j=0;j<i;j++)assert.ok(Math.hypot(points[i].x-points[j].x,points[i].y-points[j].y)>=radius*2+1.99);
+ const doc=createSheetDoc({size:'ANSI_C'});doc.views=[{id:'iso',dir:'iso',primary:true}];doc.notes=[{id:'long',balloon:true,text:labels[0],leader:{viewId:'iso',u:0,v:0}}];
+ const scene=buildSheetScene(doc,{projection:createProjector(doc,tessellateParts([{kind:'box',x0:0,x1:1,y0:0,y1:1,z0:0,z1:1}]))});
+ const circle=scene.items.find(item=>item.type==='circle'&&item.noteId==='long');assert.equal(circle.r,balloonRadius(labels[0]));
+ assert.ok(labels[0].length*2.8*.55+2<=circle.r*2);
+});
 function clear(centres) {
  const points=[...centres.values()];
  for(let i=0;i<points.length;i++)for(let j=0;j<i;j++){

@@ -1,0 +1,108 @@
+{
+  "previous": "artifacts/planchard/AP-assembly-grouped-home-browser-2026-10-08.mforge",
+  "corrected": "artifacts/planchard/AP-assembly-grouped-corrected-home-browser-2026-10-08.mforge",
+  "externalMatesExact": true,
+  "internalMatesExact": true,
+  "rows": [
+    {
+      "id": 4796,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4797,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4798,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4799,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4800,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4801,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4802,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4803,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4804,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4805,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    },
+    {
+      "id": 4806,
+      "pathExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true
+    }
+  ],
+  "native61ReuseAllowed": true
+}

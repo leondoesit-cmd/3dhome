@@ -209,6 +209,7 @@ export function buildCommandCatalog(ctx) {
     { id:"printsetup", icon:"ph-printer", label:"Print setup", group:t("cmdEvaluate"), terms:"printer bed build volume orientation 3d print", available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"assembly", icon:"ph-stack", label:t("docAssembly"), group:t("cmdAssembly") },
     { id:"components", icon:"ph-cube", label:t("components"), group:t("cmdAssembly") },
+    {id:'formsubassembly',icon:'ph-stack',label:t('formSubassembly'),group:t('cmdAssembly'),terms:'form group selected components rigid subassembly sub assembly',available:function(){return assemblyDoc()&&(E.componentSel||[]).filter(component=>E.assembly?.components?.includes(component)).length>=2;},reason:function(){return assemblyDoc()?t('formSubassemblySelection'):needAsm();}},
     { id:"mates", icon:"ph-link", label:t("mate"), group:t("cmdAssembly") },
     { id:"screwmate", icon:"threadfeature", label:t("screwMate"), group:t("cmdAssembly"), terms:"screw thread pitch mate", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"gearmate", icon:"ph-gear", label:t("gearMate"), group:t("cmdAssembly"), terms:"gear ratio teeth rotation mate mechanical", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },

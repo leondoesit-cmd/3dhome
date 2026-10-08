@@ -1,0 +1,354 @@
+{
+  "source": "artifacts/planchard/AP-assembly-free-home-browser-2026-10-08.mforge",
+  "grouped": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4806,
+          4804,
+          4803,
+          4805
+        ],
+        "variableCount": 24,
+        "rank": 23,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 1,
+          "4804": 1,
+          "4805": 1,
+          "4806": 1
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "internalMates": 5,
+  "externalMates": 9,
+  "topLevelOccurrences": 6,
+  "leaves": 11,
+  "equality": [
+    {
+      "id": 4796,
+      "partNo": "AP01",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4797,
+      "partNo": "AP02",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4798,
+      "partNo": "AP03",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4799,
+      "partNo": "AP03",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4800,
+      "partNo": "AP03",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4801,
+      "partNo": "AP03",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4802,
+      "partNo": "AP04",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4803,
+      "partNo": "AP05",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4804,
+      "partNo": "AP06",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4805,
+      "partNo": "AP07",
+      "definitionExact": true,
+      "placementExact": true
+    },
+    {
+      "id": 4806,
+      "partNo": "AP08",
+      "definitionExact": true,
+      "placementExact": true
+    }
+  ],
+  "poses": [
+    {
+      "drive": -0.25,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "ramYmm": 74.29203673
+    },
+    {
+      "drive": -0.5,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "ramYmm": 58.58407346
+    },
+    {
+      "drive": -0.954929658551372,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "ramYmm": 30
+    },
+    {
+      "drive": 0,
+      "solve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      },
+      "ramYmm": 90
+    }
+  ],
+  "cold": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4806,
+          4804,
+          4803,
+          4805
+        ],
+        "variableCount": 24,
+        "rank": 23,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 1,
+          "4804": 1,
+          "4805": 1,
+          "4806": 1
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "inputUnchanged": true,
+  "scope": "Disposable source-operation proof using actual flat Chrome export; not browser grouping acceptance or an authored grouped model.",
+  "accepted": true
+}

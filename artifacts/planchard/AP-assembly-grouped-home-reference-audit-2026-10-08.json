@@ -1,0 +1,867 @@
+{
+  "source": "artifacts/planchard/AP-assembly-grouped-home-browser-2026-10-08.mforge",
+  "sha256": "766d33540688f43efddf3140ea8bf128e98e0e14fc1268878fa00006d98f87cb",
+  "topLevel": 6,
+  "leafCount": 11,
+  "definitions": 8,
+  "externalMates": 9,
+  "nested": [
+    {
+      "path": [
+        4821
+      ],
+      "children": 6,
+      "grounded": true,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "internalMates": 5,
+      "internalCloneSolve": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4801
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4801": 0
+            }
+          },
+          {
+            "components": [
+              4800
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4800": 0
+            }
+          },
+          {
+            "components": [
+              4799
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4799": 0
+            }
+          },
+          {
+            "components": [
+              4798
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4798": 0
+            }
+          },
+          {
+            "components": [
+              4797
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4797": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0
+      }
+    }
+  ],
+  "refs": [
+    {
+      "assemblyPath": [],
+      "mateId": 4815,
+      "type": "concentric",
+      "side": "a",
+      "persistentId": "4796/axis:feature_muzx3s6y_4:face:generated:cylinder:2",
+      "componentId": 4821,
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 2.3000000000000003,
+          "y": 15,
+          "z": 1.6
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4815,
+      "type": "concentric",
+      "side": "b",
+      "persistentId": "axis:feature_muzy483o_2:face:generated:cylinder:2",
+      "componentId": 4803,
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 1.899999999999999
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4816,
+      "type": "distance",
+      "side": "a",
+      "persistentId": "4796/plane:front",
+      "componentId": 4821,
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4816,
+      "type": "distance",
+      "side": "b",
+      "persistentId": "plane:front",
+      "componentId": 4803,
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4817,
+      "type": "distance",
+      "side": "a",
+      "persistentId": "4796/plane:front",
+      "componentId": 4821,
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4817,
+      "type": "distance",
+      "side": "b",
+      "persistentId": "plane:front",
+      "componentId": 4804,
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4818,
+      "type": "distance",
+      "side": "a",
+      "persistentId": "4796/plane:right",
+      "componentId": 4821,
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4818,
+      "type": "distance",
+      "side": "b",
+      "persistentId": "plane:right",
+      "componentId": 4804,
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4819,
+      "type": "rackpinion",
+      "side": "a",
+      "persistentId": "feature_muzy3tqw_1:edge:profile:4732:end",
+      "componentId": 4803,
+      "frame": {
+        "curve": "circle",
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 2.8000000000000003
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "radius": 0.6000000000000001,
+        "measure": 3.7699111843077544
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4819,
+      "type": "rackpinion",
+      "side": "b",
+      "persistentId": "feature_muzya4a3_2:tool:edge:profile:4770:start",
+      "componentId": 4804,
+      "frame": {
+        "curve": "circle",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "radius": 0.51,
+        "measure": 3.204424506661589
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4820,
+      "type": "limit",
+      "side": "a",
+      "persistentId": "4796/plane:top",
+      "componentId": 4821,
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "assemblyPath": [],
+      "mateId": 4820,
+      "type": "limit",
+      "side": "b",
+      "persistentId": "plane:top",
+      "componentId": 4804,
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "resolverIssues": [],
+  "resolverRebindings": [],
+  "recipes": [
+    {
+      "partNo": "AP01",
+      "file": "AP01-column-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP02",
+      "file": "AP02-front-cover-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP03",
+      "file": "AP03-hex-screw-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP04",
+      "file": "AP04-table-plate-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP05",
+      "file": "AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP06",
+      "file": "AP06-square-ram-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP07",
+      "file": "AP07-handle-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    },
+    {
+      "partNo": "AP08",
+      "file": "AP08-press-head-final-browser-2026-10-08.mforge",
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "materialMatch": true
+    }
+  ],
+  "placements": [
+    {
+      "id": 4796,
+      "path": [
+        4821,
+        4796
+      ],
+      "partNo": "AP01",
+      "worldPlacement": {
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4797,
+      "path": [
+        4821,
+        4797
+      ],
+      "partNo": "AP02",
+      "worldPlacement": {
+        "origin": {
+          "x": 3.5,
+          "y": 15,
+          "z": 2
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4798,
+      "path": [
+        4821,
+        4798
+      ],
+      "partNo": "AP03",
+      "worldPlacement": {
+        "origin": {
+          "x": 1,
+          "y": 13.4,
+          "z": 2.6
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4799,
+      "path": [
+        4821,
+        4799
+      ],
+      "partNo": "AP03",
+      "worldPlacement": {
+        "origin": {
+          "x": 1,
+          "y": 16.6,
+          "z": 2.6
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4800,
+      "path": [
+        4821,
+        4800
+      ],
+      "partNo": "AP03",
+      "worldPlacement": {
+        "origin": {
+          "x": 6,
+          "y": 13.4,
+          "z": 2.6
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4801,
+      "path": [
+        4821,
+        4801
+      ],
+      "partNo": "AP03",
+      "worldPlacement": {
+        "origin": {
+          "x": 6,
+          "y": 16.6,
+          "z": 2.6
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4802,
+      "path": [
+        4802
+      ],
+      "partNo": "AP04",
+      "worldPlacement": {
+        "origin": {
+          "x": 4.5,
+          "y": 1.2,
+          "z": 0
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4803,
+      "path": [
+        4803
+      ],
+      "partNo": "AP05",
+      "worldPlacement": {
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 0
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4804,
+      "path": [
+        4804
+      ],
+      "partNo": "AP06",
+      "worldPlacement": {
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4805,
+      "path": [
+        4805
+      ],
+      "partNo": "AP07",
+      "worldPlacement": {
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": -3.4
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    },
+    {
+      "id": 4806,
+      "path": [
+        4806
+      ],
+      "partNo": "AP08",
+      "worldPlacement": {
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "x": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "y": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "z": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      "flatHomeExact": true
+    }
+  ],
+  "solved": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4806,
+          4804,
+          4803,
+          4805
+        ],
+        "variableCount": 24,
+        "rank": 23,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 1,
+          "4804": 1,
+          "4805": 1,
+          "4806": 1
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "savedMotionBaselines": [
+    {
+      "studyId": "ms_fd4d5d49-26d0-4445-90e3-c9f17298976f",
+      "name": "AP full stroke - 60 mm in 10 s",
+      "motors": [
+        {
+          "id": "motor_eae3ebfd-ee74-4fe5-9353-e64b08ba0cc7",
+          "type": "rackpinion",
+          "mateId": 4819,
+          "rpm": -5.72957795130823,
+          "baseTurns": 0
+        }
+      ],
+      "savedPoseIds": [
+        4796,
+        4797,
+        4798,
+        4799,
+        4800,
+        4801,
+        4802,
+        4803,
+        4804,
+        4805,
+        4806
+      ],
+      "currentTopLevelIds": [
+        4821,
+        4802,
+        4803,
+        4804,
+        4805,
+        4806
+      ],
+      "stalePoseIds": [
+        4796,
+        4797,
+        4798,
+        4799,
+        4800,
+        4801
+      ],
+      "missingPoseIds": [
+        4821
+      ],
+      "baselineMatchesCurrentStructure": false
+    }
+  ],
+  "inputUnchanged": true,
+  "scope": "Actual grouped browser references/provenance/worldpose audit. Existing saved-study baseline status recorded separately from geometry acceptance.",
+  "geometryAccepted": true,
+  "savedStudyBaselinesAccepted": false
+}

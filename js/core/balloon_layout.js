@@ -1,6 +1,9 @@
 // Positions are paper millimetres. Keep each leader attached to its original
 // component, while distributing automatic circles in the space around the view.
 export const BALLOON_RADIUS = 3.6;
+export function balloonRadius(label,fontSize=2.8) {
+  return Math.max(BALLOON_RADIUS,String(label??'').length*fontSize*.55/2+1);
+}
 
 export function distanceToSegment(point, a, b) {
   const dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy;
@@ -23,7 +26,7 @@ export function segmentIntersectsBox(a, b, box, padding=0) {
 }
 
 export function layoutBalloonCenters(targets, model, paper, obstacles=[]) {
-  const radius=BALLOON_RADIUS,clearance=2,placed=new Map();
+  const radius=Math.max(BALLOON_RADIUS,...targets.map(target=>balloonRadius(target.text))),clearance=2,placed=new Map();
   const centre={x:(model.x0+model.x1)/2,y:(model.y0+model.y1)/2};
   const ordered=targets.map((target,index)=>({...target,index})).sort((a,b)=>
     Math.atan2(a.point.y-centre.y,a.point.x-centre.x)-Math.atan2(b.point.y-centre.y,b.point.x-centre.x)||a.index-b.index);

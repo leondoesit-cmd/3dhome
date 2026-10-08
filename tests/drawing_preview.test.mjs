@@ -38,7 +38,7 @@ test('preview preserves the scale qualification gate and creates no modal or dow
 
 test('visible Preview drawing applies dialog settings before generating the preview',()=>{
   const E={assembly:{name:'Fixture',drawingSettings:{}}},root=node('root');let captured;
-  const show=compile('showAssemblyDrawingSettings',{E,root,document:{createElement:node},el:(tag,_cls,text)=>node(tag,text),
+  const show=compile('showAssemblyDrawingSettings',{E,root,t:key=>key,document:{createElement:node},el:(tag,_cls,text)=>node(tag,text),
     sheetRow:(host,label,field)=>{field.label=label;host.appendChild(field);return field;},sheetSelect:(_choices,value)=>Object.assign(node('select'),{value}),SHEET_SIZES:{Letter:{}},pushUndo(){},setDocumentProperty(){},refreshAll(){},syncHead(){},
     showDrawingPreview:()=>{captured=structuredClone(E.assembly.drawingSettings);return true;}});
   show();const dialog=root.children[0];

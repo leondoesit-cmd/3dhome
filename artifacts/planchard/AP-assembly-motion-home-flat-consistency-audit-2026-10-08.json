@@ -1,0 +1,91 @@
+{
+  "source": "artifacts/planchard/AP-assembly-motion-home-browser-2026-10-08.mforge",
+  "stepSource": "artifacts/planchard/AP-assembly-flat-assembled-browser-2026-10-08.step",
+  "bundleBytes": 3387435,
+  "stepBytes": 487111,
+  "bundleSha256": "c63d31c7483b18f3130b9af3b4b55c08eaadfec973f85c2c684a7c49b34efd29",
+  "stepSha256": "4250caa0468c4e2779c2ff84b0759b3d3298f352f65e2c73a883cf3138bf5f1b",
+  "authoredInputsUnchanged": true,
+  "componentsDefinitionsPropertiesAndHomeBitIdentical": true,
+  "fourteenMatesBitIdentical": true,
+  "study": {
+    "name": "AP full stroke - 60 mm in 10 s",
+    "durationSeconds": 10,
+    "savedTime": 10,
+    "type": "rackpinion",
+    "mateId": 4819,
+    "rpm": -5.72957795130823,
+    "baseTurns": 0,
+    "basePoses": 11,
+    "basePosesMatchCurrentOpenHome": true,
+    "analyticFullStrokeMm": 59.99999999999997
+  },
+  "nativeStep": {
+    "source": "artifacts/planchard/AP-assembly-flat-assembled-browser-2026-10-08.step",
+    "bytes": 487111,
+    "validation": {
+      "valid": true,
+      "solidCount": 11,
+      "volumeCm3": 600.1580394263555,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 600.1580394263552,
+      "centerOfMass": {
+        "x": 0.921668590618058,
+        "y": 9.377080095076574,
+        "z": 0.010934279029575871
+      },
+      "inertia": [
+        [
+          27274.6633467864,
+          -1843.3879370375298,
+          -70.15890794353089
+        ],
+        [
+          -1843.3879370375298,
+          7531.144483075268,
+          -36.899261791736286
+        ],
+        [
+          -70.15890794353089,
+          -36.899261791736286,
+          31849.92558402397
+        ]
+      ],
+      "solidCount": 11,
+      "bounds": {
+        "min": {
+          "x": -5,
+          "y": 0,
+          "z": -4.0000001
+        },
+        "max": {
+          "x": 8,
+          "y": 24,
+          "z": 4
+        }
+      }
+    }
+  },
+  "exactEquivalence": {
+    "bundlePath": "artifacts/planchard/AP-assembly-motion-home-browser-2026-10-08.mforge",
+    "stepPath": "artifacts/planchard/AP-assembly-flat-assembled-browser-2026-10-08.step",
+    "definitions": 8,
+    "occurrences": 11,
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "nativeReferenceVolumeCm3": 600.1580396978882,
+  "nativeMaterialMassKg": 4.719336856673411,
+  "stepVolumeIntegrationDeltaCm3": -2.7153294013260165e-7,
+  "scope": "Actual flat STEP geometry and saved motion-home consistency only. Native references, mass materials, and home clearance inherit bit-identical accepted free-home components/mates. Full sweep and Chrome playback recorded separately.",
+  "pass": true
+}

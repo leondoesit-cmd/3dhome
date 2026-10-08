@@ -1,0 +1,1598 @@
+{
+  "components": [
+    {
+      "id": 4796,
+      "name": "Planchard 8.19 - AP01 Column - fresh designer example 2026-10-08",
+      "grounded": true,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzwv8zb",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational column/base/guide design; companion CAD and AVI unavailable. AISI1020 SOLIDWORKS reference density 7.90 g/cm3. Ideal rack-pinion envelopes; no rated capacity.",
+          "PartNo": "AP01",
+          "BookItemNo": "1.1 COLUMN"
+        },
+        "parts": []
+      },
+      "topology": [
+        {
+          "ownerFeatureId": "feature_muzx3s6y_4",
+          "kind": "face",
+          "transportOrdinal": 12,
+          "persistentId": "feature_muzx3s6y_4:face:generated:cylinder:2",
+          "semantic": "generated-2",
+          "descriptor": {
+            "surface": "cylinder",
+            "origin": {
+              "x": 2.3000000000000003,
+              "y": 15,
+              "z": 1.6
+            },
+            "normal": {
+              "x": 1,
+              "y": -1.2246467991473532e-16,
+              "z": 0
+            },
+            "measure": 3.066194429903638,
+            "bounds": {
+              "min": {
+                "x": 1.6899999000000003,
+                "y": 14.389999900000001,
+                "z": 1.1999999000000001
+              },
+              "max": {
+                "x": 2.9100001,
+                "y": 15.610000099999999,
+                "z": 2.0000001
+              }
+            },
+            "axis": {
+              "x": 0,
+              "y": 0,
+              "z": -1
+            },
+            "radius": 0.61,
+            "referenceOrigin": {
+              "x": 2.3000000000000003,
+              "y": 15,
+              "z": -2
+            },
+            "axisRange": [
+              -4,
+              -3.2
+            ],
+            "centroid": {
+              "x": 2.3000000000000003,
+              "y": 15,
+              "z": 1.6
+            }
+          },
+          "signature": "cylinder:2.3:15:1.6:1:0:0:3.066:generated-2"
+        }
+      ]
+    },
+    {
+      "id": 4797,
+      "name": "Planchard 8.19 - AP02 Front cover - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 3.5,
+        "y": 15,
+        "z": 2,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzxlswc",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational front cover; companion CAD and AVI unavailable. AISI1020 SOLIDWORKS reference density 7.90 g/cm3. No rated capacity.",
+          "PartNo": "AP02",
+          "BookItemNo": "1.2 FRONT COVER"
+        },
+        "parts": []
+      },
+      "topology": []
+    },
+    {
+      "id": 4798,
+      "name": "Planchard 8.19 - AP03 Hex screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 1,
+        "y": 13.4,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzxsp6x",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational AF10 hex screw; smooth nominal stem, threads omitted. Book AISI1035 role uses available Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+          "PartNo": "AP03",
+          "BookItemNo": "1.3 HEX SCREW"
+        },
+        "parts": []
+      },
+      "topology": []
+    },
+    {
+      "id": 4799,
+      "name": "Planchard 8.19 - AP03 Hex screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 1,
+        "y": 16.6,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzxsp6x",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational AF10 hex screw; smooth nominal stem, threads omitted. Book AISI1035 role uses available Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+          "PartNo": "AP03",
+          "BookItemNo": "1.3 HEX SCREW"
+        },
+        "parts": []
+      },
+      "topology": []
+    },
+    {
+      "id": 4800,
+      "name": "Planchard 8.19 - AP03 Hex screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 6,
+        "y": 13.4,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzxsp6x",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational AF10 hex screw; smooth nominal stem, threads omitted. Book AISI1035 role uses available Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+          "PartNo": "AP03",
+          "BookItemNo": "1.3 HEX SCREW"
+        },
+        "parts": []
+      },
+      "topology": []
+    },
+    {
+      "id": 4801,
+      "name": "Planchard 8.19 - AP03 Hex screw - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 6,
+        "y": 16.6,
+        "z": 2.6,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzxsp6x",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational AF10 hex screw; smooth nominal stem, threads omitted. Book AISI1035 role uses available Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+          "PartNo": "AP03",
+          "BookItemNo": "1.3 HEX SCREW"
+        },
+        "parts": []
+      },
+      "topology": []
+    },
+    {
+      "id": 4802,
+      "name": "Planchard 8.19 - AP04 Table plate - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 4.5,
+        "y": 1.2,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzxybjk",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational four-notch table plate and locating peg. Book AISI1035 role uses available Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+          "PartNo": "AP04",
+          "BookItemNo": "1.4 TABLE PLATE"
+        },
+        "parts": []
+      },
+      "topology": []
+    },
+    {
+      "id": 4803,
+      "name": "Planchard 8.19 - AP05 Pinion shaft - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 2.3,
+        "y": 15,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzy3qea",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational stubby peg/pinion shaft. Smooth pinion envelope diameter24, ideal pitch diameter20; teeth omitted. Book AISI1035 role uses Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+          "PartNo": "AP05",
+          "BookItemNo": "1.5 STUBBY PEG"
+        },
+        "parts": []
+      },
+      "topology": [
+        {
+          "ownerFeatureId": "feature_muzy483o_2",
+          "kind": "face",
+          "transportOrdinal": 8,
+          "persistentId": "feature_muzy483o_2:face:generated:cylinder:2",
+          "semantic": "generated-2",
+          "descriptor": {
+            "surface": "cylinder",
+            "origin": {
+              "x": 0,
+              "y": 0,
+              "z": 1.899999999999999
+            },
+            "normal": {
+              "x": -1,
+              "y": 1.2246467991473532e-16,
+              "z": 0
+            },
+            "measure": 6.785840131753954,
+            "bounds": {
+              "min": {
+                "x": -0.6000001,
+                "y": -0.6000001,
+                "z": 0.9999998999999996
+              },
+              "max": {
+                "x": 0.6000001,
+                "y": 0.6000001,
+                "z": 2.8000001
+              }
+            },
+            "axis": {
+              "x": 0,
+              "y": 0,
+              "z": -1
+            },
+            "radius": 0.6000000000000001,
+            "referenceOrigin": {
+              "x": 0,
+              "y": 0,
+              "z": -2.8000000000000003
+            },
+            "axisRange": [
+              -5.6000000000000005,
+              -3.8
+            ],
+            "centroid": {
+              "x": -1.1102230246251565e-16,
+              "y": 2.3039296165317576e-17,
+              "z": 1.8999999999999988
+            }
+          },
+          "signature": "cylinder:0:0:1.9:-1:0:0:6.786:generated-2"
+        },
+        {
+          "ownerFeatureId": "feature_muzy3tqw_1",
+          "kind": "edge",
+          "transportOrdinal": 16,
+          "persistentId": "feature_muzy3tqw_1:edge:profile:4732:end",
+          "semantic": "profile:4732:end",
+          "descriptor": {
+            "curve": "circle",
+            "origin": {
+              "x": 0,
+              "y": 0,
+              "z": 2.8000000000000003
+            },
+            "axis": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "measure": 3.7699111843077544,
+            "bounds": {
+              "min": {
+                "x": -0.6000001,
+                "y": -0.6000001,
+                "z": 2.7999999000000004
+              },
+              "max": {
+                "x": 0.6000001,
+                "y": 0.6000001,
+                "z": 2.8000001
+              }
+            },
+            "endpoints": [
+              {
+                "x": 0.6000000000000001,
+                "y": 0,
+                "z": 2.8000000000000003
+              },
+              {
+                "x": 0.6000000000000001,
+                "y": 1.9846705913826186e-15,
+                "z": 2.8000000000000003
+              }
+            ],
+            "radius": 0.6000000000000001,
+            "arcMidpoint": {
+              "x": -0.6000000000000001,
+              "y": -9.923352956913093e-16,
+              "z": 2.8000000000000003
+            }
+          },
+          "signature": "circle:0:0:2.8:0:0:1:3.77:profile:4732:end"
+        }
+      ]
+    },
+    {
+      "id": 4804,
+      "name": "Planchard 8.19 - AP06 Square ram - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 4.5,
+        "y": 9,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzy9knj",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational square peg/rack ram; ideal rack coupling, teeth omitted. Book AISI1035 role uses Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+          "PartNo": "AP06",
+          "BookItemNo": "1.6 SQUARE PEG"
+        },
+        "parts": []
+      },
+      "topology": [
+        {
+          "ownerFeatureId": "feature_muzya4a3_2:tool",
+          "kind": "edge",
+          "transportOrdinal": 11,
+          "persistentId": "feature_muzya4a3_2:tool:edge:profile:4770:start",
+          "semantic": "profile:4770:start",
+          "descriptor": {
+            "curve": "circle",
+            "origin": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "axis": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "measure": 3.204424506661589,
+            "bounds": {
+              "min": {
+                "x": -0.5100001,
+                "y": -1e-7,
+                "z": -0.5100001
+              },
+              "max": {
+                "x": 0.5100001,
+                "y": 1e-7,
+                "z": 0.5100001
+              }
+            },
+            "endpoints": [
+              {
+                "x": -1.2491397351303002e-16,
+                "y": 0,
+                "z": 0.51
+              },
+              {
+                "x": 0,
+                "y": 0,
+                "z": 0.51
+              }
+            ],
+            "radius": 0.51,
+            "arcMidpoint": {
+              "x": 6.245698675651501e-17,
+              "y": 0,
+              "z": -0.51
+            }
+          },
+          "signature": "circle:0:0:0:0:1:0:3.204:profile:4770:start"
+        }
+      ]
+    },
+    {
+      "id": 4805,
+      "name": "Planchard 8.19 - AP07 Handle - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 2.3,
+        "y": 15,
+        "z": -3.4,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzyer0p",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational handle with integral end caps. Book AISI1035 role uses Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+          "PartNo": "AP07",
+          "BookItemNo": "1.7 HANDLE"
+        },
+        "parts": []
+      },
+      "topology": []
+    },
+    {
+      "id": 4806,
+      "name": "Planchard 8.19 - AP08 Press head - fresh designer example 2026-10-08",
+      "grounded": false,
+      "transform": {
+        "x": 4.5,
+        "y": 9,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "def": {
+        "id": "cm_muzyjjp1",
+        "customProperties": {
+          "Description": "Exercise 8.19 printed 8-54/PDF432. Original educational pressing head and locating neck for book Part1 ARBOR PRESS role. Book AISI1035 role uses Alloy Steel SOLIDWORKS reference 7.70 g/cm3 substitute. Companion CAD unavailable; no rated capacity.",
+          "PartNo": "AP08",
+          "BookItemNo": "1.8 PART1 ARBOR PRESS"
+        },
+        "parts": []
+      },
+      "topology": []
+    }
+  ],
+  "mates": [],
+  "topologyMates": [
+    {
+      "id": 4807,
+      "type": "lock",
+      "a": {
+        "componentId": 4796,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4797,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 3.5,
+          "y": 15,
+          "z": 2
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4808,
+      "type": "lock",
+      "a": {
+        "componentId": 4796,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4798,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 1,
+          "y": 13.4,
+          "z": 2.6
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4809,
+      "type": "lock",
+      "a": {
+        "componentId": 4796,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4799,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 1,
+          "y": 16.6,
+          "z": 2.6
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4810,
+      "type": "lock",
+      "a": {
+        "componentId": 4796,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4800,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 6,
+          "y": 13.4,
+          "z": 2.6
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4811,
+      "type": "lock",
+      "a": {
+        "componentId": 4796,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4801,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 6,
+          "y": 16.6,
+          "z": 2.6
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4812,
+      "type": "lock",
+      "a": {
+        "componentId": 4796,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4802,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 4.5,
+          "y": 1.2000000000000002,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4813,
+      "type": "lock",
+      "a": {
+        "componentId": 4803,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4805,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": -3.4000000000000004
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4814,
+      "type": "lock",
+      "a": {
+        "componentId": 4804,
+        "kind": "body"
+      },
+      "b": {
+        "componentId": 4806,
+        "kind": "body"
+      },
+      "relativePose": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4815,
+      "type": "concentric",
+      "a": {
+        "componentId": 4796,
+        "kind": "axis",
+        "persistentId": "axis:feature_muzx3s6y_4:face:generated:cylinder:2",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": 1.6
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "sourceFace": {
+            "kind": "face",
+            "ownerFeatureId": "feature_muzx3s6y_4",
+            "persistentId": "feature_muzx3s6y_4:face:generated:cylinder:2",
+            "semantic": "generated-2",
+            "descriptor": {
+              "surface": "cylinder",
+              "origin": {
+                "x": 2.3000000000000003,
+                "y": 15,
+                "z": 1.6
+              },
+              "normal": {
+                "x": 1,
+                "y": -1.2246467991473532e-16,
+                "z": 0
+              },
+              "measure": 3.066194429903638,
+              "bounds": {
+                "min": {
+                  "x": 1.6899999000000003,
+                  "y": 14.389999900000001,
+                  "z": 1.1999999000000001
+                },
+                "max": {
+                  "x": 2.9100001,
+                  "y": 15.610000099999999,
+                  "z": 2.0000001
+                }
+              },
+              "axis": {
+                "x": 0,
+                "y": 0,
+                "z": -1
+              },
+              "radius": 0.61,
+              "referenceOrigin": {
+                "x": 2.3000000000000003,
+                "y": 15,
+                "z": -2
+              },
+              "axisRange": [
+                -4,
+                -3.2
+              ],
+              "centroid": {
+                "x": 2.3000000000000003,
+                "y": 15,
+                "z": 1.6
+              }
+            }
+          }
+        },
+        "descriptor": {
+          "surface": "axis",
+          "origin": {
+            "x": 2.3000000000000003,
+            "y": 15,
+            "z": 1.6
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "sourceFace": {
+            "kind": "face",
+            "ownerFeatureId": "feature_muzx3s6y_4",
+            "persistentId": "feature_muzx3s6y_4:face:generated:cylinder:2",
+            "semantic": "generated-2",
+            "descriptor": {
+              "surface": "cylinder",
+              "origin": {
+                "x": 2.3000000000000003,
+                "y": 15,
+                "z": 1.6
+              },
+              "normal": {
+                "x": 1,
+                "y": -1.2246467991473532e-16,
+                "z": 0
+              },
+              "measure": 3.066194429903638,
+              "bounds": {
+                "min": {
+                  "x": 1.6899999000000003,
+                  "y": 14.389999900000001,
+                  "z": 1.1999999000000001
+                },
+                "max": {
+                  "x": 2.9100001,
+                  "y": 15.610000099999999,
+                  "z": 2.0000001
+                }
+              },
+              "axis": {
+                "x": 0,
+                "y": 0,
+                "z": -1
+              },
+              "radius": 0.61,
+              "referenceOrigin": {
+                "x": 2.3000000000000003,
+                "y": 15,
+                "z": -2
+              },
+              "axisRange": [
+                -4,
+                -3.2
+              ],
+              "centroid": {
+                "x": 2.3000000000000003,
+                "y": 15,
+                "z": 1.6
+              }
+            }
+          }
+        },
+        "signature": "axis:2.3:15:1.6:0:0:0"
+      },
+      "b": {
+        "componentId": 4803,
+        "kind": "axis",
+        "persistentId": "axis:feature_muzy483o_2:face:generated:cylinder:2",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 1.899999999999999
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "sourceFace": {
+            "kind": "face",
+            "ownerFeatureId": "feature_muzy483o_2",
+            "persistentId": "feature_muzy483o_2:face:generated:cylinder:2",
+            "semantic": "generated-2",
+            "descriptor": {
+              "surface": "cylinder",
+              "origin": {
+                "x": 0,
+                "y": 0,
+                "z": 1.899999999999999
+              },
+              "normal": {
+                "x": -1,
+                "y": 1.2246467991473532e-16,
+                "z": 0
+              },
+              "measure": 6.785840131753954,
+              "bounds": {
+                "min": {
+                  "x": -0.6000001,
+                  "y": -0.6000001,
+                  "z": 0.9999998999999996
+                },
+                "max": {
+                  "x": 0.6000001,
+                  "y": 0.6000001,
+                  "z": 2.8000001
+                }
+              },
+              "axis": {
+                "x": 0,
+                "y": 0,
+                "z": -1
+              },
+              "radius": 0.6000000000000001,
+              "referenceOrigin": {
+                "x": 0,
+                "y": 0,
+                "z": -2.8000000000000003
+              },
+              "axisRange": [
+                -5.6000000000000005,
+                -3.8
+              ],
+              "centroid": {
+                "x": -1.1102230246251565e-16,
+                "y": 2.3039296165317576e-17,
+                "z": 1.8999999999999988
+              }
+            }
+          }
+        },
+        "descriptor": {
+          "surface": "axis",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 1.899999999999999
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "sourceFace": {
+            "kind": "face",
+            "ownerFeatureId": "feature_muzy483o_2",
+            "persistentId": "feature_muzy483o_2:face:generated:cylinder:2",
+            "semantic": "generated-2",
+            "descriptor": {
+              "surface": "cylinder",
+              "origin": {
+                "x": 0,
+                "y": 0,
+                "z": 1.899999999999999
+              },
+              "normal": {
+                "x": -1,
+                "y": 1.2246467991473532e-16,
+                "z": 0
+              },
+              "measure": 6.785840131753954,
+              "bounds": {
+                "min": {
+                  "x": -0.6000001,
+                  "y": -0.6000001,
+                  "z": 0.9999998999999996
+                },
+                "max": {
+                  "x": 0.6000001,
+                  "y": 0.6000001,
+                  "z": 2.8000001
+                }
+              },
+              "axis": {
+                "x": 0,
+                "y": 0,
+                "z": -1
+              },
+              "radius": 0.6000000000000001,
+              "referenceOrigin": {
+                "x": 0,
+                "y": 0,
+                "z": -2.8000000000000003
+              },
+              "axisRange": [
+                -5.6000000000000005,
+                -3.8
+              ],
+              "centroid": {
+                "x": -1.1102230246251565e-16,
+                "y": 2.3039296165317576e-17,
+                "z": 1.8999999999999988
+              }
+            }
+          }
+        },
+        "signature": "axis:0:0:1.9:0:0:0"
+      },
+      "aligned": false,
+      "value": 0
+    },
+    {
+      "id": 4816,
+      "type": "distance",
+      "a": {
+        "componentId": 4796,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "signature": "plane:0:0:0:0:0:1"
+      },
+      "b": {
+        "componentId": 4803,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "signature": "plane:0:0:0:0:0:1"
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4817,
+      "type": "distance",
+      "a": {
+        "componentId": 4796,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "signature": "plane:0:0:0:0:0:1"
+      },
+      "b": {
+        "componentId": 4804,
+        "kind": "face",
+        "persistentId": "plane:front",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          }
+        },
+        "signature": "plane:0:0:0:0:0:1"
+      },
+      "aligned": true,
+      "value": 0
+    },
+    {
+      "id": 4818,
+      "type": "distance",
+      "a": {
+        "componentId": 4796,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:1:0:0"
+      },
+      "b": {
+        "componentId": 4804,
+        "kind": "face",
+        "persistentId": "plane:right",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:1:0:0"
+      },
+      "aligned": true,
+      "value": 4.5
+    },
+    {
+      "id": 4819,
+      "type": "rackpinion",
+      "a": {
+        "componentId": 4803,
+        "kind": "edge",
+        "persistentId": "feature_muzy3tqw_1:edge:profile:4732:end",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 2.8000000000000003
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 3.7699111843077544,
+          "bounds": {
+            "min": {
+              "x": -0.6000001,
+              "y": -0.6000001,
+              "z": 2.7999999000000004
+            },
+            "max": {
+              "x": 0.6000001,
+              "y": 0.6000001,
+              "z": 2.8000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0.6000000000000001,
+              "y": 0,
+              "z": 2.8000000000000003
+            },
+            {
+              "x": 0.6000000000000001,
+              "y": 1.9846705913826186e-15,
+              "z": 2.8000000000000003
+            }
+          ],
+          "radius": 0.6000000000000001,
+          "arcMidpoint": {
+            "x": -0.6000000000000001,
+            "y": -9.923352956913093e-16,
+            "z": 2.8000000000000003
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 2.8000000000000003
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 3.7699111843077544,
+          "bounds": {
+            "min": {
+              "x": -0.6000001,
+              "y": -0.6000001,
+              "z": 2.7999999000000004
+            },
+            "max": {
+              "x": 0.6000001,
+              "y": 0.6000001,
+              "z": 2.8000001
+            }
+          },
+          "endpoints": [
+            {
+              "x": 0.6000000000000001,
+              "y": 0,
+              "z": 2.8000000000000003
+            },
+            {
+              "x": 0.6000000000000001,
+              "y": 1.9846705913826186e-15,
+              "z": 2.8000000000000003
+            }
+          ],
+          "radius": 0.6000000000000001,
+          "arcMidpoint": {
+            "x": -0.6000000000000001,
+            "y": -9.923352956913093e-16,
+            "z": 2.8000000000000003
+          }
+        },
+        "signature": "plane:0:0:2.8:0:0:0"
+      },
+      "b": {
+        "componentId": 4804,
+        "kind": "edge",
+        "persistentId": "feature_muzya4a3_2:tool:edge:profile:4770:start",
+        "frameSpace": "component",
+        "frame": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 3.204424506661589,
+          "bounds": {
+            "min": {
+              "x": -0.5100001,
+              "y": -1e-7,
+              "z": -0.5100001
+            },
+            "max": {
+              "x": 0.5100001,
+              "y": 1e-7,
+              "z": 0.5100001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.2491397351303002e-16,
+              "y": 0,
+              "z": 0.51
+            },
+            {
+              "x": 0,
+              "y": 0,
+              "z": 0.51
+            }
+          ],
+          "radius": 0.51,
+          "arcMidpoint": {
+            "x": 6.245698675651501e-17,
+            "y": 0,
+            "z": -0.51
+          }
+        },
+        "descriptor": {
+          "curve": "circle",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "measure": 3.204424506661589,
+          "bounds": {
+            "min": {
+              "x": -0.5100001,
+              "y": -1e-7,
+              "z": -0.5100001
+            },
+            "max": {
+              "x": 0.5100001,
+              "y": 1e-7,
+              "z": 0.5100001
+            }
+          },
+          "endpoints": [
+            {
+              "x": -1.2491397351303002e-16,
+              "y": 0,
+              "z": 0.51
+            },
+            {
+              "x": 0,
+              "y": 0,
+              "z": 0.51
+            }
+          ],
+          "radius": 0.51,
+          "arcMidpoint": {
+            "x": 6.245698675651501e-17,
+            "y": 0,
+            "z": -0.51
+          }
+        },
+        "signature": "plane:0:0:0:0:0:0"
+      },
+      "pitchRadius": 1,
+      "reverse": false,
+      "pinionRoll0": 0,
+      "rackTravel0": -6
+    },
+    {
+      "id": 4820,
+      "type": "limit",
+      "a": {
+        "componentId": 4796,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:0:1:0"
+      },
+      "b": {
+        "componentId": 4804,
+        "kind": "face",
+        "persistentId": "plane:top",
+        "frameSpace": "component",
+        "frame": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "signature": "plane:0:0:0:0:1:0"
+      },
+      "aligned": true,
+      "value": 0,
+      "min": 3,
+      "max": 9
+    }
+  ],
+  "provenance": "Reduced native reference topology and untouched poses/mates from actual AP free-home Chrome export2026-10-08; no modeled geometry or authored recipes."
+}

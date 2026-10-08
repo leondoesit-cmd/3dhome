@@ -1,0 +1,150 @@
+{
+  "before": "artifacts/planchard/AP-assembly-grouped-corrected-home-browser-2026-10-08.mforge",
+  "after": "artifacts/planchard/AP-assembly-grouped-saved-home-browser-2026-10-08.mforge",
+  "oldGroupId": 4821,
+  "newGroupId": 4822,
+  "externalMatesExactAfterGroupIdRename": true,
+  "internalMatesExact": true,
+  "groupTransformExact": true,
+  "groupGroundingExact": true,
+  "rows": [
+    {
+      "id": 4796,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4797,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4798,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4799,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4800,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4801,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4802,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4803,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4804,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4805,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    },
+    {
+      "id": 4806,
+      "pathAfterGroupRenameExact": true,
+      "worldPlacementExact": true,
+      "featuresExact": true,
+      "sketchesExact": true,
+      "propertiesExact": true,
+      "materialExact": true,
+      "occurrencePropertiesExact": true,
+      "groundingExact": true
+    }
+  ],
+  "latestHome": {
+    "ramYmm": 90,
+    "rackId": 4819,
+    "pitchRadiusCm": 1,
+    "reverse": false,
+    "driveFree": true,
+    "limitMinCm": 3,
+    "limitMaxCm": 9,
+    "aligned": true,
+    "groupProperties": {
+      "Description": "Fixed frame: column, front cover and four hex screws",
+      "PartNo": "AP-FRAME"
+    }
+  },
+  "inputsUnchanged": true,
+  "scope": "Explicit group occurrence ID rename allowed; all native mate bindings/settings and all11leaf recipes/placements compared. Cache serialization is not a geometric recipe.",
+  "native61ReuseAllowed": true
+}

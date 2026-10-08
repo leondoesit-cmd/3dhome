@@ -40,12 +40,13 @@ test('long note lines wrap within the notes column and empty input adds no notes
 test('assembly drawing settings focus and persist multiline notes through the actual apply handler',()=>{
   const E={assembly:{name:'VALVE',drawingSettings:{notes:'OLD\nNOTE'}}},root=element('root');root.querySelector=()=>null;
   let undo=0,refresh=0;
-  const fn=new Function('E','root','document','el','sheetRow','sheetSelect','SHEET_SIZES','pushUndo','setDocumentProperty','refreshAll','exportDrawingSvg','syncHead',sourceFunctionText(source,'showAssemblyDrawingSettings')+';return showAssemblyDrawingSettings;')
-    (E,root,{createElement:element},el,(host,label,field)=>{field.label=label;host.appendChild(field);return field;},(_options,value)=>Object.assign(element('select'),{value}),{Letter:{}},()=>undo++,setDocumentProperty,()=>refresh++,()=>{},()=>{});
+  const fn=new Function('E','root','document','el','sheetRow','sheetSelect','SHEET_SIZES','pushUndo','setDocumentProperty','refreshAll','exportDrawingSvg','syncHead','t',sourceFunctionText(source,'showAssemblyDrawingSettings')+';return showAssemblyDrawingSettings;')
+    (E,root,{createElement:element},el,(host,label,field)=>{field.label=label;host.appendChild(field);return field;},(_options,value)=>Object.assign(element('select'),{value}),{Letter:{}},()=>undo++,setDocumentProperty,()=>refresh++,()=>{},()=>{},key=>key);
   fn(true);
   const dialog=root.children[0],notes=dialog.children.find(child=>child.tag==='textarea');
   assert.equal(notes.value,'OLD\nNOTE');assert.ok(notes.focused);
   notes.value='  REMOVE BURRS\nVERIFY FREE ROTATION  ';
+  const scope=dialog.children.find(child=>child.label==='drawingBOMScope');assert.equal(scope.value,'partsOnly');scope.value='indented';
   for(const [label,value] of [['Material','SEE BOM'],['Finish','REMOVE BURRS'],['Mass','1.92143331 kg']]) {
     const input=dialog.children.find(child=>child.label===label);
     assert.ok(input,`${label} is a visible drawing field`);input.value=value;
@@ -54,6 +55,7 @@ test('assembly drawing settings focus and persist multiline notes through the ac
   assert.equal(E.assembly.drawingSettings.notes,'REMOVE BURRS\nVERIFY FREE ROTATION');
   assert.equal(JSON.parse(JSON.stringify(E.assembly)).drawingSettings.notes,E.assembly.drawingSettings.notes);
   const restored=JSON.parse(JSON.stringify(E.assembly));
+  assert.equal(restored.drawingSettings.bomScope,'indented');
   assert.equal(restored.drawingSettings.mass,'1.92143331 kg');
   const scene=buildDrawingScene(body,{...restored.drawingSettings,views:['iso']});
   for(const value of ['SEE BOM','REMOVE BURRS','1.92143331 kg'])assert.ok(scene.items.some(item=>item.type==='text'&&item.text===value),`${value} reaches the exported title block`);
@@ -63,7 +65,8 @@ test('assembly drawing settings focus and persist multiline notes through the ac
 test('component BOM fields update occurrence properties without touching the source geometry',()=>{
   const component={modelKey:'disc',def:{customProperties:{Description:'Old long source description'},parts:[{kind:'box'}]}},host=element('host');
   const original=JSON.stringify(component.def);let undo=0,refresh=0;
-  const fn=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','refreshSelection',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')(el,documentDescription,assemblyPartNumber,()=>undo++,setDocumentProperty,()=>refresh++);
+  const E={mode:'3d',sheetToken:7,sheet:{invalidate(){refresh++;}}};let dirty=0;
+  const fn=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','E','syncDirty','drawSketch','refreshSelection',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')(el,documentDescription,assemblyPartNumber,()=>undo++,setDocumentProperty,E,()=>dirty++,()=>{throw Error('Metadata must not redraw geometry in3D');},()=>{throw Error('Metadata must not rebuild the inspector');});
   fn(host,component);
   const inputs=host.children.flatMap(row=>row.children).filter(child=>child.tag==='input');
   assert.equal(inputs[0].value,'Old long source description');
@@ -75,6 +78,7 @@ test('component BOM fields update occurrence properties without touching the sou
   const bom=generateBOM({components:[component]});
   assert.equal(bom[0].description,'DISC');assert.equal(bom[0].partNumber,'VALVE-003');
   assert.equal(JSON.stringify(component.def),original);assert.equal(undo,2);assert.equal(refresh,2);
+  assert.equal(dirty,2);assert.equal(E.sheetToken,7,'body projection cache token stays unchanged');
   assert.ok(prevented&&stopped,'Enter commits the field without triggering a parent command');
   const restored=JSON.parse(JSON.stringify(component));
   const savedBom=generateBOM({components:[restored]});
@@ -85,8 +89,8 @@ test('component BOM fields update occurrence properties without touching the sou
 });
 
 test('component BOM inspector shows book numbers from fresh browser-exported source models',()=>{
-  const render=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','refreshSelection',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')
-    (el,documentDescription,assemblyPartNumber,()=>{},setDocumentProperty,()=>{});
+  const render=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','E','syncDirty',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')
+    (el,documentDescription,assemblyPartNumber,()=>{},setDocumentProperty,{mode:'3d'},()=>{});
   for(const [file,expected] of [['DP01-base','6'],['DP02-bracket','5'],['DP03-brace','2']]){
     const def=JSON.parse(fs.readFileSync(new URL(`../artifacts/planchard/${file}-browser-2026-10-03.mforge`,import.meta.url),'utf8')).mainModel;
     const host=element('host');render(host,{def});
@@ -102,8 +106,8 @@ test('actual saved Double Pulley occurrence description commits over its verbose
   assert.match(sourceDescription,/Exercise/);
   setDocumentProperty(component,'Description','Existing occurrence override');
   const host=element('host');
-  const render=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','refreshSelection',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')
-    (el,documentDescription,assemblyPartNumber,()=>{},setDocumentProperty,()=>{});
+  const render=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','E','syncDirty',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')
+    (el,documentDescription,assemblyPartNumber,()=>{},setDocumentProperty,{mode:'3d'},()=>{});
   render(host,component);
   const input=host.children[0].children.find(child=>child.tag==='input');
   assert.equal(input.value,'Existing occurrence override');

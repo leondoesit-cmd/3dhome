@@ -1,0 +1,31 @@
+# Exercise 8.19 — Arbor press final acceptance
+
+Accepted original educational interpretation of printed page8-54 / PDF432, authored through visible desktop Chrome in the dark ModelForge app. Eight fresh definitions produce eleven native part occurrences. The fixed column, cover and four screws are a real rigid subassembly, formed through the new visible command; five native Locks are internal, nine native mates remain in the parent. No final geometry was authored by scripts or native computer controls.
+
+## Model and motion
+
+Saved assembly `asm_muzyoail`, “Planchard 8.19 - Arbor press assembly - fresh designer example 2026-10-08”. Final grounded frame group4822; six top-level components, eleven leaf parts. All eight accepted source recipes, sketches, materials and occurrence properties are retained. Native mixed volume600.1580396978882cm³ and mass4.719336856673411kg. All twelve non-body references resolve without issues or rebindings. Internal frame solves at0DOF; parent free mechanism at1DOF; Rack suppression exposes2DOF.
+
+Rack4819 uses real native circular-edge axes +Z/+Y, pitch radius10mm, Reverse false, final Drive blank. Aligned Top Limit30..90mm. Ram origin movesY90→30mm, maintainingX45/Z0; head/table gap62→2mm. Chrome Drive−.25,−.5 and−.954929658551372 reach quarter, half and full closure. Both beyond-stop attempts reject and preserve the complete preceding assembly JSON exactly. Independent61-pose native exact-solid sweep at1mm increments is settled/driven0DOF and clash-free. Exact final recipe/mate/path equivalence, explicitly allowing group4821→4822 renaming, supports reuse of that sweep after regrouping.
+
+Saved study “AP full stroke - 60 mm in 10 s”, Rack motor−5.72957795130823RPM, six baseline poses exactly matching current grouped home. Actual flat Play completed10/10s within41.413s observation; repaired-default cold Play within22.869s; final grouped cold Play within30.11s. These are observation bounds, not measured frame throughput. Cancel restores homeY90. Saved study.time10 and current home geometry are deliberately distinct. Disposable native actual saved-study evaluation confirms all five time samples, settled free endpoint and atomic rejected11s seek.
+
+## Drawing and exports
+
+Final actual Chrome bundle `artifacts/planchard/AP-assembly-final-browser-2026-10-08.mforge` is3390000bytes (download16), after clean Save, cold reopen, retained drawing setup and restored metadata QA. Final grouped assembled STEP `AP-assembly-grouped-assembled-browser-2026-10-08.step` is487111bytes: eleven valid solids, zero native-minus-STEP and STEP-minus-native solid residual. Curved integration volume differs by2.7153294e−7cm³ while Boolean geometry difference is empty.
+
+`AP-drawing-final-browser-2026-10-08.svg` is290709bytes, actual cold Chrome export. ANSI A landscape279.4×215.9mm, ANSI drafting/third-angle exploded isometric, rendered fit scale1:4/mm. Persisted Indented BOM has nine rows: AP-FRAME1, AP01/02/03 as1.1/1.2/1.3 (screwqty4), AP04–08 as2–6. Eleven leaf balloons match that numbering. ExplodedView1 has ten steps moving individual leaf paths; ten component explode segments and eleven balloon leaders. All circles are within border, minimum circle-edge gap2.218mm, no circle intrusions or BOM/title crossings. One additional dashed projection centerline is not an explode segment. Final cold SVG SHA256 `3f0eeba4e304653addfb62ae5da5123a7cdec9342649d6d90773638ed0a57ba7` equals the independently audited first export. Whole-sheet Chrome proof: `AP-drawing-final-sheet-browser-2026-10-08.jpg`.
+
+TitleARBOR PRESS, NumberAP-ASSY, RevisionA, DrawnModelForge, Date2026-10-08, displayed mass4.719337kg and six notes persist through cold library reopen. Notes disclose original dimensions, missing companion CAD/AVI, ideal rack/pinion teeth and smooth screw threads, stroke/clearances, steel substitutions and part-role interpretations.
+
+## App improvements and verification
+
+Mate inspector completion now closes a stale Add Mate collector and rejects duplicate active Locks without Undo or pose mutation. Saved preview duration honors the authored time, avoiding an unwanted full turn past the press stop. Form subassembly preserves leaf world poses, nested topology references, internal/parent mates, motion baseline IDs and explosion targets transactionally. Default explosion addresses nested leaves; Drawing BOM scope persists parts-only or indented numbering with matching balloon sizing. Occurrence metadata edits preserve staged placement fields without rebuilding the inspector. Actual Chrome Description edit258ms and PartNo edit211ms retain stagedX46/X47; Undo restores nominal AP04 description/number andX45 without applying a placement.
+
+Parent final focused verification:56 tests pass across grouping/UI/BOM/balloon/drawing/metadata/mate/playback suites. Source gates: no free identifiers,646 linked modules,1489 source assertions. No new full-suite result is claimed. Independent reports: `arbor-press-8.19-native-assembly-audit-2026-10-08.md`, `arbor-press-8.19-grouped-native-audit-2026-10-08.md`, `arbor-press-8.19-grouped-home-native-audit-2026-10-08.md`, `arbor-press-8.19-final-deliverables-audit-2026-10-08.md`.
+
+## Scope and preserved diagnostics
+
+Book dimensions/sample CAD and movement AVI are unavailable. This is an original designer model with the book's eight roles; “Stubby peg” and “Square peg” are interpreted as shaft/ram, “Part1 ARBOR PRESS” as press head. The pinion is a smooth outer envelope with ideal native coupling, not manufactured tooth contact. AISI1020 reference is used for column/cover; Alloy Steel reference substitutes book AISI1035 elsewhere. No rated capacity is asserted. Sampled exact poses do not certify continuous tooth/contact behavior or manufacturing suitability.
+
+Earlier default-Limit closed pose is diagnostic, as is first group4821 export with stale eleven-ID study baselines. Corrected draft13 passed native audit but hit the Save revision guard. The final saved group4822 and cold drawing are separate protected exports; these earlier artifacts do not establish persistence acceptance. Exercise8.19 is complete within this disclosed scope. Exercise8.20 and the remaining-book queue are still unfinished.

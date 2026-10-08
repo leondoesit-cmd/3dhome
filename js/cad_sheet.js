@@ -1,5 +1,5 @@
 import { analyzeSectionBoundaries } from "./core/section_boundaries.js";
-import { BALLOON_RADIUS, layoutBalloonCenters } from "./core/balloon_layout.js";
+import { balloonRadius, layoutBalloonCenters } from "./core/balloon_layout.js";
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -1369,7 +1369,7 @@ export function buildSheetScene(doc, provider, options = {}) {
   const automaticBalloonPositions = new Map();
   for (const place of placements) {
     const targets = (doc.notes || []).filter(note => note.balloon && note.autoBalloon && note.leader?.viewId === place.id)
-      .map(note => ({ id: note.id, point: place.toSheet(note.leader) }));
+      .map(note => ({ id: note.id, text:note.text, point: place.toSheet(note.leader) }));
     if (!targets.length) continue;
     const title = titleBlockBox(doc);
     const obstacles = [{ x0: title.x-4, y0: title.y-4, x1: title.x+title.w+4, y1: title.y+title.h+4 }];
@@ -1520,7 +1520,7 @@ function balloonItems(note, byId) {
   const place = note.leader ? byId.get(note.leader.viewId) : null;
   if (!place) return [];
   const target = place.toSheet(note.leader);
-  const cx = target.x + num(note.dx, 14), cy = target.y + num(note.dy, -12), radius = BALLOON_RADIUS;
+  const cx = target.x + num(note.dx, 14), cy = target.y + num(note.dy, -12), radius = balloonRadius(note.text,TEXT_SIZES.dim);
   const dx = target.x - cx, dy = target.y - cy, distance = Math.hypot(dx, dy) || 1;
   const edge = { x: cx + dx / distance * radius, y: cy + dy / distance * radius };
   const dot = [];

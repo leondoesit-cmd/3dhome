@@ -1,0 +1,369 @@
+{
+  "source": "artifacts/planchard/AP-assembly-indented-drawing-browser-2026-10-08.mforge",
+  "svgSource": "artifacts/planchard/AP-drawing-first-indented-browser-2026-10-08.svg",
+  "bytes": 3390000,
+  "svgBytes": 290709,
+  "bundleSha256": "8c5d29986ca6e78325a3981e598e2c05ee6cd80727f2d72e0852034fe6e3eb7c",
+  "svgSha256": "3f0eeba4e304653addfb62ae5da5123a7cdec9342649d6d90773638ed0a57ba7",
+  "inputsUnchanged": true,
+  "leafChecks": [
+    {
+      "id": 4796,
+      "path": [
+        4822,
+        4796
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": false
+    },
+    {
+      "id": 4797,
+      "path": [
+        4822,
+        4797
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    },
+    {
+      "id": 4798,
+      "path": [
+        4822,
+        4798
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    },
+    {
+      "id": 4799,
+      "path": [
+        4822,
+        4799
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    },
+    {
+      "id": 4800,
+      "path": [
+        4822,
+        4800
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    },
+    {
+      "id": 4801,
+      "path": [
+        4822,
+        4801
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    },
+    {
+      "id": 4802,
+      "path": [
+        4802
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    },
+    {
+      "id": 4803,
+      "path": [
+        4803
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    },
+    {
+      "id": 4804,
+      "path": [
+        4804
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    },
+    {
+      "id": 4805,
+      "path": [
+        4805
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    },
+    {
+      "id": 4806,
+      "path": [
+        4806
+      ],
+      "worldPoseBitIdentical": true,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true,
+      "moved": true
+    }
+  ],
+  "parentMatesBitIdentical": true,
+  "fiveInternalMatesBitIdentical": true,
+  "groupPropertiesBitIdentical": true,
+  "studyBitIdentical": true,
+  "explosion": {
+    "active": "ev_d98df0b5-b8a3-4044-9d04-51c8be64ff65",
+    "enabled": true,
+    "steps": 10,
+    "movedLeaves": 10
+  },
+  "drawingSettings": {
+    "size": "Letter",
+    "units": "mm",
+    "scale": "fit",
+    "projection": "third",
+    "bomScope": "indented",
+    "orientation": "landscape",
+    "draftingStandard": "ANSI",
+    "notes": "1. Original designer dimensions; Planchard 8.19, printed 8-54 / PDF432.\n2. Companion CAD/AVI unavailable; educational interpretation.\n3. Ideal rack/pinion radius10mm; teeth and screw threads omitted.\n4. Ram stroke60mm; travel30..90mm; table clearance62..2mm.\n5. AISI1020 column/cover; Alloy Steel substitutes book AISI1035.\n6. Stubby/square pegs interpreted as shaft/ram; Part1 as press head. No rated capacity.",
+    "title": "ARBOR PRESS",
+    "number": "AP-ASSY",
+    "revision": "A",
+    "author": "ModelForge",
+    "company": "",
+    "date": "2026-10-08",
+    "material": "Steel references; see notes",
+    "finish": "",
+    "mass": "4.719337 kg"
+  },
+  "svg": {
+    "header": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"279.4mm\" height=\"215.9mm\" viewBox=\"0 0 279.4 215.9\">",
+    "bom": [
+      {
+        "item": "1",
+        "qty": 1,
+        "part": "AP-FRAME"
+      },
+      {
+        "item": "1.1",
+        "qty": 1,
+        "part": "AP01"
+      },
+      {
+        "item": "1.2",
+        "qty": 1,
+        "part": "AP02"
+      },
+      {
+        "item": "1.3",
+        "qty": 4,
+        "part": "AP03"
+      },
+      {
+        "item": "2",
+        "qty": 1,
+        "part": "AP04"
+      },
+      {
+        "item": "3",
+        "qty": 1,
+        "part": "AP05"
+      },
+      {
+        "item": "4",
+        "qty": 1,
+        "part": "AP06"
+      },
+      {
+        "item": "5",
+        "qty": 1,
+        "part": "AP07"
+      },
+      {
+        "item": "6",
+        "qty": 1,
+        "part": "AP08"
+      }
+    ],
+    "bomMatchesBookHierarchy": true,
+    "leafQuantitySum": 11,
+    "balloonCount": 11,
+    "balloonLabels": [
+      "1.1",
+      "1.2",
+      "1.3",
+      "1.3",
+      "1.3",
+      "1.3",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6"
+    ],
+    "labelCounts": {
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "1.1": 1,
+      "1.2": 1,
+      "1.3": 4
+    },
+    "leafBalloonQuantitiesMatch": true,
+    "minimumBalloonCircleGapMm": 2.2180000000000066,
+    "balloonsInsideBorder": true,
+    "explodeLineCount": 10,
+    "allCenterStyleLineCount": 11,
+    "projectionSymbolCenterlineCount": 1,
+    "leaderLineCount": 11,
+    "explodeCircleIntrusions": [],
+    "annotationBomCrossings": [],
+    "annotationTitleCrossings": [],
+    "bomBox": {
+      "x0": 22,
+      "y0": 14,
+      "x1": 142,
+      "y1": 124.4
+    },
+    "titleBox": {
+      "x0": 151.4,
+      "y0": 165.9,
+      "x1": 271.4,
+      "y1": 207.9
+    },
+    "border": {
+      "x0": 16,
+      "y0": 8,
+      "x1": 271.4,
+      "y1": 207.9
+    },
+    "pass": true
+  },
+  "browserDurability": {
+    "source": "Parent observed actual Chrome cold reopen and playback; separate UI evidence.",
+    "coldGroupedOpen": "6top/9parentmates/1DOF/ramY90 PASS",
+    "play": "10/10sec completed in30.11sec,Cancel restoredY90",
+    "coldDrawingRetention": "Parent PASS: indented scope, ANSI Letter/mm/third angle and title/number/revision/date/mass/notes persisted.",
+    "metadataUndo": "Parent PASS: both Undo operations restored nominal AP04 Description/PartNo and placement X45mm.",
+    "coldFinal": "Parent PASS: clean saved final Chrome export, ANSI/mm/third/Indented and title/notes retained; metadata Undo restored AP04 X45mm/Description/PartNo."
+  },
+  "nativeStep": {
+    "source": "artifacts/planchard/AP-assembly-grouped-assembled-browser-2026-10-08.step",
+    "bytes": 487111,
+    "validation": {
+      "valid": true,
+      "solidCount": 11,
+      "volumeCm3": 600.1580394263555,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 600.1580394263552,
+      "centerOfMass": {
+        "x": 0.921668590618058,
+        "y": 9.377080095076574,
+        "z": 0.010934279029575871
+      },
+      "inertia": [
+        [
+          27274.6633467864,
+          -1843.3879370375298,
+          -70.15890794353089
+        ],
+        [
+          -1843.3879370375298,
+          7531.144483075268,
+          -36.899261791736286
+        ],
+        [
+          -70.15890794353089,
+          -36.899261791736286,
+          31849.92558402397
+        ]
+      ],
+      "solidCount": 11,
+      "bounds": {
+        "min": {
+          "x": -5,
+          "y": 0,
+          "z": -4.0000001
+        },
+        "max": {
+          "x": 8,
+          "y": 24,
+          "z": 4
+        }
+      }
+    }
+  },
+  "nativeStepEquivalence": {
+    "bundlePath": "artifacts/planchard/AP-assembly-indented-drawing-browser-2026-10-08.mforge",
+    "stepPath": "artifacts/planchard/AP-assembly-grouped-assembled-browser-2026-10-08.step",
+    "definitions": 8,
+    "occurrences": 11,
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "assemblyUnchanged": true,
+  "pass": true,
+  "visualReview": {
+    "source": "artifacts/planchard/AP-drawing-first-indented-sheet-browser-2026-10-08.jpg",
+    "reviewed": true,
+    "finding": "Whole-sheet Chrome screenshot readable: indented9-rowBOM atleft, explodedisometric atupperright, eleven legible dotteditem balloons, noteslowerleft, titledrawinglower-right; no visibleclipping/overlap."
+  },
+  "finalColdExport": {
+    "finalBundle": "artifacts/planchard/AP-assembly-final-browser-2026-10-08.mforge",
+    "drawingBundle": "artifacts/planchard/AP-assembly-indented-drawing-browser-2026-10-08.mforge",
+    "savedBundle": "artifacts/planchard/AP-assembly-grouped-saved-home-browser-2026-10-08.mforge",
+    "bytes": 3390000,
+    "sha256": "8e27821c97740a018b51bb9b5ccf1839ff510c98370af20647e30285d42de09f",
+    "wholeBundleByteIdentical": false,
+    "canonicalAssemblyBitIdentical": true,
+    "canonicalAssemblyDifferenceKeys": [],
+    "finalSvg": "artifacts/planchard/AP-drawing-final-browser-2026-10-08.svg",
+    "firstSvg": "artifacts/planchard/AP-drawing-first-indented-browser-2026-10-08.svg",
+    "svgBytes": 290709,
+    "svgSha256": "3f0eeba4e304653addfb62ae5da5123a7cdec9342649d6d90773638ed0a57ba7",
+    "svgByteIdentical": true,
+    "inputsUnchanged": true,
+    "nativeReuse": "Final assembly canonical JSON exactly matches independently audited drawing bundle; native STEP, geometry, reference, clearance, mate, source provenance and SVG layout audits remain applicable.",
+    "pass": true,
+    "containerDifferenceKeys": [
+      "createdAt",
+      "mainModel"
+    ],
+    "inactiveMainModelDifferenceKeys": [
+      "id",
+      "key",
+      "sketches",
+      "lastRebuild",
+      "activeSketch",
+      "definitionId"
+    ]
+  }
+}

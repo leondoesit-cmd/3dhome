@@ -1,0 +1,30 @@
+{
+  "finalBundle": "artifacts/planchard/AP-assembly-final-browser-2026-10-08.mforge",
+  "drawingBundle": "artifacts/planchard/AP-assembly-indented-drawing-browser-2026-10-08.mforge",
+  "savedBundle": "artifacts/planchard/AP-assembly-grouped-saved-home-browser-2026-10-08.mforge",
+  "bytes": 3390000,
+  "sha256": "8e27821c97740a018b51bb9b5ccf1839ff510c98370af20647e30285d42de09f",
+  "wholeBundleByteIdentical": false,
+  "canonicalAssemblyBitIdentical": true,
+  "canonicalAssemblyDifferenceKeys": [],
+  "finalSvg": "artifacts/planchard/AP-drawing-final-browser-2026-10-08.svg",
+  "firstSvg": "artifacts/planchard/AP-drawing-first-indented-browser-2026-10-08.svg",
+  "svgBytes": 290709,
+  "svgSha256": "3f0eeba4e304653addfb62ae5da5123a7cdec9342649d6d90773638ed0a57ba7",
+  "svgByteIdentical": true,
+  "inputsUnchanged": true,
+  "nativeReuse": "Final assembly canonical JSON exactly matches independently audited drawing bundle; native STEP, geometry, reference, clearance, mate, source provenance and SVG layout audits remain applicable.",
+  "pass": true,
+  "containerDifferenceKeys": [
+    "createdAt",
+    "mainModel"
+  ],
+  "inactiveMainModelDifferenceKeys": [
+    "id",
+    "key",
+    "sketches",
+    "lastRebuild",
+    "activeSketch",
+    "definitionId"
+  ]
+}

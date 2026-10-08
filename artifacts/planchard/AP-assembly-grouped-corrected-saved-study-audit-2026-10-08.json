@@ -1,0 +1,399 @@
+{
+  "source": "artifacts/planchard/AP-assembly-grouped-corrected-home-browser-2026-10-08.mforge",
+  "studySource": "Actual saved browser study on disposable clone",
+  "studyId": "ms_fd4d5d49-26d0-4445-90e3-c9f17298976f",
+  "rpm": -5.72957795130823,
+  "samples": [
+    {
+      "time": 0,
+      "result": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0,
+        "motionSubsteps": 1,
+        "motions": [
+          {
+            "mateId": 4819,
+            "mateType": "rackpinion",
+            "turns": 0,
+            "rpm": -5.72957795130823,
+            "baseTurns": 0
+          }
+        ]
+      },
+      "ramYmm": 90,
+      "targetYmm": 90,
+      "driveStillFree": true
+    },
+    {
+      "time": 2.5,
+      "result": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0,
+        "motionSubsteps": 1,
+        "motions": [
+          {
+            "mateId": 4819,
+            "mateType": "rackpinion",
+            "turns": -0.23873241463784292,
+            "rpm": -5.72957795130823,
+            "baseTurns": 0
+          }
+        ]
+      },
+      "ramYmm": 75,
+      "targetYmm": 75,
+      "driveStillFree": true
+    },
+    {
+      "time": 5,
+      "result": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0,
+        "motionSubsteps": 1,
+        "motions": [
+          {
+            "mateId": 4819,
+            "mateType": "rackpinion",
+            "turns": -0.47746482927568584,
+            "rpm": -5.72957795130823,
+            "baseTurns": 0
+          }
+        ]
+      },
+      "ramYmm": 60,
+      "targetYmm": 60,
+      "driveStillFree": true
+    },
+    {
+      "time": 7.5,
+      "result": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0,
+        "motionSubsteps": 1,
+        "motions": [
+          {
+            "mateId": 4819,
+            "mateType": "rackpinion",
+            "turns": -0.7161972439135288,
+            "rpm": -5.72957795130823,
+            "baseTurns": 0
+          }
+        ]
+      },
+      "ramYmm": 45,
+      "targetYmm": 45,
+      "driveStillFree": true
+    },
+    {
+      "time": 10,
+      "result": {
+        "ok": true,
+        "issues": [],
+        "rebindings": [],
+        "unsatisfied": [],
+        "settled": true,
+        "passes": 1,
+        "clusters": [
+          {
+            "components": [
+              4806,
+              4804,
+              4803,
+              4805
+            ],
+            "variableCount": 24,
+            "rank": 24,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4803": 0,
+              "4804": 0,
+              "4805": 0,
+              "4806": 0
+            }
+          },
+          {
+            "components": [
+              4802
+            ],
+            "variableCount": 6,
+            "rank": 6,
+            "degreesOfFreedom": 0,
+            "iterations": 0,
+            "converged": true,
+            "perComponent": {
+              "4802": 0
+            }
+          }
+        ],
+        "degreesOfFreedom": 0,
+        "motionSubsteps": 1,
+        "motions": [
+          {
+            "mateId": 4819,
+            "mateType": "rackpinion",
+            "turns": -0.9549296585513717,
+            "rpm": -5.72957795130823,
+            "baseTurns": 0
+          }
+        ]
+      },
+      "ramYmm": 30,
+      "targetYmm": 30,
+      "driveStillFree": true
+    }
+  ],
+  "freeEndpointRefresh": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4806,
+          4804,
+          4803,
+          4805
+        ],
+        "variableCount": 24,
+        "rank": 23,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 1,
+          "4804": 1,
+          "4805": 1,
+          "4806": 1
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "outside": {
+    "ok": false,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [
+      {
+        "mate": 4819,
+        "code": "over-constrained",
+        "linear": 1.3200000000008858,
+        "angular": 0
+      }
+    ],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4806,
+          4804,
+          4803,
+          4805
+        ],
+        "variableCount": 24,
+        "rank": 22,
+        "degreesOfFreedom": 2,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 1,
+          "4804": 1,
+          "4805": 1,
+          "4806": 1
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 2
+  },
+  "rollback": true,
+  "inputUnchanged": true,
+  "accepted": true
+}

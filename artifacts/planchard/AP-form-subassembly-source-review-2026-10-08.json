@@ -1,0 +1,274 @@
+{
+  "source": "artifacts/planchard/AP-assembly-motion-home-browser-2026-10-08.mforge",
+  "sourceUnchanged": true,
+  "disposableGlobalTransform": {
+    "axis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "degrees": 30,
+    "translationCm": {
+      "x": 10,
+      "y": 7,
+      "z": -4
+    }
+  },
+  "originalSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4806,
+          4804,
+          4803,
+          4805
+        ],
+        "variableCount": 24,
+        "rank": 23,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 1,
+          "4804": 1,
+          "4805": 1,
+          "4806": 1
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      },
+      {
+        "components": [
+          4801
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4801": 0
+        }
+      },
+      {
+        "components": [
+          4800
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4800": 0
+        }
+      },
+      {
+        "components": [
+          4799
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4799": 0
+        }
+      },
+      {
+        "components": [
+          4798
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4798": 0
+        }
+      },
+      {
+        "components": [
+          4797
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4797": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "formResult": {
+    "ok": true,
+    "issues": [],
+    "degreesOfFreedom": 1
+  },
+  "leafChecks": [
+    {
+      "id": 4796,
+      "worldPlacementBitIdentical": true,
+      "maxWorldPlacementDelta": 0,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4797,
+      "worldPlacementBitIdentical": true,
+      "maxWorldPlacementDelta": 0,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4798,
+      "worldPlacementBitIdentical": true,
+      "maxWorldPlacementDelta": 0,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4799,
+      "worldPlacementBitIdentical": true,
+      "maxWorldPlacementDelta": 0,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4800,
+      "worldPlacementBitIdentical": true,
+      "maxWorldPlacementDelta": 0,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4801,
+      "worldPlacementBitIdentical": true,
+      "maxWorldPlacementDelta": 0,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4802,
+      "worldPlacementBitIdentical": false,
+      "maxWorldPlacementDelta": 2.9974245308039826e-11,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4803,
+      "worldPlacementBitIdentical": false,
+      "maxWorldPlacementDelta": 2.957918354695721e-10,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4804,
+      "worldPlacementBitIdentical": false,
+      "maxWorldPlacementDelta": 2.9974245308039826e-11,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4805,
+      "worldPlacementBitIdentical": false,
+      "maxWorldPlacementDelta": 2.957900591127327e-10,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    },
+    {
+      "id": 4806,
+      "worldPlacementBitIdentical": false,
+      "maxWorldPlacementDelta": 2.9974245308039826e-11,
+      "definitionBitIdentical": true,
+      "propertiesBitIdentical": true
+    }
+  ],
+  "frameDeltas": [
+    {
+      "mateId": 4815,
+      "side": "a",
+      "maxWorldFrameDelta": 0
+    },
+    {
+      "mateId": 4815,
+      "side": "b",
+      "maxWorldFrameDelta": 2.9737279305663833e-10
+    },
+    {
+      "mateId": 4816,
+      "side": "a",
+      "maxWorldFrameDelta": 0
+    },
+    {
+      "mateId": 4816,
+      "side": "b",
+      "maxWorldFrameDelta": 2.957918354695721e-10
+    },
+    {
+      "mateId": 4817,
+      "side": "a",
+      "maxWorldFrameDelta": 0
+    },
+    {
+      "mateId": 4817,
+      "side": "b",
+      "maxWorldFrameDelta": 2.9974245308039826e-11
+    },
+    {
+      "mateId": 4818,
+      "side": "a",
+      "maxWorldFrameDelta": 0
+    },
+    {
+      "mateId": 4818,
+      "side": "b",
+      "maxWorldFrameDelta": 2.9974245308039826e-11
+    },
+    {
+      "mateId": 4819,
+      "side": "a",
+      "maxWorldFrameDelta": 2.9812241564286523e-10
+    },
+    {
+      "mateId": 4819,
+      "side": "b",
+      "maxWorldFrameDelta": 2.9974245308039826e-11
+    },
+    {
+      "mateId": 4820,
+      "side": "a",
+      "maxWorldFrameDelta": 0
+    },
+    {
+      "mateId": 4820,
+      "side": "b",
+      "maxWorldFrameDelta": 2.9974245308039826e-11
+    }
+  ],
+  "resolverIssues": [],
+  "resolverRebindings": [],
+  "pass": true
+}

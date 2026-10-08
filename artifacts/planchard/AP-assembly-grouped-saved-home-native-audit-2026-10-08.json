@@ -1,0 +1,771 @@
+{
+  "source": "artifacts/planchard/AP-assembly-grouped-saved-home-browser-2026-10-08.mforge",
+  "bytes": 3387492,
+  "inputSha256": "337bb1dab00c2a21a4a32551ea412dcbee2b2ef82d11dd6c7db3dfbadac19021",
+  "inputUnchanged": true,
+  "flatSource": "artifacts/planchard/AP-assembly-flat-title-browser-2026-10-08.mforge",
+  "topLevelOccurrences": 6,
+  "leafOccurrences": 11,
+  "definitionCount": 8,
+  "group": {
+    "id": 4822,
+    "name": "AP fixed frame - column cover and four screws",
+    "properties": {
+      "Description": "Fixed frame: column, front cover and four hex screws",
+      "PartNo": "AP-FRAME"
+    },
+    "grounded": true,
+    "transform": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "children": [
+      4796,
+      4797,
+      4798,
+      4799,
+      4800,
+      4801
+    ],
+    "internalMateIds": [
+      4807,
+      4808,
+      4809,
+      4810,
+      4811
+    ]
+  },
+  "parentMateIds": [
+    4812,
+    4813,
+    4814,
+    4815,
+    4816,
+    4817,
+    4818,
+    4819,
+    4820
+  ],
+  "leafChecks": [
+    {
+      "id": 4796,
+      "path": [
+        4822,
+        4796
+      ],
+      "part": "AP01",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4797,
+      "path": [
+        4822,
+        4797
+      ],
+      "part": "AP02",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4798,
+      "path": [
+        4822,
+        4798
+      ],
+      "part": "AP03",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4799,
+      "path": [
+        4822,
+        4799
+      ],
+      "part": "AP03",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4800,
+      "path": [
+        4822,
+        4800
+      ],
+      "part": "AP03",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4801,
+      "path": [
+        4822,
+        4801
+      ],
+      "part": "AP03",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4802,
+      "path": [
+        4802
+      ],
+      "part": "AP04",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4803,
+      "path": [
+        4803
+      ],
+      "part": "AP05",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4804,
+      "path": [
+        4804
+      ],
+      "part": "AP06",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4805,
+      "path": [
+        4805
+      ],
+      "part": "AP07",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    },
+    {
+      "id": 4806,
+      "path": [
+        4806
+      ],
+      "part": "AP08",
+      "worldPlacementBitIdentical": true,
+      "definitionBitIdentical": true,
+      "authoredDefinitionEquivalent": true,
+      "definitionDifferenceKeys": [],
+      "occurrencePropertiesBitIdentical": true
+    }
+  ],
+  "geometry": [
+    {
+      "part": "AP01",
+      "source": "AP01-column-final-browser-2026-10-08.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 471.4812247847438,
+        "maxToleranceCm": 1.5000000133226762e-7
+      },
+      "volumeCm3": 471.4812247847438,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true
+    },
+    {
+      "part": "AP02",
+      "source": "AP02-front-cover-final-browser-2026-10-08.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 19.11853021361332,
+        "maxToleranceCm": 1.000000001494069e-7
+      },
+      "volumeCm3": 19.11853021361332,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true
+    },
+    {
+      "part": "AP03",
+      "source": "AP03-hex-screw-final-browser-2026-10-08.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 0.7422508358660888,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 0.7422508358660888,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true
+    },
+    {
+      "part": "AP04",
+      "source": "AP04-table-plate-final-browser-2026-10-08.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 18.407764158754752,
+        "maxToleranceCm": 1.5000000177635683e-7
+      },
+      "volumeCm3": 18.407764158754752,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true
+    },
+    {
+      "part": "AP05",
+      "source": "AP05-pinion-shaft-final-browser-2026-10-08.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 17.299291572689178,
+        "maxToleranceCm": 1.0082029696050093e-7
+      },
+      "volumeCm3": 17.299291572689178,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true
+    },
+    {
+      "part": "AP06",
+      "source": "AP06-square-ram-final-browser-2026-10-08.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 59.34629740064103,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 59.34629740064103,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true
+    },
+    {
+      "part": "AP07",
+      "source": "AP07-handle-final-browser-2026-10-08.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 8.394335570391927,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 8.394335570391927,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true
+    },
+    {
+      "part": "AP08",
+      "source": "AP08-press-head-final-browser-2026-10-08.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 3.1415926535897927,
+        "maxToleranceCm": 1.0000000000000002e-7
+      },
+      "volumeCm3": 3.1415926535897927,
+      "featuresMatch": true,
+      "sketchesMatch": true,
+      "propertiesMatch": true,
+      "appearancesMatch": true
+    }
+  ],
+  "nativeHome": {
+    "volumeCm3": 600.1580396978882,
+    "massG": 4719.336856673411,
+    "hits": []
+  },
+  "nativeSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4806,
+          4804,
+          4803,
+          4805
+        ],
+        "variableCount": 24,
+        "rank": 23,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4803": 1,
+          "4804": 1,
+          "4805": 1,
+          "4806": 1
+        }
+      },
+      {
+        "components": [
+          4802
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4802": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "internalSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          4801
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4801": 0
+        }
+      },
+      {
+        "components": [
+          4800
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4800": 0
+        }
+      },
+      {
+        "components": [
+          4799
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4799": 0
+        }
+      },
+      {
+        "components": [
+          4798
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4798": 0
+        }
+      },
+      {
+        "components": [
+          4797
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "4797": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 0
+  },
+  "references": [
+    {
+      "mateId": 4815,
+      "type": "concentric",
+      "side": "a",
+      "componentId": 4822,
+      "persistentId": "4796/axis:feature_muzx3s6y_4:face:generated:cylinder:2",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 2.3000000000000003,
+          "y": 15,
+          "z": 1.6
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4815,
+      "type": "concentric",
+      "side": "b",
+      "componentId": 4803,
+      "persistentId": "axis:feature_muzy483o_2:face:generated:cylinder:2",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 1.899999999999999
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mateId": 4816,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4822,
+      "persistentId": "4796/plane:front",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4816,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4803,
+      "persistentId": "plane:front",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4817,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4822,
+      "persistentId": "4796/plane:front",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4817,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4804,
+      "persistentId": "plane:front",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mateId": 4818,
+      "type": "distance",
+      "side": "a",
+      "componentId": 4822,
+      "persistentId": "4796/plane:right",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4818,
+      "type": "distance",
+      "side": "b",
+      "componentId": 4804,
+      "persistentId": "plane:right",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4819,
+      "type": "rackpinion",
+      "side": "a",
+      "componentId": 4803,
+      "persistentId": "feature_muzy3tqw_1:edge:profile:4732:end",
+      "frame": {
+        "curve": "circle",
+        "origin": {
+          "x": 2.3,
+          "y": 15,
+          "z": 2.8000000000000003
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "radius": 0.6000000000000001,
+        "measure": 3.7699111843077544
+      }
+    },
+    {
+      "mateId": 4819,
+      "type": "rackpinion",
+      "side": "b",
+      "componentId": 4804,
+      "persistentId": "feature_muzya4a3_2:tool:edge:profile:4770:start",
+      "frame": {
+        "curve": "circle",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "radius": 0.51,
+        "measure": 3.204424506661589
+      }
+    },
+    {
+      "mateId": 4820,
+      "type": "limit",
+      "side": "a",
+      "componentId": 4822,
+      "persistentId": "4796/plane:top",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mateId": 4820,
+      "type": "limit",
+      "side": "b",
+      "componentId": 4804,
+      "persistentId": "plane:top",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.5,
+          "y": 9,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "resolverIssues": [],
+  "resolverRebindings": [],
+  "studies": [
+    {
+      "id": "ms_fd4d5d49-26d0-4445-90e3-c9f17298976f",
+      "name": "AP full stroke - 60 mm in 10 s",
+      "duration": 10,
+      "time": 10,
+      "motorsBitIdentical": true,
+      "motors": [
+        {
+          "id": "motor_eae3ebfd-ee74-4fe5-9353-e64b08ba0cc7",
+          "type": "rackpinion",
+          "mateId": 4819,
+          "rpm": -5.72957795130823,
+          "baseTurns": 0
+        }
+      ],
+      "basePoseIds": [
+        4802,
+        4803,
+        4804,
+        4805,
+        4806,
+        4822
+      ],
+      "expectedTopLevelIds": [
+        4822,
+        4802,
+        4803,
+        4804,
+        4805,
+        4806
+      ],
+      "basePoseIdsMatchTopLevel": true,
+      "hasGroupBaseline": true,
+      "basePoseTransformsMatchCurrent": true
+    }
+  ],
+  "parentPropertiesBitIdentical": true,
+  "geometryMatesAndHomePass": true,
+  "studyStructuralBaselinePass": true,
+  "pass": true,
+  "currentZero": {
+    "rackId": 4819,
+    "driveTurnsPresent": false,
+    "driveTurns": null,
+    "pinionRoll0": 0,
+    "rackTravel0": -6,
+    "motorBaseTurns": 0,
+    "shaftRotation": {
+      "x": 2.3,
+      "y": 15,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "ramOriginCm": {
+      "x": 4.5,
+      "y": 9,
+      "z": 0,
+      "rx": 0,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      }
+    },
+    "studySavedTime": 10
+  }
+}

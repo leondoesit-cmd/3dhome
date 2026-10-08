@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {defaultExplodeSpacing,defaultExplodeLayout,assemblyHasExplodedOffsets,createExplodedView,addExplodeStep,applyExplodedView,explodeTargets} from '../js/cad_exploded_view.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
+import {flattenAssembly} from '../js/core/assembly_structure.js';
 
 test('automatic explosion scales to widest placed body with clearance, including rotated extents',()=>{
   assert.equal(defaultExplodeSpacing([{x0:-2.5,x1:2.5},{x0:-2.1,x1:2.1},null]),6);
@@ -23,7 +24,7 @@ test('configuration-cleared active pointer reuses the saved seven grouped steps 
 
 test('new empty assembly still creates its first default exploded view safely',()=>{
  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),assembly={components:[]};let opened=0;
- const context={E:{docType:'assembly',assembly},assemblyHasExplodedOffsets,explodeTargets,applyExplodedView,defaultExplodeLayout,createExplodedView,addExplodeStep,componentWorldBounds:()=>null,pushUndo:()=>{},t:x=>x,refreshAll:()=>{},fitPreview:()=>{},flash:()=>{},openExplodedPlayback:()=>opened++};
+ const context={E:{docType:'assembly',assembly},assemblyHasExplodedOffsets,explodeTargets,applyExplodedView,defaultExplodeLayout,createExplodedView,addExplodeStep,flattenAssembly,occurrenceWorldBounds:()=>null,pushUndo:()=>{},t:x=>x,refreshAll:()=>{},fitPreview:()=>{},flash:()=>{},openExplodedPlayback:()=>opened++};
  vm.runInNewContext(sourceFunctionText(source,'createDefaultExplodedView')+';createDefaultExplodedView();',context);
  assert.equal(assembly.explodedViews.length,1);assert.equal(assembly.explodedViews[0].steps.length,0);assert.equal(assembly.activeExplodedView,assembly.explodedViews[0].id);assert.equal(opened,1);
 });
@@ -33,7 +34,7 @@ test('default explode UI uses placed bounds and reopens saved custom steps witho
   const assembly={components:Array.from({length:8},(_,i)=>({id:i}))};
   let boundsCalls=0,applied;
   const context={E:{docType:'assembly',assembly},assemblyHasExplodedOffsets,defaultExplodeLayout,createExplodedView,addExplodeStep,
-    explodeTargets:a=>a.components.map(component=>({component})),componentWorldBounds:(c,options)=>{assert.equal(options.exploded,false);boundsCalls++;return {x0:-2.5,x1:2.5,z0:-1,z1:1};},
+    explodeTargets:a=>a.components.map(component=>({component})),flattenAssembly,occurrenceWorldBounds:(c,placement)=>{assert.ok(placement.origin);boundsCalls++;return {x0:-2.5,x1:2.5,z0:-1,z1:1};},
     applyExplodedView:(a,id)=>{applied=id;},pushUndo:()=>{},t:s=>s,refreshAll:()=>{},fitPreview:()=>{},flash:()=>{},openExplodedPlayback:()=>{}};
   vm.runInNewContext(source.slice(start,end)+'\ncreateDefaultExplodedView();',context);
   assert.equal(boundsCalls,8);assert.ok(Math.abs(assembly.explodedViews[0].steps.at(-1).direction.x-5.6)<1e-8);

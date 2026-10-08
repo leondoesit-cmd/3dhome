@@ -139,7 +139,7 @@ export function composePlacement(chain) {
 export function resolveComponentPath(component, persistentId) {
   if (!isSubassembly(component) || !persistentId || !persistentId.includes(PATH_SEPARATOR)) return { component, localId: persistentId, chain: [component] };
   const [head, ...rest] = persistentId.split(PATH_SEPARATOR);
-  const child = component.asm.components.find((item) => item.id === head);
+  const child = component.asm.components.find((item) => String(item.id) === head);
   if (!child) return null;
   const inner = resolveComponentPath(child, rest.join(PATH_SEPARATOR));
   return inner && { ...inner, chain: [component].concat(inner.chain) };

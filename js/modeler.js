@@ -160,6 +160,8 @@ import { defaultTopologyMateAlignment, exactMateReferenceChoices, mateAlignmentF
 import {applyDrivenAssemblyPlacement} from "./core/assembly_placement.js";
 import { draftFaceChoices } from "./core/draft_face_choices.js";
 import { ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, lookupAssemblyComponent, refreshSubassemblyFromRecord, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
+import {formSubassembly} from './core/assembly_form_subassembly.js';
+import {assemblyDrawingBOM,occurrenceBOMKey} from './core/assembly_drawing_bom.js';
 import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds } from "./cad_mate_model.js";
 import { setScrewMateCoupledMotion, setScrewMateDrive, setScrewMateHandedness } from "./cad_screw_controls.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
@@ -3978,6 +3980,7 @@ function buildDOM() {
     '<div class="md-command-pane" data-command-pane="assembly">' +
       commandGroup("grpInsert", [
         commandButton("components", t("insertComponent"), null, "primary", t("insertComponent")),
+        commandButton("formsubassembly",t("formSubassembly")),
       ]) +
       commandGroup("grpMates", [
         commandButton("mates", t("mate"), null, "primary"),
@@ -7293,6 +7296,7 @@ function runCommand(id) {
   else if (id === "beltmate") { setDocumentType("assembly"); setTab("ops"); openMateBeltForm(); }
   else if (id === "rackpinionmate") { setDocumentType("assembly"); setTab("ops"); openMateRackPinionForm(); }
   else if (id === "rotationlimitmate") { setDocumentType("assembly"); setTab("ops"); openMateRotationLimitForm(); }
+  else if (id === "formsubassembly") openFormSubassembly();
   else if (id === "symmetricmate") { setDocumentType("assembly"); setTab("ops"); addTopologyMate("symmetric"); }
   else if (id === "dynamicmirror") toggleDynamicMirror();
   else if (id === "mirror") mirrorSelection();
@@ -11810,6 +11814,12 @@ function buildSheetPanel(host) {
   sheetRow(setup, t("sheetUnits"), sheetSelect([
     { value: "mm", label: "mm" }, { value: "cm", label: "cm" }, { value: "m", label: "m" }, { value: "in", label: "in" },
   ], doc.units, function (value) { sheet.setSheetOption("units", value); drawSketch(); })).id = "mdSheetUnits";
+  if(E.docType==='assembly'&&E.assembly){
+    sheetRow(setup,t('drawingBOMScope'),sheetSelect([{value:'partsOnly',label:t('drawingBOMPartsOnly')},{value:'indented',label:t('drawingBOMIndented')}],E.assembly.drawingSettings?.bomScope==='indented'?'indented':'partsOnly',function(value){
+      pushUndo(t('opSheetSetup'));E.assembly.drawingSettings ||= {};E.assembly.drawingSettings.bomScope=value==='indented'?'indented':'partsOnly';
+      sheet.invalidate();drawSketch();syncHead();
+    })).id='mdSheetBOMScope';
+  }
   sheetRow(setup,t("sheetDraftingStandard"),sheetSelect([{value:"custom",label:t("sheetCustomStandard")},{value:"ANSI",label:"ANSI · inch / third angle"},{value:"ISO",label:"ISO · mm / first angle"}],doc.draftingStandard||"custom",function(value){
     sheet.setSheetOption("draftingStandard",value);
     /* A drawing's drafting convention and display units are independent of
@@ -12025,8 +12035,8 @@ function drawingSheet() {
       },
       bom: function () {
         if (E.docType !== "assembly" || !E.assembly) return null;
-        return generateBOM(E.assembly).map(function (row, index) {
-          return { item: index + 1, qty: row.quantity, name: row.name, description: row.description, partNumber: row.partNumber, material: row.material || "" };
+        return assemblyDrawingBOMRows().map(function (row, index) {
+          return { item: row.item ?? index + 1, qty: row.quantity, name: row.name, description: row.description, partNumber: row.partNumber, material: row.material || "" };
         });
       },
       pushUndo: pushUndo,
@@ -18900,7 +18910,12 @@ function assemblyBomProperties(host,component) {
       var next=input.value.trim();
       if(next===committedValue)return;
       committedValue=next;
-      pushUndo("Component "+pair[0].toLowerCase());setDocumentProperty(component,pair[1],next);refreshSelection();
+      pushUndo("Component "+pair[0].toLowerCase());setDocumentProperty(component,pair[1],next);
+      // Metadata changes neither body projections nor the current inspector.
+      // Keep staged placement fields and their focus intact on blur/Tab.
+      if(E.sheet)E.sheet.invalidate();
+      if(E.mode==='drawing')drawSketch();
+      syncDirty();
     }
     input.addEventListener("change",commitProperty);
     input.addEventListener("blur",commitProperty);
@@ -19276,6 +19291,27 @@ function clampMateAngle(value) {
   return Math.max(0, Math.min(180, degrees));
 }
 
+function openFormSubassembly() {
+  var assembly=E.assembly;
+  var selected=(E.componentSel||[]).filter(function(component){return assembly?.components?.includes(component);});
+  if(E.docType!=='assembly'||selected.length<2){flash(t('formSubassemblySelection'));return;}
+  var selectedIds=selected.map(function(component){return component.id;});
+  openQuickForm({action:'formsubassembly',icon:'ph-stack',title:t('formSubassembly'),hint:t('formSubassemblyHint')+' '+selected.map(function(component){return component.name||component.modelKey||String(component.id);}).join(', '),fields:[
+    {key:'name',label:t('name'),type:'text',value:t('formSubassemblyDefaultName')},
+  ],onApply:function(values){
+    if(E.docType!=='assembly'||E.assembly!==assembly)return false;
+    var name=String(values.name||'').trim();if(!name){flash(t('formSubassemblyNameRequired'));return false;}
+    var id=uid(),result=formSubassembly(assembly,selectedIds,{id,key:'subassembly_'+id,name},function(){pushUndo(t('formSubassembly'));});
+    if(!result.ok){
+      var code=result.issues?.[0]?.code;
+      flash(t(code==='subassembly-selection-not-rigid'?'formSubassemblyNeedRigid':code==='unsupported-subassembly-mechanical-reference'||code==='unsupported-subassembly-legacy-reference'?'formSubassemblyCrossingMate':'formSubassemblyFailed'));
+      return false;
+    }
+    E.componentSel=[result.component];E.sel=result.component;E.topologySelection=[];
+    acceptRackPinionSolve(result);refreshAll({skipAssemblySolve:true});
+    return true;
+  }});
+}
 function addInspectorTopologyMate(type) {
   if(!addTopologyMate(type))return false;
   // An inspector commit completes the pending mate command too. Otherwise
@@ -26164,9 +26200,10 @@ function createDefaultExplodedView() {
   var saved=(E.assembly.explodedViews || []).find(function(view){return view.id===E.assembly.activeExplodedView;}) || (E.assembly.explodedViews || [])[0];
   if(saved){E.assembly.activeExplodedView=saved.id;applyExplodedView(E.assembly,saved.id,1);refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true});fitPreview();flash("✓ "+saved.name);openExplodedPlayback();return;}
   var view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1));
-  var layout=defaultExplodeLayout(E.assembly.components.map(function(component){return componentWorldBounds(component,{exploded:false});}));
-  E.assembly.components.forEach(function (component, index) {
-    if (index) addExplodeStep(view, [component.id], layout[index]);
+  var occurrences=flattenAssembly(E.assembly);
+  var layout=defaultExplodeLayout(occurrences.map(function(occurrence){return occurrenceWorldBounds(occurrence.component,occurrence.placement);}));
+  occurrences.forEach(function (occurrence, index) {
+    if (index) addExplodeStep(view, [occurrence.path.map(String).join('/')], layout[index]);
   });
   E.assembly.activeExplodedView = view.id;
   applyExplodedView(E.assembly, view.id, 1); refreshAll({assemblyPoseOnly:true,skipAssemblySolve:true}); fitPreview(); flash("\u2713 " + view.name);
@@ -26592,12 +26629,13 @@ function renderAssemblyInterferenceReport(hits,labels,scopeCaption) {
    it, numbered against the bill of materials. The drawing module already draws
    any part it has no mesh for as its view rectangle, so an envelope per
    component is the fidelity a part sheet gets too, not a shortcut past it. */
+function assemblyDrawingBOMRows() {
+  return assemblyDrawingBOM(E.assembly,E.assembly?.drawingSettings?.bomScope).rows;
+}
 function assemblyDrawingDocument() {
   var occurrences = flattenAssembly(E.assembly, { visibleOnly: true });
-  /* Parts-only bill of materials, as the book asks for: every leaf part is a
-     row, so the sub-assemblies are read through to what they are made of. */
-  var rows = generateBOM({ components: occurrences.map(function (occurrence) { return occurrence.component; }) });
-  var itemOf = new Map(rows.map(function (row, index) { return [row.key, index + 1]; }));
+  /* One chosen numbering scope supplies both the table and leaf balloons. */
+  var bom = assemblyDrawingBOM(E.assembly,E.assembly?.drawingSettings?.bomScope),rows=bom.rows;
   var parts = [], targets = [];
   /* The sheet shows the real bodies where the mates put them, moved by the
      active exploded view, not an envelope per component. */
@@ -26606,7 +26644,8 @@ function assemblyDrawingDocument() {
     var blown = explodedOccurrenceOffset(occurrence);
     var def = componentDef(component);
     var bodies = def ? activeParts(def).filter(function (part) { return part.meshData && part.meshData.positions && part.meshData.positions.length >= 9; }) : [];
-    var item = itemOf.get(generateBOM({ components: [component] })[0].key);
+    var item = bom.itemByPath.get(occurrenceBOMKey(occurrence.path));
+    if(item===undefined)return;
     var low = [Infinity, Infinity, Infinity], high = [-Infinity, -Infinity, -Infinity];
     if (!placement || !bodies.length) {
       var bounds = occurrenceWorldBounds(component,placement);
@@ -26635,7 +26674,7 @@ function assemblyDrawingDocument() {
     def: { kind: "assembly", name: E.assembly.name || t("docAssembly"), parts: parts },
     targets: targets,
     balloons: rows.map(function (row) {
-      return { item: itemOf.get(row.key), name: row.name, description: row.description, partNumber: row.partNumber, material: row.material || "", qty: row.quantity };
+      return { item: row.item, name: row.name, description: row.description, partNumber: row.partNumber, material: row.material || "", qty: row.quantity };
     }),
   };
 }
@@ -26675,6 +26714,8 @@ function showAssemblyDrawingSettings(focusNotes) {
     { value:"third", label:"Third angle" }, { value:"first", label:"First angle" }
   ], settings.projection || "third", function() {}));
   fields.projection.setAttribute("aria-label", "Projection");
+  fields.bomScope=sheetRow(dialog,t('drawingBOMScope'),sheetSelect([{value:'partsOnly',label:t('drawingBOMPartsOnly')},{value:'indented',label:t('drawingBOMIndented')}],settings.bomScope==='indented'?'indented':'partsOnly',function(){}));
+  fields.bomScope.setAttribute('aria-label',t('drawingBOMScope'));
   ["Title", "Number", "Revision", "Drawn by", "Company", "Date", "Material", "Finish", "Mass"].forEach(function(label, index) {
     var key = ["title", "number", "revision", "author", "company", "date", "material", "finish", "mass"][index];
     textField(label, settings[key] || (key === "title" ? E.assembly.name : key === "revision" ? "A" : ""));
@@ -26684,7 +26725,7 @@ function showAssemblyDrawingSettings(focusNotes) {
   notes.style.cssText="width:100%;min-height:6rem;resize:vertical";
   fields.notes=sheetRow(dialog,"Drawing notes",notes);
   function apply() {
-    var next = { size: fields.size.value, units: fields.units.value, scale: fields.scale.value === "fit" ? "fit" : fields.scale.value.split(":").map(Number), projection: fields.projection.value, orientation:"landscape", draftingStandard:"ANSI", notes:fields.notes.value.trim() };
+    var next = { size: fields.size.value, units: fields.units.value, scale: fields.scale.value === "fit" ? "fit" : fields.scale.value.split(":").map(Number), projection: fields.projection.value, bomScope:fields.bomScope.value==='indented'?'indented':'partsOnly', orientation:"landscape", draftingStandard:"ANSI", notes:fields.notes.value.trim() };
     ["Title", "Number", "Revision", "Drawn by", "Company", "Date", "Material", "Finish", "Mass"].forEach(function(label, index) {
       next[["title", "number", "revision", "author", "company", "date", "material", "finish", "mass"][index]] = fields[label].value.trim();
     });
