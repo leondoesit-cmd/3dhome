@@ -34,6 +34,16 @@ BV09 partial library `Planchard 8.17 - BV09 Retention Bolt - fresh designer exam
 
 **Superseding active partial status:** source reload exposes both new forms. BV10 head now browser-authored with six sides,circumscribeddiameter11.5470053837925mm,**rotation30°** (Xflats±5mm,Zvertices±5.7735mm),fixedcenter/rotation,Topoffset0,Blindboss4 merged. Four fully-defined steps/one solid10×29×11.547mm; material/source props saved. Volume1.0532685085714784cm³,AF10→AF11 driving test/Undo→Redo→Undo passed. Final actual browser bundle/STEP protected and independent validations passed; cold-reopen pending. BV08 same precise AF10 head4mm/material/properties also saved,volume0.7422508cm³; stem driving test underway. BV09 head and BV07 globe still unfinished. Polygon agent final34focused tests/gates passed. Resume follows latest paragraph, not older partial statements.
 
+
+### Active assembly checkpoint — 2026-10-08
+
+All ten definitions protected in commit `513727f`. New blank assembly saved as `Planchard 8.17 - Bench vice assembly - fresh designer example 2026-10-08`, key `asm_muzoei6e`, mm. **Sixteen occurrences placed, zero mates**; base grounded, fifteen components free. Source only the ten accepted BV definitions. All tree entries show one solid. Actual browser bundle `artifacts/planchard/BV-assembly-placement-browser-2026-10-08.mforge`4554225bytes and screenshot preserved. Read-only export inspection confirms all frozen transforms, including retention bolt (8,58,0)mm, foot screws Rx180, negative globe Rx180 and keeper screws (80/90,20,0)mm. No scripted assembly authoring. An accidental initial default BATTERY insertion was undone before selecting BV01; final export contains only correct sixteen BV occurrences.
+
+Chrome current tab710862083, dark theme, assembly Output ribbon. Earlier tab710861699 stopped answering CDP after reload; recovered using a fresh tab without native computer control. Next add locks per design (base↔feet/foot screws/retention; jaw↔keeper/screws; shaft↔bar; bar↔globes), then native journal/datum guidance/limit/screw mate. Preserve raw placement export before any solver work. Motion/interference/drawing remain unaccepted. Continue book at printed8-52/PDF430; next8.18PDF431 only after vice acceptance.
+
+
+**Superseding assembly mate checkpoint:** sixteen components, **nineteen native topology mates**, browser solver reports **one degree of freedom**. Thirteen Lock mates preserve frozen rigid groups; base/shaft native concentric journal plus Right datum distance0; base/jaw Top and Front datum distance0; base/jaw Right datum Limit; shaft/jaw actual native axes coupled Screw. Saved actual bundle `BV-assembly-19-mates-pending-parameters-browser-2026-10-08.mforge`4566638bytes. **Parameters are deliberately NOT accepted yet:** exported limit0..20mm and pitch1.25mm/turn remain defaults despite browser fill→Tab showing50/4 before refresh. UI agent adding explicit Enter commits for Limit and screw numeric fields; ordinary Distance already supports Enter. Reload repaired source, cold reopen saved assembly, set Maximum50 and Pitch4 with Enter and verify after rerender/export, keep Drive turns blank until signed motion trial. Current tab710862083. Do not claim motion or50mm travel from the one-DOF result.
+
 ## Latest accepted work
 
 | Exercise | Printed / PDF | Accepted evidence |
@@ -94,5 +104,7 @@ Exact mass panel:198.6972cm³,1.529968kg,7.70000g/cm³ Alloy Steel reference; CO
 Commit `232a298` protects BV01 final bundle/STEP, two browser proof images, independent native audit JSON and detailed acceptance report. Cold library reopen confirmed nominal volume/mass and16 steps. Source/UI fixes and original failure triage included; source gates and focused corrected tests passed, but full suite not rerun clean. Queue reconciled accepted8.14–8.16; corrected Welder Arm23 topology mates from actual final bundle.
 
 BV02 now authored from blank in visible Chrome: Top fixed-center20×90mm rectangle, offset-12mm, Blind boss12mm Along normal. Second Top sketch offset-12mm with fixed-center drivingØ6.6 atU0/V±25, Through all Along normal. Two features/four fully-defined history steps, one native solid. Alloy Steel reference applied. PartNo BV02,Description,Source,BookItemNo2,BookMaterial,OriginalDesignerExample saved. Exact mass/parametric/Undo/reopen/export acceptance still in progress; not accepted yet. Future remains BV03–BV10/16-occurrence vice and drawing, then8.18–8.20 and earlier/later unfinished audit items.
+
+
 
 
