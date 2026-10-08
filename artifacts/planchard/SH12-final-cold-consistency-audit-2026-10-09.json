@@ -1,0 +1,71 @@
+{
+  "source": "artifacts/planchard/SH12-final-browser-2026-10-09.mforge",
+  "bytes": 74874,
+  "inputSha256": "60323a6dd33d5941e10b7b9f3152c539489e60d156f570feee77036c84e795bb",
+  "inputUnchanged": true,
+  "checks": {
+    "featuresExact": true,
+    "sketchesExact": true,
+    "historyExact": true,
+    "authoredPartsPreserved": true,
+    "originalPropertiesPreserved": true,
+    "nativeVolumeUnchanged": true,
+    "nativeBoundsUnchanged": true,
+    "singleValidSolid": true
+  },
+  "pass": true,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\SH12-final-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 2,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 1.3571680263507913,
+      "maxToleranceCm": 1.0000000000000002e-7
+    },
+    "volumeCm3": 1.3571680263507913,
+    "boundsCm": {
+      "min": {
+        "x": -2.4000000000000004,
+        "y": -0.30000000000000004,
+        "z": -0.30000000000000004
+      },
+      "max": {
+        "x": 2.4000000000000004,
+        "y": 0.30000000000000004,
+        "z": 0.30000000000000004
+      }
+    },
+    "centerOfMassCm": {
+      "x": 0,
+      "y": -6.151968924317343e-18,
+      "z": -4.090219497766866e-17
+    },
+    "seconds": 5.296387500000001
+  },
+  "material": {
+    "name": "AISI 1020 (SOLIDWORKS reference)",
+    "density": 7.9,
+    "source": "SOLIDWORKS Student Workbook 2011, Appendix A: AISI 1020, 0.0079 g/mm³; CAD reference density",
+    "massKg": 0.010721627408171251
+  },
+  "properties": {
+    "Description": "Original designer example for Planchard Exercise 8.20, printed 8-55/PDF 433. SH12 item 12 pivot pin: Right Plane D6 mm, X -24..24 mm. Companion CAD/AVI unavailable; assumed dimensions, smooth cylindrical pin, representative AISI 1020 density, not a certified design.",
+    "PartNo": "SH12",
+    "BookItemNo": "12"
+  },
+  "priorStepEquivalence": {
+    "evidence": "SH12-step-equivalence-audit-2026-10-09.json",
+    "symmetricDifferenceVolumeCm3": 0,
+    "reuseReason": "Final authored features, sketches and history are exactly nominal; fresh final native regeneration has unchanged volume and bounds."
+  },
+  "browserDurability": {
+    "source": "Parent actual Chrome observations; auditor did not control browser",
+    "library": "Parent actual saved-library reopen",
+    "driving": "D6→6.2 native1.357168→1.449154cm3/mass.01072163→.01144832kg;Undo6Redo6.2Undo6Saveclean",
+    "coldReopen": "PASS: saved-library reopen retains four fully defined editable steps, one native solid 48×6×6mm and SH12/BookItem12/Description.",
+    "pass": true
+  }
+}

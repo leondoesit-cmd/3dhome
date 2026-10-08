@@ -6549,8 +6549,8 @@ function showReferencePicker(preferredTool) {
    viewport becomes the picker. The model stays live under the prompt bar, the
    hover highlight already shows which face is under the cursor, and the click
    that selects the face is the same click that opens the sketch on it. An
-   empty document skips the dialog too and sketches on Top; the datum-plane
-   dialog is one tap on the Reference crumb. */
+   drawing-tool shortcut on an empty document sketches on the default plane;
+   explicit New sketch opens the datum-plane picker before creating a sketch. */
 function beginFacePick(preferredTool) {
   if(E.authoring.phase==="sketch")E.authoring.resumePhase="sketch";
   E.authoring.phase="reference";E.authoring.workflowFocus="reference";
@@ -6604,10 +6604,11 @@ function beginSketchWorkflow(preferredTool, options) {
     return;
   }
   var face=selectedSketchableFace();
+  var hasSolids=activeParts(E.def).length>0;
   var start=sketchStartMode({
     hasSketchableFace:!!face,
-    hasSolids:activeParts(E.def).length>0,
-    wantsPlanePicker:!!options.planePicker,
+    hasSolids:hasSolids,
+    wantsPlanePicker:!!options.planePicker || (forceNew&&!hasSolids),
   });
   if(start==="selected-face"&&shouldSkipReferencePicker(face)){
     chooseSketchReference(face, typeof preferredTool==="string" ? preferredTool : null);
