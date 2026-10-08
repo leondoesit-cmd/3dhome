@@ -1,0 +1,25 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\BV05-jaw-screw-final-browser-2026-10-08.mforge",
+  "exact": true,
+  "featureCount": 14,
+  "issues": [],
+  "volumeCm3": 70.26817722521028,
+  "boundsCm": {
+    "min": {
+      "x": -3.0000001,
+      "y": 1.8999999000000003,
+      "z": -1.5000001
+    },
+    "max": {
+      "x": 15.8,
+      "y": 4.900000100000001,
+      "z": 1.5000001
+    }
+  },
+  "centerOfMassCm": {
+    "x": 5.207552673151054,
+    "y": 3.4000000123971983,
+    "z": -2.2879295590517186e-9
+  },
+  "seconds": 6.1461362
+}
