@@ -1,0 +1,79 @@
+{
+  "scope": "Read-only actual Basic1 final cold present-field acceptance; native/STEP established independently, UI driving/cold facts parent-attributed. Printed-density distinction retained.",
+  "inputs": [
+    {
+      "path": "artifacts\\planchard\\BASIC-Q1-driving-restored-browser-2026-10-09.mforge",
+      "sha256": "0bae23254c094a1c9bcb3f7880f159e52e054dd2e922e83d4ce79fd3346c80a7"
+    },
+    {
+      "path": "artifacts\\planchard\\BASIC-Q1-cold-accepted-browser-2026-10-09.mforge",
+      "sha256": "58880c1814ade715e09d0bc4745164caaa1138d4e4ef827a6bdab82ad9c54153"
+    }
+  ],
+  "checks": {
+    "featuresPreserved": true,
+    "sketchesPreserved": true,
+    "historyPreserved": true,
+    "referenceGeometryPreserved": true,
+    "localFramePreserved": true,
+    "contextPreserved": true,
+    "engineeringMaterialsPreserved": true,
+    "exactTopologyCachePreserved": true,
+    "parametersPreserved": true,
+    "variablesPreserved": true,
+    "topologyBindingsPreserved": true,
+    "namedSelectionsPreserved": true,
+    "sourceKey": true,
+    "density7point695": true,
+    "gradeDocumentsPrintedDensity": true,
+    "sourceFrameOrigin": true,
+    "savedAuthoringUnitsIn": true,
+    "all3FullyDefined6Steps": true,
+    "bodyPropertiesPreserved": true,
+    "coldScreenshotProtected": true
+  },
+  "pass": true,
+  "changes": [
+    "parts",
+    "lastRebuild"
+  ],
+  "material": [
+    {
+      "catalogId": "custom",
+      "grade": "Alloy Steel (CSWA book 0.278 lb/in3)",
+      "density": 7.695,
+      "densitySource": "",
+      "condition": "",
+      "source": "",
+      "model": "qualified-rating",
+      "youngModulusMPa": 0,
+      "poissonRatio": 0,
+      "allowableBendingMPa": 0,
+      "allowableContactMPa": 0,
+      "minTemperatureC": 0,
+      "maxTemperatureC": 0,
+      "maxCycles": 0,
+      "maxHours": 0,
+      "maxRpm": 0,
+      "environment": "",
+      "lubrication": "",
+      "id": 1441
+    }
+  ],
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "in",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "qualification": "densitySource/source fields are historically empty; material grade explicitly documents printed.278lb/in3. Source nominal7.7 is separately recorded in report, not falsely claimed as written provenance. No customProperties.Description is present or required for this saved older fixture.",
+  "parentReportedBrowserFacts": {
+    "cold": "Exact canonical detailed second saved entry selected after full reload; one native solid,6steps,3fullydefined,cleanSave; same source properties inin/lb.",
+    "driving": "Diameter.562\u2192.563Finish,Undo.562,Redo.563,Undo.562 actualtextboxesread; restoredV17.85702in3/m4.964244lb/COM1.63109,1.007601,-.0350036in.",
+    "screenshot": "artifacts\\planchard\\BASIC-Q1-cold-source-properties-browser-2026-10-09.jpg"
+  }
+}

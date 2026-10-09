@@ -1,0 +1,286 @@
+{
+  "scope": "Read-only actual Basic1 driving/restored native/STEP and present-field audit. Actual UI Undo/Redo facts parent-owned; cold pending.",
+  "inputs": [
+    {
+      "path": "artifacts/planchard/BASIC-Q1-current-library-preflight-browser-2026-10-09.mforge",
+      "sha256": "268b2766d50bec7a1bfc4729d61c6da80ac7e87b935492fee6b4aff933bfe591"
+    },
+    {
+      "path": "artifacts/planchard/BASIC-Q1-driving-0p563-browser-2026-10-09.mforge",
+      "sha256": "1f95f076f05b75a492b66ae6589d8d5031403a3b065ec50885ea14f029af1da3"
+    },
+    {
+      "path": "artifacts/planchard/BASIC-Q1-driving-restored-browser-2026-10-09.mforge",
+      "sha256": "0bae23254c094a1c9bcb3f7880f159e52e054dd2e922e83d4ce79fd3346c80a7"
+    }
+  ],
+  "restore": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "referenceGeometry": true,
+    "localFrame": true,
+    "engineeringMaterials": true,
+    "context": true
+  },
+  "checks": {
+    "sourceCanonicalKey": true,
+    "historicalSourceGeometryPreserved": true,
+    "allRestoredFields": true,
+    "bothOneValid": true,
+    "allThreeSketchesFullyDefined": true,
+    "actualChangedDiameter": true,
+    "actualRestoredDiameter": true,
+    "downstreamNQSPreserved": true,
+    "upstreamStockPreserved": true,
+    "analyticBlindHoleDelta": true,
+    "nativeCylinderRadii": true,
+    "stepBidirectionalZero": true
+  },
+  "pass": true,
+  "expectedVolumeDeltaCm3": -0.021718749322813553,
+  "actualVolumeDeltaCm3": -0.021718749322815256,
+  "records": [
+    {
+      "input": "artifacts/planchard/BASIC-Q1-driving-0p563-browser-2026-10-09.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 292.60245509779907,
+        "maxToleranceCm": 1.5000001797499673e-7
+      },
+      "mass": {
+        "volume": 292.60245509779907,
+        "centerOfMass": {
+          "x": 4.143180863710759,
+          "y": 2.5591468056863698,
+          "z": -0.0889157390022985
+        },
+        "inertia": [
+          [
+            1813.5349334629827,
+            503.82963601888787,
+            109.71586797860937
+          ],
+          [
+            503.82963601888787,
+            3114.1448699876382,
+            1.8521540860557337
+          ],
+          [
+            109.71586797860937,
+            1.8521540860557337,
+            2960.1189477633907
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": 7.720955222029612e-15,
+            "y": 3.68594044175552e-14,
+            "z": -3.175
+          },
+          "max": {
+            "x": 10.160000000000094,
+            "y": 6.6040000000000765,
+            "z": 3.1750000000000003
+          }
+        }
+      },
+      "issues": [],
+      "cylinders": [
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": 1.2700000000002862,
+            "y": 4.699000000000067,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 6.294177777401171e-15,
+            "z": 1.2246467991473532e-16
+          },
+          "measure": 17.116578643913467,
+          "bounds": {
+            "min": {
+              "x": 0.5549899000002745,
+              "y": 2.7939999000000633,
+              "z": -0.7150100999999998
+            },
+            "max": {
+              "x": 1.985010100000298,
+              "y": 6.604000100000072,
+              "z": 0.7150100999999998
+            }
+          },
+          "axis": {
+            "x": -6.2941777774011716e-15,
+            "y": 1,
+            "z": 0
+          },
+          "radius": 0.7150099999999998,
+          "referenceOrigin": {
+            "x": 1.2700000000002742,
+            "y": 6.604000000000068,
+            "z": 0
+          },
+          "axisRange": [
+            -3.81,
+            0
+          ],
+          "centroid": {
+            "x": 1.270000000000286,
+            "y": 4.699000000000067,
+            "z": -9.55297644320874e-18
+          }
+        }
+      ]
+    },
+    {
+      "input": "artifacts/planchard/BASIC-Q1-driving-restored-browser-2026-10-09.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 292.6241738471219,
+        "maxToleranceCm": 1.5000001797499673e-7
+      },
+      "mass": {
+        "volume": 292.6241738471219,
+        "centerOfMass": {
+          "x": 4.142967614428863,
+          "y": 2.5593056269296874,
+          "z": -0.08890913962050152
+        },
+        "inertia": [
+          [
+            1813.6663618309644,
+            503.96315700235573,
+            109.72141607739913
+          ],
+          [
+            503.96315700235573,
+            3114.3354040804825,
+            1.848022039560746
+          ],
+          [
+            109.72141607739913,
+            1.848022039560746,
+            2960.4294830587287
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": 7.720955222029612e-15,
+            "y": 3.68594044175552e-14,
+            "z": -3.175
+          },
+          "max": {
+            "x": 10.160000000000094,
+            "y": 6.6040000000000765,
+            "z": 3.1750000000000003
+          }
+        }
+      },
+      "issues": [],
+      "cylinders": [
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": 1.2700000000002862,
+            "y": 4.699000000000067,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 6.2941777774011716e-15,
+            "z": 1.2246467991473532e-16
+          },
+          "measure": 17.086176195167628,
+          "bounds": {
+            "min": {
+              "x": 0.5562599000002743,
+              "y": 2.7939999000000633,
+              "z": -0.7137401
+            },
+            "max": {
+              "x": 1.9837401000002983,
+              "y": 6.604000100000072,
+              "z": 0.7137401
+            }
+          },
+          "axis": {
+            "x": -6.2941777774011716e-15,
+            "y": 1,
+            "z": 0
+          },
+          "radius": 0.71374,
+          "referenceOrigin": {
+            "x": 1.2700000000002742,
+            "y": 6.604000000000068,
+            "z": 0
+          },
+          "axisRange": [
+            -3.81,
+            0
+          ],
+          "centroid": {
+            "x": 1.2700000000002865,
+            "y": 4.699000000000067,
+            "z": 2.4608506170685634e-17
+          }
+        }
+      ],
+      "step": {
+        "input": "artifacts/planchard/BASIC-Q1-source-restored-browser-2026-10-09.step",
+        "validation": {
+          "valid": true,
+          "solidCount": 1,
+          "volumeCm3": 292.62417384713416,
+          "maxToleranceCm": 1e-7
+        },
+        "mass": {
+          "volume": 292.62417384713416,
+          "centerOfMass": {
+            "x": 4.1429676144289935,
+            "y": 2.5593056269299295,
+            "z": -0.08890913962061563
+          },
+          "inertia": [
+            [
+              1813.6663618311059,
+              503.96315700228797,
+              109.72141607742338
+            ],
+            [
+              503.96315700228797,
+              3114.3354040804343,
+              1.8480220395497042
+            ],
+            [
+              109.72141607742338,
+              1.8480220395497042,
+              2960.429483058855
+            ]
+          ],
+          "solidCount": 1,
+          "bounds": {
+            "min": {
+              "x": 7.72095522203e-15,
+              "y": -1.7190693313295924e-12,
+              "z": -3.175
+            },
+            "max": {
+              "x": 10.16,
+              "y": 6.604000000003352,
+              "z": 3.1750000000011753
+            }
+          }
+        },
+        "nativeOutsideStepCm3": 0,
+        "stepOutsideNativeCm3": 0
+      }
+    }
+  ]
+}

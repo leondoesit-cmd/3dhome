@@ -1,0 +1,17 @@
+# Basic1 actual driving/native/STEP audit — 2026-10-09
+
+Actual canonical saved-keycm_mumwjucm_1421 exports `BASIC-Q1-current-library-preflight-browser-2026-10-09.mforge`, `BASIC-Q1-driving-0p563-browser-2026-10-09.mforge` and `BASIC-Q1-driving-restored-browser-2026-10-09.mforge` pass all12 independent checks. Changed/restored models each regenerate as one valid native solid, with three fully defined sketches. Nominal restored features/sketches/reference geometry exactly match the protected September29 source-consistent model; all preflight features/sketches/history/material/frame/context fields restore exactly.
+
+The actual changed hole isØ0.563in; restored isØ0.562in. Native volumes292.60245509779907 and292.6241738471219cm³ differ by−0.021718749322815256cm³, matching independent blind-cylinder formula−0.021718749322813553. First stock sketch/feature and downstream NQS cut/reference plane remain unchanged. This establishes actual driving propagation, without authoring a synthetic changed fixture.
+
+Fresh actual Chrome `BASIC-Q1-source-restored-browser-2026-10-09.step` reimports as one valid native solid, V292.62417384713416cm³, and both native-minus-STEP/STEP-minus-native are zero. Restored physicalCOM is41.429676144289/25.593056269297/−0.889091396205mm, matching source cache rounding. Existing printed-density7.695g/cm³ versus companion nominal7.7 remains an intentional disclosed distinction; do not alter density to force the printed4.97lb mass.
+
+Parent reports actual ChromeØ.562→.563 Finish, Undo.562/Redo.563/Undo.562 with textbox values read, settled source17.85702in³/4.964244lb/COM1.63109,1.007601,−.0350036in. Actual cold reopened export remains pending at this checkpoint. Evidence: `BASIC-Q1-driving-native-step-audit-2026-10-09.json`; reproduce with `basic1-driving-native-step-audit-readonly.mjs`. Inputs were not changed; regeneration used disposable clones only.
+
+## Final scoped cold acceptance
+
+`BASIC-Q1-cold-accepted-browser-2026-10-09.mforge` passes all20 present-field checks against the restored export. Features, sketches, history, references, native cache, materials, context/default-origin reporting frame and savedin units persist exactly; part changes are only displaymeshData, with lastRebuild the only other model change. The material grade explicitly states printed0.278lb/in³ and stored density7.695 persists. Historical densitySource/source fields remain empty; no invented written citation or missing-Description failure is asserted. Companion nominal7.7 and the intentional printed-density mass distinction remain in this external source audit.
+
+Parent reports actual full cold selection of the exact canonical detailed second library entry, one native solid,6steps/3fullydefined, clean Save and restored in/lb properties. Protected screenshot `BASIC-Q1-cold-source-properties-browser-2026-10-09.jpg` accompanies the actual cold export.
+
+Scoped Basic1 acceptance is closed: source-consistent geometry, meaningful driving/Undo/Redo/restore, independent downstream preservation/analytic bore delta, one native solid/freshSTEP bidirectional equivalence and cold present-field durability pass. The original free-coordinate NQS equivalent workflow and printed/source nominal material distinction remain documented. No geometry source import, model mutation or answer fitting occurred. Evidence: `BASIC-Q1-cold-durability-audit-2026-10-09.json`, reproduced with `basic1-cold-durability-audit-readonly.py`; earlier pending text above is superseded here.

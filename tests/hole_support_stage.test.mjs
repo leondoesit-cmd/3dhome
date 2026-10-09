@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 import {holeSupportChoices,holeSupportChoiceReference} from '../js/core/hole_support_choices.js';
 import {reattachFeatureSketchSupport,sketchSupportNeedsUpdate} from '../js/core/sketch_support_edit.js';
 import {verifiedExactTopology} from '../js/core/exact_topology_cache.js';
@@ -45,12 +46,19 @@ test('actual Hole edit picker and Update handler keep stage-qualified selection 
  const base=result.supportChoices.find(choice=>choice.entry.ownerFeatureId===baseId&&choice.entry.persistentId===faceId);
  result.supportSelect.value=base.key;
  const updateStart=source.indexOf('      var chosenSupport=',end),updateEnd=source.indexOf('      var supportChanged=',updateStart);
- const selected=new Function('supportSelect','supportChoices','holeSupportChoiceReference','faceSketchAttachment',source.slice(updateStart,updateEnd)+'return attachment;')
-  (result.supportSelect,result.supportChoices,holeSupportChoiceReference,reference=>({support:reference}));
+ const exactAttachment=new Function('E','cloneData','faceFrameOrigin','frameFromPlane','isCanonicalAuthoring',sourceFunctionText(source,'faceSketchAttachment')+';return faceSketchAttachment;')
+  ({brepRun:{results:new Map()},def:doc},structuredClone,faceFrameOrigin,frameFromPlane,()=>{throw new Error('Exact stage pick must bypass viewport/global support lookup');});
+ const readSelected=new Function('supportSelect','supportChoices','holeSupportChoiceReference','faceSketchAttachment',source.slice(updateStart,updateEnd)+'return attachment;');
+ const selected=readSelected(result.supportSelect,result.supportChoices,holeSupportChoiceReference,exactAttachment);
  assert.equal(selected.support.ownerFeatureId,baseId);assert.equal(selected.support.stageFeatureId,baseId);
  assert.equal(selected.support.persistentId,faceId);
+ assert.ok(Math.abs(selected.frame.origin.x-5.08)<1e-8,'actual exact attachment uses BasePlate X2in, not trimmed union X2.6in');
  result.supportSelect.value='current';
  assert.deepEqual(holeSupportChoiceReference(result.supportChoices[0]),doc.sketches[2].support);
+ const current=readSelected(result.supportSelect,result.supportChoices,holeSupportChoiceReference,exactAttachment);
+ assert.equal(current.support.stageFeatureId,undefined);
+ assert.deepEqual(current.support,doc.sketches[2].support);
+ assert.ok(Math.abs(current.frame.origin.x-6.604)<1e-8);
 });
 
 async function boreOrigin(doc){
