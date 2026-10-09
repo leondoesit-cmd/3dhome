@@ -1,0 +1,54 @@
+{
+  "pass": true,
+  "checks": {
+    "zeroPhysicalCad": true,
+    "fifteenPrimitivesFiveNotesNoCadViews": true,
+    "stylesFiveOutlineSixHiddenFourCenter": true,
+    "frontTExact": true,
+    "frontBoreDiameterTen": true,
+    "topAlignedAboveFront": true,
+    "rightAlignedHeightDepth": true,
+    "topFourHiddenAlongDepth": true,
+    "topBoreCenterExtended": true,
+    "rightBoreProjectedDiameterCenter": true,
+    "frontBoreCenterCross": true,
+    "paperMmThirdAngle": true,
+    "explicitEstimateQualification": true,
+    "boreThroughDepthQualified": true,
+    "svgAllNoteRows": true,
+    "svgAllGeometryStylesExact": true,
+    "inputBytesUnchanged": true
+  },
+  "key": "cm_mv0k8hht",
+  "name": "Planchard 1.4 - estimated missing Top view - browser 2026-10-09",
+  "scope": "Source-estimated paper worksheet; no native solid/slicer/physical claim. Read-only actual browser exports. Cold pending.",
+  "input": "artifacts\\planchard\\DRAFTING-1.4-authored-browser-2026-10-09.mforge",
+  "sha256": "082b5d6d8ae22684eff87af4a1177f52436f47488def3abd71858e5bef73d474",
+  "noteRows": [
+    4,
+    1,
+    1,
+    1,
+    3
+  ],
+  "geometryPaperMm": {
+    "frontWidth": 75,
+    "frontHeight": 45,
+    "barHeight": 15,
+    "stemWidth": 25,
+    "boreDiameter": 10,
+    "depth": 50,
+    "topOrigin": [
+      40,
+      65
+    ],
+    "frontOrigin": [
+      40,
+      150
+    ],
+    "rightOrigin": [
+      160,
+      150
+    ]
+  }
+}

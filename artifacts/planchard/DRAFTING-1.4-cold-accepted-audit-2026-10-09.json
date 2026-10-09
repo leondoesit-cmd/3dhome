@@ -1,0 +1,107 @@
+{
+  "pass": true,
+  "checks": {
+    "zeroPhysicalCad": true,
+    "fifteenPrimitivesFiveNotesNoCadViews": true,
+    "stylesFiveOutlineSixHiddenFourCenter": true,
+    "frontTExact": true,
+    "frontBoreDiameterTen": true,
+    "topAlignedAboveFront": true,
+    "rightAlignedHeightDepth": true,
+    "topFourHiddenAlongDepth": true,
+    "topBoreCenterExtended": true,
+    "rightBoreProjectedDiameterCenter": true,
+    "frontBoreCenterCross": true,
+    "paperMmThirdAngle": true,
+    "explicitEstimateQualification": true,
+    "boreThroughDepthQualified": true,
+    "svgAllNoteRows": true,
+    "svgAllGeometryStylesExact": true,
+    "inputBytesUnchanged": true
+  },
+  "key": "cm_mv0k8hht",
+  "name": "Planchard 1.4 - estimated missing Top view - browser 2026-10-09",
+  "scope": "Accepted source-estimated paper worksheet; no physical CAD solid. All paper authoring/context unchanged cold; standard datum/history normalization explicitly recorded.",
+  "input": "artifacts\\planchard\\DRAFTING-1.4-cold-accepted-browser-2026-10-09.mforge",
+  "sha256": "e83645c0483333dc16fbbb8debcfaffb2706535f488e4da81ba1b6d9906f8ed5",
+  "noteRows": [
+    4,
+    1,
+    1,
+    1,
+    3
+  ],
+  "geometryPaperMm": {
+    "frontWidth": 75,
+    "frontHeight": 45,
+    "barHeight": 15,
+    "stemWidth": 25,
+    "boreDiameter": 10,
+    "depth": 50,
+    "topOrigin": [
+      40,
+      65
+    ],
+    "frontOrigin": [
+      40,
+      150
+    ],
+    "rightOrigin": [
+      160,
+      150
+    ]
+  },
+  "coldPresentFieldChecks": {
+    "schemaVersion": true,
+    "id": true,
+    "key": true,
+    "name": true,
+    "kind": true,
+    "authoringMode": true,
+    "localFrame": true,
+    "references": true,
+    "parameters": true,
+    "sketches": true,
+    "features": true,
+    "parts": true,
+    "assemblies": true,
+    "appearances": true,
+    "notes": true,
+    "markups": true,
+    "rules": true,
+    "metadata": true,
+    "topologyBindings": true,
+    "namedSelections": true,
+    "revision": true,
+    "price": true,
+    "col": true,
+    "constraints": true,
+    "rollback": true,
+    "activeSketch": true,
+    "variables": true,
+    "definitionId": true,
+    "documentVersion": true,
+    "context": true,
+    "customProperties": true,
+    "drawing": true,
+    "lastStandardsAudit": true,
+    "exactTopologyCache": true
+  },
+  "coldChangedFields": [
+    "referenceGeometry",
+    "lastRebuild",
+    "history"
+  ],
+  "byteSizeIncrease": 934,
+  "coldSvgByteExact": true,
+  "normalization": {
+    "history": "Empty default sketch history [] normalized to one rebuilt sketch node; no geometry added",
+    "referenceGeometry": "Empty array normalized to three standard origin planes and three origin axes; existing references unchanged",
+    "lastRebuild": "Only rebuiltAt timestamp changed; signature/issues/ok exact"
+  },
+  "parentObservedColdFacts": [
+    "Full reload; exact saved Drawing 15 annotations / 5 notes reopened",
+    "Header four LF rows read; hidden bore X72.5 Y65..115 style Hidden read; both Cancel",
+    "Clean Project and SVG exports"
+  ]
+}
