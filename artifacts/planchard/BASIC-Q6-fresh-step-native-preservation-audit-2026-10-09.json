@@ -1,0 +1,152 @@
+{
+  "scope": "Read-only original BASIC Q6 actual Chrome fresh STEP leg; no geometry/material edits. Independent disposable native reconstruction and STEP import.",
+  "bundle": "artifacts/planchard/BASIC-Q6-fresh-step-browser-2026-10-09.mforge",
+  "bytes": 825894,
+  "step": "artifacts/planchard/BASIC-Q6-fresh-step-browser-2026-10-09.step",
+  "stepBytes": 133471,
+  "key": "cm_munj5xtw",
+  "sourcePage": "PDF501–502",
+  "native": {
+    "volume": 111.06044938734757,
+    "centerOfMass": {
+      "x": -1.5391968266914715,
+      "y": 1.5933397671323482,
+      "z": -0.26523646451238375
+    },
+    "inertia": [
+      [
+        266.2197787035595,
+        49.02758014847126,
+        111.10275940765283
+      ],
+      [
+        49.02758014847126,
+        1444.412154248528,
+        -3.7763706209322194
+      ],
+      [
+        111.10275940765283,
+        -3.7763706209322194,
+        1417.4289774399851
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -6.499999999999999,
+        "y": 0,
+        "z": -2
+      },
+      "max": {
+        "x": 6.500000000000001,
+        "y": 4.4999999999999964,
+        "z": 2
+      }
+    }
+  },
+  "stepNative": {
+    "volume": 111.06044938735623,
+    "centerOfMass": {
+      "x": -1.5391968266912261,
+      "y": 1.5933397671325058,
+      "z": -0.26523646451249133
+    },
+    "inertia": [
+      [
+        266.2197787036135,
+        49.02758014842567,
+        111.10275940766564
+      ],
+      [
+        49.02758014842567,
+        1444.4121542486866,
+        -3.776370620901268
+      ],
+      [
+        111.10275940766564,
+        -3.776370620901268,
+        1417.4289774401682
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -6.500000000000001,
+        "y": 0,
+        "z": -2
+      },
+      "max": {
+        "x": 6.5,
+        "y": 4.5,
+        "z": 2
+      }
+    }
+  },
+  "commonVolumeCm3": 111.06044938734755,
+  "bidirectionalDifferenceCm3": {
+    "nativeMinusStep": 2.842170943040401e-14,
+    "stepMinusNative": 8.682832230988424e-12
+  },
+  "definitions": [
+    {
+      "id": "sk_0y55i",
+      "degreesOfFreedom": 0,
+      "status": "fully-constrained"
+    },
+    {
+      "id": "sk_1m28x",
+      "degreesOfFreedom": 0,
+      "status": "fully-constrained"
+    },
+    {
+      "id": "sk_2tz4r",
+      "degreesOfFreedom": 0,
+      "status": "fully-constrained"
+    },
+    {
+      "id": "sk_337tr",
+      "degreesOfFreedom": 0,
+      "status": "fully-constrained"
+    }
+  ],
+  "preservation": {
+    "featureSpecs": true,
+    "sketchSpecs": true,
+    "referenceGeometry": true,
+    "density8": true,
+    "emptyCitationRetained": true,
+    "historyNine": true,
+    "nominalLength130": true,
+    "nominalDrills4": true
+  },
+  "changedMainFields": [
+    "sketches",
+    "features",
+    "history",
+    "parts",
+    "lastRebuild",
+    "exactTopologyCache"
+  ],
+  "qualification": "Original Q6 Steel3048 nominal CAD material has empty stored density citation retained; no certification/provenance upgrade claimed. Original source print residual disclosed; no target fitting. Original Q6 is distinct from corrected Q6B alloy derivative.",
+  "checks": {
+    "correctKey": true,
+    "nativeOneSolid": true,
+    "stepOneSolid": true,
+    "geometrySTEPBidirectional": true,
+    "allFourFullyDefined": true,
+    "featureSpecs": true,
+    "sketchSpecs": true,
+    "referenceGeometry": true,
+    "density8": true,
+    "emptyCitationRetained": true,
+    "historyNine": true,
+    "nominalLength130": true,
+    "nominalDrills4": true
+  },
+  "pass": true,
+  "sketchCoordinateConstraintMaxDifferenceCm": 4.236794803880173e-10,
+  "sketchQualification": "Only two pocket point positions and matching fixed-constraint target coordinates differ by numerical solver roundoff, maximum 4.236794803880173e-10 cm. All sketch entity IDs, dimensions and relations unchanged; no exact-byte claim for those points.",
+  "printedVolumeMm3": 111059.43,
+  "printResidualMm3": 1.0193873475800501,
+  "nominalMassG": 888.4835950987806
+}
