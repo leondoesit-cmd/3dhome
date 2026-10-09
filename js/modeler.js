@@ -6063,6 +6063,9 @@ function closeWelcome() {
    fits the document state — and offers to do it — without ever blocking a
    user who already knows where they are going. */
 function coachRebuildSuggestion(rebuildIssue) {
+  // Exact computation may still recover persistent selections by descriptor.
+  // Do not offer a repair action against provisional topology diagnostics.
+  if (modelRebuildPending()) return null;
   var help = diagnosticHelp(rebuildIssue, E.lang);
   return {
     icon: rebuildIssue.severity === "error" ? "ph-warning-octagon" : "ph-warning",
