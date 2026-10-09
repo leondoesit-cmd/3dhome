@@ -6,8 +6,13 @@ export function assemblyMobilitySignature(assembly) {
 
 export function assemblyMobilityReport(assembly,result,issues=[]) {
   const count=result?.degreesOfFreedom;
+  // The solver reports mate-connected clusters, not automatically every free
+  // occurrence. An empty or partial cluster list must not turn a successful
+  // save validation into a claimed whole-assembly zero mobility.
+  const covered=new Set((result?.clusters || []).flatMap(cluster=>cluster.components || []));
+  const complete=(assembly?.components || []).every(component=>component.suppressed || component.grounded || covered.has(component.id));
   return {assembly,signature:assemblyMobilitySignature(assembly),count,
-    valid:result?.ok===true&&Number.isInteger(count)&&count>=0&&!issues.length&&!(result.unsatisfied || []).length};
+    valid:complete&&result?.ok===true&&Number.isInteger(count)&&count>=0&&!issues.length&&!(result.unsatisfied || []).length};
 }
 
 export function currentAssemblyMobility(assembly,report) {

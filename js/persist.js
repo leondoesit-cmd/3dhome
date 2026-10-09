@@ -6,7 +6,7 @@
 // the module it protects. history.js and ui.js only import the tiny
 // markDirty/markSaved pair from here.
 import { t, onLangChange } from "./i18n.js";
-import { needsRecovery } from "./recovery.js";
+import { needsRecovery, pruneCleanSessions } from "./recovery.js";
 
 const AUTO_KEY = "home3d_auto"; // { json, at } — the rolling background copy
 const LIVE_KEY = "home3d_live"; // {sessionId: heartbeat timestamp}
@@ -27,6 +27,9 @@ var quotaWarned = false;
 var sessionId = makeSessionId();
 var sessionChannel = null;
 var probes = new Map();
+// A clean planner snapshot can outlive many model-only sessions. Its clean
+// marker must outlive it too, or bounded session pruning invents a crash.
+var autoDBSession = null;
 
 function makeSessionId() {
   try {
@@ -125,6 +128,7 @@ function writeAuto() {
   // Recovery metadata stays in localStorage. The scene JSON itself is only
   // written to IndexedDB so a large plan cannot blow the 5 MB quota.
   writeAutoDB(snap).then(function () {
+    autoDBSession = snap.session;
     try { localStorage.setItem(AUTO_KEY, JSON.stringify({ at: snap.at, session: sessionId, indexedDB: true })); }
     catch (e) { warnQuota(); }
   }).catch(function () {
@@ -185,11 +189,10 @@ function dropLease() {
 function markClean() {
   var clean = readMap(CLEAN_KEY), now = Date.now();
   clean[sessionId] = now;
-  var ids = Object.keys(clean);
-  if (ids.length > 40)
-    ids.sort(function (a, b) { return clean[b] - clean[a]; })
-      .slice(40).forEach(function (id) { delete clean[id]; });
-  writeMap(CLEAN_KEY, clean);
+  // Local metadata normally names the same snapshot as IDB; keep both when
+  // a fallback write leaves two different retained copies. Never add a clean
+  // marker for an unresolved backup: only preserve markers already present.
+  writeMap(CLEAN_KEY, pruneCleanSessions(clean, [readAuto()?.session, autoDBSession]));
 }
 function installSessionChannel() {
   if (typeof BroadcastChannel !== "function") return;
@@ -358,6 +361,7 @@ export function initPersistence(deps) {
   });
 
   readAutoDB().catch(function () { return null; }).then(function (dbSnap) {
+    autoDBSession = dbSnap?.session || null;
     var snap = dbSnap && dbSnap.json && (!localSnap || !localSnap.json || (dbSnap.at || 0) >= (localSnap.at || 0)) ? dbSnap : localSnap;
     return shouldRecover(snap, leasesBeforeBeat).then(function (recover) {
       if (recover && snap && snap.json) offerRecovery(snap);
