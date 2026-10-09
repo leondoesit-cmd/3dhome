@@ -18,8 +18,9 @@ test('browser-authored Q4 interacting fillets normalize redundant Boolean bounda
     assert.ok(finished?.shape,'normalization makes the chosen contours usable');
     const finishedMass=await shapeMassProperties(finished);
     // The accepted Sept 30 corner repair refits inaccurate BSpline patches.
-    // Its documented fresh-build volume supersedes the loose-patch baseline.
-    assert.ok(Math.abs(finishedMass.volume-1227.6195416133357)<.001,'the repaired result preserves the accepted fresh-build volume');
+    // Canonical Boolean transport makes fresh and reused prefixes construct
+    // identical supported corners, instead of two history-dependent fillings.
+    assert.ok(Math.abs(finishedMass.volume-1227.5785942205363)<.001,'the repaired result preserves the canonical supported-corner volume');
     const tolerance=new finished.oc.ShapeAnalysis_ShapeTolerance();
     const validity=new finished.oc.BRepCheck_Analyzer(finished.shape,true,false);
     try {

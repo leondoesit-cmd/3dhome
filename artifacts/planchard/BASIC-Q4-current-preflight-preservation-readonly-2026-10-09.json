@@ -1,0 +1,49 @@
+{
+  "inputs": [
+    "artifacts/planchard/CSWA-Q4-native-corner-repair-browser-2026-09-30.mforge",
+    "artifacts/planchard/BASIC-Q4-current-native-preflight-browser-2026-10-09.mforge"
+  ],
+  "inputMutation": false,
+  "authoredComparableExact": true,
+  "counts": {
+    "history": 11,
+    "features": 6,
+    "sketches": 5
+  },
+  "library": {
+    "key": "cm_munu2oc3_2058",
+    "name": "Planchard CSWA Q4 - native corner repair fresh 2026-09-30"
+  },
+  "driver": {
+    "id": "dim_w9wwnjl",
+    "type": "diameter",
+    "entity": 1543,
+    "value": 3.8,
+    "driven": false,
+    "exprError": null
+  },
+  "material": {
+    "name": "Aluminum 2014",
+    "density": 2.8,
+    "densitySource": "Worthwill Aluminum, Density of Aluminum, p. 1: 2014, 2.8 g/cm³"
+  },
+  "exactTopologyCacheKeys": [
+    "feature_muneete4_1",
+    "feature_munejjoc_2:tool",
+    "feature_munejjoc_2",
+    "feature_munemv18_3:tool",
+    "feature_munemv18_3",
+    "feature_muneqqsk_4:tool",
+    "feature_muneqqsk_4",
+    "feature_muneumsb_5:tool",
+    "feature_muneumsb_5",
+    "feature_munifpdt_2"
+  ],
+  "sha256": "1b77e4332672a0e2906168ee559f9cb623fa28dc6a67596d20edf985b51ea719",
+  "sectionEquality": {
+    "key": true,
+    "features": true,
+    "sketches": true,
+    "history": true
+  }
+}

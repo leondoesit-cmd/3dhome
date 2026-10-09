@@ -26,6 +26,7 @@ import { helixSpecForThread, modeledThreadSolid, normalizeThreadSpec } from "./c
 import { knurlBandMesh, normalizeKnurlSpec } from "./cad_knurl.js";
 import { insertBody, normalizeInsertFeature } from "./cad_appearances.js";
 import { cachedExactTopology } from "./core/exact_topology_cache.js";
+import {serializeBrep} from './cad_kernel.js';
 
 export function ensureFeatureTree(def) {
   def.features ||= [];
@@ -443,6 +444,18 @@ export async function regenerateFeatures(def, options = {}) {
         result = { kind: "sketch", sketchId: effectiveParams.sketchId || "main" };
       } else {
         throw new Error("Unsupported feature type: " + feature.type);
+      }
+      // A union prefix can be reused from the worker's serialized BREP cache.
+      // OCCT restores coincident surface handles with a different sharing graph;
+      // downstream corner filling otherwise depends on whether that cache hit.
+      // Use the same transport representation before any consumer sees a newly
+      // built union. This changes neither dimensions nor topology selection.
+      if (!fromWorkerCache && result.shape && (feature.type === 'union' ||
+          (feature.type === 'boolean' && (effectiveParams.operation || 'union') === 'union'))) {
+        const transported = await deserializeBrep(await serializeBrep(result));
+        const prior = result;
+        result = {...prior,...transported};
+        disposeBrep(prior);
       }
       const inputResults = (feature.inputs || []).map((id) => results.get(id)).filter(Boolean);
       result.topology = keepRestoredNames ? restoredTopology : topologyForFeature(feature, effectiveParams, inputResults) || [];

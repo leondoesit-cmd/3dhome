@@ -1,0 +1,175 @@
+{
+  "inputMutation": false,
+  "report": [
+    {
+      "source": "artifacts/planchard/BASIC-Q4-current-native-preflight-browser-2026-10-09.mforge",
+      "ok": true,
+      "issues": [],
+      "cacheEvents": [],
+      "stages": [
+        {
+          "id": "feature_muneete4_1",
+          "volumeMm3": 1040630.0000000001
+        },
+        {
+          "id": "feature_munejjoc_2:tool",
+          "volumeMm3": 204815
+        },
+        {
+          "id": "feature_munejjoc_2",
+          "volumeMm3": 971678.0000000003
+        },
+        {
+          "id": "feature_munemv18_3:tool",
+          "volumeMm3": 469675.9545863751
+        },
+        {
+          "id": "feature_munemv18_3",
+          "volumeMm3": 1291177.954586375
+        },
+        {
+          "id": "feature_muneqqsk_4:tool",
+          "volumeMm3": 315306.6412302684
+        },
+        {
+          "id": "feature_muneqqsk_4",
+          "volumeMm3": 1232203.9772931868
+        },
+        {
+          "id": "feature_muneumsb_5:tool",
+          "volumeMm3": 5103.5172657566245
+        },
+        {
+          "id": "feature_muneumsb_5",
+          "volumeMm3": 1229368.6899233228
+        },
+        {
+          "id": "feature_munifpdt_2",
+          "volumeMm3": 1227578.5942205363
+        }
+      ],
+      "final": {
+        "id": "feature_munifpdt_2",
+        "volumeMm3": 1227578.5942205363
+      }
+    },
+    {
+      "source": "artifacts/planchard/BASIC-Q4-driving-D38p2-browser-2026-10-09.mforge",
+      "ok": true,
+      "issues": [],
+      "cacheEvents": [
+        {
+          "stage": "cache",
+          "name": "Extrude / Boss 2"
+        }
+      ],
+      "stages": [
+        {
+          "id": "feature_muneete4_1",
+          "volumeMm3": 1040630.0000000001
+        },
+        {
+          "id": "feature_munejjoc_2:tool",
+          "volumeMm3": 204815
+        },
+        {
+          "id": "feature_munejjoc_2",
+          "volumeMm3": 971678.0000000003
+        },
+        {
+          "id": "feature_munemv18_3:tool",
+          "volumeMm3": 469675.9545863751
+        },
+        {
+          "id": "feature_munemv18_3",
+          "volumeMm3": 1291177.954586375
+        },
+        {
+          "id": "feature_muneqqsk_4:tool",
+          "volumeMm3": 316970.5169963171
+        },
+        {
+          "id": "feature_muneqqsk_4",
+          "volumeMm3": 1231892.771124923
+        },
+        {
+          "id": "feature_muneumsb_5:tool",
+          "volumeMm3": 5103.5172657566245
+        },
+        {
+          "id": "feature_muneumsb_5",
+          "volumeMm3": 1229069.453223068
+        },
+        {
+          "id": "feature_munifpdt_2",
+          "volumeMm3": 1227279.3575198946
+        }
+      ],
+      "final": {
+        "id": "feature_munifpdt_2",
+        "volumeMm3": 1227279.3575198946
+      }
+    },
+    {
+      "source": "artifacts/planchard/BASIC-Q4-upstream-restored-browser-2026-10-09.mforge",
+      "ok": true,
+      "issues": [],
+      "cacheEvents": [
+        {
+          "stage": "cache",
+          "name": "Extrude / Boss 2"
+        },
+        {
+          "stage": "cache",
+          "name": "Fillet 1"
+        }
+      ],
+      "stages": [
+        {
+          "id": "feature_muneete4_1",
+          "volumeMm3": 1040630.0000000001
+        },
+        {
+          "id": "feature_munejjoc_2:tool",
+          "volumeMm3": 204815
+        },
+        {
+          "id": "feature_munejjoc_2",
+          "volumeMm3": 971678.0000000003
+        },
+        {
+          "id": "feature_munemv18_3:tool",
+          "volumeMm3": 469675.9545863751
+        },
+        {
+          "id": "feature_munemv18_3",
+          "volumeMm3": 1291177.954586375
+        },
+        {
+          "id": "feature_muneqqsk_4:tool",
+          "volumeMm3": 315306.6412302684
+        },
+        {
+          "id": "feature_muneqqsk_4",
+          "volumeMm3": 1232203.9772931868
+        },
+        {
+          "id": "feature_muneumsb_5:tool",
+          "volumeMm3": 5103.5172657566245
+        },
+        {
+          "id": "feature_muneumsb_5",
+          "volumeMm3": 1229368.6899233228
+        },
+        {
+          "id": "feature_munifpdt_2",
+          "volumeMm3": 1227578.5942205365
+        }
+      ],
+      "final": {
+        "id": "feature_munifpdt_2",
+        "volumeMm3": 1227578.5942205365
+      }
+    }
+  ]
+}

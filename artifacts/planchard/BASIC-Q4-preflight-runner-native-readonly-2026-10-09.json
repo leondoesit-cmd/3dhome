@@ -1,0 +1,58 @@
+{
+  "mode": "Read-only actual Chrome bundle audit",
+  "inputMutation": false,
+  "note": "Same current native reconstruction path for all bundles. STEP equivalence uses compare-bundle-step-readonly.mjs separately. Exact definition comparisons deliberately retain caches inside sketch records; any false comparison requires examination, not automatic geometry-failure inference.",
+  "records": [
+    {
+      "source": "artifacts/planchard/CSWA-Q4-native-corner-repair-browser-2026-09-30.mforge",
+      "sha256": "a1b5f47412312c0a927e6a62b566bbb0abced2d90554484d482475b75976467b",
+      "libraryKey": "cm_munu2oc3_2058",
+      "libraryName": "Planchard CSWA Q4 - native corner repair fresh 2026-09-30",
+      "historyCount": 11,
+      "sketchCount": 5,
+      "authoredFeatureCount": 6,
+      "driver": {
+        "id": "dim_w9wwnjl",
+        "type": "diameter",
+        "entity": 1543,
+        "value": 3.8,
+        "driven": false,
+        "exprError": null
+      },
+      "diameterMm": 38,
+      "material": {
+        "name": "Aluminum 2014",
+        "densityGPerCm3": 2.8,
+        "densitySource": "Worthwill Aluminum, Density of Aluminum, p. 1: 2014, 2.8 g/cm³"
+      },
+      "native": {
+        "validation": {
+          "valid": true,
+          "solidCount": 1,
+          "volumeCm3": 1227.6195416133357,
+          "maxToleranceCm": 0.00009024626352558272
+        },
+        "volumeMm3": 1227619.5416133357,
+        "massG": 3437.33471651734,
+        "centerOfMassMm": {
+          "x": 49.21297613678102,
+          "y": 46.88348639445608,
+          "z": -0.000007452900958482617
+        },
+        "boundsCm": {
+          "min": {
+            "x": -1.1102230246251565e-16,
+            "y": 0,
+            "z": -12.7
+          },
+          "max": {
+            "x": 12.700000000000001,
+            "y": 13.9,
+            "z": 12.7
+          }
+        },
+        "issues": []
+      }
+    }
+  ]
+}

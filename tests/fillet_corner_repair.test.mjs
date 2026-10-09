@@ -39,14 +39,33 @@ test('restored Boolean prefixes retain accurate three- and four-sided fillet cor
   try{
     const oc=body.oc,analysis=new oc.ShapeAnalysis_ShapeTolerance();
     try{assert.ok(analysis.Tolerance(body.shape,1,oc.TopAbs_ShapeEnum.TopAbs_SHAPE)<.001,'restored prefix must meet the same accuracy gate');}finally{analysis.delete();}
-    assert.ok(Math.abs(warmBody.massProperties.volume-coldBody.massProperties.volume)<.1,'restoration preserves designed volume within corner accuracy');
+    assert.ok(Math.abs(warmBody.massProperties.volume-coldBody.massProperties.volume)<1e-8,'restoration preserves the same corner surface geometry');
     assert.ok(Math.abs(warmBody.massProperties.centerOfMass.z)<.001);
     assert.ok(Math.abs(warmBody.massProperties.bounds.min.x)<1e-6,'the front support stays exactly at X=0');
     assert.ok((await exportStep(body,'warm-filleted.step')).byteLength>1000);
   }finally{result.disposeBrep(body);}
 });
 
-test('unsupported changed-radius corner is still rejected by the STEP accuracy gate',async()=>{
+test('an upstream bore edit has identical fresh and cached-prefix fillet geometry and the analytical removal',async()=>{
+  const store={get:async()=>null,put:async()=>{},remove:async()=>{}};
+  const warm=createCadWorkerExecutor({bodyStore:store});
+  const query=(execute,document)=>execute({kind:'regenerate',document:structuredClone(document),head:document.features.at(-1).id,massProperties:true});
+  const final=run=>run.results.find(([id])=>id===run.finalId)[1].massProperties;
+  const nominal=final(await query(warm,fixture));
+  const edited=structuredClone(fixture),sketch=edited.sketches.find(s=>s.id==='sk_3vrpx');
+  sketch.constraints.find(c=>c.id==='dim_w9wwnjl').value=3.82;
+  sketch.entities.find(e=>e.id===1543).r=1.91;
+  const incremental=final(await query(warm,edited));
+  const cold=final(await query(createCadWorkerExecutor({bodyStore:store}),edited));
+  assert.ok(Math.abs(incremental.volume-cold.volume)<1e-8,'changed dimensions must not change their result based on prefix cache history');
+  const removal=Math.PI/4*(3.82**2-3.8**2)*2.5;
+  assert.ok(Math.abs(nominal.volume-incremental.volume-removal)<1e-8,'outer blend geometry must stay unchanged while the25mm bore grows');
+  const restored=final(await query(warm,fixture));
+  assert.ok(Math.abs(restored.volume-nominal.volume)<1e-8,'Undo restores exact nominal material');
+  for(const axis of ['x','y','z'])assert.ok(Math.abs(restored.centerOfMass[axis]-nominal.centerOfMass[axis])<1e-10,'Undo restores the nominal physical center of mass');
+});
+
+test('canonical changed-radius corners meet the unchanged STEP accuracy gate and preserve the larger solid',async()=>{
   const changed=structuredClone(fixture);
   changed.features.at(-1).params.radius=.5;
   const run=await regenerateFeatures(changed);
@@ -54,8 +73,8 @@ test('unsupported changed-radius corner is still rejected by the STEP accuracy g
     assert.equal(run.ok,true,JSON.stringify(run.issues));
     const result=run.results.get(changed.features.at(-1).id),oc=result.oc;
     const analysis=new oc.ShapeAnalysis_ShapeTolerance();
-    try{assert.ok(analysis.Tolerance(result.shape,1,oc.TopAbs_ShapeEnum.TopAbs_SHAPE)>.001);}finally{analysis.delete();}
-    await assert.rejects(exportStep(result,'unrepaired.step'),/tolerance|accuracy/i);
+    try{assert.ok(analysis.Tolerance(result.shape,1,oc.TopAbs_ShapeEnum.TopAbs_SHAPE)<.001);}finally{analysis.delete();}
+    assert.ok((await exportStep(result,'changed-radius.step')).byteLength>1000,'the repaired native body passes the unchanged export gate');
     const properties=await shapeMassProperties(result);
     assert.ok(properties.volume>1227.7,'the smaller convex rounds retain additional material');
   }finally{releaseRegeneration(run);}

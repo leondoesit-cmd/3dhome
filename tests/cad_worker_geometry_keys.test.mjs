@@ -101,3 +101,11 @@ test('native operation revisions invalidate changed algorithms only from their f
  assert.ok(keys.get('web').includes('supported-corner-repair-2'));
  assert.ok(keys.get('web').includes('parallel-draft-1'));
 });
+
+test('canonical union transport invalidates old union and dependent finish bodies without expiring earlier prefixes',()=>{
+ const features=[{id:'base',type:'box',params:{w:2}},{id:'joined',type:'union',inputs:['base','base'],params:{}},{id:'blend',type:'fillet',inputs:['joined'],params:{radius:.1}}];
+ const keys=cadWorkerGeometryKeys({},features);
+ assert.equal(keys.get('base').includes('transport-stable-prefix-1'),false);
+ assert.ok(keys.get('joined').includes('transport-stable-prefix-1'));
+ assert.ok(keys.get('blend').includes('transport-stable-prefix-1'));
+});

@@ -1,0 +1,39 @@
+{
+  "inputMutation": false,
+  "rows": [
+    {
+      "source": "BASIC-Q4-current-native-preflight",
+      "key": "cm_munu2oc3_2058",
+      "sections": {
+        "key": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "material": true
+      }
+    },
+    {
+      "source": "BASIC-Q4-upstream-restored",
+      "key": "cm_munu2oc3_2058",
+      "sections": {
+        "key": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "material": true
+      }
+    },
+    {
+      "source": "BASIC-Q4-cold-source-before-cache-fix",
+      "key": "cm_munu2oc3_2058",
+      "sections": {
+        "key": true,
+        "features": true,
+        "sketches": true,
+        "history": true,
+        "material": true
+      }
+    }
+  ],
+  "status": "Preservation only; pre-fix numerical cache failure remains historical"
+}
