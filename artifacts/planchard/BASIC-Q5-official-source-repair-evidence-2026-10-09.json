@@ -1,0 +1,2526 @@
+{
+  "scope": "Read-only official source and protected browser definitions; no geometry import, model authoring, native source shape reconstruction, or mass fitting.",
+  "sourceOrder": [
+    [
+      11827,
+      "Boss-Extrude1"
+    ],
+    [
+      15126,
+      "Plane1"
+    ],
+    [
+      23981,
+      "Boss-Extrude2"
+    ],
+    [
+      31268,
+      "Boss-Extrude3"
+    ],
+    [
+      39535,
+      "Cut-Extrude1"
+    ]
+  ],
+  "sourceEndSpecs": [
+    {
+      "offset": 25158,
+      "rawType": 3,
+      "followingBytes": "1e8100000100000000000000010000000000030000000000000000000000ffff01000c006d6f506f696e745265665f77ffff01000e006d6f436f6d705665727465785f632d80"
+    },
+    {
+      "offset": 32362,
+      "rawType": 0,
+      "followingBytes": "1e81000001000000000000000100000000000000000000000000e58000000000000000000020000000000000ffff000001ffffffff00000000000080bf000000002300000000"
+    },
+    {
+      "offset": 40692,
+      "rawType": 1,
+      "followingBytes": "1e810000010000000000000000000000000001000000000000000000000001000001000000000000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "sourceBoss2VertexSelectionClassOffsets": {
+    "EndSpec": 25158,
+    "PointRef": 25194,
+    "CompVertex": 25212,
+    "VertexRef": 25302
+  },
+  "sourceSketchLoci": [
+    {
+      "offset": 5486,
+      "owner": "Sketch1",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -38.099999999999994,
+      "y_mm": 50.800000000000004
+    },
+    {
+      "offset": 5664,
+      "owner": "Sketch1",
+      "coordOffset": 66,
+      "kind": 2,
+      "x_mm": 38.10000000000001,
+      "y_mm": -50.79999999999999
+    },
+    {
+      "offset": 5826,
+      "owner": "Sketch1",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": -38.099999999999994,
+      "y_mm": -50.79999999999999
+    },
+    {
+      "offset": 5988,
+      "owner": "Sketch1",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": 38.100000000000016,
+      "y_mm": 50.800000000000004
+    },
+    {
+      "offset": 6150,
+      "owner": "Sketch1",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": -38.1,
+      "y_mm": 6.9388939039072276e-15
+    },
+    {
+      "offset": 6292,
+      "owner": "Sketch1",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": 38.1,
+      "y_mm": 6.938893903907228e-15
+    },
+    {
+      "offset": 18154,
+      "owner": "Sketch2",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": -38.1,
+      "y_mm": 4.643026285381219e-15
+    },
+    {
+      "offset": 18316,
+      "owner": "Sketch2",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": -38.099999999999994,
+      "y_mm": 80.30816519697007
+    },
+    {
+      "offset": 18822,
+      "owner": "Sketch2",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": 38.1,
+      "y_mm": 4.64302628538122e-15
+    },
+    {
+      "offset": 18984,
+      "owner": "Sketch2",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": 38.099999999999994,
+      "y_mm": 80.30816519697007
+    },
+    {
+      "offset": 19475,
+      "owner": "Sketch2",
+      "coordOffset": 66,
+      "kind": 4,
+      "x_mm": 0.0,
+      "y_mm": 80.30816519697007
+    },
+    {
+      "offset": 19617,
+      "owner": "Sketch2",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -38.099999999999994,
+      "y_mm": -33.99183480302993
+    },
+    {
+      "offset": 20086,
+      "owner": "Sketch2",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 38.10000000000001,
+      "y_mm": -33.99183480302993
+    },
+    {
+      "offset": 25806,
+      "owner": "Sketch3",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": 0.0,
+      "y_mm": 80.30816519697007
+    },
+    {
+      "offset": 25948,
+      "owner": "Sketch3",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 36.43521120219164,
+      "y_mm": 91.44752714690635
+    },
+    {
+      "offset": 26622,
+      "owner": "Sketch3",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 0.0,
+      "y_mm": 80.30816519697007
+    },
+    {
+      "offset": 26764,
+      "owner": "Sketch3",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 38.099999999999994,
+      "y_mm": 80.30816519697007
+    },
+    {
+      "offset": 26906,
+      "owner": "Sketch3",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -38.1,
+      "y_mm": 80.30816519697007
+    },
+    {
+      "offset": 34261,
+      "owner": "Sketch4",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": 0.0,
+      "y_mm": 80.30816519697007
+    },
+    {
+      "offset": 34403,
+      "owner": "Sketch4",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 27.326408401643736,
+      "y_mm": 88.66268665942229
+    },
+    {
+      "offset": 41025,
+      "owner": "Sketch5",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": -50.8,
+      "y_mm": 0.0
+    },
+    {
+      "offset": 41177,
+      "owner": "Sketch5",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": -7.83136399877276,
+      "y_mm": 47.72150488810342
+    },
+    {
+      "offset": 41737,
+      "owner": "Sketch5",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -0.32983756283561094,
+      "y_mm": 57.09367562121413
+    },
+    {
+      "offset": 41879,
+      "owner": "Sketch5",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 3.1067909936772475e-15,
+      "y_mm": 3.4504409585365864e-15
+    },
+    {
+      "offset": 42021,
+      "owner": "Sketch5",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 53.736651273815845,
+      "y_mm": 59.68059740971216
+    }
+  ],
+  "sourceSupports": [
+    {
+      "section": "section-0.bin",
+      "offset": 1417,
+      "kind": "plane",
+      "attr": 8,
+      "ordinal": 93,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        -0.0254,
+        -0.050800000000000005,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "originMm": [
+        -38.099999999999994,
+        -25.4,
+        -50.800000000000004
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "axisStationMm": -54.747674535766635,
+      "transverseStationMm": 15.11595623590419
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 1509,
+      "kind": "circle",
+      "attr": 9,
+      "ordinal": 306,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.059680597409712155,
+        -0.05373665127381584,
+        0,
+        -0.669130606358857,
+        -0.7431448254773955,
+        0,
+        0.7431448254773955,
+        -0.669130606358857,
+        0.038099999999999995
+      ],
+      "originMm": [
+        0,
+        59.680597409712156,
+        -53.736651273815845
+      ],
+      "axis": [
+        0,
+        -0.669130606358857,
+        -0.7431448254773955
+      ],
+      "radiusMm": 38.099999999999994,
+      "axisStationMm": 1.2789769243681803e-13,
+      "transverseStationMm": 80.30816519697007
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 3612,
+      "kind": "line",
+      "attr": 143,
+      "ordinal": 739,
+      "marker": 43,
+      "valuesMetres": [
+        -0.0127,
+        0.05968059740971216,
+        -0.05373665127381584,
+        0,
+        -0.7431448254773955,
+        0.669130606358857
+      ],
+      "originMm": [
+        -12.7,
+        59.68059740971216,
+        -53.736651273815845
+      ],
+      "axis": [
+        0,
+        -0.7431448254773955,
+        0.669130606358857
+      ],
+      "axisStationMm": 1.3500311979441904e-13,
+      "transverseStationMm": 80.30816519697008
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 3680,
+      "kind": "line",
+      "attr": 139,
+      "ordinal": 740,
+      "marker": 43,
+      "valuesMetres": [
+        -0.0127,
+        0,
+        0.05079999999999999,
+        0,
+        0,
+        -1
+      ],
+      "originMm": [
+        -12.7,
+        0,
+        50.79999999999999
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "axisStationMm": 37.75175713425162,
+      "transverseStationMm": -33.991834803029995
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 3747,
+      "kind": "line",
+      "attr": 144,
+      "ordinal": 738,
+      "marker": 43,
+      "valuesMetres": [
+        -0.0127,
+        0.007725217796021023,
+        -0.057755817346618984,
+        0,
+        0.669130606358857,
+        0.7431448254773956
+      ],
+      "originMm": [
+        -12.7,
+        7.725217796021023,
+        -57.75581734661898
+      ],
+      "axis": [
+        0,
+        0.669130606358857,
+        0.7431448254773956
+      ],
+      "axisStationMm": -37.75175713425163,
+      "transverseStationMm": 44.38714071269352
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 3814,
+      "kind": "line",
+      "attr": 146,
+      "ordinal": 732,
+      "marker": 43,
+      "valuesMetres": [
+        0.012700000000000003,
+        0,
+        0.05079999999999999,
+        0,
+        0,
+        -1
+      ],
+      "originMm": [
+        12.700000000000003,
+        0,
+        50.79999999999999
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "axisStationMm": 37.75175713425162,
+      "transverseStationMm": -33.991834803029995
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 3913,
+      "kind": "line",
+      "attr": 147,
+      "ordinal": 731,
+      "marker": 43,
+      "valuesMetres": [
+        0.0127,
+        0.05968059740971216,
+        -0.05373665127381584,
+        0,
+        -0.7431448254773955,
+        0.669130606358857
+      ],
+      "originMm": [
+        12.7,
+        59.68059740971216,
+        -53.736651273815845
+      ],
+      "axis": [
+        0,
+        -0.7431448254773955,
+        0.669130606358857
+      ],
+      "axisStationMm": 1.3500311979441904e-13,
+      "transverseStationMm": 80.30816519697008
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 4012,
+      "kind": "line",
+      "attr": 149,
+      "ordinal": 730,
+      "marker": 43,
+      "valuesMetres": [
+        0.0127,
+        0.007725217796021023,
+        -0.057755817346618984,
+        0,
+        0.669130606358857,
+        0.7431448254773956
+      ],
+      "originMm": [
+        12.7,
+        7.725217796021023,
+        -57.75581734661898
+      ],
+      "axis": [
+        0,
+        0.669130606358857,
+        0.7431448254773956
+      ],
+      "axisStationMm": -37.75175713425163,
+      "transverseStationMm": 44.38714071269352
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 4111,
+      "kind": "circle",
+      "attr": 151,
+      "ordinal": 728,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.08494145355206634,
+        -0.025681628306817292,
+        0,
+        -0.6691306063588565,
+        -0.7431448254773959,
+        0,
+        0.7431448254773959,
+        -0.6691306063588565,
+        0.038099999999999995
+      ],
+      "originMm": [
+        0,
+        84.94145355206633,
+        -25.68162830681729
+      ],
+      "axis": [
+        0,
+        -0.6691306063588565,
+        -0.7431448254773959
+      ],
+      "radiusMm": 38.099999999999994,
+      "axisStationMm": 37.751757134251896,
+      "transverseStationMm": 80.30816519697
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 4242,
+      "kind": "line",
+      "attr": 154,
+      "ordinal": 727,
+      "marker": 45,
+      "valuesMetres": [
+        -0.038099999999999995,
+        3.469446951953614e-18,
+        0.05079999999999999,
+        1,
+        0,
+        0
+      ],
+      "originMm": [
+        -38.099999999999994,
+        3.469446951953614e-15,
+        50.79999999999999
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "axisStationMm": 37.75175713425162,
+      "transverseStationMm": -33.991834803029995
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 4341,
+      "kind": "circle",
+      "attr": 156,
+      "ordinal": 422,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.0854074934719029,
+        -0.025164038539436818,
+        0,
+        0.6691306063588571,
+        0.7431448254773952,
+        0,
+        -0.7431448254773952,
+        0.6691306063588571,
+        0.028575
+      ],
+      "originMm": [
+        0,
+        85.40749347190291,
+        -25.164038539436817
+      ],
+      "axis": [
+        0,
+        0.6691306063588571,
+        0.7431448254773952
+      ],
+      "radiusMm": 28.575,
+      "axisStationMm": 38.448242865748426,
+      "transverseStationMm": 80.30816519697001
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 4472,
+      "kind": "circle",
+      "attr": 158,
+      "ordinal": 421,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.03441974126735801,
+        -0.08179167424081432,
+        0,
+        -0.669130606358857,
+        -0.7431448254773955,
+        0,
+        0.7431448254773955,
+        -0.669130606358857,
+        0.028575
+      ],
+      "originMm": [
+        0,
+        34.419741267358006,
+        -81.79167424081432
+      ],
+      "axis": [
+        0,
+        -0.669130606358857,
+        -0.7431448254773955
+      ],
+      "radiusMm": 28.575,
+      "axisStationMm": -37.75175713425156,
+      "transverseStationMm": 80.30816519697012
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 4603,
+      "kind": "circle",
+      "attr": 161,
+      "ordinal": 360,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.0854074934719029,
+        -0.025164038539436828,
+        0,
+        -0.6691306063588571,
+        -0.7431448254773952,
+        0,
+        0.7431448254773952,
+        -0.6691306063588571,
+        0.038099999999999995
+      ],
+      "originMm": [
+        0,
+        85.40749347190291,
+        -25.164038539436827
+      ],
+      "axis": [
+        0,
+        -0.6691306063588571,
+        -0.7431448254773952
+      ],
+      "radiusMm": 38.099999999999994,
+      "axisStationMm": 38.44824286574841,
+      "transverseStationMm": 80.30816519697002
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 4734,
+      "kind": "line",
+      "attr": 164,
+      "ordinal": 263,
+      "marker": 43,
+      "valuesMetres": [
+        0.0381,
+        -0.02526085614235414,
+        -0.0280550229669985,
+        -8.640334251054491e-17,
+        0.7431448254773954,
+        -0.6691306063588569
+      ],
+      "originMm": [
+        38.1,
+        -25.26085614235414,
+        -28.0550229669985
+      ],
+      "axis": [
+        -8.640334251054491e-17,
+        0.7431448254773954,
+        -0.6691306063588569
+      ],
+      "axisStationMm": -37.751757134251704,
+      "transverseStationMm": 7.105427357601002e-14
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 4833,
+      "kind": "circle",
+      "attr": 167,
+      "ordinal": 262,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.034419741267358014,
+        -0.08179167424081434,
+        0,
+        0.669130606358857,
+        0.7431448254773955,
+        0,
+        0.7431448254773955,
+        -0.669130606358857,
+        0.038099999999999995
+      ],
+      "originMm": [
+        0,
+        34.41974126735801,
+        -81.79167424081433
+      ],
+      "axis": [
+        0,
+        0.669130606358857,
+        0.7431448254773955
+      ],
+      "radiusMm": 38.099999999999994,
+      "axisStationMm": -37.75175713425156,
+      "transverseStationMm": 80.30816519697014
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 4964,
+      "kind": "line",
+      "attr": 169,
+      "ordinal": 261,
+      "marker": 43,
+      "valuesMetres": [
+        -0.0381,
+        -0.02526085614235414,
+        -0.0280550229669985,
+        -8.640334251054491e-17,
+        -0.7431448254773954,
+        0.6691306063588569
+      ],
+      "originMm": [
+        -38.1,
+        -25.26085614235414,
+        -28.0550229669985
+      ],
+      "axis": [
+        -8.640334251054491e-17,
+        -0.7431448254773954,
+        0.6691306063588569
+      ],
+      "axisStationMm": -37.751757134251704,
+      "transverseStationMm": 7.105427357601002e-14
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5063,
+      "kind": "line",
+      "attr": 131,
+      "ordinal": 260,
+      "marker": 43,
+      "valuesMetres": [
+        -0.0381,
+        3.4504409585365862e-18,
+        -3.1067909936772468e-18,
+        0.9999999999999999,
+        5.054934237236839e-33,
+        -1.0109868474473678e-32
+      ],
+      "originMm": [
+        -38.1,
+        3.450440958536586e-15,
+        -3.1067909936772467e-15
+      ],
+      "axis": [
+        0.9999999999999999,
+        5.054934237236839e-33,
+        -1.0109868474473678e-32
+      ],
+      "axisStationMm": 8.283039504820624e-30,
+      "transverseStationMm": 4.64302628538122e-15
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5130,
+      "kind": "line",
+      "attr": 173,
+      "ordinal": 259,
+      "marker": 43,
+      "valuesMetres": [
+        0.0381,
+        3.4504409585365866e-18,
+        -3.1067909936772476e-18,
+        -8.640334251054491e-17,
+        0.7431448254773954,
+        -0.6691306063588569
+      ],
+      "originMm": [
+        38.1,
+        3.4504409585365864e-15,
+        -3.1067909936772475e-15
+      ],
+      "axis": [
+        -8.640334251054491e-17,
+        0.7431448254773954,
+        -0.6691306063588569
+      ],
+      "axisStationMm": 7.888609052210118e-30,
+      "transverseStationMm": 4.643026285381221e-15
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5229,
+      "kind": "line",
+      "attr": 174,
+      "ordinal": 257,
+      "marker": 43,
+      "valuesMetres": [
+        -0.0381,
+        3.4504409585365862e-18,
+        -3.1067909936772468e-18,
+        -8.640334251054491e-17,
+        -0.7431448254773954,
+        0.6691306063588569
+      ],
+      "originMm": [
+        -38.1,
+        3.450440958536586e-15,
+        -3.1067909936772467e-15
+      ],
+      "axis": [
+        -8.640334251054491e-17,
+        -0.7431448254773954,
+        0.6691306063588569
+      ],
+      "axisStationMm": 8.283039504820624e-30,
+      "transverseStationMm": 4.64302628538122e-15
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5328,
+      "kind": "line",
+      "attr": 176,
+      "ordinal": 255,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        0.034419741267358014,
+        -0.08179167424081434,
+        0,
+        0.669130606358857,
+        0.7431448254773956
+      ],
+      "originMm": [
+        -38.099999999999994,
+        34.41974126735801,
+        -81.79167424081433
+      ],
+      "axis": [
+        0,
+        0.669130606358857,
+        0.7431448254773956
+      ],
+      "axisStationMm": -37.75175713425156,
+      "transverseStationMm": 80.30816519697014
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5427,
+      "kind": "line",
+      "attr": 178,
+      "ordinal": 254,
+      "marker": 43,
+      "valuesMetres": [
+        0.0381,
+        0.034419741267358014,
+        -0.08179167424081434,
+        0,
+        0.669130606358857,
+        0.7431448254773956
+      ],
+      "originMm": [
+        38.1,
+        34.41974126735801,
+        -81.79167424081433
+      ],
+      "axis": [
+        0,
+        0.669130606358857,
+        0.7431448254773956
+      ],
+      "axisStationMm": -37.75175713425156,
+      "transverseStationMm": 80.30816519697014
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5526,
+      "kind": "line",
+      "attr": 181,
+      "ordinal": 5,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        -0.0254,
+        -0.050800000000000005,
+        0,
+        0,
+        1
+      ],
+      "originMm": [
+        -38.099999999999994,
+        -25.4,
+        -50.800000000000004
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "axisStationMm": -54.747674535766635,
+      "transverseStationMm": 15.11595623590419
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5625,
+      "kind": "line",
+      "attr": 183,
+      "ordinal": 8,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        -0.0254,
+        0.05079999999999999,
+        0.9999999999999999,
+        0,
+        0
+      ],
+      "originMm": [
+        -38.099999999999994,
+        -25.4,
+        50.79999999999999
+      ],
+      "axis": [
+        0.9999999999999999,
+        0,
+        0
+      ],
+      "axisStationMm": 20.75583973273662,
+      "transverseStationMm": -52.86771337015581
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5724,
+      "kind": "line",
+      "attr": 187,
+      "ordinal": 11,
+      "marker": 43,
+      "valuesMetres": [
+        0.038100000000000016,
+        -0.0254,
+        -0.050800000000000005,
+        6.829619984160658e-17,
+        0,
+        -1
+      ],
+      "originMm": [
+        38.100000000000016,
+        -25.4,
+        -50.800000000000004
+      ],
+      "axis": [
+        6.829619984160658e-17,
+        0,
+        -1
+      ],
+      "axisStationMm": -54.747674535766635,
+      "transverseStationMm": 15.11595623590419
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5823,
+      "kind": "line",
+      "attr": 189,
+      "ordinal": 14,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        -0.0254,
+        -0.050800000000000005,
+        -1,
+        0,
+        0
+      ],
+      "originMm": [
+        -38.099999999999994,
+        -25.4,
+        -50.800000000000004
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "axisStationMm": -54.747674535766635,
+      "transverseStationMm": 15.11595623590419
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 5922,
+      "kind": "line",
+      "attr": 192,
+      "ordinal": 69,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        0,
+        -0.050800000000000005,
+        0,
+        0,
+        1
+      ],
+      "originMm": [
+        -38.099999999999994,
+        0,
+        -50.800000000000004
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "axisStationMm": -37.75175713425163,
+      "transverseStationMm": 33.99183480303
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 6021,
+      "kind": "line",
+      "attr": 194,
+      "ordinal": 68,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        0,
+        0.05079999999999999,
+        0.9999999999999999,
+        0,
+        0
+      ],
+      "originMm": [
+        -38.099999999999994,
+        0,
+        50.79999999999999
+      ],
+      "axis": [
+        0.9999999999999999,
+        0,
+        0
+      ],
+      "axisStationMm": 37.75175713425162,
+      "transverseStationMm": -33.991834803029995
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 6120,
+      "kind": "line",
+      "attr": 196,
+      "ordinal": 67,
+      "marker": 43,
+      "valuesMetres": [
+        0.038100000000000016,
+        0,
+        -0.050800000000000005,
+        6.829619984160658e-17,
+        0,
+        -1
+      ],
+      "originMm": [
+        38.100000000000016,
+        0,
+        -50.800000000000004
+      ],
+      "axis": [
+        6.829619984160658e-17,
+        0,
+        -1
+      ],
+      "axisStationMm": -37.75175713425163,
+      "transverseStationMm": 33.99183480303
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 6219,
+      "kind": "line",
+      "attr": 198,
+      "ordinal": 66,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        0,
+        -0.050800000000000005,
+        -1,
+        0,
+        0
+      ],
+      "originMm": [
+        -38.099999999999994,
+        0,
+        -50.800000000000004
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "axisStationMm": -37.75175713425163,
+      "transverseStationMm": 33.99183480303
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 6318,
+      "kind": "line",
+      "attr": 200,
+      "ordinal": 86,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        -0.0254,
+        -0.050800000000000005,
+        0,
+        1,
+        0
+      ],
+      "originMm": [
+        -38.099999999999994,
+        -25.4,
+        -50.800000000000004
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "axisStationMm": -54.747674535766635,
+      "transverseStationMm": 15.11595623590419
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 6417,
+      "kind": "line",
+      "attr": 202,
+      "ordinal": 87,
+      "marker": 43,
+      "valuesMetres": [
+        0.038100000000000016,
+        -0.0254,
+        -0.050800000000000005,
+        0,
+        1,
+        0
+      ],
+      "originMm": [
+        38.100000000000016,
+        -25.4,
+        -50.800000000000004
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "axisStationMm": -54.747674535766635,
+      "transverseStationMm": 15.11595623590419
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 6516,
+      "kind": "line",
+      "attr": 205,
+      "ordinal": 88,
+      "marker": 43,
+      "valuesMetres": [
+        0.03810000000000001,
+        -0.0254,
+        0.05079999999999999,
+        0,
+        1,
+        0
+      ],
+      "originMm": [
+        38.10000000000001,
+        -25.4,
+        50.79999999999999
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "axisStationMm": 20.75583973273662,
+      "transverseStationMm": -52.86771337015581
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 6615,
+      "kind": "line",
+      "attr": 39,
+      "ordinal": 89,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        -0.0254,
+        0.05079999999999999,
+        0,
+        1,
+        0
+      ],
+      "originMm": [
+        -38.099999999999994,
+        -25.4,
+        50.79999999999999
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "axisStationMm": 20.75583973273662,
+      "transverseStationMm": -52.86771337015581
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 7028,
+      "kind": "plane",
+      "attr": 38,
+      "ordinal": 92,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        -0.0254,
+        0.05079999999999999,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "originMm": [
+        -38.099999999999994,
+        -25.4,
+        50.79999999999999
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "axisStationMm": 20.75583973273662,
+      "transverseStationMm": -52.86771337015581
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 7247,
+      "kind": "plane",
+      "attr": 229,
+      "ordinal": 65,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        0,
+        0.05079999999999999,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1
+      ],
+      "originMm": [
+        -38.099999999999994,
+        0,
+        50.79999999999999
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "axisStationMm": 37.75175713425162,
+      "transverseStationMm": -33.991834803029995
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 7565,
+      "kind": "plane",
+      "attr": 236,
+      "ordinal": 90,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        -0.0254,
+        -0.050800000000000005,
+        0,
+        0,
+        -1,
+        -1,
+        0,
+        0
+      ],
+      "originMm": [
+        -38.099999999999994,
+        -25.4,
+        -50.800000000000004
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "axisStationMm": -54.747674535766635,
+      "transverseStationMm": 15.11595623590419
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 7656,
+      "kind": "plane",
+      "attr": 227,
+      "ordinal": 91,
+      "marker": 43,
+      "valuesMetres": [
+        0.038100000000000016,
+        -0.0254,
+        -0.050800000000000005,
+        1,
+        0,
+        6.829619984160658e-17,
+        6.829619984160658e-17,
+        0,
+        -1
+      ],
+      "originMm": [
+        38.100000000000016,
+        -25.4,
+        -50.800000000000004
+      ],
+      "axis": [
+        1,
+        0,
+        6.829619984160658e-17
+      ],
+      "axisStationMm": -54.747674535766635,
+      "transverseStationMm": 15.11595623590419
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 8475,
+      "kind": "line",
+      "attr": 263,
+      "ordinal": 750,
+      "marker": 43,
+      "valuesMetres": [
+        0.0127,
+        0,
+        0.0508,
+        0,
+        0.7431448254773958,
+        -0.6691306063588564
+      ],
+      "originMm": [
+        12.7,
+        0,
+        50.8
+      ],
+      "axis": [
+        0,
+        0.7431448254773958,
+        -0.6691306063588564
+      ],
+      "axisStationMm": 37.751757134251626,
+      "transverseStationMm": -33.991834803029995
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 8542,
+      "kind": "line",
+      "attr": 145,
+      "ordinal": 748,
+      "marker": 43,
+      "valuesMetres": [
+        -0.0127,
+        0,
+        0.0508,
+        0,
+        0.7431448254773958,
+        -0.6691306063588564
+      ],
+      "originMm": [
+        -12.7,
+        0,
+        50.8
+      ],
+      "axis": [
+        0,
+        0.7431448254773958,
+        -0.6691306063588564
+      ],
+      "axisStationMm": 37.751757134251626,
+      "transverseStationMm": -33.991834803029995
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 9446,
+      "kind": "plane",
+      "attr": 234,
+      "ordinal": 248,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.05968059740971216,
+        -0.05373665127381584,
+        0,
+        -0.669130606358857,
+        -0.7431448254773955,
+        0,
+        0.7431448254773955,
+        -0.669130606358857
+      ],
+      "originMm": [
+        0,
+        59.68059740971216,
+        -53.736651273815845
+      ],
+      "axis": [
+        0,
+        -0.669130606358857,
+        -0.7431448254773955
+      ],
+      "axisStationMm": 1.3500311979441904e-13,
+      "transverseStationMm": 80.30816519697008
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 9537,
+      "kind": "plane",
+      "attr": 282,
+      "ordinal": 249,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.034419741267358014,
+        -0.08179167424081434,
+        0,
+        -0.669130606358857,
+        -0.7431448254773955,
+        0,
+        0.7431448254773955,
+        -0.669130606358857
+      ],
+      "originMm": [
+        0,
+        34.41974126735801,
+        -81.79167424081433
+      ],
+      "axis": [
+        0,
+        -0.669130606358857,
+        -0.7431448254773955
+      ],
+      "axisStationMm": -37.75175713425156,
+      "transverseStationMm": 80.30816519697014
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 9628,
+      "kind": "cylinder",
+      "attr": 283,
+      "ordinal": 246,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.034419741267358014,
+        -0.08179167424081434,
+        0,
+        0.669130606358857,
+        0.7431448254773956,
+        0.038099999999999995,
+        0,
+        -0.7431448254773955,
+        0.6691306063588569
+      ],
+      "originMm": [
+        0,
+        34.41974126735801,
+        -81.79167424081433
+      ],
+      "axis": [
+        0,
+        0.669130606358857,
+        0.7431448254773956
+      ],
+      "radiusMm": 38.099999999999994,
+      "axisStationMm": -37.75175713425156,
+      "transverseStationMm": 80.30816519697014
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 9767,
+      "kind": "plane",
+      "attr": 224,
+      "ordinal": 2,
+      "marker": 43,
+      "valuesMetres": [
+        -0.038099999999999995,
+        -0.0254,
+        0.05079999999999999,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1
+      ],
+      "originMm": [
+        -38.099999999999994,
+        -25.4,
+        50.79999999999999
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "axisStationMm": 20.75583973273662,
+      "transverseStationMm": -52.86771337015581
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 10784,
+      "kind": "plane",
+      "attr": 334,
+      "ordinal": 725,
+      "marker": 43,
+      "valuesMetres": [
+        -0.0127,
+        0.04416065566129583,
+        -0.0282427751715434,
+        1,
+        0,
+        0,
+        0,
+        0,
+        -1
+      ],
+      "originMm": [
+        -12.7,
+        44.16065566129583,
+        -28.2427751715434
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "axisStationMm": 8.56077407399372,
+      "transverseStationMm": 51.715868020172735
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 10875,
+      "kind": "plane",
+      "attr": 327,
+      "ordinal": 726,
+      "marker": 43,
+      "valuesMetres": [
+        0.0127,
+        0.04416065566129583,
+        -0.0282427751715434,
+        1,
+        0,
+        0,
+        0,
+        0,
+        -1
+      ],
+      "originMm": [
+        12.7,
+        44.16065566129583,
+        -28.2427751715434
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "axisStationMm": 8.56077407399372,
+      "transverseStationMm": 51.715868020172735
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 10966,
+      "kind": "plane",
+      "attr": 318,
+      "ordinal": 724,
+      "marker": 45,
+      "valuesMetres": [
+        0,
+        0,
+        0.0508,
+        0,
+        -0.6691306063588565,
+        -0.7431448254773959,
+        0,
+        0.7431448254773958,
+        -0.6691306063588564
+      ],
+      "originMm": [
+        0,
+        0,
+        50.8
+      ],
+      "axis": [
+        0,
+        -0.6691306063588565,
+        -0.7431448254773959
+      ],
+      "axisStationMm": 37.751757134251626,
+      "transverseStationMm": -33.991834803029995
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 11057,
+      "kind": "cylinder",
+      "attr": 308,
+      "ordinal": 418,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        -0.0050408055432061005,
+        -0.12561705137063015,
+        0,
+        0.6691306063588571,
+        0.7431448254773952,
+        0.028575,
+        0,
+        -0.7431448254773952,
+        0.6691306063588571
+      ],
+      "originMm": [
+        0,
+        -5.0408055432061,
+        -125.61705137063015
+      ],
+      "axis": [
+        0,
+        0.6691306063588571,
+        0.7431448254773952
+      ],
+      "radiusMm": 28.575,
+      "axisStationMm": -96.7246189874744,
+      "transverseStationMm": 80.30816519697022
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 11156,
+      "kind": "plane",
+      "attr": 280,
+      "ordinal": 356,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.0854074934719029,
+        -0.025164038539436828,
+        0,
+        -0.6691306063588571,
+        -0.7431448254773952,
+        0,
+        0.7431448254773952,
+        -0.6691306063588571
+      ],
+      "originMm": [
+        0,
+        85.40749347190291,
+        -25.164038539436827
+      ],
+      "axis": [
+        0,
+        -0.6691306063588571,
+        -0.7431448254773952
+      ],
+      "axisStationMm": 38.44824286574841,
+      "transverseStationMm": 80.30816519697002
+    }
+  ],
+  "derivedSource": {
+    "N": [
+      0,
+      0.6691306063588582,
+      0.7431448254773942
+    ],
+    "V": [
+      0,
+      0.7431448254773942,
+      -0.6691306063588582
+    ],
+    "officialPlaneOriginMm": [
+      0,
+      0,
+      0
+    ],
+    "sourceSupportAxisIntervalMm": [
+      -37.751757134251626,
+      0
+    ],
+    "sourceTubeAxisIntervalMm": [
+      -37.751757134251626,
+      38.44824286574838
+    ],
+    "tubeTransverseCentreMm": 80.30816519697001,
+    "sourceTubeCircleCentresMm": [
+      [
+        0,
+        34.41974126735801,
+        -81.79167424081433
+      ],
+      [
+        0,
+        85.40749347190291,
+        -25.164038539436827
+      ]
+    ],
+    "minimalHistoricalTubeForwardShiftMm": 0.6964857314967503,
+    "minimalHistoricalReverseFeatureStartOffsetCm": -0.06964857314967503,
+    "supportBackTopPointCm": [
+      -8.179167424081433,
+      3.441974126735801
+    ],
+    "sourceRibGuidePhysicalEndpointCm": [
+      0.783136399877276,
+      4.772150488810342
+    ],
+    "qualification": "Final matching outer and bore circle pairs independently corroborate source3in tube and selected-vertex support plane. Intermediate native circle151 matches historical end but is not the complete final pair; live FACE ownership remains undecoded."
+  },
+  "protectedName": "CSWA Q5 - fresh interpretation 2026-09-30",
+  "protectedFeatures": [
+    {
+      "id": "feature_muncpe6r_1",
+      "type": "extrude",
+      "name": "Extrude / Boss 1",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 2.54,
+        "offset": 0,
+        "direction": "reverse",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "mergeResult": true,
+        "axis": "y",
+        "profileEntityIds": [
+          1220,
+          1221,
+          1222,
+          1223
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_0jwly",
+        "from": 0,
+        "to": -2.54
+      },
+      "references": {
+        "sketches": [
+          "sk_0jwly"
+        ],
+        "features": [],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          1220,
+          1221,
+          1222,
+          1223
+        ]
+      },
+      "inputs": [],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mund43sk_1",
+      "type": "extrude",
+      "name": "Extrude / Boss 2",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 7.62,
+        "offset": 0,
+        "direction": "reverse",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "mergeResult": true,
+        "axis": "frame",
+        "profileEntityIds": [
+          1376
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1ppzx",
+        "from": 0,
+        "to": -7.62
+      },
+      "references": {
+        "sketches": [
+          "sk_1ppzx"
+        ],
+        "features": [
+          "feature_muncpe6r_1"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          1376
+        ]
+      },
+      "inputs": [
+        "feature_muncpe6r_1"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mund7f6r_2",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 1",
+      "params": {
+        "operation": "subtract",
+        "endCondition": "through-all",
+        "depth": 7.62,
+        "offset": 0,
+        "direction": "reverse",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "keepTool": false,
+        "axis": "frame",
+        "profileEntityIds": [
+          1384
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2nb9y",
+        "from": 0,
+        "to": -11.592537817230943
+      },
+      "references": {
+        "sketches": [
+          "sk_2nb9y"
+        ],
+        "features": [
+          "feature_mundqotm_4"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          1384
+        ]
+      },
+      "inputs": [
+        "feature_mundqotm_4"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mundmfwj_3",
+      "type": "extrude",
+      "name": "Extrude / Boss 3",
+      "params": {
+        "operation": "add",
+        "endCondition": "mid-plane",
+        "depth": 7.62,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": true,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          1404,
+          1407,
+          1409,
+          1410
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_3bpci",
+        "from": -3.81,
+        "to": 3.81
+      },
+      "references": {
+        "sketches": [
+          "sk_3bpci"
+        ],
+        "features": [
+          "feature_mund43sk_1"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          1404,
+          1407,
+          1409,
+          1410
+        ]
+      },
+      "inputs": [
+        "feature_mund43sk_1"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mundqotm_4",
+      "type": "rib",
+      "name": "Rib 1",
+      "params": {
+        "thickness": 2.54,
+        "side": "both",
+        "extent": "up-to-body",
+        "depth": 9.99999999996,
+        "direction": "forward",
+        "draftAngle": 0,
+        "orientation": "parallel",
+        "growthDirection": "negative-v",
+        "points": [
+          {
+            "u": 5.08,
+            "v": 0
+          },
+          {
+            "u": -0.018775220453038123,
+            "v": 5.662763570132193
+          }
+        ],
+        "chainEntityIds": [
+          1418
+        ],
+        "axis": "x",
+        "from": 0,
+        "sketchId": "sk_4jlsc"
+      },
+      "references": {
+        "sketches": [
+          "sk_4jlsc"
+        ],
+        "features": [
+          "feature_mundmfwj_3"
+        ],
+        "topology": [],
+        "references": []
+      },
+      "inputs": [
+        "feature_mundmfwj_3"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    }
+  ],
+  "protectedSketches": [
+    {
+      "id": "sk_0jwly",
+      "name": "Top Plane sketch",
+      "plane": "top",
+      "offset": 0,
+      "referenceId": "plane:top",
+      "points": [
+        {
+          "id": 1215,
+          "x": -3.81,
+          "y": -5.08
+        },
+        {
+          "id": 1216,
+          "x": 3.81,
+          "y": -5.08
+        },
+        {
+          "id": 1217,
+          "x": 3.81,
+          "y": 5.08
+        },
+        {
+          "id": 1218,
+          "x": -3.81,
+          "y": 5.08
+        },
+        {
+          "id": 1219,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 1220,
+          "type": "line",
+          "name": "Line",
+          "a": 1215,
+          "b": 1216,
+          "construction": false
+        },
+        {
+          "id": 1221,
+          "type": "line",
+          "name": "Line",
+          "a": 1216,
+          "b": 1217,
+          "construction": false
+        },
+        {
+          "id": 1222,
+          "type": "line",
+          "name": "Line",
+          "a": 1217,
+          "b": 1218,
+          "construction": false
+        },
+        {
+          "id": 1223,
+          "type": "line",
+          "name": "Line",
+          "a": 1218,
+          "b": 1215,
+          "construction": false
+        },
+        {
+          "id": 1224,
+          "type": "line",
+          "name": "Center rectangle diagonal",
+          "a": 1215,
+          "b": 1217,
+          "construction": true
+        }
+      ],
+      "constraints": [
+        {
+          "id": 1225,
+          "type": "horizontal",
+          "entity": 1220,
+          "exprError": null
+        },
+        {
+          "id": 1226,
+          "type": "vertical",
+          "entity": 1221,
+          "exprError": null
+        },
+        {
+          "id": 1227,
+          "type": "horizontal",
+          "entity": 1222,
+          "exprError": null
+        },
+        {
+          "id": 1228,
+          "type": "vertical",
+          "entity": 1223,
+          "exprError": null
+        },
+        {
+          "id": 1229,
+          "type": "fixed",
+          "point": 1219,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": 1230,
+          "type": "midpoint",
+          "point": 1219,
+          "entity": 1224,
+          "exprError": null
+        },
+        {
+          "id": 1231,
+          "type": "distance",
+          "entity": 1220,
+          "value": 7.62,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 1232,
+          "type": "distance",
+          "entity": 1221,
+          "value": 10.16,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_1ppzx",
+      "name": "Q5 Inclined Plane sketch",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane_1375",
+      "points": [
+        {
+          "id": 1377,
+          "x": 0,
+          "y": 11.43,
+          "fixed": false
+        }
+      ],
+      "entities": [
+        {
+          "id": 1376,
+          "type": "circle",
+          "name": "Circle",
+          "c": 1377,
+          "r": 3.81,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 1378,
+          "entity": 1376,
+          "type": "diameter",
+          "value": 7.62,
+          "exprError": null
+        },
+        {
+          "id": 1475,
+          "type": "fixed",
+          "point": 1377,
+          "x": 0,
+          "y": 11.43,
+          "exprError": null
+        }
+      ],
+      "frame": {
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 5.08
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "yAxis": {
+          "x": 0,
+          "y": 0.7431448254773942,
+          "z": -0.6691306063588583
+        },
+        "normal": {
+          "x": 0,
+          "y": 0.6691306063588583,
+          "z": 0.7431448254773942
+        }
+      },
+      "frameSpace": "local",
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_2nb9y",
+      "name": "Q5 Inclined Plane sketch",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane_1375",
+      "points": [
+        {
+          "id": 1385,
+          "x": 0,
+          "y": 11.43,
+          "fixed": false
+        }
+      ],
+      "entities": [
+        {
+          "id": 1384,
+          "type": "circle",
+          "name": "Circle",
+          "c": 1385,
+          "r": 2.8575,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 1386,
+          "entity": 1384,
+          "type": "diameter",
+          "value": 5.715,
+          "exprError": null
+        },
+        {
+          "id": 1476,
+          "type": "fixed",
+          "point": 1385,
+          "x": 0,
+          "y": 11.43,
+          "exprError": null
+        }
+      ],
+      "frame": {
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 5.08
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "yAxis": {
+          "x": 0,
+          "y": 0.7431448254773942,
+          "z": -0.6691306063588583
+        },
+        "normal": {
+          "x": 0,
+          "y": 0.6691306063588583,
+          "z": 0.7431448254773942
+        }
+      },
+      "frameSpace": "local",
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_3bpci",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 1402,
+          "x": 0,
+          "y": 8.906877729151369e-88
+        },
+        {
+          "id": 1403,
+          "x": -5.08,
+          "y": 8.901110503136962e-88,
+          "fixed": false
+        },
+        {
+          "id": 1406,
+          "x": -8.230926400819381,
+          "y": 3.3953701347528797,
+          "fixed": false
+        },
+        {
+          "id": 1408,
+          "x": -5.37366512738282,
+          "y": 5.9680597409712,
+          "fixed": false
+        }
+      ],
+      "entities": [
+        {
+          "id": 1404,
+          "type": "line",
+          "name": "Line",
+          "a": 1402,
+          "b": 1403,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 1407,
+          "type": "line",
+          "name": "Line",
+          "a": 1403,
+          "b": 1406,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 1409,
+          "type": "line",
+          "name": "Line",
+          "a": 1406,
+          "b": 1408,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 1410,
+          "type": "line",
+          "name": "Line",
+          "a": 1408,
+          "b": 1402,
+          "construction": false,
+          "weight": 2
+        }
+      ],
+      "constraints": [
+        {
+          "type": "horizontal",
+          "entity": 1404,
+          "id": 1405,
+          "exprError": null
+        },
+        {
+          "id": 1411,
+          "type": "fixed",
+          "point": 1403,
+          "x": -5.08,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": 1414,
+          "type": "fixed",
+          "point": 1402,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": 1477,
+          "type": "fixed",
+          "point": 1406,
+          "x": -8.230926400819381,
+          "y": 3.3953701347528797,
+          "exprError": null
+        },
+        {
+          "id": 1478,
+          "type": "fixed",
+          "point": 1408,
+          "x": -5.37366512738282,
+          "y": 5.9680597409712,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_4jlsc",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 1416,
+          "x": 5.08,
+          "y": 0,
+          "fixed": false
+        },
+        {
+          "id": 1417,
+          "x": -2.5681628306821,
+          "y": 8.49414535520592,
+          "fixed": false
+        }
+      ],
+      "entities": [
+        {
+          "id": 1418,
+          "type": "line",
+          "name": "Line",
+          "a": 1416,
+          "b": 1417,
+          "construction": false,
+          "weight": 2
+        }
+      ],
+      "constraints": [
+        {
+          "id": 1419,
+          "type": "fixed",
+          "point": 1416,
+          "x": 5.08,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": 1485,
+          "type": "fixed",
+          "point": 1417,
+          "x": -2.5681628306821,
+          "y": 8.49414535520592,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    }
+  ],
+  "protectedReferenceGeometry": [
+    {
+      "id": "plane:top",
+      "type": "reference_plane",
+      "name": "Top Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:front",
+      "type": "reference_plane",
+      "name": "Front Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:right",
+      "type": "reference_plane",
+      "name": "Right Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "axis:x",
+      "type": "reference_axis",
+      "name": "X Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:y",
+      "type": "reference_axis",
+      "name": "Y Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:z",
+      "type": "reference_axis",
+      "name": "Z Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "plane_1375",
+      "type": "reference_plane",
+      "name": "Q5 Inclined Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 5.08
+      },
+      "normal": {
+        "x": 0,
+        "y": 0.6691306063588583,
+        "z": 0.7431448254773942
+      },
+      "offset": 0,
+      "refType": "angle",
+      "baseReferenceId": "plane:top",
+      "angle": 48,
+      "angleDirection": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "angleOrigin": {
+        "x": 0,
+        "y": 0,
+        "z": 5.08
+      }
+    }
+  ]
+}

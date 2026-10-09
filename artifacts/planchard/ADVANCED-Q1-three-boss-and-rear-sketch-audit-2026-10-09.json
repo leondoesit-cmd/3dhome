@@ -1,0 +1,532 @@
+{
+  "scope": "Actual browser export read-only sketch/definition audit. No authoring or mutation. Native audit only allowed on first three-boss bundle with sharp temporary rear.",
+  "rows": [
+    {
+      "input": "ADVANCED-Q1-three-bosses-browser-2026-10-09.mforge",
+      "front": {
+        "status": "fully-defined",
+        "arcs": [
+          {
+            "id": 5685,
+            "centreInches": [
+              1,
+              1
+            ],
+            "radiusInches": 0.49999999999999967,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 150.00000000000003,
+            "expectedSweepDegrees": 150,
+            "expectedRadiusInches": 0.5,
+            "convex": true
+          },
+          {
+            "id": 5692,
+            "centreInches": [
+              2.732050807568877,
+              -7.574181394361187e-47
+            ],
+            "radiusInches": 1.5000000000000002,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 59.999999999999986,
+            "expectedSweepDegrees": 60,
+            "expectedRadiusInches": 1.5,
+            "convex": false
+          },
+          {
+            "id": 5699,
+            "centreInches": [
+              1,
+              -1
+            ],
+            "radiusInches": 0.49999999999999967,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 150.00000000000003,
+            "expectedSweepDegrees": 150,
+            "expectedRadiusInches": 0.5,
+            "convex": true
+          },
+          {
+            "id": 5706,
+            "centreInches": [
+              -3.054612098537e-37,
+              -2.732050807568877
+            ],
+            "radiusInches": 1.5000000000000002,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 59.999999999999986,
+            "expectedSweepDegrees": 60,
+            "expectedRadiusInches": 1.5,
+            "convex": false
+          },
+          {
+            "id": 5713,
+            "centreInches": [
+              -1,
+              -1
+            ],
+            "radiusInches": 0.49999999999999967,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 150.00000000000003,
+            "expectedSweepDegrees": 150,
+            "expectedRadiusInches": 0.5,
+            "convex": true
+          },
+          {
+            "id": 5720,
+            "centreInches": [
+              -2.732050807568877,
+              -1.5657166686587882e-26
+            ],
+            "radiusInches": 1.5000000000000002,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 59.99999999999999,
+            "expectedSweepDegrees": 60,
+            "expectedRadiusInches": 1.5,
+            "convex": false
+          },
+          {
+            "id": 5727,
+            "centreInches": [
+              -1,
+              1
+            ],
+            "radiusInches": 0.49999999999999967,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 150.00000000000003,
+            "expectedSweepDegrees": 150,
+            "expectedRadiusInches": 0.5,
+            "convex": true
+          },
+          {
+            "id": 5734,
+            "centreInches": [
+              6.188798563644901e-18,
+              2.732050807568877
+            ],
+            "radiusInches": 1.5000000000000002,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 59.999999999999986,
+            "expectedSweepDegrees": 60,
+            "expectedRadiusInches": 1.5,
+            "convex": false
+          }
+        ],
+        "joints": [
+          {
+            "point": 5687,
+            "arcIds": [
+              5685,
+              5692
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5688,
+            "arcIds": [
+              5685,
+              5734
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5695,
+            "arcIds": [
+              5692,
+              5699
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5701,
+            "arcIds": [
+              5699,
+              5706
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5709,
+            "arcIds": [
+              5706,
+              5713
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5715,
+            "arcIds": [
+              5713,
+              5720
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5723,
+            "arcIds": [
+              5720,
+              5727
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5729,
+            "arcIds": [
+              5727,
+              5734
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          }
+        ],
+        "arcCount": 8,
+        "closedEightArcTopology": true,
+        "maxRadiusErrorInches": 3.3306690738754696e-16,
+        "maxSweepErrorDegrees": 2.842170943040401e-14,
+        "maxTangencyCrossCm2": 2.220446049250313e-15
+      },
+      "rear": {
+        "status": "fully-defined",
+        "entityCount": 5,
+        "physicalLineCount": 4,
+        "arcCount": 0,
+        "arcs": [],
+        "constructionProxyCount": 0,
+        "virtualSharpCount": 0,
+        "equalCount": 3,
+        "equalRelationsUseSharpProxies": false,
+        "preservedGuideDiameter": 3.4142135623730954,
+        "preservedOrientationDegrees": 135
+      },
+      "axialIntervalsInches": [
+        [
+          0,
+          0.4
+        ],
+        [
+          0.4,
+          2.0999999999999996
+        ],
+        [
+          2.1,
+          2.6000000000000005
+        ]
+      ],
+      "shaftRadiusInches": 0.55,
+      "staleRearProfileIds": [
+        5656,
+        5657,
+        5658,
+        5659
+      ],
+      "rearProfileIncludesArcs": true,
+      "frontSketchBitIdenticalToFirst": true
+    },
+    {
+      "input": "ADVANCED-Q1-rear-four-fillet-refresh-browser-2026-10-09.mforge",
+      "front": {
+        "status": "fully-defined",
+        "arcs": [
+          {
+            "id": 5685,
+            "centreInches": [
+              1,
+              1
+            ],
+            "radiusInches": 0.49999999999999967,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 150.00000000000003,
+            "expectedSweepDegrees": 150,
+            "expectedRadiusInches": 0.5,
+            "convex": true
+          },
+          {
+            "id": 5692,
+            "centreInches": [
+              2.732050807568877,
+              -7.574181394361187e-47
+            ],
+            "radiusInches": 1.5000000000000002,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 59.999999999999986,
+            "expectedSweepDegrees": 60,
+            "expectedRadiusInches": 1.5,
+            "convex": false
+          },
+          {
+            "id": 5699,
+            "centreInches": [
+              1,
+              -1
+            ],
+            "radiusInches": 0.49999999999999967,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 150.00000000000003,
+            "expectedSweepDegrees": 150,
+            "expectedRadiusInches": 0.5,
+            "convex": true
+          },
+          {
+            "id": 5706,
+            "centreInches": [
+              -3.054612098537e-37,
+              -2.732050807568877
+            ],
+            "radiusInches": 1.5000000000000002,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 59.999999999999986,
+            "expectedSweepDegrees": 60,
+            "expectedRadiusInches": 1.5,
+            "convex": false
+          },
+          {
+            "id": 5713,
+            "centreInches": [
+              -1,
+              -1
+            ],
+            "radiusInches": 0.49999999999999967,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 150.00000000000003,
+            "expectedSweepDegrees": 150,
+            "expectedRadiusInches": 0.5,
+            "convex": true
+          },
+          {
+            "id": 5720,
+            "centreInches": [
+              -2.732050807568877,
+              -1.5657166686587882e-26
+            ],
+            "radiusInches": 1.5000000000000002,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 59.99999999999999,
+            "expectedSweepDegrees": 60,
+            "expectedRadiusInches": 1.5,
+            "convex": false
+          },
+          {
+            "id": 5727,
+            "centreInches": [
+              -1,
+              1
+            ],
+            "radiusInches": 0.49999999999999967,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 150.00000000000003,
+            "expectedSweepDegrees": 150,
+            "expectedRadiusInches": 0.5,
+            "convex": true
+          },
+          {
+            "id": 5734,
+            "centreInches": [
+              6.188798563644901e-18,
+              2.732050807568877
+            ],
+            "radiusInches": 1.5000000000000002,
+            "endRadiusMismatchCm": 0,
+            "ccwSweepDegrees": 59.999999999999986,
+            "expectedSweepDegrees": 60,
+            "expectedRadiusInches": 1.5,
+            "convex": false
+          }
+        ],
+        "joints": [
+          {
+            "point": 5687,
+            "arcIds": [
+              5685,
+              5692
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5688,
+            "arcIds": [
+              5685,
+              5734
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5695,
+            "arcIds": [
+              5692,
+              5699
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5701,
+            "arcIds": [
+              5699,
+              5706
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5709,
+            "arcIds": [
+              5706,
+              5713
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5715,
+            "arcIds": [
+              5713,
+              5720
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5723,
+            "arcIds": [
+              5720,
+              5727
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          },
+          {
+            "point": 5729,
+            "arcIds": [
+              5727,
+              5734
+            ],
+            "radialCrossCm2": 2.220446049250313e-15
+          }
+        ],
+        "arcCount": 8,
+        "closedEightArcTopology": true,
+        "maxRadiusErrorInches": 3.3306690738754696e-16,
+        "maxSweepErrorDegrees": 2.842170943040401e-14,
+        "maxTangencyCrossCm2": 2.220446049250313e-15
+      },
+      "rear": {
+        "status": "fully-defined",
+        "entityCount": 13,
+        "physicalLineCount": 4,
+        "arcCount": 4,
+        "arcs": [
+          {
+            "id": 5746,
+            "centreInches": [
+              1,
+              0
+            ],
+            "radiusInches": 0.5000000000000001
+          },
+          {
+            "id": 5756,
+            "centreInches": [
+              4.90189915378845e-17,
+              1
+            ],
+            "radiusInches": 0.5000000000000001
+          },
+          {
+            "id": 5766,
+            "centreInches": [
+              -1,
+              9.803798307576901e-17
+            ],
+            "radiusInches": 0.5000000000000002
+          },
+          {
+            "id": 5775,
+            "centreInches": [
+              -2.580792770761691e-16,
+              -1
+            ],
+            "radiusInches": 0.4999999999999999
+          }
+        ],
+        "constructionProxyCount": 4,
+        "virtualSharpCount": 4,
+        "equalCount": 3,
+        "equalRelationsUseSharpProxies": true,
+        "preservedGuideDiameter": 3.4142135623730954,
+        "preservedOrientationDegrees": 135
+      },
+      "axialIntervalsInches": [
+        [
+          0,
+          0.4
+        ],
+        [
+          0.4,
+          2.0999999999999996
+        ],
+        [
+          2.1,
+          2.6000000000000005
+        ]
+      ],
+      "shaftRadiusInches": 0.55,
+      "staleRearProfileIds": [
+        5656,
+        5657,
+        5658,
+        5659
+      ],
+      "rearProfileIncludesArcs": false,
+      "frontSketchBitIdenticalToFirst": true
+    }
+  ],
+  "independentAnalytical": {
+    "frontAreaIn2": 7.524811188886566,
+    "sharpRearAreaIn2": 5.82842712474619,
+    "threeBossVolumeCm3": 126.3334556215111,
+    "method": "Green integral over the eight source arcs plus sharp diamond area and cylindrical shaft; no answer fitting"
+  },
+  "nativeThreeBoss": {
+    "input": "artifacts/planchard/ADVANCED-Q1-three-bosses-browser-2026-10-09.mforge",
+    "ok": true,
+    "issues": [],
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 126.3334556215111,
+      "maxToleranceCm": 1.0000000177635683e-7
+    },
+    "mass": {
+      "volume": 126.3334556215111,
+      "centerOfMass": {
+        "x": -1.2479011891283095e-16,
+        "y": 4.7038700633863286e-17,
+        "z": 3.7320379454486083
+      },
+      "inertia": [
+        [
+          1164.00303241775,
+          1.8044045758714035e-14,
+          -3.130267026182381e-14
+        ],
+        [
+          1.8044045758714035e-14,
+          1164.0030324177505,
+          3.6524707961707054e-14
+        ],
+        [
+          -3.130267026182381e-14,
+          3.6524707961707054e-14,
+          794.8957724673403
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -4.336051224213831,
+          "y": -4.336051224213831,
+          "z": 0
+        },
+        "max": {
+          "x": 4.336051224213831,
+          "y": 4.336051224213831,
+          "z": 6.604000000000001
+        }
+      }
+    },
+    "qualification": "Actual temporary sharp rear polygon; source front/shaft/axial stations. This is not final rounded-rear or completed Q1 acceptance."
+  }
+}

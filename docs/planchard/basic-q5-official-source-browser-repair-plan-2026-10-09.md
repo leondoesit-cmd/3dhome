@@ -1,0 +1,41 @@
+# Basic5 official-source minimal browser repair plan
+
+Read-only source preparation9October2026. Official source is publisher `Part Modeling-Question5.SLDPRT`, CRC-verified45-block extraction in `scratch/planchard/official-basic-q5-container`. Protected browser input is `CSWA-Q5-corrected-centre-6061-browser-2026-09-30.mforge`, saved name **CSWA Q5 - fresh interpretation 2026-09-30**. Durable evidence: `artifacts/planchard/BASIC-Q5-official-source-repair-evidence-2026-10-09.json`; reproducible read-only parser under scratch. No model was authored/imported and no mass or COM was used to choose a parameter.
+
+## Source feature order and physical datum
+
+Source order is Boss1 ID24/Sketch1 ID15 → Plane1 ID83 → Boss2 ID91/Sketch2 ID84 → Boss3 ID97/Sketch3 ID92 → Cut1 ID105/Sketch4 ID98 → Rib1 ID111/Sketch5 ID106. Boss1 is base3×4×1in, centeredX/Z, Y−1..0. Boss2 is the inclined rounded support; Boss3 isØ3 tube length3; Cut1 isØ2.25 bore; Rib1 is1in thick. Source Plane1 has48° named angle and passes through physical origin. It is distinct from the historical app plane, which is parallel but passes through the front base edgeZ+2in.
+
+Use physical axis N=(0,0.669130606358858,0.743144825477394) and tangent V=(0,0.743144825477394,−0.669130606358858), withX unchanged. Source sketch transverse station for tube/support center is v=114.3−50.8sin42°=80.3081651969701mm=3.16173878728228in relative to the origin plane. This follows source Sketch2's4.5in datum from the projected front-base-edge coordinatev−33.9918348030299mm. Source Sketch2 side endpoints areX±38.1mm,v0 andv80.3081651969701; capR38.1 at that upper center. Source Sketch3 and4 share that center.
+
+Boss2's named `moEndSpec_c` class-reference record at25158 has raw type3 and is immediately followed by `moPointRef_w`25194, `moCompVertex_c`25212 and `moVertexRef_c`25302. This establishes **selected-vertex termination**, not an arbitrary blind depth. Native support rear plane is through base-back edgeY0/Z−50.8, normalN, so its axial station is n=−50.8cos42°=−37.7517571344516mm. Source support spans n−37.7517571344516..0. Exact proprietary vertex-to-live-PS-vertex identity remains undecoded; the geometric datum is independently corroborated by the final support and circle stations.
+
+Boss3's end record at32362 is raw type0, named depth3in. Its sketch is on the support rear face, and the source tube runs forward3in: n−37.7517571344516..+38.4482428655484mm. **Both outerR38.1 and boreR28.575** circles have final endpoints at world(0,34.4197412673580,−81.7916742408143)mm and(0,85.4074934719029,−25.1640385394368)mm. They sharev80.3081651969701 and are76.2mm apart. Matching source end planes independently confirm those stations. The native stream also retains intermediate circle151 at the historical front center; that isolated candidate is not evidence for the final complete tube pair.
+
+## Minimal edits to existing historical geometry
+
+The historical plane `plane_1375` **Q5 Inclined Plane** is at(0,0,+2in), sameN/V. Circle centerlocal(0,4.5in) therefore already has correct transversev80.3081651969701, but lies at n+37.7517571344516. Current Reverse3 tube ends at n−38.4482428655484: the axial offset is mirrored. Correct length remains3. Shift its complete interval forward alongN by δ=76.2−101.6cos42°=0.696485731496750mm=0.0274206980904232in; this formula comes from the source selected base-back vertex and3in tube, not an answer fit.
+
+|Existing role|Exact source-backed edit|
+|---|---|
+|Tube `feature_mund43sk_1`, circle sketch `sk_1ppzx`, entity1376/center1377|KeepØ3 and localV4.5; Reverse3. Set relative reverse feature start offset **−0.0274206980904232in** so effective front station becomes+38.4482428655484mm and rear−37.7517571344516mm. If the UI uses a different offset convention, verify effective physical interval rather than the entered sign.|
+|Bore `feature_mund7f6r_2`, `sk_2nb9y`, entity1384/center1385|KeepØ2.25 and transverse center. Use the same shifted front datum/start station and reverse through-all, preserving the full coaxial bore. Verify both final mouths at the same corrected tube end stations.|
+|Support `feature_mundmfwj_3`, Right sketch `sk_3bpci`|Current rear-top point1406 is incorrectly at n−38.44824 while rear-bottom1403 is already on correctn−37.75176. Change driving fixed relation1477 to physical RightU=Z **−3.220144655150171in**, V=Y **1.355107923911733in**, i.e. internalcm(−8.179167424081433,3.441974126735801). Preserve point1403(−2,0), point1402(0,0), point1408(−2.115616191882999,2.349629819279999)in. Keep transverse symmetric3in width. The corrected quadrilateral lies between source planes n−37.75176 and0.|
+
+Source support is a rounded-top Boss2 profile. The historical quadrilateral reaches the same tube center and omits its upper semicircular cap, but the source fullØ3 Boss3 spans the complete support interval and covers that cap. Thus the quadrilateral+full tube union is a disclosed equivalent final geometry workflow, rather than a claim that the historical support sketch is the original rounded contour. Correcting the quadrilateral rear point is necessary; shifting the cylinder alone leaves a slight unintended wedge.
+
+An alternative exact source feature sequence is rebuilding Plane1 at origin, source rounded support with selected-vertex rear termination, then a circle on its rear face extruded forward3. This is more invasive than the above station-preserving edits and must not silently replace the old datum/support references. Parent owns actual browser choice and authoring.
+
+## Rib guide and source parameter distinction
+
+Source Sketch5 starts at physical base-front( Z+50.8,Y0 )mm. Its recorded second point is physical( Z+7.83136399877276,Y47.72150488810342 )mm. The source sketch plane's U sign is opposite app RightU=Z; map physical coordinates rather than copying source-localU directly. This segment follows48° in theYZ section. Keywords formats its D1 as0.31in, while its captured coordinate is0.308321417274518in; do not call the two-decimal XML display an exact0.31 constraint value without decoding its typed parameter.
+
+Historical Rib `feature_mundqotm_4`/`sk_4jlsc` starts at point1416(2,0)in and extends to old tube center point1417(−1.011087728615,3.344151714648)in. It lies on the **same infinite48° guide line** as the source, but has a different finite endpoint. Source native final rib side lines areX±0.5in on that same line; Rib1 uses source thickness1. Existing app uses thickness1, both sides, up-to-body. Rebuild after tube/support correction and inspect termination at the outer tube/support; do not shorten/reposition the guide to fit COM.
+
+For exact source sketch provenance, edit fixed endpoint relation1485 to physical RightU **+0.308321417274518in**, V **1.878799405043442in**, preserving the first point and same angle, then verify the app's Rib up-to-body can extend/trim this finite guide as the original did. This operation is conditional on native preview/rebuild correctness: its selected growth/termination schema is not fully decoded. The existing longer collinear guide may be retained as a disclosed equivalent workflow if the resulting native boundary matches the source. Do not confuse guide endpoint with a tube center or translate the tube by that datum.
+
+## Material and acceptance
+
+Companion6061 density is2700kg/m³=2.7g/cm³, which the existing model uses. Printed0.097lb/in³ equals2.684950756889703g/cm³. Preserve this distinction as an explicit material choice; neither density change repairs geometry. Source cached physicalCOM is(0,18.513,−21.858)mm, rounded to printed(0,0.73,−0.86)in. These values are verification outputs; not design inputs.
+
+After actual browser edits: verify effective axial intervals, support rear planarity, unchanged base, fully defined driving sketches, valid Rib termination/no bore intrusion, one valid native solid, edit/Undo/Redo/restore, clean Save/cold reopen, and STEP equivalence. Compare source/printed COM and mass afterward, retaining residuals. Exact opaque source vertex and Rib selectors remain unbound; named selected-vertex termination and analytic physical stations are supported. This document certifies a finite source-derived repair plan, not repaired browser acceptance.
