@@ -1,6 +1,39 @@
 import {shellFaceThicknesses} from './core/planar_shell_overrides.js';
 import {featureControlValue} from './modeler_feature_form.js';
 
+export function createShellOpeningFaceBrowser(host,{el,btn,getEntries,getSelected,onChange,label}) {
+ const box=el('details','md-edge-browser'),summary=el('summary','','Browse body faces · Shell openings');
+ box.appendChild(summary);host.appendChild(box);
+ const choices=el('div','md-edge-browser-choices');box.appendChild(choices);
+ const status=el('p','md-field-hint');status.setAttribute('role','status');box.appendChild(status);
+ let signature='',buttons=[];
+ function read(){
+  const available=new Set(getEntries().filter(entry=>entry.kind==='face').map(entry=>entry.persistentId));
+  const selected=getSelected();
+  if(selected.some(entry=>!available.has(entry.persistentId)))throw new Error('Shell opening face is unavailable. Refresh exact faces or remove the selection; no face is substituted.');
+  return selected;
+ }
+ function sync(){
+  const entries=getEntries().filter(entry=>entry.kind==='face'),next=entries.map(entry=>entry.persistentId+'|'+label(entry)).join(';');
+  if(signature!==next){
+   const scroll=choices.scrollTop || 0;choices.innerHTML='';buttons=[];signature=next;
+   entries.forEach((entry,index)=>{
+    const button=btn('',()=>{
+     const selected=getSelected(),active=selected.some(face=>face.persistentId===entry.persistentId);
+     onChange(active?selected.filter(face=>face.persistentId!==entry.persistentId):selected.concat(entry));sync();
+    },'md-wide');
+    const marker=el('span','md-edge-browser-marker');marker.setAttribute('aria-hidden','true');button.appendChild(marker);
+    button.appendChild(el('span','md-edge-browser-label',(index+1)+' · '+label(entry)));choices.appendChild(button);buttons.push({entry,button,marker});
+   });choices.scrollTop=scroll;
+  }
+  const ids=new Set(getSelected().map(entry=>entry.persistentId));
+  buttons.forEach(({entry,button,marker})=>{const selected=ids.has(entry.persistentId);button.setAttribute('aria-pressed',String(selected));marker.textContent=selected?'✓':'';});
+  try{read();status.textContent=ids.size+' opening faces selected · thickness overrides are separate';status.removeAttribute('data-error');}
+  catch(error){status.textContent=error.message;status.setAttribute('data-error','true');}
+ }
+ sync();return {sync,read,box};
+}
+
 export function readShellFaceThicknessRows(params,rows,choices,openingIds=[]) {
  const values=shellFaceThicknesses(rows,params.thickness,params.direction);
  const available=new Set(choices.filter(choice=>choice.entry.descriptor?.surface==='plane').map(choice=>choice.entry.persistentId)),removed=new Set(openingIds);

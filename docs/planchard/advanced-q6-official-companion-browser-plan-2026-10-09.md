@@ -39,4 +39,12 @@ Q6A's three sketch-locus sets are identical toQ6. Its added `moCoordSys_c` objec
 
 The S scallop makes the final body asymmetric across Z0 despite the symmetric stock. Q6 source SHA256: 83118CB30F71C647844E9DC609BFB4931B5BD8E80C5B5EFC303800B6D461B9EE; Q6A: C742017DC083A36455F0AB13E6A8931D56095C7165326DD69F248598359004AC.
 
-The source report prepares browser work; no authored Q6app artifact or acceptance is claimed. Native variable-shell tests, browser authored sketches/features, clean Save/cold reload and independent native/STEP audits remain required.
+## Full disposable native preflight
+
+The frozen source recipe was evaluated in disposable native solids by `scratch/planchard/q6-full-source-native-preflight.mjs`. It selects exactly the three inner C faces (positive-X normal and face centroid X<99.9mm), leaving the two outer X100 end caps retained. The earlier broad positive-X fixture filter also selected those two caps; they did not change the cavity geometry, but the test now asserts the precise three-opening set.
+
+After the four outer chamfers and 10/25/25 Shell, the volume is655000mm³. After the R22.5 slot it is567989.217978mm³. The two source R30 arcs remove45000mm³ and leave **522989.217978mm³**, **4079.315900g** at7800kg/m³, with physical-frame COM **(35.907769846,0,0.701493618)mm**. All round to the printed522989.22/4079.32/(35.91,0,0.70). Native validation confirms one valid solid. No dimensions, arc branches or source frame were adjusted to obtain that agreement.
+
+The measurements and scope are saved in `artifacts/planchard/Advanced-Q6-full-source-native-preflight-2026-10-09.json`. This supports the complete geometry-equivalent reconstruction; it does not complete the original binary face-selection binding and does not certify browser authorship. No native solid, STEP or app model was saved by this preflight.
+
+The source report prepares browser work; no authored Q6app artifact or acceptance is claimed. Browser authored sketches/features, clean Save/cold reload and independent native/STEP audits remain required.

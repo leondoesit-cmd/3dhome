@@ -1,0 +1,64 @@
+{
+  "scope": "Disposable source-dimension native geometry only; no browser authorship, source import, final model, or mass fitting",
+  "units": "Native cm; reported mm/mm3/g",
+  "sourcePlan": "docs/planchard/advanced-q6-official-companion-browser-plan-2026-10-09.md",
+  "stages": {
+    "shell": {
+      "volumeMm3": 655000.0000000003,
+      "massGramsAt7800kgM3": 5109.000000000003,
+      "centerOfMassMm": {
+        "x": 38.549618320610676,
+        "y": -4.800231459142659e-15,
+        "z": -5.842220441657813e-16
+      },
+      "solidCount": 1
+    },
+    "slot": {
+      "volumeMm3": 567989.2179780041,
+      "massGramsAt7800kgM3": 4430.315900228432,
+      "centerOfMassMm": {
+        "x": 33.330619947073394,
+        "y": 1.501175120801571e-15,
+        "z": -3.726299116043701e-16
+      },
+      "solidCount": 1
+    },
+    "final": {
+      "volumeMm3": 522989.2179780045,
+      "massGramsAt7800kgM3": 4079.315900228435,
+      "centerOfMassMm": {
+        "x": 35.90776984588694,
+        "y": 9.238604615691884e-15,
+        "z": 0.7014936176467267
+      },
+      "solidCount": 1
+    }
+  },
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 522.9892179780045,
+    "maxToleranceCm": 0.0001
+  },
+  "printedReference": {
+    "volumeMm3": 522989.22,
+    "massGramsAt7800kgM3": 4079.32,
+    "centerOfMassMm": {
+      "x": 35.91,
+      "y": 0,
+      "z": 0.7
+    }
+  },
+  "comparison": {
+    "volumeDeltaMm3": -0.002021995489485562,
+    "massDeltaGrams": -0.004099771565051924,
+    "centerOfMassDeltaMm": {
+      "x": -0.002230154113057381,
+      "y": 9.238604615691884e-15,
+      "z": 0.0014936176467267304
+    }
+  },
+  "roundedAgreement": true,
+  "parametersChanged": false,
+  "openingSelectionProvenance": "Three inner C openings are a geometry-equivalent reconstruction choice; original binary selected-face binding remains partial"
+}

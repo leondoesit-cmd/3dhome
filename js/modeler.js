@@ -21,7 +21,7 @@ import {threadPlacementFromFace} from './core/thread_placement.js';
 import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
 import {setExtrudeFeatureOperation} from './core/extrude_operation_edit.js';
-import {createShellFaceThicknessEditor} from './modeler_shell_thickness_form.js';
+import {createShellFaceThicknessEditor,createShellOpeningFaceBrowser} from './modeler_shell_thickness_form.js';
 import { deduplicateBooleanProjections } from "./core/boolean_projection.js";
 import { rebindReplacedSketchProfiles } from "./core/sketch_profile_rebind.js";
 import { forkConflictingModel } from "./core/model_save_conflict.js";
@@ -9440,6 +9440,7 @@ function renderFinishEdgeList() {
     + "|" + edges.map(function (reference) { return reference.persistentId; }).join("|");
   if (host.dataset.edgeSignature === signature) return;
   var browseOpen=!!host.querySelector(".md-edge-browser")?.open || host.dataset.edgeBrowserOpen==="true";
+  var browseScroll=host.querySelector(".md-edge-browser-choices")?.scrollTop || 0;
   host.dataset.edgeSignature = signature;
   host.innerHTML = "";
   var head = el("div", "md-finish-edges-head");
@@ -9474,12 +9475,18 @@ function renderFinishEdgeList() {
     var choices=el("div","md-edge-browser-choices");
     candidates.forEach(function(reference,index){
       var selected=edges.some(function(edge){return sameFinishEdge(edge,reference);});
-      var choice=btn((selected?"✓ ":"")+(index+1)+" · "+finishEdgeDescription(reference),function(){toggleFinishEdges([reference]);},"md-wide");
+      var choice=btn("",function(){toggleFinishEdges([reference]);},"md-wide");
+      choice.setAttribute("aria-pressed",String(selected));
+      var marker=el("span","md-edge-browser-marker",selected?"✓":"");
+      marker.setAttribute("aria-hidden","true");
+      choice.appendChild(marker);
+      choice.appendChild(el("span","md-edge-browser-label",(index+1)+" · "+finishEdgeDescription(reference)));
       choice.addEventListener("mouseenter",function(){E.hoverTopology=reference;refreshChangedPart(part);});
       choice.addEventListener("mouseleave",function(){E.hoverTopology=null;refreshChangedPart(part);});
       choices.appendChild(choice);
     });
     browser.appendChild(choices);host.appendChild(browser);
+    choices.scrollTop=browseScroll;
   }
   var list = el("div", "md-finish-edges-list");
   edges.forEach(function (reference, index) {
@@ -10089,6 +10096,22 @@ function addShellFaceThicknessControls(host,state,onChange,editedFeature=null,op
       || E.brepRun?.results?.get(head)?.topology
       || (!editedFeature && selectedSolid() ? authoritativeFinishTopology(selectedSolid()) : []) || [];
   };
+  var openingBrowser=createShellOpeningFaceBrowser(host,{
+    el:el,btn:btn,getEntries:entries,
+    getSelected:function(){return editedFeature ? editedFeature.references?.topology || [] : finishFeatureTargets("shell");},
+    label:function(entry){
+      var d=entry.descriptor || {},o=d.origin || d.center,n=d.normal || d.axis;
+      return (d.surface || "Face")+(o?" · center ("+[o.x,o.y,o.z].map(function(v){return modelLengthText(v,8);}).join(", ")+") "+modelLengthUnit():"")
+        +(n?" · "+(d.normal?"normal":"axis")+" ("+[n.x,n.y,n.z].map(function(v){return Number(v).toFixed(3);}).join(", ")+")":"");
+    },
+    onChange:function(faces){
+      var refs=faces.map(function(face){return topologyReferenceFromEntry(face);});
+      if(!editedFeature){setFinishEdges(refs);return;}
+      editedFeature.references.topology=cloneData(refs);E.topologySelection=cloneData(refs);
+      (E.def.parts || []).forEach(function(part){(part.exactOperations || []).forEach(function(operation){if(operation.id===editedFeature.id)operation.targets=cloneData(refs);});});
+      onChange();if(editor)editor.sync();
+    },
+  });
   var editor=createShellFaceThicknessEditor(host,{
     el:el,btn:btn,field:featureField,t:t,unit:modelLengthUnit(),getParams:function(){return state.params;},
     getChoices:function(){return planarMateFaceChoices(entries().filter(function(entry){return entry.descriptor?.surface==="plane";}),E.def.features || [],modelLengthUnit());},
@@ -10101,8 +10124,12 @@ function addShellFaceThicknessControls(host,state,onChange,editedFeature=null,op
       var result=await topologyInCadWorker(stage.document,stage.head,{onProgress:function(progress){flash("Refreshing retained faces · "+(progress.name || progress.stage));}});
       if(E.def!==documentAtStart || sourceHead()!==headAtStart || E.authoring.featureType!=="shell")throw new Error("Shell source changed; reopen the command before choosing retained faces");
       cachedEntries=result.topology;cachedDocument=documentAtStart;cachedHead=headAtStart;
+      openingBrowser.sync();
     },
   });
+  var readThicknesses=editor.read,syncThicknesses=editor.sync;
+  editor.read=function(){openingBrowser.read();return readThicknesses();};
+  editor.sync=function(){openingBrowser.sync();syncThicknesses();};
   if(!editedFeature)state.syncShellThicknesses=editor.sync;
   return editor;
 }
@@ -17669,7 +17696,7 @@ function openFeatureEditor(feature) {
   var finishTargetSelect=null,finishTargetChoices=[],draftNeutralSelect=null,draftNeutralChoices=[];
   // A single Shell opening can be repaired from the same verified planar
   // face picker as a Dome, without collapsing a multi-opening Shell.
-  if(feature.type==="dome" || ["shell","draft"].includes(feature.type) && (feature.references?.topology || []).length<=1){
+  if(feature.type==="dome" || feature.type==="draft" && (feature.references?.topology || []).length<=1){
     var targetStageId=(feature.inputs || []).map(dependencyReferenceId)[0];
     var targetCompiled=compileKernelFeatureTree(E.def);
     var targetStageEntries=(targetCompiled.ok && verifiedExactTopology(E.def,targetCompiled.features).get(targetStageId))

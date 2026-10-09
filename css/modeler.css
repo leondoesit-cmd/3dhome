@@ -3,3 +3,6 @@
 .md-edge-browser summary { cursor: pointer; padding: 7px; }
 .md-edge-browser-choices { max-height: 200px; overflow-y: auto; }
 .md-edge-browser-choices button { text-align: left; font-size: max(10px, var(--fs-floor, 0px)); white-space: normal; margin: 3px 0; }
+.md-edge-browser-choices button { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 4px; }
+.md-edge-browser-marker { width: 14px; }
+.md-edge-browser-label { min-width: 0; }

@@ -24,7 +24,9 @@ test('nonconvex C profile retains its front void with 10/25/25 planar walls',asy
     const opening=faces.find(t=>Math.abs(t.descriptor.origin.x-7)<1e-6&&t.descriptor.normal.x>.99);
     const walls=faces.filter(t=>Math.abs(t.descriptor.normal.y)>.99);
     assert.equal(walls.length,2);assert.ok(opening);
-    result=await shellBrep(stock,1,{facePersistentIds:faces.filter(t=>t.descriptor.normal.x>.1).map(t=>t.persistentId),join:'intersection',faceThicknesses:walls.map(t=>({facePersistentId:t.persistentId,thickness:2.5}))});
+    const openings=faces.filter(t=>t.descriptor.normal.x>.1&&t.descriptor.origin.x<9.99);
+    assert.equal(openings.length,3);
+    result=await shellBrep(stock,1,{facePersistentIds:openings.map(t=>t.persistentId),join:'intersection',faceThicknesses:walls.map(t=>({facePersistentId:t.persistentId,thickness:2.5}))});
     for(const p of [{x:8,y:0,z:0},{x:6,y:0,z:0},{x:2,y:4.9,z:0}]) assert.equal(brepContainsPoint(result,p),false,JSON.stringify(p));
     for(const p of [{x:.5,y:0,z:0},{x:2,y:5.1,z:0},{x:2,y:-5.1,z:0},{x:2,y:0,z:4.5}]) assert.equal(brepContainsPoint(result,p),true,JSON.stringify(p));
     assert.equal(result.approximate,undefined);
