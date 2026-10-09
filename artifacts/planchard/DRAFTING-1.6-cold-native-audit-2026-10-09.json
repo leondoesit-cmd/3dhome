@@ -1,0 +1,138 @@
+{
+  "pass": true,
+  "checks": {
+    "oneValidConnectedSolid": true,
+    "declaredVolume22500": true,
+    "threeFullyDefinedSketches": true,
+    "sixHistoryThreeFeatures": true,
+    "sourceFeatureScopes": true,
+    "mmContext": true,
+    "explicitEstimatedDescription": true,
+    "stepOneValid": true,
+    "bidirectionalZero": true,
+    "inputsUnmodified": true
+  },
+  "key": "cm_mv0l3ysl",
+  "name": "Planchard 1.6 - estimated fork native model - browser 2026-10-09",
+  "scope": "Read-only actual browser-authored estimated Exercise1.6 native geometry and STEP audit. Analytic22500mm3 follows declared assumptions, not an original source mass answer. Cold/drawing pending.",
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 22.499999999999996,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "mass": {
+    "volume": 22.499999999999996,
+    "centerOfMass": {
+      "x": 1.5,
+      "y": 1.1,
+      "z": 3.3166666666666664
+    },
+    "inertia": [
+      [
+        56.89375000000001,
+        7.105427357601002e-15,
+        -2.842170943040401e-14
+      ],
+      [
+        7.105427357601002e-15,
+        58.49375000000015,
+        -12.600000000000009
+      ],
+      [
+        -2.842170943040401e-14,
+        -12.600000000000009,
+        34.14999999999999
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 3,
+        "y": 3,
+        "z": 5
+      }
+    }
+  },
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 22.499999999999996,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 22.499999999999996,
+      "centerOfMass": {
+        "x": 1.5,
+        "y": 1.1,
+        "z": 3.3166666666666664
+      },
+      "inertia": [
+        [
+          56.89375000000001,
+          7.105427357601002e-15,
+          -2.842170943040401e-14
+        ],
+        [
+          7.105427357601002e-15,
+          58.49375000000015,
+          -12.600000000000009
+        ],
+        [
+          -2.842170943040401e-14,
+          -12.600000000000009,
+          34.14999999999999
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max": {
+          "x": 3,
+          "y": 3,
+          "z": 5
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "customProperties": {
+    "Description": "PDF82 / 1-54 Exercise 1.6. Illustrative estimated reconstruction of undimensioned isometric. Final chosen Front is the app Front from raised rear end (+Z), superseding initial open-fork-end planning; source supplies no Front arrow. World X width30 mm, Y height30, +Z toward rear depth50; base10, rear full-width block Z35..50 rises20 above base; front notch X10..20/Z0..15 cuts base thickness10. Chosen10 mm unit; not certified publisher manufacturing dimensions. No holes/radii/source material. Three fully defined browser sketches, Boss10/Boss20/Cut10, illustrative native22500 mm3. Top most informative for open fork and rear station; Right shows step."
+  },
+  "partsMaterial": [
+    {
+      "id": 5965
+    }
+  ],
+  "inputs": [
+    {
+      "path": "artifacts/planchard/DRAFTING-1.6-cold-accepted-browser-2026-10-09.mforge",
+      "sha256": "ee9bdfa62ad97c561a76b9f8e1e1061fa23afd44f77ca16466b3cc32819247da"
+    },
+    {
+      "path": "artifacts/planchard/DRAFTING-1.6-authored-native-browser-2026-10-09.step",
+      "sha256": "e91c48f21685c170baac9cfb30f70fcc2aebc5e516109d083a383f443fdd370d"
+    }
+  ]
+}

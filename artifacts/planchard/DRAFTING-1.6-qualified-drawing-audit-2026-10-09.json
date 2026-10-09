@@ -1,0 +1,63 @@
+{
+  "pass": true,
+  "checks": {
+    "nativeGeometryHistoryConstraintsExact": true,
+    "bodyAuthoringMaterialExact": true,
+    "fourNativeViews": true,
+    "twoFourRowNotes": true,
+    "svgAllNoteRows": true,
+    "frontHiddenOcclusion": true,
+    "topUAndRearStepVisible": true,
+    "rightStepAndHiddenNotch": true,
+    "estimatedAndRaisedRearDirectionQualified": true,
+    "inputsUnchanged": true
+  },
+  "key": "cm_mv0l3ysl",
+  "geometryFields": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "parameters": true,
+    "localFrame": true,
+    "references": true,
+    "referenceGeometry": true,
+    "context": true
+  },
+  "partFields": {
+    "id": true,
+    "kind": true,
+    "axis": true,
+    "from": true,
+    "to": true,
+    "pts": true,
+    "holes": true,
+    "profileEntityIds": true,
+    "sketchId": true,
+    "sketchDriven": true,
+    "supportBaseOffset": true,
+    "supportDepth": true,
+    "direction": true,
+    "symmetric": true,
+    "draftAngle": true,
+    "draftOutward": true,
+    "featureId": true,
+    "color": true,
+    "metal": true,
+    "rough": true,
+    "name": true,
+    "exactError": true,
+    "exactPending": true,
+    "merges3d": true,
+    "cuts3d": true
+  },
+  "changedFields": [
+    "parts",
+    "customProperties",
+    "exactTopologyCache",
+    "lastRebuild",
+    "drawing",
+    "lastStandardsAudit"
+  ],
+  "qualification": "Same proven22500mm3 native source inputs, no rebuild needed. Derived parts meshData/exactBuildToken, topology cache, timestamps and drawing change; Description intentionally corrects chosen Front. Cold pending.",
+  "inputSha256": "f6c56cfe43fdf4d244bac7b0fe5667e4606022f50451114bda689b34794e47d0"
+}
