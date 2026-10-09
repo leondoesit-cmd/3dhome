@@ -1,0 +1,27 @@
+{
+  "path": "artifacts/planchard/CH11-FLAT-cold-top-witness-browser-2026-10-09.stl",
+  "bytes": 117584,
+  "triangles": 2350,
+  "units": "mm",
+  "bounds": {
+    "min": [
+      -50.79999923706055,
+      -25.399999618530273,
+      0
+    ],
+    "max": [
+      50.79999923706055,
+      25.399999618530273,
+      40.63999938964844
+    ]
+  },
+  "extent": [
+    101.5999984741211,
+    50.79999923706055,
+    40.63999938964844
+  ],
+  "positiveSignedVolumeMm3": 102181.4282896001,
+  "currentTopOrientationWitness": true,
+  "centeredXY": true,
+  "lowestZ0": true
+}

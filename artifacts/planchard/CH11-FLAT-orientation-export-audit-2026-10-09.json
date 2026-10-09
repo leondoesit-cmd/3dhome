@@ -1,0 +1,382 @@
+{
+  "scope": "Read-only actual Chapter11 orientation exports; finite print mesh validation, not slicer/support/physical printing acceptance.",
+  "records": [
+    {
+      "variant": "right-alternative",
+      "key": "cm_mv0i715k_5952",
+      "printSetup": {
+        "basePlane": "right",
+        "bedWidthMm": 150,
+        "bedDepthMm": 150,
+        "bedHeightMm": 150
+      },
+      "native": {
+        "volume": 102.18606488694857,
+        "centerOfMass": {
+          "x": 3.7352337482585427,
+          "y": 1.3397976547013515,
+          "z": 2.540000000000014
+        },
+        "inertia": [
+          [
+            338.7560053415956,
+            160.38275870079485,
+            2.5011104298755527e-12
+          ],
+          [
+            160.38275870079485,
+            1109.1755656152518,
+            1.1368683772161603e-13
+          ],
+          [
+            2.5011104298755527e-12,
+            1.1368683772161603e-13,
+            1002.1000980356102
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": -1.8545542095239508e-30,
+            "y": 4.2024161928111425e-12,
+            "z": 0
+          },
+          "max": {
+            "x": 10.160000000000108,
+            "y": 4.064,
+            "z": 5.08
+          }
+        }
+      },
+      "formats": {
+        "stl": {
+          "bytes": 117584,
+          "triangles": 2350,
+          "bounds": {
+            "min": [
+              -20.31999969482422,
+              -25.399999618530273,
+              0
+            ],
+            "max": [
+              20.31999969482422,
+              25.399999618530273,
+              101.5999984741211
+            ]
+          },
+          "extents": [
+            40.63999938964844,
+            50.79999923706055,
+            101.5999984741211
+          ],
+          "volumeMm3": 102181.42715724345,
+          "watertight": true,
+          "bedCentered": true,
+          "bedZ0": true
+        },
+        "amf": {
+          "bytes": 270550,
+          "triangles": 2350,
+          "bounds": {
+            "min": [
+              -20.319999999978986,
+              -25.4,
+              0
+            ],
+            "max": [
+              20.319999999978986,
+              25.4,
+              101.60000000000099
+            ]
+          },
+          "extents": [
+            40.63999999995797,
+            50.8,
+            101.60000000000099
+          ],
+          "volumeMm3": 102181.43142453078,
+          "watertight": true,
+          "bedCentered": true,
+          "bedZ0": true
+        },
+        "3mf": {
+          "bytes": 178873,
+          "triangles": 2350,
+          "bounds": {
+            "min": [
+              -20.319999999978986,
+              -25.4,
+              0
+            ],
+            "max": [
+              20.319999999978986,
+              25.4,
+              101.60000000000099
+            ]
+          },
+          "extents": [
+            40.63999999995797,
+            50.8,
+            101.60000000000099
+          ],
+          "volumeMm3": 102181.43142453078,
+          "watertight": true,
+          "bedCentered": true,
+          "bedZ0": true
+        }
+      },
+      "checks": {
+        "independentKey": true,
+        "featuresPreserved": true,
+        "sketchesPreserved": true,
+        "materialDensityPreserved": true,
+        "nativeOneSolid": true,
+        "allClosedRightHanded": true,
+        "centeredZ0": true,
+        "crossFormatExtents": true,
+        "crossFormatVolume": true,
+        "historyPreserved": true,
+        "densityProvenancePreserved": true
+      },
+      "pass": true,
+      "meshVolumeErrorMm3": -4.633462417798,
+      "meshVolumeErrorPercent": -0.004534338828806193
+    },
+    {
+      "variant": "top-preferred",
+      "key": "cm_mv0i715k_5952",
+      "printSetup": {
+        "basePlane": "top",
+        "bedWidthMm": 150,
+        "bedDepthMm": 150,
+        "bedHeightMm": 150
+      },
+      "stlExportSettings": {
+        "quality": "custom",
+        "deviationMm": 0.01,
+        "angleDegrees": 5,
+        "printSetup": {
+          "basePlane": "top",
+          "bedWidthMm": 150,
+          "bedDepthMm": 150,
+          "bedHeightMm": 150
+        }
+      },
+      "native": {
+        "volume": 102.18606488694857,
+        "centerOfMass": {
+          "x": 3.7352337482585427,
+          "y": 1.3397976547013515,
+          "z": 2.540000000000014
+        },
+        "inertia": [
+          [
+            338.7560053415956,
+            160.38275870079485,
+            2.5011104298755527e-12
+          ],
+          [
+            160.38275870079485,
+            1109.1755656152518,
+            1.1368683772161603e-13
+          ],
+          [
+            2.5011104298755527e-12,
+            1.1368683772161603e-13,
+            1002.1000980356102
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": -1.8545542095239508e-30,
+            "y": 4.2024161928111425e-12,
+            "z": 0
+          },
+          "max": {
+            "x": 10.160000000000108,
+            "y": 4.064,
+            "z": 5.08
+          }
+        }
+      },
+      "formats": {
+        "stl": {
+          "bytes": 117584,
+          "triangles": 2350,
+          "bounds": {
+            "min": [
+              -50.79999923706055,
+              -25.399999618530273,
+              0
+            ],
+            "max": [
+              50.79999923706055,
+              25.399999618530273,
+              40.63999938964844
+            ]
+          },
+          "extents": [
+            101.5999984741211,
+            50.79999923706055,
+            40.63999938964844
+          ],
+          "volumeMm3": 102181.4282896001,
+          "watertight": true,
+          "bedCentered": true,
+          "bedZ0": true
+        },
+        "amf": {
+          "bytes": 271372,
+          "triangles": 2350,
+          "bounds": {
+            "min": [
+              -50.800000000000495,
+              -25.4,
+              0
+            ],
+            "max": [
+              50.800000000000495,
+              25.4,
+              40.63999999995797
+            ]
+          },
+          "extents": [
+            101.60000000000099,
+            50.8,
+            40.63999999995797
+          ],
+          "volumeMm3": 102181.43142453089,
+          "watertight": true,
+          "bedCentered": true,
+          "bedZ0": true
+        },
+        "3mf": {
+          "bytes": 179695,
+          "triangles": 2350,
+          "bounds": {
+            "min": [
+              -50.800000000000495,
+              -25.4,
+              0
+            ],
+            "max": [
+              50.800000000000495,
+              25.4,
+              40.63999999995797
+            ]
+          },
+          "extents": [
+            101.60000000000099,
+            50.8,
+            40.63999999995797
+          ],
+          "volumeMm3": 102181.43142453089,
+          "watertight": true,
+          "bedCentered": true,
+          "bedZ0": true
+        }
+      },
+      "checks": {
+        "independentKey": true,
+        "featuresPreserved": true,
+        "sketchesPreserved": true,
+        "materialDensityPreserved": true,
+        "nativeOneSolid": true,
+        "allClosedRightHanded": true,
+        "centeredZ0": true,
+        "crossFormatExtents": true,
+        "crossFormatVolume": true,
+        "historyPreserved": true,
+        "densityProvenancePreserved": true
+      },
+      "pass": true,
+      "meshVolumeErrorMm3": -4.633462417681585,
+      "meshVolumeErrorPercent": -0.004534338828692268
+    }
+  ],
+  "pass": true,
+  "crossOrientationExactCongruenceAt1eMinus5Mm": true,
+  "qualifications": [
+    "All AMF/3MF are explicit millimeter; binary STL has no standardized unit declaration, verified scale by matching mm extents.",
+    "Right-alternative bundle predates saved stlExportSettings; custom0.01mm/5deg was observed by parent UI and top-preferred stores those settings. Identical triangle counts and transformed coordinate congruence validate the actual oriented meshes, not unsupported persisted Right settings.",
+    "Watertightness uses geometric vertex welding at0.0001mm; native curved BREP is approximated by2350triangles. Mesh volume deficit4.633462mm³≈0.0045343%.",
+    "Illustrative150mm cubic bed and preferred orientation are workflow choices, not printer/support/slicer/material/process validation."
+  ],
+  "coldPreservation": {
+    "bundle": "artifacts/planchard/CH11-FLAT-cold-accepted-browser-2026-10-09.mforge",
+    "bytes": 362618,
+    "checks": {
+      "keyExact": true,
+      "featureHistoryExact": true,
+      "sketchesExact": true,
+      "nativePartMeshMaterialExact": true,
+      "sourceFramesExact": true,
+      "printSetupExact": true,
+      "top150Bed": true,
+      "resolutionExact": true,
+      "customPropertiesExact": true,
+      "allOtherAuthoredFieldsExact": true,
+      "topologyCacheContentsExact": true,
+      "rebuildSignatureExact": true
+    },
+    "pass": true,
+    "differences": [
+      "lastRebuild.rebuiltAt",
+      "lastStandardsAudit.at",
+      "five exactTopologyCache entry signatures only; all native cache contents exact",
+      "stlExportSettings.printSetup records earlier Right last-export snapshot; active printSetup remains Top"
+    ],
+    "exportSourceEvidence": "openStlExportForm.onApply reads saved resolution fields, then sets settings.printSetup=cloneData(printDocument.printSetup). Cold active Top150³ therefore governs the next visible export, never stale nested Right.",
+    "parentBrowserEvidence": "Full reload; current saved independent variant; Top150³ setup and fit101.60×50.80×40.64 read/Cancel; PrintStudy qualification and resolution.01mm/5deg read/Cancel; native mass and unchanged density read; clean save verified.",
+    "recommendation": "Accept scoped orientation/export workflow with explicit last-export snapshot difference; no slicer/support/physical manufacturing validation."
+  },
+  "finalColdExportWitness": {
+    "actualSTLAudit": {
+      "path": "artifacts/planchard/CH11-FLAT-cold-top-witness-browser-2026-10-09.stl",
+      "bytes": 117584,
+      "triangles": 2350,
+      "units": "mm",
+      "bounds": {
+        "min": [
+          -50.79999923706055,
+          -25.399999618530273,
+          0
+        ],
+        "max": [
+          50.79999923706055,
+          25.399999618530273,
+          40.63999938964844
+        ]
+      },
+      "extent": [
+        101.5999984741211,
+        50.79999923706055,
+        40.63999938964844
+      ],
+      "positiveSignedVolumeMm3": 102181.4282896001,
+      "currentTopOrientationWitness": true,
+      "centeredXY": true,
+      "lowestZ0": true
+    },
+    "finalSavedBundle": "artifacts/planchard/CH11-FLAT-final-top-metadata-browser-2026-10-09.mforge",
+    "bytes": 362730,
+    "checks": {
+      "keyExact": true,
+      "sourceFeaturesExact": true,
+      "sourceSketchesExact": true,
+      "historyExact": true,
+      "partGeometryMaterialMetadataExact": true,
+      "customPropsExact": true,
+      "currentTopSetupExact": true,
+      "exportSettingsNowEntirelyExact": true,
+      "coldSTLByteExact": true
+    },
+    "pass": true,
+    "qualifiedPartDifferences": [
+      "exactBuildToken",
+      "meshData rebuilt during actual cold export"
+    ],
+    "recommendation": "Accept scoped orientation/export and final current settings durability; earlier nestedRight discrepancy superseded by actual coldTop export and explicitly saved matchingTop metadata."
+  }
+}

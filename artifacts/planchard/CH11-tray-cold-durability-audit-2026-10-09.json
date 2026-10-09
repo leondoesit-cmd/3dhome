@@ -1,0 +1,44 @@
+{
+  "scope": "Read-only actual qualified-to-cold saved assembly durability. Entire active assembly compared structurally, including all definitions/native caches, placements, metadata and print settings. No geometry authoring.",
+  "pass": true,
+  "checks": {
+    "wholeActiveAssemblyDeepExact": true,
+    "allPresentFieldsExact": true,
+    "sameActiveDocument": true,
+    "exactTopBedSetup": true,
+    "twoGroundedOccurrences": true,
+    "allInputBytesUnchanged": true
+  },
+  "presentFieldChecks": {
+    "key": true,
+    "name": true,
+    "components": true,
+    "mates": true,
+    "topologyMates": true,
+    "customProperties": true,
+    "context": true,
+    "printSetup": true,
+    "stlExportSettings": true
+  },
+  "inputs": [
+    {
+      "path": "artifacts\\planchard\\CH11-tray-qualified-browser-2026-10-09.mforge",
+      "sha256": "24a91efe6da2ae9ef62bb33a5f4c21c8e7407f8e822c4a436c8c3e25436ff422"
+    },
+    {
+      "path": "artifacts\\planchard\\CH11-tray-cold-accepted-browser-2026-10-09.mforge",
+      "sha256": "51e54edebcdb473dcbbd58ef5da9e6b6f098155d6a51ea5bf62c6f7c4b538174"
+    }
+  ],
+  "parentObservedBrowserFacts": [
+    "Full Chrome app reload and exact saved assembly reopen",
+    "Print setup Top 100/100/50 mm; 70x20x10 mm fits; two source components; zero DOF",
+    "Cancel then Settings confirmed source Description and mm units",
+    "Cold Project export"
+  ],
+  "limitations": [
+    "Output/command entry points observed; no Assembly ribbon print-button acceptance",
+    "Mesh snapshot exchange retains source CAD assembly history, not editable CAD part conversion",
+    "No physical print, slicer, supports, G-code, hardware or strength acceptance"
+  ]
+}

@@ -1,0 +1,366 @@
+{
+  "scope": "Read-only actual qualified tray and actual STL/AMF/3MF outputs; original native geometry checked separately. No geometry generation/import or physical print claim. Cold pending.",
+  "checks": {
+    "nativeSourceAssemblyPreserved": true,
+    "top100x100x50": true,
+    "sameCurrentPrintSetupAtExport": true,
+    "customPoint01FiveDegrees": true,
+    "amfThreeMfTwoObjectsExplicitMM": true,
+    "allTwoSeparateClosedComponents": true,
+    "allPositiveVolumesNearIndependentNative": true,
+    "allCenteredSpacing50Gap30": true,
+    "allBedLevelHeight10Depth20": true,
+    "allThreeMeshesCongruentAtPoint0001MM": true,
+    "allInputsUnchanged": true
+  },
+  "pass": true,
+  "preserved": {
+    "key": true,
+    "name": true,
+    "components": true,
+    "mates": true,
+    "topologyMates": true,
+    "customProperties": true,
+    "context": true
+  },
+  "assembly": {
+    "key": "asm_mv0j0gpy",
+    "name": "Planchard Chapter 11 - two-part print tray - browser 2026-10-09",
+    "printSetup": {
+      "basePlane": "top",
+      "bedWidthMm": 100,
+      "bedDepthMm": 100,
+      "bedHeightMm": 50
+    },
+    "stlExportSettings": {
+      "quality": "custom",
+      "deviationMm": 0.01,
+      "angleDegrees": 5,
+      "printSetup": {
+        "basePlane": "top",
+        "bedWidthMm": 100,
+        "bedDepthMm": 100,
+        "bedHeightMm": 50
+      }
+    },
+    "context": {
+      "units": {
+        "length": "mm"
+      }
+    }
+  },
+  "bundle": {
+    "input": "artifacts\\planchard\\CH11-tray-qualified-browser-2026-10-09.mforge",
+    "sha256": "24a91efe6da2ae9ef62bb33a5f4c21c8e7407f8e822c4a436c8c3e25436ff422"
+  },
+  "exactNativeCombinedVolumeMm3": 6283.185307179586,
+  "records": [
+    {
+      "input": "artifacts\\planchard\\CH11-tray-valid-top-browser-2026-10-09.stl",
+      "sha256": "021bfed972ccbdebcdcd3fae1eccfd04fffb9d162b41049bef0e150f37cd0f89",
+      "bytes": 57284,
+      "unitQualification": "STL has no normative unit; coordinates declared mm by export header.",
+      "objects": [
+        {
+          "closedConsistentEdges": true,
+          "connectedComponents": [
+            {
+              "triangles": 572,
+              "vertices": 288,
+              "boundsMm": {
+                "min": [
+                  -35.0,
+                  -10.0,
+                  0.0
+                ],
+                "max": [
+                  -15.0,
+                  10.0,
+                  10.0
+                ]
+              },
+              "signedVolumeMm3": 3140.595885869029
+            },
+            {
+              "triangles": 572,
+              "vertices": 288,
+              "boundsMm": {
+                "min": [
+                  15.0,
+                  -10.0,
+                  0.0
+                ],
+                "max": [
+                  35.0,
+                  10.0,
+                  10.0
+                ]
+              },
+              "signedVolumeMm3": 3140.595885869029
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "triangles": 572,
+          "vertices": 288,
+          "boundsMm": {
+            "min": [
+              -35.0,
+              -10.0,
+              0.0
+            ],
+            "max": [
+              -15.0,
+              10.0,
+              10.0
+            ]
+          },
+          "signedVolumeMm3": 3140.595885869029
+        },
+        {
+          "triangles": 572,
+          "vertices": 288,
+          "boundsMm": {
+            "min": [
+              15.0,
+              -10.0,
+              0.0
+            ],
+            "max": [
+              35.0,
+              10.0,
+              10.0
+            ]
+          },
+          "signedVolumeMm3": 3140.595885869029
+        }
+      ],
+      "triangles": 1144,
+      "gapMm": 30.0,
+      "centersXmm": [
+        -25.0,
+        25.0
+      ],
+      "totalMeshVolumeMm3": 6281.191771738058,
+      "inputUnmodified": true
+    },
+    {
+      "input": "artifacts\\planchard\\CH11-tray-valid-top-browser-2026-10-09.3mf",
+      "sha256": "50855b9be64280213dee68aebd716e9a2f7df6ca87d60d94da72cd791d5546d7",
+      "bytes": 78723,
+      "zipCrcValid": true,
+      "packageFiles": [
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "3D/3dmodel.model"
+      ],
+      "buildItems": [
+        {
+          "objectid": "1"
+        },
+        {
+          "objectid": "2"
+        }
+      ],
+      "occurrenceIds": [
+        "5952",
+        "5953"
+      ],
+      "unit": "millimeter",
+      "objectCount": 2,
+      "objects": [
+        {
+          "closedConsistentEdges": true,
+          "connectedComponents": [
+            {
+              "triangles": 572,
+              "vertices": 288,
+              "boundsMm": {
+                "min": [
+                  -35.0,
+                  -10.0,
+                  0.0
+                ],
+                "max": [
+                  -15.0,
+                  10.0,
+                  10.0
+                ]
+              },
+              "signedVolumeMm3": 3140.5958903041933
+            }
+          ]
+        },
+        {
+          "closedConsistentEdges": true,
+          "connectedComponents": [
+            {
+              "triangles": 572,
+              "vertices": 288,
+              "boundsMm": {
+                "min": [
+                  15.0,
+                  -10.0,
+                  0.0
+                ],
+                "max": [
+                  35.0,
+                  10.0,
+                  10.0
+                ]
+              },
+              "signedVolumeMm3": 3140.5958903041915
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "triangles": 572,
+          "vertices": 288,
+          "boundsMm": {
+            "min": [
+              -35.0,
+              -10.0,
+              0.0
+            ],
+            "max": [
+              -15.0,
+              10.0,
+              10.0
+            ]
+          },
+          "signedVolumeMm3": 3140.5958903041933
+        },
+        {
+          "triangles": 572,
+          "vertices": 288,
+          "boundsMm": {
+            "min": [
+              15.0,
+              -10.0,
+              0.0
+            ],
+            "max": [
+              35.0,
+              10.0,
+              10.0
+            ]
+          },
+          "signedVolumeMm3": 3140.5958903041915
+        }
+      ],
+      "triangles": 1144,
+      "gapMm": 30.0,
+      "centersXmm": [
+        -25.0,
+        25.0
+      ],
+      "totalMeshVolumeMm3": 6281.191780608385,
+      "inputUnmodified": true
+    },
+    {
+      "input": "artifacts\\planchard\\CH11-tray-valid-top-browser-2026-10-09.amf",
+      "sha256": "f047ea5f470fbd833f121d8d7498f51a3c2bb8872bf82ad740abfe842bb04eed",
+      "bytes": 122765,
+      "occurrenceIds": [
+        "5952",
+        "5953"
+      ],
+      "unit": "millimeter",
+      "objectCount": 2,
+      "objects": [
+        {
+          "closedConsistentEdges": true,
+          "connectedComponents": [
+            {
+              "triangles": 572,
+              "vertices": 288,
+              "boundsMm": {
+                "min": [
+                  -35.0,
+                  -10.0,
+                  0.0
+                ],
+                "max": [
+                  -15.0,
+                  10.0,
+                  10.0
+                ]
+              },
+              "signedVolumeMm3": 3140.5958903041933
+            }
+          ]
+        },
+        {
+          "closedConsistentEdges": true,
+          "connectedComponents": [
+            {
+              "triangles": 572,
+              "vertices": 288,
+              "boundsMm": {
+                "min": [
+                  15.0,
+                  -10.0,
+                  0.0
+                ],
+                "max": [
+                  35.0,
+                  10.0,
+                  10.0
+                ]
+              },
+              "signedVolumeMm3": 3140.5958903041915
+            }
+          ]
+        }
+      ],
+      "components": [
+        {
+          "triangles": 572,
+          "vertices": 288,
+          "boundsMm": {
+            "min": [
+              -35.0,
+              -10.0,
+              0.0
+            ],
+            "max": [
+              -15.0,
+              10.0,
+              10.0
+            ]
+          },
+          "signedVolumeMm3": 3140.5958903041933
+        },
+        {
+          "triangles": 572,
+          "vertices": 288,
+          "boundsMm": {
+            "min": [
+              15.0,
+              -10.0,
+              0.0
+            ],
+            "max": [
+              35.0,
+              10.0,
+              10.0
+            ]
+          },
+          "signedVolumeMm3": 3140.5958903041915
+        }
+      ],
+      "triangles": 1144,
+      "gapMm": 30.0,
+      "centersXmm": [
+        -25.0,
+        25.0
+      ],
+      "totalMeshVolumeMm3": 6281.191780608385,
+      "inputUnmodified": true
+    }
+  ]
+}

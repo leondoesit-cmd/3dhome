@@ -1,0 +1,159 @@
+{
+  "scope": "Read-only actual Chrome tray and rejected-small-bed bundles. One native rebuild is sufficient for both identical feature-built source occurrences, separately matched to the accepted source. No exported tray mesh or cold acceptance yet.",
+  "inputs": [
+    {
+      "path": "artifacts/planchard/CH11-tray-before-print-setup-browser-2026-10-09.mforge",
+      "sha256": "2e4144092459bfef76d628ef17f6fbe030b19a98714a8a966fd0b2685f944f09"
+    },
+    {
+      "path": "artifacts/planchard/CH11-tray-rejected-small-bed-browser-2026-10-09.mforge",
+      "sha256": "e75940251248066a04c9b68c03e2166f8f3b79ac5a6ad6d322d98cdae0247c97"
+    }
+  ],
+  "checks": {
+    "twoOccurrences": true,
+    "sourceKeys": true,
+    "bothGrounded": true,
+    "sourceFeaturesSketchesHistoryFramesPreserved": true,
+    "bothOccurrenceNativeInputsIdentical": true,
+    "exactPlacements": true,
+    "noMates": true,
+    "oneValidSource": true,
+    "analyticCylinderVolume": true,
+    "rejectedSmallBedAssemblyExact": true,
+    "noSettingsCommittedByRejectedApply": true,
+    "assemblyUnitsMM": true,
+    "descriptionQualified": true,
+    "inputBytesUnmodified": true
+  },
+  "pass": true,
+  "assembly": {
+    "key": "asm_mv0j0gpy",
+    "name": "Planchard Chapter 11 - two-part print tray - browser 2026-10-09",
+    "customProperties": {
+      "Description": "Planchard2021 Chapter11 PDF545/11-25 multipart bed-layout workflow. Two independent saved 20mm diameter,10mm height instructional cylinders placed X-25/+25mm,Y/Z0; identity rotations, both grounded, nominal30mm gap. Illustrative100x100x50mm bed; native placed-occurrence print exchange snapshot, source CAD history retained in assembly. No identified printer, slicing/support/G-code, physical fit or strength validation."
+    },
+    "context": {
+      "units": {
+        "length": "mm"
+      }
+    },
+    "components": [
+      {
+        "id": 5952,
+        "name": "Tray cylinder left",
+        "modelKey": "cm_munihw81",
+        "grounded": true,
+        "transform": {
+          "x": -2.5,
+          "y": 0,
+          "z": 0,
+          "rx": 0,
+          "ry": 0,
+          "rz": 0,
+          "q": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          }
+        }
+      },
+      {
+        "id": 5953,
+        "name": "Tray cylinder right",
+        "modelKey": "cm_munihw81",
+        "grounded": true,
+        "transform": {
+          "x": 2.5,
+          "y": 0,
+          "z": 0,
+          "rx": 0,
+          "ry": 0,
+          "rz": 0,
+          "q": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          }
+        }
+      }
+    ]
+  },
+  "sourceFields": [
+    {
+      "features": true,
+      "sketches": true,
+      "history": true,
+      "localFrame": true
+    },
+    {
+      "features": true,
+      "sketches": true,
+      "history": true,
+      "localFrame": true
+    }
+  ],
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 3.1415926535897922,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "mass": {
+    "volume": 3.1415926535897922,
+    "centerOfMass": {
+      "x": 2.791820594150175e-17,
+      "y": 0.5,
+      "z": -3.1805546814635177e-16
+    },
+    "inertia": [
+      [
+        1.0471975511965923,
+        -1.362448632034611e-18,
+        -2.639744224567081e-17
+      ],
+      [
+        -1.362448632034611e-18,
+        1.5707963267949037,
+        -2.7755575615628914e-17
+      ],
+      [
+        -2.639744224567081e-17,
+        -2.7755575615628914e-17,
+        1.0471975511966105
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1,
+        "y": 0,
+        "z": -1
+      },
+      "max": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    }
+  },
+  "expectedTray": {
+    "objects": 2,
+    "sourceCylinderVolumeCm3": 3.141592653589793,
+    "exactCombinedVolumeMm3": 6283.185307179586,
+    "identityTopBoundsMm": {
+      "width": 70,
+      "depth": 20,
+      "height": 10
+    },
+    "centersXmm": [
+      -25,
+      25
+    ],
+    "minimumGapMm": 30,
+    "globalPrintZminMm": 0
+  },
+  "parentObservedBrowserFacts": "Actual Print setup Top preview70x20x10mm;69x100x50mm Apply rejected,form remained Exceeds,no above-bed/footprint-overlap warnings. Commands available via Output and callbacks; new Assembly-ribbon print buttons were not observed."
+}
