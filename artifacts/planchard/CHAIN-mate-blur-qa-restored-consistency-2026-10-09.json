@@ -1,0 +1,28 @@
+{
+  "source": "artifacts/planchard/CHAIN-mate-blur-qa-restored-browser-2026-10-09.mforge",
+  "comparedTo": "artifacts/planchard/CHAIN-assembly-official-source-closed-browser-2026-10-09.mforge",
+  "checks": {
+    "entireSourceAssemblyExact": true,
+    "native19MateRecordsExact": true,
+    "all9DefinitionsAndPosesExact": true,
+    "sameGrounding": true,
+    "sameSourceProperties": true
+  },
+  "pass": true,
+  "rootModelChange": {
+    "beforeId": "cm_mv09eylj",
+    "afterId": "cm_muno89p0",
+    "afterName": "Planchard Advanced Q3 - fresh print reconstruction 2026-09-30",
+    "afterRootIsAcceptedQ3": true,
+    "Q3FeaturesExact": true,
+    "Q3SketchesExact": true,
+    "explanation": "Projectbundle carries currentstandalone mainModel plusseparateChainassembly; growthreflectsQ3mainModel retained, noChaindefinition duplication."
+  },
+  "parentObservedBrowserQA": {
+    "angle25To30ViaTabCommitted": true,
+    "undoRestored25": true,
+    "invalid181ViaTabRejectedNoHistoryOrPoseChange": true,
+    "cleanSave5DOFSourceCOMMass": true
+  },
+  "nativeAuditReuse": "Entire acceptedChainassembly structurallyexact; no heavy native repeatneeded."
+}

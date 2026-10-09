@@ -6,12 +6,13 @@ import {validLimitMateBounds} from '../js/cad_mate_model.js';
 import {defaultTopologyMateAlignment} from '../js/cad_mate_reference_choices.js';
 import {solveTopologyMates} from '../js/cad_mates.js';
 import {assemblyMobilityReport} from '../js/core/assembly_mobility_status.js';
+import {bindMateNumericCommit} from '../js/modeler_mate_numeric_commit.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 test('mate removal exposes its type and occurrence detail to accessibility and keeps callback intact',()=>{
   const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
   const start=source.indexOf('function mateRow('),end=source.indexOf('\n}',start)+2;
   const el=tag=>({tag,children:[],attributes:{},appendChild(child){this.children.push(child);},setAttribute(key,value){this.attributes[key]=value;}});
-  const row=vm.runInNewContext(`(${source.slice(start,end)})`,{el,btn:(text,action)=>Object.assign(el('button'),{text,action}),t:key=>key==='del'?'Delete':key});
+  const row=vm.runInNewContext(`(${source.slice(start,end)})`,{el,bindMateNumericCommit,btn:(text,action)=>Object.assign(el('button'),{text,action}),t:key=>key==='del'?'Delete':key});
   const host=el('div');let removed=0;
   row(host,'Lock 4','Crank ↔ Piston pin',null,()=>removed++);
   const button=host.children[0].children.find(node=>node.tag==='button');
@@ -27,7 +28,7 @@ function numericInspector(mate){
   const limitStart=source.indexOf('      if (mate.type === "limit")',screwEnd),limitEnd=source.indexOf('\n    });',limitStart);
   const el=tag=>{const node={tag,children:[],attributes:{},listeners:{},appendChild(child){this.children.push(child);},setAttribute(key,value){this.attributes[key]=value;},addEventListener(name,callback){this.listeners[name]=callback;}};nodes.push(node);return node;};
   let solves=0,refreshes=0;
-  const context={mate,E:{assembly:{topologyMates:[mate]}},el,mateUiRow:el('div'),btn:()=>el('button'),t:key=>key,fin:Number.isFinite,
+  const context={mate,E:{assembly:{topologyMates:[mate]}},el,bindMateNumericCommit,mateUiRow:el('div'),btn:()=>el('button'),t:key=>key,fin:Number.isFinite,
     modelLengthUnit:()=> 'mm',lengthToDocument:value=>value*10,lengthFromDocument:value=>value/10,
     validLimitMateBounds,assemblyMobilityReport,flash:value=>messages.push(value),pushUndo:()=>undos.push(JSON.parse(JSON.stringify(mate))),
     solveAssembly:()=>solves++,refreshAll:()=>refreshes++,invalidateInterference:()=>{},updateAssemblyContexts:()=>({issues:[]}),
@@ -113,7 +114,7 @@ test('Enter commits a listed mate value without relying on browser blur dispatch
   const nodes=[];
   const el=(tag)=>{const node={tag,children:[],listeners:{},appendChild(child){this.children.push(child);},setAttribute(){},addEventListener(name,fn){this.listeners[name]=fn;}};nodes.push(node);return node;};
   const mate={type:'distance',value:.15};let commits=0;
-  const row=vm.runInNewContext(`(${source.slice(start,end)})`,{el,btn:()=>el('button'),t:value=>value});
+  const row=vm.runInNewContext(`(${source.slice(start,end)})`,{el,bindMateNumericCommit,btn:()=>el('button'),t:value=>value});
   row(el('div'),'Distance','arm ↔ eye',null,()=>{},null,{label:'Distance (cm)',value:mate.value,onChange(value){mate.value=Number(value);commits++;}});
   const input=nodes.find(node=>node.tag==='input');input.value='.35';
   input.listeners.keydown({key:'Tab'});assert.equal(mate.value,.15);
@@ -121,4 +122,14 @@ test('Enter commits a listed mate value without relying on browser blur dispatch
   input.listeners.keydown({key:'Enter',preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});
   assert.equal(mate.value,.35);assert.equal(commits,1);assert.equal(prevented,true);assert.equal(stopped,true);
   assert.equal(JSON.parse(JSON.stringify(mate)).value,.35);
+});
+
+test('Screw and Limit blur use the same commit as Enter, with one Undo and invalid-value rollback',()=>{
+ const screw={id:'thread',type:'screw',pitch:.125,driveTurns:0,coupledMotion:true},f=numericInspector(screw);
+ const pitch=f.input('mateScrewPitch (mm/mateScrewTurn)');pitch.value='4';pitch.listeners.blur();assert.equal(screw.pitch,.4);assert.equal(f.undos.length,1);
+ pitch.listeners.change();enter(pitch);pitch.listeners.blur();assert.equal(f.undos.length,1);
+ const drive=f.input('Drive turns (blank = free)');drive.value='2';drive.listeners.blur();assert.equal(screw.driveTurns,2);assert.equal(f.undos.length,2);
+ drive.value='4';drive.listeners.blur();assert.equal(drive.value,'2');assert.equal(screw.driveTurns,2);assert.equal(f.undos.length,2);
+ const limit={type:'limit',min:0,max:2},g=numericInspector(limit),max=g.input('mateLimitMaximum (mm)');max.value='50';max.listeners.blur();assert.equal(limit.max,5);assert.equal(g.undos.length,1);
+ max.listeners.change();enter(max);assert.equal(g.undos.length,1);max.value='';max.listeners.blur();assert.equal(max.value,'50');assert.equal(limit.max,5);assert.equal(g.undos.length,1);
 });

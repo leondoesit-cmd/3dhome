@@ -22,6 +22,8 @@ import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extr
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
 import {setExtrudeFeatureOperation} from './core/extrude_operation_edit.js';
 import {createShellFaceThicknessEditor,createShellOpeningFaceBrowser} from './modeler_shell_thickness_form.js';
+import {bindMateNumericCommit} from './modeler_mate_numeric_commit.js';
+import {setTopologyMateValue} from './cad_mate_value_controls.js';
 import { deduplicateBooleanProjections } from "./core/boolean_projection.js";
 import { rebindReplacedSketchProfiles } from "./core/sketch_profile_rebind.js";
 import { forkConflictingModel } from "./core/model_save_conflict.js";
@@ -19740,11 +19742,9 @@ function mateRow(host, label, detail, issues, remove, rebound, valueEdit, alignm
     input.value = String(valueEdit.value);
     input.setAttribute("aria-label", valueEdit.label);
     input.title = valueEdit.label;
-    input.addEventListener("change", function () { valueEdit.onChange(input.value); });
-    input.addEventListener("keydown", function (event) {
-      if(event.key!=="Enter")return;
-      event.preventDefault();event.stopPropagation();
-      valueEdit.onChange(input.value);
+    bindMateNumericCommit(input,function(){
+      try{valueEdit.onChange(input.value,input);}
+      finally{if(valueEdit.getValue)input.value=String(valueEdit.getValue());}
     });
     field.appendChild(input);
     field.appendChild(el("b", "", valueEdit.suffix || ""));
@@ -19972,24 +19972,28 @@ function assemblyMateInspectorBody() {
         },
         mateReboundFor(mate.id),
         mate.type === "angle" ? {
-          label: t("mateAngleValue"), value: clampMateAngle(mate.value), suffix: "°",
+          label: t("mateAngleValue"), value: clampMateAngle(mate.value), suffix: "°",min:0,max:180,
+          getValue:function(){return clampMateAngle(mate.value);},
           onChange: function (next) {
-            var degrees = clampMateAngle(next);
+            var degrees=String(next).trim()===""?NaN:Number(next);
+            if(!fin(degrees)||degrees<0||degrees>180){flash(t("mateAngleRangeInvalid"));return;}
             if (degrees === clampMateAngle(mate.value)) return;
-            pushUndo(t("angleMate"));
-            mate.value = degrees;
-            solveAssembly(); refreshAll({assemblyPoseOnly:true});
+            var changed=setTopologyMateValue(E.assembly,mate.id,degrees,function(){pushUndo(t("angleMate"));});
+            if(!changed.ok){flash(t("mateValueUnsatisfied"));return;}
+            acceptRackPinionSolve(changed);
           },
         } : mate.type === "distance" ? {
           label: t("topologyDistanceMate") + " (" + modelLengthUnit() + ")",
           value: Number(lengthToDocument(Number(mate.value) || 0, modelLengthUnit()).toPrecision(10)),
           step: 0.001, suffix: modelLengthUnit(),
+          getValue:function(){return Number(lengthToDocument(Number(mate.value)||0,modelLengthUnit()).toPrecision(10));},
           onChange: function (next) {
-            var cm = lengthFromDocument(Number(next), modelLengthUnit());
-            if (!fin(cm) || Math.abs(cm - Number(mate.value || 0)) < 1e-9) return;
-            pushUndo(t("topologyDistanceMate"));
-            mate.value = cm;
-            solveAssembly(); refreshAll({assemblyPoseOnly:true});
+            var cm = String(next).trim()===""?NaN:lengthFromDocument(Number(next), modelLengthUnit());
+            if(!fin(cm)){flash(t("mateValueInvalid"));return;}
+            if (Math.abs(cm - Number(mate.value || 0)) < 1e-9) return;
+            var changed=setTopologyMateValue(E.assembly,mate.id,cm,function(){pushUndo(t("topologyDistanceMate"));});
+            if(!changed.ok){flash(t("mateValueUnsatisfied"));return;}
+            acceptRackPinionSolve(changed);
           },
         } : null,
         ["coincident", "distance", "limit", "tangent"].includes(mate.type) ? {
@@ -20035,8 +20039,7 @@ function assemblyMateInspectorBody() {
         input.type = "number"; input.step = String(step);
         input.value = current == null || !fin(Number(current)) ? "" : String(Number(Number(current).toPrecision(10)));
         input.setAttribute("aria-label", title);
-        input.addEventListener("change", function () { commit(input.value.trim() === "" ? null : Number(input.value), input); });
-        input.addEventListener('keydown',function(event){if(event.key==='Enter'){event.preventDefault();event.stopPropagation();commit(input.value.trim()===''?null:Number(input.value),input);}});
+        bindMateNumericCommit(input,function(){commit(input.value.trim()===''?null:Number(input.value),input);});
         wrap.appendChild(input); mateUiRow.appendChild(wrap);
       };
       var acceptScrewSolve = function(result){
@@ -20184,6 +20187,7 @@ function assemblyMateInspectorBody() {
       if (mate.type === "angle") {
         [["angleMin", "mateAngleMinimum"], ["angleMax", "mateAngleMaximum"]].forEach(function (pair) {
           extraField(t(pair[1]) + " (°)", mate[pair[0]], 1, function (next, input) {
+            if(next===mate[pair[0]] || (next===null&&mate[pair[0]]==null))return;
             if (next !== null && (!fin(next) || next < 0 || next > 180)) { flash(t("mateAngleRangeInvalid")); input.value = mate[pair[0]] == null ? "" : String(mate[pair[0]]); return; }
             var lo = pair[0] === "angleMin" ? next : (mate.angleMin == null ? null : Number(mate.angleMin));
             var hi = pair[0] === "angleMax" ? next : (mate.angleMax == null ? null : Number(mate.angleMax));
@@ -20210,8 +20214,7 @@ function assemblyMateInspectorBody() {
             pushUndo(t("mate")); mate.min = bounds.min; mate.max = bounds.max;
             solveAssembly(); refreshAll();
           };
-          input.addEventListener("change", commitLimit);
-          input.addEventListener("keydown",function(event){if(event.key==='Enter'){event.preventDefault();event.stopPropagation();commitLimit();}});
+          bindMateNumericCommit(input,commitLimit);
           wrap.appendChild(input); mateUiRow.appendChild(wrap);
         });
       }

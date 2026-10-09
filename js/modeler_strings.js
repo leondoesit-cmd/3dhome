@@ -1182,6 +1182,8 @@ export var TXT = {
   topologyRefs: ["ייחוסי טופולוגיה", "topology reference(s)"],
   selectSolidFirst: ["בחרו גוף מוצק בטופס או בחלון התצוגה", "Choose a target body in the form or viewport"],
   finishTargetBody: ["גוף יעד", "Target body"],
+  mateValueInvalid: ["הזינו ערך מספרי סופי לקשר.", "Enter a finite mate value."],
+  mateValueUnsatisfied: ["הערך לא הצליח לקיים את קשרי ההרכבה. הערך הקודם נשמר.", "The value could not satisfy the assembly mates. The previous value was retained."],
   finishChooseBody: ["בחרו גוף מוצק", "Choose a solid body"],
   finishTargetBodyHint: ["בחירת גוף משתמשת בשלב הפעיל שלו. בחרו פאות או צלעות בנפרד; החלפת גוף מנקה את הבחירות הקודמות.", "The target uses its current active step. Choose faces or edges separately; changing the body clears previous geometry selections."],
   selectFaceRemove: ["בחרו פאה להסרה", "Select a face to remove"],

@@ -1,5 +1,7 @@
 # Official companion reconciliation: Basic1–6B and Advanced1–4
 
+Later acceptance supersedes the Advanced3 repair queue below: Q3 is source-coordinate accepted in `f1f0016`, with final native/STEP equality, source-frame properties and cold driving Undo/Redo. See `advanced-q3-final-source-native-audit-2026-10-09.md`. Its older findings remain evidence of the pre-repair state.
+
 Read-only source preparation, 9October2026. This report does not supersede newer accepted Advanced5/6/6A or Chain work. It narrows the older `remaining-book-followups-reconciled-2026-10-09.md` queue using official publisher files and protected historical browser exports. No CAD source was imported, no app geometry/ADVANCE was edited, and no mass or COM was used to choose dimensions.
 
 ## Evidence and precision
