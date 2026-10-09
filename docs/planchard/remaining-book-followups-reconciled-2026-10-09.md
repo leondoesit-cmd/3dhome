@@ -1,5 +1,11 @@
 # Remaining book follow-ups — evidence reconciliation
 
+## Current accepted overrides — 9 October, latest browser leg
+
+The older next-action prose below is historical where superseded here. LINKS9.4 is now accepted **6036ab8**: source7/5 Al2014 and3 Al1060 configurations, four distinct BOMrows/balloons, eight resolved native mates, browser clearance and final whole-sheet/cold durability. Report links-current-library-native-reference-audit-2026-10-09.md. Basic5 is accepted **e1ca9af** with source finite Natural/guide-normal Rib, exact sourceboundary/rounded companionmassCOM, driving and cold durability; report basic-q5-source-station-native-audit-2026-10-09.md. Basic1 is accepted **0c1c382**, source driving.562→.563/UndoRedoUndo, exact fresh STEP and20coldchecks; report basic-q1-driving-cold-native-audit-2026-10-09.md. Preserve their source density/workflow qualifications.
+
+FLAT-PLATE drawing Centerlines/CenterMarks checkpoint is accepted **43f0a34**, source geometry/drawing preserved and coldverified. Its separate hole design-intent repair is active: explicit upstream-stage support **d0c0ae5** validated, actualChrome stage choice exercised; positioningpoint-only sketch currently needs UIcoordinate path repair. Source depth/hole restored while that fix is prepared; do not treat the intermediate stage-only diagnostic as final source geometry. BasicQ6B generic copied-frame fix **fda1c33** is committed, but source-led wall/hole/globaltranslation/reportframe browser authoring remains pending. BasicQ2/Q3/4 driving/cold andBasic6freshSTEP remain finite followups. ADVANCE.md is the authoritative live pointer; the full ebook remains unfinished.
+
 Evidence reconciliation updated 9 October 2026. Parent owns the active Basic Q5 browser/source repair and authoritative ADVANCE. This note reconciles the specific older follow-ups requested; it is not a new browser/native acceptance or a claim that every inventory row is complete. Source page/printed labels come from `scratch/planchard/book.txt`; reports and protected exports remain unmodified.
 
 ## Small next browser leg: LINKS9.4 final configuration-aware drawing
