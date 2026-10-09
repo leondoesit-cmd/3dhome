@@ -97,15 +97,16 @@ test('native operation revisions invalidate changed algorithms only from their f
  const features=[{id:'shell',type:'shell',params:{}},{id:'blend',type:'fillet',inputs:['shell'],params:{radius:.6}},{id:'web',type:'rib',inputs:['blend'],params:{draftAngle:1}}];
  const keys=cadWorkerGeometryKeys({},features);
  assert.equal(keys.get('shell').includes('kernelRevision'),false);
- assert.ok(keys.get('blend').includes('supported-corner-repair-2'));
- assert.ok(keys.get('web').includes('supported-corner-repair-2'));
+ assert.ok(keys.get('blend').includes('supported-corner-repair-3'));
+ assert.ok(keys.get('web').includes('supported-corner-repair-3'));
  assert.ok(keys.get('web').includes('parallel-draft-1'));
 });
 
-test('canonical union transport invalidates old union and dependent finish bodies without expiring earlier prefixes',()=>{
+test('canonical union transport preserves serialized union keys but invalidates changed downstream corner fillings',()=>{
  const features=[{id:'base',type:'box',params:{w:2}},{id:'joined',type:'union',inputs:['base','base'],params:{}},{id:'blend',type:'fillet',inputs:['joined'],params:{radius:.1}}];
  const keys=cadWorkerGeometryKeys({},features);
- assert.equal(keys.get('base').includes('transport-stable-prefix-1'),false);
- assert.ok(keys.get('joined').includes('transport-stable-prefix-1'));
- assert.ok(keys.get('blend').includes('transport-stable-prefix-1'));
+ assert.equal(keys.get('base').includes('kernelRevision'),false);
+ assert.equal(keys.get('joined').includes('kernelRevision'),false,'existing serialized unions already have the canonical representation');
+ assert.ok(keys.get('blend').includes('supported-corner-repair-3'),'only the changed consumer result must expire');
+ assert.equal(keys.get('blend').includes('supported-corner-repair-2'),false);
 });

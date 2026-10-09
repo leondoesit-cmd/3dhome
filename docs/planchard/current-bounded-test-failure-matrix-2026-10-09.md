@@ -1,0 +1,21 @@
+# Current bounded test failure matrix
+
+Finite snapshot of the ongoing parent-owned run `scratch/planchard/test-bounded-2026-10-09-current.log`,19 failed tests observed through the Arbor press playback row. The full run has not finished; this report does not assert a full green suite. Earlier uncontrolled `ci-2026-10-09-current.log` was aborted and remains preserved.
+
+|File|Observed failures|Isolated cause|Current verification|
+|---|---:|---|---|
+|agent_bridge.test.mjs|1|Temporary localhost relay did not start in restricted sandbox before authentication assertions.|Unchanged approved outside-sandbox1/1 PASS; authenticated401/poll/call/reply assertions intact.|
+|form_subassembly_ui.test.mjs|5|Unnecessary union revision stamps invalidated accepted source proofs, so native rigid-selection checks lacked verified references.|Untouched source fixture passes after invalidation narrowed to changed Fillet consumer.|
+|hole_support_stage.test.mjs|1|Unnecessary union revision invalidated the existing verified stage proof; base/union chooser lacked the source stage.|Untouched fixture passes; real upstream depth edits, native stage-qualified hole and invalid-stage rejection remain checked.|
+|kant_twist_motion_playback.test.mjs|1|Union stamp invalidated otherwise unchanged source part proofs and mate axes.|Untouched accepted assembly passes41 bounded native forward requests and home/reset, no suppressed mates or weakened assertions.|
+|motion_playback.test.mjs|1|Same overbroad union invalidation on accepted Arbor press fixture.|Untouched full-stroke/reset/endpoint rejection test passes.|
+|model_backup.test.mjs|5|Four temporary atomic-rename EPERM errors and one restricted relay startup failure.|Identical approved outside-sandbox file passes, including attachments, version bounds, stale-write protection and local-only HTTP behavior.|
+|modeler_perf.test.mjs|5|Fixture Chrome process exits early4294930433 before test assertions in restricted sandbox.|Identical approved outside-sandbox file passes hover/instance isolation, selection reuse, one rebuild and dirty-tab assertions.|
+
+The four mechanism/UI files initially reproduced8 failures in27 tests:19/27 passed. No fixture, authored model or signature was modified. Investigation showed every worker union cache stores serialized BREP bytes and restores them through `deserializeBrep`; no raw union result handle is cached. Existing serialized union results already have the canonical representation introduced by the Q4 fix, so their geometry/verified proofs remain valid. The actual changed consumer is the supported-corner Fillet, whose earlier raw-prefix filling must expire. The supplement removes union/Boolean revision stamps and increments Fillet to `supported-corner-repair-3`, retaining generic fresh-union transport normalization.
+
+Rerun of those untouched four files plus key regressions: **35/35 PASS**, zero failures,14,997.2084 ms. Key tests require old serialized union prefixes remain valid and downstream revised Fillet results invalidate. Final Q4 corner/transport/fresh-versus-cached diameter edit/Undo/native STEP gate rerun: **4/4 PASS**,146,428.3655 ms. Canonical Q4 geometry and predicted bore removal are unchanged; no new browser Q4 authorship is needed. Final source gates PASS: no free identifiers,658 linked modules,1489 source assertions.
+
+Restricted backup/performance isolation: **15/25 passed,10 failed**,3,526.0405 ms. Identical approved outside-sandbox rerun: **25/25 PASS**,17,700.6254 ms. Evidence `current-environment-isolation-restricted-2026-10-09.log` and `current-environment-isolation-unsandboxed-2026-10-09.log`. This matches the earlier environment cases in `shaper-tool-head-8.20-validation-2026-10-09.md`; authentication/origin/timeouts and production logic were not weakened. The separate bridge report adds its1/1 approved pass.
+
+Shell preview semantic-default mismatch from the earlier aborted run was a separate genuine cache gap: missing `faceThicknesses` versus catalog default `[]`. It is fixed and14/14 affected tests passed, documented in `native-shell-preview-cache-validation-2026-10-09.md`. Other agents own Drawing/modeler fixture fixes and print worker work; their outcomes are separate. Parent owns final aggregate full-suite accounting and ADVANCE.
