@@ -223,6 +223,7 @@ import { externalizeAttachments, collectAttachmentReferences, exportAttachmentRe
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
 import { loadModelLibrary, putModelLibraryRecord, deleteModelLibraryRecord, mergeStoredModelLibrary, loadAssemblyLibrary, putAssemblyLibraryRecord, deleteAssemblyLibraryRecord, mergeStoredAssemblyLibrary, loadModelerDraftRecord, listModelerDraftRecords, saveModelerDraftRecord, clearModelerDraftRecord, claimLegacyModelerDraftRecord, libraryBundle, parseLibraryBundle, collidingLibraryKeys } from "./core/model_library_store.js";
 import { drawingOnlyContentSummary, hasSaveableModelContent } from "./core/model_save_policy.js";
+import { sketchFitViewport } from "./core/sketch_fit_viewport.js";
 import { updateAssemblyContexts } from "./core/assembly_context.js";
 import { componentEditCopy, commitComponentEdit } from "./core/component_edit.js";
 import { registerGeneratedExtrusion } from "./core/generated_extrusion.js";
@@ -7098,6 +7099,12 @@ function fitSketch() {
      camera's projection of the plane. Fitting means framing the model. */
   if (sketchProjection()) { fitPreview(); drawSketch(); syncStatus(); return; }
   var W = E.cw, Hh = E.ch;
+  var canvasRect=E.cv?.getBoundingClientRect();
+  if(!canvasRect || canvasRect.width<1 || canvasRect.height<1)canvasRect={left:0,top:0,width:W,height:Hh};
+  var overlayRect=function(id){var node=root && root.querySelector(id);return node && !node.hidden ? node.getBoundingClientRect() : null;};
+  var fitArea=sketchFitViewport(canvasRect,
+    [overlayRect("#mdCoach"),overlayRect("#mdWorkflow"),overlayRect("#mdContextToolbar")],
+    [overlayRect("#mdRailBottom"),overlayRect("#mdRailRow"),overlayRect("#mdStatus")]);
   var u0, u1, v0, v1;
   var hasParts = renderedParts(E.def).length > 0;
   if (hasParts) {
@@ -7131,10 +7138,10 @@ function fitSketch() {
      first entity existed, precisely when the user has no geometry to fit. */
   if (u0 === undefined) { u0 = -5; u1 = 5; v0 = -5; v1 = 5; }
   var du = Math.max(0.01, u1 - u0), dv = Math.max(0.01, v1 - v0);
-  E.scl = clamp(Math.min((W - 80) / du, (Hh - 80) / dv), SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
+  E.scl = clamp(Math.min(Math.max(1,fitArea.w - 80) / du, Math.max(1,fitArea.h - 80) / dv), SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
   var cu = (u0 + u1) / 2, cv = (v0 + v1) / 2;
-  E.ox = W / 2 - cu * E.scl;
-  E.oy = Hh / 2 - (!activeSketchFrame() && E.view === "top" ? cv : -cv) * E.scl;
+  E.ox = fitArea.x + fitArea.w / 2 - cu * E.scl;
+  E.oy = fitArea.y + fitArea.h / 2 - (!activeSketchFrame() && E.view === "top" ? cv : -cv) * E.scl;
   drawSketch();
   syncStatus();
 }

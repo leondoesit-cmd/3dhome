@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {inferTangentCircle} from '../js/modeler_inference.js';
 import {sketchGeometryBounds,planeBoundsFit} from '../js/core/sketch_view_fit.js';
+import {sketchFitViewport} from '../js/core/sketch_fit_viewport.js';
 
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function load(name,context){const start=source.indexOf('function '+name+'('),open=source.indexOf('{',start);let depth=1,end=open+1;while(depth){const char=source[end++];if(char==='{')depth++;if(char==='}')depth--;}
@@ -27,8 +28,8 @@ test('sketch bounds include semicircle extrema instead of only their centers and
   assert.ok(Math.abs(bounds.u1-1)<1e-12);assert.ok(Math.abs(bounds.u0)<1e-12);assert.equal(bounds.v0,0);assert.equal(bounds.v1,2);
 });
 test('a single vertical sketch fits the current canvas height with margins after pane resizing',()=>{
-  const sketch={points:[{id:'a',x:10,y:0},{id:'b',x:10,y:3}],entities:[{type:'line',a:'a',b:'b'}]},E={def:{},cw:1200,ch:900,view:'front'};let measured=0,drawn=0;
-  const fit=load('fitSketch',{E,sizeSketch:()=>{measured++;E.cw=400;E.ch=300;},sketchProjection:()=>null,renderedParts:()=>[],ensureSketchDoc:()=>[sketch],sameSketchContext:()=>true,ensureSketch:()=>sketch,activeSketchFrame:()=>null,sketchGeometryBounds,
+  const sketch={points:[{id:'a',x:10,y:0},{id:'b',x:10,y:3}],entities:[{type:'line',a:'a',b:'b'}]},E={def:{},cw:1200,ch:900,view:'front',cv:{getBoundingClientRect:()=>({left:0,top:0,width:0,height:0})}};let measured=0,drawn=0;
+  const fit=load('fitSketch',{E,root:null,sketchFitViewport,sizeSketch:()=>{measured++;E.cw=400;E.ch=300;},sketchProjection:()=>null,renderedParts:()=>[],ensureSketchDoc:()=>[sketch],sameSketchContext:()=>true,ensureSketch:()=>sketch,activeSketchFrame:()=>null,sketchGeometryBounds,
     clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),SKETCH_MIN_SCALE:.3,SKETCH_MAX_SCALE:2000,drawSketch:()=>{drawn++;},syncStatus(){}});
   fit();assert.equal(measured,1);assert.equal(drawn,1);
   assert.ok(Math.abs(E.scl-220/3)<1e-12);assert.ok(Math.abs(E.ox+10*E.scl-200)<1e-12);
