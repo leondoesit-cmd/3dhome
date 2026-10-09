@@ -181,6 +181,13 @@ function loweredFeature(feature, document) {
   if (feature.type === "sweep" || feature.type === "loft") {
     const params=cloneDomain(feature.params);
     if(feature.type==="loft" && !params.sketchSources && feature.references?.sketches?.length>=2)params.sketchSources={kind:"loft",sections:feature.references.sketches.map(sketchId=>({sketchId,entityIds:(document.sketches.find(s=>s.id===sketchId)?.entities || []).filter(e=>!e.construction).map(e=>e.id)}))};
+    if(feature.type==='loft' && params.operation==='subtract'){
+      if(params.solid===false)throw new Error('Loft Cut requires solid sections');
+      const target=feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
+      if(!target)throw new Error('Loft Cut requires an explicit target body');
+      const toolId=feature.id+':tool';
+      return [{...base,id:toolId,type:'loft',inputs:[],params},{...base,type:'subtract',inputs:[target,toolId],params:{}}];
+    }
     if(feature.inputs?.[0] && params.mergeResult!==false && params.operation!=="new-body"){
       const toolId=feature.id+":tool";return [{...base,id:toolId,type:feature.type,inputs:[],params},{...base,type:"union",inputs:[feature.inputs[0],toolId],params:{}}];
     }

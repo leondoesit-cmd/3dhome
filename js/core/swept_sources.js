@@ -93,7 +93,17 @@ export function sweepSourceRecord(profileSketch, profileEntityIds, pathSketch) {
 }
 
 export function loftSourceRecord(sketches, entityIdSets) {
-  return { kind:"loft", sections:sketches.map(function (sketch, index) { return {sketchId:sketch.id, entityIds:(entityIdSets[index] || []).slice()}; }) };
+  return { kind:"loft", sections:sketches.map(function (sketch, index) { const entry=entityIdSets[index];return entry && !Array.isArray(entry)?{...entry,sketchId:sketch.id}:{sketchId:sketch.id,entityIds:(entry || []).slice()}; }) };
+}
+
+export function loftSectionSourceRecord(sketch,entityIds=[],allowPoint=false){
+  if(!sketch)return null;
+  const entities=(sketch.entities || []).filter(e=>!e.construction),points=(sketch.points || []).filter(p=>!p.construction);
+  if(allowPoint && entities.length===0 && points.length===1 && points[0].id!=null && Number.isFinite(points[0].x)&&Number.isFinite(points[0].y))return {sketchId:sketch.id,pointId:points[0].id};
+  if(entityIds.some(id=>!entities.some(e=>e.id===id)))return null;
+  const selected={...sketch,entities:entities.filter(e=>!entityIds.length||entityIds.includes(e.id))},profiles=analyzeSketchProfiles(selected).profiles;
+  if(profiles.length!==1||profiles[0].entityIds.length!==selected.entities.length||!selected.entities.length)return null;
+  return {sketchId:sketch.id,entityIds:profiles[0].entityIds.slice()};
 }
 
 export function resolveSketchSources(def, sources, resolveProfilePoints) {
@@ -113,8 +123,17 @@ export function resolveSketchSources(def, sources, resolveProfilePoints) {
     return points.map(function (q) { return sketchWorldPoint(sketch, q.u, q.v); });
   };
   if (sources.kind === "loft") {
-    var sections = (sources.sections || []).map(loop);
-    return sections.length >= 2 && sections.every(Boolean) ? { sections:sections, sectionSegments:(sources.sections || []).map(entry=>sketchPathSegments(sketchById(def,entry.sketchId),entry.entityIds)) } : null;
+    const entries=sources.sections || [];
+    if(entries.length<2 || entries.every(entry=>entry.pointId!=null))return null;
+    var sections = entries.map((entry,index)=>{
+      if(entry.pointId==null)return loop(entry);
+      if(index!==0&&index!==entries.length-1)return null;
+      const sketch=sketchById(def,entry.sketchId),source=loftSectionSourceRecord(sketch,[],true);
+      if(!source || source.pointId!==entry.pointId)return null;
+      const point=sketch.points.find(p=>p.id===entry.pointId),world=sketchWorldPoint(sketch,point.x,point.y);
+      return [world.x,world.y,world.z].every(Number.isFinite)?[world]:null;
+    });
+    return sections.every(Boolean) ? { sections:sections, sectionSegments:entries.map(entry=>entry.pointId!=null?null:sketchPathSegments(sketchById(def,entry.sketchId),entry.entityIds)) } : null;
   }
   var profile = loop(sources.profile);
   if (!profile) return null;
