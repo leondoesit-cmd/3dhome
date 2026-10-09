@@ -516,10 +516,11 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatRib",
     icon: "ph-triangle",
     selection: { sketches: { min: 1, max: 1 }, features: { min: 1, max: 1 } },
-    defaults: { thickness: 1, side: "both", extent: "up-to-body", depth: 10, direction: "forward", draftAngle: 0, draftOutward: false, orientation: "perpendicular", growthDirection: "negative-v" },
+    defaults: { thickness: 1, side: "both", extent: "up-to-body", depth: 10, direction: "forward", draftAngle: 0, draftOutward: false, orientation: "perpendicular", growthDirection: "negative-v", profileExtension: "finite" },
     parameters: {
       thickness: LENGTH, side: ENUM("both", "left", "right"),
-      orientation: ENUM("perpendicular", "parallel"), growthDirection: ENUM("negative-v", "positive-v", "negative-u", "positive-u"),
+      orientation: ENUM("perpendicular", "parallel"), growthDirection: ENUM("negative-v", "positive-v", "negative-u", "positive-u", "normal-left", "normal-right"),
+      profileExtension: ENUM("finite", "natural"),
       extent: ENUM("up-to-body", "blind"), depth: LENGTH,
       direction: ENUM("forward", "reverse"), draftAngle: { ...ANGLE, min: 0, max: 60 }, draftOutward: BOOLEAN,
     },
@@ -534,6 +535,12 @@ export const FEATURE_CATALOG = Object.freeze({
           {value:"positive-v",label:"Up (+V)",labelKey:"fcOptRibUp"},
           {value:"negative-u",label:"Left (−U)",labelKey:"fcOptRibLeft"},
           {value:"positive-u",label:"Right (+U)",labelKey:"fcOptRibRight"},
+          {value:"normal-left",label:"Normal to straight guide — left"},
+          {value:"normal-right",label:"Normal to straight guide — right"},
+        ] },
+        { key: "profileExtension", label: "Guide ends", type: "select", choices: [
+          {value:"finite",label:"Finite sketch ends"},
+          {value:"natural",label:"Natural — straight ends to body"},
         ] },
         { key: "thickness", label: "Thickness", labelKey: "fcFldThickness", type: "number", unit: "length", min: 1e-6, step: 0.1 },
         { key: "side", label: "Thickness side", labelKey: "fcFldThicknessSide", type: "select", choices: [

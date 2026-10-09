@@ -202,9 +202,9 @@ test("rib declares exactly the parameters the kernel reads", () => {
   const spec = featureSpec("rib");
   assert.ok(spec);
   assert.deepEqual(Object.keys(featureDefaults("rib")).sort(),
-    ["depth", "direction", "draftAngle", "draftOutward", "extent", "growthDirection", "orientation", "side", "thickness"]);
+    ["depth", "direction", "draftAngle", "draftOutward", "extent", "growthDirection", "orientation", "profileExtension", "side", "thickness"]);
   const fields = spec.editor.groups.flatMap((group) => group.fields).map((field) => field.key);
-  assert.deepEqual(fields.slice().sort(), ["depth", "direction", "draftAngle", "draftOutward", "extent", "growthDirection", "orientation", "side", "thickness"]);
+  assert.deepEqual(fields.slice().sort(), ["depth", "direction", "draftAngle", "draftOutward", "extent", "growthDirection", "orientation", "profileExtension", "side", "thickness"]);
   fields.forEach((key) => assert.ok(spec.parameters[key], key + " is a declared parameter"));
 });
 

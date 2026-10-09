@@ -225,7 +225,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       }
       controls.forEach(function(item){
         var key=item.field.key,wrap=item.input.closest(".md-quick-field");
-        var hide=key === "growthDirection" ? !parallel : ["extent","depth","direction"].includes(key) && parallel;
+        var hide=["growthDirection","profileExtension"].includes(key) ? !parallel : ["extent","depth","direction"].includes(key) && parallel;
         if(wrap)wrap.classList.toggle("parameter-hidden",hide);
       });
     }

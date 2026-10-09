@@ -2855,7 +2855,7 @@ async function parallelRibBrep(brep,params,line,thickness,oc) {
   if(params.extent === "blind")throw new Error("Parallel-to-sketch Rib requires Up to the body");
   const frame=params.frame || null;
   const axis=params.axis === "x" ? "x" : params.axis === "z" ? "z" : "y";
-  const base=Number(params.from)||0,growth=ribGrowthVector(params.growthDirection);
+  const base=Number(params.from)||0,growth=ribGrowthVector(params.growthDirection,line);
   const place=(q,w)=>frame ? framePoint(frame,q.u,q.v,w) : mapSketchPoint(axis,q.u,q.v,w);
   const origin=place({u:0,v:0},0),uPoint=place({u:1,v:0},0),vPoint=place({u:0,v:1},0);
   const uAxis={x:uPoint.x-origin.x,y:uPoint.y-origin.y,z:uPoint.z-origin.z};
@@ -2874,6 +2874,9 @@ async function parallelRibBrep(brep,params,line,thickness,oc) {
   let web=null,fused=null;const extras=[];
   try{
     while(explorer.More()){faces.push(oc.TopoDS.Face_1(explorer.Current()));explorer.Next();}
+    if(params.profileExtension === "natural"){
+      line=extendNaturalRibEnds(brep,line,faces,place,from,to,sketchNormal);
+    }
     const samples=[];
     for(let i=0;i<line.length-1;i++)for(const fraction of [0,.25,.5,.75,1])samples.push({u:line[i].u+(line[i+1].u-line[i].u)*fraction,v:line[i].v+(line[i+1].v-line[i].v)*fraction});
     let stop=null,stopFace=null,single=true;const contacts=[];
@@ -2947,6 +2950,55 @@ async function parallelRibBrep(brep,params,line,thickness,oc) {
     fused.operation="rib";
     const result=fused;fused=null;return result;
   }finally{explorer.delete();faces.forEach(face=>face.delete());if(web)disposeBrep(web);if(fused && fused!==brep)disposeBrep(fused);extras.forEach(item=>disposeBrep(item));}
+}
+
+// Continue only the two open end tangents. Body intersections, rather than
+// sketch length or a centerline hit, determine the contact across the wall.
+function extendNaturalRibEnds(brep,line,faces,place,from,to,normal){
+  const oc=brep.oc,extended=line.map(q=>({...q}));
+  const widthInside=q=>{
+    const start=place(q,from),p=new oc.gp_Pnt_3(start.x,start.y,start.z);
+    const d=new oc.gp_Dir_4(normal.x,normal.y,normal.z),ray=new oc.gp_Lin_3(p,d);
+    const inter=new oc.BRepIntCurveSurface_Inter(),stations=[0,to-from];
+    try{
+      inter.Init_2(brep.shape,ray,1e-7);
+      while(inter.More()){
+        const w=inter.W();
+        if(isOnOrIn(oc,inter.State()) && w>0 && w<to-from)stations.push(w);
+        inter.Next();
+      }
+      stations.sort((a,b)=>a-b);
+      const checks=[0,to-from];
+      for(let i=1;i<stations.length;i++)checks.push((stations[i-1]+stations[i])/2);
+      return checks.every(w=>solidContainsPoint(oc,brep.shape,{x:start.x+normal.x*w,y:start.y+normal.y*w,z:start.z+normal.z*w},1e-6));
+    }finally{inter.delete();ray.delete();d.delete();p.delete();}
+  };
+  for(const [index,neighbor] of [[0,1],[line.length-1,line.length-2]]){
+    const q=line[index],other=line[neighbor],length=Math.hypot(q.u-other.u,q.v-other.v);
+    if(!(length>1e-8))throw new Error("Natural Rib has a degenerate end tangent");
+    if(widthInside(q))continue;
+    const tangent={u:(q.u-other.u)/length,v:(q.v-other.v)/length};
+    const a=place(q,0),b=place({u:q.u+tangent.u,v:q.v+tangent.v},0);
+    const direction={x:b.x-a.x,y:b.y-a.y,z:b.z-a.z};
+    let distance=0;
+    for(let i=0;i<=32;i++){
+      const point=place(q,from+(to-from)*i/32);
+      if(solidContainsPoint(oc,brep.shape,point,1e-6))continue;
+      let hit=null;
+      for(const face of faces){
+        const value=rayHitsBrepFace(oc,point,direction,face,-1e-7);
+        if(value!=null && (hit==null || value<hit))hit=value;
+      }
+      if(hit==null)throw new Error("Natural Rib end tangent does not reach the body across its full thickness");
+      distance=Math.max(distance,hit);
+    }
+    // Preserve the measured boundary station. Native width classification
+    // includes boundary contact and checks every interval, not just samples.
+    const end={u:q.u+tangent.u*distance,v:q.v+tangent.v*distance};
+    if(!widthInside(end))throw new Error("Natural Rib end cannot make continuous full-thickness contact");
+    extended[index]=end;
+  }
+  return extended;
 }
 
 // Tilt only thickness walls about the outer profile plane perpendicular to

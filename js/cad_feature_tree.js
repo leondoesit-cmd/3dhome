@@ -393,6 +393,7 @@ export async function regenerateFeatures(def, options = {}) {
           const selectedIds=effectiveParams.chainEntityIds || [],chains=analyzeSketchChains(linkedSketch,{selectedIds}).chains;
           const chain=selectedIds.length ? chains.find(item=>selectedIds.every(id=>item.entityIds.includes(id))) : chains.length===1 ? chains[0] : null;
           if(!chain)throw new Error("Rib driving sketch must contain one selected open chain");
+          if(effectiveParams.profileExtension === "natural" && chain.entityIds.some(id=>linkedSketch.entities.find(entity=>entity.id===id)?.type!=="line"))throw new Error("Natural Rib currently requires straight sketch segments");
           effectiveParams={...effectiveParams,points:chain.points};
           if(!linkedSketch.frame)effectiveParams={...effectiveParams,axis:linkedSketch.plane==="front"?"z":linkedSketch.plane==="side"?"x":"y",from:Number(linkedSketch.offset)||0};
         }

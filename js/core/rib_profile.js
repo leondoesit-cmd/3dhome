@@ -55,7 +55,14 @@ export function ribLoop(points, thickness, side) {
 /* Parallel-to-sketch ribs keep the traced line as their upper boundary. The
    open ends grow along one in-plane direction to a planar stopping surface;
    thickness is subsequently applied NORMAL to this closed section. */
-export function ribGrowthVector(direction) {
+export function ribGrowthVector(direction,points) {
+  if(direction === "normal-left" || direction === "normal-right"){
+    const line=cleaned(points),a=line[0],b=line[line.length-1];
+    const tangent=a && b ? unit(b.u-a.u,b.v-a.v) : null;
+    if(!tangent || line.some(q=>Math.abs((q.u-a.u)*tangent.y-(q.v-a.v)*tangent.x)>1e-7))throw new Error("Normal-to-guide Rib requires one straight guide");
+    const sign=direction === "normal-left" ? 1 : -1;
+    return {u:-tangent.y*sign,v:tangent.x*sign};
+  }
   if (direction === "positive-u") return {u:1,v:0};
   if (direction === "negative-u") return {u:-1,v:0};
   if (direction === "positive-v") return {u:0,v:1};
