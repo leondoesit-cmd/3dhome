@@ -1,0 +1,589 @@
+{
+  "source": "ADVANCED-Q3-pre-source-repair-browser-2026-10-09.mforge",
+  "baseline": "ADVANCED-Q3-correct-lower-chamfer-browser-2026-09-30.mforge",
+  "checks": {
+    "featuresExact": true,
+    "sketchesExact": true,
+    "historyExact": true,
+    "referencesExact": true,
+    "referenceGeometryExact": true,
+    "engineeringMaterialsExact": true,
+    "parametersExact": true
+  },
+  "changedModelKeys": [
+    "parts",
+    "lastRebuild",
+    "exactTopologyCache"
+  ],
+  "targetSketches": [
+    {
+      "id": "sk_3tw1r",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 1985,
+          "x": 2,
+          "y": 0
+        },
+        {
+          "id": 1986,
+          "x": 5.6000000000000005,
+          "y": 0
+        },
+        {
+          "id": 1987,
+          "x": 3.8000000000000003,
+          "y": 0
+        },
+        {
+          "id": 1988,
+          "x": 2,
+          "y": 0.6000000000000001
+        },
+        {
+          "id": 1989,
+          "x": 2,
+          "y": -0.6000000000000001
+        },
+        {
+          "id": 1990,
+          "x": 5.6000000000000005,
+          "y": 0.6000000000000001
+        },
+        {
+          "id": 1991,
+          "x": 5.6000000000000005,
+          "y": -0.6000000000000001
+        }
+      ],
+      "entities": [
+        {
+          "id": 1992,
+          "type": "line",
+          "name": "Slot side",
+          "a": 1989,
+          "b": 1991
+        },
+        {
+          "id": 1993,
+          "type": "arc",
+          "name": "Slot cap",
+          "c": 1986,
+          "a": 1991,
+          "b": 1990
+        },
+        {
+          "id": 1994,
+          "type": "line",
+          "name": "Slot side",
+          "a": 1990,
+          "b": 1988
+        },
+        {
+          "id": 1995,
+          "type": "arc",
+          "name": "Slot cap",
+          "c": 1985,
+          "a": 1988,
+          "b": 1989
+        },
+        {
+          "id": 1996,
+          "type": "line",
+          "name": "Slot centreline",
+          "a": 1985,
+          "b": 1986,
+          "construction": true
+        }
+      ],
+      "constraints": [
+        {
+          "id": 1997,
+          "type": "parallel",
+          "a": 1994,
+          "b": 1996,
+          "exprError": null
+        },
+        {
+          "id": 1998,
+          "type": "tangent",
+          "a": 1994,
+          "b": 1995,
+          "exprError": null
+        },
+        {
+          "id": 1999,
+          "type": "tangent",
+          "a": 1994,
+          "b": 1993,
+          "exprError": null
+        },
+        {
+          "id": 2000,
+          "type": "parallel",
+          "a": 1992,
+          "b": 1996,
+          "exprError": null
+        },
+        {
+          "id": 2001,
+          "type": "tangent",
+          "a": 1992,
+          "b": 1995,
+          "exprError": null
+        },
+        {
+          "id": 2002,
+          "type": "tangent",
+          "a": 1992,
+          "b": 1993,
+          "exprError": null
+        },
+        {
+          "id": 2003,
+          "type": "horizontal",
+          "entity": 1996,
+          "exprError": null
+        },
+        {
+          "id": 2004,
+          "type": "fixed",
+          "point": 1987,
+          "x": 3.8000000000000003,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": 2005,
+          "type": "midpoint",
+          "point": 1987,
+          "entity": 1996,
+          "exprError": null
+        },
+        {
+          "id": 2006,
+          "type": "distance",
+          "entity": 1996,
+          "value": 3.6,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 2007,
+          "type": "radius",
+          "entity": 1995,
+          "value": 0.6000000000000001,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_40pdm",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 2008,
+          "x": 0.9999999999999999,
+          "y": 1.7461021147242688e-19
+        },
+        {
+          "id": 2009,
+          "x": 2.5,
+          "y": -1.745530975389921e-19
+        },
+        {
+          "id": 2010,
+          "x": 1.75,
+          "y": 1.4202829884578208e-23
+        },
+        {
+          "id": 2011,
+          "x": 0.9999999999999999,
+          "y": 0.6000000000000001
+        },
+        {
+          "id": 2012,
+          "x": 0.9999999999999999,
+          "y": -0.6000000000000001
+        },
+        {
+          "id": 2013,
+          "x": 2.5,
+          "y": 0.6000000000000001
+        },
+        {
+          "id": 2014,
+          "x": 2.5,
+          "y": -0.6000000000000001
+        }
+      ],
+      "entities": [
+        {
+          "id": 2015,
+          "type": "line",
+          "name": "Slot side",
+          "a": 2012,
+          "b": 2014
+        },
+        {
+          "id": 2016,
+          "type": "arc",
+          "name": "Slot cap",
+          "c": 2009,
+          "a": 2014,
+          "b": 2013
+        },
+        {
+          "id": 2017,
+          "type": "line",
+          "name": "Slot side",
+          "a": 2013,
+          "b": 2011
+        },
+        {
+          "id": 2018,
+          "type": "arc",
+          "name": "Slot cap",
+          "c": 2008,
+          "a": 2011,
+          "b": 2012
+        },
+        {
+          "id": 2019,
+          "type": "line",
+          "name": "Slot centreline",
+          "a": 2008,
+          "b": 2009,
+          "construction": true
+        }
+      ],
+      "constraints": [
+        {
+          "id": 2020,
+          "type": "parallel",
+          "a": 2017,
+          "b": 2019,
+          "exprError": null
+        },
+        {
+          "id": 2021,
+          "type": "tangent",
+          "a": 2017,
+          "b": 2018,
+          "exprError": null
+        },
+        {
+          "id": 2022,
+          "type": "tangent",
+          "a": 2017,
+          "b": 2016,
+          "exprError": null
+        },
+        {
+          "id": 2023,
+          "type": "parallel",
+          "a": 2015,
+          "b": 2019,
+          "exprError": null
+        },
+        {
+          "id": 2024,
+          "type": "tangent",
+          "a": 2015,
+          "b": 2018,
+          "exprError": null
+        },
+        {
+          "id": 2025,
+          "type": "tangent",
+          "a": 2015,
+          "b": 2016,
+          "exprError": null
+        },
+        {
+          "id": 2026,
+          "type": "horizontal",
+          "entity": 2019,
+          "exprError": null
+        },
+        {
+          "id": 2027,
+          "type": "fixed",
+          "point": 2010,
+          "x": 1.75,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": 2028,
+          "type": "midpoint",
+          "point": 2010,
+          "entity": 2019,
+          "exprError": null
+        },
+        {
+          "id": 2029,
+          "type": "distance",
+          "entity": 2019,
+          "value": 1.5,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 2030,
+          "type": "radius",
+          "entity": 2018,
+          "value": 0.6000000000000001,
+          "driven": false,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    }
+  ],
+  "namedCoordinateFrames": [],
+  "existingMirrorDatum": {
+    "id": "plane_2060",
+    "type": "reference_plane",
+    "name": "Rear slot mirror X55",
+    "origin": {
+      "x": 5.5,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "offset": 5.5,
+    "refType": "offset",
+    "baseReferenceId": "plane:right"
+  },
+  "chamfer": {
+    "id": "feature_muns8k28_9",
+    "type": "chamfer",
+    "name": "Chamfer 1",
+    "params": {
+      "mode": "equal-distance",
+      "distance": 0.5,
+      "secondDistance": 1,
+      "angle": 45,
+      "flip": false
+    },
+    "references": {
+      "sketches": [],
+      "features": [
+        "feature_munroz1d_7"
+      ],
+      "topology": [
+        {
+          "type": "topology-reference",
+          "ownerFeatureId": "feature_munqvvyf_4",
+          "kind": "edge",
+          "persistentId": "feature_munqvvyf_4:tool:edge:generated:line:4",
+          "descriptor": {
+            "curve": "line",
+            "origin": {
+              "x": 0.25,
+              "y": -0.6000000000000001,
+              "z": 5
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 0.5,
+            "bounds": {
+              "min": {
+                "x": -1.5e-7,
+                "y": -0.6000001500000001,
+                "z": 4.99999985
+              },
+              "max": {
+                "x": 0.50000015,
+                "y": -0.5999998500000001,
+                "z": 5.00000015
+              }
+            },
+            "endpoints": [
+              {
+                "x": 0,
+                "y": -0.6000000000000001,
+                "z": 5
+              },
+              {
+                "x": 0.5,
+                "y": -0.6000000000000001,
+                "z": 5
+              }
+            ]
+          },
+          "signature": "line:0.25:-0.6:5:1:0:0:0.5:"
+        }
+      ],
+      "references": []
+    },
+    "inputs": [
+      "feature_munroz1d_7"
+    ],
+    "suppressed": false,
+    "state": "rebuilt",
+    "diagnostics": []
+  },
+  "arrayOrder": [
+    {
+      "id": "feature_munofu5m_3",
+      "type": "extrude",
+      "name": "Extrude / Boss 1",
+      "inputs": []
+    },
+    {
+      "id": "feature_munoj0ui_5",
+      "type": "fillet",
+      "name": "Fillet 1",
+      "inputs": [
+        "feature_munstlyw_b"
+      ]
+    },
+    {
+      "id": "feature_munoqe53_6",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 1",
+      "inputs": [
+        "feature_munoj0ui_5"
+      ]
+    },
+    {
+      "id": "feature_munpzlv2_7",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 2",
+      "inputs": [
+        "feature_munoqe53_6"
+      ]
+    },
+    {
+      "id": "feature_munqd8nz_1",
+      "type": "mirror",
+      "name": "Mirror 1",
+      "inputs": [
+        "feature_munpzlv2_7"
+      ]
+    },
+    {
+      "id": "feature_munqmfst_2",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 3",
+      "inputs": [
+        "feature_munqd8nz_1"
+      ]
+    },
+    {
+      "id": "feature_munqr7vc_3",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 4",
+      "inputs": [
+        "feature_munqmfst_2"
+      ]
+    },
+    {
+      "id": "feature_munqvvyf_4",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 5",
+      "inputs": [
+        "feature_munqr7vc_3"
+      ]
+    },
+    {
+      "id": "feature_munqxous_5",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 6",
+      "inputs": [
+        "feature_munqvvyf_4"
+      ]
+    },
+    {
+      "id": "feature_munro5f8_6",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 7",
+      "inputs": [
+        "feature_munqxous_5"
+      ]
+    },
+    {
+      "id": "feature_munroz1d_7",
+      "type": "mirror",
+      "name": "Mirror 2",
+      "inputs": [
+        "feature_munro5f8_6"
+      ]
+    },
+    {
+      "id": "feature_muns8k28_9",
+      "type": "chamfer",
+      "name": "Chamfer 1",
+      "inputs": [
+        "feature_munroz1d_7"
+      ]
+    },
+    {
+      "id": "feature_munstlyw_b",
+      "type": "fillet",
+      "name": "Fillet 2",
+      "inputs": [
+        "feature_munofu5m_3"
+      ]
+    }
+  ],
+  "sourceConfirmedChanges": {
+    "forkDeltaVmm": 6,
+    "rearClosedSlotRadiusMm": 5,
+    "rearClosedSlotLeftCentresAppMm": [
+      20,
+      35
+    ],
+    "rearClosedSlotRightCentresAppMm": [
+      75,
+      90
+    ],
+    "mirrorAcrossAppXmm": 55
+  },
+  "sourceFrameMap": {
+    "sourceFromAppTranslation": [
+      -55,
+      0,
+      -50
+    ],
+    "sourceNamedOrigin": [
+      55,
+      0,
+      -20
+    ],
+    "correspondingAppNamedOrigin": [
+      110,
+      0,
+      30
+    ],
+    "axes": "identity supported by printed positive-axis figure and embedded COM screenshot; binary rotation schema not fully decoded"
+  },
+  "notes": [
+    "Actualmodelrecipe unchanged from oldcorrect-lowerchamfer.",
+    "Forkfixed1987V0→6mm constraint2004; radius2007R6 retained.",
+    "Closedslotfixed2010U17.5→27.5mm constraint2027; radius2030R6→5mm, centreline15unchanged.",
+    "No namedcoordinateframe exists. Sourceappframe110/0/30identity remains parentauthorship.",
+    "Chamferoldloweredge origin2.5/−6/50mm willmoveY0 afterforkedit; explicitnative rebind/reselection required.",
+    "Featurearray Fillet2last doesnotindicate executionorder: Boss→Fillet2→Fillet1 byinputs."
+  ],
+  "scope": "Read-only sourcecheckpointcomparison; no geometry orADVANCE mutation."
+}

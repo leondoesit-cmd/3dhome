@@ -1,0 +1,958 @@
+{
+  "scope": "read-only source and actual protected definition comparison; no model mutation, solver replay, or new browser acceptance",
+  "sourceSketchLoci": [
+    {
+      "offset": 52002,
+      "owner": "Sketch4",
+      "coordOffset": 66,
+      "kind": 2,
+      "x_mm": 0.0,
+      "y_mm": 0.0
+    },
+    {
+      "offset": 52164,
+      "owner": "Sketch4",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -30.0,
+      "y_mm": -3.469446951953614e-15
+    },
+    {
+      "offset": 52665,
+      "owner": "Sketch4",
+      "coordOffset": 66,
+      "kind": 2,
+      "x_mm": 0.0,
+      "y_mm": 12.0
+    },
+    {
+      "offset": 52827,
+      "owner": "Sketch4",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -30.0,
+      "y_mm": 11.999999999999996
+    },
+    {
+      "offset": 52989,
+      "owner": "Sketch4",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 0.0,
+      "y_mm": 30.0
+    },
+    {
+      "offset": 53131,
+      "owner": "Sketch4",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 0.0,
+      "y_mm": -30.0
+    },
+    {
+      "offset": 53273,
+      "owner": "Sketch4",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": -30.0,
+      "y_mm": 5.9999999999999964
+    },
+    {
+      "offset": 83349,
+      "owner": "Sketch6",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -35.0,
+      "y_mm": 5.0
+    },
+    {
+      "offset": 83511,
+      "owner": "Sketch6",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -20.0,
+      "y_mm": 5.0
+    },
+    {
+      "offset": 83673,
+      "owner": "Sketch6",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -35.0,
+      "y_mm": -5.0
+    },
+    {
+      "offset": 83835,
+      "owner": "Sketch6",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -20.0,
+      "y_mm": -5.0
+    },
+    {
+      "offset": 83997,
+      "owner": "Sketch6",
+      "coordOffset": 66,
+      "kind": 4,
+      "x_mm": -20.0,
+      "y_mm": 0.0
+    },
+    {
+      "offset": 84139,
+      "owner": "Sketch6",
+      "coordOffset": 66,
+      "kind": 2,
+      "x_mm": -35.0,
+      "y_mm": 0.0
+    },
+    {
+      "offset": 84281,
+      "owner": "Sketch6",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 0.0,
+      "y_mm": 0.0
+    },
+    {
+      "offset": 84423,
+      "owner": "Sketch6",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 0.0,
+      "y_mm": 0.0
+    }
+  ],
+  "corroboratingNativeCandidates": [
+    {
+      "section": "section-0.bin",
+      "offset": 9710,
+      "kind": "circle",
+      "attr": 349,
+      "ordinal": 669,
+      "marker": 43,
+      "valuesMetres": [
+        -0.05500000000000001,
+        0.005999999999999997,
+        -0.03,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0.006
+      ],
+      "originMm": [
+        -55.00000000000001,
+        5.9999999999999964,
+        -30
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "radiusMm": 6
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 9908,
+      "kind": "circle",
+      "attr": 355,
+      "ordinal": 665,
+      "marker": 45,
+      "valuesMetres": [
+        -0.05,
+        0.005999999999999997,
+        -0.03,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0.006
+      ],
+      "originMm": [
+        -50,
+        5.9999999999999964,
+        -30
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "radiusMm": 6
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 14675,
+      "kind": "circle",
+      "attr": 464,
+      "ordinal": 1265,
+      "marker": 43,
+      "valuesMetres": [
+        0.035,
+        0,
+        -0.05,
+        0,
+        0,
+        -1,
+        -1,
+        0,
+        0,
+        0.005
+      ],
+      "originMm": [
+        35,
+        0,
+        -50
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "radiusMm": 5
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 14905,
+      "kind": "circle",
+      "attr": 470,
+      "ordinal": 1263,
+      "marker": 43,
+      "valuesMetres": [
+        0.02,
+        0,
+        -0.05,
+        0,
+        0,
+        -1,
+        1,
+        0,
+        0,
+        0.005
+      ],
+      "originMm": [
+        20,
+        0,
+        -50
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "radiusMm": 5
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 15135,
+      "kind": "circle",
+      "attr": 475,
+      "ordinal": 1261,
+      "marker": 43,
+      "valuesMetres": [
+        0.035,
+        0,
+        -0.045000000000000005,
+        0,
+        0,
+        -1,
+        -1,
+        0,
+        0,
+        0.005
+      ],
+      "originMm": [
+        35,
+        0,
+        -45.00000000000001
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "radiusMm": 5
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 15365,
+      "kind": "circle",
+      "attr": 480,
+      "ordinal": 1259,
+      "marker": 43,
+      "valuesMetres": [
+        0.02,
+        0,
+        -0.045000000000000005,
+        0,
+        0,
+        -1,
+        1,
+        0,
+        0,
+        0.005
+      ],
+      "originMm": [
+        20,
+        0,
+        -45.00000000000001
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "radiusMm": 5
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 15991,
+      "kind": "circle",
+      "attr": 495,
+      "ordinal": 1118,
+      "marker": 43,
+      "valuesMetres": [
+        -0.035,
+        0,
+        -0.05,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0.005
+      ],
+      "originMm": [
+        -35,
+        0,
+        -50
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "radiusMm": 5
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 16221,
+      "kind": "circle",
+      "attr": 502,
+      "ordinal": 1116,
+      "marker": 43,
+      "valuesMetres": [
+        -0.02,
+        0,
+        -0.05,
+        0,
+        0,
+        1,
+        -1,
+        0,
+        0,
+        0.005
+      ],
+      "originMm": [
+        -20,
+        0,
+        -50
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "radiusMm": 5
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 16451,
+      "kind": "circle",
+      "attr": 508,
+      "ordinal": 1114,
+      "marker": 43,
+      "valuesMetres": [
+        -0.035,
+        0,
+        -0.045000000000000005,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0.005
+      ],
+      "originMm": [
+        -35,
+        0,
+        -45.00000000000001
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "radiusMm": 5
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 16681,
+      "kind": "circle",
+      "attr": 513,
+      "ordinal": 1112,
+      "marker": 43,
+      "valuesMetres": [
+        -0.02,
+        0,
+        -0.045000000000000005,
+        0,
+        0,
+        1,
+        -1,
+        0,
+        0,
+        0.005
+      ],
+      "originMm": [
+        -20,
+        0,
+        -45.00000000000001
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "radiusMm": 5
+    }
+  ],
+  "protectedForkSketch": {
+    "id": "sk_3tw1r",
+    "name": "Right Plane sketch",
+    "plane": "side",
+    "offset": 0,
+    "referenceId": "plane:right",
+    "points": [
+      {
+        "id": 1985,
+        "x": 2,
+        "y": 0
+      },
+      {
+        "id": 1986,
+        "x": 5.6000000000000005,
+        "y": 0
+      },
+      {
+        "id": 1987,
+        "x": 3.8000000000000003,
+        "y": 0
+      },
+      {
+        "id": 1988,
+        "x": 2,
+        "y": 0.6000000000000001
+      },
+      {
+        "id": 1989,
+        "x": 2,
+        "y": -0.6000000000000001
+      },
+      {
+        "id": 1990,
+        "x": 5.6000000000000005,
+        "y": 0.6000000000000001
+      },
+      {
+        "id": 1991,
+        "x": 5.6000000000000005,
+        "y": -0.6000000000000001
+      }
+    ],
+    "entities": [
+      {
+        "id": 1992,
+        "type": "line",
+        "name": "Slot side",
+        "a": 1989,
+        "b": 1991
+      },
+      {
+        "id": 1993,
+        "type": "arc",
+        "name": "Slot cap",
+        "c": 1986,
+        "a": 1991,
+        "b": 1990
+      },
+      {
+        "id": 1994,
+        "type": "line",
+        "name": "Slot side",
+        "a": 1990,
+        "b": 1988
+      },
+      {
+        "id": 1995,
+        "type": "arc",
+        "name": "Slot cap",
+        "c": 1985,
+        "a": 1988,
+        "b": 1989
+      },
+      {
+        "id": 1996,
+        "type": "line",
+        "name": "Slot centreline",
+        "a": 1985,
+        "b": 1986,
+        "construction": true
+      }
+    ],
+    "constraints": [
+      {
+        "id": 1997,
+        "type": "parallel",
+        "a": 1994,
+        "b": 1996,
+        "exprError": null
+      },
+      {
+        "id": 1998,
+        "type": "tangent",
+        "a": 1994,
+        "b": 1995,
+        "exprError": null
+      },
+      {
+        "id": 1999,
+        "type": "tangent",
+        "a": 1994,
+        "b": 1993,
+        "exprError": null
+      },
+      {
+        "id": 2000,
+        "type": "parallel",
+        "a": 1992,
+        "b": 1996,
+        "exprError": null
+      },
+      {
+        "id": 2001,
+        "type": "tangent",
+        "a": 1992,
+        "b": 1995,
+        "exprError": null
+      },
+      {
+        "id": 2002,
+        "type": "tangent",
+        "a": 1992,
+        "b": 1993,
+        "exprError": null
+      },
+      {
+        "id": 2003,
+        "type": "horizontal",
+        "entity": 1996,
+        "exprError": null
+      },
+      {
+        "id": 2004,
+        "type": "fixed",
+        "point": 1987,
+        "x": 3.8000000000000003,
+        "y": 0,
+        "exprError": null
+      },
+      {
+        "id": 2005,
+        "type": "midpoint",
+        "point": 1987,
+        "entity": 1996,
+        "exprError": null
+      },
+      {
+        "id": 2006,
+        "type": "distance",
+        "entity": 1996,
+        "value": 3.6,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "id": 2007,
+        "type": "radius",
+        "entity": 1995,
+        "value": 0.6000000000000001,
+        "driven": false,
+        "exprError": null
+      }
+    ],
+    "diagnostics": [],
+    "status": "fully-defined"
+  },
+  "protectedClosedSlotSketch": {
+    "id": "sk_40pdm",
+    "name": "Front Plane sketch",
+    "plane": "front",
+    "offset": 0,
+    "referenceId": "plane:front",
+    "points": [
+      {
+        "id": 2008,
+        "x": 0.9999999999999999,
+        "y": 1.7461021147242688e-19
+      },
+      {
+        "id": 2009,
+        "x": 2.5,
+        "y": -1.745530975389921e-19
+      },
+      {
+        "id": 2010,
+        "x": 1.75,
+        "y": 1.4202829884578208e-23
+      },
+      {
+        "id": 2011,
+        "x": 0.9999999999999999,
+        "y": 0.6000000000000001
+      },
+      {
+        "id": 2012,
+        "x": 0.9999999999999999,
+        "y": -0.6000000000000001
+      },
+      {
+        "id": 2013,
+        "x": 2.5,
+        "y": 0.6000000000000001
+      },
+      {
+        "id": 2014,
+        "x": 2.5,
+        "y": -0.6000000000000001
+      }
+    ],
+    "entities": [
+      {
+        "id": 2015,
+        "type": "line",
+        "name": "Slot side",
+        "a": 2012,
+        "b": 2014
+      },
+      {
+        "id": 2016,
+        "type": "arc",
+        "name": "Slot cap",
+        "c": 2009,
+        "a": 2014,
+        "b": 2013
+      },
+      {
+        "id": 2017,
+        "type": "line",
+        "name": "Slot side",
+        "a": 2013,
+        "b": 2011
+      },
+      {
+        "id": 2018,
+        "type": "arc",
+        "name": "Slot cap",
+        "c": 2008,
+        "a": 2011,
+        "b": 2012
+      },
+      {
+        "id": 2019,
+        "type": "line",
+        "name": "Slot centreline",
+        "a": 2008,
+        "b": 2009,
+        "construction": true
+      }
+    ],
+    "constraints": [
+      {
+        "id": 2020,
+        "type": "parallel",
+        "a": 2017,
+        "b": 2019,
+        "exprError": null
+      },
+      {
+        "id": 2021,
+        "type": "tangent",
+        "a": 2017,
+        "b": 2018,
+        "exprError": null
+      },
+      {
+        "id": 2022,
+        "type": "tangent",
+        "a": 2017,
+        "b": 2016,
+        "exprError": null
+      },
+      {
+        "id": 2023,
+        "type": "parallel",
+        "a": 2015,
+        "b": 2019,
+        "exprError": null
+      },
+      {
+        "id": 2024,
+        "type": "tangent",
+        "a": 2015,
+        "b": 2018,
+        "exprError": null
+      },
+      {
+        "id": 2025,
+        "type": "tangent",
+        "a": 2015,
+        "b": 2016,
+        "exprError": null
+      },
+      {
+        "id": 2026,
+        "type": "horizontal",
+        "entity": 2019,
+        "exprError": null
+      },
+      {
+        "id": 2027,
+        "type": "fixed",
+        "point": 2010,
+        "x": 1.75,
+        "y": 0,
+        "exprError": null
+      },
+      {
+        "id": 2028,
+        "type": "midpoint",
+        "point": 2010,
+        "entity": 2019,
+        "exprError": null
+      },
+      {
+        "id": 2029,
+        "type": "distance",
+        "entity": 2019,
+        "value": 1.5,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "id": 2030,
+        "type": "radius",
+        "entity": 2018,
+        "value": 0.6000000000000001,
+        "driven": false,
+        "exprError": null
+      }
+    ],
+    "diagnostics": [],
+    "status": "fully-defined"
+  },
+  "protectedMirrorFeatures": [
+    {
+      "id": "feature_munqd8nz_1",
+      "type": "mirror",
+      "name": "Mirror 1",
+      "params": {
+        "merge": true,
+        "keepOriginal": true,
+        "scope": "feature",
+        "seedFeatureId": "feature_munpzlv2_7"
+      },
+      "references": {
+        "sketches": [],
+        "features": [
+          "feature_munpzlv2_7"
+        ],
+        "topology": [],
+        "references": [
+          "plane:top"
+        ]
+      },
+      "inputs": [
+        "feature_munpzlv2_7"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_munroz1d_7",
+      "type": "mirror",
+      "name": "Mirror 2",
+      "params": {
+        "merge": true,
+        "keepOriginal": true,
+        "scope": "feature",
+        "seedFeatureId": "feature_munro5f8_6"
+      },
+      "references": {
+        "sketches": [],
+        "features": [
+          "feature_munro5f8_6"
+        ],
+        "topology": [],
+        "references": [
+          "plane:top"
+        ]
+      },
+      "inputs": [
+        "feature_munro5f8_6"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    }
+  ],
+  "protectedChamferFeature": {
+    "id": "feature_muns8k28_9",
+    "type": "chamfer",
+    "name": "Chamfer 1",
+    "params": {
+      "mode": "equal-distance",
+      "distance": 0.5,
+      "secondDistance": 1,
+      "angle": 45,
+      "flip": false
+    },
+    "references": {
+      "sketches": [],
+      "features": [
+        "feature_munroz1d_7"
+      ],
+      "topology": [
+        {
+          "type": "topology-reference",
+          "ownerFeatureId": "feature_munqvvyf_4",
+          "kind": "edge",
+          "persistentId": "feature_munqvvyf_4:tool:edge:generated:line:4",
+          "descriptor": {
+            "curve": "line",
+            "origin": {
+              "x": 0.25,
+              "y": -0.6000000000000001,
+              "z": 5
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 0.5,
+            "bounds": {
+              "min": {
+                "x": -1.5e-07,
+                "y": -0.6000001500000001,
+                "z": 4.99999985
+              },
+              "max": {
+                "x": 0.50000015,
+                "y": -0.5999998500000001,
+                "z": 5.00000015
+              }
+            },
+            "endpoints": [
+              {
+                "x": 0,
+                "y": -0.6000000000000001,
+                "z": 5
+              },
+              {
+                "x": 0.5,
+                "y": -0.6000000000000001,
+                "z": 5
+              }
+            ]
+          },
+          "signature": "line:0.25:-0.6:5:1:0:0:0.5:"
+        }
+      ],
+      "references": []
+    },
+    "inputs": [
+      "feature_munroz1d_7"
+    ],
+    "suppressed": false,
+    "state": "rebuilt",
+    "diagnostics": []
+  },
+  "protectedExistingMirrorDatum": {
+    "id": "plane_2060",
+    "type": "reference_plane",
+    "name": "Rear slot mirror X55",
+    "origin": {
+      "x": 5.5,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "offset": 5.5,
+    "refType": "offset",
+    "baseReferenceId": "plane:right"
+  },
+  "coordinateMapMm": {
+    "sourceFromAppTranslation": [
+      -55,
+      0,
+      -50
+    ],
+    "sourceNamedOrigin": [
+      55,
+      0,
+      -20
+    ],
+    "correspondingAppNamedOrigin": [
+      110,
+      0,
+      30
+    ],
+    "axes": "identity supported by printed positive-axis figure and embedded COM screenshot; binary rotation schema not fully decoded"
+  },
+  "confirmedChanges": {
+    "forkDeltaVmm": 6,
+    "rearClosedSlotRadiusMm": 5,
+    "rearClosedSlotLeftCentresAppMm": [
+      20,
+      35
+    ],
+    "rearClosedSlotRightCentresAppMm": [
+      75,
+      90
+    ],
+    "mirrorAcrossAppXmm": 55
+  },
+  "printedPage507EmbeddedCOMmm": [
+    -53.2,
+    -0.27,
+    -15.54
+  ],
+  "printedPage507BoldCOMmm": [
+    -53.3,
+    -0.27,
+    -15.54
+  ]
+}

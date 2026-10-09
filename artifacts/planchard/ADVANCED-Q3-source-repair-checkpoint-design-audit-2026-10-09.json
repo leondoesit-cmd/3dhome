@@ -1,0 +1,98 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q3-source-repair-checkpoint-browser-2026-10-09.mforge",
+  "geometryValid": true,
+  "stepEquivalent": true,
+  "sourceComplete": false,
+  "checks": {
+    "forkV6": true,
+    "closedSlotU27point5": true,
+    "closedSlotR5": true,
+    "mirror3": true,
+    "frameOrigin110030": true,
+    "identityFrame": true,
+    "allSketchesStoredFullyDefined": true,
+    "lowerChamferRefsRefreshed": true,
+    "materialDensity27": true
+  },
+  "remainingSourceDifferences": {
+    "rearRelief": {
+      "actualCentreAppMm": [
+        45,
+        52
+      ],
+      "sourceCentreAppMm": [
+        55,
+        52
+      ],
+      "fixedConstraint": 2056,
+      "point": 2055,
+      "sourceCircleAttributes": [
+        454,
+        248,
+        457,
+        458
+      ],
+      "sourceCylinderAttributes": [
+        597,
+        602
+      ]
+    },
+    "upperLipChamfer": {
+      "sourcePlaneAttribute": 8,
+      "sourceNormal": [
+        0,
+        -0.7071067811865476,
+        0.7071067811865476
+      ],
+      "sourceBoundedLineAttributes": [
+        321,
+        41,
+        9
+      ],
+      "appBevelWitnessMm": [
+        [
+          5,
+          12,
+          45
+        ],
+        [
+          0,
+          12,
+          45
+        ],
+        [
+          5,
+          17,
+          50
+        ]
+      ],
+      "appUnchamferedEdgeMm": [
+        [
+          0,
+          12,
+          50
+        ],
+        [
+          5,
+          12,
+          50
+        ]
+      ],
+      "volumeRemovalMm3": 62.5,
+      "planeOriginWarning": "X110.001 is arbitrary in-plane parametrization, not bounded face location; Nx=0."
+    }
+  },
+  "nativeVolumeMm3": 49763.63378178711,
+  "nativeMassG": 134.3618112108252,
+  "nativeComMm": {
+    "x": 57.183729599889865,
+    "y": -0.2490230801997248,
+    "z": 14.506943987855308
+  },
+  "namedFrameComMm": {
+    "x": -52.816270400110135,
+    "y": -0.2490230801997248,
+    "z": -15.493056012144692
+  },
+  "scope": "Read-only actualcheckpoint/sourceanalytic diagnosis; no model changes or answerfitting."
+}

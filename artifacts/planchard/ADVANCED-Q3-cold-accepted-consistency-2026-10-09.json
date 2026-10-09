@@ -1,0 +1,35 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q3-cold-accepted-browser-2026-10-09.mforge",
+  "checks": {
+    "featuresUnchanged": true,
+    "sketchesUnchanged": true,
+    "historyUnchanged": true,
+    "engineeringMaterialsUnchanged": true,
+    "parametersUnchanged": true,
+    "localFrameUnchanged": true,
+    "referencesUnchanged": true,
+    "referenceGeometryUnchanged": true,
+    "nominalR5": true,
+    "materialAndProvenance": true
+  },
+  "pass": true,
+  "changedModelKeys": [
+    "parts",
+    "lastRebuild",
+    "exactTopologyCache",
+    "lastStandardsAudit",
+    "customProperties"
+  ],
+  "partChangedKeys": [
+    "exactBuildToken",
+    "meshData"
+  ],
+  "parentObservedDurability": {
+    "freshPageAndLibraryReopen22Steps1Native": true,
+    "sourceVolumeAndNamedComRetained": true,
+    "dimensionEnterUndo5Redo5point2Undo5": true,
+    "finishCleanSave": true
+  },
+  "nativeAuditReused": "ADVANCED-Q3-final-source-native-audit-2026-10-09.json",
+  "scope": "Read-only fast equality, caches ignored; actualparentobserved UndoDimension roundtripdistinct frompriorFinishonlyUndo."
+}

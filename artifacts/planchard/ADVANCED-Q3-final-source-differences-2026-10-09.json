@@ -1,0 +1,408 @@
+{
+  "scope": "read-only source producer/candidate comparisons; no authored model or geometry mutation",
+  "sourceSketch7Loci": [
+    {
+      "offset": 96897,
+      "owner": "Sketch7",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": 20.39607805437115,
+      "y_mm": 30.000000000000007
+    },
+    {
+      "offset": 97059,
+      "owner": "Sketch7",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": 0.0,
+      "y_mm": 52.0
+    },
+    {
+      "offset": 97201,
+      "owner": "Sketch7",
+      "coordOffset": 66,
+      "kind": 1,
+      "x_mm": -20.39607805437115,
+      "y_mm": 30.000000000000007
+    },
+    {
+      "offset": 97363,
+      "owner": "Sketch7",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 0.0,
+      "y_mm": 0.0
+    },
+    {
+      "offset": 97505,
+      "owner": "Sketch7",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": -45.0,
+      "y_mm": 30.0
+    },
+    {
+      "offset": 97647,
+      "owner": "Sketch7",
+      "coordOffset": 66,
+      "kind": 0,
+      "x_mm": 45.0,
+      "y_mm": 30.0
+    }
+  ],
+  "sourceR30RearCircles": [
+    {
+      "section": "section-0.bin",
+      "offset": 13851,
+      "kind": "circle",
+      "attr": 454,
+      "ordinal": 1467,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        -0.052,
+        -0.045000000000000005,
+        0,
+        0,
+        -1,
+        -1,
+        0,
+        0,
+        0.03
+      ],
+      "originMm": [
+        0,
+        -52,
+        -45.00000000000001
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "radiusMm": 30
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 13950,
+      "kind": "circle",
+      "attr": 248,
+      "ordinal": 1469,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        -0.052,
+        -0.05,
+        0,
+        0,
+        -1,
+        -1,
+        0,
+        0,
+        0.03
+      ],
+      "originMm": [
+        0,
+        -52,
+        -50
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "radiusMm": 30
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 14215,
+      "kind": "circle",
+      "attr": 457,
+      "ordinal": 1377,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.052,
+        -0.05,
+        0,
+        0,
+        1,
+        -1,
+        0,
+        0,
+        0.03
+      ],
+      "originMm": [
+        0,
+        52,
+        -50
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "radiusMm": 30
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 14346,
+      "kind": "circle",
+      "attr": 458,
+      "ordinal": 1375,
+      "marker": 43,
+      "valuesMetres": [
+        0,
+        0.052,
+        -0.045000000000000005,
+        0,
+        0,
+        1,
+        -1,
+        0,
+        0,
+        0.03
+      ],
+      "originMm": [
+        0,
+        52,
+        -45.00000000000001
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "radiusMm": 30
+    }
+  ],
+  "source45DegreePlanes": [
+    {
+      "section": "section-0.bin",
+      "offset": 1531,
+      "kind": "plane",
+      "attr": 8,
+      "ordinal": 976,
+      "marker": 43,
+      "valuesMetres": [
+        0.05500100000000001,
+        0.012,
+        -0.0049999999999999906,
+        0,
+        -0.7071067811865465,
+        0.7071067811865485,
+        0,
+        -0.7071067811865486,
+        -0.7071067811865466
+      ],
+      "originMm": [
+        55.001000000000005,
+        12,
+        -4.99999999999999
+      ],
+      "axis": [
+        0,
+        -0.7071067811865465,
+        0.7071067811865485
+      ]
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 21627,
+      "kind": "plane",
+      "attr": 40,
+      "ordinal": 955,
+      "marker": 43,
+      "valuesMetres": [
+        -0.05000000000000001,
+        -0.005000000000000018,
+        0,
+        0,
+        0.7071067811865486,
+        0.7071067811865465,
+        0,
+        -0.7071067811865465,
+        0.7071067811865486
+      ],
+      "originMm": [
+        -50.00000000000001,
+        -5.000000000000019,
+        0
+      ],
+      "axis": [
+        0,
+        0.7071067811865486,
+        0.7071067811865465
+      ]
+    }
+  ],
+  "sourceChamferNameOffset": 78726,
+  "sourceRepeatedSelectionRecords": [
+    {
+      "absoluteOffset": 79404,
+      "next128BytesHex": "9b822d80020000000000006b0000006b00000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000000000000000000000000003b0500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "absoluteOffset": 79548,
+      "next128BytesHex": "9b822d80020000000000006b0000006b00000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff0000000000000000000000000000000000320500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "sourceRepeatedSelectionSchemaStatus": "two repeated records observed; external entity IDs/live ownership schema not fully decoded",
+  "protectedReliefSketch": {
+    "id": "sk_5i9v0",
+    "name": "Front Plane sketch",
+    "plane": "front",
+    "offset": 0,
+    "referenceId": "plane:front",
+    "points": [
+      {
+        "id": 2055,
+        "x": 4.5,
+        "y": 5.2,
+        "fixed": false
+      }
+    ],
+    "entities": [
+      {
+        "id": 2054,
+        "type": "circle",
+        "name": "Circle",
+        "c": 2055,
+        "r": 3,
+        "construction": false
+      }
+    ],
+    "constraints": [
+      {
+        "id": 2056,
+        "type": "fixed",
+        "point": 2055,
+        "x": 4.5,
+        "y": 5.2,
+        "exprError": null
+      },
+      {
+        "id": "dim_2tb2ist",
+        "type": "diameter",
+        "entity": 2054,
+        "value": 6,
+        "driven": false,
+        "exprError": null
+      }
+    ],
+    "diagnostics": [],
+    "status": "fully-defined"
+  },
+  "protectedChamfer": {
+    "id": "feature_muns8k28_9",
+    "type": "chamfer",
+    "name": "Chamfer 1",
+    "params": {
+      "mode": "equal-distance",
+      "distance": 0.5,
+      "secondDistance": 1,
+      "angle": 45,
+      "flip": false
+    },
+    "references": {
+      "sketches": [],
+      "features": [
+        "feature_munroz1d_7"
+      ],
+      "topology": [
+        {
+          "type": "topology-reference",
+          "ownerFeatureId": "feature_munqvvyf_4",
+          "kind": "edge",
+          "persistentId": "feature_munqvvyf_4:tool:edge:generated:line:4",
+          "descriptor": {
+            "curve": "line",
+            "origin": {
+              "x": 0.25,
+              "y": 0,
+              "z": 5
+            },
+            "axis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "measure": 0.5,
+            "bounds": {
+              "min": {
+                "x": -1.5e-07,
+                "y": -1.5e-07,
+                "z": 4.99999985
+              },
+              "max": {
+                "x": 0.50000015,
+                "y": 1.5e-07,
+                "z": 5.00000015
+              }
+            },
+            "endpoints": [
+              {
+                "x": 0,
+                "y": 0,
+                "z": 5
+              },
+              {
+                "x": 0.5,
+                "y": 0,
+                "z": 5
+              }
+            ]
+          },
+          "signature": "line:0.25:0:5:1:0:0:0.5:"
+        }
+      ],
+      "references": []
+    },
+    "inputs": [
+      "feature_munroz1d_7"
+    ],
+    "suppressed": false,
+    "state": "rebuilt",
+    "diagnostics": []
+  },
+  "sourcePhysicalToAppTranslationMm": [
+    55,
+    0,
+    50
+  ],
+  "confirmedReliefCorrection": {
+    "sourceCentre": [
+      0,
+      52,
+      -50
+    ],
+    "appCentreUv": [
+      55,
+      52
+    ],
+    "currentAppCentreUv": [
+      45,
+      52
+    ],
+    "radiusMm": 30,
+    "existingTopMirrorFollows": true
+  },
+  "sourceGeometrySupportedChamferScope": {
+    "existingLowerMouthApp": [
+      2.5,
+      0,
+      50
+    ],
+    "additionalUpperMouthApp": [
+      2.5,
+      12,
+      50
+    ],
+    "distanceMm": 5,
+    "angleDegrees": 45,
+    "eachWallWidthMm": 5,
+    "eachRemovedTriangularPrismVolumeMm3": 62.5,
+    "qualification": "second source plane and two repeated selection records corroborate upper-mouth scope; complete live FACE ownership not decoded"
+  },
+  "acceptance": "actual browser and native verification pending; volume/COM are validation outputs, not geometry inputs"
+}

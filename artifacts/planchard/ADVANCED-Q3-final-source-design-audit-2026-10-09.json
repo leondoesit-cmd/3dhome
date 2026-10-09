@@ -1,0 +1,38 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q3-final-source-browser-2026-10-09.mforge",
+  "checks": {
+    "fourteenFeatures": true,
+    "eightSketches": true,
+    "twentytwoHistory": true,
+    "allActive": true,
+    "fullyDefined": true,
+    "otherFeaturesExact": true,
+    "otherSixSketchesExact": true,
+    "closedSlotConstraintsExact": true,
+    "closedSlotRadius5": true,
+    "closedSlotCentreSource": true,
+    "reliefSource55": true,
+    "twoSourceLipEdges": true,
+    "chamfer5": true,
+    "frameExact": true,
+    "material27": true,
+    "nativeValidSingle": true,
+    "stepEquivalent": true
+  },
+  "pass": true,
+  "volumeMm3": 49701.13378178714,
+  "massG": 134.1930612108253,
+  "worldComMm": {
+    "x": 56.80157560851424,
+    "y": -0.26652229084142653,
+    "z": 14.464406742258957
+  },
+  "namedFrameComMm": {
+    "x": -53.19842439148576,
+    "y": -0.26652229084142653,
+    "z": -15.535593257741043
+  },
+  "inputUnchanged": true,
+  "sourceScope": "Measured sourceanalytic/loci-supportedgeometry reconstruction; no complete originalBrep Boolean equivalence claim.",
+  "durabilityScope": "ParentR5.2 edit wasexplicitlyrestoredR5 throughUI; firstUndo onlyundidFinish andmustnotbeclaimeddrivingUndoPASS. Cold pending."
+}
