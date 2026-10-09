@@ -126,7 +126,10 @@ async function changeKeyedStore(storeName, memoryRef, change) {
     };
   }));
   memoryRef.list=clone(outcome.records);
-  return clone(outcome);
+  // apply() owns a detached transaction snapshot; the internal cache above
+  // owns another copy. Returning this result cannot mutate either the caller's
+  // input or the cache, so avoid a third copy of the entire saved library.
+  return outcome;
 }
 
 export async function putModelLibraryRecord(model, options={}) {
