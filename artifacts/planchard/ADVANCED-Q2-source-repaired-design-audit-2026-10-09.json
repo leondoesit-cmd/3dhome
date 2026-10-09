@@ -1,0 +1,205 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q2-source-repaired-browser-2026-10-09.mforge",
+  "baseline": "artifacts/planchard/ADVANCED-Q2-source-thin-guide-clean-undo-browser-2026-10-09.mforge",
+  "counts": {
+    "history": 26,
+    "features": 14,
+    "activeFeatures": 12,
+    "sketches": 12
+  },
+  "checks": [
+    {
+      "label": "preserved feature feature_munn5zyr_1",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munnngt6_2",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munntw7s_3",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munokf29_1",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munoreox_2",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munovvba_3",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munozs9a_4",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munpbunl_5",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munpm43o_6",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munpqdl8_7",
+      "pass": true
+    },
+    {
+      "label": "preserved feature feature_munpra9z_8",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_0vwbi",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_14jtw",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_2ek0l",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_34s5n",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_2q4zq",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_37js7",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_4fd13",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_59new",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_6pm2o",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_7bg09",
+      "pass": true
+    },
+    {
+      "label": "preserved sketch sk_18pq9",
+      "pass": true
+    },
+    {
+      "label": "all twelve sketches fully defined",
+      "pass": true
+    },
+    {
+      "label": "canonical terminating owner with generated persistent face address",
+      "pass": true
+    },
+    {
+      "label": "one outward .38in Up To Face Thin guide",
+      "pass": true
+    },
+    {
+      "label": "Mirror2 seeds only Thin about FrontZ0",
+      "pass": true
+    },
+    {
+      "label": "final heel through both Z directions",
+      "pass": true
+    },
+    {
+      "label": "final heel rectangle source X1.7..2.7,Y0...125",
+      "pass": true
+    },
+    {
+      "label": "pad .5...625 height and retained hole profile",
+      "pass": true
+    },
+    {
+      "label": "two native outward support walls present",
+      "pass": true
+    },
+    {
+      "label": "pad blind inner recess has solid base floor",
+      "pass": true
+    },
+    {
+      "label": "pad annular band remains above base",
+      "pass": true
+    },
+    {
+      "label": "final heel clears support reintroduced material on both sides",
+      "pass": true
+    },
+    {
+      "label": "first source groove void above .115 floor",
+      "pass": true
+    },
+    {
+      "label": "second source groove void above .115 floor",
+      "pass": true
+    },
+    {
+      "label": "printed explicit density unchanged",
+      "pass": true
+    }
+  ],
+  "pass": true,
+  "material": {
+    "materialName": "Aluminum 6061",
+    "density": 2.684950756889703,
+    "densitySource": "Planchard SOLIDWORKS 2021 Advanced Question 2: 0.097 lb/in^3",
+    "materialCatalogId": "stock:aluminum"
+  },
+  "props": {
+    "volumeCm3": 210.449177767357,
+    "volumeIn3": 12.842396769022018,
+    "massG": 565.0456791332809,
+    "massLb": 1.245712486595136,
+    "comMm": {
+      "x": 43.08989939557926,
+      "y": 25.31995701058165,
+      "z": 2.2354898777745816e-15
+    },
+    "comInches": {
+      "x": 1.6964527321094196,
+      "y": 0.9968487012040019,
+      "z": 8.80114125108103e-17
+    }
+  },
+  "sourceAcceptance": "NOT ACCEPTED: unresolved independent source geometry/output mismatch",
+  "sourceComparison": {
+    "printedVolumeIn3": 14.05,
+    "printedComInches": {
+      "x": 1.59,
+      "y": 1.19,
+      "z": 0
+    },
+    "companionCachedVolumeMm3": 230000,
+    "companionCachedComMm": {
+      "x": 40.375,
+      "y": 30.274,
+      "z": 0
+    },
+    "volumeResidualToRoundedCacheMm3": -19550.822232642997,
+    "comResidualToCacheMm": {
+      "x": 2.714899395579259,
+      "y": -4.954042989418351,
+      "z": 2.2354898777745816e-15
+    }
+  },
+  "limitations": [
+    "No complete live source BREP equality claim",
+    "Source backing profile still under independent inspection",
+    "No mass fitting or input mutations"
+  ]
+}

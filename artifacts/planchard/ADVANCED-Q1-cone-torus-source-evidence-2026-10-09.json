@@ -1,0 +1,206 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\scratch\\planchard\\official-advanced-q1-partition-inspection\\section-0.bin",
+  "scope": "Read-only validated compact surface-vector candidates. No complete FACE/BODY binding or opaque selected-edge schema is decoded.",
+  "records": [
+    {
+      "offset": 1483,
+      "kind": "torus",
+      "attr": 8,
+      "originMm": [
+        0.0,
+        0.0,
+        12.700000000000003
+      ],
+      "axis": [
+        -0.0,
+        -0.0,
+        -1.0
+      ],
+      "radiusMm": 16.51,
+      "values": [
+        0.0,
+        0.0,
+        0.012700000000000003,
+        -0.0,
+        -0.0,
+        -1.0,
+        0.01651,
+        0.00254,
+        -1.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "offset": 26369,
+      "kind": "cone",
+      "attr": 541,
+      "originMm": [
+        0.0,
+        0.0,
+        63.5
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "radiusMm": 16.509999999999998,
+      "values": [
+        0.0,
+        0.0,
+        0.0635,
+        0.0,
+        0.0,
+        1.0,
+        0.016509999999999997,
+        0.7071067811865518,
+        0.7071067811865431,
+        1.0,
+        0.0,
+        -0.0
+      ]
+    },
+    {
+      "offset": 26485,
+      "kind": "torus",
+      "attr": 603,
+      "originMm": [
+        25.4,
+        0.0,
+        7.62
+      ],
+      "axis": [
+        -0.0,
+        -0.0,
+        -1.0
+      ],
+      "radiusMm": 10.16000000000001,
+      "values": [
+        0.0254,
+        0.0,
+        0.00762,
+        -0.0,
+        -0.0,
+        -1.0,
+        0.010160000000000011,
+        0.00254,
+        -1.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "offset": 26790,
+      "kind": "torus",
+      "attr": 580,
+      "originMm": [
+        4.3034491644765655e-17,
+        25.40000000000005,
+        7.62
+      ],
+      "axis": [
+        -0.0,
+        -0.0,
+        -1.0
+      ],
+      "radiusMm": 10.159999999999993,
+      "values": [
+        4.3034491644765655e-20,
+        0.025400000000000048,
+        0.00762,
+        -0.0,
+        -0.0,
+        -1.0,
+        0.010159999999999994,
+        0.00254,
+        -1.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "offset": 26897,
+      "kind": "torus",
+      "attr": 572,
+      "originMm": [
+        4.3034491644765655e-17,
+        -25.40000000000005,
+        7.62
+      ],
+      "axis": [
+        -0.0,
+        -0.0,
+        -1.0
+      ],
+      "radiusMm": 10.159999999999993,
+      "values": [
+        4.3034491644765655e-20,
+        -0.025400000000000048,
+        0.00762,
+        -0.0,
+        -0.0,
+        -1.0,
+        0.010159999999999994,
+        0.00254,
+        -1.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "offset": 27202,
+      "kind": "torus",
+      "attr": 40,
+      "originMm": [
+        -25.4,
+        0.0,
+        7.62
+      ],
+      "axis": [
+        -0.0,
+        -0.0,
+        -1.0
+      ],
+      "radiusMm": 10.16000000000001,
+      "values": [
+        -0.0254,
+        0.0,
+        0.00762,
+        -0.0,
+        -0.0,
+        -1.0,
+        0.010160000000000011,
+        0.00254,
+        -1.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "cut2": {
+    "nameOffset": 75770,
+    "depthOffset": 77361,
+    "depthMetres": 0.00254,
+    "wallDimensionEndpointsMetres": [
+      [
+        0.01905,
+        0.0,
+        0.06604
+      ],
+      [
+        0.01905,
+        0.0,
+        0.0635
+      ]
+    ]
+  },
+  "chamfer": {
+    "nameOffset": 78517,
+    "distanceOffset": 80080,
+    "distanceMetres": 0.00254,
+    "angleOffset": 81705,
+    "angleRadians": 0.78539816339745,
+    "scope": "Producer76 occurs in source selection wrappers; exact input-edge station is not independently decoded."
+  }
+}

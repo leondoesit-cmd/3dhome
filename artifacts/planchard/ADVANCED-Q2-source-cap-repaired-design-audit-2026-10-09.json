@@ -1,0 +1,224 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q2-source-cap-repaired-browser-2026-10-09.mforge",
+  "baseline": "artifacts/planchard/ADVANCED-Q2-source-repaired-browser-2026-10-09.mforge",
+  "checks": [
+    {
+      "label": "feature preserved feature_munn5zyr_1",
+      "pass": true
+    },
+    {
+      "label": "Boss2 preserves all parameters except refreshed contour IDs",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_munntw7s_3",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_munokf29_1",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_munoreox_2",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_munovvba_3",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_munozs9a_4",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_munpbunl_5",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_munpm43o_6",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_munpqdl8_7",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_munpra9z_8",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_mv0behi8_1",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_mv0bf66o_2",
+      "pass": true
+    },
+    {
+      "label": "feature preserved feature_mv0bgral_3",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_0vwbi",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_2ek0l",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_34s5n",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_2q4zq",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_37js7",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_4fd13",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_59new",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_6pm2o",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_7bg09",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_18pq9",
+      "pass": true
+    },
+    {
+      "label": "sketch preserved sk_1bzle",
+      "pass": true
+    },
+    {
+      "label": "history identities and suppression preserved",
+      "pass": true
+    },
+    {
+      "label": "twelve fully defined sketches",
+      "pass": true
+    },
+    {
+      "label": "backing is three lines plus true analytic arc",
+      "pass": true
+    },
+    {
+      "label": "source cap centre and radius",
+      "pass": true
+    },
+    {
+      "label": "outward cap reaches U−4.25 at V0",
+      "pass": true
+    },
+    {
+      "label": "new cap diameter endpoints",
+      "pass": true
+    },
+    {
+      "label": "retained three original source edges",
+      "pass": true
+    },
+    {
+      "label": "native cap gain equals source semicircle minus existing half bore",
+      "pass": true
+    },
+    {
+      "label": "printed material convention preserved",
+      "pass": true
+    },
+    {
+      "label": "native both outward support walls",
+      "pass": true
+    },
+    {
+      "label": "native pad blind floor and annular band",
+      "pass": true
+    },
+    {
+      "label": "native heel clears both support sides",
+      "pass": true
+    }
+  ],
+  "pass": true,
+  "counts": {
+    "history": 26,
+    "features": 14,
+    "activeFeatures": 12,
+    "sketches": 12
+  },
+  "arc": {
+    "type": "arc",
+    "center": {
+      "u": -6.349999999999994,
+      "v": -3.197035378035802e-27
+    },
+    "radius": 4.445,
+    "mid": {
+      "u": -10.794999999999995,
+      "v": 5.443555022178014e-16
+    },
+    "from": {
+      "u": -6.35,
+      "v": -4.445
+    },
+    "to": {
+      "u": -6.35,
+      "v": 4.445
+    }
+  },
+  "capVolumeProof": {
+    "nativeGainCm3": 19.842490700762056,
+    "analyticSourceGainCm3": 19.842490700762074,
+    "basis": "upper backing semicircle R1.75 extruded .26 minus already existing half Ø.625 through-bore"
+  },
+  "material": {
+    "materialName": "Aluminum 6061",
+    "density": 2.684950756889703,
+    "densitySource": "Planchard SOLIDWORKS 2021 Advanced Question 2: 0.097 lb/in^3",
+    "materialCatalogId": "stock:aluminum"
+  },
+  "props": {
+    "volumeCm3": 230.29166846811907,
+    "volumeIn3": 14.053259843747426,
+    "massG": 618.3217895588689,
+    "massLb": 1.3631662048435005,
+    "comMm": {
+      "x": 40.37515297694489,
+      "y": 30.274418178632526,
+      "z": -1.6683476133333574e-15
+    },
+    "comInches": {
+      "x": 1.5895729518482238,
+      "y": 1.1919062275052177,
+      "z": -6.568297690288808e-17
+    }
+  },
+  "sourceComparison": {
+    "printedVolumeIn3": 14.05,
+    "printedComInches": {
+      "x": 1.59,
+      "y": 1.19,
+      "z": 0
+    },
+    "companionCachedComMm": {
+      "x": 40.375,
+      "y": 30.274,
+      "z": 0
+    },
+    "companionCachedVolumeMm3": 230000,
+    "sourceComRoundedAgreement": true
+  },
+  "scope": "source analytic contour and native STEP consistency; not complete decoded companion BREP equality"
+}

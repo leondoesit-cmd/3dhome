@@ -1,0 +1,147 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q2-thin-up-to-face-failed-browser-2026-10-09.mforge",
+  "compiled": true,
+  "nativeIssues": [],
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 198.2632872289938,
+    "maxToleranceCm": 1.500000036367219e-7
+  },
+  "mass": {
+    "volume": 198.2632872289938,
+    "centerOfMass": {
+      "x": 4.440649680829467,
+      "y": 2.466175506365395,
+      "z": -0.19651490730976084
+    },
+    "inertia": [
+      [
+        2632.390467049534,
+        652.4946501646382,
+        -82.78481844315465
+      ],
+      [
+        652.4946501646382,
+        2826.0154205294916,
+        36.947854142515396
+      ],
+      [
+        -82.78481844315465,
+        36.947854142515396,
+        2910.785588833455
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -8.261796868921085e-16,
+        "y": -4.440892098500626e-16,
+        "z": -4.445
+      },
+      "max": {
+        "x": 10.668000000000001,
+        "y": 10.923544233853011,
+        "z": 4.445000000000001
+      }
+    }
+  },
+  "toolMass": {
+    "volume": 17.734868970389982,
+    "centerOfMass": {
+      "x": 2.4878902021083893,
+      "y": 2.6593738394951765,
+      "z": -3.0226
+    },
+    "inertia": [
+      [
+        64.0897172644535,
+        18.10365021624196,
+        0
+      ],
+      [
+        18.10365021624196,
+        22.28112796180494,
+        0
+      ],
+      [
+        0,
+        0,
+        83.617178605297
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0.9524999999999979,
+        "y": -4.440892098500626e-16,
+        "z": -3.5052000000000008
+      },
+      "max": {
+        "x": 5.558670606325169,
+        "y": 7.978121518485535,
+        "z": -2.54
+      }
+    }
+  },
+  "unchangedInput": true,
+  "guide": {
+    "sketchId": "sk_18pq9",
+    "status": "fully-defined",
+    "plane": "top",
+    "offset": 0,
+    "points": [
+      {
+        "id": 5619,
+        "x": 0.9525,
+        "y": -2.54,
+        "fixed": false
+      },
+      {
+        "id": 5620,
+        "x": 5.588000000000002,
+        "y": -2.54,
+        "fixed": false
+      }
+    ],
+    "thinMode": "reverse",
+    "zWallInches": [
+      -1.3800000000000001,
+      -1
+    ],
+    "startYInches": 0,
+    "exposedStartYInches": 0.5
+  },
+  "termination": {
+    "owner": "feature_munnngt6_2:tool",
+    "persistentId": "feature_munnngt6_2:tool:face:end",
+    "normal": {
+      "x": -0.8660254037844385,
+      "y": -0.5,
+      "z": -6.5556157328276255e-18
+    },
+    "originCm": {
+      "x": 3.383529869379736,
+      "y": 3.7674542700022977,
+      "z": 2.4904609726931543e-17
+    },
+    "exposedFirst": {
+      "x": 0.375,
+      "y": 3.140992723813201
+    },
+    "exposedLast": {
+      "x": 1.8997778600213948,
+      "y": 0.5
+    }
+  },
+  "checks": [
+    "generated topology owner binds without changing address",
+    "actual Top +Y / U+X / V+Z",
+    "Other side extends toward negative Z",
+    "positive native guide present",
+    "behind-target portion absent",
+    "beyond-plane portion absent",
+    "one valid union solid",
+    "authored input unchanged"
+  ]
+}

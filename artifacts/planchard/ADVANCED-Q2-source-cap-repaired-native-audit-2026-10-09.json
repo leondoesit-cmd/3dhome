@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q2-source-cap-repaired-browser-2026-10-09.mforge",
+  "exact": true,
+  "featureCount": 36,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 230.29166846811907,
+    "maxToleranceCm": 1.5000000538544002e-7
+  },
+  "volumeCm3": 230.29166846811907,
+  "boundsCm": {
+    "min": {
+      "x": -0.3814231766592404,
+      "y": 0,
+      "z": -4.445
+    },
+    "max": {
+      "x": 10.668000000000001,
+      "y": 10.923544233853011,
+      "z": 4.445
+    }
+  },
+  "centerOfMassCm": {
+    "x": 4.037515297694489,
+    "y": 3.0274418178632527,
+    "z": -1.6683476133333573e-16
+  },
+  "seconds": 6.8270206
+}

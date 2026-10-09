@@ -1,0 +1,42 @@
+[
+  {
+    "field": "features",
+    "present": true,
+    "exact": true
+  },
+  {
+    "field": "sketches",
+    "present": true,
+    "exact": true
+  },
+  {
+    "field": "history",
+    "present": true,
+    "exact": true
+  },
+  {
+    "field": "references",
+    "present": true,
+    "exact": true
+  },
+  {
+    "field": "localFrame",
+    "present": true,
+    "exact": true
+  },
+  {
+    "field": "engineeringMaterials",
+    "present": true,
+    "exact": true
+  },
+  {
+    "field": "name",
+    "present": true,
+    "exact": true
+  },
+  {
+    "field": "bundle metadata including units",
+    "present": true,
+    "exact": true
+  }
+]
