@@ -1,0 +1,35 @@
+{
+  "inputMutation": false,
+  "inputs": [
+    "artifacts/planchard/BASIC-Q4-fixed-upstream-restored-browser-2026-10-09.mforge",
+    "artifacts/planchard/BASIC-Q4-fixed-cold-accepted-browser-2026-10-09.mforge"
+  ],
+  "sha256": [
+    "f37a9a3b2f7161113e67bb4776a6580b40ffc7de219dfb71e97dff3e8ad033e5",
+    "98960d3d2865f53f4a890e2571e13ec7de7ab87890ecff252e6bf64324f4a0b0"
+  ],
+  "sectionsExact": {
+    "key": true,
+    "name": true,
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "material": true,
+    "localFrame": true,
+    "references": true,
+    "referenceGeometry": true
+  },
+  "authoredCoreExact": true,
+  "historyCount": 11,
+  "sketchCount": 5,
+  "featureCount": 6,
+  "coldDiametersMm": [
+    38,
+    38
+  ],
+  "nativeTopologyStageKeysExact": true,
+  "nativeTopologyCacheExact": true,
+  "nativeRerunRequired": false,
+  "nativeProof": "Reuse unchanged restored native/STEP proof; parent observed full-cold one-solid nominal mass/COM and eleven history/five fully-defined sketches, Enter Finish without edits and clean saved export",
+  "status": "PASS actual final cold authored preservation"
+}

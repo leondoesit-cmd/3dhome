@@ -1,0 +1,24 @@
+{
+  "inputMutation": false,
+  "inputs": [
+    "BASIC-Q4-fixed-canonical-preflight",
+    "BASIC-Q4-fixed-driving-D38p2"
+  ],
+  "featureDefinitionsExact": true,
+  "otherSketchGeometryExact": true,
+  "editedSketchOnlyIntendedRadiusAndDimension": true,
+  "diametersMm": [
+    38.19999999999998,
+    38
+  ],
+  "driverConstraint": {
+    "id": "dim_w9wwnjl",
+    "type": "diameter",
+    "entity": 1543,
+    "value": 3.8200000000000003,
+    "driven": false,
+    "exprError": null
+  },
+  "historyExact": true,
+  "materialExact": true
+}

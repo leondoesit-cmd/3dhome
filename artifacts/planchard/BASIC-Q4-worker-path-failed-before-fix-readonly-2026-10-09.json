@@ -1,0 +1,21 @@
+{
+  "inputMutation": false,
+  "status": "Historical pre-fix reproduction; not accepted",
+  "baselineFreshMm3": 1227619.5416133357,
+  "editedFreshMm3": 1227320.3049131017,
+  "editedReusedUnionMm3": 1227279.3575198946,
+  "extraCornerDifferenceMm3": 40.94739320711233,
+  "expectedDriverRemovalMm3": 299.23670025443244,
+  "featureWhereDivergenceAppears": "Final Fillet1 supported-corner filling only",
+  "prefixBeforeFilletNominalMm3": 1229368.6899233232,
+  "prefixBeforeFilletEditedMm3": 1229069.453223068,
+  "cacheHitOnEdited": [
+    "Extrude / Boss2 union"
+  ],
+  "sourceBundles": [
+    "BASIC-Q4-current-native-preflight-browser-2026-10-09.mforge",
+    "BASIC-Q4-driving-D38p2-browser-2026-10-09.mforge",
+    "BASIC-Q4-upstream-restored-browser-2026-10-09.mforge"
+  ],
+  "cause": "Serialized unchanged union prefix changes shared-surface representation; downstream supported-corner filling differs although Boolean volumes are identical."
+}

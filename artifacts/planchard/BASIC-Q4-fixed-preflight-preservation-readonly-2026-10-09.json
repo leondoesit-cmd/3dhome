@@ -1,0 +1,22 @@
+{
+  "inputMutation": false,
+  "inputs": [
+    "BASIC-Q4-current-native-preflight",
+    "BASIC-Q4-fixed-canonical-preflight"
+  ],
+  "canonicalAuthoredExact": true,
+  "sectionEquality": {
+    "key": true,
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "material": true
+  },
+  "counts": {
+    "history": 11,
+    "sketches": 5,
+    "features": 6
+  },
+  "sha256": "87d14351fcde1a60e6291cbc094603b7852ca605e57cec23083b0db9e384aa61",
+  "status": "Actual fixed cold Chrome preflight metadata/geometry preservation only; native canonical result independently verified by prior worker report"
+}

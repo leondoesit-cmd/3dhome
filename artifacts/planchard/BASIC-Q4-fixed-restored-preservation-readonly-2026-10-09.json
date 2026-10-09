@@ -1,0 +1,32 @@
+{
+  "inputMutation": false,
+  "inputs": [
+    "BASIC-Q4-fixed-canonical-preflight",
+    "BASIC-Q4-fixed-upstream-restored"
+  ],
+  "sections": {
+    "key": true,
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "material": true
+  },
+  "driver": [
+    {
+      "id": "dim_w9wwnjl",
+      "type": "diameter",
+      "entity": 1543,
+      "value": 3.8,
+      "driven": false,
+      "exprError": null
+    },
+    {
+      "id": "dim_rpc7btg",
+      "type": "diameter",
+      "entity": 1545,
+      "value": 3.8,
+      "driven": false,
+      "exprError": null
+    }
+  ]
+}

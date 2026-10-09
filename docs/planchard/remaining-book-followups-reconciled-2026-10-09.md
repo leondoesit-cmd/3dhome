@@ -87,6 +87,8 @@ The following table describes the state of the earlier audit, not the current qu
 
 ## Finite current follow-up queue
 
+Latest BasicQ4 override: finite driving/native STEP/cold verification now passes, with generic cache-path repair **f1e0488**. Actual final `BASIC-Q4-fixed-cold-accepted-browser-2026-10-09.mforge` preserves nominal source definitions exactly; current STEP has zero bidirectional native residual. Report `basic-q4-fixed-upstream-native-step-audit-2026-10-09.md`. Acceptance checkpoint commit is parent-owned; preserve the supported-corner/printed-rounding qualification and historical failed path. Item1 below is superseded by this completed finite proof, not a reason to repeat the edit.
+
 1. **Basic Q4, PDF499 /10-19 — active parent leg.** Exercise existing Cut2 Ø38→38.2 mm dimension, Undo/Redo/Undo, saved cold nominal reopen and contemporaneous exports. Read-only plan `basic-q4-upstream-basic-q6-fresh-step-browser-plan-2026-10-09.md` records exact library/driver and geometric delta. Preserve the documented warm/cold native path difference; no source answer fitting.
 2. **Basic Q6, PDF501–502 /10-21–22.** Capture fresh native STEP from the original accepted Q6 record and independently compare with its contemporaneous actual bundle. Q6A/Q6B and AdvancedQ6 exports do not substitute. Geometry/cold checks are already established.
 3. **Basic Q6B, PDF503 /10-23.** Complete final independent audit/acceptance checkpoint for the source-led browser wall/hole/body translation/reference-frame repair and completed driving/cold proof. Do not repeat completed core fix fda1c33 or author another alternative geometry.
