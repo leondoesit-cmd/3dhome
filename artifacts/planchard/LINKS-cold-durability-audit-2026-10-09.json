@@ -1,0 +1,52 @@
+{
+  "scope": "Read-only final vs second-cold actual exports; actual browser facts attributed to parent. Original obsolete selectors persist and resolve by geometric rebinding; no opaque original-selector recovery claim.",
+  "inputs": [
+    {
+      "path": "artifacts\\planchard\\LINKS-final-config-material-bom-browser-2026-10-09.mforge",
+      "sha256": "c6d8f5129dadbde8cf3cd50df4e15c3adfcfa4f3e580070bdb5a22eaa1ed73f9"
+    },
+    {
+      "path": "artifacts\\planchard\\LINKS-cold-final-config-material-bom-browser-2026-10-09.mforge",
+      "sha256": "5800279f3a3dd8629022d1d54d8ea8182e91fd68154ab188b5dbeabdef261e71"
+    }
+  ],
+  "checks": {
+    "assemblyExactAcrossSecondCold": true,
+    "allParentProofScreensProtected": true,
+    "coldNativePropertyAuditPass": true
+  },
+  "pass": true,
+  "drawingSettings": {
+    "size": "Letter",
+    "units": "in",
+    "scale": [
+      1,
+      1
+    ],
+    "projection": "third",
+    "bomScope": "partsOnly",
+    "orientation": "landscape",
+    "draftingStandard": "ANSI",
+    "notes": "",
+    "title": "LINK",
+    "number": "56-7789",
+    "revision": "A",
+    "author": "ModelForge",
+    "company": "D&M ENGINEERING",
+    "date": "2026-09-30",
+    "material": "",
+    "finish": "",
+    "mass": ""
+  },
+  "parentReportedBrowserFacts": {
+    "cold": "Full reload, blank app, old Oct3 backup dismissed, exact canonical saved LINKS reopened clean,4occurrences8mates0unresolved.",
+    "drawing": "Actual saved ANSI A/in/1:1/thirdangle; LINK/56-7789/A/ModelForge/D&M ENGINEERING/2026-09-30 read in form; cold Preview4correctqty1rows and4balloons.",
+    "clearance": "Actual cold Check interference: No interference detected.",
+    "wholeSheet": "Actual Chrome exported-SVG whole-sheet proof includes all borders/title/BOM/4balloons without overlap.",
+    "screenshots": [
+      "artifacts\\planchard\\LINKS-cold-config-bom-preview-browser-2026-10-09.jpg",
+      "artifacts\\planchard\\LINKS-cold-final-clearance-browser-2026-10-09.jpg",
+      "artifacts\\planchard\\LINKS-final-config-material-bom-full-sheet-browser-2026-10-09.jpg"
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "scope": "Read-only actual directly saved shared library source. Native geometry validations reused because each snapshot exactly matches already independently regenerated actual occurrence geometry. Assembly refresh/cold/BOM pending.",
+  "input": "artifacts\\planchard\\LINKS-shared-config-material-library-browser-2026-10-09.mforge",
+  "sha256": "aff1948c6e080973464339d44b8c0b1041fba31396ac1bfc365a0cf7d892aa77",
+  "checks": {
+    "canonicalLibraryKey": true,
+    "active5HOLES": true,
+    "allThreeConfigMaterialsCorrect": true,
+    "allConfigGeometryPreserved": true,
+    "current5BodyMaterial": true,
+    "inputUnchanged": true
+  },
+  "pass": true,
+  "configurations": [
+    {
+      "id": "cfg_default",
+      "name": "3HOLES",
+      "snapshotSketchesMatchActualAcceptedOccurrence": true,
+      "snapshotFeatureParametersMatchActualOccurrence": true,
+      "materialCatalog": "stock:aluminum1060",
+      "density": 2.698790709244804,
+      "source": "Hydro Alloy 1xxx, revision 2019/01, p. 1: 0.0975 lb/in\u00b3 (nominal)",
+      "materialCorrect": true,
+      "customProperties": {}
+    },
+    {
+      "id": "cfg_munn10soll2",
+      "name": "5HOLES",
+      "snapshotSketchesMatchActualAcceptedOccurrence": true,
+      "snapshotFeatureParametersMatchActualOccurrence": true,
+      "materialCatalog": "stock:aluminum2014",
+      "density": 2.8,
+      "source": "Worthwill Aluminum, Density of Aluminum, p. 1: 2014, 2.8 g/cm\u00b3",
+      "materialCorrect": true,
+      "customProperties": {
+        "Description": "Named configurations; Aluminum 1060, .060 in stock, \u00d8.190 in holes"
+      }
+    },
+    {
+      "id": "cfg_munn74nyj4h",
+      "name": "7HOLES",
+      "snapshotSketchesMatchActualAcceptedOccurrence": true,
+      "snapshotFeatureParametersMatchActualOccurrence": true,
+      "materialCatalog": "stock:aluminum2014",
+      "density": 2.8,
+      "source": "Worthwill Aluminum, Density of Aluminum, p. 1: 2014, 2.8 g/cm\u00b3",
+      "materialCorrect": true,
+      "customProperties": {
+        "Description": "Named configurations; Aluminum 1060, .060 in stock, \u00d8.190 in holes"
+      }
+    }
+  ],
+  "qualification": "Snapshot Description for5/7 still says historical Aluminum1060; numeric/material catalog values are correct. Actual assembly occurrence Description overrides7HOLES/5HOLES/3HOLES remain separately authoritative for BOM."
+}

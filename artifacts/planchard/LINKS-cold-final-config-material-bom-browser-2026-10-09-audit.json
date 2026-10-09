@@ -1,0 +1,487 @@
+{
+  "scope": "Read-only actual LINKS repair. Native validation reused only when identical authored geometry definitions proven. Explicit material mismatch prevents full acceptance.",
+  "input": "artifacts/planchard/LINKS-cold-final-config-material-bom-browser-2026-10-09.mforge",
+  "checks": {
+    "allGeometryPreserved": true,
+    "posesPreservedWithin1e8": true,
+    "mateIdsPreserved": true,
+    "solverAllEightAccepted": true,
+    "fourDistinctBomRows": true,
+    "first7Al2014": true,
+    "second5Al2014": true,
+    "third3Al1060": true,
+    "collarAl1060": true,
+    "inputUnchanged": true
+  },
+  "pass": true,
+  "components": [
+    {
+      "id": 1638,
+      "configurationId": "cfg_munn74nyj4h",
+      "activeConfiguration": "cfg_munn74nyj4h",
+      "configurationName": "7HOLES",
+      "properties": {
+        "PartNo": "GIDS-SC-10009-7",
+        "Description": "7HOLES"
+      },
+      "material": [
+        {
+          "density": 2.8,
+          "name": "Aluminum 2014",
+          "catalog": "stock:aluminum2014"
+        }
+      ],
+      "selectedConfigMaterials": [
+        {
+          "id": 1825,
+          "values": {
+            "color": "#b7c7cf",
+            "metal": 0.72,
+            "rough": 0.32,
+            "density": 2.8,
+            "materialName": "Aluminum 2014",
+            "materialCatalogId": "stock:aluminum2014",
+            "densitySource": "Worthwill Aluminum, Density of Aluminum, p. 1: 2014, 2.8 g/cm³"
+          }
+        }
+      ],
+      "geometryPreserved": true,
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0,
+      "nativeVerificationReused": {
+        "validation": {
+          "valid": true,
+          "solidCount": 1,
+          "volumeCm3": 1.4727507600651515,
+          "maxToleranceCm": 1.0000000016653345e-7
+        },
+        "mass": {
+          "volume": 1.4727507600651515,
+          "centerOfMass": {
+            "x": 1.4319250021518868e-13,
+            "y": -7.489131952659723e-17,
+            "z": 0.0762
+          },
+          "inertia": [
+            [
+              0.21770135378858643,
+              -1.3550043235496748e-16,
+              -1.8246515409712746e-17
+            ],
+            [
+              -1.3550043235496748e-16,
+              9.09566425579727,
+              -1.5154420233325226e-18
+            ],
+            [
+              -1.8246515409712746e-17,
+              -1.5154420233325226e-18,
+              9.30766465030368
+            ]
+          ],
+          "solidCount": 1,
+          "bounds": {
+            "min": {
+              "x": -4.44500000000001,
+              "y": -0.6350000000000868,
+              "z": 0
+            },
+            "max": {
+              "x": 4.445000000000086,
+              "y": 0.6350000000000868,
+              "z": 0.1524
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 1639,
+      "configurationId": "cfg_munn10soll2",
+      "activeConfiguration": "cfg_munn10soll2",
+      "configurationName": "5HOLES",
+      "properties": {
+        "PartNo": "GIDS-SC-10009-5",
+        "Description": "5HOLES"
+      },
+      "material": [
+        {
+          "density": 2.8,
+          "name": "Aluminum 2014",
+          "catalog": "stock:aluminum2014"
+        }
+      ],
+      "selectedConfigMaterials": [
+        {
+          "id": 1825,
+          "values": {
+            "color": "#b7c7cf",
+            "metal": 0.72,
+            "rough": 0.32,
+            "density": 2.8,
+            "materialName": "Aluminum 2014",
+            "materialCatalogId": "stock:aluminum2014",
+            "densitySource": "Worthwill Aluminum, Density of Aluminum, p. 1: 2014, 2.8 g/cm³"
+          }
+        }
+      ],
+      "geometryPreserved": true,
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 4.440892098500626e-16,
+      "nativeVerificationReused": {
+        "validation": {
+          "valid": true,
+          "solidCount": 1,
+          "volumeCm3": 1.03689328277107,
+          "maxToleranceCm": 1.000000001110223e-7
+        },
+        "mass": {
+          "volume": 1.03689328277107,
+          "centerOfMass": {
+            "x": 2.184939277040247e-14,
+            "y": -7.927796849009326e-17,
+            "z": 0.07620000000000002
+          },
+          "inertia": [
+            [
+              0.15159260676867042,
+              -1.2242331256278092e-16,
+              2.0330959138452565e-18
+            ],
+            [
+              -1.2242331256278092e-16,
+              3.194087206629299,
+              -2.7590170692096437e-19
+            ],
+            [
+              2.0330959138452565e-18,
+              -2.7590170692096437e-19,
+              3.3416660409760937
+            ]
+          ],
+          "solidCount": 1,
+          "bounds": {
+            "min": {
+              "x": -3.1750000000000025,
+              "y": -0.6350000000000171,
+              "z": 0
+            },
+            "max": {
+              "x": 3.1750000000000167,
+              "y": 0.6350000000000171,
+              "z": 0.1524
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 1640,
+      "configurationId": "cfg_default",
+      "activeConfiguration": "cfg_default",
+      "configurationName": "3HOLES",
+      "properties": {
+        "PartNo": "GIDS-SC-10009-3",
+        "Description": "3HOLES"
+      },
+      "material": [
+        {
+          "density": 2.698790709244804,
+          "name": "Aluminum 1060",
+          "catalog": "stock:aluminum1060"
+        }
+      ],
+      "selectedConfigMaterials": [
+        {
+          "id": 1825,
+          "values": {
+            "color": "#b7c7cf",
+            "metal": 0.72,
+            "rough": 0.32,
+            "density": 2.698790709244804,
+            "materialName": "Aluminum 1060",
+            "materialCatalogId": "stock:aluminum1060",
+            "densitySource": "Hydro Alloy 1xxx, revision 2019/01, p. 1: 0.0975 lb/in³ (nominal)"
+          }
+        }
+      ],
+      "geometryPreserved": true,
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0,
+      "nativeVerificationReused": {
+        "validation": {
+          "valid": true,
+          "solidCount": 1,
+          "volumeCm3": 0.6010358054770926,
+          "maxToleranceCm": 1.000000001241267e-7
+        },
+        "mass": {
+          "volume": 0.6010358054770926,
+          "centerOfMass": {
+            "x": -2.0780806922340746e-16,
+            "y": 3.1331433930169497e-16,
+            "z": 0.07620000000000002
+          },
+          "inertia": [
+            [
+              0.08548385974879259,
+              9.901115158181552e-16,
+              2.359223927328352e-20
+            ],
+            [
+              9.901115158181552e-16,
+              0.6373205090250803,
+              -1.331577142852187e-18
+            ],
+            [
+              2.359223927328352e-20,
+              -1.331577142852187e-18,
+              0.7204777832123036
+            ]
+          ],
+          "solidCount": 1,
+          "bounds": {
+            "min": {
+              "x": -1.9050000000000051,
+              "y": -0.6350000000000046,
+              "z": 0
+            },
+            "max": {
+              "x": 1.9050000000000047,
+              "y": 0.6350000000000051,
+              "z": 0.1524
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 1641,
+      "properties": {
+        "Description": "SHAFT-COLLAR",
+        "PartNo": "GIDS-SC-10012-3-16"
+      },
+      "material": [
+        {
+          "density": 2.698790709244804,
+          "name": "Aluminum 1060",
+          "catalog": "stock:aluminum1060"
+        }
+      ],
+      "geometryPreserved": true,
+      "maxTranslationDeltaCm": 0,
+      "maxRotationMatrixDelta": 0,
+      "nativeVerificationReused": {
+        "validation": {
+          "valid": true,
+          "solidCount": 1,
+          "volumeCm3": 0.5035532250401158,
+          "maxToleranceCm": 1.0000000000000002e-7
+        },
+        "mass": {
+          "volume": 0.5035532250401158,
+          "centerOfMass": {
+            "x": 0,
+            "y": -1.4315687064571834e-17,
+            "z": 0.3175
+          },
+          "inertia": [
+            [
+              0.06304988149827456,
+              4.00666502744444e-18,
+              -2.6020852139652106e-18
+            ],
+            [
+              4.00666502744444e-18,
+              0.06304988149827362,
+              9.739345630153932e-19
+            ],
+            [
+              -2.6020852139652106e-18,
+              9.739345630153932e-19,
+              0.09225888813541473
+            ]
+          ],
+          "solidCount": 1,
+          "bounds": {
+            "min": {
+              "x": -0.55626,
+              "y": -0.55626,
+              "z": 0
+            },
+            "max": {
+              "x": 0.55626,
+              "y": 0.55626,
+              "z": 0.635
+            }
+          }
+        }
+      }
+    }
+  ],
+  "bom": [
+    {
+      "name": "Planchard 9.4 FLATBAR - 3 5 7 HOLES - fresh from zero 2026-09-30",
+      "quantity": 1,
+      "description": "7HOLES",
+      "partNumber": "GIDS-SC-10009-7",
+      "standard": "",
+      "material": "Aluminum 2014",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_munm4oro\",\"cfg_munn74nyj4h\",\"GIDS-SC-10009-7\",\"7HOLES\",\"Aluminum 2014\",\"\",\"\",\"\"]",
+      "item": 1,
+      "depth": 0
+    },
+    {
+      "name": "Planchard FLAT BAR - 5 HOLES (9.4 variant of 9 HOLE) 2026-09-30",
+      "quantity": 1,
+      "description": "5HOLES",
+      "partNumber": "GIDS-SC-10009-5",
+      "standard": "",
+      "material": "Aluminum 2014",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_munm4oro\",\"cfg_munn10soll2\",\"GIDS-SC-10009-5\",\"5HOLES\",\"Aluminum 2014\",\"\",\"\",\"\"]",
+      "item": 2,
+      "depth": 0
+    },
+    {
+      "name": "Planchard FLAT BAR - 3 HOLES (9.4 variant of 9 HOLE) 2026-09-30",
+      "quantity": 1,
+      "description": "3HOLES",
+      "partNumber": "GIDS-SC-10009-3",
+      "standard": "",
+      "material": "Aluminum 1060",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_munm4oro\",\"cfg_default\",\"GIDS-SC-10009-3\",\"3HOLES\",\"Aluminum 1060\",\"\",\"\",\"\"]",
+      "item": 3,
+      "depth": 0
+    },
+    {
+      "name": "Planchard SHAFT COLLAR - rebuilt 2026-09-28",
+      "quantity": 1,
+      "description": "SHAFT-COLLAR",
+      "partNumber": "GIDS-SC-10012-3-16",
+      "standard": "",
+      "material": "Aluminum 1060",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_mukfn3fi\",\"\",\"GIDS-SC-10012-3-16\",\"SHAFT-COLLAR\",\"Aluminum 1060\",\"\",\"\",\"\"]",
+      "item": 4,
+      "depth": 0
+    }
+  ],
+  "coldSolve": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [
+      {
+        "mate": 1642,
+        "from": "feature_mukhptgp_3:copy:6:edge:generated:circle:2",
+        "to": "feature_munmkxj5_3:copy:6:edge:generated:circle:2"
+      },
+      {
+        "mate": 1642,
+        "from": "feature_mukhpbcy_2:tool:edge:generated:circle:2",
+        "to": "feature_munmkxj5_3:edge:generated:circle:2"
+      },
+      {
+        "mate": 1645,
+        "from": "feature_mukhptgp_3:copy:4:edge:generated:circle:2",
+        "to": "feature_munmkxj5_3:copy:5:edge:generated:circle:2"
+      },
+      {
+        "mate": 1645,
+        "from": "feature_mukhpbcy_2:tool:edge:generated:circle:2",
+        "to": "feature_munmevz0_1:edge:generated:circle:1"
+      },
+      {
+        "mate": 1648,
+        "from": "feature_mukhpbcy_2:tool:edge:generated:circle:2",
+        "to": "feature_munmkxj5_3:edge:generated:circle:2"
+      }
+    ],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          1641
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "1641": 1
+        }
+      },
+      {
+        "components": [
+          1639
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "1639": 0
+        }
+      },
+      {
+        "components": [
+          1640
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "1640": 0
+        }
+      }
+    ],
+    "degreesOfFreedom": 1
+  },
+  "referenceChange": [
+    {
+      "mate": 1642,
+      "from": "feature_mukhptgp_3:copy:6:edge:generated:circle:2",
+      "to": "feature_munmkxj5_3:copy:6:edge:generated:circle:2"
+    },
+    {
+      "mate": 1642,
+      "from": "feature_mukhpbcy_2:tool:edge:generated:circle:2",
+      "to": "feature_munmkxj5_3:edge:generated:circle:2"
+    },
+    {
+      "mate": 1645,
+      "from": "feature_mukhptgp_3:copy:4:edge:generated:circle:2",
+      "to": "feature_munmkxj5_3:copy:5:edge:generated:circle:2"
+    },
+    {
+      "mate": 1645,
+      "from": "feature_mukhpbcy_2:tool:edge:generated:circle:2",
+      "to": "feature_munmevz0_1:edge:generated:circle:1"
+    },
+    {
+      "mate": 1648,
+      "from": "feature_mukhpbcy_2:tool:edge:generated:circle:2",
+      "to": "feature_munmkxj5_3:edge:generated:circle:2"
+    }
+  ]
+}

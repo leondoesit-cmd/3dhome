@@ -1,0 +1,141 @@
+{
+  "scope": "Read-only actual exported SVG structure/printed row and leaf balloon audit; whole-sheet browser visual proof remains parent-owned.",
+  "input": "artifacts\\planchard\\LINKS-final-config-material-bom-browser-2026-10-09.svg",
+  "sha256": "ea883807483f469b335b009196121e43a0e16c23f43156d913a0bba023f2c6da",
+  "checks": {
+    "fourCorrectQuantityOneRows": true,
+    "fourLeafBalloons": true,
+    "fourMatchingBalloonCircles": true,
+    "insideSheet": true,
+    "ansiALandscape": true,
+    "inputUnchanged": true
+  },
+  "pass": true,
+  "rows": [
+    {
+      "partNumber": "GIDS-SC-10009-7",
+      "y": "24.2",
+      "texts": [
+        "1",
+        "GIDS-SC-10009-7",
+        "7HOLES",
+        "Aluminum 2014",
+        "1"
+      ],
+      "pass": true
+    },
+    {
+      "partNumber": "GIDS-SC-10009-5",
+      "y": "30.2",
+      "texts": [
+        "2",
+        "GIDS-SC-10009-5",
+        "5HOLES",
+        "Aluminum 2014",
+        "1"
+      ],
+      "pass": true
+    },
+    {
+      "partNumber": "GIDS-SC-10009-3",
+      "y": "36.2",
+      "texts": [
+        "3",
+        "GIDS-SC-10009-3",
+        "3HOLES",
+        "Aluminum 1060",
+        "1"
+      ],
+      "pass": true
+    },
+    {
+      "partNumber": "GIDS-SC-10012-3-16",
+      "y": "42.2",
+      "texts": [
+        "4",
+        "GIDS-SC-10012-3-16",
+        "SHAFT-COLLAR",
+        "Aluminum 1060",
+        "1"
+      ],
+      "pass": true
+    }
+  ],
+  "balloons": [
+    {
+      "text": "1",
+      "x": "138.116",
+      "y": "144.347",
+      "font-size": "2.8",
+      "text-anchor": "middle",
+      "fill": "#101418",
+      "font-weight": "bold"
+    },
+    {
+      "text": "2",
+      "x": "199.539",
+      "y": "103.5",
+      "font-size": "2.8",
+      "text-anchor": "middle",
+      "fill": "#101418",
+      "font-weight": "bold"
+    },
+    {
+      "text": "3",
+      "x": "171.62",
+      "y": "62.653",
+      "font-size": "2.8",
+      "text-anchor": "middle",
+      "fill": "#101418",
+      "font-weight": "bold"
+    },
+    {
+      "text": "4",
+      "x": "87.861",
+      "y": "94.514",
+      "font-size": "2.8",
+      "text-anchor": "middle",
+      "fill": "#101418",
+      "font-weight": "bold"
+    }
+  ],
+  "circles": [
+    {
+      "cx": "138.116",
+      "cy": "143.047",
+      "r": "3.6",
+      "fill": "none",
+      "stroke": "#101418",
+      "stroke-width": "0.25"
+    },
+    {
+      "cx": "199.539",
+      "cy": "102.2",
+      "r": "3.6",
+      "fill": "none",
+      "stroke": "#101418",
+      "stroke-width": "0.25"
+    },
+    {
+      "cx": "171.62",
+      "cy": "61.353",
+      "r": "3.6",
+      "fill": "none",
+      "stroke": "#101418",
+      "stroke-width": "0.25"
+    },
+    {
+      "cx": "87.861",
+      "cy": "93.214",
+      "r": "3.6",
+      "fill": "none",
+      "stroke": "#101418",
+      "stroke-width": "0.25"
+    }
+  ],
+  "schema": {
+    "width": "279.4mm",
+    "height": "215.9mm",
+    "viewBox": "0 0 279.4 215.9"
+  }
+}
