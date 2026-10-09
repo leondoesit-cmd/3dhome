@@ -13,7 +13,7 @@ test('D6 mm sketch scale uses document units rather than a room-sized percentage
 test('actual status line reports scale during sketching and omits stale sketch zoom in orbit view',()=>{
  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),st={};
  const E={mode:'3d',docType:'part',scl:894.06,view:'front',grid:1,modelPlaneActive:false,def:{}};
- const context={E,root:{querySelector:()=>st},t:key=>key,activeSketchFrame:()=>null,sketchPlaneCaption:()=> 'Front',modelLengthText:String,modelLengthUnit:()=> 'mm',formatDocumentScreenScale,sketchSelectionSummary:()=>'',inferAuthoringMode:()=> 'parametric',activeParts:()=>[],nativeSolidSummary:()=>({}),hasSingleToolboxKernelRecipe:()=>false,rebuildStatusCaption:()=> '',topologyStatusCaption:()=> '',documentDirty:()=>false};
+ const context={E,root:{querySelector:()=>st},t:key=>key,activeSketchFrame:()=>null,sketchPlaneCaption:()=> 'Front',modelLengthText:String,modelLengthUnit:()=> 'mm',formatDocumentScreenScale,sketchSelectionSummary:()=>'',inferAuthoringMode:()=> 'parametric',activeParts:()=>[],nativeSolidSummary:()=>({}),hasSingleToolboxKernelRecipe:()=>false,modelRebuildPending:()=>false,rebuildStatusCaption:()=> '',topologyStatusCaption:()=> '',documentDirty:()=>false};
  const run=new Function(...Object.keys(context),sourceFunctionText(source,'syncStatusLine')+';return syncStatusLine;')(...Object.values(context));
  run();assert.doesNotMatch(st.innerHTML,/px\/mm|44703%/);
  E.modelPlaneActive=true;run();assert.match(st.innerHTML,/89\.41 px\/mm/);

@@ -46,7 +46,7 @@ function viewportFixture(afterPublish=()=>{}) {
   const proof=fixture(),E={docType:'part',def:proof.document,massEditRevision:0,exactRestoring:false};
   proof.run.finalShape=proof.run.results.get('solid');
   const cache=createExactSaveCache(),noop=()=>{};
-  const bindings={E,activeParts:()=>[proof.document.parts[0]],flash:noop,t:key=>key,syncCommandManager:noop,
+  const bindings={E,activeParts:()=>[proof.document.parts[0]],flash:noop,t:key=>key,syncCommandManager:noop,syncStatus:noop,
     currentHistoryNode:()=>1,releaseExactRun:noop,isCanonicalAuthoring:()=>true,
     compileKernelFeatureTree:()=>proof.compiled,modelParameterOverrides:()=>({}),rebuildParametricDocument:()=>({ok:true}),
     publishRebuildStatus:noop,regenerateFeatures:async()=>proof.run,releaseRegeneration:noop,captureExactDiagnostics:noop,

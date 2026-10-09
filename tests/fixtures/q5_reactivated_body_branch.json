@@ -1,0 +1,365 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q5-official-source-repair-browser-2026-10-09.mforge",
+  "sha256": "689dead4d3234f1b447b885cfb656adf61373cec7d2480150d83250175eacdc9",
+  "note": "Graph-only regression from actual browser export: Cut8 and dependants suppressed when Boss2 appended to Cut7, then reactivated; contains no model geometry.",
+  "parts": [
+    {
+      "id": 2227,
+      "featureId": "feature_muo4a11f_2"
+    }
+  ],
+  "features": [
+    {
+      "id": "feature_muo4a11f_2",
+      "name": "Extrude / Boss 1",
+      "type": "extrude",
+      "inputs": [],
+      "suppressed": false,
+      "params": {
+        "operation": "add",
+        "mergeResult": true
+      }
+    },
+    {
+      "id": "feature_muonjtci_1",
+      "name": "Extrude Cut 1",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muo4a11f_2"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_muonx0rh_2",
+      "name": "Extrude Cut 2",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muonjtci_1"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_muoo685j_3",
+      "name": "Extrude Cut 3",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muonx0rh_2"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05g6a2_1",
+      "name": "Extrude Cut 4",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muoo685j_3"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05h8tl_2",
+      "name": "Extrude Cut 5",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05g6a2_1"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05r0yv_1",
+      "name": "Extrude Cut 6",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05h8tl_2"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05s0ec_2",
+      "name": "Extrude Cut 7",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05r0yv_1"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05sjma_3",
+      "name": "Extrude Cut 8",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05s0ec_2"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05v1n3_4",
+      "name": "Extrude Cut 9",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05sjma_3"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05vpxx_5",
+      "name": "Extrude Cut 10",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05v1n3_4"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05w49o_6",
+      "name": "Extrude Cut 11",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05vpxx_5"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05wjz5_7",
+      "name": "Extrude Cut 12",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05w49o_6"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv05ymwa_8",
+      "name": "Extrude Cut 13",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05wjz5_7"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    },
+    {
+      "id": "feature_mv06p906_9",
+      "name": "Extrude / Boss 2",
+      "type": "extrude",
+      "inputs": [
+        "feature_mv05s0ec_2"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "add",
+        "mergeResult": true
+      }
+    },
+    {
+      "id": "feature_mv06tchm_a",
+      "name": "Extrude Cut 14",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv06p906_9"
+      ],
+      "suppressed": false,
+      "params": {
+        "operation": "subtract"
+      }
+    }
+  ],
+  "history": [
+    {
+      "kind": "sketch",
+      "targetId": "sk_1cp1g",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_muo4a11f_2",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_1yizm",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_muonjtci_1",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_2ixko",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_muonx0rh_2",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_3zrrc",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_muoo685j_3",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_13q3q",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05g6a2_1",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_2ec0q",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05h8tl_2",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_18evg",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05r0yv_1",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_2hnsd",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05s0ec_2",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_3z9ii",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05sjma_3",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_4ndqa",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05v1n3_4",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_5oyuy",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05vpxx_5",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_6fe9q",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05w49o_6",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_7m26l",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05wjz5_7",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_8p9rg",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv05ymwa_8",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv06p906_9",
+      "suppressed": false
+    },
+    {
+      "kind": "sketch",
+      "targetId": "sk_9jt84",
+      "suppressed": false
+    },
+    {
+      "kind": "feature",
+      "targetId": "feature_mv06tchm_a",
+      "suppressed": false
+    }
+  ],
+  "expectedHead": "feature_mv06tchm_a",
+  "nativeFinalVolumeCm3": 164.15201155724344,
+  "oldVisibleVolumeCm3": 143.78050999672635
+}

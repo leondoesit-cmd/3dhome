@@ -852,6 +852,8 @@ export var TXT = {
   cmdNeedComponents: ["הוסיפו לפחות שני רכיבים", "Add at least two components first"],
   cmdNeedOneComponent: ["הוסיפו רכיב אחד לפחות", "Add at least one component first"],
   rebuildOk: ["המודל תקין", "Rebuild succeeded"],
+  rebuildPending: ["הגאומטריה המדויקת בבנייה", "Exact geometry pending"],
+  rebuildUnchecked: ["הבנייה טרם נבדקה", "Rebuild not checked"],
   rebuildFail: ["שגיאות בנייה", "Rebuild errors"],
   rebuildWarn: ["אזהרות בנייה", "Rebuild warnings"],
   closeTip: ["סגור את העורך", "Close the editor"],
@@ -1807,6 +1809,7 @@ export var TXT = {
   fcGrpToolbox: ["חלק תקני", "Standard part"],
 
   fcFldOperation: ["פעולה", "Operation"],
+  extrudeOperationEditHint: ["שינוי הוספה/חיסור מיושם בעדכון התכונה. נדרש גוף יעד קיים; הסקיצה והתכונות התלויות נשמרות.", "Add/Subtract conversion applies with Update feature. Requires an existing target body; the sketch and dependent features are retained."],
   fcFldMergeResult: ["מיזוג התוצאה", "Merge result"],
   fcFldEndCondition: ["תנאי סיום", "End condition"],
   fcFldThreadEngagement: ["אורך תבריג (0 = אוטומטי)", "Thread engagement (0 = automatic)"],

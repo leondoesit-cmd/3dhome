@@ -20,6 +20,7 @@ import {revolveThinProfile,thinSketchProfile} from './core/thin_profile.js';
 import {threadPlacementFromFace} from './core/thread_placement.js';
 import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
+import {setExtrudeFeatureOperation} from './core/extrude_operation_edit.js';
 import { deduplicateBooleanProjections } from "./core/boolean_projection.js";
 import { rebindReplacedSketchProfiles } from "./core/sketch_profile_rebind.js";
 import { forkConflictingModel } from "./core/model_save_conflict.js";
@@ -2599,6 +2600,7 @@ function queueExactMesh(p) {
   p.exactBuildToken = token;
   p.exactPending = true;
   p.exactError = null;
+  syncStatus();
   /* A kernel body has no analytic form to fall back to, so a stale mesh left up
      while the kernel works — or after it fails — would be a different shape
      from the answer. Drop it here, exactly as queueKernelBody does. */
@@ -2635,6 +2637,7 @@ function queueExactMesh(p) {
       p.meshData = meshData;
       p.exactPending = false;
       p.exactError = null;
+      syncStatus();
       refreshChangedPart(p);
       if (isKernelBody(p) && root) refreshParts();
       if (E.mode === "3d") renderPreview();
@@ -2645,6 +2648,7 @@ function queueExactMesh(p) {
     p.exactPending = false;
     p.exactError = String(error && error.message || error);
     console.warn("Exact CAD mesh build failed:", error);
+    syncStatus();
     refreshChangedPart(p);
     if (isKernelBody(p) && root) refreshParts();
   });
@@ -8882,6 +8886,10 @@ function cutTargetFeatureId(target, document = E.def, built = null) {
   /* `built(id)`, when given, also stops the chain at a step the run did not
      build, so a failed last step leaves the body at the step before it. */
   var head = target.derivedFeatureId || target.featureId;
+  // Reactivating suppressed steps can leave a later sibling branch reading an
+  // earlier body stage. Native history still evaluates that later branch;
+  // publication must follow the latest active descendant, not an older fork.
+  var lineage = new Set([head]);
   var modifiers = new Set(["fillet", "chamfer", "shell", "dome", "draft", "thicken", "rib", "extrudeCut", "revolveCut", "sweepCut", "hole", "moveBody", "boolean"]);
   /* A step below the rollback bar (or suppressed in history) is not built, so it
      cannot be the body's head. Walking past it made the displayed body ask the
@@ -8896,11 +8904,11 @@ function cutTargetFeatureId(target, document = E.def, built = null) {
   var orderedFeatures=(document.history || []).filter(function(entry){return entry.kind==='feature' && featureOrder.has(entry.targetId);}).map(function(entry){var feature=featureOrder.get(entry.targetId);featureOrder.delete(entry.targetId);return feature;});
   orderedFeatures.push(...featureOrder.values());
   orderedFeatures.forEach(function (feature) {
-    if (!feature.suppressed && !inactive.has(feature.id) && (modifiers.has(feature.type) || (feature.type==="thread" && feature.params?.mode==="modeled") || (["pattern","mirror"].includes(feature.type) && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).includes(head)
+    if (!feature.suppressed && !inactive.has(feature.id) && (modifiers.has(feature.type) || (feature.type==="thread" && feature.params?.mode==="modeled") || (["pattern","mirror"].includes(feature.type) && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).some(function(id){return lineage.has(id);})
       // a Move with Copy made a second body; the original does not move with it
       && (feature.type !== "moveBody" || !leavesInputStanding(document, feature))
       && (feature.type !== "boolean" || !feature.params?.keepTools || feature.inputs[0]===head)
-      && (!built || built(feature.id))) head = feature.id;
+      && (!built || built(feature.id))) { head = feature.id; lineage.add(head); }
   });
   return head && (!built || built(head)) ? head : null;
 }
@@ -11441,12 +11449,19 @@ function displayedCoreIssues() {
   });
 }
 
+function modelRebuildPending() {
+  return E.docType === "part" && !!(E.exactRestoring || E.kernelBusy ||
+    (E.def && activeParts(E.def).some(function (part) { return part.exactPending; })));
+}
 function rebuildStatusCaption() {
+  if (modelRebuildPending()) return '<span class="md-st-dirty">' + t("rebuildPending") + "</span>";
   var issues = displayedCoreIssues();
   var errors = issues.filter(function (issue) { return issue.severity === "error"; }).length;
   var warnings = issues.filter(function (issue) { return issue.severity === "warning"; }).length;
+  if (!errors && E.def) errors = activeParts(E.def).filter(function (part) { return !!part.exactError; }).length;
   if (errors) return '<button type="button" class="md-st-rebuild md-st-dof md-dof-conflicting">' + t("rebuildFail") + " · " + errors + "</button>";
   if (warnings) return '<button type="button" class="md-st-rebuild md-st-dof md-dof-over-constrained">' + t("rebuildWarn") + " · " + warnings + "</button>";
+  if (!E.coreRun) return '<span class="md-st-dirty">' + t("rebuildUnchecked") + "</span>";
   return '<span class="md-st-dof md-dof-fully-constrained">' + t("rebuildOk") + "</span>";
 }
 
@@ -11525,14 +11540,15 @@ function syncStatusLine() {
   if (E.mode === "3d" && !E.modelPlaneActive) {
     var mode=inferAuthoringMode(Object.assign({}, E.def, {authoringMode:null}));
     var recognition=E.def && E.def.metadata && E.def.metadata.import && E.def.metadata.import.recognition;
+    var rebuildPending=modelRebuildPending();
     var solids = E.coreRun && Array.isArray(E.coreRun.bodies) ? E.coreRun.bodies.length : E.def ? activeParts(E.def).length : 0;
     var nativeSummary=nativeSolidSummary(E.def?activeParts(E.def):[],{singleRecipe:hasSingleToolboxKernelRecipe(E.def,E.def?activeParts(E.def):[])});
     st.innerHTML='<b>'+mode.replace(/-/g," ")+'</b>'+
       (recognition && recognition!=="none" ? '<span class="md-st-sep"></span>'+recognition+' '+t("reconstruction") : "")+
       '<span class="md-st-sep"></span>'+rebuildStatusCaption()+
-      (solids ? '<span class="md-st-sep"></span>'+solids+" "+t("parts").toLowerCase() : "")+
-      (nativeSummary.known ? '<span class="md-st-sep"></span>Native solids: '+nativeSummary.count : "")+
-      (nativeSummary.disconnected ? '<span class="md-st-sep"></span><b class="md-st-dirty">Disconnected solids</b>' : "")+
+      (!rebuildPending && solids ? '<span class="md-st-sep"></span>'+solids+" "+t("parts").toLowerCase() : "")+
+      (!rebuildPending && nativeSummary.known ? '<span class="md-st-sep"></span>Native solids: '+nativeSummary.count : "")+
+      (!rebuildPending && nativeSummary.disconnected ? '<span class="md-st-sep"></span><b class="md-st-dirty">Disconnected solids</b>' : "")+
       (topologyStatusCaption() ? '<span class="md-st-sep"></span><b class="md-st-selection">'+topologyStatusCaption()+"</b>" : "")+
       (documentDirty() ? '<span class="md-st-sep"></span><b class="md-st-dirty">'+t("dirtySave")+"</b>" : "");
     return;
@@ -17685,9 +17701,20 @@ function openFeatureEditor(feature) {
     }
   }
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
+    // A changed Boolean is committed by Update, not by the parameter ghost.
+    if(feature.type==="extrude" && next.params.operation==="subtract")next.params.operation=feature.params.operation || "add";
     feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);retargetSweepHelix(feature);feature.name=name.value || feature.name;
     if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncLiveFeatureEdit(feature);if(["fillet","chamfer"].includes(feature.type))renderFinishEdgeList();if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
   });
+  var editOperationSelect=null;
+  if(feature.type==="extrude" || feature.type==="extrudeCut"){
+    var existingOperation=controls.find(function(control){return control.field.key==="operation";});
+    if(existingOperation){
+      editOperationSelect=existingOperation.input;
+      var subtractOption=document.createElement("option");subtractOption.value="subtract";subtractOption.textContent=t("fcOptSubtract");editOperationSelect.appendChild(subtractOption);
+    }else editOperationSelect=featureField(host,{key:"$editOperation",label:t("fcFldOperation"),type:"select",choices:[{value:"subtract",label:t("fcOptSubtract")},{value:"add",label:t("fcOptAdd")}]},"subtract");
+    host.appendChild(el("p","md-field-hint",t("extrudeOperationEditHint")));
+  }
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
   var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push(t("depSketch")+": "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push(t("depFeature")+": "+id);});
   host.appendChild(el("div","md-feature-selection-note",dependencies.length?t("upstreamDependencies")+": "+dependencies.join(" · "):t("noUpstreamDeps")));
@@ -17738,7 +17765,10 @@ function openFeatureEditor(feature) {
         values.params.profileEntityIds=cloneData(feature.params.profileEntityIds);
         values.references.sketches=cloneData(feature.references.sketches);
       }
-      updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});
+      var editOperation=editOperationSelect && editOperationSelect.value;
+      if((feature.type==="extrudeCut" && editOperation==="add") || (feature.type==="extrude" && editOperation==="subtract"))
+        setExtrudeFeatureOperation(E.def,feature.id,editOperation,{name:name.value || feature.name,params:values.params});
+      else updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});
       setFeatureReferencesFromForm(feature,values.references);retargetSweepHelix(feature);syncProjectionFromFeature(feature);
       if(finishTargetSelect){
         var chosenFinishTarget=finishTargetChoices.find(function(choice){return choice.entry.persistentId===finishTargetSelect.value;});
@@ -17754,7 +17784,7 @@ function openFeatureEditor(feature) {
         if(feature.references.topology.some(function(reference){return reference.persistentId===feature.params.neutralFace?.persistentId;}))throw new Error("The neutral plane must be different from the drafted face");
         (E.def.parts || []).forEach(function(part){(part.exactOperations || []).forEach(function(operation){if(operation.id===feature.id)operation.params=cloneData(feature.params);});});
       }
-      var geometryChanged=JSON.stringify(before.params)!==JSON.stringify(feature.params)
+      var geometryChanged=before.type!==feature.type || JSON.stringify(before.params)!==JSON.stringify(feature.params)
         || JSON.stringify(before.references)!==JSON.stringify(feature.references);
       var restoreExact=(geometryChanged || supportChanged) && isCanonicalAuthoring() && !!activeParts(E.def).length;
       E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";
@@ -25426,7 +25456,7 @@ async function regenerateExactModelNow(rebuild,queueIsCurrent=function(){return 
      *before* the try below, so Regenerate, Ctrl+B and both STEP/IGES exports
      failed silently with nothing in the hint bar. syncCommandManager owns
      every disabled state; see its comment. */
-  E.kernelBusy = true; syncCommandManager(); flash(t("kernelBusy"));
+  E.kernelBusy = true; syncCommandManager(); syncStatus(); flash(t("kernelBusy"));
   var rebuildingDocument=E.def;
   var rebuildingNode=currentHistoryNode();
   var rebuildingEditRevision=E.massEditRevision;
@@ -25481,7 +25511,7 @@ async function regenerateExactModelNow(rebuild,queueIsCurrent=function(){return 
     if(!buildIsCurrent())return null;
     E.brepStamp = null;
     flash(t("errBrep") + ": " + String(error.message || error)); console.error(error); return null;
-  } finally { if(queueIsCurrent()){E.kernelBusy = false; syncCommandManager();} }
+  } finally { if(queueIsCurrent()){E.kernelBusy = false; syncCommandManager(); syncStatus();} }
 }
 
 /* An assembly is exported as one compound of its exact leaf bodies, placed where
