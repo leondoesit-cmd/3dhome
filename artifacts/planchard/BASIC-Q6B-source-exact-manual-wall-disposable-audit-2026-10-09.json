@@ -1,0 +1,115 @@
+{
+  "verificationOnly": true,
+  "manualWallSourceGlobalXmm": -23.005385127675076,
+  "currentBrowserLocalXcm": -2.0505385127675075,
+  "ok": false,
+  "issues": [
+    {
+      "severity": "error",
+      "code": "over-constrained-sketch",
+      "sketchId": "sk_2tz4r",
+      "constraints": [],
+      "message": "Face sketch is over-constrained"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:depth:16",
+      "reboundTo": "feature_munk5lbu_1:edge:depth:1606",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:depth:16 to feature_munk5lbu_1:edge:depth:1606"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:depth:20",
+      "reboundTo": "feature_munk5lbu_1:edge:depth:1615",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:depth:20 to feature_munk5lbu_1:edge:depth:1615"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:profile:21:start",
+      "reboundTo": "feature_munk5lbu_1:edge:profile:1628:start",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:profile:21:start to feature_munk5lbu_1:edge:profile:1628:start"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:profile:21:end",
+      "reboundTo": "feature_munk5lbu_1:edge:profile:1628:end",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:profile:21:end to feature_munk5lbu_1:edge:profile:1628:end"
+    },
+    {
+      "feature": "feature:sketch:sk_2tz4r",
+      "code": "regeneration-failed",
+      "message": "Driving sketch is unavailable: sk_2tz4r"
+    },
+    {
+      "feature": "feature_munkvcz1_5:tool",
+      "code": "regeneration-failed",
+      "message": "Driving sketch is unavailable: sk_2tz4r"
+    },
+    {
+      "feature": "feature_munkvcz1_5",
+      "code": "regeneration-failed",
+      "message": "Feature input is unavailable: feature_munkvcz1_5:tool"
+    },
+    {
+      "feature": "feature:sketch:sk_337tr",
+      "code": "regeneration-failed",
+      "message": "Sketch support is unavailable: feature_munkvcz1_5"
+    },
+    {
+      "feature": "feature_munljuhd_6:tool",
+      "code": "regeneration-failed",
+      "message": "Feature input is unavailable: feature_munkvcz1_5"
+    },
+    {
+      "feature": "feature_munljuhd_6",
+      "code": "regeneration-failed",
+      "message": "Feature input is unavailable: feature_munkvcz1_5"
+    }
+  ],
+  "mass": {
+    "volume": 136.39826967313473,
+    "centerOfMass": {
+      "x": -0.5144018197560952,
+      "y": 1.530053242416211,
+      "z": -1.3023309193416588e-17
+    },
+    "inertia": [
+      [
+        342.9441266879724,
+        67.20216249550774,
+        4.466474869524176e-15
+      ],
+      [
+        67.20216249550774,
+        2257.144088974026,
+        -1.5152418417614318e-14
+      ],
+      [
+        4.466474869524176e-15,
+        -1.5152418417614318e-14,
+        2189.3962524060585
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -6.5,
+        "y": 0,
+        "z": -2
+      },
+      "max": {
+        "x": 7.5,
+        "y": 4.499999999999984,
+        "z": 2
+      }
+    }
+  }
+}

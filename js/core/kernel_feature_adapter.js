@@ -132,7 +132,8 @@ function lowerExtrudeParams(feature, document) {
   if (target) params.targetFeatureId = target;
   if (sketch?.frame) { params.axis = "frame"; params.frame = cloneDomain(sketch.frame); if (sketch.frameAnchor) params.frameAnchor = sketch.frameAnchor; }
   if (sketch?.support) { params.support = cloneDomain(sketch.support); params.supportOffset=Number(sketch.supportOffset)||0; params.baseOffset = offset; params.depth = depth || Math.abs(to - from); }
-  if(sketch?.boundaryCopies?.some(copy=>copy.associative&&copy.entityIds.some(id=>sketch.entities.some(e=>e.id===id))&&copy.entityIds.some(id=>!sketch.entities.some(e=>e.id===id))))params.trimmedBoundaryFollowRevision='1';
+  if(sketch?.frame && sketch.boundaryCopies?.some(copy=>copy.associative))params.associativeSupportFrameRevision='1';
+  if(sketch?.boundaryCopies?.some(copy=>copy.associative&&copy.entityIds.some(id=>sketch.entities.some(e=>e.id===id))&&copy.entityIds.some(id=>!sketch.entities.some(e=>e.id===id))))params.trimmedBoundaryFollowRevision='2';
   if(sketch?.entities?.some(e=>e.type==='arc')&&sketch.entities.some(e=>e.type==='line'))params.analyticProfileTopologyRevision='3';
   return params;
 }

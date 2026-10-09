@@ -19,7 +19,7 @@ test('original browser-authored native tangent junction remains one intersection
 test('native upstream length and fillet edits follow mixed trimmed converted arcs without moving manual wall',async()=>{
  const document=fixture(),before=structuredClone(document.sketches[2]);
  const compiled=compileKernelFeatureTree(document);
- assert.equal(compiled.features.find(f=>f.id==='feature_munkvcz1_5:tool').params.trimmedBoundaryFollowRevision,'1');
+ assert.equal(compiled.features.find(f=>f.id==='feature_munkvcz1_5:tool').params.trimmedBoundaryFollowRevision,'2');
  assert.ok(compiled.features.filter(f=>f.params?.trimmedBoundaryFollowRevision).every(f=>f.params.sketchId===before.id),'unchanged prefixes are not invalidated');
  const execute=createCadWorkerExecutor({bodyStore:{get:async()=>null,put:async()=>{},remove:async()=>{}}});
  const result=await execute({kind:'regenerate',canonical:true,document,massProperties:true,meshOnly:true});
@@ -33,6 +33,12 @@ test('native upstream length and fillet edits follow mixed trimmed converted arc
  const arc=after.entities.find(e=>e.id===1659),a=p(arc.a),c=p(arc.c);
  assert.ok(Math.abs(Math.hypot(a.x-c.x,a.y-c.y)-3.2)<1e-7,'exact 2mm offset of updated R30 remains circular');
  const mass=result.results.at(-1)[1].massProperties;
+ const base=result.results.find(([id])=>id==='feature_munk5lbu_1')[1];
+ const cylinders=body=>(body.topology || []).filter(t=>t.kind==='face'&&t.descriptor.surface==='cylinder').map(t=>t.descriptor);
+ const sourceCircle=cylinders(base).find(d=>Math.abs(d.radius-3)<1e-7);
+ const pocketCircle=cylinders(result.results.find(([id])=>id==='feature_munkvcz1_5')[1]).find(d=>Math.abs(d.radius-3.2)<1e-7);
+ assert.ok(sourceCircle&&pocketCircle,'exact saddle and copied inset remain cylindrical');
+ assert.ok(Math.hypot(sourceCircle.origin.x-pocketCircle.origin.x,sourceCircle.origin.y-pocketCircle.origin.y)<1e-7,'copied curve must remain concentric after support bounds recenter');
  assert.ok(Math.abs(mass.bounds.max.x-mass.bounds.min.x-14)<1e-8);
  assert.ok(Math.abs(mass.volume-115.7071)>.01,'old frozen pocket is not accepted as fresh: '+mass.volume);
  // A persisted sample-index alias can point at the adjacent physical corner.

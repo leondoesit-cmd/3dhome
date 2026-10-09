@@ -507,6 +507,9 @@ export function resolveSketchExtrusion(def, params) {
   const sketch = (params.sketchId && sketches.find((s) => s.id === params.sketchId))
     || def.sketch || sketches[0] || null;
   if (!sketch) throw new Error("Sketch profile is missing its sketch");
+  // Copied curves are resolved in this authored frame. Recentring that frame
+  // afterward would translate exact source curves and manual trim closures.
+  if(sketch.frame && sketch.boundaryCopies?.some(copy=>copy.associative))params={...params,preserveSupportOrigin:true};
   if(params.thinFeature){
     const thin=thinSketchProfile(sketch,params.profileEntityIds,params.thickness,params.thinMode);
     // Each disconnected open chain owns its offset direction. The primary
@@ -579,7 +582,13 @@ export function alignExtrusionToSupport(params, resolutions = []) {
   if (params.frame) {
     const baseOffset = Number(params.baseOffset) || 0;
     const depth = Math.max(1e-6, Math.abs(Number(params.depth) || Math.abs(Number(params.to) - Number(params.from))));
-    const base=faceFrameOrigin(descriptor,params.frameAnchor),frame=offsetSketchFrame(realignFrame(params.frame,base,descriptor.normal),base,descriptor.normal,params.supportOffset);
+    let base=faceFrameOrigin(descriptor,params.frameAnchor);
+    if(params.preserveSupportOrigin){
+      const n=descriptor.normal,p=params.frame.origin,o=descriptor.origin;
+      const distance=(p.x-o.x)*n.x+(p.y-o.y)*n.y+(p.z-o.z)*n.z;
+      base={x:p.x-n.x*distance,y:p.y-n.y*distance,z:p.z-n.z*distance};
+    }
+    const frame=offsetSketchFrame(realignFrame(params.frame,base,descriptor.normal),base,descriptor.normal,params.supportOffset);
     return { ...params, frame, from: symmetric ? reversed*(baseOffset-depth/2) : reversed*baseOffset, to: symmetric ? reversed*(baseOffset+depth/2) : reversed*(baseOffset+depth) };
   }
   const axis = params.axis || "y";

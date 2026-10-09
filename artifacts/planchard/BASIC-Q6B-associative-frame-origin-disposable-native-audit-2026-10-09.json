@@ -1,0 +1,64 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\CSWA-Q6B-source-led-repaired-browser-2026-09-30.mforge",
+  "exact": true,
+  "featureCount": 12,
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:depth:16",
+      "reboundTo": "feature_munk5lbu_1:edge:depth:1606",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:depth:16 to feature_munk5lbu_1:edge:depth:1606"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:depth:20",
+      "reboundTo": "feature_munk5lbu_1:edge:depth:1615",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:depth:20 to feature_munk5lbu_1:edge:depth:1615"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:profile:21:start",
+      "reboundTo": "feature_munk5lbu_1:edge:profile:1628:start",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:profile:21:start to feature_munk5lbu_1:edge:profile:1628:start"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:profile:21:end",
+      "reboundTo": "feature_munk5lbu_1:edge:profile:1628:end",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:profile:21:end to feature_munk5lbu_1:edge:profile:1628:end"
+    }
+  ],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 114.72259266986744,
+    "maxToleranceCm": 1.5000000142177918e-7
+  },
+  "volumeCm3": 114.72259266986744,
+  "boundsCm": {
+    "min": {
+      "x": -6.5,
+      "y": 0,
+      "z": -2
+    },
+    "max": {
+      "x": 7.5,
+      "y": 4.499999999999984,
+      "z": 2
+    }
+  },
+  "centerOfMassCm": {
+    "x": -1.1229014794347247,
+    "y": 1.5487219305758024,
+    "z": -0.2665688433193699
+  },
+  "seconds": 5.6166035999999995
+}

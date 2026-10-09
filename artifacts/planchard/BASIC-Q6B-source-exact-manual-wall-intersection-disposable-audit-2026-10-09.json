@@ -1,0 +1,84 @@
+{
+  "verificationOnly": true,
+  "sourceIntersection": {
+    "x": -23.005385127675076,
+    "y": 19.117665463612756
+  },
+  "currentBrowserLocal": {
+    "x": -2.0505385127675075,
+    "y": -0.3382334536387244
+  },
+  "ok": true,
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:depth:16",
+      "reboundTo": "feature_munk5lbu_1:edge:depth:1606",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:depth:16 to feature_munk5lbu_1:edge:depth:1606"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:depth:20",
+      "reboundTo": "feature_munk5lbu_1:edge:depth:1615",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:depth:20 to feature_munk5lbu_1:edge:depth:1615"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:profile:21:start",
+      "reboundTo": "feature_munk5lbu_1:edge:profile:1628:start",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:profile:21:start to feature_munk5lbu_1:edge:profile:1628:start"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:profile:21:end",
+      "reboundTo": "feature_munk5lbu_1:edge:profile:1628:end",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:profile:21:end to feature_munk5lbu_1:edge:profile:1628:end"
+    }
+  ],
+  "mass": {
+    "volume": 114.72162484464101,
+    "centerOfMass": {
+      "x": -1.1228957649617168,
+      "y": 1.5487260888542675,
+      "z": -0.26658353570419596
+    },
+    "inertia": [
+      [
+        272.55893219239965,
+        60.2875451003695,
+        125.75366834936254
+      ],
+      [
+        60.2875451003695,
+        1785.9202355960779,
+        -4.386417247608016
+      ],
+      [
+        125.75366834936254,
+        -4.386417247608016,
+        1758.848153221807
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -6.5,
+        "y": 0,
+        "z": -2
+      },
+      "max": {
+        "x": 7.5,
+        "y": 4.499999999999984,
+        "z": 2
+      }
+    }
+  }
+}

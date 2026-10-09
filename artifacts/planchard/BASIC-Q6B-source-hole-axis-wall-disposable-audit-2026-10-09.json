@@ -1,0 +1,107 @@
+{
+  "disposableOnly": true,
+  "sourceWall": {
+    "x": -2.0505385127675075,
+    "y": -0.3382334536387244
+  },
+  "sourceHolePerpendicularCoordinatesMm": {
+    "1745": -67.88225099390857,
+    "1749": -49.51107792303473,
+    "1753": -49.51107792303473
+  },
+  "currentHoleUV": [
+    {
+      "id": 1745,
+      "uCm": -0.33759734331025043,
+      "vCm": 0
+    },
+    {
+      "id": 1749,
+      "uCm": 0.9614407623664079,
+      "vCm": 0.75
+    },
+    {
+      "id": 1753,
+      "uCm": 0.9614407623664079,
+      "vCm": -0.750000000000005
+    }
+  ],
+  "ok": true,
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:depth:16",
+      "reboundTo": "feature_munk5lbu_1:edge:depth:1606",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:depth:16 to feature_munk5lbu_1:edge:depth:1606"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:depth:20",
+      "reboundTo": "feature_munk5lbu_1:edge:depth:1615",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:depth:20 to feature_munk5lbu_1:edge:depth:1615"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:profile:21:start",
+      "reboundTo": "feature_munk5lbu_1:edge:profile:1628:start",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:profile:21:start to feature_munk5lbu_1:edge:profile:1628:start"
+    },
+    {
+      "severity": "warning",
+      "code": "topology-reference-rebound",
+      "featureId": "feature_munk97pz_3",
+      "reference": "feature_munk5lbu_1:edge:profile:21:end",
+      "reboundTo": "feature_munk5lbu_1:edge:profile:1628:end",
+      "message": "Fillet 1 rebound feature_munk5lbu_1:edge:profile:21:end to feature_munk5lbu_1:edge:profile:1628:end"
+    }
+  ],
+  "mass": {
+    "volume": 114.72162484464104,
+    "centerOfMass": {
+      "x": -1.1247778334964331,
+      "y": 1.5506081573889832,
+      "z": -0.26658353570419596
+    },
+    "inertia": [
+      [
+        272.70465950760166,
+        60.853038473409526,
+        125.81122745632628
+      ],
+      [
+        60.853038473409526,
+        1786.9054950269563,
+        -4.443976354571767
+      ],
+      [
+        125.81122745632628,
+        -4.443976354571767,
+        1759.979139967885
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -6.5,
+        "y": 0,
+        "z": -2
+      },
+      "max": {
+        "x": 7.5,
+        "y": 4.499999999999984,
+        "z": 2
+      }
+    }
+  },
+  "sourceAlignedCOMmm": {
+    "x": -16.24777833496433,
+    "y": 15.506081573889832,
+    "z": -2.6658353570419595
+  }
+}
