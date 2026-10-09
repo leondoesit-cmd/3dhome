@@ -1,0 +1,304 @@
+{
+  "pass": true,
+  "checks": {
+    "nativeOneValid": true,
+    "actualQuadOffsetAnalytic": true,
+    "baseSketchExact": true,
+    "featuresExact": true,
+    "allFullyDefined": true,
+    "inputUnchanged": true
+  },
+  "mass": {
+    "volume": 79.94333333333334,
+    "centerOfMass": {
+      "x": 2.4990931076178953,
+      "y": 2.000698202893716,
+      "z": 1.999218196222324
+    },
+    "inertia": [
+      [
+        213.1872652325726,
+        -0.07153228637662323,
+        0.07614001410718174
+      ],
+      [
+        -0.07153228637662323,
+        273.1082187208997,
+        -0.061656971014201645
+      ],
+      [
+        0.07614001410718174,
+        -0.061656971014201645,
+        273.14424834561123
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1e-7,
+        "y": -1e-7,
+        "z": -1e-7
+      },
+      "max": {
+        "x": 5.0000001,
+        "y": 4.0000001,
+        "z": 4.0000001
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 79.94333333333334,
+    "maxToleranceCm": 1.000000002220446e-7
+  },
+  "changedNotchSketch": {
+    "id": "sk_2ovmn",
+    "name": "Top Plane sketch",
+    "plane": "top",
+    "offset": 1.02,
+    "referenceId": "plane:top",
+    "points": [
+      {
+        "id": 6078,
+        "x": 1,
+        "y": 4
+      },
+      {
+        "id": 6079,
+        "x": 5,
+        "y": 4
+      },
+      {
+        "id": 6083,
+        "x": 5,
+        "y": 1
+      },
+      {
+        "id": 6086,
+        "x": 1.9999999999999991,
+        "y": 2.0000000000000004
+      }
+    ],
+    "entities": [
+      {
+        "id": 6080,
+        "type": "line",
+        "name": "Line",
+        "a": 6078,
+        "b": 6079,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6084,
+        "type": "line",
+        "name": "Line",
+        "a": 6079,
+        "b": 6083,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6087,
+        "type": "line",
+        "name": "Line",
+        "a": 6083,
+        "b": 6086,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6088,
+        "type": "line",
+        "name": "Line",
+        "a": 6086,
+        "b": 6078,
+        "construction": false,
+        "weight": 2
+      }
+    ],
+    "constraints": [
+      {
+        "id": 6081,
+        "type": "fixed",
+        "point": 6078,
+        "x": 1,
+        "y": 4,
+        "exprError": null
+      },
+      {
+        "type": "horizontal",
+        "entity": 6080,
+        "id": 6082,
+        "exprError": null
+      },
+      {
+        "id": "dim_26v71yo",
+        "type": "distance",
+        "entity": 6080,
+        "value": 4,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "type": "vertical",
+        "entity": 6084,
+        "id": 6085,
+        "exprError": null
+      },
+      {
+        "id": "dim_6s65ijx",
+        "type": "distance",
+        "entity": 6084,
+        "value": 3,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "id": "dim_vzoet8d",
+        "type": "distance",
+        "entity": 6087,
+        "value": 3.16227766016838,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "id": "dim_e1ftdwq",
+        "type": "distance",
+        "entity": 6088,
+        "value": 2.236067977499789,
+        "driven": false,
+        "exprError": null
+      }
+    ],
+    "diagnostics": [],
+    "status": "fully-defined"
+  },
+  "nominalNotchSketch": {
+    "id": "sk_2ovmn",
+    "name": "Top Plane sketch",
+    "plane": "top",
+    "offset": 4,
+    "referenceId": "plane:top",
+    "points": [
+      {
+        "id": 6078,
+        "x": 1,
+        "y": 4
+      },
+      {
+        "id": 6079,
+        "x": 5,
+        "y": 4
+      },
+      {
+        "id": 6083,
+        "x": 5,
+        "y": 1
+      },
+      {
+        "id": 6086,
+        "x": 1.9999999999999991,
+        "y": 2.0000000000000004
+      }
+    ],
+    "entities": [
+      {
+        "id": 6080,
+        "type": "line",
+        "name": "Line",
+        "a": 6078,
+        "b": 6079,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6084,
+        "type": "line",
+        "name": "Line",
+        "a": 6079,
+        "b": 6083,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6087,
+        "type": "line",
+        "name": "Line",
+        "a": 6083,
+        "b": 6086,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6088,
+        "type": "line",
+        "name": "Line",
+        "a": 6086,
+        "b": 6078,
+        "construction": false,
+        "weight": 2
+      }
+    ],
+    "constraints": [
+      {
+        "id": 6081,
+        "type": "fixed",
+        "point": 6078,
+        "x": 1,
+        "y": 4,
+        "exprError": null
+      },
+      {
+        "type": "horizontal",
+        "entity": 6080,
+        "id": 6082,
+        "exprError": null
+      },
+      {
+        "id": "dim_26v71yo",
+        "type": "distance",
+        "entity": 6080,
+        "value": 4,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "type": "vertical",
+        "entity": 6084,
+        "id": 6085,
+        "exprError": null
+      },
+      {
+        "id": "dim_6s65ijx",
+        "type": "distance",
+        "entity": 6084,
+        "value": 3,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "id": "dim_vzoet8d",
+        "type": "distance",
+        "entity": 6087,
+        "value": 3.16227766016838,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "id": "dim_e1ftdwq",
+        "type": "distance",
+        "entity": 6088,
+        "value": 2.236067977499789,
+        "driven": false,
+        "exprError": null
+      }
+    ],
+    "diagnostics": [],
+    "status": "fully-defined"
+  },
+  "predictedAddedMm3": 8443.3333333333,
+  "actualAddedMm3": 8443.333333333343,
+  "scope": "Actual browser driving edit only; no model authored by audit. Nominal restore with drawing pending."
+}

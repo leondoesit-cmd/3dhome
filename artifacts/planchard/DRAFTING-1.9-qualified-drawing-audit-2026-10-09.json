@@ -1,0 +1,15 @@
+{
+  "pass": true,
+  "checks": {
+    "frontTwoSourceDiagonals": true,
+    "topThreeSharedVertexEdges": true,
+    "rightTwoSourceDiagonals": true,
+    "fourViews": true,
+    "twoFourLfNotes": true,
+    "allSvgNoteRows": true,
+    "qualifiedEstimatedDimensions": true,
+    "associativeExplicitTarget": true
+  },
+  "key": "cm_mv0mh3me",
+  "scope": "Actual generated projection correspondence to PDF85/1-57; source unit/material unspecified. Cold pending."
+}

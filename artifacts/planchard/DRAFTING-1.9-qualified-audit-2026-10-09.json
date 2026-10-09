@@ -1,0 +1,139 @@
+{
+  "pass": true,
+  "checks": {
+    "sourceFacetNormals": true,
+    "oneValidConnectedSolid": true,
+    "declaredVolume71500": true,
+    "threeFullyDefinedSketches": true,
+    "fiveHistoryTwoFeatures": true,
+    "sourceFeatureScopes": true,
+    "mmContext": true,
+    "explicitEstimatedDescription": true,
+    "stepOneValid": true,
+    "bidirectionalZero": true,
+    "inputsUnmodified": true
+  },
+  "key": "cm_mv0mh3me",
+  "name": "Planchard 1.9 - faceted block isometric - browser 2026-10-09",
+  "scope": "Read-only actual browser-authored estimated Exercise1.9 native geometry and STEP audit. Analytic71500mm3 follows declared assumptions, not an original source mass answer. Cold/drawing pending.",
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 71.5,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "mass": {
+    "volume": 71.5,
+    "centerOfMass": {
+      "x": 2.3479020979020975,
+      "y": 1.851398601398602,
+      "z": 1.8688811188811185
+    },
+    "inertia": [
+      [
+        180.72520396270392,
+        13.653540209790208,
+        12.838417832167693
+      ],
+      [
+        13.653540209790208,
+        236.70002913752933,
+        11.968138111888123
+      ],
+      [
+        12.838417832167693,
+        11.968138111888123,
+        233.85037878787887
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1e-7,
+        "y": -1e-7,
+        "z": -1e-7
+      },
+      "max": {
+        "x": 5.0000001,
+        "y": 4.0000001,
+        "z": 4.0000001
+      }
+    }
+  },
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 71.50000000000134,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 71.50000000000134,
+      "centerOfMass": {
+        "x": 2.3479020979021303,
+        "y": 1.8513986013986292,
+        "z": 1.868881118881131
+      },
+      "inertia": [
+        [
+          180.725203962708,
+          13.653540209787593,
+          12.838417832166215
+        ],
+        [
+          13.653540209787593,
+          236.70002913753342,
+          11.968138111887015
+        ],
+        [
+          12.838417832166215,
+          11.968138111887015,
+          233.85037878788557
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1e-7,
+          "y": -1e-7,
+          "z": -1e-7
+        },
+        "max": {
+          "x": 5.0000001,
+          "y": 4.0000001,
+          "z": 4.0000001
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "customProperties": {
+    "Description": "Exercise 1.9, Planchard Engineering Graphics with SOLIDWORKS 2021, PDF85 / printed1-57. Reconstruct the isometric from the supplied third-angle Front, Top and Right views. Source grid intervals chosen as illustrative10 mm; physical units and material are not supplied. Stock50 x40 x40 mm, corner top points A(10,40,40), P(20,40,20), B(50,40,10), E(50,40,40) and lower corner C(50,10,40); exposed facets APC and PBC must match all three supplied projections. Source-correspondence inference, no publisher solid or certified manufacturing dimensions."
+  },
+  "partsMaterial": [
+    {
+      "id": 6077
+    }
+  ],
+  "inputs": [
+    {
+      "path": "artifacts/planchard/DRAFTING-1.9-qualified-browser-2026-10-09.mforge",
+      "sha256": "e500bd12f58e1c22c18a550aee78f3feda2de1d124863bc43bcdb9b85be1a4fc"
+    },
+    {
+      "path": "artifacts/planchard/DRAFTING-1.9-qualified-browser-2026-10-09.step",
+      "sha256": "17c4915087c2388fda53d3b3f789368eddc9d51048ab8e401dde980876601d41"
+    }
+  ]
+}
