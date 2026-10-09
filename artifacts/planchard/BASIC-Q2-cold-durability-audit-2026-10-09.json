@@ -1,0 +1,135 @@
+{
+  "scope": "Read-only actual Basic Q2 cold present-field durability. Native/STEP established independently; actual Chrome driver/cold/clean Save facts attributed to parent.",
+  "inputs": [
+    {
+      "path": "artifacts\\planchard\\BASIC-Q2-source-qualified-restored-browser-2026-10-09.mforge",
+      "sha256": "8e246037a9a0f0e10b1e600f7ed4c0ae4653cadd6b9e4edf951e4dcc811d135a"
+    },
+    {
+      "path": "artifacts\\planchard\\BASIC-Q2-cold-accepted-browser-2026-10-09.mforge",
+      "sha256": "c422380420f5ee4b8ebb1dd550c48d5c023b74e85c15a26e1d8ca69371e22021"
+    }
+  ],
+  "checks": {
+    "canonicalKey": true,
+    "allPresentAuthoredFieldsAndCachePreserved": true,
+    "bodyPropertiesPreserved": true,
+    "density8point9": true,
+    "citationQualificationDescriptionPreserved": true,
+    "fourFullyDefinedEightSteps": true,
+    "originFrameMillimeterAuthoring": true,
+    "wrapperUnitsPreserved": true,
+    "inputsUnmodified": true
+  },
+  "pass": true,
+  "durability": {
+    "features": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "sketches": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "history": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "referenceGeometry": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "localFrame": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "context": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "engineeringMaterials": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "customProperties": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "exactTopologyCache": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "parameters": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "variables": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "topologyBindings": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "namedSelections": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    }
+  },
+  "mainModelChanges": [
+    "parts",
+    "lastRebuild"
+  ],
+  "material": {
+    "catalogId": "custom",
+    "grade": "Copper (CSWA book 0.0089 g/mm3)",
+    "density": 8.9,
+    "densitySource": "David Planchard, Engineering Graphics with SOLIDWORKS 2021, Basic Part Modeling Question 2, PDF page 497: Copper, 0.0089 g/mm3 = 8.9 g/cm3; official companion source density agrees. Grade unspecified.",
+    "condition": "",
+    "source": "Educational reference material; density only. No certified grade, strength data, service rating, or capacity claim.",
+    "model": "qualified-rating",
+    "youngModulusMPa": 0,
+    "poissonRatio": 0,
+    "allowableBendingMPa": 0,
+    "allowableContactMPa": 0,
+    "minTemperatureC": 0,
+    "maxTemperatureC": 0,
+    "maxCycles": 0,
+    "maxHours": 0,
+    "maxRpm": 0,
+    "environment": "",
+    "lubrication": "",
+    "id": 1502
+  },
+  "customProperties": {
+    "Description": "Planchard 2021 Basic Q2 copper bracket. Browser-authored parametric reconstruction; source geometry and density 8.9 g/cm3 checked against official companion. Educational, unrated material. Original opaque face selections/history are not reproduced."
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "parentReportedBrowserFacts": {
+    "cold": "Full reload, old planner Close/preserve, blank Model, unique saved Q2 selected; one valid native solid,8steps,4fullydefined,clean Save.",
+    "properties": "V180369.9mm3/m1605.292g/COM0,19.79367,0mm. Actual Custom properties Description and engineering density8.9/citation/qualification read, Cancel without changes.",
+    "driving": "Right Top diameter20\u219220.1 Finish, Undo20, Redo20.1, Undo20; source properties restored."
+  }
+}

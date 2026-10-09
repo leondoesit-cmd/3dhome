@@ -1,0 +1,169 @@
+{
+  "scope": "Read-only actual Basic Q2 saved provenance and STEP audit; final cold durability pending.",
+  "inputs": [
+    {
+      "path": "artifacts/planchard/BASIC-Q2-source-qualified-restored-browser-2026-10-09.mforge",
+      "sha256": "8e246037a9a0f0e10b1e600f7ed4c0ae4653cadd6b9e4edf951e4dcc811d135a"
+    },
+    {
+      "path": "artifacts/planchard/BASIC-Q2-source-qualified-browser-2026-10-09.step",
+      "sha256": "90fe729c531235f1b865b8a3c49e0699f9f0a7aa75e7b0ce9a6cb33e5dc115d1"
+    }
+  ],
+  "checks": {
+    "canonicalKey": true,
+    "sourceGeometryPreserved": true,
+    "nativeOneValid": true,
+    "stepOneValid": true,
+    "bidirectionalZero": true,
+    "density8point9": true,
+    "customCatalogPreserved": true,
+    "sourceCitationRecorded": true,
+    "educationalUnratedRecorded": true,
+    "descriptionRecorded": true,
+    "allFullyDefined": true,
+    "inputsUnmodified": true
+  },
+  "pass": true,
+  "preserved": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "referenceGeometry": true,
+    "localFrame": true,
+    "context": true
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 180.36990515543678,
+    "maxToleranceCm": 1.5000003264055692e-7
+  },
+  "mass": {
+    "volume": 180.36990515543678,
+    "centerOfMass": {
+      "x": 4.3333005506797597e-16,
+      "y": 1.9793668835537195,
+      "z": -3.068395347320824e-16
+    },
+    "inertia": [
+      [
+        1031.0880657581818,
+        6.588888168643988e-14,
+        -1.0769163338864042e-14
+      ],
+      [
+        6.588888168643988e-14,
+        1978.6677745102004,
+        -2.969451256568435e-14
+      ],
+      [
+        -1.0769163338864042e-14,
+        -2.969451256568435e-14,
+        1954.2399468912738
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -7,
+        "y": 0,
+        "z": -3
+      },
+      "max": {
+        "x": 7,
+        "y": 6,
+        "z": 3
+      }
+    }
+  },
+  "massAt8point9G": 1605.2921558833875,
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 180.36990515543985,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 180.36990515543985,
+      "centerOfMass": {
+        "x": -1.1030219583548292e-15,
+        "y": 1.979366883553717,
+        "z": 8.772656170234671e-14
+      },
+      "inertia": [
+        [
+          1031.0880657582056,
+          -2.9432294993728244e-13,
+          -1.248612324644684e-11
+        ],
+        [
+          -2.9432294993728244e-13,
+          1978.6677745102368,
+          -1.1774963632501921e-11
+        ],
+        [
+          -1.248612324644684e-11,
+          -1.1774963632501921e-11,
+          1954.2399468912913
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -7,
+          "y": 0,
+          "z": -3
+        },
+        "max": {
+          "x": 7,
+          "y": 6,
+          "z": 3
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0
+  },
+  "material": {
+    "catalogId": "custom",
+    "grade": "Copper (CSWA book 0.0089 g/mm3)",
+    "density": 8.9,
+    "densitySource": "David Planchard, Engineering Graphics with SOLIDWORKS 2021, Basic Part Modeling Question 2, PDF page 497: Copper, 0.0089 g/mm3 = 8.9 g/cm3; official companion source density agrees. Grade unspecified.",
+    "condition": "",
+    "source": "Educational reference material; density only. No certified grade, strength data, service rating, or capacity claim.",
+    "model": "qualified-rating",
+    "youngModulusMPa": 0,
+    "poissonRatio": 0,
+    "allowableBendingMPa": 0,
+    "allowableContactMPa": 0,
+    "minTemperatureC": 0,
+    "maxTemperatureC": 0,
+    "maxCycles": 0,
+    "maxHours": 0,
+    "maxRpm": 0,
+    "environment": "",
+    "lubrication": "",
+    "id": 1502
+  },
+  "bodyMaterial": {
+    "id": 1473,
+    "density": 8.9,
+    "densitySource": "David Planchard, Engineering Graphics with SOLIDWORKS 2021, Basic Part Modeling Question 2, PDF page 497: Copper, 0.0089 g/mm3 = 8.9 g/cm3; official companion source density agrees. Grade unspecified.",
+    "materialQualificationId": 1502
+  },
+  "customProperties": {
+    "Description": "Planchard 2021 Basic Q2 copper bracket. Browser-authored parametric reconstruction; source geometry and density 8.9 g/cm3 checked against official companion. Educational, unrated material. Original opaque face selections/history are not reproduced."
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  }
+}

@@ -1,0 +1,756 @@
+{
+  "scope": "Read-only actual Basic Q2 driving and restored native audit. Parent observed20\u00e2\u2020\u201920.1/Undo20/Redo20.1/Undo20 in Chrome; metadata/cold/STEP acceptance pending.",
+  "inputs": [
+    {
+      "path": "artifacts/planchard/BASIC-Q2-current-library-preflight-browser-2026-10-09.mforge",
+      "sha256": "41cef0aa2cd0fd459e7956e494ffc5e23e6380189110d9f788ea6444e68130ef"
+    },
+    {
+      "path": "artifacts/planchard/BASIC-Q2-driving-20p1-browser-2026-10-09.mforge",
+      "sha256": "2868b0628ddf46aa0417d10ea7482cccdebcc781d5115949678c49c86e7037b4"
+    },
+    {
+      "path": "artifacts/planchard/BASIC-Q2-driving-restored-browser-2026-10-09.mforge",
+      "sha256": "23e9e3e2d784e4ebb33dee2b37e140ee57a81656691f441c416855e8891e38ab"
+    }
+  ],
+  "checks": {
+    "canonicalKey": true,
+    "all4FullyDefined8Steps": true,
+    "allRestoredFields": true,
+    "downstreamFeaturesPreserved": true,
+    "downstreamSketchesPreserved": true,
+    "unchangedOtherDimensions": true,
+    "restoredRightHole20": true,
+    "bothOneValid": true,
+    "analyticSingleHoleDelta": true,
+    "nativeChangedRadius": true,
+    "nativeRestoredRadius": true,
+    "inputsUnmodified": true,
+    "historicalFeatureSketchGeometryPreserved": true
+  },
+  "pass": true,
+  "restoredFields": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "referenceGeometry": true,
+    "localFrame": true,
+    "engineeringMaterials": true,
+    "context": true,
+    "exactTopologyCache": true
+  },
+  "dimensions": [
+    [
+      {
+        "id": 1463,
+        "value": 8
+      },
+      {
+        "id": 1464,
+        "value": 3
+      },
+      {
+        "id": 1467,
+        "value": 2
+      },
+      {
+        "id": 1470,
+        "value": 2
+      }
+    ],
+    [
+      {
+        "id": 1463,
+        "value": 8
+      },
+      {
+        "id": 1464,
+        "value": 3
+      },
+      {
+        "id": 1467,
+        "value": 2.0100000000000002
+      },
+      {
+        "id": 1470,
+        "value": 2
+      }
+    ],
+    [
+      {
+        "id": 1463,
+        "value": 8
+      },
+      {
+        "id": 1464,
+        "value": 3
+      },
+      {
+        "id": 1467,
+        "value": 2
+      },
+      {
+        "id": 1470,
+        "value": 2
+      }
+    ]
+  ],
+  "actualVolumeDeltaCm3": -0.04409225289310825,
+  "expectedVolumeDeltaCm3": -0.044092252893131546,
+  "records": [
+    {
+      "input": "artifacts/planchard/BASIC-Q2-driving-20p1-browser-2026-10-09.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 180.32581290254367,
+        "maxToleranceCm": 1.5000003264055692e-07
+      },
+      "mass": {
+        "volume": 180.32581290254367,
+        "centerOfMass": {
+          "x": -0.0009780574879082143,
+          "y": 1.9796797071437795,
+          "z": -5.020839013608816e-16
+        },
+        "inertia": [
+          [
+            1030.9865204434002,
+            -0.22569584507830642,
+            -2.247026105304818e-17
+          ],
+          [
+            -0.22569584507830642,
+            1977.9178126995669,
+            -3.571352115991379e-14
+          ],
+          [
+            -2.247026105304818e-17,
+            -3.571352115991379e-14,
+            1953.4327530311698
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": -7,
+            "y": 0,
+            "z": -3
+          },
+          "max": {
+            "x": 7,
+            "y": 6,
+            "z": 3
+          }
+        }
+      },
+      "issues": [],
+      "cylinders": [
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": -8.881784197001252e-16,
+            "y": 3,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1.2246467991473532e-16,
+            "z": 1
+          },
+          "measure": 25.132741228718338,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": 1.9999999,
+              "z": -1.0000001
+            },
+            "max": {
+              "x": 2.000000099999999,
+              "y": 4.0000001,
+              "z": 1.0000001
+            }
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "radius": 1,
+          "referenceOrigin": {
+            "x": -7.00100015,
+            "y": 3,
+            "z": 0
+          },
+          "axisRange": [
+            -9.00100015,
+            -5.00100015
+          ],
+          "centroid": {
+            "x": -7.87430953108841e-16,
+            "y": 2.9999999999999996,
+            "z": 0
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": -4,
+            "y": 0.7000000000000001,
+            "z": 0
+          },
+          "normal": {
+            "x": -1,
+            "y": 0,
+            "z": 6.123233995736766e-17
+          },
+          "measure": 13.194689145077133,
+          "bounds": {
+            "min": {
+              "x": -7.0000001,
+              "y": -1.0000000000000002e-07,
+              "z": -3.0000001
+            },
+            "max": {
+              "x": -3.9999999,
+              "y": 1.4000001000000002,
+              "z": 3.0000001
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "radius": 3,
+          "referenceOrigin": {
+            "x": -4,
+            "y": 0,
+            "z": 0
+          },
+          "axisRange": [
+            -1.4000000000000001,
+            0
+          ],
+          "centroid": {
+            "x": -5.909859317102743,
+            "y": 0.7000000000000001,
+            "z": -2.1684043449710083e-17
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": -4,
+            "y": 0.7000000000000001,
+            "z": 0
+          },
+          "normal": {
+            "x": -1.2246467991473532e-16,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 8.79645943005142,
+          "bounds": {
+            "min": {
+              "x": -5.0000001,
+              "y": -1e-07,
+              "z": -1.0000001
+            },
+            "max": {
+              "x": -2.9999999,
+              "y": 1.4000001000000002,
+              "z": 1.0000001
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "radius": 1,
+          "referenceOrigin": {
+            "x": -4,
+            "y": 0,
+            "z": 0
+          },
+          "axisRange": [
+            -1.4000000000000001,
+            0
+          ],
+          "centroid": {
+            "x": -4,
+            "y": 0.7000000000000001,
+            "z": -2.220446049250313e-16
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": 0,
+            "y": 3,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": -1.83697019872103e-16
+          },
+          "measure": 37.69911184307752,
+          "bounds": {
+            "min": {
+              "x": -2.0000001000000003,
+              "y": 2.9999998999999993,
+              "z": -3.0000001000000003
+            },
+            "max": {
+              "x": 2.0000001000000003,
+              "y": 6.0000001,
+              "z": 3.0000001000000003
+            }
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "radius": 3,
+          "referenceOrigin": {
+            "x": -2,
+            "y": 3,
+            "z": 0
+          },
+          "axisRange": [
+            -4,
+            0
+          ],
+          "centroid": {
+            "x": -1.0307353134372508e-16,
+            "y": 4.909859317102744,
+            "z": -2.411265631607762e-16
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": 4,
+            "y": 0.7000000000000001,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": -6.123233995736766e-17
+          },
+          "measure": 13.194689145077133,
+          "bounds": {
+            "min": {
+              "x": 3.9999999,
+              "y": -1.0000000000000002e-07,
+              "z": -3.0000001
+            },
+            "max": {
+              "x": 7.0000001,
+              "y": 1.4000001000000002,
+              "z": 3.0000001
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "radius": 3,
+          "referenceOrigin": {
+            "x": 4,
+            "y": 0,
+            "z": 0
+          },
+          "axisRange": [
+            -1.4000000000000001,
+            0
+          ],
+          "centroid": {
+            "x": 5.909859317102743,
+            "y": 0.7000000000000001,
+            "z": 2.1684043449710083e-17
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": 4,
+            "y": 0.7000000000000001,
+            "z": 0
+          },
+          "normal": {
+            "x": -1.2246467991473532e-16,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 8.840441727201675,
+          "bounds": {
+            "min": {
+              "x": 2.9949999000000003,
+              "y": -1e-07,
+              "z": -1.0050000999999997
+            },
+            "max": {
+              "x": 5.0050001,
+              "y": 1.4000001000000002,
+              "z": 1.0050000999999997
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "radius": 1.0049999999999997,
+          "referenceOrigin": {
+            "x": 4,
+            "y": 0,
+            "z": 0
+          },
+          "axisRange": [
+            -1.4000000000000001,
+            0
+          ],
+          "centroid": {
+            "x": 4,
+            "y": 0.7000000000000001,
+            "z": -2.220446049250313e-16
+          }
+        }
+      ]
+    },
+    {
+      "input": "artifacts/planchard/BASIC-Q2-driving-restored-browser-2026-10-09.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 180.36990515543678,
+        "maxToleranceCm": 1.5000003264055692e-07
+      },
+      "mass": {
+        "volume": 180.36990515543678,
+        "centerOfMass": {
+          "x": 4.3333005506797597e-16,
+          "y": 1.9793668835537195,
+          "z": -3.068395347320824e-16
+        },
+        "inertia": [
+          [
+            1031.0880657581818,
+            6.588888168643988e-14,
+            -1.0769163338864042e-14
+          ],
+          [
+            6.588888168643988e-14,
+            1978.6677745102004,
+            -2.969451256568435e-14
+          ],
+          [
+            -1.0769163338864042e-14,
+            -2.969451256568435e-14,
+            1954.2399468912738
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": -7,
+            "y": 0,
+            "z": -3
+          },
+          "max": {
+            "x": 7,
+            "y": 6,
+            "z": 3
+          }
+        }
+      },
+      "issues": [],
+      "cylinders": [
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": -8.881784197001252e-16,
+            "y": 3,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1.2246467991473532e-16,
+            "z": 1
+          },
+          "measure": 25.132741228718338,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": 1.9999999,
+              "z": -1.0000001
+            },
+            "max": {
+              "x": 2.000000099999999,
+              "y": 4.0000001,
+              "z": 1.0000001
+            }
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "radius": 1,
+          "referenceOrigin": {
+            "x": -7.00100015,
+            "y": 3,
+            "z": 0
+          },
+          "axisRange": [
+            -9.00100015,
+            -5.00100015
+          ],
+          "centroid": {
+            "x": -7.87430953108841e-16,
+            "y": 2.9999999999999996,
+            "z": 0
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": -4,
+            "y": 0.7000000000000001,
+            "z": 0
+          },
+          "normal": {
+            "x": -1,
+            "y": 0,
+            "z": 6.123233995736766e-17
+          },
+          "measure": 13.194689145077133,
+          "bounds": {
+            "min": {
+              "x": -7.0000001,
+              "y": -1.0000000000000002e-07,
+              "z": -3.0000001
+            },
+            "max": {
+              "x": -3.9999999,
+              "y": 1.4000001000000002,
+              "z": 3.0000001
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "radius": 3,
+          "referenceOrigin": {
+            "x": -4,
+            "y": 0,
+            "z": 0
+          },
+          "axisRange": [
+            -1.4000000000000001,
+            0
+          ],
+          "centroid": {
+            "x": -5.909859317102743,
+            "y": 0.7000000000000001,
+            "z": -2.1684043449710083e-17
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": -4,
+            "y": 0.7000000000000001,
+            "z": 0
+          },
+          "normal": {
+            "x": -1.2246467991473532e-16,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 8.79645943005142,
+          "bounds": {
+            "min": {
+              "x": -5.0000001,
+              "y": -1e-07,
+              "z": -1.0000001
+            },
+            "max": {
+              "x": -2.9999999,
+              "y": 1.4000001000000002,
+              "z": 1.0000001
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "radius": 1,
+          "referenceOrigin": {
+            "x": -4,
+            "y": 0,
+            "z": 0
+          },
+          "axisRange": [
+            -1.4000000000000001,
+            0
+          ],
+          "centroid": {
+            "x": -4,
+            "y": 0.7000000000000001,
+            "z": -2.220446049250313e-16
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": 0,
+            "y": 3,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": -1.83697019872103e-16
+          },
+          "measure": 37.69911184307752,
+          "bounds": {
+            "min": {
+              "x": -2.0000001000000003,
+              "y": 2.9999998999999993,
+              "z": -3.0000001000000003
+            },
+            "max": {
+              "x": 2.0000001000000003,
+              "y": 6.0000001,
+              "z": 3.0000001000000003
+            }
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "radius": 3,
+          "referenceOrigin": {
+            "x": -2,
+            "y": 3,
+            "z": 0
+          },
+          "axisRange": [
+            -4,
+            0
+          ],
+          "centroid": {
+            "x": -1.0307353134372508e-16,
+            "y": 4.909859317102744,
+            "z": -2.411265631607762e-16
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": 4,
+            "y": 0.7000000000000001,
+            "z": 0
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": -6.123233995736766e-17
+          },
+          "measure": 13.194689145077133,
+          "bounds": {
+            "min": {
+              "x": 3.9999999,
+              "y": -1.0000000000000002e-07,
+              "z": -3.0000001
+            },
+            "max": {
+              "x": 7.0000001,
+              "y": 1.4000001000000002,
+              "z": 3.0000001
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "radius": 3,
+          "referenceOrigin": {
+            "x": 4,
+            "y": 0,
+            "z": 0
+          },
+          "axisRange": [
+            -1.4000000000000001,
+            0
+          ],
+          "centroid": {
+            "x": 5.909859317102743,
+            "y": 0.7000000000000001,
+            "z": 2.1684043449710083e-17
+          }
+        },
+        {
+          "surface": "cylinder",
+          "origin": {
+            "x": 4,
+            "y": 0.7000000000000001,
+            "z": 0
+          },
+          "normal": {
+            "x": -1.2246467991473532e-16,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 8.79645943005142,
+          "bounds": {
+            "min": {
+              "x": 2.9999999,
+              "y": -1e-07,
+              "z": -1.0000001
+            },
+            "max": {
+              "x": 5.0000001,
+              "y": 1.4000001000000002,
+              "z": 1.0000001
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "radius": 1,
+          "referenceOrigin": {
+            "x": 4,
+            "y": 0,
+            "z": 0
+          },
+          "axisRange": [
+            -1.4000000000000001,
+            0
+          ],
+          "centroid": {
+            "x": 4,
+            "y": 0.7000000000000001,
+            "z": -2.220446049250313e-16
+          }
+        }
+      ]
+    }
+  ],
+  "historicalDatumQualification": "Historical referenceGeometry was empty; current library has six default origin planes/axes. Current preflight-to-restored references are exact. Historical feature and sketch geometry remain exact."
+}
