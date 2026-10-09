@@ -1,0 +1,138 @@
+{
+  "pass": true,
+  "checks": {
+    "oneValidConnectedSolid": true,
+    "declaredVolume10866point427": true,
+    "fourFullyDefinedSketches": true,
+    "eightHistoryFourFeatures": true,
+    "sourceFeatureScopes": true,
+    "mmContext": true,
+    "explicitEstimatedDescription": true,
+    "stepOneValid": true,
+    "bidirectionalZero": true,
+    "inputsUnmodified": true
+  },
+  "key": "cm_mv0lkexi",
+  "name": "Planchard 1.7 - estimated slotted bracket - browser 2026-10-09",
+  "scope": "Read-only actual browser-authored estimated Exercise1.7 native geometry and STEP audit. Analytic10866.4270661779mm3 follows declared assumptions, not an original source mass answer. Cold/drawing pending.",
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 10.86642706617787,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "mass": {
+    "volume": 10.86642706617787,
+    "centerOfMass": {
+      "x": 1.5000000000000002,
+      "y": 0.9056893040010184,
+      "z": 3.4206601586688747
+    },
+    "inertia": [
+      [
+        38.04057062960186,
+        5.329070518200751e-15,
+        4.973799150320701e-14
+      ],
+      [
+        5.329070518200751e-15,
+        36.52838724624502,
+        -9.471546369484273
+      ],
+      [
+        4.973799150320701e-14,
+        -9.471546369484273,
+        19.222011829052683
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 3,
+        "y": 3.5,
+        "z": 5
+      }
+    }
+  },
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 10.866427066177812,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 10.866427066177812,
+      "centerOfMass": {
+        "x": 1.5000000000000007,
+        "y": 0.9056893040010199,
+        "z": 3.420660158668877
+      },
+      "inertia": [
+        [
+          38.04057062960186,
+          7.105427357601002e-15,
+          6.394884621840902e-14
+        ],
+        [
+          7.105427357601002e-15,
+          36.52838724624496,
+          -9.471546369484265
+        ],
+        [
+          6.394884621840902e-14,
+          -9.471546369484265,
+          19.22201182905266
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max": {
+          "x": 3,
+          "y": 3.5,
+          "z": 5
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "customProperties": {
+    "Description": "Exercise1.7 PDF83 / 1-55 undimensioned isometric. Illustrative estimated slotted L bracket: width30/depth50/base5/overallheight35; rear upright depth5 Z45..50 rises30; top open notch width10/depth5 atX10..20/Y30..35 through upright; base boreD15 centredX15/Z20 through5. Chosen10 mm unit and half steps, not certified publisher dimensions/material. WorldXwidth/Yup/+Zrear; chosen app Front from raised rear(+Z), source has no Front arrow. No source radius or material. Four browser parametric features and source orthographic views."
+  },
+  "partsMaterial": [
+    {
+      "id": 6006
+    }
+  ],
+  "inputs": [
+    {
+      "path": "artifacts/planchard/DRAFTING-1.7-cold-accepted-browser-2026-10-09.mforge",
+      "sha256": "08b6e11cbd97b0607b721c33f24d44fcbe090409c1d225c1eeeb80f80f40240d"
+    },
+    {
+      "path": "artifacts/planchard/DRAFTING-1.7-authored-native-browser-2026-10-09.step",
+      "sha256": "3ba8c31be7f37cbf8587d2d5b17f5b96f4e7411d56554bc2674b3510bdbb4232"
+    }
+  ]
+}

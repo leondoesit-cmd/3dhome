@@ -1,0 +1,144 @@
+{
+  "pass": true,
+  "checks": {
+    "nativeOneValid": true,
+    "analyticSourceDriving": true,
+    "firstThreeSketchesExact": true,
+    "featuresExact": true,
+    "allFullyDefined": true,
+    "inputUnchanged": true
+  },
+  "mass": {
+    "volume": 10.842708041643268,
+    "centerOfMass": {
+      "x": 1.5000000000000002,
+      "y": 0.9071236606791606,
+      "z": 3.423767931471516
+    },
+    "inertia": [
+      [
+        37.97511993431689,
+        3.552713678800501e-15,
+        2.1316282072803006e-14
+      ],
+      [
+        3.552713678800501e-15,
+        36.466889973668344,
+        -9.449403488265453
+      ],
+      [
+        2.1316282072803006e-14,
+        -9.449403488265453,
+        19.20453737640848
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 3,
+        "y": 3.5,
+        "z": 5
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 10.842708041643268,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "changedNotchSketch": {
+    "id": "sk_44bu0",
+    "name": "Top Plane sketch",
+    "plane": "top",
+    "offset": 0.5,
+    "referenceId": "plane:top",
+    "points": [
+      {
+        "id": 6035,
+        "x": 1.5,
+        "y": 2
+      }
+    ],
+    "entities": [
+      {
+        "id": 6034,
+        "type": "circle",
+        "name": "Circle",
+        "c": 6035,
+        "r": 0.759999999999999,
+        "construction": false
+      }
+    ],
+    "constraints": [
+      {
+        "id": 6036,
+        "entity": 6034,
+        "type": "diameter",
+        "value": 1.52,
+        "exprError": null
+      },
+      {
+        "type": "fixed",
+        "point": 6035,
+        "x": 1.5,
+        "y": 2,
+        "id": 6037,
+        "exprError": null
+      }
+    ],
+    "diagnostics": [],
+    "status": "fully-defined"
+  },
+  "nominalNotchSketch": {
+    "id": "sk_44bu0",
+    "name": "Top Plane sketch",
+    "plane": "top",
+    "offset": 0.5,
+    "referenceId": "plane:top",
+    "points": [
+      {
+        "id": 6035,
+        "x": 1.5,
+        "y": 2
+      }
+    ],
+    "entities": [
+      {
+        "id": 6034,
+        "type": "circle",
+        "name": "Circle",
+        "c": 6035,
+        "r": 0.75,
+        "construction": false
+      }
+    ],
+    "constraints": [
+      {
+        "id": 6036,
+        "entity": 6034,
+        "type": "diameter",
+        "value": 1.5,
+        "exprError": null
+      },
+      {
+        "type": "fixed",
+        "point": 6035,
+        "x": 1.5,
+        "y": 2,
+        "id": 6037,
+        "exprError": null
+      }
+    ],
+    "diagnostics": [],
+    "status": "fully-defined"
+  },
+  "predictedRemovalMm3": 23.719024534602905,
+  "actualRemovalMm3": 23.719024534631927,
+  "scope": "Actual browser driving edit only; no model authored by audit. Nominal restore with drawing pending."
+}

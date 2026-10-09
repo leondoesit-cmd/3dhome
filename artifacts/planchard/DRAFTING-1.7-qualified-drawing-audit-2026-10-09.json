@@ -1,0 +1,62 @@
+{
+  "pass": true,
+  "checks": {
+    "nativeGeometryHistoryConstraintsExact": true,
+    "bodyAuthoringMaterialExact": true,
+    "fourNativeViews": true,
+    "twoFourRowNotes": true,
+    "svgAllNoteRows": true,
+    "inputsUnchanged": true,
+    "frontVisibleSlotAndHiddenBore": true,
+    "topVisibleCircleAndSlot": true,
+    "rightLHiddenBoreSlotFloor": true,
+    "descriptionExactEstimatedDirection": true,
+    "boreCenterLines": true
+  },
+  "key": "cm_mv0lkexi",
+  "geometryFields": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "parameters": true,
+    "localFrame": true,
+    "references": true,
+    "referenceGeometry": true,
+    "context": true
+  },
+  "partFields": {
+    "id": true,
+    "kind": true,
+    "axis": true,
+    "from": true,
+    "to": true,
+    "pts": true,
+    "holes": true,
+    "profileEntityIds": true,
+    "sketchId": true,
+    "sketchDriven": true,
+    "supportBaseOffset": true,
+    "supportDepth": true,
+    "direction": true,
+    "symmetric": true,
+    "draftAngle": true,
+    "draftOutward": true,
+    "featureId": true,
+    "color": true,
+    "metal": true,
+    "rough": true,
+    "name": true,
+    "exactError": true,
+    "exactPending": true,
+    "merges3d": true,
+    "cuts3d": true
+  },
+  "changedFields": [
+    "lastRebuild",
+    "parts",
+    "drawing",
+    "lastStandardsAudit"
+  ],
+  "qualification": "Same proven10866.4270661779mm3 native source inputs, no rebuild needed. Derived parts meshData/exactBuildToken, timestamps and drawing change; Description exact. Cold pending.",
+  "inputSha256": "183464b11836c5e42d04eae99fca130cf9dc4199e16105285fdcdd7ffc881e7b"
+}
