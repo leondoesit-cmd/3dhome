@@ -1,0 +1,320 @@
+{
+  "scope": "Read-only actual Basic Q3 driving/restored native audit. Parent Chrome20→20.1/Undo20/Redo20.1/Undo20 observed; final provenance/STEP/cold pending.",
+  "historicalDatumQualification": {
+    "historical": [],
+    "current": [
+      {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    ]
+  },
+  "inputs": [
+    {
+      "path": "artifacts/planchard/BASIC-Q3-current-library-preflight-browser-2026-10-09.mforge",
+      "sha256": "b43173788f217b17726d3f0d8eb745f32cc2f17b46d26532b20f4f2daaffade6"
+    },
+    {
+      "path": "artifacts/planchard/BASIC-Q3-driving-20p1-browser-2026-10-09.mforge",
+      "sha256": "2d4b083f463ba41bff426338383a4983847e794297024eee8907aa83818b794e"
+    },
+    {
+      "path": "artifacts/planchard/BASIC-Q3-driving-restored-browser-2026-10-09.mforge",
+      "sha256": "056218e700e4e8271e701b42fae2864c4005e65be94f20bb5dacc94422600d59"
+    }
+  ],
+  "checks": {
+    "canonicalKey": true,
+    "all2FullyDefined4Steps": true,
+    "allRestoredFields": true,
+    "historicalFeatureSketchGeometryPreserved": true,
+    "featuresPreserved": true,
+    "downstreamSlotPreserved": true,
+    "all5DimensionsPresent": true,
+    "unchangedOtherDimensions": true,
+    "restoredShaft20": true,
+    "bothOneValid": true,
+    "analyticShaftDelta": true,
+    "inputsUnmodified": true
+  },
+  "pass": true,
+  "restoredFields": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "referenceGeometry": true,
+    "localFrame": true,
+    "engineeringMaterials": true,
+    "context": true,
+    "exactTopologyCache": true
+  },
+  "dimensions": [
+    [
+      {
+        "id": "dim_n613lmi",
+        "value": 1.4000000000000001
+      },
+      {
+        "id": "dim_hl718nu",
+        "value": 1.2000000000000002
+      },
+      {
+        "id": "dim_vbe02rj",
+        "value": 0.8
+      },
+      {
+        "id": "dim_3leysl9",
+        "value": 2
+      },
+      {
+        "id": "dim_iaa3jkp",
+        "value": 0.6000000000000001
+      }
+    ],
+    [
+      {
+        "id": "dim_n613lmi",
+        "value": 1.4000000000000001
+      },
+      {
+        "id": "dim_hl718nu",
+        "value": 1.2000000000000002
+      },
+      {
+        "id": "dim_vbe02rj",
+        "value": 0.8
+      },
+      {
+        "id": "dim_3leysl9",
+        "value": 2.0100000000000002
+      },
+      {
+        "id": "dim_iaa3jkp",
+        "value": 0.6000000000000001
+      }
+    ],
+    [
+      {
+        "id": "dim_n613lmi",
+        "value": 1.4000000000000001
+      },
+      {
+        "id": "dim_hl718nu",
+        "value": 1.2000000000000002
+      },
+      {
+        "id": "dim_vbe02rj",
+        "value": 0.8
+      },
+      {
+        "id": "dim_3leysl9",
+        "value": 2
+      },
+      {
+        "id": "dim_iaa3jkp",
+        "value": 0.6000000000000001
+      }
+    ]
+  ],
+  "actualVolumeDeltaCm3": 0.01130973355883036,
+  "expectedVolumeDeltaCm3": 0.011309733552923256,
+  "records": [
+    {
+      "input": "artifacts/planchard/BASIC-Q3-driving-20p1-browser-2026-10-09.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 9.568575128268035,
+        "maxToleranceCm": 1.500000389125138e-7
+      },
+      "mass": {
+        "volume": 9.568575128268035,
+        "centerOfMass": {
+          "x": 0.9813082453674783,
+          "y": -0.01270826621214883,
+          "z": -2.4985491273271337e-17
+        },
+        "inertia": [
+          [
+            7.489567548474407,
+            -0.046367082637083085,
+            -1.1574237985833877e-16
+          ],
+          [
+            -0.046367082637083085,
+            9.929510788269235,
+            2.3189932913403475e-16
+          ],
+          [
+            -1.1574237985833877e-16,
+            2.3189932913403475e-16,
+            9.771096656628359
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": -7.986014075104771e-14,
+            "y": -1.4000000000014232,
+            "z": -1.4000000000014232
+          },
+          "max": {
+            "x": 3.2099999999998357,
+            "y": 1.3856406460565398,
+            "z": 1.4000000000014232
+          }
+        }
+      },
+      "issues": []
+    },
+    {
+      "input": "artifacts/planchard/BASIC-Q3-driving-restored-browser-2026-10-09.mforge",
+      "validation": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 9.557265394709205,
+        "maxToleranceCm": 1.5000000044495572e-7
+      },
+      "mass": {
+        "volume": 9.557265394709205,
+        "centerOfMass": {
+          "x": 0.9786768063319603,
+          "y": -0.012723304729752163,
+          "z": 5.1582864842200443e-17
+        },
+        "inertia": [
+          [
+            7.487529967726238,
+            -0.04604709964996653,
+            1.7999078452219592e-16
+          ],
+          [
+            -0.04604709964996653,
+            9.872502211746324,
+            2.898479266078187e-16
+          ],
+          [
+            1.7999078452219592e-16,
+            2.898479266078187e-16,
+            9.714086251423048
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": 1.3113684369859543e-17,
+            "y": -1.4000000000000001,
+            "z": -1.4000000000000001
+          },
+          "max": {
+            "x": 3.2,
+            "y": 1.385640646055102,
+            "z": 1.4000000000000001
+          }
+        }
+      },
+      "issues": []
+    }
+  ]
+}

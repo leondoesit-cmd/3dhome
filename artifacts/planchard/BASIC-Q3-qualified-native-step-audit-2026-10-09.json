@@ -1,0 +1,170 @@
+{
+  "scope": "Read-only actual Basic Q3 saved provenance and STEP audit; final cold pending.",
+  "inputs": [
+    {
+      "path": "artifacts/planchard/BASIC-Q3-source-qualified-restored-browser-2026-10-09.mforge",
+      "sha256": "37a328f22ef0b5b943c8952eedc0fcea66b49aa5cc3ac4bb61e522e91d722b91"
+    },
+    {
+      "path": "artifacts/planchard/BASIC-Q3-source-qualified-browser-2026-10-09.step",
+      "sha256": "3870fb3342c509ce8492be10f412ba7ef59ae920151f77720a81944ca3f9aee6"
+    }
+  ],
+  "checks": {
+    "canonicalKey": true,
+    "sourceGeometryPreserved": true,
+    "nativeOneValid": true,
+    "stepOneValid": true,
+    "bidirectionalZero": true,
+    "density7point3": true,
+    "stockCatalogPreserved": true,
+    "sourceCitationRecorded": true,
+    "educationalUnratedRecorded": true,
+    "descriptionRecorded": true,
+    "allFullyDefined": true,
+    "inputsUnmodified": true
+  },
+  "pass": true,
+  "preserved": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "referenceGeometry": true,
+    "localFrame": true,
+    "context": true
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 9.557265394709205,
+    "maxToleranceCm": 1.5000000044495572e-7
+  },
+  "mass": {
+    "volume": 9.557265394709205,
+    "centerOfMass": {
+      "x": 0.9786768063319603,
+      "y": -0.012723304729752163,
+      "z": 5.1582864842200443e-17
+    },
+    "inertia": [
+      [
+        7.487529967726238,
+        -0.04604709964996653,
+        1.7999078452219592e-16
+      ],
+      [
+        -0.04604709964996653,
+        9.872502211746324,
+        2.898479266078187e-16
+      ],
+      [
+        1.7999078452219592e-16,
+        2.898479266078187e-16,
+        9.714086251423048
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 1.3113684369859543e-17,
+        "y": -1.4000000000000001,
+        "z": -1.4000000000000001
+      },
+      "max": {
+        "x": 3.2,
+        "y": 1.385640646055102,
+        "z": 1.4000000000000001
+      }
+    }
+  },
+  "massAt7point3G": 69.7680373813772,
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 9.5572653947093,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 9.5572653947093,
+      "centerOfMass": {
+        "x": 0.9786768063319694,
+        "y": -0.012723304729740663,
+        "z": 1.3770077161311637e-15
+      },
+      "inertia": [
+        [
+          7.487529967726333,
+          -0.04604709965001523,
+          3.972313926685504e-15
+        ],
+        [
+          -0.04604709965001523,
+          9.872502211746404,
+          -1.727568394179291e-14
+        ],
+        [
+          3.972313926685504e-15,
+          -1.727568394179291e-14,
+          9.714086251423222
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": 1.311368436986e-17,
+          "y": -1.4,
+          "z": -1.4
+        },
+        "max": {
+          "x": 3.2,
+          "y": 1.3856406460550996,
+          "z": 1.4
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0
+  },
+  "material": {
+    "catalogId": "stock:castAlloySteel",
+    "grade": "Cast Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.3,
+    "densitySource": "David Planchard, Engineering Graphics with SOLIDWORKS 2021, Basic Part Modeling Question 3, PDF page 498, Cast Alloy Steel; official companion source density 7300 kg/m3 = 7.3 g/cm3. Grade unspecified.",
+    "condition": "",
+    "source": "Educational reference material; density only. No certified grade, strength data, service rating, or capacity claim.",
+    "model": "qualified-rating",
+    "youngModulusMPa": 0,
+    "poissonRatio": 0,
+    "allowableBendingMPa": 0,
+    "allowableContactMPa": 0,
+    "minTemperatureC": 0,
+    "maxTemperatureC": 0,
+    "maxCycles": 0,
+    "maxHours": 0,
+    "maxRpm": 0,
+    "environment": "",
+    "lubrication": "",
+    "id": 5944
+  },
+  "bodyMaterial": {
+    "id": 1523,
+    "density": 7.3,
+    "densitySource": "David Planchard, Engineering Graphics with SOLIDWORKS 2021, Basic Part Modeling Question 3, PDF page 498, Cast Alloy Steel; official companion source density 7300 kg/m3 = 7.3 g/cm3. Grade unspecified.",
+    "materialCatalogId": "stock:castAlloySteel",
+    "materialQualificationId": 5944
+  },
+  "customProperties": {
+    "Description": "Planchard 2021 Basic Q3 cast alloy steel pin. Browser-authored parametric reconstruction; source geometry and density 7.3 g/cm3 checked against official companion. Educational, unrated material. Original opaque face selections/history are not reproduced."
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  }
+}

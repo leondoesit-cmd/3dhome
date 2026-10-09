@@ -1,0 +1,135 @@
+{
+  "scope": "Read-only actual Basic Q3 cold present-field durability; native/STEP established independently. Actual Chrome driving/cold/clean Save facts parent-attributed.",
+  "inputs": [
+    {
+      "path": "artifacts\\planchard\\BASIC-Q3-source-qualified-restored-browser-2026-10-09.mforge",
+      "sha256": "37a328f22ef0b5b943c8952eedc0fcea66b49aa5cc3ac4bb61e522e91d722b91"
+    },
+    {
+      "path": "artifacts\\planchard\\BASIC-Q3-cold-accepted-browser-2026-10-09.mforge",
+      "sha256": "5fd30e025a20bdadb8dcaacc96391d4783879852e18bdf1e171b4793fa62e806"
+    }
+  ],
+  "checks": {
+    "canonicalKey": true,
+    "allPresentAuthoredFieldsAndCachePreserved": true,
+    "bodyPropertiesPreserved": true,
+    "density7point3CatalogPreserved": true,
+    "citationQualificationDescriptionPreserved": true,
+    "twoFullyDefinedFourSteps": true,
+    "originFrameMillimeterAuthoring": true,
+    "wrapperUnitsPreserved": true,
+    "inputsUnmodified": true
+  },
+  "pass": true,
+  "durability": {
+    "features": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "sketches": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "history": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "referenceGeometry": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "localFrame": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "context": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "engineeringMaterials": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "customProperties": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "exactTopologyCache": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "parameters": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "variables": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "topologyBindings": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    },
+    "namedSelections": {
+      "presentRestored": true,
+      "presentCold": true,
+      "equal": true
+    }
+  },
+  "mainModelChanges": [
+    "parts",
+    "lastRebuild"
+  ],
+  "material": {
+    "catalogId": "stock:castAlloySteel",
+    "grade": "Cast Alloy Steel (SOLIDWORKS reference)",
+    "density": 7.3,
+    "densitySource": "David Planchard, Engineering Graphics with SOLIDWORKS 2021, Basic Part Modeling Question 3, PDF page 498, Cast Alloy Steel; official companion source density 7300 kg/m3 = 7.3 g/cm3. Grade unspecified.",
+    "condition": "",
+    "source": "Educational reference material; density only. No certified grade, strength data, service rating, or capacity claim.",
+    "model": "qualified-rating",
+    "youngModulusMPa": 0,
+    "poissonRatio": 0,
+    "allowableBendingMPa": 0,
+    "allowableContactMPa": 0,
+    "minTemperatureC": 0,
+    "maxTemperatureC": 0,
+    "maxCycles": 0,
+    "maxHours": 0,
+    "maxRpm": 0,
+    "environment": "",
+    "lubrication": "",
+    "id": 5944
+  },
+  "customProperties": {
+    "Description": "Planchard 2021 Basic Q3 cast alloy steel pin. Browser-authored parametric reconstruction; source geometry and density 7.3 g/cm3 checked against official companion. Educational, unrated material. Original opaque face selections/history are not reproduced."
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "parentReportedBrowserFacts": {
+    "cold": "Full app reload, old planner Close/keep, blank Model, unique saved Q3 selected; native1/4steps/2fullydefined/clean Save.",
+    "properties": "V9557.265mm3/m69.76804g/COM9.786768,-.127233,0mm. Actual Description/Density reference/Qualification/density7.3 read cold; Cancel clean.",
+    "driving": "Front shaft span20\u219220.1 Finish, Undo20, Redo20.1, Undo20 with five-field14/12/8/20/6 preservation verified."
+  }
+}
