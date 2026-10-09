@@ -1,0 +1,791 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q5-official-source-repair-browser-2026-10-09.mforge",
+  "bytes": 1704184,
+  "sha256": "689dead4d3234f1b447b885cfb656adf61373cec7d2480150d83250175eacdc9",
+  "accepted": false,
+  "reason": "Additive Boss2 stale union host Cut7 rematerializes later cuts; STEP equivalent to wrong authored graph.",
+  "featureCount": 16,
+  "sketchCount": 15,
+  "historyCount": 31,
+  "allFeaturesUnsuppressed": true,
+  "allSketchesStoredFullyDefined": true,
+  "features": [
+    {
+      "id": "feature_muo4a11f_2",
+      "name": "Extrude / Boss 1",
+      "type": "extrude",
+      "inputs": [],
+      "suppressed": false,
+      "sketchId": "sk_1cp1g",
+      "endCondition": "blind",
+      "depthMm": 50,
+      "axis": "x",
+      "fromMm": 0,
+      "toMm": 50
+    },
+    {
+      "id": "feature_muonjtci_1",
+      "name": "Extrude Cut 1",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muo4a11f_2"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_1yizm",
+      "endCondition": "blind",
+      "depthMm": 42,
+      "axis": "x",
+      "fromMm": 0,
+      "toMm": 42
+    },
+    {
+      "id": "feature_muonx0rh_2",
+      "name": "Extrude Cut 2",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muonjtci_1"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_2ixko",
+      "endCondition": "blind",
+      "depthMm": 8,
+      "axis": "x",
+      "fromMm": 42,
+      "toMm": 50
+    },
+    {
+      "id": "feature_muoo685j_3",
+      "name": "Extrude Cut 3",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muonx0rh_2"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_3zrrc",
+      "endCondition": "blind",
+      "depthMm": 20,
+      "axis": "z",
+      "fromMm": -50,
+      "toMm": -30
+    },
+    {
+      "id": "feature_mv05g6a2_1",
+      "name": "Extrude Cut 4",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muoo685j_3"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_13q3q",
+      "endCondition": "blind",
+      "depthMm": 15,
+      "axis": "y",
+      "fromMm": 63.00000000000001,
+      "toMm": 48.00000000000001
+    },
+    {
+      "id": "feature_mv05h8tl_2",
+      "name": "Extrude Cut 5",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05g6a2_1"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_2ec0q",
+      "endCondition": "through-all",
+      "depthMm": 15,
+      "axis": "y",
+      "fromMm": 63.00000000000001,
+      "toMm": 48.00000000000001
+    },
+    {
+      "id": "feature_mv05r0yv_1",
+      "name": "Extrude Cut 6",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05h8tl_2"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_18evg",
+      "endCondition": "blind",
+      "depthMm": 13,
+      "axis": "x",
+      "fromMm": 37,
+      "toMm": 50
+    },
+    {
+      "id": "feature_mv05s0ec_2",
+      "name": "Extrude Cut 7",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05r0yv_1"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_2hnsd",
+      "endCondition": "blind",
+      "depthMm": 8,
+      "axis": "x",
+      "fromMm": 42,
+      "toMm": 50
+    },
+    {
+      "id": "feature_mv05sjma_3",
+      "name": "Extrude Cut 8",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05s0ec_2"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_3z9ii",
+      "endCondition": "blind",
+      "depthMm": 8,
+      "axis": "x",
+      "fromMm": 42,
+      "toMm": 50
+    },
+    {
+      "id": "feature_mv05v1n3_4",
+      "name": "Extrude Cut 9",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05sjma_3"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_4ndqa",
+      "endCondition": "blind",
+      "depthMm": 9,
+      "axis": "x",
+      "fromMm": 41.00000000000001,
+      "toMm": 50.00000000000001
+    },
+    {
+      "id": "feature_mv05vpxx_5",
+      "name": "Extrude Cut 10",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05v1n3_4"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_5oyuy",
+      "endCondition": "blind",
+      "depthMm": 9,
+      "axis": "x",
+      "fromMm": 41.00000000000001,
+      "toMm": 50.00000000000001
+    },
+    {
+      "id": "feature_mv05w49o_6",
+      "name": "Extrude Cut 11",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05vpxx_5"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_6fe9q",
+      "endCondition": "through-all",
+      "depthMm": 9,
+      "axis": "x",
+      "fromMm": 0,
+      "toMm": 100.00999999999999
+    },
+    {
+      "id": "feature_mv05wjz5_7",
+      "name": "Extrude Cut 12",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05w49o_6"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_7m26l",
+      "endCondition": "through-all",
+      "depthMm": 9,
+      "axis": "y",
+      "fromMm": 63.00000000000001,
+      "toMm": -0.01000000000000334
+    },
+    {
+      "id": "feature_mv05ymwa_8",
+      "name": "Extrude Cut 13",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05wjz5_7"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_8p9rg",
+      "endCondition": "through-all",
+      "depthMm": 9,
+      "axis": "x",
+      "fromMm": 0,
+      "toMm": 50.010001
+    },
+    {
+      "id": "feature_mv06p906_9",
+      "name": "Extrude / Boss 2",
+      "type": "extrude",
+      "inputs": [
+        "feature_mv05s0ec_2"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_3z9ii",
+      "endCondition": "up-to-face",
+      "depthMm": 9,
+      "axis": "x",
+      "fromMm": 42,
+      "toMm": 50
+    },
+    {
+      "id": "feature_mv06tchm_a",
+      "name": "Extrude Cut 14",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv06p906_9"
+      ],
+      "suppressed": false,
+      "sketchId": "sk_9jt84",
+      "endCondition": "blind",
+      "depthMm": 13,
+      "axis": "x",
+      "fromMm": 37,
+      "toMm": 50
+    }
+  ],
+  "sketches": [
+    {
+      "id": "sk_1cp1g",
+      "plane": "side",
+      "offsetMm": 0,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 2213,
+          "u": 0,
+          "v": 0
+        },
+        {
+          "id": 2215,
+          "u": -100.00000000000001,
+          "v": 0
+        },
+        {
+          "id": 2216,
+          "u": -100.00000000000001,
+          "v": 63.00000000000001
+        },
+        {
+          "id": 2217,
+          "u": 0,
+          "v": 63.000000000000014
+        }
+      ],
+      "roundEntities": []
+    },
+    {
+      "id": "sk_1yizm",
+      "plane": "side",
+      "offsetMm": 0,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 2229,
+          "u": 0,
+          "v": 35
+        },
+        {
+          "id": 2230,
+          "u": 0,
+          "v": 5
+        },
+        {
+          "id": 2231,
+          "u": -30,
+          "v": 35.00000000000001
+        },
+        {
+          "id": 2236,
+          "u": -30,
+          "v": 63
+        },
+        {
+          "id": 2239,
+          "u": 0,
+          "v": 63.000000000000014
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 2228,
+          "type": "arc",
+          "name": "Arc",
+          "c": 2229,
+          "a": 2231,
+          "b": 2230,
+          "construction": false,
+          "radiusMm": null
+        }
+      ]
+    },
+    {
+      "id": "sk_2ixko",
+      "plane": "side",
+      "offsetMm": 0,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 2248,
+          "u": -2.923903833677739e-17,
+          "v": 35
+        },
+        {
+          "id": 2249,
+          "u": -15,
+          "v": 15
+        },
+        {
+          "id": 2250,
+          "u": 2.787942910719259e-32,
+          "v": 10
+        },
+        {
+          "id": 2255,
+          "u": -15,
+          "v": 63.00000000000001
+        },
+        {
+          "id": 2258,
+          "u": 4.477492879770633e-32,
+          "v": 63.00000000000001
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 2247,
+          "type": "arc",
+          "name": "Arc",
+          "c": 2248,
+          "a": 2249,
+          "b": 2250,
+          "construction": false,
+          "radiusMm": null
+        }
+      ]
+    },
+    {
+      "id": "sk_3zrrc",
+      "plane": "front",
+      "offsetMm": -50,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 2266,
+          "u": 0,
+          "v": 45
+        },
+        {
+          "id": 2267,
+          "u": 0,
+          "v": 63
+        },
+        {
+          "id": 2270,
+          "u": 6.55146421679164,
+          "v": 63.00000000000001
+        }
+      ],
+      "roundEntities": []
+    },
+    {
+      "id": "sk_13q3q",
+      "plane": "top",
+      "offsetMm": 63.00000000000001,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5284,
+          "u": 0,
+          "v": -100
+        },
+        {
+          "id": 5285,
+          "u": 50,
+          "v": -100
+        },
+        {
+          "id": 5286,
+          "u": 50,
+          "v": -60
+        },
+        {
+          "id": 5287,
+          "u": 0,
+          "v": -60
+        },
+        {
+          "id": 5288,
+          "u": 25,
+          "v": -80
+        }
+      ],
+      "roundEntities": []
+    },
+    {
+      "id": "sk_2ec0q",
+      "plane": "top",
+      "offsetMm": 63.00000000000001,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5302,
+          "u": -2.1099372174986785e-15,
+          "v": -100
+        },
+        {
+          "id": 5303,
+          "u": 12.000000000000004,
+          "v": -100
+        },
+        {
+          "id": 5304,
+          "u": 12.000000000000004,
+          "v": -50
+        },
+        {
+          "id": 5305,
+          "u": -2.193207057853391e-15,
+          "v": -50
+        },
+        {
+          "id": 5306,
+          "u": 6.000000000000001,
+          "v": -75
+        }
+      ],
+      "roundEntities": []
+    },
+    {
+      "id": "sk_18evg",
+      "plane": "side",
+      "offsetMm": 37,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5321,
+          "u": -30,
+          "v": 35
+        },
+        {
+          "id": 5325,
+          "u": -30,
+          "v": 35
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 5322,
+          "type": "circle",
+          "name": "Circle",
+          "c": 5321,
+          "r": 2.5,
+          "construction": false,
+          "radiusMm": 25
+        },
+        {
+          "id": 5326,
+          "type": "circle",
+          "name": "Circle",
+          "c": 5325,
+          "r": 1,
+          "construction": false,
+          "radiusMm": 10
+        }
+      ]
+    },
+    {
+      "id": "sk_2hnsd",
+      "plane": "side",
+      "offsetMm": 42,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5329,
+          "u": -30,
+          "v": 35
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 5330,
+          "type": "circle",
+          "name": "Circle",
+          "c": 5329,
+          "r": 1,
+          "construction": false,
+          "radiusMm": 10
+        }
+      ]
+    },
+    {
+      "id": "sk_3z9ii",
+      "plane": "side",
+      "offsetMm": 42,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5333,
+          "u": -30,
+          "v": 35
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 5334,
+          "type": "circle",
+          "name": "Circle",
+          "c": 5333,
+          "r": 0.5,
+          "construction": false,
+          "radiusMm": 5
+        }
+      ]
+    },
+    {
+      "id": "sk_4ndqa",
+      "plane": "side",
+      "offsetMm": 41.00000000000001,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5337,
+          "u": -100,
+          "v": 35
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 5338,
+          "type": "circle",
+          "name": "Circle",
+          "c": 5337,
+          "r": 2,
+          "construction": false,
+          "radiusMm": 20
+        }
+      ]
+    },
+    {
+      "id": "sk_5oyuy",
+      "plane": "side",
+      "offsetMm": 41.00000000000001,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5341,
+          "u": -100,
+          "v": 35
+        },
+        {
+          "id": 5342,
+          "u": -80,
+          "v": 35
+        },
+        {
+          "id": 5343,
+          "u": -80,
+          "v": 48
+        },
+        {
+          "id": 5344,
+          "u": -100,
+          "v": 48
+        },
+        {
+          "id": 5345,
+          "u": -90,
+          "v": 41.49999999999999
+        }
+      ],
+      "roundEntities": []
+    },
+    {
+      "id": "sk_6fe9q",
+      "plane": "side",
+      "offsetMm": 0,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5359,
+          "u": -90,
+          "v": 35
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 5360,
+          "type": "circle",
+          "name": "Circle",
+          "c": 5359,
+          "r": 0.5,
+          "construction": false,
+          "radiusMm": 5
+        }
+      ]
+    },
+    {
+      "id": "sk_7m26l",
+      "plane": "top",
+      "offsetMm": 63.00000000000001,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5363,
+          "u": 20,
+          "v": -39
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 5364,
+          "type": "circle",
+          "name": "Circle",
+          "c": 5363,
+          "r": 0.5,
+          "construction": false,
+          "radiusMm": 5
+        }
+      ]
+    },
+    {
+      "id": "sk_8p9rg",
+      "plane": "side",
+      "offsetMm": 0,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5367,
+          "u": -45,
+          "v": 0
+        },
+        {
+          "id": 5370,
+          "u": -85,
+          "v": 0
+        },
+        {
+          "id": 5379,
+          "u": -68.33965093307042,
+          "v": 8.494938217801034
+        },
+        {
+          "id": 5380,
+          "u": -78.83092017819257,
+          "v": 6.169079821807424
+        },
+        {
+          "id": 5381,
+          "u": -71.75985236632711,
+          "v": -0.9019879900580507
+        },
+        {
+          "id": 5368,
+          "u": -74.32615316309997,
+          "v": 10.673846836900033
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 5382,
+          "type": "arc",
+          "name": "Sketch fillet",
+          "c": 5381,
+          "a": 5379,
+          "b": 5380,
+          "construction": false,
+          "radiusMm": null
+        }
+      ]
+    },
+    {
+      "id": "sk_9jt84",
+      "plane": "side",
+      "offsetMm": 37,
+      "status": "fully-defined",
+      "diagnostics": [],
+      "pointsMm": [
+        {
+          "id": 5396,
+          "u": -30,
+          "v": 60
+        },
+        {
+          "id": 5397,
+          "u": -30,
+          "v": 63
+        },
+        {
+          "id": 5400,
+          "u": -15,
+          "v": 63
+        },
+        {
+          "id": 5403,
+          "u": -15,
+          "v": 55
+        },
+        {
+          "id": 5407,
+          "u": -30,
+          "v": 35
+        }
+      ],
+      "roundEntities": [
+        {
+          "id": 5406,
+          "type": "arc",
+          "name": "Arc",
+          "c": 5407,
+          "a": 5403,
+          "b": 5396,
+          "construction": false,
+          "radiusMm": null
+        }
+      ]
+    }
+  ],
+  "material": [
+    {
+      "catalogId": "stock:copper",
+      "grade": "Copper (grade unspecified)",
+      "density": 8.9,
+      "densitySource": "Planchard, Engineering Graphics with SOLIDWORKS 2021, Advanced Question 5, printed 10-29 / PDF 509: Copper, density 0.0089 g/mm^3 = 8.9 g/cm^3; grade unspecified. Exercise reference, not a qualified material rating.",
+      "condition": "",
+      "source": "",
+      "model": "qualified-rating",
+      "youngModulusMPa": 0,
+      "poissonRatio": 0,
+      "allowableBendingMPa": 0,
+      "allowableContactMPa": 0,
+      "minTemperatureC": 0,
+      "maxTemperatureC": 0,
+      "maxCycles": 0,
+      "maxHours": 0,
+      "maxRpm": 0,
+      "environment": "",
+      "lubrication": "",
+      "id": 5320
+    }
+  ],
+  "inputUnchanged": true
+}

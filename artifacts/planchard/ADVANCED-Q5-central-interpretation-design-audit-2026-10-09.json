@@ -1,0 +1,221 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q5-central-interpretation-browser-2026-10-09.mforge",
+  "baseline": "artifacts/planchard/ADVANCED-Q5-upper-recess-Copper-browser-2026-10-09.mforge",
+  "bytes": 732924,
+  "inputSha256": "77dab1c67ba927a54abbda3e516e74f3bf779f60cfc4c4d19f2bb65d6f40a10a",
+  "inputUnchanged": true,
+  "originalPreserved": {
+    "features": true,
+    "sketches": true,
+    "history": true
+  },
+  "checks": [
+    {
+      "profileDiametersMm": [
+        50,
+        20
+      ],
+      "centerUVmm": [
+        -30,
+        35
+      ],
+      "sketchOffsetMm": 37,
+      "featureAdditionalOffsetMm": 0,
+      "profilesFullyDefined": true,
+      "correctCut": true,
+      "annularHolePreserved": true
+    },
+    {
+      "profileDiametersMm": [
+        20
+      ],
+      "centerUVmm": [
+        -30,
+        35
+      ],
+      "sketchOffsetMm": 42,
+      "featureAdditionalOffsetMm": 0,
+      "profilesFullyDefined": true,
+      "correctCut": true,
+      "annularHolePreserved": true
+    },
+    {
+      "profileDiametersMm": [
+        10
+      ],
+      "centerUVmm": [
+        -30,
+        35
+      ],
+      "sketchOffsetMm": 0,
+      "featureAdditionalOffsetMm": 0,
+      "profilesFullyDefined": true,
+      "correctCut": true,
+      "annularHolePreserved": true
+    }
+  ],
+  "samples": [
+    {
+      "name": "Hub material below X42 face",
+      "mm": [
+        41.5,
+        35,
+        -38
+      ],
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "Void above X42 hub face",
+      "mm": [
+        42.5,
+        35,
+        -38
+      ],
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "Annular floor below X37",
+      "mm": [
+        36.5,
+        35,
+        -45
+      ],
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "Annular pocket beyond X37",
+      "mm": [
+        37.5,
+        35,
+        -45
+      ],
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "Coaxial through bore",
+      "mm": [
+        40,
+        35,
+        -30
+      ],
+      "expected": false,
+      "actual": false
+    }
+  ],
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q5-central-interpretation-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 26,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 189.67426330916635,
+      "maxToleranceCm": 1.5000000183102672e-7
+    },
+    "volumeCm3": 189.67426330916635,
+    "boundsCm": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": -10.000000000000002
+      },
+      "max": {
+        "x": 5,
+        "y": 6.300000000000002,
+        "z": 5.5511151168975915e-17
+      }
+    },
+    "centerOfMassCm": {
+      "x": 2.4084914072889725,
+      "y": 2.4784962861849644,
+      "z": -6.0801914864955915
+    },
+    "seconds": 6.945699
+  },
+  "step": {
+    "source": "artifacts/planchard/ADVANCED-Q5-central-interpretation-browser-2026-10-09.step",
+    "bytes": 82712,
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 189.67426330916706,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 189.67426330916706,
+      "centerOfMass": {
+        "x": 2.408491407289006,
+        "y": 2.478496286185013,
+        "z": -6.080191486495567
+      },
+      "inertia": [
+        [
+          1537.5577659639503,
+          7.376394866091232,
+          35.17318200499494
+        ],
+        [
+          7.376394866091232,
+          1387.7386477989694,
+          65.43203399320873
+        ],
+        [
+          35.17318200499494,
+          65.43203399320873,
+          897.8401091746541
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": 0,
+          "y": 0,
+          "z": -10
+        },
+        "max": {
+          "x": 5,
+          "y": 6.300000000000001,
+          "z": 5.551115116898e-17
+        }
+      }
+    }
+  },
+  "difference": {
+    "bundle": "artifacts/planchard/ADVANCED-Q5-central-interpretation-browser-2026-10-09.mforge",
+    "step": "artifacts/planchard/ADVANCED-Q5-central-interpretation-browser-2026-10-09.step",
+    "nativeOutsideStep": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "stepOutsideNative": {
+      "volume": 0,
+      "solidCount": 0
+    },
+    "symmetricDifferenceVolumeCm3": 0
+  },
+  "historyCount": 18,
+  "featureCount": 9,
+  "sketchCount": 9,
+  "hubProjectionMm": 5,
+  "materialPreserved": true,
+  "material": {
+    "name": "Copper (grade unspecified)",
+    "density": 8.9,
+    "source": "Planchard, Engineering Graphics with SOLIDWORKS 2021, Advanced Question 5, printed 10-29 / PDF 509: Copper, density 0.0089 g/mm^3 = 8.9 g/cm^3; grade unspecified. Exercise reference, not a qualified material rating.",
+    "massKg": 1.6881009434515806
+  },
+  "centerOfMassMm": {
+    "x": 24.084914072889724,
+    "y": 24.784962861849642,
+    "z": -60.80191486495592
+  },
+  "interpretationDisclosed": true,
+  "checkpointOnly": true,
+  "completeQ5Accepted": false,
+  "pass": true
+}

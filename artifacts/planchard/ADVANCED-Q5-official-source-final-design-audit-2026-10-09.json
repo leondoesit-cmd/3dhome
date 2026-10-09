@@ -1,0 +1,189 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q5-official-source-final-browser-2026-10-09.mforge",
+  "bytes": 1656613,
+  "sha256": "3cf7d73816470514eadcfcec1e6f9a2fdc97df4c9678759cffd748d701cf3601",
+  "comparisonSource": "ADVANCED-Q5-official-source-repair-browser-2026-10-09.mforge",
+  "checks": {
+    "featureCount15": true,
+    "sketchCount15": true,
+    "historyCount30": true,
+    "allUnsuppressed": true,
+    "allStoredFullyDefined": true,
+    "all15SourceSketchesByteStructurallyPreserved": true,
+    "materialPreserved": true,
+    "linearBodyChain": true,
+    "pinConvertedInPlace": true,
+    "capRecreatedLatest": true,
+    "temporaryStaleBossDeleted": true,
+    "oneAuthoredPart": true
+  },
+  "geometryPass": true,
+  "volumeMm3": 143857.58129942763,
+  "massG": 1280.332473564906,
+  "centerOfMassMm": {
+    "x": 26.813642184976345,
+    "y": 25.800639860919176,
+    "z": -56.06356026858948
+  },
+  "features": [
+    {
+      "id": "feature_muo4a11f_2",
+      "type": "extrude",
+      "inputs": [],
+      "sketchId": "sk_1cp1g",
+      "suppressed": false
+    },
+    {
+      "id": "feature_muonjtci_1",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muo4a11f_2"
+      ],
+      "sketchId": "sk_1yizm",
+      "suppressed": false
+    },
+    {
+      "id": "feature_muonx0rh_2",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muonjtci_1"
+      ],
+      "sketchId": "sk_2ixko",
+      "suppressed": false
+    },
+    {
+      "id": "feature_muoo685j_3",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muonx0rh_2"
+      ],
+      "sketchId": "sk_3zrrc",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05g6a2_1",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_muoo685j_3"
+      ],
+      "sketchId": "sk_13q3q",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05h8tl_2",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05g6a2_1"
+      ],
+      "sketchId": "sk_2ec0q",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05r0yv_1",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05h8tl_2"
+      ],
+      "sketchId": "sk_18evg",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05s0ec_2",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05r0yv_1"
+      ],
+      "sketchId": "sk_2hnsd",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05sjma_3",
+      "type": "extrude",
+      "inputs": [
+        "feature_mv05s0ec_2"
+      ],
+      "sketchId": "sk_3z9ii",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05v1n3_4",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05sjma_3"
+      ],
+      "sketchId": "sk_4ndqa",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05vpxx_5",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05v1n3_4"
+      ],
+      "sketchId": "sk_5oyuy",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05w49o_6",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05vpxx_5"
+      ],
+      "sketchId": "sk_6fe9q",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05wjz5_7",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05w49o_6"
+      ],
+      "sketchId": "sk_7m26l",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv05ymwa_8",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05wjz5_7"
+      ],
+      "sketchId": "sk_8p9rg",
+      "suppressed": false
+    },
+    {
+      "id": "feature_mv07da85_1",
+      "type": "extrudeCut",
+      "inputs": [
+        "feature_mv05ymwa_8"
+      ],
+      "sketchId": "sk_9jt84",
+      "suppressed": false
+    }
+  ],
+  "material": [
+    {
+      "catalogId": "stock:copper",
+      "grade": "Copper (grade unspecified)",
+      "density": 8.9,
+      "densitySource": "Planchard, Engineering Graphics with SOLIDWORKS 2021, Advanced Question 5, printed 10-29 / PDF 509: Copper, density 0.0089 g/mm^3 = 8.9 g/cm^3; grade unspecified. Exercise reference, not a qualified material rating.",
+      "condition": "",
+      "source": "",
+      "model": "qualified-rating",
+      "youngModulusMPa": 0,
+      "poissonRatio": 0,
+      "allowableBendingMPa": 0,
+      "allowableContactMPa": 0,
+      "minTemperatureC": 0,
+      "maxTemperatureC": 0,
+      "maxCycles": 0,
+      "maxHours": 0,
+      "maxRpm": 0,
+      "environment": "",
+      "lubrication": "",
+      "id": 5320
+    }
+  ],
+  "sourceCoordinateEvidence": "All15 sketch structures identical to previously recorded source repair profilecoordinates; sourceownership limitations preserved in official companion inspection.",
+  "inputUnchanged": true,
+  "browserDurability": "Parent driving and cold-reload checks in progress; not asserted yet."
+}

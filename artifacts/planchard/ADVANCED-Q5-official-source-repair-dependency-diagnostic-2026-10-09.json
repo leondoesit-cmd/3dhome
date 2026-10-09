@@ -1,0 +1,65 @@
+{
+  "scope": "Disposable compile graph diagnostic only; source bundle unchanged. Host advanced to immediately preceding cut13; no dimensions changed and no output authored model.",
+  "source": "artifacts/planchard/ADVANCED-Q5-official-source-repair-browser-2026-10-09.mforge",
+  "before": {
+    "inputs": [
+      "feature_mv05s0ec_2",
+      "feature_mv06p906_9:tool"
+    ],
+    "toolTarget": "feature_mv05s0ec_2"
+  },
+  "after": {
+    "inputs": [
+      "feature_mv05ymwa_8",
+      "feature_mv06p906_9:tool"
+    ],
+    "toolTarget": "feature_mv05ymwa_8"
+  },
+  "mass": {
+    "volume": 143.85758129942764,
+    "centerOfMass": {
+      "x": 2.6813642184976354,
+      "y": 2.5800639860919183,
+      "z": -5.606356026858947
+    },
+    "inertia": [
+      [
+        1207.6397897560983,
+        7.935622358317801,
+        80.38459628845567
+      ],
+      [
+        7.935622358317801,
+        1021.8082582703319,
+        56.32955462821565
+      ],
+      [
+        80.38459628845567,
+        56.32955462821565,
+        642.0996936262759
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -2.193207057853391e-16,
+        "y": -2.220446049250313e-16,
+        "z": -10.000000000000002
+      },
+      "max": {
+        "x": 5.000000000000001,
+        "y": 6.300000000000002,
+        "z": 1.6653345369377348e-16
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 143.85758129942764,
+    "maxToleranceCm": 1.5000000177635683e-7
+  },
+  "issues": [],
+  "expectedCopperDensity": 8.9,
+  "massKg": 1.280332473564906
+}

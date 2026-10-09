@@ -1,8 +1,12 @@
 # Advanced Q5 witness trace and next browser feature
 
+Official companion source now supersedes this preliminary trace: see `advanced-q5-official-companion-source-inspection-2026-10-09.md`. In particular, the farrear12mmstrip is removedThroughAllheight, not only15mmdeep. The original checkpoint remains preserved, with its acceptance downgraded to illustration-derivedpartial where it differs from the native source.
+
 Read-only review of PDF509–510 / printed10-29–10-30 using the original rendered source and600dpi `advanced-q5-front-witnesses.png`. No answers, mass or COM were used to select geometry. Existing fresh eight-step checkpoint remains unchanged: `ADVANCED-Q5-core-bevel-browser-2026-10-01.mforge`,212376bytes, SHA256`a68bf7760df525509e41afecb9777502c11c7e89d47f5c2f6d1a8a341de223a4`.
 
 Follow-up: the parent subsequently authored the resolved upper recess in Chrome. See `advanced-q5-side-rear-hole-witness-followup-2026-10-09.md` for the additional PDF510 topology review. In particular, the rear9-as-side-depth interpretation below is **not certified**; a rear-facing pocket/bore with9 locating width is a competing interpretation. Do not use the older rear paragraph as a committed cutting recipe.
+
+Later actual-browser correction: the competing rear-facing/Z-axis bore cut a source-contradicting front trench and slotted the central hub, so that candidate is rejected. The current explicit interpretation in `advanced-q5-explicit-interpretation-recipe-2026-10-09.md` returns to side/X pocket depth9 and a side/X bore at inferredD91/H38. This does not promote its remaining centre inference to source certification.
 
 Coordinates below follow its existing stock: widthW=X0..50mm, depthD=−Z0..100mm, heightH=Y0..63mm. Right-plane sketch coordinates are(U,V)=(−D,H); Top-plane coordinates are(U,V)=(W,−D). This note adds no authored model or geometry artifacts.
 

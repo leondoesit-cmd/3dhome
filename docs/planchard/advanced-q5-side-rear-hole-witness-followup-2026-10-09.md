@@ -1,6 +1,12 @@
 # Advanced Q5: side/rear pockets and hole datum follow-up
 
+Official companion source is now available and supersedes the uncertain interpretations in this note: `advanced-q5-official-companion-source-inspection-2026-10-09.md`. CentralD30 is a solid additivepin construction, not aThroughAllbore; do not apply the subsequently proposedD40 workaround. This document preserves the earlier visual reasoning only.
+
 Read-only source review of PDF509–510 (printed10-29–10-30). The parent has now authored the upper recess in Chrome as two Top rectangles atY63, Reverse Blind15: W0..50/D60..100 and W0..12/D50..60. This note does not edit that checkpoint, generate geometry, or use answer mass/COM to choose dimensions.
+
+**Subsequent correction:** the rear-facing/Z-axis interpretation suggested by this review was actually authored and produced a long front trench/central hub slot absent from PDF510. It is rejected by actual visual topology. See `advanced-q5-explicit-interpretation-recipe-2026-10-09.md`, corrected side-facing rear section. The original rear9-as-side-depth interpretation is again the preferred candidate; the rear bore's D91 centre remains explicitly inferred. The rear-facing discussion below is historical uncertainty, not current authoring guidance.
+
+After the rear axis was corrected, the centralD30/H35 bore still created a front chord because radius5 crosses the established corefrontD30. That centre hypothesis is also rejected. The current interpretation recipe proposesD40/H35 to keep the assumed R10 hub intact and positive frontwall around the R5 bore, while expressly retaining ambiguity about whether the upperR10 leader specifies that hub contour.
 
 Additional source evidence is `scratch/planchard/advanced-q5-cad-topology-510-600dpi.png`, rendered directly from PDF510. The rear dimension detail is enlarged directly from PDF509 in `advanced-q5-rear-witness-509-1200dpi.png` and `advanced-q5-rear-bottom-witness-509-1200dpi.png`. Enlargement permits tracing the existing lines; no projected distances were measured. PDF510 supplies another illustration of the same orientation, not a dimensioned orthographic rear view.
 

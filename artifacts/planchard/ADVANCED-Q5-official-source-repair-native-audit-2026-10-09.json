@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q5-official-source-repair-browser-2026-10-09.mforge",
+  "exact": true,
+  "featureCount": 46,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 164.15201155724344,
+    "maxToleranceCm": 1.500000004440892e-7
+  },
+  "volumeCm3": 164.15201155724344,
+  "boundsCm": {
+    "min": {
+      "x": -2.193207057853391e-16,
+      "y": 0,
+      "z": -10.000000000000002
+    },
+    "max": {
+      "x": 5,
+      "y": 6.300000000000002,
+      "z": 1.6653345369377348e-16
+    }
+  },
+  "centerOfMassCm": {
+    "x": 2.738533852190246,
+    "y": 2.5255287793164367,
+    "z": -5.767809931829112
+  },
+  "seconds": 7.0663214
+}
