@@ -1,0 +1,379 @@
+{
+  "scope": "Disposable local native verification fixture, no authored exercise model",
+  "source": "docs/planchard/advanced-q1-official-source-browser-repair-plan-2026-10-09.md",
+  "chosen": {
+    "ownerFeatureId": "recess-tool",
+    "kind": "edge",
+    "transportOrdinal": 6,
+    "persistentId": "recess-tool:edge:bottom-rim",
+    "semantic": "bottom-rim",
+    "descriptor": {
+      "curve": "circle",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 6.35
+      },
+      "axis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "measure": 11.96946801017711,
+      "bounds": {
+        "min": {
+          "x": -1.9050001,
+          "y": -1.9050001,
+          "z": 6.349999899999999
+        },
+        "max": {
+          "x": 1.9050001,
+          "y": 1.9050001,
+          "z": 6.3500001
+        }
+      },
+      "endpoints": [
+        {
+          "x": 1.905,
+          "y": -4.6659043047514155e-16,
+          "z": 6.35
+        },
+        {
+          "x": 1.905,
+          "y": 0,
+          "z": 6.35
+        }
+      ],
+      "radius": 1.905,
+      "arcMidpoint": {
+        "x": -1.905,
+        "y": 2.3329521523757077e-16,
+        "z": 6.35
+      }
+    },
+    "signature": "circle:0:0:6.35:0:0:1:11.969:bottom-rim"
+  },
+  "candidates": [
+    {
+      "ownerFeatureId": "blank",
+      "kind": "edge",
+      "transportOrdinal": 0,
+      "persistentId": "blank:edge:top-rim",
+      "semantic": "top-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.604
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 31.9185813604723,
+        "bounds": {
+          "min": {
+            "x": -5.0800001,
+            "y": -5.0800001,
+            "z": 6.6039999
+          },
+          "max": {
+            "x": 5.0800001,
+            "y": 5.0800001,
+            "z": 6.6040001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5.08,
+            "y": -1.2442411479337109e-15,
+            "z": 6.604
+          },
+          {
+            "x": 5.08,
+            "y": 0,
+            "z": 6.604
+          }
+        ],
+        "radius": 5.08,
+        "arcMidpoint": {
+          "x": -5.08,
+          "y": 6.221205739668554e-16,
+          "z": 6.604
+        }
+      },
+      "signature": "circle:0:0:6.604:0:0:1:31.919:top-rim"
+    },
+    {
+      "ownerFeatureId": "blank",
+      "kind": "edge",
+      "transportOrdinal": 2,
+      "persistentId": "blank:edge:bottom-rim",
+      "semantic": "bottom-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 31.9185813604723,
+        "bounds": {
+          "min": {
+            "x": -5.0800001,
+            "y": -5.0800001,
+            "z": -1e-7
+          },
+          "max": {
+            "x": 5.0800001,
+            "y": 5.0800001,
+            "z": 1e-7
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5.08,
+            "y": -1.2442411479337109e-15,
+            "z": 0
+          },
+          {
+            "x": 5.08,
+            "y": 0,
+            "z": 0
+          }
+        ],
+        "radius": 5.08,
+        "arcMidpoint": {
+          "x": -5.08,
+          "y": 6.221205739668554e-16,
+          "z": 0
+        }
+      },
+      "signature": "circle:0:0:0:0:0:1:31.919:bottom-rim"
+    },
+    {
+      "ownerFeatureId": "recess-tool",
+      "kind": "edge",
+      "transportOrdinal": 3,
+      "persistentId": "recess-tool:edge:top-rim",
+      "semantic": "top-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.603999999999999
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 11.96946801017711,
+        "bounds": {
+          "min": {
+            "x": -1.905000100000001,
+            "y": -1.905000100000001,
+            "z": 6.603999899999998
+          },
+          "max": {
+            "x": 1.905000100000001,
+            "y": 1.905000100000001,
+            "z": 6.6040001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 1.905,
+            "y": -4.6659043047514155e-16,
+            "z": 6.603999999999999
+          },
+          {
+            "x": 1.905,
+            "y": 0,
+            "z": 6.603999999999999
+          }
+        ],
+        "radius": 1.905,
+        "arcMidpoint": {
+          "x": -1.905,
+          "y": 2.3329521523757077e-16,
+          "z": 6.603999999999999
+        }
+      },
+      "signature": "circle:0:0:6.604:0:0:1:11.969:top-rim"
+    },
+    {
+      "ownerFeatureId": "bore",
+      "kind": "edge",
+      "transportOrdinal": 4,
+      "persistentId": "bore:edge:bottom-rim",
+      "semantic": "bottom-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 5.984734005088555,
+        "bounds": {
+          "min": {
+            "x": -0.9525001,
+            "y": -0.9525001,
+            "z": -1e-7
+          },
+          "max": {
+            "x": 0.9525001,
+            "y": 0.9525001,
+            "z": 1e-7
+          }
+        },
+        "endpoints": [
+          {
+            "x": 0.9525,
+            "y": -2.3329521523757077e-16,
+            "z": 0
+          },
+          {
+            "x": 0.9525,
+            "y": 0,
+            "z": 0
+          }
+        ],
+        "radius": 0.9525,
+        "arcMidpoint": {
+          "x": -0.9525,
+          "y": 1.1664760761878539e-16,
+          "z": 0
+        }
+      },
+      "signature": "circle:0:0:0:0:0:1:5.985:bottom-rim"
+    },
+    {
+      "ownerFeatureId": "recess-tool",
+      "kind": "edge",
+      "transportOrdinal": 6,
+      "persistentId": "recess-tool:edge:bottom-rim",
+      "semantic": "bottom-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.35
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 11.96946801017711,
+        "bounds": {
+          "min": {
+            "x": -1.9050001,
+            "y": -1.9050001,
+            "z": 6.349999899999999
+          },
+          "max": {
+            "x": 1.9050001,
+            "y": 1.9050001,
+            "z": 6.3500001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 1.905,
+            "y": -4.6659043047514155e-16,
+            "z": 6.35
+          },
+          {
+            "x": 1.905,
+            "y": 0,
+            "z": 6.35
+          }
+        ],
+        "radius": 1.905,
+        "arcMidpoint": {
+          "x": -1.905,
+          "y": 2.3329521523757077e-16,
+          "z": 6.35
+        }
+      },
+      "signature": "circle:0:0:6.35:0:0:1:11.969:bottom-rim"
+    },
+    {
+      "ownerFeatureId": "bore",
+      "kind": "edge",
+      "transportOrdinal": 7,
+      "persistentId": "bore:edge:top-rim",
+      "semantic": "top-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.35
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 5.984734005088555,
+        "bounds": {
+          "min": {
+            "x": -0.9525001,
+            "y": -0.9525001,
+            "z": 6.349999899999999
+          },
+          "max": {
+            "x": 0.9525001,
+            "y": 0.9525001,
+            "z": 6.3500001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 0.9525,
+            "y": -2.3329521523757077e-16,
+            "z": 6.35
+          },
+          {
+            "x": 0.9525,
+            "y": 0,
+            "z": 6.35
+          }
+        ],
+        "radius": 0.9525,
+        "arcMidpoint": {
+          "x": -0.9525,
+          "y": 1.1664760761878539e-16,
+          "z": 6.35
+        }
+      },
+      "signature": "circle:0:0:6.35:0:0:1:5.985:top-rim"
+    }
+  ],
+  "ok": false,
+  "issues": [
+    {
+      "feature": "bevel",
+      "code": "regeneration-failed",
+      "message": "OpenCascade chamfer failed"
+    }
+  ],
+  "historicalObservation": "Observed before limiting-height repair; both equal-distance and distance-angle45 with either flip failed at exactly .1in. .099in succeeded. No actual exercise model was created."
+}

@@ -1,0 +1,830 @@
+{
+  "scope": "Disposable local native verification fixture, no authored exercise model",
+  "source": "docs/planchard/advanced-q1-official-source-browser-repair-plan-2026-10-09.md",
+  "chosen": {
+    "ownerFeatureId": "recess-tool",
+    "kind": "edge",
+    "transportOrdinal": 6,
+    "persistentId": "recess-tool:edge:bottom-rim",
+    "semantic": "bottom-rim",
+    "descriptor": {
+      "curve": "circle",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 6.35
+      },
+      "axis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "measure": 11.96946801017711,
+      "bounds": {
+        "min": {
+          "x": -1.9050001,
+          "y": -1.9050001,
+          "z": 6.349999899999999
+        },
+        "max": {
+          "x": 1.9050001,
+          "y": 1.9050001,
+          "z": 6.3500001
+        }
+      },
+      "endpoints": [
+        {
+          "x": 1.905,
+          "y": -4.6659043047514155e-16,
+          "z": 6.35
+        },
+        {
+          "x": 1.905,
+          "y": 0,
+          "z": 6.35
+        }
+      ],
+      "radius": 1.905,
+      "arcMidpoint": {
+        "x": -1.905,
+        "y": 2.3329521523757077e-16,
+        "z": 6.35
+      }
+    },
+    "signature": "circle:0:0:6.35:0:0:1:11.969:bottom-rim"
+  },
+  "candidates": [
+    {
+      "ownerFeatureId": "blank",
+      "kind": "edge",
+      "transportOrdinal": 0,
+      "persistentId": "blank:edge:top-rim",
+      "semantic": "top-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.604
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 31.9185813604723,
+        "bounds": {
+          "min": {
+            "x": -5.0800001,
+            "y": -5.0800001,
+            "z": 6.6039999
+          },
+          "max": {
+            "x": 5.0800001,
+            "y": 5.0800001,
+            "z": 6.6040001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5.08,
+            "y": -1.2442411479337109e-15,
+            "z": 6.604
+          },
+          {
+            "x": 5.08,
+            "y": 0,
+            "z": 6.604
+          }
+        ],
+        "radius": 5.08,
+        "arcMidpoint": {
+          "x": -5.08,
+          "y": 6.221205739668554e-16,
+          "z": 6.604
+        }
+      },
+      "signature": "circle:0:0:6.604:0:0:1:31.919:top-rim"
+    },
+    {
+      "ownerFeatureId": "blank",
+      "kind": "edge",
+      "transportOrdinal": 2,
+      "persistentId": "blank:edge:bottom-rim",
+      "semantic": "bottom-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 31.9185813604723,
+        "bounds": {
+          "min": {
+            "x": -5.0800001,
+            "y": -5.0800001,
+            "z": -1e-7
+          },
+          "max": {
+            "x": 5.0800001,
+            "y": 5.0800001,
+            "z": 1e-7
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5.08,
+            "y": -1.2442411479337109e-15,
+            "z": 0
+          },
+          {
+            "x": 5.08,
+            "y": 0,
+            "z": 0
+          }
+        ],
+        "radius": 5.08,
+        "arcMidpoint": {
+          "x": -5.08,
+          "y": 6.221205739668554e-16,
+          "z": 0
+        }
+      },
+      "signature": "circle:0:0:0:0:0:1:31.919:bottom-rim"
+    },
+    {
+      "ownerFeatureId": "recess-tool",
+      "kind": "edge",
+      "transportOrdinal": 3,
+      "persistentId": "recess-tool:edge:top-rim",
+      "semantic": "top-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.603999999999999
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 11.96946801017711,
+        "bounds": {
+          "min": {
+            "x": -1.905000100000001,
+            "y": -1.905000100000001,
+            "z": 6.603999899999998
+          },
+          "max": {
+            "x": 1.905000100000001,
+            "y": 1.905000100000001,
+            "z": 6.6040001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 1.905,
+            "y": -4.6659043047514155e-16,
+            "z": 6.603999999999999
+          },
+          {
+            "x": 1.905,
+            "y": 0,
+            "z": 6.603999999999999
+          }
+        ],
+        "radius": 1.905,
+        "arcMidpoint": {
+          "x": -1.905,
+          "y": 2.3329521523757077e-16,
+          "z": 6.603999999999999
+        }
+      },
+      "signature": "circle:0:0:6.604:0:0:1:11.969:top-rim"
+    },
+    {
+      "ownerFeatureId": "bore",
+      "kind": "edge",
+      "transportOrdinal": 4,
+      "persistentId": "bore:edge:bottom-rim",
+      "semantic": "bottom-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 5.984734005088555,
+        "bounds": {
+          "min": {
+            "x": -0.9525001,
+            "y": -0.9525001,
+            "z": -1e-7
+          },
+          "max": {
+            "x": 0.9525001,
+            "y": 0.9525001,
+            "z": 1e-7
+          }
+        },
+        "endpoints": [
+          {
+            "x": 0.9525,
+            "y": -2.3329521523757077e-16,
+            "z": 0
+          },
+          {
+            "x": 0.9525,
+            "y": 0,
+            "z": 0
+          }
+        ],
+        "radius": 0.9525,
+        "arcMidpoint": {
+          "x": -0.9525,
+          "y": 1.1664760761878539e-16,
+          "z": 0
+        }
+      },
+      "signature": "circle:0:0:0:0:0:1:5.985:bottom-rim"
+    },
+    {
+      "ownerFeatureId": "recess-tool",
+      "kind": "edge",
+      "transportOrdinal": 6,
+      "persistentId": "recess-tool:edge:bottom-rim",
+      "semantic": "bottom-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.35
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 11.96946801017711,
+        "bounds": {
+          "min": {
+            "x": -1.9050001,
+            "y": -1.9050001,
+            "z": 6.349999899999999
+          },
+          "max": {
+            "x": 1.9050001,
+            "y": 1.9050001,
+            "z": 6.3500001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 1.905,
+            "y": -4.6659043047514155e-16,
+            "z": 6.35
+          },
+          {
+            "x": 1.905,
+            "y": 0,
+            "z": 6.35
+          }
+        ],
+        "radius": 1.905,
+        "arcMidpoint": {
+          "x": -1.905,
+          "y": 2.3329521523757077e-16,
+          "z": 6.35
+        }
+      },
+      "signature": "circle:0:0:6.35:0:0:1:11.969:bottom-rim"
+    },
+    {
+      "ownerFeatureId": "bore",
+      "kind": "edge",
+      "transportOrdinal": 7,
+      "persistentId": "bore:edge:top-rim",
+      "semantic": "top-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.35
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 5.984734005088555,
+        "bounds": {
+          "min": {
+            "x": -0.9525001,
+            "y": -0.9525001,
+            "z": 6.349999899999999
+          },
+          "max": {
+            "x": 0.9525001,
+            "y": 0.9525001,
+            "z": 6.3500001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 0.9525,
+            "y": -2.3329521523757077e-16,
+            "z": 6.35
+          },
+          {
+            "x": 0.9525,
+            "y": 0,
+            "z": 6.35
+          }
+        ],
+        "radius": 0.9525,
+        "arcMidpoint": {
+          "x": -0.9525,
+          "y": 1.1664760761878539e-16,
+          "z": 6.35
+        }
+      },
+      "signature": "circle:0:0:6.35:0:0:1:5.985:top-rim"
+    }
+  ],
+  "ok": true,
+  "issues": [],
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 514.7815503073042,
+    "maxToleranceCm": 1.0000000169197989e-7
+  },
+  "before": {
+    "volume": 514.4125997015241,
+    "centerOfMass": {
+      "x": 1.4417006521222799e-16,
+      "y": 5.01878441640736e-17,
+      "z": 3.288594996090697
+    },
+    "inertia": [
+      [
+        5302.979293981584,
+        4.3734770440676264e-13,
+        -1.824339060498186e-13
+      ],
+      [
+        4.3734770440676264e-13,
+        5302.979293981513,
+        -1.3288632657683188e-13
+      ],
+      [
+        -1.824339060498186e-13,
+        -1.3288632657683188e-13,
+        6895.003921960876
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -5.08,
+        "y": -5.08,
+        "z": 0
+      },
+      "max": {
+        "x": 5.08,
+        "y": 5.08,
+        "z": 6.604
+      }
+    }
+  },
+  "after": {
+    "volume": 514.7815503073042,
+    "centerOfMass": {
+      "x": -6.590837533375247e-16,
+      "y": 5.47987615134023e-17,
+      "z": 3.290850532013526
+    },
+    "inertia": [
+      [
+        5307.245333518815,
+        -1.4980080395446756e-13,
+        6.047563310314822e-13
+      ],
+      [
+        -1.4980080395446756e-13,
+        5307.24533351874,
+        -1.5085567302984163e-13
+      ],
+      [
+        6.047563310314822e-13,
+        -1.5085567302984163e-13,
+        6896.230424248597
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -5.08,
+        "y": -5.08,
+        "z": 0
+      },
+      "max": {
+        "x": 5.08,
+        "y": 5.08,
+        "z": 6.604
+      }
+    }
+  },
+  "cones": [
+    {
+      "ownerFeatureId": "bevel",
+      "kind": "face",
+      "transportOrdinal": 3,
+      "persistentId": "bevel:face:generated:cone:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cone",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.480023809523809
+        },
+        "normal": {
+          "x": 0.7071067811865476,
+          "y": -8.659560562354934e-17,
+          "z": 0.7071067811865475
+        },
+        "measure": 4.012918498935152,
+        "bounds": {
+          "min": {
+            "x": -1.9050001000000016,
+            "y": -1.9050001000000016,
+            "z": 6.349999899999998
+          },
+          "max": {
+            "x": 1.9050001000000016,
+            "y": 1.9050001000000016,
+            "z": 6.604000100000001
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "radius": 1.651,
+        "angle": 0.7853981633974483,
+        "referenceOrigin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.35
+        },
+        "axisRange": [
+          0,
+          0.254
+        ],
+        "centroid": {
+          "x": 0,
+          "y": -9.303919015201929e-18,
+          "z": 6.480023809523809
+        }
+      },
+      "signature": "cone:0:0:6.48:0.707:0:0.707:4.013:"
+    }
+  ],
+  "circles": [
+    {
+      "ownerFeatureId": "blank",
+      "kind": "edge",
+      "transportOrdinal": 0,
+      "persistentId": "blank:edge:top-rim",
+      "semantic": "top-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.604
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 31.9185813604723,
+        "bounds": {
+          "min": {
+            "x": -5.0800001,
+            "y": -5.0800001,
+            "z": 6.6039999
+          },
+          "max": {
+            "x": 5.0800001,
+            "y": 5.0800001,
+            "z": 6.6040001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5.08,
+            "y": -1.2442411479337109e-15,
+            "z": 6.604
+          },
+          {
+            "x": 5.08,
+            "y": 0,
+            "z": 6.604
+          }
+        ],
+        "radius": 5.08,
+        "arcMidpoint": {
+          "x": -5.08,
+          "y": 6.221205739668554e-16,
+          "z": 6.604
+        }
+      },
+      "signature": "circle:0:0:6.604:0:0:1:31.919:top-rim"
+    },
+    {
+      "ownerFeatureId": "blank",
+      "kind": "edge",
+      "transportOrdinal": 2,
+      "persistentId": "blank:edge:bottom-rim",
+      "semantic": "bottom-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 31.9185813604723,
+        "bounds": {
+          "min": {
+            "x": -5.0800001,
+            "y": -5.0800001,
+            "z": -1e-7
+          },
+          "max": {
+            "x": 5.0800001,
+            "y": 5.0800001,
+            "z": 1e-7
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5.08,
+            "y": -1.2442411479337109e-15,
+            "z": 0
+          },
+          {
+            "x": 5.08,
+            "y": 0,
+            "z": 0
+          }
+        ],
+        "radius": 5.08,
+        "arcMidpoint": {
+          "x": -5.08,
+          "y": 6.221205739668554e-16,
+          "z": 0
+        }
+      },
+      "signature": "circle:0:0:0:0:0:1:31.919:bottom-rim"
+    },
+    {
+      "ownerFeatureId": "recess-tool",
+      "kind": "edge",
+      "transportOrdinal": 3,
+      "persistentId": "recess-tool:edge:top-rim",
+      "semantic": "top-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.603999999999999
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 11.96946801017711,
+        "bounds": {
+          "min": {
+            "x": -1.9050001000000016,
+            "y": -1.9050001000000016,
+            "z": 6.603999899999997
+          },
+          "max": {
+            "x": 1.9050001000000016,
+            "y": 1.9050001000000016,
+            "z": 6.604000100000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 1.905,
+            "y": -4.6659043047514155e-16,
+            "z": 6.603999999999999
+          },
+          {
+            "x": 1.905,
+            "y": 0,
+            "z": 6.603999999999999
+          }
+        ],
+        "radius": 1.905,
+        "arcMidpoint": {
+          "x": -1.905,
+          "y": 2.3329521523757077e-16,
+          "z": 6.603999999999999
+        }
+      },
+      "signature": "circle:0:0:6.604:0:0:1:11.969:top-rim"
+    },
+    {
+      "ownerFeatureId": "bore",
+      "kind": "edge",
+      "transportOrdinal": 4,
+      "persistentId": "bore:edge:bottom-rim",
+      "semantic": "bottom-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 5.984734005088555,
+        "bounds": {
+          "min": {
+            "x": -0.9525001,
+            "y": -0.9525001,
+            "z": -1e-7
+          },
+          "max": {
+            "x": 0.9525001,
+            "y": 0.9525001,
+            "z": 1e-7
+          }
+        },
+        "endpoints": [
+          {
+            "x": 0.9525,
+            "y": -2.3329521523757077e-16,
+            "z": 0
+          },
+          {
+            "x": 0.9525,
+            "y": 0,
+            "z": 0
+          }
+        ],
+        "radius": 0.9525,
+        "arcMidpoint": {
+          "x": -0.9525,
+          "y": 1.1664760761878539e-16,
+          "z": 0
+        }
+      },
+      "signature": "circle:0:0:0:0:0:1:5.985:bottom-rim"
+    },
+    {
+      "ownerFeatureId": "bevel",
+      "kind": "edge",
+      "transportOrdinal": 6,
+      "persistentId": "bevel:edge:generated:circle:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.35
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 10.373538942153498,
+        "bounds": {
+          "min": {
+            "x": -1.6510001,
+            "y": -1.6510001,
+            "z": 6.349999899999999
+          },
+          "max": {
+            "x": 1.6510001,
+            "y": 1.6510001,
+            "z": 6.3500001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 1.651,
+            "y": -4.0437837307845605e-16,
+            "z": 6.35
+          },
+          {
+            "x": 1.651,
+            "y": 0,
+            "z": 6.35
+          }
+        ],
+        "radius": 1.651,
+        "arcMidpoint": {
+          "x": -1.651,
+          "y": 2.0218918653922802e-16,
+          "z": 6.35
+        }
+      },
+      "signature": "circle:0:0:6.35:0:0:1:10.374:"
+    },
+    {
+      "ownerFeatureId": "bore",
+      "kind": "edge",
+      "transportOrdinal": 7,
+      "persistentId": "bore:edge:top-rim",
+      "semantic": "top-rim",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 6.35
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 5.984734005088555,
+        "bounds": {
+          "min": {
+            "x": -0.9525001,
+            "y": -0.9525001,
+            "z": 6.349999899999999
+          },
+          "max": {
+            "x": 0.9525001,
+            "y": 0.9525001,
+            "z": 6.3500001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 0.9525,
+            "y": -2.3329521523757077e-16,
+            "z": 6.35
+          },
+          {
+            "x": 0.9525,
+            "y": 0,
+            "z": 6.35
+          }
+        ],
+        "radius": 0.9525,
+        "arcMidpoint": {
+          "x": -0.9525,
+          "y": 1.1664760761878539e-16,
+          "z": 6.35
+        }
+      },
+      "signature": "circle:0:0:6.35:0:0:1:5.985:top-rim"
+    }
+  ],
+  "probes": {
+    "bottomR70Solid": true,
+    "topR70Void": true,
+    "throughBoreVoid": true
+  }
+}

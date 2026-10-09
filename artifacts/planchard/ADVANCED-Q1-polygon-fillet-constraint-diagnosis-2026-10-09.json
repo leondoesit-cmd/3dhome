@@ -1,0 +1,69 @@
+{
+  "input": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q1-polygon-fillet-failed-browser-2026-10-09.mforge",
+  "scope": "Read-only actual sketch constraint/analytical source diagnosis. No model authored or modified.",
+  "actualStatus": "fully-defined",
+  "actualEqualConstraints": [
+    {
+      "id": 5665,
+      "type": "equal",
+      "a": 5656,
+      "b": 5657,
+      "exprError": null,
+      "lengthA": 5.236196470823177,
+      "lengthB": 5.236196470823182
+    },
+    {
+      "id": 5666,
+      "type": "equal",
+      "a": 5657,
+      "b": 5658,
+      "exprError": null,
+      "lengthA": 5.236196470823182,
+      "lengthB": 5.236196470823295
+    },
+    {
+      "id": 5667,
+      "type": "equal",
+      "a": 5658,
+      "b": 5659,
+      "exprError": null,
+      "lengthA": 5.236196470823295,
+      "lengthB": 5.236196470823439
+    }
+  ],
+  "expected": {
+    "sharpVerticesCm": [
+      [
+        4.336051224213831,
+        0
+      ],
+      [
+        0,
+        4.336051224213831
+      ],
+      [
+        -4.336051224213831,
+        0
+      ],
+      [
+        0,
+        -4.336051224213831
+      ]
+    ],
+    "originalSideLengthCm": 6.132102448427662,
+    "firstFilletTrimmedAdjacentSideLengthCm": 4.862102448427661,
+    "filletCentreCm": [
+      2.54,
+      0
+    ],
+    "filletRadiusCm": 1.27,
+    "trimSetbackCm": 1.27
+  },
+  "actualFilletCentre": {
+    "id": 5674,
+    "x": 2.211735008895734,
+    "y": -0.30523620096531767
+  },
+  "finding": "Original polygon equal-side relations are still bound to trimmed perimeter entities. Correct first fillet has two adjacent lengths L-R and two opposite lengths L, so those altered relations exclude the intended regular original polygon. Solver accepting them can be internally valid while the UI operation changes design intent.",
+  "recommendation": "Preserve original sharp-side equality/distance references via virtual-sharp construction geometry; do not drop driving relations or force points fixed. Test sequential four-corner fillets and subsequent guide diameter edits."
+}

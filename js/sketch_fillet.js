@@ -40,7 +40,7 @@ function addPoint(sketch, x, y, id) {
 }
 
 export function findFilletCorner(sketch, { vertexId, entityIds } = {}) {
-  const lines = (sketch.entities || []).filter((entity) => entity.type === "line");
+  const lines = (sketch.entities || []).filter((entity) => entity.type === "line" && !entity.virtualSharpSideFor);
   const wanted = new Set(entityIds || []);
   if (vertexId) {
     const at = lines.filter((line) => line.a === vertexId || line.b === vertexId);
@@ -202,6 +202,24 @@ export function filletSketchCorner(sketch, options = {}, id = uid) {
   };
   const keep = options.keepConstrainedCorners !== false
     && (vertex.fixed || (sketch.constraints || []).some((constraint) => constraintRefs(constraint, corner.vertexId)));
+  if (keep) {
+    // Equal sides define the original sharp polygon, not the shorter visible
+    // edges left by a fillet. Retain those measurements on construction sides
+    // whose endpoint IDs also survive later fillets at the opposite corner.
+    for (const line of [lineA, lineB]) {
+      const equalities = (sketch.constraints || []).filter(constraint => constraint.type === "equal" && (constraint.a === line.id || constraint.b === line.id));
+      if (!equalities.length) continue;
+      let sharp = sketch.entities.find(entity => entity.virtualSharpSideFor === line.id);
+      if (!sharp) {
+        sharp = { id: id(), type: "line", name: "Original sharp side", a: line.a, b: line.b, construction: true, virtualSharpSideFor: line.id };
+        sketch.entities.push(sharp);
+      }
+      for (const equality of equalities) {
+        if (equality.a === line.id) equality.a = sharp.id;
+        if (equality.b === line.id) equality.b = sharp.id;
+      }
+    }
+  }
   const farAId = otherEnd(lineA, corner.vertexId);
   const farBId = otherEnd(lineB, corner.vertexId);
   const lengthDims = (sketch.constraints || []).filter((constraint) => (
@@ -251,6 +269,10 @@ export function filletSketchCorner(sketch, options = {}, id = uid) {
     sketch.constraints.push({ id: id(), type: "radius", entity: arc.id, value: radius, driven: false });
   }
   pruneOrphanPoints(sketch);
+  if (savedPoint) {
+    const retained = sketch.points.find(point => point.id === savedPoint.id);
+    if (retained) retained.virtualSharp = true;
+  }
   if (savedPoint && !(sketch.points || []).some((point) => point.id === savedPoint.id)) {
     sketch.points.push(savedPoint);
     for (const constraint of savedConstraints.concat(savedLength, savedCorner)) {

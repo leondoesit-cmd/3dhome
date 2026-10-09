@@ -1551,6 +1551,60 @@ function edgeIsFinishTarget(brep, edge, selection) {
 // Chamfers, like fillets, consume persistent edge references rather than
 // explorer positions.  This keeps the operation stable when an upstream edit
 // changes OpenCascade's internal traversal order.
+// The rolling chamfer can fail when a concave bevel consumes the complete
+// cylinder wall. Only this closed circular floor/open-wall limit is rebuilt.
+async function limitingConcaveCircularChamfer(brep, edge, distance, options) {
+  const mode=options.mode || 'equal-distance';
+  if(mode!=='equal-distance' && !(mode==='distance-angle' && Math.abs(Number(options.angle)-45)<1e-10))return null;
+  const oc=brep.oc,entries=[];
+  for(const entry of brep.subshapes?.values() || []){
+    if(!entries.some(prior=>prior.kind===entry.kind && prior.shape.IsSame(entry.shape)))entries.push(entry);
+  }
+  const selected=entries.find(e=>e.kind==='edge' && e.shape.IsSame(edge)),circle=selected?.descriptor;
+  if(circle?.curve!=='circle' || !(circle.radius>distance))return null;
+  const adjacent=entries.filter(e=>e.kind==='face' && edgeOnAnyFace(oc,edge,[e.shape]));
+  if(adjacent.length!==2)return null;
+  const floor=adjacent.find(e=>e.descriptor.surface==='plane'),wall=adjacent.find(e=>e.descriptor.surface==='cylinder');
+  if(!floor || !wall)return null;
+  const cylinder=wall.descriptor,axis=cylinder.axis,base=cylinder.referenceOrigin,range=cylinder.axisRange,origin=circle.origin;
+  if(!axis || !base || !range || Math.abs(cylinder.radius-circle.radius)>1e-8)return null;
+  const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  const relative=p=>({x:p.x-origin.x,y:p.y-origin.y,z:p.z-origin.z});
+  const height=Math.abs(range[1]-range[0]);
+  if(Math.abs(height-distance)>1e-8 || Math.abs(Math.abs(dot(floor.descriptor.normal,axis))-1)>1e-8)return null;
+  const station=dot({x:origin.x-base.x,y:origin.y-base.y,z:origin.z-base.z},axis);
+  const nearStart=Math.abs(station-range[0])<1e-8,nearEnd=Math.abs(station-range[1])<1e-8;
+  if(!nearStart && !nearEnd)return null;
+  if(Math.abs(cylinder.measure-2*Math.PI*circle.radius*height)>1e-7)return null;
+  const pull={x:axis.x*(nearStart?1:-1),y:axis.y*(nearStart?1:-1),z:axis.z*(nearStart?1:-1)};
+  const borders=entries.filter(e=>e.kind==='edge' && edgeOnAnyFace(oc,e.shape,[floor.shape]));
+  if(!borders.length || borders.some(e=>{
+    const d=e.descriptor;
+    return d.curve!=='circle' || Math.hypot(...Object.values(relative(d.origin)))>1e-8
+      || (Math.abs(d.radius-circle.radius)>1e-8 && d.radius>circle.radius-distance+1e-8);
+  }))return null;
+  const radial=normalizedVector(Math.abs(pull.x)<.8?{x:0,y:pull.z,z:-pull.y}:{x:-pull.z,y:0,z:pull.x});
+  const transverse={x:pull.y*radial.z-pull.z*radial.y,y:pull.z*radial.x-pull.x*radial.z,z:pull.x*radial.y-pull.y*radial.x};
+  const at=(r,t,a=0)=>({x:origin.x+pull.x*t+r*(radial.x*Math.cos(a)+transverse.x*Math.sin(a)),y:origin.y+pull.y*t+r*(radial.y*Math.cos(a)+transverse.y*Math.sin(a)),z:origin.z+pull.z*t+r*(radial.z*Math.cos(a)+transverse.z*Math.sin(a))});
+  const epsilon=Math.min(distance/20,1e-3),radius=circle.radius;
+  for(const angle of [0,Math.PI/2,Math.PI,3*Math.PI/2]){
+    if(solidContainsPoint(oc,brep.shape,at(radius-epsilon,epsilon,angle))
+      || !solidContainsPoint(oc,brep.shape,at(radius+epsilon,epsilon,angle))
+      || !solidContainsPoint(oc,brep.shape,at(radius-epsilon,-epsilon,angle))
+      || solidContainsPoint(oc,brep.shape,at(radius-epsilon,height+epsilon,angle)))return null;
+  }
+  let outer,inner,wedge,result;
+  try{
+    outer=await makeBrepPrimitive({type:'cylinder',...origin,axis:pull,r:radius,h:height});
+    inner=await makeBrepCone({origin,axis:pull,r1:radius-distance,r2:radius,h:height});
+    wedge=await booleanBrep('subtract',outer,inner);
+    result=await booleanBrep('union',brep,wedge);
+    const gain=shapeVolume(oc,result.shape)-shapeVolume(oc,brep.shape),expected=Math.PI*height*(radius*distance-distance*distance/3);
+    if(!shapeIsValid(oc,result.shape) || Math.abs(gain-expected)>1e-7 || await shapeSolidCount(result)!==await shapeSolidCount(brep)){disposeBrep(result);return null;}
+    return {...result,operation:'chamfer'};
+  }finally{if(outer)disposeBrep(outer);if(inner)disposeBrep(inner);if(wedge)disposeBrep(wedge);}
+}
+
 export async function chamferBrep(brep, distance, options = {}) {
   if (!brep?.shape) throw new Error("Chamfer needs a BREP shape");
   const oc = brep.oc || await loadCadKernel();
@@ -1620,7 +1674,14 @@ export async function chamferBrep(brep, distance, options = {}) {
     }
     if (!added) throw new Error("Chamfer has no resolved edges");
     maker.Build(progress);
-    if (maker.HasErrors?.() || !maker.IsDone?.()) throw new Error("OpenCascade chamfer failed");
+    if (maker.HasErrors?.() || !maker.IsDone?.()) {
+      if(added===1 && finish.restrict && !options.filter){
+        const selected=seenEdges.find(edge=>edgeIsFinishTarget(brep,edge,finish));
+        const repaired=selected && await limitingConcaveCircularChamfer(brep,selected,firstDistance,options);
+        if(repaired)return repaired;
+      }
+      throw new Error("OpenCascade chamfer failed");
+    }
     return { oc, shape: maker.Shape(), kind: "solid", operation: "chamfer" };
   } finally {
     disposeAll(seenEdges);
