@@ -1,0 +1,514 @@
+{
+  "scope": "Read-only protected historical exports, disposable current native preflight; actual saved-library freshness and UI acceptance remain parent-owned.",
+  "records": [
+    {
+      "input": "artifacts/planchard/CSWA-Q1-browser-2026-09-29.mforge",
+      "name": "CSWA Q1 alloy steel block",
+      "key": "cm_mumwjucm_1421",
+      "history": 6,
+      "sketchCount": 3,
+      "allFullyDefined": true,
+      "native": {
+        "compileOk": true,
+        "issues": [],
+        "rebuildOk": true,
+        "validation": {
+          "valid": true,
+          "solidCount": 1,
+          "volumeCm3": 292.6241738471219,
+          "maxToleranceCm": 1.5000001797499673e-7
+        },
+        "mass": {
+          "volume": 292.6241738471219,
+          "centerOfMass": {
+            "x": 4.142967614428863,
+            "y": 2.5593056269296874,
+            "z": -0.08890913962050152
+          },
+          "inertia": [
+            [
+              1813.6663618309644,
+              503.96315700235573,
+              109.72141607739913
+            ],
+            [
+              503.96315700235573,
+              3114.3354040804825,
+              1.848022039560746
+            ],
+            [
+              109.72141607739913,
+              1.848022039560746,
+              2960.4294830587287
+            ]
+          ],
+          "solidCount": 1,
+          "bounds": {
+            "min": {
+              "x": 7.720955222029612e-15,
+              "y": 3.68594044175552e-14,
+              "z": -3.175
+            },
+            "max": {
+              "x": 10.160000000000094,
+              "y": 6.6040000000000765,
+              "z": 3.1750000000000003
+            }
+          }
+        }
+      },
+      "materials": [
+        {
+          "catalogId": "custom",
+          "grade": "Alloy Steel (CSWA book 0.278 lb/in3)",
+          "density": 7.695,
+          "densitySource": "",
+          "condition": "",
+          "source": "",
+          "model": "qualified-rating",
+          "youngModulusMPa": 0,
+          "poissonRatio": 0,
+          "allowableBendingMPa": 0,
+          "allowableContactMPa": 0,
+          "minTemperatureC": 0,
+          "maxTemperatureC": 0,
+          "maxCycles": 0,
+          "maxHours": 0,
+          "maxRpm": 0,
+          "environment": "",
+          "lubrication": "",
+          "id": 1441
+        }
+      ],
+      "features": [
+        {
+          "id": "feature_mumwg0b2_1",
+          "type": "extrude",
+          "sketchId": "sk_06d94"
+        },
+        {
+          "id": "feature_mumwhk2j_1",
+          "type": "extrudeCut",
+          "sketchId": "sk_16wdt"
+        },
+        {
+          "id": "feature_mumwlofj_1",
+          "type": "extrudeCut",
+          "sketchId": "sk_1pbjj"
+        }
+      ],
+      "dimensions": [
+        {
+          "id": "sk_06d94",
+          "dimensions": [
+            {
+              "id": "dim_phubwt7",
+              "type": "distance",
+              "entity": 1399,
+              "value": 10.16,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": "dim_wiew36j",
+              "type": "distance",
+              "entity": 1402,
+              "value": 2.54,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": "dim_8ljxvap",
+              "type": "distance",
+              "entity": 1407,
+              "value": 0.635,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": "dim_xie43i6",
+              "type": "distance",
+              "entity": 1412,
+              "value": 6.604,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": "dim_q4u5bb9",
+              "type": "distance",
+              "entity": 1410,
+              "value": 2.54,
+              "driven": false,
+              "exprError": null,
+              "offset": -339.0815739163567
+            }
+          ]
+        },
+        {
+          "id": "sk_16wdt",
+          "dimensions": [
+            {
+              "id": 1419,
+              "entity": 1417,
+              "type": "diameter",
+              "value": 1.42748,
+              "exprError": null
+            }
+          ]
+        },
+        {
+          "id": "sk_1pbjj",
+          "dimensions": [
+            {
+              "id": 1439,
+              "type": "distance",
+              "entity": 1428,
+              "value": 50.8,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": 1440,
+              "type": "distance",
+              "entity": 1429,
+              "value": 50.8,
+              "driven": false,
+              "exprError": null
+            }
+          ]
+        }
+      ],
+      "inputUnchanged": true
+    },
+    {
+      "input": "artifacts/planchard/CSWA-Q2-browser-2026-09-29.mforge",
+      "name": "CSWA Q2 copper bracket",
+      "key": "cm_mumwq36i",
+      "history": 8,
+      "sketchCount": 4,
+      "allFullyDefined": true,
+      "native": {
+        "compileOk": true,
+        "issues": [],
+        "rebuildOk": true,
+        "validation": {
+          "valid": true,
+          "solidCount": 1,
+          "volumeCm3": 180.36990515543678,
+          "maxToleranceCm": 1.5000003264055692e-7
+        },
+        "mass": {
+          "volume": 180.36990515543678,
+          "centerOfMass": {
+            "x": 4.3333005506797597e-16,
+            "y": 1.9793668835537195,
+            "z": -3.068395347320824e-16
+          },
+          "inertia": [
+            [
+              1031.0880657581818,
+              6.588888168643988e-14,
+              -1.0769163338864042e-14
+            ],
+            [
+              6.588888168643988e-14,
+              1978.6677745102004,
+              -2.969451256568435e-14
+            ],
+            [
+              -1.0769163338864042e-14,
+              -2.969451256568435e-14,
+              1954.2399468912738
+            ]
+          ],
+          "solidCount": 1,
+          "bounds": {
+            "min": {
+              "x": -7,
+              "y": 0,
+              "z": -3
+            },
+            "max": {
+              "x": 7,
+              "y": 6,
+              "z": 3
+            }
+          }
+        }
+      },
+      "materials": [
+        {
+          "catalogId": "custom",
+          "grade": "Copper (CSWA book 0.0089 g/mm3)",
+          "density": 8.9,
+          "densitySource": "",
+          "condition": "",
+          "source": "",
+          "model": "qualified-rating",
+          "youngModulusMPa": 0,
+          "poissonRatio": 0,
+          "allowableBendingMPa": 0,
+          "allowableContactMPa": 0,
+          "minTemperatureC": 0,
+          "maxTemperatureC": 0,
+          "maxCycles": 0,
+          "maxHours": 0,
+          "maxRpm": 0,
+          "environment": "",
+          "lubrication": "",
+          "id": 1502
+        }
+      ],
+      "features": [
+        {
+          "id": "feature_mumwrjqj_2",
+          "type": "extrude",
+          "sketchId": "sk_2tdb4"
+        },
+        {
+          "id": "feature_mumx0zmc_1",
+          "type": "extrude",
+          "sketchId": "sk_1gngp"
+        },
+        {
+          "id": "feature_mumx22b1_2",
+          "type": "extrude",
+          "sketchId": "sk_24jz6"
+        },
+        {
+          "id": "feature_mumx2xx6_3",
+          "type": "extrudeCut",
+          "sketchId": "sk_3a6gd"
+        }
+      ],
+      "dimensions": [
+        {
+          "id": "sk_2tdb4",
+          "dimensions": [
+            {
+              "id": 1463,
+              "type": "distance",
+              "entity": 1453,
+              "value": 8,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": 1464,
+              "type": "radius",
+              "entity": 1452,
+              "value": 3,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": 1467,
+              "entity": 1465,
+              "type": "diameter",
+              "value": 2,
+              "exprError": null
+            },
+            {
+              "id": 1470,
+              "entity": 1468,
+              "type": "diameter",
+              "value": 2,
+              "exprError": null
+            }
+          ]
+        },
+        {
+          "id": "sk_1gngp",
+          "dimensions": [
+            {
+              "id": 1490,
+              "type": "distance",
+              "entity": 1479,
+              "value": 6,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": 1491,
+              "type": "distance",
+              "entity": 1480,
+              "value": 3,
+              "driven": false,
+              "exprError": null
+            }
+          ]
+        },
+        {
+          "id": "sk_24jz6",
+          "dimensions": [
+            {
+              "id": 1495,
+              "entity": 1493,
+              "type": "diameter",
+              "value": 6,
+              "exprError": null
+            }
+          ]
+        },
+        {
+          "id": "sk_3a6gd",
+          "dimensions": [
+            {
+              "id": 1500,
+              "entity": 1498,
+              "type": "diameter",
+              "value": 2,
+              "exprError": null
+            }
+          ]
+        }
+      ],
+      "inputUnchanged": true
+    },
+    {
+      "input": "artifacts/planchard/CSWA-Q3-browser-2026-09-29.mforge",
+      "name": "CSWA Q3 cast alloy steel pin",
+      "key": "cm_mumxa3i6",
+      "history": 4,
+      "sketchCount": 2,
+      "allFullyDefined": true,
+      "native": {
+        "compileOk": true,
+        "issues": [],
+        "rebuildOk": true,
+        "validation": {
+          "valid": true,
+          "solidCount": 1,
+          "volumeCm3": 9.557265394709205,
+          "maxToleranceCm": 1.5000000044495572e-7
+        },
+        "mass": {
+          "volume": 9.557265394709205,
+          "centerOfMass": {
+            "x": 0.9786768063319603,
+            "y": -0.012723304729752163,
+            "z": 5.1582864842200443e-17
+          },
+          "inertia": [
+            [
+              7.487529967726238,
+              -0.04604709964996653,
+              1.7999078452219592e-16
+            ],
+            [
+              -0.04604709964996653,
+              9.872502211746324,
+              2.898479266078187e-16
+            ],
+            [
+              1.7999078452219592e-16,
+              2.898479266078187e-16,
+              9.714086251423048
+            ]
+          ],
+          "solidCount": 1,
+          "bounds": {
+            "min": {
+              "x": 1.3113684369859543e-17,
+              "y": -1.4000000000000001,
+              "z": -1.4000000000000001
+            },
+            "max": {
+              "x": 3.2,
+              "y": 1.385640646055102,
+              "z": 1.4000000000000001
+            }
+          }
+        }
+      },
+      "materials": [
+        {
+          "density": 7.3,
+          "name": "Cast Alloy Steel (SOLIDWORKS reference)",
+          "densitySource": "SDC Publications, Beginner's Guide to SolidWorks 2011, p. 66: Cast Alloy Steel library density 7300 kg/m³; reference material, grade unspecified"
+        }
+      ],
+      "features": [
+        {
+          "id": "feature_mumxcu8l_1",
+          "type": "revolve",
+          "sketchId": "sk_1g7hb"
+        },
+        {
+          "id": "feature_mumxe06u_2",
+          "type": "extrudeCut",
+          "sketchId": "sk_2uxa7"
+        }
+      ],
+      "dimensions": [
+        {
+          "id": "sk_1g7hb",
+          "dimensions": [
+            {
+              "id": "dim_n613lmi",
+              "type": "distance",
+              "entity": 1506,
+              "value": 1.4000000000000001,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": "dim_hl718nu",
+              "type": "distance",
+              "entity": 1509,
+              "value": 1.2000000000000002,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": "dim_vbe02rj",
+              "type": "distance",
+              "entity": 1512,
+              "value": 0.8,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": "dim_3leysl9",
+              "type": "distance",
+              "entity": 1515,
+              "value": 2,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": "dim_iaa3jkp",
+              "type": "distance",
+              "entity": 1518,
+              "value": 0.6000000000000001,
+              "driven": false,
+              "exprError": null
+            }
+          ]
+        },
+        {
+          "id": "sk_2uxa7",
+          "dimensions": [
+            {
+              "id": 1540,
+              "type": "distance",
+              "entity": 1529,
+              "value": 1.4000000000000001,
+              "driven": false,
+              "exprError": null
+            },
+            {
+              "id": 1541,
+              "type": "distance",
+              "entity": 1530,
+              "value": 0.4,
+              "driven": false,
+              "exprError": null
+            }
+          ]
+        }
+      ],
+      "inputUnchanged": true
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "scope": "Read-only finite saved/cold present-field durability; no new native rebuild or browser claim",
+  "saved": "FLAT-PLATE-hidden-axis-restored-saved-browser-2026-10-09.mforge",
+  "cold": "FLAT-PLATE-hidden-axis-cold-browser-2026-10-09.mforge",
+  "checks": {
+    "features": {
+      "present": true,
+      "equal": true
+    },
+    "sketches": {
+      "present": true,
+      "equal": true
+    },
+    "history": {
+      "present": true,
+      "equal": true
+    },
+    "references": {
+      "present": true,
+      "equal": true
+    },
+    "localFrame": {
+      "present": true,
+      "equal": true
+    },
+    "customProperties": {
+      "present": true,
+      "equal": true
+    },
+    "context": {
+      "present": true,
+      "equal": true
+    },
+    "drawing": {
+      "present": true,
+      "equal": true
+    },
+    "name": {
+      "present": true,
+      "equal": true
+    },
+    "key": {
+      "present": true,
+      "equal": true
+    }
+  },
+  "pass": true
+}

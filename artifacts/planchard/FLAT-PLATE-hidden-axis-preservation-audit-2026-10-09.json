@@ -1,0 +1,68 @@
+{
+  "scope": "Read-only browser-export preservation and derived SVG audit; no native regeneration, model mutation or cold-acceptance claim",
+  "oldName": "FLAT-PLATE-9.6-browser-2026-09-28.mforge",
+  "newName": "FLAT-PLATE-hidden-axis-centrelines-browser-2026-10-09.mforge",
+  "checks": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "references": true,
+    "localFrame": true,
+    "customProperties": true,
+    "context": true,
+    "name": true,
+    "key": true,
+    "drawing": true,
+    "authoredPartGeometryAndMaterial": true,
+    "frontAndRightOneAxisEach": true,
+    "expectedDimensionTitleTexts": true
+  },
+  "allChecksPass": true,
+  "axisResults": [
+    {
+      "viewId": "v5urcy92",
+      "axisCount": 1,
+      "coordinates": [
+        {
+          "type": "line",
+          "x1": 93.13923163679233,
+          "y1": 105.57049999998951,
+          "x2": 93.13923163679233,
+          "y2": 127.6994999999895,
+          "style": "center",
+          "viewId": "v5urcy92"
+        }
+      ],
+      "exactSVGAxisMatches": [
+        true
+      ]
+    },
+    {
+      "viewId": "v1i82fs2",
+      "axisCount": 1,
+      "coordinates": [
+        {
+          "type": "line",
+          "x1": 146.1592316367926,
+          "y1": 105.57049999998945,
+          "x2": 146.1592316367926,
+          "y2": 127.6994999999895,
+          "style": "center",
+          "viewId": "v1i82fs2"
+        }
+      ],
+      "exactSVGAxisMatches": [
+        true
+      ]
+    }
+  ],
+  "allowedDerivedPartDifferences": [
+    "meshData",
+    "exactBuildToken"
+  ],
+  "bytes": {
+    "bundle": 355671,
+    "svg": 41989
+  },
+  "svgSHA256": "dc5ecda241cf4b9e9bd0f4e37478a86254cbd5d8f8e07eee5f32fad384999cd1"
+}
