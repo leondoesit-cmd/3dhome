@@ -1,0 +1,11 @@
+# Advanced Q4 initial Thin UI guide — 2026-10-09
+
+Read-only direction/native verification, not authored Q4 acceptance. Use the ordered Right-plane polyline `(U,V) mm`: **(45,77.9422863405995) → (0,0) → (−140,0)**. Legacy Right maps U to world+Z, V to world+Y. Finish the fully defined sketch, then Extrude with Thin enabled, wall **19 mm / Other side**. Set extrusion end condition **Mid-plane**, depth **64 mm**, offset0, merged result. Do not confuse the symmetric width with thickness direction. Reversing chain traversal requires the opposite thickness side.
+
+The existing thin generator offsets this order toward base+Y and inward leg V=(0,.5,−.866025403784439). Native disposable verification is valid, one solid, 266.34089938064284 cm³, widthX±32 mm. Base isY0..19; leg wall stations arev0..19. The exact miter bend's inner corner is(Z−10.969655114603,Y19)mm. Terminal outer corner is(Z45,Y77.9422863405995); inner corner is(Z28.545517328096,Y87.4422863405995). Both have leg stationn90, so the join/end need no alternate profile or extra platform.
+
+For the later rounded plate, select the geometric terminal face at n90 with normalN=(0,.866025403784439,.5). The extrusion's ordinary end faces at X±32 are width caps and are not the terminal leg support. Source plate outline and reverse18 mm interval remain as in the official-source plan.
+
+Dovetail scope review: native source plane540 has v6 floor, planes569/573 have the30° sides, and lines268/271 run alongN at U±17.535898384862/v6. Their origin n−70 is a point on an unbounded analytic support and does not itself decode the selected cut start/depth. Source line278 lies at the baseY0/v6 intersection, Z−6.928203230276, n−3.464101615138; this corroborates a bend/base intersection to inspect. A cut stopping at n0 would omit that intersection. A through-N reconstruction should be explicitly qualified until the original end/direction selector is independently resolved, rather than claiming the selected source range was decoded. This review did not choose dimensions or scope by mass.
+
+Evidence: `artifacts/planchard/ADVANCED-Q4-initial-thin-direction-native-verification-2026-10-09.json`. Verification created only disposable in-memory native shapes and a report; no app definition, authored model, browser, ADVANCE or app source was changed. Binary end-scope review is coordinated with the source agent.

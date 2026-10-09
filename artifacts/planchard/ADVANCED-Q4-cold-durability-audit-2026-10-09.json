@@ -1,0 +1,76 @@
+{
+  "scope": "Read-only present-field export durability plus parent-attributed actual browser acceptance. No input altered. No exact original converted contour/end-selector history claim.",
+  "inputs": [
+    {
+      "path": "artifacts\\planchard\\ADVANCED-Q4-source-material-browser-2026-10-09.mforge",
+      "sha256": "cb5339f9bee5d8ce7e8da206530a8c5fb161cccfbd6e4c5abfc2881176846756"
+    },
+    {
+      "path": "artifacts\\planchard\\ADVANCED-Q4-source-driving-restored-browser-2026-10-09.mforge",
+      "sha256": "e97ef76d009fe7caf146faefe09da65c29022258a26c3687643804a31e6ba750"
+    },
+    {
+      "path": "artifacts\\planchard\\ADVANCED-Q4-source-cold-accepted-browser-2026-10-09.mforge",
+      "sha256": "4d3cad8b00ab23c0b578f62cc9cbb2d2e59cc5184796a074e46bc481886e7eaf"
+    }
+  ],
+  "checks": {
+    "featuresPreserved": true,
+    "sketchesPreserved": true,
+    "historyPreserved": true,
+    "referenceGeometryPreserved": true,
+    "engineeringMaterialsPreserved": true,
+    "customPropertiesPreserved": true,
+    "contextPreserved": true,
+    "parametersPreserved": true,
+    "variablesPreserved": true,
+    "localFramePreserved": true,
+    "topologyBindingsPreserved": true,
+    "namedSelectionsPreserved": true,
+    "exactNativeCacheRestoredToCold": true,
+    "partPropertiesRestoredToCold": true,
+    "metadataMm": true,
+    "cold23Steps11FullyDefined": true,
+    "parentScreenshotsProtected": true
+  },
+  "pass": true,
+  "changedMainModelFields": {
+    "materialToRestored": [
+      "parts",
+      "lastRebuild",
+      "exactTopologyCache",
+      "lastStandardsAudit"
+    ],
+    "restoredToCold": [
+      "parts",
+      "lastRebuild"
+    ]
+  },
+  "parentReportedBrowserFacts": {
+    "driving": "D13\u219213.1, Undo13, Redo13.1, Undo13 observed in actual Chrome; each settled.",
+    "changed": {
+      "volumeMm3": 352277.8,
+      "massG": 2536.4,
+      "COMmm": [
+        0,
+        34.97467,
+        -46.67713
+      ]
+    },
+    "restored": {
+      "volumeMm3": 352304.5,
+      "massG": 2536.592,
+      "COMmm": [
+        0,
+        34.97426,
+        -46.67339
+      ]
+    },
+    "cold": "Full app reload; old planner backup dismissed; blank Model; exact saved Q4 selected;23 history steps,11 fully defined sketches,1 native solid,clean Save. Properties settled to restored values; ASCII Description read in actual UI.",
+    "screenshots": [
+      "artifacts\\planchard\\ADVANCED-Q4-driving-restored-browser-2026-10-09.jpg",
+      "artifacts\\planchard\\ADVANCED-Q4-cold-properties-browser-2026-10-09.jpg"
+    ]
+  },
+  "interpretation": "Cold changes only display meshData and lastRebuild. Geometry, exact native cache, materials, descriptions, reference frames and units remain preserved."
+}

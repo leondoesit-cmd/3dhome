@@ -1,0 +1,21 @@
+# Q4 actual stock/terminal plate audit — 2026-10-09
+
+Actual Chrome exports `ADVANCED-Q4-source-thin-stock-browser-2026-10-09.mforge` and `ADVANCED-Q4-source-terminal-plate-browser-2026-10-09.mforge` both regenerate as one valid native solid, with no rebuild issues. Every saved sketch is fully defined. The stock sketch and feature are bit-identical between checkpoints. Inputs remained unchanged; the audit compiled disposable clones and wrote only evidence.
+
+The Right polyline is physical Z45/Y77.94228634 → origin → Z−140/Y0. Its native extrusion is symmetric X−32..32, wall19, OtherSide. Stock volume is266.3408993806429cm³. The two helper planes have normal N=(0,√3/2,1/2), with the terminal plane at n90. The plate has three lines and one upper semicircle, local center U0/v51, R32, bottom v19 and top v83. Reverse18 produces native cylindrical end stations n72 and n90. Plate checkpoint volume is332.1578172761265cm³. The increment65.8169178954836cm³ agrees independently with `(64×32 + π×32²/2)×18`mm³.
+
+Detailed parameters, complete face descriptors, mass properties, constraints, hashes and preservation checks are in `artifacts/planchard/ADVANCED-Q4-stock-plate-native-audit-2026-10-09.json`. Reproduce with `scratch/planchard/advanced4-stock-plate-native-audit-readonly.mjs`. This accepts these two geometry checkpoints, not the unfinished Q4 model, material, cold durability or STEP export.
+
+## Actual ears/Mirror checkpoint
+
+`ADVANCED-Q4-source-ears-mirror-browser-2026-10-09.mforge` also passes independent regeneration: one valid solid,13 history steps, six fully defined sketches, no rebuild issues. Native volume392.9602541254503cm³; raw COM `(0,37.80546512692942,−40.62690986855908)`mm. The previous two sketches/features remain bit-identical. Block is Z−123..−62/Y19..51, symmetricX±19; notch Z−107..−78/Y26..51 passes throughX. The first additive R19 cap andR9.5 bore are centered X0/Y51 and boundedZ−78..−59. Mirror selects only cap+bore acrossZ−92.5; both native second cylindrical surfaces are exactlyZ−126..−107. All22 checks pass, with the actual input unchanged.
+
+The full-circle additive cap and Blind19 confined bore retain their disclosed equivalent-workflow qualification; this does not decode the original converted Sketch5 contour or raw Cut3 end selector. Evidence: `artifacts/planchard/ADVANCED-Q4-ears-mirror-native-audit-2026-10-09.json`; reproduce with `scratch/planchard/advanced4-ears-mirror-native-audit-readonly.mjs`.
+
+## Dovetail direction and finite material scope
+
+The original resolved-feature payload places `moDirectionSpec_c` at byte88817 inside named Cut-Extrude4. Its direction doubles at89227/89235/89243 are `(0,−0.8660254037844362,−0.5000000000000042)`, hence **−N**. The compact source floor support attr540 has v6; side supports attrs569/573 match the source trapezoid U±21 atv0, narrowing toU±17.5358983848622 atv6. Their plane origins atn−70 are arbitrary analytic support origins, not finite feature depths.
+
+Independent native line support attr278 lies at Y0/Z−6.928203230275535, parallelX. Projecting gives n−3.46410161513775/v6. Algebraically the channel floor meets the base underside where `Y=(√3/2)n+(1/2)v=0`, so n=−6/√3. A cut stopping atn0 would miss the source floor/base intersection. From the terminal plane, **Through All toward−N** is a defensible source-envelope workflow. Its finite intersection with stock stops at the underside; do not use the arbitrary n−70 plane origin as a blind depth.
+
+The original EndSpec enum/end-reference is still undecoded: the short bytes3b81 at88809 precede the direction class without the scalar payload found in neighboring explicit EndSpecs. Compact records also do not establish the full bounded FACE/BODY graph; line278's X32 support origin is not a channel endpoint. Therefore −N and the floor/base station are primary numeric evidence; the Through All UI choice is an explicit geometry-equivalent interpretation, not a claim that the original enum has been decoded. Evidence and exact byte offsets: `artifacts/planchard/ADVANCED-Q4-dovetail-source-scope-evidence-2026-10-09.json`, reproduced with `scratch/planchard/advanced4-dovetail-scope-readonly.py`. No volume or COM target entered this inference.

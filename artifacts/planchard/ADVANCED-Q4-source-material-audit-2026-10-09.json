@@ -1,0 +1,64 @@
+{
+  "scope": "Read-only actual material export; cold and driving pending.",
+  "input": "artifacts\\planchard\\ADVANCED-Q4-source-material-browser-2026-10-09.mforge",
+  "sha256": "cb5339f9bee5d8ce7e8da206530a8c5fb161cccfbd6e4c5abfc2881176846756",
+  "checks": {
+    "featuresUnchanged": true,
+    "sketchesUnchanged": true,
+    "historyUnchanged": true,
+    "referenceGeometryUnchanged": true,
+    "density7point2": true,
+    "sourceDocumented": true,
+    "strengthUnrated": true,
+    "descriptionASCII": true,
+    "descriptionQualifiesWorkflow": true,
+    "contextMm": true,
+    "metadataMm": true
+  },
+  "pass": true,
+  "engineeringMaterials": [
+    {
+      "catalogId": "custom",
+      "grade": "Gray Cast Iron - Planchard source density",
+      "density": 7.2,
+      "densitySource": "Planchard Advanced Q4 PDF508/printed10-28 and publisher companion: Gray Cast Iron 7200 kg/m3 =0.0072 g/mm3 =7.2 g/cm3. No mass fitting.",
+      "condition": "",
+      "source": "Source gives generic Gray Cast Iron only; grade, treatment and strength qualification unspecified/unrated.",
+      "model": "qualified-rating",
+      "youngModulusMPa": 0,
+      "poissonRatio": 0,
+      "allowableBendingMPa": 0,
+      "allowableContactMPa": 0,
+      "minTemperatureC": 0,
+      "maxTemperatureC": 0,
+      "maxCycles": 0,
+      "maxHours": 0,
+      "maxRpm": 0,
+      "environment": "",
+      "lubrication": "",
+      "id": 5939
+    }
+  ],
+  "customProperties": {
+    "Description": "Fresh Chrome reconstruction Planchard Advanced Q4 PDF508/printed10-28, publisher source analytic frames/dimensions. Twelve solid features, fully defined sketches; source64/19 thin stock, positive-Z90mm incline, R32terminalplateN72..90, ears/mirrorZ-92.5, separate dovetail/groove/counterbore/bore/wallholes. Four auxiliary planes explicitly construct terminal/wall frames; original face support selectors not recovered. Source named Cut-Extrude2 is additive rounded ear; full R19 merged disk is an equivalent envelope because converted contour connectivity is opaque. Confined Blind19 ear bore, plate Blind18 bore and wall Blind19, dovetail ThroughAll reverse-N are explicit equivalent scopes; original EndSpec fields remain undecoded. Gray Cast Iron7.2g/cm3 source0.0072g/mm3, strength unrated. No source geometry import or mass fitting."
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "metadata": {
+    "generator": "ModelForge CAD SolidWorks-Class",
+    "units": "mm",
+    "attachmentStorage": "content-addressed",
+    "activeDocument": {
+      "type": "part",
+      "key": "cm_mv0dukx3"
+    }
+  }
+}

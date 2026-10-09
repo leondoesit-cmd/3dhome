@@ -1,0 +1,153 @@
+{
+  "scope": "Primary official source, read-only typed direction and analytic supports; no model authored or mass fitting.",
+  "resolvedFeatures": "scratch\\planchard\\official-advanced-q4-container\\008-Contents_Config-0-ResolvedFeatures.bin",
+  "sha256": "0b27e99aae08223d6304a090d875c31a3b98b640fa42cf9752003ac18503cc80",
+  "cut4NamedFeatureRange": [
+    87791,
+    101435
+  ],
+  "directionClassNameOffset": 88817,
+  "directionVectorOffsets": [
+    89227,
+    89235,
+    89243
+  ],
+  "directionVector": [
+    0.0,
+    -0.8660254037844362,
+    -0.5000000000000042
+  ],
+  "directionMinusN": true,
+  "analyticSupports": [
+    {
+      "section": "section-0.bin",
+      "offset": 7228,
+      "kind": "line",
+      "attr": 278,
+      "ordinal": 1083,
+      "marker": 43,
+      "valuesMetres": [
+        0.032,
+        0,
+        -0.006928203230275535,
+        -1,
+        0,
+        0
+      ],
+      "originMm": [
+        32,
+        0,
+        -6.9282032302755345
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "stationNmm": -3.4641016151377673,
+      "stationVmm": 6.000000000000021
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 18007,
+      "kind": "plane",
+      "attr": 569,
+      "ordinal": 1077,
+      "marker": 43,
+      "valuesMetres": [
+        0.017535898384862237,
+        -0.057621778264911036,
+        -0.04019615242270722,
+        0.8660254037844382,
+        0.25000000000000266,
+        -0.43301270189221897,
+        -0.4472135954999579,
+        0,
+        -0.8944271909999161
+      ],
+      "originMm": [
+        17.535898384862236,
+        -57.621778264911036,
+        -40.19615242270722
+      ],
+      "axis": [
+        0.8660254037844382,
+        0.25000000000000266,
+        -0.43301270189221897
+      ],
+      "stationNmm": -70.00000000000058,
+      "stationVmm": 6.000000000000345
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 18098,
+      "kind": "plane",
+      "attr": 540,
+      "ordinal": 1078,
+      "marker": 43,
+      "valuesMetres": [
+        -0.017535898384862237,
+        -0.057621778264911036,
+        -0.04019615242270722,
+        0,
+        0.5000000000000042,
+        -0.8660254037844363,
+        0,
+        0.8660254037844363,
+        0.5000000000000042
+      ],
+      "originMm": [
+        -17.535898384862236,
+        -57.621778264911036,
+        -40.19615242270722
+      ],
+      "axis": [
+        0,
+        0.5000000000000042,
+        -0.8660254037844363
+      ],
+      "stationNmm": -70.00000000000058,
+      "stationVmm": 6.000000000000345
+    },
+    {
+      "section": "section-0.bin",
+      "offset": 31801,
+      "kind": "plane",
+      "attr": 573,
+      "ordinal": 1079,
+      "marker": 43,
+      "valuesMetres": [
+        -0.021,
+        -0.060621778264911066,
+        -0.03500000000000061,
+        -0.8660254037844382,
+        0.25000000000000266,
+        -0.43301270189221897,
+        -0.4472135954999579,
+        0,
+        0.8944271909999161
+      ],
+      "originMm": [
+        -21,
+        -60.621778264911065,
+        -35.000000000000604
+      ],
+      "axis": [
+        -0.8660254037844382,
+        0.25000000000000266,
+        -0.43301270189221897
+      ],
+      "stationNmm": -70.00000000000061,
+      "stationVmm": 3.410605131648481e-13
+    }
+  ],
+  "floorBaseIntersection": {
+    "vMm": 6,
+    "Ymm": 0,
+    "nMm": -3.464101615137755,
+    "Zmm": -6.92820323027551
+  },
+  "conclusion": "Cutting from terminal n90 along -N through all stock is consistent with the source floor/base analytic intersection. A blind90 cut ending n0 is not scope-equivalent. The finite material intersection terminates at n=-3.464101615mm for floor v6, not at arbitrary support-plane origin n=-70.",
+  "formalEndCondition": "Not decoded. Short 3b81 at88809 precedes moDirectionSpec_c; unlike neighboring explicit EndSpec records, it has no following scalar type payload. No enum or selected end-reference claim is made.",
+  "ownershipQualification": "Compact native records are analytic support candidates, not a decoded full FACE/BODY ownership or bounded edge graph. Line278 infinite support corroborates floor/base station; its arbitrary X32 origin is not the channel width endpoint."
+}
