@@ -54,6 +54,29 @@ test('explicit refresh preserves New body intent and atomically refuses Thin and
  const ambiguous=JSON.stringify(feature);refresh(feature);assert.equal(JSON.stringify(feature),ambiguous);assert.match(status.textContent,/multiple contours/);
 });
 
+test('refresh removing an inner sketch contour clears stale live body holes while Undo retains the prior binding',()=>{
+ const sketch={id:'annulus',plane:'front',offset:0,points:[{id:'center',x:0,y:0}],entities:[{id:'outer',type:'circle',c:'center',r:2}],constraints:[]};
+ const oldHole=[{u:1,v:0},{u:0,v:1},{u:-1,v:0},{u:0,v:-1}];
+ const feature={id:'boss',type:'extrude',inputs:[],references:{sketches:[sketch.id],features:[],topology:[]},params:{sketchId:sketch.id,profileEntityIds:['outer'],holeProfileEntityIds:[['deleted-inner']],holes:[oldHole],depth:1,direction:'forward',operation:'add',mergeResult:true}};
+ const part={id:'body',kind:'ext',featureId:feature.id,sketchId:sketch.id,sketchDriven:true,profileEntityIds:['outer'],holeProfileEntityIds:[['deleted-inner']],holes:[oldHole],pts:[],from:0,to:1};
+ const d={features:[feature],sketches:[sketch],parts:[part]},ctx=context(d);
+ const H=createHistory({get:()=>JSON.stringify(ctx.E.def),set:v=>{ctx.E.def=JSON.parse(v);}});H.clear();H.push('Edit feature');
+ ctx.refresh(feature);ctx.bindings.syncProjectionFromFeature(feature);
+ assert.deepEqual(feature.params.holeProfileEntityIds,[]);assert.deepEqual(feature.params.holes,[]);
+ assert.deepEqual(part.holeProfileEntityIds,[]);assert.deepEqual(part.holes,[],'live body must not retain a hole absent from its canonical feature');
+ H.undo();assert.deepEqual(ctx.E.def.parts[0].holes,[oldHole]);H.redo();assert.deepEqual(ctx.E.def.parts[0].holes,[]);
+});
+
+test('projection reconciliation retains legacy sampled holes and unresolved associative holes',()=>{
+ const sketch={id:'s',plane:'front',offset:0,points:[{id:'center',x:0,y:0}],entities:[{id:'outer',type:'circle',c:'center',r:2}],constraints:[]};
+ const hole=[{u:1,v:0},{u:0,v:1},{u:-1,v:0},{u:0,v:-1}];
+ const feature={id:'boss',type:'extrude',params:{sketchId:'s',profileEntityIds:['outer'],holes:[hole],depth:1},references:{sketches:['s']}};
+ const body={id:'body',kind:'ext',featureId:'boss',holes:[hole]},d={features:[feature],sketches:[sketch],parts:[body]};
+ synchronizeSketchExtrusionFrames(d,'s');assert.deepEqual(body.holes,[hole]);assert.deepEqual(feature.params.holes,[hole]);
+ feature.params.holeProfileEntityIds=[['missing']];synchronizeSketchExtrusionFrames(d,'s');
+ assert.deepEqual(body.holes,[hole]);assert.deepEqual(feature.params.holes,[hole]);
+});
+
 test('protected actual Q1 export cold rebuilds the refreshed four-line/four-arc boss and all downstream bosses',async()=>{
  const d=fixture(),feature=d.features[0],sketch=d.sketches[0],refreshed=refreshedExtrudeProfile(feature,sketch);
  Object.assign(feature,refreshed);const cold=JSON.parse(JSON.stringify(d)),compiled=compileKernelFeatureTree(cold);

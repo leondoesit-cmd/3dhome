@@ -54,7 +54,10 @@ export function synchronizeSketchExtrusionFrames(document, sketchId) {
     const holeIds=params.holeProfileEntityIds || [];
     const holes=holeIds.map(ids=>resolveProfilePoints(sketch,ids));
     if(points && 'points' in params)edited|=assign(params,'points',points);
-    if(holes.length && holes.every(Boolean))edited|=assign(params,'holes',holes);
+    // An explicitly empty associative hole set removes the old holes. Missing
+    // bindings still belong to legacy sampled recipes; unresolved IDs remain
+    // untouched so their native rebuild can report the broken reference.
+    if(Array.isArray(params.holeProfileEntityIds) && holes.every(Boolean))edited|=assign(params,'holes',holes);
     for(const part of document.parts || []){
       const records=[];
       if(part.featureId===feature.id && part.kind==='ext')records.push({record:part,body:true});
@@ -68,7 +71,7 @@ export function synchronizeSketchExtrusionFrames(document, sketchId) {
           projectionEdited|=assign(record,body?'pts':'loop',points);
           if(!body)projectionEdited|=assign(record,'segments',sketchProfileSegments(sketch,profileIds));
         }
-        if(holes.length && holes.every(Boolean)){
+        if(Array.isArray(params.holeProfileEntityIds) && holes.every(Boolean)){
           const next=body ? holes : holes.map((loop,index)=>({points:loop,segments:sketchProfileSegments(sketch,holeIds[index])}));
           projectionEdited|=assign(record,'holes',next);
         }
