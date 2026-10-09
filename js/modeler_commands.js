@@ -53,9 +53,9 @@ export function bomTableRows(rows, components) {
   return (rows || []).map(function (row, index) {
     var component = byKey.get(row.key);
     // A material may be recorded on the instance or on the model it came off.
-    var material = (component && (component.material || (component.def && component.def.material))) || row.material || "";
+    var material = row.material || (component && (component.material || (component.def && component.def.material))) || "";
     // the model's Description property, as a SOLIDWORKS BOM's Description column
-    var description = (component && (documentDescription(component) || documentDescription(component.def))) || "";
+    var description = row.description || (component && (documentDescription(component) || documentDescription(component.def))) || "";
     return {
       item: index + 1, key: row.key, name: row.name, description: description,
       quantity: row.quantity, material: String(material),

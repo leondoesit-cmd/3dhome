@@ -101,15 +101,21 @@ export function generateBOM(assembly) {
     if (!comp || comp.suppressed) continue;
     const meta = componentStandardPart(comp);
     // a sub-assembly is one line, as in a top-level-only BOM
-    const key = (meta && bomIdentity(meta)) || (meta && meta.designation) || comp.modelKey || comp.assemblyKey || comp.name || "Unknown";
-    const existing = map.get(key) || {
-      key, name: (meta && meta.designation) || comp.name || key, quantity: 0,
+    const sourceKey = (meta && bomIdentity(meta)) || (meta && meta.designation) || comp.modelKey || comp.assemblyKey || comp.name || "Unknown";
+    const row = {
+      name: (meta && meta.designation) || comp.name || sourceKey, quantity: 0,
       description: documentDescription(comp) || documentDescription(comp.def) || "",
       partNumber: assemblyPartNumber(comp, comp.def),
-      standard: meta && meta.standard || "", material: (meta && meta.material) || comp.material || documentProperty(comp.def, "Material") || drawingMaterialName(comp.def) || "",
+      standard: meta && meta.standard || "", material: documentProperty(comp, "Material") || comp.material || (meta && meta.material) || documentProperty(comp.def, "Material") || drawingMaterialName(comp.def) || "",
       finish: meta && meta.finish || "", category: meta && meta.category || "",
       materialId: meta && meta.materialId || "", propertyClass: meta && meta.propertyClass || "",
     };
+    // A shared library definition can supply different configured parts. A
+    // BOM row also must not swallow explicit occurrence metadata overrides.
+    // Exclude occurrence names/IDs so equivalent repeated parts still count.
+    const configurationId = comp.configurationId || comp.def?.activeConfiguration || comp.asm?.activeConfiguration || "";
+    const key = JSON.stringify([sourceKey, configurationId, row.partNumber, row.description, row.material, row.finish, row.standard, row.propertyClass]);
+    const existing = map.get(key) || {...row, key};
     existing.quantity += 1;
     map.set(key, existing);
   }
