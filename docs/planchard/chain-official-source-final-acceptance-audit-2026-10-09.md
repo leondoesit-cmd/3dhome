@@ -1,0 +1,11 @@
+# Official-source Chain — final acceptance audit
+
+The actual closed Chrome assembly passes all10 preservation checks against the corrected source-aligned baseline. All19 mate records are **exactly unchanged**, including25/125/130angles, five aligned pin seats and three opposed link seats. Nine occurrence physical poses, three accepted source definitions/material/properties, occurrence metadata and first-link-only grounding are preserved. The assembly-level difference is only accepted customProperties. No heavy native rerun is necessary for unchanged geometry and mates.
+
+Independent baseline native evidence remains applicable: nine placed solids, no positive-volume interference, volume **7352544.031041706 mm³**, Titanium4.6mass **33821.70254279185 g**, world COM **(348.65934955048886,-88.47654471566996,-91.40372906781101) mm**,19bound native mates/no legacy mates and settled five pin-spin degrees of freedom. Actual baseline STEP has zero bidirectional Boolean residual. BOM quantities remain **four links, two long pins, three short pins**.
+
+Parent observed actual three Undo actions restoring25/125/130and source COM, all-nine Interference Clear, fresh-page/canonical saved-library reopen restoring9occurrences/19mates/5DOF/source COM, and saved BOM CSV/JPG quantities4/2/3. The actual30/115/135bonus configuration independently passed source COM and native interference audit; it is a reversible educational extra rather than the accepted baseline.
+
+Book scope is printed10-34–35/PDF514–515 assembly mass/COM. No drawing is required for this exercise. All geometry/placement/mates were authored through visible Chrome; source container/analytic measurements were read-only and source geometry was never imported. The original source imported bodies were reconstructed as dimensioned parametric parts, not claimed as original feature-history recovery. Titanium grade remains unspecified and no load/strength rating is certified.
+
+Final input: `artifacts/planchard/CHAIN-assembly-official-source-closed-browser-2026-10-09.mforge`. Compact evidence: `CHAIN-assembly-official-source-closed-consistency-2026-10-09.json`. Baseline, failed backwards-pin branch and bonus artifacts remain preserved with separate truthful reports. No authored files, app source, browser or ADVANCE mutation occurred during this audit.

@@ -1,0 +1,142 @@
+{
+  "source": "artifacts/planchard/CHAIN-assembly-source-poses-browser-2026-10-09.mforge",
+  "occurrences": 9,
+  "definitions": 3,
+  "mates": 0,
+  "records": [
+    {
+      "id": 5573,
+      "name": "CH01 Link1",
+      "part": "CH01",
+      "sourceName": "chain_link-1",
+      "translationDeltaMm": 1.9895196601282805e-13,
+      "matrixDelta": 3.894437102859757e-16,
+      "posePass": true,
+      "ownYSpinSimplified": false,
+      "sourceRecipeMatch": true,
+      "grounded": true
+    },
+    {
+      "id": 5574,
+      "name": "CH01 Link2",
+      "part": "CH01",
+      "sourceName": "chain_link-2",
+      "translationDeltaMm": 3.348077370901592e-10,
+      "matrixDelta": 9.43689570931383e-16,
+      "posePass": true,
+      "ownYSpinSimplified": false,
+      "sourceRecipeMatch": true,
+      "grounded": false
+    },
+    {
+      "id": 5575,
+      "name": "CH01 Link3",
+      "part": "CH01",
+      "sourceName": "chain_link-3",
+      "translationDeltaMm": 2.490878614480607e-10,
+      "matrixDelta": 6.294011378278444e-12,
+      "posePass": true,
+      "ownYSpinSimplified": false,
+      "sourceRecipeMatch": true,
+      "grounded": false
+    },
+    {
+      "id": 5576,
+      "name": "CH01 Link4",
+      "part": "CH01",
+      "sourceName": "chain_link-4",
+      "translationDeltaMm": 3.668105819087941e-10,
+      "matrixDelta": 9.279133017514596e-12,
+      "posePass": true,
+      "ownYSpinSimplified": false,
+      "sourceRecipeMatch": true,
+      "grounded": false
+    },
+    {
+      "id": 5577,
+      "name": "CH02 Long pin1",
+      "part": "CH02",
+      "sourceName": "long_pin-3",
+      "translationDeltaMm": 0,
+      "matrixDelta": 0.5246213113332755,
+      "posePass": true,
+      "ownYSpinSimplified": true,
+      "sourceRecipeMatch": true,
+      "grounded": false
+    },
+    {
+      "id": 5578,
+      "name": "CH03 Short pin1",
+      "part": "CH03",
+      "sourceName": "short_pin-1",
+      "translationDeltaMm": 2.8421709430404007e-13,
+      "matrixDelta": 3.0780239468342074e-12,
+      "posePass": true,
+      "ownYSpinSimplified": false,
+      "sourceRecipeMatch": true,
+      "grounded": false
+    },
+    {
+      "id": 5579,
+      "name": "CH03 Short pin2",
+      "part": "CH03",
+      "sourceName": "short_pin-2",
+      "translationDeltaMm": 3.651621227618307e-10,
+      "matrixDelta": 3.0654367932925197e-12,
+      "posePass": true,
+      "ownYSpinSimplified": false,
+      "sourceRecipeMatch": true,
+      "grounded": false
+    },
+    {
+      "id": 5580,
+      "name": "CH03 Short pin3",
+      "part": "CH03",
+      "sourceName": "short_pin-4",
+      "translationDeltaMm": 2.993658654304454e-10,
+      "matrixDelta": 5.426659122065303e-12,
+      "posePass": true,
+      "ownYSpinSimplified": false,
+      "sourceRecipeMatch": true,
+      "grounded": false
+    },
+    {
+      "id": 5581,
+      "name": "CH02 Long pin2",
+      "part": "CH02",
+      "sourceName": "long_pin-4",
+      "translationDeltaMm": 3.866773568006465e-10,
+      "matrixDelta": 2.8094193638139586e-12,
+      "posePass": true,
+      "ownYSpinSimplified": false,
+      "sourceRecipeMatch": true,
+      "grounded": false
+    }
+  ],
+  "sourcePosePass": true,
+  "sourceRecipesPass": true,
+  "groundedOnlyFirstLink": true,
+  "homeNative": {
+    "instances": 9,
+    "uniqueExactRecipes": 3,
+    "totalVolumeCm3": 7352.544031041706,
+    "totalMassG": 33821.70254279185,
+    "grounded": [
+      "CH01 Link1"
+    ],
+    "countByModel": {
+      "cm_mv08artn": 4,
+      "cm_mv08pr4m": 2,
+      "cm_mv08sa8v": 3
+    },
+    "hits": []
+  },
+  "worldComMm": {
+    "x": 348.65934955223577,
+    "y": -88.47654471973165,
+    "z": -91.40372906779572
+  },
+  "totalMassG": 33821.70254279185,
+  "inputUnchanged": true,
+  "scope": "Placement-only checkpoint; no native mating/mobility acceptance. Firstplainpinspinzero is permittedaxisymmetric simplification."
+}

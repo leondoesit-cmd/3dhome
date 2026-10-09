@@ -1,0 +1,4923 @@
+{
+  "topology": [
+    {
+      "ownerFeatureId": "feature_mv08ie3q_4",
+      "kind": "face",
+      "transportOrdinal": 0,
+      "persistentId": "feature_mv08ie3q_4:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0,
+          "y": -10,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": -1,
+          "z": 6.123233995736766e-17
+        },
+        "measure": 62.83185307179587,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -15.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -9.9999999,
+            "z": 5.0000001
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 5,
+        "referenceOrigin": {
+          "x": -2,
+          "y": -10,
+          "z": 0
+        },
+        "axisRange": [
+          -4,
+          0
+        ],
+        "centroid": {
+          "x": -9.364966562087022e-17,
+          "y": -13.183098861837907,
+          "z": 7.494005416219806e-17
+        }
+      },
+      "signature": "cylinder:0:-10:0:0:-1:0:62.832:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08ie3q_4",
+      "kind": "face",
+      "transportOrdinal": 1,
+      "persistentId": "feature_mv08ie3q_4:face:generated:plane:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -2,
+          "y": -12.47574355920726,
+          "z": -4.1448326252672497e-16
+        },
+        "normal": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 29.452431127404317,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -15.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": -9.9999999,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:-2:-12.476:0:-1:0:0:29.452:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "face",
+      "transportOrdinal": 2,
+      "persistentId": "feature_mv08hsqq_3:tool:face:start",
+      "semantic": "start",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 3.209238430557093e-17,
+          "y": -5,
+          "z": -5
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 40,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 1e-7,
+            "z": -4.9999999
+          }
+        }
+      },
+      "signature": "plane:0:-5:-5:0:0:-1:40:start"
+    },
+    {
+      "ownerFeatureId": "feature_mv08ie3q_4",
+      "kind": "face",
+      "transportOrdinal": 3,
+      "persistentId": "feature_mv08ie3q_4:face:generated:plane:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 2,
+          "y": -12.47574355920726,
+          "z": -4.1448326252672497e-16
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 29.452431127404317,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -15.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -9.9999999,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:2:-12.476:0:1:0:0:29.452:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "face",
+      "transportOrdinal": 4,
+      "persistentId": "feature_mv08hsqq_3:tool:face:end",
+      "semantic": "end",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 3.209238430557093e-17,
+          "y": -5,
+          "z": 5
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 40,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 1.0000000000000002e-7,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:0:-5:5:0:0:1:40:end"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7:tool",
+      "kind": "face",
+      "transportOrdinal": 5,
+      "persistentId": "feature_mv08jrci_7:tool:face:side:5557",
+      "semantic": "side:5557",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0,
+          "y": -10,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": 1
+        },
+        "measure": 62.83185307179587,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -12.5000001,
+            "z": -2.5000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -7.4999999,
+            "z": 2.5000001
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 2.5,
+        "referenceOrigin": {
+          "x": -5,
+          "y": -10,
+          "z": 0
+        },
+        "axisRange": [
+          -7,
+          -3
+        ],
+        "centroid": {
+          "x": -1.5902773407317584e-17,
+          "y": -10,
+          "z": -2.220446049250313e-16
+        }
+      },
+      "signature": "cylinder:0:-10:0:0:0:1:62.832:side:5557"
+    },
+    {
+      "ownerFeatureId": "feature_mv08ie3q_4",
+      "kind": "face",
+      "transportOrdinal": 6,
+      "persistentId": "feature_mv08ie3q_4:face:generated:plane:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -2,
+          "y": -7.524256440792739,
+          "z": -1.3914795241968632e-16
+        },
+        "normal": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 29.45243112740431,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": -4.9999999,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:-2:-7.524:0:-1:0:0:29.452:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "face",
+      "transportOrdinal": 7,
+      "persistentId": "feature_mv08hsqq_3:tool:face:side:5516",
+      "semantic": "side:5516",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 2,
+          "y": -3.1390410567440865,
+          "z": 5.953545169283126e-17
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 60.73009183012756,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 1.0000000000000002e-7,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:2:-3.139:0:1:0:0:60.73:side:5516"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "face",
+      "transportOrdinal": 8,
+      "persistentId": "feature_mv08fsed_1:face:start",
+      "semantic": "start",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -1.2045615035875128e-16,
+          "y": 3.1390410567440874,
+          "z": -5
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 60.73009183012757,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": -1e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": -4.9999999
+          }
+        }
+      },
+      "signature": "plane:0:3.139:-5:0:0:-1:60.73:start"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "face",
+      "transportOrdinal": 9,
+      "persistentId": "feature_mv08hsqq_3:tool:face:side:5518",
+      "semantic": "side:5518",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -2,
+          "y": -3.1390410567440874,
+          "z": -4.824312708965478e-16
+        },
+        "normal": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 60.73009183012759,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": 1.0000000000000002e-7,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:-2:-3.139:0:-1:0:0:60.73:side:5518"
+    },
+    {
+      "ownerFeatureId": "feature_mv08ie3q_4",
+      "kind": "face",
+      "transportOrdinal": 10,
+      "persistentId": "feature_mv08ie3q_4:face:generated:plane:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 2,
+          "y": -7.52425644079274,
+          "z": -4.884981308350687e-16
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 29.452431127404317,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -4.9999999,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:2:-7.524:0:1:0:0:29.452:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "face",
+      "transportOrdinal": 11,
+      "persistentId": "feature_mv08fsed_1:face:end",
+      "semantic": "end",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -1.2045615035875128e-16,
+          "y": 3.1390410567440874,
+          "z": 5
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 60.73009183012757,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": -1e-7,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:0:3.139:5:0:0:1:60.73:end"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3",
+      "kind": "face",
+      "transportOrdinal": 12,
+      "persistentId": "feature_mv08hsqq_3:face:generated:plane:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 3.5,
+          "y": 0,
+          "z": 1.8503717077085943e-16
+        },
+        "normal": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "measure": 30,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -1.0000000000000002e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 1.0000000000000002e-7,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:3.5:0:0:0:-1:0:30:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "face",
+      "transportOrdinal": 13,
+      "persistentId": "feature_mv08fsed_1:face:side:5494",
+      "semantic": "side:5494",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -5,
+          "y": 4.375,
+          "z": 2.4980018054066026e-17
+        },
+        "normal": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 79.99999999999999,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": -1.0000000000000002e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -4.9999999,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:-5:4.375:0:-1:0:0:80:side:5494"
+    },
+    {
+      "ownerFeatureId": "feature_mv08h8ur_2",
+      "kind": "face",
+      "transportOrdinal": 14,
+      "persistentId": "feature_mv08h8ur_2:face:generated:plane:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.500103993147304e-16,
+          "y": 7.524256440792737,
+          "z": -4.999999999999999
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 29.452431127404296,
+        "bounds": {
+          "min": {
+            "x": -5.000000100000001,
+            "y": 4.999999899999999,
+            "z": -5.000000100000001
+          },
+          "max": {
+            "x": 5.000000100000001,
+            "y": 10.000000100000001,
+            "z": -4.999999899999999
+          }
+        }
+      },
+      "signature": "plane:0:7.524:-5:0:0:-1:29.452:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "face",
+      "transportOrdinal": 15,
+      "persistentId": "feature_mv08fsed_1:face:side:5492",
+      "semantic": "side:5492",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 5,
+          "y": 4.374999999999999,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 79.99999999999997,
+        "bounds": {
+          "min": {
+            "x": 4.9999999,
+            "y": -1.0000000000000002e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:5:4.375:0:1:0:0:80:side:5492"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3",
+      "kind": "face",
+      "transportOrdinal": 16,
+      "persistentId": "feature_mv08hsqq_3:face:generated:plane:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -3.5,
+          "y": 0,
+          "z": 1.8503717077085943e-16
+        },
+        "normal": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "measure": 30,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": -1.0000000000000002e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": 1.0000000000000002e-7,
+            "z": 5.0000001
+          }
+        }
+      },
+      "signature": "plane:-3.5:0:0:0:-1:0:30:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08h8ur_2",
+      "kind": "face",
+      "transportOrdinal": 17,
+      "persistentId": "feature_mv08h8ur_2:face:generated:plane:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": 4.500103993147304e-16,
+          "y": 7.524256440792737,
+          "z": 4.999999999999999
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 29.452431127404296,
+        "bounds": {
+          "min": {
+            "x": -5.000000100000001,
+            "y": 4.999999899999999,
+            "z": 4.999999899999999
+          },
+          "max": {
+            "x": 5.000000100000001,
+            "y": 10.000000100000001,
+            "z": 5.000000100000001
+          }
+        }
+      },
+      "signature": "plane:0:7.524:5:0:0:1:29.452:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "face",
+      "transportOrdinal": 18,
+      "persistentId": "feature_mv08iy1f_5:face:generated:cylinder:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": 3.5
+        },
+        "normal": {
+          "x": 6.123233995736766e-17,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 47.1238898038469,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 9.9999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 15.0000001,
+            "z": 5.0000001
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "radius": 5,
+        "referenceOrigin": {
+          "x": 0,
+          "y": 10,
+          "z": -5
+        },
+        "axisRange": [
+          -10,
+          -7
+        ],
+        "centroid": {
+          "x": 7.494005416219806e-17,
+          "y": 13.183098861837909,
+          "z": 3.5
+        }
+      },
+      "signature": "cylinder:0:10:3.5:0:1:0:47.124:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "face",
+      "transportOrdinal": 19,
+      "persistentId": "feature_mv08iy1f_5:face:generated:plane:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -5.551115123125783e-17,
+          "y": 9.401641500102889,
+          "z": 2
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 69.63495408493621,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 15.0000001,
+            "z": 2.0000001
+          }
+        }
+      },
+      "signature": "plane:0:9.402:2:0:0:-1:69.635:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "face",
+      "transportOrdinal": 20,
+      "persistentId": "feature_mv08iy1f_5:face:generated:plane:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -6.93889390390723e-18,
+          "y": 5,
+          "z": 6.66133814775094e-17
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 39.99999999999999,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 5.0000001,
+            "z": 2.0000001
+          }
+        }
+      },
+      "signature": "plane:0:5:0:0:1:0:40:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "face",
+      "transportOrdinal": 21,
+      "persistentId": "feature_mv08iy1f_5:face:generated:plane:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -5.551115123125783e-17,
+          "y": 9.401641500102889,
+          "z": -2
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 69.63495408493621,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 15.0000001,
+            "z": -1.9999999
+          }
+        }
+      },
+      "signature": "plane:0:9.402:-2:0:0:1:69.635:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "face",
+      "transportOrdinal": 22,
+      "persistentId": "feature_mv08iy1f_5:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": -3.5
+        },
+        "normal": {
+          "x": 6.123233995736766e-17,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 47.1238898038469,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 9.9999999,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 15.0000001,
+            "z": -1.9999999
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "radius": 5,
+        "referenceOrigin": {
+          "x": 0,
+          "y": 10,
+          "z": -5
+        },
+        "axisRange": [
+          -3,
+          0
+        ],
+        "centroid": {
+          "x": 7.494005416219806e-17,
+          "y": 13.183098861837909,
+          "z": -3.5
+        }
+      },
+      "signature": "cylinder:0:10:-3.5:0:1:0:47.124:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08h8ur_2",
+      "kind": "face",
+      "transportOrdinal": 23,
+      "persistentId": "feature_mv08h8ur_2:face:generated:plane:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -1.8355687340469255e-16,
+          "y": 12.475743559207261,
+          "z": -4.999999999999999
+        },
+        "normal": {
+          "x": 1.0518145402946825e-32,
+          "y": -2.1036290805893647e-32,
+          "z": -1
+        },
+        "measure": 29.45243112740431,
+        "bounds": {
+          "min": {
+            "x": -5.000000100000001,
+            "y": 9.999999899999999,
+            "z": -5.000000100000001
+          },
+          "max": {
+            "x": 5.000000100000001,
+            "y": 15.000000100000001,
+            "z": -4.999999899999999
+          }
+        }
+      },
+      "signature": "plane:0:12.476:-5:0:0:-1:29.452:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "face",
+      "transportOrdinal": 24,
+      "persistentId": "feature_mv08jbg0_6:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": -3.5
+        },
+        "normal": {
+          "x": 1,
+          "y": -1.2246467991473532e-16,
+          "z": 0
+        },
+        "measure": 47.1238898038469,
+        "bounds": {
+          "min": {
+            "x": -2.5000001000000007,
+            "y": 7.499999899999999,
+            "z": -5.000000100000001
+          },
+          "max": {
+            "x": 2.5000001000000007,
+            "y": 12.500000100000001,
+            "z": -1.999999899999999
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "radius": 2.5,
+        "referenceOrigin": {
+          "x": 0,
+          "y": 10,
+          "z": -5
+        },
+        "axisRange": [
+          -3,
+          0
+        ],
+        "centroid": {
+          "x": -2.220446049250313e-16,
+          "y": 10,
+          "z": -3.5
+        }
+      },
+      "signature": "cylinder:0:10:-3.5:1:0:0:47.124:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08h8ur_2",
+      "kind": "face",
+      "transportOrdinal": 25,
+      "persistentId": "feature_mv08h8ur_2:face:generated:plane:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "plane",
+        "origin": {
+          "x": -2.575717417130363e-16,
+          "y": 12.475743559207261,
+          "z": 5.000000000000001
+        },
+        "normal": {
+          "x": -1.0518145402946825e-32,
+          "y": 2.1036290805893647e-32,
+          "z": 1
+        },
+        "measure": 29.45243112740431,
+        "bounds": {
+          "min": {
+            "x": -5.000000100000001,
+            "y": 9.999999899999999,
+            "z": 4.999999899999999
+          },
+          "max": {
+            "x": 5.000000100000001,
+            "y": 15.000000100000001,
+            "z": 5.000000100000001
+          }
+        }
+      },
+      "signature": "plane:0:12.476:5:0:0:1:29.452:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "face",
+      "transportOrdinal": 26,
+      "persistentId": "feature_mv08jbg0_6:face:generated:cylinder:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": 3.5
+        },
+        "normal": {
+          "x": 1,
+          "y": -1.2246467991473532e-16,
+          "z": 0
+        },
+        "measure": 47.1238898038469,
+        "bounds": {
+          "min": {
+            "x": -2.5000001,
+            "y": 7.4999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 2.5000001,
+            "y": 12.5000001,
+            "z": 5.0000001
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "radius": 2.5,
+        "referenceOrigin": {
+          "x": 0,
+          "y": 10,
+          "z": -5
+        },
+        "axisRange": [
+          -10,
+          -7
+        ],
+        "centroid": {
+          "x": -2.220446049250313e-16,
+          "y": 10,
+          "z": 3.5
+        }
+      },
+      "signature": "cylinder:0:10:3.5:1:0:0:47.124:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08ie3q_4",
+      "kind": "edge",
+      "transportOrdinal": 0,
+      "persistentId": "feature_mv08ie3q_4:edge:generated:circle:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": -2,
+          "y": -10,
+          "z": 0
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -15.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": -9.9999999,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": -5
+          },
+          {
+            "x": -2,
+            "y": -10,
+            "z": 5
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": -2,
+          "y": -15,
+          "z": 3.061616997868383e-16
+        }
+      },
+      "signature": "circle:-2:-10:0:1:0:0:15.708:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "edge",
+      "transportOrdinal": 1,
+      "persistentId": "feature_mv08hsqq_3:tool:edge:profile:5515:start",
+      "semantic": "profile:5515:start",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 0,
+          "y": -10,
+          "z": -5
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 4,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -9.9999999,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": -5
+          },
+          {
+            "x": 2,
+            "y": -10,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:0:-10:-5:1:0:0:4:profile:5515:start"
+    },
+    {
+      "ownerFeatureId": "feature_mv08ie3q_4",
+      "kind": "edge",
+      "transportOrdinal": 2,
+      "persistentId": "feature_mv08ie3q_4:edge:generated:circle:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 2,
+          "y": -10,
+          "z": 0
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -15.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -9.9999999,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": -10,
+            "z": -5
+          },
+          {
+            "x": 2,
+            "y": -10,
+            "z": 5
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": 2,
+          "y": -15,
+          "z": 3.061616997868383e-16
+        }
+      },
+      "signature": "circle:2:-10:0:1:0:0:15.708:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "edge",
+      "transportOrdinal": 3,
+      "persistentId": "feature_mv08hsqq_3:tool:edge:profile:5515:end",
+      "semantic": "profile:5515:end",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 0,
+          "y": -10,
+          "z": 5
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 4,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -9.9999999,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": 5
+          },
+          {
+            "x": 2,
+            "y": -10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:0:-10:5:1:0:0:4:profile:5515:end"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7",
+      "kind": "edge",
+      "transportOrdinal": 4,
+      "persistentId": "feature_mv08jrci_7:edge:generated:circle:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": -2,
+          "y": -10,
+          "z": 0
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -12.5000001,
+            "z": -2.5000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": -9.9999999,
+            "z": 2.5000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": -2.5
+          },
+          {
+            "x": -2,
+            "y": -10,
+            "z": 2.5
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": -2,
+          "y": -12.5,
+          "z": -4.592425496802574e-16
+        }
+      },
+      "signature": "circle:-2:-10:0:-1:0:0:7.854:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7",
+      "kind": "edge",
+      "transportOrdinal": 5,
+      "persistentId": "feature_mv08jrci_7:edge:generated:line:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -2,
+          "y": -10,
+          "z": -3.75
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 2.5,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": -9.9999999,
+            "z": -2.4999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": -5
+          },
+          {
+            "x": -2,
+            "y": -10,
+            "z": -2.5
+          }
+        ]
+      },
+      "signature": "line:-2:-10:-3.75:0:0:1:2.5:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7",
+      "kind": "edge",
+      "transportOrdinal": 6,
+      "persistentId": "feature_mv08jrci_7:edge:generated:line:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -2,
+          "y": -10,
+          "z": 3.75
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 2.5,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": 2.4999999
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": -9.9999999,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": 2.5
+          },
+          {
+            "x": -2,
+            "y": -10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:-2:-10:3.75:0:0:1:2.5:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "edge",
+      "transportOrdinal": 7,
+      "persistentId": "feature_mv08hsqq_3:tool:edge:profile:5516:start",
+      "semantic": "profile:5516:start",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 2,
+          "y": -5,
+          "z": -5
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 1e-7,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": -10,
+            "z": -5
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:2:-5:-5:0:1:0:10:profile:5516:start"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "edge",
+      "transportOrdinal": 8,
+      "persistentId": "feature_mv08fsed_1:edge:profile:5491:start",
+      "semantic": "profile:5491:start",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": -5
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 4,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -1e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 1e-7,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": 0,
+            "z": -5
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:0:0:-5:1:0:0:4:profile:5491:start"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "edge",
+      "transportOrdinal": 9,
+      "persistentId": "feature_mv08hsqq_3:tool:edge:profile:5518:start",
+      "semantic": "profile:5518:start",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -2,
+          "y": -5,
+          "z": -5
+        },
+        "axis": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": 1e-7,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": -5
+          },
+          {
+            "x": -2,
+            "y": 0,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:-2:-5:-5:0:-1:0:10:profile:5518:start"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7",
+      "kind": "edge",
+      "transportOrdinal": 10,
+      "persistentId": "feature_mv08jrci_7:edge:generated:circle:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 2,
+          "y": -10,
+          "z": 0
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -12.5000001,
+            "z": -2.5000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -9.9999999,
+            "z": 2.5000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": -10,
+            "z": -2.5
+          },
+          {
+            "x": 2,
+            "y": -10,
+            "z": 2.5
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": 2,
+          "y": -12.5,
+          "z": -4.592425496802574e-16
+        }
+      },
+      "signature": "circle:2:-10:0:-1:0:0:7.854:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7",
+      "kind": "edge",
+      "transportOrdinal": 11,
+      "persistentId": "feature_mv08jrci_7:edge:generated:line:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 2,
+          "y": -10,
+          "z": -3.75
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 2.5,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -9.9999999,
+            "z": -2.4999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": -10,
+            "z": -5
+          },
+          {
+            "x": 2,
+            "y": -10,
+            "z": -2.5
+          }
+        ]
+      },
+      "signature": "line:2:-10:-3.75:0:0:1:2.5:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7",
+      "kind": "edge",
+      "transportOrdinal": 12,
+      "persistentId": "feature_mv08jrci_7:edge:generated:line:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 2,
+          "y": -10,
+          "z": 3.75
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 2.5,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -10.0000001,
+            "z": 2.4999999
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -9.9999999,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": -10,
+            "z": 2.5
+          },
+          {
+            "x": 2,
+            "y": -10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:2:-10:3.75:0:0:1:2.5:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "edge",
+      "transportOrdinal": 13,
+      "persistentId": "feature_mv08hsqq_3:tool:edge:profile:5516:end",
+      "semantic": "profile:5516:end",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 2,
+          "y": -5,
+          "z": 5
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -10.0000001,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 1e-7,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": -10,
+            "z": 5
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:2:-5:5:0:1:0:10:profile:5516:end"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "edge",
+      "transportOrdinal": 14,
+      "persistentId": "feature_mv08fsed_1:edge:profile:5491:end",
+      "semantic": "profile:5491:end",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 5
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 4,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -1e-7,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 1e-7,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": 0,
+            "z": 5
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:0:0:5:1:0:0:4:profile:5491:end"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "edge",
+      "transportOrdinal": 15,
+      "persistentId": "feature_mv08hsqq_3:tool:edge:profile:5518:end",
+      "semantic": "profile:5518:end",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -2,
+          "y": -5,
+          "z": 5
+        },
+        "axis": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": 1e-7,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": 5
+          },
+          {
+            "x": -2,
+            "y": 0,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:-2:-5:5:0:-1:0:10:profile:5518:end"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7",
+      "kind": "edge",
+      "transportOrdinal": 16,
+      "persistentId": "feature_mv08jrci_7:edge:generated:circle:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": -2,
+          "y": -10,
+          "z": 0
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": -2.5000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": -7.4999999,
+            "z": 2.5000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": -2.5
+          },
+          {
+            "x": -2,
+            "y": -10,
+            "z": 2.5
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": -2,
+          "y": -7.5,
+          "z": 1.5308084989341916e-16
+        }
+      },
+      "signature": "circle:-2:-10:0:-1:0:0:7.854:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7:tool",
+      "kind": "edge",
+      "transportOrdinal": 17,
+      "persistentId": "feature_mv08jrci_7:tool:edge:generated:line:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 0,
+          "y": -10,
+          "z": 2.5
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 4,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": 2.4999999
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -9.9999999,
+            "z": 2.5000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": 2.5
+          },
+          {
+            "x": 2,
+            "y": -10,
+            "z": 2.5
+          }
+        ]
+      },
+      "signature": "line:0:-10:2.5:1:0:0:4:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jrci_7",
+      "kind": "edge",
+      "transportOrdinal": 18,
+      "persistentId": "feature_mv08jrci_7:edge:generated:circle:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 2,
+          "y": -10,
+          "z": 0
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -10.0000001,
+            "z": -2.5000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -7.4999999,
+            "z": 2.5000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": -10,
+            "z": -2.5
+          },
+          {
+            "x": 2,
+            "y": -10,
+            "z": 2.5
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": 2,
+          "y": -7.5,
+          "z": 1.5308084989341916e-16
+        }
+      },
+      "signature": "circle:2:-10:0:-1:0:0:7.854:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08ie3q_4",
+      "kind": "edge",
+      "transportOrdinal": 19,
+      "persistentId": "feature_mv08ie3q_4:edge:generated:circle:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": -2,
+          "y": -10,
+          "z": 0
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": -4.9999999,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": -10,
+            "z": -5
+          },
+          {
+            "x": -2,
+            "y": -9.999999999999998,
+            "z": 5
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": -2,
+          "y": -5,
+          "z": -9.184850993605148e-16
+        }
+      },
+      "signature": "circle:-2:-10:0:1:0:0:15.708:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "edge",
+      "transportOrdinal": 20,
+      "persistentId": "feature_mv08hsqq_3:tool:edge:depth:5517",
+      "semantic": "depth:5517",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 2,
+          "y": 0,
+          "z": 2.220446049250313e-16
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -1.0000000000000002e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 1.0000000000000002e-7,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": 0,
+            "z": -5
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:2:0:0:0:0:1:10:depth:5517"
+    },
+    {
+      "ownerFeatureId": "feature_mv08ie3q_4",
+      "kind": "edge",
+      "transportOrdinal": 21,
+      "persistentId": "feature_mv08ie3q_4:edge:generated:circle:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 2,
+          "y": -10,
+          "z": 0
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -10.0000001,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": -4.9999999,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": -10,
+            "z": -5
+          },
+          {
+            "x": 2,
+            "y": -9.999999999999998,
+            "z": 5
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": 2,
+          "y": -5,
+          "z": -9.184850993605148e-16
+        }
+      },
+      "signature": "circle:2:-10:0:1:0:0:15.708:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "edge",
+      "transportOrdinal": 22,
+      "persistentId": "feature_mv08fsed_1:edge:profile:5494:start",
+      "semantic": "profile:5494:start",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -5,
+          "y": 5,
+          "z": -5
+        },
+        "axis": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": -1e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -4.9999999,
+            "y": 10.0000001,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 0,
+            "z": -5
+          },
+          {
+            "x": -5,
+            "y": 10,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:-5:5:-5:0:-1:0:10:profile:5494:start"
+    },
+    {
+      "ownerFeatureId": "feature_mv08h8ur_2",
+      "kind": "edge",
+      "transportOrdinal": 23,
+      "persistentId": "feature_mv08h8ur_2:edge:generated:circle:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": -5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": -5
+          },
+          {
+            "x": 5,
+            "y": 9.999999999999998,
+            "z": -5
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": -9.184850993605148e-16,
+          "y": 5,
+          "z": -5
+        }
+      },
+      "signature": "circle:0:10:-5:0:0:1:15.708:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "edge",
+      "transportOrdinal": 24,
+      "persistentId": "feature_mv08fsed_1:edge:profile:5492:start",
+      "semantic": "profile:5492:start",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 5,
+          "y": 5,
+          "z": -5
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": 4.9999999,
+            "y": -1e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5,
+            "y": 0,
+            "z": -5
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:5:5:-5:0:1:0:10:profile:5492:start"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3",
+      "kind": "edge",
+      "transportOrdinal": 25,
+      "persistentId": "feature_mv08hsqq_3:edge:generated:line:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -3.5,
+          "y": 0,
+          "z": -5
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": -1e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": 1e-7,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 0,
+            "z": -5
+          },
+          {
+            "x": -2,
+            "y": 0,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:-3.5:0:-5:1:0:0:3:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3",
+      "kind": "edge",
+      "transportOrdinal": 26,
+      "persistentId": "feature_mv08hsqq_3:edge:generated:line:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 3.5000000000000004,
+          "y": 0,
+          "z": -5
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -1e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 1e-7,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": 0,
+            "z": -5
+          },
+          {
+            "x": 5,
+            "y": 0,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:3.5:0:-5:1:0:0:3:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3:tool",
+      "kind": "edge",
+      "transportOrdinal": 27,
+      "persistentId": "feature_mv08hsqq_3:tool:edge:depth:5518",
+      "semantic": "depth:5518",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -2,
+          "y": 0,
+          "z": 2.220446049250313e-16
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": -2.0000001,
+            "y": -1.0000000000000002e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": 1.0000000000000002e-7,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2,
+            "y": 0,
+            "z": -5
+          },
+          {
+            "x": -2,
+            "y": 0,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:-2:0:0:0:0:1:10:depth:5518"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "edge",
+      "transportOrdinal": 28,
+      "persistentId": "feature_mv08fsed_1:edge:profile:5494:end",
+      "semantic": "profile:5494:end",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -5,
+          "y": 5,
+          "z": 5
+        },
+        "axis": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": -1e-7,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": -4.9999999,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 0,
+            "z": 5
+          },
+          {
+            "x": -5,
+            "y": 10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:-5:5:5:0:-1:0:10:profile:5494:end"
+    },
+    {
+      "ownerFeatureId": "feature_mv08h8ur_2",
+      "kind": "edge",
+      "transportOrdinal": 29,
+      "persistentId": "feature_mv08h8ur_2:edge:generated:circle:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": 5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": 5
+          },
+          {
+            "x": 5,
+            "y": 9.999999999999998,
+            "z": 5
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": -9.184850993605148e-16,
+          "y": 5,
+          "z": 5
+        }
+      },
+      "signature": "circle:0:10:5:0:0:1:15.708:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "edge",
+      "transportOrdinal": 30,
+      "persistentId": "feature_mv08fsed_1:edge:profile:5492:end",
+      "semantic": "profile:5492:end",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 5,
+          "y": 5,
+          "z": 5
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": 4.9999999,
+            "y": -1e-7,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5,
+            "y": 0,
+            "z": 5
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:5:5:5:0:1:0:10:profile:5492:end"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3",
+      "kind": "edge",
+      "transportOrdinal": 31,
+      "persistentId": "feature_mv08hsqq_3:edge:generated:line:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -3.5,
+          "y": 0,
+          "z": 5
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": -1e-7,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": -1.9999999,
+            "y": 1e-7,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 0,
+            "z": 5
+          },
+          {
+            "x": -2,
+            "y": 0,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:-3.5:0:5:1:0:0:3:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08hsqq_3",
+      "kind": "edge",
+      "transportOrdinal": 32,
+      "persistentId": "feature_mv08hsqq_3:edge:generated:line:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 3.5000000000000004,
+          "y": 0,
+          "z": 5
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": 1.9999999,
+            "y": -1e-7,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 1e-7,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2,
+            "y": 0,
+            "z": 5
+          },
+          {
+            "x": 5,
+            "y": 0,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:3.5:0:5:1:0:0:3:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "edge",
+      "transportOrdinal": 33,
+      "persistentId": "feature_mv08fsed_1:edge:depth:5492",
+      "semantic": "depth:5492",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 5,
+          "y": 0,
+          "z": 2.220446049250313e-16
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": 4.9999999,
+            "y": -1.0000000000000002e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 1.0000000000000002e-7,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5,
+            "y": 0,
+            "z": -5
+          },
+          {
+            "x": 5,
+            "y": 0,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:5:0:0:0:0:1:10:depth:5492"
+    },
+    {
+      "ownerFeatureId": "feature_mv08fsed_1",
+      "kind": "edge",
+      "transportOrdinal": 34,
+      "persistentId": "feature_mv08fsed_1:edge:depth:5491",
+      "semantic": "depth:5491",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -5,
+          "y": 0,
+          "z": 2.220446049250313e-16
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": -1.0000000000000002e-7,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -4.9999999,
+            "y": 1.0000000000000002e-7,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 0,
+            "z": -5
+          },
+          {
+            "x": -5,
+            "y": 0,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:-5:0:0:0:0:1:10:depth:5491"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 35,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:line:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -5,
+          "y": 10,
+          "z": 3.5000000000000004
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 9.9999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": -4.9999999,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": 2
+          },
+          {
+            "x": -5,
+            "y": 10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:-5:10:3.5:0:0:1:3:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 36,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:line:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -5,
+          "y": 7.5,
+          "z": 2
+        },
+        "axis": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "measure": 5,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": -4.9999999,
+            "y": 10.0000001,
+            "z": 2.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 5,
+            "z": 2
+          },
+          {
+            "x": -5,
+            "y": 10,
+            "z": 2
+          }
+        ]
+      },
+      "signature": "line:-5:7.5:2:0:-1:0:5:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5:tool",
+      "kind": "edge",
+      "transportOrdinal": 37,
+      "persistentId": "feature_mv08iy1f_5:tool:edge:depth:5539",
+      "semantic": "depth:5539",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -5,
+          "y": 5,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 4,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": -4.9999999,
+            "y": 5.0000001,
+            "z": 2.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 5,
+            "z": -2
+          },
+          {
+            "x": -5,
+            "y": 5,
+            "z": 2
+          }
+        ]
+      },
+      "signature": "line:-5:5:0:0:0:1:4:depth:5539"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 38,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:line:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -5,
+          "y": 7.5,
+          "z": -2
+        },
+        "axis": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "measure": 5,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": -4.9999999,
+            "y": 10.0000001,
+            "z": -1.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 5,
+            "z": -2
+          },
+          {
+            "x": -5,
+            "y": 10,
+            "z": -2
+          }
+        ]
+      },
+      "signature": "line:-5:7.5:-2:0:-1:0:5:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 39,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:line:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -5,
+          "y": 10,
+          "z": -3.5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 9.9999999,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": -4.9999999,
+            "y": 10.0000001,
+            "z": -1.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": -5
+          },
+          {
+            "x": -5,
+            "y": 10,
+            "z": -2
+          }
+        ]
+      },
+      "signature": "line:-5:10:-3.5:0:0:1:3:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 40,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:line:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -3.75,
+          "y": 10,
+          "z": -5
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 2.5,
+        "bounds": {
+          "min": {
+            "x": -5.000000100000001,
+            "y": 9.999999899999999,
+            "z": -5.000000100000001
+          },
+          "max": {
+            "x": -2.4999998999999993,
+            "y": 10.000000100000001,
+            "z": -4.999999899999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": -5
+          },
+          {
+            "x": -2.5,
+            "y": 10,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:-3.75:10:-5:-1:0:0:2.5:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 41,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:circle:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": -5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -2.5000001,
+            "y": 7.4999999,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.5000001,
+            "y": 10.0000001,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2.5,
+            "y": 10,
+            "z": -5
+          },
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": -5
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": -4.592425496802574e-16,
+          "y": 7.5,
+          "z": -5
+        }
+      },
+      "signature": "circle:0:10:-5:0:0:1:7.854:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 42,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:line:5",
+      "semantic": "generated-5",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 3.75,
+          "y": 10,
+          "z": -5
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 2.5,
+        "bounds": {
+          "min": {
+            "x": 2.4999998999999993,
+            "y": 9.999999899999999,
+            "z": -5.000000100000001
+          },
+          "max": {
+            "x": 5.000000100000001,
+            "y": 10.000000100000001,
+            "z": -4.999999899999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": -5
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": -5
+          }
+        ]
+      },
+      "signature": "line:3.75:10:-5:-1:0:0:2.5:generated-5"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 43,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:line:5",
+      "semantic": "generated-5",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 5,
+          "y": 10,
+          "z": -3.5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": 4.9999999,
+            "y": 9.9999999,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": -1.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5,
+            "y": 10,
+            "z": -5
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": -2
+          }
+        ]
+      },
+      "signature": "line:5:10:-3.5:0:0:1:3:generated-5"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 44,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:line:7",
+      "semantic": "generated-7",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 5,
+          "y": 7.5,
+          "z": -2
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 5,
+        "bounds": {
+          "min": {
+            "x": 4.9999999,
+            "y": 4.9999999,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": -1.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5,
+            "y": 5,
+            "z": -2
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": -2
+          }
+        ]
+      },
+      "signature": "line:5:7.5:-2:0:1:0:5:generated-7"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5:tool",
+      "kind": "edge",
+      "transportOrdinal": 45,
+      "persistentId": "feature_mv08iy1f_5:tool:edge:depth:5540",
+      "semantic": "depth:5540",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 5,
+          "y": 5,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 4,
+        "bounds": {
+          "min": {
+            "x": 4.9999999,
+            "y": 4.9999999,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 5.0000001,
+            "z": 2.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5,
+            "y": 5,
+            "z": -2
+          },
+          {
+            "x": 5,
+            "y": 5,
+            "z": 2
+          }
+        ]
+      },
+      "signature": "line:5:5:0:0:0:1:4:depth:5540"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 46,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:line:8",
+      "semantic": "generated-8",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 5,
+          "y": 7.5,
+          "z": 2
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 5,
+        "bounds": {
+          "min": {
+            "x": 4.9999999,
+            "y": 4.9999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": 2.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5,
+            "y": 5,
+            "z": 2
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": 2
+          }
+        ]
+      },
+      "signature": "line:5:7.5:2:0:1:0:5:generated-8"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 47,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:line:6",
+      "semantic": "generated-6",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 5,
+          "y": 10,
+          "z": 3.5000000000000004
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": 4.9999999,
+            "y": 9.9999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 5,
+            "y": 10,
+            "z": 2
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:5:10:3.5:0:0:1:3:generated-6"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 48,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:line:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": -3.75,
+          "y": 10,
+          "z": 5
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 2.5,
+        "bounds": {
+          "min": {
+            "x": -5.000000100000001,
+            "y": 9.999999899999999,
+            "z": 4.999999899999999
+          },
+          "max": {
+            "x": -2.4999998999999993,
+            "y": 10.000000100000001,
+            "z": 5.000000100000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": 5
+          },
+          {
+            "x": -2.5,
+            "y": 10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:-3.75:10:5:-1:0:0:2.5:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 49,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:circle:5",
+      "semantic": "generated-5",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": 5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -2.5000001,
+            "y": 7.4999999,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 2.5000001,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2.5,
+            "y": 10,
+            "z": 5
+          },
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": 5
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": 1.5308084989341916e-16,
+          "y": 7.5,
+          "z": 5
+        }
+      },
+      "signature": "circle:0:10:5:0:0:-1:7.854:generated-5"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 50,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:line:6",
+      "semantic": "generated-6",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 3.75,
+          "y": 10,
+          "z": 5
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 2.5,
+        "bounds": {
+          "min": {
+            "x": 2.4999998999999993,
+            "y": 9.999999899999999,
+            "z": 4.999999899999999
+          },
+          "max": {
+            "x": 5.000000100000001,
+            "y": 10.000000100000001,
+            "z": 5.000000100000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": 5
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:3.75:10:5:-1:0:0:2.5:generated-6"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 51,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:circle:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": 2
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -1.000000009184851e-7,
+            "y": 9.999999900000002,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 15.0000001,
+            "z": 2.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -9.184850993605148e-16,
+            "y": 15,
+            "z": 2
+          },
+          {
+            "x": 5,
+            "y": 10.000000000000002,
+            "z": 2
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": 3.535533905932737,
+          "y": 13.535533905932738,
+          "z": 2
+        }
+      },
+      "signature": "circle:0:10:2:0:0:-1:7.854:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 52,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:circle:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": 2
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 9.9999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 9.99999990815149e-8,
+            "y": 15.0000001,
+            "z": 2.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": 2
+          },
+          {
+            "x": -9.184850993605148e-16,
+            "y": 15,
+            "z": 2
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": -3.5355339059327386,
+          "y": 13.535533905932738,
+          "z": 2
+        }
+      },
+      "signature": "circle:0:10:2:0:0:-1:7.854:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08h8ur_2",
+      "kind": "edge",
+      "transportOrdinal": 53,
+      "persistentId": "feature_mv08h8ur_2:edge:generated:circle:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": 5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 9.9999999,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 15.0000001,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": 5
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": 5
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": 3.061616997868383e-16,
+          "y": 15,
+          "z": 5
+        }
+      },
+      "signature": "circle:0:10:5:0:0:1:15.708:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5:tool",
+      "kind": "edge",
+      "transportOrdinal": 54,
+      "persistentId": "feature_mv08iy1f_5:tool:edge:profile:5539:end",
+      "semantic": "profile:5539:end",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 2.220446049250313e-16,
+          "y": 5,
+          "z": 2
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 5.0000001,
+            "z": 2.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 5,
+            "z": 2
+          },
+          {
+            "x": 5,
+            "y": 5,
+            "z": 2
+          }
+        ]
+      },
+      "signature": "line:0:5:2:1:0:0:10:profile:5539:end"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 55,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:circle:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": 2
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": -2.5000001,
+            "y": 7.4999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 2.5000001,
+            "y": 12.5000001,
+            "z": 2.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": 2
+          },
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": 2
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": -2.5,
+          "y": 10,
+          "z": 2
+        }
+      },
+      "signature": "circle:0:10:2:0:0:-1:15.708:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5:tool",
+      "kind": "edge",
+      "transportOrdinal": 56,
+      "persistentId": "feature_mv08iy1f_5:tool:edge:profile:5539:start",
+      "semantic": "profile:5539:start",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 2.220446049250313e-16,
+          "y": 5,
+          "z": -2
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 10,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 4.9999999,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 5.0000001,
+            "z": -1.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 5,
+            "z": -2
+          },
+          {
+            "x": 5,
+            "y": 5,
+            "z": -2
+          }
+        ]
+      },
+      "signature": "line:0:5:-2:1:0:0:10:profile:5539:start"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 57,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:circle:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": -2
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 9.9999999,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": 9.99999990815149e-8,
+            "y": 15.0000001,
+            "z": -1.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": -2
+          },
+          {
+            "x": -9.184850993605148e-16,
+            "y": 15,
+            "z": -2
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": -3.5355339059327386,
+          "y": 13.535533905932738,
+          "z": -2
+        }
+      },
+      "signature": "circle:0:10:-2:0:0:-1:7.854:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08iy1f_5",
+      "kind": "edge",
+      "transportOrdinal": 58,
+      "persistentId": "feature_mv08iy1f_5:edge:generated:circle:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": -2
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -1.000000009184851e-7,
+            "y": 9.999999900000002,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 15.0000001,
+            "z": -1.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -9.184850993605148e-16,
+            "y": 15,
+            "z": -2
+          },
+          {
+            "x": 5,
+            "y": 10.000000000000002,
+            "z": -2
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": 3.535533905932737,
+          "y": 13.535533905932738,
+          "z": -2
+        }
+      },
+      "signature": "circle:0:10:-2:0:0:-1:7.854:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 59,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:circle:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": -2
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": -2.5000001,
+            "y": 7.4999999,
+            "z": -2.0000001
+          },
+          "max": {
+            "x": 2.5000001,
+            "y": 12.5000001,
+            "z": -1.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": -2
+          },
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": -2
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": -2.5,
+          "y": 10,
+          "z": -2
+        }
+      },
+      "signature": "circle:0:10:-2:0:0:-1:15.708:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv08h8ur_2",
+      "kind": "edge",
+      "transportOrdinal": 60,
+      "persistentId": "feature_mv08h8ur_2:edge:generated:circle:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": -5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 15.707963267948966,
+        "bounds": {
+          "min": {
+            "x": -5.0000001,
+            "y": 9.9999999,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 5.0000001,
+            "y": 15.0000001,
+            "z": -4.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -5,
+            "y": 10,
+            "z": -5
+          },
+          {
+            "x": 5,
+            "y": 10,
+            "z": -5
+          }
+        ],
+        "radius": 5,
+        "arcMidpoint": {
+          "x": 3.061616997868383e-16,
+          "y": 15,
+          "z": -5
+        }
+      },
+      "signature": "circle:0:10:-5:0:0:1:15.708:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 61,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:circle:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": -5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -2.5000001000000007,
+            "y": 9.999999899999999,
+            "z": -5.000000100000001
+          },
+          "max": {
+            "x": 2.5000001000000007,
+            "y": 12.500000100000001,
+            "z": -4.999999899999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2.5,
+            "y": 10,
+            "z": -5
+          },
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": -5
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": 1.5308084989341916e-16,
+          "y": 12.5,
+          "z": -5
+        }
+      },
+      "signature": "circle:0:10:-5:0:0:1:7.854:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 62,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:line:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 2.5,
+          "y": 10,
+          "z": -3.5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": 2.4999999,
+            "y": 9.9999999,
+            "z": -5.0000001
+          },
+          "max": {
+            "x": 2.5000001,
+            "y": 10.0000001,
+            "z": -1.9999999
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": -5
+          },
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": -2
+          }
+        ]
+      },
+      "signature": "line:2.5:10:-3.5:0:0:1:3:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 63,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:circle:6",
+      "semantic": "generated-6",
+      "descriptor": {
+        "curve": "circle",
+        "origin": {
+          "x": 0,
+          "y": 10,
+          "z": 5
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 7.853981633974483,
+        "bounds": {
+          "min": {
+            "x": -2.5000001,
+            "y": 9.9999999,
+            "z": 4.9999999
+          },
+          "max": {
+            "x": 2.5000001,
+            "y": 12.5000001,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": -2.5,
+            "y": 10,
+            "z": 5
+          },
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": 5
+          }
+        ],
+        "radius": 2.5,
+        "arcMidpoint": {
+          "x": -4.592425496802574e-16,
+          "y": 12.5,
+          "z": 5
+        }
+      },
+      "signature": "circle:0:10:5:0:0:-1:7.854:generated-6"
+    },
+    {
+      "ownerFeatureId": "feature_mv08jbg0_6",
+      "kind": "edge",
+      "transportOrdinal": 64,
+      "persistentId": "feature_mv08jbg0_6:edge:generated:line:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "curve": "line",
+        "origin": {
+          "x": 2.5,
+          "y": 10,
+          "z": 3.5000000000000004
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "measure": 3,
+        "bounds": {
+          "min": {
+            "x": 2.4999999,
+            "y": 9.9999999,
+            "z": 1.9999999
+          },
+          "max": {
+            "x": 2.5000001,
+            "y": 10.0000001,
+            "z": 5.0000001
+          }
+        },
+        "endpoints": [
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": 2
+          },
+          {
+            "x": 2.5,
+            "y": 10,
+            "z": 5
+          }
+        ]
+      },
+      "signature": "line:2.5:10:3.5:0:0:1:3:generated-4"
+    }
+  ],
+  "mateReferenceCandidates": {
+    "upperBore": [
+      {
+        "ownerFeatureId": "feature_mv08jbg0_6",
+        "kind": "face",
+        "transportOrdinal": 24,
+        "persistentId": "feature_mv08jbg0_6:face:generated:cylinder:1",
+        "semantic": "generated-1",
+        "descriptor": {
+          "surface": "cylinder",
+          "origin": {
+            "x": 0,
+            "y": 10,
+            "z": -3.5
+          },
+          "normal": {
+            "x": 1,
+            "y": -1.2246467991473532e-16,
+            "z": 0
+          },
+          "measure": 47.1238898038469,
+          "bounds": {
+            "min": {
+              "x": -2.5000001000000007,
+              "y": 7.499999899999999,
+              "z": -5.000000100000001
+            },
+            "max": {
+              "x": 2.5000001000000007,
+              "y": 12.500000100000001,
+              "z": -1.999999899999999
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "radius": 2.5,
+          "referenceOrigin": {
+            "x": 0,
+            "y": 10,
+            "z": -5
+          },
+          "axisRange": [
+            -3,
+            0
+          ],
+          "centroid": {
+            "x": -2.220446049250313e-16,
+            "y": 10,
+            "z": -3.5
+          }
+        },
+        "signature": "cylinder:0:10:-3.5:1:0:0:47.124:generated-1"
+      },
+      {
+        "ownerFeatureId": "feature_mv08jbg0_6",
+        "kind": "face",
+        "transportOrdinal": 26,
+        "persistentId": "feature_mv08jbg0_6:face:generated:cylinder:2",
+        "semantic": "generated-2",
+        "descriptor": {
+          "surface": "cylinder",
+          "origin": {
+            "x": 0,
+            "y": 10,
+            "z": 3.5
+          },
+          "normal": {
+            "x": 1,
+            "y": -1.2246467991473532e-16,
+            "z": 0
+          },
+          "measure": 47.1238898038469,
+          "bounds": {
+            "min": {
+              "x": -2.5000001,
+              "y": 7.4999999,
+              "z": 1.9999999
+            },
+            "max": {
+              "x": 2.5000001,
+              "y": 12.5000001,
+              "z": 5.0000001
+            }
+          },
+          "axis": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "radius": 2.5,
+          "referenceOrigin": {
+            "x": 0,
+            "y": 10,
+            "z": -5
+          },
+          "axisRange": [
+            -10,
+            -7
+          ],
+          "centroid": {
+            "x": -2.220446049250313e-16,
+            "y": 10,
+            "z": 3.5
+          }
+        },
+        "signature": "cylinder:0:10:3.5:1:0:0:47.124:generated-2"
+      }
+    ],
+    "lowerBore": [
+      {
+        "ownerFeatureId": "feature_mv08jrci_7:tool",
+        "kind": "face",
+        "transportOrdinal": 5,
+        "persistentId": "feature_mv08jrci_7:tool:face:side:5557",
+        "semantic": "side:5557",
+        "descriptor": {
+          "surface": "cylinder",
+          "origin": {
+            "x": 0,
+            "y": -10,
+            "z": 0
+          },
+          "normal": {
+            "x": 0,
+            "y": 1.2246467991473532e-16,
+            "z": 1
+          },
+          "measure": 62.83185307179587,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": -12.5000001,
+              "z": -2.5000001
+            },
+            "max": {
+              "x": 2.0000001,
+              "y": -7.4999999,
+              "z": 2.5000001
+            }
+          },
+          "axis": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "radius": 2.5,
+          "referenceOrigin": {
+            "x": -5,
+            "y": -10,
+            "z": 0
+          },
+          "axisRange": [
+            -7,
+            -3
+          ],
+          "centroid": {
+            "x": -1.5902773407317584e-17,
+            "y": -10,
+            "z": -2.220446049250313e-16
+          }
+        },
+        "signature": "cylinder:0:-10:0:0:0:1:62.832:side:5557"
+      }
+    ],
+    "innerZ20": [
+      {
+        "ownerFeatureId": "feature_mv08iy1f_5",
+        "kind": "face",
+        "transportOrdinal": 19,
+        "persistentId": "feature_mv08iy1f_5:face:generated:plane:3",
+        "semantic": "generated-3",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -5.551115123125783e-17,
+            "y": 9.401641500102889,
+            "z": 2
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "measure": 69.63495408493621,
+          "bounds": {
+            "min": {
+              "x": -5.0000001,
+              "y": 4.9999999,
+              "z": 1.9999999
+            },
+            "max": {
+              "x": 5.0000001,
+              "y": 15.0000001,
+              "z": 2.0000001
+            }
+          }
+        },
+        "signature": "plane:0:9.402:2:0:0:-1:69.635:generated-3"
+      }
+    ],
+    "tongueXMinus20": [
+      {
+        "ownerFeatureId": "feature_mv08ie3q_4",
+        "kind": "face",
+        "transportOrdinal": 1,
+        "persistentId": "feature_mv08ie3q_4:face:generated:plane:1",
+        "semantic": "generated-1",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -2,
+            "y": -12.47574355920726,
+            "z": -4.1448326252672497e-16
+          },
+          "normal": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 29.452431127404317,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": -15.0000001,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": -1.9999999,
+              "y": -9.9999999,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:-2:-12.476:0:-1:0:0:29.452:generated-1"
+      },
+      {
+        "ownerFeatureId": "feature_mv08ie3q_4",
+        "kind": "face",
+        "transportOrdinal": 6,
+        "persistentId": "feature_mv08ie3q_4:face:generated:plane:2",
+        "semantic": "generated-2",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -2,
+            "y": -7.524256440792739,
+            "z": -1.3914795241968632e-16
+          },
+          "normal": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 29.45243112740431,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": -10.0000001,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": -1.9999999,
+              "y": -4.9999999,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:-2:-7.524:0:-1:0:0:29.452:generated-2"
+      },
+      {
+        "ownerFeatureId": "feature_mv08hsqq_3:tool",
+        "kind": "face",
+        "transportOrdinal": 9,
+        "persistentId": "feature_mv08hsqq_3:tool:face:side:5518",
+        "semantic": "side:5518",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -2,
+            "y": -3.1390410567440874,
+            "z": -4.824312708965478e-16
+          },
+          "normal": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 60.73009183012759,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": -10.0000001,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": -1.9999999,
+              "y": 1.0000000000000002e-7,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:-2:-3.139:0:-1:0:0:60.73:side:5518"
+      }
+    ],
+    "shoulderY0": [
+      {
+        "ownerFeatureId": "feature_mv08hsqq_3",
+        "kind": "face",
+        "transportOrdinal": 12,
+        "persistentId": "feature_mv08hsqq_3:face:generated:plane:2",
+        "semantic": "generated-2",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 3.5,
+            "y": 0,
+            "z": 1.8503717077085943e-16
+          },
+          "normal": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "measure": 30,
+          "bounds": {
+            "min": {
+              "x": 1.9999999,
+              "y": -1.0000000000000002e-7,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": 5.0000001,
+              "y": 1.0000000000000002e-7,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:3.5:0:0:0:-1:0:30:generated-2"
+      },
+      {
+        "ownerFeatureId": "feature_mv08hsqq_3",
+        "kind": "face",
+        "transportOrdinal": 16,
+        "persistentId": "feature_mv08hsqq_3:face:generated:plane:1",
+        "semantic": "generated-1",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -3.5,
+            "y": 0,
+            "z": 1.8503717077085943e-16
+          },
+          "normal": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "measure": 30,
+          "bounds": {
+            "min": {
+              "x": -5.0000001,
+              "y": -1.0000000000000002e-7,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": -1.9999999,
+              "y": 1.0000000000000002e-7,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:-3.5:0:0:0:-1:0:30:generated-1"
+      }
+    ],
+    "outerEarZPlus50": [
+      {
+        "ownerFeatureId": "feature_mv08hsqq_3:tool",
+        "kind": "face",
+        "transportOrdinal": 4,
+        "persistentId": "feature_mv08hsqq_3:tool:face:end",
+        "semantic": "end",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 3.209238430557093e-17,
+            "y": -5,
+            "z": 5
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 40,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": -10.0000001,
+              "z": 4.9999999
+            },
+            "max": {
+              "x": 2.0000001,
+              "y": 1.0000000000000002e-7,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:0:-5:5:0:0:1:40:end"
+      },
+      {
+        "ownerFeatureId": "feature_mv08fsed_1",
+        "kind": "face",
+        "transportOrdinal": 11,
+        "persistentId": "feature_mv08fsed_1:face:end",
+        "semantic": "end",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -1.2045615035875128e-16,
+            "y": 3.1390410567440874,
+            "z": 5
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 60.73009183012757,
+          "bounds": {
+            "min": {
+              "x": -5.0000001,
+              "y": -1e-7,
+              "z": 4.9999999
+            },
+            "max": {
+              "x": 5.0000001,
+              "y": 10.0000001,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:0:3.139:5:0:0:1:60.73:end"
+      },
+      {
+        "ownerFeatureId": "feature_mv08h8ur_2",
+        "kind": "face",
+        "transportOrdinal": 17,
+        "persistentId": "feature_mv08h8ur_2:face:generated:plane:4",
+        "semantic": "generated-4",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 4.500103993147304e-16,
+            "y": 7.524256440792737,
+            "z": 4.999999999999999
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "measure": 29.452431127404296,
+          "bounds": {
+            "min": {
+              "x": -5.000000100000001,
+              "y": 4.999999899999999,
+              "z": 4.999999899999999
+            },
+            "max": {
+              "x": 5.000000100000001,
+              "y": 10.000000100000001,
+              "z": 5.000000100000001
+            }
+          }
+        },
+        "signature": "plane:0:7.524:5:0:0:1:29.452:generated-4"
+      },
+      {
+        "ownerFeatureId": "feature_mv08h8ur_2",
+        "kind": "face",
+        "transportOrdinal": 25,
+        "persistentId": "feature_mv08h8ur_2:face:generated:plane:2",
+        "semantic": "generated-2",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -2.575717417130363e-16,
+            "y": 12.475743559207261,
+            "z": 5.000000000000001
+          },
+          "normal": {
+            "x": -1.0518145402946825e-32,
+            "y": 2.1036290805893647e-32,
+            "z": 1
+          },
+          "measure": 29.45243112740431,
+          "bounds": {
+            "min": {
+              "x": -5.000000100000001,
+              "y": 9.999999899999999,
+              "z": 4.999999899999999
+            },
+            "max": {
+              "x": 5.000000100000001,
+              "y": 15.000000100000001,
+              "z": 5.000000100000001
+            }
+          }
+        },
+        "signature": "plane:0:12.476:5:0:0:1:29.452:generated-2"
+      }
+    ],
+    "outerEarZMinus50": [
+      {
+        "ownerFeatureId": "feature_mv08hsqq_3:tool",
+        "kind": "face",
+        "transportOrdinal": 2,
+        "persistentId": "feature_mv08hsqq_3:tool:face:start",
+        "semantic": "start",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 3.209238430557093e-17,
+            "y": -5,
+            "z": -5
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "measure": 40,
+          "bounds": {
+            "min": {
+              "x": -2.0000001,
+              "y": -10.0000001,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": 2.0000001,
+              "y": 1e-7,
+              "z": -4.9999999
+            }
+          }
+        },
+        "signature": "plane:0:-5:-5:0:0:-1:40:start"
+      },
+      {
+        "ownerFeatureId": "feature_mv08fsed_1",
+        "kind": "face",
+        "transportOrdinal": 8,
+        "persistentId": "feature_mv08fsed_1:face:start",
+        "semantic": "start",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -1.2045615035875128e-16,
+            "y": 3.1390410567440874,
+            "z": -5
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "measure": 60.73009183012757,
+          "bounds": {
+            "min": {
+              "x": -5.0000001,
+              "y": -1e-7,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": 5.0000001,
+              "y": 10.0000001,
+              "z": -4.9999999
+            }
+          }
+        },
+        "signature": "plane:0:3.139:-5:0:0:-1:60.73:start"
+      },
+      {
+        "ownerFeatureId": "feature_mv08h8ur_2",
+        "kind": "face",
+        "transportOrdinal": 14,
+        "persistentId": "feature_mv08h8ur_2:face:generated:plane:3",
+        "semantic": "generated-3",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 4.500103993147304e-16,
+            "y": 7.524256440792737,
+            "z": -4.999999999999999
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "measure": 29.452431127404296,
+          "bounds": {
+            "min": {
+              "x": -5.000000100000001,
+              "y": 4.999999899999999,
+              "z": -5.000000100000001
+            },
+            "max": {
+              "x": 5.000000100000001,
+              "y": 10.000000100000001,
+              "z": -4.999999899999999
+            }
+          }
+        },
+        "signature": "plane:0:7.524:-5:0:0:-1:29.452:generated-3"
+      },
+      {
+        "ownerFeatureId": "feature_mv08h8ur_2",
+        "kind": "face",
+        "transportOrdinal": 23,
+        "persistentId": "feature_mv08h8ur_2:face:generated:plane:1",
+        "semantic": "generated-1",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": -1.8355687340469255e-16,
+            "y": 12.475743559207261,
+            "z": -4.999999999999999
+          },
+          "normal": {
+            "x": 1.0518145402946825e-32,
+            "y": -2.1036290805893647e-32,
+            "z": -1
+          },
+          "measure": 29.45243112740431,
+          "bounds": {
+            "min": {
+              "x": -5.000000100000001,
+              "y": 9.999999899999999,
+              "z": -5.000000100000001
+            },
+            "max": {
+              "x": 5.000000100000001,
+              "y": 15.000000100000001,
+              "z": -4.999999899999999
+            }
+          }
+        },
+        "signature": "plane:0:12.476:-5:0:0:-1:29.452:generated-1"
+      }
+    ],
+    "tongueXPlus20": [
+      {
+        "ownerFeatureId": "feature_mv08ie3q_4",
+        "kind": "face",
+        "transportOrdinal": 3,
+        "persistentId": "feature_mv08ie3q_4:face:generated:plane:3",
+        "semantic": "generated-3",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 2,
+            "y": -12.47574355920726,
+            "z": -4.1448326252672497e-16
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 29.452431127404317,
+          "bounds": {
+            "min": {
+              "x": 1.9999999,
+              "y": -15.0000001,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": 2.0000001,
+              "y": -9.9999999,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:2:-12.476:0:1:0:0:29.452:generated-3"
+      },
+      {
+        "ownerFeatureId": "feature_mv08hsqq_3:tool",
+        "kind": "face",
+        "transportOrdinal": 7,
+        "persistentId": "feature_mv08hsqq_3:tool:face:side:5516",
+        "semantic": "side:5516",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 2,
+            "y": -3.1390410567440865,
+            "z": 5.953545169283126e-17
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 60.73009183012756,
+          "bounds": {
+            "min": {
+              "x": 1.9999999,
+              "y": -10.0000001,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": 2.0000001,
+              "y": 1.0000000000000002e-7,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:2:-3.139:0:1:0:0:60.73:side:5516"
+      },
+      {
+        "ownerFeatureId": "feature_mv08ie3q_4",
+        "kind": "face",
+        "transportOrdinal": 10,
+        "persistentId": "feature_mv08ie3q_4:face:generated:plane:4",
+        "semantic": "generated-4",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 2,
+            "y": -7.52425644079274,
+            "z": -4.884981308350687e-16
+          },
+          "normal": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "measure": 29.452431127404317,
+          "bounds": {
+            "min": {
+              "x": 1.9999999,
+              "y": -10.0000001,
+              "z": -5.0000001
+            },
+            "max": {
+              "x": 2.0000001,
+              "y": -4.9999999,
+              "z": 5.0000001
+            }
+          }
+        },
+        "signature": "plane:2:-7.524:0:1:0:0:29.452:generated-4"
+      }
+    ]
+  },
+  "scope": "Actual finalCH01 native topology persistentIDs/descriptors. Multiple sameplane patches mayrepresent equivalentseating; choose usingbounds andcomponentworldtransform, notguessedindex."
+}

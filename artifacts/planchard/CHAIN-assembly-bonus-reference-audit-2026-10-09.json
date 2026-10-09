@@ -1,0 +1,187 @@
+{
+  "source": "artifacts/planchard/CHAIN-assembly-bonus-30-115-135-browser-2026-10-09.mforge",
+  "checks": {
+    "angles30115135": true,
+    "same19MateDataExceptAngles": true,
+    "noLegacy": true,
+    "defsUnchanged": true,
+    "onlyLink1Grounded": true,
+    "groundedPoseUnchanged": true,
+    "allReferencesBound": true,
+    "coldSettled": true,
+    "cold5DOF": true,
+    "samePinAlignmentSeats": true,
+    "sourceBonusCom": true
+  },
+  "pass": true,
+  "worldComMm": {
+    "x": 327.66834041101214,
+    "y": -98.3880835912529,
+    "z": -102.90528298059823
+  },
+  "totalMassG": 33821.70254279185,
+  "solver": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          5578
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5578": 1
+        }
+      },
+      {
+        "components": [
+          5577
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5577": 1
+        }
+      },
+      {
+        "components": [
+          5574
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5574": 0
+        }
+      },
+      {
+        "components": [
+          5579
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5579": 1
+        }
+      },
+      {
+        "components": [
+          5575
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5575": 0
+        }
+      },
+      {
+        "components": [
+          5580
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5580": 1
+        }
+      },
+      {
+        "components": [
+          5576
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5576": 0
+        }
+      },
+      {
+        "components": [
+          5581
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5581": 1
+        }
+      }
+    ],
+    "degreesOfFreedom": 5
+  },
+  "coldPoseDeltas": [
+    {
+      "id": 5573,
+      "translationMm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5574,
+      "translationMm": 0,
+      "rotationMatrix": 2.220446049250313e-16
+    },
+    {
+      "id": 5575,
+      "translationMm": 0,
+      "rotationMatrix": 5.551115123125783e-17
+    },
+    {
+      "id": 5576,
+      "translationMm": 0,
+      "rotationMatrix": 1.1102230246251565e-16
+    },
+    {
+      "id": 5577,
+      "translationMm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5578,
+      "translationMm": 0,
+      "rotationMatrix": 6.661338147750939e-16
+    },
+    {
+      "id": 5579,
+      "translationMm": 0,
+      "rotationMatrix": 5.551115123125783e-17
+    },
+    {
+      "id": 5580,
+      "translationMm": 0,
+      "rotationMatrix": 2.220446049250313e-16
+    },
+    {
+      "id": 5581,
+      "translationMm": 0,
+      "rotationMatrix": 1.1102230246251565e-16
+    }
+  ],
+  "inputUnchanged": true,
+  "scope": "Actualbrowserbonusconfigurationread-onlyaudit; exactsourceanglevalues only, noauthoring."
+}

@@ -1,0 +1,125 @@
+{
+  "source": "artifacts/planchard/CHAIN-assembly-official-source-closed-browser-2026-10-09.mforge",
+  "checks": {
+    "nineOccurrences": true,
+    "threeDefinitions": true,
+    "native19MatesExact": true,
+    "noLegacy": true,
+    "sourceRecipesMaterialAndProperties": true,
+    "physicalHomePoses": true,
+    "grounding": true,
+    "occurrenceMetadata": true,
+    "alignedFivePinSeats": true,
+    "opposedThreeLinkSeats": true
+  },
+  "pass": true,
+  "records": [
+    {
+      "id": 5573,
+      "name": "CH01 Link1",
+      "translationDeltaMm": 0,
+      "rotationMatrixDelta": 0,
+      "physicalPosePreserved": true,
+      "acceptedDefinitionPreserved": true,
+      "occurrenceMetadataPreserved": true,
+      "groundingPreserved": true
+    },
+    {
+      "id": 5574,
+      "name": "CH01 Link2",
+      "translationDeltaMm": 0,
+      "rotationMatrixDelta": 0,
+      "physicalPosePreserved": true,
+      "acceptedDefinitionPreserved": true,
+      "occurrenceMetadataPreserved": true,
+      "groundingPreserved": true
+    },
+    {
+      "id": 5575,
+      "name": "CH01 Link3",
+      "translationDeltaMm": 0,
+      "rotationMatrixDelta": 0,
+      "physicalPosePreserved": true,
+      "acceptedDefinitionPreserved": true,
+      "occurrenceMetadataPreserved": true,
+      "groundingPreserved": true
+    },
+    {
+      "id": 5576,
+      "name": "CH01 Link4",
+      "translationDeltaMm": 0,
+      "rotationMatrixDelta": 0,
+      "physicalPosePreserved": true,
+      "acceptedDefinitionPreserved": true,
+      "occurrenceMetadataPreserved": true,
+      "groundingPreserved": true
+    },
+    {
+      "id": 5577,
+      "name": "CH02 Long pin1",
+      "translationDeltaMm": 0,
+      "rotationMatrixDelta": 0,
+      "pinAxisDot": 1,
+      "physicalPosePreserved": true,
+      "acceptedDefinitionPreserved": true,
+      "occurrenceMetadataPreserved": true,
+      "groundingPreserved": true
+    },
+    {
+      "id": 5578,
+      "name": "CH03 Short pin1",
+      "translationDeltaMm": 0,
+      "rotationMatrixDelta": 0,
+      "pinAxisDot": 1.0000000000000009,
+      "physicalPosePreserved": true,
+      "acceptedDefinitionPreserved": true,
+      "occurrenceMetadataPreserved": true,
+      "groundingPreserved": true
+    },
+    {
+      "id": 5579,
+      "name": "CH03 Short pin2",
+      "translationDeltaMm": 0,
+      "rotationMatrixDelta": 0,
+      "pinAxisDot": 1,
+      "physicalPosePreserved": true,
+      "acceptedDefinitionPreserved": true,
+      "occurrenceMetadataPreserved": true,
+      "groundingPreserved": true
+    },
+    {
+      "id": 5580,
+      "name": "CH03 Short pin3",
+      "translationDeltaMm": 0,
+      "rotationMatrixDelta": 0,
+      "pinAxisDot": 0.9999999999999998,
+      "physicalPosePreserved": true,
+      "acceptedDefinitionPreserved": true,
+      "occurrenceMetadataPreserved": true,
+      "groundingPreserved": true
+    },
+    {
+      "id": 5581,
+      "name": "CH02 Long pin2",
+      "translationDeltaMm": 0,
+      "rotationMatrixDelta": 0,
+      "pinAxisDot": 1,
+      "physicalPosePreserved": true,
+      "acceptedDefinitionPreserved": true,
+      "occurrenceMetadataPreserved": true,
+      "groundingPreserved": true
+    }
+  ],
+  "changedAssemblyKeys": [
+    "customProperties"
+  ],
+  "nativeEvidenceReused": "CHAIN-assembly-source-aligned-19mates-reference-audit-2026-10-09.json / native-home-audit / step-equivalence",
+  "parentObservedDurability": {
+    "threeUndoRestored25125130AndSourceCom": true,
+    "coldSavedLibrary9Occurrences19Mates5DOF": true,
+    "all9InterferenceClear": true,
+    "sourceBOM432Quantities": true
+  },
+  "bookScope": "Printed10-34–35/PDF514–515 assembly mass/COM; no drawing required. Bonus30/115/135 is educationalextra.",
+  "scope": "Read-only fast preservation audit, noheavykernelrepeatforunchangedgeometry."
+}

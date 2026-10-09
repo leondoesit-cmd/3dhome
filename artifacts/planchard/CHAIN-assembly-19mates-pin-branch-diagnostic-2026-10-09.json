@@ -1,0 +1,165 @@
+{
+  "pins": [
+    {
+      "id": 5577,
+      "name": "CH02 Long pin1",
+      "axisDotSource": -1,
+      "actualYaxis": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "sourceYaxis": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "mates": [
+        {
+          "id": 5591,
+          "type": "concentric",
+          "aligned": false,
+          "a": "axis:feature_mv08jrci_7:tool:face:side:5557",
+          "b": "axis:feature_mv08q7vd_1:face:side:5562"
+        },
+        {
+          "id": 5592,
+          "type": "coincident",
+          "aligned": false,
+          "a": "feature_mv08ie3q_4:face:generated:plane:3",
+          "b": "feature_mv08q7vd_1:face:start"
+        }
+      ]
+    },
+    {
+      "id": 5578,
+      "name": "CH03 Short pin1",
+      "axisDotSource": -1.0000000000000004,
+      "actualYaxis": {
+        "x": 0,
+        "y": -4.440892098500626e-16,
+        "z": -1.0000000000000004
+      },
+      "sourceYaxis": {
+        "x": -6.938893903907228e-18,
+        "y": 2.220446049250313e-16,
+        "z": 1
+      },
+      "mates": [
+        {
+          "id": 5593,
+          "type": "concentric",
+          "aligned": false,
+          "a": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+          "b": "axis:feature_mv08swi0_2:face:side:5568"
+        },
+        {
+          "id": 5594,
+          "type": "coincident",
+          "aligned": false,
+          "a": "feature_mv08h8ur_2:face:generated:plane:1",
+          "b": "feature_mv08swi0_2:face:start"
+        }
+      ]
+    },
+    {
+      "id": 5579,
+      "name": "CH03 Short pin2",
+      "axisDotSource": -0.9999999999999993,
+      "actualYaxis": {
+        "x": -0.4226182617406752,
+        "y": -0.9063077870366605,
+        "z": -3.0450563403248976e-14
+      },
+      "sourceYaxis": {
+        "x": 0.42261826173763495,
+        "y": 0.906307787038079,
+        "z": 4.698760708321016e-13
+      },
+      "mates": [
+        {
+          "id": 5595,
+          "type": "concentric",
+          "aligned": false,
+          "a": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+          "b": "axis:feature_mv08swi0_2:face:side:5568"
+        },
+        {
+          "id": 5596,
+          "type": "coincident",
+          "aligned": false,
+          "a": "feature_mv08h8ur_2:face:generated:plane:2",
+          "b": "feature_mv08swi0_2:face:start"
+        }
+      ]
+    },
+    {
+      "id": 5580,
+      "name": "CH03 Short pin3",
+      "axisDotSource": -1,
+      "actualYaxis": {
+        "x": -0.7424038765061391,
+        "y": 0.34618861305779136,
+        "z": -0.5735764363515817
+      },
+      "sourceYaxis": {
+        "x": 0.742403876507171,
+        "y": -0.34618861305332493,
+        "z": 0.5735764363529419
+      },
+      "mates": [
+        {
+          "id": 5597,
+          "type": "concentric",
+          "aligned": false,
+          "a": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+          "b": "axis:feature_mv08swi0_2:face:side:5568"
+        },
+        {
+          "id": 5598,
+          "type": "coincident",
+          "aligned": false,
+          "a": "feature_mv08h8ur_2:face:generated:plane:2",
+          "b": "feature_mv08swi0_2:face:start"
+        }
+      ]
+    },
+    {
+      "id": 5581,
+      "name": "CH02 Long pin2",
+      "axisDotSource": -0.9999999999999997,
+      "actualYaxis": {
+        "x": 0.12656430258977597,
+        "y": -0.768255558658671,
+        "z": -0.6275068715958546
+      },
+      "sourceYaxis": {
+        "x": -0.12656430259137935,
+        "y": 0.7682555586550746,
+        "z": 0.6275068715999347
+      },
+      "mates": [
+        {
+          "id": 5599,
+          "type": "concentric",
+          "aligned": false,
+          "a": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+          "b": "axis:feature_mv08q7vd_1:face:side:5562"
+        },
+        {
+          "id": 5600,
+          "type": "coincident",
+          "aligned": false,
+          "a": "feature_mv08h8ur_2:face:generated:plane:1",
+          "b": "feature_mv08q7vd_1:face:start"
+        }
+      ]
+    }
+  ],
+  "actualWorldComMm": {
+    "x": 348.72863138803746,
+    "y": -44.48164128636574,
+    "z": -72.11969377550409
+  },
+  "failure": "All5pin axialdirections reversed relative source. Thisis notfree axialspin; cylinders extend opposite side ofsavedY0cap, changingCOM. Alllinksretainposes."
+}

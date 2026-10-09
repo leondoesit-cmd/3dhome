@@ -1,0 +1,86 @@
+[
+  {
+    "role": "advanced-q3",
+    "source": "scratch\\planchard\\official-advanced-q3-container\\008-Contents_Config-0-ResolvedFeatures.bin",
+    "classMarkerOffset": 110576,
+    "candidates": [
+      {
+        "offset": 110889,
+        "originMm": [
+          55.00000000000001,
+          0.0,
+          -20.00000000000001
+        ],
+        "encoding": "three consecutive float64LE metres",
+        "bytesHex": "2a5c8fc2f528ac3f00000000000000007e14ae47e17a94bf"
+      },
+      {
+        "offset": 111096,
+        "originMm": [
+          55.00000000000001,
+          0.0,
+          -20.00000000000001
+        ],
+        "encoding": "three consecutive float64LE metres",
+        "bytesHex": "2a5c8fc2f528ac3f00000000000000007e14ae47e17a94bf"
+      }
+    ],
+    "axisOrientation": "not fully decoded; origin verification alone does not certify axes"
+  },
+  {
+    "role": "basic-q6a",
+    "source": "scratch\\planchard\\official-basic-q6a-container\\008-Contents_Config-0-ResolvedFeatures.bin",
+    "classMarkerOffset": 108739,
+    "candidates": [
+      {
+        "offset": 109052,
+        "originMm": [
+          65.0,
+          -1.5537165421963514e-14,
+          20.0
+        ],
+        "encoding": "three consecutive float64LE metres",
+        "bytesHex": "a4703d0ad7a3b03f57651307c3e971bc7b14ae47e17a943f"
+      },
+      {
+        "offset": 109377,
+        "originMm": [
+          65.0,
+          -1.5537165421963514e-14,
+          20.0
+        ],
+        "encoding": "three consecutive float64LE metres",
+        "bytesHex": "a4703d0ad7a3b03f57651307c3e971bc7b14ae47e17a943f"
+      }
+    ],
+    "axisOrientation": "not fully decoded; origin verification alone does not certify axes"
+  },
+  {
+    "role": "basic-q6b",
+    "source": "scratch\\planchard\\official-basic-q6b-container\\008-Contents_Config-0-ResolvedFeatures.bin",
+    "classMarkerOffset": 109902,
+    "candidates": [
+      {
+        "offset": 110215,
+        "originMm": [
+          70.0,
+          -1.653273178848927e-14,
+          20.0
+        ],
+        "encoding": "three consecutive float64LE metres",
+        "bytesHex": "ec51b81e85ebb13fc0f23ee5990f73bc7b14ae47e17a943f"
+      },
+      {
+        "offset": 110540,
+        "originMm": [
+          70.0,
+          -1.653273178848927e-14,
+          20.0
+        ],
+        "encoding": "three consecutive float64LE metres",
+        "bytesHex": "ec51b81e85ebb13fc0f23ee5990f73bc7b14ae47e17a943f"
+      }
+    ],
+    "axisOrientation": "not fully decoded; origin verification alone does not certify axes"
+  }
+]

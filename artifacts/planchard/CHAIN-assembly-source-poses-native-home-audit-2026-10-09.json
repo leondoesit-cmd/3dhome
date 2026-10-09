@@ -1,0 +1,15 @@
+{
+  "instances": 9,
+  "uniqueExactRecipes": 3,
+  "totalVolumeCm3": 7352.544031041706,
+  "totalMassG": 33821.70254279185,
+  "grounded": [
+    "CH01 Link1"
+  ],
+  "countByModel": {
+    "cm_mv08artn": 4,
+    "cm_mv08pr4m": 2,
+    "cm_mv08sa8v": 3
+  },
+  "hits": []
+}

@@ -1,0 +1,973 @@
+{
+  "source": "artifacts/planchard/CHAIN-assembly-19mates-browser-2026-10-09.mforge",
+  "mateCount": 19,
+  "legacyMateCount": 0,
+  "counts": {
+    "concentric": 8,
+    "coincident": 8,
+    "angle": 3
+  },
+  "angles": [
+    25,
+    125,
+    130
+  ],
+  "allActive": true,
+  "allNativeReferencesBound": true,
+  "references": [
+    {
+      "mate": 5582,
+      "type": "concentric",
+      "side": "a",
+      "reference": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 20,
+          "y": -2.0000000000000027,
+          "z": -3.5
+        },
+        "axis": {
+          "x": 1.232595164407831e-32,
+          "y": 1.224646799147353e-16,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mate": 5582,
+      "type": "concentric",
+      "side": "b",
+      "reference": "axis:feature_mv08jrci_7:tool:face:side:5557",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 19.99999999963253,
+          "y": -1.9999999995950875,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mate": 5583,
+      "type": "coincident",
+      "side": "a",
+      "reference": "feature_mv08iy1f_5:face:generated:plane:3",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 19.40164150010289,
+          "y": -2.000000000000002,
+          "z": -2
+        },
+        "normal": {
+          "x": 1.232595164407831e-32,
+          "y": 1.224646799147353e-16,
+          "z": 1
+        },
+        "measure": 69.63495408493621
+      }
+    },
+    {
+      "mate": 5583,
+      "type": "coincident",
+      "side": "b",
+      "reference": "feature_mv08hsqq_3:tool:face:side:5518",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 26.218140516444777,
+          "y": -4.899566542066779,
+          "z": -2
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 60.73009183012759
+      }
+    },
+    {
+      "mate": 5584,
+      "type": "angle",
+      "side": "a",
+      "reference": "plane:top",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 10,
+          "y": -2,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": -2.220446049250313e-16,
+          "z": 1.232595164407831e-32
+        }
+      }
+    },
+    {
+      "mate": 5584,
+      "type": "angle",
+      "side": "b",
+      "reference": "plane:top",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 29.06307787,
+          "y": -6.226182617,
+          "z": 0
+        },
+        "normal": {
+          "x": 0.9063077870367471,
+          "y": -0.4226182617404912,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mate": 5585,
+      "type": "concentric",
+      "side": "a",
+      "reference": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 39.60531965645919,
+          "y": -7.280287979776298,
+          "z": 0
+        },
+        "axis": {
+          "x": -0.4226182617404912,
+          "y": -0.9063077870367471,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mate": 5585,
+      "type": "concentric",
+      "side": "b",
+      "reference": "axis:feature_mv08jrci_7:tool:face:side:5557",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 38.12615574074122,
+          "y": -10.452365233932687,
+          "z": -1.1316458881083236e-10
+        },
+        "axis": {
+          "x": 0.4226182617406099,
+          "y": 0.9063077870366918,
+          "z": -6.631362126086059e-13
+        }
+      }
+    },
+    {
+      "mate": 5586,
+      "type": "coincident",
+      "side": "a",
+      "reference": "feature_mv08iy1f_5:face:generated:plane:3",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 38.429095295952074,
+          "y": -8.386872431207253,
+          "z": -5.551115123125783e-17
+        },
+        "normal": {
+          "x": -0.4226182617404912,
+          "y": -0.9063077870367471,
+          "z": 0
+        },
+        "measure": 69.63495408493621
+      }
+    },
+    {
+      "mate": 5586,
+      "type": "coincident",
+      "side": "b",
+      "reference": "feature_mv08hsqq_3:tool:face:side:5518",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 42.537971142586606,
+          "y": -10.302872704258064,
+          "z": -5.620168544263297
+        },
+        "normal": {
+          "x": 0.4226182617406099,
+          "y": 0.9063077870366918,
+          "z": -6.631362126086059e-13
+        },
+        "measure": 60.73009183012759
+      }
+    },
+    {
+      "mate": 5587,
+      "type": "angle",
+      "side": "a",
+      "reference": "plane:top",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 29.06307787,
+          "y": -6.226182617,
+          "z": 0
+        },
+        "normal": {
+          "x": 0.9063077870367471,
+          "y": -0.4226182617404912,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mate": 5587,
+      "type": "angle",
+      "side": "b",
+      "reference": "feature_mv08hsqq_3:face:generated:plane:2",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 41.84535973190787,
+          "y": -16.048481253628424,
+          "z": -8.191520442997678
+        },
+        "normal": {
+          "x": -0.5198367907258781,
+          "y": 0.24240387650673123,
+          "z": 0.8191520442886833
+        },
+        "measure": 30
+      }
+    },
+    {
+      "mate": 5588,
+      "type": "concentric",
+      "side": "a",
+      "reference": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 51.121305123029856,
+          "y": -16.512102909771034,
+          "z": -14.375523358656633
+        },
+        "axis": {
+          "x": -0.7424038765060198,
+          "y": 0.3461886130582056,
+          "z": -0.5735764363514864
+        }
+      }
+    },
+    {
+      "mate": 5588,
+      "type": "concentric",
+      "side": "b",
+      "reference": "axis:feature_mv08jrci_7:tool:face:side:5557",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 48.52289155495574,
+          "y": -15.30044276456472,
+          "z": -16.383040885809237
+        },
+        "axis": {
+          "x": 0.7424038765063061,
+          "y": -0.3461886130575139,
+          "z": 0.5735764363515331
+        }
+      }
+    },
+    {
+      "mate": 5589,
+      "type": "coincident",
+      "side": "a",
+      "reference": "feature_mv08iy1f_5:face:generated:plane:3",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 49.69665054598076,
+          "y": -15.847775570267913,
+          "z": -14.745741424775634
+        },
+        "normal": {
+          "x": -0.7424038765060198,
+          "y": 0.3461886130582056,
+          "z": -0.5735764363514864
+        },
+        "measure": 69.63495408493621
+      }
+    },
+    {
+      "mate": 5589,
+      "type": "coincident",
+      "side": "b",
+      "reference": "feature_mv08hsqq_3:tool:face:side:5518",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 54.521448857262726,
+          "y": -12.298482887566252,
+          "z": -18.84846271764131
+        },
+        "normal": {
+          "x": 0.7424038765063061,
+          "y": -0.3461886130575139,
+          "z": 0.5735764363515331
+        },
+        "measure": 60.73009183012759
+      }
+    },
+    {
+      "mate": 5590,
+      "type": "angle",
+      "side": "a",
+      "reference": "plane:top",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 43.324523648,
+          "y": -12.876403999,
+          "z": -8.191520443
+        },
+        "normal": {
+          "x": 0.5198367907258781,
+          "y": -0.24240387650673123,
+          "z": -0.8191520442886833
+        }
+      }
+    },
+    {
+      "mate": 5590,
+      "type": "angle",
+      "side": "b",
+      "reference": "feature_mv08hsqq_3:face:generated:plane:2",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 52.50336817822793,
+          "y": -8.7042042622987,
+          "z": -23.655966258230364
+        },
+        "normal": {
+          "x": -0.6578890191044259,
+          "y": -0.538457835656472,
+          "z": 0.5265407845190762
+        },
+        "measure": 30
+      }
+    },
+    {
+      "mate": 5591,
+      "type": "concentric",
+      "side": "a",
+      "reference": "axis:feature_mv08jrci_7:tool:face:side:5557",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 0,
+          "y": -1.9999999999999978,
+          "z": -1.232595164407831e-31
+        },
+        "axis": {
+          "x": -2.220446049250313e-16,
+          "y": -1,
+          "z": 1.224646799147353e-16
+        }
+      }
+    },
+    {
+      "mate": 5591,
+      "type": "concentric",
+      "side": "b",
+      "reference": "axis:feature_mv08q7vd_1:face:side:5562",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 0,
+          "y": 15,
+          "z": 0
+        },
+        "axis": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mate": 5592,
+      "type": "coincident",
+      "side": "a",
+      "reference": "feature_mv08ie3q_4:face:generated:plane:3",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": -2.4757435592072596,
+          "y": 2.6645352591003757e-15,
+          "z": 1.6955390269725423e-16
+        },
+        "normal": {
+          "x": 2.220446049250313e-16,
+          "y": 1,
+          "z": -1.224646799147353e-16
+        },
+        "measure": 29.452431127404317
+      }
+    },
+    {
+      "mate": 5592,
+      "type": "coincident",
+      "side": "b",
+      "reference": "feature_mv08q7vd_1:face:start",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 1.1879386363489176e-16,
+          "y": 0,
+          "z": 4.440892098500626e-16
+        },
+        "normal": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "measure": 19.634954084936204
+      }
+    },
+    {
+      "mate": 5593,
+      "type": "concentric",
+      "side": "a",
+      "reference": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 20,
+          "y": -2.0000000000000027,
+          "z": -3.5
+        },
+        "axis": {
+          "x": 1.232595164407831e-32,
+          "y": 1.224646799147353e-16,
+          "z": 1
+        }
+      }
+    },
+    {
+      "mate": 5593,
+      "type": "concentric",
+      "side": "b",
+      "reference": "axis:feature_mv08swi0_2:face:side:5568",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 20,
+          "y": -1.9999999999999978,
+          "z": 10.000000000000002
+        },
+        "axis": {
+          "x": 0,
+          "y": -4.440892098500624e-16,
+          "z": -1
+        }
+      }
+    },
+    {
+      "mate": 5594,
+      "type": "coincident",
+      "side": "a",
+      "reference": "feature_mv08h8ur_2:face:generated:plane:1",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 22.47574355920726,
+          "y": -2.000000000000002,
+          "z": 4.999999999999999
+        },
+        "normal": {
+          "x": -8.710339161815335e-33,
+          "y": 1.224646799147353e-16,
+          "z": 1
+        },
+        "measure": 29.45243112740431
+      }
+    },
+    {
+      "mate": 5594,
+      "type": "coincident",
+      "side": "b",
+      "reference": "feature_mv08swi0_2:face:start",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 20,
+          "y": -1.9999999999999996,
+          "z": 5
+        },
+        "normal": {
+          "x": 0,
+          "y": -4.440892098500624e-16,
+          "z": -1
+        },
+        "measure": 19.634954084936204
+      }
+    },
+    {
+      "mate": 5595,
+      "type": "concentric",
+      "side": "a",
+      "reference": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 39.60531965645919,
+          "y": -7.280287979776298,
+          "z": 0
+        },
+        "axis": {
+          "x": -0.4226182617404912,
+          "y": -0.9063077870367471,
+          "z": 0
+        }
+      }
+    },
+    {
+      "mate": 5595,
+      "type": "concentric",
+      "side": "b",
+      "reference": "axis:feature_mv08swi0_2:face:side:5568",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 42.352338357703374,
+          "y": -1.3892873638166972,
+          "z": 1.5225281701624488e-13
+        },
+        "axis": {
+          "x": -0.42261826174067546,
+          "y": -0.906307787036661,
+          "z": -3.0450563403248995e-14
+        }
+      }
+    },
+    {
+      "mate": 5596,
+      "type": "coincident",
+      "side": "a",
+      "reference": "feature_mv08h8ur_2:face:generated:plane:2",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 42.48303271548554,
+          "y": -6.967120738728566,
+          "z": -2.575717417130363e-16
+        },
+        "normal": {
+          "x": 0.4226182617404912,
+          "y": 0.9063077870367471,
+          "z": -1.0518145402946825e-32
+        },
+        "measure": 29.45243112740431
+      }
+    },
+    {
+      "mate": 5596,
+      "type": "coincident",
+      "side": "b",
+      "reference": "feature_mv08swi0_2:face:start",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 40.239247049,
+          "y": -5.920826299,
+          "z": 4.441171422553788e-16
+        },
+        "normal": {
+          "x": -0.42261826174067546,
+          "y": -0.906307787036661,
+          "z": -3.0450563403248995e-14
+        },
+        "measure": 19.634954084936204
+      }
+    },
+    {
+      "mate": 5597,
+      "type": "concentric",
+      "side": "a",
+      "reference": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 51.121305123029856,
+          "y": -16.512102909771034,
+          "z": -14.375523358656633
+        },
+        "axis": {
+          "x": -0.7424038765060198,
+          "y": 0.3461886130582056,
+          "z": -0.5735764363514864
+        }
+      }
+    },
+    {
+      "mate": 5597,
+      "type": "concentric",
+      "side": "b",
+      "reference": "axis:feature_mv08swi0_2:face:side:5568",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 55.9469303205307,
+          "y": -18.76232889428896,
+          "z": -10.647276522242091
+        },
+        "axis": {
+          "x": -0.7424038765061391,
+          "y": 0.34618861305779136,
+          "z": -0.5735764363515817
+        }
+      }
+    },
+    {
+      "mate": 5598,
+      "type": "coincident",
+      "side": "a",
+      "reference": "feature_mv08h8ur_2:face:generated:plane:2",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 53.521893524267455,
+          "y": -17.631515665346754,
+          "z": -15.543169101788573
+        },
+        "normal": {
+          "x": 0.7424038765060198,
+          "y": -0.3461886130582056,
+          "z": 0.5735764363514864
+        },
+        "measure": 29.45243112740431
+      }
+    },
+    {
+      "mate": 5598,
+      "type": "coincident",
+      "side": "b",
+      "reference": "feature_mv08swi0_2:face:start",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 52.234910938,
+          "y": -17.031385829,
+          "z": -13.515158704
+        },
+        "normal": {
+          "x": -0.7424038765061391,
+          "y": 0.34618861305779136,
+          "z": -0.5735764363515817
+        },
+        "measure": 19.634954084936204
+      }
+    },
+    {
+      "mate": 5599,
+      "type": "concentric",
+      "side": "a",
+      "reference": "axis:feature_mv08jbg0_6:face:generated:cylinder:2",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 62.12364699611109,
+          "y": -7.220180506739524,
+          "z": -29.110130626777075
+        },
+        "axis": {
+          "x": -0.12656430259052434,
+          "y": 0.7682555586583559,
+          "z": 0.6275068715960899
+        }
+      }
+    },
+    {
+      "mate": 5599,
+      "type": "concentric",
+      "side": "b",
+      "reference": "axis:feature_mv08q7vd_1:face:side:5562",
+      "frame": {
+        "surface": "axis",
+        "origin": {
+          "x": 59.149385885153364,
+          "y": 10.833825121880064,
+          "z": -14.363719144062182
+        },
+        "axis": {
+          "x": 0.12656430258977602,
+          "y": -0.7682555586586712,
+          "z": -0.6275068715958548
+        }
+      }
+    },
+    {
+      "mate": 5600,
+      "type": "coincident",
+      "side": "a",
+      "reference": "feature_mv08h8ur_2:face:generated:plane:1",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 62.6766149258126,
+          "y": 0.6430752603876915,
+          "z": -25.079902174143353
+        },
+        "normal": {
+          "x": -0.12656430259052434,
+          "y": 0.7682555586583559,
+          "z": 0.6275068715960899
+        },
+        "measure": 29.45243112740431
+      }
+    },
+    {
+      "mate": 5600,
+      "type": "coincident",
+      "side": "b",
+      "reference": "feature_mv08q7vd_1:face:start",
+      "frame": {
+        "surface": "plane",
+        "origin": {
+          "x": 61.047850424,
+          "y": -0.6900082579999998,
+          "z": -23.776322218
+        },
+        "normal": {
+          "x": 0.12656430258977602,
+          "y": -0.7682555586586712,
+          "z": -0.6275068715958548
+        },
+        "measure": 19.634954084936204
+      }
+    }
+  ],
+  "resolverIssues": [],
+  "rebindings": [],
+  "coldSolver": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 1,
+    "clusters": [
+      {
+        "components": [
+          5578
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5578": 1
+        }
+      },
+      {
+        "components": [
+          5577
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5577": 1
+        }
+      },
+      {
+        "components": [
+          5574
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5574": 0
+        }
+      },
+      {
+        "components": [
+          5579
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5579": 1
+        }
+      },
+      {
+        "components": [
+          5575
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5575": 0
+        }
+      },
+      {
+        "components": [
+          5580
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5580": 1
+        }
+      },
+      {
+        "components": [
+          5576
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5576": 0
+        }
+      },
+      {
+        "components": [
+          5581
+        ],
+        "variableCount": 6,
+        "rank": 5,
+        "degreesOfFreedom": 1,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "5581": 1
+        }
+      }
+    ],
+    "degreesOfFreedom": 5
+  },
+  "coldPoseDeltas": [
+    {
+      "id": 5573,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5574,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5575,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5576,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5577,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5578,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5579,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5580,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5581,
+      "translationCm": 0,
+      "rotationMatrix": 0
+    }
+  ],
+  "defsPreserved": true,
+  "poseDifferenceFromSourceMm": [
+    {
+      "id": 5573,
+      "translationMm": 0,
+      "rotationMatrix": 0
+    },
+    {
+      "id": 5574,
+      "translationMm": 4.000035858098272e-9,
+      "rotationMatrix": 2.084998840246044e-13
+    },
+    {
+      "id": 5575,
+      "translationMm": 9.000000744663339e-9,
+      "rotationMatrix": 6.95704605035985e-12
+    },
+    {
+      "id": 5576,
+      "translationMm": 4.000018094529878e-9,
+      "rotationMatrix": 9.993228466953497e-12
+    },
+    {
+      "id": 5577,
+      "translationMm": 0,
+      "rotationMatrix": 2
+    },
+    {
+      "id": 5578,
+      "translationMm": 0,
+      "rotationMatrix": 2.0000000000000004
+    },
+    {
+      "id": 5579,
+      "translationMm": 6.000009378226423e-9,
+      "rotationMatrix": 1.8126155740747394
+    },
+    {
+      "id": 5580,
+      "translationMm": 1.2000000992884452e-8,
+      "rotationMatrix": 1.849579819217468
+    },
+    {
+      "id": 5581,
+      "translationMm": 5.000000413701855e-9,
+      "rotationMatrix": 1.5365111173137456
+    }
+  ],
+  "inputUnchanged": true,
+  "scope": "Read-only actualmate bindingandcoldsolver ondisposableclone; authoredgeometry untouched."
+}

@@ -1,0 +1,1299 @@
+[
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Advanced Part Modeling-Question1.SLDPRT",
+    "sourceSha256": "06f930321979f472210afe95ae3cf599fe3a62703a63dbb76aec24f8f91da330",
+    "folder": "scratch\\planchard\\official-advanced-q1-container",
+    "verifiedBlocks": 45,
+    "material": [
+      "1060 Alloy"
+    ],
+    "densityKgM3": 2700.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-advanced-q1-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "-0.000000, 0.000000, 0.038260, 0.000098, 0.030073, 0.265807, 0.000262, 0.000262, 0.000189, -0.000000, -0.000000, 0.000000, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Cut-Extrude2",
+        "type": "Cut",
+        "dimensions": {
+          "D1": "0.1"
+        }
+      },
+      {
+        "name": "Boss-Extrude1",
+        "type": "Boss-Extrude",
+        "dimensions": {
+          "D1": "0.4"
+        }
+      },
+      {
+        "name": "Boss-Extrude2",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "1.7"
+        }
+      },
+      {
+        "name": "Boss-Extrude3",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "0.5"
+        }
+      },
+      {
+        "name": "Fillet1",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R0.1"
+        }
+      },
+      {
+        "name": "Chamfer1",
+        "type": "Chamfer",
+        "dimensions": {
+          "D1": "0.1",
+          "D2": "45\u00b0"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D4": "R0.5",
+          "D1": "2",
+          "D2": "2",
+          "D3": "<MOD-DIAM>0.35"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>1.1"
+        }
+      },
+      {
+        "name": "Sketch3",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "<MOD-DIAM>0.35",
+          "D5": "R1.5",
+          "D1": "2",
+          "D3": "1",
+          "D4": "R0.5"
+        }
+      },
+      {
+        "name": "Sketch4",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>0.75"
+        }
+      },
+      {
+        "name": "Sketch5",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>1.5"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      -0.0,
+      0.0,
+      38.260000000000005
+    ],
+    "cachedVolumeMm3": 98000.0,
+    "cachedMassGrams": 265.807
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Advanced Part Modeling-Question2.SLDPRT",
+    "sourceSha256": "b796bf40e545c71535f4c661641462f99c1f6c025c4407cebd3286985ce73cf2",
+    "folder": "scratch\\planchard\\official-advanced-q2-container",
+    "verifiedBlocks": 46,
+    "material": [
+      "6061 Alloy"
+    ],
+    "densityKgM3": 2700.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-advanced-q2-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "0.040375, 0.030274, -0.000000, 0.000230, 0.051259, 0.621788, 0.000949, 0.000891, 0.001033, -0.000277, -0.000000, -0.000000, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Cut-Extrude1",
+        "type": "Cut",
+        "dimensions": {
+          "D1": "0.125"
+        }
+      },
+      {
+        "name": "Cut-Extrude2",
+        "type": "Cut",
+        "dimensions": {
+          "D1": "0.125"
+        }
+      },
+      {
+        "name": "Boss-Extrude2",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "0.26"
+        }
+      },
+      {
+        "name": "Boss-Extrude3",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "0.24"
+        }
+      },
+      {
+        "name": "Boss-Extrude1",
+        "type": "Boss-Extrude",
+        "dimensions": {
+          "D1": "0.5"
+        }
+      },
+      {
+        "name": "Boss-Extrude4",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "0.2"
+        }
+      },
+      {
+        "name": "Boss-Extrude5",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "0.125"
+        }
+      },
+      {
+        "name": "Extrude-Thin1",
+        "type": "Extrude-Thin",
+        "dimensions": {
+          "D5": "0.38"
+        }
+      },
+      {
+        "name": "Plane1",
+        "type": "Plane",
+        "dimensions": {
+          "D1": "60\u00b0"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "3.5",
+          "D2": "4.2"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "2"
+        }
+      },
+      {
+        "name": "Sketch3",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "0.75"
+        }
+      },
+      {
+        "name": "Sketch5",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "0.5",
+          "D1": "0.375"
+        }
+      },
+      {
+        "name": "Sketch6",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "1",
+          "D1": "0.375"
+        }
+      },
+      {
+        "name": "Sketch7",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>0.9"
+        }
+      },
+      {
+        "name": "Sketch8",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>0.625"
+        }
+      },
+      {
+        "name": "Sketch10",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "1",
+          "D2": "0.125"
+        }
+      },
+      {
+        "name": "Sketch11",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "R0.5",
+          "D1": "2",
+          "D3": "0.3"
+        }
+      },
+      {
+        "name": "Sketch9",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "1",
+          "D2": "0.375"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      40.375,
+      30.273999999999997,
+      -0.0
+    ],
+    "cachedVolumeMm3": 230000.0,
+    "cachedMassGrams": 621.788
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Advanced Part Modeling-Question3.SLDPRT",
+    "sourceSha256": "8cc2c54f62d4a04b6474adedb3d29a199ce2c91c83d85d587d76a5c496a151d5",
+    "folder": "scratch\\planchard\\official-advanced-q3-container",
+    "verifiedBlocks": 48,
+    "material": [
+      "6061 Alloy"
+    ],
+    "densityKgM3": 2700.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-advanced-q3-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "0.001802, -0.000267, -0.035536, 0.000050, 0.024415, 0.134193, 0.000076, 0.000276, 0.000282, 0.000002, 0.000009, -0.000001, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Extrude-Thin1",
+        "type": "Extrude-Thin",
+        "dimensions": {
+          "D1": "60",
+          "D5": "5"
+        }
+      },
+      {
+        "name": "Chamfer1",
+        "type": "Chamfer",
+        "dimensions": {
+          "D2": "45\u00b0",
+          "D1": "5"
+        }
+      },
+      {
+        "name": "Coordinate System1",
+        "type": "Coordinate System",
+        "dimensions": {}
+      },
+      {
+        "name": "CirPattern1",
+        "type": "CirPattern",
+        "dimensions": {
+          "D1": "4",
+          "D3": "360\u00b0"
+        }
+      },
+      {
+        "name": "Sketch6",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "20",
+          "D2": "15",
+          "D1": "R5"
+        }
+      },
+      {
+        "name": "Sketch7",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "8",
+          "D1": "R30"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "110",
+          "D2": "50",
+          "D4": "60",
+          "D1": "R10"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>20"
+        }
+      },
+      {
+        "name": "Sketch3",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "45\u00b0",
+          "D2": "<MOD-DIAM>6",
+          "D1": "<MOD-DIAM>40"
+        }
+      },
+      {
+        "name": "Sketch4",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "30",
+          "D1": "12"
+        }
+      },
+      {
+        "name": "Sketch5",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "30",
+          "D4": "20",
+          "D2": "20",
+          "D1": "<MOD-DIAM>6"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      1.802,
+      -0.26699999999999996,
+      -35.536
+    ],
+    "cachedVolumeMm3": 50000.0,
+    "cachedMassGrams": 134.193
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Advanced Part Modeling-Question4.SLDPRT",
+    "sourceSha256": "84d1f93701ed201dd2677cbd24fe91bd8b430b145ea06b28f61a78c043032063",
+    "folder": "scratch\\planchard\\official-advanced-q4-container",
+    "verifiedBlocks": 49,
+    "material": [
+      "Gray Cast Iron"
+    ],
+    "densityKgM3": 7200.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-advanced-q4-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "0.000000, 0.034974, -0.046673, 0.000352, 0.061253, 2.536592, 0.009260, 0.007574, 0.003343, 0.000000, -0.000000, 0.002157, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Cut-Extrude5",
+        "type": "Cut",
+        "dimensions": {
+          "D1": "6"
+        }
+      },
+      {
+        "name": "Cut-Extrude6",
+        "type": "Cut",
+        "dimensions": {
+          "D1": "9"
+        }
+      },
+      {
+        "name": "Cut-Extrude2",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "19"
+        }
+      },
+      {
+        "name": "Extrude-Thin1",
+        "type": "Extrude-Thin",
+        "dimensions": {
+          "D5": "19",
+          "D1": "64"
+        }
+      },
+      {
+        "name": "Boss-Extrude1",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "18"
+        }
+      },
+      {
+        "name": "Boss-Extrude2",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "38"
+        }
+      },
+      {
+        "name": "Sketch8",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "22"
+        }
+      },
+      {
+        "name": "Sketch9",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>32"
+        }
+      },
+      {
+        "name": "Sketch10",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>19"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "90",
+          "D1": "140",
+          "D2": "60\u00b0"
+        }
+      },
+      {
+        "name": "Sketch7",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "6",
+          "D1": "30\u00b0",
+          "D2": "42"
+        }
+      },
+      {
+        "name": "Sketch12",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "29",
+          "D2": "28",
+          "D1": "<MOD-DIAM>13"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "51",
+          "D1": "0"
+        }
+      },
+      {
+        "name": "Sketch3",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "17",
+          "D1": "51",
+          "D3": "61"
+        }
+      },
+      {
+        "name": "Sketch4",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "25",
+          "D1": "29"
+        }
+      },
+      {
+        "name": "Sketch5",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>19"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      0.0,
+      34.974,
+      -46.673
+    ],
+    "cachedVolumeMm3": 352000.0,
+    "cachedMassGrams": 2536.592
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Part Modeling-Question1.SLDPRT",
+    "sourceSha256": "cca745e301f713015bce3faf96635378127b330dbfac41eb10b31d0f870b9500",
+    "folder": "scratch\\planchard\\official-basic-q1-container",
+    "verifiedBlocks": 45,
+    "material": [
+      "Alloy Steel"
+    ],
+    "densityKgM3": 7700.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-basic-q1-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "0.041430, 0.025593, -0.000889, 0.000293, 0.030172, 2.253212, 0.001397, 0.002398, 0.002280, -0.000388, -0.000084, -0.000001, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Cut-Extrude1",
+        "type": "Cut-Extrude",
+        "dimensions": {
+          "D1": "2.5"
+        }
+      },
+      {
+        "name": "Cut-Extrude2",
+        "type": "Cut",
+        "dimensions": {
+          "D1": "1.5"
+        }
+      },
+      {
+        "name": "Boss-Extrude1",
+        "type": "Boss-Extrude",
+        "dimensions": {
+          "D1": "2.5"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "2.6",
+          "D4": "1",
+          "D2": "1",
+          "D3": "0.25",
+          "D5": "4"
+        }
+      },
+      {
+        "name": "3DSketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "0.5",
+          "D1": "1.5"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "<MOD-DIAM>0.56<HOLE-DEPTH>1.50",
+          "D1": "0.5",
+          "D2": "1.25"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      41.43,
+      25.593,
+      -0.889
+    ],
+    "cachedVolumeMm3": 293000.0,
+    "cachedMassGrams": 2253.212
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Part Modeling-Question2.SLDPRT",
+    "sourceSha256": "3152e31fc81eb1b9c36dce6aa23a184902a8dc1ad1b1f3bd9f110167e16d7695",
+    "folder": "scratch\\planchard\\official-basic-q2-container",
+    "verifiedBlocks": 45,
+    "material": [
+      "Copper"
+    ],
+    "densityKgM3": 8900.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-basic-q2-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "-0.000000, 0.019794, -0.000000, 0.000180, 0.029919, 1.605292, 0.000918, 0.001761, 0.001739, 0.000000, -0.000000, -0.000000, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Boss-Extrude1",
+        "type": "Boss-Extrude",
+        "dimensions": {
+          "D1": "14"
+        }
+      },
+      {
+        "name": "Boss-Extrude2",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "40"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "80",
+          "D2": "R30",
+          "D1": "<MOD-DIAM>20"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "16",
+          "D2": "<MOD-DIAM>20"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      -0.0,
+      19.794,
+      -0.0
+    ],
+    "cachedVolumeMm3": 180000.0,
+    "cachedMassGrams": 1605.292
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Part Modeling-Question3.SLDPRT",
+    "sourceSha256": "aa81683a6a14c13a1b605bf64c7322531396ae0318eb3d2dc393e9c5510d7093",
+    "folder": "scratch\\planchard\\official-basic-q3-container",
+    "verifiedBlocks": 45,
+    "material": [
+      "Cast Alloy Steel"
+    ],
+    "densityKgM3": 7300.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-basic-q3-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "0.009787, -0.000127, 0.000000, 0.000010, 0.003070, 0.069768, 0.000005, 0.000007, 0.000007, 0.000000, 0.000000, -0.000000, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Revolve1",
+        "type": "Revolve",
+        "dimensions": {
+          "D1": "360\u00b0"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "<MOD-DIAM>28",
+          "D1": "<MOD-DIAM>12",
+          "D3": "12",
+          "D4": "32"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "4",
+          "D2": "2"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      9.787,
+      -0.127,
+      0.0
+    ],
+    "cachedVolumeMm3": 10000.0,
+    "cachedMassGrams": 69.768
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Part Modeling-Question4.SLDPRT",
+    "sourceSha256": "844d9866e8e7e31a7a9bb8dcbffb77f7fb66932e78fb6b67c15e5fd14c8c9bed",
+    "folder": "scratch\\planchard\\official-basic-q4-container",
+    "verifiedBlocks": 44,
+    "material": [
+      "2014 Alloy"
+    ],
+    "densityKgM3": 2800.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-basic-q4-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [],
+    "namedDimensions": [
+      {
+        "name": "Cut-Extrude2",
+        "type": "Cut",
+        "dimensions": {
+          "D1": "1"
+        }
+      },
+      {
+        "name": "Boss-Extrude1",
+        "type": "Boss-Extrude",
+        "dimensions": {
+          "D1": "76"
+        }
+      },
+      {
+        "name": "Boss-Extrude2",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "26"
+        }
+      },
+      {
+        "name": "Fillet1",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R6"
+        }
+      },
+      {
+        "name": "Fillet2",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R6"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "50",
+          "D4": "45\u00b0",
+          "D1": "38",
+          "D2": "127"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "26",
+          "D1": "26"
+        }
+      },
+      {
+        "name": "Sketch3",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "89",
+          "D1": "76",
+          "D2": "<MOD-DIAM>38"
+        }
+      },
+      {
+        "name": "Sketch4",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>57"
+        }
+      }
+    ]
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Part Modeling-Question5.SLDPRT",
+    "sourceSha256": "7d04a895f61b1fb4e23b6c44fe9e29e56e48fb3857765aea574aea611601b610",
+    "folder": "scratch\\planchard\\official-basic-q5-container",
+    "verifiedBlocks": 45,
+    "material": [
+      "6061 Alloy"
+    ],
+    "densityKgM3": 2700.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-basic-q5-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "0.000000, 0.018513, -0.021858, 0.000502, 0.065138, 1.355895, 0.003126, 0.002248, 0.002181, -0.000000, 0.000000, -0.000914, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Boss-Extrude1",
+        "type": "Boss-Extrude",
+        "dimensions": {
+          "D1": "1"
+        }
+      },
+      {
+        "name": "Boss-Extrude3",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "3"
+        }
+      },
+      {
+        "name": "Rib1",
+        "type": "Rib",
+        "dimensions": {
+          "D1": "1"
+        }
+      },
+      {
+        "name": "Plane1",
+        "type": "Plane",
+        "dimensions": {
+          "D1": "48\u00b0"
+        }
+      },
+      {
+        "name": "Sketch5",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "0.31"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "4",
+          "D1": "3"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "4.5"
+        }
+      },
+      {
+        "name": "Sketch4",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "<MOD-DIAM>2.25"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      0.0,
+      18.513,
+      -21.858
+    ],
+    "cachedVolumeMm3": 501999.99999999994,
+    "cachedMassGrams": 1355.895
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Part Modeling-Question 6.SLDPRT",
+    "sourceSha256": "b1e61bc777c9f35a09bf4f5a9953a37267c3846ce50997b96416da482b95bf69",
+    "folder": "scratch\\planchard\\official-basic-q6-container",
+    "verifiedBlocks": 44,
+    "material": [
+      "AISI 304"
+    ],
+    "densityKgM3": 8000.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-basic-q6-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "-0.015392, 0.015933, -0.002653, 0.000111, 0.025815, 0.888475, 0.000213, 0.001156, 0.001134, -0.000039, -0.000089, 0.000003, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Cut-Extrude6",
+        "type": "Cut-Extrude",
+        "dimensions": {
+          "D1": "2"
+        }
+      },
+      {
+        "name": "Boss-Extrude1",
+        "type": "Boss-Extrude",
+        "dimensions": {
+          "D1": "40"
+        }
+      },
+      {
+        "name": "Cut-Extrude1",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "25"
+        }
+      },
+      {
+        "name": "Fillet2",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R5"
+        }
+      },
+      {
+        "name": "Fillet3",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R5"
+        }
+      },
+      {
+        "name": "Fillet5",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R5"
+        }
+      },
+      {
+        "name": "Fillet6",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R5"
+        }
+      },
+      {
+        "name": "Sketch10",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "2"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D9": "R10",
+          "D10": "R30",
+          "D8": "15",
+          "D4": "65\u00b0",
+          "D2": "30",
+          "D3": "15",
+          "D1": "130",
+          "D7": "60\u00b0",
+          "D6": "8",
+          "D5": "15",
+          "D11": "15",
+          "D13": "45",
+          "D12": "15"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "<MOD-DIAM>4",
+          "D2": "48",
+          "D1": "15"
+        }
+      },
+      {
+        "name": "Sketch3",
+        "type": "Sketch",
+        "dimensions": {
+          "D2": "50",
+          "D1": "15"
+        }
+      },
+      {
+        "name": "Sketch4",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "R5",
+          "D1": "40",
+          "D2": "10"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      -15.392,
+      15.933,
+      -2.653
+    ],
+    "cachedVolumeMm3": 111000.0,
+    "cachedMassGrams": 888.475
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Part Modeling-Question 6A.SLDPRT",
+    "sourceSha256": "3c21d6ca6689eb72de6d4e2ae4289aa6d1b4f302a6ff028484add811b9967373",
+    "folder": "scratch\\planchard\\official-basic-q6a-container",
+    "verifiedBlocks": 44,
+    "material": [
+      "AISI 304"
+    ],
+    "densityKgM3": 8000.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-basic-q6a-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "-0.015392, 0.015933, -0.002653, 0.000111, 0.025815, 0.888475, 0.000213, 0.001156, 0.001134, -0.000039, -0.000089, 0.000003, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Cut-Extrude6",
+        "type": "Cut-Extrude",
+        "dimensions": {
+          "D1": "2"
+        }
+      },
+      {
+        "name": "Boss-Extrude1",
+        "type": "Boss-Extrude",
+        "dimensions": {
+          "D1": "40"
+        }
+      },
+      {
+        "name": "Cut-Extrude1",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "25"
+        }
+      },
+      {
+        "name": "Fillet2",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R5"
+        }
+      },
+      {
+        "name": "Fillet3",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R5"
+        }
+      },
+      {
+        "name": "Fillet5",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R5"
+        }
+      },
+      {
+        "name": "Fillet6",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R5"
+        }
+      },
+      {
+        "name": "Coordinate System1",
+        "type": "Coordinate System",
+        "dimensions": {}
+      },
+      {
+        "name": "Sketch10",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "2"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "130",
+          "D2": "30",
+          "D3": "15",
+          "D4": "65\u00b0",
+          "D11": "15",
+          "D13": "45",
+          "D8": "15",
+          "D6": "8",
+          "D5": "15",
+          "D7": "60\u00b0",
+          "D12": "15",
+          "D10": "R30",
+          "D9": "R10"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "<MOD-DIAM>4",
+          "D1": "15",
+          "D2": "48"
+        }
+      },
+      {
+        "name": "Sketch3",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "15",
+          "D2": "50"
+        }
+      },
+      {
+        "name": "Sketch4",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "R5",
+          "D2": "10",
+          "D1": "40"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      -15.392,
+      15.933,
+      -2.653
+    ],
+    "cachedVolumeMm3": 111000.0,
+    "cachedMassGrams": 888.475
+  },
+  {
+    "source": "scratch/planchard/official-companion-2021/Chapter 10 CSWA Models/Part Modeling-Question 6B.SLDPRT",
+    "sourceSha256": "90cf207fcedacc2f7bc94a135a92e7475d56c7f76e7ba0f781d4639edc47c7d9",
+    "folder": "scratch\\planchard\\official-basic-q6b-container",
+    "verifiedBlocks": 44,
+    "material": [
+      "1060 Alloy"
+    ],
+    "densityKgM3": 2700.0,
+    "densityField": {
+      "file": "scratch\\planchard\\official-basic-q6b-container\\005-Contents_Config-0-LWDATA.bin",
+      "offset": 84,
+      "encoding": "float64LE"
+    },
+    "cachedMassPropertyTuples": [
+      "-0.016248, 0.015506, -0.002666, 0.000115, 0.027094, 0.309747, 0.000074, 0.000482, 0.000475, -0.000016, -0.000034, 0.000001, 1.000000, 0.000000"
+    ],
+    "namedDimensions": [
+      {
+        "name": "Cut-Extrude6",
+        "type": "Cut-Extrude",
+        "dimensions": {
+          "D1": "2"
+        }
+      },
+      {
+        "name": "Boss-Extrude1",
+        "type": "Boss-Extrude",
+        "dimensions": {
+          "D1": "40"
+        }
+      },
+      {
+        "name": "Cut-Extrude1",
+        "type": "Extrusion",
+        "dimensions": {
+          "D1": "25"
+        }
+      },
+      {
+        "name": "Fillet2",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R7"
+        }
+      },
+      {
+        "name": "Fillet3",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R7"
+        }
+      },
+      {
+        "name": "Fillet5",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R7"
+        }
+      },
+      {
+        "name": "Fillet6",
+        "type": "Fillet",
+        "dimensions": {
+          "D1": "R7"
+        }
+      },
+      {
+        "name": "Coordinate System1",
+        "type": "Coordinate System",
+        "dimensions": {}
+      },
+      {
+        "name": "Sketch10",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "2"
+        }
+      },
+      {
+        "name": "Sketch1",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "140",
+          "D2": "30",
+          "D3": "15",
+          "D4": "65.00\u00b0",
+          "D11": "15",
+          "D13": "45",
+          "D8": "15",
+          "D6": "8",
+          "D5": "15",
+          "D7": "60.00\u00b0",
+          "D12": "15",
+          "D10": "R30",
+          "D9": "R10"
+        }
+      },
+      {
+        "name": "Sketch2",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "<MOD-DIAM>4",
+          "D1": "15",
+          "D2": "48"
+        }
+      },
+      {
+        "name": "Sketch3",
+        "type": "Sketch",
+        "dimensions": {
+          "D1": "15",
+          "D2": "50"
+        }
+      },
+      {
+        "name": "Sketch4",
+        "type": "Sketch",
+        "dimensions": {
+          "D3": "R5",
+          "D2": "10",
+          "D1": "40"
+        }
+      }
+    ],
+    "cachedPhysicalCOMmm": [
+      -16.247999999999998,
+      15.506,
+      -2.666
+    ],
+    "cachedVolumeMm3": 115000.0,
+    "cachedMassGrams": 309.747
+  }
+]
