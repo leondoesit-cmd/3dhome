@@ -288,6 +288,8 @@ export var TXT = {
   drawPaperPolyline: ["קו רציף על הדף", "Paper polyline"],
   drawPaperRectangle: ["מלבן על הדף", "Paper rectangle"],
   drawPaperCircle: ["מעגל על הדף", "Paper circle"],
+  drawPaperArc: ["קשת על הדף", "Paper arc"],
+  drawPaperArcHint: ["בחר התחלה, נקודה על הקשת וסיום. Shift ליישור, Ctrl ללא הצמדה. Escape מבטל; לחיצה כפולה לעריכה.", "Pick start, a point on the arc, then end. Shift aligns, Ctrl bypasses snapping. Escape cancels; double-click edits the three paper points. Annotations do not change CAD geometry."],
   drawPaperHint: ["בחר נקודות על הדף במ״מ; Shift ליישור, Ctrl ללא הצמדה. Enter מסיים קו רציף; Escape מבטל. לחיצה כפולה לעריכה.", "Pick paper points in mm; Shift aligns, Ctrl bypasses snapping. Enter finishes a polyline; Escape cancels. Double-click to edit. Annotations do not change CAD geometry."],
   drawToolNote: ["הערה", "Note"],
   drawToolSection: ["חתך", "Section"],

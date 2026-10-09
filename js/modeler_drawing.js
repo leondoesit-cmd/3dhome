@@ -213,7 +213,7 @@ export function createDrawingController(host) {
     if (item.type === "arc") {
       const centre = toScreen({ x: item.cx, y: item.cy });
       strokeStyleFor(c, item.style);
-      c.beginPath(); c.arc(centre.x, centre.y, Math.max(0.4, item.r * state.zoom), item.a0, item.a1); c.stroke();
+      c.beginPath(); c.arc(centre.x, centre.y, Math.max(0.4, item.r * state.zoom), item.a0, item.a1,!!item.anticlockwise); c.stroke();
       return;
     }
     if (item.type === "poly") {
@@ -367,7 +367,7 @@ export function createDrawingController(host) {
     c.strokeStyle = "#e08030";
     c.lineWidth = 1.4;
     if (draft.kind==='primitive') {
-      const points=draft.points.concat(state.cursor);
+      const points=draft.type==='arc' && draft.points.length>=2 ? draft.points.slice(0,2).concat(state.cursor) : draft.points.concat(state.cursor);
       try { for(const item of drawingPrimitiveItems({type:draft.type,points,style:'outline'}))paintItem(c,{...item,style:'highlight'}); } catch { /* First pick may coincide with cursor. */ }
       return;
     }
@@ -693,10 +693,14 @@ export function createDrawingController(host) {
       if(state.draft?.kind!=='primitive')state.draft={kind:'primitive',type,points:[point]};
       else {
         if(Math.hypot(point.x-previous.x,point.y-previous.y)<1e-8)return true;
-        if(type==='polyline')state.draft.points.push(point);
+        if(type==='arc') {
+          state.draft.points=state.draft.points.slice(0,2).concat(point);
+          if(state.draft.points.length===3)commitPrimitive(state.draft);
+        }
+        else if(type==='polyline')state.draft.points.push(point);
         else state.draft.points=[state.draft.points[0],point];
-        if(type!=='polyline')commitPrimitive(state.draft);
-        else if(state.draft.points.length>3 && Math.hypot(point.x-state.draft.points[0].x,point.y-state.draft.points[0].y)<1e-8)commitPrimitive(state.draft);
+        if(type!=='polyline' && type!=='arc')commitPrimitive(state.draft);
+        else if(type==='polyline' && state.draft.points.length>3 && Math.hypot(point.x-state.draft.points[0].x,point.y-state.draft.points[0].y)<1e-8)commitPrimitive(state.draft);
       }
       host.refresh();return true;
     }

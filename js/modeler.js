@@ -4072,6 +4072,7 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="sheetpolyline">' + cadIcon("spoly") + '<span>' + t("drawPaperPolyline") + '</span></button>' +
     '<button type="button" data-drawing-tool="sheetrect">' + cadIcon("srect") + '<span>' + t("drawPaperRectangle") + '</span></button>' +
     '<button type="button" data-drawing-tool="sheetcircle">' + cadIcon("scirc") + '<span>' + t("drawPaperCircle") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetarc">' + cadIcon("sarc") + '<span>' + t("drawPaperArc") + '</span></button>' +
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
     '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
@@ -12259,6 +12260,7 @@ function drawingHintText() {
   if (tool === "section") return t("drawSectionHint");
   if (tool === "detail") return t("drawDetailHint");
   if (tool === "note") return t("drawNoteHint");
+  if (tool === "sheetarc") return t("drawPaperArcHint");
   if (["sheetline","sheetpolyline","sheetrect","sheetcircle"].includes(tool)) return t("drawPaperHint");
   return t("drawingHint");
 }

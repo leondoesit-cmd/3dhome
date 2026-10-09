@@ -1831,7 +1831,7 @@ export function sceneToSvg(scene, options = {}) {
       const x2 = item.cx + Math.cos(item.a1) * item.r, y2 = item.cy + Math.sin(item.a1) * item.r;
       const large = Math.abs(item.a1 - item.a0) > Math.PI ? 1 : 0;
       parts.push('<path d="M' + round3(x1) + "," + round3(y1) + "A" + round3(item.r) + "," + round3(item.r) +
-        " 0 " + large + ' 1 ' + round3(x2) + "," + round3(y2) + '" ' + strokeAttrs(item.style) + "/>");
+        " 0 " + large + (item.anticlockwise ? ' 0 ' : ' 1 ') + round3(x2) + "," + round3(y2) + '" ' + strokeAttrs(item.style) + "/>");
     } else if (item.type === "poly") {
       if(item.paths) {
         const path=item.paths.map(points=>"M"+points.map(point=>round3(point.x)+","+round3(point.y)).join("L")+"Z").join("");
