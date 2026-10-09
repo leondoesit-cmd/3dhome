@@ -1,0 +1,64 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q6-Q6A-official-source-closed-browser-2026-10-09.mforge",
+  "checks": {
+    "featuresUnchanged": true,
+    "sketchesUnchanged": true,
+    "historyUnchanged": true,
+    "engineeringMaterialsUnchanged": true,
+    "parametersUnchanged": true,
+    "localFrameUnchanged": true,
+    "partAuthoredDataUnchanged": true,
+    "sourceFrameOrigin": true,
+    "sourceFrameIdentityAxes": true,
+    "referenceFrameConsistent": true
+  },
+  "pass": true,
+  "namedFrame": {
+    "id": "coordsys_mv0855ox",
+    "type": "coordinate_system",
+    "name": "Q6A Coordinate System1 — source chamfer vertex",
+    "origin": {
+      "x": 10,
+      "y": -7.5,
+      "z": -4
+    },
+    "xAxis": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "zAxis": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "namedFrameCenterOfMassMm": {
+    "x": -64.09223015411307,
+    "y": 75.00000000000001,
+    "z": 40.70149361764672
+  },
+  "physicalNativeAuditReused": "ADVANCED-Q6-official-source-final-native-audit-2026-10-09.json",
+  "partCacheOnlyChangedFields": [
+    "exactBuildToken",
+    "meshData"
+  ],
+  "parentObservedBrowserDurability": {
+    "lowerWall25To25point2": {
+      "volumeMm3": 523790.2,
+      "massG": 4085.563
+    },
+    "undoRestored": {
+      "volumeMm3": 522989.2,
+      "massG": 4079.316
+    },
+    "coldSavedLibrary8Steps1Native": true,
+    "namedFramePersistedAndReevaluated": true
+  },
+  "scope": "Fast read-only authoreddata equality; noheavy regeneration necessary whengeometry/material unchanged."
+}

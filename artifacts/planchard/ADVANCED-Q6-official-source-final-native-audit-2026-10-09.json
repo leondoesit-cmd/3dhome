@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q6-official-source-final-browser-2026-10-09.mforge",
+  "exact": true,
+  "featureCount": 10,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 522.9892179780045,
+    "maxToleranceCm": 0.0001
+  },
+  "volumeCm3": 522.9892179780045,
+  "boundsCm": {
+    "min": {
+      "x": 0,
+      "y": -7.5,
+      "z": -5
+    },
+    "max": {
+      "x": 10,
+      "y": 7.5,
+      "z": 5
+    }
+  },
+  "centerOfMassCm": {
+    "x": 3.5907769845886937,
+    "y": 1.3042735928035601e-15,
+    "z": 0.07014936176467267
+  },
+  "seconds": 6.4341183
+}

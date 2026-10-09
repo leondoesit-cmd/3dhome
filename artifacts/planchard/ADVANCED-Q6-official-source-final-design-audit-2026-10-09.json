@@ -1,0 +1,63 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q6-official-source-final-browser-2026-10-09.mforge",
+  "bytes": 442364,
+  "sha256": "934b5ce65f208f00d6bbf0c07ae6fbc0372feaa31455b208ece3aa42df63072b",
+  "checks": {
+    "fiveFeatures": true,
+    "threeSketches": true,
+    "eightHistory": true,
+    "allActive": true,
+    "allStoredFullyDefined": true,
+    "priorFourFeaturesExact": true,
+    "priorTwoSketchesExact": true,
+    "sourceScallopCoordinates": true,
+    "allSevenPointsFixed": true,
+    "tenConstraints": true,
+    "threeLinesTwoArcs": true,
+    "sourceRadius30": true,
+    "reverseYThroughAllLatest": true,
+    "sourceDensity78": true,
+    "sourceReferenceRetained": true,
+    "nativeOneValid": true,
+    "sourceVolume": true,
+    "stepEquivalent": true
+  },
+  "geometryPass": true,
+  "volumeMm3": 522989.2179780045,
+  "massG": 4079.315900228435,
+  "centerOfMassMm": {
+    "x": 35.90776984588694,
+    "y": 1.3042735928035601e-14,
+    "z": 0.7014936176467267
+  },
+  "scallopRemovedMm3": 44999.99999999966,
+  "scallopCounts": {
+    "points": 7,
+    "fixedConstraints": 7,
+    "totalConstraints": 10
+  },
+  "material": {
+    "catalogId": "stock:plainCarbonSteel",
+    "grade": "Plain Carbon Steel (grade unspecified)",
+    "density": 7.8,
+    "densitySource": "Official SDC Planchard Engineering Graphics SOLIDWORKS2021 companion Advanced Part Modeling-Question6/6A.SLDPRT source Plain Carbon Steel density7800kg/m³; exercise reference, grade/condition unspecified and no strength rating.",
+    "condition": "",
+    "source": "",
+    "model": "qualified-rating",
+    "youngModulusMPa": 0,
+    "poissonRatio": 0,
+    "allowableBendingMPa": 0,
+    "allowableContactMPa": 0,
+    "minTemperatureC": 0,
+    "maxTemperatureC": 0,
+    "maxCycles": 0,
+    "maxHours": 0,
+    "maxRpm": 0,
+    "environment": "",
+    "lubrication": "",
+    "id": 5485
+  },
+  "inputUnchanged": true,
+  "pending": "Parent browserShell parameterdriveUndo/cold andQ6Ameasurementframe not audited here.",
+  "scope": "Read-only actualexport/nativecloneaudit; sourcegeometry notimported."
+}

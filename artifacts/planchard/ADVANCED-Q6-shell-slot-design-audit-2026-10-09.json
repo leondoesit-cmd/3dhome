@@ -1,0 +1,58 @@
+{
+  "source": "artifacts/planchard/ADVANCED-Q6-shell-slot-browser-2026-10-09.mforge",
+  "checks": {
+    "fourFeatures": true,
+    "twoSketches": true,
+    "sixHistory": true,
+    "allActive": true,
+    "fullyDefined": true,
+    "sourceCOutline": true,
+    "symmetric100Boss": true,
+    "outerFourChamfers10": true,
+    "threeOpenings": true,
+    "inside10And25Walls": true,
+    "slotSourcePoints": true,
+    "threeLinesOneArc": true,
+    "leftArcEndpointOrder": true,
+    "fivePointFixed": true,
+    "slotThroughAllReverseY": true,
+    "shellVolume655": true,
+    "slotNativeExpected": true
+  },
+  "pass": true,
+  "shellVolumeCm3": 655.0000000000003,
+  "native": {
+    "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\ADVANCED-Q6-shell-slot-browser-2026-10-09.mforge",
+    "exact": true,
+    "featureCount": 7,
+    "issues": [],
+    "nativeValidation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 567.9892179780041,
+      "maxToleranceCm": 0.0001
+    },
+    "volumeCm3": 567.9892179780041,
+    "boundsCm": {
+      "min": {
+        "x": 0,
+        "y": -7.5,
+        "z": -5
+      },
+      "max": {
+        "x": 10,
+        "y": 7.5,
+        "z": 5
+      }
+    },
+    "centerOfMassCm": {
+      "x": 3.3330619947073394,
+      "y": 1.501175120801571e-16,
+      "z": -4.809489353177263e-17
+    },
+    "seconds": 6.390968699999999
+  },
+  "material": "Unassigned/default7.85 at this checkpoint; required source7.8 assignment pending.",
+  "scope": "Read-only actual exported features/native regeneration; no dimension or authored-file mutations.",
+  "inputUnchanged": true
+}
