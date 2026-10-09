@@ -9962,6 +9962,7 @@ function finishSelectionMessage(type) {
 
 function syncActiveFeatureSelectionFeedback() {
   if(!root || !E.authoring || !E.authoring.featureType)return;
+  if(E.authoring.featurePreviewState?.syncFinishBodyTarget)E.authoring.featurePreviewState.syncFinishBodyTarget();
   if(E.authoring.featurePreviewState?.syncTerminatingFace)E.authoring.featurePreviewState.syncTerminatingFace();
   if(E.authoring.featurePreviewState?.syncShellThicknesses)E.authoring.featurePreviewState.syncShellThicknesses();
   var note=root.querySelector("#mdQuickSettings [data-live-selection]");
@@ -10134,6 +10135,54 @@ function addShellFaceThicknessControls(host,state,onChange,editedFeature=null,op
   return editor;
 }
 
+function finishBodyTargetChoices() {
+  return activeParts(E.def).filter(partSupportsExactMesh).map(function(part){
+    var head=cutTargetFeatureId(part),feature=(E.def.features || []).find(function(item){return item.id===head;});
+    return {part:part,value:part.id,head:head,label:(part.name || part.id)+(feature?" · "+feature.name:"")};
+  }).filter(function(choice){return !!choice.head;});
+}
+
+function finishBodyForTreeSelection(choices,selectedIds) {
+  if(selectedIds.length!==1)return null;
+  var features=new Map((E.def.features || []).map(function(feature){return [feature.id,feature];}));
+  var reaches=function(id,wanted,seen){
+    if(id===wanted)return true;if(seen.has(id))return false;seen.add(id);
+    return (features.get(id)?.inputs || []).some(function(input){return reaches(dependencyReferenceId(input),wanted,seen);});
+  };
+  var matches=choices.filter(function(choice){return reaches(choice.head,selectedIds[0],new Set());});
+  return matches.length===1 ? matches[0].part : null;
+}
+
+function addFinishBodyTargetControl(host,type,state) {
+  if(!FINISH_FEATURES.includes(type))return null;
+  var choices=finishBodyTargetChoices(),selected=selectedSolid();
+  if(!selected){
+    selected=finishBodyForTreeSelection(choices,selectedFeatureIds());
+    if(selected){E.sel=selected;E.ssel=[];E.topologySelection=[];E.authoring.finishEdgePool=[];}
+  }
+  var picker=featureField(host,{key:"$finishTargetBody",label:t("finishTargetBody"),type:"select",choices:[{value:"",label:t("finishChooseBody")}].concat(choices)},selected?.id || "");
+  var hint=el("p","md-field-hint",t("finishTargetBodyHint"));host.appendChild(hint);
+  picker.value=selected?.id || "";
+  picker.addEventListener("change",function(){
+    var chosen=finishBodyTargetChoices().find(function(choice){return choice.value===picker.value;});
+    E.sel=chosen?.part || null;E.ssel=[];E.topologySelection=[];E.authoring.finishEdgePool=[];
+    E.authoring.featureSelection=[];
+    syncActiveFeatureSelectionFeedback();
+    queueNewFeaturePreview(type,state,E.authoring.featurePreviewBadge);refreshLivePreview();
+  });
+  state.syncFinishBodyTarget=function(){
+    if(!selectedSolid()){
+      var treeBody=finishBodyForTreeSelection(finishBodyTargetChoices(),selectedFeatureIds());
+      if(treeBody){
+        E.sel=treeBody;E.ssel=[];E.topologySelection=[];E.authoring.finishEdgePool=[];
+        queueNewFeaturePreview(type,state,E.authoring.featurePreviewBadge);
+      }
+    }
+    picker.value=selectedSolid()?.id || "";
+  };
+  return picker;
+}
+
 function openParametricFeature(type, repeatedParams) {
   E.collectingFeature = false;
   if(E.docType!=="part")return;if(E.mode==="drawing")setMode("3d");
@@ -10193,6 +10242,7 @@ function openParametricFeature(type, repeatedParams) {
   if (repeatedParams) state.params = {...state.params, ...cloneData(repeatedParams)};
   var liveBadge=el("div","md-feature-live",'<i class="ph ph-broadcast"></i> '+t("livePreviewReady"));host.appendChild(liveBadge);
   E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;
+  addFinishBodyTargetControl(host,type,state);
   var controls=renderFeatureParameterForm(host,type,state,function(next){state.params=next.params;state.references={...state.references,...next.references};E.depth=Number(state.params.depth)||E.depth;E.baseOff=Number(state.params.offset)||0;if(type==="fillet")renderFinishEdgeList();if(shellEditor)shellEditor.sync();queueNewFeaturePreview(type,state,liveBadge);});
   var shellEditor=addShellFaceThicknessControls(host,state,function(){queueNewFeaturePreview(type,state,liveBadge);});
   addTerminatingFaceChoices(host,type,state,liveBadge,controls);

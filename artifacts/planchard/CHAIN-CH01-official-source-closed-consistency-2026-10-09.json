@@ -1,0 +1,36 @@
+{
+  "source": "artifacts/planchard/CHAIN-CH01-official-source-closed-browser-2026-10-09.mforge",
+  "checks": {
+    "featuresUnchanged": true,
+    "sketchesUnchanged": true,
+    "historyUnchanged": true,
+    "engineeringMaterialsUnchanged": true,
+    "parametersUnchanged": true,
+    "localFrameUnchanged": true,
+    "referencesUnchanged": true,
+    "authoredPartDataUnchanged": true,
+    "standardReferenceGeometryInitializedOnly": true
+  },
+  "pass": true,
+  "changedModelKeys": [
+    "parts",
+    "lastRebuild",
+    "referenceGeometry",
+    "customProperties",
+    "exactTopologyCache",
+    "lastStandardsAudit"
+  ],
+  "partChangedKeys": [
+    "exactBuildToken",
+    "meshData"
+  ],
+  "parentObservedBrowserDurability": {
+    "upperDiameter100To100point2": true,
+    "undoRestoredNominal": true,
+    "coldLibrary14StepsMaterialProperties": true,
+    "chamferShellChooserCancelNoEdit": true
+  },
+  "nativeEvidenceReused": "CHAIN-CH01-official-source-native-audit-2026-10-09.json",
+  "scope": "Read-only exactauthoring comparison; cachesandacceptanceDescriptionpermitted.",
+  "referenceGeometryChange": "Initialized six standard planes/axes identical to existing canonicalreferences; no customgeometry."
+}
