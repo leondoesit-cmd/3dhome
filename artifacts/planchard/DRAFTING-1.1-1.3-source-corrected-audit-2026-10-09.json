@@ -1,0 +1,133 @@
+{
+  "pass": true,
+  "scope": "Actual browser worksheet source-answer and internal projection consistency audit. No CAD model authoring. Cold pending.",
+  "checks": {
+    "authoredCadGeometryPreservedBeforeNoteRepair": true,
+    "noSolidFeaturesOrParts": true,
+    "noAuthoredSketchGeometry": true,
+    "eightPrimitivesThreeNotesNoCadViews": true,
+    "stylesThreeOutlineTwoHiddenThreeCenter": true,
+    "thirdAngleAnswers": true,
+    "firstAngleAnswers": true,
+    "allNoteRowsPresentInSvg": true,
+    "endCirclesConcentric": true,
+    "sideOuterBoundsMatchEndDiameter": true,
+    "sideHiddenBoundsMatchBoreDiameter": true,
+    "inputBytesUnchanged": true
+  },
+  "cadPresentFields": {
+    "schemaVersion": true,
+    "id": true,
+    "key": true,
+    "name": true,
+    "kind": true,
+    "authoringMode": true,
+    "localFrame": true,
+    "references": true,
+    "parameters": true,
+    "sketches": true,
+    "features": true,
+    "history": false,
+    "parts": true,
+    "assemblies": true,
+    "appearances": true,
+    "notes": true,
+    "markups": true,
+    "rules": true,
+    "metadata": true,
+    "topologyBindings": true,
+    "namedSelections": true,
+    "revision": true,
+    "lastRebuild": false,
+    "price": true,
+    "col": true,
+    "constraints": true,
+    "rollback": true,
+    "activeSketch": true,
+    "variables": true,
+    "referenceGeometry": true,
+    "definitionId": true,
+    "documentVersion": true,
+    "context": true,
+    "customProperties": true,
+    "lastStandardsAudit": false,
+    "exactTopologyCache": true
+  },
+  "noteRowCounts": [
+    3,
+    3,
+    6
+  ],
+  "geometry": {
+    "outerCenter": [
+      180,
+      176
+    ],
+    "outerRadius": 25.0,
+    "innerRadius": 10.0,
+    "sideOuterY": [
+      151,
+      201
+    ],
+    "sideHiddenY": [
+      166,
+      186
+    ],
+    "requiredOuterY": [
+      151.0,
+      201.0
+    ],
+    "requiredHiddenY": [
+      166.0,
+      186.0
+    ]
+  },
+  "inputs": [
+    {
+      "path": "artifacts\\planchard\\DRAFTING-1.1-1.3-before-note-repair-browser-2026-10-09.mforge",
+      "sha256": "eee00b907125761eccca299f5c30852287c7d883c8b5abc8e3b24ad544baa22c"
+    },
+    {
+      "path": "artifacts\\planchard\\DRAFTING-1.1-1.3-source-corrected-browser-2026-10-09.mforge",
+      "sha256": "299a8eb5d1ff9f0ae999ecdcd896b0dfbf6cc7d15333b4c97536bb218c5165b8"
+    }
+  ],
+  "qualification": "Zero physical solids; empty default sketch retained, not fabricated geometry. Paper dimensions instructional. Failed qualified checkpoint remains separate. Cold pending.",
+  "qualifiedToCurrentPresentCadFields": {
+    "schemaVersion": true,
+    "id": true,
+    "key": true,
+    "name": true,
+    "kind": true,
+    "authoringMode": true,
+    "localFrame": true,
+    "references": true,
+    "parameters": true,
+    "sketches": true,
+    "features": true,
+    "history": true,
+    "parts": true,
+    "assemblies": true,
+    "appearances": true,
+    "notes": true,
+    "markups": true,
+    "rules": true,
+    "metadata": true,
+    "topologyBindings": true,
+    "namedSelections": true,
+    "revision": true,
+    "price": true,
+    "col": true,
+    "constraints": true,
+    "rollback": true,
+    "activeSketch": true,
+    "variables": true,
+    "referenceGeometry": true,
+    "definitionId": true,
+    "documentVersion": true,
+    "context": true,
+    "customProperties": true,
+    "exactTopologyCache": true
+  },
+  "currentKey": "cm_mv0jjp09"
+}

@@ -1,0 +1,253 @@
+{
+  "scope": "Read-only finite source/evidence classification, not recreated-work acceptance",
+  "rows": [
+    {
+      "pdf": "80",
+      "printed": "1-52",
+      "topic": "Exercises1.1/1.2: six-view naming, third-angle and first-angle",
+      "classification": "Answer/label exercise",
+      "evidence": "No dedicated answer evidence located",
+      "next": "Annotate six source views; no new solid necessary."
+    },
+    {
+      "pdf": "81",
+      "printed": "1-53",
+      "topic": "Exercise1.3 line types;1.4 missing Top view",
+      "classification": "1.3 answers;1.4 graphic reconstruction",
+      "evidence": "No dedicated exercise-sheet evidence located",
+      "next": "Label source line types; draw Top visible/hidden/center lines from source figure with estimated scale explicitly labelled."
+    },
+    {
+      "pdf": "82",
+      "printed": "1-54",
+      "topic": "Exercises1.5 Right view;1.6 Front/Top/Right",
+      "classification": "Graphic reconstruction; estimated dimensions",
+      "evidence": "No dedicated exercise-sheet evidence located",
+      "next": "Create separate estimated-scale projections; do not infer certified dimensions."
+    },
+    {
+      "pdf": "83",
+      "printed": "1-55",
+      "topic": "Exercise1.7 three views",
+      "classification": "Graphic reconstruction; estimated dimensions",
+      "evidence": "No dedicated exercise-sheet evidence located",
+      "next": "Produce Front/Top/Right figure-derived exercise views."
+    },
+    {
+      "pdf": "84–85",
+      "printed": "1-56–57",
+      "topic": "Exercises1.8/1.9 isometric from three views",
+      "classification": "Graphic reconstruction",
+      "evidence": "No dedicated exercise-sheet evidence located",
+      "next": "Reconstruct source view geometry in a new browser exercise document; preserve inferred-scale label."
+    },
+    {
+      "pdf": "86",
+      "printed": "1-58",
+      "topic": "Exercise1.10 isometric;1.11 surface-letter visibility",
+      "classification": "Graphic reconstruction + answers",
+      "evidence": "No dedicated exercise-sheet evidence located",
+      "next": "Isometric exercise plus explicit Front/Top/Right surface-letter table."
+    },
+    {
+      "pdf": "87–91",
+      "printed": "2-1–5",
+      "topic": "Chapter aims;axonometric/isometric/dimetric/trimetric",
+      "classification": "Explanatory theory",
+      "evidence": "Source text reviewed; accepted parts demonstrate isometric only",
+      "next": "Record concise concept answers; only demonstrate other orientations if requested by exercise coverage."
+    },
+    {
+      "pdf": "92",
+      "printed": "2-6",
+      "topic": "Cube isometric construction exercise",
+      "classification": "Explicit graphic exercise; size arbitrary",
+      "evidence": "No dedicated cube exercise evidence located",
+      "next": "Fresh browser cube at disclosed illustrative size, isometric axes/projection proof; no fabricated source size."
+    },
+    {
+      "pdf": "93–94",
+      "printed": "2-7–8",
+      "topic": "Cylinder ellipse construction",
+      "classification": "Worked drawing explanation",
+      "evidence": "Source text reviewed; no dedicated example reproduction",
+      "next": "Use new illustrative cylinder drawing if exact-example reproduction required; label arbitrary size."
+    },
+    {
+      "pdf": "95–98",
+      "printed": "2-9–12",
+      "topic": "Oblique Cavalier/Cabinet;perspective",
+      "classification": "Explanatory projection comparisons",
+      "evidence": "No dedicated oblique comparison evidence located",
+      "next": "Concept/annotated-axis evidence; generic perspective already possible, CAD axis projection capability not audited here."
+    },
+    {
+      "pdf": "99–100",
+      "printed": "2-13–14",
+      "topic": "View arrangement;third-angle;two-view drawing",
+      "classification": "Explanatory drawing convention",
+      "evidence": "Accepted FLAT/LINKS/AP/SH third-angle sheets provide workflow evidence",
+      "next": "Reference accepted sheets, do not redo models; add explicit two-view/first-angle comparison only for unanswered learning outcomes."
+    },
+    {
+      "pdf": "101–104",
+      "printed": "2-15–18",
+      "topic": "Dimension/annotation/fastener examples",
+      "classification": "Worked drafting explanation",
+      "evidence": "Accepted feature/drawing BOM and source annotation sheets are relevant, not identical example reproductions",
+      "next": "Map examples to evidence; record any missing annotation outcomes rather than invent new dimensioned parts."
+    },
+    {
+      "pdf": "105",
+      "printed": "2-19",
+      "topic": "Exercise1 freehand isometric estimate",
+      "classification": "Explicit graphic exercise",
+      "evidence": "No dedicated answer artifact located",
+      "next": "Fresh source-figure exercise drawing at labelled approximate size."
+    },
+    {
+      "pdf": "106",
+      "printed": "2-20",
+      "topic": "Exercise2 name views,width/height/depth",
+      "classification": "Answer/annotation exercise;no dimensions required",
+      "evidence": "No dedicated answer artifact located",
+      "next": "Annotate source view names and W/H/D; no CAD geometry required."
+    },
+    {
+      "pdf": "107–108",
+      "printed": "2-21–22",
+      "topic": "Section views/material hatch;unsectioned ribs",
+      "classification": "Explanatory advanced drafting",
+      "evidence": "Source reviewed; accepted exploded/standard sheets do not prove all advanced view types",
+      "next": "Inventory actual Section controls/evidence before declaring recreated; no exact new part prompt here."
+    },
+    {
+      "pdf": "109–112",
+      "printed": "2-23–26",
+      "topic": "Detail;section/detail dependency;broken-out;break;crop",
+      "classification": "Worked advanced drawing examples",
+      "evidence": "No matched actual-browser examples located in this finite scan",
+      "next": "One bounded advanced-drawing demonstration using an accepted part may close workflow outcomes; distinguish child views/local removal/break/crop."
+    },
+    {
+      "pdf": "113",
+      "printed": "2-27",
+      "topic": "Auxiliary view;Exercise1 label named views",
+      "classification": "Theory plus explicit answer exercise",
+      "evidence": "Source reviewed; no answer-sheet artifact located",
+      "next": "Label illustrated views; auxiliary demonstration only if missing app workflow proof."
+    },
+    {
+      "pdf": "114–117",
+      "printed": "2-28–31",
+      "topic": "CAD history;Boolean union/difference/intersection;SOLIDWORKS overview",
+      "classification": "Explanatory theory/tutorial pointer",
+      "evidence": "Accepted parts prove many union/difference actions, not dedicated intersection demonstration",
+      "next": "Write concept coverage; optional fresh two-body intersection demonstration with disclosed dimensions. No historical/software claims need browser recreation."
+    },
+    {
+      "pdf": "118–119",
+      "printed": "2-32–33",
+      "topic": "Features/driving relations;design intent",
+      "classification": "Explanatory parametric workflow",
+      "evidence": "Accepted Q1–6 driving/Undo/cold audits directly relevant",
+      "next": "Link existing exact driving tests; no repeat parts."
+    },
+    {
+      "pdf": "120",
+      "printed": "2-34",
+      "topic": "Centered/midpoint rectangles;mid-plane;tooth pattern32→24;Shell-before-Fillet",
+      "classification": "Worked design-intent examples",
+      "evidence": "Actual midpoint and pattern-specific evidence not located by this finite scan",
+      "next": "Bounded illustrative browser sketch/feature demonstrations only for unproved examples; exact graph-card dimensions require visual crop."
+    },
+    {
+      "pdf": "121",
+      "printed": "2-35",
+      "topic": "Component pattern;TUBE tolerance+.000/−.002 andMaterialSS316 propagation",
+      "classification": "Worked assembly/drawing examples",
+      "evidence": "AP subassembly/BOM relevant; exactTUBE tolerance propagation proof not located",
+      "next": "Validate one existing source part tolerance/material drawing linkage; component-pattern example requires actual browser evidence separately."
+    },
+    {
+      "pdf": "488",
+      "printed": "10-8",
+      "topic": "Drafting competency example;Advanced Bracket screenshot A64/B20/C26.50 steel7.9",
+      "classification": "Exam category screenshot,not complete standalone numbered exercise",
+      "evidence": "Accepted Advanced1–6 must not be equated to this different bracket screenshot",
+      "next": "Source-only inspect screenshot/companion availability; no mass or geometry acceptance from3parameters alone."
+    },
+    {
+      "pdf": "489",
+      "printed": "10-9",
+      "topic": "Advanced Connector screenshot A104/B100/C20 caststainless7.7",
+      "classification": "Exam category screenshot,partial prompt",
+      "evidence": "No matching connector acceptance located",
+      "next": "Do not fabricate omitted source geometry/material grade. Record source availability limitation; complete official prompt needed for exact reconstruction."
+    },
+    {
+      "pdf": "495",
+      "printed": "10-15",
+      "topic": "Hydraulic-cylinder-half/wheel/connecting-rod exam summary",
+      "classification": "Exam overview screenshot,not geometry prompt",
+      "evidence": "No exact standalone dimensions on page",
+      "next": "No independent CAD task from summary row; retain as theory/exam guidance."
+    },
+    {
+      "pdf": "516",
+      "printed": "10-36",
+      "topic": "Older-exam cylinder/linkage;named coordinate system mass",
+      "classification": "Illustrated workflow,partial assembly prompt",
+      "evidence": "No source-matched linkage acceptance located; named-frame workflow accepted Q6B/Chain differsgeometry",
+      "next": "Recreate named-coordinate measurement workflow on accepted assembly; source-specific linkage remains partial until parts/poses/materials resolved."
+    },
+    {
+      "pdf": "517",
+      "printed": "10-37",
+      "topic": "Cylinder/linkage component screenshots +differenthandle example",
+      "classification": "Dimensioned screenshot fragments,not fully specified exercise",
+      "evidence": "Visual source inspected; no exactmatched acceptance",
+      "next": "Cylinder250 outerD50/boreD30×200 and cleviswidth60 split30; bar700×45×30 slotR7.5/endD15; redlinkcenters600/300,width40/thickness20/D15; pin150D15/headD25×15. Treat as provisional source-fragment extraction, not complete model recipe/material/assembly specification."
+    },
+    {
+      "pdf": "518",
+      "printed": "10-38",
+      "topic": "Connecting-rod assembly distance mate18mm",
+      "classification": "Illustrated measure/mate workflow;partial source assembly",
+      "evidence": "Visual source inspected; existing native Distance workflows relevant butdifferentgeometry",
+      "next": "Source gap not evidence appgap. Demonstrate18mm native mate/Measure on new illustrative or existing suitable assembly, clearly label surrogate."
+    },
+    {
+      "pdf": "519",
+      "printed": "10-39",
+      "topic": "Grip assembly Angle26°",
+      "classification": "Illustrated measure/mate workflow;partial geometry",
+      "evidence": "Visual source inspected; Chain angular-drive workflow relevant butdifferentgeometry",
+      "next": "Demonstrate26° native angle/Measure workflow only as labelled generic evidence; no exactGrip assembly claim."
+    },
+    {
+      "pdf": "520",
+      "printed": "10-40",
+      "topic": "Notes",
+      "classification": "Blank notes page",
+      "evidence": "Reviewed",
+      "next": "No CAD/browser task."
+    }
+  ],
+  "nextLeg": "PDF80–86 annotated drafting exercise pack; then92/105/106/113",
+  "sourceVisualPages": [
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    516,
+    517,
+    518,
+    519
+  ],
+  "authoredModels": false,
+  "visualCorrection": "PDF80 contains Exercise1.1 omitted by OCR; no exercise completion claimed."
+}
