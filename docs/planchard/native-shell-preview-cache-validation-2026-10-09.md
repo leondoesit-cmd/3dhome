@@ -1,0 +1,9 @@
+# Native Shell preview/commit cache validation
+
+Full-CI diagnostic isolated `canonical adapter Shell commit reuses its exact preview with lowered array references` in `tests/cad_worker.test.mjs`. Isolated reproduction failed only the cache-hit assertion; native commit still regenerated successfully. The cylinder-only fixture has no union, and its base geometry keys are identical before/after commit. The defect is unrelated to BasicQ4's f1e0488 union transport correction or accepted Q4 geometry.
+
+The preview request omits `faceThicknesses`; committing a canonical Shell adds its catalog default `faceThicknesses:[]`. Both request the same uniform native Shell, but the finish-preview cache key distinguished them. A narrow semantic helper now adds that default only to the key representation of a Shell with an undefined override list. Caller recipes, geometry, targets and every nonempty per-face override remain unchanged. Fillet and other finish parameters are untouched. New print worker dispatch is preserved.
+
+The actual native canonical preview→commit integration test now requires cache reuse, equivalent native material and no mutation of the preview request. Separate tests prove actual override lists, changed face IDs and changed override thicknesses produce distinct cache recipes. The existing worker suite still verifies upstream changes and parameter overrides invalidate cached native results.
+
+Focused `cad_worker.test.mjs` plus `finish_cache_parameters.test.mjs`: **14/14 PASS**. Required source gates PASS: no free identifiers,657 linked modules,1489 source assertions. Initial isolated failure is retained in `scratch/planchard/ci-2026-10-09-current.log`; the uncontrolled full-CI run was aborted by parent after Chrome became unresponsive, so it is not a completed full-suite result. Parent owns the subsequent bounded full-suite report. No browser models or ADVANCE were changed by this repair.

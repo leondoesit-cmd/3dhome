@@ -138,7 +138,7 @@ import {
 import { trimEntity, extendEntity, offsetEntity, toggleConstruction, projectLoop } from "./sketch_trim.js";
 import { mirrorEntities, linearPatternEntities, circularPatternEntities } from "./sketch_pattern.js";
 import { addFeature, ensureFeatureTree, releaseRegeneration } from "./cad_feature_tree.js";
-import { regenerateInCadWorker as regenerateFeatures, finishInCadWorker, interferenceInCadWorker, assemblyStepInCadWorker, partStepInCadWorker, cutIntersectionInCadWorker, surfaceSectionsInCadWorker, topologyInCadWorker, cadWorkerAvailable, cancelCadWorkerWork, cadWorkerActivity, subscribeCadWorkerActivity } from './core/cad_worker_client.js';
+import { regenerateInCadWorker as regenerateFeatures, finishInCadWorker, interferenceInCadWorker, assemblyStepInCadWorker, assemblyPrintInCadWorker, partStepInCadWorker, cutIntersectionInCadWorker, surfaceSectionsInCadWorker, topologyInCadWorker, cadWorkerAvailable, cancelCadWorkerWork, cadWorkerActivity, subscribeCadWorkerActivity } from './core/cad_worker_client.js';
 import { interferenceDocument } from './core/worker_interference.js';
 import { assemblyInterferenceScope } from './core/assembly_interference_scope.js';
 import {canonicalFeatureTopologyReferences,featureInputStage} from './core/feature_input_stage.js';
@@ -4004,6 +4004,12 @@ function buildDOM() {
         commandButton("interference", t("interferenceCheck")),
         commandButton("bom", t("billOfMaterials"), null, "", t("billOfMaterials")),
         commandButton("motion", t("motionStudy"), null, "", t("motionStudy")),
+      ]) +
+      commandGroup("grpFile", [
+        commandButton("printsetup", "Print setup"),
+        commandButton("stlout", t("exportStl")),
+        commandButton("3mfout", "Export 3MF"),
+        commandButton("amfout", "Export AMF"),
       ]) +
     '</div></div></div>' +
     '<div class="md-body">' +
@@ -25778,29 +25784,46 @@ async function exportIgesDocument(unqualifiedDraft) {
 }
 
 async function openPrintSetupForm() {
-  if(E.docType!=="part")return;
-  var run=exactRunIsCurrent()?E.brepRun:await regenerateExactModel();
-  if(!run?.ok || !run.finalShape){flash("Print setup needs a closed native solid",4000);return;}
-  var mesh;
-  try{mesh=await shapeToMeshData(run.finalShape,{deflection:0.002,angle:0.08});}
-  catch(error){flash(String(error.message || error),4000);return;}
-  var saved=E.def.printSetup || {},preview=el("div","md-print-bed-preview"),inputs;
+  if(E.docType!=="part" && E.docType!=="assembly")return;
+  var printDocument=E.docType==="assembly"?E.assembly:E.def,assemblyPreview=null,mesh,sourceStamp;
+  if(E.docType==="assembly"){
+    if(rejectFlexibleSpringPreview())return;
+    try{
+      var requests=assemblyPrintRequests();sourceStamp=JSON.stringify(requests);
+      assemblyPreview=await assemblyPrintInCadWorker(requests,{previewOnly:true,quality:"fine"},{onProgress:function(p){flash((p.name || p.stage)+"…");}});
+      if(E.docType!=="assembly" || E.assembly!==printDocument || sourceStamp!==JSON.stringify(assemblyPrintRequests()))throw new Error("Assembly changed during print preparation; reopen Print setup");
+    }catch(error){flash(String(error.message || error),6000);return;}
+  }else{
+    var run=exactRunIsCurrent()?E.brepRun:await regenerateExactModel();
+    if(!run?.ok || !run.finalShape){flash("Print setup needs a closed native solid",4000);return;}
+    try{mesh=await shapeToMeshData(run.finalShape,{deflection:0.002,angle:0.08});}
+    catch(error){flash(String(error.message || error),4000);return;}
+  }
+  var saved=printDocument.printSetup || {},preview=el("div","md-print-bed-preview"),inputs;
   function show(values){
     try{
-      var ext=printSetupExtents(mesh.positions,values.basePlane),w=Number(values.bedWidthMm),d=Number(values.bedDepthMm),h=Number(values.bedHeightMm);
+      var ext=assemblyPreview?assemblyPreview.orientations[values.basePlane]:printSetupExtents(mesh.positions,values.basePlane),w=Number(values.bedWidthMm),d=Number(values.bedDepthMm),h=Number(values.bedHeightMm);
       var fits=w>0 && d>0 && h>0 && ext.widthMm<=w+0.001 && ext.depthMm<=d+0.001 && ext.heightMm<=h+0.001;
       var scale=180/Math.max(w || 1,d || 1,ext.widthMm,ext.depthMm),color=fits?"#55d9e5":"#ff7070";
-      preview.innerHTML='<svg viewBox="0 0 220 220" role="img" aria-label="Centered part footprint on print bed"><rect x="'+(110-w*scale/2)+'" y="'+(110-d*scale/2)+'" width="'+(w*scale)+'" height="'+(d*scale)+'" fill="none" stroke="currentColor"/><rect x="'+(110-ext.widthMm*scale/2)+'" y="'+(110-ext.depthMm*scale/2)+'" width="'+(ext.widthMm*scale)+'" height="'+(ext.depthMm*scale)+'" fill="'+color+'" fill-opacity="0.25" stroke="'+color+'"/></svg><p>'+ext.widthMm.toFixed(2)+' × '+ext.depthMm.toFixed(2)+' × '+ext.heightMm.toFixed(2)+' mm · '+(fits?'Fits print bed':'Exceeds print bed')+'</p><small>Export is centered in X/Y with lowest Z at 0 mm.</small>';
+      var footprints=ext.footprints?ext.footprints.map(function(item){return '<rect x="'+(110+item.xMm*scale)+'" y="'+(110+item.yMm*scale)+'" width="'+item.widthMm*scale+'" height="'+item.depthMm*scale+'" fill="'+color+'" fill-opacity="0.25" stroke="'+color+'"/>';}).join(""):'<rect x="'+(110-ext.widthMm*scale/2)+'" y="'+(110-ext.depthMm*scale/2)+'" width="'+(ext.widthMm*scale)+'" height="'+(ext.depthMm*scale)+'" fill="'+color+'" fill-opacity="0.25" stroke="'+color+'"/>';
+      preview.innerHTML='<svg viewBox="0 0 220 220" role="img" aria-label="Centered component bounding footprints on print bed"><rect x="'+(110-w*scale/2)+'" y="'+(110-d*scale/2)+'" width="'+(w*scale)+'" height="'+(d*scale)+'" fill="none" stroke="currentColor"/>'+footprints+'</svg><p>'+ext.widthMm.toFixed(2)+' × '+ext.depthMm.toFixed(2)+' × '+ext.heightMm.toFixed(2)+' mm · '+(fits?'Fits print bed':'Exceeds print bed')+'</p><small>Export is centered in X/Y with lowest Z at 0 mm.'+(ext.footprints?.some(function(item){return item.lowestZMm>.001;})?' Some components are above the bed; inspect support needs.':'')+(ext.footprintOverlaps?.length?' '+ext.footprintOverlaps.length+' bounding-footprint overlap(s). This is a conservative tray warning; use Interference check for exact geometry.':'')+'</small>';
     }catch(error){preview.textContent=String(error.message || error);}
   }
-  inputs=openQuickForm({action:"printsetup",icon:"ph-printer",title:"Print setup",hint:"Choose the base plane and printer volume. STL, 3MF and AMF exports use this orientation and placement.",fields:[
+  inputs=openQuickForm({action:"printsetup",icon:"ph-printer",title:"Print setup",hint:assemblyPreview?"Print snapshot of "+assemblyPreview.bodies+" exact visible components. Their current spacing is preserved; one orientation applies to the complete layout. Check interference, bed contact and support needs. CAD histories and mates remain in the source assembly.":"Choose the base plane and printer volume. STL, 3MF and AMF exports use this orientation and placement.",fields:[
     {key:"basePlane",label:"Base plane",type:"select",value:saved.basePlane || "top",choices:[{value:"top",label:"Top (X · Z)"},{value:"front",label:"Front (X · Y)"},{value:"right",label:"Right (Z · Y)"}]},
     {key:"bedWidthMm",label:"Bed width (mm)",type:"number",value:saved.bedWidthMm || 220,min:1,max:100000},
     {key:"bedDepthMm",label:"Bed depth (mm)",type:"number",value:saved.bedDepthMm || 220,min:1,max:100000},
     {key:"bedHeightMm",label:"Build height (mm)",type:"number",value:saved.bedHeightMm || 250,min:1,max:100000}
   ],onLive:show,onApply:function(values){
-    try{prepareNativePrintPositions(mesh.positions,values);}catch(error){flash(error.message,4000);return false;}
-    pushUndo("Print setup");E.def.printSetup=cloneData(values);flash("Print setup saved for STL, 3MF and AMF");return true;
+    try{
+      if(assemblyPreview){
+        if(E.docType!=="assembly" || E.assembly!==printDocument || sourceStamp!==JSON.stringify(assemblyPrintRequests()))throw new Error("Assembly changed; reopen Print setup");
+        var ext=assemblyPreview.orientations[values.basePlane],limits=[values.bedWidthMm,values.bedDepthMm,values.bedHeightMm].map(Number);
+        if(!ext || limits.some(v=>!Number.isFinite(v)||v<=0||v>100000))throw new Error("Enter positive print-bed dimensions in millimeters");
+        if([ext.widthMm,ext.depthMm,ext.heightMm].some((v,i)=>v>limits[i]+.001))throw new Error("Part exceeds the selected print-bed size in this orientation");
+      }else prepareNativePrintPositions(mesh.positions,values);
+    }catch(error){flash(error.message,4000);return false;}
+    pushUndo("Print setup");printDocument.printSetup=cloneData(values);flash("Print setup saved for STL, 3MF and AMF");return true;
   }});
   if(inputs){var actions=root.querySelector("#mdQuickSettings .md-feature-actions");actions?.before(preview);show(Object.fromEntries(Object.entries(inputs).map(function(pair){return [pair[0],pair[1].value];})));}
 }
@@ -25814,9 +25837,9 @@ function applyPrintMeshExportSettings(settings) {
 }
 
 function openStlExportForm(format) {
-  if(E.docType!=="part")return;
+  if(E.docType!=="part" && E.docType!=="assembly")return;
   format=format==="3mf" || format==="amf" ? format : "stl";
-  var saved=E.def.stlExportSettings || {},inputs;
+  var printDocument=E.docType==="assembly"?E.assembly:E.def,saved=printDocument.stlExportSettings || {},inputs;
   inputs=openQuickForm({action:"stlexport",icon:"ph-printer",title:format.toUpperCase()+" export",hint:format!=="stl" ? format.toUpperCase()+" includes millimeter units and a closed mesh in Z-up print coordinates. Smaller deviation and angle preserve curved surfaces with more triangles." : "STL coordinates are millimeters. Smaller deviation and angle preserve curved surfaces with more triangles. Export requires a closed native solid.",fields:[
     {key:"quality",label:"Resolution",type:"select",value:saved.quality || "fine",choices:[{value:"coarse",label:"Coarse"},{value:"fine",label:"Fine"},{value:"custom",label:"Custom"}]},
     {key:"deviationMm",label:"Deviation (mm)",type:"number",value:saved.deviationMm ?? 0.01,min:0.0001,max:100,step:0.001},
@@ -25824,9 +25847,11 @@ function openStlExportForm(format) {
   ],onLive:function(values){
     ["deviationMm","angleDegrees"].forEach(function(key){var wrap=inputs?.[key]?.closest(".md-quick-field");if(wrap)wrap.classList.toggle("parameter-hidden",values.quality!=="custom");});
   },onApply:function(values){
+    if((E.docType==="assembly"?E.assembly:E.def)!==printDocument)return false;
     var settings={quality:values.quality,deviationMm:Number(values.deviationMm),angleDegrees:Number(values.angleDegrees)};
-    if(E.def.printSetup)settings.printSetup=cloneData(E.def.printSetup);
+    if(printDocument.printSetup)settings.printSetup=cloneData(printDocument.printSetup);
     try{stlMeshOptions(settings);}catch(error){flash(error.message,4000);return false;}
+    if(E.docType==="assembly")return exportAssemblyPrintDocument(settings,format,printDocument);
     applyPrintMeshExportSettings(settings);
     if(format!=="stl")exportThreeMfDocument(settings,format);else exportStlDocument(settings);return true;
   }});
@@ -26635,6 +26660,29 @@ function motionScrewMateLabel(mate) {
   var hand=mate.handedness==='lh' || mate.handedness==='left' ? 'LH' : 'RH';
   return (mate.name || 'Screw mate')+' · '+labelOf(mate.a?.componentId)+' ↔ '+labelOf(mate.b?.componentId)
     +' · lead '+modelLengthText(Number(mate.pitch)||0,6)+' '+modelLengthUnit()+'/turn · '+hand+' · #'+mate.id;
+}
+
+function assemblyPrintRequests() {
+  if(!E.assembly)throw new Error("No assembly is open");
+  return flattenAssembly(E.assembly,{visibleOnly:true}).map(function(occurrence){
+    var component=occurrence.component,def=componentDef(component),place=occurrence.placement;
+    return {id:component.id,occurrenceId:occurrence.path.join("/"),label:occurrence.parents.concat(component).map(function(item){return item.name || item.modelKey || item.assemblyKey || String(item.id);}).join(" / "),
+      document:def?.metadata?.authoringSystem==="parametric-v1" && (activeParts(def).length===1 || hasSingleToolboxKernelRecipe(def,activeParts(def)))?interferenceDocument(def):null,
+      placement:{matrix:[place.x.x,place.y.x,place.z.x,place.x.y,place.y.y,place.z.y,place.x.z,place.y.z,place.z.z],translation:place.origin}};
+  });
+}
+
+async function exportAssemblyPrintDocument(settings,format,printDocument) {
+  if(rejectFlexibleSpringPreview())return false;
+  if(E.docType!=="assembly" || E.assembly!==printDocument)return false;
+  try{
+    var requests=assemblyPrintRequests(),stamp=JSON.stringify(requests),name=printDocument.name || "Assembly print";
+    var result=await assemblyPrintInCadWorker(requests,{...settings,format,name},{onProgress:function(p){flash((p.name || p.stage)+"…");}});
+    if(E.docType!=="assembly" || E.assembly!==printDocument || stamp!==JSON.stringify(assemblyPrintRequests()))throw new Error("Assembly changed during export; export again from its current pose");
+    pushUndo("Print mesh export settings");printDocument.stlExportSettings=cloneData(settings);
+    downloadBytes(result.bytes,name+"."+format,format==="3mf"?"model/3mf":format==="amf"?"application/xml":"model/stl");
+    flash("✓ "+format.toUpperCase()+" · "+result.bodies+" exact components · mm · Z-up");return true;
+  }catch(error){flash("Assembly print export failed: "+String(error.message || error),6000);return false;}
 }
 function createDefaultMotionStudy() {
   if (E.docType !== "assembly" || !E.assembly || !E.assembly.components.length) return;

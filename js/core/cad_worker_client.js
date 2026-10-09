@@ -114,6 +114,10 @@ export function assemblyStepInCadWorker(components,options={}) {
   if(!cadWorkerAvailable())throw new Error('Assembly STEP export needs a browser CAD worker');
   return browserClient().request({kind:'assembly-step',components},{...options,scope:'assembly-step'});
 }
+export function assemblyPrintInCadWorker(components,settings,options={}) {
+  if(!cadWorkerAvailable())throw new Error('Assembly print export needs a browser CAD worker');
+  return browserClient().request({kind:'assembly-print',components,settings},{...options,scope:'assembly-print'});
+}
 export function partStepInCadWorker(document,name,options={}) {
   if(!cadWorkerAvailable())throw new Error('Part STEP export needs a browser CAD worker');
   return browserClient().request({kind:'part-step',canonical:document?.metadata?.authoringSystem==='parametric-v1',document:cadWorkerDocument(document),name,options:{parameterOverrides:options.parameterOverrides}},{...options,scope:'part-step'});

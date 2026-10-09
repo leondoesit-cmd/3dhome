@@ -4,12 +4,14 @@ import { stableStringify } from './dependency_graph.js';
 import { createTopologyRegistry, resolveTopologyReference } from './topology.js';
 import { resolveFinishFace } from './finish_face_reference.js';
 import { workerInterference, workerAssemblyStep } from './worker_interference.js';
+import {workerAssemblyPrint} from './worker_assembly_print.js';
 import { isWorkerCacheBody } from './worker_body_cache.js';
 import { createNativeBodyStore } from './native_body_store.js';
 import { leavesInputStanding } from './rebuild.js';
 import { toolFeatureRecipe } from './tool_recipe.js';
 import {collectNativeSections} from './native_section_query.js';
 import {nativeOperationRevisions} from './native_operation_revision.js';
+import {finishCacheParameters} from './finish_cache_parameters.js';
 import {
   serializeBrep, deserializeBrep, extractBrepTopology, hydrateSerializedBrepTopology, disposeBrep, shapeToMeshData, shapeMassProperties, shapeSolidCount, exportStep,
   shellBrep, filletBrep, chamferBrep, domeBrep, draftBrep, makeBrepExtrusion, brepMaterialIntersection, brepFaceLineIntersections,
@@ -100,7 +102,7 @@ export function cadWorkerGeometryKeys(document,features,options={}) {
 function targetKey(targets=[]) {
   return targets.map(({kind,persistentId,ownerFeatureId,semantic,descriptor})=>({kind,persistentId,ownerFeatureId,semantic,descriptor}));
 }
-function finishKey(sourceKey,type,params,targets) {return geometryKey({sourceKey,type,params,targets:targetKey(targets)});}
+function finishKey(sourceKey,type,params,targets) {return geometryKey({sourceKey,type,params:finishCacheParameters(type,params),targets:targetKey(targets)});}
 export function nativeWorkerHeads(document,run,requestedHead) {
   if(requestedHead)return new Set([requestedHead]);
   const consumed=new Set((document.features || []).filter(feature=>!feature.suppressed && run.results.has(feature.id) && !leavesInputStanding(document,feature)).flatMap(feature=>feature.inputs || []));
@@ -161,6 +163,7 @@ export function createCadWorkerExecutor({bodyStore=createNativeBodyStore()}={}) 
   return async function execute(request,progress=()=>{}) {
     if(request.kind==='interference')return workerInterference(request.components,rebuild,progress);
     if(request.kind==='assembly-step')return workerAssemblyStep(request.components,rebuild,progress);
+    if(request.kind==='assembly-print')return workerAssemblyPrint(request.components,request.settings,rebuild,progress);
     progress({stage:'start',name:request.kind==='finish'?request.type:'Exact model'});
     let document=request.document;
     if(request.canonical){const compiled=compileKernelFeatureTree(document);if(!compiled.ok)throw new Error(compiled.issues[0]?.message || 'Invalid feature history');document={...compiled.document,features:compiled.features};}

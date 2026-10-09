@@ -1,0 +1,117 @@
+{
+  "scope": "Read-only actual previously accepted Chapter11 downloads; no new Chrome acceptance, external slicer or physical print claim.",
+  "checks": {
+    "sameTrianglesAtPoint0001Mm": true,
+    "allPositiveMeshVolume": true,
+    "allCenteredBedLevel": true,
+    "amfThreeMfExplicitMillimeterClosed": true,
+    "allActualInputsUnchanged": true
+  },
+  "pass": true,
+  "bundle": {
+    "input": "artifacts\\planchard\\CH11-print-setup-browser-2026-09-30.mforge",
+    "name": "Planchard Chapter 11 - print resolution sample - fresh 2026-09-30",
+    "key": "cm_munihw81",
+    "printSetup": {
+      "basePlane": "front",
+      "bedWidthMm": 30,
+      "bedDepthMm": 30,
+      "bedHeightMm": 30
+    },
+    "stlExportSettings": {
+      "quality": "custom",
+      "deviationMm": 0.01,
+      "angleDegrees": 5,
+      "printSetup": {
+        "basePlane": "front",
+        "bedWidthMm": 30,
+        "bedDepthMm": 30,
+        "bedHeightMm": 30
+      }
+    }
+  },
+  "records": [
+    {
+      "input": "artifacts\\planchard\\CH11-print-setup-browser-2026-09-30.stl",
+      "sha256": "5d482bc5b3f5db6e79833f61873c3a99a1b617590cbe97a63c9057f70be51884",
+      "bytes": 28884,
+      "triangles": 576,
+      "explicitUnits": false,
+      "header": "ModelForge binary STL; coordinates in mm; Planchard Chapter 11 - print resolutio",
+      "boundsMm": {
+        "min": [
+          -9.99941349029541,
+          -5.0,
+          0.0
+        ],
+        "max": [
+          9.99941349029541,
+          5.0,
+          19.997652053833008
+        ]
+      },
+      "signedVolumeMm3": 3140.6095605170203,
+      "inputUnmodified": true
+    },
+    {
+      "input": "artifacts\\planchard\\CH11-print-setup-browser-2026-09-30.3mf",
+      "sha256": "69faf371b31d8eb67d2aca8b732b0e3def08bc66703035ceddbb44b3c67c0a61",
+      "bytes": 40133,
+      "packageFiles": [
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "3D/3dmodel.model"
+      ],
+      "zipCrcValid": true,
+      "buildItems": [
+        {
+          "objectid": "1"
+        }
+      ],
+      "unit": "millimeter",
+      "explicitUnits": true,
+      "vertices": 290,
+      "triangles": 576,
+      "closedConsistentEdges": true,
+      "boundsMm": {
+        "min": [
+          -9.99941322783113,
+          -5.0,
+          0.0
+        ],
+        "max": [
+          9.99941322783113,
+          5.0,
+          19.997652980184842
+        ]
+      },
+      "signedVolumeMm3": 3140.609590068502,
+      "inputUnmodified": true
+    },
+    {
+      "input": "artifacts\\planchard\\CH11-print-setup-browser-2026-09-30.amf",
+      "sha256": "dae52bca737f8b53ca5dc37521fdd87b04406790f8f61d73f7bdf50ae0bf5a7c",
+      "bytes": 61826,
+      "version": "1.2",
+      "unit": "millimeter",
+      "explicitUnits": true,
+      "vertices": 290,
+      "triangles": 576,
+      "closedConsistentEdges": true,
+      "boundsMm": {
+        "min": [
+          -9.99941322783113,
+          -5.0,
+          0.0
+        ],
+        "max": [
+          9.99941322783113,
+          5.0,
+          19.997652980184842
+        ]
+      },
+      "signedVolumeMm3": 3140.609590068502,
+      "inputUnmodified": true
+    }
+  ]
+}

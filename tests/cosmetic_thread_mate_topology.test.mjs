@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {currentNativeFixtureProof} from './helpers/current_native_proof.mjs';
 import {captureExactTopology,verifiedFinalTopology} from '../js/core/exact_topology_cache.js';
 import {compileKernelFeatureTree} from '../js/core/kernel_feature_adapter.js';
 import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js';
@@ -9,9 +10,10 @@ import {interferenceDocument} from '../js/core/worker_interference.js';
 
 const fixture=()=>JSON.parse(fs.readFileSync(new URL('./fixtures/clamp-lead-screw-browser-recipe.json',import.meta.url),'utf8'));
 
-test('saved fresh lead screw trailing cosmetic thread preserves verified native cylindrical mate references',()=>{
+test('saved fresh lead screw trailing cosmetic thread preserves verified native cylindrical mate references',async()=>{
   const document=fixture(),compiled=compileKernelFeatureTree(interferenceDocument(document));
   assert.equal(compiled.ok,true,JSON.stringify(compiled.issues));
+  document.exactTopologyCache=await currentNativeFixtureProof(document);
   const entries=verifiedFinalTopology(document,compiled.features);
   assert.ok(entries.length>0,'saved exact native faces are available before an assembly display restore');
   const choices=exactMateReferenceChoices(entries,document.features,'mm');

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {currentNativeFixtureProof} from './helpers/current_native_proof.mjs';
 import {solveTopologyMates, topologyReference, captureLockPose} from '../js/cad_mates.js';
 import {createMotionStudy, addRotaryMotor, evaluateMotionStudy} from '../js/cad_motion_study.js';
 
@@ -32,9 +33,15 @@ test('a free spindle picked first stays free when its concentric and seat mates 
   assert.equal(reopened.components[1].transform.ry,0,'the slide stays seated on ground');
 });
 
-test('fresh Drill Guide closed loop retains three freedoms with spindle picked as reference', () => {
+test('fresh Drill Guide closed loop retains three freedoms with spindle picked as reference', async () => {
   const bundle=JSON.parse(readFileSync(new URL('../artifacts/planchard/DG-assembly-physical-mates-browser-2026-10-03.mforge',import.meta.url),'utf8'));
   const assembly=bundle.assemblies[0];
+  const proofs=new Map();
+  for(const component of assembly.components){
+    const key=JSON.stringify(component.def);
+    if(!proofs.has(key))proofs.set(key,await currentNativeFixtureProof(component.def));
+    component.def.exactTopologyCache=structuredClone(proofs.get(key));
+  }
   assert.equal(assembly.components.length,17);
   assert.equal(assembly.topologyMates.length,22);
   assert.equal(assembly.components.filter(component=>component.grounded).length,1);

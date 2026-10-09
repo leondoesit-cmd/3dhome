@@ -70,10 +70,18 @@ function storedZip(files) {
 
 export function threeMfFromPositions(positions,name) {
   const mesh=printMeshFromPositions(positions);
+  return threeMfFromMeshes([mesh],name);
+}
+
+export function threeMfFromMeshes(meshes,name='ModelForge') {
+  if(!meshes?.length)throw new Error('3MF needs a print mesh');
+  const objects=meshes.map((mesh,index)=>'<object id="'+(index+1)+'" type="model" name="'+xmlText(mesh.name || ('Component '+(index+1)))+'"><metadatagroup><metadata name="mf:occurrence" preserve="true">'+xmlText(mesh.occurrenceId || String(index+1))+'</metadata></metadatagroup><mesh><vertices>'+mesh.vertices.map(p=>'<vertex x="'+p[0]+'" y="'+p[1]+'" z="'+p[2]+'"/>').join('')+'</vertices><triangles>'+mesh.triangles.map(t=>'<triangle v1="'+t[0]+'" v2="'+t[1]+'" v3="'+t[2]+'"/>').join('')+'</triangles></mesh></object>').join('');
+  const model=meshes.length===1 && !meshes[0].occurrenceId?threeMfModelXml(meshes[0],name):
+    '<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:mf="urn:modelforge:print"><metadata name="Title">'+xmlText(name)+'</metadata><metadata name="Description">Placed assembly print snapshot; separate native component occurrences, no editable CAD feature history.</metadata><resources>'+objects+'</resources><build>'+meshes.map((_,index)=>'<item objectid="'+(index+1)+'"/>').join('')+'</build></model>';
   return storedZip([
     ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>'],
     ['_rels/.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel1" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>'],
-    ['3D/3dmodel.model',threeMfModelXml(mesh,name)]
+    ['3D/3dmodel.model',model]
   ]);
 }
 

@@ -16,6 +16,6 @@ test('pending exact rebuild does not coach topology repairs; settled failures re
  assert.ok(api({...issue,code:'ambiguous-topology-reference',severity:'warning'}),'settled unresolved warning is not masked');
 });
 test('actual Q4 settled export has no residual Fillet lost-selection issue',()=>{
- const d=JSON.parse(readFileSync(new URL('../artifacts/planchard/BASIC-Q4-current-native-preflight-browser-2026-10-09.mforge',import.meta.url),'utf8')).mainModel;
+ const d=JSON.parse(readFileSync(new URL('../artifacts/planchard/BASIC-Q4-fixed-cold-accepted-browser-2026-10-09.mforge',import.meta.url),'utf8')).mainModel;
  const r=rebuildParametricDocument(structuredClone(d));assert.equal(r.ok,true);assert.deepEqual(r.issues,[]);assert.equal(d.features.find(f=>f.type==='fillet').state,'rebuilt');
 });

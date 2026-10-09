@@ -204,10 +204,15 @@ test('canonical adapter Shell commit reuses its exact preview with lowered array
   const first=await execute({kind:'regenerate',canonical:true,document});
   const cap=first.results[0][1].topology.find(item=>item.kind==='face' && item.descriptor.surface==='plane');
   const params={thickness:.2,direction:'inside',tolerance:.001,join:'arc',removeOpenings:true};
-  await execute({kind:'finish',canonical:true,document,head:'base',type:'shell',params,amount:.2,targets:[cap]});
+  const preview=await execute({kind:'finish',canonical:true,document,head:'base',type:'shell',params,amount:.2,targets:[cap]});
+  const previewBody=await deserializeBrep(preview.body.bytes);
+  const previewMass=await shapeMassProperties(previewBody);disposeBrep(previewBody);
   createFeatureDefinition(document,'shell',{id:'shell',inputs:['base'],references:{features:['base'],topology:[cap]},params});
   const compiled=compileKernelFeatureTree(document);assert.equal(compiled.ok,true);
   assert.ok(Array.isArray(compiled.features.at(-1).references));
-  const progress=[],run=await execute({kind:'regenerate',document:{...compiled.document,features:compiled.features}},value=>progress.push(value));
+  const progress=[],run=await execute({kind:'regenerate',document:{...compiled.document,features:compiled.features},massProperties:true},value=>progress.push(value));
   assert.equal(run.ok,true);assert.ok(progress.some(value=>value.stage==='cache'));
+  const committedMass=run.results.find(([id])=>id==='shell')[1].massProperties;
+  assert.ok(Math.abs(committedMass.volume-previewMass.volume)<1e-9,'preview reuse preserves exact native Shell material');
+  assert.equal(params.faceThicknesses,undefined,'cache normalization never changes the caller recipe');
 });
