@@ -1324,7 +1324,7 @@ export function buildSheetScene(doc, provider, options = {}) {
       }
       if (showCenters && round.visible && round.kind === "round") items.push(...centreMark(round, toSheet, k, view.id));
     }
-    if (showCenters) items.push(...axisCentrelines(projection.circles || [], toSheet, k, view.id));
+    if (showCenters) items.push(...axisCentrelines(projection.circles || [], toSheet, k, view.id, showHidden));
     const explodedView = doc.views.find(item => /^iso/.test(item.dir || ""));
     const explodeLeaders = (provider?.explodeLines || []).filter(leader =>
       leader.viewId ? leader.viewId === view.id : view.id === explodedView?.id);
@@ -1435,10 +1435,12 @@ function centreMark(round, toSheet, k, viewId) {
    ends; a machinist expects ONE axis, running the length of the feature and a
    few millimetres past it. So co-axial rims are merged before anything is
    inked. */
-function axisCentrelines(circles, toSheet, k, viewId) {
+function axisCentrelines(circles, toSheet, k, viewId, showHidden = false) {
   const groups = new Map();
   for (const round of circles) {
-    if (round.kind !== "edge" || !round.visible) continue;
+    // Hidden hole rims still define the side-view axis when hidden geometry
+    // is displayed. Hide their axis together with that geometry otherwise.
+    if (round.kind !== "edge" || (!round.visible && !showHidden)) continue;
     let du = round.axis.u, dv = -round.axis.v;
     const length = Math.hypot(du, dv);
     if (!(length > 1e-6)) continue;
