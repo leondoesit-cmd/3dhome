@@ -1,0 +1,119 @@
+{
+  "scope": "Read-only actual browser preflight and disposable native reconstruction. Coordinate guidance only; no authored geometry or source acceptance.",
+  "bundle": "BASIC-Q6B-current-code-preflight-browser-2026-10-09.mforge",
+  "key": "cm_munwntky_2123",
+  "documentUnits": {
+    "length": "mm",
+    "angle": "deg",
+    "mass": "kg",
+    "precision": 3
+  },
+  "pocketNativeFrameMm": {
+    "origin": {
+      "x": 2.500000000000009,
+      "y": 22.499999999999993,
+      "z": 20
+    },
+    "xAxis": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "holeNativeFrameMm": {
+    "origin": {
+      "x": -27.806644353139802,
+      "y": 30.301259225463948,
+      "z": 0
+    },
+    "xAxis": {
+      "x": 0.7071067811865409,
+      "y": -0.7071067811865541,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 0,
+      "z": -1
+    },
+    "normal": {
+      "x": 0.7071067811865541,
+      "y": 0.7071067811865409,
+      "z": 0
+    }
+  },
+  "holeStoredFrameMm": {
+    "origin": {
+      "x": -27.993840770394684,
+      "y": 30.488455642718847,
+      "z": 0
+    },
+    "xAxis": {
+      "x": 0.7071067811865407,
+      "y": -0.7071067811865543,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 0,
+      "z": -1
+    },
+    "normal": {
+      "x": 0.7071067811865545,
+      "y": 0.7071067811865405,
+      "z": 0
+    }
+  },
+  "checks": {
+    "correctKey": true,
+    "mmUnits": true,
+    "pocketOriginMatchesPlan": true,
+    "holeOriginMatchesPlan": true,
+    "holeVMinusZ": true,
+    "authoredExportUnchanged": true
+  },
+  "targetsLocalMm": [
+    {
+      "sketch": "sk_2tz4r",
+      "point": 1682,
+      "U": -20.505385127675076,
+      "V": -20.5
+    },
+    {
+      "sketch": "sk_2tz4r",
+      "point": 1660,
+      "U": -20.505385127675076,
+      "V": -3.382334536387244
+    },
+    {
+      "sketch": "sk_337tr",
+      "point": 1745,
+      "U": -3.375973433102504,
+      "V": 0
+    },
+    {
+      "sketch": "sk_337tr",
+      "point": 1749,
+      "U": 9.61440762366408,
+      "V": 7.5
+    },
+    {
+      "sketch": "sk_337tr",
+      "point": 1753,
+      "U": 9.61440762366408,
+      "V": -7.5
+    }
+  ],
+  "qualification": "Native alignment recentering differs from stored hole sketch frame. Targets are authored local U/V consumed in the independently verified native frame, before physical global X−5mm alignment. R7 denotes general Fillet1, not replacing explicit source R10/R30 profile arcs; source inspection also retains Sketch4R5.",
+  "pass": true
+}
