@@ -1,0 +1,342 @@
+{
+  "scope": "Read-only actual browser bundle; disposable native baseline and single existing diameter driving test. No authored model or browser edits.",
+  "bundle": "artifacts/planchard/BASIC-Q6B-source-qualified-browser-2026-10-09.mforge",
+  "bytes": 940617,
+  "checks": {
+    "nativeOneSolid": true,
+    "sourceWallHoleSketchesPreserved": true,
+    "upstreamFeaturesPreserved": true,
+    "moveMinus5Only": true,
+    "coordinateSystemSource": true,
+    "sourceBounds": true,
+    "sourceNominalDensity": true,
+    "driverFullyDefined": true,
+    "driverNativeValid": true,
+    "authoredExportUnchanged": true
+  },
+  "pass": true,
+  "nativeBaseline": {
+    "volume": 114.72162484464107,
+    "centerOfMass": {
+      "x": -1.6247778334964316,
+      "y": 1.5506081573889823,
+      "z": -0.266583535704196
+    },
+    "inertia": [
+      [
+        272.70465950760206,
+        60.85303847340998,
+        125.81122745632628
+      ],
+      [
+        60.85303847340998,
+        1786.9054950269567,
+        -4.4439763545716815
+      ],
+      [
+        125.81122745632628,
+        -4.4439763545716815,
+        1759.979139967887
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -7,
+        "y": 0,
+        "z": -2
+      },
+      "max": {
+        "x": 7,
+        "y": 4.499999999999984,
+        "z": 2
+      }
+    }
+  },
+  "sourceReportedCOMmm": {
+    "x": -86.24777833496431,
+    "y": 15.506081573889823,
+    "z": -22.66583535704196
+  },
+  "sourceNominalDensityGcm3": 2.7,
+  "sourceNominalMassG": 309.7483870805309,
+  "coordinateSystem": {
+    "id": "coordsys_mv0hr6b7",
+    "type": "coordinate_system",
+    "name": "Coordinate System1",
+    "origin": {
+      "x": 7,
+      "y": 0,
+      "z": 2
+    },
+    "xAxis": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "zAxis": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "activeCoordinateSystemId": "origin",
+  "driver": {
+    "sketch": "sk_337tr",
+    "circleEntity": 1744,
+    "diameterConstraint": 1746,
+    "centerPoint": 1745,
+    "edit": "central diameter 4.0 → 4.1 mm",
+    "nativeEdited": {
+      "volume": 114.70572053183228,
+      "centerOfMass": {
+        "x": -1.624392587378624,
+        "y": 1.5504924718789417,
+        "z": -0.2666204983589082
+      },
+      "inertia": [
+        [
+          272.6878249214648,
+          60.82014209612743,
+          125.79944551422733
+        ],
+        [
+          60.82014209612743,
+          1786.776935447394,
+          -4.440438356606329
+        ],
+        [
+          125.79944551422733,
+          -4.440438356606329,
+          1759.8366589278933
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -7,
+          "y": 0,
+          "z": -2
+        },
+        "max": {
+          "x": 7,
+          "y": 4.499999999999984,
+          "z": 2
+        }
+      }
+    },
+    "volumeDeltaMm3": -15.904312808785903,
+    "massDeltaG": -0.04294164458372194,
+    "ideal25MmCylinderDeltaMm3": -15.904312808798302,
+    "solverStatus": "fully-constrained"
+  },
+  "qualifications": [
+    "Coordinate System1 is persisted; activeCoordinateSystemId remains origin in the export. Parent separately verified world and named reporting through the transient Mass Properties selection; the stored origin field is not evidence of failed named UI reporting.",
+    "Printed source volume114721.22 mm³ differs from regenerated114721.624844641 mm³ by0.404844641 mm³ (0.000353%); no precision/BREP identity or target fitting claim.",
+    "Companion COM Y15.506 versus printed Y15.44 is retained as a source discrepancy.",
+    "R7 general fillet, R10/R30 source arcs,2mm copied inset and9.5mm pocket floor are unchanged because original sketches and feature params are exact preserved."
+  ],
+  "actualBrowserDriver": {
+    "bundle": "artifacts/planchard/BASIC-Q6B-driving-D4p1-browser-2026-10-09.mforge",
+    "bytes": 941534,
+    "diameterConstraints": [
+      {
+        "id": 1746,
+        "entity": 1744,
+        "type": "diameter",
+        "value": 0.41,
+        "exprError": null
+      },
+      {
+        "id": 1750,
+        "entity": 1748,
+        "type": "diameter",
+        "value": 0.4,
+        "exprError": null
+      },
+      {
+        "id": 1754,
+        "entity": 1752,
+        "type": "diameter",
+        "value": 0.4,
+        "exprError": null
+      }
+    ],
+    "native": {
+      "volume": 114.70572053183228,
+      "centerOfMass": {
+        "x": -1.624392587378624,
+        "y": 1.5504924718789417,
+        "z": -0.2666204983589082
+      },
+      "inertia": [
+        [
+          272.6878249214648,
+          60.82014209612743,
+          125.79944551422733
+        ],
+        [
+          60.82014209612743,
+          1786.776935447394,
+          -4.440438356606329
+        ],
+        [
+          125.79944551422733,
+          -4.440438356606329,
+          1759.8366589278933
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -7,
+          "y": 0,
+          "z": -2
+        },
+        "max": {
+          "x": 7,
+          "y": 4.499999999999984,
+          "z": 2
+        }
+      }
+    },
+    "deltaMm3": -15.904312808785903,
+    "analyticAgreementMm3": 1.2398970739013748e-11,
+    "checks": {
+      "nativeOneSolid": true,
+      "exactPredictedVolume": true,
+      "analyticDelta": true
+    }
+  },
+  "restoredAndSTEP": {
+    "bundle": "artifacts/planchard/BASIC-Q6B-driving-restored-browser-2026-10-09.mforge",
+    "bytes": 940639,
+    "step": "artifacts/planchard/BASIC-Q6B-source-qualified-browser-2026-10-09.step",
+    "stepBytes": 143178,
+    "native": {
+      "volume": 114.72162484464107,
+      "centerOfMass": {
+        "x": -1.6247778334964316,
+        "y": 1.5506081573889823,
+        "z": -0.266583535704196
+      },
+      "inertia": [
+        [
+          272.70465950760206,
+          60.85303847340998,
+          125.81122745632628
+        ],
+        [
+          60.85303847340998,
+          1786.9054950269567,
+          -4.4439763545716815
+        ],
+        [
+          125.81122745632628,
+          -4.4439763545716815,
+          1759.979139967887
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -7,
+          "y": 0,
+          "z": -2
+        },
+        "max": {
+          "x": 7,
+          "y": 4.499999999999984,
+          "z": 2
+        }
+      }
+    },
+    "stepNative": {
+      "volume": 114.72162484464418,
+      "centerOfMass": {
+        "x": -1.6247778334960874,
+        "y": 1.5506081573891202,
+        "z": -0.2665835357042198
+      },
+      "inertia": [
+        [
+          272.70465950763844,
+          60.85303847333029,
+          125.81122745632797
+        ],
+        [
+          60.85303847333029,
+          1786.9054950271316,
+          -4.443976354577437
+        ],
+        [
+          125.81122745632797,
+          -4.443976354577437,
+          1759.9791399680867
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -7,
+          "y": 0,
+          "z": -2
+        },
+        "max": {
+          "x": 7,
+          "y": 4.5,
+          "z": 2
+        }
+      }
+    },
+    "commonVolumeCm3": 114.72162484464106,
+    "nativeMinusStepCm3": 1.4210854715202004e-14,
+    "stepMinusNativeCm3": 3.126388037344441e-12,
+    "checks": {
+      "sourceSketchesExactlyRestored": true,
+      "sourceFeatureSpecsExactlyRestored": true,
+      "sourceDensityRestored": true,
+      "nominalVolumeRestored": true,
+      "stepOneSolid": true,
+      "bidirectionalShapePreserved": true
+    }
+  },
+  "coldPreservation": {
+    "baseline": "artifacts/planchard/BASIC-Q6B-driving-restored-browser-2026-10-09.mforge",
+    "cold": "artifacts/planchard/BASIC-Q6B-cold-accepted-browser-2026-10-09.mforge",
+    "coldBytes": 940569,
+    "checks": {
+      "allOtherPresentMainModelFieldsExact": true,
+      "noNewOrLostMainModelFields": true,
+      "sourceFeatureGraphExact": true,
+      "sourceSketchGeometryConstraintsExact": true,
+      "tenHistoryStepsExact": true,
+      "referenceFramesExact": true,
+      "exactTopologyCacheExact": true,
+      "partMetadataMaterialDensityExact": true,
+      "sourceDensity2p7": true,
+      "sourceDensityCitationPreserved": true,
+      "engineeringQualificationAndDescriptionExact": true,
+      "rebuildSuccessful": true,
+      "rebuildSignatureExact": true
+    },
+    "pass": true,
+    "onlyMainModelDifferences": [
+      "parts[0].meshData",
+      "lastRebuild"
+    ],
+    "meshDataChangedFields": [
+      "bounds"
+    ],
+    "lastRebuildChangedFields": [
+      "rebuiltAt"
+    ],
+    "parentBrowserEvidence": "Full reload; exact saved derivative; native1,10history,4fullydefined; clean Ctrl+S; density2.7/provenance/unrated and Description read with Cancel; world and named frame Mass Properties verified. Cold point values are established by exact export comparison, not claimed as visible UI reads.",
+    "recommendation": "Accept scoped source-qualified Q6B with documented printed-volume and COM-Y precision/source discrepancies; exact native BREP identity to the companion is not claimed."
+  }
+}

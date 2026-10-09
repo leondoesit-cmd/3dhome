@@ -1,0 +1,231 @@
+{
+  "date": "2026-10-09",
+  "status": "Read-only preparation; pending actual Chrome checks",
+  "inputMutation": false,
+  "plan": "docs/planchard/basic-q4-upstream-basic-q6-fresh-step-browser-plan-2026-10-09.md",
+  "parts": [
+    {
+      "stem": "CSWA-Q4-native-corner-repair-browser-2026-09-30",
+      "pending": [
+        "Actual Chrome38→38.2 driving edit and Undo/Redo/Undo",
+        "Save and cold nominal reopen",
+        "Actual contemporaneous restored bundle/STEP audit"
+      ],
+      "driver": {
+        "sketchId": "sk_3vrpx",
+        "circleId": 1543,
+        "centerId": 1544,
+        "constraintId": "dim_w9wwnjl",
+        "type": "diameter",
+        "nominalMm": 38,
+        "trialMm": 38.2,
+        "effectiveMaterialLengthMm": 25,
+        "predictedRemovalMm3": 299.23670025443244
+      },
+      "source": "artifacts/planchard/CSWA-Q4-native-corner-repair-browser-2026-09-30.mforge",
+      "sha256": "a1b5f47412312c0a927e6a62b566bbb0abced2d90554484d482475b75976467b",
+      "libraryKey": "cm_munu2oc3_2058",
+      "libraryName": "Planchard CSWA Q4 - native corner repair fresh 2026-09-30",
+      "authoredHistoryCount": 11,
+      "sketchCount": 5,
+      "featureCount": 6,
+      "history": [
+        {
+          "kind": "sketch",
+          "targetId": "sk_0eukc",
+          "name": "Front Plane sketch",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_muneete4_1",
+          "name": "Extrude / Boss 1",
+          "suppressed": false
+        },
+        {
+          "kind": "sketch",
+          "targetId": "sk_1v1o3",
+          "name": "Front Plane sketch",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_munejjoc_2",
+          "name": "Extrude Cut 1",
+          "suppressed": false
+        },
+        {
+          "kind": "sketch",
+          "targetId": "sk_2fd7u",
+          "name": "Top Plane sketch",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_munemv18_3",
+          "name": "Extrude / Boss 2",
+          "suppressed": false
+        },
+        {
+          "kind": "sketch",
+          "targetId": "sk_3vrpx",
+          "name": "Top Plane sketch",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_muneqqsk_4",
+          "name": "Extrude Cut 2",
+          "suppressed": false
+        },
+        {
+          "kind": "sketch",
+          "targetId": "sk_4vkvk",
+          "name": "Top Plane sketch",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_muneumsb_5",
+          "name": "Extrude Cut 3",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_munifpdt_2",
+          "name": "Fillet 1",
+          "suppressed": false
+        }
+      ],
+      "material": {
+        "name": "Aluminum 2014",
+        "densityGPerCm3": 2.8,
+        "densitySource": "Worthwill Aluminum, Density of Aluminum, p. 1: 2014, 2.8 g/cm³",
+        "catalogId": "stock:aluminum2014"
+      },
+      "native": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeMm3": 1227619.5416133357,
+        "massG": 3437.33471651734,
+        "centerOfMassMm": [
+          49.21297613678102,
+          46.88348639445608,
+          -0.000007452900958482617
+        ],
+        "boundsMm": [
+          127,
+          139,
+          254
+        ],
+        "maxToleranceCm": 0.00009024626352558272,
+        "expandedComputationalFeatureCount": 15,
+        "issues": []
+      }
+    },
+    {
+      "stem": "CSWA-Q6-final-fresh-browser-2026-09-30",
+      "pending": [
+        "Actual cold saved-library native proof",
+        "Fresh original BasicQ6 native STEP download",
+        "Bidirectional native/STEP Boolean equivalence audit"
+      ],
+      "driver": {
+        "sketchId": "sk_0y55i",
+        "constraintId": "dim_ycvx2rw",
+        "nominalMm": 130,
+        "editRequired": false
+      },
+      "source": "artifacts/planchard/CSWA-Q6-final-fresh-browser-2026-09-30.mforge",
+      "sha256": "821fc5562d34dd05edba976b13b8f09197989cf74457d4264cc3e713eca03da0",
+      "libraryKey": "cm_munj5xtw",
+      "libraryName": "Planchard CSWA Q6 - fresh print reconstruction 2026-09-30",
+      "authoredHistoryCount": 9,
+      "sketchCount": 4,
+      "featureCount": 5,
+      "history": [
+        {
+          "kind": "sketch",
+          "targetId": "sk_0y55i",
+          "name": "Front Plane sketch",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_munk5lbu_1",
+          "name": "Extrude / Boss 1",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_munk97pz_3",
+          "name": "Fillet 1",
+          "suppressed": false
+        },
+        {
+          "kind": "sketch",
+          "targetId": "sk_1m28x",
+          "name": "Top Plane sketch",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_munkdjxz_4",
+          "name": "Extrude Cut 1",
+          "suppressed": false
+        },
+        {
+          "kind": "sketch",
+          "targetId": "sk_2tz4r",
+          "name": "Face sketch",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_munkvcz1_5",
+          "name": "Extrude Cut 2",
+          "suppressed": false
+        },
+        {
+          "kind": "sketch",
+          "targetId": "sk_337tr",
+          "name": "Face sketch",
+          "suppressed": false
+        },
+        {
+          "kind": "feature",
+          "targetId": "feature_munljuhd_6",
+          "name": "Extrude Cut 3",
+          "suppressed": false
+        }
+      ],
+      "material": {
+        "name": "Steel 304",
+        "densityGPerCm3": 8,
+        "densitySource": "",
+        "catalogId": "stock:steel"
+      },
+      "native": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeMm3": 111060.44938734757,
+        "massG": 888.4835950987806,
+        "centerOfMassMm": [
+          -15.391968266914715,
+          15.933397671323482,
+          -2.6523646451238374
+        ],
+        "boundsMm": [
+          130,
+          45,
+          40
+        ],
+        "maxToleranceCm": 1.500000008881784e-7,
+        "expandedComputationalFeatureCount": 12,
+        "issues": [
+          "Four Fillet topology references rebound by analytic descriptors; warnings only"
+        ]
+      }
+    }
+  ]
+}

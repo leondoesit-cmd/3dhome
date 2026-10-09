@@ -1,0 +1,102 @@
+{
+  "scope": "Read-only actual browser export plus disposable native regeneration; no authored geometry changed. Native results captured by compileKernelFeatureTree/regenerateFeatures/shapeMassProperties.",
+  "bundle": "artifacts/planchard/BASIC-Q6B-source-manual-wall-browser-2026-10-09.mforge",
+  "bytes": 502815,
+  "points": [
+    {
+      "id": 1682,
+      "Umm": -20.505385127675076,
+      "Vmm": -20.500000000000004,
+      "fixedConstraint": {
+        "id": 5946,
+        "type": "fixed",
+        "point": 1682,
+        "x": -2.0505385127675075,
+        "y": -2.0500000000000003,
+        "exprError": null
+      }
+    },
+    {
+      "id": 1660,
+      "Umm": -20.505385127675183,
+      "Vmm": -3.382334536387463,
+      "fixedConstraint": {
+        "id": 5947,
+        "type": "fixed",
+        "point": 1660,
+        "x": -2.0505385127675075,
+        "y": -0.3382334536387244,
+        "exprError": null
+      }
+    }
+  ],
+  "vertical": {
+    "type": "vertical",
+    "entity": 1684,
+    "id": 1685,
+    "exprError": null,
+    "suppressed": false
+  },
+  "native": {
+    "issues": [],
+    "solidCount": 1,
+    "volumeMm3": 114721.624844641,
+    "pocketFrameOriginMm": {
+      "x": 2.500000000000009,
+      "y": 22.499999999999993,
+      "z": 20
+    },
+    "holeFrameMm": {
+      "origin": {
+        "x": -27.806644353139802,
+        "y": 30.301259225463948,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0.7071067811865409,
+        "y": -0.7071067811865541,
+        "z": 0
+      },
+      "yAxis": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "normal": {
+        "x": 0.7071067811865541,
+        "y": 0.7071067811865409,
+        "z": 0
+      }
+    }
+  },
+  "nextHoleTargetsLocalMm": [
+    {
+      "id": 1745,
+      "U": -3.375973433102504,
+      "V": 0
+    },
+    {
+      "id": 1749,
+      "U": 9.61440762366408,
+      "V": 7.5
+    },
+    {
+      "id": 1753,
+      "U": 9.61440762366408,
+      "V": -7.5
+    }
+  ],
+  "checks": {
+    "correctKey": true,
+    "bothPointTargets": true,
+    "fixedConstraintsMatch": true,
+    "verticalRestored": true,
+    "nativeRegenerationNoIssues": true,
+    "nativeOneSolid": true,
+    "pocketFrameUnchanged": true,
+    "holeFrameUnchanged": true,
+    "authoredExportUnchanged": true
+  },
+  "pass": true,
+  "qualification": "Manual wall edits updated both fixed constraints and restored Vertical; this is ordinary constrained editing, not an app defect. Hole coordinates still need actual browser authoring. No final source acceptance or physical/global alignment claimed."
+}

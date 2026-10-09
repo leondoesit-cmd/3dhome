@@ -1,0 +1,173 @@
+{
+  "scope": "Read-only actual browser export, disposable native regeneration and sketch-solver analysis. Before global alignment/reporting coordinate system and source density update.",
+  "bundle": "artifacts/planchard/BASIC-Q6B-source-wall-holes-browser-2026-10-09.mforge",
+  "bytes": 822814,
+  "key": "cm_munwntky_2123",
+  "native": {
+    "compileIssues": [],
+    "regenerationIssues": [],
+    "volume": 114.72162484464107,
+    "centerOfMass": {
+      "x": -1.1247778334964325,
+      "y": 1.5506081573889827,
+      "z": -0.266583535704196
+    },
+    "inertia": [
+      [
+        272.7046595076018,
+        60.853038473409526,
+        125.8112274563263
+      ],
+      [
+        60.853038473409526,
+        1786.9054950269565,
+        -4.44397635457171
+      ],
+      [
+        125.8112274563263,
+        -4.44397635457171,
+        1759.9791399678843
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -6.5,
+        "y": 0,
+        "z": -2
+      },
+      "max": {
+        "x": 7.5,
+        "y": 4.499999999999984,
+        "z": 2
+      }
+    }
+  },
+  "holeFrame": {
+    "origin": {
+      "x": -2.78066443531398,
+      "y": 3.030125922546395,
+      "z": 0
+    },
+    "xAxis": {
+      "x": 0.7071067811865409,
+      "y": -0.7071067811865541,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 0,
+      "z": -1
+    },
+    "normal": {
+      "x": 0.7071067811865541,
+      "y": 0.7071067811865409,
+      "z": 0
+    }
+  },
+  "holeAxes": [
+    {
+      "point": 1745,
+      "localMm": {
+        "U": -3.375973433102504,
+        "V": 0
+      },
+      "worldMm": {
+        "x": -30.19381806079219,
+        "y": 32.68843293311638,
+        "z": 0
+      },
+      "xMinusY": -62.88225099390857,
+      "sourceAlignedXMinusYAfterPlannedXMinus5Mm": -67.88225099390857
+    },
+    {
+      "point": 1749,
+      "localMm": {
+        "U": 9.61440762366408,
+        "V": 7.5
+      },
+      "worldMm": {
+        "x": -21.008231525355356,
+        "y": 23.502846397679377,
+        "z": -7.5
+      },
+      "xMinusY": -44.51107792303473,
+      "sourceAlignedXMinusYAfterPlannedXMinus5Mm": -49.51107792303473
+    },
+    {
+      "point": 1753,
+      "localMm": {
+        "U": 9.61440762366408,
+        "V": -7.5
+      },
+      "worldMm": {
+        "x": -21.008231525355356,
+        "y": 23.502846397679377,
+        "z": 7.5
+      },
+      "xMinusY": -44.51107792303473,
+      "sourceAlignedXMinusYAfterPlannedXMinus5Mm": -49.51107792303473
+    }
+  ],
+  "definitions": [
+    {
+      "id": "sk_0y55i",
+      "degreesOfFreedom": 0,
+      "status": "fully-constrained",
+      "conflicts": []
+    },
+    {
+      "id": "sk_1m28x",
+      "degreesOfFreedom": 0,
+      "status": "fully-constrained",
+      "conflicts": []
+    },
+    {
+      "id": "sk_2tz4r",
+      "degreesOfFreedom": 0,
+      "status": "fully-constrained",
+      "conflicts": []
+    },
+    {
+      "id": "sk_337tr",
+      "degreesOfFreedom": 0,
+      "status": "fully-constrained",
+      "conflicts": []
+    }
+  ],
+  "preserved": {
+    "featuresExactlyUnchanged": true,
+    "baseSketchExactlyUnchanged": true,
+    "heelSketchExactlyUnchanged": true,
+    "radius10Mm": true,
+    "radius30Mm": true,
+    "generalFillet7Mm": true,
+    "pocketInset2Mm": true,
+    "pocketDepth10p5Mm": true,
+    "pocketFloor9p5Mm": true
+  },
+  "qualifications": [
+    "Stored projected region coordinates are older; native regeneration uses current sketch entity references, verified all three hole axes.",
+    "General R7 fillet is distinct from explicit R10/R30 source profile arcs.",
+    "Existing material density remains a diagnostic preset; no final mass/source acceptance claimed.",
+    "Source hole-axis scalars are compared after the planned physical X−5 mm alignment; the present pre-alignment scalar is correctly +5 mm. No translation has been authored in this checkpoint."
+  ],
+  "checks": {
+    "nativeValid": true,
+    "holeCentralAxis": true,
+    "holePairAxes": true,
+    "holePairZ": true,
+    "allSketchesFullyDefined": true,
+    "featuresExactlyUnchanged": true,
+    "baseSketchExactlyUnchanged": true,
+    "heelSketchExactlyUnchanged": true,
+    "radius10Mm": true,
+    "radius30Mm": true,
+    "generalFillet7Mm": true,
+    "pocketInset2Mm": true,
+    "pocketDepth10p5Mm": true,
+    "pocketFloor9p5Mm": true,
+    "authoredExportUnchanged": true
+  },
+  "pass": true
+}

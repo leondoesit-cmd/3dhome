@@ -3,7 +3,15 @@
 Updated: **2026-10-09**. Read this first when resuming; older plans and STOP-HERE files contain superseded status.
 
 
-## Authoritative resume — 2026-10-09 07:49 local
+## Authoritative resume — 2026-10-09 08:00 local
+
+Basic Q6B PDF503/10-23 ACCEPTED: source wall/hole repair, equivalent MoveBodyX-5, referenceorigin70/0/20, nominaldensity2.7/sourcequalifiers, actualD4→4.1/UndoRedoUndo independentcylinder delta15.9043128088mm3, onevalidnativeSTEP143178 bidirectional numericalzero, fullcold940569 exactpresentfields13/13 (mesh.bounds/rebuiltAtonlydifferences), sourcequalified10/10 andrestoredSTEP6/6. Source V114721.624844641mm3/m309.74838708g/worldCOM(-16.247778335,15.506081574,-2.665835357)mm; named(-86.247778335,15.506081574,-22.665835357)mm actualcoldUIverified. Printed residual+.404845mm3 andprintedY15.44vscached15.506 remainexplicit, noanswerfit. Report basic-q6b-source-qualified-native-validation-2026-10-09.md. Do not redo Q6B. CurrentChrome BasicQ4 exactsaved Planchard CSWA Q4 - native corner repair fresh 2026-09-30,11history, nativeFilletcurrentlycomputing/MassPropsopen. NEXTawaitactualbaselinepreflight→sk_3vrpx circle1543 dimensiondim_w9wwnjl D38→38.2EnterFinish→nativeprops/export→UndoRedoUndo→sourceSave/freshSTEP/fullcold/audit perbasic-q4-upstream-basic-q6-fresh-step-browser-plan. Polygonpreparesaudit; UIagentQ6Bfinished. Wholebookunfinished85%used15%remainingcontinue.
+## Previous resume — 2026-10-09 07:56 local
+
+Basic Q6B PDF503/10-23 actual browser source repair saved clean. Move / Copy Body feature_mv0hncrn_1 X=-5mm, Y/Z=0, no copy committed (10 history, four fully defined sketches, one native). Coordinate System1 coordsys_mv0hr6b7 origin(70,0,20)mm, axes unreversed added. Material Aluminum1060 preserved, nominal source density2.7, explicit 2021 PDF503/companion citation and unrated qualification stored; Description discloses equivalent translation, opaque selectors, volume residual+0.404845mm3 and companion Y15.506 versus printed15.44. Actual world COM(-16.24778,15.50608,-2.665835)mm; named frame(-86.24778,15.50608,-22.66584)mm; V114721.6mm3/m309.7484g. Protected actual940617 BASIC-Q6B-source-qualified-browser-2026-10-09.mforge and named-frame screenshot. NEXT meaningful existing driver/UndoRedoUndo, fresh STEP, full cold exact saved reopen, properties/metadata/frame readback, native/durability audit and acceptance commit. Whole book unfinished. Older resume paragraphs below superseded.
+## Previous resume — 2026-10-09 07:49 local
+
+LATESTQ6Bsourcewall+threeholecentresactualDONE/9steps4fullydefinednative1. ActualSetcoords1745U−3.375973433102504/V0;1749U9.61440762366408/V7.5;1753sameU/V−7.5mm ApplyFinish. NativeUIV114721.6mm3/m309.6097atoldpreset2.69879/COM−11.24778,15.50608,−2.665835mm/bounds140,45,40. Protected822814actualBASIC-Q6B-source-wall-holes-browser-2026-10-09.mforge+propsjpg. CurrentModel/Output. NEXTMove/CopyBodyactualX−5mm/YZ0/Angle0/CopyOFF→coordinateSystemsourceorigin70/0/20allaxesunreversed→1060source2.7explicitcitation+unratedDescription(proprietaryselector/sourceprecisionresidual+.404845mm3/printedY15.44vscached15.506 qualified)→driver/UndoRedoUndo/sourceSTEP/save/cold/audit. Hole/wallnative matchesdisposable sourceplan. BasicQ4/Q6finiteplanreadybasic-q4-upstream-basic-q6-fresh-step-browser-plan-2026-10-09.md.
 
 Time labels in previous live paragraphs are approximate and some ran ahead; this header is corrected from actualGetDate. CurrentactualQ6BModel/Sketch sk_337trholecentres listopen: points1745U−6.61582112/V0;1749U6.37455993/V7.5;1753sameU/V−7.5mm. Sourcewall502815actualexportprotected/native1valid observed. Awaitui_improvements postwallnativeholeframecheck BEFOREtargetUVauthoring; sourcepointtargetsaboveassumenativeframeunchanged. No finalQ6Bsave/coldacceptanceyet. Latestquota83%used17%remainingcontinue.
 
@@ -416,6 +424,8 @@ Exact mass panel:198.6972cm³,1.529968kg,7.70000g/cm³ Alloy Steel reference; CO
 Commit `232a298` protects BV01 final bundle/STEP, two browser proof images, independent native audit JSON and detailed acceptance report. Cold library reopen confirmed nominal volume/mass and16 steps. Source/UI fixes and original failure triage included; source gates and focused corrected tests passed, but full suite not rerun clean. Queue reconciled accepted8.14–8.16; corrected Welder Arm23 topology mates from actual final bundle.
 
 BV02 now authored from blank in visible Chrome: Top fixed-center20×90mm rectangle, offset-12mm, Blind boss12mm Along normal. Second Top sketch offset-12mm with fixed-center drivingØ6.6 atU0/V±25, Through all Along normal. Two features/four fully-defined history steps, one native solid. Alloy Steel reference applied. PartNo BV02,Description,Source,BookItemNo2,BookMaterial,OriginalDesignerExample saved. Exact mass/parametric/Undo/reopen/export acceptance still in progress; not accepted yet. Future remains BV03–BV10/16-occurrence vice and drawing, then8.18–8.20 and earlier/later unfinished audit items.
+
+
 
 
 
