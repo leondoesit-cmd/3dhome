@@ -1,0 +1,94 @@
+{
+  "pass": true,
+  "checks": {
+    "sevenVisiblePrimitivesFiveNotes": true,
+    "allPaperGeometryExact": true,
+    "noPhysicalCad": true,
+    "svgAllNoteRows": true,
+    "svgUpperSemicircle": true,
+    "estimateAndNoPhysicalQualification": true,
+    "smoothTransitionExplained": true,
+    "inputBytesUnchanged": true,
+    "invalidEditAuthoringExactExceptRebuildTimestamp": true
+  },
+  "invalidEditWholeModelExactDiagnostic": false,
+  "key": "cm_mv0ko8rz",
+  "name": "Planchard 1.5 - estimated missing Right view - browser 2026-10-09",
+  "scope": "Cold accepted estimated paper worksheet; no physical CAD geometry. All authoring and whole drawing exact; derived history/timestamps qualified.",
+  "arc": {
+    "center": [
+      52.5,
+      157.5
+    ],
+    "radius": 12.5,
+    "sweepDegrees": 180,
+    "branch": "upper",
+    "endpointTangents": "vertical, matching both adjoining lines (G1)",
+    "closure": "polyline\u2192arc\u2192left line\u2192first point exact"
+  },
+  "noteRows": [
+    4,
+    1,
+    1,
+    1,
+    3
+  ],
+  "svgPaths": [
+    {
+      "d": "M65,157.5A12.5,12.5 0 0 0 40,157.5",
+      "fill": "none",
+      "stroke": "#101418",
+      "stroke-width": "0.5"
+    }
+  ],
+  "inputSha256": "a70fd4d8e681c1089340fd773cdf53c5de97014bef208f7bf8ab27532d8a56f0",
+  "coldPresentFieldChecks": {
+    "schemaVersion": true,
+    "id": true,
+    "key": true,
+    "name": true,
+    "kind": true,
+    "authoringMode": true,
+    "localFrame": true,
+    "references": true,
+    "parameters": true,
+    "sketches": true,
+    "features": true,
+    "parts": true,
+    "assemblies": true,
+    "appearances": true,
+    "notes": true,
+    "markups": true,
+    "rules": true,
+    "metadata": true,
+    "topologyBindings": true,
+    "namedSelections": true,
+    "revision": true,
+    "price": true,
+    "col": true,
+    "constraints": true,
+    "rollback": true,
+    "activeSketch": true,
+    "variables": true,
+    "referenceGeometry": true,
+    "definitionId": true,
+    "documentVersion": true,
+    "context": true,
+    "customProperties": true,
+    "drawing": true,
+    "exactTopologyCache": true
+  },
+  "coldChangedFields": [
+    "lastRebuild",
+    "history",
+    "lastStandardsAudit"
+  ],
+  "coldSvgByteExact": true,
+  "byteSizeIncrease": 129,
+  "normalization": "Empty default sketch history normalized to one rebuilt sketch node (+129 bytes); only rebuild/standards audit timestamps otherwise changed. No drawing selection difference.",
+  "parentObservedColdFacts": [
+    "Full reload; exact saved Drawing / 7 annotations / 5 notes reopened and Fit",
+    "Arc readback 65/157.5,52.5/145,40/157.5; four LF estimate rows read",
+    "Cancel without edits; clean Project and SVG exports"
+  ]
+}

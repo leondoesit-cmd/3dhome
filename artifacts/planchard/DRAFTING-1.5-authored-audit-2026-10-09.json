@@ -1,0 +1,45 @@
+{
+  "pass": true,
+  "checks": {
+    "sevenVisiblePrimitivesFiveNotes": true,
+    "allPaperGeometryExact": true,
+    "noPhysicalCad": true,
+    "svgAllNoteRows": true,
+    "svgUpperSemicircle": true,
+    "estimateAndNoPhysicalQualification": true,
+    "smoothTransitionExplained": true,
+    "inputBytesUnchanged": true,
+    "invalidEditAuthoringExactExceptRebuildTimestamp": true
+  },
+  "invalidEditWholeModelExactDiagnostic": false,
+  "key": "cm_mv0ko8rz",
+  "name": "Planchard 1.5 - estimated missing Right view - browser 2026-10-09",
+  "scope": "Estimated paper projection only; native zero. Cold pending.",
+  "arc": {
+    "center": [
+      52.5,
+      157.5
+    ],
+    "radius": 12.5,
+    "sweepDegrees": 180,
+    "branch": "upper",
+    "endpointTangents": "vertical, matching both adjoining lines (G1)",
+    "closure": "polyline\u2192arc\u2192left line\u2192first point exact"
+  },
+  "noteRows": [
+    4,
+    1,
+    1,
+    1,
+    3
+  ],
+  "svgPaths": [
+    {
+      "d": "M65,157.5A12.5,12.5 0 0 0 40,157.5",
+      "fill": "none",
+      "stroke": "#101418",
+      "stroke-width": "0.5"
+    }
+  ],
+  "inputSha256": "aadfe07bf8b2f5d0e9184b0985e0e4a03af6bacb25d32f32f797bf8c3268fe80"
+}
