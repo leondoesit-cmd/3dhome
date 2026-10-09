@@ -8365,7 +8365,7 @@ function createMultiSketchFeature(type, values) {
   var cutTarget=null,cutTargetId=null;
   if(type==="sweepCut" || type==="loft" && params.operation==="subtract"){
     if(type==="loft" && params.solid===false){flash(t("loftCutSolid"));return false;}
-    cutTarget=type==="loft" ? (selectedSolid() || (activeParts().length===1 ? activeParts()[0] : null)) : cutTargetBody();
+    cutTarget=type==="loft" ? (selectedSolid() || (activeParts(E.def).length===1 ? activeParts(E.def)[0] : null)) : cutTargetBody();
     if(!cutTarget){flash(t("extrudeCutNeed"));return false;}
     if(!partSupportsExactMesh(cutTarget)){flash(t("cutNeedExactBody"));return false;}
     cutTargetId=cutTargetFeatureId(cutTarget);
