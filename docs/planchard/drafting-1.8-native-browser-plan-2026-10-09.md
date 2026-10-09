@@ -1,0 +1,7 @@
+# Exercise 1.8 source-grid native browser plan
+
+Source PDF84 / printed1-56 supplies third-angle Front/Top/Right and requests an isometric. Their correspondence is fixed; unlike1.6/1.7, do not freely choose another Front. Grid interval10mm is an illustrative scale, not certified physical dimensions/material.
+
+Observed app convention from actual previous native SVGs: Top worldZ increases down paper; Right worldZ increases left. Hence base Top polygon(X,Z)=(0,0),(40,0),(40,40),(0,20), fully constrained numeric vertices, Boss+Y10. Upper Top rectangleX0..20/Z0..20 atY10, fully define20×20/location, merged Boss+Y20 toY30. Earlier mirroredZ candidate is superseded. Two sketches/two features should produce one connected solid. Analytic base trapezoid area1200×10 plus upper20×20×20 =20000mm3, boundsX0..40/Y0..30/Z0..40. This validates choices, not source mass.
+
+Actual generated projection is the acceptance gate: Front must have upper LEFT20-wide block above10-high base; Right must have upper RIGHT20-deep block above base; Top must reproduce the source diagonal lower edge from(0,20)→(40,40) and upper-left20×20 footprint. Native generated Top includes footprint boundaryX20/Z20; these must match the supplied source grid, not an invented mirrored view. Then expose isometric in drawing with the supplied orthographic views, estimate/grid scale/source notes and no source-material claim. Future actual driving edit and cold durability/STEP evidence remain pending; no script-authored model supplied.

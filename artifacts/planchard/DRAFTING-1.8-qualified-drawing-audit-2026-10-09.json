@@ -1,0 +1,62 @@
+{
+  "pass": true,
+  "checks": {
+    "nativeGeometryHistoryConstraintsExact": true,
+    "bodyAuthoringMaterialExact": true,
+    "fourNativeViews": true,
+    "twoFourRowNotes": true,
+    "svgAllNoteRows": true,
+    "inputsUnchanged": true,
+    "hiddenOffExplicit": true,
+    "frontUpperLeft": true,
+    "topDiagonalUpperLeft": true,
+    "rightUpperRight": true,
+    "descriptionExact": true,
+    "twoFullyDefinedOnePart": true
+  },
+  "key": "cm_mv0lwbb9",
+  "geometryFields": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "parameters": true,
+    "localFrame": true,
+    "references": true,
+    "referenceGeometry": true,
+    "context": true
+  },
+  "partFields": {
+    "id": true,
+    "kind": true,
+    "axis": true,
+    "from": true,
+    "to": true,
+    "pts": true,
+    "holes": true,
+    "profileEntityIds": true,
+    "sketchId": true,
+    "sketchDriven": true,
+    "supportBaseOffset": true,
+    "supportDepth": true,
+    "direction": true,
+    "symmetric": true,
+    "draftAngle": true,
+    "draftOutward": true,
+    "featureId": true,
+    "color": true,
+    "metal": true,
+    "rough": true,
+    "name": true,
+    "merges3d": true,
+    "exactPending": true,
+    "exactError": true
+  },
+  "changedFields": [
+    "drawing",
+    "lastStandardsAudit",
+    "lastRebuild",
+    "parts"
+  ],
+  "qualification": "Same proven20000mm3 native source inputs, no rebuild needed. Only derived parts meshData/exactBuildToken, timestamps and drawing change; Description exact. Cold pending.",
+  "inputSha256": "d37adea5dcbbf50cd859bd7ca3dbbfd75a397a713469dba99f4b429ce3509496"
+}

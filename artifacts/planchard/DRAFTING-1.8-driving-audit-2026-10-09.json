@@ -1,0 +1,296 @@
+{
+  "pass": true,
+  "checks": {
+    "nativeOneValid": true,
+    "analytic20080": true,
+    "baseSketchExact": true,
+    "featuresExact": true,
+    "allFullyDefined": true,
+    "inputUnchanged": true
+  },
+  "mass": {
+    "volume": 20.08000000000394,
+    "centerOfMass": {
+      "x": 1.7344355909692986,
+      "y": 1.1035856573706946,
+      "z": 1.3320053120851278
+    },
+    "inertia": [
+      [
+        29.70450641877563,
+        8.780159362552663,
+        -7.103762726868439
+      ],
+      [
+        8.780159362552663,
+        40.39717752280323,
+        4.02390438246767
+      ],
+      [
+        -7.103762726868439,
+        4.02390438246767,
+        39.80842143604187
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -3.419486915845482e-14,
+        "y": 0,
+        "z": -1.7763568394002505e-15
+      },
+      "max": {
+        "x": 4,
+        "y": 3,
+        "z": 4
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 20.08000000000394,
+    "maxToleranceCm": 1.00000500712994e-7
+  },
+  "changedNotchSketch": {
+    "id": "sk_2p059",
+    "name": "Top Plane sketch",
+    "plane": "top",
+    "offset": 1,
+    "referenceId": "plane:top",
+    "points": [
+      {
+        "id": 6051,
+        "x": -2.598461268203678e-14,
+        "y": -1.9984903218157162e-21
+      },
+      {
+        "id": 6052,
+        "x": 2.019999999999956,
+        "y": -3.9969805426572366e-21
+      },
+      {
+        "id": 6053,
+        "x": 2.019999999999946,
+        "y": 2.000000000000999
+      },
+      {
+        "id": 6054,
+        "x": -2.9981614623429947e-14,
+        "y": 2.000000000000999
+      }
+    ],
+    "entities": [
+      {
+        "id": 6055,
+        "type": "line",
+        "name": "Line",
+        "a": 6051,
+        "b": 6052,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6056,
+        "type": "line",
+        "name": "Line",
+        "a": 6052,
+        "b": 6053,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6057,
+        "type": "line",
+        "name": "Line",
+        "a": 6053,
+        "b": 6054,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6058,
+        "type": "line",
+        "name": "Line",
+        "a": 6054,
+        "b": 6051,
+        "construction": false,
+        "weight": 2
+      }
+    ],
+    "constraints": [
+      {
+        "id": 6059,
+        "type": "horizontal",
+        "entity": 6055,
+        "exprError": null
+      },
+      {
+        "id": 6060,
+        "type": "vertical",
+        "entity": 6056,
+        "exprError": null
+      },
+      {
+        "id": 6061,
+        "type": "horizontal",
+        "entity": 6057,
+        "exprError": null
+      },
+      {
+        "id": 6062,
+        "type": "vertical",
+        "entity": 6058,
+        "exprError": null
+      },
+      {
+        "id": "dim_nzfcwil",
+        "type": "distance",
+        "entity": 6055,
+        "value": 2.02,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "id": "dim_e1ncwvk",
+        "type": "distance",
+        "entity": 6056,
+        "value": 2,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "type": "fixed",
+        "point": 6051,
+        "x": 0,
+        "y": 0,
+        "id": 6063,
+        "exprError": null
+      }
+    ],
+    "diagnostics": [],
+    "status": "fully-defined"
+  },
+  "nominalNotchSketch": {
+    "id": "sk_2p059",
+    "name": "Top Plane sketch",
+    "plane": "top",
+    "offset": 1,
+    "referenceId": "plane:top",
+    "points": [
+      {
+        "id": 6051,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": 6052,
+        "x": 2,
+        "y": 0
+      },
+      {
+        "id": 6053,
+        "x": 2,
+        "y": 2
+      },
+      {
+        "id": 6054,
+        "x": 0,
+        "y": 2
+      }
+    ],
+    "entities": [
+      {
+        "id": 6055,
+        "type": "line",
+        "name": "Line",
+        "a": 6051,
+        "b": 6052,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6056,
+        "type": "line",
+        "name": "Line",
+        "a": 6052,
+        "b": 6053,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6057,
+        "type": "line",
+        "name": "Line",
+        "a": 6053,
+        "b": 6054,
+        "construction": false,
+        "weight": 2
+      },
+      {
+        "id": 6058,
+        "type": "line",
+        "name": "Line",
+        "a": 6054,
+        "b": 6051,
+        "construction": false,
+        "weight": 2
+      }
+    ],
+    "constraints": [
+      {
+        "id": 6059,
+        "type": "horizontal",
+        "entity": 6055,
+        "exprError": null
+      },
+      {
+        "id": 6060,
+        "type": "vertical",
+        "entity": 6056,
+        "exprError": null
+      },
+      {
+        "id": 6061,
+        "type": "horizontal",
+        "entity": 6057,
+        "exprError": null
+      },
+      {
+        "id": 6062,
+        "type": "vertical",
+        "entity": 6058,
+        "exprError": null
+      },
+      {
+        "id": "dim_nzfcwil",
+        "type": "distance",
+        "entity": 6055,
+        "value": 2,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "id": "dim_e1ncwvk",
+        "type": "distance",
+        "entity": 6056,
+        "value": 2,
+        "driven": false,
+        "exprError": null
+      },
+      {
+        "type": "fixed",
+        "point": 6051,
+        "x": 0,
+        "y": 0,
+        "id": 6063,
+        "exprError": null
+      }
+    ],
+    "diagnostics": [],
+    "status": "fully-defined"
+  },
+  "predictedAddedMm3": 80,
+  "actualAddedMm3": 80.00000000393825,
+  "scope": "Actual browser driving edit only; no model authored by audit. Nominal restore with drawing pending."
+}

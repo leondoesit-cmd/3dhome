@@ -1,0 +1,138 @@
+{
+  "pass": true,
+  "checks": {
+    "oneValidConnectedSolid": true,
+    "declaredVolume20000": true,
+    "twoFullyDefinedSketches": true,
+    "fourHistoryTwoFeatures": true,
+    "sourceFeatureScopes": true,
+    "mmContext": true,
+    "explicitEstimatedDescription": true,
+    "stepOneValid": true,
+    "bidirectionalZero": true,
+    "inputsUnmodified": true
+  },
+  "key": "cm_mv0lwbb9",
+  "name": "Planchard 1.8 - grid-derived isometric model - browser 2026-10-09",
+  "scope": "Read-only actual browser-authored estimated Exercise1.8 native geometry and STEP audit. Analytic20000mm3 follows declared assumptions, not an original source mass answer. Cold/drawing pending.",
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 19.999999999999996,
+    "maxToleranceCm": 1.00000000888178e-7
+  },
+  "mass": {
+    "volume": 19.999999999999996,
+    "centerOfMass": {
+      "x": 1.7333333333333332,
+      "y": 1.1,
+      "z": 1.3333333333333333
+    },
+    "inertia": [
+      [
+        29.577777777777783,
+        8.799999999999994,
+        -7.111111111111114
+      ],
+      [
+        8.799999999999994,
+        40.355555555555554,
+        4.0000000000000036
+      ],
+      [
+        -7.111111111111114,
+        4.0000000000000036,
+        39.71111111111115
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": -1.7763568394002505e-15
+      },
+      "max": {
+        "x": 4,
+        "y": 3,
+        "z": 4
+      }
+    }
+  },
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 20,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 20,
+      "centerOfMass": {
+        "x": 1.733333333333333,
+        "y": 1.1,
+        "z": 1.3333333333333337
+      },
+      "inertia": [
+        [
+          29.57777777777776,
+          8.799999999999994,
+          -7.111111111111114
+        ],
+        [
+          8.799999999999994,
+          40.355555555555554,
+          4.000000000000007
+        ],
+        [
+          -7.111111111111114,
+          4.000000000000007,
+          39.71111111111115
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -8.881784197001252e-16,
+          "y": 0,
+          "z": 0
+        },
+        "max": {
+          "x": 4,
+          "y": 3,
+          "z": 4
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "customProperties": {
+    "Description": "Exercise1.8 PDF84 / 1-56. Reconstruct missing isometric from provided third-angle Front/Top/Right views. One source grid interval chosen as10 mm for illustration; source provides no physical unit/material. Boundswidth40/depth40/height30, baseheight10; Top footprint(0,0),(40,0),(40,40),(0,20), diagonal boundary. Raised blockX0..20/Z0..20/Y10..30. AppTopZ+down andRightZ+left, Frontupperleft/Rightupperright match source. Native illustrative target20000mm3; no sourcemass/material/radii/holes."
+  },
+  "partsMaterial": [
+    {
+      "id": 6050
+    }
+  ],
+  "inputs": [
+    {
+      "path": "artifacts/planchard/DRAFTING-1.8-cold-accepted-browser-2026-10-09.mforge",
+      "sha256": "0d8393ea6bc1bbba3afd12bed03f44530c30cf055282b7e4e5599bcbbb27eb0e"
+    },
+    {
+      "path": "artifacts/planchard/DRAFTING-1.8-authored-native-browser-2026-10-09.step",
+      "sha256": "2fd735b0dcbf15dfa45559b01b9d0cb5598dd6663dd035731ca37a84303d0279"
+    }
+  ]
+}
