@@ -12,6 +12,10 @@ const source=()=>loftSourceRecord([top(),apex()],[['e0','e1','e2','e3'],{sketchI
 const resolve=(s,ids)=>s.points.map(p=>({u:p.x,v:p.y}));
 test('terminal point source retains ID and rereads real local frame; invalid/middle endpoints fail',()=>{
  const a=apex();assert.deepEqual(loftSectionSourceRecord(a,[],true),{sketchId:'apex',pointId:'tip'});
+ const browserPoint={...apex(),points:[{id:6089,x:5,y:4}],entities:[{id:6090,type:'point',p:6089}]};
+ assert.deepEqual(loftSectionSourceRecord(browserPoint,[],true),{sketchId:'apex',pointId:6089});
+ assert.equal(loftSectionSourceRecord({...browserPoint,entities:[{id:6090,type:'point',p:'missing'}]},[],true),null);
+ assert.equal(loftSectionSourceRecord({...browserPoint,entities:[...browserPoint.entities,{id:6091,type:'point',p:6089}]},[],true),null);
  a.frameSpace='local';a.frame={origin:{x:10,y:7,z:-2},xAxis:{x:0,y:0,z:1},yAxis:{x:1,y:0,z:0},normal:{x:0,y:1,z:0}};
  const d={sketches:[top(),a]},s=source();assert.deepEqual(resolveSketchSources(d,s,resolve).sections[1],[{x:14,y:7,z:3}]);
  a.points[0].x=6;assert.equal(resolveSketchSources(d,s,resolve).sections[1][0].z,4);

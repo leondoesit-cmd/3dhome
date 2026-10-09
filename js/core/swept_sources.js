@@ -99,7 +99,8 @@ export function loftSourceRecord(sketches, entityIdSets) {
 export function loftSectionSourceRecord(sketch,entityIds=[],allowPoint=false){
   if(!sketch)return null;
   const entities=(sketch.entities || []).filter(e=>!e.construction),points=(sketch.points || []).filter(p=>!p.construction);
-  if(allowPoint && entities.length===0 && points.length===1 && points[0].id!=null && Number.isFinite(points[0].x)&&Number.isFinite(points[0].y))return {sketchId:sketch.id,pointId:points[0].id};
+  const pointOnly=entities.length===0 || (entities.length===1 && entities[0].type==='point' && entities[0].p===points[0]?.id);
+  if(allowPoint && pointOnly && points.length===1 && points[0].id!=null && Number.isFinite(points[0].x)&&Number.isFinite(points[0].y))return {sketchId:sketch.id,pointId:points[0].id};
   if(entityIds.some(id=>!entities.some(e=>e.id===id)))return null;
   const selected={...sketch,entities:entities.filter(e=>!entityIds.length||entityIds.includes(e.id))},profiles=analyzeSketchProfiles(selected).profiles;
   if(profiles.length!==1||profiles[0].entityIds.length!==selected.entities.length||!selected.entities.length)return null;
