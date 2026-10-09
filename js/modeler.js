@@ -26125,7 +26125,10 @@ async function showMassProperties() {
     },
   }) : await evaluateMassProperties(snapshot,{
     bodyKey:function(part){return snapshot.metadata?.authoringSystem==="parametric-v1" && (snapshot.features || []).some(function(feature){return feature.id===part.featureId;}) ? cutTargetFeatureId(part,snapshot) : part;},
-    buildSolid:async function(part){var display=await exactDisplayBody(part,snapshot,null,{massProperties:true});releases.set(display.brep,display.release);return display.brep;},
+    // Part mass uses the worker's native integral/bounds proof and does not
+    // need to deserialize a second BREP on the UI thread. Assembly placement
+    // queries above still require the native shape for transformed bounds.
+    buildSolid:async function(part){var display=await exactDisplayBody(part,snapshot,null,{massProperties:true,restoreMode:'mesh'});releases.set(display.brep,display.release);return display.brep;},
     releaseSolid:function(solid){releases.get(solid)?.();releases.delete(solid);},
   });
   if(E.evalCard!=="mass" || E.massEvaluation!==evaluation || !body.isConnected)return;

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import {evaluateMassProperties} from '../js/cad_mass_properties.js';
 
 function deferred(){let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};}
 const result=y=>({volumeCm3:2,massKg:.0146,density:7.3,accuracy:'exact',centerOfMass:{x:4.223753,y,z:0},bodies:[]});
@@ -55,4 +56,17 @@ test('unit buttons captured by an old card cannot repaint stale mass after docum
   staleUnitButton.action();assert.equal(f.jobs.length,2);assert.equal(f.body.text,'liveExactCalc');
   f.jobs[1].resolve(result(.4567475231));await new Promise(resolve=>setImmediate(resolve));
   assert.match(f.body.rows.find(row=>row.label==='massCentre').value,/Y 0\.4567475/);
+});
+
+test('actual part Mass card consumes worker-native mass proof without restoring a UI-thread BREP and recomputes density',async()=>{
+ const f=fixture(),options=[];let released=0;
+ f.E.def.parts[0].density=7.8;f.context.evaluateMassProperties=evaluateMassProperties;
+ const proof={verifiedSerializedExact:true,workerMassProperties:{volume:2,centerOfMass:{x:1,y:2,z:3},inertia:[[1,0,0],[0,1,0],[0,0,1]],solidCount:1,bounds:{min:{x:0,y:1,z:2},max:{x:2,y:3,z:4}}}};
+ f.context.exactDisplayBody=async(part,snapshot,head,settings)=>{options.push(settings);return {brep:proof,release:()=>released++};};
+ await f.context.show();assert.equal(released,1);assert.equal(options[0].massProperties,true);assert.equal(options[0].restoreMode,'mesh');
+ assert.ok(f.body.rows.some(row=>row.label==='massMass'&&row.value.includes('0.0156')));
+ f.E.def.parts[0].density=4.6;f.setNode(2);await f.context.show();
+ assert.equal(released,2);assert.ok(f.body.rows.some(row=>row.label==='massMass'&&row.value.includes('0.0092')));
+ assert.ok(f.body.rows.some(row=>row.label==='massCentre'&&row.value.includes('Y 2')));
+ assert.equal(proof.shape,undefined,'only verified native worker integrals are needed for part mass');
 });
