@@ -17,7 +17,7 @@ import {readProjectBundleUrl} from './core/project_bundle_url.js';
 import {dimensionTargetFromSelection} from './core/sketch_dimension_selection.js';
 import {resolveOffsetPlanes, throughVertexBinding, referencePlaneOffset} from './core/offset_planes.js';
 import {revolveThinProfile,thinSketchProfile} from './core/thin_profile.js';
-import {thinExtrudeAreas,thinExtrudeChainKey} from './modeler_thin_extrude_profiles.js';
+import {thinExtrudeAreas,thinExtrudeChainKey,thinExtrudeSketchReadiness} from './modeler_thin_extrude_profiles.js';
 import {threadPlacementFromFace} from './core/thread_placement.js';
 import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
@@ -173,7 +173,7 @@ import { setScrewMateCoupledMotion, setScrewMateDrive, setScrewMateHandedness } 
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { ribSketchReady } from "./core/rib_profile.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
-import { refreshedCutProfile } from "./core/feature_profile_refresh.js";
+import { refreshedExtrudeProfile } from "./core/feature_profile_refresh.js";
 import { featureContourKey, selectFeatureContours } from "./core/feature_contours.js";
 import { createReferencePlane, createReferenceAxis, createReferencePoint, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
 import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath,circularHelixSweepProfile } from "./cad_helix.js";
@@ -6169,6 +6169,9 @@ function coachSuggestion() {
     if (!(sketch.entities || []).length)
       return { icon:"ph-rectangle", text:"coachStepDraw", act:"coachActDraw", command:"srect", target:'[data-command="srect"]',
         run:function(){ setCommandTab("sketch"); setTool("srect"); } };
+    if (!closedSketchProfile() && sketchOpenPathReadiness(sketch))
+      return { icon:"ph-path", text:"coachStepOpenPath", act:"coachActFinishSketch", target:'[data-command="finishsketch"]',
+        run:function(){ finishSketchWorkflow(); } };
     if (!closedSketchProfile())
       return { icon:"ph-line-segment", text:"coachStepClose", act:"coachActClose", target:null,
         run:function(){ setCommandTab("sketch"); setTool("wall"); } };
@@ -11458,13 +11461,53 @@ function syncExtrudeButton() {
   // profile and still encloses area, so the button follows the areas.
   var regionCount = E.docType === "part" ? (sketchRegionAnalysis().regions || []).length : 0;
   var available = E.docType === "part" && (!!profileInfo.profiles.length || regionCount > 0);
+  var pathReady=E.docType === "part" && !available ? sketchOpenPathReadiness(ensureSketch(E.def)) : null;
   var why = available ? t("profileReady") + (regionCount > 1 ? " · " + regionCount + " " + t("profileRegions") : "")
+    : pathReady ? t(pathReady.kind === "thin" ? "profileThinReady" : "profileOpenPath")
     : profileInfo.branchPoints.length ? t("profileBranched")
     : profileInfo.openEnds.length ? t("profileOpen") + " · " + profileInfo.openEnds.length + " " + t("profileEnds")
     : t("profileEmpty");
   // the ribbon's Extrude is now the only one, so it carries the readiness state
   root.querySelectorAll('[data-command="extrude"]').forEach(function (button) { button.title = why; });
   syncCommandManager();
+}
+
+function sketchOpenPathReadiness(sketch) {
+  var authoring=E.authoring || {},type=authoring.featureType;
+  var state=authoring.featureEdit
+    ? (E.def.features || []).find(function(feature){return feature.id===authoring.editFeatureId;})
+    : authoring.featurePreviewState;
+  return thinExtrudeSketchReadiness(sketch,{type:type,params:state && state.params,
+    selectedIds:(state && state.thinChainKeys || E.sselAuto) ? [] : selEntities().map(function(entity){return entity.id;}),
+    chainKeys:state && state.thinChainKeys || [],features:E.def.features || []});
+}
+
+function sketchProfilePresentation(sketch,profileInfo,regionCount) {
+  var status=profileInfo.profiles.length || !regionCount ? profileInfo.status : "ready";
+  var ribReady=status === "open" && !["extrude","extrudeCut"].includes(E.authoring && E.authoring.featureType)
+    && ribSketchReady(sketch,E.def.features,analyzeSketchChains(sketch).chains);
+  var pathReady=status === "open" ? sketchOpenPathReadiness(sketch) : null;
+  if(ribReady || pathReady)status=pathReady && pathReady.kind === "path" && !ribReady ? "path" : "ready";
+  var textKey=ribReady ? "profileRibReady" : pathReady ? pathReady.kind === "thin" ? "profileThinReady" : "profileOpenPath"
+    : status === "ready" ? "profileReady" : status === "multiple" ? "profileMultiple"
+    : status === "partial" ? "profilePartial" : status === "branched" ? "profileBranched"
+    : status === "open" ? "profileOpen" : "profileEmpty";
+  return {status:status,textKey:textKey,pathEnds:!!(ribReady || pathReady),
+    icon:ribReady || pathReady || profileInfo.profiles.length || regionCount ? "ph-check-circle" : profileInfo.branchPoints.length ? "ph-warning" : "ph-path"};
+}
+
+function syncSketchOpenPathFeedback() {
+  if(!root || !["extrude","extrudeCut"].includes(E.authoring && E.authoring.featureType))return;
+  var info=sketchProfileAnalysis(),presentation=sketchProfilePresentation(ensureSketch(E.def),info,(sketchRegionAnalysis().regions || []).length);
+  var card=root.querySelector(".md-profile-state");
+  if(card){
+    card.className="md-profile-state md-profile-"+presentation.status;
+    card.querySelector(".md-profile-head b").textContent=t(presentation.textKey);
+    card.querySelector(".md-profile-head i").className="ph "+presentation.icon;
+    var ends=card.querySelector("[data-profile-ends]");
+    if(ends)ends.textContent=info.openEnds.length+" "+t(presentation.pathEnds ? "profilePathEnds" : "profileEnds");
+  }
+  syncExtrudeButton();
 }
 
 /* The hint used to pulse forever at the bottom of the canvas. It only earns
@@ -12703,9 +12746,10 @@ function drawSketch() {
       profile.points.forEach(function (p, index) { var sp = toPx(p.u, p.v); if (!index) c.moveTo(sp.x, sp.y); else c.lineTo(sp.x, sp.y); });
       c.closePath(); c.fill(); c.restore();
     });
+    var openPathReady=profileInfo.openEnds.length && sketchOpenPathReadiness(sketch);
     profileInfo.openEnds.forEach(function (p) {
       var sp = toPx(p.x, p.y);
-      c.save(); c.strokeStyle = isDark ? "#fca5a5" : "#d0342c"; c.lineWidth = 2; c.beginPath(); c.arc(sp.x, sp.y, 7, 0, Math.PI * 2); c.stroke(); c.restore();
+      c.save(); c.strokeStyle = openPathReady ? (isDark ? "#38bdf8" : "#2684c7") : (isDark ? "#fca5a5" : "#d0342c"); c.lineWidth = 2; c.beginPath(); c.arc(sp.x, sp.y, 7, 0, Math.PI * 2); c.stroke(); c.restore();
     });
     profileInfo.branchPoints.forEach(function (p) {
       var sp = toPx(p.x, p.y);
@@ -17564,6 +17608,11 @@ function syncProjectionFromFeature(feature) {
     (E.def.parts || []).forEach(function(item){if(item.toolboxFeatureId===feature.id)markLiveDirtyPart(item);});
     return true;
   } else if(part && feature.type==="extrude"){
+    // A refreshed contour changes its associative IDs as well as its points.
+    if(feature.params.profileEntityIds)part.profileEntityIds=cloneData(feature.params.profileEntityIds);
+    else delete part.profileEntityIds;
+    if(feature.params.holeProfileEntityIds)part.holeProfileEntityIds=cloneData(feature.params.holeProfileEntityIds);
+    else delete part.holeProfileEntityIds;
     var depth=Math.max(1e-6,Number(feature.params.depth)||1e-6),offset=Number(feature.params.offset)||0,sketchId=feature.references.sketches[0],sketch=(E.def.sketches || []).find(function(item){return item.id===(sketchId && sketchId.id || sketchId);});
     var direction=extrusionPreviewDirection(sketch,part.axis,feature.params.direction),symmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane",center=(part.frame?0:(sketch&&Number(sketch.offset)||0))+direction*offset;
     part.from=symmetric?center-direction*depth/2:center;part.to=symmetric?center+direction*depth/2:center+direction*depth;part.supportDepth=depth;part.supportBaseOffset=offset;
@@ -17863,12 +17912,12 @@ function openFeatureEditor(feature) {
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
   var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push(t("depSketch")+": "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push(t("depFeature")+": "+id);});
   host.appendChild(el("div","md-feature-selection-note",dependencies.length?t("upstreamDependencies")+": "+dependencies.join(" · "):t("noUpstreamDeps")));
-  if(feature.type==="extrudeCut"){
-    var contourStatus=el("p","md-field-hint","Refresh after editing this cut's sketch to update its profile and inner holes.");
+  if(["extrude","extrudeCut"].includes(feature.type) && !feature.params?.thinFeature){
+    var contourStatus=el("p","md-field-hint","Refresh after editing this solid extrusion's sketch to update its profile and inner holes.");
     var contourRefresh=btn("Refresh sketch contour",function(){
       try{
         var sourceSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===feature.params?.sketchId;});
-        var refreshed=refreshedCutProfile(feature,sourceSketch);
+        var refreshed=refreshedExtrudeProfile(feature,sourceSketch);
         feature.params=refreshed.params;feature.references=refreshed.references;
         contourStatus.textContent="Sketch contour refreshed · "+refreshed.holeCount+" inner "+(refreshed.holeCount===1?"hole":"holes")+". Click Update feature to rebuild.";
         contourStatus.removeAttribute("data-error");
@@ -20641,21 +20690,18 @@ function fillSketchPane() {
   // Crossing geometry encloses area without ever closing a chain; the pane
   // reports that as usable rather than as a branch the user has to repair.
   var regionRun = sketchRegionAnalysis(), regionCount = (regionRun.regions || []).length;
-  var profileStatus = profileInfo.profiles.length || !regionCount ? profileInfo.status : "ready";
-  var ribReady=profileStatus === "open" && ribSketchReady(sketch,E.def.features,analyzeSketchChains(sketch).chains);
-  if(ribReady)profileStatus="ready";
-  var profileText = ribReady ? t("profileRibReady") : profileStatus === "ready" ? t("profileReady")
-    : profileStatus === "multiple" ? t("profileMultiple")
-    : profileStatus === "partial" ? t("profilePartial")
-    : profileStatus === "branched" ? t("profileBranched")
-    : profileStatus === "open" ? t("profileOpen") : t("profileEmpty");
+  var presentation=sketchProfilePresentation(sketch,profileInfo,regionCount);
+  var profileStatus=presentation.status,profileText=t(presentation.textKey);
   var profileCard = el("div", "md-profile-state md-profile-" + profileStatus);
   profileCard.appendChild(el("div", "md-profile-head", '<i class="ph ' +
-    (ribReady || profileInfo.profiles.length || regionCount ? "ph-check-circle" : profileInfo.branchPoints.length ? "ph-warning" : "ph-path") + '"></i><b>' + profileText + "</b>"));
+    presentation.icon + '"></i><b>' + profileText + "</b>"));
   var profileStats = el("div", "md-profile-stats");
   profileStats.appendChild(el("span", "", profileInfo.profiles.length + " " + t("profileLoops")));
   if (regionCount) profileStats.appendChild(el("span", "", regionCount + " " + t("profileRegions")));
-  if (profileInfo.openEnds.length) profileStats.appendChild(el("span", "", profileInfo.openEnds.length + " " + t(ribReady ? "profilePathEnds" : "profileEnds")));
+  if (profileInfo.openEnds.length) {
+    var endsStat=el("span", "", profileInfo.openEnds.length + " " + t(presentation.pathEnds ? "profilePathEnds" : "profileEnds"));
+    endsStat.setAttribute("data-profile-ends","");profileStats.appendChild(endsStat);
+  }
   if (profileInfo.branchPoints.length) profileStats.appendChild(el("span", "", profileInfo.branchPoints.length + " × " + t("profileBranched")));
   profileCard.appendChild(profileStats);
   if (profileInfo.nearMergeCount) {
@@ -24822,6 +24868,7 @@ function patchEditedFeatureLayer() {
    parameters are being dragged. Apply and Cancel still go through refreshAll. */
 function refreshLivePreview() {
   if (typeof window !== "undefined") window.cadRefreshLivePreview = refreshLivePreview;
+  syncSketchOpenPathFeedback();
   if (E.authoring && E.authoring.featureEdit) {
     if (!patchEditedFeatureLayer()) updatePreview();
     drawSketch();
