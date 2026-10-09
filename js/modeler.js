@@ -20608,11 +20608,16 @@ function appendSketchGeometryList(host, sketch) {
     details.appendChild(button);
   }
   var coord=function(point){return "("+modelLengthText(point.x,9)+", "+modelLengthText(point.y,9)+") "+modelLengthUnit();};
+  var listedPoints=new Set();
   sketch.entities.forEach(function(entity,index){
     pick(entity,(entity.name||entity.type)+" "+(index+1)+(entity.construction?" · "+t("tool_constr"):""));
     entityPoints(sketch,entity).forEach(function(point,pointIndex){
+      listedPoints.add(point.id);
       pick(point,t("sketchPointLabel")+" "+(index+1)+"."+(pointIndex+1)+" · "+coord(point));
     });
+  });
+  sketch.points.filter(function(point){return !listedPoints.has(point.id);}).forEach(function(point,index){
+    pick(point,t("sketchPointLabel")+" "+(index+1)+" · "+coord(point));
   });
   host.appendChild(details);
 }
@@ -20647,7 +20652,7 @@ function fillSketchPane() {
   var uvGuide=surfaceUVGuide(sketch);
   if(uvGuide){var guide=el("p", "md-feature-hint");guide.textContent=uvGuide;host.appendChild(guide);}
 
-  if (!sketch.entities.length) {
+  if (!sketch.entities.length && !sketch.points.length) {
     emptyState(host, "ph-compass-tool", t("noSketch"), t("noSketchHint"));
     // variables belong to the document, not to any one sketch, so they stay
     // reachable before the first line is drawn
@@ -20718,7 +20723,8 @@ function fillSketchPane() {
       refreshAll();
     }, "md-profile-heal"));
   }
-  host.appendChild(profileCard);
+  if(sketch.entities.length)host.appendChild(profileCard);
+  else host.appendChild(el("p","md-field-hint","Positioning points define feature locations. Select a point in Sketch geometry to edit its coordinates; a closed solid profile is not required for Hole positions."));
   if (sketch.points.length) host.appendChild(btn("Translate sketch geometry", function () {
     openQuickForm({action:"translatesketch",title:"Translate sketch geometry",hint:"Move every sketch point and its fixed anchors together. Dimensions and shape stay the same.",fields:[
       {key:"dx",label:"Horizontal shift",type:"number",value:0,unit:"length"},
