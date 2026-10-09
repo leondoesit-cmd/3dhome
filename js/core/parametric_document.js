@@ -348,11 +348,18 @@ export function historyDependents(document, historyId) {
   return (document.history || []).filter((item) => item.kind === "feature" && ids.has(item.targetId));
 }
 
-function featureDependencyIds(feature) {
+function featureDependencyIds(feature, document) {
   const ids = new Set(feature.inputs || []);
   (feature.references?.features || []).map(referenceId).filter(Boolean).forEach((id) => ids.add(id));
   (feature.references?.topology || []).forEach((reference) => {
-    if (reference?.ownerFeatureId) ids.add(reference.ownerFeatureId);
+    if (reference?.ownerFeatureId) {
+      const owner=reference.ownerFeatureId;
+      // Native additive/cut faces can retain their generated tool owner. That
+      // is a topology address, not an extra authoring history feature.
+      const source=(document.features || []).find(item=>item.id===owner)
+        || (owner.endsWith(':tool') ? (document.features || []).find(item=>item.id===owner.slice(0,-5)) : null);
+      ids.add(source?.id || owner);
+    }
   });
   return ids;
 }
@@ -369,7 +376,7 @@ export function analyzeParametricHistory(document, options = {}) {
     issues.push(...validateFeatureDefinition(feature));
     const entry = featureEntries.get(feature.id);
     if (!entry) issues.push({ severity: "error", code: "feature-not-in-history", featureId: feature.id, message: feature.name + " is missing from design history" });
-    featureDependencyIds(feature).forEach((dependencyId) => {
+    featureDependencyIds(feature, document).forEach((dependencyId) => {
       const dependency = featureEntries.get(dependencyId);
       if (!featureById.has(dependencyId) || !dependency) issues.push({ severity: "error", code: "missing-feature-dependency", featureId: feature.id, reference: dependencyId, message: feature.name + " depends on missing feature " + dependencyId });
       else if (entry && order.get(dependency.id) >= order.get(entry.id)) issues.push({ severity: "error", code: "future-feature-dependency", featureId: feature.id, reference: dependencyId, message: feature.name + " depends on a later history step" });

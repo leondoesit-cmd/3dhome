@@ -8,6 +8,14 @@ import { getLang } from "./i18n.js";
 
 /* ================= i18n (local, he/en) ================= */
 export var TXT = {
+  thinChains: ["שרשראות פתוחות לדופן דקה", "Open chains for thin walls"],
+  thinChainsHint: ["בחרו שרשראות. הוספה יוצרת תכונה לכל שרשרת בפעולת ביטול אחת; חיתוך משתמש בתכונה אחת. צד העובי נמדד לפי כיוון השרשרת.", "Choose chains. Add creates one feature per chain in one Undo; Cut uses one feature. Thickness side follows the chain direction."],
+  thinChain: ["שרשרת", "Chain"],
+  thinChainSide: ["צד העובי", "Thickness side"],
+  thinChainDefault: ["לפי כיוון העובי הראשי", "Use main thickness direction"],
+  thinChainCentered: ["מישור אמצעי", "Mid-plane"],
+  thinChainOneSide: ["צד אחד", "One side"],
+  thinChainOtherSide: ["הצד השני", "Other side"],
   domeOp: ["כיפה", "Dome"],
   centerpointArc: ["קשת מנקודת מרכז", "Centerpoint Arc"],
   arcThreePoint: ["קשת בשלוש נקודות", "3-point arc"],

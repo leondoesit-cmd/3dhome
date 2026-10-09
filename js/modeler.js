@@ -17,6 +17,7 @@ import {readProjectBundleUrl} from './core/project_bundle_url.js';
 import {dimensionTargetFromSelection} from './core/sketch_dimension_selection.js';
 import {resolveOffsetPlanes, throughVertexBinding, referencePlaneOffset} from './core/offset_planes.js';
 import {revolveThinProfile,thinSketchProfile} from './core/thin_profile.js';
+import {thinExtrudeAreas,thinExtrudeChainKey} from './modeler_thin_extrude_profiles.js';
 import {threadPlacementFromFace} from './core/thread_placement.js';
 import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
@@ -10076,7 +10077,7 @@ function addTerminatingFaceChoices(host,type,state,liveBadge,controls) {
     var chosen=choices.find(function(choice){return choice.entry.persistentId===select.value;});
     // Selecting a terminating face changes only the extrusion reference. In
     // particular it must not activate the sketch that produced that face.
-    E.topologySelection=chosen ? [topologyReferenceFromEntry(chosen.entry)] : [];
+    E.topologySelection=chosen ? canonicalFeatureTopologyReferences(E.def,[topologyReferenceFromEntry(chosen.entry)]) : [];
     E.collectingFeature=false;
     syncActiveFeatureSelectionFeedback();
     queueNewFeaturePreview(type,state,liveBadge);
@@ -10135,6 +10136,32 @@ function addShellFaceThicknessControls(host,state,onChange,editedFeature=null,op
   editor.sync=function(){openingBrowser.sync();syncThicknesses();};
   if(!editedFeature)state.syncShellThicknesses=editor.sync;
   return editor;
+}
+
+function addThinExtrudeChainChoices(host,type,state,liveBadge,controls) {
+  if(type!=="extrude" && type!=="extrudeCut")return;
+  var sketch=ensureSketch(E.def),chains=analyzeSketchChains(sketch).chains;
+  if(chains.length<2)return;
+  var selected=E.sselAuto?[]:selEntities().map(function(entity){return entity.id;});
+  state.thinChainKeys=chains.filter(function(chain){return chain.entityIds.some(function(id){return selected.includes(id);});}).map(function(chain){return thinExtrudeChainKey(chain.entityIds);});
+  var picker=el("fieldset","md-contour-picker");
+  picker.appendChild(el("legend","",t("thinChains")));
+  picker.appendChild(el("small","",t("thinChainsHint")));
+  var all=btn(t("featureAllContours"),function(){state.thinChainKeys=[];sync();},"md-contour-choice");picker.appendChild(all);
+  var choices=chains.map(function(chain,index){
+    var key=thinExtrudeChainKey(chain.entityIds),row=el("label","md-row md-row-wide");
+    var button=btn(t("thinChain")+" "+(index+1),function(){var keys=state.thinChainKeys;state.thinChainKeys=keys.includes(key)?keys.filter(function(item){return item!==key;}):keys.concat(key);sync();},"md-contour-choice");
+    row.appendChild(button);
+    var side=document.createElement("select");side.setAttribute("aria-label",t("thinChain")+" "+(index+1)+" · "+t("thinChainSide"));
+    [["",t("thinChainDefault")],["mid-plane",t("thinChainCentered")],["forward",t("thinChainOneSide")],["reverse",t("thinChainOtherSide")]].forEach(function(choice){var option=document.createElement("option");option.value=choice[0];option.textContent=choice[1];side.appendChild(option);});
+    side.value=state.params.thinChainModes?.[key] || "";
+    side.addEventListener("change",function(){state.params.thinChainModes={...state.params.thinChainModes};if(side.value)state.params.thinChainModes[key]=side.value;else delete state.params.thinChainModes[key];sync();});
+    row.appendChild(side);picker.appendChild(row);return {key:key,button:button};
+  });
+  function render(){picker.hidden=!state.params.thinFeature;all.setAttribute("aria-pressed",String(!state.thinChainKeys.length));choices.forEach(function(choice){choice.button.setAttribute("aria-pressed",String(state.thinChainKeys.includes(choice.key)));});}
+  function sync(){render();queueNewFeaturePreview(type,state,liveBadge);}
+  var control=(controls || []).find(function(item){return item.field.key==="thinFeature";});if(control)control.input.addEventListener("change",render);
+  host.appendChild(picker);render();
 }
 
 function finishBodyTargetChoices() {
@@ -10248,6 +10275,7 @@ function openParametricFeature(type, repeatedParams) {
   var controls=renderFeatureParameterForm(host,type,state,function(next){state.params=next.params;state.references={...state.references,...next.references};E.depth=Number(state.params.depth)||E.depth;E.baseOff=Number(state.params.offset)||0;if(type==="fillet")renderFinishEdgeList();if(shellEditor)shellEditor.sync();queueNewFeaturePreview(type,state,liveBadge);});
   var shellEditor=addShellFaceThicknessControls(host,state,function(){queueNewFeaturePreview(type,state,liveBadge);});
   addTerminatingFaceChoices(host,type,state,liveBadge,controls);
+  addThinExtrudeChainChoices(host,type,state,liveBadge,controls);
   if(type==="extrude")addBossContourChoices(host,state,liveBadge);
   var selectionNote=el("div","md-feature-selection-note");
   selectionNote.setAttribute("data-live-selection",type);host.appendChild(selectionNote);syncActiveFeatureSelectionFeedback();addFinishScrubber(host,type,controls);
@@ -10318,7 +10346,7 @@ function openParametricFeature(type, repeatedParams) {
     state.references={...state.references,...values.references};clearFeaturePreview(false);
     if(restoreExact){E.exactRestoring=true;coreRunFresh=true;}
     try {
-    if(type==="extrude"||type==="extrudeCut")ok=await extrudeClosedSketch({type:type,...params,contourKeys:type==="extrude"?state.contourKeys:null});
+    if(type==="extrude"||type==="extrudeCut")ok=await extrudeClosedSketch({type:type,...params,contourKeys:params.thinFeature?state.thinChainKeys:type==="extrude"?state.contourKeys:null});
     else if(type==="revolve")ok=createRevolveFeature({...params,axisReference:state.references.axis});
     else if(type==="revolveCut")ok=createRevolveCutFeature({...params,axisReference:state.references.axis});
     else if(type==="sweepCut")ok=createMultiSketchFeature("sweepCut",params);
@@ -13410,12 +13438,10 @@ function sketchFeatureAreas(allCandidates, committedContourKeys) {
    cutter for each region so its preview matches the exact rebuild. */
 function extrusionSketchAreas(params,contourKeys) {
   if(!params.thinFeature)return sketchFeatureAreas(false,contourKeys);
-  var sketch=ensureSketch(E.def),selected=E.sselAuto?[]:selEntities().map(function(entity){return entity.id;});
-  var chains=analyzeSketchChains(sketch,{selectedIds:selected}).chains;
-  if(selected.length)chains=chains.filter(function(chain){return chain.selected;});
-  if(chains.length!==1)throw new Error("Select one connected open line or arc chain for Thin Extrude");
-  var chain=chains[0],profile=thinSketchProfile(sketch,chain.entityIds,params.thickness,params.thinMode);
-  return [{...profile,entityIds:chain.entityIds,holes:[],holeEntityIds:[]}];
+  var state=E.authoring && E.authoring.featurePreviewState;
+  var explicit=Array.isArray(contourKeys) ? contourKeys : state && ["extrude","extrudeCut"].includes(E.authoring.featureType) && state.thinChainKeys ? state.thinChainKeys : null;
+  var selected=explicit || E.sselAuto ? [] : selEntities().map(function(entity){return entity.id;});
+  return thinExtrudeAreas(ensureSketch(E.def),params,{selectedIds:selected,chainKeys:explicit || []});
 }
 
 async function extrudeClosedSketch(options) {
@@ -13431,7 +13457,8 @@ async function extrudeClosedSketch(options) {
   var target=featureType==="extrudeCut" ? (selectedSolid() || activeParts(E.def)[activeParts(E.def).length-1]) : null;
   var targetFeatureId=target ? cutTargetFeatureId(target) : null;
   if(featureType==="extrudeCut"&&!target){flash(t("extrudeCutNeed"));return false;}
-  var endFace=isUpToFace(params.endCondition)?(E.topologySelection||[]).find(function(item){return item.kind==="face";}):null;
+  var pickedEndFace=isUpToFace(params.endCondition)?(E.topologySelection||[]).find(function(item){return item.kind==="face";}):null;
+  var endFace=pickedEndFace ? canonicalFeatureTopologyReferences(E.def,[cloneData(pickedEndFace)])[0] : null;
   if(isUpToFace(params.endCondition)&&!endFace){flash(t("upToFaceNeed"));return false;}
   var axis = planeAxis(sketch.plane);
   var normal=sketch.frame && sketch.frame.normal;
@@ -13477,11 +13504,14 @@ async function extrudeClosedSketch(options) {
     if(extraAreas.length){
       profileParams.regions=extraAreas.map(function(extra){return extra.points.map(function(q){return {u:q.u,v:q.v};});});
       profileParams.regionProfileEntityIds=extraAreas.map(function(extra){return extra.entityIds || null;});
+      if(params.thinFeature)profileParams.thinRegionModes=extraAreas.map(function(extra){return extra.thinMode || params.thinMode;});
     }
+    if(params.thinFeature)profileParams.thinMode=area.thinMode || params.thinMode;
+    var storedParams={...params};delete storedParams.thinChainModes;
     return createFeatureDefinition(E.def,featureType,{
       inputs:inputId ? [inputId] : [],
       references:{sketches:[sketch.id],features:inputId ? [inputId] : [],topology:endFace?[cloneData(endFace)]:[],references:[],...(area.entityIds ? {profileEntityIds:area.entityIds} : {})},
-      params:{...params,depth:depth,offset:offset,axis:localFrame?"frame":axis,...profileParams,sketchId:sketch.id,operation:featureType==="extrudeCut"?"subtract":params.operation || "add",from:start,to:end,...(endFace?{endFace:cloneData(endFace)}:{})},
+      params:{...storedParams,depth:depth,offset:offset,axis:localFrame?"frame":axis,...profileParams,sketchId:sketch.id,operation:featureType==="extrudeCut"?"subtract":params.operation || "add",from:start,to:end,...(endFace?{endFace:cloneData(endFace)}:{})},
     });
   };
   if(featureType==="extrudeCut"){

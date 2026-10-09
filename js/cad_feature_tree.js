@@ -508,7 +508,13 @@ export function resolveSketchExtrusion(def, params) {
   if (!sketch) throw new Error("Sketch profile is missing its sketch");
   if(params.thinFeature){
     const thin=thinSketchProfile(sketch,params.profileEntityIds,params.thickness,params.thinMode);
-    return {...params,points:thin.points,segments:thin.segments,holes:[],regions:[]};
+    // Each disconnected open chain owns its offset direction. The primary
+    // chain uses thinMode; optional modes align with the additional chains.
+    const regions=(params.regionProfileEntityIds || []).map((ids,index)=>{
+      const region=thinSketchProfile(sketch,ids,params.thickness,params.thinRegionModes?.[index] ?? params.thinMode);
+      return {points:region.points,segments:region.segments};
+    });
+    return {...params,points:thin.points,segments:thin.segments,holes:[],regions};
   }
   // Same resolver the live mesh uses, so the exact solid and the drawn one
   // cannot disagree about what the feature currently is.
