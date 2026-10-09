@@ -51,10 +51,10 @@ const TOOLBOX_FAMILY_CHOICES = TOOLBOX_FAMILIES.map((family) => ({ value:family.
 const TOOLBOX_MATERIAL_CHOICES = [{ value:"", label:"Automatic (family default)" }].concat(Object.values(TOOLBOX_MATERIALS).map((material) => ({ value:material.id, label:material.name })));
 const TOOLBOX_FINISH_CHOICES = [{ value:"", label:"Automatic (family default)" }].concat(Object.entries(TOOLBOX_FINISHES).map(([value,label]) => ({ value, label })));
 
-const resultGroup = (operation = true) => ({
+const resultGroup = (operation = true, choices = OPERATIONS) => ({
   id: "result", label: "Result", labelKey: "fcGrpResult", icon: "ph-union",
   fields: [
-    ...(operation ? [{ key: "operation", label: "Operation", labelKey: "fcFldOperation", type: "select", choices: OPERATIONS }] : []),
+    ...(operation ? [{ key: "operation", label: "Operation", labelKey: "fcFldOperation", type: "select", choices: choices }] : []),
     { key: "mergeResult", label: "Merge result", labelKey: "fcFldMergeResult", type: "boolean" },
   ],
 });
@@ -312,7 +312,7 @@ export const FEATURE_CATALOG = Object.freeze({
        first, so offering the switch would have been a control the kernel
        ignores. `continuity` stays because SetContinuity() receives it. */
     defaults: { operation: "add", continuity: "position", solid: true, ruled: false, matchProfiles: true, tolerance: 0.001, mergeResult: true },
-    parameters: { operation: ENUM("add", "new-body"), continuity: ENUM("position", "tangent", "curvature"), solid: BOOLEAN, ruled: BOOLEAN, matchProfiles: BOOLEAN, tolerance: LENGTH, mergeResult: BOOLEAN },
+    parameters: { operation: ENUM("add", "subtract", "new-body"), continuity: ENUM("position", "tangent", "curvature"), solid: BOOLEAN, ruled: BOOLEAN, matchProfiles: BOOLEAN, tolerance: LENGTH, mergeResult: BOOLEAN },
     editor: { groups: [
       { id: "sections", label: "Sections", labelKey: "fcGrpSections", icon: "ph-stack", fields: [
         { key: "continuity", label: "Continuity", labelKey: "fcFldContinuity", type: "select", choices: [
@@ -325,7 +325,7 @@ export const FEATURE_CATALOG = Object.freeze({
         { key: "solid", label: "Create solid", labelKey: "fcFldCreateSolid", type: "boolean" },
         { key: "tolerance", label: "Tolerance", labelKey: "fcFldTolerance", type: "number", unit: "length", min: 1e-6, step: 0.001 },
       ]},
-      resultGroup(true),
+      resultGroup(true, OPERATIONS.concat([{value:"subtract",label:"Cut material",labelKey:"fcOptSubtract"}])),
     ]},
   },
   fillet: {

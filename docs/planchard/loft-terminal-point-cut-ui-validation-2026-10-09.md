@@ -1,0 +1,11 @@
+# Loft terminal-point Cut UI validation — 2026-10-09
+
+Bounded generic creation support for a Loft between closed sketch sections and one terminal point sketch. A browser point entity referencing the single finite point is supported. Middle point sections, multiple points and actual open curve sections are rejected. Cut requires a solid and an explicit selected native body or the sole eligible body; ambiguous multi-body requests fail before Undo or document mutation.
+
+The canonical feature stores the target body head, section sketch/point IDs and analytic section segments. The projected Cut descriptor uses the same Loft recipe, and associative section refresh retains analytic segments. Existing Loft parameter edits synchronize their Cut/merge recipe. Operation is chosen at creation; existing Loft operation conversion is disabled to avoid silently changing projected ownership.
+
+Focused command: `node --test tests/loft_point_cut_ui.test.mjs tests/cad_loft_point_cut.test.mjs` — 5/5 PASS. Three actual-handler tests use a disposable clone of the protected browser prerequisite `DRAFTING-1.9-preloft-browser-2026-10-09.mforge`; no authored artifact is modified. Two core/native tests independently validate the skew pyramid Cut, editable apex, valid single solid, both source facet normals and serialized BREP restoration. Stock volume 80 cm³ becomes 71.5 cm³; apex movement from Y1 to Y2 recomputes the removal. Native core commits f1c6aa2 and 6cd8a32 provide the underlying endpoint and Cut support.
+
+Browser recipe for the already-authored Exercise 1.9 prerequisite: select the top quadrilateral sketch `sk_2ovmn`, then Ctrl-select the single-point sketch `sk_3s5o2`. Open Loft, choose Cut material, keep Create solid enabled, enable Ruled sections, use Position continuity, and finish the command. The only stock body is the target. Quad A→E→B→P at Y40 mm lofts to C at Y10 mm. Expected remaining volume is 71500 mm³. This document records code validation and a recipe; actual browser completion/cold acceptance remains the parent's responsibility. No Exercise 1.10 work is included.
+
+Final gates: `npm run check` PASS — no free identifiers, 659 import links, 1489 source assertions. No full-suite claim is made for this new feature.

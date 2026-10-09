@@ -178,7 +178,7 @@ import { refreshedExtrudeProfile } from "./core/feature_profile_refresh.js";
 import { featureContourKey, selectFeatureContours } from "./core/feature_contours.js";
 import { createReferencePlane, createReferenceAxis, createReferencePoint, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
 import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath,circularHelixSweepProfile } from "./cad_helix.js";
-import { circularSweepProfile, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
+import { circularSweepProfile, loftSectionSourceRecord, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
 import { defaultExplodeLayout, assemblyHasExplodedOffsets, createExplodedView, addExplodeStep, applyExplodedView, applyExplodedProgress, explodeLines, explodeTargets, explodedOccurrenceOffset } from "./cad_exploded_view.js";
 import { createMotionStudy, captureMotionStudyBaseline, addRotaryMotor, addScrewMotor, addRackPinionMotor, addLinearMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
 import { detectInterference, generateBOM } from "./cad_interference.js";
@@ -8351,20 +8351,25 @@ function createMultiSketchFeature(type, values) {
     params.profile=profileLoop.points.map(function(point){return sketchWorldPoint(profile,point.u,point.v);});params.path=sampledPath;params.pathSegments=sketchPathSegments(path);params.profileSegments=sketchPathSegments(profile,profileLoop.entityIds);
     sources=sweepSourceRecord(profile,profileLoop.entityIds,path);params.sketchSources=cloneData(sources);
   } else {
-    var sectionSketches=refs.map(function(id){return (E.def.sketches || []).find(function(item){return item.id===id;});}),sectionIds=[];
-    params.sections=sectionSketches.map(function(sketch){var loop=sketch?analyzeSketchProfiles(sketch).profiles[0]:null;sectionIds.push(loop && loop.entityIds || []);return loop?loop.points.map(function(point){return sketchWorldPoint(sketch,point.u,point.v);}):null;});
-    if(params.sections.some(function(section){return !section;})){flash(t("loftNeed"));return false;}
-    sources=loftSourceRecord(sectionSketches,sectionIds);params.sketchSources=cloneData(sources);params.sectionSegments=sectionSketches.map(function(sketch,index){return sketchPathSegments(sketch,sectionIds[index]);});
+    var sectionSketches=refs.map(function(id){return (E.def.sketches || []).find(function(item){return item.id===id;});});
+    var sectionSources=sectionSketches.map(function(sketch,index){var loop=sketch?analyzeSketchProfiles(sketch).profiles[0]:null;return loftSectionSourceRecord(sketch,loop && loop.entityIds || [],index===0 || index===sectionSketches.length-1);});
+    if(sectionSources.some(function(section){return !section;})){flash(t("loftNeed"));return false;}
+    sources=loftSourceRecord(sectionSketches,sectionSources);
+    var resolvedLoft=resolveSweptSources(E.def,sources,resolveProfilePoints);
+    if(!resolvedLoft){flash(t("loftNeed"));return false;}
+    Object.assign(params,resolvedLoft);params.sketchSources=cloneData(sources);
   }
   /* Sweep Cut removes the very solid Sweep would have added: same two sketches,
      same params record, and the tool lands on the target's cut list instead of
      on the document as a body. */
   var cutTarget=null,cutTargetId=null;
-  if(type==="sweepCut"){
-    cutTarget=cutTargetBody();
+  if(type==="sweepCut" || type==="loft" && params.operation==="subtract"){
+    if(type==="loft" && params.solid===false){flash(t("loftCutSolid"));return false;}
+    cutTarget=type==="loft" ? (selectedSolid() || (activeParts().length===1 ? activeParts()[0] : null)) : cutTargetBody();
     if(!cutTarget){flash(t("extrudeCutNeed"));return false;}
     if(!partSupportsExactMesh(cutTarget)){flash(t("cutNeedExactBody"));return false;}
     cutTargetId=cutTargetFeatureId(cutTarget);
+    if(!cutTargetId){flash(t("extrudeCutNeed"));return false;}
   }
   pushUndo(t("createFeature")+" "+featureTypeLabel(type));
   var created=null;
@@ -8378,7 +8383,7 @@ function createMultiSketchFeature(type, values) {
     var mergeParent=cutTargetFeatureId(mergeHost);created.inputs=[mergeParent];created.references.features=[mergeParent];reconnectLaterBodyConsumers(E.def,created);
     mergeHost.merges3d=mergeHost.merges3d || [];
     mergeHost.merges3d.push(type==="loft"
-      ? {kind:"loft",sections:cloneData(params.sections),solid:params.solid!==false,ruled:!!params.ruled,matchProfiles:params.matchProfiles!==false,continuity:params.continuity,tolerance:params.tolerance,sketchSources:sources,featureId:created && created.id || undefined}
+      ? {kind:"loft",sections:cloneData(params.sections),sectionSegments:cloneData(params.sectionSegments),solid:params.solid!==false,ruled:!!params.ruled,matchProfiles:params.matchProfiles!==false,continuity:params.continuity,tolerance:params.tolerance,sketchSources:sources,featureId:created && created.id || undefined}
       : {kind:"sweep",profile:cloneData(params.profile),path:cloneData(params.path),pathSegments:cloneData(params.pathSegments),profileSegments:cloneData(params.profileSegments),orientation:params.orientation,twistAngle:params.twistAngle,scale:params.scale,sketchSources:sources,featureId:created && created.id || undefined});
     invalidatePartMeshAfterEdit(mergeHost);
     E.sel=mergeHost;queueExactMesh(mergeHost);refreshAll();return true;
@@ -8386,7 +8391,7 @@ function createMultiSketchFeature(type, values) {
   if(!cutTarget)E.sel=addKernelBodyPart(created,type,params,sources) || E.sel;
   if(cutTarget){
     cutTarget.cuts3d=cutTarget.cuts3d || [];
-    cutTarget.cuts3d.push({kind:"sweep",profile:cloneData(params.profile),path:cloneData(params.path),pathSegments:cloneData(params.pathSegments),profileSegments:cloneData(params.profileSegments),orientation:params.orientation,twistAngle:params.twistAngle,scale:params.scale,sketchSources:sources,featureId:created && created.id || undefined});
+    cutTarget.cuts3d.push(type==="loft" ? {kind:"loft",sections:cloneData(params.sections),sectionSegments:cloneData(params.sectionSegments),solid:true,ruled:!!params.ruled,matchProfiles:params.matchProfiles!==false,continuity:params.continuity,tolerance:params.tolerance,sketchSources:sources,featureId:created.id} : {kind:"sweep",profile:cloneData(params.profile),path:cloneData(params.path),pathSegments:cloneData(params.pathSegments),profileSegments:cloneData(params.profileSegments),orientation:params.orientation,twistAngle:params.twistAngle,scale:params.scale,sketchSources:sources,featureId:created && created.id || undefined});
     invalidatePartMeshAfterEdit(cutTarget);
     E.sel=cutTarget;queueExactMesh(cutTarget);
   }
@@ -13912,7 +13917,7 @@ function syncSweptSourceParts() {
       try { resolved = resolveSweptSources(E.def, entry.sketchSources, resolveProfilePoints); }
       catch (error) { resolved = null; }
       if (!resolved) return;
-      if (resolved.sections) { if (!same(resolved.sections, entry.sections)) { entry.sections = resolved.sections; touched = true; } return; }
+      if (resolved.sections) { for(var loftKey of ["sections","sectionSegments"])if(!same(resolved[loftKey],entry[loftKey])){entry[loftKey]=resolved[loftKey];touched=true;} return; }
       if (!same(resolved.profile, entry.profile)) { entry.profile = resolved.profile; touched = true; }
       if (!same(resolved.path, entry.path)) { entry.path = resolved.path; touched = true; }
       for(var key of ["pathSegments","profileSegments"])if(!same(resolved[key],entry[key])){entry[key]=resolved[key];touched=true;}
@@ -17622,6 +17627,9 @@ function syncProjectionFromFeature(feature) {
     var reference=(E.def.referenceGeometry || []).find(function(r){return r.featureId===feature.id;});
     if(reference){Object.assign(reference,createHelix({...helixFromSketch(E.def,feature.params),id:reference.id,name:feature.name}));return true;}
   }
+  if(feature.type==="loft"){
+    (E.def.parts || []).forEach(function(body){(body.merges3d || []).concat(body.cuts3d || []).forEach(function(entry){if(entry.featureId===feature.id){Object.assign(entry,cloneData(feature.params),{kind:"loft",featureId:feature.id});invalidatePartMeshAfterEdit(body);scheduleExactMesh(body);}});});
+  }
   var part=(E.def.parts || []).find(function(item){return item.featureId===feature.id;});
   if(feature.type==="toolbox"){
     var generated=toolboxFastener(cloneData(feature.params || {}));
@@ -17925,10 +17933,16 @@ function openFeatureEditor(feature) {
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
     // A changed Boolean is committed by Update, not by the parameter ghost.
     if(feature.type==="extrude" && next.params.operation==="subtract")next.params.operation=feature.params.operation || "add";
+    if(feature.type==="loft")next.params.operation=feature.params.operation || "add";
     feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);retargetSweepHelix(feature);feature.name=name.value || feature.name;
     if(shellEditor)shellEditor.sync();
     if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncLiveFeatureEdit(feature);if(["fillet","chamfer"].includes(feature.type))renderFinishEdgeList();if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
   });
+  if(feature.type==="loft"){
+    var loftOperationControl=controls.find(function(control){return control.field.key==="operation";});
+    if(loftOperationControl)loftOperationControl.input.disabled=true;
+    host.appendChild(el("p","md-field-hint",t("loftEditOperation")));
+  }
   var shellEditor=addShellFaceThicknessControls(host,feature,function(){syncLiveFeatureEdit(feature);},feature,function(){return finishTargetSelect?.value ? [finishTargetSelect.value] : (feature.references?.topology || []).map(function(ref){return ref.persistentId;});});
   var editOperationSelect=null;
   if(feature.type==="extrude" || feature.type==="extrudeCut"){
