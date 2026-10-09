@@ -1,0 +1,150 @@
+{
+  "scope": "Read-only actual native/source boundary/STEP acceptance. Natural guide extension and normal-left growth are source-envelope workflow; opaque original growth/vertex selector and original feature order are not claimed. Description rewrite/cold/driving pending.",
+  "input": "artifacts/planchard/BASIC-Q5-natural-source-normal-browser-2026-10-09.mforge",
+  "checks": {
+    "stationAuditPass": true,
+    "sourceFourRibBoundaryPoints": true,
+    "allOtherSketchesPreserved": true,
+    "allOtherFeaturesPreserved": true,
+    "sourceFiniteGuide": true,
+    "naturalNormalLeft": true,
+    "sourceNominalMaterial2point7": true,
+    "sourceMassRounds": true,
+    "sourceCOMRounds": true,
+    "inputUnchanged": true,
+    "stepOneValid": true,
+    "stepBidirectionalZero": true
+  },
+  "pass": true,
+  "sourceContactPoints": [
+    {
+      "offset": 1896,
+      "attr": 61,
+      "references": [
+        1,
+        53,
+        62,
+        40
+      ],
+      "xyzMm": [
+        12.7,
+        58.246930080729335,
+        -1.6457714126219616
+      ],
+      "nMm": 37.75175713425181,
+      "vMm": 44.387140712693395,
+      "maxErrorMm": 2.317894691874688e-14
+    },
+    {
+      "offset": 1936,
+      "attr": 62,
+      "references": [
+        1,
+        60,
+        63,
+        61
+      ],
+      "xyzMm": [
+        -12.7,
+        58.24693008072934,
+        -1.6457714126219338
+      ],
+      "nMm": 37.75175713425183,
+      "vMm": 44.38714071269338,
+      "maxErrorMm": 2.0896980998374056e-14
+    },
+    {
+      "offset": 2072,
+      "attr": 66,
+      "references": [
+        1,
+        68,
+        69,
+        63
+      ],
+      "xyzMm": [
+        -12.700000000000006,
+        32.98607393837516,
+        -29.700794379620486
+      ],
+      "nMm": 6.750155989720952e-14,
+      "vMm": 44.38714071269346,
+      "maxErrorMm": 5.132840183215798e-12
+    },
+    {
+      "offset": 2140,
+      "attr": 69,
+      "references": [
+        1,
+        71,
+        72,
+        66
+      ],
+      "xyzMm": [
+        12.700000000000006,
+        32.98607393837516,
+        -29.700794379620486
+      ],
+      "nMm": 6.750155989720952e-14,
+      "vMm": 44.38714071269346,
+      "maxErrorMm": 5.132840183215798e-12
+    }
+  ],
+  "step": {
+    "input": "artifacts/planchard/BASIC-Q5-natural-source-normal-browser-2026-10-09.step",
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 502.183176715428,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 502.183176715428,
+      "centerOfMass": {
+        "x": -4.1269414971275115e-14,
+        "y": 1.851309967466045,
+        "z": -2.1857927858948916
+      },
+      "inertia": [
+        [
+          11577.160841830606,
+          4.942859583164231e-11,
+          -8.193658348540113e-11
+        ],
+        [
+          4.942859583164231e-11,
+          8325.455265781518,
+          3383.473675418676
+        ],
+        [
+          -8.193658348540113e-11,
+          3383.473675418676,
+          8078.995453081243
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.81,
+          "y": -2.54,
+          "z": -10.728555034309295
+        },
+        "max": {
+          "x": 3.81,
+          "y": 11.372131132259,
+          "z": 5.08
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0
+  },
+  "nativeStationAudit": "artifacts/planchard/BASIC-Q5-natural-source-normal-native-audit-2026-10-09.json",
+  "material": [
+    {
+      "density": 2.7,
+      "name": "Aluminum 6061"
+    }
+  ],
+  "currentDescription": "Fresh Chrome reconstruction Basic Question5. Source-backed repair9October2026: tubeD3in and boreD2.25in shifted together +0.69648573149675mm along inclined axis, physical stations -37.7517571344516..+38.4482428655484mm; support rear-top point corrected to source rear plane. Equivalent workflow retains parallel datum at front base edge and quadrilateral support merged with full tube, instead of original rounded support/selected-vertex sequence. Rib1in thick uses longer collinear48deg guide; source finite guide is preserved as diagnostic because current UpToBody stops short. Native source station audit PASS, cached COM residual Y-0.00628984/Z+0.00241542mm disclosed. Nominal source6061 density2.7g/cm3 differs from printed0.097lb/in3; no mass fitting or source geometry import. Rib extension repair and final acceptance pending."
+}

@@ -1,0 +1,80 @@
+{
+  "scope": "Read-only present-field final durability audit plus parent-attributed actual driving/cold facts. No original whole source B-rep equivalence or proprietary selector recovery claimed.",
+  "inputs": [
+    {
+      "path": "artifacts\\planchard\\BASIC-Q5-natural-source-normal-browser-2026-10-09.mforge",
+      "sha256": "aa19a4feb03897e8164b52bdd5b37c2294f405a9fb5fe6fe184b719fa0b52378"
+    },
+    {
+      "path": "artifacts\\planchard\\BASIC-Q5-natural-source-driving-restored-browser-2026-10-09.mforge",
+      "sha256": "c25ec89e9ae8060b29002fb50cf2588e8c53dfe76decb8943141a9fc5dc49603"
+    },
+    {
+      "path": "artifacts\\planchard\\BASIC-Q5-natural-source-cold-accepted-browser-2026-10-09.mforge",
+      "sha256": "ef32dd8808440ce01759a8f7148a4eec069b5d6d5d33d827febb2414db4ee05e"
+    }
+  ],
+  "checks": {
+    "featuresPreserved": true,
+    "sketchesPreserved": true,
+    "historyPreserved": true,
+    "referenceGeometryPreserved": true,
+    "localFramePreserved": true,
+    "contextPreserved": true,
+    "parametersPreserved": true,
+    "variablesPreserved": true,
+    "topologyBindingsPreserved": true,
+    "namedSelectionsPreserved": true,
+    "exactNativeCacheRestoredToCold": true,
+    "descriptionRestoredToCold": true,
+    "descriptionASCII": true,
+    "descriptionSourceQualifications": true,
+    "sourceMaterial2point7": true,
+    "partPropertiesPreservedExceptDisplay": true,
+    "contextMetadataUnitsIn": true,
+    "parentProofProtected": true
+  },
+  "pass": true,
+  "changedModelFields": {
+    "naturalToRestored": [
+      "parts",
+      "lastRebuild",
+      "exactTopologyCache",
+      "lastStandardsAudit",
+      "customProperties"
+    ],
+    "restoredToCold": [
+      "parts",
+      "lastRebuild"
+    ]
+  },
+  "parentReportedBrowserFacts": {
+    "driving": "Rib Both sides thickness1\u21921.01in Finish settled; Undo2.54cm,Redo2.5654cm,Undo2.54cm verified.",
+    "edited": {
+      "volumeMm3": 502772.0,
+      "massG": 1357.484,
+      "COMmm": [
+        0,
+        18.51882,
+        -21.82451
+      ]
+    },
+    "restored": {
+      "volumeMm3": 502183.2,
+      "massG": 1355.895,
+      "COMmm": [
+        0,
+        18.5131,
+        -21.85793
+      ]
+    },
+    "cold": "Full blank app reload, old Oct3 backup dismissed, exact canonical saved Q5 selected;10steps5fullydefined1native/cleanSave. Description read exact, Rib normal-left/Natural/Both sides1in read in actual editor, Cancel restored clean state. Same settled source properties in mm/g.",
+    "screenshots": [
+      "artifacts\\planchard\\BASIC-Q5-natural-rib-thickness-edited-browser-2026-10-09.jpg",
+      "artifacts\\planchard\\BASIC-Q5-natural-rib-thickness-restored-browser-2026-10-09.jpg",
+      "artifacts\\planchard\\BASIC-Q5-cold-source-properties-browser-2026-10-09.jpg"
+    ]
+  },
+  "description": "Fresh Chrome reconstruction Basic Question5 PDF500/printed10-20; source-backed repair9October2026. TubeD3in and boreD2.25in share source axial stations -37.7517571344516..+38.4482428655484mm after start shift+0.69648573149675mm alongN. Corrected support rear point lies on source selected-back-vertex plane. Equivalent workflow retains front-edge parallel datum and quadrilateral support merged with full tube instead of original rounded support feature order. Rib exact source finite guide RightU2/V0 toU0.308321417274518/V1.878799405043442in, Both sides1in, Natural straight ends to body and Normal to straight guide-left growth(-N). Full-width source paired contacts corroborate this geometry; original proprietary growth/vertex selectors remain opaque. Native source2.7g/cm3 gives1355.894577g/COM0,18.513100,-21.857928mm, rounds to publisher cache. Printed0.097lb/in3 differs from nominal source density; no fitting or source geometry import.",
+  "savedUnits": "in authoring context/metadata; mass-property UI verification displayed mm/g separately."
+}

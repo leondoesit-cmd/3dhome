@@ -2,11 +2,19 @@
 
 Updated: **2026-10-09**. Read this first when resuming; older plans and STOP-HERE files contain superseded status.
 
+
+## Authoritative resume — 2026-10-09 07:05 local
+
+Read this pointer before older entries. Current dark desktopChrome710862239: canonical Basic5 **CSWA Q5 - fresh interpretation2026-09-30**, Output, clean saved cold10steps/5fullydefined/1native. SourcefiniteRib+Natural+guide-normalleft actualauthoringDONE; native source boundary fourpoints/STEPzero/source1355.895g COM0/18.51310/-21.85793mm PASS. ActualThickness1→1.01 nativechanged→Undo1→Redo1.01→Undo1 sourcepropertiesPASS. ASCII Description alternatefrontedgeplane/quadsupportunion/Naturalchoice/sourceopaquegrowth/vertexselectors/densitynominal2.7vsprinted.097/noimportnofit verifiedcoldUI. ActualcoldcontrolsNatural/Normalstraightleft/Bothsides1 confirmedthenCancelclean. Protected source389989bundle+STEP62887, restoredactual(8) andcoldacceptedactual(9); Basic5 ACCEPTED scopedsource-envelope: all18presentfielddurabilitychecksPASS; source6061/nativecache/revisedDescription/frames/context/authoringunitsin bitpreserved, onlyderivedmesh/exactBuildToken/lastRebuild differ. NEXTBasic5checkpointcommit→FLAT-PLATE9.6 Front/Rightcentrelines browser. Do notrepeatBasic5authoring.
+
+Completedcurrentcontext: Q1accepted1479260, Q4accepted7232a6a, LINKS9.4 finalconfigurationmaterial/BOM/drawing/coldaccepted6036ab8. UIrepairs906b6d1redundantlibrarycopy,5ff9038configurationBOM; CADcfbc6e5NaturalRib/guide-normal. Parent21Ribtests+4BOM+2ownershipPASS andlast653module/1489assertiongatesPASS; agent33Rib/59BOM/28savePASS. No overall save-stall resolution or full4075suitegreenclaim. Entire ebook unfinished; latest quota79%used21%remaining. Continue towarduser3–2% instruction, finishingactiveworkandcommitbeforestop.
+
+Activeagents: ui_improvements implementingconditionalhidden-rim Front/Rightaxiscentrelines forFLAT-PLATE9.6 sourcecontrols; exactsavedpart **FLAT-PLATE9.6 - fresh browser**, cm_mulxft3g, actualnamesusefreshDOMspaces. Parentcoldloadfixwhenreportedgreen andauthorDrawingHiddenlines/Centremarkson/export/cold. Holefacecentredanchoringdepth2→2.5 offset2.4→1.8 remainsseparateproparametricgap. Polygonread-onlyBasicQ6Bsource/frame auditpreparingexactrepair(noanswerfit); KantBasic5finaldurability. QueuethenBasicQ1/2/3/4driving/coldmissingevidence, BasicQ6STEP, Q6Bsourceexact(frame70,0,20), selectedWEIGHTLINK/FLASHLIGHTclearance, Chapter11PDF521–558 digitalformats/slicer/settings andtheory/companiononlyrowevidence. Physicalprinting remains external, not completedbySTL. Read remaining-book-followups-reconciled-2026-10-09.md forcurrentacceptedAdvanced1–6/Chain rows; oldSept30table labelledhistorical.
 ## Standing task
 
 Recreate the entire `David Planchard - Engineering Graphics with SOLIDWORKS 2021-SDC Publications (2021).pdf` through human-like, visible desktop Chrome interactions in dark theme. Start each new definition from blank; keep already browser-authored fresh exercise checkpoints. Do not reuse older model definitions, inject model JSON, call internal geometry APIs, or substitute scripts for UI authoring. The latest request explicitly excludes native Computer Use. Browser controls are required. Fix concrete CAD, sketch-plane, UI and performance gaps as encountered; use subagents for source repairs. Keep this file current after each saved/accepted part or task.
 
-The previous usage instruction is to continue toward 3–2% usage remaining, finish the active task and commit work before stopping; check live usage when work resumes. Latest live quota: 76% used, 24% remaining. Do not claim the entire book is finished.
+The previous usage instruction is to continue toward 3–2% usage remaining, finish the active task and commit work before stopping; check live usage when work resumes. Latest live quota: 79% used, 21% remaining. Do not claim the entire book is finished.
 
 
 ### Latest Q4 browser completion — 2026-10-09
@@ -366,6 +374,8 @@ Exact mass panel:198.6972cm³,1.529968kg,7.70000g/cm³ Alloy Steel reference; CO
 Commit `232a298` protects BV01 final bundle/STEP, two browser proof images, independent native audit JSON and detailed acceptance report. Cold library reopen confirmed nominal volume/mass and16 steps. Source/UI fixes and original failure triage included; source gates and focused corrected tests passed, but full suite not rerun clean. Queue reconciled accepted8.14–8.16; corrected Welder Arm23 topology mates from actual final bundle.
 
 BV02 now authored from blank in visible Chrome: Top fixed-center20×90mm rectangle, offset-12mm, Blind boss12mm Along normal. Second Top sketch offset-12mm with fixed-center drivingØ6.6 atU0/V±25, Through all Along normal. Two features/four fully-defined history steps, one native solid. Alloy Steel reference applied. PartNo BV02,Description,Source,BookItemNo2,BookMaterial,OriginalDesignerExample saved. Exact mass/parametric/Undo/reopen/export acceptance still in progress; not accepted yet. Future remains BV03–BV10/16-occurrence vice and drawing, then8.18–8.20 and earlier/later unfinished audit items.
+
+
 
 
 

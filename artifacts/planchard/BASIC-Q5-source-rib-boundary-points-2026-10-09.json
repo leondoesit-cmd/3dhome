@@ -1,0 +1,134 @@
+{
+  "scope": "Read-only original publisher native point-record candidates; no full bounded FACE/BODY ownership or live feature-edge IDs decoded. Source measurements, no geometry authoring or mass fitting.",
+  "source": "scratch\\planchard\\official-basic-q5-partition-inspection\\section-0.bin",
+  "sha256": "8a4185e9221662299ec122633392d9c40e5fc339d15c8ea7aa8420f6803505d1",
+  "points": [
+    {
+      "offset": 1856,
+      "attr": 40,
+      "references": [
+        1,
+        45,
+        61,
+        10
+      ],
+      "xyzMm": [
+        -12.700000000000006,
+        0.0,
+        50.79999999999999
+      ],
+      "nMm": 37.75175713425162,
+      "vMm": -33.991834803029995
+    },
+    {
+      "offset": 1896,
+      "attr": 61,
+      "references": [
+        1,
+        53,
+        62,
+        40
+      ],
+      "xyzMm": [
+        12.7,
+        58.246930080729335,
+        -1.6457714126219616
+      ],
+      "nMm": 37.75175713425181,
+      "vMm": 44.387140712693395
+    },
+    {
+      "offset": 1936,
+      "attr": 62,
+      "references": [
+        1,
+        60,
+        63,
+        61
+      ],
+      "xyzMm": [
+        -12.7,
+        58.24693008072934,
+        -1.6457714126219338
+      ],
+      "nMm": 37.75175713425183,
+      "vMm": 44.38714071269338
+    },
+    {
+      "offset": 2004,
+      "attr": 63,
+      "references": [
+        1,
+        65,
+        66,
+        62
+      ],
+      "xyzMm": [
+        12.699999999999982,
+        3.4504409585365864e-15,
+        -3.106790993677247e-15
+      ],
+      "nMm": 8.283039504820624e-30,
+      "vMm": 4.64302628538122e-15
+    },
+    {
+      "offset": 2072,
+      "attr": 66,
+      "references": [
+        1,
+        68,
+        69,
+        63
+      ],
+      "xyzMm": [
+        -12.700000000000006,
+        32.98607393837516,
+        -29.700794379620486
+      ],
+      "nMm": 6.750155989720952e-14,
+      "vMm": 44.38714071269346
+    },
+    {
+      "offset": 2140,
+      "attr": 69,
+      "references": [
+        1,
+        71,
+        72,
+        66
+      ],
+      "xyzMm": [
+        12.700000000000006,
+        32.98607393837516,
+        -29.700794379620486
+      ],
+      "nMm": 6.750155989720952e-14,
+      "vMm": 44.38714071269346
+    },
+    {
+      "offset": 3160,
+      "attr": 113,
+      "references": [
+        1,
+        115,
+        1,
+        111
+      ],
+      "xyzMm": [
+        -12.7,
+        0.0,
+        -2.0816681711721685e-14
+      ],
+      "nMm": -1.5469809297675876e-14,
+      "vMm": 1.3929078856143686e-14
+    }
+  ],
+  "independentFullWidthCylinderContactVmm": 44.38714071269348,
+  "pairedSourceContactAttributes": [
+    61,
+    62,
+    66,
+    69
+  ],
+  "interpretation": "Paired X\u00b112.7 source points at v44.3871407126934, on n0 and n37.7517571342518, corroborate full-width rib contact at the outer tube. Centerline first contact v42.208165 is insufficient for a whole-width prism endpoint."
+}
