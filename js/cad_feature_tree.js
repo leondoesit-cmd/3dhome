@@ -134,7 +134,11 @@ export async function regenerateFeatures(def, options = {}) {
           if (sketch.support?.ownerFeatureId && !results.has(sketch.support.ownerFeatureId)) throw new Error("Sketch support is unavailable: " + sketch.support.ownerFeatureId);
         } else if (!results.has(id) && !(datums.has(id)&&!graph.byId.has(id))) throw new Error("Feature input is unavailable: " + id);
       }
-      const topologyRun = resolveFeatureTopologyReferences(feature, topology);
+      const topologyRun = resolveFeatureTopologyReferences(feature, topology,{
+        registryForReference:reference=>reference.stageFeatureId
+          ? createTopologyRegistry(reference.stageFeatureId === reference.ownerFeatureId ? results.get(reference.stageFeatureId)?.topology || [] : [])
+          : topology,
+      });
       issues.push(...topologyRun.issues);
       topologyBindings.push(...topologyRun.resolutions);
       if (topologyRun.issues.some((issue) => issue.severity === "error")) throw new Error(topologyRun.issues.find((issue) => issue.severity === "error").message);

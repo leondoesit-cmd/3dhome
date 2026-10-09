@@ -1556,10 +1556,11 @@ export function featureTopologyReferences(feature) {
 
 export function resolveFeatureTopologyReferences(feature, registry, options = {}) {
   const resolutions = featureTopologyReferences(feature).map((reference) => {
-    const resolved = resolveTopologyReference(reference, registry, options);
+    const referenceRegistry=options.registryForReference?.(reference) || registry;
+    const resolved = resolveTopologyReference(reference, referenceRegistry, options);
     const support = feature.params?.support;
     if (support?.persistentId !== reference.persistentId || support?.ownerFeatureId !== reference.ownerFeatureId) return resolved;
-    return recoverPlanarSupport(reference, registry, resolved);
+    return recoverPlanarSupport(reference, referenceRegistry, resolved);
   });
   const issues = [];
   resolutions.forEach((resolution) => {

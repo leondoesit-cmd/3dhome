@@ -21,6 +21,8 @@ export function reattachSketchSupport(sketch, attachment) {
 export function sketchSupportNeedsUpdate(sketch, attachment) {
   return !!(attachment?.support && (
     sketch?.support?.persistentId !== attachment.support.persistentId ||
+    sketch?.support?.ownerFeatureId !== attachment.support.ownerFeatureId ||
+    sketch?.support?.stageFeatureId !== attachment.support.stageFeatureId ||
     JSON.stringify(sketch?.frame) !== JSON.stringify(attachment.frame) ||
     (sketch?.boundaryCopies || []).some((copy) => copy.associative)
   ));

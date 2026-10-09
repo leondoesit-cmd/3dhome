@@ -1,0 +1,64 @@
+{
+  "scope": "Read-only native topology-cache/source inspection; no authored geometry or disposable native rebuild",
+  "rows": [
+    {
+      "bundle": "FLAT-PLATE-hidden-axis-centrelines-browser-2026-10-09.mforge",
+      "baseDepthIn": 2.0,
+      "supportBounds": {
+        "min": {
+          "x": 3.047999899995798,
+          "y": 1.2699998999957975,
+          "z": -1.000042024161928e-07
+        },
+        "max": {
+          "x": 10.16000010000431,
+          "y": 1.270000100008405,
+          "z": 5.080000100004202
+        }
+      },
+      "boundsCenterCm": {
+        "x": 6.604000000000054,
+        "y": 1.2700000000021012,
+        "z": 2.54
+      },
+      "cachedNativeBoreReferenceOriginCm": {
+        "x": 6.096000000000055,
+        "y": 1.2700000000042024,
+        "z": 2.54
+      },
+      "cachedNativeBoreXIn": 2.4000000000000217,
+      "cachedNativeBoreZIn": 1.0
+    },
+    {
+      "bundle": "FLAT-PLATE-depth-2p5-diagnostic-browser-2026-10-09.mforge",
+      "baseDepthIn": 2.5,
+      "supportBounds": {
+        "min": {
+          "x": -1.000042024161928e-07,
+          "y": 1.2699998999957975,
+          "z": -1.000042024161928e-07
+        },
+        "max": {
+          "x": 10.16000010000431,
+          "y": 1.270000100008405,
+          "z": 6.350000100004202
+        }
+      },
+      "boundsCenterCm": {
+        "x": 5.080000000000054,
+        "y": 1.2700000000021012,
+        "z": 3.175
+      },
+      "cachedNativeBoreReferenceOriginCm": {
+        "x": 4.572000000000055,
+        "y": 1.2700000000042024,
+        "z": 3.175
+      },
+      "cachedNativeBoreXIn": 1.8000000000000216,
+      "cachedNativeBoreZIn": 1.25
+    }
+  ],
+  "positionSketchUnchanged": true,
+  "classification": "Manual fixed local hole position follows the selected union-face bounds center. Depth-dependent new rear strip changes X face bounds as well as Z. This is insufficient source design intent, not demonstrated solver error.",
+  "proposedMinimalIntent": "Explicit pre-union BasePlate top-face stage; retain native +Y support, localU+.4in instead of\u2212.2in, localV0 so worldX2.4in stays fixed and Z follows half BasePlate depth. Existing UI does not expose distinct earlier-stage descriptor choices."
+}

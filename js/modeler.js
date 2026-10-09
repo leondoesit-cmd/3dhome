@@ -85,6 +85,7 @@ import {createMotionPlayback,motionPreviewDuration} from './core/motion_playback
 import {createMotionPlaybackExecutor} from './core/motion_playback_executor.js';
 import {nativeSolidSummary} from './core/native_solid_summary.js';
 import { reattachFeatureSketchSupport, reattachSketchSupport, sketchSupportNeedsUpdate } from "./core/sketch_support_edit.js";
+import {holeSupportChoices,holeSupportChoiceReference} from './core/hole_support_choices.js';
 import {compactAssemblyTopologySnapshots,compactDocumentTopologySnapshots} from './core/project_topology_budget.js';
 import { FURN, PRICE, CATALOG, flabel, clearVSpanCache, buildItem } from "./furniture.js";
 import { modelThumb, hasThumb, loadThumbCache } from "./thumbs.js";
@@ -17881,15 +17882,16 @@ function openFeatureEditor(feature) {
     var earlier=(E.def.features || []).slice(0,featureIndex);
     var allowedOwners=new Set(earlier.map(function(item){return item.id;}));
     var supportStageId=(feature.inputs || []).map(dependencyReferenceId).find(function(id){return allowedOwners.has(id);}) || earlier.at(-1)?.id;
-    var supportStage=E.brepRun?.results?.get(supportStageId);
-    var supportEntries=supportStage?.topology || (E.def.parts || []).flatMap(topologyEntriesForPart);
-    supportChoices=planarMateFaceChoices(supportEntries.filter(function(entry){return allowedOwners.has(entry.ownerFeatureId);}),earlier,modelLengthUnit());
+    var supportCompiled=compileKernelFeatureTree(E.def);
+    var supportTopology=supportCompiled.ok ? verifiedExactTopology(E.def,supportCompiled.features) : new Map();
+    supportChoices=holeSupportChoices(earlier,supportTopology,supportSketch.support,supportStageId,modelLengthUnit());
     if(supportChoices.length){
       var supportRow=el("label","md-row md-row-wide");supportRow.appendChild(el("span","t",t("sketchSupportFace")));
       supportSelect=document.createElement("select");supportSelect.setAttribute("aria-label",t("sketchSupportFace"));
-      supportChoices.forEach(function(choice){var option=document.createElement("option");option.value=choice.entry.persistentId;option.textContent=choice.label;supportSelect.appendChild(option);});
-      supportSelect.value=supportSketch.support?.persistentId || "";
+      supportChoices.forEach(function(choice){var option=document.createElement("option");option.value=choice.key;option.textContent=choice.label;supportSelect.appendChild(option);});
+      supportSelect.value=supportSketch.support ? "current" : supportChoices[0].key;
       supportRow.appendChild(supportSelect);host.appendChild(supportRow);
+      host.appendChild(el("p","md-field-hint","Choose the feature stage whose face defines the hole position. Changing support preserves local point coordinates; adjust Positions afterward to preserve the intended model location. Earlier stages use verified native faces, before later trimming."));
     }
   }
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
@@ -17947,8 +17949,8 @@ function openFeatureEditor(feature) {
     var values=readFeatureParameterForm(controls,feature.params);
     try{
       var before=E.authoring.featureEdit.snapshot;
-      var chosenSupport=supportSelect && supportChoices.find(function(choice){return choice.entry.persistentId===supportSelect.value;});
-      var attachment=chosenSupport && faceSketchAttachment(topologyReferenceFromEntry(chosenSupport.entry),true);
+      var chosenSupport=supportSelect && supportChoices.find(function(choice){return choice.key===supportSelect.value;});
+      var attachment=chosenSupport && faceSketchAttachment(holeSupportChoiceReference(chosenSupport),true);
       var supportChanged=!!(supportSketch && (sketchSupportNeedsUpdate(supportSketch,attachment)
         || attachment && (feature.references.topology || []).some(function(reference){return reference.kind==="face" && reference.persistentId!==attachment.support.persistentId;})));
       if(supportChanged){
