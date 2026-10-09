@@ -21,8 +21,9 @@ import {
 } from "./cad_sheet.js";
 import { isOrthoView, projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 import { planModelItems } from "./core/model_items.js";
+import {DRAWING_PRIMITIVE_TOOLS, drawingPrimitiveItems, drawingPrimitiveHit, snapDrawingPrimitivePoint, validateDrawingPrimitive} from "./core/drawing_primitives.js";
 
-export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail"];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
 /** Axis-aligned picks have only one meaningful projected measurement.
  * Moving its label past an endpoint must not turn that measurement into zero. */
@@ -132,6 +133,7 @@ export function createDrawingController(host) {
     for (const note of doc.notes || []) {
       for (const value of [note.id, note.text, note.x, note.y, note.size, note.leader, note.feature, note.modelLink]) hash = fold(hash, value);
     }
+    for (const primitive of doc.primitives || []) hash=fold(hash,primitive);
     return String(hash);
   }
 
@@ -162,9 +164,11 @@ export function createDrawingController(host) {
     const width = host.width(), height = host.height();
     const paper = sheetPaper(host.doc());
     if (!width || !height) return;
-    state.zoom = Math.min((width - 48) / paper.w, (height - 48) / paper.h);
+    const bottom = Math.max(0, Math.min(height - 1, Number(host.viewportInsets?.()?.bottom) || 0));
+    const usableHeight = height - bottom;
+    state.zoom = Math.min(Math.max(1,width - 48) / paper.w, Math.max(1,usableHeight - 48) / paper.h);
     state.ox = (width - paper.w * state.zoom) / 2;
-    state.oy = (height - paper.h * state.zoom) / 2;
+    state.oy = (usableHeight - paper.h * state.zoom) / 2;
     state.fitted = true;
   }
 
@@ -285,6 +289,10 @@ export function createDrawingController(host) {
      selection, the view a tool is about to act on, snap markers, previews. */
   function paintOverlays(c, built, doc) {
     c.setLineDash([]);
+    const selectedPrimitive = doc.primitives.find(p => state.selection?.kind === "primitive" && p.id === state.selection.id);
+    if (selectedPrimitive) {
+      try { for (const item of drawingPrimitiveItems(selectedPrimitive)) paintItem(c, {...item,style:'highlight'}); } catch { /* Renderer reports malformed annotations. */ }
+    }
     for (const place of built.views) {
       const selected = state.selection?.kind === "view" && state.selection.id === place.id;
       const hovered = state.hover?.kind === "view" && state.hover.id === place.id;
@@ -358,6 +366,11 @@ export function createDrawingController(host) {
     c.setLineDash([5, 4]);
     c.strokeStyle = "#e08030";
     c.lineWidth = 1.4;
+    if (draft.kind==='primitive') {
+      const points=draft.points.concat(state.cursor);
+      try { for(const item of drawingPrimitiveItems({type:draft.type,points,style:'outline'}))paintItem(c,{...item,style:'highlight'}); } catch { /* First pick may coincide with cursor. */ }
+      return;
+    }
     if (draft.kind === "dim" && place) {
       const points = draft.refs.map((ref) => toScreen(place.toSheet(ref)));
       c.beginPath();
@@ -511,6 +524,9 @@ export function createDrawingController(host) {
   function hitTest(sheetPoint) {
     const built = scene();
     const reach = 4 / state.zoom;
+    for(const primitive of [...(host.doc().primitives || [])].reverse()) {
+      try { if(drawingPrimitiveHit(primitive,sheetPoint,reach))return {kind:'primitive',id:primitive.id}; } catch { /* Invalid imported annotations are diagnosed by the renderer. */ }
+    }
     for (const item of built.items) {
       if (!item.dimId && !item.noteId) continue;
       let hit = false;
@@ -666,6 +682,23 @@ export function createDrawingController(host) {
     if (panning) {
       state.drag = { mode: "pan", x, y, ox: state.ox, oy: state.oy };
       return true;
+    }
+    if (DRAWING_PRIMITIVE_TOOLS[state.tool]) {
+      const type=DRAWING_PRIMITIVE_TOOLS[state.tool];
+      const previous=state.draft?.kind==='primitive'?state.draft.points.at(-1):null;
+      const point=snapDrawingPrimitivePoint(sheetPoint,host.doc().primitives.concat(state.draft?.kind==='primitive'?[state.draft]:[]),4/state.zoom,previous,event.shiftKey,event.ctrlKey||event.metaKey);
+      state.cursor=point;
+      const paper=sheetPaper(host.doc());
+      if(point.x<0||point.y<0||point.x>paper.w||point.y>paper.h){host.flash('Choose a point inside the paper');return true;}
+      if(state.draft?.kind!=='primitive')state.draft={kind:'primitive',type,points:[point]};
+      else {
+        if(Math.hypot(point.x-previous.x,point.y-previous.y)<1e-8)return true;
+        if(type==='polyline')state.draft.points.push(point);
+        else state.draft.points=[state.draft.points[0],point];
+        if(type!=='polyline')commitPrimitive(state.draft);
+        else if(state.draft.points.length>3 && Math.hypot(point.x-state.draft.points[0].x,point.y-state.draft.points[0].y)<1e-8)commitPrimitive(state.draft);
+      }
+      host.refresh();return true;
     }
     if (state.tool === "dim" || state.tool === "diam" || state.tool === "angle") {
       const snap = snapAt(sheetPoint);
@@ -865,6 +898,7 @@ export function createDrawingController(host) {
   function pointerMove(event, x, y) {
     const sheetPoint = toSheetMm(x, y);
     state.cursor = sheetPoint;
+    if(state.draft?.kind==='primitive')state.cursor=snapDrawingPrimitivePoint(sheetPoint,host.doc().primitives,4/state.zoom,state.draft.points.at(-1),event.shiftKey,event.ctrlKey||event.metaKey);
     if (state.drag?.mode === "pan") {
       state.ox = state.drag.ox + (x - state.drag.x);
       state.oy = state.drag.oy + (y - state.drag.y);
@@ -952,6 +986,7 @@ export function createDrawingController(host) {
   function doubleClick(event, x, y) {
     const sheetPoint = toSheetMm(x, y);
     const hit = hitTest(sheetPoint);
+    if (hit?.kind === 'primitive') { editPrimitive(hit.id); return true; }
     if (hit?.kind === "dim") { editDim(hit.id); return true; }
     if (hit?.kind === "note") { editNote(hit.id); return true; }
     const built = scene();
@@ -1036,9 +1071,9 @@ export function createDrawingController(host) {
     const properties=Object.keys(host.model?.()?.customProperties || {});
     const depths = (host.model?.()?.features || []).filter(feature => !feature.suppressed
       && feature.type === "extrude" && feature.params?.operation !== "subtract");
-    const answer = host.promptFields && (depths.length || properties.length)
+    const answer = host.promptFields
       ? await host.promptFields(host.t("drawNoteTitle"), [
-        {key:"text",label:"Note text",value:""},
+        {key:"text",label:"Note text",type:"textarea",value:""},
         {key:"depth",label:"Link to model",type:"select",value:"",choices:[
           {value:"",label:"Plain text"},...depths.map(feature=>({value:feature.id,label:(feature.name || "Extrusion")+" · depth"})),
           ...properties.map(key=>({value:"property:"+key,label:key+" · custom property"})),
@@ -1101,11 +1136,39 @@ export function createDrawingController(host) {
     const doc = host.doc();
     const note = (doc.notes || []).find((entry) => entry.id === id);
     if (!note) return;
-    const next = await host.prompt(host.t("drawNoteTitle"), note.text || "");
-    if (next === null) return;
+    const answer = host.promptFields
+      ? await host.promptFields(host.t("drawNoteTitle"), [{key:"text",label:"Note text",type:"textarea",value:note.text || ""}])
+      : {text:await host.prompt(host.t("drawNoteTitle"), note.text || "")};
+    if (!answer || answer.text === null || host.doc() !== doc || !doc.notes.includes(note)) return;
+    const next=answer.text;
+    if(next===note.text)return;
     host.pushUndo(host.t("opEditNote"));
     note.text = next;
     host.markDirty();
+  }
+
+  function commitPrimitive(draft) {
+    try {
+      const primitive=validateDrawingPrimitive({id:'p'+Math.random().toString(36).slice(2,9),type:draft.type,points:draft.points,style:'outline'},sheetPaper(host.doc()));
+      host.pushUndo('Add drawing annotation');
+      host.doc().primitives.push(primitive);state.selection={kind:'primitive',id:primitive.id};state.draft=null;
+      invalidate();host.markDirty();return true;
+    } catch(error) {host.flash(error.message);return false;}
+  }
+  async function editPrimitive(id) {
+    const doc=host.doc(),primitive=doc.primitives.find(p=>p.id===id);
+    if(!primitive || !host.promptFields)return;
+    const answer=await host.promptFields('Edit drawing annotation',[
+      ...primitive.points.flatMap((p,i)=>[{key:'x'+i,label:'Point '+(i+1)+' X (paper mm)',value:String(p.x)},{key:'y'+i,label:'Point '+(i+1)+' Y (paper mm)',value:String(p.y)}]),
+      {key:'style',label:'Line style',type:'select',value:primitive.style,choices:[{value:'outline',label:'Visible'},{value:'hidden',label:'Hidden'},{value:'center',label:'Centerline'}]},
+    ],'Paper annotations are independent of CAD geometry and view scale. Origin: paper top-left, X right, Y down.');
+    if(!answer || host.doc()!==doc || !doc.primitives.includes(primitive))return;
+    try {
+      if(primitive.points.some((p,i)=>String(answer['x'+i] ?? '').trim()===''||String(answer['y'+i] ?? '').trim()===''))throw new Error('Enter every paper coordinate');
+      const next=validateDrawingPrimitive({...primitive,style:answer.style,points:primitive.points.map((p,i)=>({x:Number(answer['x'+i]),y:Number(answer['y'+i])}))},sheetPaper(doc));
+      if(JSON.stringify(next)===JSON.stringify(primitive))return;
+      host.pushUndo('Edit drawing annotation');Object.assign(primitive,next);invalidate();host.markDirty();
+    } catch(error){host.flash(error.message);}
   }
 
   function deleteSelection() {
@@ -1127,6 +1190,9 @@ export function createDrawingController(host) {
     } else if (selection.kind === "note") {
       host.pushUndo(host.t("opDeleteNote"));
       doc.notes = doc.notes.filter((entry) => entry.id !== selection.id);
+    } else if (selection.kind === 'primitive') {
+      host.pushUndo('Delete drawing annotation');
+      doc.primitives=doc.primitives.filter(entry=>entry.id!==selection.id);
     }
     state.selection = null;
     invalidate();
@@ -1313,6 +1379,7 @@ export function createDrawingController(host) {
 
   function keyDown(event) {
     const key = event.key;
+    if(key==='Enter' && state.draft?.kind==='primitive' && state.draft.type==='polyline') {commitPrimitive(state.draft);host.refresh();return true;}
     if (key === "Escape") {
       /* An in-flight layout drag outranks the draft/tool/selection ladder
          below: the gesture on screen is the one the user is escaping from. */
@@ -1373,7 +1440,7 @@ export function createDrawingController(host) {
     selection: () => state.selection,
     select: (value) => { state.selection = value; state.scene = null; host.refresh(); },
     pointerDown, pointerMove, pointerUp, doubleClick, wheel, keyDown,
-    deleteSelection, addView, duplicateSelectedView, autoDimension, insertModelItems, addHoleCallouts, setSheetOption, relayout, editDim,
+    deleteSelection, addView, duplicateSelectedView, autoDimension, insertModelItems, addHoleCallouts, setSheetOption, relayout, editDim, editPrimitive,
     danglingDims: () => sheetDimIssues(scene()),
     document: () => host.doc(),
     availableViews: () => availableViewDirs(host.doc()),

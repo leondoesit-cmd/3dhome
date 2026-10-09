@@ -222,7 +222,7 @@ import { encodeBinaryPayload } from "./core/binary_payload.js";
 import { externalizeAttachments, collectAttachmentReferences, exportAttachmentRecords, installAttachmentRecords } from "./core/attachment_store.js";
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
 import { loadModelLibrary, putModelLibraryRecord, deleteModelLibraryRecord, mergeStoredModelLibrary, loadAssemblyLibrary, putAssemblyLibraryRecord, deleteAssemblyLibraryRecord, mergeStoredAssemblyLibrary, loadModelerDraftRecord, listModelerDraftRecords, saveModelerDraftRecord, clearModelerDraftRecord, claimLegacyModelerDraftRecord, libraryBundle, parseLibraryBundle, collidingLibraryKeys } from "./core/model_library_store.js";
-import { hasSaveableModelContent } from "./core/model_save_policy.js";
+import { drawingOnlyContentSummary, hasSaveableModelContent } from "./core/model_save_policy.js";
 import { updateAssemblyContexts } from "./core/assembly_context.js";
 import { componentEditCopy, commitComponentEdit } from "./core/component_edit.js";
 import { registerGeneratedExtrusion } from "./core/generated_extrusion.js";
@@ -4068,6 +4068,10 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="diam"><i class="ph ph-circle-dashed"></i><span>' + t("drawToolDiam") + '</span></button>' +
     '<button type="button" data-drawing-tool="baseline"><i class="ph ph-rows"></i><span>' + t("drawToolBaseline") + '</span><kbd>B</kbd></button>' +
     '<button type="button" data-drawing-tool="chain"><i class="ph ph-link-simple-horizontal"></i><span>' + t("drawToolChain") + '</span><kbd>C</kbd></button>' +
+    '<button type="button" data-drawing-tool="sheetline">' + cadIcon("dim") + '<span>' + t("drawPaperLine") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetpolyline">' + cadIcon("spoly") + '<span>' + t("drawPaperPolyline") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetrect">' + cadIcon("srect") + '<span>' + t("drawPaperRectangle") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetcircle">' + cadIcon("scirc") + '<span>' + t("drawPaperCircle") + '</span></button>' +
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
     '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
@@ -11945,7 +11949,7 @@ function sheetForm(title, fields, hint) {
       title: title,
       hint: hint || fields.map(function (field) { return field.hint; }).filter(Boolean)[0] || t("drawNoteHint"),
       fields: fields.map(function (field) {
-        return { key: field.key, label: field.label || title, type: ["boolean","select"].includes(field.type) ? field.type : "text", choices:field.choices, value: field.value ?? "" };
+        return { key: field.key, label: field.label || title, type: ["boolean","select","textarea"].includes(field.type) ? field.type : "text", choices:field.choices, value: field.value ?? "" };
       }),
       onApply: function (values) {
         var answer = {};
@@ -12255,6 +12259,7 @@ function drawingHintText() {
   if (tool === "section") return t("drawSectionHint");
   if (tool === "detail") return t("drawDetailHint");
   if (tool === "note") return t("drawNoteHint");
+  if (["sheetline","sheetpolyline","sheetrect","sheetcircle"].includes(tool)) return t("drawPaperHint");
   return t("drawingHint");
 }
 
@@ -12264,6 +12269,11 @@ function drawingSheet() {
       canvas: function () { return E.cv; },
       width: function () { return E.cw; },
       height: function () { return E.ch; },
+      viewportInsets: function () {
+        var canvas=E.cv?.getBoundingClientRect(),status=root.querySelector("#mdStatus")?.getBoundingClientRect();
+        return {bottom:canvas && status && status.right>canvas.left && status.left<canvas.right
+          ? Math.max(0,canvas.bottom-Math.max(canvas.top,status.top)) : 0};
+      },
       doc: function () { return ensureSheetDoc(E.def, { title: { title: E.def && E.def.name || "" } }); },
       model: function () { return E.def; },
       bodies: drawingBodies,
@@ -25301,6 +25311,8 @@ function refreshLib() {
       ? m.parts.length + " " + t("partCount") +
         (fin(m.w) ? " · " + [m.w,m.d,m.h].map(formatModelLength).join("×") + " cm" : "")
       : (function(){
+          var drawing=drawingOnlyContentSummary(m);
+          if(drawing)return t("drawingOnly")+" · "+drawing.annotations+" "+t(drawing.annotations===1?"paperAnnotation":"paperAnnotations")+" · "+drawing.notes+" "+t(drawing.notes===1?"drawingNote":"drawingNotes");
           var count=(m.sketches || []).filter(function(sketch){return (sketch.entities || []).length || (m.history || []).some(function(entry){return entry.kind === "sketch" && entry.targetId === sketch.id;});}).length;
           return t("sketchOnly") + " · " + count + " " + t(count === 1 ? "sketch" : "sketches");
         })()));

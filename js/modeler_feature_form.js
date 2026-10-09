@@ -131,6 +131,9 @@ export function featureField(host, field, value, options) {
       input.appendChild(option);
     });
     wrap.appendChild(input);
+  } else if (field.type === "textarea") {
+    input = el("textarea"); input.rows = 4; input.value = value ?? "";
+    wrap.appendChild(input);
   } else {
     input = el("input"); input.type = "text";
     input.value = field.unit === 'length' && Number.isFinite(Number(value)) && value != null

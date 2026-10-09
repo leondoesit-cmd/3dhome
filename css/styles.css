@@ -5930,8 +5930,10 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
 #modeler .md-quick-field .md-extrusion-extent-note { grid-column: 1 / -1; }
 #modeler .md-feature-field-label { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
 #modeler .md-feature-unit { color: var(--accent); font-size: max(8px, var(--fs-floor, 0px)); font-weight: 700; }
-#modeler .md-quick-field input,#modeler .md-quick-field select { width: 100%; min-width: 0; padding: 6px 7px; border: 1px solid var(--input-border); border-radius: 7px; background: var(--input-bg); color: var(--text-main); font-size: max(11px, var(--fs-floor, 0px)); }
-#modeler .md-quick-field input:focus,#modeler .md-quick-field select:focus { border-color: var(--accent); outline: 2px solid color-mix(in srgb,var(--accent) 15%,transparent); }
+#modeler .md-quick-field input,#modeler .md-quick-field select,#modeler .md-quick-field textarea { width: 100%; min-width: 0; padding: 6px 7px; border: 1px solid var(--input-border); border-radius: 7px; background: var(--input-bg); color: var(--text-main); font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-quick-field input:focus,#modeler .md-quick-field select:focus,#modeler .md-quick-field textarea:focus { border-color: var(--accent); outline: 2px solid color-mix(in srgb,var(--accent) 15%,transparent); }
+#modeler .md-quick-field.type-textarea { grid-template-columns: minmax(0,1fr); }
+#modeler .md-quick-field textarea { box-sizing: border-box; resize: vertical; font-family: inherit; }
 body.compact-nav #modeler .md-quick-field input:not([type="checkbox"]),
 body.compact-nav #modeler .md-quick-field select {
   font-size: 16px;

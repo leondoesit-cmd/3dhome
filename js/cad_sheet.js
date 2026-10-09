@@ -1,5 +1,6 @@
 import { analyzeSectionBoundaries } from "./core/section_boundaries.js";
 import { balloonRadius, layoutBalloonCenters } from "./core/balloon_layout.js";
+import {drawingPrimitiveItems} from './core/drawing_primitives.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -128,13 +129,14 @@ export function createSheetDoc(options = {}) {
     views: [],
     dims: [],
     notes: [],
+    primitives: [],
     title: Object.assign({
       title: "", number: "", revision: "A", author: "", company: "", material: "",
       finish: "", mass: "", date: "", sheet: 1, sheets: 1,
       tolerance: "",
     }, options.title || {}),
   };
-  const set = Array.isArray(options.views) && options.views.length ? options.views : ["front", "top", "right", "iso"];
+  const set = Array.isArray(options.views) ? options.views : ["front", "top", "right", "iso"];
   set.forEach((dir, index) => doc.views.push(createView(dir, { primary: index === 0 })));
   return doc;
 }
@@ -164,9 +166,10 @@ export function createView(dir, options = {}) {
    opening an older model never lands on a blank page. */
 export function ensureSheetDoc(def, options = {}) {
   if (!def) return createSheetDoc(options);
-  if (!def.drawing || typeof def.drawing !== "object" || !Array.isArray(def.drawing.views) || !def.drawing.views.length) {
+  if (!def.drawing || typeof def.drawing !== "object" || !Array.isArray(def.drawing.views)) {
     // the stored name is the link to Description (see sheetTitleText)
-    def.drawing = createSheetDoc(Object.assign({ title: { title: def.name || "" } }, options));
+    const empty = !(def.parts || []).length && !(def.features || []).length;
+    def.drawing = createSheetDoc(Object.assign({ title: { title: def.name || "" }, ...(empty ? {views:[]} : {}) }, options));
   }
   const doc = def.drawing;
   doc.views = doc.views.filter(Boolean).map((view) => Object.assign(createView(view.dir, view), view));
@@ -175,9 +178,10 @@ export function ensureSheetDoc(def, options = {}) {
       ? (def.configurations || []).find(cfg => cfg.id === view.configurationId)?.name || null
       : null;
   });
-  if (!doc.views.some((view) => view.primary)) doc.views[0].primary = true;
+  if (doc.views.length && !doc.views.some((view) => view.primary)) doc.views[0].primary = true;
   doc.dims = Array.isArray(doc.dims) ? doc.dims : [];
   doc.notes = Array.isArray(doc.notes) ? doc.notes : [];
+  doc.primitives = Array.isArray(doc.primitives) ? doc.primitives : [];
   doc.title = Object.assign({ revision: "A", sheet: 1, sheets: 1 }, doc.title || {});
   if (!doc.title.title) doc.title.title = def.name || "";
   return doc;
@@ -568,6 +572,7 @@ export function fitScale(doc, extents) {
    Pictorials, sections and details pack into the leftover paper instead of
    stacking on the same point once the reserved column runs out. */
 export function layoutViews(doc, extents) {
+  if (!doc.views.length) return {placements:new Map(),sheetScale:doc.scale === "fit" ? "1:1" : doc.scale,primaryId:null,anchor:null};
   const sheetScale = doc.scale === "fit" ? fitScale(doc, extents) : doc.scale;
   const placed = placeAtScale(doc, extents, sheetScale, doc.enforceFit===true);
   if(!placed && doc.enforceFit)throw new Error("Drawing scale does not fit the available sheet. Choose Fit to sheet or a larger sheet size.");
@@ -1391,6 +1396,11 @@ export function buildSheetScene(doc, provider, options = {}) {
     notes.set(note.id, resolved);
     items.push(...noteItems(resolved.note, byId, doc, { dangling: resolved.dangling }));
   }
+  for (const primitive of doc.primitives || []) {
+    // A malformed imported annotation cannot break otherwise healthy CAD views.
+    try { items.push(...drawingPrimitiveItems(primitive)); }
+    catch { diagnostics.push({code:'invalid-drawing-annotation',primitiveId:primitive?.id}); }
+  }
 
   /* View captions go on LAST, below whatever that view ended up carrying: a
      label parked at the outline's edge lands inside the overall dimension the
@@ -1544,10 +1554,11 @@ function noteItems(note, byId, doc, options = {}) {
      bracketed and flagged — the same contract a dangling dimension keeps. */
   const style = options.dangling ? "dimLost" : "dim";
   const body = options.dangling ? "⚠ (" + String(note.text || "") + ")" : String(note.text || "");
-  const lines = body.split("\n");
+  const lines = body.split(/\r\n?|\n/);
+  const size = Number(note.size)>0 ? Number(note.size) : TEXT_SIZES.dim;
   lines.forEach((row, index) => {
-    items.push(text(x, y + index * (TEXT_SIZES.dim * 1.35), row, {
-      size: note.size || TEXT_SIZES.dim, anchor: "start", noteId: note.id,
+    items.push(text(x, y + index * (size * 1.35), row, {
+      size, anchor: "start", noteId: note.id,
       color: LINE_STYLES[style].color,
     }));
   });
