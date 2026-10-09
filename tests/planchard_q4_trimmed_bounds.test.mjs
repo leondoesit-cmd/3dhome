@@ -18,7 +18,9 @@ test('native Q4 trimmed spline support excludes untrimmed control-surface overha
     assert.ok(Math.abs((mass.bounds.max.y-mass.bounds.min.y)*10-139)<.001);
     assert.ok(Math.abs((mass.bounds.max.z-mass.bounds.min.z)*10-254)<.001);
     assert.ok(Math.abs(mass.volume-originalVolume)<1e-9,'bounds correction cannot alter the body');
-    assert.ok(Math.abs(mass.volume-1227.6195416133357)<.001,'accepted accurate corner repair retains its documented fresh-build volume');
+    // The accepted cache repair canonicalizes union transport before corner
+    // filling; fresh and reused prefixes now share this supported surface.
+    assert.ok(Math.abs(mass.volume-1227.5785942205363)<.001,'accurate corner repair retains its accepted canonical volume');
   } finally {releaseRegeneration(run);}
 });
 
