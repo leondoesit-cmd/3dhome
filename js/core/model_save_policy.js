@@ -3,8 +3,9 @@ import { validateDrawingPrimitive } from "./drawing_primitives.js";
 export function drawingOnlyContentSummary(definition) {
   if (!definition || (definition.parts || []).length || (definition.features || []).length) return null;
   const sketches=Array.isArray(definition.sketches) ? definition.sketches : [];
-  const history=Array.isArray(definition.history) ? definition.history : [];
-  if(sketches.some(sketch => sketch && ((sketch.entities || []).length || history.some(entry => entry?.kind==='sketch' && entry.targetId===sketch.id)))) return null;
+  // Canonical normalization records the editor's empty working sketch in
+  // history too. Classify visible content; never delete or rewrite that history.
+  if(sketches.some(sketch => sketch && ['points','entities','constraints'].some(key => (sketch[key] || []).length))) return null;
   const notes=(Array.isArray(definition.drawing?.notes) ? definition.drawing.notes : []).filter(note => String(note?.text || '').trim()).length;
   const annotations=(Array.isArray(definition.drawing?.primitives) ? definition.drawing.primitives : []).filter(primitive => {
     try { validateDrawingPrimitive(primitive); return true; } catch { return false; }
