@@ -16,6 +16,7 @@ import { TOOLBOX_FAMILIES } from "../toolbox/catalog.js";
 import { TOOLBOX_FINISHES, TOOLBOX_MATERIALS } from "../toolbox/schema.js";
 import { isUpToFace } from "./extrude_extent.js";
 import {normalizeHelixRegions} from '../cad_helix.js';
+import {shellFaceThicknesses} from './planar_shell_overrides.js';
 
 const LENGTH = { type: "number", unit: "document-length", min: 1e-6 };
 const SIGNED_LENGTH = { type: "number", unit: "document-length" };
@@ -391,7 +392,7 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatShell",
     icon: "ph-bowl-food",
     selection: { features: { min: 1, max: 1 }, topology: { kinds: ["face"], min: 1 } },
-    defaults: { thickness: 1, direction: "inside", tolerance: 0.001, join: "arc", removeOpenings: true },
+    defaults: { thickness: 1, direction: "inside", tolerance: 0.001, join: "arc", removeOpenings: true, faceThicknesses: [] },
     parameters: { thickness: LENGTH, direction: ENUM("inside", "outside"), tolerance: LENGTH, join: ENUM("arc", "intersection"), removeOpenings: BOOLEAN },
     editor: { groups: [{ id: "wall", label: "Wall definition", labelKey: "fcGrpWallDefinition", icon: "ph-bowl-food", fields: [
       { key: "thickness", label: "Thickness", labelKey: "fcFldThickness", type: "number", unit: "length", min: 1e-6, step: 0.1 },
@@ -1036,6 +1037,10 @@ export function validateFeatureDefinition(feature) {
       });
     });
   });
+  if(feature.type==='shell' && typeof feature.params?.thickness!=='string'){
+    try{shellFaceThicknesses(feature.params?.faceThicknesses,feature.params?.thickness,feature.params?.direction);}
+    catch(error){issues.push({severity:'error',code:'invalid-feature-parameter',featureId:feature.id,parameter:'faceThicknesses',message:error.message});}
+  }
   Object.entries(spec.parameters || {}).forEach(([name, rule]) => {
     const value = feature.params?.[name];
     if (value == null) return;

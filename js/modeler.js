@@ -21,6 +21,7 @@ import {threadPlacementFromFace} from './core/thread_placement.js';
 import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
 import {setExtrudeFeatureOperation} from './core/extrude_operation_edit.js';
+import {createShellFaceThicknessEditor} from './modeler_shell_thickness_form.js';
 import { deduplicateBooleanProjections } from "./core/boolean_projection.js";
 import { rebindReplacedSketchProfiles } from "./core/sketch_profile_rebind.js";
 import { forkConflictingModel } from "./core/model_save_conflict.js";
@@ -9955,6 +9956,7 @@ function finishSelectionMessage(type) {
 function syncActiveFeatureSelectionFeedback() {
   if(!root || !E.authoring || !E.authoring.featureType)return;
   if(E.authoring.featurePreviewState?.syncTerminatingFace)E.authoring.featurePreviewState.syncTerminatingFace();
+  if(E.authoring.featurePreviewState?.syncShellThicknesses)E.authoring.featurePreviewState.syncShellThicknesses();
   var note=root.querySelector("#mdQuickSettings [data-live-selection]");
   if(!note)return;
   var type=note.getAttribute("data-live-selection");
@@ -10075,6 +10077,36 @@ function addTerminatingFaceChoices(host,type,state,liveBadge,controls) {
   return row;
 }
 
+function addShellFaceThicknessControls(host,state,onChange,editedFeature=null,openingIds=null) {
+  if(state.type!=="shell")return null;
+  var cachedEntries=null,cachedDocument=null,cachedHead=null;
+  var sourceHead=function(){return editedFeature?.inputs?.[0] || cutTargetFeatureId(selectedSolid());};
+  var entries=function(){
+    var head=sourceHead();
+    if(cachedEntries && cachedDocument===E.def && cachedHead===head)return cachedEntries;
+    var compiled=compileKernelFeatureTree(E.def);
+    return (compiled.ok && verifiedExactTopology(E.def,compiled.features).get(head))
+      || E.brepRun?.results?.get(head)?.topology
+      || (!editedFeature && selectedSolid() ? authoritativeFinishTopology(selectedSolid()) : []) || [];
+  };
+  var editor=createShellFaceThicknessEditor(host,{
+    el:el,btn:btn,field:featureField,t:t,unit:modelLengthUnit(),getParams:function(){return state.params;},
+    getChoices:function(){return planarMateFaceChoices(entries().filter(function(entry){return entry.descriptor?.surface==="plane";}),E.def.features || [],modelLengthUnit());},
+    getOpeningIds:openingIds || function(){return (editedFeature ? editedFeature.references?.topology || [] : finishFeatureTargets("shell")).map(function(ref){return ref.persistentId;});},
+    onChange:onChange,
+    refresh:async function(){
+      var documentAtStart=E.def,headAtStart=sourceHead(),compiled=compileKernelFeatureTree(E.def);
+      if(!compiled.ok || !headAtStart)throw new Error("Choose the source body before refreshing retained faces");
+      var stage=editedFeature ? featureInputStage(compiled,editedFeature) : {document:{...compiled.document,features:compiled.features},head:headAtStart};
+      var result=await topologyInCadWorker(stage.document,stage.head,{onProgress:function(progress){flash("Refreshing retained faces · "+(progress.name || progress.stage));}});
+      if(E.def!==documentAtStart || sourceHead()!==headAtStart || E.authoring.featureType!=="shell")throw new Error("Shell source changed; reopen the command before choosing retained faces");
+      cachedEntries=result.topology;cachedDocument=documentAtStart;cachedHead=headAtStart;
+    },
+  });
+  if(!editedFeature)state.syncShellThicknesses=editor.sync;
+  return editor;
+}
+
 function openParametricFeature(type, repeatedParams) {
   E.collectingFeature = false;
   if(E.docType!=="part")return;if(E.mode==="drawing")setMode("3d");
@@ -10134,7 +10166,8 @@ function openParametricFeature(type, repeatedParams) {
   if (repeatedParams) state.params = {...state.params, ...cloneData(repeatedParams)};
   var liveBadge=el("div","md-feature-live",'<i class="ph ph-broadcast"></i> '+t("livePreviewReady"));host.appendChild(liveBadge);
   E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;
-  var controls=renderFeatureParameterForm(host,type,state,function(next){state.params=next.params;state.references={...state.references,...next.references};E.depth=Number(state.params.depth)||E.depth;E.baseOff=Number(state.params.offset)||0;if(type==="fillet")renderFinishEdgeList();queueNewFeaturePreview(type,state,liveBadge);});
+  var controls=renderFeatureParameterForm(host,type,state,function(next){state.params=next.params;state.references={...state.references,...next.references};E.depth=Number(state.params.depth)||E.depth;E.baseOff=Number(state.params.offset)||0;if(type==="fillet")renderFinishEdgeList();if(shellEditor)shellEditor.sync();queueNewFeaturePreview(type,state,liveBadge);});
+  var shellEditor=addShellFaceThicknessControls(host,state,function(){queueNewFeaturePreview(type,state,liveBadge);});
   addTerminatingFaceChoices(host,type,state,liveBadge,controls);
   if(type==="extrude")addBossContourChoices(host,state,liveBadge);
   var selectionNote=el("div","md-feature-selection-note");
@@ -10195,6 +10228,7 @@ function openParametricFeature(type, repeatedParams) {
     actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> '+t("m_cancel"),function(){E.authoring.featureType=null;E.authoring.workflowFocus="history";clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("quickApply"),async function(){
     if (!validateFeatureInputs(host)) return;
+    if(shellEditor)try{state.params.faceThicknesses=shellEditor.read();}catch(error){flash(String(error.message || error));return;}
     if (FINISH_FEATURES.includes(type) && !featureSelectionReady()) return;
     // A new body step can invalidate cached generated names used by later
     // features. Keep the last verified status until the exact history catches
@@ -17704,8 +17738,10 @@ function openFeatureEditor(feature) {
     // A changed Boolean is committed by Update, not by the parameter ghost.
     if(feature.type==="extrude" && next.params.operation==="subtract")next.params.operation=feature.params.operation || "add";
     feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);retargetSweepHelix(feature);feature.name=name.value || feature.name;
+    if(shellEditor)shellEditor.sync();
     if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncLiveFeatureEdit(feature);if(["fillet","chamfer"].includes(feature.type))renderFinishEdgeList();if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
   });
+  var shellEditor=addShellFaceThicknessControls(host,feature,function(){syncLiveFeatureEdit(feature);},feature,function(){return finishTargetSelect?.value ? [finishTargetSelect.value] : (feature.references?.topology || []).map(function(ref){return ref.persistentId;});});
   var editOperationSelect=null;
   if(feature.type==="extrude" || feature.type==="extrudeCut"){
     var existingOperation=controls.find(function(control){return control.field.key==="operation";});
@@ -17749,6 +17785,7 @@ function openFeatureEditor(feature) {
   var actions=el("div","md-feature-actions");actions.appendChild(namedButton(btn('<i class="ph ph-arrow-counter-clockwise"></i> '+t("m_cancel"),function(){cancelFeatureParameterEdit(false);},"md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("updateFeature"),function(){
     if (!validateFeatureInputs(host)) return;
+    if(shellEditor)try{feature.params.faceThicknesses=shellEditor.read();}catch(error){flash(String(error.message || error));return;}
     var values=readFeatureParameterForm(controls,feature.params);
     try{
       var before=E.authoring.featureEdit.snapshot;

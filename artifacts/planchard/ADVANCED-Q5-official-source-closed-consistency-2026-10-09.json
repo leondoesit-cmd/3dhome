@@ -1,0 +1,36 @@
+{
+  "source": "ADVANCED-Q5-official-source-closed-browser-2026-10-09.mforge",
+  "comparedTo": "ADVANCED-Q5-official-source-final-browser-2026-10-09.mforge",
+  "checks": {
+    "featuresUnchanged": true,
+    "sketchesUnchanged": true,
+    "historyUnchanged": true,
+    "engineeringMaterialsUnchanged": true,
+    "referencesUnchanged": true,
+    "parametersUnchanged": true,
+    "localFrameUnchanged": true,
+    "partAuthoredDataUnchanged": true
+  },
+  "geometryMaterialHistoryPass": true,
+  "changedMainModelKeys": [
+    "parts",
+    "lastRebuild",
+    "lastStandardsAudit",
+    "customProperties",
+    "exactTopologyCache"
+  ],
+  "customProperties": {
+    "Description": "Advanced Q5 printed10-29–30/PDF509–510. Recreated from blank solely through visible Chrome. Official companion source measured read-only, never imported. Source railR25/minorarc/D15,H15; Front18mm20deg bevel D30..50; rear12mm full-height stripD50..100; R20recessD100/H35; boresD90/H35 andW20/D39; central solidØ10 pinX42..50; source capR25atX37..50; undersideR10/20/45 all preserved. Geometry-equivalent30steps15fullydefinedsketches15features one native solid. Original source contour/face-history binding partially decoded; separate annulus/disk and circle/rectangle profiles are equivalent reconstruction, not original feature-history clone. Copper8.9g/cm³ grade unspecified/unrated. Actual exact browserV143857.6mm³/mass1280.332g/COM26.81364,25.80064,-56.06356mm naturally agrees printed rounded result; no dimension adjustment or answer fitting. Accepted source-equivalent geometry: independent1validnative solid, zero bidirectional native/STEPdifference; actualdrivingR10→10.2regenerates143868.3mm³ thenUndo returns143857.6mm³; cold saved-libraryreopen restores30steps/15fullydefinedsketches/onebody/exactmassCOM. Earlier interpretation checkpoints superseded."
+  },
+  "nativeAuditReused": "ADVANCED-Q5-official-source-final-native-audit-2026-10-09.json",
+  "browserDurabilityParentObserved": {
+    "radius10To10point2": true,
+    "undoRestored": true,
+    "coldLibraryReopen30Steps1Native": true
+  },
+  "scope": "Read-only authored-data equality. No heavy native rerun because complete feature/sketch/material/history unchanged.",
+  "partCacheOnlyChangedFields": [
+    "exactBuildToken",
+    "meshData"
+  ]
+}

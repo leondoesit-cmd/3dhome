@@ -1,0 +1,36 @@
+{
+  "scope": "Source-only engine preflight using disposable native fixtures; no browser authorship or final Q6 model acceptance",
+  "sourcePlan": "docs/planchard/advanced-q6-official-companion-browser-plan-2026-10-09.md",
+  "nativeTests": "tests/planar_shell_overrides.test.mjs",
+  "nativeTestResult": {"passed": 5, "failed": 0},
+  "fixtures": {
+    "box": {"stockVolumeCm3": 1500, "shellVolumeCm3": 780, "defaultWallMm": 10, "topBottomWallMm": 25},
+    "sourceCProfile": {
+      "stockVolumeCm3": 1135,
+      "boundedCavityVolumeCm3": 480,
+      "shellVolumeCm3": 655,
+      "outerChamferMm": 10,
+      "defaultWallMm": 10,
+      "topBottomWallMm": 25,
+      "openingChoice": "All three inner C faces; geometric reconstruction choice, original source selection-vector binding remains partial",
+      "originalVoidPreserved": true,
+      "outerBoundsPreserved": true
+    },
+    "rotatedBox": {"rotationDegreesAboutZ": 30, "translationCm": [12,-8,5], "shellVolumeCm3": 780}
+  },
+  "checks": [
+    "Native wall and cavity classification probes",
+    "Analytic geometric volumes and exact exterior bounds",
+    "Source remains unchanged after successful and rejected operations",
+    "Cold JSON feature regeneration preserves retained-face overrides",
+    "Missing face references reject rather than substitute",
+    "Duplicate/opening/curved/non-supporting/thinner/outward/consumed-cavity cases reject",
+    "Native supporting-halfspace volume certification and adaptive plane bounds"
+  ],
+  "gates": {"freeIdentifiers": 0, "moduleLinks": 649, "sourceAssertions": 1489, "status": "pass"},
+  "uniformRegression": {
+    "discGeometryTests": "2 passed",
+    "housingRegression": "Interrupted after extended execution with no housing test result; not certified in this run"
+  },
+  "browserAcceptance": "Pending UI integration, actual browser creation/save/cold/native/STEP QA"
+}

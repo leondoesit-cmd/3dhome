@@ -372,6 +372,7 @@ export async function regenerateFeatures(def, options = {}) {
           direction: effectiveParams.direction,
           tolerance: effectiveParams.tolerance,
           join: effectiveParams.join,
+          faceThicknesses: effectiveParams.faceThicknesses,
         });
       }
       else if (feature.type === "splitBody") {

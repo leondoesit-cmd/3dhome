@@ -1,4 +1,5 @@
 import {shellMeridian} from './core/shell_meridian.js';
+import { shellFaceThicknesses, shellSupportingPlane } from './core/planar_shell_overrides.js';
 import { repairFilletCornerPatches } from './core/fillet_corner_repair.js';
 import {restoreProfileCurve} from './cad_profile_serialization.js';
 import {circularPatternPivot} from "./core/pattern_geometry.js";
@@ -1632,6 +1633,8 @@ export async function chamferBrep(brep, distance, options = {}) {
 // rebuild intent depend on topology enumeration order.
 export async function shellBrep(brep, thickness, options = {}) {
   if (!brep?.shape) throw new Error("Shell needs a BREP shape");
+  const overrides = shellFaceThicknesses(options.faceThicknesses, thickness, options.direction);
+  if (overrides.length) return shellWithPlanarThicknesses(brep, thickness, options, overrides);
   const oc = brep.oc || await loadCadKernel();
   const faceIds = options.facePersistentIds || options.faces || [];
   const selected = selectedBrepSubshapes(brep, "face", faceIds);
@@ -2907,6 +2910,91 @@ async function draftParallelRibWeb(web,params,normal,growth,origin){
     maker.Build(progress);if(!maker.IsDone?.())throw new Error('Rib draft failed');
     return {oc,shape:maker.Shape(),kind:'solid',operation:'rib-draft'};
   }finally{disposeAll(owned);}
+}
+
+async function shellWithPlanarThicknesses(brep, thickness, options, overrides) {
+  const oc = brep.oc || await loadCadKernel(), owned = [], bodies = [];
+  const keep = (v) => { owned.push(v); return v; };
+  const track = (v) => { bodies.push(v); return v; };
+  const openingIds = options.facePersistentIds || options.faces || [];
+  const openings = selectedBrepSubshapes(brep, "face", openingIds);
+  if (!openings.length) throw new Error("Shell needs at least one resolved face to remove");
+  const vertices = [], ex = new oc.TopExp_Explorer_2(brep.shape, oc.TopAbs_ShapeEnum.TopAbs_VERTEX, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+  try {
+    for (; ex.More(); ex.Next()) {
+      const current=ex.Current(),vertex=oc.TopoDS.Vertex_1(current),point=oc.BRep_Tool.Pnt(vertex);
+      try { vertices.push(pointOf(point)); } finally { point.delete();vertex.delete();current.delete(); }
+    }
+  }
+  finally { ex.delete(); }
+  const walls = overrides.map((row) => {
+    const faces = selectedBrepSubshapes(brep, "face", [row.facePersistentId]);
+    if (faces.length !== 1) throw new Error("Shell thickness face could not be resolved uniquely");
+    if (openings.some((face) => face.IsSame(faces[0]))) throw new Error("Shell opening cannot also have a wall thickness");
+    return { ...row, face:faces[0], plane: shellSupportingPlane(faceDescriptor(oc, faces[0]), vertices, row.thickness) };
+  });
+  if(walls.some((wall,index)=>walls.slice(0,index).some(previous=>previous.face.IsSame(wall.face)))) throw new Error("Shell thickness needs unique retained faces");
+  try {
+    const bounds=shapeBounds(oc,brep.shape),reach=4*Math.max(1,Math.hypot(bounds.max.x-bounds.min.x,bounds.max.y-bounds.min.y,bounds.max.z-bounds.min.z),...overrides.map(row=>row.thickness));
+    const clip = (cavity, planeDefinition) => {
+      const { origin: p, normal: n } = planeDefinition;
+      const plane = keep(new oc.gp_Pln_3(keep(new oc.gp_Pnt_3(p.x,p.y,p.z)), keep(new oc.gp_Dir_4(n.x,n.y,n.z))));
+      const face = keep(new oc.BRepBuilderAPI_MakeFace_9(plane,-reach,reach,-reach,reach));
+      const inside = keep(new oc.gp_Pnt_3(p.x-n.x,p.y-n.y,p.z-n.z));
+      const half = keep(new oc.BRepPrimAPI_MakeHalfSpace_1(keep(face.Face()), inside));
+      // Keep the common bounded by its cavity operand. Infinite-halfspace mass
+      // is deliberately never used by the generic boolean volume guard.
+      const clipped = track({ oc, shape: buildBoolean(oc,"intersect",cavity.shape,keep(half.Solid())), kind: "solid" });
+      if (!shapeHasSolid(oc, clipped.shape) || !shapeIsValid(oc, clipped.shape)) throw new Error("Shell face thickness consumes the cavity");
+      const before = Math.abs(shapeVolume(oc,cavity.shape)), after = Math.abs(shapeVolume(oc,clipped.shape));
+      if (!(after > 1e-9 && after <= before + Math.max(1,before)*1e-7)) throw new Error("Shell face thickness produced an invalid cavity extent");
+      return clipped;
+    };
+    // Vertex tests alone cannot certify a supporting plane on a body with
+    // curved faces. A native common with the original halfspace must preserve
+    // its volume before that selected wall may constrain the cavity.
+    const sourceVolume=Math.abs(shapeVolume(oc,brep.shape));
+    for(const wall of walls) {
+      const {origin:p,normal:n}=wall.plane;
+      const supported=clip(brep,{normal:n,origin:{x:p.x+n.x*wall.thickness,y:p.y+n.y*wall.thickness,z:p.z+n.z*wall.thickness}});
+      if(Math.abs(Math.abs(shapeVolume(oc,supported.shape))-sourceVolume)>Math.max(1,sourceVolume)*1e-7) throw new Error("Variable Shell thickness requires a supporting exterior plane");
+    }
+    let cavity;
+    try {
+      const uniform = track(await shellBrep(brep, thickness, { ...options, faceThicknesses: [] }));
+      if (uniform.invalid || uniform.approximate) throw new Error("Variable Shell requires an exact valid uniform cavity");
+      cavity = track(await booleanBrep("subtract", brep, uniform));
+      if (!shapeHasSolid(oc, cavity.shape) || !shapeIsValid(oc, cavity.shape)) throw new Error("Variable Shell has no valid uniform cavity");
+      for (const wall of walls) if (wall.thickness !== Number(thickness)) cavity = clip(cavity,wall.plane);
+    } catch (offsetError) {
+      // Exact alternative for bodies whose retained faces are all supporting
+      // planes. Intersect with the ORIGINAL body first: removed concave faces
+      // stay open and the existing nonconvex void can never be filled.
+      // Non-supporting or curved retained faces must use a true native offset.
+      const planes = [], explorer = new oc.TopExp_Explorer_2(brep.shape,oc.TopAbs_ShapeEnum.TopAbs_FACE,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+      try {
+        for(;explorer.More();explorer.Next()) {
+          const current=explorer.Current(),face=oc.TopoDS.Face_1(current);
+          try {
+            if(openings.some(opening=>opening.IsSame(face))) continue;
+            const wall=walls.find(row=>row.face.IsSame(face));
+            planes.push(wall?.plane || shellSupportingPlane(faceDescriptor(oc,face),vertices,Number(thickness)));
+          } finally {face.delete();current.delete();}
+        }
+      } catch (error) { throw new Error(`${offsetError.message}; exact planar Shell unavailable: ${error.message}`); }
+      finally { explorer.delete(); }
+      if(!planes.length) throw new Error("Shell has no retained supporting walls");
+      cavity=brep;
+      for(const plane of planes) cavity=clip(cavity,plane);
+    }
+    const result = await booleanBrep("subtract",brep,cavity);
+    if (!shapeHasSolid(oc,result.shape) || !shapeIsValid(oc,result.shape)) {
+      disposeBrep(result); throw new Error("Variable Shell produced an invalid wall solid");
+    }
+    result.operation = "shell";
+    result.faceThicknesses = overrides.map((row) => ({ ...row }));
+    return result;
+  } finally { bodies.forEach(disposeBrep); disposeAll(owned); }
 }
 
 function trimParallelRibToFace(oc,shape,face,seeds) {
