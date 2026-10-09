@@ -1,0 +1,19 @@
+{
+  "scope": "Read-only actual settled parent SVG and present native authored fields; no browser actions",
+  "svg": "FLAT-PLATE-upstream-base-hole-depth-2p5-settled-drawing-browser-2026-10-09.svg",
+  "bundle": "FLAT-PLATE-upstream-base-hole-depth-2p5-settled-drawing-browser-2026-10-09.mforge",
+  "checks": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "references": true,
+    "localFrame": true,
+    "customProperties": true,
+    "context": true,
+    "drawing": true,
+    "actualSVG2p5": true,
+    "actualSVG2p4": true
+  },
+  "pass": true,
+  "svgBytes": 42636
+}

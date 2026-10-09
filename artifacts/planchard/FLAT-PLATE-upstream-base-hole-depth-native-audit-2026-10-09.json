@@ -1,0 +1,85 @@
+{
+  "scope": "Read-only actual parent depth export, disposable native rebuild and derived drawing. Final Undo/cold acceptance separate.",
+  "bundle": "FLAT-PLATE-upstream-base-hole-depth-2p5-browser-2026-10-09.mforge",
+  "checks": {
+    "oneSolid": true,
+    "sourceHoleX": true,
+    "depthCenteredZ": true,
+    "supportStageBase": true,
+    "positionSketchUnchanged": true,
+    "drawingShows2p4": true,
+    "drawingShows2p5": true,
+    "materialUnchanged": true
+  },
+  "allChecksPass": true,
+  "boreWorldCm": {
+    "x": 6.0960000000001076,
+    "y": 1.2700000000042024,
+    "z": 3.175
+  },
+  "boreWorldIn": {
+    "x": 2.400000000000042,
+    "y": 0.5000000000016545,
+    "z": 1.25
+  },
+  "native": {
+    "volume": 118.57312888694993,
+    "centerOfMass": {
+      "x": 3.921083365614411,
+      "y": 1.2423930877224048,
+      "z": 2.9704375557482123
+    },
+    "inertia": [
+      [
+        492.77024947734844,
+        173.76774085850298,
+        -58.14271701901862
+      ],
+      [
+        173.76774085850298,
+        1420.474615807825,
+        31.157077641472824
+      ],
+      [
+        -58.14271701901862,
+        31.157077641472824,
+        1177.820271026426
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1.8545542095239508e-30,
+        "y": 4.202860282020993e-12,
+        "z": 0
+      },
+      "max": {
+        "x": 10.160000000000108,
+        "y": 4.064,
+        "z": 6.35
+      }
+    }
+  },
+  "dimensionTexts": [
+    "4",
+    "4",
+    "3",
+    "3",
+    "2",
+    "2",
+    "1",
+    "1",
+    "4.00",
+    "2.50",
+    "2.40",
+    "0.50",
+    "1.60",
+    "(1.00)",
+    "9-1-2021",
+    "1060 Alloy",
+    "2445-990",
+    "1:2 · in",
+    "1 / 1"
+  ],
+  "drawingAuditMethod": "buildSheetScene with exact native saved mesh topology, matching actual drawing controller provider; offline buildDrawingScene omits topology and intentionally freezes bound references. Earlier offline2.00 observation is not an app cache diagnosis."
+}

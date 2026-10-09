@@ -1,0 +1,147 @@
+{
+  "scope": "Read-only source exports, disposable native rebuild/intersection; no browser authorship or authored model alteration. Nominal only; depth/cold acceptance separate.",
+  "measurements": [
+    {
+      "bundle": "FLAT-PLATE-hidden-axis-cold-browser-2026-10-09.mforge",
+      "massProperties": {
+        "volume": 102.18606488694859,
+        "centerOfMass": {
+          "x": 3.735233748258543,
+          "y": 1.339797654701351,
+          "z": 2.540000000000014
+        },
+        "inertia": [
+          [
+            338.7560053415955,
+            160.3827587007949,
+            2.3874235921539366e-12
+          ],
+          [
+            160.3827587007949,
+            1109.1755656152527,
+            -5.684341886080802e-14
+          ],
+          [
+            2.3874235921539366e-12,
+            -5.684341886080802e-14,
+            1002.10009803561
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": -1.8545542095239508e-30,
+            "y": 4.202860282020993e-12,
+            "z": 0
+          },
+          "max": {
+            "x": 10.160000000000108,
+            "y": 4.064,
+            "z": 5.08
+          }
+        }
+      },
+      "validity": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 102.18606488694859,
+        "maxToleranceCm": 1.0000420380365834e-7
+      },
+      "densityGPerCm3": 2.698790709244804,
+      "massGrams": 275.77880253118354,
+      "massLb": 0.6079881866866137,
+      "boreOriginCm": {
+        "x": 6.096000000000055,
+        "y": 1.2700000000042024,
+        "z": 2.54
+      },
+      "boreOriginIn": {
+        "x": 2.4000000000000217,
+        "y": 0.5000000000016545,
+        "z": 1
+      },
+      "issues": []
+    },
+    {
+      "bundle": "FLAT-PLATE-upstream-base-hole-nominal-browser-2026-10-09.mforge",
+      "massProperties": {
+        "volume": 102.18606488694857,
+        "centerOfMass": {
+          "x": 3.7352337482585427,
+          "y": 1.3397976547013515,
+          "z": 2.5400000000000147
+        },
+        "inertia": [
+          [
+            338.756005341595,
+            160.38275870079497,
+            2.5011104298755527e-12
+          ],
+          [
+            160.38275870079497,
+            1109.1755656152504,
+            1.1368683772161603e-13
+          ],
+          [
+            2.5011104298755527e-12,
+            1.1368683772161603e-13,
+            1002.1000980356093
+          ]
+        ],
+        "solidCount": 1,
+        "bounds": {
+          "min": {
+            "x": -1.8545542095239508e-30,
+            "y": 4.202860282020993e-12,
+            "z": 0
+          },
+          "max": {
+            "x": 10.160000000000108,
+            "y": 4.064,
+            "z": 5.08
+          }
+        }
+      },
+      "validity": {
+        "valid": true,
+        "solidCount": 1,
+        "volumeCm3": 102.18606488694857,
+        "maxToleranceCm": 1.0000420380365834e-7
+      },
+      "densityGPerCm3": 2.698790709244804,
+      "massGrams": 275.7788025311835,
+      "massLb": 0.6079881866866135,
+      "boreOriginCm": {
+        "x": 6.0960000000001076,
+        "y": 1.2700000000042024,
+        "z": 2.54
+      },
+      "boreOriginIn": {
+        "x": 2.400000000000042,
+        "y": 0.5000000000016545,
+        "z": 1
+      },
+      "issues": []
+    }
+  ],
+  "intersectionVolumeCm3": 102.18606488694857,
+  "symmetricDifferencesCm3": [
+    1.4210854715202004e-14,
+    0
+  ],
+  "checks": {
+    "baseFeatureExact": true,
+    "uprightFeatureExact": true,
+    "upstreamSketchesExact": true,
+    "historyExact": true,
+    "drawingExact": true,
+    "propertiesMaterialExact": true,
+    "sourceHoleCenter": true,
+    "oneSolid": true,
+    "samePhysicalGeometry": true,
+    "explicitBaseStage": true,
+    "singleFixedPoint": true
+  },
+  "allChecksPass": true,
+  "intendedMutationScope": "Hole positioning sketch support/frame/point ID/fixed coordinate and Hole references + holePositionPointIds; base/upright geometry/history/drawing/material unchanged"
+}

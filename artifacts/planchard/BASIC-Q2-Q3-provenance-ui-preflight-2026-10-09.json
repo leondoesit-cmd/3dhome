@@ -1,0 +1,102 @@
+{
+  "scope": "Read-only historical actual browser-export material and context fields. Current restored library and future Chrome acceptance are not inferred.",
+  "records": [
+    {
+      "question": 2,
+      "input": "artifacts\\planchard\\CSWA-Q2-browser-2026-09-29.mforge",
+      "sha256": "f1ed8fd74a4839afdb779a4b1dd47351adfbebcb69f1c0cec9ef002a939a7de8",
+      "name": "CSWA Q2 copper bracket",
+      "key": "cm_mumwq36i",
+      "historyCount": 8,
+      "fullyDefinedSketches": 4,
+      "sketchCount": 4,
+      "context": {
+        "kind": "part",
+        "units": {
+          "length": "mm",
+          "angle": "deg",
+          "mass": "kg",
+          "precision": 3
+        },
+        "activeCoordinateSystemId": "origin"
+      },
+      "customPropertiesPresent": false,
+      "customProperties": null,
+      "engineeringMaterialsPresent": true,
+      "engineeringMaterials": [
+        {
+          "catalogId": "custom",
+          "grade": "Copper (CSWA book 0.0089 g/mm3)",
+          "density": 8.9,
+          "densitySource": "",
+          "condition": "",
+          "source": "",
+          "model": "qualified-rating",
+          "youngModulusMPa": 0,
+          "poissonRatio": 0,
+          "allowableBendingMPa": 0,
+          "allowableContactMPa": 0,
+          "minTemperatureC": 0,
+          "maxTemperatureC": 0,
+          "maxCycles": 0,
+          "maxHours": 0,
+          "maxRpm": 0,
+          "environment": "",
+          "lubrication": "",
+          "id": 1502
+        }
+      ],
+      "bodyMaterials": [
+        {
+          "id": 1473,
+          "materialName": "Copper (CSWA book 0.0089 g/mm3)",
+          "density": 8.9,
+          "densitySource": "",
+          "materialCatalogId": "custom",
+          "materialQualificationId": 1502
+        }
+      ],
+      "inputUnchanged": true
+    },
+    {
+      "question": 3,
+      "input": "artifacts\\planchard\\CSWA-Q3-browser-2026-09-29.mforge",
+      "sha256": "2b01dea2cdab06f3243c262e233a70e94e0fb767bdba082e988a58c6d2f746b6",
+      "name": "CSWA Q3 cast alloy steel pin",
+      "key": "cm_mumxa3i6",
+      "historyCount": 4,
+      "fullyDefinedSketches": 2,
+      "sketchCount": 2,
+      "context": {
+        "kind": "part",
+        "units": {
+          "length": "mm",
+          "angle": "deg",
+          "mass": "kg",
+          "precision": 3
+        },
+        "activeCoordinateSystemId": "origin"
+      },
+      "customPropertiesPresent": false,
+      "customProperties": null,
+      "engineeringMaterialsPresent": false,
+      "engineeringMaterials": null,
+      "bodyMaterials": [
+        {
+          "id": 1523,
+          "materialName": "Cast Alloy Steel (SOLIDWORKS reference)",
+          "density": 7.3,
+          "densitySource": "SDC Publications, Beginner's Guide to SolidWorks 2011, p. 66: Cast Alloy Steel library density 7300 kg/m\u00b3; reference material, grade unspecified",
+          "materialCatalogId": "stock:castAlloySteel",
+          "materialQualificationId": null
+        }
+      ],
+      "inputUnchanged": true
+    }
+  ],
+  "runner": {
+    "path": "scratch/planchard/basic23-future-driving-cold-step-audit-readonly.mjs",
+    "syntaxCheck": "pass",
+    "executed": false
+  }
+}

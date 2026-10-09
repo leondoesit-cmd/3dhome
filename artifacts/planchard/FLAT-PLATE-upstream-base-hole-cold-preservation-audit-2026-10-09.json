@@ -1,0 +1,68 @@
+{
+  "scope": "Read-only finite restored/cold export durability; parent actual Chrome checks separately attributed. Export point numerics are not claimed as parent visible cold inspector reading.",
+  "saved": "FLAT-PLATE-upstream-base-hole-restored-saved-browser-2026-10-09.mforge",
+  "cold": "FLAT-PLATE-upstream-base-hole-cold-browser-2026-10-09.mforge",
+  "bytes": {
+    "saved": 356223,
+    "cold": 356109
+  },
+  "checks": {
+    "features": {
+      "present": true,
+      "equal": true
+    },
+    "sketches": {
+      "present": true,
+      "equal": true
+    },
+    "history": {
+      "present": true,
+      "equal": true
+    },
+    "references": {
+      "present": true,
+      "equal": true
+    },
+    "localFrame": {
+      "present": true,
+      "equal": true
+    },
+    "customProperties": {
+      "present": true,
+      "equal": true
+    },
+    "context": {
+      "present": true,
+      "equal": true
+    },
+    "drawing": {
+      "present": true,
+      "equal": true
+    },
+    "name": {
+      "present": true,
+      "equal": true
+    },
+    "key": {
+      "present": true,
+      "equal": true
+    },
+    "explicitBaseStage": {
+      "present": true,
+      "equal": true
+    },
+    "positionPoint": {
+      "present": true,
+      "equal": true
+    },
+    "authoredPartMaterialAndGeometry": {
+      "present": true,
+      "equal": true
+    },
+    "exactTopologyCache": {
+      "present": true,
+      "equal": true
+    }
+  },
+  "pass": true
+}
