@@ -1,0 +1,31 @@
+{
+  "source": "C:\\Users\\liron\\Desktop\\3dhome\\artifacts\\planchard\\CHAIN-CH03-official-source-browser-2026-10-09.mforge",
+  "exact": true,
+  "featureCount": 2,
+  "issues": [],
+  "nativeValidation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 196.34954084936206,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "volumeCm3": 196.34954084936206,
+  "boundsCm": {
+    "min": {
+      "x": -2.5,
+      "y": -10,
+      "z": -2.5
+    },
+    "max": {
+      "x": 2.5,
+      "y": 0,
+      "z": 2.5
+    }
+  },
+  "centerOfMassCm": {
+    "x": 5.134781488891345e-18,
+    "y": -5,
+    "z": 3.618764437576268e-17
+  },
+  "seconds": 5.553450799999999
+}

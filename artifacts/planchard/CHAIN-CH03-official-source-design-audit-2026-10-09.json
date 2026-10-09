@@ -1,0 +1,58 @@
+{
+  "source": "artifacts/planchard/CHAIN-CH03-official-source-browser-2026-10-09.mforge",
+  "checks": {
+    "oneFeature": true,
+    "oneSketch": true,
+    "twoHistory": true,
+    "active": true,
+    "fullyDefined": true,
+    "sourceDiameterFixedDriving": true,
+    "topSourcePlane": true,
+    "sourceReverseLength": true,
+    "sourceTitaniumDensity": true,
+    "sourceDensityCitation": true,
+    "sourcePlainCylinderVolume": true,
+    "sourceCom": true,
+    "nativeValidSingle": true,
+    "stepEquivalent": true
+  },
+  "pass": true,
+  "sourceDimensionsMm": {
+    "diameter": 50,
+    "length": 100,
+    "endsY": [
+      -100,
+      0
+    ]
+  },
+  "volumeMm3": 196349.54084936206,
+  "massG": 903.2078879070654,
+  "comMm": {
+    "x": 5.134781488891345e-17,
+    "y": -50,
+    "z": 3.6187644375762683e-16
+  },
+  "material": {
+    "catalogId": "custom",
+    "grade": "Titanium — official exercise source; grade unspecified",
+    "density": 4.6,
+    "densitySource": "SDC Planchard2021 official short_pin.SLDPRT Config-0-LWDATA float64LEoffset84=4600kg/m³; allmodern/legacy link and pins independently agree.",
+    "condition": "Unspecified by source; unrated educational model",
+    "source": "Density only; no qualified strength, service-life or load rating claimed.",
+    "model": "qualified-rating",
+    "youngModulusMPa": 0,
+    "poissonRatio": 0,
+    "allowableBendingMPa": 0,
+    "allowableContactMPa": 0,
+    "minTemperatureC": 0,
+    "maxTemperatureC": 0,
+    "maxCycles": 0,
+    "maxHours": 0,
+    "maxRpm": 0,
+    "environment": "",
+    "lubrication": "",
+    "id": 5572
+  },
+  "inputUnchanged": true,
+  "scope": "Read-only native/STEP/sourcegeometry measurement; no authoredfile edits."
+}

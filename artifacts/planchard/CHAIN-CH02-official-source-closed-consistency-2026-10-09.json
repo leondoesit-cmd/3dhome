@@ -1,0 +1,34 @@
+{
+  "source": "artifacts/planchard/CHAIN-CH02-official-source-closed-browser-2026-10-09.mforge",
+  "checks": {
+    "featuresUnchanged": true,
+    "sketchesUnchanged": true,
+    "historyUnchanged": true,
+    "engineeringMaterialsUnchanged": true,
+    "parametersUnchanged": true,
+    "localFrameUnchanged": true,
+    "referencesUnchanged": true,
+    "authoredPartDataUnchanged": true,
+    "referenceGeometrySameOrStandardBootstrap": true
+  },
+  "pass": true,
+  "changedModelKeys": [
+    "parts",
+    "lastRebuild",
+    "referenceGeometry",
+    "customProperties",
+    "exactTopologyCache",
+    "lastStandardsAudit"
+  ],
+  "partChangedKeys": [
+    "meshData",
+    "exactBuildToken"
+  ],
+  "parentObservedBrowserDurability": {
+    "depthDrivingThenUndo": true,
+    "coldReloadSavedLibrary2Steps1Native": true,
+    "density46AndSourcePropsPersist": true
+  },
+  "nativeEvidenceReused": "CHAIN-CH02-official-source-native-audit-2026-10-09.json",
+  "scope": "Read-only exact authored-data compare; acceptanceDescription/cache/standardreferencebootstrap permitted."
+}
