@@ -72,9 +72,11 @@ No publisher physical dimensions or material are claimed.
 
 ## 3.3 — circled defects on stepped dimension diagram
 
-Use illustrative layout proportional to the source, **40paper-mm per displayed inch**. Outerrectangle corners(40,45)/(180,145). Interior stepped polyline:
+Use illustrative layout proportional to the source, **40paper-mm per displayed inch**. Source PDF176 was rechecked visually: the left object boundary ends at Y115. The lower horizontal line extending left from Y145 is a **dimension extension**, not the object's bottom edge. Do not draw an outer rectangle or separate interior step. Draw this one closed **Paper polyline**:
 
-`(40,115)→(70,115)→(70,75)→(104,75)→(104,91)→(150,91)→(150,145)`.
+`(40,45)→(180,45)→(180,145)→(150,145)→(150,91)→(104,91)→(104,75)→(70,75)→(70,115)→(40,115)→(40,45)`.
+
+The omitted lower-left region is outside the object. The horizontal line from(40,115) toward(196,115), and from(28,145) toward(150,145), are separate thin source dimension extensions. Label the diagram **SOURCE ERROR DIAGRAM**; these deliberately incorrect dimension contacts must not become object geometry.
 
 The unsupplied step heights are representative paper placement, not certified numeric part dimensions. Recreate source labels **2.50,left;1.75,right;3.50,insideupper; .85,insidefirststep; .75,leftlower; .75,rightlower**. In the deliberately erroneous source-reproduction panel, retain the missing vertical dimensionlines and no extension offsets; label it **SOURCE ERROR DIAGRAM** so readers do not mistake it for accepted manufacturing documentation.
 
@@ -86,6 +88,23 @@ Circle error regions with native papercircles and numbered notes:
 4. undimensioned internal steps: heights missing.
 
 Do not mark the two.75 values automatically redundant: they describe different widths. Do not invent the absent step dimensions. A separate corrected schematic may improve presentation, but the minimum is diagram+circles+source-grounded list.
+
+### Bounded ordinary UI source-error recipe
+
+Use **Paper line**, **Paper polyline**, **Paper circle**, **Note** and **Select**; a double-click on a stroke opens exact **Point N X/Y (paper mm)** fields. Native Dimension does not bind paper primitives. All labels below are literal source values, not new measured CAD dimensions.
+
+| Source label | Paper strokes and placement |
+|---|---|
+|2.50 left|Thin extensions(28,45)→(38,45) and(28,145)→(150,145); note near(14,58). Draw isolated inward vertical arrowheads at(33,45) and(33,145), **without a connecting vertical dimension line**, reproducing the visible source defect.|
+|1.75 right|Thin extensions(182,45)→(197,45) and(40,115)→(197,115); note near(185,80). Isolated inward vertical arrowheads at(192,45)/(192,115), again **no vertical dimension line**.|
+|3.50 inside upper|AtY57, horizontal line(40,57)→(101,57) and(119,57)→(180,57); note near(104,57); inward arrows atX40/180. Lines meet object boundaries as the source shows.|
+|.85 inside first step|AtY103, line(62,103)→(104,103), arrows atX70/104; note near(50,103). Extension atX104 fromY91 to108; X70 uses/touches its object edge, reproducing the missing gap.|
+|.75 left lower|AtY123, line(33,123)→(70,123), arrows atX40/70; note near(20,123). ExtensionsX40/70 fromY115 to128, touching object ends as in source.|
+|.75 right lower|AtY157, line(150,157)→(194,157), arrows atX150/180; note near(196,157). ExtensionsX150/180 fromY145 to162, without an offset gap.|
+
+For an inward horizontal arrow at a left endpoint(x,y), use a small closed Paper polyline `(x,y)→(x+2,y-0.7)→(x+2,y+0.7)→(x,y)`; mirror for a right endpoint. For the isolated vertical top arrow use `(x,y)→(x-0.7,y-2)→(x+0.7,y-2)→(x,y)`, and mirror vertically at the lower endpoint. These are closed outline arrows, not filled native dimension glyphs. Use the companion manual-annotation qualification.
+
+Circle the **actual error regions**, not invented object edges: left vertical gap center(33,91)R18; right gap center(192,85)R18; upper inside label center(111,57)R12; .85 label/contact center(67,103)R15; lower extension/object contact near(150,145)R9. Number the groups with Notes and the four error statements above. Circle placement is illustrative; move circles if they obscure the source outline. Keep **2.50**, **1.75**, **3.50**, **.85**, **.75**, **.75** literal and leave unspecified internal heights undimensioned.
 
 ## 3.4 — answer order or four small diagrams
 
@@ -117,6 +136,51 @@ Choose25paper-mm per displayedinch. End-arccenters(55,105),(155,105), radius6.25
 Nineholecenters **X55,67.5,80,92.5,105,117.5,130,142.5,155**, allY105, radius**2.375** (sourceØ.19); onehorizontalcenterline. Source first-to-lastdimension **4.00** goescenter55→155, not totalouterlength. Source notesØ.19,R.25 atbothends, materialthickness.10.
 
 Circle missingquantity/patternnote region and duplicateR.25 notes. Correctedcallout **9X Ø.19**, and if selecting source-plausible equal spacing, **8SPACES@.50=4.00**; markequalspacing as the chosen interpretation because original source omitted location/spacing specification. Replace duplicateR notes with **2X R.25**. Do not add overall4.50 and allincrementaldimensions as additional independent closed-chain drivers. Thickness.10 is a note, not a radius/width.
+
+### Verified ordinary Paper Arc / circle sequence
+
+Source PDF177/3-49 was independently viewed again: nine holes, two true
+semicircular capsule ends, first-to-last hole-center span4.00, Ø.19 hole note,
+duplicated R.25 notes and material thickness.10. The chosen25paper-mm/in layout
+preserves these proportions; it does not turn a paper annotation into CAD units.
+
+1. **Paper line**: click(55,98.75), then(155,98.75) for the upper tangent.
+2. **Paper arc**: click **start**(155,98.75), **through**(161.25,105),
+   **end**(155,111.25). The third click commits immediately; Enter is unnecessary.
+   This yields center(155,105), radius6.25 and a180° right semicircle.
+3. **Paper line**: click(155,111.25), then(55,111.25) for the lower tangent.
+4. **Paper arc**: click **start**(55,111.25), **through**(48.75,105),
+   **end**(55,98.75). This yields center(55,105), radius6.25 and a180° left
+   semicircle. Do not substitute full circles or choose a through point inside
+   the capsule. Both listed three-point sequences are analytically verified.
+5. **Paper circle**: for each listed X coordinate, click center(X,105), then
+   radius point(X+2.375,105). There are **nine** circles. Hold **Ctrl** during
+   a pick when nearby primitive snapping would change the intended point;
+   especially use it for the small radius pick to avoid snapping back to its
+   own center. Do not hold Shift for the semicircle through-point picks.
+6. **Paper line**: create horizontal centerline(46.75,105)→(163.25,105).
+   Choose **Select**, double-click that line, keep its two coordinates and set
+   **Line style → Centerline**, then Apply. For source-like hole center marks,
+   optionally create nine short vertical Paper lines(X,100.5)→(X,109.5) and set
+   each to Centerline. Hole-circle and capsule strokes stay Visible.
+7. Reproduce the source4.00 manual dimension using extensions from the first
+   and last **hole centers**, atX55/155 up toY85; paper dimension line atY87
+   with a text gap, two inward outline arrows and literal Note **4.00**.
+   Source value is inches under the explicit plot note. Do not dimension the
+   outer48.75→161.25 span with4.00.
+8. Use **Note** and Paper line leaders for source **Ø.19**, **R.25** at each
+   end and **material thickness .10**. Circle the duplicated radius notes and
+   the lone hole callout/pattern-data area; list missing quantity/location data
+   and repeated end-radius callout. Keep the source diagram and chosen correction
+   text distinguishable: **9X Ø.19**, **2X R.25**, and chosen
+   **8 SPACES @ .50 = 4.00** are corrections, not secretly added source data.
+
+Any approximate pick can be corrected through **Select → double-click stroke →
+Point N X/Y (paper mm)**. Arcs expose three point pairs in start/through/end order;
+circles expose center/radius-point pairs. **Escape** cancels an unfinished arc.
+Save the ordinary authored sheet, export SVG/bundle/Chrome PNG, then cold reopen
+the exact saved record and verify two persisted analytic arcs, nine circles,
+centerline style and source-qualified notes. No physical solid is required.
 
 ## 3.7 — true limit-tolerance graphic
 

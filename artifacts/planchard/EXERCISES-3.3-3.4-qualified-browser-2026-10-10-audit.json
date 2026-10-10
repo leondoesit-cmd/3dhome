@@ -1,0 +1,40 @@
+{
+  "qualifiedAccepted": true,
+  "coldPending": true,
+  "checks": {
+    "oneGenuineClosedSteppedOutline": true,
+    "noFalseOuterRectangle": true,
+    "fourteenNoncollapsedManualSourceLines": true,
+    "twelveClosedNonzeroArrows": true,
+    "sixCircledErrorRegions": true,
+    "leftCircleInsideFrame": true,
+    "leftNumericValueInsideFrame": true,
+    "sixLiteralSourceNumericNotes": true,
+    "fourSixRowAnswerNotes": true,
+    "sourceErrorQualificationExplicit": true,
+    "preferenceRanksSourceCorrect": true,
+    "allThirtyNoteRowsInSVG": true,
+    "noCADBindingOrSolid": true,
+    "sourceTitleDescription": true,
+    "actualPNGSourceDiagramAndNotesReadable": true
+  },
+  "counts": {
+    "primitives": 33,
+    "sourceOutline": 1,
+    "lines": 14,
+    "closedArrowTriangles": 12,
+    "errorCircles": 6,
+    "notes": 10,
+    "rows": 30
+  },
+  "leftNumericNoteXY": {
+    "x": 24.602424766591252,
+    "y": 57.84014369394399
+  },
+  "input": {
+    "bytes": 11570,
+    "sha256": "002d9ddc30a989d72b699406947a2d65364124d08ba354afdf42e063ec8524ce"
+  },
+  "svgBytes": 18471,
+  "qualification": "Actual source-error reproduction/analysis. Missing verticaldimension lines and touching extensions deliberately preserve source mistakes; not an accepted manufacturing drawing. Paper placements illustrative. ActualPNG shows2.50 insideframe atX24.6024, no furtherdragclaim. Preference3,1,4,2 source-backed."
+}

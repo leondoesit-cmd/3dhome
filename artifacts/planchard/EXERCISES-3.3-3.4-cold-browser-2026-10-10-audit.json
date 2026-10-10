@@ -1,0 +1,18 @@
+{
+  "coldAccepted": true,
+  "checks": {
+    "allAuthoringDescriptionUnitsExact": true,
+    "wholeDrawingExact": true,
+    "SVGByteExact": true,
+    "onlyEmptySketchHistoryNormalized": true,
+    "onlySixDefaultOriginRefsAdded": true,
+    "onlyEmptyCacheAndCleanZeroCheckStandardsAdded": true,
+    "actualColdPNGDiagramAnswersReadable": true
+  },
+  "input": {
+    "bytes": 12606,
+    "sha256": "4462b66594407e40162881746ab65654ae452a8ec89d44717cc452991936feaf"
+  },
+  "svgBytes": 18471,
+  "qualification": "Deliberate source-error paper diagram, illustrative placements/noCADdrivers. Cold365% viewport crops lowerfooter; complete unchangedSVG and priorqualifiedfullsheetPNG preserved. Nofullcoldfooterclaim."
+}
