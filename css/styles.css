@@ -21129,3 +21129,34 @@ html[lang="he"] .survey-body p {
   left: calc(50% - 51px);
 }
 #center-canvas.max-view-3d #view-3d > .hint { bottom: 96px; }
+
+/* Print previews need room for a layer plot and descriptive export actions.
+   Keep the ordinary Cancel/Apply footer separate from those export actions. */
+@media (min-width: 981px) {
+  body:not(.compact-nav) #modeler .md-left:has(#mdQuickTools:not([hidden]) .md-print-bed-preview) {
+    width: clamp(340px, 30vw, 420px);
+    flex-shrink: 0;
+  }
+}
+#modeler #mdQuickTools:has(.md-print-bed-preview) .md-quick-field:not(.type-boolean) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+#modeler .md-print-bed-preview { min-width: 0; overflow-wrap: anywhere; }
+#modeler .md-print-bed-preview svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 260px;
+}
+#modeler .md-print-bed-preview + .md-feature-actions {
+  position: static;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+#modeler .md-print-bed-preview + .md-feature-actions > button {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

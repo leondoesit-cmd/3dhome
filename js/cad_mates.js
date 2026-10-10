@@ -1,3 +1,4 @@
+import {replayComponentPatterns} from "./core/assembly_component_pattern.js";
 // Topology-aware assembly mates: the public face of the mate system.
 //
 // A topology reference stores both a persistent feature/topology key and a
@@ -34,5 +35,11 @@ export {rotationLimitMateSpec,captureRotationLimitZero,rotationLimitMeasure} fro
  * `options.beforePass` runs once before the solve, for callers that place
  * components of their own first. */
 export function solveTopologyMates(assembly, options = {}) {
-  return solveAssemblyMates(assembly, options);
+  const before=replayComponentPatterns(assembly);
+  const result=solveAssemblyMates(assembly, options);
+  const after=replayComponentPatterns(assembly);
+  const issues=before.concat(after).filter((issue,index,list)=>list.findIndex(other=>other.patternId===issue.patternId && other.message===issue.message)===index);
+  result.issues.push(...issues);
+  if(issues.length)result.ok=false;
+  return result;
 }

@@ -1,3 +1,4 @@
+import {componentPatternPlan,setComponentPattern,removeComponentPattern} from "./core/assembly_component_pattern.js";
 import {makeDimensionTolerance,toleranceFields} from "./core/dimension_tolerance.js";
 import {createSpringBinding,springSource,springMotionState,springPreviewMesh,hasUnverifiedSprings,restoreSpringEndpoint} from "./core/flexible_spring.js";
 import {createExactSaveCache} from "./core/exact_save_cache.js";
@@ -167,6 +168,7 @@ import { configuredBodiesForView } from "./cad_configured_drawing.js";
 import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
 import {drawingViewScaleControl} from "./core/drawing_scale_control.js";
 import {decodeDrawingImage} from "./core/drawing_image.js";
+import {captureDrawingPreset,applyDrawingFormat,drawingFromTemplate,loadDrawingPresets,saveDrawingPreset} from './core/drawing_presets.js';
 import { DRAWING_TOOLS, createDrawingController } from "./modeler_drawing.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
@@ -4023,6 +4025,9 @@ function buildDOM() {
       commandGroup("grpInsert", [
         commandButton("components", t("insertComponent"), null, "primary", t("insertComponent")),
         commandButton("formsubassembly",t("formSubassembly")),
+        commandButton("componentpattern","Component Pattern"),
+        commandButton("editcomponentpattern","Edit Component Pattern"),
+        commandButton("removecomponentpattern","Remove Component Pattern"),
       ]) +
       commandGroup("grpMates", [
         commandButton("mates", t("mate"), null, "primary"),
@@ -4110,6 +4115,10 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="insertimage"><i class="ph ph-image"></i><span>Insert image</span></button>' +
     '<button type="button" data-drawing-tool="editimage"><i class="ph ph-image"></i><span>Edit image</span></button>' +
     '<button type="button" data-drawing-tool="removeimage"><i class="ph ph-trash"></i><span>Remove image</span></button>' +
+    '<button type="button" data-drawing-tool="saveformat"><i class="ph ph-floppy-disk"></i><span>Save sheet format</span></button>' +
+    '<button type="button" data-drawing-tool="applyformat"><i class="ph ph-file"></i><span>Apply sheet format</span></button>' +
+    '<button type="button" data-drawing-tool="savetemplate"><i class="ph ph-floppy-disk"></i><span>Save drawing template</span></button>' +
+    '<button type="button" data-drawing-tool="newtemplate"><i class="ph ph-file-plus"></i><span>New from drawing template</span></button>' +
     '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
     '<button type="button" data-drawing-tool="alignedsection"><i class="ph ph-scissors"></i><span>Aligned cut-face section</span></button>' +
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
@@ -7417,6 +7426,9 @@ function runCommand(id) {
   else if (id === "assembly") setDocumentType("assembly");
   else if (id === "partdoc") setDocumentType("part");
   else if (id === "components") { setDocumentType("assembly"); setTab("parts"); }
+  else if (id === "componentpattern") openComponentPatternForm("create");
+  else if (id === "editcomponentpattern") openComponentPatternForm("edit");
+  else if (id === "removecomponentpattern") openComponentPatternForm("remove");
   else if (id === "mates") openMatePropertyManager();
   else if (id === "explode") createDefaultExplodedView();
   else if (id === "explodestep") openExplodeStepForm();
@@ -11344,7 +11356,7 @@ function syncDuplicateCommit(state) {
   actions.hidden = cornerOwnsCommit;
 }
 
-async function newModel() {
+async function newModel(template) {
   if (!await confirmDiscardDocument("unsavedNew")) return;
   closeEvalCard();
   /* Same rule as opening another document: once the user has confirmed the
@@ -11383,6 +11395,7 @@ async function newModel() {
     return;
   }
   E.def = newDef();
+  if(template?.kind==='drawing-template'){E.def.drawing=drawingFromTemplate(template);E.def.name='Drawing from '+template.name;}
   libraryOpenBaseline=null;
   E.srcItem = null;
   E.sel = null;
@@ -11392,6 +11405,7 @@ async function newModel() {
   syncHead();
   refreshAll();
   setTab("parts");
+  if(template?.kind==='drawing-template')setMode('drawing');
 }
 
 function setDocumentType(type) {
@@ -12062,6 +12076,34 @@ function drawingTopology() {
    sheet's tools can await an answer without freezing the page. One field or
    several — a dimension is edited as its displayed value AND its own
    tolerance, which is one decision and so one dialog. */
+async function drawingPresetAction(action) {
+  try {
+    if(E.docType!=='part')throw new Error('Drawing presets currently apply to part drawing documents');
+    const doc=drawingDocument(),owner=E.def,history=currentHistoryNode();
+    const unchanged=function(){if(E.def!==owner||currentHistoryNode()!==history||drawingDocument()!==doc)throw new Error('Document changed while choosing drawing preset; retry');};
+    if(action==='saveformat'||action==='savetemplate') {
+      const kind=action==='saveformat'?'sheet-format':'drawing-template';
+      const answer=await sheetForm(kind==='sheet-format'?'Save sheet format':'Save drawing template',[
+        {key:'name',label:'Local preset name',value:kind==='sheet-format'?'MY-A-FORMAT':doc.units==='in'?'A-IN-ANSI':'A-MM-ISO'},
+        {key:'paperArt',label:'Include independent paper notes and geometry',type:'boolean',value:false},
+      ],'Captures company, author, general tolerance and embedded logos. Model views, dimensions and CAD are excluded. Templates also capture paper and drafting defaults.');
+      if(!answer)return;unchanged();
+      const records=loadDrawingPresets(localStorage),previous=records.find(r=>r.kind===kind&&r.name===String(answer.name).trim());
+      const record=captureDrawingPreset(doc,{id:previous?.id||crypto.randomUUID(),name:answer.name,kind,includePaperArt:answer.paperArt});
+      saveDrawingPreset(localStorage,record);flash('Local '+(kind==='sheet-format'?'sheet format':'drawing template')+' saved');return;
+    }
+    const kind=action==='applyformat'?'sheet-format':'drawing-template',records=loadDrawingPresets(localStorage).filter(r=>r.kind===kind);
+    if(!records.length)throw new Error('Save a '+(kind==='sheet-format'?'sheet format':'drawing template')+' first');
+    const answer=await sheetForm(action==='applyformat'?'Apply sheet format':'New from drawing template',[
+      {key:'preset',label:'Saved local preset',type:'select',value:records[0].id,choices:records.map(r=>({value:r.id,label:r.name}))},
+    ],action==='applyformat'?'Matching paper required. Preserves all existing model views, dimensions and CAD. Replaces only previously applied format-owned paper content.':'Creates a new blank Drawing from saved defaults and format. Existing saved model remains unchanged.');
+    if(!answer)return;unchanged();const record=records.find(r=>r.id===answer.preset);if(!record)throw new Error('Drawing preset was not found');
+    if(action==='newtemplate'){await newModel(record);return;}
+    const next=applyDrawingFormat(doc,record);pushUndo('Apply sheet format');E.def.drawing=next;drawingSheet().invalidate();
+    refreshAll();flash('Sheet format applied; source views, dimensions and CAD preserved');
+  } catch(error){flash(error.message);}
+}
+
 function chooseDrawingImage() {
   return new Promise(function(resolve,reject){
     if(!root){resolve(null);return;}
@@ -12474,6 +12516,7 @@ function drawingSheet() {
       promptFields: sheetForm,
       historyToken: currentHistoryNode,
       chooseImage: chooseDrawingImage,
+      presetAction: drawingPresetAction,
       refresh: function () { drawSketch(); syncSheetPanel(); },
       editTitleBlock: function () {
         var field = root && root.querySelector("#mdSheetTitleField");
@@ -17123,6 +17166,45 @@ function applyFeatureFilter(host) {
   });
 }
 
+async function openComponentPatternForm(mode) {
+  if(E.docType!=="assembly" || !E.assembly)return;
+  var assembly=E.assembly,history=currentHistoryNode(),existing=null;
+  if(mode!=="create"){
+    var patterns=assembly.componentPatterns || [];
+    if(!patterns.length){flash("No Component Patterns");return;}
+    var choose=await sheetForm("Choose Component Pattern",[{key:"pattern",label:"Pattern",type:"select",choices:patterns.map(function(p){return {value:String(p.id),label:p.name || "Pattern "+p.id};}),value:String(patterns[0].id)}],"Generated occurrences follow their seed and source hole pattern.");
+    if(!choose || E.assembly!==assembly || currentHistoryNode()!==history)return;
+    existing=patterns.find(function(p){return String(p.id)===choose.pattern;});
+    if(!existing)return;
+    if(mode==="remove"){
+      pushUndo("Remove Component Pattern");removeComponentPattern(E.assembly,existing.id);
+      E.componentSel=[];E.sel=null;invalidateInterference();refreshAll();return;
+    }
+  }
+  var components=assembly.components.filter(function(c){return !c.componentPattern && !c.asm && !c.suppressed;});
+  var sources=[];
+  components.forEach(function(c){(c.def && c.def.features || []).forEach(function(f){
+    if(f.type!=="pattern" || f.suppressed)return;
+    try{componentPatternPlan(assembly,{id:"preview",seedId:(components.find(function(seed){return seed!==c;}) || {}).id,carrierId:c.id,featureId:f.id});sources.push({carrier:c,feature:f});}catch(error){}
+  });});
+  if(!sources.length){flash("Insert a carrier with an active feature-scope Linear Pattern of holes or extruded cuts first");return;}
+  var selected=E.componentSel && E.componentSel[0],seed=existing && existing.seedId || selected && !selected.componentPattern && selected.id || components[0].id;
+  var sourceIndex=existing?sources.findIndex(function(item){return String(item.carrier.id)===String(existing.carrierId) && String(item.feature.id)===String(existing.featureId);}):0;
+  var answer=await sheetForm(mode==="create"?"Component Pattern":"Edit Component Pattern",[
+    {key:"name",label:"Pattern name",value:existing && existing.name || "Hole-driven component pattern"},
+    {key:"seed",label:"Mated seed component",type:"select",choices:components.map(function(c){return {value:String(c.id),label:c.name || String(c.id)};}),value:String(seed)},
+    {key:"source",label:"Carrier / source Linear Pattern",type:"select",choices:sources.map(function(item,index){return {value:String(index),label:(item.carrier.name || item.carrier.id)+" / "+(item.feature.name || item.feature.id)};}),value:String(Math.max(0,sourceIndex))}
+  ],"Mate the seed to the first hole. Copies follow source count, spacing and carrier orientation. Edit source pattern or seed configuration to drive them; independent copy mates are unsupported.");
+  if(!answer || E.assembly!==assembly || currentHistoryNode()!==history)return;
+  var source=sources[Number(answer.source)];if(!source)return;
+  var pattern={id:existing?existing.id:uid(),name:answer.name,seedId:answer.seed,carrierId:source.carrier.id,featureId:source.feature.id};
+  try{componentPatternPlan(assembly,pattern);}catch(error){flash(error.message);return;}
+  pushUndo(mode==="create"?"Component Pattern":"Edit Component Pattern");
+  var issues=setComponentPattern(E.assembly,pattern);
+  if(issues.length)flash(issues[0].message);
+  E.componentSel=[];E.sel=null;invalidateInterference();refreshAll();fitPreview();
+}
+
 function insertAssemblyComponent(modelKey) {
   if (!E.assembly) E.assembly = newAssembly();
   // Saved assemblies can contain numeric IDs newer than the scene allocator.
@@ -17516,6 +17598,7 @@ function assemblyMatePair(nodeId) {
 
 function removeAssemblyComponent(component) {
   if (!component) return;
+  if(component.componentPattern){flash("Generated occurrence: edit or remove its Component Pattern instead");return;}
   pushUndo(t("del"));
   E.assembly.components = E.assembly.components.filter(function (c) { return c !== component; });
   E.componentSel = E.componentSel.filter(function (c) { return c !== component; });
@@ -19462,6 +19545,12 @@ function assemblyTransformInspector() {
   var host = root.querySelector("#mdInsp"); host.innerHTML = "";
   var component = E.sel;
   if (!component) { emptyState(host, "ph-cursor-click", t("noSel"), t("mateHint")); return; }
+  if(component.componentPattern){
+    host.appendChild(el("h5","md-h5",component.name || "Pattern occurrence"));
+    host.appendChild(el("p","md-note","Driven by Component Pattern "+component.componentPattern.patternId+". Edit the seed for part/configuration/pose changes, or edit/remove the Component Pattern. Independent occurrence constraints are unsupported."));
+    host.appendChild(btn("Edit Component Pattern",function(){openComponentPatternForm("edit");},"md-wide"));
+    return;
+  }
   var nameRow = el("label", "md-row md-row-wide");
   nameRow.appendChild(el("span", "t", t("partName")));
   var name = el("input"); name.type = "text"; name.value = component.name || component.modelKey;

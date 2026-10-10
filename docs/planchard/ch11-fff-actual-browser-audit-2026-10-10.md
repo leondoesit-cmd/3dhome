@@ -1,0 +1,13 @@
+# Actual Chrome bounded FFF digital study — 2026-10-10
+
+Parent actualChrome opened the accepted FLATprint variant, selected Top150mm bed/defaultFFF and generated204layers; exported actual15%JSON/Gcode/mforge plusfirst/middle/lastlayerSVG/PNGs. Then actual20%Apply changed only infill density and exported comparison. Source sketches/all6features and history exactly match acceptedFLAT; independent native reconstruction is validoneconnectedsolid,V102.18606488694857cm³.
+
+Both actual studies pass18guards each. Every one of28095default15segments and29225changed20segments independently passes half-linewidth clearance against fresh native mid-slab contours and midpoint material containment; no bead/center failures. Native source bounds match actual layer source bounds. Saved settings match actualJSON. ActualGcode is byte-exact to exported paths; first/middle/lastSVG15andmiddleSVG20 are byte-exact. Estimates independently sum segment lengths/rectangularbead volumes/filament length. Bed150 and illustrative absolute-E/nohoming/heating checks pass. Independent regenerated mesh fingerprint differs from browser triangulation; exact triangulation identity is not asserted. Actual export fingerprintfnv1a32-4604ed7b is exactly retained across density/cold; physical containment is independently verified against reconstructed native contours.
+
+Density comparison passes11guards: only15→20infill setting changes; allwalls/skins/sourcefingerprint/bounds/layerheights/nativeCAD exact. Wallpaths535/skinpaths1833remain; infill3990→5120. Filament10382.969353973→11953.592755175mm(+15.126919359%). Source physical sizing/material unchanged.
+
+Final actual hardreload/exactSavedreopen20%Apply/regeneration retains204layers, layer102Z20.4mm/16paths and filament11953.592755175mm. Final9cold guards pass: whole actualJSON/Gcode/middleSVG byte-exact to qualified20; source native mesh/FFFsettings/CAD exact. Only build token/rebuild/standards-audit timestamps differ. This accepts the bounded digital FFF browser workflow. Mid-slab geometric checking does not certify physical deposition/bridging/device behavior.
+
+Qualification remains explicit: conservative raster offsets/two-grid-cell margin, rectilinearinfill, supportoff/adhesionnone in these witnesses; rectangularbead volume, time excludingtravel/acceleration; noadaptivewidth/retraction/printerhoming/heating/device execution. Physical printing and device compatibility are unverified. Parent owns final clean Save/ADVANCE/commit; auditor changes reports/JSON only.
+
+Evidence artifacts: CH11-FFF-default15-browser-2026-10-10-audit.json; CH11-FFF-infill20-browser-2026-10-10-audit.json; CH11-FFF-15-20-comparison-audit-2026-10-10.json; CH11-FFF-infill20-cold-browser-2026-10-10-final-audit.json.

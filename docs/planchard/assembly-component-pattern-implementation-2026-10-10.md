@@ -1,0 +1,33 @@
+# Associative assembly Component Pattern — bounded implementation
+
+## Supplied source and finite scope
+
+Planchard PDF121 / printed2-35, Design Intent, describes mating one screw to the first hole, then using Component Pattern to place the other screws in the existing Linear Pattern of holes. This implementation follows that explicit feature-driven relationship. It does not substitute a part body-pattern command or claim arbitrary circular/curve/component nesting parity.
+
+The assembly must contain two distinct unsuppressed top-level part occurrences: the mated seed and a carrier with a current, unsuppressed **feature-scope Linear Pattern** repeating a Hole or extruded cut feature. One- and two-direction source grids, current source count/spacing/increment/direction/skip settings use the existing `linearPatternOffsets` implementation. Invalid sources, zero/coincident offsets, missing part geometry, nonfinite poses, suppressed/deleted seed/carrier/feature, and duplicate identities fail closed with a `component-pattern-invalid` issue. There is no stale geometry fallback.
+
+## Delivered mechanism and UI
+
+Assembly ribbon and command search expose **Component Pattern**, **Edit Component Pattern**, and **Remove Component Pattern**. The form chooses an existing mated seed and carrier/Linear Pattern pair, with a name. Existing part pattern parameters stay in their native source feature editor; the assembly records IDs rather than copying spacing/count into unrelated parameters. Async forms reject owner/history changes. Create/edit/remove capture ordinary assembly Undo; generated occurrence inspector explains its dependency and offers pattern editing. Direct deletion of a generated occurrence is refused; remove its pattern instead.
+
+Persisted `assembly.componentPatterns` stores `{id,name,seedId,carrierId,featureId}`. Real component occurrences carry deterministic `component-pattern:<patternID>:<gridIndices>` IDs and provenance. Replay shares the seed's current configured definition/modelKey/configuration/properties, maps source displacement vectors through the current carrier pose, adds them to the seed's solved pose, and preserves seed orientation. Existing live occurrence objects are reused, retaining stable selection IDs. JSON cold copies are reassociated to the current seed definition on replay.
+
+Replay runs before and after the assembly mate solve, and at flatten/BOM entry points, including nested documents during flatten. Generated copies are prescribed by their pattern relation (`grounded:true` for solver exclusion); this does not mean the copies remain fixed when their seed/carrier moves. Source spacing/count/configuration edits, seed configuration/replacement, and solved seed/carrier poses update the real occurrence geometry, native export placements, BOM quantity, drawing leaves, mass, and interference consumers using the ordinary assembly pipeline.
+
+Independent mates on generated occurrences are unsupported and explicitly invalidate the pattern. Mate the seed instead. Moving a pattern seed/carrier/generated copy into a newly formed subassembly is refused before mutation rather than detaching source IDs. Existing nested assemblies may contain their own valid local pattern. Patterns of subassembly seeds/carriers, patterned seeds/carriers, arbitrary component-pattern chains, circular/curve sources, and source feature types beyond holes/extruded cuts remain excluded. Source source-pattern limits/clamping follow the existing part implementation. Exploded presentation retains existing per-occurrence offsets; no physical placement or solved mate follows an exploded view.
+
+## Verification and browser acceptance boundary
+
+**7 focused tests / 34 related tests PASS**. Coverage includes source-driven real occurrences/BOM/flatten, configured definition identity, stable IDs/object identity through source count edits, rotated carriers and changing source spacing, seed pose/configuration/definition updates, post-solve placement of a mated seed, cold JSON reassociation, Undo-like snapshot restoration, remove preserving seed mates, suppressed/deleted/wrong source fail-closed behavior, independent-copy-mate refusal, two-direction skipped grids, refused dependency detachment, and nonfinite pose refusal. Module/link/source assertion gates pass: **679 modules / 1487 assertions** at the concurrent template integration checkpoint. Scoped diff check is clean.
+
+Tests use generic assembly fixtures; this agent authored no actual browser CAD or ebook models. The source workflow is **implemented, browser proof pending**. No ADVANCE, ledger, Git, or protected artifact mutations.
+
+## Finite actual Chrome witness
+
+1. Use an existing native part with an editable feature-scope Linear Pattern of holes/extruded cuts as the assembly carrier. Insert a separate native screw/cylinder component and mate that seed to the first hole. This is an illustrative source workflow unless the exact printed carrier is supplied.
+2. Choose Component Pattern; select the seed and carrier/source feature. Inspect real tree occurrences, stable grid IDs, native assembly export placements, and BOM seed quantity equal to the current source hole count (minus skips). Save/export.
+3. Edit the carrier's actual source pattern spacing/count, update its assembly definition through the ordinary source workflow, and confirm copies follow. Drive the mated seed or rotate the carrier, confirming actual final copied poses. Exercise seed configuration selection and verify every copy references the chosen current configured geometry.
+4. Undo/Redo source and pattern changes; remove the pattern and Undo. Verify original seed/carrier geometry and mates remain intact. A suppressed/deleted source or independent mate on a generated copy must produce an issue and no stale derived solids.
+5. Restore the intended state, save, hard reload, reopen the exact Saved assembly record, and export MFORGE/native STEP/BOM/drawing. Compare pattern recipe, stable occurrence IDs, configured part geometry, real poses, quantity, and native geometry before/after cold reopening. Do not claim source exact dimensions until the illustrative carrier/source relationship is independently qualified.
+
+Owned files: new `js/core/assembly_component_pattern.js`, `tests/assembly_component_pattern.test.mjs`; small replay hooks in `js/cad_mates.js`, `js/core/assembly_structure.js`, `js/cad_interference.js`; dependency guard in `js/core/assembly_form_subassembly.js`; assembly command/form/inspector/deletion blocks in `js/modeler.js`; assembly command catalog entries in `js/modeler_commands.js`. Concurrent template/image agents own other blocks of shared files.

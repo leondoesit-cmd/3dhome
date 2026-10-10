@@ -31,7 +31,7 @@ import {canAlternatePosition,alternatePositionBodies} from './core/drawing_alter
 import {canAlignedSectionParent,projectAlignedSection} from './core/drawing_aligned_section.js';
 import {drawingImageAsset,drawingImageItem} from './core/drawing_image.js';
 
-export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "insertimage", "editimage", "removeimage", "section", "alignedsection", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", "alternateposition", "removealternateposition", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "insertimage", "editimage", "removeimage", "saveformat", "applyformat", "savetemplate", "newtemplate", "section", "alignedsection", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", "alternateposition", "removealternateposition", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
 /** Axis-aligned picks have only one meaningful projected measurement.
  * Moving its label past an endpoint must not turn that measurement into zero. */
@@ -588,6 +588,7 @@ export function createDrawingController(host) {
   /* ---- tools ------------------------------------------------------------- */
 
   function setTool(id) {
+    if(['saveformat','applyformat','savetemplate','newtemplate'].includes(id)){host.presetAction?.(id);return;}
     state.tool = DRAWING_TOOLS.includes(id) ? id : "select";
     state.draft = null;
     state.snap = null;

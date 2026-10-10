@@ -26,6 +26,7 @@ function liftReference(reference,child,groupId){
 export function formSubassembly(assembly,selectedIds,fields,beforeCommit){
  const selected=new Set((selectedIds||[]).map(String)),children=(assembly?.components||[]).filter(c=>selected.has(String(c.id)));
  if(children.length<2||children.length!==selected.size)return failure('invalid-subassembly-selection');
+ if(children.some(c=>c.componentPattern) || (assembly.componentPatterns || []).some(p=>selected.has(String(p.seedId)) || selected.has(String(p.carrierId))))return failure('unsupported-subassembly-component-pattern');
  if(fields?.id===undefined||fields.id===null||fields.id===''||!fields.key||!String(fields.name||'').trim()
   ||assembly.components.some(c=>String(c.id)===String(fields.id)))return failure('invalid-subassembly-identity');
  const ids=new Set(children.map(c=>c.id)),before=poseMap(assembly),trial=structuredClone(assembly),picked=trial.components.filter(c=>ids.has(c.id)),byId=new Map(picked.map(c=>[c.id,c]));

@@ -1,0 +1,21 @@
+{
+  "checks": {
+    "onlyDensitySettingChanges": true,
+    "sourceFingerprintExact": true,
+    "sourceBoundsExact": true,
+    "same204Layers": true,
+    "layerHeightsExact": true,
+    "allWallsSkinsExact": true,
+    "sourceSketchesFeaturesExact": true,
+    "sourceNativeMeshExact": true,
+    "filamentIncreases": true,
+    "defaultDigitalGuards": true,
+    "changedDigitalGuards": true
+  },
+  "qualifiedDensityComparisonAccepted": true,
+  "filament15": 10382.969353972596,
+  "filament20": 11953.592755175443,
+  "increasePercent": 15.126919358592893,
+  "actualWorkflowAccepted": false,
+  "qualification": "Digital bounded FFF study only; no physical print/device compatibility. Actual exported fingerprint identical across settings, fresh native triangulation exact identity not claimed; all actual paths independently checked against reconstructed native contours."
+}

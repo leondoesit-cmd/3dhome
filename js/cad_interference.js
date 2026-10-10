@@ -1,3 +1,4 @@
+import {replayComponentPatterns} from "./core/assembly_component_pattern.js";
 import { cylinderAxis, cylinderBounds } from "./core/cylinder_axis.js";
 import { revolveInterval, revolvePlacement, revolveBounds } from "./core/revolve_geometry.js";
 // Interference Detection, Mass Properties & Bill of Materials (BOM).
@@ -96,6 +97,7 @@ function componentStandardPart(component) {
 }
 
 export function generateBOM(assembly) {
+  replayComponentPatterns(assembly);
   const map = new Map();
   for (const comp of assembly.components || []) {
     if (!comp || comp.suppressed) continue;

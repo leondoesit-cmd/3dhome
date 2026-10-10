@@ -1,0 +1,40 @@
+{
+  "checks": {
+    "wholeJSONByteExact": true,
+    "wholeGcodeByteExact": true,
+    "actualLayer102SVGByteExact": true,
+    "actualLayer102SVGMatchesPaths": true,
+    "allModelDifferencesDerived": true,
+    "saved20SettingsRetained": true,
+    "nativeSourceMeshExact": true,
+    "allActualNativeSectionBeadChecksAccepted": true,
+    "actual15vs20ComparisonAccepted": true
+  },
+  "actualQualifiedDigitalWorkflowAccepted": true,
+  "differences": [
+    {
+      "path": "$.parts.0.exactBuildToken",
+      "warm": 20,
+      "cold": 21
+    },
+    {
+      "path": "$.lastRebuild.rebuiltAt",
+      "warm": 1791644223461,
+      "cold": 1791644404781
+    },
+    {
+      "path": "$.lastStandardsAudit.at",
+      "warm": 1791523517357,
+      "cold": 1791644332620
+    }
+  ],
+  "layer102": {
+    "number": 102,
+    "zMm": 20.400000000000002,
+    "paths": 16
+  },
+  "filamentLengthMm": 11953.592755175443,
+  "sourceFingerprint": "fnv1a32-4604ed7b",
+  "qualification": "Bounded raster FFF paths; conservative offsets include two-grid-cell margin. Rectilinear infill, vertical-column supports, no adaptive width or retraction. Volume uses rectangular bead approximation; time excludes acceleration and travel. Digital study only; physical printing and device compatibility unverified.",
+  "physicalPrintingOrDeviceCompatibilityAccepted": false
+}

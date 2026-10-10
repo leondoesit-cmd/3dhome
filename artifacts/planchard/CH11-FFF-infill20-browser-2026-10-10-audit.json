@@ -1,0 +1,117 @@
+{
+  "checks": {
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "sourceSixHistory": true,
+    "nativeOneValidConnected": true,
+    "settingsSavedExact": true,
+    "actualNativeSourceBoundsMatch": true,
+    "layers204": true,
+    "allBeadSegmentsClearActualNativeSections": true,
+    "allDepositionMidpointsInsideNativeMaterial": true,
+    "gcodeByteExact": true,
+    "estimatedLengthExact": true,
+    "estimatedVolumeExact": true,
+    "filamentEstimateExact": true,
+    "firstMiddleLastCorrect": true,
+    "bed150": true,
+    "noPrinterHeatHomeExecution": true,
+    "inputUnchanged": true,
+    "actualLayerSVGsExact": true
+  },
+  "qualifiedDigitalPathsAccepted": true,
+  "sourceNativeMass": {
+    "volume": 102.18606488694857,
+    "centerOfMass": {
+      "x": 3.7352337482585427,
+      "y": 1.3397976547013515,
+      "z": 2.540000000000014
+    },
+    "inertia": [
+      [
+        338.7560053415956,
+        160.38275870079485,
+        2.5011104298755527e-12
+      ],
+      [
+        160.38275870079485,
+        1109.1755656152518,
+        1.1368683772161603e-13
+      ],
+      [
+        2.5011104298755527e-12,
+        1.1368683772161603e-13,
+        1002.1000980356102
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1.8545542095239508e-30,
+        "y": 4.2024161928111425e-12,
+        "z": 0
+      },
+      "max": {
+        "x": 10.160000000000108,
+        "y": 4.064,
+        "z": 5.08
+      }
+    }
+  },
+  "valid": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 102.18606488694857,
+    "maxToleranceCm": 1.00004203803658e-7
+  },
+  "sourceFingerprint": "fnv1a32-d1fd93b8",
+  "actualFingerprint": "fnv1a32-4604ed7b",
+  "freshMeshFingerprintExact": false,
+  "fingerprintQualification": "Browser fingerprint is retained as actual export identity; independently regenerated triangulation fingerprint differs. Exact native authoring and source bounds match and every actual bead segment independently clears the fresh native sections; no exact original triangulation identity claimed.",
+  "pathCounts": {
+    "wall": 535,
+    "skin": 1833,
+    "infill": 5120
+  },
+  "segments": 29225,
+  "beadFailures": [],
+  "centerFailures": [],
+  "svgWitness": [
+    {
+      "layer": 102,
+      "byteExact": true
+    }
+  ],
+  "estimates": {
+    "depositionLengthMm": 359477.0000000421,
+    "depositionVolumeMm3": 28751.759999992246,
+    "supportVolumeMm3": 0,
+    "filamentLengthMm": 11953.592755175443,
+    "depositionTimeSeconds": 8986.92500000234
+  },
+  "sampledLayers": [
+    {
+      "number": 1,
+      "z": 0.2,
+      "paths": 156,
+      "height": 0.2,
+      "sourceContours": 2
+    },
+    {
+      "number": 102,
+      "z": 20.400000000000002,
+      "paths": 16,
+      "height": 0.1999999999999993,
+      "sourceContours": 1
+    },
+    {
+      "number": 204,
+      "z": 40.63999999995797,
+      "paths": 1,
+      "height": 0.039999999957970545,
+      "sourceContours": 1
+    }
+  ],
+  "actualWorkflowAccepted": false,
+  "qualification": "Bounded raster FFF paths; conservative offsets include two-grid-cell margin. Rectilinear infill, vertical-column supports, no adaptive width or retraction. Volume uses rectangular bead approximation; time excludes acceleration and travel. Digital study only; physical printing and device compatibility unverified."
+}

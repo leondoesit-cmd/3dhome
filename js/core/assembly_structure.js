@@ -1,3 +1,4 @@
+import {replayComponentPatterns} from "./assembly_component_pattern.js";
 /* NESTED ASSEMBLIES — an assembly used as one component of another.
  *
  * The book builds the FLASHLIGHT out of sub-assemblies (p.379–434): LENS and
@@ -111,12 +112,13 @@ export function assemblyOriginComponent() {
    sub-assemblies. `options.visibleOnly` skips hidden components and whatever
    they contain. */
 export function flattenAssembly(assembly, options = {}) {
+  replayComponentPatterns(assembly);
   const out = [];
   const walk = (components, path, parents) => {
     for (const component of components || []) {
       if (options.visibleOnly && component.visible === false) continue;
       const chain = parents.concat(component);
-      if (isSubassembly(component)) walk(component.asm.components, path.concat(component.id), chain);
+      if (isSubassembly(component)) { replayComponentPatterns(component.asm); walk(component.asm.components, path.concat(component.id), chain); }
       else out.push({ component, path: path.concat(component.id), parents, placement: composePlacement(chain) });
     }
   };

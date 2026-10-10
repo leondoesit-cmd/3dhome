@@ -1,0 +1,65 @@
+{
+  "top": {
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "history23": true,
+    "materialExact": true,
+    "setup": {
+      "basePlane": "top",
+      "bedWidthMm": 250,
+      "bedDepthMm": 250,
+      "bedHeightMm": 250
+    },
+    "predictedDimensionsMm": [
+      64,
+      185,
+      118.46726554191582
+    ],
+    "predictedLayersAt04": 297,
+    "grid04Line08ApproxCells": 76588,
+    "sourceMeshPositionsExact": true,
+    "approxLayerCells": 22746636
+  },
+  "front": {
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "history23": true,
+    "materialExact": true,
+    "setup": {
+      "basePlane": "front",
+      "bedWidthMm": 250,
+      "bedDepthMm": 250,
+      "bedHeightMm": 250
+    },
+    "predictedDimensionsMm": [
+      64,
+      118.46726554191582,
+      185
+    ],
+    "predictedLayersAt04": 463,
+    "grid04Line08ApproxCells": 49364,
+    "sourceMeshPositionsExact": true,
+    "approxLayerCells": 22855532
+  },
+  "right": {
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "history23": true,
+    "materialExact": true,
+    "setup": {
+      "basePlane": "right",
+      "bedWidthMm": 250,
+      "bedDepthMm": 250,
+      "bedHeightMm": 250
+    },
+    "predictedDimensionsMm": [
+      118.46726554191582,
+      185,
+      64
+    ],
+    "predictedLayersAt04": 160,
+    "grid04Line08ApproxCells": 140567,
+    "sourceMeshPositionsExact": true,
+    "approxLayerCells": 22490720
+  }
+}
