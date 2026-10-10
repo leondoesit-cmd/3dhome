@@ -1,0 +1,30 @@
+{
+  "warmChecks": {
+    "exactAllFifteenPrimitiveIdsTypesPointsStyles": true,
+    "stylesSevenHiddenFourCenterFourOutline": true,
+    "fiveNativeNotesUnchanged": true,
+    "purePaperNoCadOrViews": true,
+    "wholeDrawingOnlyPlannedPrimitiveCorrections": true,
+    "nativeSvgDashOnEachRealLine": true,
+    "sourceEstimatesPreserved": true,
+    "boreHiddenEdgesStopAtRoof": true
+  },
+  "warmAccepted": true,
+  "savedKey": "cm_mv2t8b18",
+  "svgSha256": "30c4551e12b1e3613155453840b6590403c3db339b18f1cc9a9a42fa794ced74",
+  "drawingEditDifferences": "11 style values plus four scalar X endpoints on two Top lines. Other Drawing fields and primitive IDs unchanged.",
+  "coldAccepted": true,
+  "qualification": "SourcePDF67/1-39, illustrative estimated5mm grid, not exact publisher dimensions; native paper graphic, no CAD binding. ActualPNGclear, selected Right center appears orange only as UI selection.",
+  "undoRedoChecks": {
+    "undoOnlyLastRightCenterStyle": true,
+    "redoEntireDrawingExact": true,
+    "redoSourceCadAndPropertiesExact": true,
+    "redoSvgByteExact": true
+  },
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourceIdentityPropertiesExact": true,
+    "sourceAuthoredCadExact": true,
+    "coldSvgByteExact": true
+  }
+}
