@@ -1,0 +1,29 @@
+{
+  "warmChecks": {
+    "twoNativeNotes": true,
+    "pureWorksheetNoCad": true,
+    "noViewsDimensionsPrimitivesImages": true,
+    "sourceAndInferenceExplicit": true,
+    "availableAreaListsAndUnresolvedExplicit": true,
+    "nativeDefaultFontAndLiteralSvgRows": true,
+    "a3MillimetreThirdAngle": true,
+    "notesWithinClearFrame": true
+  },
+  "warmAccepted": true,
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesAndIdentityExact": true,
+    "wholeAuthoredCadExact": true,
+    "svgByteExact": true
+  },
+  "coldAccepted": true,
+  "savedKey": "cm_mv2svmn1",
+  "savedName": "Planchard Ch1 IN-CHAPTER Plane 7 QUALIFIED - browser 2026-10-10",
+  "nativeNoteLineRows": [
+    4,
+    8
+  ],
+  "svgSha256": "969d1e9d8ea4253665d026a407006a4a816785153cebf80362da1e34e6358593",
+  "sourceExerciseFullyClosed": false,
+  "qualification": "SourcePNG74 independently inspected. A-G visible-area inference qualified; H material surface ownership remains ambiguous. Native default2.8mm font/pure worksheet accepted, not full source answer or CAD reproduction."
+}
