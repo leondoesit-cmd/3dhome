@@ -1,4 +1,5 @@
 import {modelItemTolerance} from "./core/dimension_tolerance.js";
+import {resolveComponentBalloon} from './core/assembly_balloon.js';
 import { holeLeaderForViews, holeTopologyAnchor } from "./core/hole_callout.js";
 /* Drawing mode: the sheet you can work on.
  *
@@ -17,7 +18,7 @@ import { holeLeaderForViews, holeTopologyAnchor } from "./core/hole_callout.js";
 import {
   LINE_STYLES, SHEET_SIZES, STANDARD_SCALES,
   addViewToSheet, availableViewDirs, buildSheetScene, createProjector, defaultViewLabel,
-  dimensionText, edgeAngleRefs, measureDim, nextSectionTag, removeViewFromSheet, resolveDimAnchor,
+  dimensionText, edgeAngleRefs, measureDim, nextSectionTag, removeViewFromSheet, canRemoveViewFromSheet, resolveDimAnchor,
   scaleLabel, scaleValue, sceneToSvg, sheetDimIssues, sheetPaper, topologyAnchors, topologyCrossings,
 } from "./cad_sheet.js";
 import { isOrthoView, projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
@@ -126,7 +127,7 @@ export function createDrawingController(host) {
     let hash = 2166136261;
     for (const value of [doc.size, doc.orientation, doc.projection, doc.units, doc.draftingStandard, doc.secondaryUnits, doc.secondaryPrecision, doc.precision, doc.trailingZeros, doc.scale,
       doc.showHidden, doc.showCenters, doc.showZones, doc.title,
-      host.bodiesToken(), host.model?.()?.name, host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
+      host.bodiesToken(), host.model?.()?.name, host.model?.()?.customProperties, host.bom?.(), host.componentBalloons?.(), host.explodeLines?.(), state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
         view.parent, view.scaleMode, view.hidden, view.displayStyle, view.centers, view.labelled, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
@@ -143,7 +144,7 @@ export function createDrawingController(host) {
       }
     }
     for (const note of doc.notes || []) {
-      for (const value of [note.id, note.text, note.x, note.y, note.size, note.leader, note.feature, note.modelLink]) hash = fold(hash, value);
+      for (const value of [note.id, note.text, note.x, note.y, note.size, note.dx, note.dy, note.balloon, note.autoBalloon, note.componentBalloon, note.leader, note.feature, note.modelLink]) hash = fold(hash, value);
     }
     for (const primitive of doc.primitives || []) hash=fold(hash,primitive);
     for (const image of doc.images || []) hash=fold(hash,image);
@@ -162,6 +163,8 @@ export function createDrawingController(host) {
       meta: host.meta ? host.meta() : null,
       properties: host.model?.()?.customProperties || {},
       bom: host.bom ? host.bom() : null,
+      componentBalloons:host.componentBalloons?.(),
+      explodeLines:host.explodeLines?.(),
     }, { selectedDim: state.selection?.kind === "dim" ? state.selection.id : null });
     state.sceneKey = key;
     return state.scene;
@@ -501,6 +504,7 @@ export function createDrawingController(host) {
      pen width — this is identifying what was clicked, not guessing later. An
      unnamed pick still places a dimension, it just places a frozen one. */
   function bindAnchor(place, point) {
+    if(host.canUseTopologyForView?.(place.view)===false)return null;
     const index = scene().topologyIndex;
     const basis = place.projection?.basis;
     if (!index || !basis || place.projection?.nonlinearProjection) return null;
@@ -696,6 +700,7 @@ export function createDrawingController(host) {
         : (doc.dims || []).find((entry) => entry.id === drag.id);
     if (!target) return false;
     const raw = drag.raw || {};
+    if(drag.balloon){const changed=target.dx!==raw.dx||target.dy!==raw.dy||target.autoBalloon!==raw.autoBalloon;target.dx=raw.dx;target.dy=raw.dy;target.autoBalloon=raw.autoBalloon;if(changed)state.scene=null;return changed;}
     const was = drag.mode === "dim" ? [target.offset, target.angle] : [target.x, target.y];
     if (drag.mode === "dim") { target.offset = raw.offset; target.angle = raw.angle; }
     else { target.x = raw.x; target.y = raw.y; }
@@ -726,6 +731,10 @@ export function createDrawingController(host) {
       else if(state.tool==='removeimage') {host.pushUndo('Remove drawing image');const doc=host.doc();doc.images=doc.images.filter(i=>i.id!==hit.id);invalidate();host.markDirty();host.refresh();}
       else editPaperImage(hit,sheetPoint);
       return true;
+    }
+    if(['dim','diam','angle','baseline','chain','auxiliary'].includes(state.tool) && event.button===0
+      && scene().views.some(place=>host.canUseTopologyForView?.(place.view)===false&&pointNearBox(sheetPoint,place.box,6))) {
+      host.flash('Named configuration views support native geometry only; associative tools require per-view topology');return true;
     }
     if(state.tool==='alignedsection' && event.button===0 && !event.altKey && !event.spaceKey) {
       const doc=host.doc(),built=scene(),draft=state.draft;
@@ -945,8 +954,10 @@ export function createDrawingController(host) {
       beginLayout("opMoveDim");
     } else if (hit?.kind === "note") {
       const note = host.doc().notes.find((entry) => entry.id === hit.id);
-      state.drag = { mode: "note", id: hit.id, x, y, startX: num(note.x), startY: num(note.y),
-        raw: { x: note.x, y: note.y } };
+      const live=scene().notes.get(note.id)?.note || note;
+      state.drag = { mode: "note", id: hit.id, x, y, balloon:!!note.balloon,
+        startX: note.balloon?num(live.dx,14):num(note.x), startY: note.balloon?num(live.dy,-12):num(note.y),
+        raw: note.balloon?{dx:note.dx,dy:note.dy,autoBalloon:note.autoBalloon}:{ x: note.x, y: note.y } };
       beginLayout("opMoveNote");
     } else {
       state.drag = { mode: "pan", x, y, ox: state.ox, oy: state.oy };
@@ -1069,8 +1080,9 @@ export function createDrawingController(host) {
     if (state.drag?.mode === "note") {
       const note = host.doc().notes.find((entry) => entry.id === state.drag.id);
       if (note) {
-        note.x = state.drag.startX + (x - state.drag.x) / state.zoom;
-        note.y = state.drag.startY + (y - state.drag.y) / state.zoom;
+        const nextX=state.drag.startX + (x - state.drag.x) / state.zoom,nextY=state.drag.startY + (y - state.drag.y) / state.zoom;
+        if(state.drag.balloon){note.dx=nextX;note.dy=nextY;note.autoBalloon=false;}
+        else {note.x=nextX;note.y=nextY;}
         state.scene = null;
         host.refresh();
       }
@@ -1285,6 +1297,22 @@ export function createDrawingController(host) {
     const doc = host.doc();
     const note = (doc.notes || []).find((entry) => entry.id === id);
     if (!note) return;
+    if(note.componentBalloon) {
+      const owner=host.model?.(),token=host.historyToken?.(),stamp=JSON.stringify(note);
+      const answer=await host.promptFields?.('Component balloon position',[
+        {key:'auto',label:'Automatic placement',type:'checkbox',value:note.autoBalloon!==false},
+        {key:'dx',label:'Horizontal offset (paper mm)',type:'number',value:num(note.dx,14)},
+        {key:'dy',label:'Vertical offset (paper mm)',type:'number',value:num(note.dy,-12)},
+      ]);
+      if(!answer)return;
+      const current=host.doc().notes.find(n=>n.id===id);
+      if(host.model?.()!==owner||host.historyToken?.()!==token||JSON.stringify(current)!==stamp){host.flash('Drawing changed while editing balloon; retry');return;}
+      const dx=Number(answer.dx),dy=Number(answer.dy),auto=!!answer.auto;
+      if(!Number.isFinite(dx)||!Number.isFinite(dy)||Math.abs(dx)>1000||Math.abs(dy)>1000){host.flash('Balloon offsets must be finite paper millimetres');return;}
+      if(note.dx===dx&&note.dy===dy&&note.autoBalloon===auto)return;
+      host.pushUndo('Edit component balloon');const live=host.doc().notes.find(n=>n.id===id);
+      if(!live)return;Object.assign(live,{dx,dy,autoBalloon:auto});invalidate();host.markDirty();return;
+    }
     const answer = host.promptFields
       ? await host.promptFields(host.t("drawNoteTitle"), [{key:"text",label:"Note text",type:"textarea",value:note.text || ""}])
       : {text:await host.prompt(host.t("drawNoteTitle"), note.text || "")};
@@ -1327,12 +1355,12 @@ export function createDrawingController(host) {
     if (selection.kind === "view") {
       const view = doc.views.find((entry) => entry.id === selection.id);
       if (!view) return false;
-      if (view.primary && doc.views.filter((entry) => isOrthoView(entry.dir) && !entry.section && !entry.detail).length <= 1) {
+      if (!canRemoveViewFromSheet(doc, selection.id)) {
         host.flash(host.t("drawKeepOneView"));
         return true;
       }
       host.pushUndo(host.t("opDeleteView"));
-      removeViewFromSheet(doc, selection.id);
+      removeViewFromSheet(host.doc(), selection.id);
     } else if (selection.kind === "dim") {
       host.pushUndo(host.t("opDeleteDim"));
       doc.dims = doc.dims.filter((entry) => entry.id !== selection.id);
@@ -1347,6 +1375,20 @@ export function createDrawingController(host) {
     invalidate();
     host.markDirty();
     return true;
+  }
+
+  function autoComponentBalloons() {
+    const doc=host.doc(),built=scene(),targets=host.componentBalloons?.() || [];
+    const selected=state.selection?.kind==='view'?built.views.find(v=>v.id===state.selection.id):null;
+    const place=selected || built.views.find(v=>v.view.dir==='iso') || built.views[0];
+    if(!place||place.view.section||place.view.detail||place.view.auxiliary||place.view.alignedSection||place.view.breakView||place.view.brokenOut||place.view.cropSketch) {host.flash('Select an ordinary assembly view for component balloons');return 0;}
+    if(!targets.length||targets.some(t=>!t.point||![t.point.x,t.point.y,t.point.z].every(Number.isFinite)||t.item===undefined)){host.flash('Component balloons need current native mesh geometry for every visible BOM occurrence');return 0;}
+    const existing=new Set((doc.notes||[]).filter(n=>n.componentBalloon&&n.leader?.viewId===place.id).map(n=>JSON.stringify(n.componentBalloon.path)));
+    const planned=targets.filter(t=>!existing.has(JSON.stringify(t.path))).map(target=>resolveComponentBalloon({id:'b'+Math.random().toString(36).slice(2,9),balloon:true,autoBalloon:true,text:String(target.item),componentBalloon:{path:target.path.slice()},leader:{viewId:place.id}},targets,place.projection?.basis).note);
+    if(!planned.length)return 0;
+    host.pushUndo('Auto component balloons');
+    const live=host.doc();if(!live.views.some(v=>v.id===place.id))return 0;
+    live.notes.push(...planned);state.selection=null;invalidate();host.markDirty();host.refresh();return planned.length;
   }
 
   function addView(dir) {
@@ -1392,7 +1434,8 @@ export function createDrawingController(host) {
     const doc = host.doc();
     const rows = host.holeCallouts ? host.holeCallouts() || [] : [];
     if (!rows.length) { if (!options.quiet) host.flash(host.t("drawNoHoles")); return 0; }
-    const built = scene();
+    const allBuilt = scene();
+    const built={...allBuilt,views:allBuilt.views.filter(v=>host.canUseTopologyForView?.(v.view)!==false)};
     const place = built.views.find((entry) => entry.id === built.primaryId) || built.views[0];
     if (!place) { if (!options.quiet) host.flash(host.t("drawNoGeometry")); return 0; }
     const basis = place.projection?.basis || null;
@@ -1435,7 +1478,7 @@ export function createDrawingController(host) {
   }
 
   function insertModelItems() {
-    const doc = host.doc(),built=scene(),planned = planModelItems(host.model?.() || {}, doc, {...built,views:built.views.filter(v=>!v.projection?.nonlinearProjection)});
+    const doc = host.doc(),built=scene(),planned = planModelItems(host.model?.() || {}, doc, {...built,views:built.views.filter(v=>!v.projection?.nonlinearProjection&&host.canUseTopologyForView?.(v.view)!==false)});
     if (planned.length) {
       host.pushUndo(host.t("drawModelItems"));
       doc.dims.push(...planned.map(dim => ({ ...dim, id:"d" + Math.random().toString(36).slice(2, 9) })));
@@ -1730,7 +1773,7 @@ export function createDrawingController(host) {
     selection: () => state.selection,
     select: (value) => { state.selection = value; state.scene = null; host.refresh(); },
     pointerDown, pointerMove, pointerUp, doubleClick, wheel, keyDown,
-    deleteSelection, addView, duplicateSelectedView, autoDimension, insertModelItems, addHoleCallouts, setSheetOption, relayout, editDim, editPrimitive,
+    deleteSelection, addView, duplicateSelectedView, autoDimension, autoComponentBalloons, insertModelItems, addHoleCallouts, setSheetOption, relayout, editDim, editPrimitive,
     danglingDims: () => sheetDimIssues(scene()),
     document: () => host.doc(),
     availableViews: () => availableViewDirs(host.doc()),

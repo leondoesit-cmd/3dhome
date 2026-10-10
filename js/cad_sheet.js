@@ -11,6 +11,7 @@ import {alternatePositionProjection,alternatePositionItems} from './core/drawing
 import {projectAlignedSection,alignedSectionMarkerItems} from './core/drawing_aligned_section.js';
 import {drawingImageItem} from './core/drawing_image.js';
 import {sheetTitleMeta} from './core/custom_properties.js';
+import {resolveComponentBalloon} from './core/assembly_balloon.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -1531,7 +1532,8 @@ export function buildSheetScene(doc, provider, options = {}) {
   const automaticBalloonPositions = new Map();
   for (const place of placements) {
     const targets = (doc.notes || []).filter(note => note.balloon && note.autoBalloon && note.leader?.viewId === place.id)
-      .map(note => ({ id: note.id, text:note.text, point: place.toSheet(note.leader) })).filter(target=>target.point);
+      .map(note=>resolveComponentBalloon(note,provider?.componentBalloons,place.projection?.basis)).filter(r=>!r.dangling)
+      .map(({note}) => ({ id: note.id, text:note.text, point: place.toSheet(note.leader) })).filter(target=>target.point);
     if (!targets.length) continue;
     const title = titleBlockBox(doc);
     const obstacles = [{ x0: title.x-4, y0: title.y-4, x1: title.x+title.w+4, y1: title.y+title.h+4 }];
@@ -1547,7 +1549,9 @@ export function buildSheetScene(doc, provider, options = {}) {
       diagnostics.push({code:'aligned-section-reference-unavailable',severity:'error',viewId:place.id,noteId:note.id});continue;
     }
     const basis = place ? (place.projection?.basis || viewBasis(place.view.dir)) : null;
-    const resolved = resolveNote(note, provider?.callouts, topologyIndex, basis, doc, provider?.properties);
+    const bound=resolveComponentBalloon(note,provider?.componentBalloons,basis);
+    if(bound.dangling){notes.set(note.id,{note,dangling:true,missing:['component-occurrence']});diagnostics.push({code:'missing-component-balloon',severity:'error',noteId:note.id,viewId:place?.id});continue;}
+    const resolved = resolveNote(bound.note, provider?.callouts, topologyIndex, basis, doc, provider?.properties);
     if(place?.projection?.breakMap && !place.toSheet(resolved.note.leader)) {
       notes.set(note.id,resolved);diagnostics.push({code:'break-hidden-note-anchor',viewId:place.id,noteId:note.id});continue;
     }
@@ -2038,10 +2042,12 @@ export function addViewToSheet(doc, dir, options = {}) {
   return view;
 }
 
-export function removeViewFromSheet(doc, id) {
-  const index = doc.views.findIndex((view) => view.id === id);
-  if (index < 0) return false;
-  const removed = doc.views[index];
+function independentBaseView(view) {
+  return !!view && !view.section && !view.alignedSection && !view.detail && !view.auxiliary
+    && (isOrthoView(view.dir) || view.dir === 'iso');
+}
+
+function viewRemovalIds(doc, id) {
   const removedIds = new Set([id]);
   // Sections/details are dependent views, including Details of Details.
   let changed = true;
@@ -2055,10 +2061,24 @@ export function removeViewFromSheet(doc, id) {
       }
     }
   }
+  return removedIds;
+}
+
+export function canRemoveViewFromSheet(doc, id) {
+  if (!(doc.views || []).some(view => view.id === id)) return false;
+  const removedIds = viewRemovalIds(doc, id);
+  return doc.views.some(view => !removedIds.has(view.id) && independentBaseView(view));
+}
+
+export function removeViewFromSheet(doc, id) {
+  if (!doc.views.some(view => view.id === id)) return false;
+  const removedIds = viewRemovalIds(doc, id);
   doc.views = doc.views.filter(view => !removedIds.has(view.id));
   doc.dims = (doc.dims || []).filter(dim => !removedIds.has(dim.viewId));
   doc.notes = (doc.notes || []).filter(note => !removedIds.has(note.leader?.viewId));
-  if (removed.primary && doc.views.length) doc.views[0].primary = true;
+  const primary = doc.views.find(view => view.primary && independentBaseView(view))
+    || doc.views.find(independentBaseView) || doc.views[0];
+  for (const view of doc.views) view.primary = view === primary;
   return true;
 }
 

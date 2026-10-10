@@ -1,0 +1,32 @@
+{
+  "checks": {
+    "deleteRightOnlySourceDrawing": true,
+    "deleteUndoWholeDrawingSourceExact": true,
+    "deleteRedoWholeDrawingCreatedExact": true,
+    "deleteRedoSvgByteExact": true,
+    "sourceCadAllExactExceptDerivedTimesToken": true,
+    "driverOnlyTwoMediumTableValues": true,
+    "driverUndoWholeAuthoringExact": true,
+    "driverUndoSvgByteExact": true,
+    "defaultAndLargeActualShadedGeometryUnchanged": true,
+    "mediumActualShadedGeometryChanged": true,
+    "activeDefaultNotChanged": true,
+    "threePinnedSourceConfigs": true,
+    "sourceNativeMaterialChosenNBR": true
+  },
+  "actualConfiguredSeriesQualifiedAccepted": true,
+  "coldAccepted": false,
+  "shadedPolygonGroups": {
+    "created": [
+      3197,
+      4126,
+      6178
+    ],
+    "driver": [
+      3197,
+      4120,
+      6178
+    ]
+  },
+  "qualification": "Actual three named native configured statuses parentobserved; native geometry checker separate. Only Medium row150→151; perview actual shaded Default/Large unchanged. ChosenNBRreference material not publisherexactcompound; neutralgray rendering; native geometry-only, no configuredtopology."
+}

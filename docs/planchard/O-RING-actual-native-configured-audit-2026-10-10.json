@@ -1,0 +1,79 @@
+{
+  "checks": {
+    "threeNativeConfigurations": true,
+    "allIdealTorusNativeVolumes": true,
+    "actualNativeShadedFacesByteExact": true,
+    "sourceDocumentNotMutated": true,
+    "actualBundleNotMutated": true
+  },
+  "nativeConfiguredGeometryAccepted": true,
+  "metrics": [
+    {
+      "name": "Default",
+      "values": {
+        "pathDiameterMm": 110.49,
+        "profileDiameterMm": 3.175
+      },
+      "volumeCm3": 2.7482117169636595,
+      "idealVolumeCm3": 2.7482117169636657,
+      "bounds": {
+        "min": {
+          "x": -5.6832501,
+          "y": -5.6832501,
+          "z": -0.1587500999999997
+        },
+        "max": {
+          "x": 5.6832501,
+          "y": 5.6832501,
+          "z": 0.1587500999999997
+        }
+      }
+    },
+    {
+      "name": "Medium",
+      "values": {
+        "pathDiameterMm": 150,
+        "profileDiameterMm": 4
+      },
+      "volumeCm3": 5.921762640653602,
+      "idealVolumeCm3": 5.921762640653615,
+      "bounds": {
+        "min": {
+          "x": -7.7000001000000005,
+          "y": -7.7000001,
+          "z": -0.2000001000000003
+        },
+        "max": {
+          "x": 7.700000100000001,
+          "y": 7.7000001,
+          "z": 0.2000001000000003
+        }
+      }
+    },
+    {
+      "name": "Large",
+      "values": {
+        "pathDiameterMm": 200,
+        "profileDiameterMm": 10
+      },
+      "volumeCm3": 49.348022005446744,
+      "idealVolumeCm3": 49.34802200544679,
+      "bounds": {
+        "min": {
+          "x": -10.5000001,
+          "y": -10.5000001,
+          "z": -0.5000001
+        },
+        "max": {
+          "x": 10.5000001,
+          "y": 10.5000001,
+          "z": 0.5000001
+        }
+      }
+    }
+  ],
+  "actualShadedPolygonCount": 13501,
+  "freshShadedPolygonCount": 13501,
+  "wholeSvgByteExact": false,
+  "qualification": "Read-only genuine isolated native worker regeneration of actual three named rows. Shaded face path byte equality establishes actual shaded geometry; no perconfiguration associative topology claim. Source unchanged."
+}

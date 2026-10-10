@@ -1,0 +1,11 @@
+{
+  "checks": {
+    "native151IdealTorusMass": true,
+    "actualMediumFacePathsMatchFreshNative": true,
+    "sourceNotMutated": true
+  },
+  "actualMediumNativeDriverAccepted": true,
+  "nativeVolumeCm3": 5.961241058257951,
+  "actualMediumFacePaths": 4120,
+  "qualification": "Read-only isolated exact native Medium151 regeneration; Default/Large isolation verified separately. Geometry only, no configured topology."
+}

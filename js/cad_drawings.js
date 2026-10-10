@@ -21,6 +21,7 @@ import { calloutText, calloutTextById, holeCallouts, holeLeaderForViews } from "
 import { sheetTitleText } from "./core/custom_properties.js";
 import { drawingMaterialName } from "./cad_appearances.js";
 import { configuredBodiesForView } from "./cad_configured_drawing.js";
+import {nativeConfiguredEligibility,configuredViewId} from "./core/native_configured_drawing.js";
 
 /* The title block's TITLE is the Description property, as a SOLIDWORKS sheet
    format links it; the model name is only the fallback. */
@@ -176,8 +177,20 @@ export function buildDrawingScene(def, options = {}) {
   const doc = options.doc || (def?.drawing && options.useStored !== false ? ensureSheetDoc(def) : standardSheet(def, options, bodies));
   doc.assemblyLayout=def?.kind==="assembly";
   doc.enforceFit=options.requireFit===true;
-  const topology=options.topology || (def?.parts || []).map(part=>part.meshData?.topology || []);
-  const project = createProjector(doc, bodies, { bodiesForView: view => configuredBodiesForView(def, view, bodies),topology });
+  const namedNative=doc.views.some(view=>nativeConfiguredEligibility(def,configuredViewId(def,view)).eligible);
+  if(namedNative && (doc.dims||[]).some(d=>d.modelItem||d.coneAngle||d.refs?.some(r=>r.pid||r.pid2)))throw new Error("Native configuration geometry requires per-view topology for associative dimensions");
+  const topology=namedNative?null:options.topology || (def?.parts || []).map(part=>part.meshData?.topology || []);
+  const provider=view=>{
+    if(options.configuredBodiesForView)return options.configuredBodiesForView(view,bodies);
+    const id=configuredViewId(def,view);
+    const eligible=nativeConfiguredEligibility(def,id);
+    if(id && def?.designTable?.kind==="circular-sweep" && def?.history?.some(e=>e.kind==="feature")) {
+      if(!eligible.eligible)throw new Error(eligible.reason);
+      throw new Error("Native configured drawing requires a prepared native body provider");
+    }
+    return configuredBodiesForView(def,view,bodies);
+  };
+  const project = createProjector(doc, bodies, { bodiesForView: provider,topology });
   if (options.overallDimensions !== false && !doc.dims?.length) autoOverallDims(doc, project);
   if (options.holeCallouts !== false && !doc.notes?.length) calloutNotes(doc, collectHoleCallouts(def));
   sheetNotes(doc,options.notes);

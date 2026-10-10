@@ -1,0 +1,34 @@
+{
+  "checks": {
+    "wholeDrawingExact": true,
+    "wholeProjectOnlyKnownDerivedDifferences": true,
+    "actualSvgByteExactToRestoredAndCreated": true,
+    "sourceAndNativeSeries13Inherited": true,
+    "nativeThreeRows5InheritedAfterIdenticalDrawingSource": true,
+    "actualMediumNativeDriver3Accepted": true
+  },
+  "actualNativeOrringConfiguredBrowserColdAccepted": true,
+  "differences": [
+    {
+      "path": ".createdAt",
+      "a": 1791655072092,
+      "b": 1791655238741
+    },
+    {
+      "path": ".mainModel.parts.0.exactBuildToken",
+      "a": 19,
+      "b": 20
+    },
+    {
+      "path": ".mainModel.lastRebuild.rebuiltAt",
+      "a": 1791655071117,
+      "b": 1791655223637
+    },
+    {
+      "path": ".mainModel.lastStandardsAudit.at",
+      "a": 1791654607132,
+      "b": 1791655134795
+    }
+  ],
+  "qualification": "Actual cold source/table/currentDefault/material/3namedviews/native SVG identical; only native token/timestamps differ. Three native nominal rows and actual Medium151driver independently regenerate to exact actual SVG shade paths and ideal torus masses. Nativegeometry-only; no configuredtopology, exactpublishercompound or blackcoloredshading claim."
+}

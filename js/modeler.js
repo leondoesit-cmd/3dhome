@@ -164,7 +164,7 @@ import {
   serializeBrep, transformBrep, translateBrep, unifyBrepFaces, validateBrepForExport,
 } from "./cad_kernel.js";
 import { buildDrawingScene } from "./cad_drawings.js";
-import { configuredBodiesForView } from "./cad_configured_drawing.js";
+import {createNativeConfiguredDrawingCache,configuredViewId,configuredBodyAppearance} from './core/native_configured_drawing.js';
 import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
 import {drawingViewScaleControl} from "./core/drawing_scale_control.js";
 import {decodeDrawingImage} from "./core/drawing_image.js";
@@ -181,6 +181,7 @@ import { draftFaceChoices } from "./core/draft_face_choices.js";
 import { ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, lookupAssemblyComponent, refreshSubassemblyFromRecord, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
 import {formSubassembly} from './core/assembly_form_subassembly.js';
 import {assemblyDrawingBOM,occurrenceBOMKey} from './core/assembly_drawing_bom.js';
+import {nativeOccurrenceBalloonTarget} from './core/assembly_balloon.js';
 import {assemblyMobilityReport,currentAssemblyMobility} from './core/assembly_mobility_status.js';
 import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds, worldFrame } from "./cad_mate_model.js";
 import { setScrewMateCoupledMotion, setScrewMateDrive, setScrewMateHandedness, setConcentricAxisDirection } from "./cad_screw_controls.js";
@@ -12001,6 +12002,40 @@ function meshWorldTriangles(mesh) {
    same dependency-free tessellator as export, including exact meshData when
    present. Assemblies and transformed instances still build a detached Three
    group so their placed triangles can be read in world coordinates. */
+var configuredNativeOwner=null;
+var configuredNativeCache=createNativeConfiguredDrawingCache({onChange:function(owner){
+  if(E.docType==='part'&&E.def===owner){invalidateDrawing();if(E.mode==='drawing'){drawSketch();syncSheetPanel();}}
+}});
+function nativeDrawingOwner() {
+  if(configuredNativeOwner!==E.def){if(configuredNativeOwner)configuredNativeCache.cancel(configuredNativeOwner);configuredNativeOwner=E.def;}
+  return E.def;
+}
+function configuredDrawingStatus(view) {
+  if(E.docType!=='part')return null;
+  var owner=nativeDrawingOwner(),id=configuredViewId(owner,view);
+  if(!id)return null;
+  return configuredNativeCache.state(owner,id);
+}
+function configuredDrawingBodies(view,bodies) {
+  if(E.docType!=='part')return bodies;
+  var owner=nativeDrawingOwner(),id=configuredViewId(owner,view);if(!id)return bodies;
+  var state=configuredNativeCache.state(owner,id);
+  if(state.status==='ready')return configuredBodyAppearance(owner,state.bodies);
+  if(state.status==='missing')configuredNativeCache.request(owner,id).catch(function(){});
+  return [];
+}
+function configuredTopologyAllowed(view) {
+  return E.docType!=='part'||!configuredViewId(E.def,view);
+}
+async function prepareConfiguredDrawingExport() {
+  if(E.docType!=='part'||!E.def?.drawing)return;
+  var owner=nativeDrawingOwner(),history=currentHistoryNode(),views=owner.drawing.views;
+  var ids=views.map(function(v){return configuredViewId(owner,v);}).filter(Boolean);if(!ids.length)return;
+  if((owner.drawing.dims||[]).some(function(d){return d.modelItem||d.coneAngle||d.refs?.some(function(r){return r.pid||r.pid2;});}))
+    throw new Error('Named configuration drawing geometry is native; associative dimensions require per-view topology and are unsupported on this sheet');
+  var key=JSON.stringify(views),assertCurrent=function(){if(E.def!==owner||currentHistoryNode()!==history||JSON.stringify(owner.drawing.views)!==key)throw new Error('Drawing changed while preparing native configurations; retry export');};
+  await configuredNativeCache.prepare(owner,views,{assertCurrent});assertCurrent();drawingSheet().invalidate();
+}
 function drawingBodies() {
   var parts = renderedParts(E.def);
   /* Most part drawings need only the body's triangle soup. Rebuilding an
@@ -12275,6 +12310,7 @@ function buildSheetPanel(host) {
     { value: "mm", label: "mm" }, { value: "cm", label: "cm" }, { value: "m", label: "m" }, { value: "in", label: "in" },
   ], doc.units, function (value) { sheet.setSheetOption("units", value); drawSketch(); })).id = "mdSheetUnits";
   if(E.docType==='assembly'&&E.assembly){
+    setup.appendChild(btn('Auto component balloons',function(){sheet.autoComponentBalloons();drawSketch();},'md-sheet-btn'));
     sheetRow(setup,t('drawingBOMScope'),sheetSelect([{value:'partsOnly',label:t('drawingBOMPartsOnly')},{value:'indented',label:t('drawingBOMIndented')}],E.assembly.drawingSettings?.bomScope==='indented'?'indented':'partsOnly',function(value){
       pushUndo(t('opSheetSetup'));E.assembly.drawingSettings ||= {};E.assembly.drawingSettings.bomScope=value==='indented'?'indented':'partsOnly';
       sheet.invalidate();drawSketch();syncHead();
@@ -12313,6 +12349,8 @@ function buildSheetPanel(host) {
       sheet.select({ kind: "view", id: view.id });
     }, "md-sheet-view-name");
     row.appendChild(name);
+    var nativeState=configuredDrawingStatus(view);
+    if(nativeState)row.appendChild(el('small','md-sheet-view-native-status',nativeState.status==='ready'?'Native configuration ready · geometry only':nativeState.status==='error'?'Native configuration failed · '+nativeState.reason:nativeState.status==='unsupported'?nativeState.reason:'Native configuration rebuilding'));
     row.appendChild(namedButton(btn('<i class="ph ph-trash"></i>', function () {
       sheet.select({ kind: "view", id: view.id });
       sheet.deleteSelection();
@@ -12443,7 +12481,7 @@ function syncSheetPanel() {
   var doc = drawingDocument(), sheet = drawingSheet();
   var selection = sheet.selection();
   var signature = doc.views.map(function (view) {
-    return view.id + ":" + view.label + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"");
+    return view.id + ":" + view.label + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"")+":"+JSON.stringify(configuredDrawingStatus(view)&&{status:configuredDrawingStatus(view).status,reason:configuredDrawingStatus(view).reason});
   }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "") + "#" + JSON.stringify(doc.title.sources || {});
   if (host.getAttribute("data-signature") !== signature) {
     buildSheetPanel(host);
@@ -12531,8 +12569,9 @@ function drawingSheet() {
       model: function () { return E.docType==='assembly'?E.assembly:E.def; },
       isExplodedView: function () {return E.docType==='assembly' && !!E.assembly && assemblyHasExplodedOffsets(E.assembly);},
       bodies: drawingBodies,
-      bodiesForView: function(view,bodies){return configuredBodiesForView(E.def,view,bodies);},
-      topology: drawingTopology,
+      bodiesForView: configuredDrawingBodies,
+      canUseTopologyForView: configuredTopologyAllowed,
+      topology: function(){return E.docType==='part'&&E.def?.drawing?.views.some(function(v){return configuredViewId(E.def,v);})?null:drawingTopology();},
       /* The live spelling of every hole, re-read on each build so a callout
          cannot outlive the parameters it was placed from. */
       callouts: function () { return calloutTextById(E.def); },
@@ -12550,6 +12589,8 @@ function drawingSheet() {
           return { item: row.item ?? index + 1, qty: row.quantity, name: row.name, description: row.description, partNumber: row.partNumber, material: row.material || "" };
         });
       },
+      componentBalloons:function(){return E.docType==='assembly'?assemblyDrawingBalloonTargets():[];},
+      explodeLines:function(){return E.docType==='assembly'?assemblyExplodeLines():[];},
       pushUndo: pushUndo,
       /* The drag triad: the step is opened on pointerdown while the sheet is
          still untouched, named on pointerup, and dropped when the gesture put
@@ -25640,6 +25681,28 @@ function fillLibThumbs() {
   });
 }
 
+async function saveAssemblyCopyAndOpen(assembly) {
+  if (!await confirmDiscardDocument("unsavedOpen")) return false;
+  var owner=E.assembly,history=currentHistoryNode(),type=E.docType;
+  var sourceKey=assembly.key,sourceSignature=JSON.stringify(assembly);
+  var isCurrent=function(){return E.docType===type&&E.assembly===owner&&currentHistoryNode()===history;};
+  var sourceCurrent=function(){var stored=loadAssemblies().find(function(a){return a.key===sourceKey;});return stored&&JSON.stringify(stored)===sourceSignature;};
+  if(!sourceCurrent()){flash('The saved assembly changed; refresh the library and retry');return false;}
+  var answer=await sheetForm(t("saveCopyOpen"),[{key:"name",label:t("name"),value:(assembly.name||t("newAssembly"))+" copy"}],t("saveCopyHint"));
+  var name=String(answer?.name||'').trim();if(!name)return false;
+  if(!isCurrent()||!sourceCurrent()){flash('The document or saved assembly changed; retry Save copy and open');return false;}
+  var copy=cloneData(assembly);copy.key="asm_"+Date.now().toString(36)+"_"+uid();copy.name=name;
+  if(copy.id!==undefined)copy.id=copy.key;if(copy.definitionId!==undefined)copy.definitionId=copy.key;
+  if(!await saveAssemblies(copy,{expected:null})){
+    report(t("reportKickerSave"),t("saveAssemblyFailed"),t(lastAssemblySaveConflict?"saveAssemblyConflict":"saveStorageFull"));return false;
+  }
+  if(!isCurrent()){refreshLib();flash("✓ "+tf("savedNamed",{name:name}));return true;}
+  abandonDocumentExactWork();closeEvalCard();
+  E.assembly=cloneData(compactAssemblyTopologySnapshots(copy));assemblyOpenBaseline=cloneData(copy);E.componentSel=[];E.sel=null;
+  S.idc=nextDocumentNumericId(E.assembly,S.idc);invalidateInterference();H.clear().seed();markDocumentClean();discardModelerDraft();
+  syncHead();refreshAll();refreshLib();fitPreview();flash("✓ "+tf("savedNamed",{name:name}));return true;
+}
+
 function refreshLib() {
   var host = root.querySelector("#mdLib");
   libThumbQueue = [];
@@ -25678,6 +25741,7 @@ function refreshLib() {
         discardModelerDraft();
         syncHead(); refreshAll(); refreshLib(); fitPreview();
       });
+      card.appendChild(btn(t("saveCopyOpen"),function(e){e.stopPropagation();return saveAssemblyCopyAndOpen(assembly);},"md-wide"));
       var del = btn('<i class="ph ph-trash"></i>', function (e) {
         e.stopPropagation();
         saveAssemblies(assembly.key,{mode:"delete"}).then(function (ok) {
@@ -27516,6 +27580,19 @@ function renderAssemblyInterferenceReport(hits,labels,scopeCaption) {
 function assemblyDrawingBOMRows() {
   return assemblyDrawingBOM(E.assembly,E.assembly?.drawingSettings?.bomScope).rows;
 }
+var assemblyBalloonCache=null;
+function assemblyDrawingBalloonTargets() {
+  if(!E.assembly)return [];
+  var bom=assemblyDrawingBOM(E.assembly,E.assembly?.drawingSettings?.bomScope);
+  var stamp=JSON.stringify(bom.rows),owner=E.assembly;
+  if(assemblyBalloonCache?.owner===owner&&assemblyBalloonCache.token===E.sheetToken&&assemblyBalloonCache.stamp===stamp)return assemblyBalloonCache.targets;
+  var targets=flattenAssembly(owner,{visibleOnly:true}).map(function(occurrence){
+    var key=occurrenceBOMKey(occurrence.path),item=bom.itemByPath.get(key),def=componentDef(occurrence.component);
+    return nativeOccurrenceBalloonTarget(occurrence,def?activeParts(def):[],item,explodedOccurrenceOffset(occurrence))
+      || {key,path:occurrence.path.map(String),item,missing:true};
+  });
+  assemblyBalloonCache={owner,token:E.sheetToken,stamp,targets};return targets;
+}
 function assemblyDrawingDocument() {
   var occurrences = flattenAssembly(E.assembly, { visibleOnly: true });
   /* One chosen numbering scope supplies both the table and leaf balloons. */
@@ -27669,10 +27746,10 @@ function drawingSvgFilename() {
   return ((E.docType === "assembly" && E.assembly ? E.assembly.name : E.def && E.def.name) || "drawing").replace(/[^a-z0-9_-]+/gi, "_") + ".svg";
 }
 
-function showDrawingPreview() {
+async function showDrawingPreview() {
   if(rejectFlexibleSpringPreview())return false;
   var svg;
-  try { svg = drawingSvgContent(); } catch(error) { flash(String(error.message || error),6000);return false; }
+  try { await prepareConfiguredDrawingExport();svg = drawingSvgContent(); } catch(error) { flash(String(error.message || error),6000);return false; }
   root.querySelector("#mdDrawingPreviewDialog")?.remove();
   var dialog=document.createElement("dialog");
   dialog.id="mdDrawingPreviewDialog";
@@ -27695,10 +27772,10 @@ function showDrawingPreview() {
   return true;
 }
 
-function exportDrawingSvg() {
+async function exportDrawingSvg() {
   if(rejectFlexibleSpringPreview())return;
   var svg;
-  try { svg = drawingSvgContent(); } catch(error) { flash(String(error.message || error),6000);return; }
+  try { await prepareConfiguredDrawingExport();svg = drawingSvgContent(); } catch(error) { flash(String(error.message || error),6000);return; }
   var blob = new Blob([svg], { type: "image/svg+xml" });
   var link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -27710,9 +27787,9 @@ function exportDrawingSvg() {
 
 /* Print the sheet at its true paper size: the SVG is metric millimetres, so a
    browser print with no margins puts an A3 drawing on A3 paper. */
-function printDrawingSheet() {
+async function printDrawingSheet() {
   if(rejectFlexibleSpringPreview())return;
-  var svg = drawingSheet().svg();
+  var svg;try{await prepareConfiguredDrawingExport();svg=drawingSheet().svg();}catch(error){flash(String(error.message||error),6000);return;}
   var frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0";
