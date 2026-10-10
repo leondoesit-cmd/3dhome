@@ -1,0 +1,145 @@
+{
+  "scope": "BASE ONLY. Actual browser-authored reconstruction of official companion bare cylinder; cylindrical Hole Wizard placement/3D constraint graph, source hole dimensions, cold durability and final exercise acceptance remain pending.",
+  "geometryPass": true,
+  "checks": {
+    "oneValidNative": true,
+    "sourceDiameter38point1": true,
+    "sourceHeight31point75": true,
+    "analyticCylinderVolume": true,
+    "bounds38point1x31point75x38point1": true,
+    "fullyDefinedCircle": true,
+    "oneTopBlindBoss": true,
+    "twoHistoryEntries": true,
+    "mmContext": true,
+    "inputUnmodified": true,
+    "oneValidSTEP": true,
+    "bidirectionalZero": true,
+    "stepUnmodified": true
+  },
+  "key": "cm_mv26kzd9",
+  "name": "Planchard 5.17 - official source constraints - browser 2026-10-10",
+  "source": {
+    "exercise": "5.17",
+    "pdfPages": [
+      266,
+      267
+    ],
+    "printedPages": [
+      "5-48",
+      "5-49"
+    ],
+    "officialBaseDiameterIn": 1.5,
+    "officialBaseHeightIn": 1.25,
+    "officialMaterial": "Aluminum1060",
+    "sourceDensityKgPerM3": 2700
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 36.19791553802751,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "mass": {
+    "volume": 36.19791553802751,
+    "centerOfMass": {
+      "x": 8.286197199043649e-18,
+      "y": 1.5875000000000001,
+      "z": 3.6805092496295314e-16
+    },
+    "inertia": [
+      [
+        63.248919468891486,
+        -1.7303097626839308e-17,
+        9.932444676462455e-16
+      ],
+      [
+        -1.7303097626839308e-17,
+        65.68157021769555,
+        7.216449660063518e-16
+      ],
+      [
+        9.932444676462455e-16,
+        7.216449660063518e-16,
+        63.24891946889214
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1.9050000000000002,
+        "y": 0,
+        "z": -1.9050000000000002
+      },
+      "max": {
+        "x": 1.9050000000000002,
+        "y": 3.1750000000000003,
+        "z": 1.9050000000000002
+      }
+    }
+  },
+  "material": {
+    "label": "Aluminum 1060",
+    "densityGPerCm3": 2.698790709244804,
+    "densitySource": "Hydro Alloy 1xxx, revision 2019/01, p. 1: 0.0975 lb/in³ (nominal)",
+    "exactOfficialDensity2point7": false,
+    "officialDensityGPerCm3": 2.7,
+    "sourceDensityMassG": 97.73437195267428,
+    "presetDensityMassG": 97.69059814805678,
+    "presetRelativeDifferencePercent": -0.04478854648874986
+  },
+  "step": {
+    "bytes": 5784,
+    "sha256": "85ac6c23920e2f307e47868918a5b290837f0c873f5f0d18b2abc3e9e9d97dbe",
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 36.197915538027495,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 36.197915538027495,
+      "centerOfMass": {
+        "x": -2.225398180302767e-18,
+        "y": 1.5875,
+        "z": -4.0485601745924864e-16
+      },
+      "inertia": [
+        [
+          63.248919468891344,
+          -7.532126956124488e-16,
+          4.290804607977816e-15
+        ],
+        [
+          -7.532126956124488e-16,
+          65.68157021769541,
+          2.4924506902834783e-15
+        ],
+        [
+          4.290804607977816e-15,
+          2.4924506902834783e-15,
+          63.24891946889211
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1.905,
+          "y": 0,
+          "z": -1.905
+        },
+        "max": {
+          "x": 1.905,
+          "y": 3.175,
+          "z": 1.905
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0
+  },
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-5.17-official-base-browser-2026-10-10.mforge",
+    "bytes": 64385,
+    "sha256": "3641aed873896f1bfe549db301e5f9e5412e4a9dc1b1c22c9ac8dc98b8e3abd1"
+  }
+}

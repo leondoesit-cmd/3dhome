@@ -1,0 +1,285 @@
+{
+  "pass": true,
+  "scope": "Actual protected browser Boss height31.75→32.75mm; independent read-only regenerated result. Parent actual Undo/Redo/Undo restoration is separate browser evidence; no final nominal/cold claim from this modified export.",
+  "checks": {
+    "nominalPass": true,
+    "drivenNativePass": true,
+    "sourceHeight32point75": true,
+    "sourcePositionShift": true,
+    "analyticDeltaVolume": true,
+    "sketchesExact": true,
+    "holeFeatureExact": true,
+    "historyExact": true,
+    "materialExact": true,
+    "drawingExact": true,
+    "otherBossParamsExact": true
+  },
+  "nominalVolumeCm3": 34.18816210206099,
+  "drivenVolumeCm3": 35.32825393017163,
+  "deltaVolumeMM3": 1140.0918281106342,
+  "expectedDeltaVolumeMM3": 1140.09182796937,
+  "driven": {
+    "pass": true,
+    "checks": {
+      "oneValidNative": true,
+      "baseDiameter38point1": true,
+      "fullyDefinedBaseSketch": true,
+      "threeHistoryTwoFeatures": true,
+      "graphFullyDefinedZeroDOF": true,
+      "graphZeroResidual": true,
+      "cylindricalReferenceBound": true,
+      "allPlacementRelationsEnabled": true,
+      "sourceTopDistance6point35": true,
+      "positiveZNormal": true,
+      "sourceHoleSizes": true,
+      "sourceWizardSelections": true,
+      "exactSourceDensity": true,
+      "sourceMaterialCitation": true,
+      "inputUnchanged": true
+    },
+    "input": {
+      "path": "artifacts/planchard/EXERCISE-5.17-graph-height32.75-browser-2026-10-10.mforge",
+      "bytes": 276218,
+      "sha256": "572ed6ff937a9630a693b632b0c49d5e471f00d0086fc104dcc9e16307b40ba4"
+    },
+    "key": "cm_mv26kzd9",
+    "name": "Planchard 5.17 - official source constraints - browser 2026-10-10",
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 35.32825393017163,
+      "maxToleranceCm": 1.0000001344771516e-7
+    },
+    "mass": {
+      "volume": 35.32825393017163,
+      "centerOfMass": {
+        "x": -1.0400821210569575e-7,
+        "y": 1.5804697434134527,
+        "z": -0.02003554480561993
+      },
+      "inertia": [
+        [
+          62.11918743323368,
+          0.000004870327973709094,
+          -9.438123961704058e-8
+        ],
+        [
+          0.000004870327973709094,
+          64.75846038123935,
+          0.7499572738931519
+        ],
+        [
+          -9.438123961704058e-8,
+          0.7499572738931519,
+          64.90981783661336
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1.9050001000000003,
+          "y": -1e-7,
+          "z": -1.905000100000001
+        },
+        "max": {
+          "x": 1.9050001000000003,
+          "y": 3.2750001,
+          "z": 1.9050001000000008
+        }
+      }
+    },
+    "massAtSourceDensityG": 95.38628561146339,
+    "graph": {
+      "schema": "modelforge-cylindrical-3d-point-constraints",
+      "version": 1,
+      "units": "cm",
+      "source": {
+        "featureId": "feature_mv26m8ib_1",
+        "circleId": 6172,
+        "faceReference": {
+          "type": "topology-reference",
+          "ownerFeatureId": "feature_mv26m8ib_1",
+          "kind": "face",
+          "persistentId": "feature_mv26m8ib_1:face:side:6172",
+          "descriptor": {
+            "surface": "cylinder",
+            "origin": {
+              "x": 0,
+              "y": 1.5875000000000001,
+              "z": 0
+            },
+            "normal": {
+              "x": 1.2246467991473532e-16,
+              "y": 0,
+              "z": -1
+            },
+            "measure": 38.00306093231233,
+            "bounds": {
+              "min": {
+                "x": -1.9050001000000003,
+                "y": -1.0000000000000002e-7,
+                "z": -1.9050001000000003
+              },
+              "max": {
+                "x": 1.9050001000000003,
+                "y": 3.1750001,
+                "z": 1.9050001000000003
+              }
+            },
+            "axis": {
+              "x": 0,
+              "y": -1,
+              "z": 0
+            },
+            "radius": 1.9050000000000002,
+            "referenceOrigin": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "axisRange": [
+              -3.1750000000000003,
+              0
+            ],
+            "centroid": {
+              "x": 3.187155992608307e-17,
+              "y": 1.5875000000000001,
+              "z": -4.440892098500626e-16
+            }
+          },
+          "signature": "cylinder:0:1.588:0:0:0:-1:38.003:"
+        }
+      },
+      "branch": "positive-z",
+      "points": {
+        "A": {
+          "x": 0,
+          "y": 3.2750000000000004,
+          "z": 0
+        },
+        "B": {
+          "x": 0,
+          "y": 3.2750000000000004,
+          "z": 1.9050000000000002
+        },
+        "P": {
+          "x": 0,
+          "y": 2.6400000000000006,
+          "z": 1.9050000000000002
+        }
+      },
+      "construction": {
+        "type": "line3d",
+        "start": "A",
+        "end": "B",
+        "construction": true
+      },
+      "relations": [
+        {
+          "id": "axis-centre",
+          "type": "CoincidentAxisCenter",
+          "points": [
+            "A"
+          ],
+          "enabled": true,
+          "residuals": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "top-plane",
+          "type": "OnPlane",
+          "points": [
+            "B"
+          ],
+          "enabled": true,
+          "residuals": [
+            0
+          ]
+        },
+        {
+          "id": "construction-z",
+          "type": "AlongZ",
+          "points": [
+            "A",
+            "B"
+          ],
+          "enabled": true,
+          "residuals": [
+            0,
+            0
+          ]
+        },
+        {
+          "id": "surface",
+          "type": "OnSurface",
+          "points": [
+            "P"
+          ],
+          "enabled": true,
+          "residuals": [
+            0
+          ]
+        },
+        {
+          "id": "top-distance",
+          "type": "DistanceToPlane",
+          "points": [
+            "P"
+          ],
+          "enabled": true,
+          "value": 0.635,
+          "residuals": [
+            -2.220446049250313e-16
+          ]
+        },
+        {
+          "id": "position-y",
+          "type": "AlongY",
+          "points": [
+            "B",
+            "P"
+          ],
+          "enabled": true,
+          "residuals": [
+            0,
+            0
+          ]
+        }
+      ],
+      "degreesOfFreedom": 0,
+      "maxResidual": 2.220446049250313e-16,
+      "status": "fully-defined",
+      "qualification": "Bounded cylindrical point and axis-construction constraints; not a general 3D sketch or generated hole-profile sketch."
+    },
+    "material": {
+      "catalogId": "custom",
+      "grade": "Aluminum 1060 - official Planchard companion density",
+      "density": 2.7,
+      "densitySource": "Official Chapter5 Homework/Hole Wizard5.17.SLDPRT embedded LWDATA density2700kg/m3; SHA256966cb075642fcfd11a7b74133e1ca577b623a5af6165c88b8afcbfbd6f99cdb1. Source material1060Alloy; custom exact source-density override.",
+      "condition": "",
+      "source": "",
+      "model": "qualified-rating",
+      "youngModulusMPa": 0,
+      "poissonRatio": 0,
+      "allowableBendingMPa": 0,
+      "allowableContactMPa": 0,
+      "minTemperatureC": 0,
+      "maxTemperatureC": 0,
+      "maxCycles": 0,
+      "maxHours": 0,
+      "maxRpm": 0,
+      "environment": "",
+      "lubrication": "",
+      "id": 6176
+    },
+    "bodyMaterial": {
+      "density": 2.7,
+      "catalogId": "custom",
+      "qualificationId": 6176
+    },
+    "step": null
+  }
+}

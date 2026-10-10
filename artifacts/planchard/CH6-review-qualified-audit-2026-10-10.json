@@ -1,0 +1,351 @@
+{
+  "scope": "Actual browser-authored source review worksheet content and full cold persistence accepted; separate CAD exercises and whole book not claimed.",
+  "pass": true,
+  "checks": {
+    "seventeenNotes": true,
+    "allSixteenPlanAnswers": true,
+    "allSVGAnswerRows": true,
+    "allQuestionNumbers": true,
+    "zeroCAD": true,
+    "A3LandscapeThirdMM": true,
+    "sourceLabel": true
+  },
+  "key": "cm_mv270u8w",
+  "name": "Planchard Chapter6 - review Q1-Q16 - browser 2026-10-10",
+  "notes": 17,
+  "noteRows": [
+    4,
+    6,
+    3,
+    3,
+    3,
+    2,
+    5,
+    4,
+    4,
+    2,
+    4,
+    5,
+    2,
+    2,
+    4,
+    4,
+    3
+  ],
+  "answers": [
+    {
+      "q": 1,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 6,
+      "x": 74.60956761890256,
+      "y": 59.6884669389522
+    },
+    {
+      "q": 2,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 3,
+      "x": 74.60956761890256,
+      "y": 88.72758326182641
+    },
+    {
+      "q": 3,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 3,
+      "x": 74.60956761890256,
+      "y": 107.25253899101664
+    },
+    {
+      "q": 4,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 3,
+      "x": 74.60956761890256,
+      "y": 125.77747638496587
+    },
+    {
+      "q": 5,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 2,
+      "x": 74.60956761890256,
+      "y": 144.3024321141561
+    },
+    {
+      "q": 6,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 5,
+      "x": 74.60956761890256,
+      "y": 159.32266153370463
+    },
+    {
+      "q": 7,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 4,
+      "x": 74.60956761890256,
+      "y": 184.85705154693719
+    },
+    {
+      "q": 8,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 4,
+      "x": 74.60956761890256,
+      "y": 206.88671525052808
+    },
+    {
+      "q": 9,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 2,
+      "x": 264.8658008214373,
+      "y": 59.6884669389522
+    },
+    {
+      "q": 10,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 4,
+      "x": 264.8658008214373,
+      "y": 74.70869635850076
+    },
+    {
+      "q": 11,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 5,
+      "x": 264.8658008214373,
+      "y": 96.73837839733264
+    },
+    {
+      "q": 12,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 2,
+      "x": 264.8658008214373,
+      "y": 122.27276841056519
+    },
+    {
+      "q": 13,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 2,
+      "x": 264.8658008214373,
+      "y": 137.29299783011373
+    },
+    {
+      "q": 14,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 4,
+      "x": 264.8658008214373,
+      "y": 152.3132272496623
+    },
+    {
+      "q": 15,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 4,
+      "x": 264.8658008214373,
+      "y": 174.3428909532532
+    },
+    {
+      "q": 16,
+      "matchesPlan": true,
+      "svgAllRowsPresent": true,
+      "rows": 3,
+      "x": 264.8658008214373,
+      "y": 196.37255465684407
+    }
+  ],
+  "CAD": {
+    "features": 0,
+    "parts": 0,
+    "views": 0,
+    "geometricSketchEntities": 0
+  },
+  "title": {
+    "revision": "A",
+    "sheet": 1,
+    "sheets": 1,
+    "title": "CHAPTER6 - REVIEW Q1-Q16",
+    "number": "PLANCHARD6-33/PDF301",
+    "author": "",
+    "company": "",
+    "material": "",
+    "finish": "",
+    "mass": "",
+    "date": "2026-10-10",
+    "tolerance": ""
+  },
+  "source": {
+    "pdfPage": 301,
+    "printedPage": "6-33"
+  },
+  "input": {
+    "bytes": 7658,
+    "sha256": "e7aa985f583d62a9f204c9273c8b109666ae9ae0cdb33d6f8cf99059c3354325"
+  },
+  "SVG": {
+    "bytes": 16003,
+    "sha256": "cf5fb29ce0076b41129b7db464220ce4f546479fdff8bbdf33d104831280ad9f"
+  },
+  "cold": {
+    "status": "PASS",
+    "checks": {
+      "wholeDrawingExact": true,
+      "allAuthoringFieldsExact": true,
+      "SVGByteExact": true,
+      "libraryKeyExact": true,
+      "stillZeroCAD": true,
+      "seventeenNotes": true
+    },
+    "exactFields": {
+      "drawing": true,
+      "customProperties": true,
+      "context": true,
+      "features": true,
+      "sketches": true,
+      "engineeringMaterials": true,
+      "localFrame": true,
+      "references": true,
+      "namedSelections": true,
+      "notes": true,
+      "markups": true,
+      "parameters": true
+    },
+    "changedPaths": [
+      ".createdAt",
+      ".mainModel.history.length",
+      ".mainModel.lastRebuild.rebuiltAt",
+      ".mainModel.referenceGeometry.length"
+    ],
+    "bytes": 8592,
+    "sha256": "102aeda174fb5a40ae9f412825776ef2459d4b9cd74aa225be9ca0e088cb9e3a",
+    "svgBytes": 16003,
+    "svgSHA256": "cf5fb29ce0076b41129b7db464220ce4f546479fdff8bbdf33d104831280ad9f",
+    "canonicalHistoryBefore": [],
+    "canonicalHistoryAfter": [
+      {
+        "id": "history:sketch:sk_19wfi",
+        "kind": "sketch",
+        "targetId": "sk_19wfi",
+        "name": "X\u00b7Z sketch",
+        "suppressed": false,
+        "status": "rebuilt"
+      }
+    ],
+    "referenceGeometryBefore": [],
+    "referenceGeometryAfter": [
+      {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    ]
+  }
+}

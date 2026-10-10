@@ -1,0 +1,237 @@
+{
+  "scope": "Read-only actual browser-export source/pair/native/STEP audit. Actual GUI creation/edit/cold evidence is separately qualified by the parent. No model writes or authored geometry.",
+  "variant": "profile-driver",
+  "geometryPass": true,
+  "checks": {
+    "oneHoleTwoSeparateSketches": true,
+    "positionSolverZeroDOF": true,
+    "profileSolverZeroDOF": true,
+    "savedXYZAlreadySolved": true,
+    "savedProfileAlreadySolved": true,
+    "allSourceRelationsEnabled": true,
+    "realXYZConstructionAndPoint": true,
+    "realClosedProfile": true,
+    "sourceBaseDiameter": true,
+    "sourceBaseHeight": true,
+    "sourceTopDistance": true,
+    "sourceBore": true,
+    "sourceHeadDiameter": true,
+    "sourceHeadDepthWithClearance": true,
+    "sourcePointXYZ": true,
+    "sourceANSI_SHCS_Normal_ThroughAll": true,
+    "explicitSketchDependencies": true,
+    "acyclicSourceHistory": true,
+    "sourceContextMM": true,
+    "inputUnmodified": true,
+    "oneValidNative": true,
+    "outerCylinderBounds": true,
+    "actualMaterial1060": true,
+    "baseSketchExact": true,
+    "baseFeatureExact": true,
+    "positionExactAfterNullExpressionDiagnosticNormalization": true,
+    "nativeBoreEditRemovesMoreSolid": true
+  },
+  "key": "cm_mv27in7q_6177",
+  "name": "Planchard 5.17 - genuine two sketches - browser 2026-10-10",
+  "source": {
+    "exercise": "5.17",
+    "pdfPages": [
+      266,
+      267
+    ],
+    "printedPages": [
+      "5-48",
+      "5-49"
+    ],
+    "expectedCm": {
+      "bore": 0.734375,
+      "head": 1.11125,
+      "recess": 0.889,
+      "distance": 0.635,
+      "height": 3.175
+    },
+    "material": "Aluminum1060",
+    "densityGPerCm3": 2.7
+  },
+  "pair": {
+    "positionId": 6178,
+    "profileId": 6179,
+    "positionRun": {
+      "ok": true,
+      "status": "fully-defined",
+      "degreesOfFreedom": 0,
+      "maxResidual": 2.220446049250313e-16,
+      "points": [
+        {
+          "id": "6178:A",
+          "role": "A",
+          "x": 0,
+          "y": 3.1750000000000003,
+          "z": 0
+        },
+        {
+          "id": "6178:B",
+          "role": "B",
+          "x": 0,
+          "y": 3.1750000000000003,
+          "z": 1.9050000000000002
+        },
+        {
+          "id": "6178:P",
+          "role": "P",
+          "x": 0,
+          "y": 2.54,
+          "z": 1.9050000000000002
+        }
+      ]
+    },
+    "profileRun": {
+      "ok": true,
+      "status": "fully-defined",
+      "degreesOfFreedom": 0,
+      "maxResidual": 0
+    },
+    "points": [
+      {
+        "id": "6178:A",
+        "role": "A",
+        "x": 0,
+        "y": 3.1750000000000003,
+        "z": 0
+      },
+      {
+        "id": "6178:B",
+        "role": "B",
+        "x": 0,
+        "y": 3.1750000000000003,
+        "z": 1.9050000000000002
+      },
+      {
+        "id": "6178:P",
+        "role": "P",
+        "x": 0,
+        "y": 2.54,
+        "z": 1.9050000000000002
+      }
+    ],
+    "profilePoints": [
+      {
+        "id": "6179:p0",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": "6179:p1",
+        "x": 0,
+        "y": 0.555625
+      },
+      {
+        "id": "6179:p2",
+        "x": 0.8890000000000001,
+        "y": 0.555625
+      },
+      {
+        "id": "6179:p3",
+        "x": 0.8890000000000001,
+        "y": 0.3671875
+      },
+      {
+        "id": "6179:p4",
+        "x": 3.8100100000000006,
+        "y": 0.3671875
+      },
+      {
+        "id": "6179:p5",
+        "x": 3.8100100000000006,
+        "y": 0
+      }
+    ],
+    "history": [
+      {
+        "id": "history:sketch:sk_1kr0j",
+        "kind": "sketch",
+        "targetId": "sk_1kr0j"
+      },
+      {
+        "id": "history:feature:feature_mv26m8ib_1",
+        "kind": "feature",
+        "targetId": "feature_mv26m8ib_1"
+      },
+      {
+        "id": "history:sketch:6178",
+        "kind": "sketch",
+        "targetId": 6178
+      },
+      {
+        "id": "history:sketch:6179",
+        "kind": "sketch",
+        "targetId": 6179
+      },
+      {
+        "id": "history:feature:feature_mv27kxj8_1",
+        "kind": "feature",
+        "targetId": "feature_mv27kxj8_1"
+      }
+    ]
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 34.12208663621055,
+    "maxToleranceCm": 1.0000000384683038e-07
+  },
+  "mass": {
+    "volume": 34.12208663621055,
+    "centerOfMass": {
+      "x": -2.989946439105211e-08,
+      "y": 1.52955427679407,
+      "z": -0.019899729158652322
+    },
+    "inertia": [
+      [
+        58.194353915470074,
+        2.3482058406258513e-06,
+        3.145078786863722e-08
+      ],
+      [
+        2.3482058406258513e-06,
+        62.62711785261782,
+        0.6861128204960847
+      ],
+      [
+        3.145078786863722e-08,
+        0.6861128204960847,
+        61.03897844820732
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1.9050001000000003,
+        "y": -1e-07,
+        "z": -1.905000100000001
+      },
+      "max": {
+        "x": 1.9050001000000003,
+        "y": 3.1750001,
+        "z": 1.9050001000000008
+      }
+    }
+  },
+  "material": {
+    "label": "Aluminum 1060 - official Planchard companion density",
+    "densityGPerCm3": 2.7,
+    "exactSourceDensity2point7": true,
+    "densitySource": "Official Chapter5 Homework/Hole Wizard5.17.SLDPRT embedded LWDATA density2700kg/m3; SHA256966cb075642fcfd11a7b74133e1ca577b623a5af6165c88b8afcbfbd6f99cdb1. Source material1060Alloy; custom exact source-density override.",
+    "massG": 92.12963391776849,
+    "sourceDensityMassG": 92.12963391776849
+  },
+  "step": null,
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-5.17-two-sketch-profile-driver-browser-2026-10-10.mforge",
+    "bytes": 566752,
+    "sha256": "4225785f35726aee89376031ecdedbede46ee2868291a15c287d4ee168088a24"
+  },
+  "nativeVolumeDeltaMm3": -66.07546585044588,
+  "driverQualification": "Only profile bore increased0.2mm; diameters are now Custom. Base sketch/feature exact; position exact after exprError:null diagnostic addition. Head radius/depth retained within floating-point rounding."
+}
