@@ -1,0 +1,11 @@
+{
+  "arrows": 1,
+  "calls": "BATTERYANDPLATE / Planchard BATTERY - rebuilt 2026-09-27\nBATTERYANDPLATE / Planchard BATTERY - rebuilt 2026-09-27 → BATTERYANDPLATE / coincident 1376\nface feature_muk6ewvp_1:face:end · Child BATTERYANDPLATE / coincident 1376: outside visible tree\nBATTERYANDPLATE / Planchard BATTERY - rebuilt 2026-09-27 → BATTERYANDPLATE / coincident 1377\nface plane:right · Child BATTERYANDPLATE / coincident 1377: outside visible tree\nBATTERYANDPLATE / Planchard BATTERY - rebuilt 2026-09-27 → BATTERYANDPLATE / concentric 1378\nedge feature_muk70mqo_8:tool:edge:profile:61:start · Child BATTERYANDPLATE / concentric 1378: outside visible tree\nBATTERYANDPLATE / Planchard BATTERY - rebuilt 2026-09-27 → coincident 2228\nface 1372/feature_muk6ewvp_1:face:start · Child coincident 2228: inside Mates",
+  "focus": [
+    {
+      "id": "sub:1397/1372",
+      "target": "occurrence:[\"1397\",\"1372\"]"
+    }
+  ],
+  "status": "Assembly\n4 components\n9 mates\n0 degrees of freedom\nAI on · every tool also works by hand"
+}

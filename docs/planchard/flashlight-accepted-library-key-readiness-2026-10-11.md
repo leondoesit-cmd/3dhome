@@ -1,0 +1,13 @@
+# Exact accepted FLASHLIGHT library record
+
+Open ordinary Saved assembly **FLASHLIGHT-CH9**, key **asm_mv2pb85e_6408**. The older **FLASHLIGHT**, key **asm_mumj9qzq**, is the historical source record and is not the final refreshed eight-native Drawing witness. Both can have4 roots/9 native mates, so those counts alone cannot establish the correct record.
+
+Accepted source evidence: `flashlight-eight-leaves-current-native-audit-2026-10-10.md`, ADVANCE's final cold entry and protected `artifacts/planchard/FLASHLIGHT-CH9-eight-leaves-native-cold-browser-2026-10-10.mforge` (20,549,389 bytes). The accepted cold record retains the exact final eight-native assembly, whole Drawing, seven explode chains, root9mates/0DOF/no unresolved. Root properties are Description FLASHLIGHT ASSEMBLY, PartNo/Number10-F123, CompanyName D&M ENGINEERING, DrawnBy Browser study and date2026-10-10. Original source Saved records were preserved.
+
+Housing's accepted source name is still **Planchard HOUSING - rebuilt 2026-09-28**, key **cm_mukcv9q3**. The September source label was deliberately retained through genuine Edit/Finish refresh. It is not evidence of an expired native proof or wrong assembly. Similarly other leaves retain their September source names.
+
+Fresh read-only2026-10-11 compilation and strict `verifiedFinalTopology` validation of that protected accepted cold artifact succeeds for all8 leaves with no compile issues. Current topology counts by full occurrence path: Housing1394=534; Switch1395=28; Lenscap1396/1385=55; O-ring1396/1386=12; Lens1396/1387/1379=62; Bulb1396/1387/1381=114; Battery1397/1372=125; Plate1397/1373=203. Every leaf's native display mesh still records measured nativeSolidCount1. This verifies current serialized proof validity, not a fresh BREP/mass/contact computation.
+
+Current cloned solver replay of the protected accepted root also succeeds with0DOF, no issues, unsatisfied mates or rebindings. It does not mutate the protected source or prove the current live Saved-library payload; that exact payload still needs the ordinary open/export comparison if its UI differs.
+
+If ordinary opening of the exact **FLASHLIGHT-CH9 /asm_mv2pb85e_6408** currently reports4 unresolved, export that actual live record for read-only comparison with the accepted artifact before changing CAD or auto-rebuilding. Do not call a graph-only hover proof eight-native geometry acceptance merely because structural mate edges still exist. The accepted historical Drawing/native/cold qualifications remain grayscale/manual drawing number/centroid anchors/source contact scope; no new physical-contact or full-book claim is made here.
