@@ -8,7 +8,7 @@ The supplied ebook's Crop workflow is **PDF 112 / printed 2-26**, not PDF 111 / 
 
 Drawing tool **Crop** starts on an actual projected view. Click 3–64 points around the desired region; **Enter** closes a periodic Catmull–Rom spline and applies it to that same view. **Escape** cancels the draft without a drawing change. Control points persist in `view.cropSketch = {type:'closed-spline',closed:true,points:[{u,v},...]}` in projected model coordinates. Repeating Crop on that view replaces its boundary with newly authored points. **Remove crop**, then click the cropped view, restores the full original projection as one undoable operation. Undo restores both creation and removal. No new Detail/duplicate view, model sketch, CAD feature or solid mutation is substituted for Crop.
 
-The drafting hint and ordinary drawing toolbar expose the workflow. Section and isometric projections can be cropped. Source-forbidden parents are rejected before mutation; subsequent Detail authoring on a cropped view is blocked to preserve the same restrictions. An exploded-view callback checks actual assembly exploded offsets. Invalid persisted crop boundaries return no projected geometry instead of silently showing a full view.
+The drafting hint and ordinary drawing toolbar expose the workflow. Section and isometric projections can be cropped. Source-forbidden parents are rejected before mutation. Per PDF 109 / 2-23, a Detail may subsequently derive from an existing Crop; it inherits the cropped projection. Once that Detail exists, new/replacement Crop authoring on its parent is rejected, while the previously saved Crop continues to render. An exploded-view callback checks actual assembly exploded offsets for Crop. Detail itself has no exploded-parent exclusion when an actual exploded projection is available; no separate exploded Detail browser acceptance is claimed. Invalid persisted crop boundaries return no projected geometry instead of silently showing a full view.
 
 ## Shared geometry and bounds
 
@@ -25,3 +25,13 @@ Focused tests verify actual controller authoring on an isometric view, same-view
 Actual browser recipe: hard reload; open the saved real part; Drawing → Crop; click at least four points outlining one isometric end, then Enter. Verify original view count/ID is retained, other views remain whole, cropped outline has no continuation beyond the boundary. Save copy and export SVG/PNG; cold reopen and inspect the saved control-point crop. Remove crop → click view restores the full part; Undo restores crop. Separately crop a genuine Section and inspect retained hatch bounded by the crop. Detail and Detail-parent Crop attempts must leave the document unchanged.
 
 Files: `js/core/drawing_crop.js`, `js/cad_sheet.js`, `js/modeler_drawing.js`, `js/modeler.js`, `tests/drawing_crop.test.mjs`, and controller regression in `tests/cad_sheet.test.mjs`. Parent owns browser/model artifacts, ADVANCE and commits.
+
+## Actual whole-app persistence failure and fix
+
+Parent Chrome authoring reported Crop applied/Unsaved, but the following render returned to the full view and pre-Save project export still contained only null crop fields. Thus the failure occurred before Save, rather than in library serialization alone. The mutation held a view reference across `host.pushUndo`; whole-app history/UI callbacks can normalize drawing records, detaching that reference.
+
+Crop and Broken-out creation/removal now reacquire the live drawing view by persistent ID **after** the history callback and mutate that record. The controller regression deliberately performs `ensureSheetDoc` normalization during pushUndo; authoring/removal/Undo still pass, and whole-model JSON serialization plus another normalization preserves the saved modifier and projection. The scoped **85/85** tests passed after the fix; the two strengthened serialization regressions also passed independently. Actual Chrome reapply/save/cold acceptance of this fix remains the parent's next check.
+
+Source-direction follow-up adds a real controller regression for Detail-from-Crop, inherited geometry and continued cropped-parent rendering, while new Crop on that Detail parent remains rejected. Cropped Section-derived Detail hatching is intersected with both the saved spline and Detail circle.
+
+Final source-direction/persistence snapshot: **86/86 scoped tests PASS**, `npm run check` PASS (**666 modules**, **1489 assertions**, no free identifiers), diff check PASS. Actual browser persistence acceptance remains pending.

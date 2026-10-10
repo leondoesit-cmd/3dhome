@@ -2,6 +2,8 @@
 
 Continuation update: the initially missing standalone Crop row below has subsequently received a bounded genuine implementation; see `standalone-crop-view-implementation-2026-10-10.md` for saved spline authoring, shared clipping, validation and pending actual browser acceptance. The matrix records the original audit findings before that gap closure.
 
+Further continuation: bounded genuine Broken-out Section now has saved closed-spline/depth authoring and capped actual mesh projection; see `broken-out-section-implementation-2026-10-10.md`. Its scoped tests/gates passed; actual browser acceptance is pending. Break, Auxiliary, Alternate Position and Aligned Section remain open.
+
 ## Source scope
 
 Source: David Planchard, Engineering Graphics with SOLIDWORKS 2021, supplied local PDF. PDF page numbers below are one-based physical pages; printed pages are separate.

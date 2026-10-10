@@ -77,7 +77,7 @@ test("invalid Detail parent cycles and orphans never fabricate base geometry", (
 });
 
 test("ordinary Crop authoring stores an editable closed spline on the same view; removal and undo restore it",()=>{
-  const rig=table({parts:[BOX]}),c=rig.controller;c.fit();
+  const rig=table({parts:[BOX]}),c=rig.controller;c.fit();rig.normalizeOnUndo=true;
   const parent=c.scene().views.find(p=>p.view.dir==='iso'),count=rig.document.drawing.views.length;
   c.setTool('crop');
   for(const p of [{u:parent.centre.u-3,v:parent.centre.v-3},{u:parent.centre.u+3,v:parent.centre.v-3},{u:parent.centre.u+3,v:parent.centre.v+3},{u:parent.centre.u-3,v:parent.centre.v+3}]) {
@@ -90,6 +90,11 @@ test("ordinary Crop authoring stores an editable closed spline on the same view;
   assert.equal(rig.document.drawing.views.find(v=>v.id===parent.id).cropSketch.type,'closed-spline');
   assert.equal(rig.document.drawing.views.length,count,'Crop modifies original view instead of cloning a Detail');
   assert.ok(c.scene().views.find(p=>p.id===parent.id).projection.cropBoundary);
+  const savedDocument=JSON.parse(JSON.stringify(rig.document));
+  ensureSheetDoc(savedDocument);
+  const savedParent=savedDocument.drawing.views.find(v=>v.id===parent.id);
+  assert.equal(savedParent.cropSketch.points.length,4,'full document serialization keeps the live modifier after history normalization');
+  assert.ok(createProjector(savedDocument.drawing,bodies(BOX))(savedParent).cropBoundary);
   c.setTool('uncrop');
   const cropped=c.scene().views.find(p=>p.id===parent.id);
   c.pointerDown({button:0},...pixels(c,{x:cropped.x,y:cropped.y}));
@@ -98,6 +103,58 @@ test("ordinary Crop authoring stores an editable closed spline on the same view;
   assert.ok(rig.document.drawing.views.find(v=>v.id===parent.id).cropSketch);
   rig.undo();
   assert.equal(rig.document.drawing.views.find(v=>v.id===parent.id).cropSketch,null);
+});
+
+test('Broken-out ordinary UI closes a saved boundary, applies chosen depth, removes and undoes',async()=>{
+  const rig=table({parts:[BOX]}),c=rig.controller;c.fit();rig.normalizeOnUndo=true;rig.reply=async()=>({depth:10});
+  const place=c.scene().views.find(p=>p.view.dir==='front'),count=rig.document.drawing.views.length;
+  c.setTool('brokenout');
+  for(const p of [{u:-3,v:7},{u:3,v:7},{u:3,v:13},{u:-3,v:13}])c.pointerDown({button:0},...pixels(c,place.toSheet(p)));
+  c.keyDown({key:'Enter'});await new Promise(resolve=>setImmediate(resolve));
+  const view=rig.document.drawing.views.find(v=>v.id===place.id);
+  assert.equal(view.brokenOut.depth,1,'UI mm converts to model cm');
+  assert.equal(view.brokenOut.sketch.points.length,4);
+  assert.equal(rig.document.drawing.views.length,count);
+  assert.ok(c.scene().items.some(i=>i.style==='hatch'));
+  const savedDocument=JSON.parse(JSON.stringify(rig.document));
+  ensureSheetDoc(savedDocument);
+  assert.equal(savedDocument.drawing.views.find(v=>v.id===place.id).brokenOut.depth,1,'full document serialization preserves chosen removal depth');
+  c.setTool('unbrokenout');const current=c.scene().views.find(p=>p.id===place.id);
+  c.pointerDown({button:0},...pixels(c,{x:current.x,y:current.y}));
+  assert.equal(rig.document.drawing.views.find(v=>v.id===place.id).brokenOut,null);
+  rig.undo();assert.ok(rig.document.drawing.views.find(v=>v.id===place.id).brokenOut);
+  rig.undo();assert.equal(rig.document.drawing.views.find(v=>v.id===place.id).brokenOut,null);
+});
+
+test('Detail may derive from an existing Crop while new Crop authoring on that Detail parent is forbidden',()=>{
+  const rig=table({parts:[BOX]}),c=rig.controller;
+  const parent=rig.document.drawing.views.find(v=>v.dir==='front');
+  parent.cropSketch={type:'closed-spline',points:[{u:-12,v:6},{u:-8,v:6},{u:-8,v:14},{u:-12,v:14}]};
+  c.invalidate();c.fit();
+  const place=c.scene().views.find(p=>p.id===parent.id),centre={x:place.x,y:place.y};
+  c.setTool('detail');c.pointerDown({button:0},...pixels(c,centre));
+  assert.equal(c.state.draft?.viewId,parent.id);
+  c.pointerUp({button:0},...pixels(c,{x:centre.x+2*place.k,y:centre.y}));
+  const child=rig.document.drawing.views.at(-1),projected=c.scene().views.find(p=>p.id===child.id).projection;
+  assert.equal(child.detail.from,parent.id);
+  assert.ok(projected.cropBoundary,'Detail inherits original crop clipping');
+  assert.ok(projected.visible.length>0);
+  assert.ok(c.scene().views.find(p=>p.id===parent.id).projection,'existing Crop remains rendered after child creation');
+  c.setTool('crop');const current=c.scene().views.find(p=>p.id===parent.id);
+  c.pointerDown({button:0},...pixels(c,{x:current.x,y:current.y}));
+  assert.equal(c.state.draft,null,'new Crop on a Detail parent remains source-forbidden');
+});
+
+test('Broken-out rejects a stale depth dialog and cancellation without changing the view',async()=>{
+  const rig=table({parts:[BOX]}),c=rig.controller;c.fit();
+  let resolveDialog;rig.reply=()=>new Promise(resolve=>{resolveDialog=resolve;});
+  const place=c.scene().views.find(p=>p.view.dir==='front');
+  const draft=()=>{c.setTool('brokenout');for(const p of [{u:-3,v:7},{u:3,v:7},{u:3,v:13},{u:-3,v:13}])c.pointerDown({button:0},...pixels(c,place.toSheet(p)));};
+  draft();c.keyDown({key:'Escape'});
+  assert.equal(rig.document.drawing.views.find(v=>v.id===place.id).brokenOut,null);
+  draft();c.keyDown({key:'Enter'});rig.rebuild();resolveDialog({depth:10});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(rig.document.drawing.views.find(v=>v.id===place.id).brokenOut,null);
 });
 
 test("deleting a Detail parent removes all dependent views and their annotations", () => {
@@ -380,7 +437,12 @@ function table(def, options = {}) {
     bodies: () => tessellateParts(document.parts),
     topology: () => table.topology(),
     bodiesToken: () => table.token,
-    pushUndo: (label) => { pending = null; steps.push({ label, snap: snapshot() }); },
+    pushUndo: (label) => {
+      // Whole-app history capture normalizes the drawing, replacing view records.
+      // Mutations after pushUndo must reacquire the live record by persistent ID.
+      if(table.normalizeOnUndo)ensureSheetDoc(document);
+      pending = null; steps.push({ label, snap: snapshot() });
+    },
     beginUndo: (label) => { pending = { label, snap: snapshot() }; },
     commitUndo: (label) => { if (pending) steps.push({ label: label || pending.label, snap: pending.snap }); pending = null; },
     cancelUndo: () => { pending = null; },

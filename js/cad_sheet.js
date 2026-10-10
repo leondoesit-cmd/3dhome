@@ -2,6 +2,7 @@ import { analyzeSectionBoundaries } from "./core/section_boundaries.js";
 import { balloonRadius, layoutBalloonCenters } from "./core/balloon_layout.js";
 import {drawingPrimitiveItems} from './core/drawing_primitives.js';
 import { canCropView, cropDrawingProjection, clipCropEdges } from './core/drawing_crop.js';
+import { projectBrokenOutView } from './core/drawing_broken_out.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -161,6 +162,7 @@ export function createView(dir, options = {}) {
     section: options.section || null,                      // {axis, at, from, arrows, tag}
     detail: options.detail || null,                        // {from, u, v, radius, tag}
     cropSketch: options.cropSketch || null,                // closed spline in projected model coordinates
+    brokenOut: options.brokenOut || null,                  // closed spline + depth from projected front envelope
   };
 }
 
@@ -603,7 +605,7 @@ export function createProjector(doc, bodies, options = {}) {
   const resolving = new Set();
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0)].join("|");
+    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0)].join("|");
     if (cache.has(key)) return cache.get(key);
     // Malformed saved parent graphs must not recurse forever or show unrelated geometry.
     if (resolving.has(view.id)) return null;
@@ -611,14 +613,20 @@ export function createProjector(doc, bodies, options = {}) {
     const viewBodies = options.bodiesForView ? options.bodiesForView(view) || bodies : bodies;
     const viewOptions={...options,shaded:["shaded","shadedEdges"].includes(view.displayStyle)};
     let projection = null;
-    if (view.section) projection = projectSection(doc, view, viewBodies, viewOptions);
+    if(view.brokenOut) {
+      try { projection=projectBrokenOutView(viewBodies,view,viewOptions); }
+      catch { projection=null; }
+    }
+    else if (view.section) projection = projectSection(doc, view, viewBodies, viewOptions);
     else if (view.detail) {
       const parent = (doc.views || []).find((entry) => entry.id === view.detail.from);
       const base = parent ? project({...parent,displayStyle:view.displayStyle}) : null;
       projection = cropProjection(base, view.detail);
     } else projection = projectSolid(viewBodies, view.dir, viewOptions);
     if(view.cropSketch) {
-      try { projection = canCropView(view,doc) ? cropDrawingProjection(projection,view.cropSketch) : null; }
+      // A Detail may subsequently derive from an already cropped parent. The
+      // Detail-parent restriction applies to new Crop authoring, not rendering.
+      try { projection = canCropView(view,{views:[]}) ? cropDrawingProjection(projection,view.cropSketch) : null; }
       catch { projection = null; } // Invalid persisted boundaries never display uncropped geometry.
     }
     cache.set(key, projection);
@@ -1313,10 +1321,12 @@ export function buildSheetScene(doc, provider, options = {}) {
       diagnostics.push(...boundary.issues.map(issue => ({...issue,viewId:view.id})));
       if (!boundary.ok) items.push(text(record.box.x, record.box.y - 3, "Section boundary needs repair — hatching omitted", {size:2.5,anchor:"start",viewId:view.id}));
       const loops = boundary.loops.map((loop) => loop.map((point) => toSheet(point)));
-      const cropBoundary=projection.cropBoundary?.map(p=>{const s=toSheet(p);return {u:s.x,v:s.y};});
+      const cropBoundary=(projection.sectionClipBoundary || projection.cropBoundary)?.map(p=>{const s=toSheet(p);return {u:s.x,v:s.y};});
       const emitClipped=(a,b,style)=>{
-        const edges=[{a:{u:a.x,v:a.y},b:{u:b.x,v:b.y}}];
-        for(const edge of cropBoundary ? clipCropEdges(edges,cropBoundary) : edges) items.push(line(edge.a.u,edge.a.v,edge.b.u,edge.b.v,style,{viewId:view.id}));
+        let edges=[{a:{u:a.x,v:a.y},b:{u:b.x,v:b.y}}];
+        if(cropBoundary)edges=clipCropEdges(edges,cropBoundary);
+        if(projection.crop) {const c=toSheet(projection.crop);edges=cropProjection({visible:edges},{u:c.x,v:c.y,radius:projection.crop.radius*k}).visible;}
+        for(const edge of edges) items.push(line(edge.a.u,edge.a.v,edge.b.u,edge.b.v,style,{viewId:view.id}));
       };
       for (const segment of hatchLoops(loops, { spacing: 2.2, angle: 45 })) emitClipped({x:segment.x1,y:segment.y1},{x:segment.x2,y:segment.y2},"hatch");
       for (const loop of loops) {
@@ -1360,6 +1370,10 @@ export function buildSheetScene(doc, provider, options = {}) {
     if (projection.crop) {
       const centrePoint = toSheet(projection.crop);
       items.push(circle(centrePoint.x, centrePoint.y, projection.crop.radius * k, "detail", { viewId: view.id }));
+    }
+    if(projection.brokenOutBoundary) {
+      const points=projection.brokenOutBoundary.map(toSheet);
+      for(let i=0;i<points.length;i++) {const a=points[i],b=points[(i+1)%points.length];items.push(line(a.x,a.y,b.x,b.y,"section",{viewId:view.id,brokenOutBoundary:true}));}
     }
     if (view.labelled !== false) {
       const suffix = scaleValue(record.scale) !== scaleValue(layout.sheetScale)

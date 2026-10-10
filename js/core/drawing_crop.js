@@ -4,7 +4,7 @@ const cross = (a,b,c) => (b.u-a.u)*(c.v-a.v)-(b.v-a.v)*(c.u-a.u);
 const lerp = (a,b,t) => ({u:a.u+(b.u-a.u)*t,v:a.v+(b.v-a.v)*t,...(Number.isFinite(a.w)&&Number.isFinite(b.w)?{w:a.w+(b.w-a.w)*t}:{})});
 
 export function canCropView(view, document, {exploded=false}={}) {
-  return !!view && !view.detail && !exploded && !view.exploded
+  return !!view && !view.detail && !view.brokenOut && !exploded && !view.exploded
     && !(document.views || []).some(child=>child.detail && (child.detail.from===view.id || child.parent===view.id));
 }
 
@@ -42,7 +42,7 @@ export function pointInCrop(point, boundary) {
   return inside;
 }
 
-function clipEdge(edge,boundary) {
+function clipEdge(edge,boundary,outside=false) {
   const {a,b}=edge, du=b.u-a.u,dv=b.v-a.v, ts=[0,1];
   for(let i=0;i<boundary.length;i++) {
     const c=boundary[i],d=boundary[(i+1)%boundary.length],eu=d.u-c.u,ev=d.v-c.v,den=du*ev-dv*eu;
@@ -52,7 +52,7 @@ function clipEdge(edge,boundary) {
   }
   ts.sort((a,b)=>a-b);
   const out=[];
-  for(let i=1;i<ts.length;i++) if(ts[i]-ts[i-1]>1e-10 && pointInCrop(lerp(a,b,(ts[i]+ts[i-1])/2),boundary)) out.push({...edge,a:lerp(a,b,ts[i-1]),b:lerp(a,b,ts[i])});
+  for(let i=1;i<ts.length;i++) if(ts[i]-ts[i-1]>1e-10 && pointInCrop(lerp(a,b,(ts[i]+ts[i-1])/2),boundary)!==outside) out.push({...edge,a:lerp(a,b,ts[i-1]),b:lerp(a,b,ts[i])});
   return out;
 }
 
@@ -72,21 +72,21 @@ function clipSurface(points,triangle) {
   return polygon;
 }
 
-export function cropDrawingProjection(projection,sketch) {
+export function cropDrawingProjection(projection,sketch,{outside=false}={}) {
   if(!projection) return null;
-  const boundary=cropSplinePoints(sketch), clip=edges=>(edges || []).flatMap(edge=>clipEdge(edge,boundary));
+  const boundary=cropSplinePoints(sketch), clip=edges=>(edges || []).flatMap(edge=>clipEdge(edge,boundary,outside));
   const visible=clip(projection.visible),hidden=clip(projection.hidden),circles=[];
   for(const circle of projection.circles || []) {
     const ring=Array.from({length:256},(_,i)=>({u:circle.u+circle.radius*Math.cos(i*Math.PI/128),v:circle.v+circle.radius*Math.sin(i*Math.PI/128)}));
-    const pieces=ring.flatMap((a,i)=>clipEdge({a,b:ring[(i+1)%ring.length]},boundary));
+    const pieces=ring.flatMap((a,i)=>clipEdge({a,b:ring[(i+1)%ring.length]},boundary,outside));
     if(pieces.length===256 && pieces.every((edge,i)=>Math.hypot(edge.a.u-ring[i].u,edge.a.v-ring[i].v)<1e-8 && Math.hypot(edge.b.u-ring[(i+1)%256].u,edge.b.v-ring[(i+1)%256].v)<1e-8)) circles.push(circle);
     else (circle.drawn==='hidden'?hidden:visible).push(...pieces);
   }
   const triangles=triangulatePolygon(boundary),surfaces=[];
-  for(const surface of projection.surfaces || []) for(const triangle of triangles) {
+  for(const surface of outside ? [] : projection.surfaces || []) for(const triangle of triangles) {
     const points=clipSurface(surface.points,triangle);
     if(points.length>=3 && Math.abs(polygonArea(points))>1e-10) surfaces.push({...surface,points});
   }
   return {...projection,visible,hidden,cuts:clip(projection.cuts),circles,surfaces,
-    bounds:{u0:Math.min(...boundary.map(p=>p.u)),u1:Math.max(...boundary.map(p=>p.u)),v0:Math.min(...boundary.map(p=>p.v)),v1:Math.max(...boundary.map(p=>p.v))},cropBoundary:boundary,cropSourceCuts:projection.cuts};
+    bounds:outside ? projection.bounds : {u0:Math.min(...boundary.map(p=>p.u)),u1:Math.max(...boundary.map(p=>p.u)),v0:Math.min(...boundary.map(p=>p.v)),v1:Math.max(...boundary.map(p=>p.v))},cropBoundary:boundary,cropSourceCuts:projection.cuts};
 }
