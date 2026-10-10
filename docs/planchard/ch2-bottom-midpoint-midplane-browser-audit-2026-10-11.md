@@ -1,0 +1,13 @@
+# Chapter 2 bottom-midpoint and MidPlane intent — actual browser audit
+
+Accepted within the dimensioned workflow-witness scope: nominal **12/12**, depth-driver **8/8** and cold **4/4** independent checks pass. Saved key `cm_mv2x1hnz`, name `Planchard Ch2 bottom-midpoint and MidPlane intent - browser 2026-10-11`. Actual browser exports establish genuine constraint and symmetric-extrusion authoring.
+
+The fully defined Front sketch has a fixed origin point6420 and a real Midpoint relation to bottomLine6412. The ordinary width40→46mm driver changes the driving width constraint while retaining all other constraints/entities: lower corners move symmetrically fromX±20 to±23mm, bottom remainsY0 and height15mm. Exported Undo40 restores the whole sketch exactly. Parent-observed Undo/Redo/Undo is distinguished from the exported series: no separate Redo46 file is claimed.
+
+The genuine MidPlane extrusion uses axisZ, symmetric true and depth10mm/from−5/to+5mm. Actual serialized mesh records one native solid. Independent read-only kernel regeneration validates one connected solid, volume6cm³ and boundsX±2/Y0..1.5/Z±.5cm. The real depth14mm driver changes only depth/from/to, preserves whole sketch/other feature authoring/Drawing, and yields one valid connected native solid, volume8.4cm³ and boundsX±2/Y0..1.5/Z±.7cm. Exported Undo10 restores nominal sketch/features/Drawing and derived bounds exactly. Floating-point±.7000000000000001cm is checked with1e−8cm tolerance.
+
+Actual cold Saved reopen retains exact sketch/features/Drawing/properties/name/key and native bounds; actual serialized native solid count remains1. Fresh read-only native validation again yields one valid connected solid,V6cm³ and nominal symmetric bounds. Model differences are enumerated in JSON: native build token1→2, rebuild timestamp, six canonical principal reference records and an empty successful standards-audit record. No authored source/mesh/shape change is ignored.
+
+This is a chosen dimensioned workflow witness for the book's intent, not an exact publisher model or a physical print. Native calculations are independent read-only regeneration of actual authored browser exports; no actual browser STEP witness has yet been supplied. No CAD authoring or state mutation was performed by this audit.
+
+Evidence: `artifacts/planchard/CH2-BOTTOM-MIDPOINT-{sketch40,sketch46,undo40}-browser-2026-10-11.mforge` and`CH2-MIDPLANE-{depth10,depth14,undo10}-browser-2026-10-11.mforge`. Machine assertions/native mass/validation: [audit JSON](ch2-bottom-midpoint-midplane-browser-audit-2026-10-11.json). Independent helper: `scratch/planchard/ch2-midpoint-midplane-readonly.mjs`.

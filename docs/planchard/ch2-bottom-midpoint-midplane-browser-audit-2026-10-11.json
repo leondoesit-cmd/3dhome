@@ -1,0 +1,320 @@
+{
+  "checks": {
+    "singleFullyDefinedFrontSketch": true,
+    "realFixedOriginPointAndBottomMidpoint": true,
+    "widthFortySymmetricAndBottomYZero": true,
+    "widthFortySixRetainsMidpoint": true,
+    "onlyWidthConstraintDriver": true,
+    "undoFortyWholeSketchExact": true,
+    "midplaneNativeAxisAndLimits": true,
+    "nominalSketchAuthoringExact": true,
+    "actualSerializedOneNativeSolid": true,
+    "freshReadonlyNativeValidConnected": true,
+    "nativeVolumeSixCm3": true,
+    "nativeSymmetricBounds": true
+  },
+  "acceptedNominal": true,
+  "savedKey": "cm_mv2x1hnz",
+  "savedName": "Planchard Ch2 bottom-midpoint and MidPlane intent - browser 2026-10-11",
+  "mass": {
+    "volume": 6,
+    "centerOfMass": {
+      "x": 8.023096076392733e-18,
+      "y": 0.75,
+      "z": 0
+    },
+    "inertia": [
+      [
+        1.625,
+        4.5536491244391125e-18,
+        0
+      ],
+      [
+        4.5536491244391125e-18,
+        8.5,
+        0
+      ],
+      [
+        0,
+        0,
+        9.125
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -2,
+        "y": 0,
+        "z": -0.5
+      },
+      "max": {
+        "x": 2,
+        "y": 1.5,
+        "z": 0.5
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 6,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "driverDepth14Pending": false,
+  "coldPending": false,
+  "qualification": "Actual browser sketch/feature exports independently audited. Fresh read-only native regeneration establishes exact source-authored geometry, not actual browser STEP export or physical print. Widthdriver46 and exportedUndo40 accepted; no exportedRedo46 witness. MidPlane depth10 selected illustrative intent demonstration.",
+  "depthDriverChecks": {
+    "canonicalSymmetricFourteen": true,
+    "onlyIntendedAuthoringChange": true,
+    "actualSerializedNativeOne": true,
+    "validConnected": true,
+    "volumeEightPointFour": true,
+    "symmetricNativeBounds": true,
+    "undoTenAuthoringExact": true,
+    "undoTenDerivedBoundsExact": true
+  },
+  "depthDriverNative": {
+    "mass": {
+      "volume": 8.4,
+      "centerOfMass": {
+        "x": 3.4074925420972995e-18,
+        "y": 0.75,
+        "z": 0
+      },
+      "inertia": [
+        [
+          2.947000000000001,
+          4.553649124439119e-18,
+          0
+        ],
+        [
+          4.553649124439119e-18,
+          12.572000000000003,
+          0
+        ],
+        [
+          0,
+          0,
+          12.775000000000002
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -2,
+          "y": 0,
+          "z": -0.7000000000000001
+        },
+        "max": {
+          "x": 2,
+          "y": 1.5,
+          "z": 0.7000000000000001
+        }
+      }
+    },
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 8.4,
+      "maxToleranceCm": 1.0000000000000002e-7
+    }
+  },
+  "depthDriverAccepted": true,
+  "coldChecks": {
+    "sourceAuthoringExact": true,
+    "sourceNameKeyPropertiesExact": true,
+    "actualSerializedNativeOneAndBoundsExact": true,
+    "nativeValidVolumeAndSymmetricBounds": true
+  },
+  "coldAccepted": true,
+  "coldNative": {
+    "mass": {
+      "volume": 6,
+      "centerOfMass": {
+        "x": 8.023096076392733e-18,
+        "y": 0.75,
+        "z": 0
+      },
+      "inertia": [
+        [
+          1.625,
+          4.5536491244391125e-18,
+          0
+        ],
+        [
+          4.5536491244391125e-18,
+          8.5,
+          0
+        ],
+        [
+          0,
+          0,
+          9.125
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -2,
+          "y": 0,
+          "z": -0.5
+        },
+        "max": {
+          "x": 2,
+          "y": 1.5,
+          "z": 0.5
+        }
+      }
+    },
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 6,
+      "maxToleranceCm": 1.0000000000000002e-7
+    }
+  },
+  "nominalColdModelDifferences": [
+    {
+      "path": "parts.0.exactBuildToken",
+      "nominal": 1,
+      "cold": 2
+    },
+    {
+      "path": "lastRebuild.rebuiltAt",
+      "nominal": 1791668582406,
+      "cold": 1791668711451
+    },
+    {
+      "path": "referenceGeometry.0",
+      "cold": {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.1",
+      "cold": {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.2",
+      "cold": {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.3",
+      "cold": {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.4",
+      "cold": {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.5",
+      "cold": {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": "lastStandardsAudit",
+      "cold": {
+        "at": 1791668639892,
+        "ok": true,
+        "checked": 0,
+        "blocking": []
+      }
+    }
+  ]
+}
