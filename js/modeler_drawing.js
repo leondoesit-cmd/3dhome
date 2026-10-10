@@ -1,3 +1,4 @@
+import {modelItemTolerance} from "./core/dimension_tolerance.js";
 import { holeLeaderForViews, holeTopologyAnchor } from "./core/hole_callout.js";
 /* Drawing mode: the sheet you can work on.
  *
@@ -28,8 +29,9 @@ import {auxiliaryFaceCandidates,resolveAuxiliaryBasis} from './core/drawing_auxi
 import {canBreakView,alignedBreakPlan} from './core/drawing_break.js';
 import {canAlternatePosition,alternatePositionBodies} from './core/drawing_alternate_position.js';
 import {canAlignedSectionParent,projectAlignedSection} from './core/drawing_aligned_section.js';
+import {drawingImageAsset,drawingImageItem} from './core/drawing_image.js';
 
-export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "alignedsection", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", "alternateposition", "removealternateposition", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "insertimage", "editimage", "removeimage", "section", "alignedsection", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", "alternateposition", "removealternateposition", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
 /** Axis-aligned picks have only one meaningful projected measurement.
  * Moving its label past an endpoint must not turn that measurement into zero. */
@@ -131,7 +133,7 @@ export function createDrawingController(host) {
     }
     for (const dim of doc.dims || []) {
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
-        dim.text, dim.tolerance, dim.reference, dim.auto]) hash = fold(hash, value);
+        dim.text, dim.tolerance, dim.toleranceOverride, modelItemTolerance(host.model?.(),dim.modelItem), dim.reference, dim.auto]) hash = fold(hash, value);
       for (const ref of dim.refs || []) {
         for (const value of [ref.u, ref.v, ref.pid, ref.pid2, ref.kind, ref.at]) hash = fold(hash, value);
       }
@@ -140,6 +142,7 @@ export function createDrawingController(host) {
       for (const value of [note.id, note.text, note.x, note.y, note.size, note.leader, note.feature, note.modelLink]) hash = fold(hash, value);
     }
     for (const primitive of doc.primitives || []) hash=fold(hash,primitive);
+    for (const image of doc.images || []) hash=fold(hash,image);
     return String(hash);
   }
 
@@ -149,6 +152,7 @@ export function createDrawingController(host) {
     if (state.scene && state.sceneKey === key) return state.scene;
     state.scene = buildSheetScene(doc, {
       projection: projectionFor,
+      model: host.model?.(),
       topology: host.topology ? host.topology() : null,
       callouts: host.callouts ? host.callouts() : null,
       meta: host.meta ? host.meta() : null,
@@ -196,7 +200,15 @@ export function createDrawingController(host) {
     c.setLineDash((style.dash || []).map((value) => value * state.zoom));
   }
 
+  const imageCache=new Map();
   function paintItem(c, item) {
+    if(item.type==='image') {
+      let bitmap=imageCache.get(item.dataUrl);
+      if(!bitmap){bitmap=new Image();if(imageCache.size>=32)imageCache.delete(imageCache.keys().next().value);imageCache.set(item.dataUrl,bitmap);bitmap.onload=()=>host.refresh();bitmap.src=item.dataUrl;}
+      const at=toScreen(item);
+      if(bitmap.complete&&bitmap.naturalWidth)c.drawImage(bitmap,at.x,at.y,item.w*state.zoom,item.h*state.zoom);
+      return;
+    }
     if (item.type === "rect") {
       const a = toScreen({ x: item.x, y: item.y });
       const w = item.w * state.zoom, h = item.h * state.zoom;
@@ -701,6 +713,14 @@ export function createDrawingController(host) {
   function pointerDown(event, x, y) {
     const sheetPoint = toSheetMm(x, y);
     state.cursor = sheetPoint;
+    if(['insertimage','editimage','removeimage'].includes(state.tool)&&event.button===0&&!event.altKey&&!event.spaceKey) {
+      const hit=[...(host.doc().images||[])].reverse().find(i=>sheetPoint.x>=i.x&&sheetPoint.x<=i.x+i.w&&sheetPoint.y>=i.y&&sheetPoint.y<=i.y+i.h);
+      if(state.tool==='insertimage')editPaperImage(null,sheetPoint);
+      else if(!hit)host.flash('Click an inserted drawing image');
+      else if(state.tool==='removeimage') {host.pushUndo('Remove drawing image');const doc=host.doc();doc.images=doc.images.filter(i=>i.id!==hit.id);invalidate();host.markDirty();host.refresh();}
+      else editPaperImage(hit,sheetPoint);
+      return true;
+    }
     if(state.tool==='alignedsection' && event.button===0 && !event.altKey && !event.spaceKey) {
       const doc=host.doc(),built=scene(),draft=state.draft;
       const hit=draft?.kind==='alignedsection'?{id:draft.viewId}:hitTest(sheetPoint);
@@ -1217,7 +1237,7 @@ export function createDrawingController(host) {
      fallback keeps a host that only offers prompt() working. */
   async function editDim(id) {
     const doc = host.doc();
-    const dim = (doc.dims || []).find((entry) => entry.id === id);
+    let dim = (doc.dims || []).find((entry) => entry.id === id);
     if (!dim) return;
     const shown = scene().dims.get(id)?.dim || dim;
     /* What the sheet would say with nothing overridden: the yardstick a typed
@@ -1230,14 +1250,18 @@ export function createDrawingController(host) {
         { key: "text", label: host.t("drawDimTextLabel"), value: current, hint: "Use <> for the live measured value, for example Ø<>. Plain numbers override it." },
         { key: "quantity", label: "Quantity", value: String(dim.quantity || 1) },
         { key: "reference", label: host.t("drawDimReference"), type:"boolean", value: !!dim.reference },
-        { key: "tolerance", label: host.t("drawDimTolLabel"), value: dim.tolerance || "", hint: host.t("drawDimTolHint") },
+        { key: "tolerance", label: host.t("drawDimTolLabel"), value: dim.tolerance || "", hint: "Blank follows part tolerance unless override is checked." },
+        { key: "toleranceOverride", label: "Override part tolerance (blank suppresses)", type:"boolean", value:!!dim.toleranceOverride },
       ])
       : await host.prompt(host.t("drawDimTextTitle"), current).then((text) => (text === null ? null : { text, tolerance: dim.tolerance || "" }));
     if (!answer) return;
     host.pushUndo(host.t("opEditDim"));
+    dim = (host.doc().dims || []).find(entry=>entry.id===id);
+    if(!dim)return;
     const next = String(answer.text ?? "").trim();
     dim.text = next && next !== measured ? next : "";
     dim.tolerance = String(answer.tolerance ?? "").trim();
+    dim.toleranceOverride = !!answer.toleranceOverride || !!dim.tolerance;
     if(answer.quantity !== undefined && Number.isInteger(Number(answer.quantity)) && Number(answer.quantity)>0)
       dim.quantity=Number(answer.quantity);
     if(answer.reference !== undefined)dim.reference=!!answer.reference;
@@ -1588,6 +1612,31 @@ export function createDrawingController(host) {
       }
       invalidate();host.markDirty();host.flash('Break applied; dimensions retain original model values');host.refresh();
     } catch(error) {host.flash(error.message);host.refresh();}
+  }
+
+  async function editPaperImage(existing,point) {
+    const doc=host.doc(),token=host.bodiesToken(),history=host.historyToken?.(),fingerprint=JSON.stringify([doc.images,doc.size,doc.orientation]);
+    try {
+      if(!host.promptFields||!host.chooseImage)throw new Error('Local drawing image importer is unavailable');
+      if(!existing&&(doc.images||[]).length>=32)throw new Error('A drawing supports at most 32 images');
+      const asset=existing||await host.chooseImage();if(!asset)return;
+      const pixels=drawingImageAsset(asset.dataUrl),paper=sheetPaper(doc),w=Math.min(40,paper.w),h=Math.min(w*pixels.height/pixels.width,paper.h);
+      const initial=existing||{x:Math.max(0,Math.min(point.x,paper.w-w)),y:Math.max(0,Math.min(point.y,paper.h-h)),w,h};
+      const answer=await host.promptFields(existing?'Edit drawing image':'Insert drawing image',[
+        {key:'x',label:'Left position (paper mm)',type:'number',value:initial.x},
+        {key:'y',label:'Top position (paper mm)',type:'number',value:initial.y},
+        {key:'w',label:'Image width (paper mm)',type:'number',value:initial.w},
+        {key:'h',label:'Image height (paper mm)',type:'number',value:initial.h},
+      ],'Local PNG/JPEG, embedded in the document. Width and height can be changed independently.');
+      if(!answer)return;
+      if(host.doc()!==doc||host.bodiesToken()!==token||host.historyToken?.()!==history||JSON.stringify([doc.images,doc.size,doc.orientation])!==fingerprint)throw new Error('Drawing changed while editing image; retry');
+      const image={id:existing?.id||'image_'+Math.random().toString(36).slice(2),name:asset.name||'Drawing image',dataUrl:asset.dataUrl,x:Number(answer.x),y:Number(answer.y),w:Number(answer.w),h:Number(answer.h)};
+      drawingImageItem(image,paper);
+      host.pushUndo(existing?'Edit drawing image':'Insert drawing image');
+      const live=host.doc();live.images=live.images||[];
+      const index=live.images.findIndex(i=>i.id===image.id);if(index<0)live.images.push(image);else live.images[index]=image;
+      invalidate();host.markDirty();host.flash('Drawing image saved on paper');host.refresh();
+    } catch(error){host.flash(error.message);host.refresh();}
   }
 
   async function commitBrokenOut(draft) {

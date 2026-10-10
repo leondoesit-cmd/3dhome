@@ -1,3 +1,4 @@
+import {makeDimensionTolerance,toleranceFields} from "./core/dimension_tolerance.js";
 import {createSpringBinding,springSource,springMotionState,springPreviewMesh,hasUnverifiedSprings,restoreSpringEndpoint} from "./core/flexible_spring.js";
 import {createExactSaveCache} from "./core/exact_save_cache.js";
 import {syncSaveButtonAccessibility} from './modeler_save_button.js';
@@ -165,6 +166,7 @@ import { buildDrawingScene } from "./cad_drawings.js";
 import { configuredBodiesForView } from "./cad_configured_drawing.js";
 import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
 import {drawingViewScaleControl} from "./core/drawing_scale_control.js";
+import {decodeDrawingImage} from "./core/drawing_image.js";
 import { DRAWING_TOOLS, createDrawingController } from "./modeler_drawing.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
@@ -4079,6 +4081,7 @@ function buildDOM() {
       '<div class="md-dimension-editor-head"><span><i class="ph ph-ruler"></i> ' + t("dimEditorTitle") + '</span><button type="button" data-dim-cancel aria-label="' + t("m_cancel") + '"><i class="ph ph-x"></i></button></div>' +
       '<label class="md-dimension-value"><span>' + t("dimValue") + '</span><span class="md-dimension-input"><input id="mdDimValue" type="text" spellcheck="false" autocapitalize="off" required><b id="mdDimUnit">mm</b></span></label>' +
       '<div class="md-dimension-quick"><label><span>' + t("dimMode") + '</span><select id="mdDimMode"><option value="driving">' + t("dimDriving") + '</option><option value="reference">' + t("dimReference") + '</option></select></label><label><span>' + t("dimNameOptional") + '</span><input id="mdDimName" type="text" spellcheck="false"></label></div>' +
+      '<div class="md-dimension-quick"><label><span>Part tolerance</span><select id="mdDimTolerance"><option value="none">None</option><option value="deviation">Signed deviations</option></select></label><label><span>Upper / lower (dimension unit)</span><input id="mdDimTolUpper" type="text" aria-label="Upper tolerance deviation"><input id="mdDimTolLower" type="text" aria-label="Lower tolerance deviation"></label></div>' +
       '<div id="mdDimError" class="md-dimension-error" role="alert" hidden></div>' +
       '<div class="md-dimension-actions"><button type="button" class="danger" data-dim-delete title="' + t("dimDelete") + '"><i class="ph ph-trash"></i></button><span></span><button type="button" data-dim-cancel>' + t("m_cancel") + '</button><button type="submit" class="accept" title="' + t("dimApply") + '"><i class="ph ph-check"></i><span>' + t("dimApply") + '</span></button></div>' +
     '</form>' +
@@ -4104,6 +4107,9 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="sheetcircle">' + cadIcon("scirc") + '<span>' + t("drawPaperCircle") + '</span></button>' +
     '<button type="button" data-drawing-tool="sheetarc">' + cadIcon("sarc") + '<span>' + t("drawPaperArc") + '</span></button>' +
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
+    '<button type="button" data-drawing-tool="insertimage"><i class="ph ph-image"></i><span>Insert image</span></button>' +
+    '<button type="button" data-drawing-tool="editimage"><i class="ph ph-image"></i><span>Edit image</span></button>' +
+    '<button type="button" data-drawing-tool="removeimage"><i class="ph ph-trash"></i><span>Remove image</span></button>' +
     '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
     '<button type="button" data-drawing-tool="alignedsection"><i class="ph ph-scissors"></i><span>Aligned cut-face section</span></button>' +
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
@@ -12056,6 +12062,18 @@ function drawingTopology() {
    sheet's tools can await an answer without freezing the page. One field or
    several — a dimension is edited as its displayed value AND its own
    tolerance, which is one decision and so one dialog. */
+function chooseDrawingImage() {
+  return new Promise(function(resolve,reject){
+    if(!root){resolve(null);return;}
+    var input=document.createElement('input');input.type='file';input.accept='image/png,image/jpeg';input.hidden=true;
+    var settled=false;
+    function finish(value,error){if(settled)return;settled=true;input.remove();if(error)reject(error);else resolve(value);}
+    input.addEventListener('cancel',function(){finish(null);},{once:true});
+    input.addEventListener('change',function(){decodeDrawingImage(input.files&&input.files[0]).then(function(asset){finish(asset);},function(error){finish(null,error);});},{once:true});
+    root.appendChild(input);input.click();
+  });
+}
+
 function sheetForm(title, fields, hint) {
   return new Promise(function (resolve) {
     if (!root) { resolve(null); return; }
@@ -12374,6 +12392,9 @@ function syncSheetPanel() {
    "pan the page" is not why anyone opened a drawing. */
 function drawingHintText() {
   var tool = E.sheet ? E.sheet.getTool() : "select";
+  if(tool==='insertimage')return 'Click the paper, choose a local PNG/JPEG, then set position and size in paper mm';
+  if(tool==='editimage')return 'Click an inserted image to edit its paper position and size';
+  if(tool==='removeimage')return 'Click an inserted image to remove it; Undo restores it';
   if (tool === "dim") return t("drawDimHint");
   if (tool === "angle") return t("drawAngleHint");
   if (tool === "baseline") return t("drawBaselineHint");
@@ -12451,6 +12472,8 @@ function drawingSheet() {
       t: t,
       prompt: sheetPrompt,
       promptFields: sheetForm,
+      historyToken: currentHistoryNode,
+      chooseImage: chooseDrawingImage,
       refresh: function () { drawSketch(); syncSheetPanel(); },
       editTitleBlock: function () {
         var field = root && root.querySelector("#mdSheetTitleField");
@@ -15251,7 +15274,7 @@ function showDimensionEditor(sketch, constraint, options) {
     sketch:sketch, constraint:constraint, created:!!options.created,
     historyAlreadyOpen:!!options.historyAlreadyOpen,
     discardOnCancel:!!options.discardOnCancel,
-    before:{ value:Number(constraint.value) || 0, driven:!!constraint.driven, name:constraint.name || "" },
+    before:{ value:Number(constraint.value) || 0, driven:!!constraint.driven, name:constraint.name || "", tolerance:cloneData(constraint.tolerance || null) },
   };
   E.dimSel = constraint.id;
   var value = root.querySelector("#mdDimValue");
@@ -15268,6 +15291,10 @@ function showDimensionEditor(sketch, constraint, options) {
   E.dimEditor.before.text = value.value;
   root.querySelector("#mdDimMode").value = constraint.driven ? "reference" : "driving";
   root.querySelector("#mdDimName").value = constraint.name || "";
+  var tolFields = toleranceFields(constraint.tolerance,unit === "°" ? "deg" : unit);
+  root.querySelector("#mdDimTolerance").value = constraint.tolerance ? "deviation" : "none";
+  root.querySelector("#mdDimTolUpper").value = tolFields.upper;
+  root.querySelector("#mdDimTolLower").value = tolFields.lower;
   positionDimensionEditor(options.clientX, options.clientY);
   requestAnimationFrame(function () { value.focus(); value.select(); });
   return true;
@@ -15305,9 +15332,15 @@ function applyDimensionEditor() {
   var driven = root.querySelector("#mdDimMode").value === "reference";
   var name = root.querySelector("#mdDimName").value.trim();
   if (name && !nameAvailable(E.def, name, constraint)) { flash(t("badName")); return false; }
-  var changed = value !== state.before.value || driven !== state.before.driven || name !== state.before.name;
+  var tolerance = null;
+  try {
+    if (!driven && root.querySelector("#mdDimTolerance").value === "deviation") tolerance = makeDimensionTolerance(root.querySelector("#mdDimTolUpper").value,root.querySelector("#mdDimTolLower").value,dimensionEditorUnit(constraint)==="°"?"deg":dimensionEditorUnit(constraint));
+  } catch (error) { flash(error.message); return false; }
+  var changed = value !== state.before.value || driven !== state.before.driven || name !== state.before.name || JSON.stringify(tolerance)!==JSON.stringify(state.before.tolerance);
+
   if (changed && !state.historyAlreadyOpen) pushUndo(t("opDim"));
   constraint.driven = driven;
+  if(tolerance)constraint.tolerance=tolerance;else delete constraint.tolerance;
   constraint.value = driven ? constraintMeasure(state.sketch, constraint) : value;
   if (name) constraint.name = name; else delete constraint.name;
   activateDrawingSketch(state.sketch);
@@ -15316,6 +15349,7 @@ function applyDimensionEditor() {
     // value still in force and always named
     var why = explainSketchConflict(state.sketch, { keep: [constraint.id] });
     constraint.value = state.before.value;
+    if(state.before.tolerance)constraint.tolerance=state.before.tolerance;else delete constraint.tolerance;
     constraint.driven = state.before.driven;
     if (state.before.name) constraint.name = state.before.name; else delete constraint.name;
     resolveSketch(false);

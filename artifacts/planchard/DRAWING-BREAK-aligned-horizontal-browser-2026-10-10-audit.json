@@ -1,0 +1,100 @@
+{
+  "checks": {
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "sourceNativeMeshPositionsExact": true,
+    "fourViews": true,
+    "unitMM": true,
+    "nativeOneSolid": true,
+    "sourceOverall60Dimension": true,
+    "frontTopAffected": true,
+    "axisX20to40": true,
+    "gap6": true,
+    "displayedWidth86": true,
+    "alignedMetadataValid": true,
+    "sourceBytesUnchanged": true
+  },
+  "geometryQualified": true,
+  "views": [
+    {
+      "id": "v28bqsot",
+      "dir": "front",
+      "scale": 2,
+      "breakView": {
+        "version": 1,
+        "axis": "u",
+        "from": 2,
+        "to": 4,
+        "gapMm": 6,
+        "style": "zigzag",
+        "groupSign": 1,
+        "group": {
+          "id": "v28bqsot",
+          "worldAxis": "x",
+          "from": 2,
+          "to": 4,
+          "lo": 0,
+          "hi": 6,
+          "scale": 2,
+          "members": [
+            "v28bqsot",
+            "vfgfhyvv"
+          ]
+        }
+      }
+    },
+    {
+      "id": "vfgfhyvv",
+      "dir": "top",
+      "scale": 2,
+      "breakView": {
+        "version": 1,
+        "axis": "u",
+        "from": 2,
+        "to": 4,
+        "gapMm": 6,
+        "style": "zigzag",
+        "groupSign": 1,
+        "group": {
+          "id": "v28bqsot",
+          "worldAxis": "x",
+          "from": 2,
+          "to": 4,
+          "lo": 0,
+          "hi": 6,
+          "scale": 2,
+          "members": [
+            "v28bqsot",
+            "vfgfhyvv"
+          ]
+        }
+      }
+    },
+    {
+      "id": "vetll4lp",
+      "dir": "right",
+      "scale": null,
+      "breakView": null
+    },
+    {
+      "id": "v78s291a",
+      "dir": "iso",
+      "scale": null,
+      "breakView": null
+    }
+  ],
+  "sourceNominalDimensionsMm": [
+    60,
+    30,
+    40
+  ],
+  "effectivePaperBounds": {
+    "u0": 0,
+    "u1": 4.3,
+    "v0": 0,
+    "v1": 3
+  },
+  "validationError": null,
+  "finalWorkflowAccepted": false,
+  "qualification": "Break changes presentation only; source CAD/native mesh unchanged. Paper dimensions assume actual2:1 scale verified separately. Native dimension retains original60mm extent."
+}

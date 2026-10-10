@@ -111,3 +111,21 @@ test("annular SHAFT COLLAR inserts both diameters including a generated inner ri
     rim("collar:edge:generated:circle:4",0,.23876)))};
   assert.ok(!planModelItems(collar,{dims:[]},ambiguous).some(dim => dim.modelItem.endsWith(":inner")));
 });
+
+
+test("Insert Model Items source IDs carry live part-owned tolerance without freezing metadata", async()=>{
+  const {makeDimensionTolerance,resolveDimensionTolerance}=await import('../js/core/dimension_tolerance.js');
+  const copy=JSON.parse(JSON.stringify(model));
+  const owner=copy.sketches[1].constraints.find(c=>c.id==='diam');
+  owner.tolerance=makeDimensionTolerance('.000','-.002','in');
+  const inserted=planModelItems(copy,{dims:[]},scene).find(d=>d.modelItem==='sketch:term-sk:constraint:diam');
+  assert.ok(inserted?.refs[0].pid);
+  assert.equal(inserted.tolerance,undefined);
+  assert.equal(resolveDimensionTolerance(inserted,copy,{units:'in'}).tolerance,'+0.000/−0.002');
+  owner.value=1.524;owner.tolerance=makeDimensionTolerance('.001','-.003','in');
+  const changedGeometry=geometry.map(entry=>entry.persistentId==='terminal:tool:edge:profile:61:start'?{...entry,descriptor:{...entry.descriptor,radius:.762}}:entry);
+  const resolved=resolveDim(inserted,createTopologyIndex(changedGeometry),viewBasis('top')).dim;
+  assert.equal(measureDim(resolved),1.524);
+  assert.equal(resolveDimensionTolerance(resolved,copy,{units:'in'}).tolerance,'+0.001/−0.003');
+  assert.equal(planModelItems(copy,{dims:[inserted]},scene).some(d=>d.modelItem===inserted.modelItem),false);
+});

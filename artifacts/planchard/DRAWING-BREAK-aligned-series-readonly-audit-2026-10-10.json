@@ -1,0 +1,503 @@
+{
+  "checks": {
+    "horizontalFrontTop86": true,
+    "horizontalRightHeight60": true,
+    "verticalFrontRight36": true,
+    "verticalTopFull120": true,
+    "true60And30All": true,
+    "removeWholeGroup": true,
+    "undoWholeDrawingExact": true,
+    "redoWholeDrawingExact": true,
+    "waveMetadataActual": true
+  },
+  "qualified": true,
+  "records": [
+    {
+      "stage": "horizontal",
+      "places": [
+        {
+          "id": "v28bqsot",
+          "dir": "front",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 4.3,
+            "v0": 0,
+            "v1": 3
+          },
+          "paperWidth": 86,
+          "paperHeight": 60,
+          "blankGapInverseNull": true,
+          "breakStyle": "zigzag"
+        },
+        {
+          "id": "vfgfhyvv",
+          "dir": "top",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": -4,
+            "v1": 0
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 4.3,
+            "v0": -4,
+            "v1": 0
+          },
+          "paperWidth": 86,
+          "paperHeight": 80,
+          "blankGapInverseNull": true,
+          "breakStyle": "zigzag"
+        },
+        {
+          "id": "vetll4lp",
+          "dir": "right",
+          "k": 20,
+          "sourceBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 3
+          },
+          "paperWidth": 80,
+          "paperHeight": 60,
+          "blankGapInverseNull": null
+        },
+        {
+          "id": "v78s291a",
+          "dir": "iso",
+          "k": 10,
+          "sourceBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "displayBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "paperWidth": 70.71067811865476,
+          "paperHeight": 65.31972647421809,
+          "blankGapInverseNull": null
+        }
+      ],
+      "trueDimensions": [
+        {
+          "type": "horizontal",
+          "valueMm": 60
+        },
+        {
+          "type": "vertical",
+          "valueMm": 30
+        }
+      ],
+      "breakBoundaryLineCount": 148
+    },
+    {
+      "stage": "vertical",
+      "places": [
+        {
+          "id": "v28bqsot",
+          "dir": "front",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": 0,
+            "v1": 1.8
+          },
+          "paperWidth": 120,
+          "paperHeight": 36,
+          "blankGapInverseNull": true,
+          "breakStyle": "wave"
+        },
+        {
+          "id": "vfgfhyvv",
+          "dir": "top",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": -4,
+            "v1": 0
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": -4,
+            "v1": 0
+          },
+          "paperWidth": 120,
+          "paperHeight": 80,
+          "blankGapInverseNull": null
+        },
+        {
+          "id": "vetll4lp",
+          "dir": "right",
+          "k": 20,
+          "sourceBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 1.8
+          },
+          "paperWidth": 80,
+          "paperHeight": 36,
+          "blankGapInverseNull": true,
+          "breakStyle": "wave"
+        },
+        {
+          "id": "v78s291a",
+          "dir": "iso",
+          "k": 10,
+          "sourceBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "displayBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "paperWidth": 70.71067811865476,
+          "paperHeight": 65.31972647421809,
+          "blankGapInverseNull": null
+        }
+      ],
+      "trueDimensions": [
+        {
+          "type": "horizontal",
+          "valueMm": 60
+        },
+        {
+          "type": "vertical",
+          "valueMm": 30
+        }
+      ],
+      "breakBoundaryLineCount": 208
+    },
+    {
+      "stage": "removed",
+      "places": [
+        {
+          "id": "v28bqsot",
+          "dir": "front",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": 0,
+            "v1": 3
+          },
+          "paperWidth": 120,
+          "paperHeight": 60,
+          "blankGapInverseNull": null
+        },
+        {
+          "id": "vfgfhyvv",
+          "dir": "top",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": -4,
+            "v1": 0
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": -4,
+            "v1": 0
+          },
+          "paperWidth": 120,
+          "paperHeight": 80,
+          "blankGapInverseNull": null
+        },
+        {
+          "id": "vetll4lp",
+          "dir": "right",
+          "k": 20,
+          "sourceBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 3
+          },
+          "paperWidth": 80,
+          "paperHeight": 60,
+          "blankGapInverseNull": null
+        },
+        {
+          "id": "v78s291a",
+          "dir": "iso",
+          "k": 10,
+          "sourceBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "displayBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "paperWidth": 70.71067811865476,
+          "paperHeight": 65.31972647421809,
+          "blankGapInverseNull": null
+        }
+      ],
+      "trueDimensions": [
+        {
+          "type": "horizontal",
+          "valueMm": 60
+        },
+        {
+          "type": "vertical",
+          "valueMm": 30
+        }
+      ],
+      "breakBoundaryLineCount": 0
+    },
+    {
+      "stage": "undo",
+      "places": [
+        {
+          "id": "v28bqsot",
+          "dir": "front",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": 0,
+            "v1": 1.8
+          },
+          "paperWidth": 120,
+          "paperHeight": 36,
+          "blankGapInverseNull": true,
+          "breakStyle": "wave"
+        },
+        {
+          "id": "vfgfhyvv",
+          "dir": "top",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": -4,
+            "v1": 0
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": -4,
+            "v1": 0
+          },
+          "paperWidth": 120,
+          "paperHeight": 80,
+          "blankGapInverseNull": null
+        },
+        {
+          "id": "vetll4lp",
+          "dir": "right",
+          "k": 20,
+          "sourceBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 1.8
+          },
+          "paperWidth": 80,
+          "paperHeight": 36,
+          "blankGapInverseNull": true,
+          "breakStyle": "wave"
+        },
+        {
+          "id": "v78s291a",
+          "dir": "iso",
+          "k": 10,
+          "sourceBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "displayBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "paperWidth": 70.71067811865476,
+          "paperHeight": 65.31972647421809,
+          "blankGapInverseNull": null
+        }
+      ],
+      "trueDimensions": [
+        {
+          "type": "horizontal",
+          "valueMm": 60
+        },
+        {
+          "type": "vertical",
+          "valueMm": 30
+        }
+      ],
+      "breakBoundaryLineCount": 208
+    },
+    {
+      "stage": "redo",
+      "places": [
+        {
+          "id": "v28bqsot",
+          "dir": "front",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": 0,
+            "v1": 3
+          },
+          "paperWidth": 120,
+          "paperHeight": 60,
+          "blankGapInverseNull": null
+        },
+        {
+          "id": "vfgfhyvv",
+          "dir": "top",
+          "k": 20,
+          "sourceBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": -4,
+            "v1": 0
+          },
+          "displayBounds": {
+            "u0": 0,
+            "u1": 6,
+            "v0": -4,
+            "v1": 0
+          },
+          "paperWidth": 120,
+          "paperHeight": 80,
+          "blankGapInverseNull": null
+        },
+        {
+          "id": "vetll4lp",
+          "dir": "right",
+          "k": 20,
+          "sourceBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 3
+          },
+          "displayBounds": {
+            "u0": -4,
+            "u1": 0,
+            "v0": 0,
+            "v1": 3
+          },
+          "paperWidth": 80,
+          "paperHeight": 60,
+          "blankGapInverseNull": null
+        },
+        {
+          "id": "v78s291a",
+          "dir": "iso",
+          "k": 10,
+          "sourceBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "displayBounds": {
+            "u0": -2.8284271247461903,
+            "u1": 4.242640687119286,
+            "v0": -4.08248290463863,
+            "v1": 2.4494897427831783
+          },
+          "paperWidth": 70.71067811865476,
+          "paperHeight": 65.31972647421809,
+          "blankGapInverseNull": null
+        }
+      ],
+      "trueDimensions": [
+        {
+          "type": "horizontal",
+          "valueMm": 60
+        },
+        {
+          "type": "vertical",
+          "valueMm": 30
+        }
+      ],
+      "breakBoundaryLineCount": 0
+    }
+  ],
+  "qualification": "Actual wave style uses sampled straight-line sine oscillations; not a smooth exported curve. CAD invariant separately verified; final cold pending."
+}

@@ -1,4 +1,10 @@
 import { validateDrawingPrimitive } from "./drawing_primitives.js";
+import {drawingImageItem} from './drawing_image.js';
+import {sheetPaper} from '../cad_sheet.js';
+
+const savedImages=definition=>(Array.isArray(definition?.drawing?.images)?definition.drawing.images:[]).filter(image=>{
+  try {drawingImageItem(image,sheetPaper(definition.drawing));return true;}catch{return false;}
+});
 
 export function drawingOnlyContentSummary(definition) {
   if (!definition || (definition.parts || []).length || (definition.features || []).length) return null;
@@ -9,7 +15,7 @@ export function drawingOnlyContentSummary(definition) {
   const notes=(Array.isArray(definition.drawing?.notes) ? definition.drawing.notes : []).filter(note => String(note?.text || '').trim()).length;
   const annotations=(Array.isArray(definition.drawing?.primitives) ? definition.drawing.primitives : []).filter(primitive => {
     try { validateDrawingPrimitive(primitive); return true; } catch { return false; }
-  }).length;
+  }).length+savedImages(definition).length;
   return notes || annotations ? {annotations,notes} : null;
 }
 // A new editor document gets an implicit, empty working sketch. That is not
@@ -18,6 +24,7 @@ export function drawingOnlyContentSummary(definition) {
 export function hasSaveableModelContent(definition) {
   if (!definition || typeof definition !== "object") return false;
   if (Array.isArray(definition.parts) && definition.parts.length) return true;
+  if(savedImages(definition).length)return true;
   if (Array.isArray(definition.drawing?.notes) && definition.drawing.notes.some(note => String(note?.text || '').trim())) return true;
   if (Array.isArray(definition.drawing?.primitives) && definition.drawing.primitives.some(primitive => {
     try { validateDrawingPrimitive(primitive); return true; } catch { return false; }

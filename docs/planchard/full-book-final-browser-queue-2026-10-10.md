@@ -4,6 +4,8 @@ Read-only reconciliation of the latest leading ADVANCE checkpoints, numbered led
 
 ## Current boundary
 
+Latest: principal bridge, Broken-out, native Auxiliary and aligned Break cold workflows are accepted in their qualified scope. Break final actual SVG is byte-exact; source cursor PDF111/2-25. FFF is next. Local images and source tolerance propagation now implemented; actual browser witnesses pending. Isolated single-view Break remains distinct from accepted aligned-group witness. See leading ADVANCE for current work.
+
 Current authoritative numbered ledger is116/117 (99.15% of its limited denominator); only3.9 remains pending because original symbol rows1/4 are blank or damaged.8.2/8.5/8.8/8.9 actual qualified browser/cold acceptance is complete. Chapter-end reviews130/130, Chapter2 homework,5.1–5.5 and genuine bounded two-sketch5.17 are accepted. Principal bridge driver/proxy/actualSTEP/UndoRedoUndo/cold is accepted. Broken-out post-fix10/30 browser/SVG/cold witnesses captured; final audit in progress. Remaining queue begins with Auxiliary, Break, FFF and in-chapter/source matrix work. These facts do not certify whole-book completion. Current source cursor is PDF110/2-24 for backfill; earlier accepted8-54/8-55 remains valid. No single sequential page number represents the remaining scattered workflow evidence.
 
 ## Ordered actual browser queue after Chapter3 / finite assemblies

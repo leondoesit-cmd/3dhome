@@ -187,6 +187,7 @@ export function buildDrawingScene(def, options = {}) {
       : (options.balloons === true || def?.kind === "assembly" ? collectBalloons(def) : []);
   return buildSheetScene(doc, {
     projection: project,
+    model: def,
     topology,
     callouts: calloutTextById(def),
     meta: { title: options.title || sheetTitle(def, doc) },

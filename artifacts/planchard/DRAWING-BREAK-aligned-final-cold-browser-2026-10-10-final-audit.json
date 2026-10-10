@@ -1,0 +1,36 @@
+{
+  "checks": {
+    "wholeSketchesExact": true,
+    "wholeFeaturesExact": true,
+    "nativeMeshPositionsExact": true,
+    "storedNativeBoundsExact": true,
+    "wholeSVGByteExact": true,
+    "actualProjectionSourceQualified": true,
+    "originalUndoRedoSeriesQualified": true,
+    "wholeDrawingExactExceptEmptyImageDefault": true
+  },
+  "actualWorkflowAccepted": true,
+  "wholeModelDifferences": [
+    {
+      "path": "$.parts.0.exactBuildToken",
+      "warm": 8,
+      "cold": 9
+    },
+    {
+      "path": "$.lastRebuild.rebuiltAt",
+      "warm": 1791643583551,
+      "cold": 1791644026932
+    },
+    {
+      "path": "$.lastStandardsAudit.at",
+      "warm": 1791642092123,
+      "cold": 1791643621325
+    },
+    {
+      "path": "$.drawing.images",
+      "cold": []
+    }
+  ],
+  "qualification": "Qualified wave boundary is a sampled straight-line sine approximation; not smooth native curves. Stable final-cold artifact supersedes earlier transient chooser ReferenceError diagnostic. Break presentation only; source dimensions60/30 remain exact.",
+  "emptyDefaultQualification": "Cold adds only drawing.images=[] after image feature schema initialization; no images or authoring content introduced. All other whole Drawing fields are exact, whole actual SVG byte-exact."
+}

@@ -1,0 +1,50 @@
+{
+  "checks": {
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "sourceNativeMeshPositionsExact": true,
+    "fourViews": true,
+    "unitMM": true,
+    "nativeOneSolid": true,
+    "sourceOverall60Dimension": true,
+    "noBrokenViews": true,
+    "alignedMetadataValid": true,
+    "sourceBytesUnchanged": true
+  },
+  "geometryQualified": true,
+  "views": [
+    {
+      "id": "v28bqsot",
+      "dir": "front",
+      "scale": 2,
+      "breakView": null
+    },
+    {
+      "id": "vfgfhyvv",
+      "dir": "top",
+      "scale": 2,
+      "breakView": null
+    },
+    {
+      "id": "vetll4lp",
+      "dir": "right",
+      "scale": 2,
+      "breakView": null
+    },
+    {
+      "id": "v78s291a",
+      "dir": "iso",
+      "scale": null,
+      "breakView": null
+    }
+  ],
+  "sourceNominalDimensionsMm": [
+    60,
+    30,
+    40
+  ],
+  "effectivePaperBounds": null,
+  "validationError": null,
+  "finalWorkflowAccepted": false,
+  "qualification": "Break changes presentation only; source CAD/native mesh unchanged. Paper dimensions assume actual2:1 scale verified separately. Native dimension retains original60mm extent."
+}

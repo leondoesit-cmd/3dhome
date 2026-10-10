@@ -1,3 +1,4 @@
+import {resolveDimensionTolerance} from "./core/dimension_tolerance.js";
 import { analyzeSectionBoundaries } from "./core/section_boundaries.js";
 import { balloonRadius, layoutBalloonCenters } from "./core/balloon_layout.js";
 import {drawingPrimitiveItems} from './core/drawing_primitives.js';
@@ -7,6 +8,7 @@ import {resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
 import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges,validateAlignedBreak} from './core/drawing_break.js';
 import {alternatePositionProjection,alternatePositionItems} from './core/drawing_alternate_position.js';
 import {projectAlignedSection,alignedSectionMarkerItems} from './core/drawing_aligned_section.js';
+import {drawingImageItem} from './core/drawing_image.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -137,6 +139,7 @@ export function createSheetDoc(options = {}) {
     dims: [],
     notes: [],
     primitives: [],
+    images: [],
     title: Object.assign({
       title: "", number: "", revision: "A", author: "", company: "", material: "",
       finish: "", mass: "", date: "", sheet: 1, sheets: 1,
@@ -195,6 +198,7 @@ export function ensureSheetDoc(def, options = {}) {
   doc.dims = Array.isArray(doc.dims) ? doc.dims : [];
   doc.notes = Array.isArray(doc.notes) ? doc.notes : [];
   doc.primitives = Array.isArray(doc.primitives) ? doc.primitives : [];
+  doc.images = Array.isArray(doc.images) ? doc.images : [];
   doc.title = Object.assign({ revision: "A", sheet: 1, sheets: 1 }, doc.title || {});
   if (!doc.title.title) doc.title.title = def.name || "";
   return doc;
@@ -1493,6 +1497,7 @@ export function buildSheetScene(doc, provider, options = {}) {
     }
     const basis = place.projection?.basis || viewBasis(place.view.dir);
     const resolved = resolveDim(dim, topologyIndex, basis, place.projection);
+    resolved.dim = resolveDimensionTolerance(resolved.dim, provider?.model, doc);
     dims.set(dim.id, resolved);
     if(place.projection?.breakMap && (resolved.dim.refs || []).some(p=>!place.toSheet(p))) {
       diagnostics.push({code:'break-hidden-dimension-anchor',viewId:place.id,dimId:dim.id});continue;
@@ -1563,6 +1568,10 @@ export function buildSheetScene(doc, provider, options = {}) {
   if (options.paper !== false) {
     items.push(...titleBlockItems(doc, provider, layout.sheetScale));
     if (bomLayout) items.push(...bomTableItems(bomLayout));
+  }
+  for(const image of doc.images||[]) {
+    try {items.push(drawingImageItem(image,paper));}
+    catch(error){diagnostics.push({code:'invalid-drawing-image',severity:'error',imageId:image?.id,message:error.message});}
   }
   return {
     diagnostics,
@@ -1956,7 +1965,10 @@ export function sceneToSvg(scene, options = {}) {
   const { paper } = scene;
   const parts = [];
   for (const item of scene.items) {
-    if (item.type === "rect") {
+    if (item.type === "image") {
+      drawingImageItem(item,paper);
+      parts.push('<image x="'+round3(item.x)+'" y="'+round3(item.y)+'" width="'+round3(item.w)+'" height="'+round3(item.h)+'" preserveAspectRatio="none" href="'+esc(item.dataUrl)+'"/>');
+    } else if (item.type === "rect") {
       parts.push('<rect x="' + round3(item.x) + '" y="' + round3(item.y) + '" width="' + round3(item.w) +
         '" height="' + round3(item.h) + '" ' + (item.fill ? 'fill="' + item.fill + '" ' : 'fill="none" ') +
         (item.style === "paper" ? 'stroke="none"' : strokeAttrs(item.style).replace(/fill="none" /, "")) + "/>");
