@@ -1,0 +1,42 @@
+{
+  "checks": {
+    "spacingOnlyCanonicalSourceEdit": true,
+    "sameRecipeAndStableChildIds": true,
+    "twoCurrentOffsetsTenAndTwentyMm": true,
+    "threeNativeBoresAtDrivenCentres": true,
+    "nativeCarrierCurrentOne": true,
+    "screwSourceDefinitionsAllExact": true,
+    "allSourceMatesExact": true,
+    "currentExactLeftMateStillPresent": true,
+    "allScrewsMatchBoresAndHeadSeat": true,
+    "wholeReplayExact": true,
+    "drawingBomThreeScrews": true,
+    "undoWholeAssemblyExact": true
+  },
+  "actualSpacingDriverAndUndoAccepted": true,
+  "boreCentresCm": [
+    -1.27,
+    -0.27,
+    0.73
+  ],
+  "plan": [
+    {
+      "id": "component-pattern:6413:1",
+      "offset": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "component-pattern:6413:2",
+      "offset": {
+        "x": 2,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "coldAccepted": false,
+  "qualification": "Actual ordinary spacing12.7→10mm source edit changes generatedplacements andnativeholes; nativeleftmate preserved. WholeUndo exact to immediately preceding normalized countUndo baseline. Compared with original firstnominal, previously documented nine tiny pose normalization entries remain. No physical contact/mass certificate or actualDrawingBOM UI claim."
+}

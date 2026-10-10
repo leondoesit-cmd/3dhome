@@ -98,8 +98,14 @@ function componentStandardPart(component) {
 
 export function generateBOM(assembly) {
   replayComponentPatterns(assembly);
+  return generateOccurrenceBOM(assembly.components || []);
+}
+
+// Aggregate already resolved occurrences. A temporary row collection has no
+// source recipes and must never replay/delete generated pattern children.
+export function generateOccurrenceBOM(components) {
   const map = new Map();
-  for (const comp of assembly.components || []) {
+  for (const comp of components || []) {
     if (!comp || comp.suppressed) continue;
     const meta = componentStandardPart(comp);
     // a sub-assembly is one line, as in a top-level-only BOM

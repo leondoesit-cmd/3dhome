@@ -19,9 +19,9 @@ test('owner replacement, changed source and ambiguous/missing path fail closed; 
 });
 function finishFixture(a,path,regenerate){const edit=createNestedComponentEdit(a,path),working=edit.working;delete edit.working;edit.previousDef={name:'prior editor'};
  const E={assembly:a,def:working,contextEdit:edit,docType:'part'},events=[];let history=1;
- const deps={E,nestedComponentOccurrence,nestedEditStillCurrent,commitNestedComponentEdit,currentHistoryNode:()=>history,flash:m=>events.push(m),isCanonicalAuthoring:()=>true,activeParts:d=>d.parts,
+ const deps={E,root:null,nestedComponentOccurrence,nestedEditStillCurrent,commitNestedComponentEdit,currentHistoryNode:()=>history,flash:m=>events.push(m),isCanonicalAuthoring:()=>true,activeParts:d=>d.parts,
  regenerateExactModel:regenerate,H:{clear(){events.push('seed');return this;},seed(){}},pushUndo:()=>events.push('undo'),setDocumentType:t=>{E.docType=t;events.push(t);},solveAssembly:()=>{},refreshAll:()=>{},fitPreview:()=>{}};
- const fn=new Function(...Object.keys(deps),sourceFunctionText(source,'finishContextPart')+';return finishContextPart;')(...Object.values(deps));return {E,edit,working,events,fn,setHistory:x=>history=x};}
+ const fn=new Function(...Object.keys(deps),sourceFunctionText(source,'clearContextPartInteraction')+'\n'+sourceFunctionText(source,'finishContextPart')+';return finishContextPart;')(...Object.values(deps));return {E,edit,working,events,fn,setHistory:x=>history=x};}
 test('actual nested Finish waits for genuine native publication and rejects local history changes mid-rebuild',async()=>{
  const a=fixture(),path=['left','inner',7],native=JSON.parse(fs.readFileSync(new URL('./fixtures/bench-vice-edited-base-cache.json',import.meta.url)));nestedComponentOccurrence(a,path).component.def=native;const before=JSON.stringify(a);let release;const barrier=new Promise(r=>release=r);
  let f;f=finishFixture(a,path,async(_,options)=>{assert.equal(options.restoreMode,'mesh');await barrier;f.working.exactTopologyCache=await currentNativeFixtureProof(f.working);return {ok:true};});
@@ -30,7 +30,7 @@ test('actual nested Finish waits for genuine native publication and rejects loca
 });
 test('ordinary nested metadata dialog changes path-bound occurrence BOM only and supports history/cold',async()=>{
  let a=fixture(),path=['left','inner',7],before=JSON.stringify(a),E={assembly:a,docType:'assembly'};const H=createHistory({get:()=>JSON.stringify(E.assembly),set:s=>E.assembly=JSON.parse(s)}).seed();
- const deps={E,nestedComponentOccurrence,createNestedComponentEdit,nestedEditStillCurrent,currentHistoryNode:()=>1,assemblyPartNumber,documentDescription,sheetForm:async()=>({partNumber:'P-8',description:'Book nested battery'}),flash:()=>{},pushUndo:label=>H.push(label),setDocumentProperty,invalidateDrawing:()=>{},refreshAll:()=>{},scheduleModelerDraft:()=>{}};
+ const deps={E,root:null,nestedComponentOccurrence,createNestedComponentEdit,nestedEditStillCurrent,currentHistoryNode:()=>1,assemblyPartNumber,documentDescription,sheetForm:async()=>({partNumber:'P-8',description:'Book nested battery'}),flash:()=>{},pushUndo:label=>H.push(label),setDocumentProperty,invalidateDrawing:()=>{},refreshAll:()=>{},scheduleModelerDraft:()=>{}};
  const fn=new Function(...Object.keys(deps),sourceFunctionText(source,'editNestedComponentProperties')+';return editNestedComponentProperties;')(...Object.values(deps));await fn(path);const c=nestedComponentOccurrence(E.assembly,path).component;assert.equal(c.customProperties.PartNo,'P-8');assert.equal(c.def.customProperties,undefined);assert.equal(nestedComponentOccurrence(E.assembly,['right',7]).component.customProperties,undefined);assert.ok(assemblyDrawingBOM(E.assembly).rows.some(row=>row.partNumber==='P-8'));
  H.undo();assert.equal(JSON.stringify(E.assembly),before);H.redo();const cold=clone(E.assembly);assert.equal(nestedComponentOccurrence(cold,path).component.customProperties.PartNo,'P-8');assert.deepEqual(cold.topologyMates,a.topologyMates);
 });

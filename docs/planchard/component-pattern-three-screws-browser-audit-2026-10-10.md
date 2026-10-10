@@ -1,0 +1,13 @@
+# Actual three-screw source component pattern
+
+Protected `COMPONENT-PATTERN-three-screws-browser-2026-10-10.mforge` passes **12/12** source/geometry/native/provenance checks. Generic Drawing BOM has a separately reproduced failure; configuration drivers and cold persistence are pending.
+
+Native recipe6413, Source design-intent screw pattern - illustrative, explicitly references seed6409, carrier6408 and carrier Linear Pattern1 `feature_munmkxj5_3`. Two generated occurrence IDs are deterministic: `component-pattern:6413:1` and `component-pattern:6413:2`; provenance records pattern6413/seed6409/indices1 and2. Read-only replay on a clone returns no issues and reproduces the **whole assembly exactly**.
+
+Carrier and seed whole records, including current3HOLES configuration/native definitions/poses, are exact to the accepted corrected seated seed. Current Concentric6412 and opposed Coincident6411 remain exact native-ID records. Generated occurrences share equivalent seed definition and orientation. Shaft centres X−1.27,0,+1.27 cm match all three genuine carrier bores. Every shaft points+Z and every head bottom seats atZ.1524 cm above the plate. All four current occurrence proofs compile, have current final signatures and measured native one-solid status using the existing single-toolbox-recipe count contract. There are two source mates, and generated children follow the seed rather than introducing independent mate DOFs. Parent observed four roots, two mates, one seed-spin DOF and clean Save.
+
+Read-only `generateBOM` on the complete assembly correctly returns carrier quantity1 and equivalent screw quantity3. However, `assemblyDrawingBOM(...,'partsOnly')` currently throws at its per-occurrence identity lookup: its recipe-less temporary collection invokes pattern replay and drops generated children, leaving an undefined row. This is a concrete product gap, not a source-model failure. Drawing BOM/balloon acceptance is withheld until the generic fix and source-preserving browser witness; no count3 Drawing render is claimed.
+
+This is an illustrative source design-intent workflow using the accepted9.4 configurable FLATBAR and8.15 WA10 M4×20 fixture proxy. It is not an additional numbered publisher assembly or certification of a production fastener/physical fit. No original-library record inspection, mass equality or BRep interference certificate is inferred. Driver/cold follow-ups remain necessary.
+
+Evidence: `component-pattern-three-screws-audit-2026-10-10.json`; reproducible read-only helper `scratch/planchard/component-pattern-three-screws-readonly.mjs`. No CAD, app-state, browser, implementation, ADVANCE or Git writes were performed by the audit.

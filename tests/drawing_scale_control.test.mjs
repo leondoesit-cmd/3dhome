@@ -29,7 +29,7 @@ test('actual syncSheetPanel handles numeric Auxiliary scale when dimension tool 
   const before=JSON.stringify(doc),attrs=new Map();let builds=0,selection={kind:'view',id:'a'};
   const host={getAttribute:k=>attrs.get(k),setAttribute:(k,v)=>attrs.set(k,v),querySelector:()=>null,querySelectorAll:()=>[]};
   const context={root:{querySelector:id=>id==='#mdSheetPanel'?host:null},E:{mode:'drawing'},drawingDocument:()=>doc,
-    drawingSheet:()=>({selection:()=>selection}),scaleLabel,drawingViewScaleControl,buildSheetPanel:()=>builds++,document:{activeElement:null},syncDanglingDims:()=>{}};
+    drawingSheet:()=>({selection:()=>selection}),configuredDrawingStatus:()=>null,scaleLabel,drawingViewScaleControl,buildSheetPanel:()=>builds++,document:{activeElement:null},syncDanglingDims:()=>{}};
   vm.createContext(context);vm.runInContext(source.slice(start,end),context);
   assert.doesNotThrow(()=>context.syncSheetPanel());assert.equal(builds,1);
   assert.doesNotThrow(()=>context.syncSheetPanel());assert.equal(builds,1,'unchanged panel reuses signature');
@@ -53,7 +53,7 @@ test('actual selected-view dropdown retains nonstandard numeric Auxiliary scale 
 });
 
 test('actual drawing form maps Auxiliary checkbox to boolean control and preserves unchecked false',async()=>{
-  const start=source.indexOf('function sheetForm(title, fields, hint) {'),end=source.indexOf('function sheetPrompt(',start);
+  const start=source.indexOf('function sheetForm(title, fields, hint, options={}) {'),end=source.indexOf('function sheetPrompt(',start);
   assert.ok(start>=0&&end>start);
   let form;const classes=new Set();
   const context={root:{classList:{add:x=>classes.add(x),remove:x=>classes.delete(x)}},t:x=>x,openQuickForm:options=>{form=options;return true;}};

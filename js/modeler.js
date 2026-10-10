@@ -10616,7 +10616,10 @@ function openQuickForm(spec) {
   if (E.leftCollapsed) setPanelCollapsed("left", false);
   if (E.authoring && E.authoring.featureEdit) cancelFeatureParameterEdit(true);
   if (E.authoring && E.authoring.featureType) { clearFeaturePreview(false); E.authoring.featureType = null; }
+  var instance = {};
+  E.quickFormInstance = instance;
   E.quickAction = spec.action || "quickform";
+  var ownsForm = function () { return E.quickFormInstance === instance && E.quickAction === (spec.action || "quickform"); };
   host.hidden = false;
   host.innerHTML = "";
   host.appendChild(el("div", "md-feature-form-title",
@@ -10641,33 +10644,37 @@ function openQuickForm(spec) {
     return values;
   };
   if (spec.onLive) Object.keys(inputs).forEach(function (key) {
-    inputs[key].addEventListener("input", function () { spec.onLive(read()); });
+    inputs[key].addEventListener("input", function () { if(ownsForm())spec.onLive(read()); });
   });
 
   var failure = spec.failureMessage ? el("p", "md-feature-error") : null;
   if(failure){failure.setAttribute("role", "alert"); failure.hidden = true; host.appendChild(failure);}
-  var close = function () { host.innerHTML = ""; E.quickAction = null; closeFeaturePanel({assemblyPoseOnly:!!spec.presentationOnly,drawingOnly:!!spec.drawingOnly}); };
+  var close = function () { if(!ownsForm())return; host.innerHTML = ""; E.quickFormInstance = null; E.quickAction = null; closeFeaturePanel({assemblyPoseOnly:!!spec.presentationOnly,drawingOnly:!!spec.drawingOnly}); };
   var actions = el("div", "md-feature-actions");
   actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> ' + t("m_cancel"), function () {
+    if(!ownsForm())return;
     close();
     if (spec.onCancel) spec.onCancel();
     if(!spec.presentationOnly&&!spec.drawingOnly)refreshAll();
   }, "md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> ' + t("quickApply"), async function () {
-    if (!validateFeatureInputs(host)) return;
+    if (!ownsForm() || !validateFeatureInputs(host)) return;
     if(failure)failure.hidden = true;
-    if (await spec.onApply(read()) === false) {
+    var applied = await spec.onApply(read());
+    // A resolved prompt may already have opened the next form with the same
+    // action name. Only this exact instance may close or report a failure.
+    if(!ownsForm())return;
+    if (applied === false) {
       if (spec.failureMessage) { failure.textContent = spec.failureMessage(); failure.hidden = false; }
       return;
     }
-    if(E.quickAction!==(spec.action || "quickform"))return;
     close();
     if(!spec.presentationOnly&&!spec.drawingOnly)refreshAll();
   }, "md-quick-apply"));
   host.appendChild(actions);
 
   var first = inputs[spec.fields[0] && spec.fields[0].key];
-  if (first) requestAnimationFrame(function () { try { first.focus(); if (first.select) first.select(); } catch (error) {} });
+  if (first) requestAnimationFrame(function () { if(!ownsForm())return; try { first.focus(); if (first.select) first.select(); } catch (error) {} });
   syncCommandManager();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
   return inputs;
@@ -17802,6 +17809,15 @@ async function editNestedComponentProperties(path) {
   invalidateDrawing();refreshAll();scheduleModelerDraft();
 }
 
+function clearContextPartInteraction() {
+  // A completed or cancelled leaf edit must not seed assembly Undo with its
+  // previous feature command. This discards presentation state, never CAD.
+  E.quickAction=null;E.quickFormInstance=null;E.collectingFeature=false;E.tool="select";
+  E.authoring={phase:"model",referenceId:null,sketchId:null,featureType:null,sketchSelection:[],featureSelection:[],workflowFocus:"context"};
+  var host=root && root.querySelector("#mdQuickSettings");
+  if(host){host.innerHTML="";host.hidden=true;}
+}
+
 function beginContextPart(component,isNew,path) {
   if(!component?.def || isSubassembly(component) || E.contextEdit)return;
   var edit=createNestedComponentEdit(E.assembly,path || [component.id]);
@@ -17828,7 +17844,7 @@ async function finishContextPart() {
     }
     if(currentHistoryNode()!==history||!nestedEditStillCurrent(E.assembly,edit)){flash('The component changed while finishing; retry after the current edit');return false;}
     var occurrence=nestedComponentOccurrence(E.assembly,edit.path),top=E.assembly.components.find(function(c){return String(c.id)===String(edit.path[0]);});
-    E.def=edit.previousDef;E.contextEdit=null;
+    E.def=edit.previousDef;E.contextEdit=null;clearContextPartInteraction();
     H.clear().seed();pushUndo('Edit component');commitNestedComponentEdit(E.assembly,edit,working);
     setDocumentType('assembly');E.sel=top;E.componentSel=top?[top]:[];
     solveAssembly({quiet:true});refreshAll();fitPreview();return true;
@@ -17838,7 +17854,7 @@ async function finishContextPart() {
 function cancelContextPart() {
   var edit=E.contextEdit;if(!edit)return;
   if(edit.isNew && E.assembly===edit.owner && edit.path.length===1)E.assembly.components=E.assembly.components.filter(function(component){return component!==edit.source;});
-  E.def=edit.previousDef;E.contextEdit=null;
+  E.def=edit.previousDef;E.contextEdit=null;clearContextPartInteraction();
   setDocumentType("assembly");H.clear().seed();refreshAll();fitPreview();scheduleModelerDraft();
 }
 

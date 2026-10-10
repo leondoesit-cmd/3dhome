@@ -1,0 +1,118 @@
+{
+  "drawingBomError": "Cannot read properties of undefined (reading 'key')",
+  "drawingBomAccepted": false,
+  "checks": {
+    "fourRootOccurrences": true,
+    "recipeExplicitSourcePattern": true,
+    "twoDeterministicChildren": true,
+    "generatedProvenanceExact": true,
+    "sourceSeedAndCarrierWholeExact": true,
+    "sourceTwoExactMatesPreserved": true,
+    "cloneReplayWholeAssemblyExact": true,
+    "allGeneratedNativeDefinitionsExact": true,
+    "allFourCurrentNativeMeasuredOne": true,
+    "allThreeRealBoreCentresMatched": true,
+    "allHeadSeatsAndPositiveZ": true,
+    "evaluatedAssemblyBomCarrierOneScrewThree": true
+  },
+  "actualThreeScrewComponentPatternAccepted": true,
+  "coldAccepted": false,
+  "plan": [
+    {
+      "id": "component-pattern:6413:1",
+      "indices": [
+        1
+      ],
+      "offset": {
+        "x": 1.27,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "component-pattern:6413:2",
+      "indices": [
+        2
+      ],
+      "offset": {
+        "x": 2.54,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "native": [
+    {
+      "path": [
+        6408
+      ],
+      "compile": true,
+      "lastStamp": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": [
+        6409
+      ],
+      "compile": true,
+      "lastStamp": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": [
+        "component-pattern:6413:1"
+      ],
+      "compile": true,
+      "lastStamp": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": [
+        "component-pattern:6413:2"
+      ],
+      "compile": true,
+      "lastStamp": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    }
+  ],
+  "bom": [
+    {
+      "key": "[\"cm_munm4oro\",\"cfg_default\",\"\",\"\",\"Aluminum 1060\",\"\",\"\",\"\"]",
+      "name": "Planchard 9.4 FLATBAR - 3 5 7 HOLES - fresh from zero 2026-09-30",
+      "quantity": 1,
+      "partNumber": ""
+    },
+    {
+      "key": "[\"shcs\\u001fM4\\u001f20\\u001fsteel\\u001fblack-oxide\\u001f\\u001f\\u001f\\u001f\\u001f\\u001f\\u001f\\u001f\\u001fISO 4762 - M4 x 20\\u001fshcs\\u001fM4\\u001fsteel\\u001fBlack Oxide\\u001f\\u001f6g\\u001fmetric\\u001f\",\"\",\"10\",\"WA10 fixture screw - original ISO4762 M4 x 20 metric proxy seating on holder top through holder8mm and fixture8mm into nominal tapped Midpiece4mm. Generic Steel Black Oxide; cosmetic smooth nominal thread, no certified strength class. PartNo10.\",\"Steel\",\"Black Oxide\",\"ISO 4762:2018\",\"\"]",
+      "name": "ISO 4762 - M4 x 20",
+      "quantity": 3,
+      "partNumber": "10"
+    }
+  ],
+  "boreCentersCm": [
+    -1.27,
+    0,
+    1.27
+  ],
+  "qualification": "Generic illustrative source-design-intent workflow using accepted9.4carrier and8.15M4fixture screw; not an extra numbered publisher assembly. Exact native IDs retained. Physical interference/mass/library record preservation not independently certified. Driver/cold pending."
+}

@@ -1,0 +1,135 @@
+{
+  "checks": {
+    "invalidSourceDropsGeneratedChildrenFailClosed": true,
+    "countOnlyCanonicalSourceChange": true,
+    "sameSourcePatternRecipe": true,
+    "twoScrewsWithSingleDeterministicChild": true,
+    "nativeTwoRealBores": true,
+    "carrierCurrentNativeOne": true,
+    "exactCarrierConcentricStillPresent": true,
+    "allSourceMatesExact": true,
+    "wholeDriverReplayExact": true,
+    "mainBomTwoScrews": true,
+    "undoOnlyNineTinyPoseRoundoff": true,
+    "repairedDrawingBomBothScopes": true,
+    "pureOccurrenceAggregatorNonMutating": true
+  },
+  "actualCountDriverAndUndoAccepted": true,
+  "undoDifferences": [
+    {
+      "path": ".components.1.transform.rx",
+      "warm": 90,
+      "undo": 89.99999999999997
+    },
+    {
+      "path": ".components.1.transform.q.x",
+      "warm": 0.707106781187,
+      "undo": 0.7071067811865474
+    },
+    {
+      "path": ".components.1.transform.q.w",
+      "warm": 0.707106781187,
+      "undo": 0.7071067811865476
+    },
+    {
+      "path": ".components.2.transform.rx",
+      "warm": 90,
+      "undo": 89.99999999999997
+    },
+    {
+      "path": ".components.2.transform.q.x",
+      "warm": 0.707106781187,
+      "undo": 0.7071067811865474
+    },
+    {
+      "path": ".components.2.transform.q.w",
+      "warm": 0.707106781187,
+      "undo": 0.7071067811865476
+    },
+    {
+      "path": ".components.3.transform.rx",
+      "warm": 90,
+      "undo": 89.99999999999997
+    },
+    {
+      "path": ".components.3.transform.q.x",
+      "warm": 0.707106781187,
+      "undo": 0.7071067811865474
+    },
+    {
+      "path": ".components.3.transform.q.w",
+      "warm": 0.707106781187,
+      "undo": 0.7071067811865476
+    }
+  ],
+  "bomIndependentReadOnlyReview": [
+    {
+      "scope": "partsOnly",
+      "rows": [
+        {
+          "item": 1,
+          "qty": 1
+        },
+        {
+          "item": 2,
+          "qty": 3
+        }
+      ],
+      "pathItems": [
+        [
+          "[\"6408\"]",
+          1
+        ],
+        [
+          "[\"6409\"]",
+          2
+        ],
+        [
+          "[\"component-pattern:6413:1\"]",
+          2
+        ],
+        [
+          "[\"component-pattern:6413:2\"]",
+          2
+        ]
+      ],
+      "sourceUnchanged": true,
+      "accepted": true
+    },
+    {
+      "scope": "indented",
+      "rows": [
+        {
+          "item": "1",
+          "qty": 1
+        },
+        {
+          "item": "2",
+          "qty": 3
+        }
+      ],
+      "pathItems": [
+        [
+          "[\"6408\"]",
+          "1"
+        ],
+        [
+          "[\"6409\"]",
+          "2"
+        ],
+        [
+          "[\"component-pattern:6413:1\"]",
+          "2"
+        ],
+        [
+          "[\"component-pattern:6413:2\"]",
+          "2"
+        ]
+      ],
+      "sourceUnchanged": true,
+      "accepted": true
+    }
+  ],
+  "coldAccepted": false,
+  "qualification": "Actual count3→2driver plusUndo authoring restoration, nine tiny pose normalization values explicitly measured. Generic BOM fix independently exercised bothscopes and actualfixture, no actual Drawing UI claim. Generated source definitions/mates remain qualified by baseline. No physical contact/mass claim."
+}

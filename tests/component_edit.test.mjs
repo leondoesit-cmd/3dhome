@@ -43,12 +43,12 @@ test("canceling an in-context working copy preserves the original parent referen
 function finishFixture(working,regenerate){
   const component={id:4018,def:{name:'Original base'},transform:{x:0,y:0,z:0}},previousDef={name:'Assembly editor'},assembly={key:'parent',components:[component]},edit={...createNestedComponentEdit(assembly,[4018]),previousDef};
   const E={contextEdit:edit,assembly,def:working,docType:'part'},events=[];
-  const context={E,nestedComponentOccurrence,nestedEditStillCurrent,commitNestedComponentEdit,currentHistoryNode:()=>1,flash:()=>{},assemblyComponentById:()=>component,isCanonicalAuthoring:()=>true,activeParts:doc=>doc.parts,
+  const context={E,root:null,nestedComponentOccurrence,nestedEditStillCurrent,commitNestedComponentEdit,currentHistoryNode:()=>1,flash:()=>{},assemblyComponentById:()=>component,isCanonicalAuthoring:()=>true,activeParts:doc=>doc.parts,
     regenerateExactModel:regenerate,setDocumentType:type=>{events.push(type);E.docType=type;},
     H:{clear(){return this;},seed(){}},pushUndo:()=>events.push('undo'),commitComponentEdit,
     solveAssembly:()=>events.push('solve'),refreshAll:()=>{},fitPreview:()=>{}};
   const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
-  const finish=new Function(...Object.keys(context),sourceFunctionText(source,'finishContextPart')+';return finishContextPart;')(...Object.values(context));
+  const finish=new Function(...Object.keys(context),sourceFunctionText(source,'clearContextPartInteraction')+'\n'+sourceFunctionText(source,'finishContextPart')+';return finishContextPart;')(...Object.values(context));
   return{E,component,events,finish,edit};
 }
 

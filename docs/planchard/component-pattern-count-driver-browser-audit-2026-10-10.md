@@ -1,0 +1,13 @@
+# Component-pattern actual count driver and BOM repair review
+
+Accepted **13/13** read-only actual-driver/Undo and independent BOM-repair checks. Actual Drawing rendering/cold remain pending.
+
+`COMPONENT-PATTERN-count-two-driver-browser-2026-10-10.mforge` records ordinary carrier Linear Pattern1 X instances3→2. This is the only canonical source-definition change; same recipe6413 persists. Current native carrier proof compiles with current final stamp/count1 and exactly two genuine bore faces. Two screw occurrences are present, with only deterministic generated child `component-pattern:6413:1`. Clone replay is whole-assembly exact, source mates remain exact and the current native left-bore Concentric ID remains present. Complete assembly BOM returns carrier1/screw2. Parent observed native rebuild success and correct root count.
+
+Actual Undo `COMPONENT-PATTERN-count-driver-undo-browser-2026-10-10.mforge` restores four roots/three screws, every source definition/native proof, recipe/provenance and mate record. The complete assembly has exactly nine tiny pose-normalization differences: each screw's rotation90° becomes89.99999999999997° and two quaternion components change by under1e−12. No other canonical difference exists. Exact byte identity of the whole assembly pose is therefore not claimed.
+
+The frozen generic BOM fix separates pure `generateOccurrenceBOM(components)` aggregation from real-owner recipe replay. Independent current actual-fixture checks pass parts-only and indented scopes: two rows, carrier1/screw3 and four full occurrence→item mappings. Both scope calls preserve the actual source assembly semantically, and pure occurrence aggregation is non-mutating. A suppressed carrier-source pattern deliberately removes generated children before aggregation and returns only carrier1/seed screw1, so stale children are not counted. Inspection confirms real assembly flatten/replay occurs once before scoped row identity collection; recipe-less temporary wrappers no longer replay away generated occurrences. This independently verifies the bounded repair, not an actual browser Drawing/BOM rendering witness.
+
+The original three-screw report's Drawing BOM crash is retained as historical diagnostic evidence; this source-level read-only review supersedes its current implementation status. Source illustrative-proxy/physical-fit/library-preservation qualifications remain. Spacing/configuration drivers and cold require their own browser artifacts.
+
+Evidence: `component-pattern-count-driver-audit-2026-10-10.json`; helper `scratch/planchard/component-pattern-count-driver-readonly.mjs`. No CAD, implementation, browser, app-state, ADVANCE or Git writes were performed.

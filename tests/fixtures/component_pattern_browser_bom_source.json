@@ -1,0 +1,443 @@
+{
+  "source": "artifacts/planchard/COMPONENT-PATTERN-three-screws-browser-2026-10-10.mforge",
+  "sha256": "e96ad11a30fafbcd05ef549a95e50b87a5e3743585b458c3f04ba2abb32ea76a",
+  "qualification": "Actual browser recipe/occurrence identity/configuration/transforms/metadata/feature parameters; derived meshes and unused drawing/sketch/native proof payload omitted. Part stubs preserve real IDs/kinds only; this is BOM replay, not a geometry acceptance fixture.",
+  "assembly": {
+    "key": "asm_mv2ri66k",
+    "name": "Planchard source design-intent screw pattern - browser 2026-10-10",
+    "componentPatterns": [
+      {
+        "id": 6413,
+        "name": "Source design-intent screw pattern - illustrative",
+        "seedId": "6409",
+        "carrierId": 6408,
+        "featureId": "feature_munmkxj5_3"
+      }
+    ],
+    "components": [
+      {
+        "id": 6408,
+        "modelKey": "cm_munm4oro",
+        "name": "Planchard 9.4 FLATBAR - 3 5 7 HOLES - fresh from zero 2026-09-30",
+        "visible": true,
+        "grounded": true,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "rx": 0,
+          "ry": 0,
+          "rz": 0,
+          "q": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          }
+        },
+        "configurationId": "cfg_default",
+        "def": {
+          "key": "cm_munm4oro",
+          "name": "Planchard 9.4 FLATBAR - 3 5 7 HOLES - fresh from zero 2026-09-30",
+          "customProperties": {},
+          "activeConfiguration": "cfg_default",
+          "features": [
+            {
+              "id": "feature_munmevz0_1",
+              "type": "extrude",
+              "name": "Extrude / Boss 1",
+              "params": {
+                "operation": "add",
+                "endCondition": "blind",
+                "depth": 0.1524,
+                "offset": 0,
+                "direction": "forward",
+                "symmetric": false,
+                "draftAngle": 0,
+                "draftOutward": false,
+                "thinFeature": false,
+                "thickness": 0.1,
+                "thinMode": "mid-plane",
+                "mergeResult": true,
+                "axis": "y",
+                "profileEntityIds": [
+                  1811,
+                  1812,
+                  1813,
+                  1814
+                ],
+                "holeProfileEntityIds": [],
+                "holes": [],
+                "sketchId": "sk_1qxm3",
+                "from": 0,
+                "to": 0.1524
+              },
+              "references": {
+                "sketches": [
+                  "sk_1qxm3"
+                ],
+                "features": [],
+                "topology": [],
+                "references": [],
+                "profileEntityIds": [
+                  1811,
+                  1812,
+                  1813,
+                  1814
+                ]
+              },
+              "inputs": [],
+              "suppressed": false,
+              "state": "rebuilt",
+              "diagnostics": []
+            },
+            {
+              "id": "feature_munmk4sc_2",
+              "type": "extrudeCut",
+              "name": "Extrude Cut 1",
+              "params": {
+                "operation": "subtract",
+                "endCondition": "through-all",
+                "depth": 0.1524,
+                "offset": 0,
+                "direction": "forward",
+                "symmetric": false,
+                "draftAngle": 0,
+                "draftOutward": false,
+                "thinFeature": false,
+                "thickness": 0.1,
+                "thinMode": "mid-plane",
+                "keepTool": false,
+                "axis": "y",
+                "profileEntityIds": [
+                  1826
+                ],
+                "holeProfileEntityIds": [],
+                "holes": [],
+                "sketchId": "sk_28e84",
+                "from": 0,
+                "to": 0.1534
+              },
+              "references": {
+                "sketches": [
+                  "sk_28e84"
+                ],
+                "features": [
+                  "feature_munmevz0_1"
+                ],
+                "topology": [],
+                "references": [],
+                "profileEntityIds": [
+                  1826
+                ]
+              },
+              "inputs": [
+                "feature_munmevz0_1"
+              ],
+              "suppressed": false,
+              "state": "rebuilt",
+              "diagnostics": []
+            },
+            {
+              "id": "feature_munmkxj5_3",
+              "type": "pattern",
+              "name": "Pattern 1",
+              "params": {
+                "scope": "feature",
+                "seedFeatureId": "feature_munmk4sc_2",
+                "mode": "linear",
+                "count": 2,
+                "spacing": 10,
+                "countX": 3,
+                "spacingX": 1.27,
+                "spacingIncrementX": 0,
+                "countY": 2,
+                "spacingY": 10,
+                "spacingIncrementY": 0,
+                "countZ": 2,
+                "spacingZ": 10,
+                "spacingIncrementZ": 0,
+                "skipInstances": "",
+                "angle": 360,
+                "radialDistance": 0,
+                "equalSpacing": true,
+                "axis": "y",
+                "directionAxis": "x",
+                "direction": {
+                  "x": 1,
+                  "y": 0,
+                  "z": 0
+                },
+                "curveCount": 4,
+                "curveSpacingMode": "fit",
+                "curveSpacing": 0,
+                "curveAlign": "tangent",
+                "mergeResult": false,
+                "axisX": true,
+                "axisY": false,
+                "axisZ": false
+              },
+              "references": {
+                "sketches": [],
+                "features": [
+                  "feature_munmk4sc_2"
+                ],
+                "topology": [],
+                "references": []
+              },
+              "inputs": [
+                "feature_munmk4sc_2"
+              ],
+              "suppressed": false,
+              "state": "rebuilt",
+              "diagnostics": []
+            }
+          ],
+          "parts": [
+            {
+              "id": 1825,
+              "kind": "ext",
+              "materialCatalogId": "stock:aluminum1060"
+            }
+          ]
+        }
+      },
+      {
+        "id": 6409,
+        "modelKey": "cm_museyg2y",
+        "name": "Planchard 8.15 - WA10 M4x20 fixture screw - fresh proxy 2026-10-03",
+        "visible": true,
+        "grounded": false,
+        "transform": {
+          "x": -1.27,
+          "y": 0,
+          "z": -1.8476,
+          "rx": 90,
+          "ry": 0,
+          "rz": 0,
+          "q": {
+            "x": 0.707106781187,
+            "y": 0,
+            "z": 0,
+            "w": 0.707106781187
+          }
+        },
+        "def": {
+          "key": "cm_museyg2y",
+          "name": "Planchard 8.15 - WA10 M4x20 fixture screw - fresh proxy 2026-10-03",
+          "customProperties": {
+            "Description": "WA10 fixture screw - original ISO4762 M4 x 20 metric proxy seating on holder top through holder8mm and fixture8mm into nominal tapped Midpiece4mm. Generic Steel Black Oxide; cosmetic smooth nominal thread, no certified strength class. PartNo10.",
+            "PartNo": "10"
+          },
+          "features": [
+            {
+              "id": "feature_musf0n4q_1",
+              "type": "toolbox",
+              "name": "M4×20 ISO 4762",
+              "params": {
+                "kind": "shcs",
+                "sizeKey": "M4",
+                "lengthMm": 20,
+                "material": "steel",
+                "finish": "black-oxide",
+                "threadMode": "cosmetic",
+                "lod": 2,
+                "size": "M4"
+              },
+              "references": {
+                "sketches": [],
+                "features": [],
+                "topology": [],
+                "references": []
+              },
+              "inputs": [],
+              "suppressed": false,
+              "state": "rebuilt",
+              "diagnostics": [],
+              "toolboxAutoName": "M4×20 ISO 4762"
+            }
+          ],
+          "parts": [
+            {
+              "id": 3343,
+              "kind": "cyl",
+              "materialCatalogId": "toolbox:steel"
+            },
+            {
+              "id": 3345,
+              "kind": "cyl",
+              "materialCatalogId": "toolbox:steel"
+            },
+            {
+              "id": 3346,
+              "kind": "ext",
+              "materialCatalogId": "toolbox:steel"
+            }
+          ]
+        }
+      },
+      {
+        "id": "component-pattern:6413:1",
+        "modelKey": "cm_museyg2y",
+        "name": "Planchard 8.15 - WA10 M4x20 fixture screw - fresh proxy 2026-10-03 [1]",
+        "visible": true,
+        "grounded": true,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "z": -1.8476,
+          "rx": 90,
+          "ry": 0,
+          "rz": 0,
+          "q": {
+            "x": 0.707106781187,
+            "y": 0,
+            "z": 0,
+            "w": 0.707106781187
+          }
+        },
+        "componentPattern": {
+          "patternId": 6413,
+          "seedId": 6409,
+          "indices": [
+            1
+          ]
+        },
+        "def": {
+          "key": "cm_museyg2y",
+          "name": "Planchard 8.15 - WA10 M4x20 fixture screw - fresh proxy 2026-10-03",
+          "customProperties": {
+            "Description": "WA10 fixture screw - original ISO4762 M4 x 20 metric proxy seating on holder top through holder8mm and fixture8mm into nominal tapped Midpiece4mm. Generic Steel Black Oxide; cosmetic smooth nominal thread, no certified strength class. PartNo10.",
+            "PartNo": "10"
+          },
+          "features": [
+            {
+              "id": "feature_musf0n4q_1",
+              "type": "toolbox",
+              "name": "M4×20 ISO 4762",
+              "params": {
+                "kind": "shcs",
+                "sizeKey": "M4",
+                "lengthMm": 20,
+                "material": "steel",
+                "finish": "black-oxide",
+                "threadMode": "cosmetic",
+                "lod": 2,
+                "size": "M4"
+              },
+              "references": {
+                "sketches": [],
+                "features": [],
+                "topology": [],
+                "references": []
+              },
+              "inputs": [],
+              "suppressed": false,
+              "state": "rebuilt",
+              "diagnostics": [],
+              "toolboxAutoName": "M4×20 ISO 4762"
+            }
+          ],
+          "parts": [
+            {
+              "id": 3343,
+              "kind": "cyl",
+              "materialCatalogId": "toolbox:steel"
+            },
+            {
+              "id": 3345,
+              "kind": "cyl",
+              "materialCatalogId": "toolbox:steel"
+            },
+            {
+              "id": 3346,
+              "kind": "ext",
+              "materialCatalogId": "toolbox:steel"
+            }
+          ]
+        }
+      },
+      {
+        "id": "component-pattern:6413:2",
+        "modelKey": "cm_museyg2y",
+        "name": "Planchard 8.15 - WA10 M4x20 fixture screw - fresh proxy 2026-10-03 [2]",
+        "visible": true,
+        "grounded": true,
+        "transform": {
+          "x": 1.27,
+          "y": 0,
+          "z": -1.8476,
+          "rx": 90,
+          "ry": 0,
+          "rz": 0,
+          "q": {
+            "x": 0.707106781187,
+            "y": 0,
+            "z": 0,
+            "w": 0.707106781187
+          }
+        },
+        "componentPattern": {
+          "patternId": 6413,
+          "seedId": 6409,
+          "indices": [
+            2
+          ]
+        },
+        "def": {
+          "key": "cm_museyg2y",
+          "name": "Planchard 8.15 - WA10 M4x20 fixture screw - fresh proxy 2026-10-03",
+          "customProperties": {
+            "Description": "WA10 fixture screw - original ISO4762 M4 x 20 metric proxy seating on holder top through holder8mm and fixture8mm into nominal tapped Midpiece4mm. Generic Steel Black Oxide; cosmetic smooth nominal thread, no certified strength class. PartNo10.",
+            "PartNo": "10"
+          },
+          "features": [
+            {
+              "id": "feature_musf0n4q_1",
+              "type": "toolbox",
+              "name": "M4×20 ISO 4762",
+              "params": {
+                "kind": "shcs",
+                "sizeKey": "M4",
+                "lengthMm": 20,
+                "material": "steel",
+                "finish": "black-oxide",
+                "threadMode": "cosmetic",
+                "lod": 2,
+                "size": "M4"
+              },
+              "references": {
+                "sketches": [],
+                "features": [],
+                "topology": [],
+                "references": []
+              },
+              "inputs": [],
+              "suppressed": false,
+              "state": "rebuilt",
+              "diagnostics": [],
+              "toolboxAutoName": "M4×20 ISO 4762"
+            }
+          ],
+          "parts": [
+            {
+              "id": 3343,
+              "kind": "cyl",
+              "materialCatalogId": "toolbox:steel"
+            },
+            {
+              "id": 3345,
+              "kind": "cyl",
+              "materialCatalogId": "toolbox:steel"
+            },
+            {
+              "id": 3346,
+              "kind": "ext",
+              "materialCatalogId": "toolbox:steel"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
