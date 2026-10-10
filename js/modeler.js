@@ -22,6 +22,7 @@ import {resolveOffsetPlanes, throughVertexBinding, referencePlaneOffset} from '.
 import {revolveThinProfile,thinSketchProfile} from './core/thin_profile.js';
 import {thinExtrudeAreas,thinExtrudeChainKey,thinExtrudeSketchReadiness} from './modeler_thin_extrude_profiles.js';
 import {threadPlacementFromFace} from './core/thread_placement.js';
+import {threadPlacementFromCircularEdge} from './core/thread_circular_start.js';
 import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
 import {setExtrudeFeatureOperation} from './core/extrude_operation_edit.js';
@@ -4120,6 +4121,7 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="sheetrect">' + cadIcon("srect") + '<span>' + t("drawPaperRectangle") + '</span></button>' +
     '<button type="button" data-drawing-tool="sheetcircle">' + cadIcon("scirc") + '<span>' + t("drawPaperCircle") + '</span></button>' +
     '<button type="button" data-drawing-tool="sheetarc">' + cadIcon("sarc") + '<span>' + t("drawPaperArc") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetellipse">' + cadIcon("sell") + '<span>' + t("drawPaperEllipse") + '</span></button>' +
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
     '<button type="button" data-drawing-tool="insertimage"><i class="ph ph-image"></i><span>Insert image</span></button>' +
     '<button type="button" data-drawing-tool="insertprojectimage"><i class="ph ph-image"></i><span>Insert project image</span></button>' +
@@ -8646,6 +8648,22 @@ function selectedCylindricalFace() {
   }) || null;
 }
 
+function selectedThreadStart() {
+  var face=selectedCylindricalFace();
+  if(face)return {face:face,placement:threadPlacementFromFace(face.descriptor)};
+  var edges=(E.topologySelection || []).filter(function(reference){return reference.kind==='edge';}),target=selectedSolid();
+  if(edges.length!==1 || !target)return null;
+  var topology=topologyEntriesForPart(target),picked=edges[0];
+  var current=topology.find(function(entry){return entry.kind==='edge' && entry.persistentId===picked.persistentId && entry.ownerFeatureId===picked.ownerFeatureId;});
+  if(!current)return null;
+  try{
+    var start=threadPlacementFromCircularEdge(current,topology);
+    var captured=threadPlacementFromCircularEdge(picked,topology),tolerance=Math.max(1e-6,current.descriptor.radius*1e-5);
+    if(Math.hypot(start.origin.x-captured.origin.x,start.origin.y-captured.origin.y,start.origin.z-captured.origin.z)>tolerance)return null;
+    return {face:topologyReferenceFromEntry(start.face),edge:topologyReferenceFromEntry(current),placement:{origin:start.origin,axis:start.axis}};
+  }catch(error){return null;}
+}
+
 function createHelixFeature(options) {
   var params={...featureDefaults("helix"),...(options || {})};
   var face=selectedCylindricalFace();
@@ -8669,11 +8687,11 @@ function createHelixFeature(options) {
 
 function createThreadFeature(options) {
   var params={...featureDefaults("thread"),...(options || {})};
-  var pickedFace=selectedCylindricalFace();
+  var start=selectedThreadStart(),pickedFace=start?.face;
   var target=selectedSolid();
   if(!pickedFace){flash(t("threadNeed"));return false;}
   var face=canonicalFeatureTopologyReferences(E.def,[cloneData(pickedFace)])[0];
-  var placement=threadPlacementFromFace(face&&face.descriptor);
+  var placement=start.placement;
   var origin=placement.origin,axis=placement.axis;
   var targetFeatureId=target&&cutTargetFeatureId(target);
   var diameterMm=Number(params.diameterMm)||((face&&face.descriptor&&face.descriptor.radius||0)*20)||8;
@@ -8686,7 +8704,7 @@ function createThreadFeature(options) {
   try{
     if(isCanonicalAuthoring())createFeatureDefinition(E.def,"thread",{
       inputs:targetFeatureId?[targetFeatureId]:[],
-      references:{sketches:[],features:targetFeatureId?[targetFeatureId]:[],topology:face?[cloneData(face)]:[],references:[]},
+      references:{sketches:[],features:targetFeatureId?[targetFeatureId]:[],topology:canonicalFeatureTopologyReferences(E.def,start.edge?[cloneData(face),cloneData(start.edge)]:[cloneData(face)]),references:[]},
       params:{...params,...spec},
     });
   }catch(error){H.discard();flash(String(error.message||error));return false;}
@@ -10062,7 +10080,7 @@ function syncNewFeaturePreview(type,state,liveBadge) {
       else previews.push(finish);
     }
   }
-  if(type==="thread" && liveBadge){liveBadge.classList.toggle("on",!!selectedCylindricalFace());liveBadge.textContent=selectedCylindricalFace()?"✓ "+t("selectedLabel")+" · "+t("opThread"):t("threadNeed");}
+  if(type==="thread" && liveBadge){liveBadge.classList.toggle("on",!!selectedThreadStart());liveBadge.textContent=selectedThreadStart()?"✓ "+t("selectedLabel")+" · "+t("opThread"):t("threadNeed");}
   if(!FINISH_FEATURES.includes(type)){E.authoring.approxFinishPreview=null;E.authoring.pendingExactPreview=null;}
   E.authoring.previewParts=previews;
   if(finish)queueExactFeaturePreview(finish,type,liveBadge || E.authoring.featurePreviewBadge);
@@ -10139,11 +10157,11 @@ function syncActiveFeatureSelectionFeedback() {
   if(!note)return;
   var type=note.getAttribute("data-live-selection");
   note.textContent=FINISH_FEATURES.includes(type)?finishSelectionMessage(type)
-    :type==="thread"?(selectedCylindricalFace()?"✓ "+t("selectedLabel")+" · "+t("opThread"):t("threadNeed"))
+    :type==="thread"?(selectedThreadStart()?"✓ "+t("selectedLabel")+" · "+t("opThread"):t("threadNeed"))
     :collectingEndFace()?(((E.topologySelection||[]).some(function(item){return item.kind==="face";})?"✓ ":"")+t("upToFacePick"))
     :["extrude","extrudeCut","revolve","revolveCut","sweep","sweepCut","loft","hole"].includes(type)?selectedSketchIds().length+" "+t("sketchesSelected"):selectedFeatureIds().length+" "+t("featuresSelected")+" · "+(E.topologySelection || []).length+" "+t("topologyRefs");
   note.classList.toggle("ready",note.textContent.indexOf("✓")===0);
-  if(type==="thread" && E.authoring.featurePreviewBadge){E.authoring.featurePreviewBadge.textContent=note.textContent;E.authoring.featurePreviewBadge.classList.toggle("on",!!selectedCylindricalFace());}
+  if(type==="thread" && E.authoring.featurePreviewBadge){E.authoring.featurePreviewBadge.textContent=note.textContent;E.authoring.featurePreviewBadge.classList.toggle("on",!!selectedThreadStart());}
   /* Shell has no edge list to render, but it is just as much a collector — and
      the one whose picks were being silently dropped, since an edge clicked
      during Shell lands in the selection and finishFeatureTargets() then keeps
@@ -12566,6 +12584,7 @@ function drawingHintText() {
   if (tool === "removealternateposition") return "Click a drawing view to remove its Alternate Position overlay";
   if (tool === "note") return t("drawNoteHint");
   if (tool === "sheetarc") return t("drawPaperArcHint");
+  if (tool === "sheetellipse") return t("drawPaperEllipseHint");
   if (["sheetline","sheetpolyline","sheetrect","sheetcircle"].includes(tool)) return t("drawPaperHint");
   return t("drawingHint");
 }

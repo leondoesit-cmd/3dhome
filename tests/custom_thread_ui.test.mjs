@@ -53,7 +53,7 @@ test('custom cosmetics validate dimensions, axis, runout and reject modeled or s
 function command(selectedFace, document=null, sourceId='body-feature') {
   const body = {id:'body',kind:'brep'}, records=[], messages=[];
   const E = {def:document || {}};
-  const bindings={E, featureDefaults:()=>({}), selectedCylindricalFace:()=>selectedFace,
+  const bindings={E, featureDefaults:()=>({}), selectedThreadStart:()=>selectedFace?{face:selectedFace,placement:threadPlacementFromFace(selectedFace.descriptor)}:null,
     selectedSolid:()=>body, flash:s=>messages.push(s), t:s=>s,canonicalFeatureTopologyReferences,
     threadPlacementFromFace, cutTargetFeatureId:()=> sourceId, normalizeThreadSpec,
     validateThreadFeature, modeledThreadSolid, pushUndo:()=>{}, isCanonicalAuthoring:()=>true,
@@ -140,7 +140,7 @@ test('Thread command records picked native X bore topology and starts at its nea
 test('Thread preview and live selection show the cylindrical face requirement rather than generic preview readiness', () => {
   const badge={classList:{toggle(){}},textContent:''};
   const E={authoring:{}};
-  const preview = new Function('E','FINISH_FEATURES','selectedCylindricalFace','t',
+  const preview = new Function('E','FINISH_FEATURES','selectedThreadStart','t',
     fn('syncNewFeaturePreview','syncPatternOverlapBadge')+';return syncNewFeaturePreview;')(
       E,[],()=>null,key=>key);
   preview('thread',{params:{}},badge);

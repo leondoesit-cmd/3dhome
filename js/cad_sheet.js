@@ -2001,6 +2001,8 @@ export function sceneToSvg(scene, options = {}) {
     } else if (item.type === "circle") {
       parts.push('<circle cx="' + round3(item.cx) + '" cy="' + round3(item.cy) + '" r="' + round3(item.r) +
         '" ' + strokeAttrs(item.style) + "/>");
+    } else if (item.type === "ellipse") {
+      parts.push('<ellipse cx="'+round3(item.cx)+'" cy="'+round3(item.cy)+'" rx="'+round3(item.rx)+'" ry="'+round3(item.ry)+'" transform="rotate('+round3(item.rotation*180/Math.PI)+' '+round3(item.cx)+' '+round3(item.cy)+')" '+strokeAttrs(item.style)+'/>');
     } else if (item.type === "arc") {
       const x1 = item.cx + Math.cos(item.a0) * item.r, y1 = item.cy + Math.sin(item.a0) * item.r;
       const x2 = item.cx + Math.cos(item.a1) * item.r, y2 = item.cy + Math.sin(item.a1) * item.r;

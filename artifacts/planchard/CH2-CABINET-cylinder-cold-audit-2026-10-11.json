@@ -1,0 +1,17 @@
+{
+  "source": "PDF96-97 / printed2-10\u20132-11",
+  "savedKey": "cm_mv2yi10z",
+  "checks": {
+    "native_paper_primitives_10": true,
+    "true_circles_2": true,
+    "recession50mm": true,
+    "angle45deg": true,
+    "six_center_style_primitives": true,
+    "visible_tangent_generators": true,
+    "true_rear_arc": true,
+    "no_solid_claim": true,
+    "source_procedure_note": true
+  },
+  "allPassed": true,
+  "qualification": "D30mm, layout chosen; five construction stages explained in note, full rear guide circle retained, visible half arc added, shading optional omitted; cold reopened from exact Saved record in fresh Chrome. No warm/cold full equality claimed."
+}

@@ -1,0 +1,15 @@
+{
+  "source": "PDF97 / printed2-11",
+  "savedKey": "cm_mv2yrpaq",
+  "checks": {
+    "seven_lines": true,
+    "common_VP": true,
+    "horizon_centerline": true,
+    "dashes20_15_10_6mm": true,
+    "no_full_center_ray": true,
+    "source_note": true
+  },
+  "allPassed": true,
+  "coldReopen": "pending",
+  "qualification": "chosen native geometric explanation of source road photo, no photo or 3D camera reproduction"
+}

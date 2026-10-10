@@ -825,7 +825,7 @@ export const FEATURE_CATALOG = Object.freeze({
     label: "Thread",
     labelKey: "fcFeatThread",
     icon: "threadfeature",
-    selection: { topology: { kinds: ["face"], max: 1 }, features: { max: 1 } },
+    selection: { topology: { kinds: ["face", "edge"], max: 2 }, features: { max: 1 } },
     defaults: { threadPreset:"iso-metric", side: "external", mode: "cosmetic", diameterMm: 8, pitchMm: 1.25, length: 1.5, handedness: "rh", toleranceClass: "", series: "coarse", runoutStartMm:0, runoutEndMm:0, useFitLimits:false },
     parameters: {
       side: ENUM("external", "internal"), mode: ENUM("cosmetic", "modeled"),

@@ -23,7 +23,7 @@ import {
 } from "./cad_sheet.js";
 import { isOrthoView, projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 import { planModelItems } from "./core/model_items.js";
-import {DRAWING_PRIMITIVE_TOOLS, drawingPrimitiveItems, drawingPrimitiveHit, snapDrawingPrimitivePoint, validateDrawingPrimitive} from "./core/drawing_primitives.js";
+import {DRAWING_PRIMITIVE_TOOLS, drawingPrimitiveItems, drawingPrimitiveHit, snapDrawingPrimitivePoint, validateDrawingPrimitive, drawingEllipseGeometry, drawingEllipsePoints} from "./core/drawing_primitives.js";
 import {canCropView,cropSplinePoints} from './core/drawing_crop.js';
 import {canBreakOutView,projectBrokenOutView} from './core/drawing_broken_out.js';
 import {auxiliaryFaceCandidates,resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
@@ -235,6 +235,10 @@ export function createDrawingController(host) {
       c.beginPath(); c.arc(centre.x, centre.y, Math.max(0.4, item.r * state.zoom), 0, Math.PI * 2); c.stroke();
       return;
     }
+    if (item.type === "ellipse") {
+      const centre=toScreen({x:item.cx,y:item.cy});strokeStyleFor(c,item.style);
+      c.beginPath();c.ellipse(centre.x,centre.y,item.rx*state.zoom,item.ry*state.zoom,item.rotation,0,Math.PI*2);c.stroke();return;
+    }
     if (item.type === "arc") {
       const centre = toScreen({ x: item.cx, y: item.cy });
       strokeStyleFor(c, item.style);
@@ -392,7 +396,7 @@ export function createDrawingController(host) {
     c.strokeStyle = "#e08030";
     c.lineWidth = 1.4;
     if (draft.kind==='primitive') {
-      const points=draft.type==='arc' && draft.points.length>=2 ? draft.points.slice(0,2).concat(state.cursor) : draft.points.concat(state.cursor);
+      const points=['arc','ellipse'].includes(draft.type) && draft.points.length>=2 ? draft.points.slice(0,2).concat(state.cursor) : draft.points.concat(state.cursor);
       try { for(const item of drawingPrimitiveItems({type:draft.type,points,style:'outline'}))paintItem(c,{...item,style:'highlight'}); } catch { /* First pick may coincide with cursor. */ }
       return;
     }
@@ -771,13 +775,13 @@ export function createDrawingController(host) {
       if(state.draft?.kind!=='primitive')state.draft={kind:'primitive',type,points:[point]};
       else {
         if(Math.hypot(point.x-previous.x,point.y-previous.y)<1e-8)return true;
-        if(type==='arc') {
+        if(type==='arc' || type==='ellipse') {
           state.draft.points=state.draft.points.slice(0,2).concat(point);
           if(state.draft.points.length===3)commitPrimitive(state.draft);
         }
         else if(type==='polyline')state.draft.points.push(point);
         else state.draft.points=[state.draft.points[0],point];
-        if(type!=='polyline' && type!=='arc')commitPrimitive(state.draft);
+        if(type!=='polyline' && type!=='arc' && type!=='ellipse')commitPrimitive(state.draft);
         else if(type==='polyline' && state.draft.points.length>3 && Math.hypot(point.x-state.draft.points[0].x,point.y-state.draft.points[0].y)<1e-8)commitPrimitive(state.draft);
       }
       host.refresh();return true;
@@ -1336,15 +1340,25 @@ export function createDrawingController(host) {
     const doc=host.doc(),primitive=doc.primitives.find(p=>p.id===id);
     if(!primitive || !host.promptFields)return;
     const owner=host.model?.(),history=host.historyToken?.(),stamp=JSON.stringify(primitive);
+    const ellipse=primitive.type==='ellipse' ? drawingEllipseGeometry(primitive.points) : null;
+    const geometryFields=ellipse ? [
+      {key:'cx',label:'Center X (paper mm)',value:String(ellipse.cx)},
+      {key:'cy',label:'Center Y (paper mm)',value:String(ellipse.cy)},
+      {key:'rx',label:'Major semi-axis (paper mm)',value:String(ellipse.rx)},
+      {key:'ry',label:'Minor semi-axis (paper mm)',value:String(ellipse.ry)},
+      {key:'rotation',label:'Rotation (degrees)',value:String(ellipse.rotation*180/Math.PI)},
+    ] : primitive.points.flatMap((p,i)=>[{key:'x'+i,label:'Point '+(i+1)+' X (paper mm)',value:String(p.x)},{key:'y'+i,label:'Point '+(i+1)+' Y (paper mm)',value:String(p.y)}]);
     const answer=await host.promptFields('Edit drawing annotation',[
-      ...primitive.points.flatMap((p,i)=>[{key:'x'+i,label:'Point '+(i+1)+' X (paper mm)',value:String(p.x)},{key:'y'+i,label:'Point '+(i+1)+' Y (paper mm)',value:String(p.y)}]),
+      ...geometryFields,
       {key:'style',label:'Line style',type:'select',value:primitive.style,choices:[{value:'outline',label:'Visible'},{value:'hidden',label:'Hidden'},{value:'center',label:'Centerline'}]},
     ],'Paper annotations are independent of CAD geometry and view scale. Origin: paper top-left, X right, Y down.');
     if(!answer)return;
     if(host.model?.()!==owner || host.historyToken?.()!==history || host.doc()!==doc || !doc.primitives.includes(primitive) || JSON.stringify(primitive)!==stamp) {host.flash('Drawing changed while editing annotation; retry');return;}
     try {
-      if(primitive.points.some((p,i)=>String(answer['x'+i] ?? '').trim()===''||String(answer['y'+i] ?? '').trim()===''))throw new Error('Enter every paper coordinate');
-      const next=validateDrawingPrimitive({...primitive,style:answer.style,points:primitive.points.map((p,i)=>({x:Number(answer['x'+i]),y:Number(answer['y'+i])}))},sheetPaper(doc));
+      if(geometryFields.some(field=>String(answer[field.key] ?? '').trim()===''))throw new Error('Enter every paper coordinate');
+      if(ellipse && (!(Number(answer.rx)>0)||!(Number(answer.ry)>0)))throw new Error('An ellipse needs two positive semi-axes');
+      const points=ellipse ? drawingEllipsePoints(Object.fromEntries(geometryFields.map(field=>[field.key,Number(answer[field.key])]))) : primitive.points.map((p,i)=>({x:Number(answer['x'+i]),y:Number(answer['y'+i])}));
+      const next=validateDrawingPrimitive({...primitive,style:answer.style,points},sheetPaper(doc));
       if(JSON.stringify(next)===JSON.stringify(primitive))return;
       host.pushUndo('Edit drawing annotation');
       // Undo capture can normalize and replace the drawing records. Commit to
@@ -1376,7 +1390,7 @@ export function createDrawingController(host) {
       doc.notes = doc.notes.filter((entry) => entry.id !== selection.id);
     } else if (selection.kind === 'primitive') {
       host.pushUndo('Delete drawing annotation');
-      doc.primitives=doc.primitives.filter(entry=>entry.id!==selection.id);
+      const live=host.doc();live.primitives=live.primitives.filter(entry=>entry.id!==selection.id);
     }
     state.selection = null;
     invalidate();

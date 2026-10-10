@@ -1,10 +1,22 @@
 // Independent paper annotations: millimetres from the sheet's top-left corner.
 // These never supply model dimensions, topology or feature inputs.
 export const DRAWING_PRIMITIVE_TOOLS = Object.freeze({
-  sheetline: 'line', sheetpolyline: 'polyline', sheetrect: 'rectangle', sheetcircle: 'circle', sheetarc:'arc',
+  sheetline: 'line', sheetpolyline: 'polyline', sheetrect: 'rectangle', sheetcircle: 'circle', sheetarc:'arc', sheetellipse:'ellipse',
 });
 const TAU=Math.PI*2;
 const positiveAngle=angle=>((angle%TAU)+TAU)%TAU;
+export function drawingEllipsePoints({cx,cy,rx,ry,rotation}) {
+  const a=rotation*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+  return [{x:cx,y:cy},{x:cx+rx*c,y:cy+rx*s},{x:cx-ry*s,y:cy+ry*c}];
+}
+export function drawingEllipseGeometry(points) {
+  if(points.length!==3)throw new Error('An ellipse needs center, major axis and minor radius points');
+  const [p,a,b]=points,dx=a.x-p.x,dy=a.y-p.y,rx=Math.hypot(dx,dy),rotation=Math.atan2(dy,dx);
+  const ry=Math.abs((b.x-p.x)*Math.sin(rotation)-(b.y-p.y)*Math.cos(rotation));
+  if(!Number.isFinite(rx)||!Number.isFinite(ry)||rx<1e-8||ry<1e-8)throw new Error('An ellipse needs two positive semi-axes');
+  if(ry>rx+1e-8)throw new Error('The minor semi-axis must not exceed the major semi-axis');
+  return {type:'ellipse',cx:p.x,cy:p.y,rx,ry,rotation};
+}
 export function drawingArcGeometry(points) {
   if(points.length!==3)throw new Error('An arc needs start, through and end points');
   const [a,b,c]=points,bx=b.x-a.x,by=b.y-a.y,cx=c.x-a.x,cy=c.y-a.y;
@@ -22,10 +34,10 @@ function onArc(item,angle) {
   return (item.anticlockwise ? positiveAngle(item.a0-angle) : positiveAngle(angle-item.a0))<=Math.abs(item.a1-item.a0)+1e-10;
 }
 export function validateDrawingPrimitive(value, paper) {
-  if (!value || !['line','polyline','rectangle','circle','arc'].includes(value.type)) throw new Error('Choose a drawing annotation type');
+  if (!value || !['line','polyline','rectangle','circle','arc','ellipse'].includes(value.type)) throw new Error('Choose a drawing annotation type');
   if (!Array.isArray(value.points) || value.points.some(p=>!p || typeof p.x!=='number' || typeof p.y!=='number')) throw new Error('Enter finite paper coordinates for every point');
   const points=value.points.map(p=>({x:p.x,y:p.y}));
-  if (points.length<2 || (value.type==='arc' ? points.length!==3 : value.type!=='polyline' && points.length!==2) || points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y))) throw new Error('Enter finite paper coordinates for every point');
+  if (points.length<2 || (['arc','ellipse'].includes(value.type) ? points.length!==3 : value.type!=='polyline' && points.length!==2) || points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y))) throw new Error('Enter finite paper coordinates for every point');
   if (paper && points.some(p=>p.x<0||p.y<0||p.x>paper.w||p.y>paper.h)) throw new Error('Keep drawing annotations inside the paper');
   if (value.type==='rectangle' && (Math.abs(points[0].x-points[1].x)<1e-8||Math.abs(points[0].y-points[1].y)<1e-8)) throw new Error('A rectangle needs width and height');
   if (points.slice(1).some((p,i)=>Math.hypot(p.x-points[i].x,p.y-points[i].y)<1e-8)) throw new Error('Drawing segments need distinct points');
@@ -37,18 +49,33 @@ export function validateDrawingPrimitive(value, paper) {
     const arc=drawingArcGeometry(points);
     if(paper && [0,Math.PI/2,Math.PI,Math.PI*1.5].some(angle=>onArc(arc,angle) && (arc.cx+arc.r*Math.cos(angle)<-1e-8||arc.cy+arc.r*Math.sin(angle)<-1e-8||arc.cx+arc.r*Math.cos(angle)>paper.w+1e-8||arc.cy+arc.r*Math.sin(angle)>paper.h+1e-8)))throw new Error('Keep the whole arc inside the paper');
   }
+  if(value.type==='ellipse') {
+    const e=drawingEllipseGeometry(points),c=Math.cos(e.rotation),s=Math.sin(e.rotation);
+    const hx=Math.hypot(e.rx*c,e.ry*s),hy=Math.hypot(e.rx*s,e.ry*c);
+    if(paper && (e.cx-hx<0||e.cy-hy<0||e.cx+hx>paper.w||e.cy+hy>paper.h))throw new Error('Keep the whole ellipse inside the paper');
+  }
   return {...value,points,style:['outline','hidden','center'].includes(value.style)?value.style:'outline'};
 }
 export function drawingPrimitiveItems(value) {
   const p=validateDrawingPrimitive(value),common={style:p.style,primitiveId:p.id};
   if(p.type==='circle')return [{...common,type:'circle',cx:p.points[0].x,cy:p.points[0].y,r:Math.hypot(p.points[1].x-p.points[0].x,p.points[1].y-p.points[0].y)}];
   if(p.type==='arc')return [{...common,...drawingArcGeometry(p.points)}];
+  if(p.type==='ellipse')return [{...common,...drawingEllipseGeometry(p.points)}];
   let points=p.points;
   if(p.type==='rectangle') {const [a,b]=points;points=[a,{x:b.x,y:a.y},b,{x:a.x,y:b.y},a];}
   return points.slice(1).map((b,i)=>({...common,type:'line',x1:points[i].x,y1:points[i].y,x2:b.x,y2:b.y}));
 }
 export function drawingPrimitiveHit(value, point, reach) {
   return drawingPrimitiveItems(value).some(item=>{
+    if(item.type==='ellipse') {
+      const c=Math.cos(item.rotation),s=Math.sin(item.rotation),dx=point.x-item.cx,dy=point.y-item.cy;
+      const x=c*dx+s*dy,y=-s*dx+c*dy,dist=a=>Math.hypot(item.rx*Math.cos(a)-x,item.ry*Math.sin(a)-y);
+      let angle=0,best=Infinity;
+      for(let i=0;i<64;i++){const a=i*TAU/64,d=dist(a);if(d<best){best=d;angle=a;}}
+      let lo=angle-TAU/64,hi=angle+TAU/64;
+      for(let i=0;i<40;i++){const a=lo+(hi-lo)/3,b=hi-(hi-lo)/3;if(dist(a)<dist(b))hi=b;else lo=a;}
+      return dist((lo+hi)/2)<=reach;
+    }
     if(item.type==='circle')return Math.abs(Math.hypot(point.x-item.cx,point.y-item.cy)-item.r)<=reach;
     if(item.type==='arc')return value.points.filter((p,i)=>i!==1).some(p=>Math.hypot(point.x-p.x,point.y-p.y)<=reach) || (onArc(item,Math.atan2(point.y-item.cy,point.x-item.cx)) && Math.abs(Math.hypot(point.x-item.cx,point.y-item.cy)-item.r)<=reach);
     const dx=item.x2-item.x1,dy=item.y2-item.y1,q=Math.max(0,Math.min(1,((point.x-item.x1)*dx+(point.y-item.y1)*dy)/(dx*dx+dy*dy)));
