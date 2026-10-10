@@ -5573,15 +5573,16 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-mate-face-row select { min-width: 0; width: 100%; color: var(--text); background: var(--input-bg, var(--btn-bg)); border: 1px solid var(--btn-border); border-radius: 5px; padding: 5px; }
 /* Nothing in an assembly is sketched, so the pane and its tab step out. */
 #modeler.md-assembly [data-tab="sketch"],
-#modeler.md-assembly #mdCanvas,
+#modeler.md-assembly:not(.md-isdrawing) #mdCanvas,
 #modeler.md-assembly .md-views,
-#modeler.md-assembly .md-hint,
-#modeler.md-assembly #mdModes { display: none !important; }
+#modeler.md-assembly:not(.md-isdrawing) .md-hint,
+#modeler.md-assembly #mdModes button[data-mode="2d"],
+#modeler.md-assembly #mdModes button[data-mode="split"] { display: none !important; }
 /* Assembly hides the sketch hint, but flash() is how mate buttons say why a
    click did nothing. A refusal that cannot be seen is a dead button. */
 #modeler.md-assembly .md-hint.flash { display: block !important; }
 #modeler.md-assembly .md-mid { background: var(--bg-canvas-3d); }
-#modeler.md-assembly .md-3dhost { display: block; }
+#modeler.md-assembly:not(.md-isdrawing) .md-3dhost { display: block; }
 /* the history list scrolls itself, so it takes the pane's height rather than
    growing past it — the pane's own scrollbar would fight the timeline's */
 #modeler .md-pane[data-pane="hist"] { overflow: hidden; }

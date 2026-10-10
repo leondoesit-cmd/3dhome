@@ -1,0 +1,122 @@
+{
+  "checks": {
+    "singleActiveIndependentAssembly": true,
+    "sevenSourceStepsExact": true,
+    "onlyCopyIdentityAndZeroOffsetNormalization": true,
+    "allCanonicalMateCollectionsSourceExact": true,
+    "collapsedActiveSourceExplode": true
+  },
+  "canonicalCopyAccepted": true,
+  "sourceSha256": "633c8b90e5f2da3cb5b618b4e3bc3b506068e1bbbd65a9e8325ff5c059d859ae",
+  "copySha256": "2dceac243d4f37e615722548c124e4d0fc964edc3232006e6e908882e31f27af",
+  "differences": [
+    {
+      "path": ".key",
+      "old": "asm_mumj9qzq",
+      "new": "asm_mv2pb85e_6408"
+    },
+    {
+      "path": ".name",
+      "old": "FLASHLIGHT",
+      "new": "FLASHLIGHT-CH9"
+    },
+    {
+      "path": ".components.0.explodedOffset",
+      "old": null,
+      "new": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "path": ".components.1.explodedOffset",
+      "old": null,
+      "new": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "path": ".components.2.asm.components.1.explodedOffset",
+      "old": null,
+      "new": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "path": ".components.2.asm.components.2.asm.components.0.explodedOffset",
+      "old": null,
+      "new": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "path": ".components.2.asm.components.2.asm.components.1.explodedOffset",
+      "old": null,
+      "new": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "path": ".components.2.explodedOffset",
+      "old": null,
+      "new": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "path": ".components.3.asm.components.1.explodedOffset",
+      "old": null,
+      "new": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "assemblies": [
+    {
+      "path": "root",
+      "key": "asm_mv2pb85e_6408",
+      "name": "FLASHLIGHT-CH9",
+      "mates": 0,
+      "topologyMates": 9,
+      "totalMates": 9
+    },
+    {
+      "path": "root/1396",
+      "key": "asm_mumj0xt6",
+      "name": "CAPANDLENS",
+      "mates": 0,
+      "topologyMates": 6,
+      "totalMates": 6
+    },
+    {
+      "path": "root/1396/1387",
+      "key": "asm_mumitzo9",
+      "name": "LENSANDBULB",
+      "mates": 0,
+      "topologyMates": 3,
+      "totalMates": 3
+    },
+    {
+      "path": "root/1397",
+      "key": "asm_mumibw8f",
+      "name": "BATTERYANDPLATE",
+      "mates": 0,
+      "topologyMates": 3,
+      "totalMates": 3
+    }
+  ],
+  "qualification": "Canonical exported independent copy matches historical protected source except new owner identity and null-to-zero presentation offsets. Root topologyMates9 agrees with UI9; legacy mates0 is not total. Parent-observed2 unresolved remains a diagnostic, not solver acceptance. No source/library import required."
+}

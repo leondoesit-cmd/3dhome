@@ -1,0 +1,160 @@
+{
+  "checks": {
+    "eightNativeLeafDefinitions": true,
+    "sourceAuthoringAllLeavesExact": true,
+    "placementsAllLeavesPreserved": true,
+    "rootNativeMatesExact": true,
+    "allNestedMateAndComponentPlacementsExact": true,
+    "sevenChainsExact": true,
+    "explodedActivated": true,
+    "letterInchThirdQuarterSheet": true,
+    "partsOnlyBomRequested": true,
+    "nativeIsoShadedQuarter": true,
+    "eightUniqueOccurrenceBoundBalloons": true,
+    "sourceRootPartNumber": true,
+    "housingSwitchOccurrenceMetadata": true
+  },
+  "diagnosticAuthoringAndBindingsAccepted": true,
+  "renderAccepted": false,
+  "coldAccepted": false,
+  "bytes": {
+    "old": 21497896,
+    "new": 20341783
+  },
+  "switchRefresh": {
+    "oldPositionScalars": 37575,
+    "newPositionScalars": 42057,
+    "oldToken": 7,
+    "newToken": 9,
+    "sourceFeatureAndSketchExact": true
+  },
+  "balloons": [
+    {
+      "id": "b7puczbo",
+      "item": "1",
+      "path": [
+        "1394"
+      ],
+      "leader": {
+        "viewId": "vqi27251",
+        "u": 11.330151157757925,
+        "v": 10.104327282616973
+      }
+    },
+    {
+      "id": "bmpgs5hs",
+      "item": "2",
+      "path": [
+        "1395"
+      ],
+      "leader": {
+        "viewId": "vqi27251",
+        "u": 1.1954157962752414,
+        "v": 16.034802882214848
+      }
+    },
+    {
+      "id": "bo6e5qs5",
+      "item": "3",
+      "path": [
+        "1396",
+        "1385"
+      ],
+      "leader": {
+        "viewId": "vqi27251",
+        "u": -16.589640293615567,
+        "v": -13.029005766224358
+      }
+    },
+    {
+      "id": "b92m8jkj",
+      "item": "4",
+      "path": [
+        "1396",
+        "1386"
+      ],
+      "leader": {
+        "viewId": "vqi27251",
+        "u": -15.178717884529808,
+        "v": -4.724920975024963
+      }
+    },
+    {
+      "id": "bqzzj14b",
+      "item": "5",
+      "path": [
+        "1396",
+        "1387",
+        "1379"
+      ],
+      "leader": {
+        "viewId": "vqi27251",
+        "u": -7.526141565450474,
+        "v": -5.7748200271242585
+      }
+    },
+    {
+      "id": "bwt79v95",
+      "item": "6",
+      "path": [
+        "1396",
+        "1387",
+        "1381"
+      ],
+      "leader": {
+        "viewId": "vqi27251",
+        "u": -4.206770353542617,
+        "v": -2.9088494544911896
+      }
+    },
+    {
+      "id": "bwvd6b7e",
+      "item": "7",
+      "path": [
+        "1397",
+        "1372"
+      ],
+      "leader": {
+        "viewId": "vqi27251",
+        "u": 2.469570433294017,
+        "v": 4.813179303187201
+      }
+    },
+    {
+      "id": "bhhbne3s",
+      "item": "8",
+      "path": [
+        "1397",
+        "1373"
+      ],
+      "leader": {
+        "viewId": "vqi27251",
+        "u": -4.482233764212002,
+        "v": -3.092016887416908
+      }
+    }
+  ],
+  "drawingSettings": {
+    "size": "Letter",
+    "units": "in",
+    "scale": [
+      1,
+      4
+    ],
+    "projection": "third",
+    "bomScope": "partsOnly",
+    "orientation": "landscape",
+    "draftingStandard": "ANSI",
+    "notes": "",
+    "title": "FLASHLIGHT ASSEMBLY",
+    "number": "10-F123",
+    "revision": "A",
+    "author": "Browser study",
+    "company": "D&M ENGINEERING",
+    "date": "2026-10-10",
+    "material": "",
+    "finish": "",
+    "mass": ""
+  },
+  "qualification": "Actual source authoring unchanged; Switch derived native mesh/topology refreshed. Mesh bytes are not equal and no separate native volume/containment oracle is claimed. Seven chains activated and eight real occurrence-bound balloons persisted; absent canvas means no actual render/layout acceptance. Parent observed unresolved2 to1, no solved assembly claim. Original library records not inspected."
+}

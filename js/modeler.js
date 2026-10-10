@@ -166,6 +166,7 @@ import {
 import { buildDrawingScene } from "./cad_drawings.js";
 import {createNativeConfiguredDrawingCache,configuredViewId,configuredBodyAppearance} from './core/native_configured_drawing.js';
 import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
+import {ensureAssemblyDrawingDoc} from './core/assembly_drawing_settings.js';
 import {drawingViewScaleControl} from "./core/drawing_scale_control.js";
 import {decodeDrawingImage} from "./core/drawing_image.js";
 import {importDrawingProjectImage} from "./core/drawing_project_image.js";
@@ -240,6 +241,7 @@ import { drawingOnlyContentSummary, hasSaveableModelContent } from "./core/model
 import { sketchFitViewport } from "./core/sketch_fit_viewport.js";
 import { updateAssemblyContexts } from "./core/assembly_context.js";
 import { componentEditCopy, commitComponentEdit } from "./core/component_edit.js";
+import {nestedComponentOccurrence,createNestedComponentEdit,restoreNestedComponentEdit,nestedEditStillCurrent,commitNestedComponentEdit,assemblyWithoutNestedOccurrence} from "./core/nested_component_edit.js";
 import { registerGeneratedExtrusion } from "./core/generated_extrusion.js";
 import { queueModelBackup, listDiskBackups, fetchDiskBackup, missingFromLibrary, modelBackupStatus } from "./core/model_backup_client.js";
 import { leavesInputStanding, rebuildDefinition } from "./core/rebuild.js";
@@ -2982,17 +2984,18 @@ function snapDoc() {
   // Component authoring has an isolated working definition. Its unchanged
   // parent assembly is not part of these local sketch edits: serializing it
   // into sixty Undo entries duplicated every other native body many times.
-  if (E.contextEdit) return JSON.stringify({d:E.def,contextComponentId:E.contextEdit.componentId});
+  if (E.contextEdit) return JSON.stringify({d:E.def,contextComponentId:E.contextEdit.componentId,contextComponentPath:E.contextEdit.path});
   return JSON.stringify({ d: E.def, a: E.assembly });
 }
 const H = createHistory({
   get: snapDoc,
   set: function (s) {
     var o = JSON.parse(s);
+    if(E.contextEdit && o.contextComponentId!==undefined && (o.contextComponentId!==E.contextEdit.componentId || JSON.stringify(o.contextComponentPath || [o.contextComponentId])!==JSON.stringify(E.contextEdit.path || [E.contextEdit.componentId]))){flash('This component history belongs to a different occurrence');return;}
     // Evaluation values describe the document being left, including its mass.
     closeEvalCard();
     E.def = o.d;
-    if (!E.contextEdit || o.contextComponentId !== E.contextEdit.componentId) E.assembly = o.a || null;
+    if (!E.contextEdit || o.contextComponentId !== E.contextEdit.componentId || JSON.stringify(o.contextComponentPath || [o.contextComponentId])!==JSON.stringify(E.contextEdit.path || [E.contextEdit.componentId])) E.assembly = o.a || null;
     // Undo restores document metadata too. Leaving the stale name textbox
     // behind would write the undone name back into the next Save.
     syncHead();
@@ -3285,8 +3288,10 @@ function restoreModelerDraft(draft) {
        an interference result from the previous document cannot survive it. */
     invalidateInterference();
   } else if (draft.def) {
+    var draftContext=draft.def.metadata?.contextEditor,restoredContext=null;
+    if(draftContext){try{restoredContext=restoreNestedComponentEdit(draft.assembly,draftContext);}catch(error){flash('Component draft could not reopen: '+error.message);return false;}}
     E.def = ensureParametricDocument(draft.def);
-    if(draft.assembly && E.def.metadata?.contextEditor){E.assembly=draft.assembly;E.contextEdit={componentId:E.def.metadata.contextEditor.componentId,isNew:!!E.def.metadata.contextEditor.isNew,previousDef:newDef()};}
+    if(restoredContext){E.assembly=draft.assembly;E.contextEdit=restoredContext;delete E.contextEdit.working;E.contextEdit.isNew=!!draftContext.isNew;E.contextEdit.previousDef=newDef();}
     E.docType = "part";
     if (root) root.classList.remove("md-assembly");
   } else return false;
@@ -12549,7 +12554,7 @@ function drawingHintText() {
 
 function drawingDocument() {
   var owner=E.docType==='assembly'&&E.assembly?E.assembly:E.def;
-  var doc=ensureSheetDoc(owner,E.docType==='assembly'?{views:['front','top','right','iso']}:{});
+  var doc=E.docType==='assembly'?ensureAssemblyDrawingDoc(owner):ensureSheetDoc(owner);
   doc.assemblyLayout=E.docType==='assembly';
   return doc;
 }
@@ -17344,7 +17349,7 @@ function assemblyCollapsed(id, fallback) {
 
 function assemblyTreeNode(fields) {
   return {
-    id: fields.id, kind: fields.kind, targetId: fields.targetId || null, historyId: null,
+    id: fields.id, kind: fields.kind, targetId: fields.targetId || null, historyId: null, componentPath:fields.componentPath || null,
     index: Number.isInteger(fields.index) ? fields.index : null,
     name: fields.name || "", detail: fields.detail || "", icon: fields.icon || "",
     state: "", suppressed: !!fields.suppressed, rolled: false, error: fields.error || null,
@@ -17403,15 +17408,17 @@ function planeTreeRows(holderId, parentId) {
   });
 }
 
-function subassemblyTreeRows(top, components, parentId) {
+function subassemblyTreeRows(top, components, parentId, path) {
+  path=path || [top.id];
   return components.map(function (child) {
-    var nested = isSubassembly(child) ? subassemblyTreeRows(top, child.asm.components, parentId + "/" + child.id) : [];
+    var childPath=path.concat(child.id);
+    var nested = isSubassembly(child) ? subassemblyTreeRows(top, child.asm.components, parentId + "/" + child.id,childPath) : [];
     return assemblyTreeNode({
-      id: parentId + "/" + child.id, kind: "subcomponent", targetId: top.id,
+      id: parentId + "/" + child.id, kind: "subcomponent", targetId: top.id,componentPath:childPath,
       name: child.name || child.modelKey || t("component"),
       icon: isSubassembly(child) ? "ph-stack" : "components",
       suppressed: child.visible === false, collapsed: assemblyCollapsed(parentId + "/" + child.id, true),
-      can: { select: true }, children: nested,
+      can: { select: true,edit:!!child.def&&!isSubassembly(child) }, children: nested,
     });
   });
 }
@@ -17544,6 +17551,13 @@ function showAssemblyTreeMenu(node, event, api, handlers) {
     icon: node.suppressed ? "ph-eye" : "ph-eye-slash",
     run: function () { handlers.onSuppress(node); },
   });
+  if(node.kind==='subcomponent'&&node.componentPath){
+    var nested=nestedComponentOccurrence(E.assembly,node.componentPath);
+    if(nested?.component.def&&!isSubassembly(nested.component)){
+      items.push({label:'Edit nested component',icon:'ph-cube-focus',run:function(){beginContextPart(nested.component,false,node.componentPath);}});
+      items.push({label:'Nested component properties',icon:'ph-tag',run:function(){editNestedComponentProperties(node.componentPath);}});
+    }
+  }
   if (node.kind === "component") {
     var component = assemblyComponentForNode(node);
     if(component?.def && !isSubassembly(component))items.push({label:"Edit component",icon:"ph-cube-focus",run:function(){beginContextPart(component);}});
@@ -17611,7 +17625,7 @@ function assemblyTreeHandlers(model) {
       E.sel = E.componentSel[E.componentSel.length - 1] || null;
       refreshSelection();
     },
-    onEdit: function () {},
+    onEdit: function (node) {if(node.kind==='subcomponent'&&node.componentPath){var found=nestedComponentOccurrence(E.assembly,node.componentPath);if(found)beginContextPart(found.component,false,node.componentPath);}},
     onRename: function (node, name) {
       var component = assemblyComponentForNode(node);
       if (!component || node.kind !== "component") return;
@@ -17773,11 +17787,28 @@ async function computeSurfaceSectionIntersection(sketch,anchor,edgeReference,own
   }});
 }
 
-function beginContextPart(component,isNew) {
+async function editNestedComponentProperties(path) {
+  var owner=E.assembly,found=nestedComponentOccurrence(owner,path);if(!found?.component.def)return;
+  var edit=createNestedComponentEdit(owner,path),history=currentHistoryNode(),component=found.component;
+  var answer=await sheetForm('Nested component properties',[
+    {key:'partNumber',label:'Component part number',value:assemblyPartNumber(component,component.def)},
+    {key:'description',label:'Component description',value:documentDescription(component)||documentDescription(component.def)}
+  ],'Occurrence metadata only. Preserves source part library, native geometry, mates and placement.');
+  if(!answer)return;
+  if(E.docType!=='assembly'||currentHistoryNode()!==history||!nestedEditStillCurrent(E.assembly,edit)){flash('The nested occurrence changed; reopen its properties');return;}
+  pushUndo('Nested component properties');
+  var live=nestedComponentOccurrence(E.assembly,path);if(!live)return;
+  setDocumentProperty(live.component,'PartNo',answer.partNumber);setDocumentProperty(live.component,'Description',answer.description);
+  invalidateDrawing();refreshAll();scheduleModelerDraft();
+}
+
+function beginContextPart(component,isNew,path) {
   if(!component?.def || isSubassembly(component) || E.contextEdit)return;
-  E.contextEdit={componentId:component.id,previousDef:E.def,isNew:!!isNew};
-  E.def=componentEditCopy(component);
-  E.def.metadata=E.def.metadata || {};E.def.metadata.contextEditor={componentId:component.id,assemblyKey:E.assembly.key,isNew:!!isNew};
+  var edit=createNestedComponentEdit(E.assembly,path || [component.id]);
+  if(edit.source!==component)return;
+  E.contextEdit=edit;edit.previousDef=E.def;edit.isNew=!!isNew;
+  E.def=edit.working;delete edit.working;
+  E.def.metadata=E.def.metadata || {};E.def.metadata.contextEditor={componentId:component.id,componentPath:edit.path,assemblyKey:E.assembly.key,isNew:!!isNew};
   setDocumentType("part");
   H.clear().seed();
   E.authoring={phase:"model",referenceId:null,sketchId:null,featureType:null,sketchSelection:[],featureSelection:[],workflowFocus:"context"};
@@ -17787,30 +17818,26 @@ function beginContextPart(component,isNew) {
 async function finishContextPart() {
   var edit=E.contextEdit;if(!edit)return;
   if(edit.finishing)return false;
+  if(!nestedEditStillCurrent(E.assembly,edit)){flash('The nested occurrence changed; cancel and reopen component edit');return false;}
   edit.finishing=true;
   try {
-  var component=assemblyComponentById(edit.componentId);
-  var working=E.def;
-  // Finish must publish the edited native bodies and their matching topology
-  // before leaving the part document; switching first cancels that publication.
-  if(isCanonicalAuthoring() && activeParts(working).length){
-    var exact=await regenerateExactModel(false,{restoreMode:'mesh'});
-    if(!exact?.ok || E.contextEdit!==edit || E.def!==working)return false;
-  }
-  E.def=edit.previousDef;E.contextEdit=null;
-  setDocumentType("assembly");E.sel=component;E.componentSel=component?[component]:[];
-  // Part Undo is local to the isolated working copy. The assembly gets one
-  // complete transaction, with its unchanged source definition as baseline.
-  H.clear().seed();
-  if(component){pushUndo("Edit component");commitComponentEdit(component,working);}
-  solveAssembly({quiet:true});refreshAll();fitPreview();
-  return true;
+    var working=E.def,history=currentHistoryNode();
+    if(isCanonicalAuthoring() && activeParts(working).length){
+      var exact=await regenerateExactModel(false,{restoreMode:'mesh'});
+      if(!exact?.ok || E.contextEdit!==edit || E.def!==working)return false;
+    }
+    if(currentHistoryNode()!==history||!nestedEditStillCurrent(E.assembly,edit)){flash('The component changed while finishing; retry after the current edit');return false;}
+    var occurrence=nestedComponentOccurrence(E.assembly,edit.path),top=E.assembly.components.find(function(c){return String(c.id)===String(edit.path[0]);});
+    E.def=edit.previousDef;E.contextEdit=null;
+    H.clear().seed();pushUndo('Edit component');commitNestedComponentEdit(E.assembly,edit,working);
+    setDocumentType('assembly');E.sel=top;E.componentSel=top?[top]:[];
+    solveAssembly({quiet:true});refreshAll();fitPreview();return true;
   } finally {edit.finishing=false;}
 }
 
 function cancelContextPart() {
   var edit=E.contextEdit;if(!edit)return;
-  if(edit.isNew)E.assembly.components=E.assembly.components.filter(function(component){return component.id!==edit.componentId;});
+  if(edit.isNew && E.assembly===edit.owner && edit.path.length===1)E.assembly.components=E.assembly.components.filter(function(component){return component!==edit.source;});
   E.def=edit.previousDef;E.contextEdit=null;
   setDocumentType("assembly");H.clear().seed();refreshAll();fitPreview();scheduleModelerDraft();
 }
@@ -17827,17 +17854,13 @@ function syncAssemblyContextBar() {
 
 function addAssemblyContextGhosts(parent) {
   if(!E.contextEdit)return;
-  var current=assemblyComponentById(E.contextEdit.componentId);if(!current)return;
-  // Placement is a pose, not geometry. Building the current housing here used
-  // to tessellate its entire body and allocate every picking edge just to
-  // discard the result after reading its matrix.
-  var placement=new THREE.Group(),tr=normalizeTransform(current),blown=current.explodedOffset || null;
-  placement.position.set(tr.x+(blown?.x || 0),tr.y+(blown?.y || 0),tr.z+(blown?.z || 0));
-  placement.rotation.set(tr.rx*Math.PI/180,tr.ry*Math.PI/180,tr.rz*Math.PI/180);
-  placement.updateMatrix();
+  var occurrence=nestedComponentOccurrence(E.assembly,E.contextEdit.path || [E.contextEdit.componentId]);if(!occurrence)return;
+  var current=occurrence.component,frame=occurrence.placement,blown=explodedOccurrenceOffset(occurrence);
+  var placement=new THREE.Group();placement.matrix.makeBasis(new THREE.Vector3(frame.x.x,frame.x.y,frame.x.z),new THREE.Vector3(frame.y.x,frame.y.y,frame.y.z),new THREE.Vector3(frame.z.x,frame.z.y,frame.z.z));
+  placement.matrix.setPosition(frame.origin.x+blown.x,frame.origin.y+blown.y,frame.origin.z+blown.z);
   var context=new THREE.Group();context.userData.cadAssemblyContext=true;context.matrix.copy(placement.matrix).invert();context.matrixAutoUpdate=false;
-  E.assembly.components.forEach(function(component){
-    if(component===current || component.visible===false)return;
+  assemblyWithoutNestedOccurrence(E.assembly,occurrence.path).components.forEach(function(component){
+    if(component.visible===false)return;
     var ghost=buildComponentGroup(component,null,"",true);if(!ghost)return;
     ghost.traverse(function(object){
       delete object.userData.cadComponent;delete object.userData.cadPart;object.userData.cadOverlay=true;
@@ -27706,10 +27729,13 @@ function showAssemblyDrawingSettings(focusNotes) {
   var preview = el("button", "", "Preview drawing");
   preview.type = "button";
   preview.onclick = function() { apply(); if(showDrawingPreview())dialog.close(); };
+  var edit = el("button", "", "Open native Drawing");
+  edit.type = "button";
+  edit.onclick = function() { apply(); dialog.close(); setMode("drawing"); };
   var cancel = el("button", "", "Cancel");
   cancel.type = "button";
   cancel.onclick = function() { dialog.close(); };
-  dialog.append(save, preview, output, cancel);
+  dialog.append(save, edit, preview, output, cancel);
   dialog.addEventListener("close", function() { dialog.remove(); }, { once:true });
   root.appendChild(dialog);
   dialog.showModal();

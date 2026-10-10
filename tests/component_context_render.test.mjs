@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {Group as NativeGroup,Vector3} from '../vendor/three/three.module.js';
+import {nestedComponentOccurrence,assemblyWithoutNestedOccurrence} from '../js/core/nested_component_edit.js';
+import {explodedOccurrenceOffset} from '../js/cad_exploded_view.js';
 
 const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function fn(name,next){return source.slice(source.indexOf('function '+name+'('),source.indexOf('\nfunction '+next+'(',source.indexOf('function '+name+'(')));}
@@ -41,16 +44,16 @@ test('restoring local component Undo retains parent assembly identity and restor
 });
 
 test('context ghosts read edited component pose without building its geometry, and other bodies use presentation-only rendering',()=>{
-  const current={id:1,transform:{x:3,y:4,z:5,rx:10,ry:20,rz:30},explodedOffset:{x:2}},other={id:2};
+  const current={id:1,transform:{x:3,y:4,z:5,rx:10,ry:20,rz:30},explodedOffset:{x:2,y:0,z:0}},other={id:2};
   Object.defineProperty(current,'def',{get(){throw new Error('current geometry must not be built for placement');}});
   const E={contextEdit:{componentId:1},assembly:{components:[current,other]}};
   const calls=[],groups=[];
-  class TrackedGroup extends Group {constructor(){super();groups.push(this);}}
-  const run=new Function('E','THREE','assemblyComponentById','normalizeTransform','buildComponentGroup',fn('addAssemblyContextGhosts','refreshComponents')+';return addAssemblyContextGhosts;')(E,{Group:TrackedGroup},()=>current,c=>c.transform,(...args)=>{calls.push(args);return new Group();});
+  class TrackedGroup extends NativeGroup {constructor(){super();groups.push(this);}}
+  const run=new Function('E','THREE','nestedComponentOccurrence','assemblyWithoutNestedOccurrence','explodedOccurrenceOffset','buildComponentGroup',fn('addAssemblyContextGhosts','refreshComponents')+';return addAssemblyContextGhosts;')(E,{Group:TrackedGroup,Vector3},nestedComponentOccurrence,assemblyWithoutNestedOccurrence,explodedOccurrenceOffset,(...args)=>{calls.push(args);return new NativeGroup();});
   const parent=new Group();run(parent);
   assert.deepEqual(calls,[[other,null,'',true]]);
-  assert.deepEqual(groups[0].xyz,[5,4,5]);
-  assert.deepEqual(groups[0].euler,[10,20,30].map(n=>n*Math.PI/180));
+  assert.deepEqual(groups[0].matrix.elements.slice(12,15),[5,4,5]);
+  assert.ok(Math.abs(groups[0].matrix.elements[0]-Math.cos(20*Math.PI/180)*Math.cos(30*Math.PI/180))<1e-12);
   assert.equal(parent.children[0].userData.cadAssemblyContext,true);
   assert.equal(parent.children[0].children[0].userData.cadOverlay,true);
 });

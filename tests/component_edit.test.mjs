@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { componentEditCopy, commitComponentEdit } from "../js/core/component_edit.js";
+import {createNestedComponentEdit,nestedComponentOccurrence,nestedEditStillCurrent,commitNestedComponentEdit} from "../js/core/nested_component_edit.js";
 import { createHistory } from "../js/edit_history.js";
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
@@ -40,9 +41,9 @@ test("canceling an in-context working copy preserves the original parent referen
 });
 
 function finishFixture(working,regenerate){
-  const component={id:4018,def:{name:'Original base'},transform:{x:0,y:0,z:0}},previousDef={name:'Assembly editor'},edit={componentId:4018,previousDef};
-  const E={contextEdit:edit,def:working,docType:'part'},events=[];
-  const context={E,assemblyComponentById:()=>component,isCanonicalAuthoring:()=>true,activeParts:doc=>doc.parts,
+  const component={id:4018,def:{name:'Original base'},transform:{x:0,y:0,z:0}},previousDef={name:'Assembly editor'},assembly={key:'parent',components:[component]},edit={...createNestedComponentEdit(assembly,[4018]),previousDef};
+  const E={contextEdit:edit,assembly,def:working,docType:'part'},events=[];
+  const context={E,nestedComponentOccurrence,nestedEditStillCurrent,commitNestedComponentEdit,currentHistoryNode:()=>1,flash:()=>{},assemblyComponentById:()=>component,isCanonicalAuthoring:()=>true,activeParts:doc=>doc.parts,
     regenerateExactModel:regenerate,setDocumentType:type=>{events.push(type);E.docType=type;},
     H:{clear(){return this;},seed(){}},pushUndo:()=>events.push('undo'),commitComponentEdit,
     solveAssembly:()=>events.push('solve'),refreshAll:()=>{},fitPreview:()=>{}};
