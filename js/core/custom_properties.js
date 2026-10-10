@@ -44,8 +44,42 @@ export const setDocumentDescription = (doc, value) => setDocumentProperty(doc, "
    model name is the link, so editing Description updates every sheet; any other
    stored text is a deliberate override and wins. */
 export function sheetTitleText(sheet, def) {
+  const source = sheet?.title?.sources?.title;
+  if (source !== undefined) return boundSheetField(sheet, def, 'title', source);
   const stored = sheet && sheet.title && typeof sheet.title.title === "string" ? sheet.title.title : "";
   const name = def && def.name ? String(def.name) : "";
   if (stored && stored !== name) return stored;
   return documentDescription(def) || name;
+}
+
+/* Explicit links survive renaming and reuse: absent sources keep legacy sheets
+   unchanged. A missing chosen source is blank (rendered as an em dash), never
+   substituted with a stale manual string or another document property. */
+export function validateSheetTitleSources(sources) {
+  if (!sources || typeof sources !== 'object' || Array.isArray(sources)) throw new Error('Invalid title field sources');
+  for (const [field, source] of Object.entries(sources)) {
+    if (!['title','number'].includes(field) || !['manual','name',...(field === 'title' ? ['description'] : [])].includes(source)) throw new Error('Invalid title field source');
+  }
+  return sources;
+}
+
+function boundSheetField(sheet, def, field, source) {
+  try { validateSheetTitleSources({[field]:source}); } catch { return ''; }
+  if (source === 'manual') return typeof sheet?.title?.[field] === 'string' ? sheet.title[field] : '';
+  if (source === 'description') return documentDescription(def);
+  return typeof def?.name === 'string' ? def.name : '';
+}
+
+export function setSheetTitleSource(sheet, field, source) {
+  validateSheetTitleSources({[field]:source});
+  if (!sheet?.title) throw new Error('Drawing title block is missing');
+  sheet.title.sources = {...sheet.title.sources, [field]:source};
+}
+
+export function sheetTitleMeta(sheet, def) {
+  const source = sheet?.title?.sources?.number;
+  return {
+    title: sheetTitleText(sheet, def),
+    number: source === undefined ? (sheet?.title?.number || '') : boundSheetField(sheet, def, 'number', source),
+  };
 }

@@ -1,0 +1,34 @@
+{
+  "checks": {
+    "wholeDrawingExact": true,
+    "wholeProjectOnlyKnownDerivedDifferences": true,
+    "originalImageMetadataByteExact": true,
+    "originalJpegByteExact": true,
+    "originalShaExact": true,
+    "svgByteExact": true
+  },
+  "actualOriginalLogoBrowserColdAccepted": true,
+  "differences": [
+    {
+      "path": ".createdAt",
+      "a": 1791652328316,
+      "b": 1791652478849
+    },
+    {
+      "path": ".mainModel.parts.0.exactBuildToken",
+      "a": 26,
+      "b": 27
+    },
+    {
+      "path": ".mainModel.lastRebuild.rebuiltAt",
+      "a": 1791652326407,
+      "b": 1791652449469
+    },
+    {
+      "path": ".mainModel.lastStandardsAudit.at",
+      "a": 1791648828193,
+      "b": 1791652330292
+    }
+  ],
+  "qualification": "Actual cold original JPEG/paper image metadata/wholeDrawing and SVG exact; complete source authoring only derived timestamps/native token differ. Existing legacy title fields retained exactly; no automatic title migration asserted. Reusable template export remains separate."
+}

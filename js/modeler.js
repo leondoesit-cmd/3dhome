@@ -267,7 +267,7 @@ import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
   bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
 } from "./modeler_commands.js";
-import { assemblyPartNumber, documentDescription, documentProperty, setDocumentDescription, setDocumentProperty, sheetTitleText } from "./core/custom_properties.js";
+import { assemblyPartNumber, documentDescription, documentProperty, setDocumentDescription, setDocumentProperty, sheetTitleMeta, setSheetTitleSource } from "./core/custom_properties.js";
 import { finishPreviewProofMatches } from "./core/finish_preview_proof.js";
 import { claimLegacyModelerDraft, modelerDraftKey, modelerDraftOwner, freshModelerDraftOwner, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
@@ -7269,7 +7269,8 @@ function closeFeaturePanel(options = {}) {
   /* The badge goes with the form it lives on, and a debounced downstream run
      left armed would re-lay the document after the edit was dismissed. */
   clearLiveDownstream(null);
-  if(options.assemblyPoseOnly && E.docType==="assembly" && refreshAssemblyPosePreview())refreshViewportSelection();
+  if(options.drawingOnly && E.mode==='drawing'){drawSketch();syncSheetPanel();}
+  else if(options.assemblyPoseOnly && E.docType==="assembly" && refreshAssemblyPosePreview())refreshViewportSelection();
   else updatePreview();
   syncCommandManager(); // puts the ribbon button that opened the form back out
 }
@@ -10639,12 +10640,12 @@ function openQuickForm(spec) {
 
   var failure = spec.failureMessage ? el("p", "md-feature-error") : null;
   if(failure){failure.setAttribute("role", "alert"); failure.hidden = true; host.appendChild(failure);}
-  var close = function () { host.innerHTML = ""; E.quickAction = null; closeFeaturePanel({assemblyPoseOnly:!!spec.presentationOnly}); };
+  var close = function () { host.innerHTML = ""; E.quickAction = null; closeFeaturePanel({assemblyPoseOnly:!!spec.presentationOnly,drawingOnly:!!spec.drawingOnly}); };
   var actions = el("div", "md-feature-actions");
   actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> ' + t("m_cancel"), function () {
     close();
     if (spec.onCancel) spec.onCancel();
-    if(!spec.presentationOnly)refreshAll();
+    if(!spec.presentationOnly&&!spec.drawingOnly)refreshAll();
   }, "md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> ' + t("quickApply"), async function () {
     if (!validateFeatureInputs(host)) return;
@@ -10655,7 +10656,7 @@ function openQuickForm(spec) {
     }
     if(E.quickAction!==(spec.action || "quickform"))return;
     close();
-    if(!spec.presentationOnly)refreshAll();
+    if(!spec.presentationOnly&&!spec.drawingOnly)refreshAll();
   }, "md-quick-apply"));
   host.appendChild(actions);
 
@@ -12109,7 +12110,7 @@ async function drawingPresetAction(action) {
 async function chooseDrawingProjectImage() {
   const answer=await sheetForm('Insert project image',[
     {key:'url',label:'Project image URL',type:'text',value:''},
-  ],'Use an app-served same-origin static PNG/JPEG asset. Pixels are embedded; external and file URLs are unsupported.');
+  ],'Use an app-served same-origin static PNG/JPEG asset. Pixels are embedded; external and file URLs are unsupported.',{drawingOnly:true});
   if(!answer)return null;
   return importDrawingProjectImage(answer.url);
 }
@@ -12126,7 +12127,7 @@ function chooseDrawingImage() {
   });
 }
 
-function sheetForm(title, fields, hint) {
+function sheetForm(title, fields, hint, options={}) {
   return new Promise(function (resolve) {
     if (!root) { resolve(null); return; }
     root.classList.add("md-sheet-form");
@@ -12139,6 +12140,7 @@ function sheetForm(title, fields, hint) {
     };
     var opened = openQuickForm({
       action: "sheetprompt",
+      drawingOnly:!!options.drawingOnly,
       icon: "ph-note-pencil",
       title: title,
       hint: hint || fields.map(function (field) { return field.hint; }).filter(Boolean)[0] || t("drawNoteHint"),
@@ -12216,10 +12218,18 @@ function bindTitleField(input, key) {
   var opened = false;
   input.addEventListener("focus", function () { opened = false; });
   input.addEventListener("input", function () {
-    var doc = drawingDocument();
     if (!opened) { pushUndo(t("opSheetTitle")); opened = true; }
+    var doc = drawingDocument();
     doc.title[key] = input.value;
     drawSketch();
+  });
+}
+
+function bindTitleSource(picker, key, host) {
+  picker.addEventListener("change", function () {
+    pushUndo(t("opSheetTitle"));
+    setSheetTitleSource(drawingDocument(), key, picker.value);
+    drawSketch();buildSheetPanel(host);
   });
 }
 
@@ -12364,8 +12374,25 @@ function buildSheetPanel(host) {
     input.value = doc.title[field[0]] || "";
     if (field[2]) input.id = field[2];
     input.setAttribute("data-title-field", field[0]);
+    var source = doc.title.sources?.[field[0]];
+    if (source && source !== "manual") {
+      input.value = sheetTitleMeta(doc, E.docType === "assembly" ? E.assembly : E.def)[field[0]];
+      input.disabled = true;
+    }
     bindTitleField(input, field[0]);
     sheetRow(title, field[1], input);
+    if (["title", "number"].includes(field[0])) {
+      var picker = el("select", "");
+      picker.setAttribute("data-title-source", field[0]);
+      picker.setAttribute("aria-label", field[0] === "title" ? "Title source" : "Drawing number source");
+      if (!source) { var legacy = el("option", "", "Existing behavior"); legacy.value = "legacy"; legacy.disabled = true; picker.appendChild(legacy); }
+      var choices = [["manual", "Manual text"], ...(field[0] === "title" ? [["description", "Model Description"]] : []), ["name", field[0] === "title" ? "Model name" : "Model name (file-name equivalent)"]];
+      choices.forEach(function (choice) { var option = el("option", "", choice[1]); option.value = choice[0]; picker.appendChild(option); });
+      picker.value = source || "legacy";
+      picker.title = "Choosing a source creates a persistent link. Missing source values display blank. Model name is this app's file-name equivalent; no suffix is removed. Existing fields keep their legacy behavior until you choose a source.";
+      bindTitleSource(picker, field[0], host);
+      sheetRow(title, field[0] === "title" ? "Title source" : "Drawing number source", picker);
+    }
   });
   host.setAttribute("data-views", doc.views.map(function (view) { return view.id; }).join(","));
   syncDanglingDims(host);
@@ -12409,7 +12436,7 @@ function syncSheetPanel() {
   var selection = sheet.selection();
   var signature = doc.views.map(function (view) {
     return view.id + ":" + view.label + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"");
-  }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "");
+  }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "") + "#" + JSON.stringify(doc.title.sources || {});
   if (host.getAttribute("data-signature") !== signature) {
     buildSheetPanel(host);
     host.setAttribute("data-signature", signature);
@@ -12435,7 +12462,10 @@ function syncSheetPanel() {
     if (node) node.checked = boxes[id];
   });
   host.querySelectorAll("[data-title-field]").forEach(function (input) {
-    if (input !== document.activeElement) input.value = doc.title[input.getAttribute("data-title-field")] || "";
+    var key = input.getAttribute("data-title-field"), source = doc.title.sources?.[key];
+    input.disabled = !!source && source !== "manual";
+    if (input !== document.activeElement) input.value = input.disabled
+      ? sheetTitleMeta(doc, E.docType === "assembly" ? E.assembly : E.def)[key] : doc.title[key] || "";
   });
   syncDanglingDims(host);
 }
@@ -12504,7 +12534,7 @@ function drawingSheet() {
       bodiesToken: function () { return E.sheetToken; },
       meta: function () {
         var doc = drawingDocument(),owner=E.docType==='assembly'?E.assembly:E.def;
-        return { title: sheetTitleText(doc, owner), material: doc.title.material || (E.docType==='assembly'?'':drawingMaterialName(E.def)) };
+        return { ...sheetTitleMeta(doc, owner), material: doc.title.material || (E.docType==='assembly'?'':drawingMaterialName(E.def)) };
       },
       bom: function () {
         if (E.docType !== "assembly" || !E.assembly) return null;

@@ -6,6 +6,7 @@ import {drawingProjectImageUrl,importDrawingProjectImage} from '../js/core/drawi
 import {drawingImageAsset,DRAWING_IMAGE_MAX_BYTES} from '../js/core/drawing_image.js';
 import {createSheetDoc,ensureSheetDoc,buildSheetScene,sceneToSvg} from '../js/cad_sheet.js';
 import {createDrawingController,DRAWING_TOOLS} from '../js/modeler_drawing.js';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 
 const baseUrl='http://localhost:8765/',url=baseUrl+'scratch/planchard/original-logo-assets/Logo.jpg';
 const jpeg=readFileSync(new URL('./fixtures/planchard-logo.jpg',import.meta.url));
@@ -72,4 +73,38 @@ test('actual ordinary project URL form cancels without fetching and toolbar disp
   vm.createContext(context);vm.runInContext(source.slice(start,end),context);assert.equal(await context.chooseDrawingProjectImage(),null);assert.equal(calls,0);assert.equal(fields[0].label,'Project image URL');
   context.sheetForm=async()=>({url});context.importDrawingProjectImage=async value=>{assert.equal(value,url);calls++;return {dataUrl};};assert.equal((await context.chooseDrawingProjectImage()).dataUrl,dataUrl);assert.equal(calls,1);
   assert.ok(DRAWING_TOOLS.includes('insertprojectimage'));assert.ok(source.includes('data-drawing-tool="insertprojectimage"'));assert.ok(source.includes('chooseProjectImage: chooseDrawingProjectImage'));
+});
+
+test('actual URL and XYWH QuickForm close lifecycle inserts native image without self-invalidating source guards',async()=>{
+  await browserDecode(async()=>{
+    const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+    const element=()=>({children:[],hidden:false,value:'',classList:{add(){},remove(){},contains:()=>false},appendChild(n){this.children.push(n);},setAttribute(){},focus(){},select(){}});
+    const panel=element(),buttons=[],fields=[],def={name:'Native source',drawing:createSheetDoc({views:[]})},messages=[];let token=1,controller,previews=0;
+    const context={E:{authoring:{},docType:'part',mode:'drawing',def},root:{querySelector:()=>panel,classList:{add(){},remove(){}}},motionPlaybackCancel:null,
+      el:element,featureField:(body,field,value)=>{const input={value,focus(){},select(){}};fields.push({field,input});return input;},
+      t:x=>x,namedButton:x=>x,btn:(label,callback,cls)=>{const b=element();b.callback=callback;b.cls=cls;buttons.push(b);return b;},
+      requestAnimationFrame:fn=>fn(),syncCommandManager(){},document:{body:element()},validateFeatureInputs:()=>true,
+      clearFeaturePreview(){},clearLiveDownstream(){},drawSketch(){},syncSheetPanel(){},
+      updatePreview(){token++;previews++;},refreshAll(){token++;},
+      importDrawingProjectImage:value=>importDrawingProjectImage(value,{baseUrl,fetchImage:async()=>response()})};
+    vm.createContext(context);
+    for(const name of ['closeFeaturePanel','openQuickForm','sheetForm','chooseDrawingProjectImage'])vm.runInContext(sourceFunctionText(source,name),context);
+    let undos=0;const host={doc:()=>ensureSheetDoc(def),bodies:()=>[],bodiesToken:()=>token,historyToken:()=>undos,canvas:()=>({}),width:()=>900,height:()=>600,t:x=>x,
+      chooseProjectImage:()=>context.chooseDrawingProjectImage(),promptFields:(...args)=>context.sheetForm(...args),flash:m=>messages.push(m),refresh(){},markDirty(){},
+      pushUndo(){undos++;def.drawing=JSON.parse(JSON.stringify(def.drawing));}};
+    controller=createDrawingController(host);controller.state.zoom=1;
+    const latestApply=()=>buttons.filter(b=>b.cls==='md-quick-apply').at(-1).callback();
+    const tick=()=>new Promise(r=>setTimeout(r,0));
+    const click=()=>{controller.setTool('insertprojectimage');controller.pointerDown({button:0},15,25);};
+    click();fields.at(-1).input.value=url;await latestApply();await tick();
+    assert.equal(token,1,'URL form close does not replace unchanged native drawing bodies');assert.equal(previews,0);
+    const geometry=fields.slice(-4);assert.deepEqual(geometry.map(f=>f.field.key),['x','y','w','h']);
+    for(const f of geometry)f.input.value=String({x:210,y:145,w:32,h:12}[f.field.key]);
+    await latestApply();await tick();assert.equal(undos,1,messages.join(';'));assert.equal(def.drawing.images.length,1);
+    assert.equal(def.drawing.images[0].dataUrl,dataUrl);assert.equal(def.drawing.images[0].x,210);assert.equal(def.drawing.images[0].h,12);
+    const frozen=JSON.stringify(def.drawing.images);
+    click();await buttons.filter(b=>b.cls==='md-quick-cancel').at(-1).callback();await tick();assert.equal(undos,1);
+    click();fields.at(-1).input.value=url;await latestApply();await tick();token++;
+    await latestApply();await tick();assert.equal(undos,1);assert.equal(JSON.stringify(def.drawing.images),frozen);assert.match(messages.at(-1),/changed/);
+  });
 });

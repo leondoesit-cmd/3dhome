@@ -1,0 +1,32 @@
+{
+  "checks": {
+    "oneNativeImage": true,
+    "originalJpegByteExact": true,
+    "original12144Bytes": true,
+    "originalShaExact": true,
+    "naturalJpeg316x205": true,
+    "naturalAspectPreserved": true,
+    "paperRectangleExact": true,
+    "svgOneIdenticalEmbeddedImage": true,
+    "svgRectangleRounded": true,
+    "nativeSourceEntirelyExactExceptRebuildTime": true,
+    "wholeDrawingExactExceptNewImage": true
+  },
+  "qualifiedActualLogoAccepted": true,
+  "actualColdAccepted": false,
+  "image": {
+    "id": "image_h3ifcmjhh8q",
+    "name": "Logo.jpg",
+    "x": 210,
+    "y": 135,
+    "w": 32,
+    "h": 20.759493670886076,
+    "bytes": 12144,
+    "sha256": "dd03568be7f19e6437eee1583a0f7027439e6311ff38acdd0ba0faa7e68636f7",
+    "pixels": {
+      "width": 316,
+      "height": 205
+    }
+  },
+  "qualification": "Actual native embedded image preserves original JPEG bytes and natural aspect; SVG rounds paper geometry to0.001mm. Source CAD unchanged except rebuild timestamp. Qualified screenshot shows clear views, title and logo, but bottom footer is cropped by viewport. Cold/edit/Undo proofs pending."
+}

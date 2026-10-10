@@ -1,6 +1,7 @@
 import {createSheetDoc,sheetPaper,SHEET_SIZES} from '../cad_sheet.js';
 import {drawingImageItem} from './drawing_image.js';
 import {validateDrawingPrimitive} from './drawing_primitives.js';
+import {validateSheetTitleSources} from './custom_properties.js';
 
 export const DRAWING_PRESET_STORAGE_KEY='modelForge.drawingPresets.v1';
 const clone=value=>JSON.parse(JSON.stringify(value));
@@ -12,6 +13,7 @@ export function captureDrawingPreset(doc,{id,name,kind='sheet-format',includePap
   if(!id||!String(name||'').trim()||!['sheet-format','drawing-template'].includes(kind))throw new Error('Name and preset kind are required');
   const paper=sheetPaper(doc),format={size:doc.size,orientation:doc.orientation,showZones:doc.showZones!==false,title:{},images:clone(doc.images||[]),primitives:[],notes:[]};
   for(const key of reusableTitle)format.title[key]=String(doc.title?.[key]||'');
+  if(doc.title?.sources)format.titleSources=clone(validateSheetTitleSources(doc.title.sources));
   for(const image of format.images)drawingImageItem(image,paper);
   if(includePaperArt) {
     format.primitives=clone(doc.primitives||[]);format.primitives.forEach(validateDrawingPrimitive);
@@ -26,6 +28,7 @@ export function validateDrawingPreset(record) {
   if(record?.version!==1||!record.id||!String(record.name||'').trim()||!['sheet-format','drawing-template'].includes(record.kind)||!record.format)throw new Error('Invalid drawing preset');
   const f=record.format,paper=sheetPaper(f);
   if(!SHEET_SIZES[f.size]||!['landscape','portrait'].includes(f.orientation)||!f.title||Object.keys(f.title).some(k=>!reusableTitle.includes(k)||typeof f.title[k]!=='string'))throw new Error('Invalid sheet format defaults');
+  if(f.titleSources!==undefined)validateSheetTitleSources(f.titleSources);
   if(!Array.isArray(f.images)||f.images.length>32||!Array.isArray(f.primitives)||!Array.isArray(f.notes))throw new Error('Invalid preset paper content');
   f.images.forEach(i=>drawingImageItem(i,paper));f.primitives.forEach(validateDrawingPrimitive);
   if(f.notes.some(n=>!plainNote(n)||!Number.isFinite(n.x)||!Number.isFinite(n.y)))throw new Error('Sheet formats support only independent paper notes');
@@ -43,6 +46,7 @@ export function applyDrawingFormat(doc,record) {
     next[key]=kept.concat(copied);
   }
   next.title={...next.title,...clone(f.title)};next.showZones=f.showZones;
+  if(f.titleSources)next.title.sources=clone(f.titleSources);
   next.sheetFormat={id:record.id,name:record.name,version:1};return next;
 }
 

@@ -126,7 +126,7 @@ export function createDrawingController(host) {
     let hash = 2166136261;
     for (const value of [doc.size, doc.orientation, doc.projection, doc.units, doc.draftingStandard, doc.secondaryUnits, doc.secondaryPrecision, doc.precision, doc.trailingZeros, doc.scale,
       doc.showHidden, doc.showCenters, doc.showZones, doc.title,
-      host.bodiesToken(), host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
+      host.bodiesToken(), host.model?.()?.name, host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
         view.parent, view.scaleMode, view.hidden, view.displayStyle, view.centers, view.labelled, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
@@ -1644,7 +1644,7 @@ export function createDrawingController(host) {
         {key:'y',label:'Top position (paper mm)',type:'number',value:initial.y},
         {key:'w',label:'Image width (paper mm)',type:'number',value:initial.w},
         {key:'h',label:'Image height (paper mm)',type:'number',value:initial.h},
-      ],'Local PNG/JPEG, embedded in the document. Width and height can be changed independently.');
+      ],'Local PNG/JPEG, embedded in the document. Width and height can be changed independently.',{drawingOnly:true});
       if(!answer)return;
       if(host.doc()!==doc||host.bodiesToken()!==token||host.historyToken?.()!==history||JSON.stringify([doc.images,doc.size,doc.orientation])!==fingerprint)throw new Error('Drawing changed while editing image; retry');
       const image={id:existing?.id||'image_'+Math.random().toString(36).slice(2),name:asset.name||'Drawing image',dataUrl:asset.dataUrl,x:Number(answer.x),y:Number(answer.y),w:Number(answer.w),h:Number(answer.h)};

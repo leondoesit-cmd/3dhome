@@ -1,0 +1,15 @@
+{
+  "checks": {
+    "driverOnlyX210To212": true,
+    "positionUndoMainModelExactExceptRebuildTime": true,
+    "removeOnlyImageRemoved": true,
+    "removeUndoMainModelExactExceptRebuildTime": true,
+    "imageIdentityBytesAspectPreserved": true,
+    "driverSvgX212": true,
+    "removedSvgHasNoImage": true,
+    "bothUndoSvgsExact": true
+  },
+  "actualLogoEditAndRemoveUndoAccepted": true,
+  "coldAccepted": false,
+  "qualification": "Genuine actual Chrome position edit/Undo and removal/Undo preserve complete native source/Drawing authoring; only rebuild timestamps differ afterUndo; cold replay pending."
+}

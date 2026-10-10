@@ -10,6 +10,7 @@ import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges,validateA
 import {alternatePositionProjection,alternatePositionItems} from './core/drawing_alternate_position.js';
 import {projectAlignedSection,alignedSectionMarkerItems} from './core/drawing_aligned_section.js';
 import {drawingImageItem} from './core/drawing_image.js';
+import {sheetTitleMeta} from './core/custom_properties.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -202,7 +203,7 @@ export function ensureSheetDoc(def, options = {}) {
   doc.primitives = Array.isArray(doc.primitives) ? doc.primitives : [];
   doc.images = Array.isArray(doc.images) ? doc.images : [];
   doc.title = Object.assign({ revision: "A", sheet: 1, sheets: 1 }, doc.title || {});
-  if (!doc.title.title) doc.title.title = def.name || "";
+  if (!doc.title.title && !doc.title.sources?.title) doc.title.title = def.name || "";
   return doc;
 }
 
@@ -1837,6 +1838,7 @@ function sheetFieldText(value, maxWidth) {
 function titleBlockItems(doc, provider, sheetScale) {
   const box = titleBlockBox(doc);
   const meta = Object.assign({}, doc.title, provider?.meta || {});
+  if (doc.title.sources) Object.assign(meta, sheetTitleMeta(doc, provider?.model));
   const items = [rect(box.x, box.y, box.w, box.h, "frame", { fill: "#ffffff" })];
   const rowY = [box.y + box.h * 0.42, box.y + box.h * 0.68];
   items.push(line(box.x, rowY[0], box.x + box.w, rowY[0], "frame"));
