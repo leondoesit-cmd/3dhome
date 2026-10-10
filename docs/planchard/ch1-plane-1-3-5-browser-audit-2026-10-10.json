@@ -1,0 +1,28 @@
+{
+  "warmChecks": {
+    "twoNativeNotes": true,
+    "pureWorksheetNoCad": true,
+    "noViewsDimensionsPrimitivesImages": true,
+    "sourceAndInferenceExplicit": true,
+    "sourceAreaListsSupported": true,
+    "nativeDefaultFontAndLiteralSvgRows": true,
+    "a3MillimetreThirdAngle": true,
+    "notesWithinClearFrame": true
+  },
+  "warmAccepted": true,
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesAndIdentityExact": true,
+    "wholeAuthoredCadExact": true,
+    "svgByteExact": true
+  },
+  "coldAccepted": true,
+  "savedKey": "cm_mv2ssd97",
+  "savedName": "Planchard Ch1 IN-CHAPTER Plane 1 3 5 - browser 2026-10-10",
+  "nativeNoteLineRows": [
+    4,
+    14
+  ],
+  "svgSha256": "b3837ecfa3651e8d58250c8289fb43b9dfddb8b25b4675783ed6716e6685e174",
+  "qualification": "SourcePNG71/72/73 independently inspected. Visible-area surface lists inferred, excluding edge-on surfaces; not publisher key. Native default2.8mm font and chosen A3 third-angle worksheet; no source model or drawn-view reproduction. ActualPNG clear frame/notes/footer. Parent browser authored; audit read-only."
+}
