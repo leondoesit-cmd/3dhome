@@ -373,13 +373,16 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         if (changedKey === "holeType" && !isTap && standard.input.value === "ISO 262:2023") standard.input.value = "ISO 273";
         // Existing inch holes created before the Standard selector was added
         // still need to reopen with their saved size visible.
-        if (!changedKey && (size.input.value === "1/2" || size.input.value === "1/4-20")) standard.input.value = "ANSI Inch";
+        if (!changedKey && (size.input.value === "1/2" || size.input.value === "1/4-20" || size.input.value === "1/4-shcs")) standard.input.value = "ANSI Inch";
         var choices = holeWizardSizeChoices(standard.input.value, holeType && holeType.input.value, fastenerType && fastenerType.input.value);
         var current = size.input.value;
+        // Preserve old quarter-inch SHCS documents and their custom recess
+        // depth. An explicit standard/type change can select the new key.
+        if(current==='1/4-20' && fastenerType?.input.value==='socket-head-cap-screw' && !isTap && !['standard','holeType','fastenerType'].includes(changedKey))choices=choices.concat('1/4-20');
         if (changedKey === "standard" || changedKey === "holeType" || changedKey === "fastenerType" || Array.from(size.input.options).some(function (option) { return !choices.includes(option.value); })) {
           size.input.innerHTML = "";
           choices.forEach(function (value) {
-            var label = value === "custom" ? "Custom · enter mm or in" : value === "1/4-20" ? "1/4-20 UNC · #7 tap drill" : value === "1/2" ? "1/2 in · Hex Bolt" : value === "7/16-drill" ? "7/16 in · Fractional Drill" : value === "3/8-hex" ? "3/8 in · Hex Bolt (reference clearance)" : value === "3/8-flat" ? "3/8 in · Flat Head Machine Screw" : value;
+            var label = value === "custom" ? "Custom · enter mm or in" : value === "1/4-shcs" ? "1/4 in · Socket Head Cap Screw (clearance)" : value === "1/4-20" ? (fastenerType?.input.value==='socket-head-cap-screw' && !isTap ? "1/4 in · Socket Head Cap Screw (legacy size key)" : "1/4-20 UNC · #7 tap drill") : value === "1/2" ? "1/2 in · Hex Bolt" : value === "7/16-drill" ? "7/16 in · Fractional Drill" : value === "3/8-hex" ? "3/8 in · Hex Bolt (reference clearance)" : value === "3/8-flat" ? "3/8 in · Flat Head Machine Screw" : value;
             var option = el("option", "", label); option.value = value; size.input.appendChild(option);
           });
           size.input.value = choices.includes(current) ? current : standard.input.value === "ANSI Inch" ? (String(holeType?.input.value).startsWith("tap") ? "1/4-20" : choices[1]) : "M6";
@@ -430,6 +433,14 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         if (wrap) wrap.classList.toggle("parameter-hidden", !tapped);
       });
       var holeEnd = controls.find(function (item) { return item.field.key === "endCondition"; });
+      var cylinderMethod=controls.find(function(item){return item.field.key==='cylinderPlacementMethod';});
+      var constraintPlacement=cylinderMethod?.input.value==='constraints';
+      controls.forEach(function(control){
+        var key=control.field.key;
+        if(!['cylinderAngle','cylinderConstraintBranch','cylinderOnSurface','cylinderAlongZ','cylinderAlongY'].includes(key))return;
+        var wrap=control.input.closest('.md-quick-field');
+        if(wrap)wrap.classList.toggle('parameter-hidden',key==='cylinderAngle'?constraintPlacement:!constraintPlacement);
+      });
       var holeLayout = controls.find(function (item) { return item.field.key === "layout"; });
       var layoutValue = holeLayout && holeLayout.input.value;
       controls.forEach(function (control) {
@@ -480,6 +491,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         : ["axisX", "axisY", "axisZ"].includes(field.key) ? patternAxisEnabled(state.params, field.key.slice(-1).toLowerCase())
         : field.key==="seedFeatureIds" ? (state.params?.seedFeatureIds?.length ? state.params.seedFeatureIds : state.params?.seedFeatureId ? [state.params.seedFeatureId] : [])
         : state.params && state.params[field.key];
+      if(type==='hole' && value==null && ['cylinderPlacementMethod','cylinderConstraintBranch','cylinderOnSurface','cylinderAlongZ','cylinderAlongY'].includes(field.key))value=field.key==='cylinderPlacementMethod'?'angular':field.key==='cylinderConstraintBranch'?'positive-z':true;
       if(type==="thread" && value==null && state.params?.fitLimits){
         var limits=state.params.fitLimits;
         if(field.key==="useFitLimits")value=true;

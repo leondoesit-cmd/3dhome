@@ -60,7 +60,7 @@ import { MANUFACTURING_TABLES, validateManufacturingTables } from "./manufacturi
 import { centerOfMassInSystem, evaluateMassProperties } from "./cad_mass_properties.js";
 import { evaluateAssemblyMassProperties } from "./cad_assembly_mass_properties.js";
 import { holeToolPlacements, holeCutRecords, holePreviewParts, syncHoleCutPlacement, holePositionPointIds } from "./core/hole_geometry.js";
-import { cylindricalHoleSource } from './core/cylindrical_hole_placement.js';
+import { cylindricalHoleSource, cylindricalHolePlacement } from './core/cylindrical_hole_placement.js';
 import { revolvePreviewAxis, revolveRecipe } from "./core/revolve_geometry.js";
 import { aabbFromBox, isUpToFace, resolveExtrudeExtent } from "./core/extrude_extent.js";
 import { toolFeatureRecipe } from "./core/tool_recipe.js";
@@ -8155,9 +8155,19 @@ function featureExtrusionExtentText(type,state,params) {
 }
 
 function renderFeatureParameterForm(host,type,state,onLive) {
-  var extentNote=null;
+  var extentNote=null,positionNote=null;
+  function showCylindricalPosition(params){
+    if(!positionNote)return;
+    positionNote.hidden=params.cylinderPlacementMethod!=='constraints';if(positionNote.hidden)return;
+    try{
+      var graph=cylindricalHolePlacement(params,E.def,{allowUnderdefined:true}).positionGraph;
+      var pointText=Object.entries(graph.points).map(function(pair){var p=pair[1];return pair[0]+' ('+[p.x,p.y,p.z].map(v=>modelLengthText(v,5)).join(', ')+')';}).join(' · ');
+      positionNote.textContent=graph.status+' · '+graph.degreesOfFreedom+' DOF · maximum residual '+graph.maxResidual.toExponential(2)+' cm · '+pointText+' '+modelLengthUnit()+'. Construction A→B. A coincident with top-axis center; B on top plane; enabled OnSurface / AlongZ / AlongY relations drive the native hole. This is a bounded 3D point graph, not a general 3D sketch or generated hole-profile sketch.';
+    }catch(error){positionNote.textContent=String(error.message || error);}
+  }
   var controls=renderFeatureParameterFormCore(host,type,state,function(next){
     if(extentNote)extentNote.textContent=featureExtrusionExtentText(type,state,next.params);
+    showCylindricalPosition(next.params);
     if(onLive)onLive(next);
   },{
     el:el,
@@ -8166,6 +8176,10 @@ function renderFeatureParameterForm(host,type,state,onLive) {
     featureSeeds:(E.def.features || []).filter(function(feature,index,features){var current=features.findIndex(function(item){return item.id===state.id;});return !feature.suppressed && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length && (current<0 || index<current);}).map(function(feature){return {value:feature.id,label:feature.name || feature.type};}),
     advancedLabel:t("featureMoreOptions"),
   });
+  if(type==='hole' && state.params?.cylindricalSource){
+    positionNote=el('output','md-note');positionNote.setAttribute('aria-live','polite');positionNote.setAttribute('data-cylindrical-position-graph','');
+    host.appendChild(positionNote);showCylindricalPosition(state.params);
+  }
   if(['extrude','extrudeCut'].includes(type)){
     var offsetControl=controls.find(function(control){return control.field.key==='offset';});
     var offsetRow=offsetControl?.input.closest('.md-quick-field');
@@ -8436,7 +8450,10 @@ async function createHoleFeature(options) {
   if(!target){flash(t("cmdNeedSolid"));return false;}
   var face=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
   var radialSource=params.cylindricalSource || cylindricalHoleSource(E.def,face);
-  if(radialSource){params.cylindricalSource=radialSource;params.layout='sketch';}
+  if(radialSource){
+    params.cylindricalSource=radialSource;params.layout='sketch';
+    try{cylindricalHolePlacement(params,E.def);}catch(error){flash(String(error.message || error));return false;}
+  }
   if(face && face.descriptor && face.descriptor.surface && face.descriptor.surface!=="plane" && !radialSource){flash(t("needPlanarFace"));return false;}
   var profile=closedSketchProfile();
   if(!profile && !face && !holePositionPointIds(ensureSketch(E.def)).length){flash(t("holeNeed"));return false;}

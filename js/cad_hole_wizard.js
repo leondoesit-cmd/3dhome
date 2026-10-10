@@ -36,6 +36,11 @@ export const METRIC_HOLE_TABLE = Object.freeze({
 // 0.201 in; retaining its exact conversion avoids silently changing thread
 // engagement when the part is reopened in a metric document.
 export const UNIFIED_HOLE_TABLE = Object.freeze({
+  // Same quarter-inch clearance/recess dimensions as the verified 1/4-20 row,
+  // with a distinct non-threaded identity and socket-head fastener label.
+  "1/4-shcs": {size:"1/4-shcs",imperial:true,diameterMm:6.35,
+    closeMm:6.74624,normalMm:7.14375,looseMm:7.9375,
+    cboreDiaMm:11.1125,cboreDepthMm:6.35,fastenerType:"socket-head-cap-screw"},
   "7/16-drill": {size:"7/16-drill",imperial:true,diameterMm:11.1125,normalMm:11.1125,fastenerType:"fractional-drill"},
   // Reference clearances are explicit design choices, not a tolerance/fit
   // certification. Pearson's published SW Hex Screw example reports Ø.40,
@@ -73,6 +78,7 @@ export function listHoleSizes() {
 
 export function holeWizardSizeChoices(standard, holeType, fastenerType) {
   if(standard === "ANSI Inch" && !String(holeType).startsWith("tap")){
+    if(fastenerType === "socket-head-cap-screw")return ["custom","1/4-shcs"];
     if(fastenerType === "fractional-drill")return ["custom","7/16-drill"];
     if(fastenerType === "flat-head-machine-screw")return ["custom","3/8-flat"];
     return ["custom","1/2","3/8-hex","1/4-20"];
@@ -87,6 +93,8 @@ export function normalizeHoleWizard(params = {}) {
   if (type === "simple" && params.countersink) type = "countersink";
   if ((type === "simple" || type === "countersink") && params.counterbore) type = "counterbore";
   const row = holeTableRow(params.standardSize || params.size);
+  if(type.startsWith('tap') && row?.size==='1/4-shcs')throw new Error('1/4 Socket Head Cap Screw is a clearance size; choose 1/4-20 for a threaded hole');
+  if(row?.size==='1/4-shcs' && params.fastenerType && !['generic','socket-head-cap-screw'].includes(params.fastenerType))throw new Error('Choose Socket Head Cap Screw for this clearance size');
   if (type.startsWith("tap") && row?.size === "1/2") throw new Error("1/2 Hex Bolt is a clearance size; choose a threaded hole size");
   const fit = FIT_COLUMN[params.fit] ? params.fit : "normal";
   if (row?.size === "1/2" && fit !== "normal") throw new Error("1/2 Hex Bolt currently supports the verified Normal clearance fit");

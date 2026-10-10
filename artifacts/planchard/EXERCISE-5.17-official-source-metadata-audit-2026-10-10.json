@@ -1,0 +1,452 @@
+{
+  "scope": "read-only official companion source metadata; no authored/imported CAD model",
+  "archiveEntry": "Chapter 5 Homework/Hole Wizard 5.17.SLDPRT",
+  "bytes": 60564,
+  "sha256": "966cb075642fcfd11a7b74133e1ca577b623a5af6165c88b8afcbfbd6f99cdb1",
+  "verifiedDeflateStreams": 48,
+  "sourcePages": {
+    "pdf": [
+      266,
+      267
+    ],
+    "printed": [
+      "5-48",
+      "5-49"
+    ]
+  },
+  "namedDimensions": [
+    {
+      "name": "Boss-Extrude1",
+      "dimensions": {
+        "D1": "1.25"
+      }
+    },
+    {
+      "name": "Sketch1",
+      "dimensions": {
+        "D1": "<MOD-DIAM>1.5"
+      }
+    }
+  ],
+  "interpretation": {
+    "diameterIn": 1.5,
+    "extrusionDepthIn": 1.25,
+    "diameterMm": 38.1,
+    "extrusionDepthMm": 31.75
+  },
+  "material": "1060 Alloy",
+  "density": {
+    "kgM3": 2700.0,
+    "file": "05-Contents_Config-0-LWDATA.bin",
+    "offset": 84,
+    "encoding": "float64LE"
+  },
+  "resolvedFeatureSiDoubleOffsets": {
+    "0.01905": [
+      10848,
+      10872
+    ],
+    "0.0381": [
+      6813,
+      7688,
+      7922,
+      7946,
+      8010,
+      8026
+    ],
+    "0.03175": [
+      10817,
+      11142,
+      11166,
+      11304,
+      11328
+    ]
+  },
+  "preview": "bare cylinder; completed hole feature is not present in native starting companion",
+  "nativeStreams": [
+    {
+      "offset": 452,
+      "name": "Contents/CMgr",
+      "file": "00-Contents_CMgr.bin",
+      "compressed": 1694,
+      "uncompressed": 5496,
+      "crc32": "893119a3"
+    },
+    {
+      "offset": 2277,
+      "name": "Contents/CMgrHdr2",
+      "file": "01-Contents_CMgrHdr2.bin",
+      "compressed": 86,
+      "uncompressed": 133,
+      "crc32": "02264c9e"
+    },
+    {
+      "offset": 2498,
+      "name": "Contents/CnfgObjs",
+      "file": "02-Contents_CnfgObjs.bin",
+      "compressed": 10,
+      "uncompressed": 8,
+      "crc32": "97597a30"
+    },
+    {
+      "offset": 2643,
+      "name": "Contents/Config-0",
+      "file": "03-Contents_Config-0.bin",
+      "compressed": 3948,
+      "uncompressed": 23815,
+      "crc32": "6fa47af8"
+    },
+    {
+      "offset": 6726,
+      "name": "Contents/Config-0-GhostPartition",
+      "file": "04-Contents_Config-0-GhostPartition.bin",
+      "compressed": 627,
+      "uncompressed": 622,
+      "crc32": "cca1f6db"
+    },
+    {
+      "offset": 7503,
+      "name": "Contents/Config-0-LWDATA",
+      "file": "05-Contents_Config-0-LWDATA.bin",
+      "compressed": 424,
+      "uncompressed": 1415,
+      "crc32": "297c62cc"
+    },
+    {
+      "offset": 7981,
+      "name": "Contents/Config-0-ModelHeader",
+      "file": "06-Contents_Config-0-ModelHeader.bin",
+      "compressed": 1049,
+      "uncompressed": 3036,
+      "crc32": "42e82632"
+    },
+    {
+      "offset": 9089,
+      "name": "Contents/Config-0-Partition",
+      "file": "07-Contents_Config-0-Partition.bin",
+      "compressed": 2059,
+      "uncompressed": 2054,
+      "crc32": "d8221dc7"
+    },
+    {
+      "offset": 11205,
+      "name": "Contents/Config-0-ResolvedFeatures",
+      "file": "08-Contents_Config-0-ResolvedFeatures.bin",
+      "compressed": 2896,
+      "uncompressed": 11903,
+      "crc32": "8b07d781"
+    },
+    {
+      "offset": 14165,
+      "name": "Contents/CusProps",
+      "file": "09-Contents_CusProps.bin",
+      "compressed": 27,
+      "uncompressed": 32,
+      "crc32": "5a9262aa"
+    },
+    {
+      "offset": 14239,
+      "name": "Contents/Definition",
+      "file": "10-Contents_Definition.bin",
+      "compressed": 1381,
+      "uncompressed": 5368,
+      "crc32": "f49ceaa8"
+    },
+    {
+      "offset": 15669,
+      "name": "Contents/DisplayLists",
+      "file": "11-Contents_DisplayLists.bin",
+      "compressed": 4576,
+      "uncompressed": 20065,
+      "crc32": "bd31d6dc"
+    },
+    {
+      "offset": 20296,
+      "name": "Contents/MBLinkData",
+      "file": "12-Contents_MBLinkData.bin",
+      "compressed": 5,
+      "uncompressed": 6,
+      "crc32": "b1c2a1a3"
+    },
+    {
+      "offset": 20350,
+      "name": "Contents/OleItems",
+      "file": "13-Contents_OleItems.bin",
+      "compressed": 6,
+      "uncompressed": 4,
+      "crc32": "2144df1c"
+    },
+    {
+      "offset": 20403,
+      "name": "Contents/User Units Table",
+      "file": "14-Contents_User_Units_Table.bin",
+      "compressed": 2,
+      "uncompressed": 0,
+      "crc32": "00000000"
+    },
+    {
+      "offset": 20548,
+      "name": "Contents/View Orientation Data",
+      "file": "15-Contents_View_Orientation_Data.xml",
+      "compressed": 50,
+      "uncompressed": 48,
+      "crc32": "1bc61eaf"
+    },
+    {
+      "offset": 20658,
+      "name": "Contents/eModelLic",
+      "file": "16-Contents_eModelLic.bin",
+      "compressed": 6,
+      "uncompressed": 4,
+      "crc32": "ae26484b"
+    },
+    {
+      "offset": 20712,
+      "name": "Header2",
+      "file": "17-Header2.bin",
+      "compressed": 1049,
+      "uncompressed": 3036,
+      "crc32": "42e82632"
+    },
+    {
+      "offset": 21798,
+      "name": "ModelStamps",
+      "file": "18-ModelStamps.bin",
+      "compressed": 12,
+      "uncompressed": 12,
+      "crc32": "2968f579"
+    },
+    {
+      "offset": 21851,
+      "name": "SwDocContentMgr/SwDocContentMgrInfo",
+      "file": "19-SwDocContentMgr_SwDocContentMgrInfo.bin",
+      "compressed": 210,
+      "uncompressed": 501,
+      "crc32": "271d6cde"
+    },
+    {
+      "offset": 22126,
+      "name": "ThirdPty/Animator",
+      "file": "20-ThirdPty_Animator.bin",
+      "compressed": 179,
+      "uncompressed": 338,
+      "crc32": "78198a9c"
+    },
+    {
+      "offset": 22352,
+      "name": "ThirdPty/CMMotionLoadMapU",
+      "file": "21-ThirdPty_CMMotionLoadMapU.bin",
+      "compressed": 51,
+      "uncompressed": 56,
+      "crc32": "099b5c62"
+    },
+    {
+      "offset": 22458,
+      "name": "ThirdPty/CM_MOTION_LOAD_1",
+      "file": "22-ThirdPty_CM_MOTION_LOAD_1.bin",
+      "compressed": 2,
+      "uncompressed": 0,
+      "crc32": "00000000"
+    },
+    {
+      "offset": 22515,
+      "name": "ThirdPty/GSSLCAMWorksPDM",
+      "file": "23-ThirdPty_GSSLCAMWorksPDM.bin",
+      "compressed": 48,
+      "uncompressed": 284,
+      "crc32": "dae7c036"
+    },
+    {
+      "offset": 22617,
+      "name": "ThirdPty/GSSLMachineWorks",
+      "file": "24-ThirdPty_GSSLMachineWorks.bin",
+      "compressed": 7874,
+      "uncompressed": 35102,
+      "crc32": "9df252ec"
+    },
+    {
+      "offset": 30634,
+      "name": "ThirdPty/SWA_Schedules",
+      "file": "25-ThirdPty_SWA_Schedules.bin",
+      "compressed": 2,
+      "uncompressed": 0,
+      "crc32": "00000000"
+    },
+    {
+      "offset": 30688,
+      "name": "ThirdPtyStore/ThirdPtySTGStore",
+      "file": "26-ThirdPtyStore_ThirdPtySTGStore.bin",
+      "compressed": 117,
+      "uncompressed": 1540,
+      "crc32": "bba68650"
+    },
+    {
+      "offset": 30865,
+      "name": "ThirdPtyStore/VisualStates",
+      "file": "27-ThirdPtyStore_VisualStates.bin",
+      "compressed": 575,
+      "uncompressed": 1689,
+      "crc32": "7e88c430"
+    },
+    {
+      "offset": 31496,
+      "name": "[Content_Types].xml",
+      "file": "28-_Content_Types_.xml.xml",
+      "compressed": 232,
+      "uncompressed": 556,
+      "crc32": "5350e96e"
+    },
+    {
+      "offset": 31777,
+      "name": "_DL_VERSION_12000/DLUpdateStamp",
+      "file": "29-_DL_VERSION_12000_DLUpdateStamp.bin",
+      "compressed": 5,
+      "uncompressed": 6,
+      "crc32": "05a8bd27"
+    },
+    {
+      "offset": 31843,
+      "name": "_MO_VERSION_12000/AssyVisualData",
+      "file": "30-_MO_VERSION_12000_AssyVisualData.bin",
+      "compressed": 6,
+      "uncompressed": 4,
+      "crc32": "2144df1c"
+    },
+    {
+      "offset": 31911,
+      "name": "_MO_VERSION_12000/Biography",
+      "file": "31-_MO_VERSION_12000_Biography.bin",
+      "compressed": 2487,
+      "uncompressed": 18771,
+      "crc32": "13ae4653"
+    },
+    {
+      "offset": 34455,
+      "name": "_MO_VERSION_12000/History",
+      "file": "32-_MO_VERSION_12000_History.bin",
+      "compressed": 279,
+      "uncompressed": 477,
+      "crc32": "7fbafa38"
+    },
+    {
+      "offset": 34789,
+      "name": "_rels/.rels",
+      "file": "33-_rels_.rels.xml",
+      "compressed": 234,
+      "uncompressed": 597,
+      "crc32": "a994fab3"
+    },
+    {
+      "offset": 35064,
+      "name": "docProps/Config-0-Cutlist-Properties.xml",
+      "file": "34-docProps_Config-0-Cutlist-Properties.xml.bin",
+      "compressed": 42,
+      "uncompressed": 40,
+      "crc32": "40c2f4e4"
+    },
+    {
+      "offset": 35264,
+      "name": "docProps/Config-0-Properties.xml",
+      "file": "35-docProps_Config-0-Properties.xml.xml",
+      "compressed": 322,
+      "uncompressed": 745,
+      "crc32": "53367eef"
+    },
+    {
+      "offset": 35648,
+      "name": "docProps/ISolidWorksInformation.xml",
+      "file": "36-docProps_ISolidWorksInformation.xml.xml",
+      "compressed": 1479,
+      "uncompressed": 10045,
+      "crc32": "ad31d01a"
+    },
+    {
+      "offset": 37192,
+      "name": "docProps/OpenTime.xml",
+      "file": "37-docProps_OpenTime.xml.xml",
+      "compressed": 221,
+      "uncompressed": 444,
+      "crc32": "725d86dd"
+    },
+    {
+      "offset": 37464,
+      "name": "docProps/app.xml",
+      "file": "38-docProps_app.xml.xml",
+      "compressed": 327,
+      "uncompressed": 570,
+      "crc32": "c3ce84ae"
+    },
+    {
+      "offset": 37837,
+      "name": "docProps/core.xml",
+      "file": "39-docProps_core.xml.xml",
+      "compressed": 293,
+      "uncompressed": 523,
+      "crc32": "afbe4b88"
+    },
+    {
+      "offset": 38177,
+      "name": "docProps/custom.xml",
+      "file": "40-docProps_custom.xml.xml",
+      "compressed": 327,
+      "uncompressed": 820,
+      "crc32": "fa0739dc"
+    },
+    {
+      "offset": 38553,
+      "name": "swXmlContents/Features",
+      "file": "41-swXmlContents_Features.xml",
+      "compressed": 458,
+      "uncompressed": 954,
+      "crc32": "324012a9"
+    },
+    {
+      "offset": 39063,
+      "name": "swXmlContents/KeyWords",
+      "file": "42-swXmlContents_KeyWords.xml",
+      "compressed": 621,
+      "uncompressed": 1703,
+      "crc32": "dd251886"
+    },
+    {
+      "offset": 39736,
+      "name": "swXmlContents/MATERIALTREE",
+      "file": "43-swXmlContents_MATERIALTREE.bin",
+      "compressed": 2,
+      "uncompressed": 0,
+      "crc32": "00000000"
+    },
+    {
+      "offset": 39794,
+      "name": "swXmlContents/Tables",
+      "file": "44-swXmlContents_Tables.bin",
+      "compressed": 2,
+      "uncompressed": 0,
+      "crc32": "00000000"
+    },
+    {
+      "offset": 39934,
+      "name": "Preview",
+      "file": "45-Preview.bin",
+      "compressed": 7956,
+      "uncompressed": 43156,
+      "crc32": "ecc86146"
+    },
+    {
+      "offset": 47927,
+      "name": "PreviewPNG",
+      "file": "46-PreviewPNG.png",
+      "compressed": 8184,
+      "uncompressed": 10627,
+      "crc32": "ec71f4ec"
+    },
+    {
+      "offset": 56151,
+      "name": "ThirdPty/CimSwBrowserPart",
+      "file": "47-ThirdPty_CimSwBrowserPart.bin",
+      "compressed": 2,
+      "uncompressed": 0,
+      "crc32": "00000000"
+    }
+  ]
+}

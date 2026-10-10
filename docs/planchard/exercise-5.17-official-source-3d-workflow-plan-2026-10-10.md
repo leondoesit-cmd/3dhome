@@ -1,0 +1,58 @@
+# Exercise5.17 official source and 3D placement gap — 2026-10-10
+
+Source PDF266–267 /printed5-48–49 visually inspected. Official exercise archive was read without importing or authoring any CAD model. `Chapter 5 Homework/Hole Wizard 5.17.SLDPRT` is present:60564bytes, SHA256`966cb075642fcfd11a7b74133e1ca577b623a5af6165c88b8afcbfbd6f99cdb1`. Read-only container inspection recovered48 raw-DEFLATE streams, all length/CRC verified, in `scratch/planchard/5-17-companion-inspection/inventory.json`.
+
+Protected source evidence: `artifacts/planchard/EXERCISE-5.17-official-source-metadata-audit-2026-10-10.json` records the archive entry, verified native checksum/streams, named dimensions, corroborating SI-double offsets and material/density. It contains read-only source facts, not an imported or authored model.
+
+## Source geometry/material correction
+
+The companion is the **bare starting cylinder**, not the completed Hole Wizard result. Its embedded preview confirms this. KeywordXML records **Sketch1 diameter1.5in** and **Boss-Extrude1 depth1.25in**, giving D38.1mm, radius19.05mm and length31.75mm. Independent raw resolved-feature fields contain SI doubles0.01905,0.0381 and0.03175, corroborating inch interpretation. Configuration material is **1060 Alloy**; native LWDATA density float64LE offset84 is **2700kg/m³ =2.7g/cm³**.
+
+This supersedes the October1 statement that the companion was absent. That earlier protected `EXERCISE-5.17-radial-counterbore-browser-2026-10-01.mforge` is an explicitly assumed **D1.0in xlength1.5in** example with default material. It remains valid as a historical radial-placement demonstration; it is not source geometry and must not silently be relabeled as the official exercise.
+
+Finite parent browser geometry recipe: new source-led document, Top-plane centered fully defined D1.5in circle, Blind1.25in circular Boss; native cylindrical side face selected; Counterbore /ANSI Inch /Socket Head Cap Screw /1/4-20 /Normal /Through All /head clearance0.100in; point0.250in below actual top. Current catalog resolves boreD0.28125in (7.14375mm), recessD0.4375in (11.1125mm), recessdepth0.350in (8.89mm), retaining nominal0.250in head plus0.100in clearance. These dimensions are current catalog output, not separately dimensioned on the source illustration. Assign source Aluminum1060 custom density2.7g/cm³ if a verified preset is unavailable; qualify custom material identity instead of substituting6061. Preserve official source provenance and physical units.
+
+Original embedded preview/keywords do not establish the exact source cylinder datum/center/positive extrusion convention. Top-circle at origin with positiveY extrusion is the minimal declared equivalent consistent with the chapter workflow; do not claim recovery of original opaque sketch entities/selection IDs.
+
+## Actual printed 3D sketch workflow
+
+1. Hole Wizard Positions → **3D Sketch** → actual point on cylindrical face, automatically creating **OnSurface** relation.
+2. Dimension hole point **0.25in below top flat face**.
+3. Display Temporary Axes; activate a construction Line while remaining in3D Sketch.
+4. Ctrl-select actual top flat face to constrain new sketch entities to that face.
+5. Start line at actual center of top circular face with **Coincident** relation.
+6. Finish construction line in the top plane with **AlongZ** relation; explicitly add it if not inferred.
+7. Select hole-center point and construction-line endpoint; add **AlongY**. Placement sketch is fully defined.
+8. Accept Hole Wizard; expand native history. Printed finished part shows **3DSketch1** for placement and **Sketch2** for hole profile, both fully defined, plus retained baseSketch1. No completion claim follows from merely displaying these names.
+
+For a Top-cylinder with center(cx,cz), topY=H and positiveZ face branch: construction anchorA=(cx,H,cz), endpointB=(cx,H,cz+R), hole pointP=(cx,H−d,cz+R). Genuine constraints are A coincident with top-axis center; B on top face; AB AlongZ; P OnSurface cylindrical face; top-distance d; BP AlongY. B and P share X/Z while their Y differs. The alternative negativeZ branch is a different clicked face; preserve branch identity through edits. Existing numeric angle0 is this positiveZ solution but does not itself store/solve those constraints.
+
+## App baseline and concrete implementation boundary
+
+`js/core/cylindrical_hole_placement.js` owns current associative circular-extrusion source lookup. It resolves source radius/axis/extent and numeric top-distance/angular placement; the kernel adapter lowers the result into the Hole Wizard cutters. Five existing focused tests cover source edits and frame ownership. It produces exact geometric placement, **not** a3D sketch constraint graph or second native profile sketch.
+
+General sketch UI/model/constraint solver currently uses2D points/entities and principal/reference-plane support. No OnSurface, AlongY or AlongZ3D relation exists. History normalization recognizes sketch/feature entries only and renderer/solver assume ordinary2D sketch objects. Adding an object named3DSketch1 to that collection without explicit3D schema/editor/solver support would misrepresent the workflow.
+
+A bounded real first implementation can support precisely this straight circular-cylinder constraint graph: a canonical3D position object with threeXYZ points, one construction line, exact native cylindrical and top-plane source ownership, CoincidentAxisCenter/OnPlane/AlongZ/OnSurface/DistanceToPlane/AlongY relations, explicit positive/negativeZ branch and solver residual/DOF report. Recompute from source circle and extrusion depth on every native rebuild; reject wrong surface/unsupported draft/changed source, conflicting dimensions, zero/overlong distance and unconstrained branches. Kernel Hole Wizard must consume the **solved3D point/frame**, not the old numeric angle alongside decorative relations. UI must expose/edit actual relations and construction entities, show points and solver result, save/Undo/Redo/cold them, and retain source references. Analytical and real-native tests must prove cylinder and hole ownership, source radius/depth/center changes, valid0DOF/residuals, unresolved/overdefined cases, branch preservation and cutter/STEP position equivalence.
+
+An embedded feature placement graph is a legitimate limited3D placement solver if it drives the native cutters; it still does **not** fulfill the source's two separately editable, fully defined position/profile sketch history entries. Closing that final requirement additionally needs canonical3D sketch integration and a real generated hole-profile sketch, with source dependency/history normalization, editing/rollback/delete, solver dispatch, viewport picking and export/cold tests. That is a larger concrete gap, not a missing caption. Do not claim Exercise5.17 full-workflow acceptance until those browser-visible authored objects and source-correct geometry/material are verified.
+
+## Bounded graph implemented; parent browser witness pending
+
+`js/core/cylindrical_position_constraints.js` now analytically solves actual XYZ pointsA/B/P and the constructionAB from the native cylinder source. Its enabled relation residuals form a numerical central-difference Jacobian; rank determines remaining DOF. With all source relations present the rank is9 and DOF0. Disabling **OnSurface** or **AlongZ** leaves1DOF; disabling **AlongY** leaves2DOF. No missing relation is silently replaced by a fixed point. The Coincident top-axis anchor and OnPlane top endpoint remain source references; the positive/negativeZ branch is explicit. Invalid distances at/beyond end faces, invalid radius/source and invalid branch reject.
+
+`cylindricalHolePlacement` consumes the solvedP and axis to drive real native Hole Wizard cutters; the inactive angular parameter is ignored in constraint mode. The compiler and compatibility cut records both use this resolver. Newly applying an underdefined graph rejects before any sketch/history/Undo mutation. Existing feature edits retain the app's usual reversible live-edit semantics and report native invalidity while required relations are disabled.
+
+**Exact parent UI recipe:** select actual native cylindrical side face of an undrafted, solid single-circle Top-plane Blind/Mid-plane Boss; open Hole Wizard. In **Cylindrical face position**, set **Placement method →3D cylindrical point constraints**, **Distance below cylinder top →0.25in** (or6.35mm), **Cylindrical side →+Z side** for the stated convention. Leave **OnSurface ·hole point**, **AlongZ ·construction line** and **AlongY ·hole point to line end** enabled. The actual shared create/edit form reports graphstatus/DOF/residual and XYZ A/B/P, with source-correct cylinderP=(0,25.4,19.05)mm for the declared positiveY/positiveZ convention. The old angular field hides in this mode; relation/side fields hide in angular mode. Toggle a required relation to see actual remainingDOF and rejection, restore it, then apply Counterbore/ANSI Inch/Socket Head Cap Screw/1/4-20/Normal/Through All with the explicit0.350in recess depth. Source graph mode/branch/relation flags are real saved feature parameters, not dummy3DSketch labels.
+
+Nine new focused tests pass: XYZ/residual/rank, removed relations and remainingDOF, upstream geometry/branch, invalid inputs/nonmutation, actual native feature lowering including inactive-angle independence, real source-correct counterbore native rebuild/position/angular-equivalent volume/cold source height/negative branch, actual catalog fields, actual create-handler preflight rejection and shared create/edit readout updates. Six existing cylindrical-placement tests and8 existing feature-form/LENS regressions also pass:23 tests in the scoped run. Parent actual browser/cold/driver evidence remains required. No two-sketch history or general3D sketch solver acceptance is claimed.
+
+Final source gates passed: no free identifiers,662 module links and1489 source assertions; `git diff --check` clean apart from normal repository line-ending notices. No full CI is claimed.
+
+## Quarter-inch SHCS catalog correction
+
+Parent's actual Chrome create form exposed a separate catalog gap: ANSI Inch / Counterbore / Socket Head Cap Screw still offered Hex Bolt and UNC tap identities. The catalog now has the distinct clearance key `1/4-shcs`, labeled **1/4 in · Socket Head Cap Screw (clearance)**. The real dynamic form filters SHCS clearance choices to Custom and this key, and populates Normal bore7.14375mm /0.28125in, recess diameter11.1125mm /0.4375in and base recess depth6.35mm /0.250in. These reuse the existing quarter-inch catalog dimensions; this is not a new independent standards certification.
+
+For the current parent browser recipe, select this new clearance entry instead of the older `1/4-20` key described above, then explicitly set **recess depth0.350in /8.89mm** to include the source's0.100in head clearance. There is no automatic head-clearance field. Existing saved SHCS records using `1/4-20` retain that legacy key and customized depth on reopening or unrelated placement edits; tapped holes keep the UNC key. The new clearance key rejects use as a tapped hole or explicit Hex Bolt.
+
+Four new focused tests exercise catalog filtering, the actual dynamic form in mm/in, legacy reopen preservation and native cutter dimensions/cold JSON plus misuse rejection. Together with existing LENS, UNC and cylindrical-constraint regressions, **21 tests passed**. `npm run check` passed: no free identifiers,662 module links and1489 source assertions. Parent Chrome reload/create/edit witness is still required for this catalog correction. No model, ADVANCE or commit was changed by this subagent.

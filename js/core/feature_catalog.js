@@ -691,13 +691,15 @@ export const FEATURE_CATALOG = Object.freeze({
       threadDepth: 0, threadMode: "cosmetic", handedness: "rh", toleranceClass: "6H",
       layout: "sketch", countX: 2, countY: 2, spacingX: 4, spacingY: 4, count: 4, radius: 3, startAngle: 0,
       direction: "forward",
+      cylinderPlacementMethod:'angular',cylinderConstraintBranch:'positive-z',cylinderOnSurface:true,cylinderAlongZ:true,cylinderAlongY:true,
     },
     parameters: {
       cylinderTopDistance: { ...LENGTH, min: 0 }, cylinderAngle: ANGLE,
+      cylinderPlacementMethod:ENUM('angular','constraints'),cylinderConstraintBranch:ENUM('positive-z','negative-z'),cylinderOnSurface:BOOLEAN,cylinderAlongZ:BOOLEAN,cylinderAlongY:BOOLEAN,
       holeType: ENUM("simple", "counterbore", "countersink", "spotface", "tapped", "tap-counterbore", "tap-countersink"),
       standard: ENUM("ISO 273", "ANSI Metric", "ANSI Inch", "ISO 262:2023", "ASME B1.1 UNC", "Custom"),
       fastenerType: ENUM("generic", "hex-bolt", "socket-head-cap-screw", "fractional-drill", "flat-head-machine-screw"),
-      standardSize: ENUM("custom", "M3", "M4", "M5", "M6", "M8", "M10", "M12", "M16", "M20", "1/4-20", "1/2", "7/16-drill", "3/8-hex", "3/8-flat"),
+      standardSize: ENUM("custom", "M3", "M4", "M5", "M6", "M8", "M10", "M12", "M16", "M20", "1/4-20", "1/4-shcs", "1/2", "7/16-drill", "3/8-hex", "3/8-flat"),
       fit: ENUM("close", "normal", "loose"),
       diameter: LENGTH, depth: LENGTH, endCondition: ENUM("blind", "through-all"),
       drillPointAngle:{...ANGLE,min:60,max:180},
@@ -714,8 +716,13 @@ export const FEATURE_CATALOG = Object.freeze({
     },
     editor: { groups: [
       { id:'cylindricalPosition',label:'Cylindrical face position',fields:[
+        {key:'cylinderPlacementMethod',label:'Placement method',type:'select',choices:[{value:'angular',label:'Angle and top distance'},{value:'constraints',label:'3D cylindrical point constraints'}]},
         {key:'cylinderTopDistance',label:'Distance below cylinder top',type:'number',unit:'length',min:0,step:.1},
         {key:'cylinderAngle',label:'Angle from +Z around cylinder',type:'number',unit:'angle',step:1},
+        {key:'cylinderConstraintBranch',label:'Cylindrical side',type:'select',choices:[{value:'positive-z',label:'+Z side'},{value:'negative-z',label:'−Z side'}]},
+        {key:'cylinderOnSurface',label:'OnSurface · hole point',type:'boolean'},
+        {key:'cylinderAlongZ',label:'AlongZ · construction line',type:'boolean'},
+        {key:'cylinderAlongY',label:'AlongY · hole point to line end',type:'boolean'},
       ]},
       { id: "standard", label: "Standard", labelKey: "fcGrpStandard", icon: "ph-seal-check", fields: [
         { key: "holeType", label: "Hole type", labelKey: "fcFldHoleType", type: "select", choices: [
@@ -741,7 +748,7 @@ export const FEATURE_CATALOG = Object.freeze({
           {value:"flat-head-machine-screw",label:"Flat Head Machine Screw (82°)"},
         ]},
         // Standard designations are the same in every language, so no labelKey.
-        { key: "standardSize", label: "Size", labelKey: "fcFldSize", type: "select", choices: [{value:"custom",label:"Custom · enter mm or in"}].concat(["M3","M4","M5","M6","M8","M10","M12","M16","M20"].map((value)=>({value,label:value})),[{value:"1/4-20",label:"1/4-20 UNC · #7 tap drill"},{value:"1/2",label:"1/2 in · Hex Bolt"},{value:"7/16-drill",label:"7/16 in · Fractional Drill"},{value:"3/8-hex",label:"3/8 in · Hex Bolt (reference clearance)"},{value:"3/8-flat",label:"3/8 in · Flat Head Machine Screw"}]) },
+        { key: "standardSize", label: "Size", labelKey: "fcFldSize", type: "select", choices: [{value:"custom",label:"Custom · enter mm or in"}].concat(["M3","M4","M5","M6","M8","M10","M12","M16","M20"].map((value)=>({value,label:value})),[{value:"1/4-shcs",label:"1/4 in · Socket Head Cap Screw (clearance)"},{value:"1/4-20",label:"1/4-20 UNC · #7 tap drill"},{value:"1/2",label:"1/2 in · Hex Bolt"},{value:"7/16-drill",label:"7/16 in · Fractional Drill"},{value:"3/8-hex",label:"3/8 in · Hex Bolt (reference clearance)"},{value:"3/8-flat",label:"3/8 in · Flat Head Machine Screw"}]) },
         { key: "fit", label: "Through fit", labelKey: "fcFldThroughFit", type: "select", choices: [
           {value:"close",label:"Close",labelKey:"fcOptFitClose"},
           {value:"normal",label:"Normal",labelKey:"fcOptFitNormal"},
