@@ -1,0 +1,19 @@
+{
+  "source": "PDF93-94 / printed2-7\u20132-8",
+  "savedKey": "cm_mv2z0551",
+  "checks": {
+    "cold_drawing_exact": true,
+    "cold_description_exact": true,
+    "same_saved_key": true,
+    "16_primitives": true,
+    "rear_half180_360": true,
+    "true_SVG_unequal_radius_arc": true,
+    "7_full_SVG_ellipses": true,
+    "driver20_22_20": true,
+    "Undo_exact_primitives": true,
+    "final_note_updated": true,
+    "no_CAD_mutation": true
+  },
+  "allPassed": true,
+  "qualification": "Chosen dimensions/layout; true curve source construction and final half-outline, construction axes retained. Prior checkpoint6 checks remain separately documented."
+}

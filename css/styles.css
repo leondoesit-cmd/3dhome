@@ -214,10 +214,14 @@ body.compact-nav #modeler .md-rail-end {
 #modeler .md-tree-row.on .md-history-actions { opacity: 1; visibility: visible; pointer-events: auto; }
 #modeler .md-history-actions .md-part-x { flex: none; }
 html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to left,transparent,var(--bg-panel) 20px); }
-#modeler .md-parametric-node.md-dependency-focus { box-shadow: inset 3px 0 var(--warn); background: color-mix(in srgb,var(--warn) 13%,var(--btn-bg)); }
-#modeler .md-parametric-node.md-dependency-upstream { box-shadow: inset 3px 0 #38bdf8; background: color-mix(in srgb,#38bdf8 11%,var(--btn-bg)); }
-#modeler .md-parametric-node.md-dependency-downstream { box-shadow: inset 3px 0 #c084fc; background: color-mix(in srgb,#c084fc 11%,var(--btn-bg)); }
-#modeler .md-parametric-node.md-dependency-dim { opacity: .42; }
+#modeler .md-parametric-node.md-dependency-focus,
+#modeler .md-tree-row.md-dependency-focus { box-shadow: inset 3px 0 var(--warn); background: color-mix(in srgb,var(--warn) 13%,var(--btn-bg)); }
+#modeler .md-parametric-node.md-dependency-upstream,
+#modeler .md-tree-row.md-dependency-upstream { box-shadow: inset 3px 0 #38bdf8; background: color-mix(in srgb,#38bdf8 11%,var(--btn-bg)); }
+#modeler .md-parametric-node.md-dependency-downstream,
+#modeler .md-tree-row.md-dependency-downstream { box-shadow: inset 3px 0 #c084fc; background: color-mix(in srgb,#c084fc 11%,var(--btn-bg)); }
+#modeler .md-parametric-node.md-dependency-dim,
+#modeler .md-tree-row.md-dependency-dim { opacity: .42; }
 
 #modeler .md-workflow small { font-size: max(11px, var(--fs-floor, 0px)); }
 #modeler .md-part small { font-size: max(10.5px, var(--fs-floor, 0px)); line-height: 1.25; }
