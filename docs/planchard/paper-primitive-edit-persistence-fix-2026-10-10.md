@@ -1,0 +1,15 @@
+# Paper annotation exact-coordinate UI and normalized-edit persistence — 2026-10-10
+
+## Ordinary browser recipe
+
+Use **Paper polyline**, click the required number of vertices, then **Enter**. Paper line/rectangle/circle finish on the second point; Paper arc uses start → through → end. Return to **Select**, then double-click the actual annotation stroke. **Edit drawing annotation** exposes **Point 1 X (paper mm)** / **Point 1 Y (paper mm)** and the corresponding fields for every other point. **Line style** offers **Visible**, **Hidden**, and **Centerline**. Apply publishes these true paper millimetres independently of CAD/view scale. A circle's first point is its centre and second is a radius point; a rectangle uses opposite corners; a closed polyline repeats its first point as its last. Shift aligns picks; Ctrl bypasses snapping; ordinary picks snap to nearby endpoints or integer paper mm.
+
+Paper coordinates originate at the page's top-left, X right and Y down. Rendering and pointer mapping are inverse affine transforms: screen = paper×zoom + origin; paper = (screen−origin)/zoom. The actual Note click/text difference is intentional: `placeNote` offsets text +6mm horizontally and −6mm vertically from its picked anchor. At ~314% this is approximately +18.84/−18.84 screen pixels, explaining click622,347 versus visible text641,~327 without a paper-coordinate inversion claim.
+
+## Confirmed repair
+
+The real controller previously captured `primitive` before `host.pushUndo`, then updated that old object. Actual app history capture can normalize/replace the drawing, detaching the retained primitive. The read-only controller reproduction with document replacement recorded Undo1 while canonical live coordinates and style remained unchanged. This is conditional on history normalization replacing the drawing records; it does not imply every prior browser edit failed. The parent diagnostic Front already retains fractional57.5/72.5mm coordinates, while style editing is still awaiting actual postfix proof.
+
+`editPrimitive` now checks current owner/history/drawing/record/fingerprint before accepting the answer, then reacquires the current annotation by its persistent ID after Undo capture and writes the validated points/style there. No raw CAD, view, dimension or note authoring was changed. Cancellation, invalid coordinates and intervening owner/history/source replacements do not push Undo or mutate the source.
+
+Validation: **18/18** tests pass (10 primitive + 8 paper arc), including the real controller with history normalization: exact noninteger polyline coordinates and Centerline style publish to the current record, the detached old record remains unchanged, SVG reflects the edit, Undo/Redo and cold SVG preserve it, and CAD features/sketches/parts/history remain identical. Stale/cancel/invalid cases are explicit. **Full gates pass: 685 linked modules / 1487 assertions; owned diff check clean.** Code/tests are frozen; actual parent browser numeric-coordinate replay is pending.

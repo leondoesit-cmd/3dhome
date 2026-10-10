@@ -1,0 +1,9 @@
+# Orthographic5 preparation diagnostic
+
+**Not accepted as a final drawing.** The actual ordinary-browser checkpoint has15 native primitives and5 native notes, all styles `outline`. Source PDF67 / printed1-39 and the ready paper plan require7 hidden and4 center lines. Two Top notch-hidden lines have snapped X57/72 instead of57.5/72.5. The Front notch polyline is already exact57.5/72.5; no Front correction is necessary.
+
+Saved key `cm_mv2t8b18`, **Planchard Ch1 IN-CHAPTER Orthographic 5 graphic - browser 2026-10-10**. Bundle has no parts/features/projected views/dimensions/images; only native paper graphic and notes. Chosen illustrative grid5mm with W8/D6/H4, notchX2.5–5.5/H0–2 and boreX4/depth3/R1 is expressly disclosed, not publisher numeric dimensions. Bore-hidden edges correctly terminate at the notch roof. The actual PNG has separate three views, source notes and clear frame/footer, but visible-only strokes fail drafting semantics.
+
+After the generic native primitive editor fix, ordinary browser correction should set Hidden: `p5cn93rv`, `pmf946yd` (Front bore); `p77mrpg0`, `p1ik7deo` (Top notch); `p26bqw8r`, `p2ggu1h7`, `pz1bec20` (Right notch roof/bore). Set Center: `px83h4d2`, `pu38wf7h`, `ptozj0z1`, `pa0gitds`. Set both endpoints of `p77mrpg0` toX57.5 and `p1ik7deo` toX72.5. Preserve their TopY90..120 and all other coordinates. Four outline shapes remain Frontpolyline, Toprectangle, Rightrectangle and Topcircle.
+
+JSON `ch1-orthographic-5-diagnostic-browser-audit-2026-10-10.json` contains the full15 primitive IDs, actual and expected points/styles, plus all5 note IDs/text/positions. Checker `scratch/planchard/ch1-orthographic5-diagnostic-readonly.mjs`. Evidence uses `CH1-INCHAPTER-Orthographic-5-diagnostic-browser-2026-10-10` under artifacts(bundle)/docs(SVG/PNG). Future corrected source/Undo/cold acceptance requires separate exports; this diagnostic is retained unchanged.

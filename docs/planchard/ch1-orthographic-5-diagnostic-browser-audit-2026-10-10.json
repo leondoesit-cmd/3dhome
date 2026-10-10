@@ -1,0 +1,667 @@
+{
+  "accepted": false,
+  "diagnosticOnly": true,
+  "savedKey": "cm_mv2t8b18",
+  "savedName": "Planchard Ch1 IN-CHAPTER Orthographic 5 graphic - browser 2026-10-10",
+  "actualCounts": {
+    "primitives": 15,
+    "notes": 5,
+    "parts": 0,
+    "features": 0,
+    "views": 0
+  },
+  "geometryPointMismatches": [
+    {
+      "index": 8,
+      "id": "p77mrpg0",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 57,
+          "y": 90
+        },
+        {
+          "x": 57,
+          "y": 120
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 57.5,
+          "y": 90
+        },
+        {
+          "x": 57.5,
+          "y": 120
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "hidden",
+      "pointsMatch": false,
+      "styleMatch": false
+    },
+    {
+      "index": 9,
+      "id": "p1ik7deo",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 72,
+          "y": 90
+        },
+        {
+          "x": 72,
+          "y": 120
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 72.5,
+          "y": 90
+        },
+        {
+          "x": 72.5,
+          "y": 120
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "hidden",
+      "pointsMatch": false,
+      "styleMatch": false
+    }
+  ],
+  "styleMismatches": [
+    {
+      "id": "p5cn93rv",
+      "index": 5,
+      "actual": "outline",
+      "expected": "hidden"
+    },
+    {
+      "id": "pmf946yd",
+      "index": 6,
+      "actual": "outline",
+      "expected": "hidden"
+    },
+    {
+      "id": "px83h4d2",
+      "index": 7,
+      "actual": "outline",
+      "expected": "center"
+    },
+    {
+      "id": "p77mrpg0",
+      "index": 8,
+      "actual": "outline",
+      "expected": "hidden"
+    },
+    {
+      "id": "p1ik7deo",
+      "index": 9,
+      "actual": "outline",
+      "expected": "hidden"
+    },
+    {
+      "id": "pu38wf7h",
+      "index": 10,
+      "actual": "outline",
+      "expected": "center"
+    },
+    {
+      "id": "ptozj0z1",
+      "index": 11,
+      "actual": "outline",
+      "expected": "center"
+    },
+    {
+      "id": "p26bqw8r",
+      "index": 12,
+      "actual": "outline",
+      "expected": "hidden"
+    },
+    {
+      "id": "p2ggu1h7",
+      "index": 13,
+      "actual": "outline",
+      "expected": "hidden"
+    },
+    {
+      "id": "pz1bec20",
+      "index": 14,
+      "actual": "outline",
+      "expected": "hidden"
+    },
+    {
+      "id": "pa0gitds",
+      "index": 15,
+      "actual": "outline",
+      "expected": "center"
+    }
+  ],
+  "mapping": [
+    {
+      "index": 1,
+      "id": "p4r98f96",
+      "type": "polyline",
+      "actualPoints": [
+        {
+          "x": 45,
+          "y": 205
+        },
+        {
+          "x": 57.5,
+          "y": 205
+        },
+        {
+          "x": 57.5,
+          "y": 195
+        },
+        {
+          "x": 72.5,
+          "y": 195
+        },
+        {
+          "x": 72.5,
+          "y": 205
+        },
+        {
+          "x": 85,
+          "y": 205
+        },
+        {
+          "x": 85,
+          "y": 185
+        },
+        {
+          "x": 45,
+          "y": 185
+        },
+        {
+          "x": 45,
+          "y": 205
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 45,
+          "y": 205
+        },
+        {
+          "x": 57.5,
+          "y": 205
+        },
+        {
+          "x": 57.5,
+          "y": 195
+        },
+        {
+          "x": 72.5,
+          "y": 195
+        },
+        {
+          "x": 72.5,
+          "y": 205
+        },
+        {
+          "x": 85,
+          "y": 205
+        },
+        {
+          "x": 85,
+          "y": 185
+        },
+        {
+          "x": 45,
+          "y": 185
+        },
+        {
+          "x": 45,
+          "y": 205
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "outline",
+      "pointsMatch": true,
+      "styleMatch": true
+    },
+    {
+      "index": 2,
+      "id": "pzuq6idj",
+      "type": "rectangle",
+      "actualPoints": [
+        {
+          "x": 45,
+          "y": 90
+        },
+        {
+          "x": 85,
+          "y": 120
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 45,
+          "y": 90
+        },
+        {
+          "x": 85,
+          "y": 120
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "outline",
+      "pointsMatch": true,
+      "styleMatch": true
+    },
+    {
+      "index": 3,
+      "id": "pr0iasfh",
+      "type": "rectangle",
+      "actualPoints": [
+        {
+          "x": 145,
+          "y": 185
+        },
+        {
+          "x": 175,
+          "y": 205
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 145,
+          "y": 185
+        },
+        {
+          "x": 175,
+          "y": 205
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "outline",
+      "pointsMatch": true,
+      "styleMatch": true
+    },
+    {
+      "index": 4,
+      "id": "pnw3sicj",
+      "type": "circle",
+      "actualPoints": [
+        {
+          "x": 65,
+          "y": 105
+        },
+        {
+          "x": 70,
+          "y": 105
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 65,
+          "y": 105
+        },
+        {
+          "x": 70,
+          "y": 105
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "outline",
+      "pointsMatch": true,
+      "styleMatch": true
+    },
+    {
+      "index": 5,
+      "id": "p5cn93rv",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 60,
+          "y": 185
+        },
+        {
+          "x": 60,
+          "y": 195
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 60,
+          "y": 185
+        },
+        {
+          "x": 60,
+          "y": 195
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "hidden",
+      "pointsMatch": true,
+      "styleMatch": false
+    },
+    {
+      "index": 6,
+      "id": "pmf946yd",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 70,
+          "y": 185
+        },
+        {
+          "x": 70,
+          "y": 195
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 70,
+          "y": 185
+        },
+        {
+          "x": 70,
+          "y": 195
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "hidden",
+      "pointsMatch": true,
+      "styleMatch": false
+    },
+    {
+      "index": 7,
+      "id": "px83h4d2",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 65,
+          "y": 182
+        },
+        {
+          "x": 65,
+          "y": 208
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 65,
+          "y": 182
+        },
+        {
+          "x": 65,
+          "y": 208
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "center",
+      "pointsMatch": true,
+      "styleMatch": false
+    },
+    {
+      "index": 8,
+      "id": "p77mrpg0",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 57,
+          "y": 90
+        },
+        {
+          "x": 57,
+          "y": 120
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 57.5,
+          "y": 90
+        },
+        {
+          "x": 57.5,
+          "y": 120
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "hidden",
+      "pointsMatch": false,
+      "styleMatch": false
+    },
+    {
+      "index": 9,
+      "id": "p1ik7deo",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 72,
+          "y": 90
+        },
+        {
+          "x": 72,
+          "y": 120
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 72.5,
+          "y": 90
+        },
+        {
+          "x": 72.5,
+          "y": 120
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "hidden",
+      "pointsMatch": false,
+      "styleMatch": false
+    },
+    {
+      "index": 10,
+      "id": "pu38wf7h",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 65,
+          "y": 87
+        },
+        {
+          "x": 65,
+          "y": 123
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 65,
+          "y": 87
+        },
+        {
+          "x": 65,
+          "y": 123
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "center",
+      "pointsMatch": true,
+      "styleMatch": false
+    },
+    {
+      "index": 11,
+      "id": "ptozj0z1",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 42,
+          "y": 105
+        },
+        {
+          "x": 88,
+          "y": 105
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 42,
+          "y": 105
+        },
+        {
+          "x": 88,
+          "y": 105
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "center",
+      "pointsMatch": true,
+      "styleMatch": false
+    },
+    {
+      "index": 12,
+      "id": "p26bqw8r",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 145,
+          "y": 195
+        },
+        {
+          "x": 175,
+          "y": 195
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 145,
+          "y": 195
+        },
+        {
+          "x": 175,
+          "y": 195
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "hidden",
+      "pointsMatch": true,
+      "styleMatch": false
+    },
+    {
+      "index": 13,
+      "id": "p2ggu1h7",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 155,
+          "y": 185
+        },
+        {
+          "x": 155,
+          "y": 195
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 155,
+          "y": 185
+        },
+        {
+          "x": 155,
+          "y": 195
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "hidden",
+      "pointsMatch": true,
+      "styleMatch": false
+    },
+    {
+      "index": 14,
+      "id": "pz1bec20",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 165,
+          "y": 185
+        },
+        {
+          "x": 165,
+          "y": 195
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 165,
+          "y": 185
+        },
+        {
+          "x": 165,
+          "y": 195
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "hidden",
+      "pointsMatch": true,
+      "styleMatch": false
+    },
+    {
+      "index": 15,
+      "id": "pa0gitds",
+      "type": "line",
+      "actualPoints": [
+        {
+          "x": 160,
+          "y": 182
+        },
+        {
+          "x": 160,
+          "y": 208
+        }
+      ],
+      "expectedPoints": [
+        {
+          "x": 160,
+          "y": 182
+        },
+        {
+          "x": 160,
+          "y": 208
+        }
+      ],
+      "actualStyle": "outline",
+      "expectedStyle": "center",
+      "pointsMatch": true,
+      "styleMatch": false
+    }
+  ],
+  "noteRows": [
+    {
+      "id": "ngwslmdc",
+      "text": "CHAPTER 1 IN-CHAPTER: ORTHOGRAPHIC 5\nPDF 67 / printed 1-39 - third-angle three-view study\nIllustrative estimated dimensions; not publisher numeric dimensions.",
+      "x": 34.80665155795724,
+      "y": 34.97283360811151
+    },
+    {
+      "id": "np8maf19",
+      "text": "TOP",
+      "x": 44.67834540980842,
+      "y": 131.77912170368444
+    },
+    {
+      "id": "n0t50g4n",
+      "text": "FRONT",
+      "x": 44.67834540980842,
+      "y": 217.75839073593673
+    },
+    {
+      "id": "nmmpj3za",
+      "text": "RIGHT",
+      "x": 144.66905087694624,
+      "y": 217.75839073593673
+    },
+    {
+      "id": "nvd86tek",
+      "text": "ESTIMATED GRAPH-PAPER CONSTRUCTION\n5 mm per illustrative grid unit.\nWidth 8, depth 6, height 4 units.\nNotch X 2.5-5.5, height 0-2 units.\nVertical bore centre X4/depth3, radius1 unit.\nHidden bore edges stop at the notch roof.",
+      "x": 239.88313028673673,
+      "y": 89.74481239902777
+    }
+  ],
+  "qualification": "SourcePDF67 printed1-39; chosen5mm illustrative gridunit and W8/D6/H4 explicitly disclosed, not publisher physicaldimensions. Front notchpolyline already exact57.5/72.5; only Tophidden lines snapped57/72. Eleven nonoutline styles missing, so not accepted final Drawing. Pure native paper graphic, no CAD binding."
+}

@@ -1335,16 +1335,23 @@ export function createDrawingController(host) {
   async function editPrimitive(id) {
     const doc=host.doc(),primitive=doc.primitives.find(p=>p.id===id);
     if(!primitive || !host.promptFields)return;
+    const owner=host.model?.(),history=host.historyToken?.(),stamp=JSON.stringify(primitive);
     const answer=await host.promptFields('Edit drawing annotation',[
       ...primitive.points.flatMap((p,i)=>[{key:'x'+i,label:'Point '+(i+1)+' X (paper mm)',value:String(p.x)},{key:'y'+i,label:'Point '+(i+1)+' Y (paper mm)',value:String(p.y)}]),
       {key:'style',label:'Line style',type:'select',value:primitive.style,choices:[{value:'outline',label:'Visible'},{value:'hidden',label:'Hidden'},{value:'center',label:'Centerline'}]},
     ],'Paper annotations are independent of CAD geometry and view scale. Origin: paper top-left, X right, Y down.');
-    if(!answer || host.doc()!==doc || !doc.primitives.includes(primitive))return;
+    if(!answer)return;
+    if(host.model?.()!==owner || host.historyToken?.()!==history || host.doc()!==doc || !doc.primitives.includes(primitive) || JSON.stringify(primitive)!==stamp) {host.flash('Drawing changed while editing annotation; retry');return;}
     try {
       if(primitive.points.some((p,i)=>String(answer['x'+i] ?? '').trim()===''||String(answer['y'+i] ?? '').trim()===''))throw new Error('Enter every paper coordinate');
       const next=validateDrawingPrimitive({...primitive,style:answer.style,points:primitive.points.map((p,i)=>({x:Number(answer['x'+i]),y:Number(answer['y'+i])}))},sheetPaper(doc));
       if(JSON.stringify(next)===JSON.stringify(primitive))return;
-      host.pushUndo('Edit drawing annotation');Object.assign(primitive,next);invalidate();host.markDirty();
+      host.pushUndo('Edit drawing annotation');
+      // Undo capture can normalize and replace the drawing records. Commit to
+      // the current annotation, rather than the detached pre-history object.
+      const live=host.doc().primitives.find(p=>p.id===id);
+      if(!live || host.model?.()!==owner)throw new Error('Drawing changed while editing annotation; retry');
+      Object.assign(live,next);invalidate();host.markDirty();
     } catch(error){host.flash(error.message);}
   }
 
