@@ -1,0 +1,31 @@
+{
+  "checks": {
+    "actualDrivingSketch": true,
+    "actualAnalyticProxy": true,
+    "allActualSampledProxyPoints": true,
+    "originalFirstTwoSketchesExact": true,
+    "originalFeatureAuthoringExact": true,
+    "wholeDrawingExact": true,
+    "sixHistory": true,
+    "noRollback": true,
+    "oneActualStoredNativeSolid": true,
+    "inputUnmodified": true
+  },
+  "accepted": true,
+  "actualCanonicalRadiusCm": 0.6000000000000001,
+  "actualProxyRadiusCm": 0.6000000000000001,
+  "sampledRadiusRange": [
+    0.6000000000000001,
+    0.6000000000000003
+  ],
+  "actualStoredMeshBounds": {
+    "x0": 0,
+    "x1": 6,
+    "y0": 0,
+    "y1": 3,
+    "z0": 0,
+    "z1": 4
+  },
+  "expectedAnalyticVolumeMm3": 58303.539967061515,
+  "scope": "Actual protected browser fields only. Native/actual STEP acceptance requires separate native audit; not fresh in-memory synchronization."
+}

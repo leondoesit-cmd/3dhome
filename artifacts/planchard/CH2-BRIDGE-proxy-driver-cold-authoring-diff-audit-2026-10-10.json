@@ -1,0 +1,31 @@
+{
+  "differences": [
+    {
+      "path": "$.parts.0.meshData.bounds",
+      "warm": {
+        "x0": 0,
+        "x1": 6,
+        "y0": 0,
+        "y1": 3,
+        "z0": 0,
+        "z1": 4
+      }
+    },
+    {
+      "path": "$.lastRebuild.rebuiltAt",
+      "warm": 1791642320490,
+      "cold": 1791642396078
+    }
+  ],
+  "checks": {
+    "allDifferencesDerived": true,
+    "wholeDrawingExact": true,
+    "wholeSketchesFeaturesExact": true,
+    "nativeMeshPositionsExact": true,
+    "storedPartBoundsExact": true,
+    "proxyCoherence": true,
+    "nativeOneConnectedValid": true
+  },
+  "finalProxyWorkflowAccepted": true,
+  "qualification": "No fresh cold STEP was exported. Actual D13 driver STEP independently accepted; nominal source/native mesh exact restoration and cold native rebuild accepted. Cold removes redundant meshData.bounds but retains coherent actual part.bounds; rebuild timestamp differs."
+}

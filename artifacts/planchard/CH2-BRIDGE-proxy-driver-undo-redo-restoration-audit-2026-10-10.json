@@ -1,0 +1,54 @@
+{
+  "checks": {
+    "undoD12Proxy": true,
+    "redoD13Proxy": true,
+    "restoredD12Proxy": true,
+    "undoRestoredSketchesExact": true,
+    "undoRestoredFeaturesExact": true,
+    "undoRestoredDrawingExact": true,
+    "undoRestoredNativeMeshExact": true,
+    "redoExactExceptBuildTokenTimestamp": true
+  },
+  "diffs": [
+    {
+      "path": "$.parts.0.exactBuildToken",
+      "undo": 8,
+      "restored": 9
+    },
+    {
+      "path": "$.parts.0.meshData.bounds",
+      "restored": {
+        "x0": 0,
+        "x1": 6,
+        "y0": 0,
+        "y1": 3,
+        "z0": 0,
+        "z1": 4
+      }
+    },
+    {
+      "path": "$.lastRebuild.rebuiltAt",
+      "undo": 1791642279642,
+      "restored": 1791642320490
+    },
+    {
+      "path": "$.lastStandardsAudit.at",
+      "undo": 1791642092123,
+      "restored": 1791642309913
+    }
+  ],
+  "accepted": true,
+  "redoDifferences": [
+    {
+      "path": "$.lastRebuild.rebuiltAt",
+      "initial": 1791642238920,
+      "redo": 1791642293064
+    },
+    {
+      "path": "$.lastStandardsAudit.at",
+      "initial": 1791642092123,
+      "redo": 1791642252347
+    }
+  ],
+  "restorationDifferencesQualification": "Only build token and rebuild/audit timestamps differ; Save adds actual mesh bounds consistent with unchanged positions. Sketches/features/Drawing and mesh positions exact."
+}
