@@ -1,0 +1,11 @@
+# Native paper ellipse arc angles
+
+The parent completed genuine full paper ellipses in Chrome for the construction workflow on source PDF 93–94. The final cylinder outline on printed 2-8 requires only the outward half of the rear ellipse. A full ellipse or circular paper arc cannot represent that geometry faithfully.
+
+The same Paper ellipse annotation now exposes **Start angle (degrees)** and **End angle (degrees)** in its ordinary double-click editor, after Center X/Y, Major/Minor semi-axis and Rotation. Existing saved ellipses default to 0→360 and keep their full geometry. Start/end angles are local ellipse parameter angles: 0 lies at the positive major-axis endpoint, 90 at the positive minor-axis endpoint. On paper Y points down, so increasing angles run clockwise before the chosen rotation. 0→180 draws the lower local half; 180→360 draws the upper local half. Negative sweeps reverse traversal. The sweep must be finite, nonzero and at most 360 degrees in magnitude.
+
+Canvas uses true `ellipse` start/end parameters. Full geometry retains SVG `<ellipse>` output; partial geometry emits the SVG elliptical `A` command with genuine unequal radii, rotation and sweep/large-arc flags. Hit testing searches only the visible interval and its endpoints. Paper containment evaluates the actual arc endpoints and rotated-ellipse extrema inside that interval, rather than treating the omitted half as visible. Existing paper control-point containment remains in place.
+
+Angle edits retain the native independent paper schema, line style, owner/history/source stale guards and normalized live-record publication. Source CAD and full ellipse controls are unchanged by trimming. No polygon approximation, imported outline or circle substitution was introduced.
+
+Focused **26/26 PASS**: eight ellipse, eight circular arc and ten paper primitive tests. New regressions cover true half/reversed/large/wrapped elliptic arcs, restricted hit selection, real Canvas arc arguments, exact rotated interval bounds, invalid range rejection, ordinary editor fields, full→half normalized Undo/Redo and cold analytic SVG equality. Required gates PASS: no free identifiers, **686 linked modules / 1487 assertions**. Owned diff check is clean. Independent review is recorded separately. Actual final source outline authoring remains the parent's browser acceptance task.

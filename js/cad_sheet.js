@@ -2002,7 +2002,11 @@ export function sceneToSvg(scene, options = {}) {
       parts.push('<circle cx="' + round3(item.cx) + '" cy="' + round3(item.cy) + '" r="' + round3(item.r) +
         '" ' + strokeAttrs(item.style) + "/>");
     } else if (item.type === "ellipse") {
-      parts.push('<ellipse cx="'+round3(item.cx)+'" cy="'+round3(item.cy)+'" rx="'+round3(item.rx)+'" ry="'+round3(item.ry)+'" transform="rotate('+round3(item.rotation*180/Math.PI)+' '+round3(item.cx)+' '+round3(item.cy)+')" '+strokeAttrs(item.style)+'/>');
+      if(Math.abs(item.a1-item.a0)>=Math.PI*2-1e-10)parts.push('<ellipse cx="'+round3(item.cx)+'" cy="'+round3(item.cy)+'" rx="'+round3(item.rx)+'" ry="'+round3(item.ry)+'" transform="rotate('+round3(item.rotation*180/Math.PI)+' '+round3(item.cx)+' '+round3(item.cy)+')" '+strokeAttrs(item.style)+'/>');
+      else {
+        const point=a=>({x:item.cx+item.rx*Math.cos(a)*Math.cos(item.rotation)-item.ry*Math.sin(a)*Math.sin(item.rotation),y:item.cy+item.rx*Math.cos(a)*Math.sin(item.rotation)+item.ry*Math.sin(a)*Math.cos(item.rotation)}),a=point(item.a0),b=point(item.a1);
+        parts.push('<path d="M'+round3(a.x)+','+round3(a.y)+'A'+round3(item.rx)+','+round3(item.ry)+' '+round3(item.rotation*180/Math.PI)+' '+(Math.abs(item.a1-item.a0)>Math.PI?1:0)+' '+(item.anticlockwise?0:1)+' '+round3(b.x)+','+round3(b.y)+'" '+strokeAttrs(item.style)+'/>');
+      }
     } else if (item.type === "arc") {
       const x1 = item.cx + Math.cos(item.a0) * item.r, y1 = item.cy + Math.sin(item.a0) * item.r;
       const x2 = item.cx + Math.cos(item.a1) * item.r, y2 = item.cy + Math.sin(item.a1) * item.r;

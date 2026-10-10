@@ -1,0 +1,13 @@
+{
+  "savedKey": "cm_mv2z0551",
+  "checks": {
+    "16_primitives": true,
+    "8_true_ellipses": true,
+    "cylinder_axes": true,
+    "rotation_row_cosines": true,
+    "true_SVG_ellipses": true,
+    "2_source_notes": true
+  },
+  "allPassed": true,
+  "status": "construction checkpoint; final half-ellipse/cold pending"
+}

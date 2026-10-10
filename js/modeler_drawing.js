@@ -237,7 +237,7 @@ export function createDrawingController(host) {
     }
     if (item.type === "ellipse") {
       const centre=toScreen({x:item.cx,y:item.cy});strokeStyleFor(c,item.style);
-      c.beginPath();c.ellipse(centre.x,centre.y,item.rx*state.zoom,item.ry*state.zoom,item.rotation,0,Math.PI*2);c.stroke();return;
+      c.beginPath();c.ellipse(centre.x,centre.y,item.rx*state.zoom,item.ry*state.zoom,item.rotation,item.a0,item.a1,!!item.anticlockwise);c.stroke();return;
     }
     if (item.type === "arc") {
       const centre = toScreen({ x: item.cx, y: item.cy });
@@ -1347,6 +1347,8 @@ export function createDrawingController(host) {
       {key:'rx',label:'Major semi-axis (paper mm)',value:String(ellipse.rx)},
       {key:'ry',label:'Minor semi-axis (paper mm)',value:String(ellipse.ry)},
       {key:'rotation',label:'Rotation (degrees)',value:String(ellipse.rotation*180/Math.PI)},
+      {key:'startAngle',label:'Start angle (degrees)',value:String(primitive.startAngle ?? 0)},
+      {key:'endAngle',label:'End angle (degrees)',value:String(primitive.endAngle ?? 360)},
     ] : primitive.points.flatMap((p,i)=>[{key:'x'+i,label:'Point '+(i+1)+' X (paper mm)',value:String(p.x)},{key:'y'+i,label:'Point '+(i+1)+' Y (paper mm)',value:String(p.y)}]);
     const answer=await host.promptFields('Edit drawing annotation',[
       ...geometryFields,
@@ -1358,7 +1360,7 @@ export function createDrawingController(host) {
       if(geometryFields.some(field=>String(answer[field.key] ?? '').trim()===''))throw new Error('Enter every paper coordinate');
       if(ellipse && (!(Number(answer.rx)>0)||!(Number(answer.ry)>0)))throw new Error('An ellipse needs two positive semi-axes');
       const points=ellipse ? drawingEllipsePoints(Object.fromEntries(geometryFields.map(field=>[field.key,Number(answer[field.key])]))) : primitive.points.map((p,i)=>({x:Number(answer['x'+i]),y:Number(answer['y'+i])}));
-      const next=validateDrawingPrimitive({...primitive,style:answer.style,points},sheetPaper(doc));
+      const next=validateDrawingPrimitive({...primitive,style:answer.style,points,...(ellipse?{startAngle:Number(answer.startAngle),endAngle:Number(answer.endAngle)}:{})},sheetPaper(doc));
       if(JSON.stringify(next)===JSON.stringify(primitive))return;
       host.pushUndo('Edit drawing annotation');
       // Undo capture can normalize and replace the drawing records. Commit to

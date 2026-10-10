@@ -1,0 +1,24 @@
+{
+  "source": "PDF98 / printed2-12",
+  "savedKey": "cm_mv2z5xh3",
+  "checks": {
+    "20_primitives": true,
+    "closed_outline": true,
+    "two_wall_and_window_families_converge": true,
+    "four_notes": true,
+    "two_VP_markers": true,
+    "five_center_guides": true,
+    "lower_guides_repaired": true,
+    "window_framing_gap": true,
+    "no_solid_views_or_images": true
+  },
+  "maxConvergenceErrorMM": 1.5695699495761774e-05,
+  "allPassed": true,
+  "coldReopen": "Chrome reload, exact Saved record",
+  "qualification": "Chosen source-equivalent house schematic; x235 framing split at window, giving20 primitives vs planned19; real1mm VP circles created with Ctrl bypass; no photo or physical building claim.",
+  "coldChecks": {
+    "same_key": true,
+    "drawing_exact": true,
+    "description_exact": true
+  }
+}

@@ -290,7 +290,7 @@ export var TXT = {
   drawPaperCircle: ["מעגל על הדף", "Paper circle"],
   drawPaperArc: ["קשת על הדף", "Paper arc"],
   drawPaperEllipse: ["אליפסה על הדף", "Paper ellipse"],
-  drawPaperEllipseHint: ["בחר מרכז, קצה הציר הראשי ורדיוס משני. לחיצה כפולה לעריכת המרכז, חצאי הצירים והזווית.", "Pick center, major axis end, then minor radius. Double-click edits center, semi-axes and rotation. Shift aligns; Ctrl bypasses snapping. Escape cancels."],
+  drawPaperEllipseHint: ["בחר מרכז, קצה הציר הראשי ורדיוס משני. לחיצה כפולה לעריכת המרכז, חצאי הצירים, הסיבוב וזוויות ההתחלה והסיום.", "Pick center, major axis end, then minor radius. Double-click edits center, semi-axes, rotation and start/end angles. Shift aligns; Ctrl bypasses snapping. Escape cancels."],
   drawPaperArcHint: ["בחר התחלה, נקודה על הקשת וסיום. Shift ליישור, Ctrl ללא הצמדה. Escape מבטל; לחיצה כפולה לעריכה.", "Pick start, a point on the arc, then end. Shift aligns, Ctrl bypasses snapping. Escape cancels; double-click edits the three paper points. Annotations do not change CAD geometry."],
   drawPaperHint: ["בחר נקודות על הדף במ״מ; Shift ליישור, Ctrl ללא הצמדה. Enter מסיים קו רציף; Escape מבטל. לחיצה כפולה לעריכה.", "Pick paper points in mm; Shift aligns, Ctrl bypasses snapping. Enter finishes a polyline; Escape cancels. Double-click to edit. Annotations do not change CAD geometry."],
   drawToolNote: ["הערה", "Note"],

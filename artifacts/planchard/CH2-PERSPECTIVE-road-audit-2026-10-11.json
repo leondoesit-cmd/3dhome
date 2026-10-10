@@ -10,6 +10,12 @@
     "source_note": true
   },
   "allPassed": true,
-  "coldReopen": "pending",
-  "qualification": "chosen native geometric explanation of source road photo, no photo or 3D camera reproduction"
+  "coldReopen": "Exact Saved record after Chrome reload",
+  "qualification": "chosen native geometric explanation of source road photo, no photo or 3D camera reproduction",
+  "coldChecks": {
+    "same_saved_key": true,
+    "drawing_exact": true,
+    "source_description_exact": true,
+    "no_solid_geometry": true
+  }
 }
