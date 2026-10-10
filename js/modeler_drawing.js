@@ -1216,8 +1216,9 @@ export function createDrawingController(host) {
     if (!answer || (!answer.text && !answer.depth)) { host.refresh(); return; }
     const property=answer.depth?.startsWith("property:") ? answer.depth.slice(9) : null;
     const text = answer.text || (property ? "" : "MATERIAL THICKNESS");
-    const doc = host.doc();
     host.pushUndo(host.t("opAddNote"));
+    // History capture can normalize and replace the drawing document.
+    const doc = host.doc();
     const note = {
       id: "n" + Math.random().toString(36).slice(2, 9),
       x: draft.at.x + 6, y: draft.at.y - 6, text,

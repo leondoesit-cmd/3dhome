@@ -1,5 +1,5 @@
 import {analyzePrintLayers} from './print_layer_analysis.js';
-import {printGrid,rasterContours,maskDistance,erodeMask,dilateMask,maskLoops,rasterLines,depositionClearsContours} from './print_raster.js';
+import {printGrid,rasterContours,maskDistance,erodeMask,dilateMask,maskLoops,rasterLines,depositionClearsContours,clipSupportPaths} from './print_raster.js';
 
 export const FFF_DEFAULTS=Object.freeze({layerHeightMm:.2,gridMm:.2,lineWidthMm:.4,filamentDiameterMm:1.75,wallCount:2,skinLayers:3,infillPercent:15,support:'off',supportAngle:45,supportGapMm:.2,supportXYGapMm:.4,supportPercent:15,adhesion:'none',adhesionWidthMm:3.5,raftLayers:2,wallSpeed:40,infillSpeed:40,travelSpeed:100});
 export function validateFffSettings(input={}) {
@@ -77,7 +77,11 @@ export async function toolpathsFromLayers(analysis,input={},options={}) {
       for(const line of rasterLines(skin,g,s.lineWidthMm,index%2===1))add(layer,line,'skin',id,false,s.lineWidthMm,object.contours);
       if(s.infillPercent)for(const line of rasterLines(infill,g,s.lineWidthMm*100/s.infillPercent,index%2===1))add(layer,line,'infill',id,false,s.lineWidthMm,object.contours);
     }
-    if(s.support!=='off')for(const line of rasterLines(supports[index],g,s.lineWidthMm*100/s.supportPercent,index%2===1))add(layer,line,'support','support');
+    if(s.support!=='off')for(const line of rasterLines(supports[index],g,s.lineWidthMm*100/s.supportPercent,index%2===1)) {
+      const clipped=clipSupportPaths(line,analysis.layers[index].objects,s.lineWidthMm/2);
+      if(clipped.removedLengthMm>1e-8)diagnostics.push({layer:layer.number,kind:'support-clipped',removedLengthMm:clipped.removedLengthMm,retainedPieces:clipped.paths.length,reason:'Exact material contour and bead clearance'});
+      for(const safe of clipped.paths)add(layer,safe,'support','support');
+    }
     if(index===0&&['skirt','brim'].includes(s.adhesion)) {
       if(s.adhesion==='skirt')for(const loop of maskLoops(dilateMask(masks[0],g,s.adhesionWidthMm),g))add(layer,loop,'skirt','adhesion',true);
       else for(let offset=0;offset<=s.adhesionWidthMm;offset+=s.lineWidthMm)for(const loop of maskLoops(offset?dilateMask(masks[0],g,offset):masks[0],g))add(layer,loop,'brim','adhesion',true);

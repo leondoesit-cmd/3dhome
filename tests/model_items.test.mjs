@@ -129,3 +129,33 @@ test("Insert Model Items source IDs carry live part-owned tolerance without free
   assert.equal(resolveDimensionTolerance(resolved,copy,{units:'in'}).tolerance,'+0.001/−0.003');
   assert.equal(planModelItems(copy,{dims:[inserted]},scene).some(d=>d.modelItem===inserted.modelItem),false);
 });
+
+test('shared sketch region owners bind tolerated circle to its own second boss, not equal-radius first terminal',()=>{
+  const copy=JSON.parse(JSON.stringify(model));
+  const term=copy.features.find(f=>f.id==='terminal');
+  term.params.profileEntityIds=[64];
+  const second={...term,id:'second-terminal',params:{...term.params,profileEntityIds:[61]}};
+  copy.features.push(second);
+  copy.sketches[1].constraints[0].tolerance={version:1,kind:'deviation',upper:0,lower:-.00508,unit:'in',precision:3};
+  const changedGeometry=geometry.map(entry=>entry.persistentId==='terminal:tool:edge:profile:61:start'?{...entry,persistentId:'second-terminal:tool:edge:profile:61:start'}:entry);
+  const actualScene={...scene,topologyIndex:createTopologyIndex(changedGeometry)};
+  const manual={id:'old-detail',type:'diameter',viewId:'detail',radius:.635,refs:[{pid:'terminal:tool:edge:profile:64:start',kind:'edge',at:'centre'}]};
+  const key='sketch:term-sk:constraint:diam';
+  const inserted=planModelItems(copy,{dims:[manual]},actualScene).find(d=>d.modelItem===key);
+  assert.ok(inserted,'an equal-sized different terminal is not the same bound source dimension');
+  assert.equal(inserted.refs[0].pid,'second-terminal:tool:edge:profile:61:start');
+  assert.equal(inserted.viewId,'top');
+  assert.equal(planModelItems(copy,{dims:[manual,inserted]},actualScene).some(d=>d.modelItem===key),false);
+  assert.ok(planModelItems(copy,{dims:[]},actualScene).some(d=>d.modelItem===key),'ordinary deletion + Insert works');
+  copy.features.find(f=>f.id==='second-terminal').suppressed=true;
+  assert.equal(planModelItems(copy,{dims:[]},actualScene).some(d=>d.modelItem===key),false,'do not switch to the other terminal after owner suppression');
+});
+
+test('profile owner lookup preserves slot construction-length model items through consumed cap arcs',()=>{
+  const def={features:[{id:'slot',type:'extrude',params:{sketchId:'slot-sk',profileEntityIds:['cap-a','cap-b'],operation:'add'}}],sketches:[{id:'slot-sk',points:[{id:'A',x:0,y:0},{id:'B',x:2,y:0},{id:'E1',x:0,y:1},{id:'E2',x:2,y:1}],entities:[{id:'guide',type:'line',a:'A',b:'B',construction:true},{id:'cap-a',type:'arc',c:'A',a:'E1'},{id:'cap-b',type:'arc',c:'B',a:'E2'}],constraints:[{id:'length',type:'distance',entity:'guide',value:2}]}]};
+  const topology=[circle('slot:edge:profile:cap-a:start',0,0,1),circle('slot:edge:profile:cap-b:start',2,0,1)];
+  const planned=planModelItems(def,{dims:[]},{views,topologyIndex:createTopologyIndex(topology)});
+  const dim=planned.find(d=>d.modelItem==='sketch:slot-sk:constraint:length');
+  assert.ok(dim);assert.equal(measureDim(dim),2);
+  assert.deepEqual(dim.refs.map(ref=>ref.pid),topology.map(edge=>edge.persistentId));
+});

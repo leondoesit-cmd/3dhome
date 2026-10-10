@@ -1,0 +1,33 @@
+{
+  "actualBrowserAuthorship": false,
+  "results": [
+    {
+      "grid": 0.32,
+      "layer": 0.4,
+      "support": "buildplate",
+      "ok": true,
+      "layers": 463,
+      "estimates": {
+        "depositionLengthMm": 362656.6400006427,
+        "depositionVolumeMm3": 115869.59360023498,
+        "supportVolumeMm3": 740.7615999999964,
+        "filamentLengthMm": 48172.979136069065,
+        "depositionTimeSeconds": 9066.415999985147
+      }
+    },
+    {
+      "grid": 0.32,
+      "layer": 0.4,
+      "support": "everywhere",
+      "ok": true,
+      "layers": 463,
+      "estimates": {
+        "depositionLengthMm": 418480.0000006608,
+        "depositionVolumeMm3": 133733.0688002421,
+        "supportVolumeMm3": 18604.236800000064,
+        "filamentLengthMm": 55599.74910538986,
+        "depositionTimeSeconds": 10461.99999998421
+      }
+    }
+  ]
+}

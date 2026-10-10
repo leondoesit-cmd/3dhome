@@ -107,3 +107,64 @@ export function depositionClearsContours(points,contours,radius) {
   }
   return true;
 }
+
+function insidePrintMaterial(point,objects) {
+  return objects.some(object=>{
+    let crossings=0;
+    for(const contour of object.contours)for(let i=0,j=contour.points.length-1;i<contour.points.length;j=i++) {
+      const a=contour.points[i],b=contour.points[j];
+      if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])crossings++;
+    }
+    return crossings%2===1;
+  });
+}
+
+export function supportClearsContours(points,objects,radius) {
+  if(!Number.isFinite(radius)||radius<=0||points.some(point=>point.length!==2||point.some(v=>!Number.isFinite(v))))return false;
+  if(!depositionClearsContours(points,objects.flatMap(object=>object.contours),radius))return false;
+  for(let i=1;i<points.length;i++)if(insidePrintMaterial(points[i-1].map((v,k)=>(v+points[i][k])/2),objects))return false;
+  return true;
+}
+
+// Sub-grid material may be absent from the raster mask. Subtract the exact
+// contour edge capsules and material interiors from each proposed support
+// segment, retaining every remaining interval instead of dropping a whole line.
+export function clipSupportPaths(points,objects,radius) {
+  if(!Number.isFinite(radius)||radius<=0||points.some(point=>point.length!==2||point.slice(0,2).some(v=>!Number.isFinite(v))))throw new Error('Finite support geometry and positive bead radius required');
+  const paths=[];let inputLengthMm=0,retainedLengthMm=0;
+  const edges=objects.flatMap(object=>object.contours.flatMap(contour=>contour.points.map((a,i)=>[a,contour.points[(i+1)%contour.points.length]]))),clearance=radius+1e-8;
+  for(let i=1;i<points.length;i++) {
+    const a=points[i-1],b=points[i],delta=[b[0]-a[0],b[1]-a[1]],length=Math.hypot(...delta),squared=length*length;
+    if(!length)continue;inputLengthMm+=length;
+    const blocked=[];
+    const add=(lo,hi)=>{lo=Math.max(0,lo);hi=Math.min(1,hi);if(hi>lo)blocked.push([lo,hi]);};
+    const disk=center=>{
+      const offset=[a[0]-center[0],a[1]-center[1]],linear=2*(offset[0]*delta[0]+offset[1]*delta[1]),constant=offset[0]**2+offset[1]**2-clearance**2,disc=linear*linear-4*squared*constant;
+      if(disc>=0){const root=Math.sqrt(disc);add((-linear-root)/(2*squared),(-linear+root)/(2*squared));}
+    };
+    const range=(origin,slope,lo,hi)=>{
+      if(Math.abs(slope)<1e-15)return origin>=lo&&origin<=hi?[-Infinity,Infinity]:null;
+      const ends=[(lo-origin)/slope,(hi-origin)/slope];return [Math.min(...ends),Math.max(...ends)];
+    };
+    for(const [c,d]of edges) {
+      if(Math.max(c[0],d[0])+clearance<Math.min(a[0],b[0])||Math.min(c[0],d[0])-clearance>Math.max(a[0],b[0])||Math.max(c[1],d[1])+clearance<Math.min(a[1],b[1])||Math.min(c[1],d[1])-clearance>Math.max(a[1],b[1]))continue;
+      disk(c);disk(d);
+      const edge=[d[0]-c[0],d[1]-c[1]],edgeSquared=edge[0]**2+edge[1]**2;
+      if(!edgeSquared)continue;
+      const offset=[a[0]-c[0],a[1]-c[1]],along=range(offset[0]*edge[0]+offset[1]*edge[1],delta[0]*edge[0]+delta[1]*edge[1],0,edgeSquared),across=range(offset[0]*edge[1]-offset[1]*edge[0],delta[0]*edge[1]-delta[1]*edge[0],-clearance*Math.sqrt(edgeSquared),clearance*Math.sqrt(edgeSquared));
+      if(along&&across)add(Math.max(along[0],across[0]),Math.min(along[1],across[1]));
+    }
+    blocked.sort((x,y)=>x[0]-y[0]);const union=[];
+    for(const interval of blocked){const last=union.at(-1);if(last&&interval[0]<=last[1])last[1]=Math.max(last[1],interval[1]);else union.push(interval.slice());}
+    const emit=(lo,hi)=>{
+      if((hi-lo)*length<=1e-8)return;
+      const midpoint=a.map((v,k)=>v+delta[k]*(lo+hi)/2);
+      if(insidePrintMaterial(midpoint,objects))return;
+      const path=[lo===0?a.slice():a.map((v,k)=>v+delta[k]*lo),hi===1?b.slice():a.map((v,k)=>v+delta[k]*hi)];
+      if(!supportClearsContours(path,objects,radius))throw new Error('Support bead cannot clear exact material contours');
+      paths.push(path);retainedLengthMm+=(hi-lo)*length;
+    };
+    let start=0;for(const [lo,hi]of union){emit(start,lo);start=hi;}emit(start,1);
+  }
+  return {paths,inputLengthMm,removedLengthMm:Math.max(0,inputLengthMm-retainedLengthMm)};
+}

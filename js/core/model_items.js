@@ -77,7 +77,8 @@ function seen(doc, planned, candidate) {
   /* A manual terminal callout already tells the reader the same size. Keep
      Insert Model Items repeatable, and avoid a second equal-diameter label. */
   if (["diameter", "radius"].includes(candidate.type))
-    return prior.some(dim => dim.type === candidate.type && close(number(dim.radius), number(candidate.radius)));
+    return prior.some(dim => dim.type === candidate.type && close(number(dim.radius), number(candidate.radius))
+      && (!(dim.refs || []).some(ref=>ref.pid) || (dim.refs || []).some(ref=>(candidate.refs || []).some(next=>next.pid===ref.pid))));
   return prior.some(dim => dim.type === candidate.type && close(measureDim(dim), measureDim(candidate))
     && dim.viewId === candidate.viewId);
 }
@@ -109,13 +110,25 @@ export function planModelItems(def, doc, scene) {
   }
 
   for (const sketch of def.sketches || []) {
-    const feature = features.find(item => item.params?.sketchId === sketch.id);
-    if (!feature) continue;
+    const sketchFeatures = features.filter(item => item.params?.sketchId === sketch.id);
+    if (!sketchFeatures.length) continue;
     const entities = new Map((sketch.entities || []).map(entity => [String(entity.id), entity]));
     const circlesByPoint = new Map((sketch.entities || []).filter(entity => entity.type === "circle")
       .map(entity => [String(entity.c), entity]));
     for (const constraint of (sketch.constraints || []).filter(item => !item.driven)) {
       const key = `sketch:${sketch.id}:constraint:${constraint.id}`;
+      // A sketch may supply multiple independently consumed profile regions.
+      // Bind an entity dimension to its consuming feature, not the first boss.
+      const dimensionEntity=entities.get(String(constraint.entity));
+      const consumedIds=dimensionEntity?.type==='line' && dimensionEntity.construction
+        ? (sketch.entities || []).filter(entity=>entity.type==='arc' && [dimensionEntity.a,dimensionEntity.b].some(id=>String(id)===String(entity.c))).map(entity=>entity.id)
+        : [constraint.entity];
+      const feature = constraint.entity == null ? sketchFeatures[0] : sketchFeatures.find(item => {
+        const ids = item.params?.profileEntityIds;
+        const holes = item.params?.holeProfileEntityIds || [];
+        return Array.isArray(ids) && ids.concat(holes.flat()).some(id => consumedIds.some(sourceId=>String(id)===String(sourceId)));
+      }) || sketchFeatures.find(item => !Array.isArray(item.params?.profileEntityIds));
+      if(!feature)continue;
       if (constraint.type === "diameter" || constraint.type === "radius") {
         const entity = entities.get(String(constraint.entity));
         const round = sketchRoundEntity(entity, sketch);

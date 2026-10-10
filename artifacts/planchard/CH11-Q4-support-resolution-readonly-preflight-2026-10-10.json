@@ -1,0 +1,24 @@
+{
+  "actualBrowserAuthorship": false,
+  "results": [
+    {
+      "grid": 0.35,
+      "layer": 0.4,
+      "ok": false,
+      "error": "Deposition intersects a sub-grid boundary; reduce grid spacing to resolve this feature"
+    },
+    {
+      "grid": 0.32,
+      "layer": 0.4,
+      "ok": true,
+      "layers": 463,
+      "estimates": {
+        "depositionLengthMm": 360341.7600006389,
+        "depositionVolumeMm3": 115128.83200023258,
+        "supportVolumeMm3": 0,
+        "filamentLengthMm": 47865.006250405604,
+        "depositionTimeSeconds": 9008.543999985332
+      }
+    }
+  ]
+}

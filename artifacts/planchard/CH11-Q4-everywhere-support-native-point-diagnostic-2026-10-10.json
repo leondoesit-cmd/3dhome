@@ -1,0 +1,42 @@
+{
+  "scope": "Fresh native exact point classification of actual exported support segments; source bytes unchanged",
+  "probes": [
+    {
+      "failure": {
+        "layer": 76,
+        "path": 29,
+        "segment": 1,
+        "nearest": 0,
+        "width": 0.8
+      },
+      "centerHits": [],
+      "beadHits": [
+        {
+          "t": 0.685,
+          "dx": -0.4,
+          "print": [
+            -0.5600000000000037,
+            -4.363200000000004,
+            30.200000000000003
+          ],
+          "world": {
+            "x": -0.05600000000000037,
+            "y": 6.359683277095792,
+            "z": 1.4799999999999998
+          }
+        }
+      ]
+    },
+    {
+      "failure": {
+        "layer": 80,
+        "path": 33,
+        "segment": 1,
+        "nearest": 0.3394938050790957,
+        "width": 0.8
+      },
+      "centerHits": [],
+      "beadHits": []
+    }
+  ]
+}

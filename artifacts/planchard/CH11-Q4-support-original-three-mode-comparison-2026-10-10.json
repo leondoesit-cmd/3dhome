@@ -1,0 +1,49 @@
+{
+  "checks": {
+    "off": {
+      "onlySupportSettingDiffers": true,
+      "nativeFingerprintExact": true,
+      "sourceBoundsExact": true,
+      "layerPlanesExact": true,
+      "allMaterialPathsExact": true
+    },
+    "buildplate": {
+      "onlySupportSettingDiffers": true,
+      "nativeFingerprintExact": true,
+      "sourceBoundsExact": true,
+      "layerPlanesExact": true,
+      "allMaterialPathsExact": true
+    },
+    "everywhere": {
+      "onlySupportSettingDiffers": true,
+      "nativeFingerprintExact": true,
+      "sourceBoundsExact": true,
+      "layerPlanesExact": true,
+      "allMaterialPathsExact": true
+    }
+  },
+  "estimates": {
+    "off": {
+      "depositionLengthMm": 360357.12000064633,
+      "depositionVolumeMm3": 115133.7472002309,
+      "supportVolumeMm3": 0,
+      "filamentLengthMm": 47867.04975310214,
+      "depositionTimeSeconds": 9008.927999985557
+    },
+    "buildplate": {
+      "depositionLengthMm": 362672.0000006502,
+      "depositionVolumeMm3": 115874.50880023323,
+      "supportVolumeMm3": 740.7615999999964,
+      "filamentLengthMm": 48175.02263876558,
+      "depositionTimeSeconds": 9066.799999985351
+    },
+    "everywhere": {
+      "depositionLengthMm": 418470.720000677,
+      "depositionVolumeMm3": 133730.09920024022,
+      "supportVolumeMm3": 18596.352000000043,
+      "filamentLengthMm": 55598.51448917617,
+      "depositionTimeSeconds": 10461.767999984033
+    }
+  },
+  "qualification": "Original Everywhere is failed diagnostic; exact setting/source comparison does not accept unsafe supports."
+}

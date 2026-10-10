@@ -1,0 +1,132 @@
+{
+  "supportAudit": {
+    "supportSegments": 648,
+    "supportColumnsBlockedBelow": [],
+    "supportBeadFailures": [],
+    "supportCenterFailures": [],
+    "minSupportBoundaryDistance": 0.7698250807137116,
+    "internalCounterboreSegments": 39,
+    "internalBoreSegments": 8,
+    "otherSupportSegments": 601,
+    "qualification": "Complete XY support-bead distance checked against independently reconstructed native mid-slab contours; this does not certify full layer-thickness physical deposition, access or removability."
+  },
+  "checks": {
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "source23History": true,
+    "nativeOneValidConnected": true,
+    "settingsSavedExact": true,
+    "actualNativeSourceBoundsMatch": true,
+    "layers463": true,
+    "allBeadSegmentsClearActualNativeSections": true,
+    "allDepositionMidpointsInsideNativeMaterial": true,
+    "gcodeByteExact": true,
+    "estimatedLengthExact": true,
+    "estimatedVolumeExact": true,
+    "filamentEstimateExact": true,
+    "firstMiddleLastCorrect": true,
+    "bed250": true,
+    "noPrinterHeatHomeExecution": true,
+    "inputUnchanged": true,
+    "actualLayerSVGsExact": true,
+    "supportBeadsOutsideNativeMaterial": true,
+    "buildplateMidpointColumnsReachBed": true,
+    "supportOffActuallyEmpty": true
+  },
+  "qualifiedDigitalPathsAccepted": true,
+  "sourceNativeMass": {
+    "volume": 352.3044952202898,
+    "centerOfMass": {
+      "x": 1.5874757666808022e-16,
+      "y": 3.497426429078441,
+      "z": -4.667339202232761
+    },
+    "inertia": [
+      [
+        12861.505105776789,
+        2.065934716242462e-13,
+        1.2125887814687337e-13
+      ],
+      [
+        2.065934716242462e-13,
+        10520.128058062486,
+        -2995.2200925019256
+      ],
+      [
+        1.2125887814687337e-13,
+        -2995.2200925019256,
+        4642.704428696693
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -3.2000000000000006,
+        "y": -4.440892098500626e-16,
+        "z": -14
+      },
+      "max": {
+        "x": 3.2000000000000006,
+        "y": 11.846726554191621,
+        "z": 4.500000000000001
+      }
+    }
+  },
+  "valid": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 352.3044952202898,
+    "maxToleranceCm": 1.50001e-7
+  },
+  "sourceFingerprint": "fnv1a32-22ed0d21",
+  "actualFingerprint": "fnv1a32-0192400b",
+  "freshMeshFingerprintExact": false,
+  "fingerprintQualification": "Browser fingerprint is retained as actual export identity; independently regenerated triangulation fingerprint differs. Exact native authoring and source bounds match and every actual bead segment independently clears the fresh native sections; no exact original triangulation identity claimed.",
+  "pathCounts": {
+    "support": 648,
+    "wall": 1550,
+    "infill": 5202,
+    "skin": 1165
+  },
+  "segments": 123115,
+  "beadFailures": [],
+  "centerFailures": [],
+  "svgWitness": [
+    {
+      "layer": 125,
+      "byteExact": true
+    }
+  ],
+  "estimates": {
+    "depositionLengthMm": 362672.0000006502,
+    "depositionVolumeMm3": 115874.50880023323,
+    "supportVolumeMm3": 740.7615999999964,
+    "filamentLengthMm": 48175.02263876558,
+    "depositionTimeSeconds": 9066.799999985351
+  },
+  "sampledLayers": [
+    {
+      "number": 1,
+      "z": 0.4,
+      "paths": 8,
+      "height": 0.4,
+      "sourceContours": 2
+    },
+    {
+      "number": 125,
+      "z": 50,
+      "paths": 20,
+      "height": 0.3999999999999986,
+      "sourceContours": 3
+    },
+    {
+      "number": 463,
+      "z": 185,
+      "paths": 16,
+      "height": 0.19999999999998863,
+      "sourceContours": 1
+    }
+  ],
+  "actualWorkflowAccepted": false,
+  "qualification": "Bounded raster FFF paths; conservative offsets include two-grid-cell margin. Rectilinear infill, vertical-column supports, no adaptive width or retraction. Volume uses rectangular bead approximation; time excludes acceleration and travel. Digital study only; physical printing and device compatibility unverified."
+}
