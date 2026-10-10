@@ -84,7 +84,7 @@ export function normalizeHistory(document, sourceHistory = document.history) {
       const sketch = sketches.get(targetId);
       if(sketch && !appending.has(targetId)){
         appending.add(targetId);
-        sketchDependencies(sketch,document).filter(id=>sketches.has(id) && !includedTargets.has('sketch:'+id)).forEach(id=>appendTarget('sketch',id));
+        authoringSketchDependencies(sketch,document).filter(id=>sketches.has(id) && !includedTargets.has('sketch:'+id)).forEach(id=>appendTarget('sketch',id));
         appending.delete(targetId);
       }
       if (sketch) append(historyEntry("sketch", sketch, raw));
@@ -338,7 +338,7 @@ export function dependentTargetIds(document, targetIds) {
   const out = new Set();
   const features = [...(document?.features || []),...(document?.sketches || [])];
   const consumes = (feature, id) =>
-    featureDependencyIds(feature,document).has(id) || sketchDependencies(feature,document).includes(id) ||
+    featureDependencyIds(feature,document).has(id) || authoringSketchDependencies(feature,document).includes(id) ||
     (feature.references?.sketches || []).map(referenceId).includes(id) ||
     (feature.params?.sketchId && feature.params.sketchId === id);
   let frontier = [...seen];
@@ -365,6 +365,27 @@ export function historyDependents(document, historyId) {
   return (document.history || []).filter((item) => ids.has(item.targetId));
 }
 
+// History addresses authoring steps; native sketch support still addresses the
+// exact lowered stage. Never rewrite the persisted topology owner or runtime
+// dependency graph: a union's faces are not interchangeable with its tool.
+function authoringTopologyOwner(owner,document) {
+  const features=document?.features || [];
+  if(features.some(feature=>feature.id===owner) || typeof owner!=="string" || !owner.endsWith(":tool"))return owner;
+  const source=features.find(feature=>feature.id===owner.slice(0,-5));
+  if(!source)return owner;
+  const params=source.params || {},target=source.inputs?.[0];
+  const additive=["extrude","revolve","sweep","loft"].includes(source.type)
+    && target && params.mergeResult!==false && params.operation!=="new-body"
+    && !(source.type==="loft" && params.operation==="subtract");
+  const cut=["extrudeCut","revolveCut","sweepCut"].includes(source.type);
+  const loftCut=source.type==="loft" && params.operation==="subtract" && params.solid!==false
+    && (target || referenceId(source.references?.features?.[0]));
+  return additive || cut || loftCut ? source.id : owner;
+}
+function authoringSketchDependencies(sketch,document) {
+  return [...new Set(sketchDependencies(sketch,document).map(owner=>authoringTopologyOwner(owner,document)))];
+}
+
 function featureDependencyIds(feature, document) {
   const ids = new Set(feature.inputs || []);
   (feature.references?.features || []).map(referenceId).filter(Boolean).forEach((id) => ids.add(id));
@@ -373,9 +394,7 @@ function featureDependencyIds(feature, document) {
       const owner=reference.ownerFeatureId;
       // Native additive/cut faces can retain their generated tool owner. That
       // is a topology address, not an extra authoring history feature.
-      const source=(document?.features || []).find(item=>item.id===owner)
-        || (owner.endsWith(':tool') ? (document?.features || []).find(item=>item.id===owner.slice(0,-5)) : null);
-      ids.add(source?.id || owner);
+      ids.add(authoringTopologyOwner(owner,document));
     }
   });
   return ids;
@@ -409,7 +428,7 @@ export function analyzeParametricHistory(document, options = {}) {
   });
   (document.sketches || []).forEach(sketch=>{
     const entry=sketchEntries.get(sketch.id);
-    sketchDependencies(sketch,document).forEach(id=>{
+    authoringSketchDependencies(sketch,document).forEach(id=>{
       const dependency=sketchEntries.get(id) || featureEntries.get(id);
       if(!dependency)issues.push({severity:'error',code:'missing-sketch-source',sketchId:sketch.id,reference:id,message:sketch.name+' depends on missing source '+id});
       else if(entry && order.get(dependency.id)>=order.get(entry.id))issues.push({severity:'error',code:'future-sketch-source',sketchId:sketch.id,reference:id,message:sketch.name+' depends on a later history step'});
@@ -508,7 +527,7 @@ export function activeHistoryTargetIds(document) {
   });
   let changed=true;
   while(changed){changed=false;[...(document?.features || []),...(document?.sketches || [])].forEach(item=>{
-    const deps=[...featureDependencyIds(item,document),...(item.references?.sketches || []).map(referenceId),...sketchDependencies(item,document)];
+    const deps=[...featureDependencyIds(item,document),...(item.references?.sketches || []).map(referenceId),...authoringSketchDependencies(item,document)];
     if(ids.has(item.id) && deps.some(id=>!ids.has(id) && (document.history || []).some(entry=>entry.targetId===id))){ids.delete(item.id);changed=true;}
   });}
   return ids;

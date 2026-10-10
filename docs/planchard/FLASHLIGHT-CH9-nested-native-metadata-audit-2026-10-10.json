@@ -1,0 +1,269 @@
+{
+  "checks": {
+    "allEightSourceOccurrenceProperties": true,
+    "allNativeAndLegacyMatesExact": true,
+    "allSourceFeatureHistoryParametersExact": true,
+    "allSketchesExactExceptGeneratedBoundaryDuplicates": true,
+    "leafTransformsExact": true,
+    "rootComponentTransformsExact": true,
+    "sevenExplodeChainsExact": true,
+    "wholeDrawingExact": true,
+    "rootPropertiesExact": true,
+    "settingsPartsOnlyExact": true,
+    "eightBalloonOccurrencePathsCorrect": true
+  },
+  "persistedMetadataAndSourceAccepted": true,
+  "renderAccepted": false,
+  "coldAccepted": false,
+  "assemblies": [
+    {
+      "path": "root",
+      "matesExact": true
+    },
+    {
+      "path": "1396",
+      "matesExact": true
+    },
+    {
+      "path": "1396/1387",
+      "matesExact": true
+    },
+    {
+      "path": "1397",
+      "matesExact": true
+    }
+  ],
+  "leaves": [
+    {
+      "path": "1394",
+      "metadata": {
+        "PartNo": "44-A28",
+        "Description": "HOUSING"
+      },
+      "definitionChanged": false,
+      "meshExact": true,
+      "oldTokens": [
+        103
+      ],
+      "newTokens": [
+        103
+      ],
+      "oldPointCounts": [
+        1,
+        1,
+        13,
+        15,
+        1,
+        1,
+        5,
+        6,
+        7,
+        2,
+        3,
+        4
+      ],
+      "newPointCounts": [
+        1,
+        1,
+        13,
+        15,
+        1,
+        1,
+        5,
+        6,
+        7,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "path": "1395",
+      "metadata": {
+        "PartNo": "99-B04",
+        "Description": "SWITCH"
+      },
+      "definitionChanged": false,
+      "meshExact": true,
+      "oldTokens": [
+        9
+      ],
+      "newTokens": [
+        9
+      ],
+      "oldPointCounts": [
+        5,
+        1,
+        1
+      ],
+      "newPointCounts": [
+        5,
+        1,
+        1
+      ]
+    },
+    {
+      "path": "1396/1385",
+      "metadata": {
+        "PartNo": "44-A27",
+        "Description": "LENSCAP"
+      },
+      "definitionChanged": false,
+      "meshExact": true,
+      "oldTokens": [
+        20
+      ],
+      "newTokens": [
+        20
+      ],
+      "oldPointCounts": [
+        1,
+        1,
+        0,
+        4,
+        1,
+        5
+      ],
+      "newPointCounts": [
+        1,
+        1,
+        0,
+        4,
+        1,
+        5
+      ]
+    },
+    {
+      "path": "1396/1386",
+      "metadata": {
+        "PartNo": "99-B03",
+        "Description": "O-RING"
+      },
+      "definitionChanged": false,
+      "meshExact": true,
+      "oldTokens": [
+        13
+      ],
+      "newTokens": [
+        13
+      ],
+      "oldPointCounts": [
+        1
+      ],
+      "newPointCounts": [
+        1
+      ]
+    },
+    {
+      "path": "1396/1387/1379",
+      "metadata": {
+        "PartNo": "99-B02",
+        "Description": "LENS"
+      },
+      "definitionChanged": false,
+      "meshExact": true,
+      "oldTokens": [
+        32
+      ],
+      "newTokens": [
+        32
+      ],
+      "oldPointCounts": [
+        6,
+        1,
+        3,
+        3,
+        1,
+        1
+      ],
+      "newPointCounts": [
+        6,
+        1,
+        3,
+        3,
+        1,
+        1
+      ]
+    },
+    {
+      "path": "1396/1387/1381",
+      "metadata": {
+        "PartNo": "99-B05",
+        "Description": "BULB"
+      },
+      "definitionChanged": false,
+      "meshExact": true,
+      "oldTokens": [
+        12
+      ],
+      "newTokens": [
+        12
+      ],
+      "oldPointCounts": [
+        7,
+        7,
+        3,
+        3
+      ],
+      "newPointCounts": [
+        7,
+        7,
+        3,
+        3
+      ]
+    },
+    {
+      "path": "1397/1372",
+      "metadata": {
+        "PartNo": "B99-B01",
+        "Description": "BATTERY"
+      },
+      "definitionChanged": true,
+      "meshExact": false,
+      "oldTokens": [
+        11
+      ],
+      "newTokens": [
+        13
+      ],
+      "oldPointCounts": [
+        5,
+        60,
+        2
+      ],
+      "newPointCounts": [
+        5,
+        12,
+        2
+      ]
+    },
+    {
+      "path": "1397/1373",
+      "metadata": {
+        "PartNo": "44-A26",
+        "Description": "BATTERYPLATE"
+      },
+      "definitionChanged": true,
+      "meshExact": false,
+      "oldTokens": [
+        20
+      ],
+      "newTokens": [
+        22
+      ],
+      "oldPointCounts": [
+        5,
+        72,
+        2,
+        2
+      ],
+      "newPointCounts": [
+        5,
+        12,
+        2,
+        2
+      ]
+    }
+  ],
+  "qualification": "All occurrence overrides/source authoring retained; Battery/Plate rebuild removes generated boundary duplicates and refreshes derived proof. Parent-observed root0DOF/no unresolved is UI evidence, not independently rerun solver. Six other native definitions unchanged, not certified freshly regenerated or declared stale. Original Saved records not inspected."
+}

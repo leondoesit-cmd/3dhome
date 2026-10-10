@@ -1,0 +1,135 @@
+{
+  "rows": [
+    {
+      "path": "1394",
+      "compileAccepted": false,
+      "issues": [
+        {
+          "code": "missing-sketch-source",
+          "message": "Face sketch depends on missing source feature_mukdi3e3_3:tool"
+        },
+        {
+          "code": "missing-sketch-source",
+          "message": "HandlePath depends on missing source feature_mukdmi0j_4:tool"
+        },
+        {
+          "code": "missing-sketch-source",
+          "message": "HandlePath depends on missing source feature_mukla4fv_1:tool"
+        },
+        {
+          "code": "missing-sketch-source",
+          "message": "HandleProfile depends on missing source feature_mukla4fv_1:tool"
+        }
+      ],
+      "currentVerifiedFeatureCount": 1,
+      "loweredFeatureCount": 27,
+      "finalSignatureCurrent": false,
+      "solids": {
+        "known": false,
+        "count": null,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1395",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 2,
+      "loweredFeatureCount": 2,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1385",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 8,
+      "loweredFeatureCount": 9,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": false,
+        "count": null,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1386",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 1,
+      "loweredFeatureCount": 1,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": false,
+        "count": null,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1387/1379",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 2,
+      "loweredFeatureCount": 14,
+      "finalSignatureCurrent": false,
+      "solids": {
+        "known": false,
+        "count": null,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1387/1381",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 23,
+      "loweredFeatureCount": 23,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": false,
+        "count": null,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1397/1372",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 9,
+      "loweredFeatureCount": 9,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1397/1373",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 12,
+      "loweredFeatureCount": 12,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    }
+  ],
+  "allEightCurrentNativeAccepted": false,
+  "qualification": "Current compiler/stamp/count audit only, no BRep recomputation. Housing has genuine missing lowered-source aliases; Lens final signature expired. Other absent counts require ordinary native rebuild; no validator relaxed."
+}

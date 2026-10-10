@@ -1,0 +1,15 @@
+{
+  "checks": {
+    "positionOnlySelectedBalloonOffsets": true,
+    "positionUndoWholeAssemblyExact": true,
+    "positionUndoSvgByteExact": true,
+    "bomOnlySelectedOccurrencePartNo": true,
+    "bomWholeDrawingIncludingBalloonsExact": true,
+    "bomUndoWholeAssemblyExact": true,
+    "bomUndoSvgByteExact": true,
+    "bomSvgOnlyPartNumberText": true
+  },
+  "driverAndUndoAccepted": true,
+  "coldAccepted": false,
+  "qualification": "Actual ordinary balloon position and occurrence PartNo drivers isolated; exact Undo restored entire assembly and SVG. Native fresh-body qualification still pending separately."
+}

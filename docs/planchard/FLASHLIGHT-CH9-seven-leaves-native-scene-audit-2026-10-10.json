@@ -1,0 +1,999 @@
+{
+  "artifact": "docs/planchard/FLASHLIGHT-CH9-seven-leaves-native-browser-2026-10-10",
+  "checks": {
+    "allShadeVerticesInsideFrame": true,
+    "nativeGeometryDoesNotOverlapBom": true,
+    "nativeGeometryDoesNotOverlapTitle": true,
+    "actualSevenFiniteChains": true,
+    "actualBalloonCircleTagsExact": true,
+    "sourceComponentsNativeDefinitionsAndPosesExact": false,
+    "sourceMateRecordsExact": true,
+    "sevenSourceStepsExact": true,
+    "singleNativeIsoQuarter": true,
+    "eightBomSourceParts": true,
+    "allEightNativeCentroidTargets": true,
+    "eightBoundBalloonCircles": true,
+    "sevenLiveExplodeChains": true,
+    "actualNativeShadedFacesExact": true,
+    "sourceTitleDescriptionManualNumber": true
+  },
+  "qualifiedAccepted": false,
+  "coldAccepted": false,
+  "shadeCounts": {
+    "actual": 37418,
+    "fresh": 37418
+  },
+  "sceneDiagnostics": [],
+  "bom": [
+    {
+      "name": "Planchard HOUSING - rebuilt 2026-09-28",
+      "quantity": 1,
+      "description": "HOUSING",
+      "partNumber": "44-A28",
+      "standard": "",
+      "material": "",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_mukcv9q3\",\"\",\"44-A28\",\"HOUSING\",\"\",\"\",\"\",\"\"]",
+      "item": 1,
+      "depth": 0
+    },
+    {
+      "name": "Planchard SWITCH - rebuilt 2026-09-27",
+      "quantity": 1,
+      "description": "SWITCH",
+      "partNumber": "99-B04",
+      "standard": "",
+      "material": "",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_muka7ik2\",\"\",\"99-B04\",\"SWITCH\",\"\",\"\",\"\",\"\"]",
+      "item": 2,
+      "depth": 0
+    },
+    {
+      "name": "Planchard LENSCAP - rebuilt 2026-09-27",
+      "quantity": 1,
+      "description": "LENSCAP",
+      "partNumber": "44-A27",
+      "standard": "",
+      "material": "",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_mukas5mu\",\"\",\"44-A27\",\"LENSCAP\",\"\",\"\",\"\",\"\"]",
+      "item": 3,
+      "depth": 0
+    },
+    {
+      "name": "Planchard O-RING - rebuilt 2026-09-27",
+      "quantity": 1,
+      "description": "O-RING",
+      "partNumber": "99-B03",
+      "standard": "",
+      "material": "",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_muka51sg\",\"cfg_default\",\"99-B03\",\"O-RING\",\"\",\"\",\"\",\"\"]",
+      "item": 4,
+      "depth": 0
+    },
+    {
+      "name": "Planchard LENS - rebuilt 2026-09-27",
+      "quantity": 1,
+      "description": "LENS",
+      "partNumber": "99-B02",
+      "standard": "",
+      "material": "",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_muk8zklv\",\"\",\"99-B02\",\"LENS\",\"\",\"\",\"\",\"\"]",
+      "item": 5,
+      "depth": 0
+    },
+    {
+      "name": "Planchard BULB - rebuilt 2026-09-27",
+      "quantity": 1,
+      "description": "BULB",
+      "partNumber": "99-B05",
+      "standard": "",
+      "material": "",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_muka4vhv\",\"\",\"99-B05\",\"BULB\",\"\",\"\",\"\",\"\"]",
+      "item": 6,
+      "depth": 0
+    },
+    {
+      "name": "Planchard BATTERY - rebuilt 2026-09-27",
+      "quantity": 1,
+      "description": "BATTERY",
+      "partNumber": "B99-B01",
+      "standard": "",
+      "material": "",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_muk6dop6\",\"\",\"B99-B01\",\"BATTERY\",\"\",\"\",\"\",\"\"]",
+      "item": 7,
+      "depth": 0
+    },
+    {
+      "name": "Planchard BATTERYPLATE - rebuilt 2026-09-27",
+      "quantity": 1,
+      "description": "BATTERYPLATE",
+      "partNumber": "44-A26",
+      "standard": "",
+      "material": "",
+      "finish": "",
+      "category": "",
+      "materialId": "",
+      "propertyClass": "",
+      "key": "[\"cm_muk7wls1\",\"\",\"44-A26\",\"BATTERYPLATE\",\"\",\"\",\"\",\"\"]",
+      "item": 8,
+      "depth": 0
+    }
+  ],
+  "targets": [
+    {
+      "key": "[\"1394\"]",
+      "path": [
+        "1394"
+      ],
+      "item": 1,
+      "point": {
+        "x": -3.619413235628187,
+        "y": 0.74418306709982,
+        "z": -19.642666666666667
+      },
+      "anchorProof": "component-mesh-triangle-centroid"
+    },
+    {
+      "key": "[\"1395\"]",
+      "path": [
+        "1395"
+      ],
+      "item": 2,
+      "point": {
+        "x": 0.25528514335425784,
+        "y": 19.048541121238223,
+        "z": -1.4352880884132213
+      },
+      "anchorProof": "component-mesh-triangle-centroid"
+    },
+    {
+      "key": "[\"1396\",\"1385\"]",
+      "path": [
+        "1396",
+        "1385"
+      ],
+      "item": 3,
+      "point": {
+        "x": 4.838539035211025,
+        "y": 0.6119781927574562,
+        "z": 28.299833333333332
+      },
+      "anchorProof": "component-mesh-triangle-centroid"
+    },
+    {
+      "key": "[\"1396\",\"1386\"]",
+      "path": [
+        "1396",
+        "1386"
+      ],
+      "item": 4,
+      "point": {
+        "x": 2.5588002316704883,
+        "y": 4.712823441841523,
+        "z": 21.883636819918493
+      },
+      "anchorProof": "component-mesh-triangle-centroid"
+    },
+    {
+      "key": "[\"1396\",\"1387\",\"1379\"]",
+      "path": [
+        "1396",
+        "1387",
+        "1379"
+      ],
+      "item": 5,
+      "point": {
+        "x": 1.0075869926614625,
+        "y": -0.7433084816684407,
+        "z": 11.6511584668614
+      },
+      "anchorProof": "component-mesh-triangle-centroid"
+    },
+    {
+      "key": "[\"1396\",\"1387\",\"1381\"]",
+      "path": [
+        "1396",
+        "1387",
+        "1381"
+      ],
+      "item": 6,
+      "point": {
+        "x": 0.5277283122309689,
+        "y": -0.0602342949228221,
+        "z": 6.476999999999998
+      },
+      "anchorProof": "component-mesh-triangle-centroid"
+    },
+    {
+      "key": "[\"1397\",\"1372\"]",
+      "path": [
+        "1397",
+        "1372"
+      ],
+      "item": 7,
+      "point": {
+        "x": -3.429,
+        "y": 0.7196666666666666,
+        "z": -6.9215
+      },
+      "anchorProof": "component-mesh-triangle-centroid"
+    },
+    {
+      "key": "[\"1397\",\"1373\"]",
+      "path": [
+        "1397",
+        "1373"
+      ],
+      "item": 8,
+      "point": {
+        "x": 0.634330887591444,
+        "y": 0.016816952009012887,
+        "z": 6.973166666666667
+      },
+      "anchorProof": "component-mesh-triangle-centroid"
+    }
+  ],
+  "chainItems": [
+    {
+      "type": "line",
+      "x1": 192.12086549383102,
+      "y1": 97.88441962218475,
+      "x2": 214.57150579650389,
+      "y2": 84.9225363999571,
+      "style": "center",
+      "viewId": "vqi27251",
+      "explodeLeader": true,
+      "componentId": 1394
+    },
+    {
+      "type": "line",
+      "x1": 184.03863498486876,
+      "y1": 89.75083790023689,
+      "x2": 184.03863498486876,
+      "y2": 63.827071455781585,
+      "style": "center",
+      "viewId": "vqi27251",
+      "explodeLeader": true,
+      "componentId": 1395
+    },
+    {
+      "type": "line",
+      "x1": 180.44653253644054,
+      "y1": 104.72181302191015,
+      "x2": 137.79031596136207,
+      "y2": 129.3493911441427,
+      "style": "center",
+      "viewId": "vqi27251",
+      "explodeLeader": true,
+      "componentId": 1396
+    },
+    {
+      "type": "line",
+      "x1": 174.7777458600162,
+      "y1": 107.99468853552231,
+      "x2": 143.34684943627417,
+      "y2": 126.14132504664103,
+      "style": "center",
+      "viewId": "vqi27251",
+      "explodeLeader": true,
+      "componentId": "1396/1386"
+    },
+    {
+      "type": "line",
+      "x1": 181.06392514476406,
+      "y1": 104.36536123329888,
+      "x2": 159.06229764814464,
+      "y2": 117.06800679108198,
+      "style": "center",
+      "viewId": "vqi27251",
+      "explodeLeader": true,
+      "componentId": "1396/1387/1379"
+    },
+    {
+      "type": "line",
+      "x1": 184.14823644756433,
+      "y1": 102.58463327236254,
+      "x2": 170.6778522659606,
+      "y2": 110.36176320569913,
+      "style": "center",
+      "viewId": "vqi27251",
+      "explodeLeader": true,
+      "componentId": "1396/1387/1381"
+    },
+    {
+      "type": "line",
+      "x1": 186.62045861967616,
+      "y1": 101.15729513579723,
+      "x2": 168.94278909001247,
+      "y2": 111.3635023973938,
+      "style": "center",
+      "viewId": "vqi27251",
+      "explodeLeader": true,
+      "componentId": "1397/1373"
+    }
+  ],
+  "balloonItems": [
+    {
+      "type": "line",
+      "x1": 210.22979209186815,
+      "y1": 51.08102749147259,
+      "x2": 210.34345525202303,
+      "y2": 78.55366298981147,
+      "style": "dim",
+      "noteId": "b7puczbo",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "poly",
+      "pts": [
+        {
+          "x": 211.24345525202304,
+          "y": 78.55366298981147
+        },
+        {
+          "x": 210.97985135509091,
+          "y": 79.19005909287937
+        },
+        {
+          "x": 210.34345525202303,
+          "y": 79.45366298981148
+        },
+        {
+          "x": 209.70705914895515,
+          "y": 79.19005909287937
+        },
+        {
+          "x": 209.44345525202303,
+          "y": 78.55366298981147
+        },
+        {
+          "x": 209.70705914895515,
+          "y": 77.91726688674358
+        },
+        {
+          "x": 210.34345525202303,
+          "y": 77.65366298981147
+        },
+        {
+          "x": 210.97985135509091,
+          "y": 77.91726688674358
+        }
+      ],
+      "style": "fill",
+      "fill": "#101418",
+      "closed": true,
+      "noteId": "b7puczbo",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "circle",
+      "cx": 210.2148978574032,
+      "cy": 47.48105830246837,
+      "r": 3.6,
+      "style": "dim",
+      "noteId": "b7puczbo",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "text",
+      "x": 210.2148978574032,
+      "y": 48.78105830246837,
+      "text": "1",
+      "size": 2.8,
+      "anchor": "middle",
+      "baseline": "alphabetic",
+      "style": "text",
+      "color": "#101418",
+      "noteId": "b7puczbo",
+      "viewId": "vqi27251",
+      "balloon": true,
+      "weight": "bold"
+    },
+    {
+      "type": "line",
+      "x1": 185.5063336542697,
+      "y1": 51.07825232086817,
+      "x2": 185.00661684831633,
+      "y2": 63.727473990816776,
+      "style": "dim",
+      "noteId": "bmpgs5hs",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "poly",
+      "pts": [
+        {
+          "x": 185.90661684831633,
+          "y": 63.727473990816776
+        },
+        {
+          "x": 185.6430129513842,
+          "y": 64.36387009388467
+        },
+        {
+          "x": 185.00661684831633,
+          "y": 64.62747399081678
+        },
+        {
+          "x": 184.37022074524845,
+          "y": 64.36387009388467
+        },
+        {
+          "x": 184.10661684831632,
+          "y": 63.727473990816776
+        },
+        {
+          "x": 184.37022074524845,
+          "y": 63.09107788774888
+        },
+        {
+          "x": 185.00661684831633,
+          "y": 62.82747399081678
+        },
+        {
+          "x": 185.6430129513842,
+          "y": 63.09107788774888
+        }
+      ],
+      "style": "fill",
+      "fill": "#101418",
+      "closed": true,
+      "noteId": "bmpgs5hs",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "circle",
+      "cx": 185.6484434498107,
+      "cy": 47.48105830246837,
+      "r": 3.6,
+      "style": "dim",
+      "noteId": "bmpgs5hs",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "text",
+      "x": 185.6484434498107,
+      "y": 48.78105830246837,
+      "text": "2",
+      "size": 2.8,
+      "anchor": "middle",
+      "baseline": "alphabetic",
+      "style": "text",
+      "color": "#101418",
+      "noteId": "bmpgs5hs",
+      "viewId": "vqi27251",
+      "balloon": true,
+      "weight": "bold"
+    },
+    {
+      "type": "line",
+      "x1": 109.76869528217479,
+      "y1": 136.53694432249893,
+      "x2": 140.5439766235893,
+      "y2": 136.38699561191478,
+      "style": "dim",
+      "noteId": "bo6e5qs5",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "poly",
+      "pts": [
+        {
+          "x": 141.4439766235893,
+          "y": 136.38699561191478
+        },
+        {
+          "x": 141.18037272665717,
+          "y": 137.02339171498267
+        },
+        {
+          "x": 140.5439766235893,
+          "y": 137.2869956119148
+        },
+        {
+          "x": 139.9075805205214,
+          "y": 137.02339171498267
+        },
+        {
+          "x": 139.64397662358928,
+          "y": 136.38699561191478
+        },
+        {
+          "x": 139.9075805205214,
+          "y": 135.7505995088469
+        },
+        {
+          "x": 140.5439766235893,
+          "y": 135.48699561191478
+        },
+        {
+          "x": 141.18037272665717,
+          "y": 135.7505995088469
+        }
+      ],
+      "style": "fill",
+      "fill": "#101418",
+      "closed": true,
+      "noteId": "bo6e5qs5",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "circle",
+      "cx": 106.16873801348213,
+      "cy": 136.5544846641975,
+      "r": 3.6,
+      "style": "dim",
+      "noteId": "bo6e5qs5",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "text",
+      "x": 106.16873801348213,
+      "y": 137.8544846641975,
+      "text": "3",
+      "size": 2.8,
+      "anchor": "middle",
+      "baseline": "alphabetic",
+      "style": "text",
+      "color": "#101418",
+      "noteId": "bo6e5qs5",
+      "viewId": "vqi27251",
+      "balloon": true,
+      "weight": "bold"
+    },
+    {
+      "type": "line",
+      "x1": 109.65643408561507,
+      "y1": 109.36916650343088,
+      "x2": 147.85626986544804,
+      "y2": 119.14092848210926,
+      "style": "dim",
+      "noteId": "b92m8jkj",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "poly",
+      "pts": [
+        {
+          "x": 148.75626986544805,
+          "y": 119.14092848210926
+        },
+        {
+          "x": 148.49266596851592,
+          "y": 119.77732458517715
+        },
+        {
+          "x": 147.85626986544804,
+          "y": 120.04092848210927
+        },
+        {
+          "x": 147.21987376238016,
+          "y": 119.77732458517715
+        },
+        {
+          "x": 146.95626986544804,
+          "y": 119.14092848210926
+        },
+        {
+          "x": 147.21987376238016,
+          "y": 118.50453237904136
+        },
+        {
+          "x": 147.85626986544804,
+          "y": 118.24092848210925
+        },
+        {
+          "x": 148.49266596851592,
+          "y": 118.50453237904136
+        }
+      ],
+      "style": "fill",
+      "fill": "#101418",
+      "closed": true,
+      "noteId": "b92m8jkj",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "circle",
+      "cx": 106.16873801348213,
+      "cy": 108.4769915719133,
+      "r": 3.6,
+      "style": "dim",
+      "noteId": "b92m8jkj",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "text",
+      "x": 106.16873801348213,
+      "y": 109.7769915719133,
+      "text": "4",
+      "size": 2.8,
+      "anchor": "middle",
+      "baseline": "alphabetic",
+      "style": "text",
+      "color": "#101418",
+      "noteId": "b92m8jkj",
+      "viewId": "vqi27251",
+      "balloon": true,
+      "weight": "bold"
+    },
+    {
+      "type": "line",
+      "x1": 109.76873326392544,
+      "y1": 118.16473354343677,
+      "x2": 163.20272344400203,
+      "y2": 118.25153126416454,
+      "style": "dim",
+      "noteId": "bqzzj14b",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "poly",
+      "pts": [
+        {
+          "x": 164.10272344400204,
+          "y": 118.25153126416454
+        },
+        {
+          "x": 163.8391195470699,
+          "y": 118.88792736723244
+        },
+        {
+          "x": 163.20272344400203,
+          "y": 119.15153126416455
+        },
+        {
+          "x": 162.56632734093415,
+          "y": 118.88792736723244
+        },
+        {
+          "x": 162.30272344400203,
+          "y": 118.25153126416454
+        },
+        {
+          "x": 162.56632734093415,
+          "y": 117.61513516109665
+        },
+        {
+          "x": 163.20272344400203,
+          "y": 117.35153126416454
+        },
+        {
+          "x": 163.8391195470699,
+          "y": 117.61513516109665
+        }
+      ],
+      "style": "fill",
+      "fill": "#101418",
+      "closed": true,
+      "noteId": "bqzzj14b",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "circle",
+      "cx": 106.16873801348213,
+      "cy": 118.15888574166647,
+      "r": 3.6,
+      "style": "dim",
+      "noteId": "bqzzj14b",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "text",
+      "x": 106.16873801348213,
+      "y": 119.45888574166646,
+      "text": "5",
+      "size": 2.8,
+      "anchor": "middle",
+      "baseline": "alphabetic",
+      "style": "text",
+      "color": "#101418",
+      "noteId": "bqzzj14b",
+      "viewId": "vqi27251",
+      "balloon": true,
+      "weight": "bold"
+    },
+    {
+      "type": "line",
+      "x1": 171.21476906477912,
+      "y1": 51.08101730336328,
+      "x2": 171.50115147377167,
+      "y2": 111.08660483258187,
+      "style": "dim",
+      "noteId": "bwt79v95",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "poly",
+      "pts": [
+        {
+          "x": 172.40115147377168,
+          "y": 111.08660483258187
+        },
+        {
+          "x": 172.13754757683955,
+          "y": 111.72300093564976
+        },
+        {
+          "x": 171.50115147377167,
+          "y": 111.98660483258188
+        },
+        {
+          "x": 170.8647553707038,
+          "y": 111.72300093564976
+        },
+        {
+          "x": 170.60115147377167,
+          "y": 111.08660483258187
+        },
+        {
+          "x": 170.8647553707038,
+          "y": 110.45020872951397
+        },
+        {
+          "x": 171.50115147377167,
+          "y": 110.18660483258186
+        },
+        {
+          "x": 172.13754757683955,
+          "y": 110.45020872951397
+        }
+      ],
+      "style": "fill",
+      "fill": "#101418",
+      "closed": true,
+      "noteId": "bwt79v95",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "circle",
+      "cx": 171.1975879159328,
+      "cy": 47.48105830246837,
+      "r": 3.6,
+      "style": "dim",
+      "noteId": "bwt79v95",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "text",
+      "x": 171.1975879159328,
+      "y": 48.78105830246837,
+      "text": "6",
+      "size": 2.8,
+      "anchor": "middle",
+      "baseline": "alphabetic",
+      "style": "text",
+      "color": "#101418",
+      "noteId": "bwt79v95",
+      "viewId": "vqi27251",
+      "balloon": true,
+      "weight": "bold"
+    },
+    {
+      "type": "line",
+      "x1": 195.15751012558147,
+      "y1": 51.02959584529604,
+      "x2": 188.19200344086326,
+      "y2": 91.7815329383859,
+      "style": "dim",
+      "noteId": "bwvd6b7e",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "poly",
+      "pts": [
+        {
+          "x": 189.09200344086327,
+          "y": 91.7815329383859
+        },
+        {
+          "x": 188.82839954393114,
+          "y": 92.41792904145379
+        },
+        {
+          "x": 188.19200344086326,
+          "y": 92.6815329383859
+        },
+        {
+          "x": 187.55560733779538,
+          "y": 92.41792904145379
+        },
+        {
+          "x": 187.29200344086325,
+          "y": 91.7815329383859
+        },
+        {
+          "x": 187.55560733779538,
+          "y": 91.145136835318
+        },
+        {
+          "x": 188.19200344086326,
+          "y": 90.88153293838589
+        },
+        {
+          "x": 188.82839954393114,
+          "y": 91.145136835318
+        }
+      ],
+      "style": "fill",
+      "fill": "#101418",
+      "closed": true,
+      "noteId": "bwvd6b7e",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "circle",
+      "cx": 195.76404232352527,
+      "cy": 47.48105830246837,
+      "r": 3.6,
+      "style": "dim",
+      "noteId": "bwvd6b7e",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "text",
+      "x": 195.76404232352527,
+      "y": 48.78105830246837,
+      "text": "7",
+      "size": 2.8,
+      "anchor": "middle",
+      "baseline": "alphabetic",
+      "style": "text",
+      "color": "#101418",
+      "noteId": "bwvd6b7e",
+      "viewId": "vqi27251",
+      "balloon": true,
+      "weight": "bold"
+    },
+    {
+      "type": "line",
+      "x1": 119.38447327953776,
+      "y1": 142.4458516234051,
+      "x2": 170.8124929470982,
+      "y2": 111.54452341489616,
+      "style": "dim",
+      "noteId": "bhhbne3s",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "poly",
+      "pts": [
+        {
+          "x": 171.7124929470982,
+          "y": 111.54452341489616
+        },
+        {
+          "x": 171.4488890501661,
+          "y": 112.18091951796406
+        },
+        {
+          "x": 170.8124929470982,
+          "y": 112.44452341489617
+        },
+        {
+          "x": 170.17609684403033,
+          "y": 112.18091951796406
+        },
+        {
+          "x": 169.9124929470982,
+          "y": 111.54452341489616
+        },
+        {
+          "x": 170.17609684403033,
+          "y": 110.90812731182827
+        },
+        {
+          "x": 170.8124929470982,
+          "y": 110.64452341489616
+        },
+        {
+          "x": 171.4488890501661,
+          "y": 110.90812731182827
+        }
+      ],
+      "style": "fill",
+      "fill": "#101418",
+      "closed": true,
+      "noteId": "bhhbne3s",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "circle",
+      "cx": 116.29867779092052,
+      "cy": 144.3,
+      "r": 3.6,
+      "style": "dim",
+      "noteId": "bhhbne3s",
+      "viewId": "vqi27251",
+      "balloon": true
+    },
+    {
+      "type": "text",
+      "x": 116.29867779092052,
+      "y": 145.60000000000002,
+      "text": "8",
+      "size": 2.8,
+      "anchor": "middle",
+      "baseline": "alphabetic",
+      "style": "text",
+      "color": "#101418",
+      "noteId": "bhhbne3s",
+      "viewId": "vqi27251",
+      "balloon": true,
+      "weight": "bold"
+    }
+  ],
+  "frame": {
+    "paper": {
+      "w": 279.4,
+      "h": 215.9,
+      "label": "Letter"
+    },
+    "x0": 16,
+    "y0": 8,
+    "x1": 271.4,
+    "y1": 207.9,
+    "w": 255.39999999999998,
+    "h": 199.9
+  },
+  "title": {
+    "x": 151.39999999999998,
+    "y": 165.9,
+    "w": 120,
+    "h": 42
+  },
+  "wholeFreshSvgExact": false,
+  "chainEndpointMaximumDifferenceMm": 0.000497602606202463,
+  "actualChainTagsByteExact": true,
+  "qualification": "Read-only reconstructed shared scene from actual native mesh triangles/occurrence placement. Physical contact/solver not rerun. Original source frame differs and shading neutral gray; native centroid anchors may be occluded in projection. Cold pending."
+}
