@@ -57,3 +57,18 @@ test('clear selection also clears a history feature without its own projection',
   const clear=Function('E','refreshAll','return ('+sourceFunctionText(source,'clearMobileSelection')+')')(h.E,()=>{});
   clear();assert.deepEqual(h.E.authoring.featureSelection,[]);
 });
+
+test('Thread derived-preview inspector shows actual thread properties instead of undefined extrusion fields',()=>{
+  const h=harness({kind:'ext',featureId:'boss'});
+  h.base.type='thread';h.base.name='Thread1';h.base.params={designation:'1/4-20 UNC 2A',mode:'cosmetic',length:1.5,side:'external',pitchMm:1.27,handedness:'rh',endCondition:undefined};
+  const before=JSON.stringify(h.E.def);h.context.fillShape();
+  const facts=h.host.children.find(n=>n.cls==='md-feature-keyfacts');assert.ok(facts);
+  const pairs=facts.children.map(n=>n.children.map(c=>c.text));
+  assert.deepEqual(pairs,[['Designation','1/4-20 UNC 2A'],['Display','cosmetic'],['Length (mm)','15'],['Side','external'],['Pitch (mm)','1.27'],['Hand','rh']]);
+  const flatten=node=>[node.text,...(node.children||[]).flatMap(flatten)].filter(v=>v!==undefined).join(' ');
+  assert.doesNotMatch(h.host.children.map(flatten).join(' '),/undefined|end Condition/);
+  h.host.children.find(n=>n.text?.includes('Edit feature in history')).click();assert.equal(h.context.opened,h.base);
+  assert.equal(JSON.stringify(h.E.def),before);
+  h.base.params.mode='modeled';h.context.fillShape();
+  assert.equal(h.host.children.filter(n=>n.cls==='md-feature-keyfacts').at(-1).children[1].children[1].text,'modeled');
+});

@@ -1,0 +1,25 @@
+# Exercise5.16 official-source browser acceptance
+
+Independent read-only actual-export audit, 2026-10-11. **Source-exact reconstructed geometry, warm annotation, functional length driver, Undo, cold persistence and actual native/STEP consistency accepted.** No CAD or code authored by this reviewer.
+
+Actual files: `artifacts/planchard/EXERCISE-5.16-official-source-baseline-browser-2026-10-11.mforge`, `EXERCISE-5.16-official-source-thread-warm-browser-2026-10-11.mforge`, and `EXERCISE-5.16-official-source-length20-browser-2026-10-11.mforge`. Saved key `cm_mv2zrok2`. Machine results/hashes in matching acceptance JSON; readonly extraction helper `scratch/planchard/audit-official-5-16-readonly.py`.
+
+SuppliedPDF265/5-47 and recovered official companion establish shaft diameter6.35×length50.8mm, collar diameter9.525×height6.35mm, total57.15mm, material6061 Alloy. Actual bundle contains two fully-defined fixed-centre/driving-diameter circle sketches, two merged Blind/Add Bosses and explicit Top offset plane50.8mm. Reconstructed frame Top/+Y is an equivalent disclosed choice; original companion frame/BRep was not decoded.
+
+Baseline→warm: both source Boss definitions, all source sketches and reference planes compare exactly. Native mesh positions and native exact bounds compare exactly; both exports have one native solid. Exact bounds(cm) are ±.47625 inX/Z and0..5.715Y. Mesh-derived display bounds are slightly smaller radially because of tessellation; native exact bounds preserve correct source radii. Actual material is Aluminum6061, density2.7g/cm3/catalog stock:aluminum. Source grade is confirmed; original exact density/mass is not claimed.
+
+Thread stores source shaft cylinder face plus genuine persistent free circular edge `feature_mv2zstvx_1:edge:profile:6468:start`, present in actual current native mesh topology. Edge centre0/0/0/radius.3175cm; face native axis−Y/range−5.08..0 gives correct inward+Y at that end. Feature origin0/0/0 and axis+Y; UNC1/4-20 external cosmetic/RH/coarse/class2A, diameter6.35mm/pitch1.27mm/length25.4mm/20turns, callout `1/4-20 UNC 2A ↓1 in`. Collar lies outside threaded interval. Cosmetic annotation preserves native solid geometry; recreated analytic volume2061.2701903598986mm3 is a dimensional check, not original BRep measurement.
+
+Actual ordinary Length20mm edit updates active `params.length` to2cm. Raw params retain older redundant `lengthMm25.4`/`turns20`; **this is not a functional driver failure**. `normalizeThreadSpec` prioritizes `length` and recomputes both. Actual generated cosmetic spec is20mm/15.748031496turns;379-point overlay endsY2cm and callout changes to `↓0.7874 in`. Thus active annotation and compiled source driver agree. Audit records this metadata qualification rather than asserting all duplicate raw summaries are synchronized.
+
+Actual protected `EXERCISE-5.16-official-source-thread-restored-browser-2026-10-11.mforge` after Undo compares exactly to warm mainModel in every field except `lastRebuild.rebuiltAt`. Full parts, native mesh, exact topology cache, features including thread settings/references, sketches, planes/history/material all match. Thus native geometry and25.4mm annotation restore fully, with only regeneration timestamp changed.
+
+Browser interaction/screenshots are parent evidence; this report independently verifies protected export data. Source-exact reconstruction replaces the old31.75mm/no-collar proxy qualification for this task; historical proxy exports remain preserved.
+
+Independent read-only native regeneration of the restored authored bundle and actual `EXERCISE-5.16-official-source-cosmetic-browser-2026-10-11.step`: compile/rebuild PASS, both native and STEP valid one-solid, native volume2.0612701903599007cm3 agrees with exact source-dimensional analytic volume, and both directed STEP difference residuals are zero. Input bundle unchanged. Details in `exercise-5.16-official-source-native-step-audit-2026-10-11.json`; this proves recreated native/STEP consistency, not equality with undecoded original SLDPRT BRep.
+
+## Final cold acceptance
+
+Parent performed genuine cache-bypass reload and reopened exact Saved model; protected `EXERCISE-5.16-official-source-thread-cold-browser-2026-10-11.mforge` and PNG show Native1, five history steps, two fully-defined sketches and corrected Thread inspector with25.4mm length/1.27mm pitch/UNC2A/external/cosmetic/RH.
+
+Independent restored→cold comparison: whole features, sketches, references, history and exactTopologyCache are exact; native meshData, cosmeticThread and material are exact. All mainModel differences are precisely `parts[0].exactBuildToken`, `lastRebuild.rebuiltAt`, `lastStandardsAudit.at`. These are a native build token and operational timestamps, not authored geometry or annotation changes. No unexplained fields differ. Cold acceptance therefore includes genuine circular-edge provenance, inward start/axis and restored source25.4mm settings. Original source frame/native BRep and exact original density remain explicitly qualified; physical thread manufacture is not asserted.

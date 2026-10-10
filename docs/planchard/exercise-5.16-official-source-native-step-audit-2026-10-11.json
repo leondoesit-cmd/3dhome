@@ -1,0 +1,111 @@
+{
+  "files": {
+    "file": "artifacts/planchard/EXERCISE-5.16-official-source-thread-restored-browser-2026-10-11.mforge",
+    "stepfile": "artifacts/planchard/EXERCISE-5.16-official-source-cosmetic-browser-2026-10-11.step"
+  },
+  "checks": {
+    "compiled": true,
+    "regenerated": true,
+    "nativeValidOne": true,
+    "stepValidOne": true,
+    "sourceAnalyticVolume": true,
+    "dualSTEPResidual": true,
+    "inputUnchanged": true
+  },
+  "native": {
+    "volume": 2.0612701903599007,
+    "centerOfMass": {
+      "x": 2.013702487885999e-18,
+      "y": 3.167256097560976,
+      "z": 7.405902758400883e-17
+    },
+    "inertia": [
+      [
+        6.424756195055501,
+        -1.2102780878195647e-17,
+        5.096990849802357e-18
+      ],
+      [
+        -1.2102780878195647e-17,
+        0.13240208502602585,
+        1.1654803138843252e-17
+      ],
+      [
+        5.096990849802357e-18,
+        1.1654803138843252e-17,
+        6.424756195055508
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -0.47625000000000006,
+        "y": 0,
+        "z": -0.47625000000000006
+      },
+      "max": {
+        "x": 0.47625000000000006,
+        "y": 5.715,
+        "z": 0.47625000000000006
+      }
+    }
+  },
+  "step": {
+    "volume": 2.0612701903598847,
+    "centerOfMass": {
+      "x": -1.0966199485522132e-17,
+      "y": 3.1672560975609807,
+      "z": -2.1342465221937257e-15
+    },
+    "inertia": [
+      [
+        6.424756195055487,
+        1.2594149294874871e-17,
+        1.995507860928703e-17
+      ],
+      [
+        1.2594149294874871e-17,
+        0.13240208502602438,
+        -4.2746387391827525e-15
+      ],
+      [
+        1.995507860928703e-17,
+        -4.2746387391827525e-15,
+        6.424756195055487
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -0.47625,
+        "y": 0,
+        "z": -0.47625
+      },
+      "max": {
+        "x": 0.47625,
+        "y": 5.715,
+        "z": 0.47625
+      }
+    }
+  },
+  "validation": {
+    "native": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 2.0612701903599007,
+      "maxToleranceCm": 1.00000000888178e-7
+    },
+    "step": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 2.0612701903598847,
+      "maxToleranceCm": 1e-7
+    }
+  },
+  "stepDualResidualCm3": [
+    0,
+    0
+  ],
+  "expectedSourceVolumeCm3": 2.061270190359899,
+  "scope": "Read-only actual authored bundle native verification and actual STEP equality; original SLDPRT BRep not decoded"
+}
