@@ -1,0 +1,303 @@
+{
+  "scope": "Read-only actual browser-export source/pair/native/STEP audit. Actual GUI creation/edit/cold evidence is separately qualified by the parent. No model writes or authored geometry.",
+  "variant": "nominal",
+  "geometryPass": true,
+  "checks": {
+    "oneHoleTwoSeparateSketches": true,
+    "positionSolverZeroDOF": true,
+    "profileSolverZeroDOF": true,
+    "savedXYZAlreadySolved": true,
+    "savedProfileAlreadySolved": true,
+    "allSourceRelationsEnabled": true,
+    "realXYZConstructionAndPoint": true,
+    "realClosedProfile": true,
+    "sourceBaseDiameter": true,
+    "sourceBaseHeight": true,
+    "sourceTopDistance": true,
+    "sourceBore": true,
+    "sourceHeadDiameter": true,
+    "sourceHeadDepthWithClearance": true,
+    "sourcePointXYZ": true,
+    "sourceANSI_SHCS_Normal_ThroughAll": true,
+    "explicitSketchDependencies": true,
+    "acyclicSourceHistory": true,
+    "sourceContextMM": true,
+    "inputUnmodified": true,
+    "oneValidNative": true,
+    "outerCylinderBounds": true,
+    "actualMaterial1060": true,
+    "requiredActualSTEP": true,
+    "oneValidSTEP": true,
+    "bidirectionalZero": true,
+    "stepUnmodified": true,
+    "drawingA3LandscapeThirdMM": true,
+    "fourActualViews": true,
+    "twoNotesSixAndSevenActualLFRows": true,
+    "all13NoteRowsInActualSVG": true,
+    "correctedTwoSketchTitleInSVG": true,
+    "noStalePendingSketchClaim": true,
+    "descriptionQualifiesActualBoundedWorkflow": true
+  },
+  "key": "cm_mv27in7q_6177",
+  "name": "Planchard 5.17 - genuine two sketches - browser 2026-10-10",
+  "source": {
+    "exercise": "5.17",
+    "pdfPages": [
+      266,
+      267
+    ],
+    "printedPages": [
+      "5-48",
+      "5-49"
+    ],
+    "expectedCm": {
+      "bore": 0.714375,
+      "head": 1.11125,
+      "recess": 0.889,
+      "distance": 0.635,
+      "height": 3.175
+    },
+    "material": "Aluminum1060",
+    "densityGPerCm3": 2.7
+  },
+  "pair": {
+    "positionId": 6178,
+    "profileId": 6179,
+    "positionRun": {
+      "ok": true,
+      "status": "fully-defined",
+      "degreesOfFreedom": 0,
+      "maxResidual": 2.220446049250313e-16,
+      "points": [
+        {
+          "id": "6178:A",
+          "role": "A",
+          "x": 0,
+          "y": 3.1750000000000003,
+          "z": 0
+        },
+        {
+          "id": "6178:B",
+          "role": "B",
+          "x": 0,
+          "y": 3.1750000000000003,
+          "z": 1.9050000000000002
+        },
+        {
+          "id": "6178:P",
+          "role": "P",
+          "x": 0,
+          "y": 2.54,
+          "z": 1.9050000000000002
+        }
+      ]
+    },
+    "profileRun": {
+      "ok": true,
+      "status": "fully-defined",
+      "degreesOfFreedom": 0,
+      "maxResidual": 0
+    },
+    "points": [
+      {
+        "id": "6178:A",
+        "role": "A",
+        "x": 0,
+        "y": 3.1750000000000003,
+        "z": 0
+      },
+      {
+        "id": "6178:B",
+        "role": "B",
+        "x": 0,
+        "y": 3.1750000000000003,
+        "z": 1.9050000000000002
+      },
+      {
+        "id": "6178:P",
+        "role": "P",
+        "x": 0,
+        "y": 2.54,
+        "z": 1.9050000000000002
+      }
+    ],
+    "profilePoints": [
+      {
+        "id": "6179:p0",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": "6179:p1",
+        "x": 0,
+        "y": 0.555625
+      },
+      {
+        "id": "6179:p2",
+        "x": 0.889,
+        "y": 0.555625
+      },
+      {
+        "id": "6179:p3",
+        "x": 0.889,
+        "y": 0.3571875
+      },
+      {
+        "id": "6179:p4",
+        "x": 3.8100100000000006,
+        "y": 0.3571875
+      },
+      {
+        "id": "6179:p5",
+        "x": 3.8100100000000006,
+        "y": 0
+      }
+    ],
+    "history": [
+      {
+        "id": "history:sketch:sk_1kr0j",
+        "kind": "sketch",
+        "targetId": "sk_1kr0j"
+      },
+      {
+        "id": "history:feature:feature_mv26m8ib_1",
+        "kind": "feature",
+        "targetId": "feature_mv26m8ib_1"
+      },
+      {
+        "id": "history:sketch:6178",
+        "kind": "sketch",
+        "targetId": 6178
+      },
+      {
+        "id": "history:sketch:6179",
+        "kind": "sketch",
+        "targetId": 6179
+      },
+      {
+        "id": "history:feature:feature_mv27kxj8_1",
+        "kind": "feature",
+        "targetId": "feature_mv27kxj8_1"
+      }
+    ]
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 34.18816210206099,
+    "maxToleranceCm": 1.0000001344771516e-07
+  },
+  "mass": {
+    "volume": 34.18816210206099,
+    "centerOfMass": {
+      "x": -1.0747488033839733e-07,
+      "y": 1.5315071773260038,
+      "z": -0.02070368135744816
+    },
+    "inertia": [
+      [
+        58.32387503124016,
+        4.692660939819259e-06,
+        -9.186131282639098e-08
+      ],
+      [
+        4.692660939819259e-06,
+        62.689276587032026,
+        0.7138319158374002
+      ],
+      [
+        -9.186131282639098e-08,
+        0.7138319158374002,
+        61.11497835580792
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1.9050001000000003,
+        "y": -1e-07,
+        "z": -1.905000100000001
+      },
+      "max": {
+        "x": 1.9050001000000003,
+        "y": 3.1750001,
+        "z": 1.9050001000000008
+      }
+    }
+  },
+  "material": {
+    "label": "Aluminum 1060 - official Planchard companion density",
+    "densityGPerCm3": 2.7,
+    "exactSourceDensity2point7": true,
+    "densitySource": "Official Chapter5 Homework/Hole Wizard5.17.SLDPRT embedded LWDATA density2700kg/m3; SHA256966cb075642fcfd11a7b74133e1ca577b623a5af6165c88b8afcbfbd6f99cdb1. Source material1060Alloy; custom exact source-density override.",
+    "massG": 92.30803767556469,
+    "sourceDensityMassG": 92.30803767556469
+  },
+  "step": {
+    "bytes": 38180,
+    "sha256": "3e6b2d75f081af9e3d780fe1a80faf028c38c3e442d1042813f65ab4b778a658",
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 34.188126899637226,
+      "maxToleranceCm": 1e-07
+    },
+    "mass": {
+      "volume": 34.188126899637226,
+      "centerOfMass": {
+        "x": -1.3684669541499917e-07,
+        "y": 1.531506266737081,
+        "z": -0.020703548177614113
+      },
+      "inertia": [
+        [
+          58.32380655247525,
+          5.649374295270738e-06,
+          4.11074524707451e-07
+        ],
+        [
+          5.649374295270738e-06,
+          62.689202768166325,
+          0.7138275279912607
+        ],
+        [
+          4.11074524707451e-07,
+          0.7138275279912607,
+          61.11490722894584
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1.9050001,
+          "y": -1e-07,
+          "z": -1.9050001
+        },
+        "max": {
+          "x": 1.9050001,
+          "y": 3.1750000999999997,
+          "z": 1.9050001
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0,
+    "nativeMinusSTEPVolumeMm3": 0.03520242376708893
+  },
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-5.17-two-sketch-qualified-browser-2026-10-10.mforge",
+    "bytes": 311149,
+    "sha256": "92dc861b2f7b7b36d5dc9c0c3b537cbe04779be3ec95dcee0b1d7d5fd78cc1a9"
+  },
+  "drawingAudit": {
+    "svgBytes": 122580,
+    "noteLFRows": [
+      6,
+      7
+    ],
+    "title": "EXERCISE5.17 - TWO DRIVING SKETCHES",
+    "actualPNGVisuallyReviewed": true,
+    "layout": "Four separated views; two separated scope notes; source base dimensions; readable title. Front/Top/Right2:1, iso1:1 as actual UI renders.",
+    "description": "Source PDF266-267 / printed5-48-49; official companion bare cylinder D1.5in x 1.25in, Aluminum1060 exact density2700kg/m3. Browser-authored declared Top-plane/+Y datum convention; original source sketch IDs/datums not recovered. Separate bounded 3D position and local axial counterbore-profile history sketches drive native geometry: ANSIinch quarter-inch SHCS Normal ThroughAll, total recess0.350in including0.100 head clearance, P0.250in below top on +Z. Independent profile/position/upstream driving edits, Undo/Redo and AlongY removal/restoration witnessed in actual Chrome. This source-equivalent bounded workflow does not claim arbitrary general 3D sketch editing."
+  }
+}

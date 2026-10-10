@@ -202,7 +202,7 @@
       "SVGByteExact": true,
       "libraryKeyExact": true,
       "stillZeroCAD": true,
-      "seventeenNotes": true
+      "expectedNotes": true
     },
     "exactFields": {
       "drawing": true,

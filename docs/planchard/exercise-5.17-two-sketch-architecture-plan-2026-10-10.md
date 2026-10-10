@@ -65,3 +65,6 @@ Save both sketch definitions, authored constraints/dimensions, references and hi
 6. Save/export, hard reload, reopen the exact library record and repeat independent sketch Edit and representative dimension changes. Audit whole saved sketch definitions/history/IDs and exact solid; include failed/deleted-support and old-version fixtures. Accept 5.17 two-sketch completion only after this actual cold browser proof.
 
 This is a bounded integration with several shared history/solver hooks. Adding two serialized labels or caching the current graph alone cannot safely close the source workflow.
+
+
+Later actual-browser acceptance: `exercise-5.17-two-sketch-browser-audit-2026-10-10.md` now accepts the bounded source-equivalent two-sketch workflow with native driver, relation restoration, drawing and full cold evidence. The architecture/core scope above is retained as its original dated record.

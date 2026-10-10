@@ -1,0 +1,244 @@
+{
+  "scope": "Read-only actual browser-export source/pair/native/STEP audit. Actual GUI creation/edit/cold evidence is separately qualified by the parent. No model writes or authored geometry.",
+  "variant": "position-driver",
+  "geometryPass": true,
+  "checks": {
+    "oneHoleTwoSeparateSketches": true,
+    "positionSolverZeroDOF": true,
+    "profileSolverZeroDOF": true,
+    "savedXYZAlreadySolved": true,
+    "savedProfileAlreadySolved": true,
+    "allSourceRelationsEnabled": true,
+    "realXYZConstructionAndPoint": true,
+    "realClosedProfile": true,
+    "sourceBaseDiameter": true,
+    "sourceBaseHeight": true,
+    "sourceTopDistance": true,
+    "sourceBore": true,
+    "sourceHeadDiameter": true,
+    "sourceHeadDepthWithClearance": true,
+    "sourcePointXYZ": true,
+    "sourceANSI_SHCS_Normal_ThroughAll": true,
+    "explicitSketchDependencies": true,
+    "acyclicSourceHistory": true,
+    "sourceContextMM": true,
+    "inputUnmodified": true,
+    "oneValidNative": true,
+    "outerCylinderBounds": true,
+    "actualMaterial1060": true,
+    "baseSketchExact": true,
+    "baseFeatureExact": true,
+    "profileDimensionsUnchanged": true,
+    "profileLocalContourUnchanged": true,
+    "pointMovesDownExactly1mm": true,
+    "nativeCenterOfMassFollowsTranslatedRemovedVolume": true,
+    "nativeVolumePreservedWithin1eMinus9Cm3": true
+  },
+  "key": "cm_mv27in7q_6177",
+  "name": "Planchard 5.17 - genuine two sketches - browser 2026-10-10",
+  "source": {
+    "exercise": "5.17",
+    "pdfPages": [
+      266,
+      267
+    ],
+    "printedPages": [
+      "5-48",
+      "5-49"
+    ],
+    "expectedCm": {
+      "bore": 0.714375,
+      "head": 1.11125,
+      "recess": 0.889,
+      "distance": 0.735,
+      "height": 3.175
+    },
+    "material": "Aluminum1060",
+    "densityGPerCm3": 2.7
+  },
+  "pair": {
+    "positionId": 6178,
+    "profileId": 6179,
+    "positionRun": {
+      "ok": true,
+      "status": "fully-defined",
+      "degreesOfFreedom": 0,
+      "maxResidual": 1.1102230246251565e-16,
+      "points": [
+        {
+          "id": "6178:A",
+          "role": "A",
+          "x": 0,
+          "y": 3.1750000000000003,
+          "z": 0
+        },
+        {
+          "id": "6178:B",
+          "role": "B",
+          "x": 0,
+          "y": 3.1750000000000003,
+          "z": 1.9050000000000002
+        },
+        {
+          "id": "6178:P",
+          "role": "P",
+          "x": 0,
+          "y": 2.4400000000000004,
+          "z": 1.9050000000000002
+        }
+      ]
+    },
+    "profileRun": {
+      "ok": true,
+      "status": "fully-defined",
+      "degreesOfFreedom": 0,
+      "maxResidual": 0
+    },
+    "points": [
+      {
+        "id": "6178:A",
+        "role": "A",
+        "x": 0,
+        "y": 3.1750000000000003,
+        "z": 0
+      },
+      {
+        "id": "6178:B",
+        "role": "B",
+        "x": 0,
+        "y": 3.1750000000000003,
+        "z": 1.9050000000000002
+      },
+      {
+        "id": "6178:P",
+        "role": "P",
+        "x": 0,
+        "y": 2.4400000000000004,
+        "z": 1.9050000000000002
+      }
+    ],
+    "profilePoints": [
+      {
+        "id": "6179:p0",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": "6179:p1",
+        "x": 0,
+        "y": 0.555625
+      },
+      {
+        "id": "6179:p2",
+        "x": 0.889,
+        "y": 0.555625
+      },
+      {
+        "id": "6179:p3",
+        "x": 0.889,
+        "y": 0.3571875
+      },
+      {
+        "id": "6179:p4",
+        "x": 3.8100100000000006,
+        "y": 0.3571875
+      },
+      {
+        "id": "6179:p5",
+        "x": 3.8100100000000006,
+        "y": 0
+      }
+    ],
+    "history": [
+      {
+        "id": "history:sketch:sk_1kr0j",
+        "kind": "sketch",
+        "targetId": "sk_1kr0j"
+      },
+      {
+        "id": "history:feature:feature_mv26m8ib_1",
+        "kind": "feature",
+        "targetId": "feature_mv26m8ib_1"
+      },
+      {
+        "id": "history:sketch:6178",
+        "kind": "sketch",
+        "targetId": 6178
+      },
+      {
+        "id": "history:sketch:6179",
+        "kind": "sketch",
+        "targetId": 6179
+      },
+      {
+        "id": "history:feature:feature_mv27kxj8_1",
+        "kind": "feature",
+        "targetId": "feature_mv27kxj8_1"
+      }
+    ]
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 34.18816210177849,
+    "maxToleranceCm": 1.0000001344771516e-07
+  },
+  "mass": {
+    "volume": 34.18816210177849,
+    "centerOfMass": {
+      "x": -1.0747137629606937e-07,
+      "y": 1.53738568509572,
+      "z": -0.020703681348000155
+    },
+    "inertia": [
+      [
+        58.707960796030406,
+        4.3233686572137175e-06,
+        -9.173149413584632e-08
+      ],
+      [
+        4.3233686572137175e-06,
+        62.68927658653732,
+        0.6388889042524903
+      ],
+      [
+        -9.173149413584632e-08,
+        0.6388889042524903,
+        61.499064121050864
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1.9050001000000003,
+        "y": -1e-07,
+        "z": -1.905000100000001
+      },
+      "max": {
+        "x": 1.9050001000000003,
+        "y": 3.1750001,
+        "z": 1.9050001000000008
+      }
+    }
+  },
+  "material": {
+    "label": "Aluminum 1060 - official Planchard companion density",
+    "densityGPerCm3": 2.7,
+    "exactSourceDensity2point7": true,
+    "densitySource": "Official Chapter5 Homework/Hole Wizard5.17.SLDPRT embedded LWDATA density2700kg/m3; SHA256966cb075642fcfd11a7b74133e1ca577b623a5af6165c88b8afcbfbd6f99cdb1. Source material1060Alloy; custom exact source-density override.",
+    "massG": 92.30803767480192,
+    "sourceDensityMassG": 92.30803767480192
+  },
+  "step": null,
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-5.17-two-sketch-position-driver-browser-2026-10-10.mforge",
+    "bytes": 566307,
+    "sha256": "2f8a14c6dc81699c0c059da66dd6c77a83e0110514953709b882b7ccfab1fdfa"
+  },
+  "nativeVolumeDeltaMm3": -2.8250468631085823e-07,
+  "centreOfMassTranslationCheck": {
+    "expectedDeltaYCm": 0.005878506805855291,
+    "actualDeltaYCm": 0.0058785077697161014
+  },
+  "driverQualification": "Only top distance increased1mm; point and entire profile frame move down1mm, local hole contour/dimensions unchanged. Base exact. Native volume invariant within numerical integration tolerance; COM shift matches translating removed volume."
+}

@@ -1,0 +1,355 @@
+{
+  "scope": "Actual browser-authored source review worksheet content and full cold persistence accepted; separate CAD exercises and whole book not claimed.",
+  "pass": true,
+  "checks": {
+    "twentyNotes": true,
+    "allNineteenAnswersMatch": true,
+    "allQuestionNumbers": true,
+    "allSVGNoteRows": true,
+    "sixtyNineRows": true,
+    "zeroCAD": true,
+    "A3LandscapeThirdMM": true,
+    "sourceLabel": true
+  },
+  "key": "cm_mv287zmd",
+  "name": "Planchard Chapter5 - review Q1-Q19 - browser 2026-10-10",
+  "customProperties": {
+    "Description": "Source printed5-38-39 / PDF256-257, Planchard2021 Chapter5 review Q1-Q19. Independent source-grounded explanations of part templates, planar sketches, features, dimensional units, constraint colors and geometry; feature/sketch icon identifications from the actual source pictures. Ordinary browser Drawing notes; no official answer-key, newly authored CAD or certification claim."
+  },
+  "noteRows": [
+    4,
+    4,
+    4,
+    5,
+    4,
+    4,
+    2,
+    3,
+    3,
+    2,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    5,
+    4,
+    4,
+    4
+  ],
+  "totalRows": 69,
+  "answers": [
+    {
+      "q": 1,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 59.6884669389522
+    },
+    {
+      "q": 2,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 78.71410309387437
+    },
+    {
+      "q": 3,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 5,
+      "x": 34.755904449194375,
+      "y": 97.73972091355554
+    },
+    {
+      "q": 4,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 120.27006504287839
+    },
+    {
+      "q": 5,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 139.29568286255957
+    },
+    {
+      "q": 6,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 2,
+      "x": 34.755904449194375,
+      "y": 158.32131901748173
+    },
+    {
+      "q": 7,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 34.755904449194375,
+      "y": 170.33750255312057
+    },
+    {
+      "q": 8,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 34.755904449194375,
+      "y": 185.8583940631601
+    },
+    {
+      "q": 9,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 2,
+      "x": 34.755904449194375,
+      "y": 201.3793039084406
+    },
+    {
+      "q": 10,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 2,
+      "x": 34.755904449194375,
+      "y": 213.39548744407944
+    },
+    {
+      "q": 11,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 225.01213765172912,
+      "y": 59.6884669389522
+    },
+    {
+      "q": 12,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 225.01213765172912,
+      "y": 75.2093767842327
+    },
+    {
+      "q": 13,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 225.01213765172912,
+      "y": 90.73028662951322
+    },
+    {
+      "q": 14,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 225.01213765172912,
+      "y": 106.25117813955274
+    },
+    {
+      "q": 15,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 225.01213765172912,
+      "y": 121.77208798483323
+    },
+    {
+      "q": 16,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 5,
+      "x": 225.01213765172912,
+      "y": 137.29299783011373
+    },
+    {
+      "q": 17,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 159.8233419594366
+    },
+    {
+      "q": 18,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 178.84895977911776
+    },
+    {
+      "q": 19,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 197.87457759879894
+    }
+  ],
+  "visual": "Actual qualified PNG inspected: all20 note blocks readable, separated, within border and above titleblock. Bottom transient UI hint overlays a small area of titleblock, not answers.",
+  "bytes": 8785,
+  "sha256": "6cb146c67445956587a92976b3e393da14914e9049bba48d33c51a9173ec6add",
+  "svgBytes": 17565,
+  "svgSHA256": "abe4fab1e843b65181fae41f01f6fe366520d9cffd3bdfaeb771254cb9b53973",
+  "cold": {
+    "status": "PASS",
+    "checks": {
+      "wholeDrawingExact": true,
+      "allAuthoringFieldsExact": true,
+      "SVGByteExact": true,
+      "libraryKeyExact": true,
+      "stillZeroCAD": true,
+      "expectedNotes": true
+    },
+    "exactFields": {
+      "drawing": true,
+      "customProperties": true,
+      "context": true,
+      "features": true,
+      "sketches": true,
+      "engineeringMaterials": true,
+      "localFrame": true,
+      "references": true,
+      "namedSelections": true,
+      "notes": true,
+      "markups": true,
+      "parameters": true
+    },
+    "changedPaths": [
+      ".createdAt",
+      ".mainModel.history.length",
+      ".mainModel.lastRebuild.rebuiltAt",
+      ".mainModel.referenceGeometry.length"
+    ],
+    "bytes": 9719,
+    "sha256": "1c4618dcf71c58b774a1cd11cbe6cdd074c0a2c8d7619f0121308eac4f2eab56",
+    "svgBytes": 17565,
+    "svgSHA256": "abe4fab1e843b65181fae41f01f6fe366520d9cffd3bdfaeb771254cb9b53973",
+    "canonicalHistoryBefore": [],
+    "canonicalHistoryAfter": [
+      {
+        "id": "history:sketch:sk_3eonl",
+        "kind": "sketch",
+        "targetId": "sk_3eonl",
+        "name": "X\u00b7Z sketch",
+        "suppressed": false,
+        "status": "rebuilt"
+      }
+    ],
+    "referenceGeometryBefore": [],
+    "referenceGeometryAfter": [
+      {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,369 @@
+{
+  "scope": "Actual browser-authored source review worksheet content and full cold persistence accepted; separate CAD exercises and whole book not claimed.",
+  "pass": true,
+  "checks": {
+    "twentyNotes": true,
+    "allNineteenAnswersMatch": true,
+    "allSVGNoteRows": true,
+    "allQuestionNumbers": true,
+    "seventyFiveRows": true,
+    "zeroCAD": true,
+    "A3LandscapeThirdMM": true,
+    "sourceLabel": true
+  },
+  "key": "cm_mv284foc",
+  "name": "Planchard Chapter9 - review Q1-Q19 - browser 2026-10-10",
+  "customProperties": {
+    "Description": "Source printed9-38-39 / PDF472-473, Planchard2021 Chapter9 review Q1-Q19. Independent source-grounded explanations of drawings, drawing templates/sheet formats, view placement, notes, assembly BOM/balloons, configurations/design tables and center of mass annotations; ordinary browser Drawing notes. No official answer-key, newly authored CAD or certification claim."
+  },
+  "noteRows": [
+    4,
+    4,
+    2,
+    2,
+    4,
+    4,
+    4,
+    4,
+    3,
+    4,
+    3,
+    4,
+    4,
+    4,
+    5,
+    3,
+    4,
+    3,
+    4,
+    6
+  ],
+  "totalRows": 75,
+  "answers": [
+    {
+      "q": 1,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 59.6884669389522
+    },
+    {
+      "q": 2,
+      "matchesPlan": true,
+      "rows": 2,
+      "x": 34.755904449194375,
+      "y": 78.71410309387437
+    },
+    {
+      "q": 3,
+      "matchesPlan": true,
+      "rows": 2,
+      "x": 34.755904449194375,
+      "y": 90.73028662951322
+    },
+    {
+      "q": 4,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 102.74647016515206
+    },
+    {
+      "q": 5,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 121.77208798483323
+    },
+    {
+      "q": 6,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 140.7977058045144
+    },
+    {
+      "q": 7,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 159.8233419594366
+    },
+    {
+      "q": 8,
+      "matchesPlan": true,
+      "rows": 3,
+      "x": 34.755904449194375,
+      "y": 178.84895977911776
+    },
+    {
+      "q": 9,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 34.755904449194375,
+      "y": 194.36986962439826
+    },
+    {
+      "q": 10,
+      "matchesPlan": true,
+      "rows": 3,
+      "x": 34.755904449194375,
+      "y": 213.39548744407944
+    },
+    {
+      "q": 11,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 59.6884669389522
+    },
+    {
+      "q": 12,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 78.71410309387437
+    },
+    {
+      "q": 13,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 97.73972091355554
+    },
+    {
+      "q": 14,
+      "matchesPlan": true,
+      "rows": 5,
+      "x": 225.01213765172912,
+      "y": 116.76533873323672
+    },
+    {
+      "q": 15,
+      "matchesPlan": true,
+      "rows": 3,
+      "x": 225.01213765172912,
+      "y": 139.29568286255957
+    },
+    {
+      "q": 16,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 154.81659270784007
+    },
+    {
+      "q": 17,
+      "matchesPlan": true,
+      "rows": 3,
+      "x": 225.01213765172912,
+      "y": 173.84221052752125
+    },
+    {
+      "q": 18,
+      "matchesPlan": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 189.36312037280175
+    },
+    {
+      "q": 19,
+      "matchesPlan": true,
+      "rows": 6,
+      "x": 225.01213765172912,
+      "y": 208.38873819248292
+    }
+  ],
+  "source": {
+    "pdfPages": [
+      472,
+      473
+    ],
+    "printedPages": [
+      "9-38",
+      "9-39"
+    ]
+  },
+  "title": {
+    "revision": "A",
+    "sheet": 1,
+    "sheets": 1,
+    "title": "CHAPTER9 - REVIEW Q1-Q19",
+    "number": "PLANCHARD9-38/39-PDF472/473",
+    "author": "",
+    "company": "",
+    "material": "",
+    "finish": "",
+    "mass": "",
+    "date": "2026-10-10",
+    "tolerance": ""
+  },
+  "CAD": {
+    "features": 0,
+    "parts": 0,
+    "views": 0,
+    "geometricSketchEntities": 0
+  },
+  "input": {
+    "bytes": 9289,
+    "sha256": "82c54f39f332eb5211c89aa2da8290aeb1267acd9fb88ab158086f633591eed8"
+  },
+  "SVG": {
+    "bytes": 18610,
+    "sha256": "d24d222d1e25a09cf02d446580380e26c47878b4e119501bcabb937e15d9c18b"
+  },
+  "cold": {
+    "status": "PASS",
+    "checks": {
+      "wholeDrawingExact": true,
+      "allAuthoringFieldsExact": true,
+      "SVGByteExact": true,
+      "libraryKeyExact": true,
+      "stillZeroCAD": true,
+      "expectedNotes": true
+    },
+    "exactFields": {
+      "drawing": true,
+      "customProperties": true,
+      "context": true,
+      "features": true,
+      "sketches": true,
+      "engineeringMaterials": true,
+      "localFrame": true,
+      "references": true,
+      "namedSelections": true,
+      "notes": true,
+      "markups": true,
+      "parameters": true
+    },
+    "changedPaths": [
+      ".createdAt",
+      ".mainModel.history.length",
+      ".mainModel.lastRebuild.rebuiltAt",
+      ".mainModel.referenceGeometry.length"
+    ],
+    "bytes": 10223,
+    "sha256": "a3d64613e9250f9d7ff7ff68d2a0885961ad301a79da57d1166ad3bbe835a4c0",
+    "svgBytes": 18610,
+    "svgSHA256": "d24d222d1e25a09cf02d446580380e26c47878b4e119501bcabb937e15d9c18b",
+    "canonicalHistoryBefore": [],
+    "canonicalHistoryAfter": [
+      {
+        "id": "history:sketch:sk_2a8fq",
+        "kind": "sketch",
+        "targetId": "sk_2a8fq",
+        "name": "X\u00b7Z sketch",
+        "suppressed": false,
+        "status": "rebuilt"
+      }
+    ],
+    "referenceGeometryBefore": [],
+    "referenceGeometryAfter": [
+      {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    ]
+  }
+}

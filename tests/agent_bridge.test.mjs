@@ -5,6 +5,7 @@ import { createServer } from "node:net";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import {waitForRelay} from './helpers/relay_readiness.mjs';
 
 async function freePort() {
   const server = createServer();
@@ -13,14 +14,6 @@ async function freePort() {
   await new Promise((resolve) => server.close(resolve));
   return port;
 }
-async function waitForServer(port) {
-  for (let i = 0; i < 60; i++) {
-    try { if ((await fetch(`http://127.0.0.1:${port}/api/ping`)).ok) return; } catch (_) {}
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-  throw new Error("relay did not start");
-}
-
 test("authenticated external bridge relays one MCP call to the browser and back", async (t) => {
   const port = await freePort(), token = "bridge-test-secret";
   const identityFile = join(tmpdir(), `home3d-agent-bridge-${process.pid}-${port}.json`);
@@ -30,7 +23,7 @@ test("authenticated external bridge relays one MCP call to the browser and back"
     stdio: "ignore",
   });
   t.after(async () => { child.kill("SIGTERM"); await rm(identityFile, { force: true }); });
-  await waitForServer(port);
+  await waitForRelay(`http://127.0.0.1:${port}/api/ping`,child);
   const base = `http://127.0.0.1:${port}`, headers = { "Content-Type": "application/json", "X-ModelForge-Bridge-Token": token };
   const denied = await fetch(base + "/api/agent-bridge/poll");
   assert.equal(denied.status, 401);

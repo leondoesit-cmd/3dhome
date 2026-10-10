@@ -43,3 +43,6 @@ Combined dedicated editor/history and core/native verification passed **13/13**,
 ## Remaining acceptance
 
 Actual Chrome source creation, separate sketch Edit controls, visible XYZ construction/DOF, profile contour/dimension controls, native/preview refresh, undo/cancel transaction behavior, hard reload/exact-library reopen and protected exported model/STEP/drawing evidence remain the parent's browser acceptance work. Do not call the book two-sketch workflow complete from these unit/native checks alone.
+
+
+Later actual-browser acceptance: `exercise-5.17-two-sketch-browser-audit-2026-10-10.md` now accepts the bounded source-equivalent two-sketch workflow with native driver, relation restoration, drawing and full cold evidence. The architecture/core scope above is retained as its original dated record.
