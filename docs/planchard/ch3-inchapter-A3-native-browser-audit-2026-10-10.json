@@ -1,0 +1,250 @@
+{
+  "savedKey": "cm_mv2v66dw",
+  "savedName": "Planchard Ch3 IN-CHAPTER A3 dimension omissions - browser 2026-10-10",
+  "warmChecks": {
+    "eightySixCoordinatesTypesStylesExact": true,
+    "twentyThreeUniqueClosedNonzeroArrows": true,
+    "twoOnlyDesignatedHiddenLines": true,
+    "fifteenNotesTwentyNineRows": true,
+    "twelveOriginalNumericLabels": true,
+    "sourceOmissionAndEndpointQualifications": true,
+    "purePaperNoCadImagesViews": true,
+    "sourcePropertiesAndReadableChosenSheet": true
+  },
+  "warmAccepted": true,
+  "mismatches": [],
+  "noteLineRows": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    5,
+    8,
+    4
+  ],
+  "numericNoteOffsets": [
+    {
+      "text": "5.50",
+      "dx": -0.27462801876156107,
+      "dy": -0.1768264982794392
+    },
+    {
+      "text": "1.00",
+      "dx": -0.27912132085137387,
+      "dy": -0.17848357655886105
+    },
+    {
+      "text": "1.50",
+      "dx": -0.27455209019991855,
+      "dy": -0.1810565388185239
+    },
+    {
+      "text": "2.00",
+      "dx": -0.27680687890190825,
+      "dy": -0.1810565388185239
+    },
+    {
+      "text": ".50",
+      "dx": -0.2701121197035903,
+      "dy": -0.18243589623614298
+    },
+    {
+      "text": "1.50",
+      "dx": -0.27912132085137387,
+      "dy": -0.18306094486737834
+    },
+    {
+      "text": "2.00",
+      "dx": -0.272248946734571,
+      "dy": -0.18656085400181155
+    },
+    {
+      "text": "2.00",
+      "dx": -0.276818177386005,
+      "dy": -0.18656085400181155
+    },
+    {
+      "text": "1.00",
+      "dx": -0.2828345563596031,
+      "dy": -0.1810565388185239
+    },
+    {
+      "text": ".50",
+      "dx": -0.28101590288630973,
+      "dy": -0.1824051616108875
+    },
+    {
+      "text": ".50",
+      "dx": -0.28101590288630973,
+      "dy": -0.18565152726515066
+    },
+    {
+      "text": "3.00",
+      "dx": -0.2843720925544915,
+      "dy": -0.18393953697878374
+    }
+  ],
+  "svgSha256": "7906871ba43d7aee661cdfb23f4d8470ce2ba720c82f99d8a2981fe7e825eff2",
+  "qualification": "Source PDF151/3-23 independently visually inspected. Source-estimated paper strokes, original labels/source errors retained; chosen four omissions not official key. Default2.8mm native text, outline arrows and small initial-click label bias; no manufacturing geometry or image insertion claim.",
+  "coldAccepted": true,
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesNameKeyExact": true,
+    "emptyAuthoredCadExact": true,
+    "svgByteExact": true
+  },
+  "wholeProjectDifferences": [
+    {
+      "path": "createdAt",
+      "warm": 1791665614140,
+      "cold": 1791665685741
+    },
+    {
+      "path": "mainModel.history.0",
+      "cold": {
+        "id": "history:sketch:sk_1lx0m",
+        "kind": "sketch",
+        "targetId": "sk_1lx0m",
+        "name": "X·Z sketch",
+        "suppressed": false,
+        "status": "rebuilt"
+      }
+    },
+    {
+      "path": "mainModel.lastRebuild.rebuiltAt",
+      "warm": 1791665601944,
+      "cold": 1791665671689
+    },
+    {
+      "path": "mainModel.referenceGeometry.0",
+      "cold": {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.1",
+      "cold": {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.2",
+      "cold": {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.3",
+      "cold": {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.4",
+      "cold": {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.5",
+      "cold": {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    }
+  ]
+}
