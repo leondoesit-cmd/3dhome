@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {meshDataBounds} from '../js/core/kernel_body.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {historyEntryRolled} from '../js/core/parametric_document.js';
 import {leavesInputStanding} from '../js/core/rebuild.js';
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 const record=()=>JSON.parse(readFileSync(new URL('./fixtures/q5_reactivated_body_branch.json',import.meta.url),'utf8'));
 const names=['cutTargetFeatureId','publishExactBodies'];
-const api=new Function('historyEntryRolled','leavesInputStanding',names.map(name=>sourceFunctionText(source,name)).join('\n')+';return {'+names.join(',')+'};')(historyEntryRolled,leavesInputStanding);
+const api=new Function('historyEntryRolled','leavesInputStanding','meshDataBounds',names.map(name=>sourceFunctionText(source,name)).join('\n')+';return {'+names.join(',')+'};')(historyEntryRolled,leavesInputStanding,meshDataBounds);
 
 test('actual reactivated Q5 graph publishes the final native branch rather than prior Cut13',async()=>{
  const doc=record();assert.equal(api.cutTargetFeatureId(doc.parts[0],doc),doc.expectedHead);

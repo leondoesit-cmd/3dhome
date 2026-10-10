@@ -1,6 +1,6 @@
 # Numbered exercise coverage reconciliation — 2026-10-10
 
-**113 of 117 numbered identifiers have documented acceptance within their stated scopes: 96.58%. Four identifiers remain pending. This is a numbered-exercise fraction, not a whole-book completion percentage.**
+**115 of 117 numbered identifiers have documented acceptance within their stated scopes: 98.29%. Two identifiers remain pending. This is a numbered-exercise fraction, not a whole-book completion percentage.**
 
 Counting rule: each frozen identifier counts once. 8.6A, Basic6A/6B and Advanced6A count independently; six Chapter10 drafting sample answers and the Chain sample are included. Multi-model2.2 and2.3 each count once and require both pictured models. Plans, qualified partial exports and implementation-only tests do not close an identifier. Accepted illustrative/designer/replacement examples retain their existing qualifications; this numerator does not certify exact publisher-native equivalence for those examples.
 
@@ -12,7 +12,7 @@ Counting rule: each frozen identifier counts once. 8.6A, Basic6A/6B and Advanced
 | Chapter5 | 17/17 | exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md |
 | Chapter6 | 8/8 | book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md |
 | Chapter7 | 12/12 | book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md |
-| Chapter8 | 18/21 | ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md |
+| Chapter8 | 20/21 | ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md |
 | Chapter9 | 6/6 | ADVANCE.md; remaining-book-followups-reconciled-2026-10-09.md |
 | Chapter10 drafting | 6/6 | ch10-drafting-answers-browser-audit-2026-10-10.md |
 | Chapter10 Basic | 8/8 | remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md |
@@ -23,10 +23,12 @@ Counting rule: each frozen identifier counts once. 8.6A, Basic6A/6B and Advanced
 
 - **3.9**, PDF178 /printed3-50: partial/source-blocked despite accepted cold available-source worksheet; rows1/4 missing or damaged, rows2Counterbore/3Diameter answered. Unknown glyphs remain unanswered.3.10–3.16 are now accepted source-answer worksheets qualified15/15+cold7/7.
 - **8.2**, PDF414 /printed8-36: actual native cold five-mate/two-DOF rebuild plus visible whole-assembly interference check. Fresh source audit also found FLATBAR source thickness2.286mm versus saved1.524mm and Hook thread specification mismatch; decide explicit repair or retained source qualification before stronger exact-source acceptance. Official source is now available.
-- **8.8**, PDF420 /printed8-42: final indexed gear state actual cold reopen and preserved study replay/seek0. Preserve20:40 ratio, phase4.5°, five mates/oneDOF; indexed clearance is not continuous tooth-contact simulation.
-- **8.9**, PDF421 /printed8-43: actual cold contact-qualified Counterweight reopen, seven top components/eight mates/twoDOF. Keep measured cosmetic screw/nut proxy contact0.0017450999cm³ and zero unreviewed/bounds-only; do not claim zero geometric interference.
 
 ## Closures superseding older pending inventory
+
+8.9 accepted contact-qualified representativecounterweight: actualallvisibleNative1/Declared1/Unreviewed0/Bounds0, positivescrew/nutproxycontact1.7450999mm3 preserved; actualcoldwholeassemblyexactqualified/7roots8mates2DOF. RootDescriptioncorrectedsourceavailability/noexactpublisherCADorhelicalcontactclaim. Report chapter8-counterweight-final-browser-readiness-2026-10-10.md.
+
+8.8 accepted source-qualified indexed20:40mate and saved5RPM study0→1→0, exactUndoRedo/coldauthoring, fivecomponents/fivemates/oneDOF. Earlierindexednativeclearancepreserved; redundantnewcheckcancelledduringnativepreparation/noresult. Continuousphysicaltoothcontactnotclaimed. Report chapter8-gear-motion-export-audit-2026-10-10.md.
 
 8.5 accepted representative reconstruction: actual coupled0/.25/1turn motion, Undo/Redo, restoredfreehome1DOF, all-visible nativehomeclearancezero and byte-identical coldassembly. Chosen10mm/turn and reconstructed dimensions remainqualified; report chapter8-vice-motion-export-audit-2026-10-10.md.
 

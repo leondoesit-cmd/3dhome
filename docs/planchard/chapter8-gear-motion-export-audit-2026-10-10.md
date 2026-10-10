@@ -23,4 +23,10 @@ Full embedded definition SHA256 values, identical across8–12:
 
 Whole export12 SHA256: `5d2e171b623363063c36955c8b1838ec7c2a7ff6a162bd55d64e16b4d791b926`. Export timestamps differ, so exact comparisons above refer to the complete saved assembly, not the entire timestamped file.
 
-**Finite actual sampled-motion/Undo/Redo/restored-zero audit passes.** Save completion and exact library cold reopening remain pending parent browser proof. This audit made no browser, CAD, model-state, ADVANCE, ledger or Git writes.
+## Actual cold-open acceptance
+
+Parent hard-reloaded Chrome and reopened the exact library model. Initial mobility was not checked; following actual clean Save, the browser displayed one DOF in the protected PNG. Cold export13, protected as `artifacts/planchard/EXERCISE-8.8-study-cold-browser-2026-10-10.mforge`, is 36,571,115 bytes, SHA256 `e0b87595a121b94142aa40d5004848a8136b558d744f56e95254424dd42fa623`.
+
+Independent read-only comparison confirms **the entire cold assembly JSON exactly equals export12**, including all native component definitions, mate references, study settings/time-zero captures and configuration authoring. Native-topology-backed cold replay returns ok, one DOF, no issues or unsatisfied mates. Time0 and indexed driver/follower30°/−19.5° remain intact.
+
+**Exercise8.8 passes its source-qualified functional sampled-motion scope**, including ordinary time seeking, exact Undo/Redo, restored zero, clean Save and cold persistence. The parent cancelled a redundant fresh all-visible clearance run after several minutes rebuilding the follower cut; that run did not complete and supplies no new clearance result. Prior accepted indexed-zero clearance retains its original scope because the complete native geometry, mates and indexed pose are unchanged. Neither continuous physical tooth-contact simulation nor a fresh cold clearance completion is claimed. This audit made no browser, CAD, model-state, ADVANCE, ledger or Git writes.

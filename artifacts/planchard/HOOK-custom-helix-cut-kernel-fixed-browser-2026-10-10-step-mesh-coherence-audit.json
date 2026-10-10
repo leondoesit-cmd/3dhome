@@ -1,0 +1,54 @@
+{
+  "actualSTEPBytes": 691838,
+  "mass": {
+    "volume": 0.48634831100655346,
+    "centerOfMass": {
+      "x": 0.00004536692656325351,
+      "y": 1.6564887226446772,
+      "z": 0.083000787619687
+    },
+    "inertia": [
+      [
+        0.3239463436208503,
+        0.000059777602154728756,
+        0.0000027534237601104217
+      ],
+      [
+        0.000059777602154728756,
+        0.0664931454527877,
+        -0.0063134922748868255
+      ],
+      [
+        0.0000027534237601104217,
+        -0.0063134922748868255,
+        0.266120212087988
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -0.1905,
+        "y": 3.55589439903e-268,
+        "z": -0.6562344
+      },
+      "max": {
+        "x": 0.1905,
+        "y": 2.7305,
+        "z": 0.8086344000000001
+      }
+    }
+  },
+  "valid": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 0.48634831100655346,
+    "maxToleranceCm": 3.08729008043769e-7
+  },
+  "exteriorProbesOutside": true,
+  "actualStoredMeshBoundsX": [
+    -0.22868072875185402,
+    0.22847278685961844
+  ],
+  "actualBrowserBundleCoherent": false,
+  "scope": "ActualexportedSTEP inspection vs protectedstoredmesh; freshreadonlyoracle geometry is separate."
+}

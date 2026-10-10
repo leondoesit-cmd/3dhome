@@ -1,0 +1,43 @@
+{
+  "actualStoredBounds": {
+    "x0": -0.22868072875185402,
+    "x1": 0.22847278685961844,
+    "y0": -2.5732394687995655e-261,
+    "y1": 2.730249232768066,
+    "z0": -0.6562343241200659,
+    "z1": 0.8083658823175256
+  },
+  "recomputedMeshBounds": {
+    "x0": -0.1905,
+    "x1": 0.1905,
+    "y0": -2.5732394687995655e-261,
+    "y1": 2.730249232768066,
+    "z0": -0.6562343241200659,
+    "z1": 0.8083658823175256
+  },
+  "exactNativeBounds": {
+    "min": {
+      "x": -0.1905,
+      "y": 3.555894399030475e-268,
+      "z": -0.6562344000000004
+    },
+    "max": {
+      "x": 0.1905,
+      "y": 2.7304999999999993,
+      "z": 0.8086343999999998
+    }
+  },
+  "checks": {
+    "oneNativeSolid": true,
+    "storedBoundsExact": false,
+    "stockEnvelopeX": true,
+    "wholeMeshExact": false,
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "sourceMaterialExact": true,
+    "eightHistory": true,
+    "noRollback": true
+  },
+  "actualGeometryAndDerivedBoundsAccepted": false,
+  "finalWorkflowAccepted": false
+}

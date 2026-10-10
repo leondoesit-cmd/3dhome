@@ -9074,9 +9074,10 @@ async function publishExactBodies(parts, run, document, meshOf, isCurrent=functi
       var mesh=await meshOf(body);
       if(!isCurrent())return changed;
       part.meshData = mesh;
+      part.bounds = meshDataBounds(mesh.positions);
       part.exactError = shown === head ? null : failure;
     } else if (run.ok) continue;
-    else { delete part.meshData; part.exactError = failure; }
+    else { delete part.meshData; delete part.bounds; part.exactError = failure; }
     part.exactPending = false;
     changed.push(part);
   }

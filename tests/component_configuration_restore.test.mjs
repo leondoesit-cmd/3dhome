@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {meshDataBounds} from '../js/core/kernel_body.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
 const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function fixture(regenerate){
   const part={id:'spring-body',featureId:'sweep'},component={id:'spring',def:{parts:[part],features:[{id:'sweep'}]}},E={assembly:{components:[component]}};
   const calls={native:0,releases:[],refresh:0,solve:0,fit:0,options:[],flashes:[]};
-  const publish=new Function('cutTargetFeatureId',sourceFunctionText(source,'publishExactBodies')+';return publishExactBodies;')(part=>part.featureId);
+  const publish=new Function('cutTargetFeatureId','meshDataBounds',sourceFunctionText(source,'publishExactBodies')+';return publishExactBodies;')(part=>part.featureId,meshDataBounds);
   const fn=new Function('E','configuredComponentBuilds','compileKernelFeatureTree','flash','regenerateFeatures','synchronizeExtrusionProjections','captureExactTopology','publishExactBodies','activeParts','cloneData','shapeToMeshData','invalidateInterference','solveAssembly','refreshAll','fitPreview','rebuildFailureMessage','releaseRegeneration',sourceFunctionText(source,'refreshConfiguredComponent')+';return refreshConfiguredComponent;')
     (E,new WeakMap(),doc=>({ok:true,document:doc,features:doc.features}),text=>calls.flashes.push(text),async(doc,options)=>{calls.options.push(options);return regenerate(doc,options);},()=>{},()=>({verified:true}),publish,doc=>doc.parts,structuredClone,async()=>{calls.native++;return {positions:[1,2,3,4,5,6,7,8,9]};},()=>{},()=>calls.solve++,()=>calls.refresh++,()=>calls.fit++,()=> 'Failed configuration',run=>calls.releases.push(run));
   return {E,part,component,calls,fn};

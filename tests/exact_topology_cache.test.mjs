@@ -162,3 +162,11 @@ test('old native implementation topology is rejected while unchanged upstream re
  document.exactTopologyCache.blend.signature=JSON.stringify(legacy);
  const verified=verifiedExactTopology(document,features);assert.equal(verified.has('shell'),true);assert.equal(verified.has('blend'),false);
 });
+
+test('old whole-spine helical cutter topology expires without invalidating its upstream additive sweep',()=>{
+ const document={sketches:[]},features=[{id:'hook',type:'sweep',params:{operation:'add'}},{id:'cutter',type:'sweep',params:{operation:'subtract',helixId:'path'}},{id:'cut',type:'subtract',params:{},inputs:['hook','cutter']}];
+ document.exactTopologyCache=captureExactTopology(document,features,{results:new Map(features.map(f=>[f.id,{shape:{},topology:[{persistentId:f.id+':face',kind:'face'}]}]))});
+ assert.equal(verifiedExactTopology(document,features).size,3);
+ for(const id of ['cutter','cut']){const legacy=JSON.parse(document.exactTopologyCache[id].signature);legacy.features.forEach(f=>delete f.kernelRevision);document.exactTopologyCache[id].signature=JSON.stringify(legacy);}
+ const current=verifiedExactTopology(document,features);assert.equal(current.has('hook'),true);assert.equal(current.has('cutter'),false);assert.equal(current.has('cut'),false);
+});

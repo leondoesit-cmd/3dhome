@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {meshDataBounds} from '../js/core/kernel_body.js';
 import { historyEntryRolled } from '../js/core/parametric_document.js';
 import { publishRebuildStatus, withKernelFailures } from '../js/core/parametric_rebuild.js';
 import { leavesInputStanding } from '../js/core/rebuild.js';
@@ -27,7 +28,7 @@ const fnSource = (name) => {
   }
   return src.slice(src.lastIndexOf('\n', start) + 1, end);
 };
-const context = { historyEntryRolled, leavesInputStanding, Set };
+const context = { historyEntryRolled, leavesInputStanding, meshDataBounds, Set };
 vm.runInNewContext(fnSource('function cutTargetFeatureId').replace('document = E.def', 'document') + '\n' + fnSource('async function publishExactBodies') + '\nthis.publishExactBodies = publishExactBodies;', context);
 
 const record = () => JSON.parse(readFileSync(new URL('./fixtures/planchard_housing_record.json', import.meta.url), 'utf8'));
@@ -142,4 +143,18 @@ test('regenerateExactModelNow publishes bodies and kernel failures before it thr
   const publish = body.indexOf('publishExactBodies(');
   assert.ok(publish > 0 && publish < body.indexOf('if (!E.brepRun.ok'), 'bodies are published before a failed run throws');
   assert.match(body, /withKernelFailures\(rebuildParametricDocument\(/);
+});
+
+
+test('native publication replaces obsolete wider body bounds with the newly verified mesh envelope', async () => {
+  const doc=record(),id=doc.parts[0].featureId;
+  doc.parts[0].bounds={x0:-.22868,x1:.22847,y0:0,y1:2.73,z0:-.66,z1:.81};
+  const run={ok:true,issues:[],results:new Map(doc.features.map(f=>[f.id,shape(f.id)]))};
+  const positions=[-.1905,0,0,.1905,2.73,0,0,1,.81];
+  await context.publishExactBodies(doc.parts,run,doc,async()=>({positions}));
+  assert.deepEqual(JSON.parse(JSON.stringify(doc.parts[0].bounds)),meshDataBounds(positions));
+  const failed={ok:false,issues:[{code:'regeneration-failed',message:'failed'}],results:new Map()};
+  await context.publishExactBodies(doc.parts,failed,doc,async()=>{throw Error('no built body');});
+  assert.equal(doc.parts[0].bounds,undefined);
+  assert.equal(doc.parts[0].meshData,undefined);
 });

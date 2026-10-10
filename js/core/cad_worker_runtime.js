@@ -10,7 +10,7 @@ import { createNativeBodyStore } from './native_body_store.js';
 import { leavesInputStanding } from './rebuild.js';
 import { toolFeatureRecipe } from './tool_recipe.js';
 import {collectNativeSections} from './native_section_query.js';
-import {nativeOperationRevisions} from './native_operation_revision.js';
+import {nativeOperationRevision} from './native_operation_revision.js';
 import {finishCacheParameters} from './finish_cache_parameters.js';
 import {
   serializeBrep, deserializeBrep, extractBrepTopology, hydrateSerializedBrepTopology, disposeBrep, shapeToMeshData, shapeMassProperties, shapeSolidCount, exportStep,
@@ -74,7 +74,7 @@ export function cadWorkerGeometryKeys(document,features,options={}) {
       const derived=feature.type==='loft'?['sections','sectionSegments']:feature.type==='sweep'?['profile','profileSegments','path','pathSegments']:[];
       derived.forEach(key=>delete params[key]);
     }
-    const kernelRevision=nativeOperationRevisions[feature.type];
+    const kernelRevision=nativeOperationRevision(feature);
     prefix.push(geometryKey({id:feature.id,type:feature.type,params,inputs:feature.inputs,references:feature.references,suppressed:feature.suppressed,...(kernelRevision?{kernelRevision}:{})}));
     owners.add(feature.id);visit(feature);
     const resolvesProfile=['extrude','revolve'].includes(feature.type)

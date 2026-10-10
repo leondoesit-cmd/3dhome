@@ -1,0 +1,35 @@
+# Exercise8.9 final browser readiness — 2026-10-10
+
+Exact library name **Planchard 8.9 - counterweight assembly - fresh labeled example 2026-09-30**, key `asm_munwkpui`. Current protected annotated baseline `scratch/planchard/COUNTERWEIGHT-ANSI-contact-audit-browser-2026-09-30.mforge` is 1,100,669 bytes. Independent read-only saved-native-topology solver replay passes: two DOF, no issues/unsatisfied mates.
+
+Source is PDF421/printed8-43, local screenshot `scratch/planchard/assembly-final-source-421.png` (also `scratch/planchard/p/pg421.png`). Book requests supplied Counter Weight parts, Weight-Hook subassembly, grounded Axle, Flat, two Type A narrow washers, Pan Cross Head screw, Machine Screw Nut Hex, SmartMates/standard mates, centered Axle distance (symmetric alternative), and needed lock mates. It supplies no numerical dimensions or material prescription on this page. PDF422 starts separate additional projects. Existing chosen dimensions/representative driver form remain qualified; availability of official companion files does not establish geometric parity.
+
+Actual baseline: seven root components2124/2125/2134/2171/2173/2175/2177; grounded Axle2124; rigid nested Weight-Hook2134 contains Weight2128 and Eye Hook2132. Eight mates2126/2127/2135/2136/2206/2210/2211/2212; distances1.8cm and0.25cm; four relative locks preserve fastener placements. Nested weight/eye hook already carry Plain Carbon Steel (grade unspecified), density7.85g/cm³ with representative datasheet reference. Toolbox fasteners carry Steel8.8 Zinc catalog metadata. Page421 gives no reason to change these assignments or infer certified grades.
+
+Assembly Description is stale: `Exercise 8.9 designer example from blank Chrome UI; companion dimensions unavailable. Fresh axle and plate, exact concentric and axial distance mates. Assembly in progress.` Minimal truthful replacement through ordinary custom properties:
+
+> Exercise 8.9 functional counterweight example authored in Chrome. Seven components, two narrow washers, standard mates and fastener locks; chosen reconstructed dimensions and representative pan cross-head driver form. Official companion files are available; exact companion geometry is not established. Cosmetic 5/16-18 screw/nut engagement retains a measured declared overlap; helical thread surfaces are not modeled.
+
+Root Axle/Flat and embedded Eye Hook Descriptions also contain stale companion-unavailable wording. They remain historical per-part provenance; correcting root Description alone does not certify them or silently change their geometry/materials.
+
+For whole-assembly native interference, clear component selection first: zero/one selected root means **All visible components**; two or more selects only that scope. Wait for native worker completion. Expected result is **Native overlaps1 · Declared contacts1 · Unreviewed overlaps0 · Bounds only0**. Preserve actual2171↔2177 overlap **0.0017450999084413555cm³ =1.7450999084413555mm³**. It is intended smooth major-shaft/minor-bore cosmetic5/16-18UNC engagement, not modeled helical contact or false zero.
+
+The saved `expectedContacts` record has string IDs2171/2177, exact volume/bounds and reason: `Matching 5/16-18 UNC screw and nut use cosmetic thread proxies: smooth major-diameter shank overlaps the minor-bore envelope during intended engagement. Helical thread surfaces are not modeled; this remains a measured overlap.` Existing declared contact offers **Remove declared contact**: leave it intact. If current report marks it unreviewed due changed geometry, inspect the actual volume and bounds before re-recording; controls are **Reason for expected contact · {pair label}** then **Record expected contact · {pair label}**. Preserve measured positive contact rather than adjusting solids to conceal it.
+
+Final actual browser witnesses: source page, root metadata, completed native report, clean Save, hard reload/exact library reopen, seven roots/eight mates/two DOF, protected cold bundle/PNG. Independent comparison should allow only intended Description changes and verify poses, native definitions, nested child, references, material assignments and expected-contact measurement/reason survive. This report is readiness only; no new actual browser/clearance/cold acceptance is asserted. No CAD/browser/ADVANCE/ledger/Git writes.
+
+## Actual qualified export and contact acceptance
+
+Parent viewed sourcePDF421, edited root Description to the replacement above, clean-saved at two DOF and completed whole-visible native interference: **Native1, Declared1, Unreviewed0, Bounds0**, actual screw2171/nut2177 positive contact with reason intact. Protected browser PNG: `artifacts/planchard/EXERCISE-8.9-declared-contact-browser-2026-10-10.png`. Displayed rounded volume .002cm³ does not replace the stored precise measurement.
+
+Actual export9 is protected as `artifacts/planchard/EXERCISE-8.9-contact-qualified-browser-2026-10-10.mforge`, 1,100,920 bytes, SHA256 `900f94b93968abe5a1564f1ee68b7e62f8dc76047eface969aba0de836e855fb`. Independent recursive comparison against the annotated baseline finds only intended root Description plus five tiny pose normalization scalars on nested Weight-Hook2134: RZ173.80585708547179→173.80585708514812°; quaternionX/W change about1.994×10⁻¹² and Y/Z about1.08×10⁻¹³. Geometry, full embedded definitions, mate records, contact record/reason/bounds and all other poses remain exactly unchanged. Therefore poses are equivalent, while the whole assembly is not bit-identical to its earlier baseline.
+
+Native-topology-backed clone replay passes ok, two DOF, no issues or unsatisfied mates. Stored declared contact remains exactly **0.0017450999084413555cm³ =1.7450999084413555mm³**, retaining measured positive cosmetic engagement.
+
+## Actual cold-open final acceptance
+
+Parent hard-reloaded Chrome, reopened the exact library assembly and clean-saved, observing seven components, eight mates and two DOF in the protected cold PNG. Export10 is protected as `artifacts/planchard/EXERCISE-8.9-contact-qualified-cold-browser-2026-10-10.mforge`, 1,100,920 bytes, SHA256 `0a2079d066d1ee060a2542582a5181bfa5af8ac5298b14f2a454b29088e00b74`.
+
+Independent comparison finds **the entire cold assembly JSON exactly equal to qualified export9**, with no further normalization differences. Native replay passes ok, two DOF, no issues or unsatisfied mates. Full native geometry, embedded child, mates/poses, material assignments, corrected Description and precise expected-contact measurement/reason survive cold reopening.
+
+**Exercise8.9 passes its qualified functional assembly/contact scope**, combining actual whole-visible Native1/Declared1/Unreviewed0/Bounds0 with cold persistence. The measured positive1.7451mm³ screw/nut engagement remains visible and declared; zero overlap is not claimed. Chosen reconstruction dimensions, representative pan driver and cosmetic thread qualifications remain; no continuous motion clearance, recovered official geometry or physical helical engagement is claimed. No CAD/browser/ADVANCE/ledger/Git writes by this audit.

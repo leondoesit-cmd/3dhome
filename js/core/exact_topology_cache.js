@@ -1,5 +1,5 @@
 import {stableStringify} from './dependency_graph.js';
-import {nativeOperationRevisions} from './native_operation_revision.js';
+import {nativeOperationRevision} from './native_operation_revision.js';
 
 function normalizedStamp(value) {
   // Resolving attached sketch frames can introduce round-off at nonzero
@@ -50,7 +50,7 @@ function signatures(document, features) {
       };
       visit(params.sketchSources);
     }
-    const kernelRevision=nativeOperationRevisions[feature.type];
+    const kernelRevision=nativeOperationRevision(feature);
     prefix.push({id:feature.id,type:feature.type,params,inputs:feature.inputs,references:feature.references,suppressed:feature.suppressed,...(kernelRevision?{kernelRevision}:{})});
     if(feature.params?.sketchId)sketchIds.add(feature.params.sketchId);
     for(const id of feature.references?.sketches || [])sketchIds.add(id);

@@ -110,3 +110,10 @@ test('canonical union transport preserves serialized union keys but invalidates 
  assert.ok(keys.get('blend').includes('supported-corner-repair-3'),'only the changed consumer result must expire');
  assert.equal(keys.get('blend').includes('supported-corner-repair-2'),false);
 });
+
+test('helical cutter revision expires its worker prefix while retaining the original additive sweep',()=>{
+ const features=[{id:'hook',type:'sweep',params:{operation:'add',helixId:''}},{id:'cutter',type:'sweep',params:{operation:'subtract',helixId:'path'},inputs:[]},{id:'cut',type:'subtract',params:{},inputs:['hook','cutter']}];
+ const keys=cadWorkerGeometryKeys({},features);assert.equal(keys.get('hook').includes('contained-helical-sweep-cut-1'),false);
+ assert.ok(keys.get('cutter').includes('contained-helical-sweep-cut-1'));assert.ok(keys.get('cut').includes('contained-helical-sweep-cut-1'));
+ const ordinary=cadWorkerGeometryKeys({},[{id:'cutter',type:'sweep',params:{operation:'subtract'}}]);assert.equal(ordinary.get('cutter').includes('contained-helical-sweep-cut-1'),false);
+});
