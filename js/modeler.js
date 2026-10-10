@@ -19138,7 +19138,7 @@ function rollbackBar() {
 
 // bumped on blur so a second visit to the same field is its own history step
 var propGen = 0;
-function numRow(host, label, get, set, step, tourKey, deferUntilApply) {
+function numRow(host, label, get, set, step, tourKey, deferUntilApply, canCommit) {
   var w = el("label", "md-grid-cell");
   if (tourKey) w.setAttribute("data-tour-prop", tourKey);
   var span = el("span", "t");
@@ -19150,6 +19150,7 @@ function numRow(host, label, get, set, step, tourKey, deferUntilApply) {
   inp.value = String(get());
   var commit = function () {
     if (deferUntilApply) return;
+    if(canCommit && !canCommit()){inp.value=String(get());return;}
     var v = parseFloat(inp.value);
     if (!fin(v)) { inp.value=String(get()); return; }
     if (Math.abs(v-Number(get()))<1e-12) return;
@@ -19169,25 +19170,28 @@ function numRow(host, label, get, set, step, tourKey, deferUntilApply) {
   host.appendChild(w);
   return inp;
 }
-function numLengthRow(host, label, get, set, step, tourKey, deferUntilApply) {
+function numLengthRow(host, label, get, set, step, tourKey, deferUntilApply, canCommit) {
   var unit=modelLengthUnit();
   return numRow(host, label+" ("+unit+")", function () {
     var value=lengthToDocument(get(),unit);
     return Math.abs(value)<1e-9 ? 0 : Number(value.toPrecision(12));
   }, function (value) {
     set(lengthFromDocument(value,unit));
-  }, lengthToDocument(step || 0.1,unit), tourKey, deferUntilApply);
+  }, lengthToDocument(step || 0.1,unit), tourKey, deferUntilApply, canCommit);
 }
 
 function addSketchOffsetControl(host,sketchId) {
+  // A retained inspector event must never edit the sketch selected previously.
+  var currentContext=function(){return E.def.activeSketch===sketchId && (E.def.sketches || []).some(function(item){return item.id===sketchId;});};
   var currentOffset=function(){return sketchOffsetValue((E.def.sketches || []).find(function(item){return item.id===sketchId;}));};
   var input=numLengthRow(host,t("sketchOffset"),currentOffset,function(value){
     if(!setSketchOffset(E.def,sketchId,value))return;
     synchronizeSketchExtrusionFrames(E.def,sketchId);
     invalidateSketchProjection();syncSketchDrivenParts();
     if(isCanonicalAuthoring() && (E.def.features || []).some(function(feature){return feature.params?.sketchId===sketchId || (feature.references?.sketches || []).some(function(ref){return (typeof ref==="string"?ref:ref.id)===sketchId;});}))scheduleExactRestore();
-  },0.5);
+  },0.5,null,false,currentContext);
   var commit=function(){
+    if(!currentContext())return;
     var typed=parseFloat(input.value),value=lengthFromDocument(typed,modelLengthUnit());
     if(fin(value) && Math.abs(value-currentOffset())>1e-10)input.dispatchEvent(new Event("change",{bubbles:true}));
   };

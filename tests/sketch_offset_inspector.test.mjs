@@ -11,7 +11,7 @@ function fixture(){
   const start=source.indexOf('var propGen = 0;'),end=source.indexOf('\n/* The inspector was one long column:',start);
   assert.ok(start>=0 && end>start);
   const sketch={id:'new-right-sketch',plane:'side',referenceId:'plane:right',frameSpace:'local',offset:0,frame:{origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0},xAxis:{x:0,y:0,z:1},yAxis:{x:0,y:1,z:0}}};
-  const E={def:{sketches:[sketch],references:[{id:'plane:right',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}}],features:[],history:[{kind:'sketch',targetId:sketch.id}]}};
+  const E={def:{activeSketch:sketch.id,sketches:[sketch],references:[{id:'plane:right',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}}],features:[],history:[{kind:'sketch',targetId:sketch.id}]}};
   const undo=[],refresh=[],scheduled=[],host=node();
   const context={E,Event,fin:Number.isFinite,setSketchOffset,sketchOffsetValue,synchronizeSketchExtrusionFrames,t:key=>key,el:node,
     modelLengthUnit:()=> 'mm',lengthToDocument:(cm)=>cm*10,lengthFromDocument:(mm)=>mm/10,
@@ -46,4 +46,19 @@ test('native change then blur commits once; invalid values cannot dirty history;
   f.input.value='39';f.input.dispatchEvent(new Event('change'));f.input.dispatchEvent(new Event('blur'));
   assert.equal(f.undo.length,1);assert.equal(f.scheduled.length,1);assert.equal(f.sketch.frame.origin.x,3.9);
   f.input.value='';f.input.dispatchEvent(new Event('blur'));assert.equal(f.undo.length,1);
+});
+
+
+test('stale Offset change, blur, Enter and Apply cannot modify the former selected sketch or add Undo',()=>{
+  for(const method of ['change','blur','Enter','Apply']){
+    const f=fixture(),other={...structuredClone(f.sketch),id:'selected-endpoint',offset:1};
+    f.E.def.sketches.push(other);f.E.def.activeSketch=other.id;
+    const before=JSON.stringify(f.E.def);f.input.value='10.2';
+    if(method==='Apply')f.host.children.find(child=>child.label==='applySketchOffset').action();
+    else if(method==='Enter')f.input.dispatchEvent({type:'keydown',key:'Enter',preventDefault(){},stopPropagation(){}});
+    else f.input.dispatchEvent(new Event(method));
+    assert.equal(JSON.stringify(f.E.def),before,method);assert.equal(f.undo.length,0,method);assert.equal(f.refresh.length,0,method);
+    const host=node(),newInput=f.context.add(host,other.id);newInput.value='10.2';newInput.dispatchEvent(new Event('blur'));
+    assert.equal(other.frame.origin.x,1.02);assert.equal(f.undo.length,1);assert.equal(f.sketch.offset,0);
+  }
 });
