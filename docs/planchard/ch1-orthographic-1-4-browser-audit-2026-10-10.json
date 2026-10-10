@@ -1,0 +1,28 @@
+{
+  "warmChecks": {
+    "twoNativeNotes": true,
+    "pureWorksheetNoCad": true,
+    "noViewsDimensionsPrimitivesImages": true,
+    "sourceAndInferenceExplicit": true,
+    "sourceProjectionAndAnswers": true,
+    "nativeDefaultFontAndLiteralSvgRows": true,
+    "a3MillimetreThirdAngle": true,
+    "notesWithinClearFrame": true
+  },
+  "warmAccepted": true,
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesAndIdentityExact": true,
+    "wholeAuthoredCadExact": true,
+    "svgByteExact": true
+  },
+  "coldAccepted": true,
+  "savedKey": "cm_mv2sp70r",
+  "savedName": "Planchard Ch1 IN-CHAPTER Orthographic 1-4 - browser 2026-10-10",
+  "nativeNoteLineRows": [
+    4,
+    21
+  ],
+  "svgSha256": "4c02ae396f636eda9b62634adf7fab42566a3ce4e4927dea547a491c3f211168",
+  "qualification": "SourcePNG65/66/67 independently inspected. First-angle labels, box2views, sphere1view with spherical identification and Front shape/Top bore supported as inferred answers, not publisher key. Third-angle worksheet frame explicitly distinguished from first-angle Exercise1. Native default2.8mm note font; no reproduced source diagrams or publisher handwriting. Actual warm PNG frame/body/header/title visible and separated. Browser authoring performed by parent, not audit."
+}

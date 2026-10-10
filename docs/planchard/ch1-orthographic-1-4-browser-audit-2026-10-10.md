@@ -1,0 +1,11 @@
+# Chapter1 in-chapter Orthographic1–4 browser worksheet
+
+Final acceptance **8/8 warm +4/4 cold**. The parent authored and saved two native Drawing notes through ordinary Chrome, then genuinely reloaded and reopened the exact Saved study. This independent read-only audit inspected protected bundle/SVG/PNG and source images PDF65–67 / printed1-37–1-39.
+
+Source1 uses first-angle: Right lies left of Front, Left right of Front, Back at far right, Top below Front and the labelled Bottom above. The answer identifies opposing viewing directions and correctly notes that the shown Front and Top have no hidden lines. Source2's rectangular box needs two views to supply width2.00, height1.00 and depth1.50. Source3 needs one circular view plus spherical identification to distinguish a sphere from a disk/cylinder. Source4's Front shows the main notched shape; Top supplies the circular through-bore. These are figure-based inferred solutions, not an official answer key.
+
+Saved key `cm_mv2sp70r`: **Planchard Ch1 IN-CHAPTER Orthographic 1-4 - browser 2026-10-10**. Its A3 landscape/mm/third-angle frame is explicitly distinguished in the header from source1's first-angle exercise. Two genuine notes contain4 and21 literal rows; no parts/features/views/dimensions/primitives/images exist, and the starter sketch is empty. Native default2.8mm note text is qualified. The actual PNG shows separated header/answers and a clear frame/footer; no publisher drawing or lettering reproduction is claimed.
+
+Warm SVG SHA256 `4c02ae396f636eda9b62634adf7fab42566a3ce4e4927dea547a491c3f211168`. Evidence: `artifacts/planchard/CH1-INCHAPTER-Orthographic-1-4-browser-2026-10-10.mforge` and matching `docs/planchard` SVG/PNG. Machine checks: `ch1-orthographic-1-4-browser-audit-2026-10-10.json`; checker `scratch/planchard/ch1-orthographic-readonly.mjs`.
+
+Cold protected files use `-cold-browser-2026-10-10`. Entire Drawing, source Description/name/key, parts/features and empty sketch are exact; SVG bytes/hash are exact. Whole-project differences are limited to export/rebuild times, rebuilt history for the existing empty starter sketch and six hydrated canonical principal plane/axis reference records. Those references already exist in warm `references`; they add no authored answer or projected geometry.
