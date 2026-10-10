@@ -1,0 +1,70 @@
+{
+  "checks": {
+    "supportAllowanceMatchesNativeDeviation": true,
+    "nativeTessellationExact": true,
+    "allSupportsTrimOnly": true,
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "sourceHistoryExact": true,
+    "sourceReferenceGeometryExact": true,
+    "storedNativePositionsExact": true,
+    "allSliceSettingsExact": true,
+    "sourceFingerprintExact": true,
+    "sourceBoundsExact": true,
+    "allMaterialPathsExact": true,
+    "allLayerPlanesExact": true,
+    "actualNativeClearanceAccepted": true,
+    "supportClippingDiagnosed": true,
+    "clippedVolumeExplainsReduction": true,
+    "supportVolumePositiveAndReduced": true
+  },
+  "actualQualifiedDigitalWorkflowAccepted": true,
+  "clipped": [
+    {
+      "layer": 76,
+      "kind": "support-clipped",
+      "removedLengthMm": 0.8335877710037192,
+      "retainedPieces": 2,
+      "contourMarginMm": 0.01,
+      "reason": "Exact material contour and bead clearance"
+    },
+    {
+      "layer": 80,
+      "kind": "support-clipped",
+      "removedLengthMm": 0.134285482285466,
+      "retainedPieces": 1,
+      "contourMarginMm": 0.01,
+      "reason": "Exact material contour and bead clearance"
+    }
+  ],
+  "removedVolumeMm3": 0.30971944105254057,
+  "oldSupportVolumeMm3": 18596.352000000043,
+  "newSupportVolumeMm3": 18596.042280558988,
+  "qualification": "Original export remains unsafe diagnostic. Exact clipping and mid-slab XY geometry do not certify full physical deposition, support removal or device execution.",
+  "coldDifferences": [
+    {
+      "path": "parts.0.exactBuildToken",
+      "a": 41,
+      "b": 43
+    },
+    {
+      "path": "lastRebuild.rebuiltAt",
+      "a": 1791649004293,
+      "b": 1791649259512
+    },
+    {
+      "path": "lastStandardsAudit.at",
+      "a": 1791647277896,
+      "b": 1791649141889
+    }
+  ],
+  "coldChecks": {
+    "wholeJSONByteExact": true,
+    "wholeGcodeByteExact": true,
+    "nativeClearanceAccepted": true,
+    "onlyDerivedRebuildChanges": true,
+    "allMaterialPathsExact": true,
+    "layer134SVGByteExact": true
+  },
+  "actualColdDigitalWorkflowAccepted": true
+}

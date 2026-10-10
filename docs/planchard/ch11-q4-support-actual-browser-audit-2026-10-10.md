@@ -1,0 +1,27 @@
+# Q4 actual browser support study
+
+The parent created a separate Saved Q4 print study in actual Chrome and applied the same .4 mm layer/.32 mm raster/.8 mm line-width profile on a250 mm cubic bed. Source CAD and material are preserved; this is an illustrative digital manufacturing study. The resolution was chosen to stay within500 layers/40-million layer-cells. Earlier .4 and .35 mm grids correctly failed the existing deposition boundary guard and were not accepted.
+
+Actual Top/Front/Right setup exports preserve all source sketches/features/23 history entries/native mesh positions/material. Dimensions are Top64×185×118.4673 mm, Front64×118.4673×185 mm, Right118.4673×185×64 mm. Predicted .4 mm layer counts297/463/160. The actual support comparison uses Front, with the source diameter32/depth9 counterbore and diameter19/depth18 bore on normal(0,.8660254037844386,.5).
+
+| Actual mode | Layers | Support segments | Support volume mm³ | Filament mm |
+|---|---:|---:|---:|---:|
+| Off | 463 | 0 | 0 | 47867.0497531 |
+| Buildplate | 463 | 648 | 740.7616 | 48175.0226388 |
+| Everywhere, final allowance | 463 | 4321 | 18596.0422806 | 55598.3857228 |
+
+Off passes20 original guards; Buildplate passes21 including648 midpoint columns unobstructed by native material in every lower mid-slab section. Original Everywhere failed two support bead-clearance checks and remains diagnostic. Exact contour capsule clipping repaired those paths; a subsequent independent remesh discrepancy at .399059 mm was disambiguated by exact native .4 mm cap probesOUT/.401 mmIN and3600 angular cap samplesOUT. The final replay conservatively adds the actual .01 mm native tessellation allowance while leaving the strict clearance guard unchanged. All intermediate artifacts retain their original qualification and are not retroactively accepted.
+
+Final `CH11-Q4-support-everywhere-final-margin-browser-2026-10-10` passes21/21 native/path guards and17/17 source/trim/accounting guards. Independently regenerated native geometry is one valid connected solid, volume352.3044952202896 cm³. All126,788 deposition segments, including4321 support segments, have zero material center crossings or bead-clearance failures against fresh native mid-slab contours. Minimum support contour separation is .409068572296 mm, above .4 mm bead radius. Recorded allowance is .01 mm, matching actual native tessellation; kernel meshing converts this to .001 cm. Actual G-code and layer134 SVG regenerate byte-exact.
+
+Source sketches/features/history/reference geometry/stored native positions, slice settings, fingerprint, source bounds,463 layer planes and every material deposition path remain exact against the original actual export. Every final support interval is a collinear subset of an original interval. Two diagnostics identify trimming at layers76/80, retaining2/1 pieces; combined removed length .967873253289 mm accounts exactly for .309719441053 mm³ support-volume reduction. No geometry or settings were changed to fit a mass target.
+
+Support midpoint classification against the source analytic void finds39 segments in the diameter32 counterbore,8 in the diameter19 bore and4274 elsewhere.3739 Everywhere segment midpoint columns encounter model below, reflecting supports permitted above existing material. These counts classify midpoints, not full-segment placement, access or removability. Most extra Everywhere support is external. The inspected actual layer134 screenshot shows the native Q4 model,23 editable steps, Native1/Rebuild succeeded, orange support paths,43 paths at Z53.6 mm and the explicit allowance qualification.
+
+First Off deposition layer has0 paths because the conservative raster omits a narrow initial model footprint. Final Everywhere first layer has8 support paths; these do not restore the omitted model deposition. Diagnostics/omissions remain qualifications. Physical layer-thickness deposition, bridging, attachment, support removal, filament/material suitability, acceleration/travel/retraction and printer execution/device compatibility are unverified. ConfiguredXYGap remains raster exclusion, not a certified additional physical air gap.
+
+Final qualified digital replay and hardreload/exact Saved cold workflow are accepted. Cold comparison passes6/6 guards: entire actual JSON, G-code and layer134 SVG are BYTE-EXACT against the independently native-verified final export; material paths remain exact. Whole project authoring comparison differs only in `parts.0.exactBuildToken`41→43, `lastRebuild.rebuiltAt` and `lastStandardsAudit.at`. All source CAD, material, mesh/bounds, references/history and saved settings are otherwise identical. Cold path geometry inherits the already completed native guard only after byte identity; no redundant native regeneration or fresh cold STEP is claimed. Physical printing/device execution remains unverified.
+
+Evidence: `CH11-Q4-support-everywhere-final-margin-browser-2026-10-10-audit.json` and `...-series-audit.json`; orientation/source preflight report; `print-support-exact-clearance-fix-2026-10-10.md`. The audit scripts only read protected authored exports and reconstruct verification geometry in memory.
+
+Cold evidence: `CH11-Q4-support-everywhere-final-margin-cold-browser-2026-10-10-audit.json` and final warm `...-series-audit.json`, which includes the complete cold field differences. Code and authored artifacts are frozen at this accepted checkpoint.
