@@ -1,6 +1,7 @@
 import { analyzeSectionBoundaries } from "./core/section_boundaries.js";
 import { balloonRadius, layoutBalloonCenters } from "./core/balloon_layout.js";
 import {drawingPrimitiveItems} from './core/drawing_primitives.js';
+import { canCropView, cropDrawingProjection, clipCropEdges } from './core/drawing_crop.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -159,6 +160,7 @@ export function createView(dir, options = {}) {
     labelled: options.labelled !== false,
     section: options.section || null,                      // {axis, at, from, arrows, tag}
     detail: options.detail || null,                        // {from, u, v, radius, tag}
+    cropSketch: options.cropSketch || null,                // closed spline in projected model coordinates
   };
 }
 
@@ -598,20 +600,29 @@ export function layoutViews(doc, extents) {
    the screen. */
 export function createProjector(doc, bodies, options = {}) {
   const cache = new Map();
+  const resolving = new Set();
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0)].join("|");
+    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0)].join("|");
     if (cache.has(key)) return cache.get(key);
+    // Malformed saved parent graphs must not recurse forever or show unrelated geometry.
+    if (resolving.has(view.id)) return null;
+    resolving.add(view.id);
     const viewBodies = options.bodiesForView ? options.bodiesForView(view) || bodies : bodies;
     const viewOptions={...options,shaded:["shaded","shadedEdges"].includes(view.displayStyle)};
     let projection = null;
     if (view.section) projection = projectSection(doc, view, viewBodies, viewOptions);
     else if (view.detail) {
       const parent = (doc.views || []).find((entry) => entry.id === view.detail.from);
-      const base = parent ? project({...parent,displayStyle:view.displayStyle}) : projectSolid(viewBodies, view.dir, viewOptions);
+      const base = parent ? project({...parent,displayStyle:view.displayStyle}) : null;
       projection = cropProjection(base, view.detail);
     } else projection = projectSolid(viewBodies, view.dir, viewOptions);
+    if(view.cropSketch) {
+      try { projection = canCropView(view,doc) ? cropDrawingProjection(projection,view.cropSketch) : null; }
+      catch { projection = null; } // Invalid persisted boundaries never display uncropped geometry.
+    }
     cache.set(key, projection);
+    resolving.delete(view.id);
     return projection;
   };
   return project;
@@ -1297,18 +1308,21 @@ export function buildSheetScene(doc, provider, options = {}) {
       } else items.push({type:"poly",closed:true,pts:pts.slice(),paths:[pts],fill:surface.fill,viewId:view.id,shaded:true});
     }
 
-    if (projection.cuts?.length) {
-      const boundary = analyzeSectionBoundaries(projection.cuts, Math.max(1e-4, (extent.w + extent.h) * 1e-3));
+    if ((projection.cropSourceCuts || projection.cuts)?.length) {
+      const boundary = analyzeSectionBoundaries(projection.cropSourceCuts || projection.cuts, Math.max(1e-4, (extent.w + extent.h) * 1e-3));
       diagnostics.push(...boundary.issues.map(issue => ({...issue,viewId:view.id})));
       if (!boundary.ok) items.push(text(record.box.x, record.box.y - 3, "Section boundary needs repair — hatching omitted", {size:2.5,anchor:"start",viewId:view.id}));
       const loops = boundary.loops.map((loop) => loop.map((point) => toSheet(point)));
-      for (const segment of hatchLoops(loops, { spacing: 2.2, angle: 45 })) {
-        items.push(line(segment.x1, segment.y1, segment.x2, segment.y2, "hatch", { viewId: view.id }));
-      }
+      const cropBoundary=projection.cropBoundary?.map(p=>{const s=toSheet(p);return {u:s.x,v:s.y};});
+      const emitClipped=(a,b,style)=>{
+        const edges=[{a:{u:a.x,v:a.y},b:{u:b.x,v:b.y}}];
+        for(const edge of cropBoundary ? clipCropEdges(edges,cropBoundary) : edges) items.push(line(edge.a.u,edge.a.v,edge.b.u,edge.b.v,style,{viewId:view.id}));
+      };
+      for (const segment of hatchLoops(loops, { spacing: 2.2, angle: 45 })) emitClipped({x:segment.x1,y:segment.y1},{x:segment.x2,y:segment.y2},"hatch");
       for (const loop of loops) {
         for (let i = 0; i < loop.length; i++) {
           const a = loop[i], b = loop[(i + 1) % loop.length];
-          items.push(line(a.x, a.y, b.x, b.y, "section", { viewId: view.id }));
+          emitClipped(a,b,"section");
         }
       }
     }
@@ -1322,14 +1336,21 @@ export function buildSheetScene(doc, provider, options = {}) {
         items.push(exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "hidden", view.id) || line(a.x, a.y, b.x, b.y, "hidden", { viewId: view.id }));
       }
     }
+    const appendCenterItems=marks=>{
+      for(const mark of marks) {
+        if(!projection.cropBoundary || mark.type!=='line') {items.push(mark);continue;}
+        const edges=clipCropEdges([{a:record.toModel({x:mark.x1,y:mark.y1}),b:record.toModel({x:mark.x2,y:mark.y2})}],projection.cropBoundary);
+        for(const edge of edges) {const a=toSheet(edge.a),b=toSheet(edge.b);items.push({...mark,x1:a.x,y1:a.y,x2:b.x,y2:b.y});}
+      }
+    };
     for (const round of projection.circles || []) {
       if (drawEdges && (round.drawn === "visible" || (round.drawn === "hidden" && showHidden))) {
         const centrePoint = toSheet(round);
         items.push(circle(centrePoint.x, centrePoint.y, round.radius * k, round.drawn === "hidden" ? "hidden" : "outline", { viewId: view.id }));
       }
-      if (showCenters && round.visible && round.kind === "round") items.push(...centreMark(round, toSheet, k, view.id));
+      if (showCenters && round.visible && round.kind === "round") appendCenterItems(centreMark(round, toSheet, k, view.id));
     }
-    if (showCenters) items.push(...axisCentrelines(projection.circles || [], toSheet, k, view.id, showHidden));
+    if (showCenters) appendCenterItems(axisCentrelines(projection.circles || [], toSheet, k, view.id, showHidden));
     const explodedView = doc.views.find(item => /^iso/.test(item.dir || ""));
     const explodeLeaders = (provider?.explodeLines || []).filter(leader =>
       leader.viewId ? leader.viewId === view.id : view.id === explodedView?.id);
@@ -1870,10 +1891,23 @@ export function addViewToSheet(doc, dir, options = {}) {
 export function removeViewFromSheet(doc, id) {
   const index = doc.views.findIndex((view) => view.id === id);
   if (index < 0) return false;
-  const [removed] = doc.views.splice(index, 1);
-  doc.dims = (doc.dims || []).filter((dim) => dim.viewId !== id);
-  doc.notes = (doc.notes || []).filter((note) => !note.leader || note.leader.viewId !== id);
-  doc.views = doc.views.filter((view) => view.parent !== id || !(view.section || view.detail));
+  const removed = doc.views[index];
+  const removedIds = new Set([id]);
+  // Sections/details are dependent views, including Details of Details.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const view of doc.views) {
+      if (removedIds.has(view.id) || !(view.section || view.detail)) continue;
+      if ([view.parent, view.section?.from, view.detail?.from].some(parent => removedIds.has(parent))) {
+        removedIds.add(view.id);
+        changed = true;
+      }
+    }
+  }
+  doc.views = doc.views.filter(view => !removedIds.has(view.id));
+  doc.dims = (doc.dims || []).filter(dim => !removedIds.has(dim.viewId));
+  doc.notes = (doc.notes || []).filter(note => !removedIds.has(note.leader?.viewId));
   if (removed.primary && doc.views.length) doc.views[0].primary = true;
   return true;
 }

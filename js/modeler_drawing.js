@@ -22,8 +22,9 @@ import {
 import { isOrthoView, projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 import { planModelItems } from "./core/model_items.js";
 import {DRAWING_PRIMITIVE_TOOLS, drawingPrimitiveItems, drawingPrimitiveHit, snapDrawingPrimitivePoint, validateDrawingPrimitive} from "./core/drawing_primitives.js";
+import {canCropView,cropSplinePoints} from './core/drawing_crop.js';
 
-export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", "crop", "uncrop", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
 /** Axis-aligned picks have only one meaningful projected measurement.
  * Moving its label past an endpoint must not turn that measurement into zero. */
@@ -121,7 +122,7 @@ export function createDrawingController(host) {
       host.bodiesToken(), host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
-        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.configurationId, view.configurationName]) hash = fold(hash, value);
+        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.cropSketch, view.configurationId, view.configurationName]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
@@ -369,6 +370,17 @@ export function createDrawingController(host) {
     if (draft.kind==='primitive') {
       const points=draft.type==='arc' && draft.points.length>=2 ? draft.points.slice(0,2).concat(state.cursor) : draft.points.concat(state.cursor);
       try { for(const item of drawingPrimitiveItems({type:draft.type,points,style:'outline'}))paintItem(c,{...item,style:'highlight'}); } catch { /* First pick may coincide with cursor. */ }
+      return;
+    }
+    if(draft.kind==='crop' && place) {
+      const points=draft.points.concat(state.cursor ? place.toModel(state.cursor) : []);
+      let boundary=points;
+      try { boundary=cropSplinePoints({type:'closed-spline',points}); } catch { /* Show incomplete controls until closure is valid. */ }
+      c.beginPath();
+      boundary.map(p=>toScreen(place.toSheet(p))).forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));
+      if(points.length>=3)c.closePath();
+      c.stroke();
+      c.setLineDash([]);
       return;
     }
     if (draft.kind === "dim" && place) {
@@ -791,11 +803,30 @@ export function createDrawingController(host) {
       placeNote(state.draft);
       return true;
     }
+    if(state.tool==='crop' || state.tool==='uncrop') {
+      const doc=host.doc();
+      if(state.draft?.kind==='crop') {
+        const place=scene().views.find(p=>p.id===state.draft.viewId);
+        if(place && state.draft.points.length<64) state.draft.points.push(place.toModel(sheetPoint));
+        host.refresh();return true;
+      }
+      const hit=hitTest(sheetPoint),place=scene().views.find(p=>p.id===(hit?.kind==='view'?hit.id:null));
+      if(!place || (state.tool!=='uncrop' && !place.projection)) {host.flash('Choose a projected drawing view');return true;}
+      if(state.tool==='uncrop') {
+        const view=doc.views.find(v=>v.id===place.id);
+        if(view?.cropSketch) {host.pushUndo('Remove crop');view.cropSketch=null;invalidate();host.markDirty();host.refresh();}
+        return true;
+      }
+      if(!canCropView(place.view,doc,{exploded:!!host.isExplodedView?.(place.view)})) {host.flash('Crop cannot use a Detail, a Detail parent or an exploded view');return true;}
+      state.draft={kind:'crop',viewId:place.id,points:[place.toModel(sheetPoint)]};
+      host.flash('Click at least three boundary points; Enter closes the crop spline; Escape cancels');
+      host.refresh();return true;
+    }
     if (state.tool === "section" || state.tool === "detail") {
       const hit = hitTest(sheetPoint);
       const built = scene();
       const place = built.views.find((entry) => entry.id === (hit?.kind === "view" ? hit.id : null));
-      if (!place || !isOrthoView(place.view.dir) || place.view.detail) {
+      if (!place?.projection || (state.tool === "section" && (!isOrthoView(place.view.dir) || place.view.detail)) || (state.tool==='detail' && place.view.cropSketch)) {
         host.flash(host.t("drawPickParent"));
         return true;
       }
@@ -1383,6 +1414,17 @@ export function createDrawingController(host) {
 
   function keyDown(event) {
     const key = event.key;
+    if(key==='Enter' && state.draft?.kind==='crop') {
+      const doc=host.doc(),view=doc.views.find(v=>v.id===state.draft.viewId);
+      try {
+        if(!canCropView(view,doc,{exploded:!!host.isExplodedView?.(view)})) throw new Error('Crop parent is no longer available');
+        const sketch={type:'closed-spline',closed:true,points:state.draft.points.map(p=>({...p}))};
+        cropSplinePoints(sketch);
+        host.pushUndo('Crop view');view.cropSketch=sketch;state.draft=null;
+        invalidate();host.markDirty();host.flash('Crop applied; Remove crop restores the full view');
+      } catch(error) {host.flash(error.message);}
+      host.refresh();return true;
+    }
     if(key==='Enter' && state.draft?.kind==='primitive' && state.draft.type==='polyline') {commitPrimitive(state.draft);host.refresh();return true;}
     if (key === "Escape") {
       /* An in-flight layout drag outranks the draft/tool/selection ladder

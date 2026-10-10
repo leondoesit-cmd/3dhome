@@ -4098,6 +4098,8 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
     '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
+    '<button type="button" data-drawing-tool="crop"><i class="ph ph-crop"></i><span>Crop</span></button>' +
+    '<button type="button" data-drawing-tool="uncrop"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove crop</span></button>' +
     '<span class="md-drawing-tools-sep"></span>' +
     '<button type="button" id="mdSheetAutoDim"><i class="ph ph-ruler"></i><span>' + t("drawAutoDim") + '</span></button>' +
     '<button type="button" id="mdSheetModelItems"><i class="ph ph-ruler"></i><span>' + t("drawModelItems") + '</span></button>' +
@@ -12329,6 +12331,8 @@ function drawingHintText() {
   if (tool === "diam") return t("drawDiamHint");
   if (tool === "section") return t("drawSectionHint");
   if (tool === "detail") return t("drawDetailHint");
+  if (tool === "crop") return "Choose a drawing view, click boundary points, Enter closes the crop spline; Escape cancels";
+  if (tool === "uncrop") return "Click a cropped drawing view to restore its full projection";
   if (tool === "note") return t("drawNoteHint");
   if (tool === "sheetarc") return t("drawPaperArcHint");
   if (["sheetline","sheetpolyline","sheetrect","sheetcircle"].includes(tool)) return t("drawPaperHint");
@@ -12348,6 +12352,7 @@ function drawingSheet() {
       },
       doc: function () { return ensureSheetDoc(E.def, { title: { title: E.def && E.def.name || "" } }); },
       model: function () { return E.def; },
+      isExplodedView: function () {return E.docType==='assembly' && !!E.assembly && assemblyHasExplodedOffsets(E.assembly);},
       bodies: drawingBodies,
       bodiesForView: function(view,bodies){return configuredBodiesForView(E.def,view,bodies);},
       topology: drawingTopology,

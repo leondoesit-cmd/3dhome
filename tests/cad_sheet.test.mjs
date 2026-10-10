@@ -25,6 +25,96 @@ import { calloutText, calloutTextById, holeCallouts } from "../js/core/hole_call
 const BOX = { kind: "box", x0: -10, x1: 10, y0: 0, y1: 20, z0: -5, z1: 5 };
 const bodies = (...parts) => tessellateParts(parts);
 
+test("Detail gestures accept isometric and Detail parents, retain scale labels and cold geometry", () => {
+  const rig = table({ parts: [BOX] });
+  const c = rig.controller;
+  c.fit();
+  const iso = c.scene().views.find(p => p.view.dir === "iso");
+  const createDetail = (place, radius) => {
+    c.setTool("detail");
+    const centre = { x: place.x, y: place.y };
+    c.pointerDown({ button: 0 }, ...pixels(c, centre));
+    assert.equal(c.state.draft?.viewId, place.id, "gesture targets the actual parent");
+    const end = { x: centre.x + radius * place.k, y: centre.y };
+    c.pointerMove({ button: 0 }, ...pixels(c, end));
+    c.pointerUp({ button: 0 }, ...pixels(c, end));
+    return rig.document.drawing.views.at(-1);
+  };
+  const detail = createDetail(iso, 8);
+  assert.equal(detail.detail.from, iso.id);
+  assert.equal(detail.dir, "iso");
+  const childPlace = c.scene().views.find(p => p.id === detail.id);
+  const nested = createDetail(childPlace, 4);
+  assert.equal(nested.detail.from, detail.id);
+  assert.equal(nested.parent, detail.id);
+  assert.ok(scaleLabel(nested.scale));
+  const warm = c.scene();
+  const svg = sceneToSvg(warm);
+  assert.ok(svg.includes("DETAIL " + nested.detail.tag));
+  assert.ok(svg.includes(scaleLabel(nested.scale)), "enlargement is annotated");
+  const cold = JSON.parse(JSON.stringify(rig.document.drawing));
+  const project = createProjector(cold, bodies(BOX));
+  const projected = project(cold.views.find(v => v.id === nested.id));
+  assert.deepEqual(projected, warm.views.find(p => p.id === nested.id).projection);
+  assert.ok(projected.visible.length > 0);
+  for (const edge of projected.visible) for (const p of [edge.a, edge.b]) {
+    assert.ok(Math.hypot(p.u - nested.detail.u, p.v - nested.detail.v) <= 4.001);
+    assert.ok(Math.hypot(p.u - detail.detail.u, p.v - detail.detail.v) <= 8.001);
+  }
+  c.setTool("section");
+  c.pointerDown({ button: 0 }, ...pixels(c, { x: iso.x, y: iso.y }));
+  assert.equal(c.state.draft, null, "Section keeps its original orthographic restriction");
+});
+
+test("invalid Detail parent cycles and orphans never fabricate base geometry", () => {
+  const doc = createSheetDoc();
+  doc.views = [createView("iso", { id: "a", detail: { from: "b", u: 0, v: 0, radius: 5 } }),
+    createView("iso", { id: "b", detail: { from: "a", u: 0, v: 0, radius: 5 } }),
+    createView("iso", { id: "orphan", detail: { from: "missing", u: 0, v: 0, radius: 5 } })];
+  const project = createProjector(doc, bodies(BOX));
+  for (const view of doc.views) assert.equal(project(view), null);
+  assert.doesNotThrow(() => buildSheetScene(doc, { projection: project }));
+});
+
+test("ordinary Crop authoring stores an editable closed spline on the same view; removal and undo restore it",()=>{
+  const rig=table({parts:[BOX]}),c=rig.controller;c.fit();
+  const parent=c.scene().views.find(p=>p.view.dir==='iso'),count=rig.document.drawing.views.length;
+  c.setTool('crop');
+  for(const p of [{u:parent.centre.u-3,v:parent.centre.v-3},{u:parent.centre.u+3,v:parent.centre.v-3},{u:parent.centre.u+3,v:parent.centre.v+3},{u:parent.centre.u-3,v:parent.centre.v+3}]) {
+    c.pointerDown({button:0},...pixels(c,parent.toSheet(p)));
+    c.pointerUp({button:0},...pixels(c,parent.toSheet(p)));
+  }
+  assert.equal(parent.view.cropSketch,null,'authoring does not modify the view until Enter');
+  c.keyDown({key:'Enter'});
+  assert.equal(rig.document.drawing.views.find(v=>v.id===parent.id).cropSketch.points.length,4);
+  assert.equal(rig.document.drawing.views.find(v=>v.id===parent.id).cropSketch.type,'closed-spline');
+  assert.equal(rig.document.drawing.views.length,count,'Crop modifies original view instead of cloning a Detail');
+  assert.ok(c.scene().views.find(p=>p.id===parent.id).projection.cropBoundary);
+  c.setTool('uncrop');
+  const cropped=c.scene().views.find(p=>p.id===parent.id);
+  c.pointerDown({button:0},...pixels(c,{x:cropped.x,y:cropped.y}));
+  assert.equal(rig.document.drawing.views.find(v=>v.id===parent.id).cropSketch,null);
+  rig.undo();
+  assert.ok(rig.document.drawing.views.find(v=>v.id===parent.id).cropSketch);
+  rig.undo();
+  assert.equal(rig.document.drawing.views.find(v=>v.id===parent.id).cropSketch,null);
+});
+
+test("deleting a Detail parent removes all dependent views and their annotations", () => {
+  const doc = createSheetDoc();
+  doc.views = [createView("iso", { id: "base", primary: true }),
+    createView("iso", { id: "child", parent: "base", detail: { from: "base" } }),
+    createView("iso", { id: "grandchild", detail: { from: "child" } }),
+    createView("front", { id: "keep" })];
+  doc.dims = [{ id: "remove", viewId: "grandchild" }, { id: "keep", viewId: "keep" }];
+  doc.notes = [{ id: "remove", leader: { viewId: "child" } }, { id: "plain" }];
+  assert.equal(removeViewFromSheet(doc, "base"), true);
+  assert.deepEqual(doc.views.map(v => v.id), ["keep"]);
+  assert.equal(doc.views[0].primary, true);
+  assert.deepEqual(doc.dims.map(d => d.id), ["keep"]);
+  assert.deepEqual(doc.notes.map(n => n.id), ["plain"]);
+});
+
 /* ---- projection --------------------------------------------------------- */
 
 test("a box front view is four visible lines and nothing dashed", () => {
