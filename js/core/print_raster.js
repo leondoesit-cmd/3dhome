@@ -91,6 +91,45 @@ export function rasterLines(mask,g,spacing,vertical=false) {
   return lines;
 }
 
+// Capture the actual deposited capsule envelope, including the conservative
+// inset of model walls. A brim based on nominal CAD contours can otherwise
+// miss the printed bead by the raster safety margin.
+export function depositionFootprint(paths,g) {
+  const mask=new Uint8Array(g.size);
+  for(const path of paths) {
+    const radius=path.widthMm/2;
+    if(!Number.isFinite(radius)||radius<=0)throw new Error('Positive deposition width required');
+    for(let i=1;i<path.points.length;i++) {
+      const a=path.points[i-1],b=path.points[i];
+      if([a[0],a[1],b[0],b[1]].some(v=>!Number.isFinite(v)))throw new Error('Finite deposition coordinates required');
+      const dx=b[0]-a[0],dy=b[1]-a[1],squared=dx*dx+dy*dy;
+      const x0=Math.max(0,Math.floor((Math.min(a[0],b[0])-radius-g.x0)/g.step)),x1=Math.min(g.nx-1,Math.ceil((Math.max(a[0],b[0])+radius-g.x0)/g.step)),y0=Math.max(0,Math.floor((Math.min(a[1],b[1])-radius-g.y0)/g.step)),y1=Math.min(g.ny-1,Math.ceil((Math.max(a[1],b[1])+radius-g.y0)/g.step));
+      for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++) {
+        const px=g.x0+(x+.5)*g.step,py=g.y0+(y+.5)*g.step,t=squared?Math.max(0,Math.min(1,((px-a[0])*dx+(py-a[1])*dy)/squared)):0;
+        if(Math.hypot(px-a[0]-t*dx,py-a[1]-t*dy)<=radius+1e-9)mask[y*g.nx+x]=1;
+      }
+    }
+  }
+  return mask;
+}
+
+export function brimPathsFromDeposition(paths,g,widthMm) {
+  if(!Number.isFinite(widthMm)||widthMm<0||widthMm>10)throw new Error('Invalid brim width');
+  const footprint=depositionFootprint(paths,g),loops=[];
+  // The book's brim surrounds the base. Fill enclosed deposition gaps only
+  // in this adhesion mask, keeping inner holes and infill gaps free of brim.
+  const outside=new Uint8Array(g.size),queue=new Int32Array(g.size);let head=0,tail=0;
+  const visit=index=>{if(!footprint[index]&&!outside[index]){outside[index]=1;queue[tail++]=index;}};
+  for(let x=0;x<g.nx;x++){visit(x);visit((g.ny-1)*g.nx+x);}
+  for(let y=0;y<g.ny;y++){visit(y*g.nx);visit(y*g.nx+g.nx-1);}
+  while(head<tail){const index=queue[head++],x=index%g.nx,y=Math.floor(index/g.nx);if(x)visit(index-1);if(x+1<g.nx)visit(index+1);if(y)visit(index-g.nx);if(y+1<g.ny)visit(index+g.nx);}
+  for(let index=0;index<g.size;index++)if(!outside[index])footprint[index]=1;
+  // One-cell spacing keeps the first dilation (which includes a cell margin)
+  // connected to ring zero; ordinary line-width spacing can leave an air gap.
+  for(let ring=0;ring*g.step<=widthMm+1e-9;ring++)loops.push(...maskLoops(ring?dilateMask(footprint,g,ring*g.step):footprint,g));
+  return loops;
+}
+
 // Independent exact contour check: a sub-grid slot/hole must never become a
 // deposition bridge merely because centre sampling missed that void.
 export function depositionClearsContours(points,contours,radius) {

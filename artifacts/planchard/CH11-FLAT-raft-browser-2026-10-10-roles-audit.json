@@ -1,0 +1,37 @@
+{
+  "checks": {
+    "twoRaftLayersOnly": true,
+    "raftPlanes": true,
+    "firstModelPlane": true,
+    "modelRaisedSixTenths": true,
+    "sameGridModelXYExact": true,
+    "allBeadEnvelopesFitBed": true,
+    "threeActualSvgWitnesses": true,
+    "sourceFingerprintExact": true,
+    "sourceBoundsExact": true,
+    "noSupport": true
+  },
+  "acceptedDigitalRoles": true,
+  "actualWorkflowAccepted": false,
+  "firstLayers": [
+    {
+      "number": 1,
+      "zMm": 0.2,
+      "sourceLayer": null,
+      "paths": 152
+    },
+    {
+      "number": 2,
+      "zMm": 0.4,
+      "sourceLayer": null,
+      "paths": 279
+    },
+    {
+      "number": 3,
+      "zMm": 0.8,
+      "sourceLayer": 1,
+      "paths": 156
+    }
+  ],
+  "qualification": "Raft raises deposition paths by 0.6mm; native CAD unchanged. Physical printing and adhesion unverified; cold replay pending."
+}

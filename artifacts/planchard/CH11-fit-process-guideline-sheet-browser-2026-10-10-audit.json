@@ -1,0 +1,57 @@
+{
+  "status": "cold-accepted-browser-worksheet",
+  "coldAcceptance": true,
+  "checks": {
+    "oneNoteExactSourcePlan": true,
+    "fifteenRows": true,
+    "svgNoteTextExact": true,
+    "noteBaselinesInsidePaperAndAboveTitle": true,
+    "sourceNominalClearance": true,
+    "zeroAuthoredCAD": true,
+    "zeroProjectedOrDimensionedGeometry": true,
+    "sheetSettings": true,
+    "titleAndBlankGeneralTolerance": true
+  },
+  "sourcePages": "PDF548-555 / 11-28-11-35",
+  "savedModel": {
+    "key": "cm_mv2metx9_6409",
+    "name": "Planchard Chapter 11 - fit and process guideline worksheet - browser 2026-10-10"
+  },
+  "note": {
+    "id": "n0xmocku",
+    "x": 40.85704456393054,
+    "y": 28.603998864981705,
+    "rowCount": 15,
+    "maxCharacters": 76,
+    "svgFontMm": 2.8,
+    "lastBaselineMm": 81.524
+  },
+  "nominalGeometryMm": {
+    "shaft": "4.77520",
+    "bore": "4.82600000000000030",
+    "diametralGap": "0.05080000000000030",
+    "radialGap": "0.02540000000000015"
+  },
+  "qualification": "Manual native Drawing Note, independently source-checked; nominal pair values are not live associated drawing dimensions. No physical print, fit test, pad CAD, proprietary driver/network monitoring or certification claim.",
+  "visualWitness": "Actual provided PNG inspected: all fifteen note lines inside border, no overlap with title/revision, sheet settings visible; text is small at full-sheet zoom.",
+  "files": {
+    "bundleBytes": 5637,
+    "svgBytes": 10606,
+    "pngBytes": 177888
+  },
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "wholeNativeNoteExact": true,
+    "svgByteExact": true,
+    "wholeBundleExactExceptThreeAuditExportTimestamps": true
+  },
+  "coldFiles": {
+    "bundleBytes": 5637,
+    "svgBytes": 10606
+  },
+  "allowedColdDifferences": [
+    "createdAt",
+    "mainModel.lastStandardsAudit.at",
+    "mainModel.lastRebuild.rebuiltAt"
+  ]
+}

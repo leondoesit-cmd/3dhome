@@ -45,7 +45,7 @@ test('adhesion is real geometry, raft raises deposition, and generated footprint
   const source=layers(Array.from({length:3},()=>[rect(-5,-5,5,5)]));
   const skirt=await toolpathsFromLayers(source,{adhesion:'skirt'}),brim=await toolpathsFromLayers(source,{adhesion:'brim'}),raft=await toolpathsFromLayers(source,{adhesion:'raft'});
   assert.ok(count(skirt,'skirt')>0);assert.ok(count(brim,'brim')>count(skirt,'skirt'));assert.ok(count(raft,'raft')>0);
-  const firstBrim=brim.layers[0].paths.find(p=>p.kind==='brim');assert.ok(firstBrim.points.some(p=>Math.abs(p[0])===5));
+  const firstBrim=brim.layers[0].paths.find(p=>p.kind==='brim'),wall=brim.layers[0].paths.find(p=>p.kind==='wall');assert.ok(firstBrim.points.some(p=>wall.points.some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<=(firstBrim.widthMm+wall.widthMm)/2)));
   assert.equal(raft.layerCount,5);assert.ok(raft.layers[2].zMm>source.layers[0].topZMm);
   await assert.rejects(toolpathsFromLayers(source,{adhesion:'skirt'},{printSetup:{bedWidthMm:12,bedDepthMm:12,bedHeightMm:5}}),/exceed/);
 });
@@ -70,7 +70,7 @@ test('bed fit includes bead half-width, validates dimensions, and independently 
   const source=layers([[rect(-5,-5,5,5)]]),settings={gridMm:.125,adhesion:'brim',adhesionWidthMm:0};
   await assert.rejects(toolpathsFromLayers(source,settings,{printSetup:{bedWidthMm:10,bedDepthMm:10,bedHeightMm:5}}),/exceed/);
   const slice=await toolpathsFromLayers(source,settings);
-  assert.ok(slice.bounds.min[0]<=-5.2&&slice.bounds.max[0]>=5.2);assert.equal(slice.bounds.min[2],0);
+  const deposited=slice.layers.flatMap(l=>l.paths.flatMap(p=>p.points.map(q=>[q[0]-p.widthMm/2,q[0]+p.widthMm/2])));assert.equal(slice.bounds.min[0],Math.min(...deposited.map(p=>p[0])));assert.equal(slice.bounds.max[0],Math.max(...deposited.map(p=>p[1])));assert.ok(slice.bounds.max[0]>5);assert.equal(slice.bounds.min[2],0);
   assert.throws(()=>toolpathsGcode(slice,{bedWidthMm:10,bedDepthMm:10}),/bead envelope/);
   await assert.rejects(toolpathsFromLayers(source,{}, {printSetup:{bedWidthMm:NaN,bedDepthMm:10,bedHeightMm:5}}),/finite and positive/);
 });

@@ -1,5 +1,5 @@
 import {analyzePrintLayers} from './print_layer_analysis.js';
-import {printGrid,rasterContours,maskDistance,erodeMask,dilateMask,maskLoops,rasterLines,depositionClearsContours,clipSupportPaths} from './print_raster.js';
+import {printGrid,rasterContours,maskDistance,erodeMask,dilateMask,maskLoops,rasterLines,depositionClearsContours,clipSupportPaths,brimPathsFromDeposition} from './print_raster.js';
 
 export const FFF_DEFAULTS=Object.freeze({layerHeightMm:.2,gridMm:.2,lineWidthMm:.4,filamentDiameterMm:1.75,wallCount:2,skinLayers:3,infillPercent:15,support:'off',supportAngle:45,supportGapMm:.2,supportXYGapMm:.4,supportPercent:15,adhesion:'none',adhesionWidthMm:3.5,raftLayers:2,wallSpeed:40,infillSpeed:40,travelSpeed:100});
 export function validateFffSettings(input={}) {
@@ -86,7 +86,9 @@ export async function toolpathsFromLayers(analysis,input={},options={}) {
     }
     if(index===0&&['skirt','brim'].includes(s.adhesion)) {
       if(s.adhesion==='skirt')for(const loop of maskLoops(dilateMask(masks[0],g,s.adhesionWidthMm),g))add(layer,loop,'skirt','adhesion',true);
-      else for(let offset=0;offset<=s.adhesionWidthMm;offset+=s.lineWidthMm)for(const loop of maskLoops(offset?dilateMask(masks[0],g,offset):masks[0],g))add(layer,loop,'brim','adhesion',true);
+      else {
+        for(const loop of brimPathsFromDeposition(layer.paths.filter(path=>['wall','skin','infill'].includes(path.kind)),g,s.adhesionWidthMm))add(layer,loop,'brim','adhesion',true);
+      }
     }
     layers.push(layer);
   }
