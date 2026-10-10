@@ -118,7 +118,7 @@ const MODEL = [
     ["Look", [T("Paint", "ph-paint-bucket", "mcmd:paint"), T("Finish preview", "ph-eye", "mcmd:finishpreview")]],
   ]],
   ["Output", [
-    ["Use", [T("Configurations", "ph-sliders", "mcmd:config"), T("Save to library", "ph-floppy-disk", "mclick:#mdSave"), T("Model library", "ph-books", "mclick:#mdLib"), T("Branch", "ph-git-branch", "mcmd:branch"), T("Print setup", "ph-printer", "mcmd:printsetup"), T("Export GLB", "ph-cube", "mcmd:exportglb")]],
+    ["Use", [T("Configurations", "ph-sliders", "mcmd:config"), T("Save to library", "ph-floppy-disk", "mclick:#mdSave"), T("Model library", "ph-books", "mclick:#mdLib"), T("Branch", "ph-git-branch", "mcmd:branch"), T("Print setup", "ph-printer", "mcmd:printsetup"), T("Layer analysis", "ph-printer", "mcmd:layeranalysis"), T("Export GLB", "ph-cube", "mcmd:exportglb")]],
     ["Exchange", [T("Project bundle", "ph-package", "mcmd:bundle"), T("Open bundle", "ph-folder-open", "mcmd:bundlein"), T("Import STEP", "ph-download-simple", "mcmd:stepin"), T("Export STEP", "ph-export", "mcmd:stepout"), T("Export IGES", "ph-export", "mcmd:igesout"), T("Export STL", "ph-export", "mcmd:stlout"), T("Export 3MF", "ph-printer", "mcmd:3mfout"), T("Export AMF", "ph-printer", "mcmd:amfout")]],
   ]],
 ];
@@ -219,7 +219,7 @@ export const PRO_HE = {
   "Evaluate": "הערכה", "Measure": "מדידה", "Mass props": "תכונות מסה", "Section view": "מבט חתך", "Fit check": "בדיקת התאמה", "Fit view": "התאם תצוגה",
   "Toolbox": "ארגז כלים", "Standard parts": "חלקים תקניים", "Std screw": "בורג תקני", "Std gear": "גלגל שיניים תקני",
   "Drawing": "שרטוט", "Sheet": "גיליון", "BOM": "רשימת חלקים", "Note": "הערה", "Appearance": "מראה", "Look": "מראה", "Paint": "צביעה",
-  "Print setup": "הגדרות הדפסה", "Export 3MF": "ייצוא 3MF", "Export AMF": "ייצוא AMF",
+  "Print setup": "הגדרות הדפסה", "Layer analysis": "ניתוח שכבות", "Export 3MF": "ייצוא 3MF", "Export AMF": "ייצוא AMF",
   "Exchange": "החלפת קבצים", "Project bundle": "חבילת פרויקט", "Open bundle": "פתח חבילה", "Import STEP": "ייבוא STEP", "Export STEP": "ייצוא STEP", "Export IGES": "ייצוא IGES", "Export STL": "ייצוא STL",
   "Design": "עיצוב", "Start": "התחלה", "Families": "משפחות", "Presets": "תבניות", "Blank carcass": "גוף ריק",
   "Horizontal partition": "מחיצה אופקית", "Vertical partition": "מחיצה אנכית", "Erase partition": "מחק מחיצה",

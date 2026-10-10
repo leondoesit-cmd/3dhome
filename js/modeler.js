@@ -141,18 +141,20 @@ import { addFeature, ensureFeatureTree, releaseRegeneration } from "./cad_featur
 import { regenerateInCadWorker as regenerateFeatures, finishInCadWorker, interferenceInCadWorker, assemblyStepInCadWorker, assemblyPrintInCadWorker, partStepInCadWorker, cutIntersectionInCadWorker, surfaceSectionsInCadWorker, topologyInCadWorker, cadWorkerAvailable, cancelCadWorkerWork, cadWorkerActivity, subscribeCadWorkerActivity } from './core/cad_worker_client.js';
 import { interferenceDocument } from './core/worker_interference.js';
 import { assemblyInterferenceScope } from './core/assembly_interference_scope.js';
+import { interferenceVolumeLabel } from './core/interference_volume_label.js';
 import {canonicalFeatureTopologyReferences,featureInputStage} from './core/feature_input_stage.js';
 import {setSketchOffset,sketchOffsetValue} from './core/sketch_offset.js';
 import {pointerCameraRay} from './core/editor_projection.js';
 import {createExactRebuildQueue} from './core/exact_rebuild_queue.js';
 import { exportBinaryStl, stlMeshOptions } from "./cad_stl.js";
 import { prepareNativePrintPositions, printSetupExtents } from "./core/print_setup.js";
-import { exportThreeMf } from "./cad_3mf.js";
+import { exportThreeMf, printMeshFromPositions } from "./cad_3mf.js";
+import { analyzePrintLayers, printLayerSvg, printLayerSourceStamp } from './core/print_layer_analysis.js';
 import { exportAmf } from "./cad_amf.js";
 import {
   exportStep, exportIges, importStep,
   makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, boundsMayOverlap, brepConnectedGroups, chamferBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, placeBrep, placedBrepBounds, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
-  serializeBrep, transformBrep, translateBrep, unifyBrepFaces,
+  serializeBrep, transformBrep, translateBrep, unifyBrepFaces, validateBrepForExport,
 } from "./cad_kernel.js";
 import { buildDrawingScene } from "./cad_drawings.js";
 import { configuredBodiesForView } from "./cad_configured_drawing.js";
@@ -3981,6 +3983,7 @@ function buildDOM() {
         commandButton("stepout", t("stepExport"), null, "", t("stepExport")),
         commandButton("igesout", t("exportIges"), null, "", t("exportIges")),
         commandButton("stlout", t("exportStl"), null, "", t("exportStlTip")),
+        commandButton("layeranalysis", "Layer analysis"),
         // the unit override belongs next to the import it modifies, not in the header
         '<label class="md-command-field"><span>' + t("sourceUnits") + '</span>' +
         '<select id="mdStepUnit" aria-label="' + t("sourceUnits") + '"><option value="auto">' + t("stepAuto") + '</option>' +
@@ -4008,6 +4011,7 @@ function buildDOM() {
       ]) +
       commandGroup("grpFile", [
         commandButton("printsetup", "Print setup"),
+        commandButton("layeranalysis", "Layer analysis"),
         commandButton("stlout", t("exportStl")),
         commandButton("3mfout", "Export 3MF"),
         commandButton("amfout", "Export AMF"),
@@ -7348,6 +7352,7 @@ function runCommand(id) {
   else if (id === "3mfout") openStlExportForm("3mf");
   else if (id === "amfout") openStlExportForm("amf");
   else if (id === "printsetup") openPrintSetupForm();
+  else if (id === "layeranalysis") openPrintLayerAnalysis();
   else if (id === "drawing") {
     if (E.docType === "assembly" && E.assembly) showAssemblyDrawingSettings();
     else exportDrawingSvg();
@@ -25822,6 +25827,70 @@ async function exportIgesDocument(unqualifiedDraft) {
   } catch (error) { flash(t("errIges") + ": " + String(error.message || error)); }
 }
 
+async function openPrintLayerAnalysis() {
+  if(E.docType!=="part" && E.docType!=="assembly")return;
+  var type=E.docType,printDocument=type==="assembly"?E.assembly:E.def;
+  if(!printDocument.printSetup){flash("Save Print setup before analyzing oriented layers",5000);return;}
+  if(type==="assembly" && rejectFlexibleSpringPreview())return;
+  function stamp(){return type==="assembly"?JSON.stringify({source:assemblyPrintRequests(),printSetup:printDocument.printSetup}):printLayerSourceStamp(E.def,printDocument.printSetup);}
+  var sourceStamp=stamp(),meshes,analysis=null,busy=false,inputs;
+  function assertCurrent(requireForm){
+    if(E.docType!==type || (type==="assembly"?E.assembly:E.def)!==printDocument || sourceStamp!==stamp() || (requireForm && E.quickAction!=="layeranalysis"))throw new Error("Print source, orientation or dialog changed; reopen Layer analysis");
+  }
+  try{
+    var settings={quality:"custom",deviationMm:0.01,angleDegrees:5,printSetup:cloneData(printDocument.printSetup)};
+    if(type==="assembly"){
+      var result=await assemblyPrintInCadWorker(assemblyPrintRequests(),{...settings,layerAnalysisOnly:true},{onProgress:function(p){flash((p.name || p.stage)+"…");}});
+      meshes=result.meshes;
+    }else{
+      var run=exactRunIsCurrent()?E.brepRun:await regenerateExactModel();
+      if(!run?.ok || !run.finalShape)throw new Error("Layer analysis needs a closed native solid");
+      await validateBrepForExport(run.finalShape);
+      var mesh=await shapeToMeshData(run.finalShape,stlMeshOptions(settings));
+      meshes=[{...printMeshFromPositions(prepareNativePrintPositions(mesh.positions,settings.printSetup)),name:printDocument.name}];
+    }
+    assertCurrent(false);
+  }catch(error){flash(String(error.message || error),6000);return;}
+  var preview=el("div","md-print-bed-preview"),exports=el("div","md-feature-actions");
+  function show(values){
+    if(!analysis){preview.textContent="Apply to calculate actual geometric layer contours.";return;}
+    if(Number(values.layerHeightMm)!==analysis.layerHeightMm){preview.textContent="Layer height changed. Apply to calculate this comparison before exporting.";return;}
+    try{
+      assertCurrent(true);var number=Number(values.layer),layer=analysis.layers[number-1];
+      var svg=printLayerSvg(analysis,number),loops=layer.objects.reduce((n,o)=>n+o.contours.length,0),holes=layer.objects.reduce((n,o)=>n+o.contours.filter(c=>c.hole).length,0);
+      preview.innerHTML=svg+'<p>'+analysis.layerCount+' geometric layers · Layer '+number+' · section Z '+layer.sectionZMm.toFixed(3)+' mm · '+loops+' closed contours / '+holes+' holes · area '+layer.areaMm2.toFixed(3)+' mm²</p><small>'+analysis.qualification+'</small>';
+      preview.querySelector("svg").style.maxHeight="260px";
+    }catch(error){preview.textContent=String(error.message || error);}
+  }
+  function exportAnalysis(format){
+    try{
+      assertCurrent(true);
+      if(!analysis || busy || Number(inputs.layerHeightMm.value)!==analysis.layerHeightMm)throw new Error("Apply the current layer height before exporting");
+      var name=(printDocument.name || "model")+"-layer-analysis";
+      if(format==="svg")downloadBytes(printLayerSvg(analysis,Number(inputs.layer.value)),name+"-"+inputs.layer.value+".svg","image/svg+xml");
+      else downloadBytes(JSON.stringify({...analysis,sourceName:printDocument.name,printSetup:settings.printSetup,tessellation:{deviationMm:0.01,angleDegrees:5}},null,2),name+".json","application/json");
+    }catch(error){flash(String(error.message || error),5000);}
+  }
+  inputs=openQuickForm({action:"layeranalysis",icon:"ph-printer",title:"Layer analysis",presentationOnly:true,hint:"Read-only mid-slab contours of the actual native print mesh in the saved orientation. This is geometric layer analysis; no infill, supports, toolpaths or G-code.",fields:[
+    {key:"layerHeightMm",label:"Layer height (mm)",type:"number",value:0.2,min:0.01,max:100,step:0.01},
+    {key:"layer",label:"Selected layer",type:"number",value:1,min:1,max:2000,step:1}
+  ],onLive:show,onApply:async function(values){
+    if(busy)return false;busy=true;preview.textContent="Calculating geometric layers…";
+    try{
+      assertCurrent(true);
+      var calculated=await analyzePrintLayers(meshes,{layerHeightMm:Number(values.layerHeightMm),assertCurrent:function(){assertCurrent(true);},yieldControl:function(){return new Promise(resolve=>setTimeout(resolve,0));}});
+      assertCurrent(true);analysis=calculated;inputs.layer.max=String(analysis.layerCount);inputs.layer.value=String(Math.min(Math.max(1,Number(values.layer)||1),analysis.layerCount));show({layerHeightMm:analysis.layerHeightMm,layer:Number(inputs.layer.value)});
+    }catch(error){analysis=null;preview.textContent=String(error.message || error);}
+    finally{busy=false;}
+    return false;
+  }});
+  if(inputs){
+    exports.appendChild(btn("Export layer analysis JSON",function(){exportAnalysis("json");}));
+    exports.appendChild(btn("Export selected layer SVG",function(){exportAnalysis("svg");}));
+    var actions=root.querySelector("#mdQuickSettings .md-feature-actions");actions?.before(preview,exports);show({});
+  }
+}
+
 async function openPrintSetupForm() {
   if(E.docType!=="part" && E.docType!=="assembly")return;
   var printDocument=E.docType==="assembly"?E.assembly:E.def,assemblyPreview=null,mesh,sourceStamp;
@@ -26973,7 +27042,7 @@ function renderAssemblyInterferenceReport(hits,labels,scopeCaption) {
     hits.length ? [scopeCaption,"Native overlaps: "+summary.rawExact+" · Declared contacts: "+summary.declared+" · Unreviewed overlaps: "+summary.unreviewed+" · Bounds only: "+summary.boundsOnly,t("interferenceVisualized")].concat(hits.map(function (h) {
       // Component ids mean nothing to the person reading the report.
       return "• " + (labels.get(h.a) || componentLabel(h.a)) + " ↔ " + (labels.get(h.b) || componentLabel(h.b)) +
-        (h.exact ? "   " + h.volume.toFixed(3) + " cm³" + (h.bounds ? "\n  X " + h.bounds.x0.toFixed(4) + "…" + h.bounds.x1.toFixed(4) + " · Y " + h.bounds.y0.toFixed(4) + "…" + h.bounds.y1.toFixed(4) + " · Z " + h.bounds.z0.toFixed(4) + "…" + h.bounds.z1.toFixed(4) + " cm" : "") : "   " + t("interferenceBoundsOnly")) + (expectedContactFor(E.assembly,h) ? "\n  Declared contact: "+expectedContactFor(E.assembly,h).reason : "");
+        (h.exact ? "   " + interferenceVolumeLabel(h.volume) + (h.bounds ? "\n  X " + h.bounds.x0.toFixed(4) + "…" + h.bounds.x1.toFixed(4) + " · Y " + h.bounds.y0.toFixed(4) + "…" + h.bounds.y1.toFixed(4) + " · Z " + h.bounds.z0.toFixed(4) + "…" + h.bounds.z1.toFixed(4) + " cm" : "") : "   " + t("interferenceBoundsOnly")) + (expectedContactFor(E.assembly,h) ? "\n  Declared contact: "+expectedContactFor(E.assembly,h).reason : "");
     })) : scopeCaption + "\n" + t("interferenceNoneBody"));
   if(!confirmed)return;
   var container=el("div","md-reference-options");container.id="mdExpectedContacts";

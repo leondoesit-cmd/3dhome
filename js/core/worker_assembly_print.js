@@ -2,7 +2,7 @@ import {compileKernelFeatureTree} from './kernel_feature_adapter.js';
 import {releaseRegeneration} from '../cad_feature_tree.js';
 import {placeBrep,disposeBrep,shapeToMeshData,validateBrepForExport} from '../cad_kernel.js';
 import {stlMeshOptions} from '../cad_stl.js';
-import {assemblyPrintBytes,assemblyPrintPreview} from './assembly_print.js';
+import {assemblyPrintBytes,assemblyPrintPreview,assemblyPrintMeshes} from './assembly_print.js';
 
 function requireRigidPlacement(placement) {
   const m=placement?.matrix,t=placement?.translation;
@@ -52,6 +52,7 @@ export async function workerAssemblyPrint(components,settings,rebuild,progress=(
       }
     }
     const preview=assemblyPrintPreview(occurrences);
+    if(settings?.layerAnalysisOnly)return {...preview,meshes:assemblyPrintMeshes(occurrences,settings.printSetup)};
     if(settings?.previewOnly)return preview;
     progress({stage:'export',name:(settings?.format || 'stl').toUpperCase()});
     return {...preview,bytes:assemblyPrintBytes(occurrences,settings),occurrences:occurrences.map(item=>({id:item.occurrenceId,name:item.name})),qualification:'Placed exact component snapshot; separate print meshes; CAD feature history remains in source assembly.'};
