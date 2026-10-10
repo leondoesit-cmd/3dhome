@@ -26,8 +26,9 @@ import {canCropView,cropSplinePoints} from './core/drawing_crop.js';
 import {canBreakOutView,projectBrokenOutView} from './core/drawing_broken_out.js';
 import {auxiliaryFaceCandidates,resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
 import {canBreakView,alignedBreakPlan} from './core/drawing_break.js';
+import {canAlternatePosition,alternatePositionBodies} from './core/drawing_alternate_position.js';
 
-export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", "alternateposition", "removealternateposition", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
 /** Axis-aligned picks have only one meaningful projected measurement.
  * Moving its label past an endpoint must not turn that measurement into zero. */
@@ -125,7 +126,7 @@ export function createDrawingController(host) {
       host.bodiesToken(), host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
-        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary, view.configurationId, view.configurationName]) hash = fold(hash, value);
+        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
@@ -818,6 +819,14 @@ export function createDrawingController(host) {
       placeNote(state.draft);
       return true;
     }
+    if(state.tool==='alternateposition' || state.tool==='removealternateposition') {
+      const hit=hitTest(sheetPoint),place=scene().views.find(p=>p.id===(hit?.kind==='view'?hit.id:null));
+      if(!place){host.flash('Choose the drawing view');return true;}
+      if(state.tool==='removealternateposition') {
+        if(place.view.alternatePosition){host.pushUndo('Remove Alternate Position');const live=host.doc().views.find(v=>v.id===place.id);if(live)live.alternatePosition=null;invalidate();host.markDirty();host.refresh();}
+      } else commitAlternatePosition(place);
+      return true;
+    }
     if(state.tool==='break' || state.tool==='unbreak') {
       const hit=hitTest(sheetPoint),place=scene().views.find(p=>p.id===(hit?.kind==='view'?hit.id:null));
       if(!place){host.flash('Choose the drawing view');return true;}
@@ -1492,6 +1501,30 @@ export function createDrawingController(host) {
     if (lower === "s" && !event.ctrlKey && !event.metaKey) { setTool("section"); return true; }
     if (lower === "h") { setSheetOption("showHidden", !host.doc().showHidden); host.refresh(); return true; }
     return false;
+  }
+
+  async function commitAlternatePosition(place) {
+    const doc=host.doc(),view=doc.views.find(v=>v.id===place.id),token=host.bodiesToken(),fingerprint=JSON.stringify(doc.views);
+    try {
+      if(!canAlternatePosition(view)||host.isExplodedView?.(view))throw new Error('Alternate Position needs an ordinary non-exploded edge view');
+      if(!host.promptFields)throw new Error('Alternate Position needs the drawing parameter form');
+      const active=host.bodies()||[],bodies=host.bodiesForView?host.bodiesForView(view,active):active;
+      if(!bodies.length)throw new Error('Alternate Position needs source body geometry');
+      const old=view.alternatePosition,fields=[
+        {key:'label',label:'Alternate pose label',type:'text',value:old?.label||'Illustrative alternate pose'},
+        {key:'body',label:'Source bodies',type:'select',value:old?.scope==='all'?'__all':old?.bodyIds?.[0]||'__all',choices:[{value:'__all',label:'All current bodies (rigid pose)'},...bodies.map(b=>({value:String(b.id),label:b.name||String(b.id)}))]},
+      ];
+      for(const [group,label,factor] of [['translation','Translation',10],['rotation','World rotation',1],['pivot','World pivot',10]])for(const axis of ['x','y','z'])fields.push({key:group+axis,label:label+' '+axis.toUpperCase()+(group==='rotation'?' (degrees)':' (mm)'),type:'number',value:(old?.[group]?.[axis]||0)*factor,step:.1});
+      const answer=await host.promptFields('Alternate Position — associative phantom overlay',fields,'Illustrative rigid study pose of current geometry, not a solved mate configuration. Rotation applies about the world pivot in X, then Y, then Z order. Base geometry, dimensions and mates stay unchanged.');
+      if(!answer)return;
+      if(host.doc()!==doc||host.bodiesToken()!==token||JSON.stringify(doc.views)!==fingerprint)throw new Error('Drawing or source changed while choosing Alternate Position; retry');
+      const modifier={version:1,label:String(answer.label||'').trim(),scope:answer.body==='__all'?'all':'selected',bodyIds:answer.body==='__all'?bodies.map(b=>String(b.id)):[String(answer.body)],sourceConfigurationId:view.configurationId||null};
+      for(const [group,factor] of [['translation',10],['rotation',1],['pivot',10]])modifier[group]=Object.fromEntries(['x','y','z'].map(axis=>[axis,Number(answer[group+axis])/factor]));
+      alternatePositionBodies(bodies,{...view,alternatePosition:modifier});
+      host.pushUndo('Alternate Position');
+      const live=host.doc().views.find(v=>v.id===place.id);if(!live)throw new Error('Alternate Position parent disappeared');
+      live.alternatePosition=modifier;invalidate();host.markDirty();host.flash('Alternate Position applied; source model and base dimensions preserved');host.refresh();
+    }catch(error){host.flash(error.message);host.refresh();}
   }
 
   async function commitBreak(place) {

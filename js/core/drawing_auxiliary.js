@@ -6,7 +6,7 @@ const cross=(a,b)=>({x:a.y*b.z-a.z*b.y,y:a.z*b.x-a.x*b.z,z:a.x*b.y-a.y*b.x});
 const unit=p=>{const length=Math.hypot(p?.x,p?.y,p?.z);if(!Number.isFinite(length)||length<1e-9)throw new Error('Auxiliary reference direction is invalid');return {x:p.x/length,y:p.y/length,z:p.z/length};};
 
 export function auxiliaryParentAllowed(parent) {
-  return !!parent && isOrthoView(parent.dir) && !['section','detail','cropSketch','brokenOut','breakView','auxiliary','exploded'].some(key=>parent[key]);
+  return !!parent && isOrthoView(parent.dir) && !['section','detail','cropSketch','brokenOut','breakView','auxiliary','exploded','alternatePosition'].some(key=>parent[key]);
 }
 
 export function auxiliaryFaceCandidates(parent,edgeId,index) {

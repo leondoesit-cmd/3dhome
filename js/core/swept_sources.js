@@ -147,7 +147,7 @@ export function resolveSketchSources(def, sources, resolveProfilePoints) {
     var featureId=sources.helixFeatureId || helix.featureId;
     var feature=(def.features || []).find(function(item){return item && item.id===featureId && item.type==="helix";});
     if(feature)try{helix={...helix,...helixFromSketch(def,feature.params || {})};}catch(error){return null;}
-    return { profile:profile, ...helixSweepPath(helix) };
+    return { profile:profile, profileSegments:sketchPathSegments(sketchById(def,sources.profile.sketchId),sources.profile.entityIds), ...helixSweepPath(helix) };
   }
   var pathSketch = sketchById(def, sources.path && sources.path.sketchId);
   var path=sampleSketchPath(pathSketch,sources.path && sources.path.entityIds);

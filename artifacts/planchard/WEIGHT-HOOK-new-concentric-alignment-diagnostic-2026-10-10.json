@@ -1,0 +1,68 @@
+{
+  "input": "C:\\Users\\liron\\Downloads\\WEIGHT-HOOK8_1_-_rebuilt_2026-09-28 (9).mforge",
+  "assemblyKey": "asm_mukhtlq5",
+  "accepted": false,
+  "newConcentric": {
+    "id": 6400,
+    "aligned": false,
+    "a": "axis:feature_mukg3htj_2:tool:face:side:342",
+    "b": "axis:feature_mukhbwfg_1:face:generated:cylinder:1",
+    "axes": [
+      {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 1.3534527899608291e-260
+      }
+    ]
+  },
+  "existingCoincident": {
+    "id": 445,
+    "aligned": true,
+    "circleCenters": [
+      {
+        "x": 0,
+        "y": 1.27,
+        "z": 0
+      },
+      {
+        "x": -1.3877787807814457e-17,
+        "y": 0.635,
+        "z": 1.3877787807814457e-17
+      }
+    ],
+    "circleAxes": [
+      {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      {
+        "x": 2.9919570582127376e-123,
+        "y": 1,
+        "z": 0
+      }
+    ]
+  },
+  "currentHookTransform": {
+    "x": 0,
+    "y": 2.643756308,
+    "z": 0,
+    "rx": -180,
+    "ry": 0,
+    "rz": 0,
+    "q": {
+      "x": 1,
+      "y": 0,
+      "z": 0,
+      "w": 0
+    }
+  },
+  "diagnosis": "New Concentric alignedfalse requires opposite+Y axes; existing Coincident alignedtrue requires same circle+Y direction. CurrentHookRx−180 reflects this conflict. Genuine native axis references remain correct.",
+  "actualBrowserCorrectionSuggested": "Edit newConcentric6400 toalignedtrue/Fliponce; preserve existingCoincident445 andRightPlane447; verify HooktranslationY.635 and0DOF beforeSave/cold.",
+  "noModelAuthoring": true
+}

@@ -1,0 +1,17 @@
+# Optional HOOK custom helix cut browser audit — 2026-10-10
+
+**Qualified native15/15PASS; containment/dimension issue and final cold workflow pending.** Actualbrowser bundle `HOOK-custom-helix-cut-qualified-browser-2026-10-10.mforge`, actualSTEP581584bytes and actualPNG protect a real SweepCut, not a script-authored model. Canonical native rebuild validates one connected solid,V.47333269538299405cm³ versus precedingDome.4951556552177843cm³; cut removes.021822959834790268cm³. ActualSTEP is valid/connected and equals regenerated native geometry by both directional subtraction residuals0.
+
+The existing#8-36Thread definition remains preserved but suppressed only within this optional legacy-companion variant. OriginalSweep/Dome definitions remain exact. Source-valuedhelix P.127cm/4turns/H.508cm/start0, centered D.381cm circleTopoffset.0508cm, genuine fullydefinedD.0762cm circular profile andPierce-at-start association persist. ActualSweepCut targetsDome and references the real profile/helixfeature/reference; eight history steps settle. Resolver preserves two analytic circular arcs; original path/datum/polar qualification remains explicit rather than claiming recovered publisher IDs.
+
+Independent review/test of generic implementation passes4/4: ordinary two-sketch guard, actual one-profileUIhandler/no-target nonmutation, canonical target/helix dependency and guarded deletion, nativeconnected cut/STEP/driving profile+pitch changes, retargeted canonical+compatibility references. No code/model/browser authoring was performed by this audit.
+
+Nativecut bounds X−.2287243016923115..+.22872454644378193cm are wider than stock±.1905cm, and protected tessellation also widensX. Volume reduction/STEP equality alone do not prove stock containment. An independent cut-minus-preceding-Dome residual audit is pending; final acceptance is withheld until this apparent enlargement is explained or fixed. The actual header dimension thus is not silently certified as original. Two original stem-cylinder names remain in finalnative geometry (`feature_mukhbwfg_1:face:generated:cylinder:1` and`:2`,R.1905cm/axis+Y) for genuine updated childmate references.
+
+Source hierarchy: Chapter7PDF370/7-62 explicitlyrequires RH#8-36InchDieCutThread/PlainCarbonSteel, so original tutorial branch stayscorrect. This custom circular-profile4turnhelix reconstructs a distinct legacy companion workflow; Chapter8PDF413/414 copies companionparts/subassembly. Originalradialdatum and upperloop remain qualified choices. This audit cannot establish globalSavedChapter7libraryidentity from isolatedcontextbundle.
+
+Evidence: `artifacts/planchard/HOOK-custom-helix-cut-qualified-browser-2026-10-10-audit.json`, settledpath/profilePierce auditJSONs and protected actualexports. Parent owns actualChrome,ADVANCE and commits.
+
+## Independent native containment completed
+
+Cut minus the actual precedingDome stock returns zero solids and zero positive volume. This is independent native BRep containment proof: no material is added outside stock. Canonicalcut/actualSTEP native geometry is accepted within the qualified optional variant. Wider native bounding estimates/tessellated display/header remain a presentation discrepancy, not certified source width; actualpreview envelope and finalcoldworkflow remain pending. Evidence: `artifacts/planchard/HOOK-custom-helix-cut-containment-readonly-2026-10-10.json`.

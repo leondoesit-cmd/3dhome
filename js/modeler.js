@@ -4112,6 +4112,8 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="unbrokenout"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove broken-out</span></button>' +
     '<button type="button" data-drawing-tool="break"><i class="ph ph-scissors"></i><span>Break view / edit</span></button>' +
     '<button type="button" data-drawing-tool="unbreak"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove Break</span></button>' +
+    '<button type="button" data-drawing-tool="alternateposition"><i class="ph ph-copy"></i><span>Alternate Position / edit</span></button>' +
+    '<button type="button" data-drawing-tool="removealternateposition"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove Alternate Position</span></button>' +
     '<span class="md-drawing-tools-sep"></span>' +
     '<button type="button" id="mdSheetAutoDim"><i class="ph ph-ruler"></i><span>' + t("drawAutoDim") + '</span></button>' +
     '<button type="button" id="mdSheetModelItems"><i class="ph ph-ruler"></i><span>' + t("drawModelItems") + '</span></button>' +
@@ -4701,7 +4703,7 @@ function buildDOM() {
   root.querySelector("#mdSheetAutoDim").addEventListener("click", function () { drawingSheet().autoDimension(); drawSketch(); syncStatus(); });
   root.querySelector("#mdSheetModelItems").addEventListener("click", function () { drawingSheet().insertModelItems(); drawSketch(); syncStatus(); });
   root.querySelector("#mdSheetHidden").addEventListener("click", function () {
-    drawingSheet().setSheetOption("showHidden", !ensureSheetDoc(E.def).showHidden);
+    drawingSheet().setSheetOption("showHidden", !drawingDocument().showHidden);
     drawSketch(); syncTools();
   });
   root.querySelector("#mdSheetFit").addEventListener("click", function () { drawingSheet().fit(); drawSketch(); syncStatus(); });
@@ -8291,13 +8293,17 @@ function documentHelixRecords() {
    ordering reads references, and the part's merge carries its own copy — all
    three move to the chosen helix, or the Path row would change nothing. */
 function retargetSweepHelix(feature) {
-  var params=feature && feature.type==="sweep" ? feature.params || {} : null,sources=params && params.sketchSources;
+  var params=feature && (feature.type==="sweep" || feature.type==="sweepCut") ? feature.params || {} : null,sources=params && params.sketchSources;
   if(!params || !params.helixId || !sources || !sources.helixId || sources.helixId===params.helixId)return;
   var helix=documentHelixRecords().find(function(record){return record.id===params.helixId;});
   if(!helix)return;
   var previous=sources.helixId,moved=function(value){return {...value,helixId:helix.id,helixFeatureId:helix.featureId};};
   params.sketchSources=moved(sources);
   feature.references ||= {};
+  if(feature.type==="sweepCut" && helix.featureId){
+    feature.references.features=(feature.references.features || []).filter(function(id){return id!==sources.helixFeatureId;});
+    if(!feature.references.features.includes(helix.featureId))feature.references.features.push(helix.featureId);
+  }
   feature.references.references=(feature.references.references || []).map(function(reference){var id=typeof reference==="string"?reference:reference && reference.id;return id===previous?helix.id:reference;});
   (E.def.parts || []).forEach(function(part){(part.merges3d || []).concat(part.cuts3d || []).forEach(function(entry){if(entry.featureId===feature.id && entry.sketchSources)entry.sketchSources=moved(entry.sketchSources);});});
 }
@@ -8319,7 +8325,12 @@ function createMultiSketchFeature(type, values) {
   var ids=selectedSketchIds(),inputParams=(values && values.params) || values || {};
   // the form's Path row said "second selected sketch": no helix, whatever exists
   var sketchPath=type==="sweep" && inputParams.helixId==="";
+  if(type==="sweepCut")sketchPath=inputParams.helixId==="";
   var helix=sketchPath?null:type==="sweep"?sweepHelixRecord(inputParams):selectedHelixRecord();
+  if(type==="sweepCut" && !sketchPath)helix=sweepHelixRecord(inputParams);
+  if(type==="sweepCut" && inputParams.helixId && helix?.id!==inputParams.helixId)helix=null;
+  if(type==="sweepCut" && !sketchPath && inputParams.helixId && !helix){flash(t("sweepNeed"));return false;}
+  if(type==="sweepCut" && !sketchPath && helix && ids.length===1)return createHelixSweepCut(helix,inputParams,ids[0]);
   /* The confirmation corner can clear the transient datum focus while it
      reads the form. Keep the SolidWorks-style one-sketch sweep bound to the
      helix captured when the command opened, then resolve that stable id from
@@ -8447,6 +8458,27 @@ function createMultiSketchFeature(type, values) {
     E.sel=cutTarget;queueExactMesh(cutTarget);
   }
   refreshAll();return true;
+}
+
+function createHelixSweepCut(helix,inputParams,sketchId) {
+  var target=cutTargetBody(),targetId=target && cutTargetFeatureId(target);
+  if(!target || !targetId){flash(t("extrudeCutNeed"));return false;}
+  if(!partSupportsExactMesh(target)){flash(t("cutNeedExactBody"));return false;}
+  var profileSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===sketchId;});
+  var profileRun=analyzeSketchProfiles(profileSketch),profileLoop=profileRun.profiles[0];
+  if(!profileLoop){flash(t("sweepNeed"));return false;}
+  var params={...featureDefaults("sweepCut"),...inputParams},sources={kind:"sweep",profile:{sketchId:sketchId,entityIds:(profileLoop.entityIds || []).slice()},helixId:helix.id,helixFeatureId:helix.featureId};
+  params.profile=profileLoop.points.map(function(point){return sketchWorldPoint(profileSketch,point.u,point.v);});
+  Object.assign(params,helixSweepPath(helix));
+  params.sketchSources=sources;params.helixId=helix.id;params.sweepPathMode="helix";
+  params.helix={origin:helix.origin,axis:helix.axis,radius:helix.radius,radiusEnd:helix.radiusEnd,pitch:helix.pitch,turns:helix.turns,height:helix.height,handedness:helix.handedness,startAngle:helix.startAngle,...(helix.pitchMode==='variable'?{pitchMode:helix.pitchMode,pitchRegions:cloneData(helix.pitchRegions)}:{})};
+  pushUndo(t("createFeature")+" "+featureTypeLabel("sweepCut"));
+  try{
+    var feature=createFeatureDefinition(E.def,"sweepCut",{inputs:[targetId],references:{sketches:[sketchId],features:[targetId,...(helix.featureId?[helix.featureId]:[])],topology:[],references:[helix.id]},params:params});
+    target.cuts3d=target.cuts3d || [];
+    target.cuts3d.push({kind:"sweep",profile:cloneData(params.profile),path:cloneData(params.path),pathSegments:cloneData(params.pathSegments),profileSegments:cloneData(params.profileSegments),orientation:params.orientation,twistAngle:params.twistAngle,scale:params.scale,sketchSources:sources,featureId:feature.id});
+    invalidatePartMeshAfterEdit(target);E.sel=target;queueExactMesh(target);refreshAll();return true;
+  }catch(error){H.discard();flash(String(error.message || error));return false;}
 }
 
 function selectedHelixRecord() {
@@ -10333,11 +10365,11 @@ function openParametricFeature(type, repeatedParams) {
   if(type==="helix"){
     var helixCircle=(ensureSketch(E.def).entities || []).find(function(e){return e.type==="circle"&&!e.construction;});if(helixCircle)state.params.radius=helixCircle.r;
   }
-  if(type==="sweep"){
+  if(type==="sweep" || type==="sweepCut"){
     // the Path row shows what the sweep will follow before it is committed:
     // the selected helix, else the document's only one; two sketches, the second
     var sweepHelix=selectedSketchIds().length===1 ? (selectedHelixRecord() || (documentHelixRecords().length===1 ? documentHelixRecords()[0] : null)) : null;
-    if(selectedSketchIds().length===1)state.params.profileMode=sweepHelix?"sketch":"circular";
+    if(type==="sweep" && selectedSketchIds().length===1)state.params.profileMode=sweepHelix?"sketch":"circular";
     state.params.helixId=sweepHelix ? sweepHelix.id : "";
     if(sweepHelix)state.params.sweepPathMode="helix";
   }
@@ -11523,7 +11555,7 @@ function syncTools() {
   var sheetTool = E.mode === "drawing" && E.sheet ? E.sheet.getTool() : null;
   var hiddenButton = root.querySelector("#mdSheetHidden");
   if (hiddenButton && E.mode === "drawing") {
-    var showsHidden = ensureSheetDoc(E.def).showHidden !== false;
+    var showsHidden = drawingDocument().showHidden !== false;
     hiddenButton.classList.toggle("on", showsHidden);
     hiddenButton.setAttribute("aria-pressed", showsHidden ? "true" : "false");
   }
@@ -11968,7 +12000,10 @@ function drawingBodies() {
       if (!object.isMesh || object.userData.cadOverlay || object.userData.cadInterference != null) return;
       var positions = meshWorldTriangles(object);
       if (positions.length >= 9) {
-        var body = { id: object.userData.cadPart || object.uuid, positions: positions };
+        var occurrencePath=[],ancestor=object;
+        while(ancestor){var occurrenceId=ancestor.userData?.cadComponent??ancestor.userData?.cadSubComponent;if(occurrenceId!=null)occurrencePath.unshift(String(occurrenceId));ancestor=ancestor.parent;}
+        var partId=object.userData.cadPart || object.uuid;
+        var body = { id: occurrencePath.length?occurrencePath.join('/')+':'+partId:partId, positions: positions };
         var part = renderedParts(E.def).find(function(candidate){return candidate.id===object.userData.cadPart;});
         var exactBounds = part && part.meshData && part.meshData.exactBounds;
         var matrix = object.matrixWorld.elements;
@@ -12108,7 +12143,7 @@ function bindTitleField(input, key) {
   var opened = false;
   input.addEventListener("focus", function () { opened = false; });
   input.addEventListener("input", function () {
-    var doc = ensureSheetDoc(E.def);
+    var doc = drawingDocument();
     if (!opened) { pushUndo(t("opSheetTitle")); opened = true; }
     doc.title[key] = input.value;
     drawSketch();
@@ -12116,7 +12151,7 @@ function bindTitleField(input, key) {
 }
 
 function buildSheetPanel(host) {
-  var doc = ensureSheetDoc(E.def), sheet = drawingSheet();
+  var doc = drawingDocument(), sheet = drawingSheet();
   host.innerHTML = "";
   var head = el("div", "md-sheet-head");
   head.innerHTML = '<i class="ph ph-file-dashed"></i><b>' + t("sheetSetup") + "</b>";
@@ -12298,7 +12333,7 @@ function syncSheetPanel() {
   var on = E.mode === "drawing";
   host.hidden = !on;
   if (!on) return;
-  var doc = ensureSheetDoc(E.def), sheet = drawingSheet();
+  var doc = drawingDocument(), sheet = drawingSheet();
   var selection = sheet.selection();
   var signature = doc.views.map(function (view) {
     return view.id + ":" + view.label + ":" + (view.scale ? view.scale.join("/") : "-") + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"");
@@ -12351,10 +12386,19 @@ function drawingHintText() {
   if (tool === "unbrokenout") return "Click a broken-out drawing view to restore its original projection";
   if (tool === "break") return "Choose a single orthographic view; set original boundary coordinates and printed gap. Dimensions retain actual model values";
   if (tool === "unbreak") return "Click a Break view to restore its complete original projection";
+  if (tool === "alternateposition") return "Choose a drawing view, then set an illustrative rigid native-body pose for its phantom overlay";
+  if (tool === "removealternateposition") return "Click a drawing view to remove its Alternate Position overlay";
   if (tool === "note") return t("drawNoteHint");
   if (tool === "sheetarc") return t("drawPaperArcHint");
   if (["sheetline","sheetpolyline","sheetrect","sheetcircle"].includes(tool)) return t("drawPaperHint");
   return t("drawingHint");
+}
+
+function drawingDocument() {
+  var owner=E.docType==='assembly'&&E.assembly?E.assembly:E.def;
+  var doc=ensureSheetDoc(owner,E.docType==='assembly'?{views:['front','top','right','iso']}:{});
+  doc.assemblyLayout=E.docType==='assembly';
+  return doc;
 }
 
 function drawingSheet() {
@@ -12368,8 +12412,8 @@ function drawingSheet() {
         return {bottom:canvas && status && status.right>canvas.left && status.left<canvas.right
           ? Math.max(0,canvas.bottom-Math.max(canvas.top,status.top)) : 0};
       },
-      doc: function () { return ensureSheetDoc(E.def, { title: { title: E.def && E.def.name || "" } }); },
-      model: function () { return E.def; },
+      doc: drawingDocument,
+      model: function () { return E.docType==='assembly'?E.assembly:E.def; },
       isExplodedView: function () {return E.docType==='assembly' && !!E.assembly && assemblyHasExplodedOffsets(E.assembly);},
       bodies: drawingBodies,
       bodiesForView: function(view,bodies){return configuredBodiesForView(E.def,view,bodies);},
@@ -12382,8 +12426,8 @@ function drawingSheet() {
       },
       bodiesToken: function () { return E.sheetToken; },
       meta: function () {
-        var doc = ensureSheetDoc(E.def);
-        return { title: sheetTitleText(doc, E.def), material: doc.title.material || drawingMaterialName(E.def) };
+        var doc = drawingDocument(),owner=E.docType==='assembly'?E.assembly:E.def;
+        return { title: sheetTitleText(doc, owner), material: doc.title.material || (E.docType==='assembly'?'':drawingMaterialName(E.def)) };
       },
       bom: function () {
         if (E.docType !== "assembly" || !E.assembly) return null;
@@ -24547,7 +24591,7 @@ function setMode(m) {
     /* Entering the sheet re-projects: the model may have changed since the last
        visit, and a stale projection is a drawing that lies. */
     invalidateDrawing();
-    var sheetDoc = ensureSheetDoc(E.def, { title: { title: E.def && E.def.name || "" } });
+    var sheetDoc = drawingDocument();
     /* A phone has no room for a 244px properties column beside an A3 page, so
        the sheet gets the screen and the panel is one tap away on the same
        toggle the inspector uses. */
@@ -27300,7 +27344,7 @@ function assemblyDrawingDocument() {
       var bounds = occurrenceWorldBounds(component,placement);
       if (!bounds) return;
       bounds={x0:bounds.x0+blown.x,x1:bounds.x1+blown.x,y0:bounds.y0+blown.y,y1:bounds.y1+blown.y,z0:bounds.z0+blown.z,z1:bounds.z1+blown.z};
-      parts.push({ id: component.id, kind: "box", name: component.name || component.modelKey, x0: bounds.x0, x1: bounds.x1, y0: bounds.y0, y1: bounds.y1, z0: bounds.z0, z1: bounds.z1 });
+      parts.push({ id: occurrence.path.join('/'), kind: "box", name: component.name || component.modelKey, x0: bounds.x0, x1: bounds.x1, y0: bounds.y0, y1: bounds.y1, z0: bounds.z0, z1: bounds.z1 });
       targets.push({ item: item, point: { x: (bounds.x0 + bounds.x1) / 2, y: (bounds.y0 + bounds.y1) / 2, z: (bounds.z0 + bounds.z1) / 2 } });
       return;
     }
@@ -27315,7 +27359,7 @@ function assemblyDrawingDocument() {
         ];
         for (var a = 0; a < 3; a++) { baked[i + a] = point[a]; if (point[a] < low[a]) low[a] = point[a]; if (point[a] > high[a]) high[a] = point[a]; }
       }
-      parts.push({ id: component.id + ":" + part.id, name: component.name || component.modelKey, meshData: { positions: baked, faceRanges: cloneData(part.meshData.faceRanges || []) } });
+      parts.push({ id: occurrence.path.join('/') + ":" + part.id, name: component.name || component.modelKey, meshData: { positions: baked, faceRanges: cloneData(part.meshData.faceRanges || []) } });
     });
     targets.push({ item: item, point: { x: (low[0] + high[0]) / 2, y: (low[1] + high[1]) / 2, z: (low[2] + high[2]) / 2 } });
   });
@@ -27419,7 +27463,8 @@ async function exportThreeMfDocument(settings,format,unqualifiedDraft) {
 
 function drawingSvgContent() {
   var svg;
-  if (E.docType === "assembly" && E.assembly) {
+  if(E.docType==='assembly' && E.assembly?.drawing) svg=drawingSheet().svg();
+  else if (E.docType === "assembly" && E.assembly) {
     var sheet = assemblyDrawingDocument();
     if (!sheet.def.parts.length) throw new Error(t("noComponents"));
     sheet.def.customProperties = E.assembly.customProperties || {};

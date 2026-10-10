@@ -291,6 +291,7 @@ export const FEATURE_CATALOG = Object.freeze({
     parameters: { operation: ENUM("subtract"), orientation: ENUM("follow-path", "minimum-twist", "fixed"), twistAngle: ANGLE, scale: { type: "number", min: 1e-6 }, keepTool: BOOLEAN },
     editor: { groups: [
       { id: "path", label: "Path behavior", labelKey: "fcGrpPathBehavior", icon: "ph-path", fields: [
+        { key: "helixId", label: "Path", labelKey: "fcFldSweepPath", type: "helix-reference" },
         { key: "orientation", label: "Profile orientation", labelKey: "fcFldProfileOrientation", type: "select", choices: [
           {value:"follow-path",label:"Follow path",labelKey:"fcOptFollowPath"},
           {value:"minimum-twist",label:"Minimum twist",labelKey:"fcOptMinimumTwist"},
@@ -1030,12 +1031,15 @@ export function validateFeatureDefinition(feature) {
        helix/spiral.  The helix is carried as a reference in the feature
        parameters, so the sketch selection count is one even though the
        ordinary sketch-path sweep still requires two sketches. */
-    if(feature.type==="sweep" && role==="sketches" && (
+    if((feature.type==="sweep" || feature.type==="sweepCut" && (feature.params?.helixId || feature.params?.helix)) && role==="sketches" && (
       feature.params?.profileMode==="circular" ||
       feature.params?.sweepPathMode==="helix" ||
       feature.params?.helixId ||
       feature.params?.helix
     ))rule={...rule,min:feature.params?.sketchSources?.kind==='circular-helix-sweep'?0:1,max:1};
+    if(feature.type==='sweepCut' && role==='features' && feature.params?.helixId && feature.params?.sketchSources?.helixFeatureId
+      && references.features?.length===2 && references.features.includes(feature.inputs?.[0])
+      && references.features.includes(feature.params.sketchSources.helixFeatureId))rule={...rule,max:2};
     const count = selectionCount(references, role, feature);
     if (Number.isFinite(rule.min) && count < rule.min) issues.push({
       severity: "error", code: "missing-feature-input", featureId: feature.id, role,

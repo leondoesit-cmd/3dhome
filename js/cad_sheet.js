@@ -5,6 +5,7 @@ import { canCropView, cropDrawingProjection, clipCropEdges } from './core/drawin
 import { projectBrokenOutView } from './core/drawing_broken_out.js';
 import {resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
 import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges,validateAlignedBreak} from './core/drawing_break.js';
+import {alternatePositionProjection,alternatePositionItems} from './core/drawing_alternate_position.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -55,6 +56,7 @@ export const LINE_STYLES = Object.freeze({
   outline:  { width: 0.5,  color: "#101418" },
   hidden:   { width: 0.25, color: "#3a4450", dash: [2.4, 1.2] },
   center:   { width: 0.25, color: "#2b3138", dash: [7, 1.6, 1.6, 1.6] },
+  phantom:  { width: 0.25, color: "#2b3138", dash: [10, 2, 2, 2, 2, 2] },
   section:  { width: 0.7,  color: "#101418" },
   cutline:  { width: 0.6,  color: "#101418", dash: [10, 2, 2.5, 2] },
   hatch:    { width: 0.18, color: "#5c646d" },
@@ -167,6 +169,7 @@ export function createView(dir, options = {}) {
     brokenOut: options.brokenOut || null,                  // closed spline + depth from projected front envelope
     auxiliary: options.auxiliary || null,                 // persistent principal parent / native edge / planar face
     breakView: options.breakView || null,                  // source interval + printable paper gap
+    alternatePosition: options.alternatePosition || null, // associative rigid presentation pose
   };
 }
 
@@ -609,7 +612,7 @@ export function createProjector(doc, bodies, options = {}) {
   const resolving = new Set();
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),view.scale,doc.scale,view.breakView?.group?JSON.stringify(doc.views):''].join("|");
+    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),JSON.stringify(view.alternatePosition || 0),view.scale,doc.scale,view.breakView?.group?JSON.stringify(doc.views):''].join("|");
     if (cache.has(key)) return cache.get(key);
     // Malformed saved parent graphs must not recurse forever or show unrelated geometry.
     if (resolving.has(view.id)) return null;
@@ -628,7 +631,7 @@ export function createProjector(doc, bodies, options = {}) {
     else if (view.section) projection = projectSection(doc, view, viewBodies, viewOptions);
     else if (view.detail) {
       const parent = (doc.views || []).find((entry) => entry.id === view.detail.from);
-      const base = parent ? project({...parent,displayStyle:view.displayStyle}) : null;
+      const base = parent ? project({...parent,displayStyle:view.displayStyle,alternatePosition:null}) : null;
       projection = cropProjection(base, view.detail);
     } else projection = projectSolid(viewBodies, view.dir, viewOptions);
     if(view.cropSketch) {
@@ -644,6 +647,10 @@ export function createProjector(doc, bodies, options = {}) {
         validateAlignedBreak(view,doc);
         projection=breakProjection({...projection,bounds:projectionBounds(projection)},view.breakView,paperPerModel(view.scale || doc.scale));
       } catch(error) {projection={visible:[],hidden:[],circles:[],bounds:null,breakError:error.message};}
+    }
+    if(view.alternatePosition && projection) {
+      try {projection=alternatePositionProjection(projection,viewBodies,view);}
+      catch(error){projection={...projection,alternatePositionError:error.message};}
     }
     cache.set(key, projection);
     resolving.delete(view.id);
@@ -1281,12 +1288,17 @@ export function buildSheetScene(doc, provider, options = {}) {
     const projection = provider?.projection ? provider.projection(view) : null;
     projections.set(view.id, projection);
     if(projection?.breakError)diagnostics.push({code:'invalid-break-view',viewId:view.id,message:projection.breakError});
+    if(projection?.alternatePositionError)diagnostics.push({code:'invalid-alternate-position',viewId:view.id,message:projection.alternatePositionError});
     let bounds = projection ? projection.displayBounds || projectionBounds(projection) : null;
     if(bounds && projection.breakCentre) {
       const {axis,value}=projection.breakCentre,r=Math.max(Math.abs(bounds[axis+'0']-value),Math.abs(bounds[axis+'1']-value));
       // Symmetric layout envelope around a shared physical datum; actual projected
       // bounds remain untouched for measurement, clipping and exports.
       bounds={...bounds,[axis+'0']:value-r,[axis+'1']:value+r};
+    }
+    if(bounds && projection.presentationCentre) {
+      const c=projection.presentationCentre,ru=Math.max(Math.abs(bounds.u0-c.u),Math.abs(bounds.u1-c.u)),rv=Math.max(Math.abs(bounds.v0-c.v),Math.abs(bounds.v1-c.v));
+      bounds={u0:c.u-ru,u1:c.u+ru,v0:c.v-rv,v1:c.v+rv};
     }
     extents.set(view.id, bounds
       ? { w: Math.max(bounds.u1 - bounds.u0, 0.1), h: Math.max(bounds.v1 - bounds.v0, 0.1), bounds }
@@ -1423,6 +1435,8 @@ export function buildSheetScene(doc, provider, options = {}) {
     }
     if (showCenters) appendCenterItems(axisCentrelines(projection.circles || [], toSheet, k, view.id, showHidden));
     items.push(...breakBoundaryItems(record));
+    items.push(...alternatePositionItems(record));
+    if(projection.alternatePositionError)items.push(text(record.box.x,record.box.y-3,'Alternate Position unavailable: '+projection.alternatePositionError,{size:2.5,viewId:view.id}));
     const explodedView = doc.views.find(item => /^iso/.test(item.dir || ""));
     const explodeLeaders = (provider?.explodeLines || []).filter(leader =>
       leader.viewId ? leader.viewId === view.id : view.id === explodedView?.id);

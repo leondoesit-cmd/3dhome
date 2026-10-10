@@ -1,0 +1,5 @@
+# WEIGHT-HOOK new Concentric alignment diagnostic
+
+Actual unsaved exportDownloads`WEIGHT-HOOK8_1_-_rebuilt_2026-09-28(9).mforge` has genuine new Concentric6400 betweenWeightaxis`axis:feature_mukg3htj_2:tool:face:side:342` andHookaxis`axis:feature_mukhbwfg_1:face:generated:cylinder:1`. Both local axes+Y, but newmatealignedfalse selects opposition. Actual HookRx−180/Y2.643756308cm reflects the flip. Existing axialCoincident445 pairsWeighttopcircleY1.27cm/+Y withHookstemtopcircleY.635cm/+Y andalignedtrue; it requires matching directions. RightPlaneCoincident447 remainsalignedtrue.
+
+These orientation requirements conflict despite valid native references. Suggested actualUIcorrection is flip/edit only newConcentric6400 toalignedtrue, retaining source-required axialCoincident445. Then source-compatible HooktranslationY.635cm and zeroDOF should be verified with actualsolve/Save/cold. No browser/model mutation or final acceptance performed by this read-only diagnostic. Evidence:`artifacts/planchard/WEIGHT-HOOK-new-concentric-alignment-diagnostic-2026-10-10.json`.

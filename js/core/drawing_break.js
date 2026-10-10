@@ -5,7 +5,7 @@ import {viewAxes} from './hidden_line.js';
 export function canBreakView(view, doc={views:[]}) {
   return !!view && ['front','back','left','right','top','bottom'].includes(view.dir)
     && !view.section && !view.detail && !view.cropSketch && !view.brokenOut
-    && !view.auxiliary && !view.exploded && !['shaded','shadedEdges'].includes(view.displayStyle);
+    && !view.auxiliary && !view.alternatePosition && !view.exploded && !['shaded','shadedEdges'].includes(view.displayStyle);
 }
 
 function projectedAxis(view,worldAxis) {
