@@ -11,7 +11,7 @@ import { endConditionHidesDepth } from "./extrude_extent.js";
 import { analyzeParametricHistory, ensureParametricDocument, historyEntryRolled } from "./parametric_document.js";
 import { circularPatternStepDegrees, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform } from "./pattern_geometry.js";
 import { holeWizardSolids } from "../cad_hole_wizard.js";
-import { cylindricalHolePlacement } from './cylindrical_hole_placement.js';
+import { resolveHoleWizardInputs } from './hole_wizard_sketches.js';
 import { generateToolboxPart } from "../toolbox/generate.js";
 
 export const FEATURE_PATTERN_SEED_TYPES = ["extrudeCut", "revolveCut", "sweepCut", "hole", "extrude", "revolve", "rib"];
@@ -326,7 +326,8 @@ function loweredFeature(feature, document) {
 
 function lowerHoleFeature(feature, document, base, target) {
   if(!target)throw new Error("Hole requires a target body");
-  const sketchParams=feature.params?.cylindricalSource ? {...feature.params,...cylindricalHolePlacement(feature.params,document)} : lowerExtrudeParams(feature,document),wizard=holeWizardSolids(feature.params||{});
+  const resolved=resolveHoleWizardInputs(feature,document);
+  const sketchParams=resolved.placement ? {...resolved.params,...resolved.placement} : lowerExtrudeParams(feature,document),wizard=holeWizardSolids(resolved.params);
   const compiled=[];let lastId=target;
   wizard.solids.forEach((solid,index)=>{
     const suffix=wizard.solids.length===1?"":":"+solid.role;

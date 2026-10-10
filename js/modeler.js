@@ -61,6 +61,8 @@ import { centerOfMassInSystem, evaluateMassProperties } from "./cad_mass_propert
 import { evaluateAssemblyMassProperties } from "./cad_assembly_mass_properties.js";
 import { holeToolPlacements, holeCutRecords, holePreviewParts, syncHoleCutPlacement, holePositionPointIds } from "./core/hole_geometry.js";
 import { cylindricalHoleSource, cylindricalHolePlacement } from './core/cylindrical_hole_placement.js';
+import {createHoleWizardSketchPair,solveHoleWizardSketch,isHoleWizardSketch,resolveHoleWizardInputs} from './core/hole_wizard_sketches.js';
+import {editedHoleWizardSketch,holeWizardSketchPolylines} from './core/hole_wizard_sketch_edit.js';
 import { revolvePreviewAxis, revolveRecipe } from "./core/revolve_geometry.js";
 import { aabbFromBox, isUpToFace, resolveExtrudeExtent } from "./core/extrude_extent.js";
 import { toolFeatureRecipe } from "./core/tool_recipe.js";
@@ -2072,6 +2074,21 @@ function documentSketchOverlays(def) {
   var consumed = consumedSketchIds(def);
   var out = [];
   ensureSketchDoc(def).forEach(function (sketch) {
+    if(isHoleWizardSketch(sketch)){
+      var shown=E._holeSketchPreview?.id===sketch.id?E._holeSketchPreview:sketch;
+      var lines=holeWizardSketchPolylines(shown);
+      if(shown.kind==='cylindrical-position-3d' && E._holeSketchEditId===sketch.id){
+        var selected=E._holeSketchInspect || 'all',point=function(role){return shown.points.find(function(p){return p.role===role;});};
+        if(selected==='P')lines=[[point('P')]];
+        if(selected==='AB')lines=[[point('A'),point('B')]];
+        if(selected==='BP')lines=[[point('B'),point('P')]];
+      }
+      if(sketch.show3d===true || E._holeSketchEditId===sketch.id)lines.forEach(function(line){
+        if(line.length===1){var p=line[0],d=.035;out.push([{x:p.x-d,y:p.y,z:p.z},{x:p.x+d,y:p.y,z:p.z}],[{x:p.x,y:p.y-d,z:p.z},{x:p.x,y:p.y+d,z:p.z}]);}
+        else out.push(line);
+      });
+      return;
+    }
     if (!sketch || sketch === editing) return;   // the live one is on the canvas
     if (sketch.show3d === false) return;
     if (sketch.id && consumed.has(sketch.id) && sketch.show3d !== true) return;
@@ -8455,6 +8472,19 @@ async function createHoleFeature(options) {
     try{cylindricalHolePlacement(params,E.def);}catch(error){flash(String(error.message || error));return false;}
   }
   if(face && face.descriptor && face.descriptor.surface && face.descriptor.surface!=="plane" && !radialSource){flash(t("needPlanarFace"));return false;}
+  var holeSketchPair=null;
+  if(params.separateHoleSketches){
+    if(!isCanonicalAuthoring() || !radialSource || params.cylinderPlacementMethod!=='constraints' || params.holeType!=='counterbore'){
+      flash('Separate hole sketches require a constrained cylindrical counterbore in a parametric part');return false;
+    }
+    try{holeSketchPair=createHoleWizardSketchPair(params,E.def,{positionId:uid('sk'),profileId:uid('sk')});params=holeSketchPair.params;}
+    catch(error){flash(String(error.message || error));return false;}
+  }
+  var holeCreationSnapshot=holeSketchPair?cloneData(E.def):null;
+  function restoreHoleSketchCreation(){
+    if(!holeCreationSnapshot)return;
+    Object.keys(E.def).forEach(function(key){delete E.def[key];});Object.assign(E.def,cloneData(holeCreationSnapshot));
+  }
   var profile=closedSketchProfile();
   if(!profile && !face && !holePositionPointIds(ensureSketch(E.def)).length){flash(t("holeNeed"));return false;}
   if(face && !radialSource && !attachSketchToSelectedFace()){flash(t("needPlanarFace"));return false;}
@@ -8479,6 +8509,12 @@ async function createHoleFeature(options) {
     pushUndo(t("holeWizard"));
   }
   var sketch=ensureSketch(E.def);
+  if(holeSketchPair){
+    E.def.sketches.push(holeSketchPair.position,holeSketchPair.profile);
+    recordSketchInHistory(E.def,holeSketchPair.position);
+    recordSketchInHistory(E.def,holeSketchPair.profile);
+    sketch=holeSketchPair.profile;
+  }
   var targetFeatureId=cutTargetFeatureId(target);
   var topology=face ? [cloneData(face)] : [];
   recordSketchInHistory(E.def,sketch);
@@ -8488,10 +8524,10 @@ async function createHoleFeature(options) {
     try{
       feature=createFeatureDefinition(E.def,"hole",{
         inputs:targetFeatureId ? [targetFeatureId] : [],
-        references:{sketches:radialSource?[]:[sketch.id],features:targetFeatureId ? [targetFeatureId] : [],topology:topology,references:[],profileEntityIds:profile.entityIds},
+        references:{sketches:holeSketchPair?[holeSketchPair.position.id,holeSketchPair.profile.id]:radialSource?[]:[sketch.id],features:targetFeatureId ? [targetFeatureId] : [],topology:topology,references:[],profileEntityIds:profile.entityIds},
         params:{...params,depth:wizard.hole.depth,diameter:diameter,profileEntityIds:profile.entityIds,sketchId:sketch.id,operation:"subtract",callout:callout},
       });
-    }catch(error){H.discard();flash(String(error.message||error));return false;}
+    }catch(error){restoreHoleSketchCreation();H.discard();flash(String(error.message||error));return false;}
   }
   var candidate=cloneData(target),records,verified=null,thread=null,documentAtStart=E.def;
   var historyAtStart=H.tree().find(function(node){return node.current;})?.i;
@@ -8510,7 +8546,7 @@ async function createHoleFeature(options) {
     invalidatePartMeshAfterEdit(target);
     scheduleModelerDraft();
   } catch(error) {
-    if(E.def===documentAtStart){if(feature)removeHistoryNode(E.def,"history:feature:"+feature.id);if(H.tree().find(function(node){return node.current;})?.i===historyAtStart)H.discard();}
+    if(E.def===documentAtStart && H.tree().find(function(node){return node.current;})?.i===historyAtStart){if(holeSketchPair)restoreHoleSketchCreation();else if(feature)removeHistoryNode(E.def,"history:feature:"+feature.id);H.discard();}
     flash(String(error.message || error));return false;
   } finally {E._holeBuildPending=false;if(verified)verified.release();}
   if(thread){
@@ -17606,7 +17642,60 @@ function refreshComponents() {
    pose is captured here so Finish and Escape can put it back; both already
    call restoreSketchCameraPose(), which had nothing to restore because this
    path never captured. */
+function editHoleWizardSketch(sketch) {
+  if(E.mode!=='3d')setMode('3d');
+  var documentAtStart=E.def,inputs,note,errorText='',editingPosition=sketch.kind==='cylindrical-position-3d';
+  E._holeSketchEditId=sketch.id;E._holeSketchPreview=cloneData(sketch);
+  function relation(type){var r=sketch.constraints.find(function(c){return c.type===type;});return r?.enabled!==false && !r?.suppressed;}
+  var fields=editingPosition?[
+    {key:'topDistance',label:'Distance below cylinder top',type:'number',unit:'length',value:sketch.topDistance,min:.000001},
+    {key:'branch',label:'Cylindrical side',type:'select',value:sketch.branch,choices:[{value:'positive-z',label:'+Z side'},{value:'negative-z',label:'−Z side'}]},
+    {key:'OnSurface',label:'OnSurface · hole point P',type:'boolean',value:relation('OnSurface')},
+    {key:'AlongZ',label:'AlongZ · construction A–B',type:'boolean',value:relation('AlongZ')},
+    {key:'AlongY',label:'AlongY · endpoint B to P',type:'boolean',value:relation('AlongY')},
+    {key:'selection',label:'Inspect geometry and relation',type:'select',value:'all',choices:[{value:'all',label:'All XYZ geometry'},{value:'P',label:'Point P · OnSurface'},{value:'AB',label:'Construction A–B · AlongZ'},{value:'BP',label:'Points B/P · AlongY'}]},
+  ]:['diameter','cboreDiameter','cboreDepth'].map(function(name){return {key:name,label:{diameter:'Bore diameter',cboreDiameter:'Counterbore diameter',cboreDepth:'Total recess depth'}[name],type:'number',unit:'length',value:sketch.dimensions.find(function(d){return d.name===name;}).value,min:.000001};});
+  function clear(){E._holeSketchPreview=null;E._holeSketchEditId=null;E._holeSketchInspect=null;updatePreview();}
+  function preview(values){
+    try{
+      var edited=editedHoleWizardSketch(documentAtStart,sketch.id,values);E._holeSketchPreview=edited.sketch;
+      E._holeSketchInspect=values.selection || 'all';
+      if(note){note.textContent=edited.result.status+' · '+edited.result.degreesOfFreedom+' DOF · residual '+edited.result.maxResidual+(edited.result.error?' · '+edited.result.error:'');
+        if(editingPosition)note.textContent+=' · '+edited.sketch.points.map(function(p){return p.role+' ('+[p.x,p.y,p.z].map(function(v){return modelLengthText(v,5);}).join(', ')+')';}).join(' · ');}
+      E.topologySelection=editingPosition && values.selection==='P' && sketch.source.faceReference?[cloneData(sketch.source.faceReference)]:[];
+      updatePreview();
+      return edited;
+    }catch(error){errorText=String(error.message || error);if(note)note.textContent=errorText;return null;}
+  }
+  inputs=openQuickForm({action:'hole-sketch-edit',title:editingPosition?'Edit 3D hole position':'Edit counterbore profile',
+    hint:'Bounded cylindrical Hole Wizard sketch. Edit dimensions, relations and side; inspect its actual 3D geometry. Generic planar commands are unavailable here.',
+    fields:fields,onLive:preview,onCancel:clear,failureMessage:function(){return errorText;},
+    onApply:async function(values){
+      if(E.def!==documentAtStart){errorText='The document changed; reopen this sketch';return false;}
+      var edited=preview(values);if(!edited)return false;
+      if(edited.result.status==='inconsistent'){errorText=edited.result.error || 'Sketch is inconsistent';return false;}
+      var consumers=(edited.document.features || []).filter(function(feature){return feature.type==='hole' && (feature.params.positionSketchId===sketch.id || feature.params.holeProfileSketchId===sketch.id);});
+      var revision=E.massEditRevision,historyNodeAtStart=currentHistoryNode(),verified=[];
+      try{
+        if(edited.result.ok){
+          consumers.forEach(function(feature){var resolved=resolveHoleWizardInputs(feature,edited.document);feature.params={...feature.params,...resolved.params,callout:holeCallout(resolved.params)};});
+          (edited.document.parts || []).forEach(function(part){consumers.forEach(function(feature){syncHoleCutPlacement(part,feature,null,edited.document);});});
+          for(var part of edited.document.parts || [])if((part.cuts3d || []).some(function(cut){return consumers.some(function(feature){return feature.id===cut.featureId;});}))verified.push(await exactDisplayBody(part));
+        }
+        if(E.def!==documentAtStart || E.massEditRevision!==revision || currentHistoryNode()!==historyNodeAtStart)throw new Error('The document changed while checking the sketch; apply again');
+        pushUndo('Edit '+sketch.name);
+        Object.keys(E.def).forEach(function(key){delete E.def[key];});Object.assign(E.def,edited.document);
+        (E.def.parts || []).forEach(function(part){invalidatePartMeshAfterEdit(part);});
+        clear();syncSketchDrivenParts();scheduleModelerDraft();return true;
+      }catch(error){errorText=String(error.message || error);return false;}
+      finally{verified.forEach(function(body){body.release();});}
+    }});
+  var host=root.querySelector('#mdQuickSettings');note=el('output','md-note');note.setAttribute('data-hole-sketch-solver','');note.setAttribute('aria-live','polite');host.appendChild(note);
+  if(inputs){var values={};fields.forEach(function(f){values[f.key]=f.value;});preview(values);}
+}
+
 function editSketchFromHistory(sketch) {
+  if(isHoleWizardSketch(sketch)){editHoleWizardSketch(sketch);return;}
   var stayIn3D = E.mode === "3d";
   var onFace = !!sketch.support;
   E.def.activeSketch=sketch.id;E.authoring.phase="sketch";E.authoring.sketchId=sketch.id;E.authoring.referenceId=sketch.referenceId;
@@ -17866,6 +17955,11 @@ function cancelFeatureParameterEdit(silent) {
 }
 
 function openFeatureEditor(feature) {
+  if(feature.type==='hole' && feature.params?.holeProfileSketchId){
+    var profileSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===feature.params.holeProfileSketchId;});
+    if(profileSketch){editHoleWizardSketch(profileSketch);return;}
+    flash('Hole profile sketch is missing; repair its history reference');return;
+  }
   var host=root && root.querySelector("#mdQuickSettings"),spec=featureSpec(feature.type);if(!host||!spec)return;
   if(E.authoring.featureEdit)cancelFeatureParameterEdit(true);
   pushUndo("Edit "+feature.name);E.authoring.featureEdit={featureId:feature.id,snapshot:cloneData(feature)};

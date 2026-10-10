@@ -691,11 +691,12 @@ export const FEATURE_CATALOG = Object.freeze({
       threadDepth: 0, threadMode: "cosmetic", handedness: "rh", toleranceClass: "6H",
       layout: "sketch", countX: 2, countY: 2, spacingX: 4, spacingY: 4, count: 4, radius: 3, startAngle: 0,
       direction: "forward",
-      cylinderPlacementMethod:'angular',cylinderConstraintBranch:'positive-z',cylinderOnSurface:true,cylinderAlongZ:true,cylinderAlongY:true,
+      cylinderPlacementMethod:'angular',cylinderConstraintBranch:'positive-z',cylinderOnSurface:true,cylinderAlongZ:true,cylinderAlongY:true,separateHoleSketches:false,
     },
     parameters: {
       cylinderTopDistance: { ...LENGTH, min: 0 }, cylinderAngle: ANGLE,
       cylinderPlacementMethod:ENUM('angular','constraints'),cylinderConstraintBranch:ENUM('positive-z','negative-z'),cylinderOnSurface:BOOLEAN,cylinderAlongZ:BOOLEAN,cylinderAlongY:BOOLEAN,
+      separateHoleSketches:BOOLEAN,
       holeType: ENUM("simple", "counterbore", "countersink", "spotface", "tapped", "tap-counterbore", "tap-countersink"),
       standard: ENUM("ISO 273", "ANSI Metric", "ANSI Inch", "ISO 262:2023", "ASME B1.1 UNC", "Custom"),
       fastenerType: ENUM("generic", "hex-bolt", "socket-head-cap-screw", "fractional-drill", "flat-head-machine-screw"),
@@ -723,6 +724,7 @@ export const FEATURE_CATALOG = Object.freeze({
         {key:'cylinderOnSurface',label:'OnSurface · hole point',type:'boolean'},
         {key:'cylinderAlongZ',label:'AlongZ · construction line',type:'boolean'},
         {key:'cylinderAlongY',label:'AlongY · hole point to line end',type:'boolean'},
+        {key:'separateHoleSketches',label:'Separate position and profile sketches',type:'boolean'},
       ]},
       { id: "standard", label: "Standard", labelKey: "fcGrpStandard", icon: "ph-seal-check", fields: [
         { key: "holeType", label: "Hole type", labelKey: "fcFldHoleType", type: "select", choices: [
@@ -1039,7 +1041,10 @@ export function validateFeatureDefinition(feature) {
       severity: "error", code: "missing-feature-input", featureId: feature.id, role,
       message: spec.label + " requires " + rule.min + " " + role + " selection" + (rule.min === 1 ? "" : "s"),
     });
-    if (Number.isFinite(rule.max) && count > rule.max) issues.push({
+    const pairedHole=feature.type==='hole' && role==='sketches' && count===2 && feature.params?.positionSketchId && feature.params?.holeProfileSketchId
+      && feature.params.positionSketchId!==feature.params.holeProfileSketchId
+      && [feature.params.positionSketchId,feature.params.holeProfileSketchId].every(id=>references.sketches.includes(id));
+    if (Number.isFinite(rule.max) && count > rule.max && !pairedHole) issues.push({
       severity: "error", code: "too-many-feature-inputs", featureId: feature.id, role,
       message: spec.label + " accepts at most " + rule.max + " " + role + " selection" + (rule.max === 1 ? "" : "s"),
     });

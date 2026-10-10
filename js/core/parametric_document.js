@@ -2,6 +2,7 @@ import { cosmeticThread } from "../cad_thread.js";
 import {planFinishRemoval} from "./finish_removal.js";
 import { cloneDomain, createDefinition, domainId, mainReferences, migrateDefinition } from "./schema.js";
 import { featureDefaults, featureSpec, validateFeatureDefinition } from "./feature_catalog.js";
+import {sketchDependencies} from './dependency_graph.js';
 
 export const PARAMETRIC_DOCUMENT_VERSION = 1;
 
@@ -67,9 +68,15 @@ export function normalizeHistory(document, sourceHistory = document.history) {
   // A migrated file often listed only solid features.  Put each consumed sketch
   // immediately before its first consumer, then retain unconsumed sketches as
   // editable history nodes at the end.
+  const appending=new Set();
   const appendTarget = (kind, targetId, raw = {}) => {
     if (kind === "sketch") {
       const sketch = sketches.get(targetId);
+      if(sketch && !appending.has(targetId)){
+        appending.add(targetId);
+        sketchDependencies(sketch,document).filter(id=>sketches.has(id) && !includedTargets.has('sketch:'+id)).forEach(id=>appendTarget('sketch',id));
+        appending.delete(targetId);
+      }
       if (sketch) append(historyEntry("sketch", sketch, raw));
       return;
     }
@@ -77,7 +84,7 @@ export function normalizeHistory(document, sourceHistory = document.history) {
     if (!feature) return;
     const sketchIds = feature.references?.sketches || (feature.params?.sketchId ? [feature.params.sketchId] : []);
     sketchIds.map(referenceId).filter(Boolean).forEach((id) => {
-      if (sketches.has(id)) append(historyEntry("sketch", sketches.get(id)));
+      if (sketches.has(id)) appendTarget('sketch',id);
     });
     append(historyEntry("feature", feature, raw));
   };
@@ -319,9 +326,9 @@ export function suppressHistoryNode(document, historyId, suppressed = true, opti
 export function dependentTargetIds(document, targetIds) {
   const seen = new Set((Array.isArray(targetIds) ? targetIds : [targetIds]).filter(Boolean));
   const out = new Set();
-  const features = document?.features || [];
+  const features = [...(document?.features || []),...(document?.sketches || [])];
   const consumes = (feature, id) =>
-    featureDependencyIds(feature).has(id) ||
+    featureDependencyIds(feature,document).has(id) || sketchDependencies(feature,document).includes(id) ||
     (feature.references?.sketches || []).map(referenceId).includes(id) ||
     (feature.params?.sketchId && feature.params.sketchId === id);
   let frontier = [...seen];
@@ -345,7 +352,7 @@ export function historyDependents(document, historyId) {
   const entry = historyNode(document, historyId);
   if (!entry) return [];
   const ids = dependentTargetIds(document, [entry.targetId]);
-  return (document.history || []).filter((item) => item.kind === "feature" && ids.has(item.targetId));
+  return (document.history || []).filter((item) => ids.has(item.targetId));
 }
 
 function featureDependencyIds(feature, document) {
@@ -356,8 +363,8 @@ function featureDependencyIds(feature, document) {
       const owner=reference.ownerFeatureId;
       // Native additive/cut faces can retain their generated tool owner. That
       // is a topology address, not an extra authoring history feature.
-      const source=(document.features || []).find(item=>item.id===owner)
-        || (owner.endsWith(':tool') ? (document.features || []).find(item=>item.id===owner.slice(0,-5)) : null);
+      const source=(document?.features || []).find(item=>item.id===owner)
+        || (owner.endsWith(':tool') ? (document?.features || []).find(item=>item.id===owner.slice(0,-5)) : null);
       ids.add(source?.id || owner);
     }
   });
@@ -390,6 +397,15 @@ export function analyzeParametricHistory(document, options = {}) {
       else if (!feature.suppressed && dependency.suppressed) issues.push({ severity: "error", code: "suppressed-sketch-dependency", featureId: feature.id, sketchId, message: feature.name + " depends on a suppressed sketch" });
     });
   });
+  (document.sketches || []).forEach(sketch=>{
+    const entry=sketchEntries.get(sketch.id);
+    sketchDependencies(sketch,document).forEach(id=>{
+      const dependency=sketchEntries.get(id) || featureEntries.get(id);
+      if(!dependency)issues.push({severity:'error',code:'missing-sketch-source',sketchId:sketch.id,reference:id,message:sketch.name+' depends on missing source '+id});
+      else if(entry && order.get(dependency.id)>=order.get(entry.id))issues.push({severity:'error',code:'future-sketch-source',sketchId:sketch.id,reference:id,message:sketch.name+' depends on a later history step'});
+      else if(!sketch.suppressed && dependency.suppressed)issues.push({severity:'error',code:'suppressed-sketch-source',sketchId:sketch.id,reference:id,message:sketch.name+' depends on a suppressed source'});
+    });
+  });
   return { ok: !issues.some((issue) => issue.severity === "error"), issues, order, featureEntries, sketchEntries };
 }
 
@@ -412,10 +428,8 @@ export function reorderHistoryNode(document, historyId, targetIndex) {
 export function removeHistoryNode(document, historyId, options = {}) {
   const entry = historyNode(document, historyId);
   if (!entry) return { ok: false, issues: [{ severity: "error", code: "missing-history-node", message: "History node does not exist" }] };
-  const dependants = (document.features || []).filter((feature) => {
-    if (entry.kind === "feature") return featureDependencyIds(feature).has(entry.targetId);
-    return (feature.references?.sketches || []).map(referenceId).includes(entry.targetId);
-  });
+  const dependentIds=dependentTargetIds(document,[entry.targetId]);
+  const dependants=[...(document.features || []),...(document.sketches || [])].filter(item=>dependentIds.has(item.id));
   const finishPlan=entry.kind==='feature' ? planFinishRemoval(document,(document.features||[]).find(feature=>feature.id===entry.targetId),options.verifiedTopology) : null;
   if(finishPlan?.issues.length)return {ok:false,issues:finishPlan.issues};
   if (dependants.length && !finishPlan) return { ok: false, issues: [{ severity: "error", code: "history-node-has-dependants", reference: entry.targetId, dependants: dependants.map((item) => item.id), message: entry.name + " is used by " + dependants.map((item) => item.name).join(", ") }] };
@@ -482,6 +496,11 @@ export function activeHistoryTargetIds(document) {
     if (!entry || entry.suppressed || historyEntryRolled(document, index)) return;
     if (entry.targetId) ids.add(entry.targetId);
   });
+  let changed=true;
+  while(changed){changed=false;[...(document?.features || []),...(document?.sketches || [])].forEach(item=>{
+    const deps=[...featureDependencyIds(item,document),...(item.references?.sketches || []).map(referenceId),...sketchDependencies(item,document)];
+    if(ids.has(item.id) && deps.some(id=>!ids.has(id) && (document.history || []).some(entry=>entry.targetId===id))){ids.delete(item.id);changed=true;}
+  });}
   return ids;
 }
 

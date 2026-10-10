@@ -176,5 +176,10 @@ export function validateDefinition(definition) {
   if (!Array.isArray(definition.features)) issues.push({ severity: "error", code: "missing-history", message: "Feature history is missing" });
   if (!definition.parameters || typeof definition.parameters !== "object")
     issues.push({ severity: "error", code: "missing-parameters", message: "Parameter table is missing" });
+  (definition.sketches || []).forEach(sketch=>{
+    if(!sketch.sketchSchemaVersion && !['cylindrical-position-3d','hole-counterbore-profile'].includes(sketch.kind))return;
+    if(!['cylindrical-position-3d','hole-counterbore-profile'].includes(sketch.kind) || sketch.sketchSchemaVersion!==1)
+      issues.push({severity:'error',code:'unsupported-sketch-subtype',sketchId:sketch.id,message:'Unsupported sketch subtype/version; source data preserved: '+sketch.kind});
+  });
   return issues;
 }

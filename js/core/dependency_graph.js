@@ -31,6 +31,23 @@ export function datumReferenceIds(definition) {
   return new Set(["top","front","right","bottom","back","left"].map(plane=>"plane:"+plane).concat((definition?.references||[]).filter(r=>!r.ownerFeatureId).map(r=>r.id)));
 }
 
+export function sketchDependencies(sketch, definition={}) {
+  return [...new Set([sketch?.source?.featureId,sketch?.source?.sourceFeatureId,sketch?.positionSketchId,
+    sketch?.pierce?.featureId,sketch?.support?.ownerFeatureId,
+    ...offsetPlaneOwners(sketch?.referenceId,definition.references),
+    ...[...(sketch?.silhouetteCopies || []),...(sketch?.circleCopies || [])].map(copy=>copy.source?.ownerFeatureId),
+    ...sketchIntersectionOwners(sketch || {})].filter(Boolean))];
+}
+
+export function sketchFeatureOwners(sketch, definition, visited=new Set()) {
+  if(visited.has(sketch.id))throw new Error('Sketch dependency cycle: '+sketch.id);
+  const seen=new Set(visited);seen.add(sketch.id);
+  return sketchDependencies(sketch,definition).flatMap(id=>{
+    const source=(definition.sketches || []).find(item=>item.id===id);
+    return source?sketchFeatureOwners(source,definition,seen):[id];
+  });
+}
+
 export function buildDependencyGraph(definition) {
   const datums=datumReferenceIds(definition);
   const features = Array.isArray(definition?.features) ? definition.features : [];
@@ -58,7 +75,8 @@ export function buildDependencyGraph(definition) {
     if (!feature?.id) return;
     featureDependencies(feature).flatMap(dependency=>{
       if(!sketches.has(dependency)||byId.has(dependency))return [dependency];
-      const sketch=sketches.get(dependency);return [sketch.pierce?.featureId,sketch.support?.ownerFeatureId,...offsetPlaneOwners(sketch.referenceId,definition.references),...[...(sketch.silhouetteCopies || []),...(sketch.circleCopies || [])].map(copy=>copy.source.ownerFeatureId),...sketchIntersectionOwners(sketch)].filter(Boolean);
+      const sketch=sketches.get(dependency);
+      try{return sketchFeatureOwners(sketch,definition);}catch(error){issues.push({severity:'error',code:'sketch-cycle',sketchId:sketch.id,message:error.message});return [];}
     }).forEach((dependency) => {
       if (!byId.has(dependency) && datums.has(dependency)) return;
       if (!byId.has(dependency)) {

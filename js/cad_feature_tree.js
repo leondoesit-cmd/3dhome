@@ -94,7 +94,9 @@ export async function regenerateFeatures(def, options = {}) {
   issues.push(...parameterRun.issues);
   const sketchRun = sketchDiagnostics({
     sketches:def.sketches || [], variables:def.variables || [], parameters:def.parameters || {},
-    features:features.map(feature => ({id:feature.id})),
+    // Supported associative 3D position/profile sketches solve against the
+    // actual upstream cylinder parameters, not only an owner-id inventory.
+    features,
     references:(def.references || []).concat(["top","front","right","bottom","back","left"].map(plane => ({id:"plane:"+plane}))),
   }, parameterRun.values);
   issues.push(...sketchRun.issues);

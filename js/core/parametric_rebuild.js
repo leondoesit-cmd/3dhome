@@ -5,6 +5,7 @@ import { cloneDomain } from "./schema.js";
 import { analyzeParametricHistory, ensureParametricDocument } from "./parametric_document.js";
 import { compileKernelFeatureTree } from "./kernel_feature_adapter.js";
 import { verifiedExactTopology } from './exact_topology_cache.js';
+import {isHoleWizardSketch,solveHoleWizardSketch} from './hole_wizard_sketches.js';
 
 function issueTargets(issue) {
   return [issue.featureId, issue.sketchId, issue.reference].filter(Boolean);
@@ -109,6 +110,12 @@ export function publishRebuildStatus(document, run) {
   (document.sketches || []).forEach((sketch) => {
     const sketchIssues = issuesByTarget.get(sketch.id) || [];
     sketch.diagnostics = sketchIssues;
+    if(isHoleWizardSketch(sketch)){
+      if(sketch.suppressed){sketch.status='suppressed';return;}
+      try{const result=solveHoleWizardSketch(sketch,document);sketch.status=sketchIssues.some(issue=>issue.severity==='error')?'conflicting':result.status;sketch.solveResult={status:sketch.status,degreesOfFreedom:result.degreesOfFreedom,maxResidual:result.maxResidual};sketch.diagnostics=sketchIssues;}
+      catch(error){sketch.status='conflicting';sketch.solveResult={status:'conflicting',message:String(error.message || error)};}
+      return;
+    }
     const warning = sketchIssues.find((issue) => issue.code === "under-constrained-sketch");
     const redundant = sketchIssues.some((issue) => issue.code === "over-constrained-sketch" && issue.severity === "warning");
     sketch.status = sketchIssues.some((issue) => issue.severity === "error") ? "conflicting" : redundant ? "over-defined" : warning

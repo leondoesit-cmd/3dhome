@@ -437,9 +437,9 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       var constraintPlacement=cylinderMethod?.input.value==='constraints';
       controls.forEach(function(control){
         var key=control.field.key;
-        if(!['cylinderAngle','cylinderConstraintBranch','cylinderOnSurface','cylinderAlongZ','cylinderAlongY'].includes(key))return;
+        if(!['cylinderAngle','cylinderConstraintBranch','cylinderOnSurface','cylinderAlongZ','cylinderAlongY','separateHoleSketches'].includes(key))return;
         var wrap=control.input.closest('.md-quick-field');
-        if(wrap)wrap.classList.toggle('parameter-hidden',key==='cylinderAngle'?constraintPlacement:!constraintPlacement);
+        if(wrap)wrap.classList.toggle('parameter-hidden',key==='cylinderAngle'?constraintPlacement:key==='separateHoleSketches'?!!state.id || !constraintPlacement || !cbore || holeEnd?.input.value!=='through-all':!constraintPlacement);
       });
       var holeLayout = controls.find(function (item) { return item.field.key === "layout"; });
       var layoutValue = holeLayout && holeLayout.input.value;

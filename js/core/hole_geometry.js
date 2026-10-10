@@ -1,7 +1,7 @@
 import { cylinderAxis } from './cylinder_axis.js';
 import { framePoint, frameFromPlane } from './frame.js';
 import { holeLayoutPoints, holeWizardSolids } from '../cad_hole_wizard.js';
-import { cylindricalHolePlacement } from './cylindrical_hole_placement.js';
+import { resolveHoleWizardInputs } from './hole_wizard_sketches.js';
 
 // Explicit sketch Point entities are Hole Wizard positions. Curve endpoints
 // and rectangle centres must not silently become extra holes.
@@ -15,8 +15,12 @@ export function holePositionPointIds(sketch) {
 }
 
 export function holeCutRecords(params, sketch, entityIds, document) {
+  if(params.positionSketchId || params.holeProfileSketchId){
+    const resolved=resolveHoleWizardInputs(params,document);
+    return holeWizardSolids(resolved.params).solids.map(solid=>({kind:'hole',params:{...resolved.params,...solid,...resolved.placement,diameter:solid.diameter || solid.diameter1,requireIntersection:true}}));
+  }
   if(params.cylindricalSource){
-    const placement=cylindricalHolePlacement(params,document);
+    const placement=resolveHoleWizardInputs(params,document).placement;
     return holeWizardSolids(params).solids.map(solid=>({kind:'hole',params:{...params,...solid,...placement,diameter:solid.diameter || solid.diameter1,requireIntersection:true}}));
   }
   let centres=holeLayoutPoints(params);
@@ -42,14 +46,15 @@ export function holeCutRecords(params, sketch, entityIds, document) {
 // cut records for compatibility rendering. Re-anchor those records whenever a
 // driving placement sketch or its support frame changes.
 export function syncHoleCutPlacement(part, feature, sketch, document) {
-  if (!part?.cuts3d?.length || feature?.type !== 'hole' || (!sketch && !feature.params?.cylindricalSource)) return false;
+  if (!part?.cuts3d?.length || feature?.type !== 'hole' || (!sketch && !feature.params?.cylindricalSource && !feature.params?.positionSketchId)) return false;
   const existing=part.cuts3d.filter(record=>record?.featureId===feature.id);
   if (!existing.length) return false;
   const refreshed=holeCutRecords(feature.params || {},sketch,feature.params?.profileEntityIds,document);
   if (existing.length!==refreshed.length) return false;
   let changed=false;
   existing.forEach((record,index)=>{
-    for(const key of ['centres','frame','support']){
+    const keys=feature.params?.positionSketchId ? [...new Set([...Object.keys(record.params || {}),...Object.keys(refreshed[index].params)])] : ['centres','frame','support'];
+    for(const key of keys){
       const next=refreshed[index].params[key];
       if(JSON.stringify(record.params?.[key])===JSON.stringify(next))continue;
       record.params[key]=next===undefined?undefined:structuredClone(next);

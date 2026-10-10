@@ -8,6 +8,7 @@ import { faceFrameOrigin, realignFrame } from "./frame.js";
 import {offsetSketchFrame} from './sketch_offset.js';
 import { aabbFromBox, aabbFromTopology, resolveExtrudeExtent, resolvedEndFace } from "./extrude_extent.js";
 import { supportsSurfaceUV } from "./surface_uv.js";
+import {solveHoleWizardSketch,isHoleWizardSketch} from './hole_wizard_sketches.js';
 import {
   createTopologyRegistry,
   resolveTopologyReference,
@@ -99,6 +100,15 @@ export function sketchDiagnostics(definition, parameters) {
     issues.push({ severity: "error", code: "sketch-equation", message: String(error.message || error) });
   }
   (document.sketches || []).forEach((sketch) => {
+    if(isHoleWizardSketch(sketch)){
+      if(sketch.suppressed)return;
+      try{
+        const result=solveHoleWizardSketch(sketch,document);
+        if(result.status==='inconsistent')issues.push({severity:'error',code:'sketch-solve-failed',sketchId:sketch.id,message:result.error || sketch.name+' is inconsistent'});
+        else if(result.degreesOfFreedom>0)issues.push({severity:'warning',code:'under-constrained-sketch',sketchId:sketch.id,dof:result.degreesOfFreedom,message:sketch.name+' has '+result.degreesOfFreedom+' degrees of freedom'});
+      }catch(error){issues.push({severity:'error',code:'sketch-solve-failed',sketchId:sketch.id,message:String(error.message || error)});}
+      return;
+    }
     const reference = sketch.referenceId || (sketch.plane ? "plane:" + sketch.plane : null);
     const support = sketch.support && sketch.support.type === "topology-reference" ? sketch.support : null;
     if(sketch.frameSpace==="surface-uv" && (!support || !supportsSurfaceUV(sketch.surface?.descriptor || support.descriptor)))issues.push({severity:"error",code:"invalid-surface-sketch",sketchId:sketch.id,message:(sketch.name || sketch.id)+" has no supported cylindrical, conical or spherical UV surface"});
