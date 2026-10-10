@@ -17680,7 +17680,7 @@ function editHoleWizardSketch(sketch) {
         if(edited.result.ok){
           consumers.forEach(function(feature){var resolved=resolveHoleWizardInputs(feature,edited.document);feature.params={...feature.params,...resolved.params,callout:holeCallout(resolved.params)};});
           (edited.document.parts || []).forEach(function(part){consumers.forEach(function(feature){syncHoleCutPlacement(part,feature,null,edited.document);});});
-          for(var part of edited.document.parts || [])if((part.cuts3d || []).some(function(cut){return consumers.some(function(feature){return feature.id===cut.featureId;});}))verified.push(await exactDisplayBody(part));
+          for(var part of edited.document.parts || [])if((part.cuts3d || []).some(function(cut){return consumers.some(function(feature){return feature.id===cut.featureId;});}))verified.push(await exactDisplayBody(part,edited.document));
         }
         if(E.def!==documentAtStart || E.massEditRevision!==revision || currentHistoryNode()!==historyNodeAtStart)throw new Error('The document changed while checking the sketch; apply again');
         pushUndo('Edit '+sketch.name);

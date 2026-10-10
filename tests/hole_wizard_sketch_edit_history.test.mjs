@@ -63,10 +63,10 @@ function actualEditor(exact){
   const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),body=source.slice(source.indexOf('function editHoleWizardSketch('),source.indexOf('\nfunction editSketchFromHistory('));
   const env={E,root:{querySelector:()=>({appendChild(){}})},setMode(){},cloneData:structuredClone,updatePreview(){},modelLengthText:v=>String(v),editedHoleWizardSketch,
     openQuickForm:spec=>{state.spec=spec;return {};},el:()=>({setAttribute(){},textContent:''}),resolveHoleWizardInputs,holeCallout,syncHoleCutPlacement,
-    exactDisplayBody:async part=>{await exact?.(part,state);return {release(){state.releases++;}};},currentHistoryNode:()=>state.node,pushUndo(){state.undo++;E.massEditRevision++;},
+    exactDisplayBody:async (part,nativeDocument=E.def)=>{await exact?.(part,state,nativeDocument,E);return {release(){state.releases++;}};},currentHistoryNode:()=>state.node,pushUndo(){state.undo++;E.massEditRevision++;},
     invalidatePartMeshAfterEdit(){},syncSketchDrivenParts(){},scheduleModelerDraft(){}};
-  new Function(...Object.keys(env),body+'; return editHoleWizardSketch;')(...Object.values(env))(document.sketches.find(s=>s.id==='position'));
-  return {E,state,document};
+  const open=new Function(...Object.keys(env),body+'; return editHoleWizardSketch;')(...Object.values(env));open(document.sketches.find(s=>s.id==='position'));
+  return {E,state,document,open};
 }
 test('actual dedicated editor validates before one Undo, commits driving sketch geometry, and Cancel preserves document',async()=>{
   const f=actualEditor(),before=JSON.stringify(f.document);f.state.spec.onLive({...positionValues,topDistance:.75});assert.equal(JSON.stringify(f.document),before);
@@ -79,4 +79,20 @@ test('actual dedicated editor rejects native failure and stale Undo/Redo without
   assert.equal(await failed.state.spec.onApply(positionValues),false);assert.equal(JSON.stringify(failed.document),before);assert.equal(failed.state.undo,0);
   const stale=actualEditor((part,state)=>{state.node='undone';}),initial=JSON.stringify(stale.document);
   assert.equal(await stale.state.spec.onApply(positionValues),false);assert.equal(JSON.stringify(stale.document),initial);assert.equal(stale.state.undo,0);assert.equal(stale.state.releases,1);
+});
+
+test('actual AlongY disable/reopen/restore validates the repaired draft rather than the old underdefined canonical document',async()=>{
+  let checked=0;
+  const f=actualEditor((part,state,nativeDocument,E)=>{
+    checked++;assert.notEqual(nativeDocument,E.def);
+    assert.equal(E.def.sketches.find(s=>s.id==='position').constraints.find(c=>c.type==='AlongY').enabled,false);
+    const resolved=resolveHoleWizardInputs(nativeDocument.features.at(-1),nativeDocument);
+    assert.equal(nativeDocument.sketches.find(s=>s.id==='position').status,'fully-defined');assert.equal(resolved.params.cylinderAlongY,true);
+  });
+  assert.equal(await f.state.spec.onApply({...positionValues,AlongY:false}),true);assert.equal(checked,0);
+  const position=f.E.def.sketches.find(s=>s.id==='position');assert.equal(position.status,'under-defined');assert.equal(position.diagnostics.degreesOfFreedom,2);
+  assert.throws(()=>resolveHoleWizardInputs(f.E.def.features.at(-1),f.E.def),/fully defined/);
+  f.open(position);assert.equal(await f.state.spec.onApply(positionValues),true);assert.equal(checked,1);assert.equal(f.state.undo,2);assert.equal(f.state.releases,1);
+  assert.equal(f.E.def.sketches.find(s=>s.id==='position').constraints.find(c=>c.type==='AlongY').enabled,true);
+  assert.equal(resolveHoleWizardInputs(f.E.def.features.at(-1),f.E.def).params.cylinderAlongY,true);
 });
