@@ -1,0 +1,195 @@
+{
+  "scope": "Actual browser-authored source review worksheet content and full cold persistence accepted; separate CAD exercises and whole book not claimed.",
+  "pass": true,
+  "checks": {
+    "twelvePrimitives": true,
+    "exactTranslatedPlan": true,
+    "fourCenterlines": true,
+    "fourCircles": true,
+    "closedFrustaOpenHoleOutlines": true,
+    "sixNotesTwelveRows": true,
+    "allSVGNoteRows": true,
+    "zeroCAD": true,
+    "A3LandscapeThirdMM": true
+  },
+  "key": "cm_mv28olgw",
+  "noteRows": [
+    4,
+    2,
+    2,
+    1,
+    1,
+    2
+  ],
+  "primitiveCount": 12,
+  "translationMM": {
+    "x": -6,
+    "y": 6
+  },
+  "maxCoordinateErrorMM": 0,
+  "circleRadiiMM": [
+    12.0,
+    6.0,
+    12.0,
+    6.0
+  ],
+  "bytes": 5866,
+  "sha256": "cf952f259ca26d88d446b72d29cb6c0c395df3992ea8936ea69c7222a23478b7",
+  "svgBytes": 11657,
+  "svgSHA256": "10c9e60c1f93e084b84cc2b160ddb59ac5f5f6e40eb80509cd46358e091654b2",
+  "cold": {
+    "status": "PASS",
+    "checks": {
+      "wholeDrawingExact": true,
+      "allAuthoringFieldsExact": true,
+      "SVGByteExact": true,
+      "libraryKeyExact": true,
+      "stillZeroCAD": true,
+      "expectedNotes": true
+    },
+    "exactFields": {
+      "drawing": true,
+      "customProperties": true,
+      "context": true,
+      "features": true,
+      "sketches": true,
+      "engineeringMaterials": true,
+      "localFrame": true,
+      "references": true,
+      "namedSelections": true,
+      "notes": true,
+      "markups": true,
+      "parameters": true
+    },
+    "changedPaths": [
+      ".createdAt",
+      ".mainModel.history.length",
+      ".mainModel.lastRebuild.rebuiltAt",
+      ".mainModel.referenceGeometry.length"
+    ],
+    "bytes": 6800,
+    "sha256": "2871204252f86610fc45d6b8f7699a680d3e5d81af0a3c95954e803c3cac26ba",
+    "svgBytes": 11657,
+    "svgSHA256": "10c9e60c1f93e084b84cc2b160ddb59ac5f5f6e40eb80509cd46358e091654b2",
+    "canonicalHistoryBefore": [],
+    "canonicalHistoryAfter": [
+      {
+        "id": "history:sketch:sk_3cm2e",
+        "kind": "sketch",
+        "targetId": "sk_3cm2e",
+        "name": "X\u00b7Z sketch",
+        "suppressed": false,
+        "status": "rebuilt"
+      }
+    ],
+    "referenceGeometryBefore": [],
+    "referenceGeometryAfter": [
+      {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    ]
+  },
+  "visual": "Actual PNG inspected: both large ends right; third circles left, first circles right; open U/V, readable notes, no overlaps. Transient UI hint touches lower titleblock only."
+}

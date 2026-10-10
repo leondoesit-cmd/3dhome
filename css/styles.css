@@ -5830,7 +5830,8 @@ body.compact-nav #modeler .md-sketch-plane-chip { min-height: 36px; }
 #modeler.md-isdrawing #mdCanvas {
   inset-block-start: 50px;
   inset-inline-start: 52px;
-  width: calc(100% - 52px); height: calc(100% - 50px);
+  width: calc(100% - 52px);
+  height: calc(100% - 50px - var(--md-drawing-feedback-gutter) - var(--md-drawing-feedback-footer));
 }
 @media (min-width: 1100px) {
   #modeler.md-isdrawing:not(.md-sheet-collapsed) #mdCanvas { inset-inline-end: 268px; width: calc(100% - 52px - 268px); }
@@ -6059,9 +6060,24 @@ body.compact-nav #modeler .md-quick-field select {
 #modeler.md-isdrawing .md-commandmanager { display: none; }
 #modeler.md-isdrawing.md-sheet-form .md-left { display: flex; }
 #modeler.md-isdrawing.md-sheet-form .md-left > :not(#mdQuickTools) { display: none; }
-/* The hint belongs under the paper, not across it: a sheet fills the pane and
-   a floating caption over the top view hides the geometry it is describing. */
-#modeler.md-isdrawing .md-hint { top: auto; bottom: 12px; }
+/* Fit the paper above a real feedback gutter. Moving an absolute hint alone
+   still covered the lower title block because the canvas filled the pane. */
+#modeler.md-isdrawing { --md-drawing-feedback-gutter: 56px; --md-drawing-feedback-footer: 32px; }
+#modeler.md-isdrawing #mdRailBottom {
+  top: auto; bottom: calc(var(--md-drawing-feedback-footer) + 4px);
+  max-height: calc(var(--md-drawing-feedback-gutter) - 8px);
+}
+#modeler.md-isdrawing #mdHint {
+  position: static; inset: auto; transform: none; margin: 0;
+  box-sizing: border-box; max-height: calc(var(--md-drawing-feedback-gutter) - 8px);
+}
+/* Mobile adopts the same hint directly into md-mid rather than its rail. */
+body.compact-nav #modeler.md-isdrawing { --md-drawing-feedback-footer: 0px; }
+body.compact-nav #modeler.md-isdrawing .md-mid > #mdHint {
+  position: absolute; inset-inline: 12px; top: auto;
+  bottom: calc(var(--md-drawing-feedback-footer) + 4px);
+  width: fit-content; max-width: calc(100% - 24px); margin-inline: auto;
+}
 #modeler.md-isdrawing .md-docmodes,
 #modeler.md-isdrawing .md-head-inputs,
 #modeler.md-isdrawing .md-head-actions button:not(#mdClose):not(#mdDrawing):not(#mdSave):not(#mdUndo):not(#mdRedo) { pointer-events: none; opacity: .48; }

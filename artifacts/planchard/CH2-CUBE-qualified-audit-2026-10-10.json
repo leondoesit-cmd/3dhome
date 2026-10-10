@@ -1,0 +1,50 @@
+{
+  "pass": true,
+  "scope": "Qualified actual native-paper cube construction, source PDF92/2-6; illustrative30mm paper edges, no physical CAD/material or cold acceptance.",
+  "checks": {
+    "eightPrimitivesNineVisibleEdges": true,
+    "closedHexOutline": true,
+    "allEdgesThirtyMM": true,
+    "trueIsometricInclines": true,
+    "sharedEndpointsExact": true,
+    "fourCenterGuides": true,
+    "twoNotesTwelveRows": true,
+    "allSVGNoteRows": true,
+    "sourcePDF92": true,
+    "zeroCAD": true,
+    "A3LandscapeThirdMM": true
+  },
+  "key": "cm_mv28xy4t",
+  "edgeLengthsMM": [
+    29.9999999016774,
+    29.9999999016774,
+    30.0,
+    29.9999999016774,
+    29.9999999016774,
+    30.0,
+    29.9999999016774,
+    29.9999999016774,
+    30.0
+  ],
+  "inclinedAnglesDegrees": [
+    30.00000010841618,
+    30.00000010841618,
+    149.99999989158383,
+    149.99999989158383,
+    30.00000010841618,
+    149.99999989158383
+  ],
+  "maxEdgeLengthErrorMM": 9.83226016160188e-08,
+  "noteRows": [
+    6,
+    6
+  ],
+  "bytes": 5107,
+  "sha256": "ccc7a98a9b10f0b7db47bcf42e82d09252d323f037032c464ee9c4b709f33c24",
+  "svgBytes": 11112,
+  "svgSHA256": "0367d038fcb45747f47e7d59bbc3e0dfe1b52da7eaa4f36d1b474bc1a416bcc9",
+  "cold": {
+    "status": "pending"
+  },
+  "visual": "Actual PNG inspected: cube closed with9 visible edges,4 separated construction guides, readable notes, full border/titleblock clear."
+}

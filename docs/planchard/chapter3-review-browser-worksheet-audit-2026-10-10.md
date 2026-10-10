@@ -1,0 +1,11 @@
+# Chapter3 actual browser review worksheet audit
+
+**Qualified and full cold text worksheet PASS; required native hole outlines accepted via companion.** Protected `CH3-review-qualified-browser-2026-10-10.mforge`, SVG and actual PNG independently inspected. Bundle6637bytes; SVG13827bytes. Parent actually viewed sourcePDF174/printed3-46; independent answer comparison uses the previously source-reviewed plan.
+
+All14 answer bodies and headings exactly match the plan after whitespace normalization. All44 genuine LF rows appear in SVG;15notes include a four-row source header. Row counts: `4,3,2,2,3,3,3,2,3,3,2,2,4,4,4`. A3 landscape, third-angle, mm; zero features, parts, geometric sketch entities, model views and authored paper primitives. All8 qualified checks PASS in `artifacts/planchard/CH3-review-qualified-audit-2026-10-10.json`.
+
+Actual PNG shows all14 answers readable/separated, within the border and above titleblock. Lower transient UI hint overlaps part of titleblock only. Pitch/lead answer preserves the source double-start distinction: pitch0.0625in, lead0.125in. Class1/2/3 and externalA/internalB are correctly distinguished. Source Q14 names and Unicode symbols are present, but the requested native paper outlines are separately required: open U for Counterbore and open V for Countersink. Header correctly references the companion; text-only pack does not close that diagram prompt.
+
+Exact ordinary Drawing recipes are in `chapter5-review-and-symbol-browser-layout-plan-2026-10-10.md`. Required open-U/V native paper graphics are now qualified and cold accepted in the actual REVIEW-SYMBOLS companion; evidence in `review-symbols-browser-worksheet-audit-2026-10-10.md`.
+
+Actual full hard-reload/exact saved-library reopen PASS: cold bundle7571bytes, SVG13827bytes byte-identical. Whole Drawing and all authoring fields/Description/context exact; same key15noteszeroCAD. Only outer createdAt/rebuild timestamp, empty-Sketch history0→1 and default referenceGeometry0→6 normalize. All6 cold checks PASS. Cold PNG after gutter fix shows all14 answers readable/separated and complete border/titleblock, transient hint below paper. Separate CAD exercises and wholeChapter3/book completion are not claimed. Read-only helpers: `scratch/planchard/audit-review-2-3-qualified-2026-10-10.py` and `audit-review-cold-2026-10-10.py`.

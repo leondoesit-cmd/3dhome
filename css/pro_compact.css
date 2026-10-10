@@ -290,6 +290,7 @@ body.pro-compact #right-inspector input:not([type="checkbox"]):not([type="range"
 body.pro-compact #right-inspector select { height: 40px !important; min-height: 40px !important; font-size: 16px !important; }
 /* a fold: the hint stands above the floating toolbar */
 body.pro-compact.dock-rail #modeler .md-mid > .md-hint { bottom: calc(var(--ps-dock-h) + 18px); }
+body.pro-compact.dock-rail #modeler.md-isdrawing { --md-drawing-feedback-footer: calc(var(--ps-dock-h) + env(safe-area-inset-bottom, 0px)); }
 
 /* ---- the model editor on a fold: its docked column under the header ------- */
 body.pro-compact.compact-nav.dock-rail #modeler #md-sheet { top: var(--md-head-block, 48px) !important; }

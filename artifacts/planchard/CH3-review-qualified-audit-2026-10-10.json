@@ -1,0 +1,310 @@
+{
+  "scope": "Actual browser-authored source review worksheet content and full cold persistence accepted; separate CAD exercises and whole book not claimed.",
+  "pass": true,
+  "checks": {
+    "expectedNotes": true,
+    "allAnswersMatch": true,
+    "allQuestionNumbers": true,
+    "allSVGNoteRows": true,
+    "expectedRows": true,
+    "zeroCAD": true,
+    "A3LandscapeThirdMM": true,
+    "sourceLabel": true
+  },
+  "key": "cm_mv28me05",
+  "name": "Planchard Chapter3 - review Q1-Q14 - browser 2026-10-10",
+  "customProperties": {
+    "Description": "Independent Chapter3 review Q1-Q14, printed3-46/PDF174: dimensions, tolerances, thread classes and double-start pitch/lead. Required counterbore/countersink outlines on separately authored companion sheet. No publisher answer-key, new CAD geometry or certification claim."
+  },
+  "noteRows": [
+    4,
+    3,
+    2,
+    2,
+    3,
+    3,
+    3,
+    2,
+    3,
+    3,
+    2,
+    2,
+    4,
+    4,
+    4
+  ],
+  "totalRows": 44,
+  "answers": [
+    {
+      "q": 1,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 34.755904449194375,
+      "y": 59.6884669389522
+    },
+    {
+      "q": 2,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 2,
+      "x": 34.755904449194375,
+      "y": 75.2093767842327
+    },
+    {
+      "q": 3,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 2,
+      "x": 34.755904449194375,
+      "y": 87.22556031987155
+    },
+    {
+      "q": 4,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 34.755904449194375,
+      "y": 99.2417438555104
+    },
+    {
+      "q": 5,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 34.755904449194375,
+      "y": 114.7626537007909
+    },
+    {
+      "q": 6,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 34.755904449194375,
+      "y": 130.28354521083043
+    },
+    {
+      "q": 7,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 2,
+      "x": 34.755904449194375,
+      "y": 145.80445505611092
+    },
+    {
+      "q": 8,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 225.01213765172912,
+      "y": 59.6884669389522
+    },
+    {
+      "q": 9,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 3,
+      "x": 225.01213765172912,
+      "y": 75.2093767842327
+    },
+    {
+      "q": 10,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 2,
+      "x": 225.01213765172912,
+      "y": 90.73028662951322
+    },
+    {
+      "q": 11,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 2,
+      "x": 225.01213765172912,
+      "y": 102.74647016515206
+    },
+    {
+      "q": 12,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 114.7626537007909
+    },
+    {
+      "q": 13,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 133.78827152047208
+    },
+    {
+      "q": 14,
+      "matchesPlan": true,
+      "headingExact": true,
+      "rows": 4,
+      "x": 225.01213765172912,
+      "y": 152.81388934015325
+    }
+  ],
+  "visual": "Actual qualified PNG inspected: all15 note blocks readable, separated, within border and above titleblock. Bottom transient UI hint overlays a small area of titleblock, not answers.",
+  "bytes": 6637,
+  "sha256": "419a60bfad58522c3c1487f2277b933e52922dd2464b31e8be56700965f558b5",
+  "svgBytes": 13827,
+  "svgSHA256": "301af40d5351d08e6079fd0b2a3ea2c2ea0bf3be39d82513320a4e61e0268c3a",
+  "cold": {
+    "status": "PASS",
+    "checks": {
+      "wholeDrawingExact": true,
+      "allAuthoringFieldsExact": true,
+      "SVGByteExact": true,
+      "libraryKeyExact": true,
+      "stillZeroCAD": true,
+      "expectedNotes": true
+    },
+    "exactFields": {
+      "drawing": true,
+      "customProperties": true,
+      "context": true,
+      "features": true,
+      "sketches": true,
+      "engineeringMaterials": true,
+      "localFrame": true,
+      "references": true,
+      "namedSelections": true,
+      "notes": true,
+      "markups": true,
+      "parameters": true
+    },
+    "changedPaths": [
+      ".createdAt",
+      ".mainModel.history.length",
+      ".mainModel.lastRebuild.rebuiltAt",
+      ".mainModel.referenceGeometry.length"
+    ],
+    "bytes": 7571,
+    "sha256": "83a0a3f7a7cd73eeacd9195b37886a1da0c38579be8853d30277b19ccd3e19d3",
+    "svgBytes": 13827,
+    "svgSHA256": "301af40d5351d08e6079fd0b2a3ea2c2ea0bf3be39d82513320a4e61e0268c3a",
+    "canonicalHistoryBefore": [],
+    "canonicalHistoryAfter": [
+      {
+        "id": "history:sketch:sk_2drd2",
+        "kind": "sketch",
+        "targetId": "sk_2drd2",
+        "name": "X\u00b7Z sketch",
+        "suppressed": false,
+        "status": "rebuilt"
+      }
+    ],
+    "referenceGeometryBefore": [],
+    "referenceGeometryAfter": [
+      {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      },
+      {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      },
+      {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+# Chapter2 actual browser review worksheet audit
+
+**Qualified and full cold text worksheet PASS; required projection companion also accepted.** Actual protected `CH2-review-qualified-browser-2026-10-10.mforge`, SVG and PNG inspected. Bundle7491bytes; SVG15283bytes. Source review PDF123/printed2-37 was actually viewed by parent; independent content comparison uses the existing source-grounded plan.
+
+All15 answer bodies and headings exactly match the plan after whitespace normalization. All52 genuine LF rows are present in SVG;16notes include the four-row source header. Counts: `4,2,3,2,3,4,4,3,3,6,4,3,2,3,3,3`. A3 landscape, third-angle, mm; zero CAD features/parts/geometric sketch entities, zero model views and zero authored paper primitives. All8 qualified checks PASS in `artifacts/planchard/CH2-review-qualified-audit-2026-10-10.json`.
+
+Actual PNG shows all15 answers readable and separated in two columns, within the sheet border and above the complete titleblock. A transient lower UI hint overlaps part of the titleblock only. Source header and Q9/Q10 explicitly point to required graphics instead of implying that text alone completes the prompts.
+
+Q9 third-angle and Q10 first-angle are now completed by the independently audited actual native Drawing symbol companion, `REVIEW-SYMBOLS` qualified and cold: same source frustum orientation, large end RIGHT; concentric-circle view LEFT for third-angle and RIGHT for first-angle. Exact paper primitives are in `chapter5-review-and-symbol-browser-layout-plan-2026-10-10.md`; acceptance evidence in `review-symbols-browser-worksheet-audit-2026-10-10.md`. These are authored answer diagrams, distinct from the automatic sheet marker. Separate CAD exercises and wholeChapter2/book completion are not claimed.
+
+Full hard-reload/exact saved-library reopen PASS: cold bundle8425bytes, SVG15283bytes byte-identical. Whole Drawing/all authoring fields including Description/context exact; same key16noteszeroCAD. Only outer createdAt/rebuild timestamp, canonical empty-Sketch history0→1 and default referenceGeometry0→6 differ. Actual cold PNG after CSS gutter correction shows full sheet border/titleblock and all answers; transient hint is outside the paper. All6 cold checks PASS. Read-only helpers: `scratch/planchard/audit-review-2-3-qualified-2026-10-10.py` and `audit-review-cold-2026-10-10.py`.
