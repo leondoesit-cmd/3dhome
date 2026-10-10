@@ -1,0 +1,17 @@
+{
+  "source": "PDF161 / printed3-33 + official2021publishererrata",
+  "savedKey": "cm_mv2znv87",
+  "checks": {
+    "nine_source_rows": true,
+    "max_clearance_plus0003": true,
+    "signed_MMC_minus0009": true,
+    "interference_magnitude0009": true,
+    "other_exercises_qualified": true,
+    "cold_drawing_exact": true,
+    "cold_description_exact": true,
+    "same_saved_key": true,
+    "no_dimensioned_solid_claim": true
+  },
+  "allPassed": true,
+  "qualification": "native annotation-only corrected worked example; does not change independent3.15/3.16 homework or resolve3.9 source damage"
+}

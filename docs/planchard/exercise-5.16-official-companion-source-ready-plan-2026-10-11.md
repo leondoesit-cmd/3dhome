@@ -38,6 +38,14 @@ A bounded generic repair should accept persistent native circular-edge reference
 
 ## Acceptance evidence
 
+### Verified current UI labels and shortest parametric route
+
+`modeler.js::openDimensionedCircle` exposes **Dimensioned circle**, **Center U**, **Center V**, **Diameter**, **Fix center**; it creates a driving diameter and fixed centre. Start a Top sketch, enter0/0/6.35 with Fix center checked, then ordinary Boss Extrude Blind/Forward Depth50.8, operation Add, Merge result enabled. This preserves the source's first sketch/Boss structure instead of claiming a generic primitive is the original feature tree.
+
+For the collar use a new sketch on the far planar end and verify its centre frame before entering0/0. Alternatively the deterministic ordinary **Reference plane** form exposes **Parent plane**, **Offset distance**, **Flip offset**, **Planes to create**. Choose Top,50.8mm, Flip unchecked, count1; start a sketch on that plane, Dimensioned circle0/0/9.525, Fix center checked, Boss6.35 Forward/Add/Merge. The reference plane is an explicitly disclosed equivalent construction choice, not an original source feature. This avoids accidental far-face local-frame origin assumptions.
+
+Then set6061 Alloy through the ordinary material controls. Confirm native one-solid, centred shaft/collar, radial extents4.7625mm and axial0..57.15mm. Retain exact material identity; do not claim an original density/mass where only source grade is recovered. Pick the native free circular edge at axial0 alone, clear any face selection, and proceed with source Thread settings after the generic edge repair.
+
 Exact stepped-cylinder analytic check: `pi*(3.175^2*50.8 + 4.7625^2*6.35) = 2061.2701903598986 mm3`. This is a check of the reconstructed source dimensions, not a measurement of the undecoded original BRep. No original mass or exact density is asserted.
 
 Require actual Chrome edge pick with persisted native reference, one valid native body before/after cosmetic annotation, source-exact two-boss dimensions, start at the free shaft end, length25.4, correct UNC2A label/display, and a bounded parameter driver followed by Undo restoring original annotation. Hard reload and reopen exact Saved record; compare authoring geometry, thread references/settings and displayed annotation. Cosmetic STEP may contain only the uncut stepped solid; this is expected and does not prove annotation persistence by itself.
