@@ -30,6 +30,36 @@
     }
   ],
   "nominalAccepted": true,
-  "coldAccepted": false,
-  "qualification": "Actual browser series read only. Native original18guards inherited only when completepathJSON matches; otherwise freshnative audit required. Source outerSkirt3–4mm recommendation/raster3.6mm and inneropeningloop qualified; physical printing unverified."
+  "coldAccepted": true,
+  "qualification": "Actual browser series read only. Native original18guards inherited only when completepathJSON matches; otherwise freshnative audit required. Source outerSkirt3–4mm recommendation/raster3.6mm and inneropeningloop qualified; physical printing unverified.",
+  "coldChecks": {
+    "completeJsonByteExact": true,
+    "gcodeByteExact": true,
+    "firstLayerSvgByteExact": true,
+    "wholeBundleOnlyKnownDerivedDifferences": true,
+    "allSourceAndSettingsColdExact": true,
+    "nativeGuardForIdenticalActualPaths": true
+  },
+  "coldDifferences": [
+    {
+      "path": ".createdAt",
+      "old": 1791664178087,
+      "current": 1791664339241
+    },
+    {
+      "path": ".mainModel.parts.0.exactBuildToken",
+      "old": 30,
+      "current": 32
+    },
+    {
+      "path": ".mainModel.lastRebuild.rebuiltAt",
+      "old": 1791664110112,
+      "current": 1791664270112
+    },
+    {
+      "path": ".mainModel.lastStandardsAudit.at",
+      "old": 1791651828319,
+      "current": 1791664181362
+    }
+  ]
 }
