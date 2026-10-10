@@ -4421,5 +4421,11 @@
     "allOnlyAppendGeneratedSuffix": true,
     "meshAllOtherFieldsExact": true,
     "exactTopologyIdentityEqualityClaimed": false
+  },
+  "subsequentFixedRollback": {
+    "accepted": true,
+    "report": "ch4-native-rollback-browser-audit-2026-10-11.json",
+    "nativeChecks": 9,
+    "restorationChecks": 5
   }
 }

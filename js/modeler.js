@@ -10360,7 +10360,7 @@ function addFinishBodyTargetControl(host,type,state) {
   var hint=el("p","md-field-hint",t("finishTargetBodyHint"));host.appendChild(hint);
   picker.value=selected?.id || "";
   picker.addEventListener("change",function(){
-    var chosen=finishBodyTargetChoices().find(function(choice){return choice.value===picker.value;});
+    var chosen=finishBodyTargetChoices().find(function(choice){return String(choice.value)===picker.value;});
     E.sel=chosen?.part || null;E.ssel=[];E.topologySelection=[];E.authoring.finishEdgePool=[];
     E.authoring.featureSelection=[];
     syncActiveFeatureSelectionFeedback();

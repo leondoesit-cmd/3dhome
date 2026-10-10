@@ -1,0 +1,201 @@
+{
+  "orderAChecks": {
+    "baseSketchAndBossPreserved": true,
+    "realShellBeforeFillet": true,
+    "insideTwoMmTopOpening": true,
+    "fourExteriorVerticalEdgesR4": true,
+    "actualSerializedNativeOne": true,
+    "nativeValidConnected": true,
+    "analyticRoundedExteriorSharpCavityVolume": true,
+    "allFourInnerCornersSharpAndOuterRounded": true,
+    "sourceIllustrativeQualification": true
+  },
+  "orderAAccepted": true,
+  "orderAKey": "cm_mv2xl6f7_6467",
+  "orderAName": "Planchard Ch2 Shell then Fillet order A - browser 2026-10-11",
+  "orderANative": {
+    "mass": {
+      "volume": 5.557309649148738,
+      "centerOfMass": {
+        "x": 5.112042351762293e-17,
+        "y": 0.7810451321195699,
+        "z": -8.177373657328695e-17
+      },
+      "inertia": [
+        [
+          8.332169327915253,
+          -3.5511831487127175e-16,
+          -3.9623252595655274e-17
+        ],
+        [
+          -3.5511831487127175e-16,
+          12.194394122871849,
+          -7.397817324589661e-16
+        ],
+        [
+          -3.9623252595655274e-17,
+          -7.397817324589661e-16,
+          8.332169327915251
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1.5,
+          "y": 0,
+          "z": -1.5
+        },
+        "max": {
+          "x": 1.5,
+          "y": 2,
+          "z": 1.5
+        }
+      }
+    },
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 5.557309649148738,
+      "maxToleranceCm": 0.0010000000000000005
+    },
+    "probes": [
+      {
+        "quadrant": [
+          -1,
+          -1
+        ],
+        "innerCorner": false,
+        "outerCutCorner": false,
+        "wall": true
+      },
+      {
+        "quadrant": [
+          -1,
+          1
+        ],
+        "innerCorner": false,
+        "outerCutCorner": false,
+        "wall": true
+      },
+      {
+        "quadrant": [
+          1,
+          -1
+        ],
+        "innerCorner": false,
+        "outerCutCorner": false,
+        "wall": true
+      },
+      {
+        "quadrant": [
+          1,
+          1
+        ],
+        "innerCorner": false,
+        "outerCutCorner": false,
+        "wall": true
+      }
+    ]
+  },
+  "orderBPending": false,
+  "coldPending": true,
+  "qualification": "Chosen30x30x20 box demonstrates genuine feature order, not exact publisher dimensions. FreshreadonlyBRep probes distinguish roundedexterior/sharpinterior. Actualbrowser serializedNative1; no physical/STEPclaim.",
+  "orderBChecks": {
+    "baseSourceExact": true,
+    "realFilletBeforeShell": true,
+    "sameFourExteriorEdgesR4": true,
+    "insideTwoMmTopRemoved": true,
+    "actualNativeOne": true,
+    "validConnected": true,
+    "analyticBothRoundedVolume": true,
+    "allFourRoundedInnerCornersContrast": true,
+    "distinctNativeVolumes": true
+  },
+  "orderBAccepted": true,
+  "orderBKey": "cm_mv2xzcqu_6467",
+  "orderBName": "Planchard Ch2 Fillet then Shell order B - browser 2026-10-11",
+  "orderBNative": {
+    "mass": {
+      "volume": 5.619114978090263,
+      "centerOfMass": {
+        "x": 7.963696589370429e-18,
+        "y": 0.7845533554970455,
+        "z": -3.951593903858795e-17
+      },
+      "inertia": [
+        [
+          8.452557702606553,
+          -5.056592065927316e-16,
+          -3.668870762751908e-17
+        ],
+        [
+          -5.056592065927316e-16,
+          12.38935912548919,
+          4.7838765061082195e-17
+        ],
+        [
+          -3.668870762751908e-17,
+          4.7838765061082195e-17,
+          8.452557702606557
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1.5,
+          "y": 0,
+          "z": -1.5
+        },
+        "max": {
+          "x": 1.5,
+          "y": 2,
+          "z": 1.5
+        }
+      }
+    },
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 5.619114978090263,
+      "maxToleranceCm": 0.0010000000000000005
+    },
+    "probes": [
+      {
+        "quadrant": [
+          -1,
+          -1
+        ],
+        "innerCorner": true,
+        "outerCutCorner": false,
+        "wall": true
+      },
+      {
+        "quadrant": [
+          -1,
+          1
+        ],
+        "innerCorner": true,
+        "outerCutCorner": false,
+        "wall": true
+      },
+      {
+        "quadrant": [
+          1,
+          -1
+        ],
+        "innerCorner": true,
+        "outerCutCorner": false,
+        "wall": true
+      },
+      {
+        "quadrant": [
+          1,
+          1
+        ],
+        "innerCorner": true,
+        "outerCutCorner": false,
+        "wall": true
+      }
+    ]
+  }
+}

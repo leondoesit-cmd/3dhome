@@ -11,8 +11,10 @@ import {shapeMassProperties} from '../js/cad_kernel.js';
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 const dependencyReferenceId=new Function(sourceFunctionText(source,'dependencyReferenceId')+';return dependencyReferenceId;')();
 function el(tag,cls='',text=''){
- return {tagName:tag.toUpperCase(),children:[],dataset:{},listeners:{},classList:{add(){},remove(){}},textContent:text,
+ const node={tagName:tag.toUpperCase(),children:[],dataset:{},listeners:{},classList:{add(){},remove(){}},textContent:text,
   appendChild(child){this.children.push(child);return child;},setAttribute(){},addEventListener(type,handler){this.listeners[type]=handler;}};
+ if(tag==='select'){let value='';Object.defineProperty(node,'value',{get:()=>value,set:next=>{value=String(next);}});}
+ return node;
 }
 function harness(document,tree=[]){
  const E={def:document,sel:null,ssel:[],topologySelection:[{kind:'edge',persistentId:'old-edge'}],authoring:{featureSelection:tree,finishEdgePool:['old-edge']}};let previews=0;
@@ -58,6 +60,20 @@ test('existing viewport face/edge selection survives opening the form until the 
  const doc=fixture(),f=harness(doc,['base']),state={};f.E.sel=doc.parts[0];const old=f.E.topologySelection;
  const picker=f.api.addFinishBodyTargetControl(el('div'),'chamfer',state);assert.equal(f.E.topologySelection,old);
  picker.value='body-B';picker.listeners.change();assert.deepEqual(f.E.topologySelection,[]);
+});
+
+test('native numeric body IDs survive actual select string conversion and feedback synchronization for every finish command',()=>{
+ for(const type of ['fillet','chamfer','shell','dome','draft','thicken']){
+  const doc=fixture();doc.parts[0].id=6466;doc.parts[1].id=6467;
+  const before=JSON.stringify(doc),f=harness(doc),state={};
+  const picker=f.api.addFinishBodyTargetControl(el('div'),type,state);
+  assert.equal(picker.value,'');picker.value='6466';picker.listeners.change();state.syncFinishBodyTarget();
+  assert.equal(f.E.sel,doc.parts[0],type);assert.equal(picker.value,'6466',type);assert.equal(f.previews,1);assert.deepEqual(f.E.topologySelection,[]);
+  picker.value='6467';picker.listeners.change();state.syncFinishBodyTarget();assert.equal(f.E.sel,doc.parts[1]);assert.equal(picker.value,'6467');
+  picker.value='absent';picker.listeners.change();state.syncFinishBodyTarget();assert.equal(f.E.sel,null);assert.equal(picker.value,'');
+  picker.value='6466';picker.listeners.change();picker.value='';picker.listeners.change();state.syncFinishBodyTarget();assert.equal(f.E.sel,null);
+  assert.equal(JSON.stringify(doc),before,'target selection changes no native geometry, history or references');
+ }
 });
 test('body target changes preserve native cold geometry and current head mass',async()=>{
  const doc=fixture(),before=JSON.stringify(doc),f=harness(doc,['base']);
