@@ -1,0 +1,223 @@
+{
+  "actualFirstLayerAdhesionPaths": 18,
+  "modelPaths": 156,
+  "pathResults": [
+    {
+      "path": 0,
+      "kind": "brim",
+      "closest": {
+        "gap": -0.20000000000000073,
+        "centerDistance": 0.1999999999999993,
+        "materialPath": 0,
+        "adhesionSegment": 1,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 1,
+      "kind": "brim",
+      "closest": {
+        "gap": 0.04721359549995474,
+        "centerDistance": 0.44721359549995476,
+        "materialPath": 0,
+        "adhesionSegment": 17,
+        "materialSegment": 4
+      }
+    },
+    {
+      "path": 2,
+      "kind": "brim",
+      "closest": {
+        "gap": 0.2324555320336703,
+        "centerDistance": 0.6324555320336703,
+        "materialPath": 0,
+        "adhesionSegment": 4,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 3,
+      "kind": "brim",
+      "closest": {
+        "gap": 0.42462112512352823,
+        "centerDistance": 0.8246211251235283,
+        "materialPath": 0,
+        "adhesionSegment": 23,
+        "materialSegment": 4
+      }
+    },
+    {
+      "path": 4,
+      "kind": "brim",
+      "closest": {
+        "gap": 0.5999999999999964,
+        "centerDistance": 0.9999999999999964,
+        "materialPath": 0,
+        "adhesionSegment": 6,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 5,
+      "kind": "brim",
+      "closest": {
+        "gap": 0.7661903789690571,
+        "centerDistance": 1.166190378969057,
+        "materialPath": 0,
+        "adhesionSegment": 2,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 6,
+      "kind": "brim",
+      "closest": {
+        "gap": 0.9416407864998707,
+        "centerDistance": 1.3416407864998707,
+        "materialPath": 0,
+        "adhesionSegment": 4,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 7,
+      "kind": "brim",
+      "closest": {
+        "gap": 1.123154621172778,
+        "centerDistance": 1.5231546211727782,
+        "materialPath": 0,
+        "adhesionSegment": 4,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 8,
+      "kind": "brim",
+      "closest": {
+        "gap": 1.3088007490634999,
+        "centerDistance": 1.7088007490635,
+        "materialPath": 0,
+        "adhesionSegment": 10,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 9,
+      "kind": "brim",
+      "closest": {
+        "gap": 1.4867962264113155,
+        "centerDistance": 1.8867962264113156,
+        "materialPath": 0,
+        "adhesionSegment": 8,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 10,
+      "kind": "brim",
+      "closest": {
+        "gap": 1.6591260281973979,
+        "centerDistance": 2.0591260281973978,
+        "materialPath": 0,
+        "adhesionSegment": 10,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 11,
+      "kind": "brim",
+      "closest": {
+        "gap": 1.83606797749979,
+        "centerDistance": 2.23606797749979,
+        "materialPath": 0,
+        "adhesionSegment": 6,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 12,
+      "kind": "brim",
+      "closest": {
+        "gap": 2.0166091947189106,
+        "centerDistance": 2.4166091947189106,
+        "materialPath": 0,
+        "adhesionSegment": 63,
+        "materialSegment": 4
+      }
+    },
+    {
+      "path": 13,
+      "kind": "brim",
+      "closest": {
+        "gap": 2.199999999999999,
+        "centerDistance": 2.5999999999999988,
+        "materialPath": 0,
+        "adhesionSegment": 6,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 14,
+      "kind": "brim",
+      "closest": {
+        "gap": 2.3856776554368184,
+        "centerDistance": 2.7856776554368183,
+        "materialPath": 0,
+        "adhesionSegment": 16,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 15,
+      "kind": "brim",
+      "closest": {
+        "gap": 2.5732137494636986,
+        "centerDistance": 2.9732137494636985,
+        "materialPath": 0,
+        "adhesionSegment": 16,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 16,
+      "kind": "brim",
+      "closest": {
+        "gap": 2.7622776601683796,
+        "centerDistance": 3.1622776601683795,
+        "materialPath": 0,
+        "adhesionSegment": 6,
+        "materialSegment": 1
+      }
+    },
+    {
+      "path": 17,
+      "kind": "brim",
+      "closest": {
+        "gap": 2.952610922848038,
+        "centerDistance": 3.352610922848038,
+        "materialPath": 0,
+        "adhesionSegment": 87,
+        "materialSegment": 4
+      }
+    }
+  ],
+  "closestBeadGapMm": -0.20000000000000073,
+  "anyActualBeadContact": true,
+  "allMaterialPathsByteExactToBaseline": false,
+  "materialCounts": [
+    {
+      "wall": 535,
+      "skin": 1833,
+      "infill": 5120
+    },
+    {
+      "wall": 535,
+      "skin": 1837,
+      "infill": 5122
+    }
+  ],
+  "sourceFingerprintExact": true,
+  "sourceBoundsExact": true,
+  "sourceCADClaim": "Contact audit reads actual deposited segment geometry, not inferred native footprint.",
+  "qualification": "Bounded raster FFF paths; conservative offsets include two-grid-cell margin. Rectilinear infill, vertical-column supports, no adaptive width or retraction. Volume uses rectangular bead approximation; time excludes acceleration and travel. Digital study only; physical printing and device compatibility unverified."
+}

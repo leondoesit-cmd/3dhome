@@ -1,0 +1,13 @@
+# Native Insert project image
+
+The app now offers **Insert project image** beside the unchanged **Insert image** local-file workflow. This is ordinary drawing authoring from an already app-served static HTTP asset, useful for reusable project logos. It does not grant local-file permissions, change extension/browser security, use a proxy, import authored CAD JSON or depend on a tool uploading bytes.
+
+Workflow: Drawing toolbar **Insert project image** → click paper → form **Project image URL** → **Apply** → existing **Insert drawing image** form with **Left position (paper mm)**, **Top position (paper mm)**, **Image width (paper mm)** and **Image height (paper mm)** → **Apply**. The known original source asset is `http://localhost:8765/scratch/planchard/original-logo-assets/Logo.jpg`; the parent may type this already observed app-served URL. No project/source state was authored during implementation.
+
+The new pure helper permits HTTP/HTTPS assets only on the current app origin, with PNG/JPG/JPEG static extensions, no credentials/query/fragment or API route. External/file/data/blob URLs reject before fetch. GET uses same-origin mode, omitted credentials and redirect:error; redirected or changed response URLs reject. Response PNG/JPEG MIME, content length and streaming limit enforce2MiB; original raster magic/dimensions≤4096×4096 and actual browser Image decoding use the existing importer. HTTP errors/invalid/empty payloads never create a drawing image. The stored asset is the original embedded pixel data and basename, not a live network URL.
+
+Shared native paper-image history, stale document/model/history checks, paper bounds, Canvas/SVG, Save/cold persistence and existing Edit/Remove actions remain in use. The local file chooser and its importer are unchanged. The original extension file-URL/file-chooser permission blocker remains separate; actual browser acceptance of the new app asset workflow is pending and no logo completion is claimed yet.
+
+Four new regressions plus related image/preset/blank-save tests pass **17/17**. They verify original supplied12144-byte JPEG identity, exact bounded same-origin fetch options, forbidden URLs, redirects, MIME/magic/dimension/decode failure, header and streamed oversize rejection/cancellation, ordinary URL form cancel, genuine controller insertion with normalized Undo, no mutation on invalid/cancel/stale, and cold shared SVG original pixel identity. Existing local upload regression remains green.
+
+Final `npm run check` passes: no free identifiers,681linkedmodules and1487source assertions. Diff whitespace clean. Source edits are frozen. Parent owns actual browser proof, source CAD/artifacts, ADVANCE/ledger and commits.

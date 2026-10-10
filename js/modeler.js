@@ -168,6 +168,7 @@ import { configuredBodiesForView } from "./cad_configured_drawing.js";
 import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
 import {drawingViewScaleControl} from "./core/drawing_scale_control.js";
 import {decodeDrawingImage} from "./core/drawing_image.js";
+import {importDrawingProjectImage} from "./core/drawing_project_image.js";
 import {captureDrawingPreset,applyDrawingFormat,drawingFromTemplate,loadDrawingPresets,saveDrawingPreset} from './core/drawing_presets.js';
 import { DRAWING_TOOLS, createDrawingController } from "./modeler_drawing.js";
 import { tessellateParts } from "./core/part_tessellate.js";
@@ -4113,6 +4114,7 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="sheetarc">' + cadIcon("sarc") + '<span>' + t("drawPaperArc") + '</span></button>' +
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
     '<button type="button" data-drawing-tool="insertimage"><i class="ph ph-image"></i><span>Insert image</span></button>' +
+    '<button type="button" data-drawing-tool="insertprojectimage"><i class="ph ph-image"></i><span>Insert project image</span></button>' +
     '<button type="button" data-drawing-tool="editimage"><i class="ph ph-image"></i><span>Edit image</span></button>' +
     '<button type="button" data-drawing-tool="removeimage"><i class="ph ph-trash"></i><span>Remove image</span></button>' +
     '<button type="button" data-drawing-tool="saveformat"><i class="ph ph-floppy-disk"></i><span>Save sheet format</span></button>' +
@@ -12104,6 +12106,14 @@ async function drawingPresetAction(action) {
   } catch(error){flash(error.message);}
 }
 
+async function chooseDrawingProjectImage() {
+  const answer=await sheetForm('Insert project image',[
+    {key:'url',label:'Project image URL',type:'text',value:''},
+  ],'Use an app-served same-origin static PNG/JPEG asset. Pixels are embedded; external and file URLs are unsupported.');
+  if(!answer)return null;
+  return importDrawingProjectImage(answer.url);
+}
+
 function chooseDrawingImage() {
   return new Promise(function(resolve,reject){
     if(!root){resolve(null);return;}
@@ -12435,6 +12445,7 @@ function syncSheetPanel() {
 function drawingHintText() {
   var tool = E.sheet ? E.sheet.getTool() : "select";
   if(tool==='insertimage')return 'Click the paper, choose a local PNG/JPEG, then set position and size in paper mm';
+  if(tool==='insertprojectimage')return 'Click the paper, enter an app-served PNG/JPEG URL, then set position and size in paper mm';
   if(tool==='editimage')return 'Click an inserted image to edit its paper position and size';
   if(tool==='removeimage')return 'Click an inserted image to remove it; Undo restores it';
   if (tool === "dim") return t("drawDimHint");
@@ -12516,6 +12527,7 @@ function drawingSheet() {
       promptFields: sheetForm,
       historyToken: currentHistoryNode,
       chooseImage: chooseDrawingImage,
+      chooseProjectImage: chooseDrawingProjectImage,
       presetAction: drawingPresetAction,
       refresh: function () { drawSketch(); syncSheetPanel(); },
       editTitleBlock: function () {

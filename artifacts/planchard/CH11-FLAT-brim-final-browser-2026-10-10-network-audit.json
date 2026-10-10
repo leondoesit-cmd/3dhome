@@ -1,0 +1,24 @@
+{
+  "checks": {
+    "eighteenExteriorLoops": true,
+    "everyBrimNetworkAttached": true,
+    "allLoopsClosed": true,
+    "materialAndSupportPathsExactToDiagnostic": true,
+    "settingsExact": true,
+    "gridExact": true,
+    "sourceFingerprintExact": true,
+    "sourceBoundsExact": true,
+    "actualAllBeadEnvelopesFitBed": true,
+    "noSupport": true
+  },
+  "qualifiedActualBrimNetworkAccepted": true,
+  "actualColdAccepted": false,
+  "directMaterialAttachedLoops": [
+    0
+  ],
+  "allAttachedLoops": 18,
+  "actualFirstLayerPaths": 174,
+  "diagnosticFilamentMm": 12063.031903531215,
+  "finalFilamentMm": 12149.268781678802,
+  "qualification": "All actual18 exterior loops connect by strict bead-distance network to actual deposited model; diagnostic inner contact is not used as proof. Cold pending; physical adhesion unverified."
+}

@@ -31,7 +31,7 @@ import {canAlternatePosition,alternatePositionBodies} from './core/drawing_alter
 import {canAlignedSectionParent,projectAlignedSection} from './core/drawing_aligned_section.js';
 import {drawingImageAsset,drawingImageItem} from './core/drawing_image.js';
 
-export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "insertimage", "editimage", "removeimage", "saveformat", "applyformat", "savetemplate", "newtemplate", "section", "alignedsection", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", "alternateposition", "removealternateposition", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "insertimage", "insertprojectimage", "editimage", "removeimage", "saveformat", "applyformat", "savetemplate", "newtemplate", "section", "alignedsection", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", "alternateposition", "removealternateposition", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
 /** Axis-aligned picks have only one meaningful projected measurement.
  * Moving its label past an endpoint must not turn that measurement into zero. */
@@ -718,9 +718,10 @@ export function createDrawingController(host) {
   function pointerDown(event, x, y) {
     const sheetPoint = toSheetMm(x, y);
     state.cursor = sheetPoint;
-    if(['insertimage','editimage','removeimage'].includes(state.tool)&&event.button===0&&!event.altKey&&!event.spaceKey) {
+    if(['insertimage','insertprojectimage','editimage','removeimage'].includes(state.tool)&&event.button===0&&!event.altKey&&!event.spaceKey) {
       const hit=[...(host.doc().images||[])].reverse().find(i=>sheetPoint.x>=i.x&&sheetPoint.x<=i.x+i.w&&sheetPoint.y>=i.y&&sheetPoint.y<=i.y+i.h);
       if(state.tool==='insertimage')editPaperImage(null,sheetPoint);
+      else if(state.tool==='insertprojectimage')editPaperImage(null,sheetPoint,true);
       else if(!hit)host.flash('Click an inserted drawing image');
       else if(state.tool==='removeimage') {host.pushUndo('Remove drawing image');const doc=host.doc();doc.images=doc.images.filter(i=>i.id!==hit.id);invalidate();host.markDirty();host.refresh();}
       else editPaperImage(hit,sheetPoint);
@@ -1629,12 +1630,13 @@ export function createDrawingController(host) {
     } catch(error) {host.flash(error.message);host.refresh();}
   }
 
-  async function editPaperImage(existing,point) {
+  async function editPaperImage(existing,point,fromProject=false) {
     const doc=host.doc(),token=host.bodiesToken(),history=host.historyToken?.(),fingerprint=JSON.stringify([doc.images,doc.size,doc.orientation]);
     try {
-      if(!host.promptFields||!host.chooseImage)throw new Error('Local drawing image importer is unavailable');
+      const chooser=fromProject?host.chooseProjectImage:host.chooseImage;
+      if(!host.promptFields||!chooser)throw new Error('Drawing image importer is unavailable');
       if(!existing&&(doc.images||[]).length>=32)throw new Error('A drawing supports at most 32 images');
-      const asset=existing||await host.chooseImage();if(!asset)return;
+      const asset=existing||await chooser();if(!asset)return;
       const pixels=drawingImageAsset(asset.dataUrl),paper=sheetPaper(doc),w=Math.min(40,paper.w),h=Math.min(w*pixels.height/pixels.width,paper.h);
       const initial=existing||{x:Math.max(0,Math.min(point.x,paper.w-w)),y:Math.max(0,Math.min(point.y,paper.h-h)),w,h};
       const answer=await host.promptFields(existing?'Edit drawing image':'Insert drawing image',[
