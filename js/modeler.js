@@ -164,6 +164,7 @@ import {
 import { buildDrawingScene } from "./cad_drawings.js";
 import { configuredBodiesForView } from "./cad_configured_drawing.js";
 import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
+import {drawingViewScaleControl} from "./core/drawing_scale_control.js";
 import { DRAWING_TOOLS, createDrawingController } from "./modeler_drawing.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
@@ -12072,11 +12073,11 @@ function sheetForm(title, fields, hint) {
       title: title,
       hint: hint || fields.map(function (field) { return field.hint; }).filter(Boolean)[0] || t("drawNoteHint"),
       fields: fields.map(function (field) {
-        return { key: field.key, label: field.label || title, type: ["boolean","select","textarea"].includes(field.type) ? field.type : "text", choices:field.choices, value: field.value ?? "" };
+        return { key: field.key, label: field.label || title, type: field.type === "checkbox" ? "boolean" : ["boolean","select","textarea"].includes(field.type) ? field.type : "text", choices:field.choices, value: field.value ?? "" };
       }),
       onApply: function (values) {
         var answer = {};
-        fields.forEach(function (field) { answer[field.key] = field.type === "boolean" ? !!values[field.key] : String(values[field.key] || "").trim(); });
+        fields.forEach(function (field) { answer[field.key] = ["boolean","checkbox"].includes(field.type) ? !!values[field.key] : String(values[field.key] || "").trim(); });
         finish(answer);
       },
       onCancel: function () { finish(null); },
@@ -12262,9 +12263,8 @@ function buildSheetPanel(host) {
         drawSketch();
       })).id="mdSheetViewConfiguration";
     }
-    sheetRow(views, t("sheetViewScale"), sheetSelect([{ value: "sheet", label: t("sheetInherit") }].concat(
-      STANDARD_SCALES.map(function (scale) { return { value: scale.join(":"), label: scaleLabel(scale) }; })
-    ), selectedView.scale ? selectedView.scale.join(":") : "sheet", function (value) {
+    var scaleControl=drawingViewScaleControl(selectedView.scale,t("sheetInherit"));
+    sheetRow(views, t("sheetViewScale"), sheetSelect(scaleControl.options, scaleControl.value, function (value) {
       sheet.setSheetOption("viewScale", value === "sheet" ? "sheet" : value.split(":").map(Number));
       drawSketch();
     }));
@@ -12338,7 +12338,7 @@ function syncSheetPanel() {
   var doc = drawingDocument(), sheet = drawingSheet();
   var selection = sheet.selection();
   var signature = doc.views.map(function (view) {
-    return view.id + ":" + view.label + ":" + (view.scale ? view.scale.join("/") : "-") + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"");
+    return view.id + ":" + view.label + ":" + drawingViewScaleControl(view.scale).value + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"");
   }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "");
   if (host.getAttribute("data-signature") !== signature) {
     buildSheetPanel(host);

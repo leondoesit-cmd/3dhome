@@ -1,0 +1,118 @@
+{
+  "checks": {
+    "sourceSketchExact": true,
+    "sourceFeatureExact": true,
+    "fullyDefinedSingleFront": true,
+    "nativeOneValidConnected": true,
+    "analyticPrismVolume": true,
+    "nativeFaceArea1000": true,
+    "sourceGenuineUpperEdge": true,
+    "sourceGenuineFace": true,
+    "edgeLength50": true,
+    "parentFront": true,
+    "edgeOnNativeFaceQualified": true,
+    "auxiliaryTrueSize50x20": true,
+    "inputUnchanged": true
+  },
+  "geometryQualified": true,
+  "nativeMass": {
+    "volume": 21.650635094610983,
+    "centerOfMass": {
+      "x": -1.410636997983462e-16,
+      "y": 2.8338707627684424e-16,
+      "z": 1.0000000000000002
+    },
+    "inertia": [
+      [
+        29.76962325509012,
+        -5.855976711774297e-15,
+        -7.888609052210118e-31
+      ],
+      [
+        -5.855976711774297e-15,
+        29.769623255090128,
+        7.888609052210118e-31
+      ],
+      [
+        -7.888609052210118e-31,
+        7.888609052210118e-31,
+        45.1054897804396
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1.4433756729740663,
+        "y": -2.5000000000000004,
+        "z": 0
+      },
+      "max": {
+        "x": 2.88675134594813,
+        "y": 2.5000000000000013,
+        "z": 2
+      }
+    }
+  },
+  "valid": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 21.650635094610983,
+    "maxToleranceCm": 1.0000000000000002e-7
+  },
+  "basis": {
+    "forward": {
+      "x": -0.5000000000000001,
+      "y": -0.8660254037844386,
+      "z": 0
+    },
+    "up": {
+      "x": -0.8660254037844386,
+      "y": 0.5000000000000001,
+      "z": 0
+    },
+    "right": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "faceProjectionCm": {
+    "right": 2,
+    "up": 5.000000000000002
+  },
+  "view": {
+    "id": "vfnwn75k",
+    "dir": "auxiliary",
+    "label": "AUXILIARY",
+    "x": null,
+    "y": null,
+    "scale": 2,
+    "configurationId": null,
+    "configurationName": null,
+    "primary": false,
+    "parent": "vf20g522",
+    "hidden": null,
+    "displayStyle": "edges",
+    "centers": null,
+    "labelled": true,
+    "section": null,
+    "alignedSection": null,
+    "detail": null,
+    "cropSketch": null,
+    "brokenOut": null,
+    "auxiliary": {
+      "from": "vf20g522",
+      "edgeReference": {
+        "pid": "feature_mv2hv5fu_1:edge:profile:6396:start"
+      },
+      "faceReference": {
+        "pid": "feature_mv2hv5fu_1:face:side:6396"
+      },
+      "flip": true
+    },
+    "breakView": null,
+    "alternatePosition": null
+  },
+  "finalWorkflowAccepted": false,
+  "qualification": "Illustrative native Auxiliary workflow witness, not ebook prescribed dimensions. Initial scale UI artifact remains diagnostic; no manual dimension/cold acceptance claimed."
+}

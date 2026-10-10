@@ -1,0 +1,77 @@
+{
+  "checks": {
+    "wholeColdDrawingExact": true,
+    "coldSourceSketchesFeaturesExact": true,
+    "wholeColdNativeMeshExact": true,
+    "originalNative50DimensionRetained": true,
+    "originalActualReverseTrue": true,
+    "originalScale2": true,
+    "oneNewForwardChild": true,
+    "newChildExplicitUncheckedFalse": true,
+    "newChildSameNativeEdgeFace": true,
+    "forwardSourceCADExact": true,
+    "undoWholeDrawingExact": true,
+    "undoFiveOriginalViews": true,
+    "undoSourceCADExact": true,
+    "svgExactExceptTransientSelection": true,
+    "coldNativeSourceProjectionGuards": true
+  },
+  "drawingDifferences": [],
+  "wholeModelColdDifferences": [
+    {
+      "path": "$.parts.0.exactBuildToken",
+      "warm": 3,
+      "cold": 4
+    },
+    {
+      "path": "$.lastRebuild.rebuiltAt",
+      "warm": 1791643123144,
+      "cold": 1791643254212
+    },
+    {
+      "path": "$.lastStandardsAudit.at",
+      "warm": 1791642904729,
+      "cold": 1791643151764
+    }
+  ],
+  "addedForwardView": {
+    "id": "ved545ov",
+    "dir": "auxiliary",
+    "label": "AUXILIARY",
+    "x": null,
+    "y": null,
+    "scale": 2,
+    "configurationId": null,
+    "configurationName": null,
+    "primary": false,
+    "parent": "vf20g522",
+    "hidden": null,
+    "displayStyle": "edges",
+    "centers": null,
+    "labelled": true,
+    "section": null,
+    "alignedSection": null,
+    "detail": null,
+    "cropSketch": null,
+    "brokenOut": null,
+    "auxiliary": {
+      "from": "vf20g522",
+      "edgeReference": {
+        "pid": "feature_mv2hv5fu_1:edge:profile:6396:start"
+      },
+      "faceReference": {
+        "pid": "feature_mv2hv5fu_1:face:side:6396"
+      },
+      "flip": false
+    },
+    "breakView": null,
+    "alternatePosition": null
+  },
+  "svgExact": false,
+  "svgWarmLength": 13587,
+  "svgColdLength": 13590,
+  "svgDifferenceFirst": 9046,
+  "actualWorkflowAccepted": true,
+  "qualification": "Original actual reverse=true retained and explicitly accepted; genuine separate uncheckedfalse creates correctforward child, actualUndo restores exactoriginal Drawing. Illustrative native-face workflow witness, no source prescribed dimensions.",
+  "svgDifferenceQualification": "Warm exported selected manual dimension with orange0.9 stroke; cold exports same coordinates/value50 with normal black0.25 stroke. Exact SVG equality after only these transient selection-style replacements."
+}
