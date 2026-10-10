@@ -1,0 +1,11 @@
+# Plane6 native oblique triangular-corner paper graphic
+
+Final nominal **8/8 passes**, cold **4/4**. Parent ordinary Chrome creation/save and genuine cache-bypass reload/exact Saved reopen preserve eight genuine native primitives and five notes. Source PDF73/printed1-45 and the ready plan independently support an oblique triangular corner facet and separate front plinth. All eight coordinate/type/style records match exactly; all Outline. Right plinth silhouette closes correctly. The three facet traces are genuinely diagonal and preserve a triangular facet projecting area in all principal views, rather than a full-width ramp.
+
+Front plinthY200 and facet(65,175)→(105,200), Top plinthY115 and facet(65,115)→(105,80), Right facet(150,200)→(185,175) are independently checked. All real SVG lines retain solid outlines. Actual PNG has separated views/source notes and clear frame/footer.
+
+Saved key `cm_mv2u8i98`, **Planchard Ch1 IN-CHAPTER Plane 6 graphic - browser 2026-10-10**. Chosen5mm/grid estimates W12/D8/H6/front plinthD0–1/H1 and facet vertices(X4,D1,H6)/(X12,D8,H6)/(X12,D1,H1) are illustrative construction, not publisher physical dimensions. A3/mm/third-angle/default lettering are worksheet choices. No parts/features/projected views/dimensions/images exist; starter sketch is empty. This is native paper geometry, not a CAD-bound or physically certified model.
+
+Evidence prefix `CH1-INCHAPTER-Plane-6-native-browser-2026-10-10`, artifacts bundle/docs SVG/PNG. Machine checks `ch1-plane-6-native-browser-audit-2026-10-10.json`; helper `scratch/planchard/ch1-plane6-readonly.mjs`.
+
+Protected cold prefix `CH1-INCHAPTER-Plane-6-cold-browser-2026-10-10` retains entire Drawing/all eight coordinates/styles/five notes, source properties/name/key and empty authored CAD exactly. SVG bytes/hash are exact: `bd02a7e3be14988e3b62d16577886297f12db7b50cbcf9e95399ebe2da1b1c93`. Whole-project differences are export/rebuild timestamps, rebuilt history of the existing empty starter sketch and six hydrated principal-plane/axis records already represented by warm references. No draft restore or Undo/Redo proof is claimed. Final estimated native paper worksheet is accepted within its stated source scope.

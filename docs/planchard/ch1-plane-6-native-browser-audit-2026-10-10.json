@@ -1,0 +1,24 @@
+{
+  "warmChecks": {
+    "allEightExactSourcePlanPrimitives": true,
+    "allEightOutline": true,
+    "fiveNativeSourceLabelNotes": true,
+    "sourceAndEstimateExplicit": true,
+    "purePaperNoCadViewsDimensionsImages": true,
+    "styledSvgLineSemantics": true,
+    "closedRightPlinthAndThreeProjectedFacetTraces": true,
+    "a3ThirdAngleMillimetres": true
+  },
+  "warmAccepted": true,
+  "savedKey": "cm_mv2u8i98",
+  "savedName": "Planchard Ch1 IN-CHAPTER Plane 6 graphic - browser 2026-10-10",
+  "svgSha256": "bd02a7e3be14988e3b62d16577886297f12db7b50cbcf9e95399ebe2da1b1c93",
+  "coldAccepted": true,
+  "qualification": "SourcePNG73 independently inspected. Source oblique-triangular-corner three-view semantics reproduced with illustrative5mm grid/unit estimates; no exact publisher dimensions/CAD-bound geometry. ActualPNG notes/views/frame separated and unobstructed.",
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourceNameKeyPropertiesExact": true,
+    "authoredCadExact": true,
+    "svgByteExact": true
+  }
+}
