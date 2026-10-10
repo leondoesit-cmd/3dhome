@@ -1,0 +1,34 @@
+{
+  "checks": {
+    "wholeDrawingExact": true,
+    "wholeProjectOnlyKnownDerivedDifferences": true,
+    "explicitBindingsPersist": true,
+    "restoredCurrentNameDescription": true,
+    "legacyManualFieldsExact": true,
+    "svgBaselineAndUndoByteExact": true
+  },
+  "actualExplicitLiveTitleBrowserColdAccepted": true,
+  "differences": [
+    {
+      "path": ".createdAt",
+      "a": 1791652693266,
+      "b": 1791652809912
+    },
+    {
+      "path": ".mainModel.parts.0.exactBuildToken",
+      "a": 27,
+      "b": 28
+    },
+    {
+      "path": ".mainModel.lastRebuild.rebuiltAt",
+      "a": 1791652692335,
+      "b": 1791652785569
+    },
+    {
+      "path": ".mainModel.lastStandardsAudit.at",
+      "a": 1791652330292,
+      "b": 1791652695215
+    }
+  ],
+  "qualification": "Actual explicit bindings/name/Description/wholeDrawing/native source/image/tolerances cold preserved. Only four derived fields differ. Independent BATTERY-CH9copy drawing number is current model-name equivalent; original source preserved. Reusable format export remains separate."
+}

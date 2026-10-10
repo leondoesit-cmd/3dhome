@@ -1,0 +1,167 @@
+{
+  "checks": {
+    "wholeDrawingByteEquivalent": true,
+    "wholeSvgByteExact": true,
+    "sameNameAndBindings": true,
+    "originalJpegByteExact": true,
+    "noAuthoredCAD": true,
+    "normalizationOnlyDifferencePaths": true,
+    "emptySketchHistoryNormalization": true,
+    "builtinReferenceGeometryNormalization": true,
+    "emptyPropertiesNoSourceLeak": true
+  },
+  "actualIndependentLogoFormatTemplateColdAccepted": true,
+  "wholeProjectByteExact": false,
+  "differences": [
+    {
+      "path": ".createdAt",
+      "a": 1791653024172,
+      "b": 1791653131105
+    },
+    {
+      "path": ".mainModel.history.0",
+      "b": {
+        "id": "history:sketch:sk_1239t",
+        "kind": "sketch",
+        "targetId": "sk_1239t",
+        "name": "X·Z sketch",
+        "suppressed": false,
+        "status": "rebuilt"
+      }
+    },
+    {
+      "path": ".mainModel.lastRebuild.rebuiltAt",
+      "a": 1791652963328,
+      "b": 1791653110291
+    },
+    {
+      "path": ".mainModel.referenceGeometry.0",
+      "b": {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": ".mainModel.referenceGeometry.1",
+      "b": {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": ".mainModel.referenceGeometry.2",
+      "b": {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": ".mainModel.referenceGeometry.3",
+      "b": {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": ".mainModel.referenceGeometry.4",
+      "b": {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": ".mainModel.referenceGeometry.5",
+      "b": {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": ".mainModel.lastStandardsAudit.at",
+      "a": 1791652953529,
+      "b": 1791653026169
+    }
+  ],
+  "qualification": "WholeDrawing/SVG/image exact. Cold document deliberately normalizes existing empty seeded sketch into one rebuilt history row and adds six standard origin planes/axes matching original references; not authored CAD. All remaining project differences are export/rebuild/audit times. Actual picker persistence proof pending."
+}

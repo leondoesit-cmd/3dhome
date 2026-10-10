@@ -1,0 +1,22 @@
+{
+  "checks": {
+    "explicitBindingsPersisted": true,
+    "legacyManualTitleAndNumberRetained": true,
+    "descriptionOnlyAuthoringChange": true,
+    "nameOnlyAuthoringChange": true,
+    "descriptionOnlyRenderedTitleChange": true,
+    "nameOnlyRenderedNumberChange": true,
+    "descriptionUndoEntireAuthoringExactExceptRebuildTime": true,
+    "nameUndoEntireAuthoringExactExceptRebuildTime": true,
+    "bothUndoSvgsByteExact": true,
+    "nativeImageAndToleranceExact": true
+  },
+  "actualLiveTitleSeriesAccepted": true,
+  "actualColdAccepted": false,
+  "rebuildTimes": {
+    "baseline": 1791652552535,
+    "descriptionUndo": 1791652676966,
+    "nameUndo": 1791652692335
+  },
+  "qualification": "Actual explicit native title source controls and real Description/Name drivers verified. Rendering changes only Title/DWG number respectively. Legacy manual literals retained; no implicit migration. Source/CAD/image/tolerances preserved. Cold pending."
+}

@@ -1,0 +1,15 @@
+{
+  "actualBrowserObservations": {
+    "templateAInAnsiAvailableAfterReload": true,
+    "formatMyAFormatAvailableAfterReload": true,
+    "formsCancelled": true,
+    "titlePanelRemainsExpandedAfterSourceChange": true,
+    "undoDescriptionBindingRestored": true
+  },
+  "evidenceBasis": "Parent ordinary browser DOM observations; title-panel screenshot independently viewed",
+  "pixelQualification": "Separate settled recaptures independently viewed: template form A-IN-ANSI and Applysheetformat MY-A-FORMAT (narrowlabeltruncated; fullname parentDOMconfirmed). Earlier stale frames superseded.",
+  "sourceProtocolChanged": false,
+  "settledPickerPixelsAccepted": true,
+  "postchecksWholeDrawingAndSvgExact": true,
+  "postchecksProjectOnlyExportRebuildAuditTimestamps": true
+}

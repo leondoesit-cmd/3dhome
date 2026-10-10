@@ -12201,8 +12201,9 @@ function sheetToggle(host, label, checked, onChange) {
   return box;
 }
 
-function sheetGroup(host, title, defaultOpen) {
+function sheetGroup(host, title, defaultOpen, key) {
   var group = el("details", "md-sheet-group");
+  if(key)group.setAttribute('data-sheet-group',key);
   group.open = defaultOpen !== false;
   group.appendChild(el("summary", "", title));
   var body = el("div", "md-sheet-group-body");
@@ -12235,6 +12236,10 @@ function bindTitleSource(picker, key, host) {
 
 function buildSheetPanel(host) {
   var doc = drawingDocument(), sheet = drawingSheet();
+  var owner=E.docType==='assembly'?E.assembly:E.def,ownerIdentity=owner?.key||owner?.id||owner;
+  var sameOwner=host._sheetPanelOwner===ownerIdentity&&host._sheetPanelOwnerType===E.docType;
+  var groupState=new Map(),scrollTop=sameOwner&&Number.isFinite(host.scrollTop)?Math.max(0,host.scrollTop):0;
+  if(sameOwner)host.querySelectorAll('[data-sheet-group]').forEach(function(group){groupState.set(group.getAttribute('data-sheet-group'),group.open);});
   host.innerHTML = "";
   var head = el("div", "md-sheet-head");
   head.innerHTML = '<i class="ph ph-file-dashed"></i><b>' + t("sheetSetup") + "</b>";
@@ -12253,7 +12258,7 @@ function buildSheetPanel(host) {
   dangling.hidden = true;
   host.appendChild(dangling);
 
-  var setup = sheetGroup(host, t("sheetSetup"));
+  var setup = sheetGroup(host, t("sheetSetup"),true,'setup');
   sheetRow(setup, t("sheetSize"), sheetSelect(Object.keys(SHEET_SIZES).map(function (key) {
     return { value: key, label: SHEET_SIZES[key].label + "  " + Math.round(SHEET_SIZES[key].w) + "×" + Math.round(SHEET_SIZES[key].h) };
   }), doc.size, function (value) { sheet.setSheetOption("size", value); drawSketch(); })).id = "mdSheetSize";
@@ -12298,7 +12303,7 @@ function buildSheetPanel(host) {
   setup.appendChild(btn('<i class="ph ph-crosshair"></i> ' + t("sheetHoleCallouts"), function () { sheet.addHoleCallouts(); drawSketch(); }, "md-sheet-btn"));
   setup.appendChild(btn('<i class="ph ph-ruler"></i> ' + t("drawModelItems"), function () { sheet.insertModelItems(); drawSketch(); }, "md-sheet-btn"));
 
-  var views = sheetGroup(host, t("sheetViews"));
+  var views = sheetGroup(host, t("sheetViews"),true,'views');
   var list = el("div", "md-sheet-views");
   doc.views.forEach(function (view) {
     var selection = sheet.selection();
@@ -12364,7 +12369,7 @@ function buildSheetPanel(host) {
     }));
   }
 
-  var title = sheetGroup(host, t("sheetTitleBlock"), false);
+  var title = sheetGroup(host, t("sheetTitleBlock"), false,'title');
   [["title", t("tbTitle"), "mdSheetTitleField"], ["number", t("tbNumber")], ["revision", t("tbRev")],
     ["author", t("tbAuthor")], ["company", t("tbCompany")], ["material", t("tbMaterial")],
     ["finish", t("tbFinish")], ["mass", t("tbMass")], ["date", t("tbDate")], ["tolerance", t("tbTolerance")],
@@ -12396,6 +12401,9 @@ function buildSheetPanel(host) {
   });
   host.setAttribute("data-views", doc.views.map(function (view) { return view.id; }).join(","));
   syncDanglingDims(host);
+  host.querySelectorAll('[data-sheet-group]').forEach(function(group){var key=group.getAttribute('data-sheet-group');if(groupState.has(key))group.open=groupState.get(key);});
+  host._sheetPanelOwner=ownerIdentity;host._sheetPanelOwnerType=E.docType;
+  host.scrollTop=Math.min(scrollTop,Math.max(0,host.scrollHeight-host.clientHeight));
 }
 
 /* Which dimensions no longer measure anything, and a way to reach each one.

@@ -1,0 +1,25 @@
+{
+  "checks": {
+    "captureWholeDrawingSourceExact": true,
+    "blankNoCAD": true,
+    "blankNoDrawingViewsDimsNotesPrimitives": true,
+    "blankNoSourceCustomPropertyLeak": true,
+    "inheritedAnsiInchLetterLandscapeHalfScale": true,
+    "originalImageBytesPlacementExact": true,
+    "oneImageAlwaysIncluded": true,
+    "liveSourcesInherited": true,
+    "blankManualTitleNumberNoLeak": true,
+    "templateAssociation": true,
+    "formatAssociation": true,
+    "imageOwnersFollowFormat": true,
+    "undoWholeDrawingExact": true,
+    "redoWholeDrawingExact": true,
+    "undoRedoSvgsByteExact": true,
+    "noRenderedBatteryLeak": true
+  },
+  "actualOriginalLogoTemplateAndFormatQualifiedAccepted": true,
+  "actualColdAccepted": false,
+  "templateId": "b405c56c-fa0e-46e0-9bdf-c585022bf3cd",
+  "formatId": "6bd514b2-3280-47f6-a9f4-319d7142b6af",
+  "qualification": "Actual independent blank authoring proves saved native template/format includes original raster and live source definitions without source CAD/annotations/property values. Empty seeded sketch retained as app default, no authored geometry. No localStorage inspected. Cold/preset pickers pending."
+}
