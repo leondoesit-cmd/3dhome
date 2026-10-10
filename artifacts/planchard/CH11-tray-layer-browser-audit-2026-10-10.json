@@ -1,0 +1,130 @@
+{
+  "pass": true,
+  "scope": "Read-only independent audit of actual Chrome Apply0.2/0.25 and select40 geometric layer exports; no G-code/full slicer/physical print claim.",
+  "checks": {
+    "all0.2LayersIndependentGeometry": true,
+    "0.2Metadata": true,
+    "all0.25LayersIndependentGeometry": true,
+    "0.25Metadata": true,
+    "oneVariableChangeOnly": true,
+    "fingerprintSame": true,
+    "wholeActiveAssemblyExact": true,
+    "twoGroundedSourceOccurrences": true,
+    "savedTopBed": true,
+    "svg0.2MatchesSelectedJsonLayer": true,
+    "svg0.25MatchesSelectedJsonLayer": true,
+    "svg40MatchesSelectedJsonLayer": true,
+    "priorStlIntegralMatchesLayerAreas": true
+  },
+  "analyses": [
+    {
+      "heightMm": 0.2,
+      "layerCount": 50,
+      "firstSectionZMm": 0.1,
+      "lastSectionZMm": 9.9,
+      "areaMm2": 628.1191780608387,
+      "maxIndependentAreaResidualMm2": 2.2737367544323206e-13,
+      "maxRadiusResidualMm": 5.329070518200751e-15,
+      "objectsPerLayer": 2,
+      "loopsPerObject": 1,
+      "holesPerLayer": 0,
+      "verticesPerLoop": 144
+    },
+    {
+      "heightMm": 0.25,
+      "layerCount": 40,
+      "firstSectionZMm": 0.125,
+      "lastSectionZMm": 9.875,
+      "areaMm2": 628.1191780608387,
+      "maxIndependentAreaResidualMm2": 2.2737367544323206e-13,
+      "maxRadiusResidualMm": 5.329070518200751e-15,
+      "objectsPerLayer": 2,
+      "loopsPerObject": 1,
+      "holesPerLayer": 0,
+      "verticesPerLoop": 144
+    }
+  ],
+  "svg": [
+    {
+      "file": "CH11-tray-layer-0.2-browser-2026-10-10.svg",
+      "selectedLayer": 1,
+      "sectionZMm": 0.1,
+      "closedPaths": 2,
+      "matchesJsonContours": true
+    },
+    {
+      "file": "CH11-tray-layer-0.25-browser-2026-10-10.svg",
+      "selectedLayer": 1,
+      "sectionZMm": 0.125,
+      "closedPaths": 2,
+      "matchesJsonContours": true
+    },
+    {
+      "file": "CH11-tray-layer-40-browser-2026-10-10.svg",
+      "selectedLayer": 40,
+      "sectionZMm": 9.875,
+      "closedPaths": 2,
+      "matchesJsonContours": true
+    }
+  ],
+  "polygonAreaExpectedMm2": 628.1191780608384,
+  "idealNativeSectionAreaMm2": 628.3185307179587,
+  "facetingDeficitPercent": 0.03172796079919052,
+  "priorIndependentStlVolumeMm3": 6281.191771738047,
+  "layerAreaIntegralVolumeMm3": 6281.191780608384,
+  "sourceMeshFingerprint": "fnv1a32-a17b222d",
+  "fingerprintQualification": "Same actual export fingerprint across one-variable run; not a cryptographic hash or independently reconstructed native index stream. Independent circle/polygon/STL/assembly checks bind geometric interpretation.",
+  "activeAssemblyKey": "asm_mv0j0gpy",
+  "activeAssemblyFieldsExact": {
+    "components": true,
+    "context": true,
+    "customProperties": true,
+    "key": true,
+    "mates": true,
+    "name": true,
+    "printSetup": true,
+    "stlExportSettings": true,
+    "topologyMates": true
+  },
+  "inactiveMainScaffoldChangedFields": [
+    "activeSketch",
+    "definitionId",
+    "id",
+    "key",
+    "lastRebuild",
+    "sketches"
+  ],
+  "inputs": [
+    {
+      "name": "CH11-tray-layer-0.2-browser-2026-10-10.json",
+      "bytes": 1640821,
+      "sha256": "514378d849fe0483833a6671ae55368b668f89fccd197d249900ade78a83e046"
+    },
+    {
+      "name": "CH11-tray-layer-0.25-browser-2026-10-10.json",
+      "bytes": 1312291,
+      "sha256": "9f00ee7be4748c33248a2826f886d4f2dbf4ec947da2b0abf1edf8a8547d06f7"
+    },
+    {
+      "name": "CH11-tray-cold-accepted-browser-2026-10-09.mforge",
+      "bytes": 113055,
+      "sha256": "51e54edebcdb473dcbbd58ef5da9e6b6f098155d6a51ea5bf62c6f7c4b538174"
+    },
+    {
+      "name": "CH11-tray-after-layer-browser-2026-10-10.mforge",
+      "bytes": 113055,
+      "sha256": "cbfb0cb820a502b5665afeafeb345dc7dc4033fa6555791f6c8a1c90026be78a"
+    },
+    {
+      "name": "CH11-tray-valid-top-browser-2026-10-09.stl",
+      "bytes": 57284,
+      "sha256": "021bfed972ccbdebcdcd3fae1eccfd04fffb9d162b41049bef0e150f37cd0f89"
+    }
+  ],
+  "limitations": [
+    "Mid-slab geometric contours only; no perimeters/infill/support/toolpaths/G-code",
+    "No new physical print or device calibration",
+    "Source assembly was cold loaded before actual Apply; no generated layer result persistence after full reload claimed",
+    "Whole active assembly exact,not whole project JSON byte identity"
+  ]
+}

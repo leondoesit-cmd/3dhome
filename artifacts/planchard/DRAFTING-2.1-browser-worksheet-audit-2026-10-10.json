@@ -1,0 +1,59 @@
+{
+  "exercise": "2.1",
+  "source": {
+    "pdfPage": 124,
+    "printedPage": "2-38",
+    "gridDimensions": {
+      "width": 12,
+      "depth": 8,
+      "height": 8,
+      "leftStripWidth": 4,
+      "frontRampHeight": 4,
+      "rearRampHeight": 8
+    },
+    "physicalUnitsSpecified": false
+  },
+  "libraryKey": "cm_mv25fgm0",
+  "name": "Planchard 2.1 - grid isometric worksheet - browser 2026-10-10",
+  "CAD": {
+    "parts": 0,
+    "features": 0,
+    "geometricSketchEntities": 0,
+    "canonicalEmptyWorkingSketches": 1
+  },
+  "drawing": {
+    "views": 0,
+    "primitives": 8,
+    "closedSilhouette": true,
+    "interiorLines": 7,
+    "notes": 2,
+    "noteRows": [
+      5,
+      6
+    ],
+    "sourceGeometryProjectionMaximumErrorPaperMM": 3.7844384337404335e-07,
+    "allSharedEndpointsExactlyEqual": true,
+    "uniqueVertices": 10,
+    "projection": "equal-scale isometric",
+    "paperMMPerGridInterval": 5,
+    "sourceMatch": true
+  },
+  "SVG": {
+    "bytes": 10970,
+    "sha256": "13b3112067ed65bac5619645b2718cb8c59ea7a6523147010d4a6233caee915b",
+    "allNoteRowsPresent": true
+  },
+  "cold": {
+    "status": "PASS",
+    "wholeDrawingExact": true,
+    "SVGByteExact": true,
+    "changedPaths": [
+      ".createdAt",
+      ".mainModel.history.length",
+      ".mainModel.lastRebuild.rebuiltAt",
+      ".mainModel.referenceGeometry.length"
+    ],
+    "bytes": 6052,
+    "libraryKeyExact": true
+  }
+}

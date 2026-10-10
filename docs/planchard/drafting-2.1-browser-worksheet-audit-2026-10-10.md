@@ -1,0 +1,13 @@
+# Exercise 2.1 actual-browser isometric worksheet audit
+
+Source **printed2-38 / PDF124**. Parent authored the paper drawing in actual desktop Chrome; this agent performed read-only source/geometry/export inspection. Library record **Planchard 2.1 - grid isometric worksheet - browser 2026-10-10**, key `cm_mv25fgm0`. Qualified native bundle, SVG and actual-browser PNG: `artifacts/planchard/DRAFTING-2.1-qualified-browser-2026-10-10.*`.
+
+Qualified state **PASS**. Independent source interpretation gives W12 × D8 × H8 grid intervals: left strip X0–4 full height8; right roof X4–12 rises from front4 to rear8. Source Top divisionX4, Front step8→4 and Right roof4→8 all agree with the authored geometry. Equal-axis paper isometric mapping is `paperX=120+5√3/2*(X+Z)`, `paperY=200+2.5*(X-Z)-5H`. All ten vertices match within **3.7844384337404335e-7 paper-mm**, below1e-5. The eight primitives are one exactly closed silhouette and seven interior lines. Repeated shared endpoints are exactly coincident, including the ramp/step junction and rear roof termination.
+
+The sheet intentionally contains **zero CAD parts/features/geometric sketch entities**, zero projected model views, and one canonical empty working sketch. It answers a hand-drawing prompt using genuine native paper primitives. It is not a source dimensioned manufactured solid. Two notes contain5/6 genuine newline rows; all11 rows are present in the10,970-byte SVG. They disclose illustrative5mm per source interval and absence of publisher physical units/material. Title/source/date are correctly source-labelled. Actual Chrome PNG was visually inspected: continuous edges, visible step wall/ramp/top land, notes and title have no overlaps.
+
+Machine-readable audit: `artifacts/planchard/DRAFTING-2.1-browser-worksheet-audit-2026-10-10.json`. SVG SHA256 `13b3112067ed65bac5619645b2718cb8c59ea7a6523147010d4a6233caee915b`.
+
+**Cold persistence PASS.** Parent performed a full Chrome reload and opened the exact saved library record. The contemporaneous cold native bundle is6,052bytes; the entire `drawing` object is exactly equal to the qualified state, and the10,970-byte SVG is byte-identical. The library key is unchanged. Exhaustive JSON comparison finds only outer `createdAt`, canonical `history` length, `lastRebuild.rebuiltAt` and `referenceGeometry` length changes; no authored paper geometry/notes/title/source fields changed. Cold canonicalization adds empty-working-sketch history/reference metadata, so this audit does not falsely claim whole-bundle byte identity.
+
+This acceptance does not claim whole-book or whole-Chapter2 completion; the additional2.2/2.3 graphic exercises and2.4 answer remain separately tracked by the parent.
