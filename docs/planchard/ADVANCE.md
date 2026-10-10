@@ -2,6 +2,16 @@
 
 Updated: **2026-10-11**. Read this first when resuming; older plans and STOP-HERE files contain superseded status.
 
+## Authoritative resume boundary — available-source digital queue closed
+
+**Last completed activity:** Chapter4 dependency hover, printed **4-34–4-35 / PDF214–215**. Native Chrome mouse hover on Boss2 of original full32 pattern `cm_mv2xaz0p` highlights Boss1+both sketches upstream/cyan, Boss2 focus/amber, Pattern1 downstream/purple. Actual pointer departure clears every role and restores row styles. Independent10/10 PASS, complete mainModel and Drawing exact before/after, whole bundle differs only createdAt. Native1/full5history, no source edits. Actual production node is `feature:feature_mv2xd0p0_2`; exact Saved title has `browser 2026-10-11` with a space. Protected two genuine bundles/three PNGs/DOM observations/final MD+JSON. Chrome4/tab710862476 remains open as a deliverable at clean pattern/Output/Top view, no open command; all authored original models preserved.
+
+**Previous completed activity:** official5.16 **5-47 / PDF265**, independent Saved `cm_mv2zrok2`: source two-Boss shaft/collar6061/native1, actual native circular-edge UNC2A cosmetic25.4, real20mm driver/Undo, ordinary Chrome reload/exactSaved cold, nativeSTEP validity/one-solid/exactvolume/zero directed residuals all accepted. Thread inspector6 owner+6 independent tests and actual Chrome acceptance/gates6861487 PASS. ALL18 files successfully pushed as **a715c5a** before continuing hover. Final hover/reconciliation checkpoint follows this entry.
+
+**Future work:** Fresh independent `whole-book-final-actionable-reconciliation-2026-10-11.md` now records an empty *confirmed available-source browser task queue*. Do not replay accepted work or reopen historical pending notes below. Literal all-book completion remains unavailable: **3.9, printed3-50/PDF178, needs a clean lawful ordered glyph source/answer key**; original missing row1 and insufficient row4 cannot be recovered from supplied PDF/companion/public publisher sample or errata. Rows2Counterbore/3Diameter remain supported. A new readable source is the next concrete input; physical printing/device outcomes, original proprietary file/tree parity, source Plane7H/Plane9 ambiguities and disclosed finite geometry/view qualifications remain bounded, not accepted100% parity. No new digital assignment was identified by final audit. This is the first handoff after exhausting the confirmed actionable queue; do not mark the entire-book objective complete merely from an empty finite queue.
+
+**Progress denominator:** **116/117=99.1453% numbered scoped exercises**, **130/130 end-review answers**, separate measures. No defensible percentage for all587pages. **8-54/8-55 were already completed**; farthest processed source remains **11-35 / PDF555**. Current backfill boundary is4-35, not lost Chapter8 progress. All entries below are historical snapshots superseded by this boundary and final reports.
+
 ## Active full-book continuation — 2026-10-10
 
 ### Latest completed boundary — 2026-10-11

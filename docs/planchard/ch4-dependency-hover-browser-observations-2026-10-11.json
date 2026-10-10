@@ -1,0 +1,274 @@
+{
+  "source": "PDF214–215 / printed4-34–35",
+  "savedKey": "cm_mv2xaz0p",
+  "interaction": "native mouseMoved135,722 on observed Boss2 rect; native mouseMoved1700,1000 onto empty viewport",
+  "baseline": [
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt",
+      "id": "feature_mv2xb8os_1",
+      "node": "feature:feature_mv2xb8os_1",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 598.125
+      },
+      "text": "2Extrude / Boss 1Extrude / Boss"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-sketch md-tree-nested",
+      "id": "sk_1zmp0",
+      "node": "sketch:sk_1zmp0",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 648.4583740234375
+      },
+      "text": "1Top Plane sketchTop Plane · fully defined"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt",
+      "id": "feature_mv2xd0p0_2",
+      "node": "feature:feature_mv2xd0p0_2",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 698.7916870117188
+      },
+      "text": "4Extrude / Boss 2Extrude / Boss"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-sketch on md-tree-nested",
+      "id": "sk_2gfqx",
+      "node": "sketch:sk_2gfqx",
+      "opacity": "1",
+      "outline": "rgb(56, 189, 248)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 749.125
+      },
+      "text": "3Top Plane sketchTop Plane · fully defined"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt",
+      "id": "feature_mv2xdhsp_3",
+      "node": "feature:feature_mv2xdhsp_3",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 799.4583740234375
+      },
+      "text": "5Pattern 1Pattern"
+    }
+  ],
+  "hoverSettled": [
+    {
+      "background": "color(srgb 0.50329 0.835262 0.982528 / 0.172824)",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt md-dependency-upstream",
+      "id": "feature_mv2xb8os_1",
+      "node": "feature:feature_mv2xb8os_1",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 598.125
+      },
+      "text": "2Extrude / Boss 1Extrude / Boss"
+    },
+    {
+      "background": "color(srgb 0.50329 0.835262 0.982528 / 0.172824)",
+      "classes": "md-part md-tree-row md-tree-sketch md-tree-nested md-dependency-upstream",
+      "id": "sk_1zmp0",
+      "node": "sketch:sk_1zmp0",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 648.4583740234375
+      },
+      "text": "1Top Plane sketchTop Plane · fully defined"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.13)",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt md-dependency-focus",
+      "id": "feature_mv2xd0p0_2",
+      "node": "feature:feature_mv2xd0p0_2",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 698.7916870117188
+      },
+      "text": "4Extrude / Boss 2Extrude / Boss"
+    },
+    {
+      "background": "color(srgb 0.50329 0.835262 0.982528 / 0.172824)",
+      "classes": "md-part md-tree-row md-tree-sketch on md-tree-nested md-dependency-upstream",
+      "id": "sk_2gfqx",
+      "node": "sketch:sk_2gfqx",
+      "opacity": "1",
+      "outline": "rgb(56, 189, 248)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 749.125
+      },
+      "text": "3Top Plane sketchTop Plane · fully defined"
+    },
+    {
+      "background": "color(srgb 0.84275 0.692988 0.992512 / 0.172824)",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt md-dependency-downstream",
+      "id": "feature_mv2xdhsp_3",
+      "node": "feature:feature_mv2xdhsp_3",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 799.4583740234375
+      },
+      "text": "5Pattern 1Pattern"
+    }
+  ],
+  "hoverStyles": [
+    {
+      "background": "color(srgb 0.50329 0.835262 0.982528 / 0.172824)",
+      "borderLeft": "rgb(52, 211, 153)",
+      "boxShadow": "rgb(56, 189, 248) 3px 0px 0px 0px inset",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt md-dependency-upstream",
+      "id": "feature_mv2xb8os_1"
+    },
+    {
+      "background": "color(srgb 0.50329 0.835262 0.982528 / 0.172824)",
+      "borderLeft": "rgba(255, 255, 255, 0.14)",
+      "boxShadow": "rgb(56, 189, 248) 3px 0px 0px 0px inset",
+      "classes": "md-part md-tree-row md-tree-sketch md-tree-nested md-dependency-upstream",
+      "id": "sk_1zmp0"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.13)",
+      "borderLeft": "rgb(52, 211, 153)",
+      "boxShadow": "rgb(251, 191, 36) 3px 0px 0px 0px inset",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt md-dependency-focus",
+      "id": "feature_mv2xd0p0_2"
+    },
+    {
+      "background": "color(srgb 0.50329 0.835262 0.982528 / 0.172824)",
+      "borderLeft": "rgb(56, 189, 248)",
+      "boxShadow": "rgb(56, 189, 248) 3px 0px 0px 0px inset",
+      "classes": "md-part md-tree-row md-tree-sketch on md-tree-nested md-dependency-upstream",
+      "id": "sk_2gfqx"
+    },
+    {
+      "background": "color(srgb 0.84275 0.692988 0.992512 / 0.172824)",
+      "borderLeft": "rgb(52, 211, 153)",
+      "boxShadow": "rgb(192, 132, 252) 3px 0px 0px 0px inset",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt md-dependency-downstream",
+      "id": "feature_mv2xdhsp_3"
+    }
+  ],
+  "clearedSettled": [
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt",
+      "id": "feature_mv2xb8os_1",
+      "node": "feature:feature_mv2xb8os_1",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 598.125
+      },
+      "text": "2Extrude / Boss 1Extrude / Boss"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-sketch md-tree-nested",
+      "id": "sk_1zmp0",
+      "node": "sketch:sk_1zmp0",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 648.4583740234375
+      },
+      "text": "1Top Plane sketchTop Plane · fully defined"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt",
+      "id": "feature_mv2xd0p0_2",
+      "node": "feature:feature_mv2xd0p0_2",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 698.7916870117188
+      },
+      "text": "4Extrude / Boss 2Extrude / Boss"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-sketch on md-tree-nested",
+      "id": "sk_2gfqx",
+      "node": "sketch:sk_2gfqx",
+      "opacity": "1",
+      "outline": "rgb(56, 189, 248)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 749.125
+      },
+      "text": "3Top Plane sketchTop Plane · fully defined"
+    },
+    {
+      "background": "rgba(255, 255, 255, 0.07)",
+      "classes": "md-part md-tree-row md-tree-feature state-rebuilt",
+      "id": "feature_mv2xdhsp_3",
+      "node": "feature:feature_mv2xdhsp_3",
+      "opacity": "1",
+      "outline": "rgb(241, 245, 249)",
+      "rect": {
+        "h": 47.33333587646485,
+        "w": 240,
+        "x": 12.666666984558104,
+        "y": 799.4583740234375
+      },
+      "text": "5Pattern 1Pattern"
+    }
+  ],
+  "mainModelExact": true
+}

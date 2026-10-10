@@ -1,6 +1,6 @@
 # Final actionable source reconciliation — 2026-10-11
 
-The newly found projection and source-replacement gaps have been addressed. **Two final proof tasks are still live at this snapshot: official5.16 exact Saved cold verification and actual part-history dependency hover/clear.** No additional definite browser-recreatable assignment was identified in this finite source/evidence pass. This is not a certified whole-book100%, an exhaustive proof that every paragraph has an output, or a replacement for those remaining tasks.
+The newly found projection and source-replacement gaps have been addressed. **Final closure update: both official5.16 exact Saved cold verification and actual part-history dependency hover/clear are now accepted. The confirmed finite browser action queue is empty.** No additional definite browser-recreatable assignment was identified in this finite source/evidence pass. This is not a certified whole-book100% or an exhaustive proof that every paragraph has an output. The historical two-task table below records the pre-closure boundary and is superseded by this update.
 
 Parent is the sole browser/CAD author and owns ADVANCE/Git. This report reconciles protected actual artifacts/reports, source text and current implementation read-only. Earlier empty-queue and pending tables must be read with their dated superseding entries; they are not current acceptance on their own.
 
@@ -47,4 +47,10 @@ Plane7H ownership and Plane9 occlusion remain explicitly inferred/ambiguous; no 
 
 After the two live proof tasks pass, this finite reconciliation supports **available-source digital work completed within documented scopes**, with the specific source/external/capability boundaries above retained. It must not be strengthened to all-source exact parity merely because this finite actionable queue becomes empty. Reopen work only for a newly identified precise source requirement, changed evidence or newly supplied clean source.
 
-No CAD/browser/code/ADVANCE/Git mutation performed. Report frozen at the stated pending-proof snapshot.
+## Final proof closure
+
+`exercise-5.16-official-source-browser-acceptance-2026-10-11.md` now includes actual restored→cold acceptance: entire features/sketches/planes/history/exact topology/native mesh/cosmetic annotation/material exact; only native build token and operational rebuild/audit timestamps differ. Independent current native regeneration and actual STEP validate as one solid, source-dimensional volume2.06127019036cm³ and both directed STEP residuals zero. Original undecoded companion BRep/frame/density and physical-thread qualifications remain.
+
+`ch4-dependency-hover-browser-acceptance-2026-10-11.md/json` now accepts10/10 actual DOM/style/source guards: real Boss2 hover classifies focus/upstream/downstream correctly with visible amber/cyan/purple inset stripes; real mouseleave restores baseline. Entire mainModel/Drawing deep exact; full project differs only export createdAt. Actual observed node is `feature:feature_mv2xd0p0_2`, superseding ready-plan selector. Part-history highlighting closes this bounded digital workflow; original arrow/assembly/mate parity is not claimed.
+
+Thus both live rows are closed. Available-source digital work is completed within the evidenced scopes of this reconciliation; unresolved3.9/Plane ambiguity, physical/proprietary/finite capability limits and the absence of a whole-book denominator remain unchanged. No CAD/browser/code/ADVANCE/Git mutation performed. Final report frozen.

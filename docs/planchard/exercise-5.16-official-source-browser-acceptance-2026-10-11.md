@@ -20,6 +20,6 @@ Independent read-only native regeneration of the restored authored bundle and ac
 
 ## Final cold acceptance
 
-Parent performed genuine cache-bypass reload and reopened exact Saved model; protected `EXERCISE-5.16-official-source-thread-cold-browser-2026-10-11.mforge` and PNG show Native1, five history steps, two fully-defined sketches and corrected Thread inspector with25.4mm length/1.27mm pitch/UNC2A/external/cosmetic/RH.
+Parent performed a genuine Chrome tab reload and reopened the exact Saved model; protected `EXERCISE-5.16-official-source-thread-cold-browser-2026-10-11.mforge` and PNG show Native1, five history steps, two fully-defined sketches and corrected Thread inspector with25.4mm length/1.27mm pitch/UNC2A/external/cosmetic/RH. This sequence did not explicitly request a cache-bypass reload.
 
 Independent restored→cold comparison: whole features, sketches, references, history and exactTopologyCache are exact; native meshData, cosmeticThread and material are exact. All mainModel differences are precisely `parts[0].exactBuildToken`, `lastRebuild.rebuiltAt`, `lastStandardsAudit.at`. These are a native build token and operational timestamps, not authored geometry or annotation changes. No unexplained fields differ. Cold acceptance therefore includes genuine circular-edge provenance, inward start/axis and restored source25.4mm settings. Original source frame/native BRep and exact original density remain explicitly qualified; physical thread manufacture is not asserted.

@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-11",
+  "source": "PDF214–215 / printed4-34–35",
+  "savedKey": "cm_mv2xaz0p",
+  "savedName": "Planchard Ch2 feature pattern and Ch4 rollback - browser 2026-10-11",
+  "interaction": "native mouseMoved135,722 on observed Boss2 rect; native mouseMoved1700,1000 onto empty viewport",
+  "checks": [
+    {
+      "name": "actual five rows and exact role mapping",
+      "pass": true
+    },
+    {
+      "name": "baseline zero dependency roles",
+      "pass": true
+    },
+    {
+      "name": "actual cleared classes/background/opacity exactly restore baseline",
+      "pass": true
+    },
+    {
+      "name": "all expected visible colored inset stripes",
+      "pass": true
+    },
+    {
+      "name": "actual node identifier verified",
+      "pass": true
+    },
+    {
+      "name": "source graph independently explains three upstream and one downstream",
+      "pass": true
+    },
+    {
+      "name": "entire mainModel exact",
+      "pass": true
+    },
+    {
+      "name": "entire Drawing exact",
+      "pass": true
+    },
+    {
+      "name": "all project fields except createdAt exact",
+      "pass": true
+    },
+    {
+      "name": "accepted full32/native1/five-history/key retained",
+      "pass": true
+    }
+  ],
+  "passCount": 10,
+  "total": 10,
+  "files": [
+    {
+      "path": "artifacts/planchard/CH4-DEPENDENCY-hover-baseline-browser-2026-10-11.mforge",
+      "sha256": "7a882353705114829576cf6778a076e55b76f551de606bab72e2fd1a2974a706"
+    },
+    {
+      "path": "artifacts/planchard/CH4-DEPENDENCY-hover-cleared-browser-2026-10-11.mforge",
+      "sha256": "f2d40a7049eb85c29553462753aa5d31e115f9ea91272ab216b41a423f7f98e5"
+    }
+  ],
+  "qualification": "Actual parent-captured DOM/style/mouse observations independently reconciled with source exports; bounded part-history highlighting, not proprietary arrows/assembly mate parity."
+}

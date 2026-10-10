@@ -1,0 +1,13 @@
+# Actual dependency hover and clear acceptance
+
+**10/10 independent checks PASS.** Parent ordinary Chrome reopened exact accepted full32pattern Saved`cm_mv2xaz0p`, `Planchard Ch2 feature pattern and Ch4 rollback - browser 2026-10-11`, then genuinely moved the pointer onto Boss2 and back to empty viewport. Protected actual DOM/style observations and baseline/hover/cleared PNGs support this interaction; this reviewer did not operate the browser.
+
+Source PDF214–215 /4-34–35: actual canonical references independently confirm Boss2 depends on Boss1/tooth sketch, Boss1 on base sketch, and Pattern1 on Boss2. Actual rendered rows show Boss2focus/amber inset, Boss1+both sketches upstream/cyan inset, Pattern1downstream/purple inset. Each computed stripe has the expected RGB color and inset declaration. Genuine mouseleave restores every observed baseline class/background/opacity exactly, including pre-existing selected tooth sketch. No unrelated-row dim proof is claimed because all five inspected history targets belong to this dependency chain.
+
+Actual tree node is `feature:feature_mv2xd0p0_2`; the earlier ready plan's `history:feature:...` selector was a planning mistake. Parent used the observed real row rectangle and genuine native mouse movement135/722, then1700/1000. No programmatic event dispatch or app-state injection is claimed.
+
+Independent baseline→cleared bundle comparison proves **entire mainModel deep exact**, including Drawing, source sketches/features/references/history/material/native mesh/proofs/configuration/key. The whole project differs only in top-level export `createdAt`. Full32pattern,rollbackIndexnull,one native solid andfive history rows remain intact. Parent observes Native1/clean UI; prior accepted pattern geometry/cold proof remains preserved. The JSON records hashes and all ten assertions.
+
+Evidence: `ch4-dependency-hover-browser-observations-2026-10-11.json`; genuine `artifacts/planchard/CH4-DEPENDENCY-hover-{baseline,cleared}-browser-2026-10-11.mforge`; `artifacts/planchard/CH4-DEPENDENCY-{baseline,hover,cleared}-browser-2026-10-11.png`. The independently inspected hover PNG visibly confirms the five colored history roles beside the native32-tooth model. This closes actual **part-history dependency highlighting and clearing**. It does not certify original SOLIDWORKS arrow/text-box presentation, assembly/mate dynamic visualization, a BRACKET import or new geometry. No extra cold cycle is required for this transient hover; parent loaded final CSS before the actual observation, and authored state is unchanged.
+
+No CAD/code/browser/ADVANCE/Git mutation performed. Report/JSON frozen.
