@@ -1,0 +1,33 @@
+{
+  "checks": {
+    "allQualifiedGuards": true,
+    "solverSuccess": true,
+    "zeroIssues": true,
+    "noRebindings": true,
+    "twoDOF": true,
+    "allFourNativeValid": true,
+    "zeroNativeInterference": true,
+    "actualBrowserClearanceEvidence": true,
+    "actualColdScreenshot": true,
+    "wholeAssemblyExactExceptQuaternionNormalization": true
+  },
+  "passCount": 10,
+  "wholeAssemblyDifferences": [
+    {
+      "path": "$.components.2.transform.q.z",
+      "warm": -0.017593501947,
+      "cold": -0.017593501943
+    }
+  ],
+  "solved": {
+    "ok": true,
+    "degreesOfFreedom": 2,
+    "issues": [],
+    "rebindings": []
+  },
+  "sourceQualification": "Library insertion copies all child geometry/mates/poses exactly, but omits child assembly-level customProperties.Description; embedded component source descriptions remain retained. No geometry or motion alteration.",
+  "actualWorkflowAccepted": true,
+  "sourceScope": "Qualified legacy companion reconstruction; upper-loop/datums remain inferred, native thread variant differs from separate Chapter7 #8-36 tutorial. PureLead density NIH11.342, source companion scalar unrecovered. No recovered-original-CAD identity claim.",
+  "stableProductGuard": "Generated-cylinder identity collision fails closed only for assembly mates;28 scoped mate/topology tests and final gates pass.",
+  "quaternionNormalizationDelta": 4.000001718740265e-12
+}

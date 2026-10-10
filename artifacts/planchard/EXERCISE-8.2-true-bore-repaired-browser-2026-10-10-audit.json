@@ -1,0 +1,74 @@
+{
+  "checks": {
+    "threeOccurrences": true,
+    "fiveMateIdentities": true,
+    "leftTrueBore": true,
+    "originalAxleRefExact": true,
+    "rightTrueBore": true,
+    "hookCurrentOriginalTorus": true,
+    "finiteBoreMode": true,
+    "otherThreeMatesExact": true,
+    "allSourceDefinitionsExact": true,
+    "solverSuccess": true,
+    "zeroIssues": true,
+    "twoDOF": true,
+    "rigidChildDefinitionsMatesPosesExact": true
+  },
+  "passCount": 13,
+  "qualifiedRefsAccepted": true,
+  "actualPoses": [
+    {
+      "id": 451,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 452,
+      "transform": {
+        "x": 0,
+        "y": -5.08,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": -90,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.707106781187,
+          "w": 0.707106781187
+        }
+      }
+    },
+    {
+      "id": 456,
+      "transform": {
+        "x": -0.111148326,
+        "y": -13.349091278,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": -2.016170837,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.017593501947,
+          "w": 0.999845222367
+        }
+      }
+    }
+  ],
+  "finalWorkflowAccepted": false,
+  "nestedMetadataQualification": "Library insertion copies all child geometry/mates/poses exactly, but omits child assembly-level customProperties.Description; embedded component source descriptions remain retained. No geometry or motion alteration."
+}

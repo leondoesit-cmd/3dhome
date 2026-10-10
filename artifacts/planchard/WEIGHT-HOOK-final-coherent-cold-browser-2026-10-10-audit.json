@@ -1,0 +1,36 @@
+{
+  "checks": {
+    "wholeAssemblyColdExact": true,
+    "twoComponents": true,
+    "threeGenuineMates": true,
+    "solverSuccess": true,
+    "zeroDOF": true,
+    "hookIdentityY635": true,
+    "axisRelationNotOpposed": true,
+    "newCoincidentFreshCircle5": true,
+    "pureLead": true,
+    "hookSourceSketchesExact": true,
+    "hookSourceFeaturesExact": true,
+    "hookNativeMeshExact": true,
+    "hookBoundsExact": true,
+    "hookOneNativeSolid": true,
+    "inactivePlaceholderHasNoCADBoth": true
+  },
+  "solved": {
+    "ok": true,
+    "degreesOfFreedom": 0,
+    "issues": []
+  },
+  "coldAccepted": true,
+  "sourceQualification": "Legacy companion variant; original Chapter7 thread remains separate. Source upper-loop/datums qualified reconstruction. Pure Lead density external NIH value, companion original scalar unrecovered.",
+  "actualNativeClearanceEvidence": "Parent actual all-visible zero-interference PNG on unchanged accepted geometry, preceding final Save/cold; no independent native clearance recomputation in this report.",
+  "mainModelDifferenceQualification": "Assembly bundle mainModel is the empty inactive part placeholder, re-created with fresh identity/sketch IDs on reopening; the entire actual assembly including both embedded source definitions, geometry, mates, materials and poses is exact.",
+  "mainModelChangedKeys": [
+    "id",
+    "key",
+    "sketches",
+    "lastRebuild",
+    "activeSketch",
+    "definitionId"
+  ]
+}

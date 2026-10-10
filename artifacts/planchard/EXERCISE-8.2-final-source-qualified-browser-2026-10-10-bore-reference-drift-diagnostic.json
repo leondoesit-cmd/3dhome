@@ -1,0 +1,115 @@
+{
+  "refs": [
+    {
+      "mate": 453,
+      "oldId": "feature_mukhpbcy_2:tool:face:generated:cylinder:1",
+      "newId": "feature_mukhjc84_1:face:side:425",
+      "oldRadius": 0.24130000000000001,
+      "newRadius": 0.24130000000000001
+    },
+    {
+      "mate": 567,
+      "oldId": "feature_mukhptgp_3:copy:8:face:generated:cylinder:1",
+      "newId": "feature_mukhjc84_1:face:side:423",
+      "oldRadius": 0.24130000000000001,
+      "newRadius": 0.24130000000000001
+    }
+  ],
+  "solver": {
+    "ok": true,
+    "issues": [],
+    "rebindings": [
+      {
+        "mate": 567,
+        "from": "443/feature_mukhr38c_1:face:generated:torus:4",
+        "to": "443/feature_mukhbwfg_1:face:generated:torus:4"
+      }
+    ],
+    "unsatisfied": [],
+    "settled": true,
+    "passes": 18,
+    "clusters": [
+      {
+        "components": [
+          452
+        ],
+        "variableCount": 6,
+        "rank": 6,
+        "degreesOfFreedom": 0,
+        "iterations": 0,
+        "converged": true,
+        "perComponent": {
+          "452": 0
+        }
+      },
+      {
+        "components": [
+          456
+        ],
+        "variableCount": 6,
+        "rank": 4,
+        "degreesOfFreedom": 2,
+        "iterations": 17,
+        "converged": true,
+        "perComponent": {
+          "456": 2
+        }
+      }
+    ],
+    "degreesOfFreedom": 2
+  },
+  "predictedPoses": [
+    {
+      "id": 451,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 452,
+      "transform": {
+        "x": 0,
+        "y": -5.08,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": -90,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.707106781187,
+          "w": 0.707106781187
+        }
+      }
+    },
+    {
+      "id": 456,
+      "transform": {
+        "x": -0.111148326,
+        "y": -13.349091278,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": -2.016170838,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.017593501954,
+          "w": 0.999845222366
+        }
+      }
+    }
+  ],
+  "scope": "Read-only in-memory candidate reference replay; not browser authorship and no protected model mutation."
+}

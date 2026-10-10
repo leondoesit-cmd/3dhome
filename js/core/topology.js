@@ -1496,10 +1496,33 @@ function descriptorScore(wanted, candidate) {
   return score;
 }
 
+// Assembly captures must not silently follow a reused native extraction ordinal
+// onto a different concentric cylinder when the original radius still exists.
+function generatedCylinderIdentityCollision(reference, exact, entries) {
+  const wanted=reference?.descriptor || reference?.frame, actual=exact?.descriptor;
+  if(!/:face:generated:cylinder:\d+$/.test(reference?.persistentId || '')
+    || wanted?.surface!=='cylinder' || actual?.surface!=='cylinder'
+    || !finite(wanted.radius) || !finite(actual.radius) || !wanted.axis || !wanted.origin)return false;
+  const tolerance=Math.max(1e-6,Math.abs(wanted.radius)*1e-5);
+  if(Math.abs(actual.radius-wanted.radius)<=tolerance)return false;
+  const axis=normalized(wanted.axis);
+  return entries.some(item=>{
+    const d=item.descriptor;
+    if(item===exact || item.kind!==exact.kind || d?.surface!=='cylinder'
+      || !finite(d.radius) || Math.abs(d.radius-wanted.radius)>tolerance
+      || !d.axis || !d.origin || Math.abs(dot(axis,d.axis))<.999999)return false;
+    return length(radialFromAxis(d.origin,wanted.origin,axis))<tolerance;
+  });
+}
+
 export function resolveTopologyReference(reference, registry, options = {}) {
   const source = registry?.byPersistentId ? registry : createTopologyRegistry(registry || []);
   const exact = source.byPersistentId.get(reference?.persistentId);
-  if (exact && (!reference.kind || exact.kind === reference.kind)) return { status: "exact", reference, topology: exact, score: 0 };
+  if (exact && (!reference.kind || exact.kind === reference.kind)) {
+    if(options.rejectGeneratedIdentityCollision && generatedCylinderIdentityCollision(reference,exact,source.list))
+      return {status:"missing",reference,topology:null,reason:"generated-identity-collision"};
+    return {status:"exact",reference,topology:exact,score:0};
+  }
   let candidates = source.list.filter((item) => !reference?.kind || item.kind === reference.kind);
   // A lowered cut or boss can publish edges under `feature:tool` while its
   // authored reference names `feature` as owner for dependency ordering. The

@@ -984,7 +984,7 @@ export function createFrameResolver(sink) {
       return worldFrame(reference.frame || reference.descriptor || null,component,reference.frameSpace);
     }
     const sourceReference=axisSource || vertexSource || reference;
-    const result = resolveTopologyReference(sourceReference, registryFor(component, entries));
+    const result = resolveTopologyReference(sourceReference, registryFor(component, entries), {rejectGeneratedIdentityCollision:true});
     if (result.status === "missing" || result.status === "ambiguous") {
       if (collect) sink.issues.push({mate:mateId,code:result.status+"-topology",reference:reference.persistentId});
       return null;

@@ -1,6 +1,6 @@
 # Numbered exercise coverage reconciliation — 2026-10-10
 
-**115 of 117 numbered identifiers have documented acceptance within their stated scopes: 98.29%. Two identifiers remain pending. This is a numbered-exercise fraction, not a whole-book completion percentage.**
+**116 of 117 numbered identifiers have documented acceptance within their stated scopes: 99.15%. One identifier remains pending. This is a numbered-exercise fraction, not a whole-book completion percentage.**
 
 Counting rule: each frozen identifier counts once. 8.6A, Basic6A/6B and Advanced6A count independently; six Chapter10 drafting sample answers and the Chain sample are included. Multi-model2.2 and2.3 each count once and require both pictured models. Plans, qualified partial exports and implementation-only tests do not close an identifier. Accepted illustrative/designer/replacement examples retain their existing qualifications; this numerator does not certify exact publisher-native equivalence for those examples.
 
@@ -12,7 +12,7 @@ Counting rule: each frozen identifier counts once. 8.6A, Basic6A/6B and Advanced
 | Chapter5 | 17/17 | exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md |
 | Chapter6 | 8/8 | book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md |
 | Chapter7 | 12/12 | book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md |
-| Chapter8 | 20/21 | ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md |
+| Chapter8 | 21/21 | ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md |
 | Chapter9 | 6/6 | ADVANCE.md; remaining-book-followups-reconciled-2026-10-09.md |
 | Chapter10 drafting | 6/6 | ch10-drafting-answers-browser-audit-2026-10-10.md |
 | Chapter10 Basic | 8/8 | remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md |
@@ -22,9 +22,10 @@ Counting rule: each frozen identifier counts once. 8.6A, Basic6A/6B and Advanced
 ## Exact remaining numbered queue
 
 - **3.9**, PDF178 /printed3-50: partial/source-blocked despite accepted cold available-source worksheet; rows1/4 missing or damaged, rows2Counterbore/3Diameter answered. Unknown glyphs remain unanswered.3.10–3.16 are now accepted source-answer worksheets qualified15/15+cold7/7.
-- **8.2**, PDF414 /printed8-36: actual native cold five-mate/two-DOF rebuild plus visible whole-assembly interference check. Fresh source audit also found FLATBAR source thickness2.286mm versus saved1.524mm and Hook thread specification mismatch; decide explicit repair or retained source qualification before stronger exact-source acceptance. Official source is now available.
 
 ## Closures superseding older pending inventory
+
+8.2 accepted qualified companion reconstruction: actual true left/right bore reference repair preserves all native geometry; all-visible native zero overlap, independent four-leaf native zero, clean saved 3 roots/5 mates/2 DOF, actual cold10/10 with only quaternion normalization4e-12. Hook source custom helix, materials and final bounds coherent; inferred upper-loop/datums and external Lead density remain qualified. Report exercise-8.2-final-source-browser-diagnostic-2026-10-10.md.
 
 8.9 accepted contact-qualified representativecounterweight: actualallvisibleNative1/Declared1/Unreviewed0/Bounds0, positivescrew/nutproxycontact1.7450999mm3 preserved; actualcoldwholeassemblyexactqualified/7roots8mates2DOF. RootDescriptioncorrectedsourceavailability/noexactpublisherCADorhelicalcontactclaim. Report chapter8-counterweight-final-browser-readiness-2026-10-10.md.
 
