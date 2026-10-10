@@ -1,9 +1,19 @@
 # Planchard ebook — live advance file
 
-Updated: **2026-10-09**. Read this first when resuming; older plans and STOP-HERE files contain superseded status.
+Updated: **2026-10-10**. Read this first when resuming; older plans and STOP-HERE files contain superseded status.
+
+## Authoritative checkpoint — 2026-10-10 resume and quota stop
+
+The user said “המשך” and authorized resuming. Read current repository/history and the accepted work below; do not redo accepted models. Usage lookup during this resume reports **100% used**, zero credit balance (ordinaryUsageAllowed remains true). In keeping with the user's prior request to finish active work, commit everything and preserve a reserve, this run closes its bounded source-plan/UI work and stops before authoring another model. No account reset was consumed.
+
+**Last accepted exercise remains 1.9 / printed1-57 / PDF85**, commit `775d43d`. **Current next work: Exercise1.10 / printed1-58 / PDF86**. Source page actually viewed in visible desktop Chrome; screenshot protected at `artifacts/planchard/DRAFTING-1.10-source-page-browser-2026-10-10.png`. Spatial plan saved in `drafting-1.10-native-browser-plan-2026-10-10.md`: rounded L Top base, stepped Front upright and triangular Side rib, three merged native Boss features, illustrative10mm/grid. Analytic chosen-size volume35356.1944901923mm3/bounds60×50×50; this is a plan, not an authored or accepted model. No publisher physical units/material/mass are specified. Next: author these profiles through actual Chrome controls, fully constrain them, inspect all three supplied projections, validate native/STEP, driving/Undo/Redo and cold persistence, then accept; 1.11 follows on the same source page.
+
+**UI gap closure:** `8d34a04`, generic stale sketch Offset callbacks now require the captured sketch to remain active before Undo/mutation. Nine focused tests PASS; `npm run check` PASS659 module links/1489 assertions. Report `sketch-offset-selection-context-validation-2026-10-10.md`. No asynchronous selection race was established and this does not prove the historical1.9 offset event's cause. Actual browser repair acceptance remains pending; no full current-suite-green claim.
+
+**Browser preservation:** original Chrome tab710862083 holds an unsaved Bench Vice assembly with an active Explode step; it was read only and left untouched. New app tab710862391 was opened but no1.10 model authored; source research tab710862394 can close automatically. Resume from saved library and this source plan rather than relying on those temporary tabs. Preserve recovery backups/drafts. Chapter8 exercises8.19 /8-54/PDF432 and8.20 /8-55/PDF433, later Chapter9/10 and Chapter11 accepted digital work remain accepted. Earlier drafting backfill is not a reset of later progress. Overall ~75% (70–80% range) remains an unaudited estimate, not a certified count; full ebook unfinished.
 
 
-## FINAL STOP / authoritative resume — 2026-10-09 10:30 local
+## Previous final stop — 2026-10-09 10:30 local (superseded by resume above)
 
 **STOPPED at the user's request after completing the active Exercise1.9. All task changes, source fixes, protected browser model/drawing exports, native audits and this progress record are to be committed together. No Exercise1.10/page86 work was started.**
 
