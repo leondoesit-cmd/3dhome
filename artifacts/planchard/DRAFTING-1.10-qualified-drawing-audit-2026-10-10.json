@@ -1,0 +1,60 @@
+{
+  "pass": true,
+  "checks": {
+    "sourceAuthoringExact": true,
+    "partAuthoringMaterialExact": true,
+    "fourViews": true,
+    "thirdAngleHiddenOn": true,
+    "twoFourRowNotes": true,
+    "allSvgNoteRows": true,
+    "qualification": true,
+    "svgContainsHiddenEdges": true,
+    "inputsUnchanged": true
+  },
+  "key": "cm_mv1o5avl",
+  "sourceFields": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "parameters": true,
+    "localFrame": true,
+    "references": true,
+    "referenceGeometry": true,
+    "context": true,
+    "customProperties": true
+  },
+  "partFields": {
+    "id": true,
+    "kind": true,
+    "axis": true,
+    "from": true,
+    "to": true,
+    "pts": true,
+    "holes": true,
+    "profileEntityIds": true,
+    "sketchId": true,
+    "sketchDriven": true,
+    "supportBaseOffset": true,
+    "supportDepth": true,
+    "direction": true,
+    "symmetric": true,
+    "draftAngle": true,
+    "draftOutward": true,
+    "featureId": true,
+    "color": true,
+    "metal": true,
+    "rough": true,
+    "name": true,
+    "exactError": true,
+    "exactPending": true,
+    "merges3d": true
+  },
+  "changedFields": [
+    "lastRebuild",
+    "drawing",
+    "lastStandardsAudit",
+    "parts"
+  ],
+  "scope": "Independent saved drawing/source-authoring audit. Parent reports actual Chrome source-view visual correspondence; SVG precise edge correspondence remains separately checked in final audit.",
+  "svgSha256": "6e03c3d215f2b6e6321293b602df385fe2a374b9d1a4ab5bd949a08d8138d07a"
+}

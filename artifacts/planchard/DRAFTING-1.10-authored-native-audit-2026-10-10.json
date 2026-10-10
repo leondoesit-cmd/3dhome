@@ -1,0 +1,185 @@
+{
+  "pass": true,
+  "checks": {
+    "nativeOneValid": true,
+    "analyticVolume": true,
+    "bounds": true,
+    "threeFullyDefined": true,
+    "sixHistoryThreeBosses": true,
+    "threeQuarterRadiusOneArcs": true,
+    "arcCenters": true,
+    "ribTriangle": true,
+    "canonicalAxes": true,
+    "mmContext": true,
+    "inputUnchanged": true,
+    "stepOneValid": true,
+    "stepBidirectionalZero": true,
+    "stepInputUnchanged": true
+  },
+  "key": "cm_mv1o5avl",
+  "name": "Planchard 1.10 - rounded stepped rib - browser 2026-10-10",
+  "scope": "Read-only actual browser model native/STEP audit; chosen10mm/grid is illustrative, no publisher physical dimensions/material/mass claim. Drawing/cold pending.",
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 35.35619449019236,
+    "maxToleranceCm": 1.00000002091479e-7
+  },
+  "mass": {
+    "volume": 35.35619449019236,
+    "centerOfMass": {
+      "x": 2.401977339058002,
+      "y": 1.1434203086591097,
+      "z": 1.6070646379787141
+    },
+    "inertia": [
+      [
+        98.42129614951494,
+        -13.89380767779744,
+        35.97260268295271
+      ],
+      [
+        -13.89380767779744,
+        183.03984346320317,
+        17.517828959915207
+      ],
+      [
+        35.97260268295271,
+        17.517828959915207,
+        151.40776720573155
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -8.881784197001252e-16,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 6.000000000000001,
+        "y": 5,
+        "z": 5
+      }
+    }
+  },
+  "arcs": [
+    {
+      "sketch": "sk_0p0cz",
+      "entity": 6100,
+      "center": [
+        5.000000000000002,
+        1.0000000000000002
+      ],
+      "start": [
+        6.000000000000001,
+        1
+      ],
+      "end": [
+        5.000000000000002,
+        2
+      ],
+      "radius": 0.9999999999999991,
+      "sweepDegrees": 90
+    },
+    {
+      "sketch": "sk_0p0cz",
+      "entity": 6110,
+      "center": [
+        2.000000000000002,
+        4
+      ],
+      "start": [
+        3.000000000000002,
+        4
+      ],
+      "end": [
+        2.000000000000002,
+        5
+      ],
+      "radius": 1,
+      "sweepDegrees": 90
+    },
+    {
+      "sketch": "sk_164jv",
+      "entity": 6135,
+      "center": [
+        5,
+        4
+      ],
+      "start": [
+        6,
+        4
+      ],
+      "end": [
+        5,
+        5
+      ],
+      "radius": 1,
+      "sweepDegrees": 90
+    }
+  ],
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 35.35619449019259,
+      "maxToleranceCm": 1e-7
+    },
+    "mass": {
+      "volume": 35.35619449019259,
+      "centerOfMass": {
+        "x": 2.401977339058009,
+        "y": 1.1434203086591184,
+        "z": 1.607064637978719
+      },
+      "inertia": [
+        [
+          98.42129614951699,
+          -13.893807677798208,
+          35.97260268295294
+        ],
+        [
+          -13.893807677798208,
+          183.03984346320453,
+          17.517828959915626
+        ],
+        [
+          35.97260268295294,
+          17.517828959915626,
+          151.4077672057333
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -8.881784197001252e-16,
+          "y": 0,
+          "z": 0
+        },
+        "max": {
+          "x": 6,
+          "y": 5,
+          "z": 5
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0,
+    "sha256": "dc8b2c15d6684974f2d7cb1313ecaf80571dce0d5b8835c2a2839220411d654b"
+  },
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "mm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  },
+  "customProperties": {
+    "Description": "Exercise 1.10 / printed 1-58 / PDF86. Source-grid reconstruction, illustrative 10mm/grid; no publisher physical dimensions, material or mass. Rounded L base, stepped rear upright and triangular rib. Browser-authored native profiles."
+  },
+  "sha256": "40725ed2a84f786698f39dfdde88f89d21aed8860b273d52bd74117e3b03c282"
+}

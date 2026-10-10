@@ -1,0 +1,61 @@
+{
+  "pass": true,
+  "checks": {
+    "oneValid": true,
+    "volume": true,
+    "sketchesExact": true,
+    "firstTwoFeaturesExact": true,
+    "ribOnlyDepthAndEndChanged": true,
+    "historyExact": true,
+    "threeFullyDefined": true,
+    "boundsUnchanged": true,
+    "inputUnchanged": true
+  },
+  "mass": {
+    "volume": 35.43619449019236,
+    "centerOfMass": {
+      "x": 2.398834840583583,
+      "y": 1.1446015785229544,
+      "z": 1.6087042467590658
+    },
+    "inertia": [
+      [
+        98.57414056459075,
+        -13.83567145602072,
+        36.05329606437134
+      ],
+      [
+        -13.83567145602072,
+        183.30771740474978,
+        17.505273975256515
+      ],
+      [
+        36.05329606437134,
+        17.505273975256515,
+        151.6020592727202
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -8.881784197001252e-16,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 6.000000000000001,
+        "y": 5,
+        "z": 5
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 35.43619449019236,
+    "maxToleranceCm": 1.00000002091479e-7
+  },
+  "expectedDeltaMm3": 80,
+  "actualDeltaMm3": 80.0000000000125,
+  "scope": "Actual rib Boss X depth10→10.2mm, not a sketch edit; no authored model mutation."
+}
