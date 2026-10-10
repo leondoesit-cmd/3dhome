@@ -18553,7 +18553,9 @@ function removeTreeNode(node, model) {
     if (sketches.length < 2) { flash(t("del")); return; }
     pushUndo(t("del"));
     var priorSketchId = E.def.activeSketch;
-    removeSketch(E.def, node.targetId);
+    if (!removeSketch(E.def, node.targetId)) {
+      H.discard(); flash("Sketch is used by another history step"); return;
+    }
     E.ssel = []; E.sel = null;
     syncSketchAfterRemoval(priorSketchId);
     refreshAll(); return;

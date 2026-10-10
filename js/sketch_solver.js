@@ -30,6 +30,8 @@
 // finite-difference step size.
 
 import { analyzeSketchProfiles } from "./sketch_profiles.js";
+import { removeHistoryNode } from "./core/parametric_document.js";
+import { featureDependencies, sketchDependencies } from "./core/dependency_graph.js";
 import { gaussNewtonStep, normOf, rankOf as matrixRank } from "./core/least_squares.js";
 import { abs, add, atan2, atLeast, cos, div, gradientRows, hypot, mul, neg, scale, sin, sub, valueOf, variable, wrapTurn } from "./core/dual.js";
 
@@ -982,8 +984,17 @@ export function removeSketch(def, id) {
   if (list.length < 2) return false;
   const i = list.findIndex((s) => s.id === id);
   if (i < 0) return false;
-  list.splice(i, 1);
-  if (def.activeSketch === id) def.activeSketch = list[Math.max(0, i - 1)].id;
+  const entry = (def.history || []).find(item => item.kind === "sketch" && item.targetId === id);
+  if (entry) {
+    if (!removeHistoryNode(def, entry.id).ok) return false;
+  } else {
+    const refId = ref => typeof ref === "string" ? ref : ref?.id || ref?.persistentId;
+    if ((def.features || []).some(feature => featureDependencies(feature).map(refId).includes(id)) ||
+        list.some(sketch => sketch.id !== id && sketchDependencies(sketch, def).includes(id))) return false;
+    list.splice(i, 1);
+  }
+  const remaining = def.sketches;
+  if (def.activeSketch === id) def.activeSketch = remaining[Math.max(0, i - 1)].id;
   return true;
 }
 

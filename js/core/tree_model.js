@@ -396,7 +396,7 @@ function canonicalHistory(def, options) {
       .filter(Boolean)
       .map((sketch) => {
         const sketchIndex=history.findIndex(item=>item.kind==='sketch' && item.targetId===sketch.id);
-        return sketchNode(sketch, { ...options, definition: def }, {index:sketchIndex>=0?sketchIndex:null,rolled:sketchIndex>=0?sketchIndex>=rollbackAt:rolled,detail:sketchDetail(sketch, def)});
+        return sketchNode(sketch, { ...options, definition: def }, {historyId:sketchIndex>=0?history[sketchIndex].id:null,index:sketchIndex>=0?sketchIndex:null,rolled:sketchIndex>=0?sketchIndex>=rollbackAt:rolled,detail:sketchDetail(sketch, def)});
       });
     rows.push(node({
       id: "feature:" + feature.id,

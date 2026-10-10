@@ -44,6 +44,16 @@ export function createPartDocument(options = {}) {
 export function normalizeHistory(document, sourceHistory = document.history) {
   const sketches = new Map((document.sketches || []).map((sketch) => [sketch.id, sketch]));
   const features = new Map((document.features || []).map((feature) => [feature.id, feature]));
+  // Removing stale rows must not move the rollback bar past a surviving step.
+  // Keep live feature references intact: their missing-input diagnostics remain
+  // the validator's responsibility, even when an absent target has no row.
+  if (Number.isInteger(document.rollbackIndex) && Array.isArray(sourceHistory)) {
+    const missingBeforeBar = sourceHistory.slice(0, Math.max(0, document.rollbackIndex)).filter(raw => {
+      if (typeof raw === "string") return !sketches.has(raw) && !features.has(raw);
+      return raw && typeof raw === "object" && !(raw.kind === "sketch" ? sketches : features).has(raw.targetId);
+    }).length;
+    document.rollbackIndex = Math.max(0, document.rollbackIndex - missingBeforeBar);
+  }
   const output = [];
   const included = new Set();
   const includedTargets = new Set();
