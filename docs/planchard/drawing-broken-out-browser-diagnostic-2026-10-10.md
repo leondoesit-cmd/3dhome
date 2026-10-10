@@ -1,0 +1,11 @@
+# Actual Broken-out depth diagnostic — 2026-10-10
+
+**Source authoring/depth10/10 checks PASS; browser workflow NOT ACCEPTED pending rendering repair/cold.** Parent actually viewed sourcePDF110/printed2-24 and created five-point Right closed spline on a saved branch of acceptedDetailCrop, applied10mm then30mm through ordinaryQuickform. Protected shallow/deep bundles both156284bytes, SVG100251/101275bytes, actualPNGs. No geometry was script authored; this audit reads exports only.
+
+SameRightviewvetll4lp andsixoriginalIDs; fivecontrols exactlyidentical at bothdepths, front-envelope datum. Canonical source sketches/features/history/references/localFrame preserved exactly against acceptedDetailCrop. Shallow/deep mainDocument differ onlydrawingdepth/lastRebuild. Right view basis looks from+X outerfront60mm: shallowcutplane50mm anddeep30mm. Mesh-only savedsourceprojection independently confirmsfront6cm/offset5vs3cm, shallow0sectioncutsegments/deep6cutsegments, all deepsectionendpoints inside60pointboundary. Correct depth drives actual section geometry; sourceCAD remains intact.
+
+Sourcegeometry atX50mm misses roofD12 cylindercenterX30mm (extentX24..36), so cannot reveal a roundhole at thisshallowsection. AtX30mm its sidecrosssection is rectangularslot Z14..26mm/Y15..30mm; seenalongX it cannot be roundY-normal borecaps. Deepcut hatching/slot are meaningful section data independently of falsemetadata contours.
+
+Actual deepPNG independently inspected: two full circlesradius6mm appear centeredatZ20/Y30 andY15, outsideclosedboundary andaboveRightouter silhouette. Those projectedtop/bottom borecaps are invalid for thissideview andcannot be accepted or hiddenbyclassification. Current mesh-only read-onlyprojection has noanalyticcircles at eitherdepth; native/analytic topology metadata path therefore needs repairedprojection/clipping/orientationvalidation. Parent/UIagent already fixing, no code change by auditor. Earlier outputs remain diagnostic, not post-fix evidence.
+
+Evidence `artifacts/planchard/DRAWING-BROKENOUT-depth-diagnostic-audit-2026-10-10.json`, readonly `scratch/planchard/broken-out-readonly-diagnostic.mjs`. Final requires actualpost-fix10/30screens/exportedSVG with correctsidegeometry andboundaries, metadata/layoutsourcequalification andfullcoldpersistence. No wholeworkflow acceptance implied by saveddata10/10.

@@ -1,0 +1,116 @@
+{
+  "scope": "Read-only actual saved source/depth projection diagnosis. Implementation may be repaired separately; this replay is current core geometry, not actual browser post-fix acceptance.",
+  "results": [
+    {
+      "variant": "shallow",
+      "key": "cm_mv2ac1da_6221",
+      "modifier": {
+        "sketch": {
+          "type": "closed-spline",
+          "closed": true,
+          "points": [
+            {
+              "u": -2.820621929032427,
+              "v": 2.6899395719245534
+            },
+            {
+              "u": -1.0691923746717322,
+              "v": 2.6899395719245534
+            },
+            {
+              "u": -0.9099715060934883,
+              "v": 1.575393491876838
+            },
+            {
+              "u": -2.1837384547194474,
+              "v": 1.2569517547203488
+            },
+            {
+              "u": -2.9798427976106723,
+              "v": 1.8938352290333285
+            }
+          ]
+        },
+        "depth": 1,
+        "datum": "front-envelope"
+      },
+      "viewId": "vetll4lp",
+      "plane": {
+        "front": 6,
+        "depth": 1,
+        "offset": 5,
+        "datum": "front-envelope"
+      },
+      "circles": [],
+      "visible": 520,
+      "hidden": 7,
+      "cuts": 0,
+      "boundary": 60,
+      "cutEndpointsInside": true,
+      "falseRoofCircleCandidates": []
+    },
+    {
+      "variant": "deep",
+      "key": "cm_mv2ac1da_6221",
+      "modifier": {
+        "sketch": {
+          "type": "closed-spline",
+          "closed": true,
+          "points": [
+            {
+              "u": -2.820621929032427,
+              "v": 2.6899395719245534
+            },
+            {
+              "u": -1.0691923746717322,
+              "v": 2.6899395719245534
+            },
+            {
+              "u": -0.9099715060934883,
+              "v": 1.575393491876838
+            },
+            {
+              "u": -2.1837384547194474,
+              "v": 1.2569517547203488
+            },
+            {
+              "u": -2.9798427976106723,
+              "v": 1.8938352290333285
+            }
+          ]
+        },
+        "depth": 3,
+        "datum": "front-envelope"
+      },
+      "viewId": "vetll4lp",
+      "plane": {
+        "front": 6,
+        "depth": 3,
+        "offset": 3,
+        "datum": "front-envelope"
+      },
+      "circles": [],
+      "visible": 523,
+      "hidden": 4,
+      "cuts": 6,
+      "boundary": 60,
+      "cutEndpointsInside": true,
+      "falseRoofCircleCandidates": []
+    }
+  ],
+  "savedDataChecks": {
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "sourceHistoryExact": true,
+    "sourceRefsFrameExact": true,
+    "sameSixViewIDs": true,
+    "sameRightView": true,
+    "sameFiveClosedControls": true,
+    "depth10to30": true,
+    "meshPlane50to30": true,
+    "deeperNonemptySectionCutInside": true
+  },
+  "savedDataPass": true,
+  "actualBrowserWorkflowAccepted": false,
+  "actualPNGDiagnostic": "Actual deep PNG shows two full side-on roofhole circles outside boundary/right silhouette. Mesh-only projection has no circles; false analytic/native topology metadata is separate rendering blocker."
+}

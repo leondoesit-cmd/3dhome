@@ -11,3 +11,5 @@ Original nominal bridge sketches/features/history/references/localFrame exact ag
 Actual intermediatePNG independently inspected: DetailB overlaps the supporting-construction note. This is an intermediate qualified mechanism artifact, **not final layout acceptance**. No cold persistence/finished crop workflow claim yet; parent reproducing detached-view Crop undo-history bug and agent fixing separately. Parent must finish crop/sourcequalification/readable layout and actualcold proof before accepting fullsheet.
 
 Evidence `artifacts/planchard/DRAWING-DETAIL-nested-browser-2026-10-10-audit.json`; readonly helper `scratch/planchard/nested-detail-readonly-audit.mjs`. Independent script did not author views or manipulate browser.
+
+Final combinedDetail/Crop cold acceptance now closes earlier layout/coldpending: `DRAWING-CROP-DETAIL-cold-browser-2026-10-10` native15/15+cold8/8PASS, fullauthoring/wholeDrawing exact andSVG36932byte-identical, freshactualPNG clean. See `drawing-top-crop-browser-audit-2026-10-10.md`. Earlieroverlapping intermediatePNG remains historicaldiagnostic.

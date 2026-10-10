@@ -1,5 +1,5 @@
 {
-  "scope": "Read-only audit of actual protected Chrome-native model/STEP. Source PDF105 printed2-19 requests approximate physical sizing; chosen dimensions are illustrative, not publisher exact or mass fitted. No material/source mass target.",
+  "scope": "Final actual Chrome Detail/Crop cold acceptance with independent native geometry guard. No model or browser writes.",
   "accepted": true,
   "checks": {
     "threeFeatures": true,
@@ -145,5 +145,26 @@
       "referenceId": "plane:top",
       "status": "fully-defined"
     }
-  ]
+  ],
+  "coldComparison": {
+    "checks": {
+      "allAuthoringExceptDerivedExact": true,
+      "wholeDrawingExact": true,
+      "SVGByteExact": true,
+      "cropSameFiveControls": true,
+      "cropNonemptyInside": true,
+      "nestedTwoDetailsTransitiveClipping": true,
+      "nativeGuardNoRollback": true,
+      "actualColdPNGLayoutInspected": true
+    },
+    "differentTopKeys": [
+      "parts",
+      "lastRebuild"
+    ],
+    "outsideToleranceCm": [
+      2.220446049250313e-16,
+      1.1102230246251565e-16
+    ],
+    "svgBytes": 36932
+  }
 }

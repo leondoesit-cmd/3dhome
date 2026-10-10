@@ -1,0 +1,226 @@
+{
+  "scope": "Read-only audit of actual protected Chrome-native model/STEP. Source PDF124 printed2-38 requests approximate physical sizing; chosen dimensions are illustrative, not publisher exact or mass fitted. No material/source mass target.",
+  "accepted": true,
+  "checks": {
+    "threeFeatures": true,
+    "threeFullyDefinedSketches": true,
+    "sixHistorySteps": true,
+    "base65x40": true,
+    "baseHeight10": true,
+    "main50x40": true,
+    "mainStartsY10Height50": true,
+    "notch15x15": true,
+    "inputsUnmodified": true,
+    "oneConnectedValidNative": true,
+    "bounds65x60x40": true,
+    "analyticVolume": true,
+    "oneConnectedValidSTEP": true,
+    "stepDualZero": true,
+    "notchY60ExpectedReverseDepth": true
+  },
+  "key": "cm_mv2agdpz",
+  "name": "Planchard 2.2A - upper notched stepped block - browser 2026-10-10",
+  "analyticMm3": 122400,
+  "nativeVolumeMm3": 122400,
+  "analyticDeltaMm3": 0,
+  "mass": {
+    "volume": 122.4,
+    "centerOfMass": {
+      "x": 2.7107843137254903,
+      "y": 2.812745098039216,
+      "z": 1.9632352941176465
+    },
+    "inertia": [
+      [
+        537.0506764705883,
+        30.05882352941171,
+        -8.823529411764639
+      ],
+      [
+        30.05882352941171,
+        458.89632352941203,
+        10.74264705882365
+      ],
+      [
+        -8.823529411764639,
+        10.74264705882365,
+        672.877882352941
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 6.5,
+        "y": 6,
+        "z": 4
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 122.4,
+    "maxToleranceCm": 1.0000000000000002e-07
+  },
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 122.4,
+      "maxToleranceCm": 1e-07
+    },
+    "mass": {
+      "volume": 122.4,
+      "centerOfMass": {
+        "x": 2.7107843137254903,
+        "y": 2.812745098039216,
+        "z": 1.9632352941176465
+      },
+      "inertia": [
+        [
+          537.0506764705883,
+          30.05882352941171,
+          -8.823529411764639
+        ],
+        [
+          30.05882352941171,
+          458.89632352941203,
+          10.74264705882365
+        ],
+        [
+          -8.823529411764639,
+          10.74264705882365,
+          672.877882352941
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max": {
+          "x": 6.5,
+          "y": 6,
+          "z": 4
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0,
+    "bytes": 37916,
+    "sha256": "65cc7364524953bff67e27f38afabc9a3117a361d38809aeafad864e98598c94"
+  },
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-2.2A-depth-driver-browser-2026-10-10.mforge",
+    "bytes": 105567,
+    "sha256": "e3bbf8e36e0a448293db49d3d3a89a38c29b8baab69c7f1dcff81c0a2d3ffaa1"
+  },
+  "history": [
+    {
+      "id": "history:sketch:sk_127nb",
+      "kind": "sketch",
+      "targetId": "sk_127nb",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv2ahths_1",
+      "kind": "feature",
+      "targetId": "feature_mv2ahths_1",
+      "name": "Extrude / Boss 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_292in",
+      "kind": "sketch",
+      "targetId": "sk_292in",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv2aj0vx_2",
+      "kind": "feature",
+      "targetId": "feature_mv2aj0vx_2",
+      "name": "Extrude / Boss 2",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_32q0d",
+      "kind": "sketch",
+      "targetId": "sk_32q0d",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv2al3lf_3",
+      "kind": "feature",
+      "targetId": "feature_mv2al3lf_3",
+      "name": "Extrude Cut 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "sourceSketches": [
+    {
+      "id": "sk_127nb",
+      "plane": "top",
+      "offset": 0,
+      "referenceId": "plane:top",
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_292in",
+      "plane": "top",
+      "offset": 1,
+      "referenceId": "plane:top",
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_32q0d",
+      "plane": "top",
+      "offset": 6,
+      "referenceId": "plane:top",
+      "status": "fully-defined"
+    }
+  ],
+  "driverComparison": {
+    "checks": {
+      "allOtherAuthoringExact": true,
+      "wholeDrawingExact": true,
+      "allSketchesExact": true,
+      "sameSixHistory": true,
+      "noRollback": true,
+      "actualSavedProxyTo44": true,
+      "analyticDeltaMinus225": true
+    },
+    "pass": true,
+    "changedFeatureFields": {
+      "depth": [
+        1.5,
+        1.6
+      ],
+      "to": [
+        4.5,
+        4.4
+      ]
+    },
+    "deltaMm3": -225,
+    "derivedKeys": [
+      "lastStandardsAudit",
+      "parts",
+      "lastRebuild"
+    ]
+  }
+}
