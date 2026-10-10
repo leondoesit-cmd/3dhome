@@ -1,0 +1,164 @@
+{
+  "nativeGeometryAccepted": true,
+  "finalWorkflowAccepted": true,
+  "checks": {
+    "fourFullyDefinedSketches": true,
+    "threeFeatures": true,
+    "base60x50": true,
+    "baseBoss5": true,
+    "main60x40": true,
+    "mainStartsY5Boss50": true,
+    "genuineTerminalPoint": true,
+    "terminalWorldCorrect": true,
+    "triangleSourceCorrect": true,
+    "ruledSolidCut": true,
+    "actualSketchSourceIDs": true,
+    "explicitStockDependency": true,
+    "sevenValidRebuiltHistory": true,
+    "noRollback": true,
+    "validConnectedNative": true,
+    "bounds60x55x50": true,
+    "analyticVolume": true,
+    "actualSTEPValidConnected": true,
+    "actualSTEPDualZero": true,
+    "sourceBundleUnmodified": true
+  },
+  "expectedMm3": 123000,
+  "terminalYmm": 10,
+  "terminalWorldCm": {
+    "x": 6,
+    "y": 1,
+    "z": 4
+  },
+  "triangleWorldCm": [
+    {
+      "x": 2,
+      "y": 5.5,
+      "z": 4
+    },
+    {
+      "x": 6,
+      "y": 5.5,
+      "z": 4
+    },
+    {
+      "x": 6,
+      "y": 5.5,
+      "z": 0
+    }
+  ],
+  "actualSTEPAvailable": true,
+  "step": {
+    "bytes": 30778,
+    "sha256": "b4260bd56f46997a500b428c6aa2e5f396e1ab56cb6bbd0fa96a37424f6e4a3a",
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 122.99999999999714,
+      "maxToleranceCm": 1e-07
+    },
+    "mass": {
+      "volume": 122.99999999999714,
+      "centerOfMass": {
+        "x": 2.8048780487804397,
+        "y": 2.5304878048780157,
+        "z": 1.9634146341463117
+      },
+      "inertia": [
+        [
+          480.47103658535366,
+          41.56829268293359,
+          22.47804878049442
+        ],
+        [
+          41.56829268293359,
+          520.7524390243702,
+          36.53780487805193
+        ],
+        [
+          22.47804878049442,
+          36.53780487805193,
+          649.9527439024191
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1e-07,
+          "y": 0,
+          "z": -1e-07
+        },
+        "max": {
+          "x": 6.0000001,
+          "y": 5.5000001,
+          "z": 5
+        }
+      }
+    },
+    "dual": [
+      0,
+      0
+    ]
+  },
+  "mass": {
+    "volume": 123,
+    "centerOfMass": {
+      "x": 2.804878048780487,
+      "y": 2.5304878048780486,
+      "z": 1.9634146341463414
+    },
+    "inertia": [
+      [
+        480.47103658536594,
+        41.56829268292654,
+        22.47804878048771
+      ],
+      [
+        41.56829268292654,
+        520.7524390243909,
+        36.53780487804863
+      ],
+      [
+        22.47804878048771,
+        36.53780487804863,
+        649.9527439024398
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1e-07,
+        "y": 0,
+        "z": -1e-07
+      },
+      "max": {
+        "x": 6.0000001,
+        "y": 5.5000001,
+        "z": 5
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 123,
+    "maxToleranceCm": 1.000000002220446e-07
+  },
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-2.3B-cold-browser-2026-10-10.mforge",
+    "bytes": 118965,
+    "sha256": "344c8c8e7297e780172ed7f042848d5a126e5530fa35bc6593db681f25208793"
+  },
+  "qualification": "Actual ordinary Chrome source-qualified native/STEP/driver/UndoRedoUndo/fullhardreload Saved-library cold workflow accepted. Source PDF126 printed2-40 approximate physical sizes/hidden depth illustrative, no original publisher history claim.",
+  "coldChecks": {
+    "allRestoredAuthoringAndFocusExact": true,
+    "qualifiedWholeDrawingExact": true,
+    "SVGByteExact": true,
+    "onlySixDefaultRefsAdded": true,
+    "historyAndSketchesExact": true,
+    "sameSuccessfulRebuildSignature": true,
+    "standardsResultExactExceptTimestamp": true,
+    "coldPNGSourceFacetPlinthReadable": true
+  },
+  "coldAccepted": true
+}

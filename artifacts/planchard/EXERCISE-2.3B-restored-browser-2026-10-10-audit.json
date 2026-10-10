@@ -1,0 +1,109 @@
+{
+  "nativeGeometryAccepted": true,
+  "finalWorkflowAccepted": false,
+  "checks": {
+    "fourFullyDefinedSketches": true,
+    "threeFeatures": true,
+    "base60x50": true,
+    "baseBoss5": true,
+    "main60x40": true,
+    "mainStartsY5Boss50": true,
+    "genuineTerminalPoint": true,
+    "terminalWorldCorrect": true,
+    "triangleSourceCorrect": true,
+    "ruledSolidCut": true,
+    "actualSketchSourceIDs": true,
+    "explicitStockDependency": true,
+    "sevenValidRebuiltHistory": true,
+    "noRollback": true,
+    "validConnectedNative": true,
+    "bounds60x55x50": true,
+    "analyticVolume": true,
+    "sourceBundleUnmodified": true
+  },
+  "expectedMm3": 123000,
+  "terminalYmm": 10,
+  "terminalWorldCm": {
+    "x": 6,
+    "y": 1,
+    "z": 4
+  },
+  "triangleWorldCm": [
+    {
+      "x": 2,
+      "y": 5.5,
+      "z": 4
+    },
+    {
+      "x": 6,
+      "y": 5.5,
+      "z": 4
+    },
+    {
+      "x": 6,
+      "y": 5.5,
+      "z": 0
+    }
+  ],
+  "actualSTEPAvailable": false,
+  "step": null,
+  "mass": {
+    "volume": 123,
+    "centerOfMass": {
+      "x": 2.804878048780487,
+      "y": 2.5304878048780486,
+      "z": 1.9634146341463414
+    },
+    "inertia": [
+      [
+        480.47103658536594,
+        41.56829268292654,
+        22.47804878048771
+      ],
+      [
+        41.56829268292654,
+        520.7524390243909,
+        36.53780487804863
+      ],
+      [
+        22.47804878048771,
+        36.53780487804863,
+        649.9527439024398
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1e-07,
+        "y": 0,
+        "z": -1e-07
+      },
+      "max": {
+        "x": 6.0000001,
+        "y": 5.5000001,
+        "z": 5
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 123,
+    "maxToleranceCm": 1.000000002220446e-07
+  },
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-2.3B-restored-browser-2026-10-10.mforge",
+    "bytes": 118006,
+    "sha256": "82ff92c932916b675dd91fdff854ec3889caa2677deb3d1dcfa89fbb16cb6654"
+  },
+  "qualification": "Source PDF126 printed2-40 lower model requests approximate sizing; chosen dimensions and hidden corner depth illustrative. Actual drawing/source visual comparison, driver/restoration and cold remain separate acceptance checks.",
+  "restorationChecks": {
+    "authoringExactExceptFocusAndDerived": true,
+    "wholeDrawingExact": true,
+    "allPartFieldsExceptMeshAndBuildTokenExact": true,
+    "rebuildExactExceptTimestamp": true,
+    "standardsExactExceptTimestamp": true,
+    "terminalY10Restored": true
+  },
+  "restorationAccepted": true
+}

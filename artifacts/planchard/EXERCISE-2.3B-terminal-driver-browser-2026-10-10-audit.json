@@ -1,0 +1,162 @@
+{
+  "nativeGeometryAccepted": true,
+  "finalWorkflowAccepted": false,
+  "checks": {
+    "fourFullyDefinedSketches": true,
+    "threeFeatures": true,
+    "base60x50": true,
+    "baseBoss5": true,
+    "main60x40": true,
+    "mainStartsY5Boss50": true,
+    "genuineTerminalPoint": true,
+    "terminalWorldCorrect": true,
+    "triangleSourceCorrect": true,
+    "ruledSolidCut": true,
+    "actualSketchSourceIDs": true,
+    "explicitStockDependency": true,
+    "sevenValidRebuiltHistory": true,
+    "noRollback": true,
+    "validConnectedNative": true,
+    "bounds60x55x50": true,
+    "analyticVolume": true,
+    "actualSTEPValidConnected": true,
+    "actualSTEPDualZero": true,
+    "sourceBundleUnmodified": true
+  },
+  "expectedMm3": 123266.66666666667,
+  "terminalYmm": 11,
+  "terminalWorldCm": {
+    "x": 6,
+    "y": 1.1,
+    "z": 4
+  },
+  "triangleWorldCm": [
+    {
+      "x": 2,
+      "y": 5.5,
+      "z": 4
+    },
+    {
+      "x": 6,
+      "y": 5.5,
+      "z": 4
+    },
+    {
+      "x": 6,
+      "y": 5.5,
+      "z": 0
+    }
+  ],
+  "actualSTEPAvailable": true,
+  "step": {
+    "bytes": 30766,
+    "sha256": "0af3b80538196ced974a724ca1da0bd8557cf750e3e46d0da3118b4453070885",
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 123.2666666666735,
+      "maxToleranceCm": 1e-07
+    },
+    "mass": {
+      "volume": 123.2666666666735,
+      "centerOfMass": {
+        "x": 2.8096268253110908,
+        "y": 2.5320984315847213,
+        "z": 1.9656571119524773
+      },
+      "inertia": [
+        [
+          481.32854564632476,
+          41.25209013879714,
+          21.9259131061674
+        ],
+        [
+          41.25209013879714,
+          522.6405246079441,
+          36.45111663961745
+        ],
+        [
+          21.9259131061674,
+          36.45111663961745,
+          651.8065067063762
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -1e-07,
+          "y": 0,
+          "z": -1e-07
+        },
+        "max": {
+          "x": 6.0000001,
+          "y": 5.5000001,
+          "z": 5
+        }
+      }
+    },
+    "dual": [
+      0,
+      0
+    ]
+  },
+  "mass": {
+    "volume": 123.26666666666667,
+    "centerOfMass": {
+      "x": 2.809626825310979,
+      "y": 2.5320984315846404,
+      "z": 1.965657111952407
+    },
+    "inertia": [
+      [
+        481.3285456462954,
+        41.252090138813855,
+        21.925913106183657
+      ],
+      [
+        41.252090138813855,
+        522.6405246078962,
+        36.45111663962507
+      ],
+      [
+        21.925913106183657,
+        36.45111663962507,
+        651.806506706328
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1e-07,
+        "y": 0,
+        "z": -1e-07
+      },
+      "max": {
+        "x": 6.0000001,
+        "y": 5.5000001,
+        "z": 5
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 123.26666666666667,
+    "maxToleranceCm": 1.000000004440892e-07
+  },
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-2.3B-terminal-driver-browser-2026-10-10.mforge",
+    "bytes": 118431,
+    "sha256": "3e2e47bd6d464df5e579c8998fd2f70485168521d21ef3fb5ed26fba2bd08f15"
+  },
+  "qualification": "Source PDF126 printed2-40 lower model requests approximate sizing; chosen dimensions and hidden corner depth illustrative. Actual drawing/source visual comparison, driver/restoration and cold remain separate acceptance checks.",
+  "driverIsolationChecks": {
+    "onlyTerminalOffsetChanged": true,
+    "allFeatureDefinitionsExact": true,
+    "wholeDrawingExact": true,
+    "sevenHistoryEntriesExact": true,
+    "allRemainingAuthoringExact": true,
+    "correctDelta800over3Mm3": true
+  },
+  "driverAccepted": true
+}

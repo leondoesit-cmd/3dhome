@@ -1,13 +1,13 @@
 # Numbered exercise coverage reconciliation — 2026-10-10
 
-**96 of 117 numbered identifiers have documented acceptance within their stated scopes: 82.05%. Twenty-one identifiers remain pending. This is a numbered-exercise fraction, not a whole-book completion percentage.**
+**97 of 117 numbered identifiers have documented acceptance within their stated scopes: 82.91%. Twenty identifiers remain pending. This is a numbered-exercise fraction, not a whole-book completion percentage.**
 
 Counting rule: each frozen identifier counts once. 8.6A, Basic6A/6B and Advanced6A count independently; six Chapter10 drafting sample answers and the Chain sample are included. Multi-model2.2 and2.3 each count once and require both pictured models. Plans, qualified partial exports and implementation-only tests do not close an identifier. Accepted illustrative/designer/replacement examples retain their existing qualifications; this numerator does not certify exact publisher-native equivalence for those examples.
 
 | Group | Accepted / total | Evidence |
 |---|---:|---|
 | Chapter1 | 11/11 | ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md |
-| Chapter2 | 3/4 | drafting-2.1-browser-worksheet-audit-2026-10-10.md; exercise-2.2A-native-browser-audit-2026-10-10.md; exercise-2.2B-native-browser-audit-2026-10-10.md; drafting-2.4-browser-worksheet-audit-2026-10-10.md |
+| Chapter2 | 4/4 | drafting-2.1-browser-worksheet-audit-2026-10-10.md; exercise-2.2A-native-browser-audit-2026-10-10.md; exercise-2.2B-native-browser-audit-2026-10-10.md; drafting-2.4-browser-worksheet-audit-2026-10-10.md |
 | Chapter3 | 0/16 | chapter3-graphics-browser-plan-2026-10-10.md |
 | Chapter5 | 17/17 | exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md |
 | Chapter6 | 8/8 | book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md |
@@ -21,7 +21,6 @@ Counting rule: each frozen identifier counts once. 8.6A, Basic6A/6B and Advanced
 
 ## Exact remaining numbered queue
 
-- **2.3**, PDF126 /printed2-40: A has qualified geometry15/15 and drawing9/9, but actual STEP, reliable Save, driver and cold remain pending; B triangular-facet model is still unaccepted. A alone cannot complete2.3.
 - **3.1–3.16**, PDF175–180 /printed3-47–52: no actual accepted exercise-answer/drawing artifacts located.3.1/3.2 estimated dimensioned profiles;3.3/3.5/3.6 annotated source errors;3.4 arrow preference;3.7 limits diagram;3.8–3.14 tolerance/symbol/thread answers;3.15/3.16 fit calculations. Plans and Chapter3 review answers are separate evidence. Preserve qualified unreadable3.9 symbols rather than inventing them.
 - **8.2**, PDF414 /printed8-36: actual native cold five-mate/two-DOF rebuild plus visible whole-assembly interference check. Fresh source audit also found FLATBAR source thickness2.286mm versus saved1.524mm and Hook thread specification mismatch; decide explicit repair or retained source qualification before stronger exact-source acceptance. Official source is now available.
 - **8.5**, PDF417 /printed8-39: corrected VICE parts/clearance already exist; actual coupled screw rotation→translation at10mm/turn and final cold persistence are unaccepted. Saved legacy fixed2turn scalar and0DOF do not prove coupling. BenchVice8.17 is separate and already accepted.
@@ -30,7 +29,7 @@ Counting rule: each frozen identifier counts once. 8.6A, Basic6A/6B and Advanced
 
 ## Closures superseding older pending inventory
 
-2.1 and2.4 are accepted source worksheets;2.2A/B are both accepted source-qualified native models including driver/cold/STEP.5.1–5.5 accepted six-note design-choice worksheet retains explicit axis convention/no official key/5.4 alternate.5.17 is accepted functional bounded two-sketch/source/material workflow, superseding earlier single-hole partial status. Chapter10 drafting Q1–Q6 accepted answers B/A/B/B/D/B count as the requested sample answers, not actual advanced-view capability certification.
+2.1 and2.4 are accepted source worksheets;2.2A/B and2.3A/B are all accepted source-qualified native models including driver/restoration/cold/actualSTEP. The latest2.3B cold28/28 supersedes its earlier qualified partial status.5.1–5.5 accepted six-note design-choice worksheet retains explicit axis convention/no official key/5.4 alternate.5.17 is accepted functional bounded two-sketch/source/material workflow, superseding earlier single-hole partial status. Chapter10 drafting Q1–Q6 accepted answers B/A/B/B/D/B count as the requested sample answers, not actual advanced-view capability certification.
 
 5.16 is counted only as the previously accepted, explicitly labelled replacement cosmetic-thread workflow (1/4-20UNC2A,25.4mm length,Al6061). Its October1 report incorrectly says companion unavailable: the archive was subsequently found. Do not repeat that availability claim or silently upgrade the replacement geometry/original edge selection to publisher-native parity. An exact-source audit/branch is a separate stronger requirement.
 
