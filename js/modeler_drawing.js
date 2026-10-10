@@ -24,9 +24,10 @@ import { planModelItems } from "./core/model_items.js";
 import {DRAWING_PRIMITIVE_TOOLS, drawingPrimitiveItems, drawingPrimitiveHit, snapDrawingPrimitivePoint, validateDrawingPrimitive} from "./core/drawing_primitives.js";
 import {canCropView,cropSplinePoints} from './core/drawing_crop.js';
 import {canBreakOutView,projectBrokenOutView} from './core/drawing_broken_out.js';
+import {auxiliaryFaceCandidates,resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
 import {canBreakView,breakProjection} from './core/drawing_break.js';
 
-export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
 /** Axis-aligned picks have only one meaningful projected measurement.
  * Moving its label past an endpoint must not turn that measurement into zero. */
@@ -94,7 +95,7 @@ export function createDrawingController(host) {
     if (token !== projectionToken || !projector) {
       projectionToken = token;
       const bodies = host.bodies() || [];
-      projector = createProjector(host.doc(), bodies, { bodiesForView: host.bodiesForView ? view => host.bodiesForView(view, bodies) : undefined });
+      projector = createProjector(host.doc(), bodies, { bodiesForView: host.bodiesForView ? view => host.bodiesForView(view, bodies) : undefined,topology:host.topology });
     }
     return projector(view);
   }
@@ -124,7 +125,7 @@ export function createDrawingController(host) {
       host.bodiesToken(), host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
-        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.cropSketch,view.brokenOut,view.breakView, view.configurationId, view.configurationName]) hash = fold(hash, value);
+        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary, view.configurationId, view.configurationName]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
@@ -694,6 +695,12 @@ export function createDrawingController(host) {
   function pointerDown(event, x, y) {
     const sheetPoint = toSheetMm(x, y);
     state.cursor = sheetPoint;
+    if(state.tool==='auxiliary' && event.button===0 && !event.altKey) {
+      const edge=straightEdgeAt(sheetPoint);
+      if(edge)createAuxiliary(edge);
+      else host.flash('Choose a named straight inclined edge in a principal view');
+      return true;
+    }
     const panning = event.button === 1 || event.button === 2 || event.altKey || event.spaceKey;
     if (panning) {
       state.drag = { mode: "pan", x, y, ox: state.ox, oy: state.oy };
@@ -1531,6 +1538,27 @@ export function createDrawingController(host) {
       if(!live)throw new Error('Broken-out parent is no longer available');
       live.brokenOut=modifier;invalidate();host.markDirty();host.flash('Broken-out section applied');host.refresh();
     } catch(error) {host.flash(error.message);host.refresh();}
+  }
+
+  async function createAuxiliary(edge) {
+    const doc=host.doc(),parent=doc.views.find(v=>v.id===edge.viewId),token=host.bodiesToken(),fingerprint=JSON.stringify(parent);
+    try {
+      const index=scene().topologyIndex,candidates=auxiliaryFaceCandidates(parent,edge.refs[0].pid,index);
+      if(!candidates.length)throw new Error('No edge-on native planar face qualifies for this edge');
+      const answer=await host.promptFields('Auxiliary view',[
+        {key:'face',label:'Native inclined planar face',type:'select',value:candidates[0].persistentId,choices:candidates.map((f,i)=>({value:f.persistentId,label:'Inclined face '+(i+1)+' · normal '+[f.descriptor.normal.x,f.descriptor.normal.y,f.descriptor.normal.z].map(n=>Number(n).toFixed(3)).join(', ')}))},
+        {key:'flip',label:'Reverse sight direction',type:'checkbox',value:false}
+      ]);
+      if(!answer)return;
+      const currentDoc=host.doc(),current=currentDoc.views.find(v=>v.id===parent.id);
+      if(currentDoc!==doc||host.bodiesToken()!==token||JSON.stringify(current)!==fingerprint)throw new Error('Model or drawing changed; retry Auxiliary');
+      const auxiliary={from:current.id,edgeReference:{pid:edge.refs[0].pid},faceReference:{pid:answer.face},flip:!!answer.flip};
+      resolveAuxiliaryBasis({id:'new-auxiliary',auxiliary},currentDoc,scene().topologyIndex);
+      const place=scene().views.find(p=>p.id===current.id);
+      host.pushUndo('Auxiliary view');
+      const view=addViewToSheet(host.doc(),'auxiliary',{label:'AUXILIARY',parent:current.id,auxiliary,scale:place?.scale,configurationId:current.configurationId});
+      state.selection={kind:'view',id:view.id};invalidate();host.markDirty();host.refresh();
+    } catch(error) {host.flash(error.message);}
   }
 
   /* ---- output ------------------------------------------------------------ */

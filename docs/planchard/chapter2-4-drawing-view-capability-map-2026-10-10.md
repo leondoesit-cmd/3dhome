@@ -4,6 +4,8 @@ Continuation update: the initially missing standalone Crop row below has subsequ
 
 Further continuation: bounded genuine Broken-out Section now has saved closed-spline/depth authoring and capped actual mesh projection; see `broken-out-section-implementation-2026-10-10.md`. Its scoped tests/gates passed; actual browser acceptance is pending. Break, Auxiliary, Alternate Position and Aligned Section remain open.
 
+Latest continuation: primary native-reference Auxiliary is implemented with a genuine arbitrary projection basis and true-dimension native wedge oracle; see `auxiliary-view-implementation-2026-10-10.md`. Tests/gates pass and actual browser acceptance is pending. Break was handled separately by the theory agent; Alternate Position and Aligned Section remain distinct unimplemented gaps.
+
 ## Source scope
 
 Source: David Planchard, Engineering Graphics with SOLIDWORKS 2021, supplied local PDF. PDF page numbers below are one-based physical pages; printed pages are separate.

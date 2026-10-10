@@ -4098,6 +4098,7 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
     '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
+    '<button type="button" data-drawing-tool="auxiliary"><i class="ph ph-cube"></i><span>Auxiliary</span></button>' +
     '<button type="button" data-drawing-tool="crop"><i class="ph ph-crop"></i><span>Crop</span></button>' +
     '<button type="button" data-drawing-tool="uncrop"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove crop</span></button>' +
     '<button type="button" data-drawing-tool="brokenout"><i class="ph ph-scissors"></i><span>Broken-out section</span></button>' +
@@ -12335,6 +12336,7 @@ function drawingHintText() {
   if (tool === "diam") return t("drawDiamHint");
   if (tool === "section") return t("drawSectionHint");
   if (tool === "detail") return t("drawDetailHint");
+  if (tool === "auxiliary") return "Choose a named inclined edge in a principal view, then select its native planar face";
   if (tool === "crop") return "Choose a drawing view, click boundary points, Enter closes the crop spline; Escape cancels";
   if (tool === "uncrop") return "Click a cropped drawing view to restore its full projection";
   if (tool === "brokenout") return "Choose an orthographic view, click boundary points, Enter sets removal depth in mm; Escape cancels";

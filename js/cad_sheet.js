@@ -3,6 +3,7 @@ import { balloonRadius, layoutBalloonCenters } from "./core/balloon_layout.js";
 import {drawingPrimitiveItems} from './core/drawing_primitives.js';
 import { canCropView, cropDrawingProjection, clipCropEdges } from './core/drawing_crop.js';
 import { projectBrokenOutView } from './core/drawing_broken_out.js';
+import {resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
 import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges} from './core/drawing_break.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
@@ -20,7 +21,7 @@ import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges} from './
  * three numbers.
  */
 
-import { 
+import {
   ORTHO_VIEWS, cropProjection, isOrthoView, projectSolid, projectionBounds, sectionBodies, viewBasis,
 } from "./core/hidden_line.js";
 
@@ -164,6 +165,7 @@ export function createView(dir, options = {}) {
     detail: options.detail || null,                        // {from, u, v, radius, tag}
     cropSketch: options.cropSketch || null,                // closed spline in projected model coordinates
     brokenOut: options.brokenOut || null,                  // closed spline + depth from projected front envelope
+    auxiliary: options.auxiliary || null,                 // persistent principal parent / native edge / planar face
     breakView: options.breakView || null,                  // source interval + printable paper gap
   };
 }
@@ -607,7 +609,7 @@ export function createProjector(doc, bodies, options = {}) {
   const resolving = new Set();
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),view.scale,doc.scale].join("|");
+    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),view.scale,doc.scale].join("|");
     if (cache.has(key)) return cache.get(key);
     // Malformed saved parent graphs must not recurse forever or show unrelated geometry.
     if (resolving.has(view.id)) return null;
@@ -615,7 +617,11 @@ export function createProjector(doc, bodies, options = {}) {
     const viewBodies = options.bodiesForView ? options.bodiesForView(view) || bodies : bodies;
     const viewOptions={...options,shaded:["shaded","shadedEdges"].includes(view.displayStyle)};
     let projection = null;
-    if(view.brokenOut) {
+    if(view.auxiliary) {
+      try {projection=projectSolid(viewBodies,resolveAuxiliaryBasis(view,doc,createTopologyIndex(typeof options.topology==='function'?options.topology(view):options.topology)),viewOptions);}
+      catch {projection=null;}
+    }
+    else if(view.brokenOut) {
       try { projection=projectBrokenOutView(viewBodies,view,viewOptions); }
       catch { projection=null; }
     }
@@ -1312,7 +1318,28 @@ export function buildSheetScene(doc, provider, options = {}) {
       },
     };
     placements.push(record);
-    if (!projection) continue;
+    if (!projection) {
+      if(view.auxiliary) {
+        diagnostics.push({code:'auxiliary-reference-unavailable',severity:'error',viewId:view.id});
+        items.push(text(record.box.x,record.box.y-3,'Auxiliary reference unavailable',{size:2.5,viewId:view.id}));
+      }
+      continue;
+    }
+    if(view.auxiliary && topologyIndex) {
+      const parent=placements.find(p=>p.id===view.auxiliary.from);
+      if(parent) {
+        const refs=['a','b'].map(at=>resolveDimAnchor({pid:view.auxiliary.edgeReference.pid,kind:'edge',at},topologyIndex,parent.projection?.basis));
+        if(refs.every(Boolean)) {
+          const centre=parent.toSheet({u:(refs[0].u+refs[1].u)/2,v:(refs[0].v+refs[1].v)/2});
+          const forward=projection.basis.forward,pb=parent.projection.basis;
+          // forward points toward the viewer; the sight arrow points back toward the face.
+          const dx=-(forward.x*pb.right.x+forward.y*pb.right.y+forward.z*pb.right.z),dy=forward.x*pb.up.x+forward.y*pb.up.y+forward.z*pb.up.z;
+          items.push(line(centre.x-dx*10,centre.y-dy*10,centre.x-dx*2,centre.y-dy*2,'cutline',{viewId:parent.id,auxiliarySight:true}));
+          items.push(arrowHead(centre.x-dx*2,centre.y-dy*2,dx,dy));
+          items.push(text(centre.x-dx*13,centre.y-dy*13,'AUX',{size:TEXT_SIZES.view,anchor:'middle',viewId:parent.id}));
+        }
+      }
+    }
 
     /* A pictorial is there to be recognised, not measured: dashed lines behind
        an isometric read as noise, so one is only ever shown on request. */
@@ -1945,8 +1972,8 @@ export function removeViewFromSheet(doc, id) {
   while (changed) {
     changed = false;
     for (const view of doc.views) {
-      if (removedIds.has(view.id) || !(view.section || view.detail)) continue;
-      if ([view.parent, view.section?.from, view.detail?.from].some(parent => removedIds.has(parent))) {
+      if (removedIds.has(view.id) || !(view.section || view.detail || view.auxiliary)) continue;
+      if ([view.parent, view.section?.from, view.detail?.from,view.auxiliary?.from].some(parent => removedIds.has(parent))) {
         removedIds.add(view.id);
         changed = true;
       }

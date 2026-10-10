@@ -176,7 +176,8 @@ export function buildDrawingScene(def, options = {}) {
   const doc = options.doc || (def?.drawing && options.useStored !== false ? ensureSheetDoc(def) : standardSheet(def, options, bodies));
   doc.assemblyLayout=def?.kind==="assembly";
   doc.enforceFit=options.requireFit===true;
-  const project = createProjector(doc, bodies, { bodiesForView: view => configuredBodiesForView(def, view, bodies) });
+  const topology=options.topology || (def?.parts || []).map(part=>part.meshData?.topology || []);
+  const project = createProjector(doc, bodies, { bodiesForView: view => configuredBodiesForView(def, view, bodies),topology });
   if (options.overallDimensions !== false && !doc.dims?.length) autoOverallDims(doc, project);
   if (options.holeCallouts !== false && !doc.notes?.length) calloutNotes(doc, collectHoleCallouts(def));
   sheetNotes(doc,options.notes);
@@ -186,6 +187,7 @@ export function buildDrawingScene(def, options = {}) {
       : (options.balloons === true || def?.kind === "assembly" ? collectBalloons(def) : []);
   return buildSheetScene(doc, {
     projection: project,
+    topology,
     callouts: calloutTextById(def),
     meta: { title: options.title || sheetTitle(def, doc) },
     properties: def?.customProperties || {},

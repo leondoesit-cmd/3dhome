@@ -46,6 +46,13 @@ export const ORTHO_VIEWS = Object.freeze(["front", "back", "left", "right", "top
 export const isOrthoView = (name) => ORTHO_VIEWS.includes(name);
 
 export function viewBasis(name) {
+  if(name && typeof name==='object') {
+    const valid=p=>p&&[p.x,p.y,p.z].every(Number.isFinite)&&Math.hypot(p.x,p.y,p.z)>1e-9;
+    if(!valid(name.forward)||!valid(name.up))throw new Error('Projection basis needs finite nonzero directions');
+    const forward=unit(name.forward),up=unit(name.up);
+    if(Math.abs(dot(forward,up))>1e-7)throw new Error('Projection basis must be orthogonal');
+    return {forward,up,right:unit(cross(up,forward))};
+  }
   const base = VIEW_BASES[name] || VIEW_BASES.front;
   const forward = unit(base.forward), up = unit(base.up);
   return { forward, up, right: unit(cross(up, forward)) };
