@@ -25,7 +25,7 @@ import {DRAWING_PRIMITIVE_TOOLS, drawingPrimitiveItems, drawingPrimitiveHit, sna
 import {canCropView,cropSplinePoints} from './core/drawing_crop.js';
 import {canBreakOutView,projectBrokenOutView} from './core/drawing_broken_out.js';
 import {auxiliaryFaceCandidates,resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
-import {canBreakView,breakProjection} from './core/drawing_break.js';
+import {canBreakView,alignedBreakPlan} from './core/drawing_break.js';
 
 export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
@@ -822,7 +822,7 @@ export function createDrawingController(host) {
       const hit=hitTest(sheetPoint),place=scene().views.find(p=>p.id===(hit?.kind==='view'?hit.id:null));
       if(!place){host.flash('Choose the drawing view');return true;}
       if(state.tool==='unbreak') {
-        if(place.view.breakView){host.pushUndo('Remove Break');host.doc().views.find(v=>v.id===place.id).breakView=null;invalidate();host.markDirty();host.refresh();}
+        if(place.view.breakView){host.pushUndo('Remove Break');const group=place.view.breakView.group;for(const v of host.doc().views)if(v.id===place.id || (group && v.breakView?.group?.id===group.id))v.breakView=null;invalidate();host.markDirty();host.refresh();}
       } else commitBreak(place);
       return true;
     }
@@ -1495,9 +1495,9 @@ export function createDrawingController(host) {
   }
 
   async function commitBreak(place) {
-    const doc=host.doc(),view=doc.views.find(v=>v.id===place.id),token=host.bodiesToken(),fingerprint=JSON.stringify(view);
+    const doc=host.doc(),view=doc.views.find(v=>v.id===place.id),token=host.bodiesToken(),fingerprint=JSON.stringify(doc.views);
     try {
-      if(!canBreakView(view,doc) || host.isExplodedView?.(view))throw new Error('Break currently needs one ordinary orthographic edge view; remove other views first');
+      if(!canBreakView(view,doc) || host.isExplodedView?.(view))throw new Error('Break needs an ordinary orthographic edge view');
       if(!host.promptFields)throw new Error('Break needs the drawing parameter form');
       const bounds=place.projection.sourceBounds || projectionBounds(place.projection),old=view.breakView;
       const answer=await host.promptFields('Break view — existing view, true dimensions',[
@@ -1506,13 +1506,18 @@ export function createDrawingController(host) {
         {key:'to',label:'Second boundary, original view coordinate (mm)',type:'number',value:(old?.to ?? (bounds.u0+2*(bounds.u1-bounds.u0)/3))*10,step:.1},
         {key:'gapMm',label:'Printed gap (mm)',type:'number',value:old?.gapMm || 6,min:.1,step:.1},
         {key:'style',label:'Break line style',type:'select',value:old?.style || 'zigzag',choices:[{value:'zigzag',label:'Zigzag'},{value:'wave',label:'Wavy'}]},
-      ],`Original coordinate bounds: horizontal ${bounds.u0*10} to ${bounds.u1*10} mm; vertical ${bounds.v0*10} to ${bounds.v1*10} mm. Keep both boundaries inside the chosen axis bounds. This version supports one orthographic view.`);
+      ],`Original coordinate bounds: horizontal ${bounds.u0*10} to ${bounds.u1*10} mm; vertical ${bounds.v0*10} to ${bounds.v1*10} mm. Keep both boundaries inside the chosen axis bounds. In a Front principal cluster, matching projected views share the physical Break; end-on views stay full size.`);
       if(!answer)return;
-      if(host.doc()!==doc || host.bodiesToken()!==token || JSON.stringify(doc.views.find(v=>v.id===place.id))!==fingerprint)throw new Error('Drawing changed while choosing Break; retry');
+      if(host.doc()!==doc || host.bodiesToken()!==token || JSON.stringify(doc.views)!==fingerprint)throw new Error('Drawing changed while choosing Break; retry');
       const modifier={version:1,axis:answer.axis,from:Number(answer.from)/10,to:Number(answer.to)/10,gapMm:Number(answer.gapMm),style:answer.style};
-      breakProjection({...place.projection,bounds},modifier,place.k);
+      const projections=new Map(scene().views.filter(p=>p.projection).map(p=>[p.id,{...p.projection,bounds:p.projection.sourceBounds||projectionBounds(p.projection)}]));
+      const plan=alignedBreakPlan(doc,view,modifier,projections,place.k,place.scale);
+      const oldGroup=view.breakView?.group;
       host.pushUndo('Break view');
-      const live=host.doc().views.find(v=>v.id===place.id);live.breakView=modifier;live.scale=place.scale;
+      for(const live of host.doc().views) {
+        if(oldGroup && live.breakView?.group?.id===oldGroup.id)live.breakView=null;
+        if(plan.has(live.id)){live.breakView=plan.get(live.id);live.scale=place.scale;}
+      }
       invalidate();host.markDirty();host.flash('Break applied; dimensions retain original model values');host.refresh();
     } catch(error) {host.flash(error.message);host.refresh();}
   }

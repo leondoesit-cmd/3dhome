@@ -4,7 +4,7 @@ import {drawingPrimitiveItems} from './core/drawing_primitives.js';
 import { canCropView, cropDrawingProjection, clipCropEdges } from './core/drawing_crop.js';
 import { projectBrokenOutView } from './core/drawing_broken_out.js';
 import {resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
-import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges} from './core/drawing_break.js';
+import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges,validateAlignedBreak} from './core/drawing_break.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -609,7 +609,7 @@ export function createProjector(doc, bodies, options = {}) {
   const resolving = new Set();
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),view.scale,doc.scale].join("|");
+    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),view.scale,doc.scale,view.breakView?.group?JSON.stringify(doc.views):''].join("|");
     if (cache.has(key)) return cache.get(key);
     // Malformed saved parent graphs must not recurse forever or show unrelated geometry.
     if (resolving.has(view.id)) return null;
@@ -639,7 +639,9 @@ export function createProjector(doc, bodies, options = {}) {
     }
     if(view.breakView && projection) {
       try {
-        if(!canBreakView(view,doc) || (!view.scale && doc.scale==='fit'))throw new Error('Break needs one ordinary orthographic view and a fixed view scale');
+        if(!canBreakView(view,doc) || (!view.scale && doc.scale==='fit'))throw new Error('Break needs an ordinary orthographic view and a fixed view scale');
+        if(doc.views.length>1 && !view.breakView.group)throw new Error('This Break predates the projected cluster; reapply it on the principal view');
+        validateAlignedBreak(view,doc);
         projection=breakProjection({...projection,bounds:projectionBounds(projection)},view.breakView,paperPerModel(view.scale || doc.scale));
       } catch(error) {projection={visible:[],hidden:[],circles:[],bounds:null,breakError:error.message};}
     }
@@ -1279,7 +1281,13 @@ export function buildSheetScene(doc, provider, options = {}) {
     const projection = provider?.projection ? provider.projection(view) : null;
     projections.set(view.id, projection);
     if(projection?.breakError)diagnostics.push({code:'invalid-break-view',viewId:view.id,message:projection.breakError});
-    const bounds = projection ? projection.displayBounds || projectionBounds(projection) : null;
+    let bounds = projection ? projection.displayBounds || projectionBounds(projection) : null;
+    if(bounds && projection.breakCentre) {
+      const {axis,value}=projection.breakCentre,r=Math.max(Math.abs(bounds[axis+'0']-value),Math.abs(bounds[axis+'1']-value));
+      // Symmetric layout envelope around a shared physical datum; actual projected
+      // bounds remain untouched for measurement, clipping and exports.
+      bounds={...bounds,[axis+'0']:value-r,[axis+'1']:value+r};
+    }
     extents.set(view.id, bounds
       ? { w: Math.max(bounds.u1 - bounds.u0, 0.1), h: Math.max(bounds.v1 - bounds.v0, 0.1), bounds }
       : { w: 10, h: 10, bounds: null });

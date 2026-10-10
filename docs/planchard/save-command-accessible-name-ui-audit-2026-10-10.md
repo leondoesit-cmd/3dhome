@@ -38,7 +38,12 @@ incorrect message “Start an aligned Break on the principal Front view”.
 selected/principal object identity after scene normalization. Same persistent
 view ID was falsely rejected. Sent to the implementation owner for an ID-based
 comparison/reacquisition and normalized-host regression. No aligned files were
-edited by this reviewer. Final owner correction is recorded after rerun.
+edited by this reviewer. The owner changed principal selection to persistent
+IDs, captured old group before Undo and reacquired live views afterwards. The
+new normalized-host regression covers horizontal apply, vertical replacement,
+Right-member removal, Undo/history restore and cold SVG. Independent final
+rerun: **10/10 aligned Break tests PASS**. Actual browser acceptance remains
+parent's task.
 
 The initial concern about looping captured `doc.views` after Undo alone was
 not reproduced: normal sheet normalization preserves the drawing object and
