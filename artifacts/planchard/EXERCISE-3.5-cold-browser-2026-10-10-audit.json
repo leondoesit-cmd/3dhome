@@ -1,0 +1,17 @@
+{
+  "coldAccepted": true,
+  "checks": {
+    "allAuthoringDrawingMetadataExceptTwoTimestampsExact": true,
+    "wholeDrawingExact": true,
+    "SVGByteExact": true,
+    "sameRebuildExceptTimestamp": true,
+    "sameStandardsExceptTimestamp": true,
+    "actualColdPNGCompleteFrameSourceLayoutReadable": true
+  },
+  "input": {
+    "bytes": 14142,
+    "sha256": "0ed0f9978ead52801521e1fcbe41aeba8192a670a9b0c2887d466a8f245d83e7"
+  },
+  "svgBytes": 18449,
+  "qualification": "Correctedsourceworksheet manualschematic; noCADbinding. Earlier4hiddencenterstrokesdiagnostic remains unaccepted. Corrected8trueedgeheights and7centerlines survivecold."
+}

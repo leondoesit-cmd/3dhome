@@ -1,0 +1,62 @@
+{
+  "correctedQualifiedAccepted": true,
+  "coldPending": true,
+  "checks": {
+    "tenCirclesSixEqualHoles": true,
+    "pitchCenterStyle": true,
+    "allFourDiameterLeadersOnTargets": true,
+    "externalBossRightProfile": true,
+    "eightClosedArrowTriangles": true,
+    "elevenNotesTwentySixRows": true,
+    "allNoteRowsInSVG": true,
+    "sixVersusNineCorrect": true,
+    "noCADImitation": true,
+    "manualPaperQualification": true,
+    "actualPNGReadableSourceLayout": true,
+    "actualHiddenEdgesMatchHoleRadii": true,
+    "sevenCenterLines": true,
+    "allEightEdgesSpanFlange": true,
+    "exactlyEightNewNativeLines": true,
+    "existingPrimitivesOnlyFourStyleChanges": true,
+    "allNotesAndRemainingDrawingExact": true,
+    "allRemainingAuthoringExact": true
+  },
+  "edgeY": [
+    78.3320026666124,
+    84.33690538414486,
+    90.10160655085649,
+    96.10651898645955,
+    113.64083375548589,
+    119.64574619108893,
+    125.41046679394175,
+    131.4153792295448
+  ],
+  "expectedEdgeY": [
+    78.332012384683,
+    84.33688594800367,
+    90.10162598699767,
+    96.10649955031838,
+    113.64085319162706,
+    119.64572675494776,
+    125.41046679394178,
+    131.41534035726244
+  ],
+  "maxEdgeProjectionErrorPaperMm": 3.887228237431373e-05,
+  "counts": {
+    "primitives": 45,
+    "circles": 10,
+    "lines": 25,
+    "profilePolylines": 2,
+    "arrowTriangles": 8,
+    "centerLines": 7,
+    "hiddenEdges": 8,
+    "notes": 11,
+    "rows": 26
+  },
+  "input": {
+    "bytes": 14142,
+    "sha256": "0c77cbcff3bc67c821adc9b1cc413eb2f08693644387ead3776fcfed60a0fada"
+  },
+  "svgBytes": 18449,
+  "qualification": "Tophole/pitch endpoints errors0.0000097/0.09058mm; boss/outercircle endpoints0.43145/0.47993paper-mm outside exactcircles, acceptedmanual schematic proximity within0.5mm, not exact-on-curveCADbinding."
+}

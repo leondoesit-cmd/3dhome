@@ -1,0 +1,50 @@
+{
+  "qualifiedAccepted": false,
+  "checks": {
+    "tenCirclesSixEqualHoles": true,
+    "pitchCenterStyle": true,
+    "threeCenterLines": true,
+    "allFourDiameterLeadersOnTargets": true,
+    "externalBossRightProfile": true,
+    "eightClosedArrowTriangles": true,
+    "elevenNotesTwentySixRows": true,
+    "allNoteRowsInSVG": true,
+    "sixVersusNineCorrect": true,
+    "noCADImitation": true,
+    "manualPaperQualification": true,
+    "actualPNGReadableSourceLayout": true,
+    "actualHiddenEdgesMatchHoleRadii": false
+  },
+  "leaderRadialErrorsPaperMm": [
+    9.718070600683859e-06,
+    0.09058170110580832,
+    0.4314537661546307,
+    0.479930309584109
+  ],
+  "hiddenStrokeY": [
+    81.33444916634333,
+    93.10406276865803,
+    116.64328997328741,
+    128.41290357560212
+  ],
+  "correctHiddenEdgeY": [
+    78.33201238,
+    84.33688595,
+    90.10160655,
+    90.10162599,
+    96.10649955,
+    96.10651899,
+    113.64083376,
+    113.64085319,
+    119.64572675,
+    119.64574619,
+    125.41046679,
+    131.41534036
+  ],
+  "issue": "Four hidden-styled Right strokes are at hole-center heights; note calls them hole edges. They require eight edge heights(center±R) or explicit center-style/center-position qualification. Actual UI correction pending.",
+  "input": {
+    "bytes": 11870,
+    "sha256": "d84861f77239a95071e9b3be8a24634655eba551284beaf9ceb424f8e56d920a"
+  },
+  "leaderQualification": "Tophole/pitch endpoints errors0.0000097/0.09058mm; boss/outercircle endpoints0.43145/0.47993paper-mm outside exactcircles, acceptedmanual schematic proximity within0.5mm, not exact-on-curveCADbinding."
+}
