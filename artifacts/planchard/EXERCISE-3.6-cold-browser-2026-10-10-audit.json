@@ -1,0 +1,18 @@
+{
+  "coldAccepted": true,
+  "checks": {
+    "allAuthoringDescriptionUnitsExact": true,
+    "wholeDrawingExact": true,
+    "SVGByteExact": true,
+    "onlyEmptySketchHistoryNormalized": true,
+    "onlySixDefaultOriginRefsAdded": true,
+    "onlyEmptyCacheAndCleanZeroCheckStandardsAdded": true,
+    "actualColdPNGCompleteSourceLayoutReadable": true
+  },
+  "input": {
+    "bytes": 11501,
+    "sha256": "32da9941377f6f5a3f518f33436ebd17c2a38c7067ef4128797573ba975a527c"
+  },
+  "svgBytes": 15818,
+  "qualification": "Actual source-error worksheet; manualpaper/spacinginterpretation qualification unchanged. Actual314%coldPNG completeframe/footer."
+}

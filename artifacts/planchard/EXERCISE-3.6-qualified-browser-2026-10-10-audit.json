@@ -1,0 +1,40 @@
+{
+  "qualifiedAccepted": true,
+  "coldPending": true,
+  "checks": {
+    "twoRealThreePointSemicircles": true,
+    "capsuleEndsConnectedExactly": true,
+    "radiusQuarterInAtPaperScale": true,
+    "nineEqualDiameterPoint19Holes": true,
+    "allCentersCollinearUniformInterpretation": true,
+    "fourInchDimensionFirstLastCenters": true,
+    "oneCenterStyledLongitudinalAxis": true,
+    "threeSourceErrorCircles": true,
+    "fiveClosedNoncollapsedArrows": true,
+    "tenNotesThirtyRows": true,
+    "allNoteRowsInSVG": true,
+    "correctionAndSpacingQualified": true,
+    "sourceThicknessNotMaterialInvented": true,
+    "noCADClaim": true,
+    "actualPNGSourceCapsuleNotesCompleteReadable": true
+  },
+  "paperScaleFactorRelativeRequested": 1.0008180266086661,
+  "chosenFirstLastCenterDistancePaperMm": 100.08180266086661,
+  "actualRadiusPaperMm": 6.255113881062989,
+  "counts": {
+    "primitives": 29,
+    "arcs": 2,
+    "circles": 12,
+    "holes": 9,
+    "lines": 10,
+    "arrows": 5,
+    "notes": 10,
+    "rows": 30
+  },
+  "input": {
+    "bytes": 10465,
+    "sha256": "e2628bd01f3ac460f79e32d903ff479d64eea4441b8b3f449d81527cdd3f847b"
+  },
+  "svgBytes": 15818,
+  "qualification": "Actual manual source-error worksheet, illustrative25paper-mm/in withsmallclickscale1.000818 factor. Equalspacing8spaces@.50=4.00 declaredinterpretation; no sourcekey/CADdriver/manufacturingtoleranceinvented."
+}
