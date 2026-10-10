@@ -1,0 +1,196 @@
+{
+  "savedKey": "cm_mv2viaic",
+  "savedName": "Planchard Ch3 IN-CHAPTER B1 dimension errors - browser 2026-10-10",
+  "warmChecks": {
+    "allTwentyCoordinatesTypesStylesExact": true,
+    "threeCenterTwoHiddenLines": true,
+    "fourClosedNoncollapsedArrowheads": true,
+    "sixNativeNotesTwentyRows": true,
+    "literalSourceLabelsExact": true,
+    "boreIntentAmbiguityNotGuessed": true,
+    "pureNativePaperNoCadViewsImages": true,
+    "sourcePropertiesAndSeparatedChosenLayout": true
+  },
+  "warmAccepted": true,
+  "mismatches": [],
+  "noteLineRows": [
+    1,
+    1,
+    1,
+    5,
+    8,
+    4
+  ],
+  "numericNoteOffsets": [
+    {
+      "text": "R.625",
+      "dx": -0.27847683607893714,
+      "dy": -0.1763107468576237
+    },
+    {
+      "text": "Ø1.500",
+      "dx": -0.28451496913351093,
+      "dy": -0.175334998908113
+    },
+    {
+      "text": "2.00",
+      "dx": -0.27327728875123114,
+      "dy": -0.18106615152821348
+    }
+  ],
+  "svgSha256": "06493b12ff59c5185cad610d16df39608e4c0ad507e502e398c044562ba28a3a",
+  "coldAccepted": true,
+  "qualification": "Native educational source-error worksheet; illustrative source-estimated paper radii do not establish physical bore dimensions. Original R.625 ambiguity preserved. Small initial-click note bias, default2.8mm text and outlined arrows qualified; no source-image insertion/manufacturing CAD/Undo witness.",
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesNameKeyExact": true,
+    "emptyAuthoredCadExact": true,
+    "svgByteExact": true
+  },
+  "wholeProjectDifferences": [
+    {
+      "path": "createdAt",
+      "warm": 1791665893720,
+      "cold": 1791665968801
+    },
+    {
+      "path": "mainModel.history.0",
+      "cold": {
+        "id": "history:sketch:sk_1gitv",
+        "kind": "sketch",
+        "targetId": "sk_1gitv",
+        "name": "X·Z sketch",
+        "suppressed": false,
+        "status": "rebuilt"
+      }
+    },
+    {
+      "path": "mainModel.lastRebuild.rebuiltAt",
+      "warm": 1791665888236,
+      "cold": 1791665948643
+    },
+    {
+      "path": "mainModel.referenceGeometry.0",
+      "cold": {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.1",
+      "cold": {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.2",
+      "cold": {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.3",
+      "cold": {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.4",
+      "cold": {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.5",
+      "cold": {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    }
+  ]
+}

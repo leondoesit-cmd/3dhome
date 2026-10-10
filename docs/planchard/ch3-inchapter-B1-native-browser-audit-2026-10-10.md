@@ -1,0 +1,13 @@
+# Chapter 3 earlier Set B Exercise 1 — actual native-paper audit
+
+Accepted within the educational native-paper reconstruction scope: **8/8 nominal and4/4 cold independent guards pass**, with zero coordinate/type/style mismatches. Saved key `cm_mv2viaic`, name `Planchard Ch3 IN-CHAPTER B1 dimension errors - browser 2026-10-10`. Source PDF152 / printed3-24 and actual browser PNG were independently inspected.
+
+All **20 native primitives** match the independent fallback plan exactly: one closed Front outline, two concentric Right figure circles, three Centerlines, two Hidden bore lines, four dimension/extension strokes, two genuine leader polylines, four closed noncollapsed arrow triangles and two error circles. **Six notes /20 LF rows** retain the original literal `R.625`, `Ø1.500` and inside `2.00`. No CAD parts/features, projected views, bound dimensions or images are present. The figure and explanatory columns are clear, separated and inside the worksheet frame.
+
+The answer distinguishes callout convention from publisher intent: a complete circular bore normally uses a diameter callout, but literalR.625 equalsØ1.250 and must not silently becomeØ.625 based on drawn proportions. Source paper radii reproduce the picture without resolving that ambiguity. The inside length error remains visible and the note recommends an outside dimension with extensions and gaps.
+
+Actual cold Saved reopen preserves the entire Drawing, properties, name/key and empty authored CAD exactly; SVG bytes are identical. Nine whole-project differing paths are enumerated in JSON: export/rebuild timestamps, one rebuilt history row for the unchanged existing empty starter sketch, and six default principal plane/axis reference records. No authored paper geometry or CAD is added; whole-project byte equality is not claimed.
+
+Qualification: source-estimated paper coordinates are illustrative, not physical part dimensions or exact raster typography. Numeric note origins retain ordinary initial-click bias of about−0.28mm X/−0.18mm Y. Default2.8mm native text and outlined arrow triangles are chosen presentation. No corrected manufacturing geometry, source-image insertion, physical-part or Undo/Redo witness is claimed.
+
+Machine guards and measured offsets: [audit JSON](ch3-inchapter-B1-native-browser-audit-2026-10-10.json). Evidence: `artifacts/planchard/CH3-INCHAPTER-B1-native-browser-2026-10-10.mforge`, matching SVG/PNG in `docs/planchard`; source crop `scratch/planchard/ch3-earlier-B1-source-figure.png`. Independent checker: `scratch/planchard/ch3-B1-native-readonly.mjs`. Nominal SVG SHA256 `06493b12ff59c5185cad610d16df39608e4c0ad507e502e398c044562ba28a3a`.
