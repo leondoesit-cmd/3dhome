@@ -101,6 +101,7 @@ const MODEL = [
   ]],
   ["Assembly", [
     ["Parts", [T("Assembly", "ph-puzzle-piece", "mcmd:assembly"), T("Components", "ph-cube-focus", "mcmd:components"), T("Form subassembly", "ph-stack", "mcmd:formsubassembly"), T("Mates", "ph-link", "mcmd:mates"), T("Screw mate", "ph-nut", "mcmd:screwmate"), T("Part document", "ph-file", "mcmd:partdoc"), T("Smart mates", "ph-magnet", "mcmd:smartmates")]],
+    ["Component patterns", [T("Component Pattern", "ph-grid-four", "mcmd:componentpattern", "", ["componentpattern"]), T("Edit Component Pattern", "ph-grid-four", "mcmd:editcomponentpattern", "", ["editcomponentpattern"]), T("Remove Component Pattern", "ph-trash", "mcmd:removecomponentpattern", "", ["removecomponentpattern"])]],
     ["Study", [T("Exploded view", "ph-arrows-out", "mcmd:explode"), T("Explode step", "ph-arrows-out-line-horizontal", "mcmd:explodestep"), T("Motion study", "ph-play", "mcmd:motion"), T("Interference", "ph-warning", "mcmd:interference"), T("Isolate", "ph-eye", "mcmd:isolate")]],
   ]],
   ["Evaluate", [
@@ -214,6 +215,8 @@ export const PRO_HE = {
   "Bodies": "גופים", "Pattern": "תבנית", "Split body": "פצל גוף", "Move body": "הזז גוף", "Combine": "שילוב", "Insert part": "הכנס חלק", "Fastener": "מחבר",
   "Direct": "ישיר", "Box": "תיבה", "Cylinder": "גליל", "Sphere": "כדור", "Prism": "מנסרה",
   "Reference": "ייחוס", "Geometry": "גאומטריה", "Plane": "מישור", "Axis": "ציר", "Coordinate sys": "מערכת צירים", "Setup": "הגדרות", "Configurations": "תצורות", "Standards": "תקנים", "Rebuild": "בנה מחדש",
+  "FFF slice preview": "תצוגה מקדימה של פריסת FFF",
+  "Component patterns": "תבניות רכיבים", "Component Pattern": "תבנית רכיבים", "Edit Component Pattern": "עריכת תבנית רכיבים", "Remove Component Pattern": "הסרת תבנית רכיבים",
   "Assembly": "הרכבה", "Parts": "חלקים", "Components": "רכיבים", "Form subassembly":"יצירת תת-מכלול מהבחירה", "Mates": "התאמות", "Screw mate": "התאמת בורג", "Part document": "מסמך חלק",
   "Study": "ניתוח תנועה", "Exploded view": "מבט מפורק", "Explode step": "שלב פירוק", "Motion study": "סימולציית תנועה", "Interference": "התנגשויות", "Isolate": "בודד",
   "Evaluate": "הערכה", "Measure": "מדידה", "Mass props": "תכונות מסה", "Section view": "מבט חתך", "Fit check": "בדיקת התאמה", "Fit view": "התאם תצוגה",

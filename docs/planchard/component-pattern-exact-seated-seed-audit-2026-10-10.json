@@ -1,0 +1,63 @@
+{
+  "checks": {
+    "allCanonicalLeafDefinitionsExact": true,
+    "groundedCarrierPoseExact": true,
+    "currentCarrierBorePersistentIdExact": true,
+    "currentScrewShaftPersistentIdExact": true,
+    "currentSeatPlanesPersistentIdsExact": true,
+    "coincidentOpposed": true,
+    "shaftPositiveZ": true,
+    "headSeatAtFront": true,
+    "headAbovePlateAndShaftThrough": true,
+    "shaftAlignedExactLeftBore": true,
+    "onlyTwoMatesNewNativeConcentric": true
+  },
+  "actualExactSeatedSeedAccepted": true,
+  "geometry": {
+    "pose": {
+      "x": -1.27,
+      "y": 0,
+      "z": -1.8476,
+      "rx": 90,
+      "ry": 0,
+      "rz": 0,
+      "q": {
+        "x": 0.707106781187,
+        "y": 0,
+        "z": 0,
+        "w": 0.707106781187
+      }
+    },
+    "shaftWorldAxis": {
+      "x": 0,
+      "y": 2.2204460492503136e-16,
+      "z": 1
+    },
+    "shaftZ": [
+      -1.8476,
+      0.1524000000000001
+    ],
+    "headZ": [
+      0.1524000000000001,
+      0.5524
+    ],
+    "clearanceMm": 0.41299999999999976
+  },
+  "mates": [
+    {
+      "id": 6411,
+      "type": "coincident",
+      "aligned": false,
+      "a": "feature_munmevz0_1:face:generated:plane:2",
+      "b": "feature_musf0n4q_1:part:1:face:bottom"
+    },
+    {
+      "id": 6412,
+      "type": "concentric",
+      "aligned": false,
+      "a": "feature_munmkxj5_3:face:generated:cylinder:3",
+      "b": "feature_musf0n4q_1:part:0:face:side"
+    }
+  ],
+  "qualification": "Current exact face references and correct head-side orientation proven. Source native definitions exact to prior qualified geometry snapshot; no new native mass/contact oracle. Old initial seed is diagnostic due absent persistent ID and inverted head-side orientation; pattern/cold pending."
+}

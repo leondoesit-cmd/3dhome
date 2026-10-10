@@ -1,0 +1,57 @@
+{
+  "checks": {
+    "twoComponentsTwoNativeMates": true,
+    "threeHolesActive": true,
+    "threeCurrentActualBoreFaces": true,
+    "currentLeftBoreGeometricallyVerified": true,
+    "shaftAxisCorrectAlongCarrierZ": true,
+    "shaftCentreAlignsLeftBore": true,
+    "headSeatMatchesCurrentFrontPlane": true,
+    "currentNativeBothOne": true,
+    "exactConcentricCarrierPersistentIdExists": false
+  },
+  "geometricSeedQualified": true,
+  "exactMateReferencesAccepted": false,
+  "native": [
+    {
+      "path": [
+        6408
+      ],
+      "compile": true,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": [
+        6409
+      ],
+      "compile": true,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    }
+  ],
+  "storedConcentricCarrierRef": "feature_munmkxj5_3:copy:2:face:generated:cylinder:1",
+  "currentLeftBoreId": "feature_munmkxj5_3:face:generated:cylinder:3",
+  "shaftWorldAxis": {
+    "x": 0,
+    "y": 2.2204460492503136e-16,
+    "z": -1
+  },
+  "headSeatWorld": {
+    "x": -1.27,
+    "y": 4.440892098500627e-16,
+    "z": 0.1524000000000001
+  },
+  "radialClearanceMm": 0.41299999999999976,
+  "qualification": "Actual source geometry/configuration/native proof and geometric head-seat alignment audited. Old5HOLES persistent carrier mate ID absent from3HOLES current faces; exact rebind/refresh required for explicit reference acceptance. Source library records not inspected; pattern creation/cold pending. M4 fixture proxy and cosmetic thread remain illustrative."
+}
