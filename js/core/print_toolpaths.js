@@ -21,6 +21,8 @@ export async function slicePrintMeshes(meshes,input={},options={}) {
 
 export async function toolpathsFromLayers(analysis,input={},options={}) {
   const s=validateFffSettings(input),padding=s.adhesion==='none'?s.lineWidthMm:s.adhesionWidthMm+2*s.lineWidthMm;
+  const contourMarginMm=options.contourMarginMm??0;
+  if(!Number.isFinite(contourMarginMm)||contourMarginMm<0||contourMarginMm>1)throw new Error('Invalid native contour approximation allowance');
   const g=printGrid(analysis.bounds,s.gridMm,padding,options.maxCells||300000),n=analysis.layers.length;
   if(n*g.size>(options.maxLayerCells||40000000))throw new Error('Slice exceeds layer/cell budget; increase grid spacing or layer height');
   const check=async()=>{options.assertCurrent?.();await options.yieldControl?.();options.assertCurrent?.();};
@@ -78,8 +80,8 @@ export async function toolpathsFromLayers(analysis,input={},options={}) {
       if(s.infillPercent)for(const line of rasterLines(infill,g,s.lineWidthMm*100/s.infillPercent,index%2===1))add(layer,line,'infill',id,false,s.lineWidthMm,object.contours);
     }
     if(s.support!=='off')for(const line of rasterLines(supports[index],g,s.lineWidthMm*100/s.supportPercent,index%2===1)) {
-      const clipped=clipSupportPaths(line,analysis.layers[index].objects,s.lineWidthMm/2);
-      if(clipped.removedLengthMm>1e-8)diagnostics.push({layer:layer.number,kind:'support-clipped',removedLengthMm:clipped.removedLengthMm,retainedPieces:clipped.paths.length,reason:'Exact material contour and bead clearance'});
+      const clipped=clipSupportPaths(line,analysis.layers[index].objects,s.lineWidthMm/2+contourMarginMm);
+      if(clipped.removedLengthMm>1e-8)diagnostics.push({layer:layer.number,kind:'support-clipped',removedLengthMm:clipped.removedLengthMm,retainedPieces:clipped.paths.length,contourMarginMm,reason:'Exact material contour and bead clearance'});
       for(const safe of clipped.paths)add(layer,safe,'support','support');
     }
     if(index===0&&['skirt','brim'].includes(s.adhesion)) {
@@ -103,7 +105,7 @@ export async function toolpathsFromLayers(analysis,input={},options={}) {
   if(!segments)throw new Error('No resolvable deposition paths; reduce grid spacing or inspect thin regions');
   if(bed&&[bed.bedWidthMm,bed.bedDepthMm,bed.bedHeightMm].some(v=>!Number.isFinite(v)||v<=0))throw new Error('Print bed dimensions must be finite and positive');
   if(bed&&(min[0]<-bed.bedWidthMm/2||max[0]>bed.bedWidthMm/2||min[1]<-bed.bedDepthMm/2||max[1]>bed.bedDepthMm/2||max[2]>bed.bedHeightMm))throw new Error('Generated paths or adhesion exceed the saved print bed');
-  return {schema:'modelforge-fff-toolpaths',version:1,units:'mm',sourceMeshFingerprint:analysis.sourceMeshFingerprint,settings:s,grid:g,sourceBounds:analysis.bounds,bounds:{min,max},layers,layerCount:layers.length,diagnostics,
+  return {schema:'modelforge-fff-toolpaths',version:1,units:'mm',sourceMeshFingerprint:analysis.sourceMeshFingerprint,settings:s,grid:g,sourceBounds:analysis.bounds,bounds:{min,max},layers,layerCount:layers.length,diagnostics,...(s.support!=='off'?{supportContourAllowanceMm:contourMarginMm}:{}),
     estimates:{depositionLengthMm:length,depositionVolumeMm3:volume,supportVolumeMm3:supportVolume,filamentLengthMm:volume/(Math.PI*(s.filamentDiameterMm/2)**2),depositionTimeSeconds:time},
-    qualification:'Bounded raster FFF paths; conservative offsets include two-grid-cell margin. Rectilinear infill, vertical-column supports, no adaptive width or retraction. Volume uses rectangular bead approximation; time excludes acceleration and travel. Digital study only; physical printing and device compatibility unverified.'};
+    qualification:'Bounded raster FFF paths; conservative offsets include two-grid-cell margin. Rectilinear infill, vertical-column supports, no adaptive width or retraction. Volume uses rectangular bead approximation; time excludes acceleration and travel. Digital study only; physical printing and device compatibility unverified.'+(s.support!=='off'&&contourMarginMm?' Support clipping includes '+contourMarginMm+' mm contour approximation allowance.':'')};
 }

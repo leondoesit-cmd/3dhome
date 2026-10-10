@@ -26269,7 +26269,7 @@ async function openFffSlicePreview() {
     if(busy)return false;busy=true;preview.textContent="Generating actual FFF paths…";
     try {
       assertCurrent(true);var selected=valuesSettings(values);
-      var calculated=await slicePrintMeshes(meshes,selected,{printSetup:meshSettings.printSetup,assertCurrent:function(){assertCurrent(true);},yieldControl:function(){return new Promise(resolve=>setTimeout(resolve,0));}});
+      var calculated=await slicePrintMeshes(meshes,selected,{printSetup:meshSettings.printSetup,contourMarginMm:meshSettings.deviationMm,assertCurrent:function(){assertCurrent(true);},yieldControl:function(){return new Promise(resolve=>setTimeout(resolve,0));}});
       assertCurrent(true);
       pushUndo("FFF slice study settings");document.fffSliceSettings=cloneData(selected);saved=selected;sourceStamp=stamp();
       slice=calculated;applied=JSON.stringify(selected);inputs.layer.max=String(slice.layerCount);inputs.layer.value=String(Math.min(Math.max(1,Number(values.layer)||1),slice.layerCount));show({...selected,layer:Number(inputs.layer.value)});

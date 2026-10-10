@@ -1,0 +1,65 @@
+{
+  "checks": {
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "sourceHistoryExact": true,
+    "sourceReferenceGeometryExact": true,
+    "storedNativePositionsExact": true,
+    "allSliceSettingsExact": true,
+    "sourceFingerprintExact": true,
+    "sourceBoundsExact": true,
+    "allMaterialPathsExact": true,
+    "allLayerPlanesExact": true,
+    "actualNativeClearanceAccepted": false,
+    "supportClippingDiagnosed": true,
+    "clippedVolumeExplainsReduction": true,
+    "supportVolumePositiveAndReduced": true
+  },
+  "actualQualifiedDigitalWorkflowAccepted": false,
+  "clipped": [
+    {
+      "layer": 76,
+      "kind": "support-clipped",
+      "removedLengthMm": 0.8135752452332312,
+      "retainedPieces": 2,
+      "reason": "Exact material contour and bead clearance"
+    },
+    {
+      "layer": 80,
+      "kind": "support-clipped",
+      "removedLengthMm": 0.11852471617205307,
+      "retainedPieces": 1,
+      "reason": "Exact material contour and bead clearance"
+    }
+  ],
+  "removedVolumeMm3": 0.2982719876496922,
+  "oldSupportVolumeMm3": 18596.352000000043,
+  "newSupportVolumeMm3": 18596.053728012394,
+  "qualification": "Original export remains unsafe diagnostic. Exact clipping and mid-slab XY geometry do not certify full physical deposition, support removal or device execution.",
+  "coldDifferences": [
+    {
+      "path": "parts.0.exactBuildToken",
+      "a": 37,
+      "b": 39
+    },
+    {
+      "path": "lastRebuild.rebuiltAt",
+      "a": 1791646908990,
+      "b": 1791647158614
+    },
+    {
+      "path": "lastStandardsAudit.at",
+      "a": 1791645189139,
+      "b": 1791647041158
+    }
+  ],
+  "coldChecks": {
+    "wholeJSONByteExact": true,
+    "wholeGcodeByteExact": true,
+    "nativeClearanceAccepted": false,
+    "onlyDerivedRebuildChanges": true,
+    "allMaterialPathsExact": true,
+    "layer134SVGByteExact": true
+  },
+  "actualColdDigitalWorkflowAccepted": false
+}

@@ -1,0 +1,13 @@
+# Per-dimension nominal precision
+
+The BATTERY source sheet uses.600/.450/.200 for Detail heights andR.50/R.05 for radius callouts. The app previously offered only sheet-wide nominal precision, so genuine measured values could not reproduce these mixed decimal-place conventions without frozen text.
+
+The ordinary **Dimension text** dialog now includes **Nominal decimal places →As sheet /0–8** for linear, radius and diameter dimensions. Selecting a number persists `dim.precision`; As sheet removes the override. It formats the live primary measured nominal only. Typed literal text remains a deliberate text override; `<>` remains live. Secondary units use the sheet's own secondary precision, part-owned tolerance suffixes retain their source precision, and angular formatting is unchanged. Quantity/reference wrappers still apply. The existing sheet trailing-zero setting remains authoritative; BATTERY's enabled trailing zeros display0.600 rather than0.6.
+
+Parent recipe: open the three genuine native Detail dimensions`dhumrh4o`, `dv869w4b`, `d0g16lgq`, set **Nominal decimal places →3**, leave live nominal text/no new tolerance override. Set the radius dimensions to2 if needed. Do not type.600/.450/.200 as literal replacements. Save/export/Undo/cold remains ordinary parent browser work.
+
+The existing normalized-history dimension editor commits the override on the live reacquired record. Scene cache signatures include precision, so metadata-only precision edits update the preview/export without a body-token or geometry change. Invalid/noninteger/out-of-range inputs reject before Undo/mutation; Cancel remains nonmutating. No source CAD is modified by the override.
+
+Meaningful tests cover rounding/negative zero, three source height values, two-decimal radius, independent secondary/tolerance/angular formatting, quantity/reference/live-placeholder wrapping, invalid persisted precision fallback, normalized controller edits, metadata-only cache refresh, genuine native edge reference updates, cold SVG equality, Undo, invalid/cancel behavior and the absence of the control on angular dimensions. Focused plus sheet/shaded/tolerance/Model Items tests **81/81 PASS**. Final gates: **680 modules linked,1487 source assertions,no free identifiers**; scoped whitespace clean.
+
+Owned source regions: cad_sheet`dimensionText` primary-length formatting only; modeler_drawing`editDim` dialog/apply and precision cache fold; new tests. Concurrent native cone-angle resolver/planner/guide-ray changes are untouched. Browser presentation acceptance remains pending; this implementation is not full BATTERY tutorial acceptance.

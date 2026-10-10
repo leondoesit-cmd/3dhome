@@ -1,4 +1,5 @@
 import {resolveDimensionTolerance} from "./core/dimension_tolerance.js";
+import {coneDraftAngle} from './core/drawing_cone_angle.js';
 import { analyzeSectionBoundaries } from "./core/section_boundaries.js";
 import { balloonRadius, layoutBalloonCenters } from "./core/balloon_layout.js";
 import {drawingPrimitiveItems} from './core/drawing_primitives.js';
@@ -797,7 +798,7 @@ export function dimensionText(dim, doc) {
     const measured = text.includes("<>") ? dimensionText({...dim,text:"",tolerance:""},doc) : "";
     return text.replaceAll("<>", measured) + suffix;
   }
-  const value = formatLength(dim.measure, doc);
+  const value = formatLength(dim.measure, Number.isInteger(dim.precision)&&dim.precision>=0&&dim.precision<=8 ? {...doc,precision:dim.precision} : doc);
   const prefix = dim.type === "diameter" ? "⌀" : dim.type === "radius" ? "R" : "";
   if (dim.type === "angle") return trimNumber(Math.round(num(dim.measure) * 10) / 10) + "°" + suffix;
   const secondary = UNIT_FACTORS[doc?.secondaryUnits] && doc.secondaryUnits !== doc.units
@@ -1009,9 +1010,20 @@ export function edgeAngleRefs(points) {
   return [far(a,b),vertex,far(c,d)];
 }
 
-export function resolveDim(dim, index, basis, projection) {
+export function resolveDim(dim, index, basis, projection, model) {
   const result = { dim, dangling: false, missing: [] };
   if (!dim) return result;
+  if(dim.type==='angle' && dim.coneAngle) {
+    const binding=dim.coneAngle,face=index?.get(binding.faceId);
+    const owned=face?.persistentId?.startsWith(binding.featureId+':');
+    const resolved=owned && !projection?.nonlinearProjection ? coneDraftAngle(face,basis,binding.side) : null;
+    const source=model ? (model.features || []).find(f=>f.id===binding.featureId) : null;
+    const current=!model || source && !source.suppressed && source.type==='extrude'
+      && resolved && Math.abs(Math.abs(Number(source.params?.draftAngle))-resolved.degrees)<1e-5;
+    if(resolved && current)result.dim={...dim,refs:resolved.refs};
+    else {result.dangling=true;result.missing=[binding.faceId];}
+    return result;
+  }
   if (dim.type === "angle" && dim.edgeRefs?.length === 4) {
     const points=dim.edgeRefs.map(ref=>resolveDimAnchor(ref,index,basis));
     const refs=points.every(Boolean)?edgeAngleRefs(points):null;
@@ -1171,6 +1183,10 @@ function dimensionItems(dim, place, doc, options = {}) {
     const arm = (point) => Math.atan2(point.y - vertex.y, point.x - vertex.x);
     const first = arm(toSheet(dim.refs[0])), second = arm(toSheet(dim.refs[2]));
     const radius = Math.max(offset, 8);
+    if(dim.coneAngle) {
+      for(const [index,angle] of [first,second].entries())items.push(line(vertex.x,vertex.y,
+        vertex.x+Math.cos(angle)*(radius+4),vertex.y+Math.sin(angle)*(radius+4),index===1?'center':'thin'));
+    }
     let a0=Math.min(first,second), a1=Math.max(first,second);
     if(a1-a0>Math.PI){a0=Math.max(first,second);a1=Math.min(first,second)+2*Math.PI;}
     items.push({ type: "arc", cx: vertex.x, cy: vertex.y, r: radius, a0, a1, style });
@@ -1497,7 +1513,7 @@ export function buildSheetScene(doc, provider, options = {}) {
       diagnostics.push({code:'aligned-section-reference-unavailable',severity:'error',viewId:place.id,dimId:dim.id});continue;
     }
     const basis = place.projection?.basis || viewBasis(place.view.dir);
-    const resolved = resolveDim(dim, topologyIndex, basis, place.projection);
+    const resolved = resolveDim(dim, topologyIndex, basis, place.projection, provider?.model);
     resolved.dim = resolveDimensionTolerance(resolved.dim, provider?.model, doc);
     dims.set(dim.id, resolved);
     if(place.projection?.breakMap && (resolved.dim.refs || []).some(p=>!place.toSheet(p))) {

@@ -132,8 +132,12 @@ export function createDrawingController(host) {
         view.parent, view.scaleMode, view.hidden, view.displayStyle, view.centers, view.labelled, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
+      if(dim.coneAngle) {
+        const source=(host.model?.()?.features || []).find(f=>f.id===dim.coneAngle.featureId);
+        hash=fold(hash,[source?.id,source?.suppressed,source?.params?.draftAngle]);
+      }
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
-        dim.text, dim.tolerance, dim.toleranceOverride, modelItemTolerance(host.model?.(),dim.modelItem), dim.reference, dim.auto]) hash = fold(hash, value);
+        dim.text, dim.precision, dim.tolerance, dim.toleranceOverride, dim.coneAngle, modelItemTolerance(host.model?.(),dim.modelItem), dim.reference, dim.auto]) hash = fold(hash, value);
       for (const ref of dim.refs || []) {
         for (const value of [ref.u, ref.v, ref.pid, ref.pid2, ref.kind, ref.at]) hash = fold(hash, value);
       }
@@ -1252,11 +1256,15 @@ export function createDrawingController(host) {
         { key: "text", label: host.t("drawDimTextLabel"), value: current, hint: "Use <> for the live measured value, for example Ø<>. Plain numbers override it." },
         { key: "quantity", label: "Quantity", value: String(dim.quantity || 1) },
         { key: "reference", label: host.t("drawDimReference"), type:"boolean", value: !!dim.reference },
+        ...(dim.type==='angle'?[]:[{key:'precision',label:'Nominal decimal places',type:'select',value:Number.isInteger(dim.precision)?String(dim.precision):'sheet',choices:[{value:'sheet',label:'As sheet'},...Array.from({length:9},(_,n)=>({value:String(n),label:String(n)}))]}]),
         { key: "tolerance", label: host.t("drawDimTolLabel"), value: dim.tolerance || "", hint: "Blank follows part tolerance unless override is checked." },
         { key: "toleranceOverride", label: "Override part tolerance (blank suppresses)", type:"boolean", value:!!dim.toleranceOverride },
       ])
       : await host.prompt(host.t("drawDimTextTitle"), current).then((text) => (text === null ? null : { text, tolerance: dim.tolerance || "" }));
     if (!answer) return;
+    if(answer.precision!==undefined&&answer.precision!=='sheet'&&(!String(answer.precision).trim()||!Number.isInteger(Number(answer.precision))||Number(answer.precision)<0||Number(answer.precision)>8)) {
+      host.flash('Nominal decimal places must be As sheet or an integer0–8');return;
+    }
     host.pushUndo(host.t("opEditDim"));
     dim = (host.doc().dims || []).find(entry=>entry.id===id);
     if(!dim)return;
@@ -1267,6 +1275,8 @@ export function createDrawingController(host) {
     if(answer.quantity !== undefined && Number.isInteger(Number(answer.quantity)) && Number(answer.quantity)>0)
       dim.quantity=Number(answer.quantity);
     if(answer.reference !== undefined)dim.reference=!!answer.reference;
+    if(answer.precision==='sheet')delete dim.precision;
+    else if(answer.precision!==undefined&&dim.type!=='angle')dim.precision=Number(answer.precision);
     host.markDirty();
   }
 

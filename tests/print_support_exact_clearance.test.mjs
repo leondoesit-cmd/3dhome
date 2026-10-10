@@ -5,7 +5,7 @@ import {clipSupportPaths,supportClearsContours} from '../js/core/print_raster.js
 import {toolpathsFromLayers} from '../js/core/print_toolpaths.js';
 import {compileKernelFeatureTree} from '../js/core/kernel_feature_adapter.js';
 import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js';
-import {shapeToMeshData} from '../js/cad_kernel.js';
+import {shapeToMeshData,brepContainsPoint} from '../js/cad_kernel.js';
 import {stlMeshOptions} from '../js/cad_stl.js';
 import {prepareNativePrintPositions} from '../js/core/print_setup.js';
 import {printMeshFromPositions} from '../js/cad_3mf.js';
@@ -50,6 +50,11 @@ test('both support modes clip a raster-invisible material wall, diagnose trimmin
     assert.ok(supports.length>0);assert.ok(slice.diagnostics.some(d=>d.kind==='support-clipped'&&d.retainedPieces===2));
     assert.ok(supports.every(p=>supportClearsContours(p.points.map(q=>q.slice(0,2)),source.layers[0].objects,.4)));
     assert.ok(slice.estimates.supportVolumeMm3>0);
+    const margin=await toolpathsFromLayers(source,{support,supportGapMm:0,supportXYGapMm:0,layerHeightMm:.4,gridMm:.2,lineWidthMm:.8,skinLayers:0,infillPercent:0},{contourMarginMm:.01});
+    assert.equal(margin.supportContourAllowanceMm,.01);
+    assert.ok(margin.estimates.supportVolumeMm3<slice.estimates.supportVolumeMm3);
+    assert.deepEqual(margin.layers.map(l=>l.paths.filter(p=>p.kind!=='support')),slice.layers.map(l=>l.paths.filter(p=>p.kind!=='support')));
+    assert.ok(margin.diagnostics.filter(d=>d.kind==='support-clipped').every(d=>d.contourMarginMm===.01));
   }
   assert.equal(JSON.stringify(source),original);
 });
@@ -66,6 +71,23 @@ test('actual Q4 native sections clip both exported failing support beads while p
       assert.ok(total(clipped.paths)>total([points])/2);
       assert.ok(clipped.paths.every(p=>supportClearsContours(p,objects,.4)));
     }
+    const residual=fixture.postfixResidualPath,objects=analysis.layers[residual.layer-1].objects;
+    assert.equal(supportClearsContours(residual.points,objects,.4),false);
+    assert.equal(brepContainsPoint(run.finalShape,residual.nativeCapDirectionProbeOut,1e-9),false);
+    assert.equal(brepContainsPoint(run.finalShape,residual.nativeCapDirectionProbeInAt0401,1e-9),true);
+    // The actual native tessellation allowance is .01 mm = .001 kernel cm.
+    assert.equal(stlMeshOptions({quality:'custom',deviationMm:.01,angleDegrees:5}).deflection,.001);
+    const conservative=clipSupportPaths(residual.points,objects,.4+.01);
+    assert.ok(conservative.removedLengthMm>0&&conservative.paths.length===1);
+    assert.ok(conservative.paths.every(p=>supportClearsContours(p,objects,.4)));
     assert.ok(bytes.equals(fs.readFileSync(path)));
   }finally{releaseRegeneration(run);}
+});
+
+test('approximation allowance only trims or omits unsafe short support pieces and rejects invalid options',async()=>{
+  const objects=[object(rectangle(-2,-2,-.4025,2)),object(rectangle(.4025,-2,2,2))],line=[[0,-.01],[0,.01]];
+  assert.equal(clipSupportPaths(line,objects,.4).paths.length,1);
+  assert.equal(clipSupportPaths(line,objects,.41).paths.length,0);
+  const analysis={bounds:{min:[0,0,0],max:[1,1,1]},layers:[]};
+  for(const contourMarginMm of [-.01,Infinity,NaN,2])await assert.rejects(toolpathsFromLayers(analysis,{}, {contourMarginMm}),/approximation allowance/);
 });

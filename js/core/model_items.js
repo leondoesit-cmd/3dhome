@@ -1,5 +1,6 @@
 import { measureDim, resolveDimAnchor } from "../cad_sheet.js";
 import { framePoint } from "./frame.js";
+import {coneDraftAngle} from './drawing_cone_angle.js';
 
 const close = (a, b) => Math.abs(a - b) < 1e-4;
 const ref = (entry, at = "centre") => ({ pid: entry.persistentId, kind: entry.kind, at });
@@ -74,6 +75,7 @@ function roundLeaderAngle(edge, view) {
 function seen(doc, planned, candidate) {
   const prior = (doc.dims || []).concat(planned);
   if (prior.some(dim => dim.modelItem === candidate.modelItem)) return true;
+  if(candidate.coneAngle)return prior.some(dim=>dim.coneAngle?.faceId===candidate.coneAngle.faceId);
   /* A manual terminal callout already tells the reader the same size. Keep
      Insert Model Items repeatable, and avoid a second equal-diameter label. */
   if (["diameter", "radius"].includes(candidate.type))
@@ -91,6 +93,28 @@ export function planModelItems(def, doc, scene) {
   const push = candidate => { if (candidate && !seen(doc, planned, candidate)) planned.push(candidate); };
   const front = viewFor(scene, "front"), top = viewFor(scene, "top"), right = viewFor(scene, "right");
   const features = (def.features || []).filter(feature => !feature.suppressed);
+
+  // A drafted round boss exposes a conical face; its seam is not the visible
+  // generator in every view. Prefer an existing Detail containing that face.
+  for(const feature of features.filter(f=>f.type==='extrude' && Math.abs(number(f.params?.draftAngle))>1e-6)) {
+    const faces=[...index.values()].filter(e=>e.kind==='face' && e.persistentId?.startsWith(feature.id+':') && e.descriptor?.surface==='cone');
+    const views=(scene.views || []).filter(v=>!v.projection?.nonlinearProjection && !v.view?.section && !v.view?.auxiliary && !v.view?.brokenOut && !v.view?.cropSketch)
+      .sort((a,b)=>Number(!!b.view?.detail)-Number(!!a.view?.detail));
+    let candidate=null;
+    for(const view of views) {
+      for(const face of faces) {
+        const angle=coneDraftAngle(face,view.projection?.basis);
+        if(!angle || Math.abs(angle.degrees-Math.abs(number(feature.params.draftAngle)))>1e-5)continue;
+        const detail=view.view?.detail;
+        if(detail && angle.refs.slice(0,2).some(p=>Math.hypot(p.u-detail.u,p.v-detail.v)>detail.radius))continue;
+        candidate={type:'angle',viewId:view.id,refs:angle.refs,offset:22,
+          coneAngle:{faceId:face.persistentId,featureId:feature.id,side:1},modelItem:`feature:${feature.id}:draftAngle`};
+        break;
+      }
+      if(candidate)break;
+    }
+    if(candidate)push(candidate);
+  }
 
   /* Extrude length, measured between the feature's start and end planes. A
      later fillet can shorten the visible corner; the design depth does not. */
