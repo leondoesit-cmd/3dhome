@@ -1,0 +1,11 @@
+# Plane4 transverse-ramp/rear-wall native paper graphic
+
+Final nominal **8/8 passes**, cold **4/4**. Parent authored nine genuine native primitives and five notes through ordinary Chrome, then genuinely cache-bypass reloaded and reopened the exact Saved study. Independent source PDF72/printed1-44 and ready-plan inspection support the transverse ramp, high rear wall and side low land. All nine primitive points/types/styles are exact; all are Outline. Right rear-wall boundary ends at base-topY200, notY205, so no false through-base edge is introduced.
+
+Rear wall controls the rectangular Front silhouette; its internal diagonal represents the ramp. Top two longitudinal boundaries terminate at rear-wallY85; Right low-land line meets its wall boundary at(180,200). Actual SVG solid line semantics pass. Actual PNG shows separated three views/source notes and clear frame/footer. No hidden geometry is invented.
+
+Saved key `cm_mv2u4xgn`, **Planchard Ch1 IN-CHAPTER Plane 4 graphic - browser 2026-10-10**. Chosen5mm/grid estimates W12/D8/H6/base1, high stripX0–2/rampX2–11/low landX11–12/rear wallD7–8 are illustrative, not publisher numeric dimensions. A3/mm/third-angle and native default lettering are chosen worksheet conventions. No parts/features/projected views/dimensions/images exist; starter sketch is empty. Native paper construction is not a CAD-bound or physically certified model.
+
+Evidence prefix `CH1-INCHAPTER-Plane-4-native-browser-2026-10-10`, artifacts bundle/docs SVG/PNG. Machine checks `ch1-plane-4-native-browser-audit-2026-10-10.json`; helper `scratch/planchard/ch1-plane4-readonly.mjs`.
+
+Protected cold prefix `CH1-INCHAPTER-Plane-4-cold-browser-2026-10-10` retains entire Drawing/all nine coordinates/styles/five notes, source properties/name/key and empty authored CAD exactly. SVG bytes/hash are exact: `4fa6ad69c1e63029d8b780deec5d4a1f6adb1524299f1481e81bc6077bdbfc5e`. Whole-project differences are export/rebuild times, the existing empty starter sketch's rebuilt history and six hydrated principal-plane/axis records already represented in warm references. No draft restore or Undo/Redo proof is claimed; final estimated paper worksheet is accepted within the stated source scope.

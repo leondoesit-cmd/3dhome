@@ -1,0 +1,24 @@
+{
+  "warmChecks": {
+    "allNineExactSourcePlanPrimitives": true,
+    "allNineOutline": true,
+    "fiveNativeSourceLabelNotes": true,
+    "sourceAndEstimateExplicit": true,
+    "purePaperNoCadViewsDimensionsImages": true,
+    "styledSvgLineSemantics": true,
+    "rightRearWallStopsAtBaseTop": true,
+    "a3ThirdAngleMillimetres": true
+  },
+  "warmAccepted": true,
+  "savedKey": "cm_mv2u4xgn",
+  "savedName": "Planchard Ch1 IN-CHAPTER Plane 4 graphic - browser 2026-10-10",
+  "svgSha256": "4fa6ad69c1e63029d8b780deec5d4a1f6adb1524299f1481e81bc6077bdbfc5e",
+  "coldAccepted": true,
+  "qualification": "SourcePNG72 independently inspected. Source transverse-ramp/rear-wall three-view semantics reproduced with illustrative5mm grid/unit estimates; no exact publisher dimensions/CAD-bound geometry. ActualPNG notes/views/frame separated and unobstructed.",
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourceNameKeyPropertiesExact": true,
+    "authoredCadExact": true,
+    "svgByteExact": true
+  }
+}
