@@ -1,0 +1,42 @@
+{
+  "accepted": true,
+  "scope": "source-grounded manual native answer worksheet; no physical CAD or current standards certification",
+  "checks": {
+    "eightGenuineSixRowNotes": true,
+    "allFortyEightRowsInSVG": true,
+    "counterbore2500Through5000Depth1250": true,
+    "combined3970Through7731Countersink82CounterboreDepth0402": true,
+    "class1LoosestTrue": true,
+    "limitsFalseTrue": true,
+    "inchMetricBothFalseBookContext": true,
+    "threadPitchMajorExternalRHSingle": true,
+    "thread20TPIClass2ALength2Book171": true,
+    "fitLimitsAndMMCAllowance0": true,
+    "maximumClearance005": true,
+    "explicitBookContextNoStandardsCertification": true,
+    "noPlaceholderCADOrAssociativeGeometry": true,
+    "A3ThirdInchSheetAndSourceTitle": true,
+    "actualPNGFullReadableSeparatedBlocks": true
+  },
+  "passCount": 15,
+  "sourcePDFPages": [
+    171,
+    179,
+    180
+  ],
+  "sourcePrintedPages": [
+    "3-43",
+    "3-51",
+    "3-52"
+  ],
+  "numberedIds": [
+    "3.10",
+    "3.11",
+    "3.12",
+    "3.13",
+    "3.14",
+    "3.15",
+    "3.16"
+  ],
+  "wholeBookPercentCertified": false
+}

@@ -1,0 +1,26 @@
+{
+  "acceptedAvailableSourceWorksheet": true,
+  "checks": {
+    "allAuthoringExceptSpecifiedColdNormalizationExact": true,
+    "wholeDrawingExact": true,
+    "SVGBytesExact": true,
+    "onlyEmptySketchHistoryAdded": true,
+    "sixOriginReferencesOnly": true,
+    "emptyTopologyCacheCleanStandardsAndSuccessfulRebuild": true,
+    "actualColdPNGFullSheetReadableIndependentlyInspected": true
+  },
+  "passCount": 7,
+  "numberedExerciseCompletion": {
+    "3.7": "documented-scoped-acceptance",
+    "3.8": "documented-scoped-acceptance",
+    "3.9": "partial-source-blocked-rows1and4"
+  },
+  "wholeBookPercentCertified": false,
+  "qualifiedToColdChangedKeys": [
+    "exactTopologyCache",
+    "history",
+    "lastRebuild",
+    "lastStandardsAudit",
+    "referenceGeometry"
+  ]
+}

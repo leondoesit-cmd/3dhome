@@ -1,0 +1,40 @@
+{
+  "qualifiedWorksheetAccepted": true,
+  "coldPending": true,
+  "numberedExerciseCompletion": {
+    "3.7": "qualified-pending-cold",
+    "3.8": "qualified-pending-cold",
+    "3.9": "partial-source-blocked-rows1and4"
+  },
+  "checks": {
+    "exactClosedCylinderSideProjection": true,
+    "centerStyledLongitudinalAxis": true,
+    "fiveManualExtensionDimensionLines": true,
+    "twoClosedNoncollapsedArrowTriangles": true,
+    "genuineTwoRowStackedLimits": true,
+    "totalTolerance002Correct": true,
+    "sourceUnspecifiedLengthQualified": true,
+    "threeCommonToleranceTypes": true,
+    "sourceVisibleSymbolsCorrect": true,
+    "missingDamagedSymbolRowsExplicitlyUnresolved": true,
+    "noFalseRecoveredGlyphClaim": true,
+    "fiveSixRowNotesPlusTwoRowLimits": true,
+    "allThirtyTwoRowsInSVG": true,
+    "noCADToleranceDriverClaim": true,
+    "actualPNGCompleteReadableSourceLayout": true
+  },
+  "counts": {
+    "primitives": 8,
+    "lines": 5,
+    "closedSideRectangle": 1,
+    "arrowTriangles": 2,
+    "notes": 6,
+    "rows": 32
+  },
+  "input": {
+    "bytes": 6560,
+    "sha256": "b41281f33d923506ea9a0c2b27af7d7c725f0038b83862e6cd3be1ffc44b4a31"
+  },
+  "svgBytes": 13598,
+  "qualification": "Completeavailable-sourceworksheet does not answer3.9unknownrows1/4. Keep3.9pending/sourceblocked in strict117ledger, whileknownrows2/3andhonestqualificationpersist. NoCADdrivers/unspecifiedlength."
+}
