@@ -152,6 +152,8 @@ import { exportBinaryStl, stlMeshOptions } from "./cad_stl.js";
 import { prepareNativePrintPositions, printSetupExtents } from "./core/print_setup.js";
 import { exportThreeMf, printMeshFromPositions } from "./cad_3mf.js";
 import { analyzePrintLayers, printLayerSvg, printLayerSourceStamp } from './core/print_layer_analysis.js';
+import {slicePrintMeshes,validateFffSettings,FFF_DEFAULTS} from './core/print_toolpaths.js';
+import {toolpathSvg,toolpathsGcode} from './core/print_toolpath_export.js';
 import { exportAmf } from "./cad_amf.js";
 import {
   exportStep, exportIges, importStep,
@@ -4001,6 +4003,7 @@ function buildDOM() {
         commandButton("igesout", t("exportIges"), null, "", t("exportIges")),
         commandButton("stlout", t("exportStl"), null, "", t("exportStlTip")),
         commandButton("layeranalysis", "Layer analysis"),
+        commandButton("fffslice", "FFF slice preview"),
         // the unit override belongs next to the import it modifies, not in the header
         '<label class="md-command-field"><span>' + t("sourceUnits") + '</span>' +
         '<select id="mdStepUnit" aria-label="' + t("sourceUnits") + '"><option value="auto">' + t("stepAuto") + '</option>' +
@@ -4029,6 +4032,7 @@ function buildDOM() {
       commandGroup("grpFile", [
         commandButton("printsetup", "Print setup"),
         commandButton("layeranalysis", "Layer analysis"),
+        commandButton("fffslice", "FFF slice preview"),
         commandButton("stlout", t("exportStl")),
         commandButton("3mfout", "Export 3MF"),
         commandButton("amfout", "Export AMF"),
@@ -7377,6 +7381,7 @@ function runCommand(id) {
   else if (id === "amfout") openStlExportForm("amf");
   else if (id === "printsetup") openPrintSetupForm();
   else if (id === "layeranalysis") openPrintLayerAnalysis();
+  else if (id === "fffslice") openFffSlicePreview();
   else if (id === "drawing") {
     if (E.docType === "assembly" && E.assembly) showAssemblyDrawingSettings();
     else exportDrawingSvg();
@@ -26016,6 +26021,78 @@ async function openPrintLayerAnalysis() {
     exports.appendChild(btn("Export layer analysis JSON",function(){exportAnalysis("json");}));
     exports.appendChild(btn("Export selected layer SVG",function(){exportAnalysis("svg");}));
     var actions=root.querySelector("#mdQuickSettings .md-feature-actions");actions?.before(preview,exports);show({});
+  }
+}
+
+async function openFffSlicePreview() {
+  if(E.docType!=="part" && E.docType!=="assembly")return;
+  var type=E.docType,document=type==="assembly"?E.assembly:E.def;
+  if(!document.printSetup){flash("Save Print setup before generating FFF paths",5000);return;}
+  if(type==="assembly" && rejectFlexibleSpringPreview())return;
+  function stamp(){return type==="assembly"?JSON.stringify({source:assemblyPrintRequests(),printSetup:document.printSetup}):printLayerSourceStamp(E.def,document.printSetup);}
+  var sourceStamp=stamp(),meshes,slice=null,busy=false,inputs,applied=null;
+  var meshSettings={quality:"custom",deviationMm:.01,angleDegrees:5,printSetup:cloneData(document.printSetup)};
+  function assertCurrent(form){if(E.docType!==type || (type==="assembly"?E.assembly:E.def)!==document || sourceStamp!==stamp() || (form && E.quickAction!=="fffslice"))throw new Error("Print source or dialog changed; reopen FFF slice preview");}
+  try {
+    if(type==="assembly")meshes=(await assemblyPrintInCadWorker(assemblyPrintRequests(),{...meshSettings,layerAnalysisOnly:true})).meshes;
+    else {
+      var run=exactRunIsCurrent()?E.brepRun:await regenerateExactModel();
+      if(!run?.ok || !run.finalShape)throw new Error("FFF slicing needs a closed native solid");
+      await validateBrepForExport(run.finalShape);
+      var mesh=await shapeToMeshData(run.finalShape,stlMeshOptions(meshSettings));
+      meshes=[{...printMeshFromPositions(prepareNativePrintPositions(mesh.positions,meshSettings.printSetup)),name:document.name}];
+    }
+    assertCurrent(false);
+  }catch(error){flash(String(error.message || error),6000);return;}
+  var saved={...FFF_DEFAULTS,...document.fffSliceSettings},preview=el("div","md-print-bed-preview"),exports=el("div","md-feature-actions");
+  function valuesSettings(values){
+    var settings={...saved};
+    for(var key of Object.keys(FFF_DEFAULTS))if(values[key]!==undefined)settings[key]=typeof FFF_DEFAULTS[key]==="number"?Number(values[key]):values[key];
+    return validateFffSettings(settings);
+  }
+  function currentValues(){var values={};for(var key of Object.keys(inputs || {}))if(inputs[key]?.value!==undefined)values[key]=inputs[key].value;return values;}
+  function show(values){
+    try {
+      if(!slice){preview.textContent="Apply to generate actual wall, skin, infill, support and adhesion paths.";return;}
+      assertCurrent(true);
+      if(JSON.stringify(valuesSettings(values))!==applied){preview.textContent="Settings changed. Apply before exporting this comparison.";return;}
+      var number=Math.min(slice.layerCount,Math.max(1,Number(values.layer)||1)),layer=slice.layers[number-1];
+      preview.innerHTML=toolpathSvg(slice,number)+'<p>'+slice.layerCount+' deposition layers · '+number+' · Z '+layer.zMm.toFixed(3)+' mm · '+layer.paths.length+' paths · estimated filament '+slice.estimates.filamentLengthMm.toFixed(1)+' mm · support '+slice.estimates.supportVolumeMm3.toFixed(1)+' mm³</p><small>Walls cyan; infill purple; skin green; support orange; adhesion pink. '+slice.qualification+'</small>';
+      preview.querySelector("svg").style.maxHeight="260px";
+    }catch(error){preview.textContent=String(error.message || error);}
+  }
+  function exportSlice(format){
+    try {
+      assertCurrent(true);var values=currentValues();
+      if(!slice || busy || JSON.stringify(valuesSettings(values))!==applied)throw new Error("Apply current settings before exporting FFF paths");
+      var name=(document.name || "model")+"-fff-study";
+      if(format==="svg")downloadBytes(toolpathSvg(slice,Number(values.layer)||1),name+"-layer-"+values.layer+".svg","image/svg+xml");
+      else if(format==="gcode")downloadBytes(toolpathsGcode(slice,{bedWidthMm:document.printSetup.bedWidthMm,bedDepthMm:document.printSetup.bedDepthMm}),name+".gcode","text/plain");
+      else downloadBytes(JSON.stringify({...slice,sourceName:document.name,printSetup:meshSettings.printSetup,tessellation:{deviationMm:.01,angleDegrees:5},gcodeProfile:'illustrative-generic-absolute-e'},null,2),name+".json","application/json");
+    }catch(error){flash(String(error.message || error),5000);}
+  }
+  var numeric=[['layerHeightMm','Layer height (mm)'],['gridMm','Raster grid spacing (mm)'],['lineWidthMm','Line width (mm)'],['wallCount','Wall line count'],['skinLayers','Top/bottom skin layers'],['infillPercent','Rectilinear infill (%)'],['supportPercent','Support density (%)'],['supportGapMm','Support Z gap (mm)'],['supportXYGapMm','Support XY gap (mm)'],['adhesionWidthMm','Skirt offset / brim / raft width (mm)'],['wallSpeed','Wall/skin speed (mm/s)'],['infillSpeed','Infill/support speed (mm/s)'],['travelSpeed','Travel speed (mm/s)']];
+  inputs=openQuickForm({action:"fffslice",icon:"ph-printer",title:"FFF slice preview",presentationOnly:true,hint:"Actual bounded raster paths from native print geometry. Profile: illustrative generic absolute-E, 1.75 mm filament; no printer homing/heating/retraction or physical-print claim. Apply saves study settings separately from CAD features.",fields:[
+    ...numeric.map(function(item){return {key:item[0],label:item[1],type:"number",value:saved[item[0]],step:.1};}),
+    {key:"support",label:"Support placement",type:"select",value:saved.support,choices:[{value:"off",label:"Off"},{value:"buildplate",label:"Touching buildplate"},{value:"everywhere",label:"Everywhere"}]},
+    {key:"adhesion",label:"Bed adhesion",type:"select",value:saved.adhesion,choices:[{value:"none",label:"None"},{value:"skirt",label:"Skirt"},{value:"brim",label:"Brim"},{value:"raft",label:"Raft"}]},
+    {key:"layer",label:"Selected deposition layer",type:"number",value:1,min:1,max:500,step:1}
+  ],onLive:show,onApply:async function(values){
+    if(busy)return false;busy=true;preview.textContent="Generating actual FFF paths…";
+    try {
+      assertCurrent(true);var selected=valuesSettings(values);
+      var calculated=await slicePrintMeshes(meshes,selected,{printSetup:meshSettings.printSetup,assertCurrent:function(){assertCurrent(true);},yieldControl:function(){return new Promise(resolve=>setTimeout(resolve,0));}});
+      assertCurrent(true);
+      pushUndo("FFF slice study settings");document.fffSliceSettings=cloneData(selected);saved=selected;sourceStamp=stamp();
+      slice=calculated;applied=JSON.stringify(selected);inputs.layer.max=String(slice.layerCount);inputs.layer.value=String(Math.min(Math.max(1,Number(values.layer)||1),slice.layerCount));show({...selected,layer:Number(inputs.layer.value)});
+    }catch(error){slice=null;preview.textContent=String(error.message || error);}
+    finally{busy=false;}return false;
+  }});
+  if(inputs){
+    exports.appendChild(btn("Export FFF path JSON",function(){exportSlice("json");}));
+    exports.appendChild(btn("Export deposition layer SVG",function(){exportSlice("svg");}));
+    exports.appendChild(btn("Export illustrative G-code",function(){exportSlice("gcode");}));
+    root.querySelector("#mdQuickSettings .md-feature-actions")?.before(preview,exports);show({});
   }
 }
 

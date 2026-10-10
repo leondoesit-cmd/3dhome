@@ -118,7 +118,7 @@ const MODEL = [
     ["Look", [T("Paint", "ph-paint-bucket", "mcmd:paint"), T("Finish preview", "ph-eye", "mcmd:finishpreview")]],
   ]],
   ["Output", [
-    ["Use", [T("Configurations", "ph-sliders", "mcmd:config"), T("Save to library", "ph-floppy-disk", "mclick:#mdSave"), T("Model library", "ph-books", "mclick:#mdLib"), T("Branch", "ph-git-branch", "mcmd:branch"), T("Print setup", "ph-printer", "mcmd:printsetup"), T("Layer analysis", "ph-printer", "mcmd:layeranalysis"), T("Export GLB", "ph-cube", "mcmd:exportglb")]],
+    ["Use", [T("Configurations", "ph-sliders", "mcmd:config"), T("Save to library", "ph-floppy-disk", "mclick:#mdSave"), T("Model library", "ph-books", "mclick:#mdLib"), T("Branch", "ph-git-branch", "mcmd:branch"), T("Print setup", "ph-printer", "mcmd:printsetup"), T("Layer analysis", "ph-printer", "mcmd:layeranalysis"), T("FFF slice preview", "ph-printer", "mcmd:fffslice"), T("Export GLB", "ph-cube", "mcmd:exportglb")]],
     ["Exchange", [T("Project bundle", "ph-package", "mcmd:bundle"), T("Open bundle", "ph-folder-open", "mcmd:bundlein"), T("Import STEP", "ph-download-simple", "mcmd:stepin"), T("Export STEP", "ph-export", "mcmd:stepout"), T("Export IGES", "ph-export", "mcmd:igesout"), T("Export STL", "ph-export", "mcmd:stlout"), T("Export 3MF", "ph-printer", "mcmd:3mfout"), T("Export AMF", "ph-printer", "mcmd:amfout")]],
   ]],
 ];

@@ -1,0 +1,53 @@
+{
+  "source": "artifacts/planchard/CH11-FLAT-cold-top-witness-browser-2026-10-09.stl",
+  "sourceBytes": 117584,
+  "triangles": 2350,
+  "indexedVertices": 1175,
+  "elapsedMs": 9643,
+  "sourceUnchanged": true,
+  "layerCount": 204,
+  "pathCounts": {
+    "wall": 535,
+    "skin": 1837,
+    "infill": 3991
+  },
+  "settings": {
+    "layerHeightMm": 0.2,
+    "gridMm": 0.2,
+    "lineWidthMm": 0.4,
+    "filamentDiameterMm": 1.75,
+    "wallCount": 2,
+    "skinLayers": 3,
+    "infillPercent": 15,
+    "support": "off",
+    "supportAngle": 45,
+    "supportGapMm": 0.2,
+    "supportXYGapMm": 0.4,
+    "supportPercent": 15,
+    "adhesion": "none",
+    "adhesionWidthMm": 3.5,
+    "raftLayers": 2,
+    "wallSpeed": 40,
+    "infillSpeed": 40,
+    "travelSpeed": 100
+  },
+  "grid": {
+    "x0": -51.2,
+    "y0": -25.8,
+    "nx": 514,
+    "ny": 260,
+    "step": 0.2,
+    "size": 133640
+  },
+  "estimates": {
+    "depositionLengthMm": 312461.2000000172,
+    "depositionVolumeMm3": 24990.495975580197,
+    "supportVolumeMm3": 0,
+    "filamentLengthMm": 10389.84088772364,
+    "depositionTimeSeconds": 7811.530000002117
+  },
+  "diagnostics": [],
+  "gcodeBytes": 1298730,
+  "qualification": "Bounded raster FFF paths; conservative offsets include two-grid-cell margin. Rectilinear infill, vertical-column supports, no adaptive width or retraction. Volume uses rectangular bead approximation; time excludes acceleration and travel. Digital study only; physical printing and device compatibility unverified.",
+  "actualBrowserSlicerAcceptance": false
+}
