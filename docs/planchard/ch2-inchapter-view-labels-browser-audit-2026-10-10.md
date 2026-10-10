@@ -1,0 +1,11 @@
+# Chapter2 in-chapter positional view-label worksheet
+
+Final nominal **8/8 passes**, cold **4/4**. Parent genuinely authored/saved four native notes through ordinary Chrome, then cache-bypass reloaded and reopened the exact Saved study. Independent inspection of source PDF106/printed2-20 verifies third-angle six-principal positions: Top above Front, Bottom below, Left immediately left, Right immediately right, Back far left. Each gives the correct horizontal/vertical extent pair: Top/Bottom width-depth, Front/Back width-height, Left/Right depth-height. Isometric width spans flange, depth follows base, height rises along upright. No nominal dimensions are requested or invented.
+
+Source PDF113/printed2-27 independently verifies upper SectionA-A, upper-right Isometric, enlarged left DetailB, central Front/parent, right circular end Right, lower Break and lower-right third-angle symbol. The worksheet references these original source positions, not recreated CAD geometry.
+
+Saved key `cm_mv2uc002`, **Planchard Ch2 IN-CHAPTER view labels - browser 2026-10-10**. Four native notes contain4/14/12/2 rows (32 total). No parts/features/views/dimensions/primitives/images exist; starter sketch is empty. Native default2.8mm lettering and chosen A3/mm/third-angle frame are qualified. Actual PNG shows separate left/right answer columns, header and lower qualification with clear frame/footer.
+
+Evidence prefix `CH2-INCHAPTER-view-labels-native-browser-2026-10-10`, artifacts bundle/docs SVG/PNG. Machine checks `ch2-inchapter-view-labels-browser-audit-2026-10-10.json`; helper `scratch/planchard/ch2-view-labels-readonly.mjs`. This closes native positional answers nominally, not source solids or extra native section/detail/break modeling.
+
+Protected cold prefix `CH2-INCHAPTER-view-labels-cold-browser-2026-10-10` preserves entire Drawing/four notes/32 literal rows, source properties/name/key and empty authored CAD exactly. SVG bytes/hash are exact: `ce7b8669955a2037fe72105d6123750081e660f0d9cd69438916a7927b1ee810`. Whole-project differences are export/rebuild times, rebuilt history of the existing empty starter sketch and six hydrated principal plane/axis records already represented by warm references. Parent observed no draft prompt; no Undo/Redo claim is made. Final native positional worksheet is accepted within its stated scope.

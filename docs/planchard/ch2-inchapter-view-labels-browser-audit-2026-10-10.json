@@ -1,0 +1,30 @@
+{
+  "warmChecks": {
+    "fourNativeNotesThirtyTwoRows": true,
+    "sixPrincipalSourcePositions": true,
+    "isometricThreeAxesAndNoNumericDimensions": true,
+    "sourceSectionDetailBreakEndSymbol": true,
+    "pureWorksheetNoCadProjectedOrPaperGraphics": true,
+    "sourcePropertiesAndQualification": true,
+    "clearSeparatedNativeNotePositions": true,
+    "a3MillimetresThirdAngle": true
+  },
+  "warmAccepted": true,
+  "savedKey": "cm_mv2uc002",
+  "savedName": "Planchard Ch2 IN-CHAPTER view labels - browser 2026-10-10",
+  "noteLineRows": [
+    4,
+    14,
+    12,
+    2
+  ],
+  "svgSha256": "ce7b8669955a2037fe72105d6123750081e660f0d9cd69438916a7927b1ee810",
+  "coldAccepted": true,
+  "qualification": "SourcesPDF106 and113 independently visually inspected. Genuine browser native positional answer worksheet, no source solids/dimensions recreated. Default2.8mm font and chosenA3/mm layout; actualPNG allnotes separated/frame/footer clear.",
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesNameKeyExact": true,
+    "emptyAuthoredCadExact": true,
+    "svgByteExact": true
+  }
+}
