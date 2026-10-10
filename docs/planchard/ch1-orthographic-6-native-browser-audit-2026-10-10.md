@@ -1,0 +1,11 @@
+# Orthographic6 native notched L-bracket paper graphic
+
+Final nominal passes **8/8**, cold **4/4**. Parent authored17 native primitives and5 notes through ordinary Chrome, then genuinely cache-bypass reloaded and reopened the exact Saved study. Independent source PDF68 / printed1-40 inspection and coordinate-by-coordinate audit match the ready-paper plan exactly:8 Outline,5 Hidden,4 Center. Front is a closed L profile; Right is a closed top-notched profile; Top rectangle/bore circle and upright/slot boundaries remain visible.
+
+Every native line's actual SVG stroke semantics is independently checked, including Hidden2.4/1.2 and Center7/1.6/1.6/1.6. Front notch-floor hidden line and bore edges, Right base/bore relationships and Top two visible notch walls align with the source. Actual PNG shows separated three views and source notes with clear frame/footer. Default native note font and chosen sheet layout are accepted.
+
+Saved key `cm_mv2tm78w`, **Planchard Ch1 IN-CHAPTER Orthographic 6 graphic - browser 2026-10-10**. No parts/features/projected views/dimensions/images exist; the starter sketch is empty. Chosen illustrative5mm grid and estimated L8/W4/H5, wall2/base.8/notch1–3/H4–5/boreL5/W2/R1.2 are paper reconstruction choices, not publisher physical dimensions. These are genuine native paper primitives, not CAD-bound model projections or a production drawing certification.
+
+Evidence prefix `CH1-INCHAPTER-Orthographic-6-native-browser-2026-10-10`, bundle under artifacts and SVG/PNG under docs. Machine checks `ch1-orthographic-6-native-browser-audit-2026-10-10.json`; helper `scratch/planchard/ch1-orthographic6-readonly.mjs`.
+
+Protected `CH1-INCHAPTER-Orthographic-6-cold-browser-2026-10-10` retains entire Drawing/all17 primitive coordinates/styles/5notes, source Description/name/key and empty authored CAD exactly. SVG bytes/hash are exact: `b6ab0616f221c0eee0ae7ae8dedeaa09108c23a7c27b51e10b3dc015d0fd39fa`. The parent encountered no recovered-draft prompt. Whole-project differences are export/rebuild times, the existing empty starter sketch's rebuilt history row and six hydrated principal-plane/axis references already present in warm references. This verifies Saved worksheet persistence, without an Undo/Redo claim.
