@@ -1,0 +1,136 @@
+{
+  "nativeGeometryAccepted": true,
+  "finalWorkflowAccepted": false,
+  "checks": {
+    "threeFullyDefinedSketches": true,
+    "threeFeatures": true,
+    "base80x40": true,
+    "baseBoss15": true,
+    "upright20x40": true,
+    "uprightStarts15Boss35": true,
+    "forkX30to45Z20to40": true,
+    "forkReverseThroughBase": true,
+    "sixValidRebuiltHistory": true,
+    "noRollback": true,
+    "sourceQualification": true,
+    "validConnectedNative": true,
+    "bounds80x50x40": true,
+    "analyticVolume71500": true,
+    "actualSTEPValidConnected": true,
+    "actualSTEPDualZero": true,
+    "sourceBundleUnmodified": true
+  },
+  "actualSTEPAvailable": true,
+  "step": {
+    "bytes": 41194,
+    "sha256": "6c78984ce2e4700a06c6a22b5b741aa4337319c1774347e3d39c36924c83cb3f",
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 71.5,
+      "maxToleranceCm": 1e-07
+    },
+    "mass": {
+      "volume": 71.5,
+      "centerOfMass": {
+        "x": 2.8409090909090904,
+        "y": 1.729020979020979,
+        "z": 1.9370629370629375
+      },
+      "inertia": [
+        [
+          238.2582313519813,
+          128.86363636363635,
+          4.090909090908951
+        ],
+        [
+          128.86363636363635,
+          515.1987907925412,
+          -4.405594405594343
+        ],
+        [
+          4.090909090908951,
+          -4.405594405594343,
+          563.3567890442891
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max": {
+          "x": 8,
+          "y": 5,
+          "z": 4
+        }
+      }
+    },
+    "dual": [
+      0,
+      0
+    ]
+  },
+  "mass": {
+    "volume": 71.5,
+    "centerOfMass": {
+      "x": 2.8409090909090904,
+      "y": 1.729020979020979,
+      "z": 1.9370629370629375
+    },
+    "inertia": [
+      [
+        238.2582313519813,
+        128.86363636363635,
+        4.090909090908951
+      ],
+      [
+        128.86363636363635,
+        515.1987907925412,
+        -4.405594405594343
+      ],
+      [
+        4.090909090908951,
+        -4.405594405594343,
+        563.3567890442891
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 8,
+        "y": 5,
+        "z": 4
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 71.5,
+    "maxToleranceCm": 1.0000000000000002e-07
+  },
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-2.3A-cold-browser-2026-10-10.mforge",
+    "bytes": 134410,
+    "sha256": "e63b00967dacadf753051749c7e07e227bdc9e862533970f1340a348fbad56e8"
+  },
+  "qualification": "Actual Chrome hardreload/exact Saved-library reopen and actual STEP accepted. Source PDF126/printed2-40 requests approximate sizing; chosen dimensions/hidden depth remain illustrative. Driver pending; lower pictured model2.3B remains separate unfinished scope.",
+  "coldChecks": {
+    "authoringExactExceptDocumentedDerivedFields": true,
+    "wholeDrawingExact": true,
+    "SVGByteExact": true,
+    "onlyDefaultOriginRefsAdded": true,
+    "sixHistoryUnchanged": true,
+    "actualColdPNGReadableInspected": true
+  },
+  "coldAccepted": true,
+  "driverPending": true
+}

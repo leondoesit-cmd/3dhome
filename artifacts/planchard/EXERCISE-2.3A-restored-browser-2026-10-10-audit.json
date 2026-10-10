@@ -1,0 +1,16 @@
+{
+  "restorationAccepted": true,
+  "checks": {
+    "allAuthoringAndDrawingExact": true,
+    "nativePartsAndCacheExact": true,
+    "nominalBoss35Restored": true,
+    "sixValidHistoryExact": true,
+    "rebuildSuccessfulSameSignature": true,
+    "standardsResultExactExceptAt": true
+  },
+  "input": {
+    "bytes": 134410,
+    "sha256": "bd8b760ff28a6f70a9c18347bf946323c47048da5dd66d58089398c4008344bd"
+  },
+  "qualification": "Actual Undo/Redo/Undo restoration canonical proof; unsaved UI marker cause not proven. Last successful cold nominal record already accepted."
+}

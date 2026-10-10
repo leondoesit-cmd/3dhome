@@ -1,0 +1,747 @@
+{
+  "date": "2026-10-10",
+  "inventoryDenominator": 117,
+  "documentedScopedAcceptanceCount": 96,
+  "pendingCount": 21,
+  "numberedIdentifierFractionPercent": 82.05128205128204,
+  "wholeBookPercentCertified": false,
+  "rule": "Count each frozen numbered identifier once. Multi-model2.2/2.3 require all pictured models. Preserve previously accepted explicit designer/replacement/illustrative qualifications; do not relabel them exact publisher-native parity. A scope-qualified acceptance is different from exact-source reconstruction. Chapter reviews/in-chapter activities/tutorials/physical steps are excluded from this denominator.",
+  "reviewQuestions": {
+    "accepted": 130,
+    "denominator": 130,
+    "percent": 100,
+    "separateDenominator": true
+  },
+  "chapter1InChapterGraphics": {
+    "pending": 21,
+    "separateDenominator": true
+  },
+  "pendingIds": [
+    "2.3",
+    "3.1",
+    "3.2",
+    "3.3",
+    "3.4",
+    "3.5",
+    "3.6",
+    "3.7",
+    "3.8",
+    "3.9",
+    "3.10",
+    "3.11",
+    "3.12",
+    "3.13",
+    "3.14",
+    "3.15",
+    "3.16",
+    "8.2",
+    "8.5",
+    "8.8",
+    "8.9"
+  ],
+  "rows": [
+    {
+      "id": "1.1",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.2",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.3",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.4",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.5",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.6",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.7",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.8",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.9",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.10",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "1.11",
+      "group": "Chapter1",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; drafting-1.10-browser-native-audit-2026-10-10.md; drafting-1.11-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "2.1",
+      "group": "Chapter2",
+      "status": "documented-scoped-acceptance",
+      "evidence": "drafting-2.1-browser-worksheet-audit-2026-10-10.md; exercise-2.2A-native-browser-audit-2026-10-10.md; exercise-2.2B-native-browser-audit-2026-10-10.md; drafting-2.4-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "2.2",
+      "group": "Chapter2",
+      "status": "documented-scoped-acceptance",
+      "evidence": "drafting-2.1-browser-worksheet-audit-2026-10-10.md; exercise-2.2A-native-browser-audit-2026-10-10.md; exercise-2.2B-native-browser-audit-2026-10-10.md; drafting-2.4-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "2.3",
+      "group": "Chapter2",
+      "status": "pending",
+      "evidence": "drafting-2.1-browser-worksheet-audit-2026-10-10.md; exercise-2.2A-native-browser-audit-2026-10-10.md; exercise-2.2B-native-browser-audit-2026-10-10.md; drafting-2.4-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "2.4",
+      "group": "Chapter2",
+      "status": "documented-scoped-acceptance",
+      "evidence": "drafting-2.1-browser-worksheet-audit-2026-10-10.md; exercise-2.2A-native-browser-audit-2026-10-10.md; exercise-2.2B-native-browser-audit-2026-10-10.md; drafting-2.4-browser-worksheet-audit-2026-10-10.md"
+    },
+    {
+      "id": "3.1",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.2",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.3",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.4",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.5",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.6",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.7",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.8",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.9",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.10",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.11",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.12",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.13",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.14",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.15",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "3.16",
+      "group": "Chapter3",
+      "status": "pending",
+      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+    },
+    {
+      "id": "5.1",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.2",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.3",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.4",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.5",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.6",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.7",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.8",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.9",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.10",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.11",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.12",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.13",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.14",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.15",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.16",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "5.17",
+      "group": "Chapter5",
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-5.1-5.5-plane-worksheet-browser-audit-2026-10-10.md; exercise-5.17-two-sketch-browser-audit-2026-10-10.md; artifacts/planchard/EXERCISE-5.16-cosmetic-thread-browser-2026-10-01.md; book-coverage-reconciliation-2026-10-10.md"
+    },
+    {
+      "id": "6.1",
+      "group": "Chapter6",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "6.2",
+      "group": "Chapter6",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "6.3",
+      "group": "Chapter6",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "6.4",
+      "group": "Chapter6",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "6.5",
+      "group": "Chapter6",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "6.6",
+      "group": "Chapter6",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "6.7",
+      "group": "Chapter6",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "6.8",
+      "group": "Chapter6",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.1",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.2",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.3",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.4",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.5",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.6",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.7",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.8",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.9",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.10",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.11",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "7.12",
+      "group": "Chapter7",
+      "status": "documented-scoped-acceptance",
+      "evidence": "book-coverage-reconciliation-2026-10-10.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "8.1",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.2",
+      "group": "Chapter8",
+      "status": "pending",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.3",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.4",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.5",
+      "group": "Chapter8",
+      "status": "pending",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.6",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.7",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.8",
+      "group": "Chapter8",
+      "status": "pending",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.9",
+      "group": "Chapter8",
+      "status": "pending",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.10",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.11",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.12",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.13",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.14",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.15",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.16",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.17",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.18",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.19",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.20",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "8.6A",
+      "group": "Chapter8",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; chapter8-assembly-final-acceptance-plan-2026-10-10.md; vice85-flashlight-source-acceptance-reconciliation-2026-10-10.md; chapter8-official-companion-source-audit-2026-10-10.md"
+    },
+    {
+      "id": "9.1",
+      "group": "Chapter9",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "9.2",
+      "group": "Chapter9",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "9.3",
+      "group": "Chapter9",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "9.4",
+      "group": "Chapter9",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "9.5",
+      "group": "Chapter9",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "9.6",
+      "group": "Chapter9",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ADVANCE.md; remaining-book-followups-reconciled-2026-10-09.md"
+    },
+    {
+      "id": "10.Drafting.Q1",
+      "group": "Chapter10 drafting",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ch10-drafting-answers-browser-audit-2026-10-10.md"
+    },
+    {
+      "id": "10.Drafting.Q2",
+      "group": "Chapter10 drafting",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ch10-drafting-answers-browser-audit-2026-10-10.md"
+    },
+    {
+      "id": "10.Drafting.Q3",
+      "group": "Chapter10 drafting",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ch10-drafting-answers-browser-audit-2026-10-10.md"
+    },
+    {
+      "id": "10.Drafting.Q4",
+      "group": "Chapter10 drafting",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ch10-drafting-answers-browser-audit-2026-10-10.md"
+    },
+    {
+      "id": "10.Drafting.Q5",
+      "group": "Chapter10 drafting",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ch10-drafting-answers-browser-audit-2026-10-10.md"
+    },
+    {
+      "id": "10.Drafting.Q6",
+      "group": "Chapter10 drafting",
+      "status": "documented-scoped-acceptance",
+      "evidence": "ch10-drafting-answers-browser-audit-2026-10-10.md"
+    },
+    {
+      "id": "10.Basic.Q1",
+      "group": "Chapter10 Basic",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Basic.Q2",
+      "group": "Chapter10 Basic",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Basic.Q3",
+      "group": "Chapter10 Basic",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Basic.Q4",
+      "group": "Chapter10 Basic",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Basic.Q5",
+      "group": "Chapter10 Basic",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Basic.Q6",
+      "group": "Chapter10 Basic",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Basic.Q6A",
+      "group": "Chapter10 Basic",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Basic.Q6B",
+      "group": "Chapter10 Basic",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Advanced.Q1",
+      "group": "Chapter10 Advanced",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Advanced.Q2",
+      "group": "Chapter10 Advanced",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Advanced.Q3",
+      "group": "Chapter10 Advanced",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Advanced.Q4",
+      "group": "Chapter10 Advanced",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Advanced.Q5",
+      "group": "Chapter10 Advanced",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Advanced.Q6",
+      "group": "Chapter10 Advanced",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Advanced.Q6A",
+      "group": "Chapter10 Advanced",
+      "status": "documented-scoped-acceptance",
+      "evidence": "remaining-book-followups-reconciled-2026-10-09.md; ADVANCE.md"
+    },
+    {
+      "id": "10.Chain",
+      "group": "Chapter10 Chain",
+      "status": "documented-scoped-acceptance",
+      "evidence": "chain-official-source-final-acceptance-audit-2026-10-09.md"
+    }
+  ],
+  "advanceSHA256": "497ebf1e9e6e6a849fbd2a5700c3b66735f0d24362f0a808ce007d676719c043"
+}
