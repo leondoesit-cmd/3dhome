@@ -1,0 +1,50 @@
+{
+  "savedKey": "cm_mv2y82by_6467",
+  "savedName": "Planchard Ch4 saved rollback persistence - browser 2026-10-11",
+  "warmChecks": {
+    "independentSavedIdentity": true,
+    "rollbackBeforeToothPersisted": true,
+    "fullAuthoredGraphPreserved": true,
+    "drawingAndSourcePropertiesExact": true,
+    "actualNativeOneAndDiskBounds": true,
+    "acceptedDiskAllNativeGeometryExact": true
+  },
+  "warmAccepted": true,
+  "coldPending": false,
+  "restorePending": false,
+  "warmMeshNormalization": "Compared with accepted rollback disk: derived normals/colors absent, redundant meshData.bounds added equalpart.bounds; positions/nativeTopology/exactBounds remain exact.",
+  "qualification": "Genuine independent saved rollback witness. Existing accepted native diskgeometry/V7.2πcm³ proof applies by exact meshgeometry/source; no physical/STEPclaim.",
+  "coldChecks": {
+    "rollbackIndexThree": true,
+    "wholeSourceAuthoringDrawingPropertiesExact": true,
+    "actualNativeOneDiskGeometryExact": true,
+    "boundsExact": true
+  },
+  "coldAccepted": true,
+  "coldModelDiffs": [
+    {
+      "path": "parts.0.meshData.bounds",
+      "warm": {
+        "x0": -2.999406989310197,
+        "x1": 2.999406989310197,
+        "y0": 0,
+        "y1": 0.8,
+        "z0": -2.9976281916819056,
+        "z1": 3
+      }
+    },
+    {
+      "path": "lastRebuild.rebuiltAt",
+      "warm": 1791670321200,
+      "cold": 1791670400473
+    }
+  ],
+  "restorationChecks": {
+    "rollbackReleased": true,
+    "wholeGraphDrawingExact": true,
+    "nativeOneFullPatternBounds": true,
+    "nativePatternGeometryExact": true
+  },
+  "restorationAccepted": true,
+  "savedRecordQualification": "Parent deliberately did not Save the releasedbar state; exactSavedcopy retains acceptedrollbackIndex3. Restored export is current-session witness only."
+}
