@@ -1,0 +1,11 @@
+# Native rollback body publication
+
+The actual protected `CH4-ROLLBACK-before-tooth-browser-2026-10-11.mforge` has rollbackIndex 3: the disk extrusion is active, while Tooth and Pattern are below the bar. Compilation already correctly emits only the disk. Its saved compatibility part had no mesh and retained obsolete ±3.4 cm patterned bounds.
+
+The confirmed defect was in `syncPreviewFromHistory`: suppressing downstream operations removed the native mesh, then replacement was requested only if the remaining body still needed a complex exact mesh. A simple earlier disk no longer met that condition. The repair requests native replacement for supported active canonical bodies dirtied by history, discards stale bounds, and recovers a cold rolled-back document whose flags were already normalized. Pending work is not duplicated and failed cold work is not automatically retried on every refresh.
+
+`queueExactMesh` publishes bounds from the actual native mesh for canonical analytic projections as well as kernel bodies. `exactDisplayBody` retains requested-head native topology through the existing current document/history/edit-revision guard. Proof signatures still reject stale geometry and a disk proof cannot validate the restored full pattern. No feature, sketch, dimension or rollback semantics were changed.
+
+Validation: **12/12 PASS** across `rollback_native_publication`, `rollback_display_head` and `tree_rollback_bar`. The new regression uses a persisted read-only canonical extraction with source SHA256, actual native disk regeneration, production worker mesh packing with native solid enumeration, current display publication, cold proof verification, restored-prefix rejection and stale owner/history/revision guards. Tessellated X extrema are within mesh tolerance of ±3 cm; exact Z extrema are ±3 cm and thickness is 0.8 cm. The worker reports one native solid. Required gates PASS: **685 modules / 1487 source assertions**, no free identifiers or link errors. Owned diff check is clean.
+
+Actual browser replay after reloading the repair remains the parent's acceptance task. This report does not claim that replay is complete or that the complete restored native pattern was rerun in this focused regression.

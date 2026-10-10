@@ -1,0 +1,17 @@
+# Chapter 2 feature pattern / Chapter 4 rollback — actual browser audit
+
+Circular-pattern workflow passes **9/9 nominal,5/5 driver and4/4 cold guards** within the disclosed illustrative scope. Native rollback acceptance remains pending separately. Saved key `cm_mv2xaz0p`, name `Planchard Ch2 feature pattern and Ch4 rollback - browser 2026-10-11`.
+
+Actual browser authoring contains two fully defined Top sketches: an origin-fixedØ60mm disk extruded8mm and a6×2mm rectangular tooth centredX31mm extruded8mm Add/Merge. Genuine feature-scope Pattern1 references only the tooth feature, with circular Y-axis360°,32 equally spaced instances, zero radial-distance adjustment and merged result. Actual serialized mesh records one native solid.
+
+Independent read-only native regeneration validates one connected solid,V24.6703120246cm³ and boundsX/Z±3.4cm,Y0..0.8cm. Native point classification at radius32mm/height4mm verifies **all32 tooth-centre samples inside material and all32 halfway-gap samples outside**, establishing physical radial pattern geometry beyond parameter checks.
+
+The actual32→24 driver changes only Pattern1 count; sketches, all other feature authoring and Drawing remain exact. Independent native classification verifies all24 tooth material samples inside/all24 midway gaps outside, one valid connected solid,V24.1576007949cm³. Exported Undo32 and restored32 retain exact nominal features/sketches/Drawing.
+
+Cold Saved reopen preserves complete sketches/features/Drawing/source properties/name/key, actual mesh positions/face ranges/subshape maps/native count/all topology geometry and bounds. Mesh topology signature labels differ:802 changed signature strings across part/cache records only append`generated-N` provenance suffixes to their identical previous geometric signature. That normalization was checked explicitly; byte-identical topology identities are not claimed. Remaining13 differing model paths are buildToken4→6, revision4→6/rebuild signature/time, explicit derived merge suppression false, six principal references, rollbackIndex null and empty successful standards audit. No mesh geometry or authored change was ignored.
+
+The initial before-Tooth rollback export is a **diagnostic preview only**: native rollback integration is pending repair. It is not accepted as a native roll-back body or history parity witness; releasing the bar restored the full pattern. Pattern-driver acceptance is kept separate from this unresolved workflow.
+
+Source PDF120 /2-34 first states34 before explicitly asking32→24; the study follows the explicit change and discloses that inconsistency. Rectangular tooth dimensions are chosen illustrative geometry, not a recovered publisher gear, involute tooth or manufacturing design. Chapter4 rollback parity concerns functional history behavior, not the original proprietary BRACKET feature tree. Fresh read-only regeneration is distinguished from actual browser STEP/persistence evidence.
+
+Evidence: `artifacts/planchard/CH2-FEATURE-PATTERN32-native-browser-2026-10-11.mforge`. Assertions/native classification: [audit JSON](ch2-feature-pattern-rollback-browser-audit-2026-10-11.json). Independent helper: `scratch/planchard/ch2-featurepattern-readonly.mjs`. No browser/CAD authoring or state mutation was performed by this audit.

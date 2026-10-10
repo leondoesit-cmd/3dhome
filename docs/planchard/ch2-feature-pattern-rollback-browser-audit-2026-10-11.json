@@ -1,0 +1,4425 @@
+{
+  "savedKey": "cm_mv2xaz0p",
+  "savedName": "Planchard Ch2 feature pattern and Ch4 rollback - browser 2026-10-11",
+  "checks": {
+    "twoFullyDefinedTopSketches": true,
+    "baseSixtyByEight": true,
+    "toothSixByTwoAtThirtyOne": true,
+    "genuineSeedFeaturePattern": true,
+    "circularThirtyTwoY360Merge": true,
+    "actualNativeOne": true,
+    "validConnected": true,
+    "nativeThirtyTwoPhysicalTeethAndGaps": true,
+    "sourceInconsistencyAndIllustrativeGeometryDisclosed": true
+  },
+  "nominalAccepted": true,
+  "native": {
+    "mass": {
+      "volume": 24.670312024553237,
+      "centerOfMass": {
+        "x": 5.353878188870049e-16,
+        "y": 0.40000000000000135,
+        "z": -8.380824586860379e-16
+      },
+      "inertia": [
+        [
+          62.72518403087573,
+          3.8788416922843126e-16,
+          -9.573532288101327e-15
+        ],
+        [
+          3.8788416922843126e-16,
+          122.81886811246576,
+          -1.9009567411941017e-15
+        ],
+        [
+          -9.573532288101327e-15,
+          -1.9009567411941017e-15,
+          62.72518403087572
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.400000000000001,
+          "y": 0,
+          "z": -3.400000000000001
+        },
+        "max": {
+          "x": 3.400000000000001,
+          "y": 0.8,
+          "z": 3.400000000000001
+        }
+      }
+    },
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 24.670312024553237,
+      "maxToleranceCm": 1.00000061234476e-7
+    },
+    "teeth": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "gaps": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "coldPending": false,
+  "qualification": "Real feature-scope circular pattern of chosenrectangular tooth, not involutegear/exactpublishergeometry. Native point classification independently verifies32toothmaterial samples and32outside gaps at radius32mm,height4mm. SourcePDF120 first34 versus explicit32→24 disclosed. Driver/rollback/cold notyetaccepted.",
+  "driverChecks": {
+    "onlyCountAuthoringChanged": true,
+    "nativeTwentyFourTeethAndGaps": true,
+    "validOneNativeSolid": true,
+    "undoThirtyTwoAuthoringExact": true,
+    "restoredThirtyTwoAuthoringExact": true
+  },
+  "driverAccepted": true,
+  "driverNative": {
+    "mass": {
+      "volume": 24.15760079487657,
+      "centerOfMass": {
+        "x": 9.765969507322972e-17,
+        "y": 0.4000000000000009,
+        "z": 1.3325095411985105e-16
+      },
+      "inertia": [
+        [
+          60.068931164940125,
+          1.6653345369377565e-16,
+          1.2693595089971477e-14
+        ],
+        [
+          1.6653345369377565e-16,
+          117.56105157842678,
+          6.338151032660196e-16
+        ],
+        [
+          1.2693595089971477e-14,
+          6.338151032660196e-16,
+          60.0689311649401
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": -3.400000000000001,
+          "y": 0,
+          "z": -3.400000000000001
+        },
+        "max": {
+          "x": 3.400000000000001,
+          "y": 0.8,
+          "z": 3.400000000000001
+        }
+      }
+    },
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 24.15760079487657,
+      "maxToleranceCm": 1.00000061234476e-7
+    },
+    "teeth": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "gaps": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "rollbackAccepted": false,
+  "rollbackQualification": "Earlier before-Tooth export is diagnostic preview only; native rollback integration pending repair. No native rollback acceptance.",
+  "coldChecks": {
+    "sourceAuthoringExact": true,
+    "sourcePropertiesNameKeyExact": true,
+    "nativeSerializedOneAndMeshGeometryExact": true,
+    "derivedBoundsAndNoRollback": true
+  },
+  "coldAccepted": true,
+  "nominalColdModelDifferences": [
+    {
+      "path": "parts.0.exactBuildToken",
+      "nominal": 4,
+      "cold": 6
+    },
+    {
+      "path": "parts.0.merges3d.0.suppressed",
+      "cold": false
+    },
+    {
+      "path": "parts.0.meshData.topology.1.signature",
+      "nominal": "cylinder:0:0.4:0:0.995:0:-0.098:0.311:",
+      "cold": "cylinder:0:0.4:0:0.995:0:-0.098:0.311:generated-31"
+    },
+    {
+      "path": "parts.0.meshData.topology.3.signature",
+      "nominal": "cylinder:0:0.4:0:0.957:0:-0.29:0.311:",
+      "cold": "cylinder:0:0.4:0:0.957:0:-0.29:0.311:generated-29"
+    },
+    {
+      "path": "parts.0.meshData.topology.5.signature",
+      "nominal": "cylinder:0:0.4:0:0.882:0:-0.471:0.311:",
+      "cold": "cylinder:0:0.4:0:0.882:0:-0.471:0.311:generated-27"
+    },
+    {
+      "path": "parts.0.meshData.topology.7.signature",
+      "nominal": "cylinder:0:0.4:0:0.773:0:-0.634:0.311:",
+      "cold": "cylinder:0:0.4:0:0.773:0:-0.634:0.311:generated-25"
+    },
+    {
+      "path": "parts.0.meshData.topology.9.signature",
+      "nominal": "cylinder:0:0.4:0:0.634:0:-0.773:0.311:",
+      "cold": "cylinder:0:0.4:0:0.634:0:-0.773:0.311:generated-23"
+    },
+    {
+      "path": "parts.0.meshData.topology.11.signature",
+      "nominal": "cylinder:0:0.4:0:0.471:0:-0.882:0.311:",
+      "cold": "cylinder:0:0.4:0:0.471:0:-0.882:0.311:generated-21"
+    },
+    {
+      "path": "parts.0.meshData.topology.13.signature",
+      "nominal": "cylinder:0:0.4:0:0.29:0:-0.957:0.311:",
+      "cold": "cylinder:0:0.4:0:0.29:0:-0.957:0.311:generated-19"
+    },
+    {
+      "path": "parts.0.meshData.topology.15.signature",
+      "nominal": "cylinder:0:0.4:0:0.098:0:-0.995:0.311:",
+      "cold": "cylinder:0:0.4:0:0.098:0:-0.995:0.311:generated-17"
+    },
+    {
+      "path": "parts.0.meshData.topology.17.signature",
+      "nominal": "cylinder:0:0.4:0:-0.098:0:-0.995:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.098:0:-0.995:0.311:generated-1"
+    },
+    {
+      "path": "parts.0.meshData.topology.19.signature",
+      "nominal": "cylinder:0:0.4:0:-0.29:0:-0.957:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.29:0:-0.957:0.311:generated-3"
+    },
+    {
+      "path": "parts.0.meshData.topology.21.signature",
+      "nominal": "cylinder:0:0.4:0:-0.471:0:-0.882:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.471:0:-0.882:0.311:generated-5"
+    },
+    {
+      "path": "parts.0.meshData.topology.23.signature",
+      "nominal": "cylinder:0:0.4:0:-0.634:0:-0.773:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.634:0:-0.773:0.311:generated-7"
+    },
+    {
+      "path": "parts.0.meshData.topology.25.signature",
+      "nominal": "cylinder:0:0.4:0:-0.773:0:-0.634:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.773:0:-0.634:0.311:generated-9"
+    },
+    {
+      "path": "parts.0.meshData.topology.27.signature",
+      "nominal": "cylinder:0:0.4:0:-0.882:0:-0.471:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.882:0:-0.471:0.311:generated-11"
+    },
+    {
+      "path": "parts.0.meshData.topology.29.signature",
+      "nominal": "cylinder:0:0.4:0:-0.957:0:-0.29:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.957:0:-0.29:0.311:generated-13"
+    },
+    {
+      "path": "parts.0.meshData.topology.31.signature",
+      "nominal": "cylinder:0:0.4:0:-0.995:0:-0.098:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.995:0:-0.098:0.311:generated-15"
+    },
+    {
+      "path": "parts.0.meshData.topology.33.signature",
+      "nominal": "cylinder:0:0.4:0:-0.995:0:0.098:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.995:0:0.098:0.311:generated-16"
+    },
+    {
+      "path": "parts.0.meshData.topology.35.signature",
+      "nominal": "cylinder:0:0.4:0:-0.957:0:0.29:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.957:0:0.29:0.311:generated-14"
+    },
+    {
+      "path": "parts.0.meshData.topology.37.signature",
+      "nominal": "cylinder:0:0.4:0:-0.882:0:0.471:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.882:0:0.471:0.311:generated-12"
+    },
+    {
+      "path": "parts.0.meshData.topology.39.signature",
+      "nominal": "cylinder:0:0.4:0:-0.773:0:0.634:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.773:0:0.634:0.311:generated-10"
+    },
+    {
+      "path": "parts.0.meshData.topology.41.signature",
+      "nominal": "cylinder:0:0.4:0:-0.634:0:0.773:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.634:0:0.773:0.311:generated-8"
+    },
+    {
+      "path": "parts.0.meshData.topology.43.signature",
+      "nominal": "cylinder:0:0.4:0:-0.471:0:0.882:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.471:0:0.882:0.311:generated-6"
+    },
+    {
+      "path": "parts.0.meshData.topology.45.signature",
+      "nominal": "cylinder:0:0.4:0:-0.29:0:0.957:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.29:0:0.957:0.311:generated-4"
+    },
+    {
+      "path": "parts.0.meshData.topology.47.signature",
+      "nominal": "cylinder:0:0.4:0:-0.098:0:0.995:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.098:0:0.995:0.311:generated-2"
+    },
+    {
+      "path": "parts.0.meshData.topology.50.signature",
+      "nominal": "cylinder:0:0.4:0:0.098:0:0.995:0.311:",
+      "cold": "cylinder:0:0.4:0:0.098:0:0.995:0.311:generated-18"
+    },
+    {
+      "path": "parts.0.meshData.topology.52.signature",
+      "nominal": "cylinder:0:0.4:0:0.29:0:0.957:0.311:",
+      "cold": "cylinder:0:0.4:0:0.29:0:0.957:0.311:generated-20"
+    },
+    {
+      "path": "parts.0.meshData.topology.54.signature",
+      "nominal": "cylinder:0:0.4:0:0.471:0:0.882:0.311:",
+      "cold": "cylinder:0:0.4:0:0.471:0:0.882:0.311:generated-22"
+    },
+    {
+      "path": "parts.0.meshData.topology.56.signature",
+      "nominal": "cylinder:0:0.4:0:0.634:0:0.773:0.311:",
+      "cold": "cylinder:0:0.4:0:0.634:0:0.773:0.311:generated-24"
+    },
+    {
+      "path": "parts.0.meshData.topology.58.signature",
+      "nominal": "cylinder:0:0.4:0:0.773:0:0.634:0.311:",
+      "cold": "cylinder:0:0.4:0:0.773:0:0.634:0.311:generated-26"
+    },
+    {
+      "path": "parts.0.meshData.topology.60.signature",
+      "nominal": "cylinder:0:0.4:0:0.882:0:0.471:0.311:",
+      "cold": "cylinder:0:0.4:0:0.882:0:0.471:0.311:generated-28"
+    },
+    {
+      "path": "parts.0.meshData.topology.62.signature",
+      "nominal": "cylinder:0:0.4:0:0.957:0:0.29:0.311:",
+      "cold": "cylinder:0:0.4:0:0.957:0:0.29:0.311:generated-30"
+    },
+    {
+      "path": "parts.0.meshData.topology.64.signature",
+      "nominal": "cylinder:0:0.4:0:0.995:0:0.098:0.311:",
+      "cold": "cylinder:0:0.4:0:0.995:0:0.098:0.311:generated-32"
+    },
+    {
+      "path": "parts.0.meshData.topology.72.signature",
+      "nominal": "plane:2.917:0.4:-1.317:-0.383:0:-0.924:0.321:",
+      "cold": "plane:2.917:0.4:-1.317:-0.383:0:-0.924:0.321:generated-15"
+    },
+    {
+      "path": "parts.0.meshData.topology.76.signature",
+      "nominal": "plane:2.333:0.4:-2.191:0.707:0:0.707:0.321:",
+      "cold": "plane:2.333:0.4:-2.191:0.707:0:0.707:0.321:generated-13"
+    },
+    {
+      "path": "parts.0.meshData.topology.96.signature",
+      "nominal": "plane:-1.317:0.4:-2.917:-0.924:0:0.383:0.321:",
+      "cold": "plane:-1.317:0.4:-2.917:-0.924:0:0.383:0.321:generated-2"
+    },
+    {
+      "path": "parts.0.meshData.topology.100.signature",
+      "nominal": "plane:-2.191:0.4:-2.333:0.707:0:-0.707:0.321:",
+      "cold": "plane:-2.191:0.4:-2.333:0.707:0:-0.707:0.321:generated-4"
+    },
+    {
+      "path": "parts.0.meshData.topology.114.signature",
+      "nominal": "plane:-3.199:0.4:0.1:0:0:1:0.321:",
+      "cold": "plane:-3.199:0.4:0.1:0:0:1:0.321:generated-7"
+    },
+    {
+      "path": "parts.0.meshData.topology.162.signature",
+      "nominal": "plane:3.138:0.8:-0.624:0:1:0:0.08:",
+      "cold": "plane:3.138:0.8:-0.624:0:1:0:0.08:generated-16"
+    },
+    {
+      "path": "parts.0.meshData.topology.164.signature",
+      "nominal": "plane:2.66:0.8:-1.778:0:1:0:0.08:",
+      "cold": "plane:2.66:0.8:-1.778:0:1:0:0.08:generated-14"
+    },
+    {
+      "path": "parts.0.meshData.topology.166.signature",
+      "nominal": "plane:1.778:0.8:-2.66:0:1:0:0.08:",
+      "cold": "plane:1.778:0.8:-2.66:0:1:0:0.08:generated-11"
+    },
+    {
+      "path": "parts.0.meshData.topology.168.signature",
+      "nominal": "plane:0.624:0.8:-3.138:0:1:0:0.08:",
+      "cold": "plane:0.624:0.8:-3.138:0:1:0:0.08:generated-9"
+    },
+    {
+      "path": "parts.0.meshData.topology.174.signature",
+      "nominal": "plane:-2.66:0.8:-1.778:0:1:0:0.08:",
+      "cold": "plane:-2.66:0.8:-1.778:0:1:0:0.08:generated-5"
+    },
+    {
+      "path": "parts.0.meshData.topology.177.signature",
+      "nominal": "plane:-3.2:0.8:0:0:1:0:0.08:",
+      "cold": "plane:-3.2:0.8:0:0:1:0:0.08:generated-8"
+    },
+    {
+      "path": "parts.0.meshData.topology.179.signature",
+      "nominal": "plane:-2.956:0.8:1.224:0:1:0:0.08:",
+      "cold": "plane:-2.956:0.8:1.224:0:1:0:0.08:generated-6"
+    },
+    {
+      "path": "parts.0.meshData.topology.182.signature",
+      "nominal": "plane:-1.778:0.8:2.66:0:1:0:0.08:",
+      "cold": "plane:-1.778:0.8:2.66:0:1:0:0.08:generated-3"
+    },
+    {
+      "path": "parts.0.meshData.topology.184.signature",
+      "nominal": "plane:-0.624:0.8:3.138:0:1:0:0.08:",
+      "cold": "plane:-0.624:0.8:3.138:0:1:0:0.08:generated-1"
+    },
+    {
+      "path": "parts.0.meshData.topology.187.signature",
+      "nominal": "plane:0.624:0.8:3.138:0:1:0:0.08:",
+      "cold": "plane:0.624:0.8:3.138:0:1:0:0.08:generated-10"
+    },
+    {
+      "path": "parts.0.meshData.topology.189.signature",
+      "nominal": "plane:1.778:0.8:2.66:0:1:0:0.08:",
+      "cold": "plane:1.778:0.8:2.66:0:1:0:0.08:generated-12"
+    },
+    {
+      "path": "parts.0.meshData.topology.196.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-3"
+    },
+    {
+      "path": "parts.0.meshData.topology.198.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-4"
+    },
+    {
+      "path": "parts.0.meshData.topology.200.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-5"
+    },
+    {
+      "path": "parts.0.meshData.topology.202.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-6"
+    },
+    {
+      "path": "parts.0.meshData.topology.204.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-7"
+    },
+    {
+      "path": "parts.0.meshData.topology.206.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-8"
+    },
+    {
+      "path": "parts.0.meshData.topology.208.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-9"
+    },
+    {
+      "path": "parts.0.meshData.topology.210.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-10"
+    },
+    {
+      "path": "parts.0.meshData.topology.212.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-11"
+    },
+    {
+      "path": "parts.0.meshData.topology.214.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-12"
+    },
+    {
+      "path": "parts.0.meshData.topology.216.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-13"
+    },
+    {
+      "path": "parts.0.meshData.topology.218.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-14"
+    },
+    {
+      "path": "parts.0.meshData.topology.220.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-15"
+    },
+    {
+      "path": "parts.0.meshData.topology.222.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-16"
+    },
+    {
+      "path": "parts.0.meshData.topology.224.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-17"
+    },
+    {
+      "path": "parts.0.meshData.topology.226.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-18"
+    },
+    {
+      "path": "parts.0.meshData.topology.228.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-19"
+    },
+    {
+      "path": "parts.0.meshData.topology.230.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-20"
+    },
+    {
+      "path": "parts.0.meshData.topology.232.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-21"
+    },
+    {
+      "path": "parts.0.meshData.topology.234.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-22"
+    },
+    {
+      "path": "parts.0.meshData.topology.236.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-23"
+    },
+    {
+      "path": "parts.0.meshData.topology.238.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-24"
+    },
+    {
+      "path": "parts.0.meshData.topology.240.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-25"
+    },
+    {
+      "path": "parts.0.meshData.topology.242.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-26"
+    },
+    {
+      "path": "parts.0.meshData.topology.243.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.1:",
+      "cold": "circle:0:0:0:0:1:0:0.1:generated-1"
+    },
+    {
+      "path": "parts.0.meshData.topology.247.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.1:",
+      "cold": "circle:0:0:0:0:1:0:0.1:generated-2"
+    },
+    {
+      "path": "parts.0.meshData.topology.248.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-27"
+    },
+    {
+      "path": "parts.0.meshData.topology.250.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-28"
+    },
+    {
+      "path": "parts.0.meshData.topology.252.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-29"
+    },
+    {
+      "path": "parts.0.meshData.topology.254.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-30"
+    },
+    {
+      "path": "parts.0.meshData.topology.256.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-31"
+    },
+    {
+      "path": "parts.0.meshData.topology.258.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-32"
+    },
+    {
+      "path": "parts.0.meshData.topology.260.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-33"
+    },
+    {
+      "path": "parts.0.meshData.topology.262.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-34"
+    },
+    {
+      "path": "parts.0.meshData.topology.264.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-37"
+    },
+    {
+      "path": "parts.0.meshData.topology.270.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-38"
+    },
+    {
+      "path": "parts.0.meshData.topology.276.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-39"
+    },
+    {
+      "path": "parts.0.meshData.topology.282.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-40"
+    },
+    {
+      "path": "parts.0.meshData.topology.288.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-41"
+    },
+    {
+      "path": "parts.0.meshData.topology.294.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-42"
+    },
+    {
+      "path": "parts.0.meshData.topology.300.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-43"
+    },
+    {
+      "path": "parts.0.meshData.topology.306.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-44"
+    },
+    {
+      "path": "parts.0.meshData.topology.312.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-45"
+    },
+    {
+      "path": "parts.0.meshData.topology.318.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-46"
+    },
+    {
+      "path": "parts.0.meshData.topology.324.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-47"
+    },
+    {
+      "path": "parts.0.meshData.topology.330.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-48"
+    },
+    {
+      "path": "parts.0.meshData.topology.336.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-49"
+    },
+    {
+      "path": "parts.0.meshData.topology.342.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-50"
+    },
+    {
+      "path": "parts.0.meshData.topology.348.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-51"
+    },
+    {
+      "path": "parts.0.meshData.topology.354.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-52"
+    },
+    {
+      "path": "parts.0.meshData.topology.360.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-53"
+    },
+    {
+      "path": "parts.0.meshData.topology.366.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-54"
+    },
+    {
+      "path": "parts.0.meshData.topology.372.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-55"
+    },
+    {
+      "path": "parts.0.meshData.topology.378.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-56"
+    },
+    {
+      "path": "parts.0.meshData.topology.384.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-57"
+    },
+    {
+      "path": "parts.0.meshData.topology.390.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-58"
+    },
+    {
+      "path": "parts.0.meshData.topology.396.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-59"
+    },
+    {
+      "path": "parts.0.meshData.topology.402.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-60"
+    },
+    {
+      "path": "parts.0.meshData.topology.409.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-61"
+    },
+    {
+      "path": "parts.0.meshData.topology.415.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-62"
+    },
+    {
+      "path": "parts.0.meshData.topology.421.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-63"
+    },
+    {
+      "path": "parts.0.meshData.topology.427.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-64"
+    },
+    {
+      "path": "parts.0.meshData.topology.433.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-65"
+    },
+    {
+      "path": "parts.0.meshData.topology.439.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-66"
+    },
+    {
+      "path": "parts.0.meshData.topology.445.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-67"
+    },
+    {
+      "path": "parts.0.meshData.topology.451.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-68"
+    },
+    {
+      "path": "parts.0.meshData.topology.478.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.1:",
+      "cold": "circle:0:0.8:0:0:1:0:0.1:generated-35"
+    },
+    {
+      "path": "parts.0.meshData.topology.482.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.1:",
+      "cold": "circle:0:0.8:0:0:1:0:0.1:generated-36"
+    },
+    {
+      "path": "revision",
+      "nominal": 4,
+      "cold": 6
+    },
+    {
+      "path": "lastRebuild.signature",
+      "nominal": "{\"definitionId\":\"cm_mv2xaz0p\",\"features\":[{\"id\":\"feature_mv2xb8os_1\",\"inputs\":[],\"name\":\"Extrude / Boss 1\",\"params\":{\"axis\":\"y\",\"depth\":0.8,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"blind\",\"from\":0,\"holeProfileEntityIds\":[],\"holes\":[],\"mergeResult\":true,\"offset\":0,\"operation\":\"add\",\"profileEntityIds\":[6426],\"sketchId\":\"sk_1zmp0\",\"symmetric\":false,\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":0.8},\"references\":{\"features\":[],\"profileEntityIds\":[6426],\"references\":[],\"sketches\":[\"sk_1zmp0\"],\"topology\":[]},\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature_mv2xd0p0_2\",\"inputs\":[\"feature_mv2xb8os_1\"],\"name\":\"Extrude / Boss 2\",\"params\":{\"axis\":\"y\",\"depth\":0.8,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"blind\",\"from\":0,\"holeProfileEntityIds\":[],\"holes\":[],\"mergeResult\":true,\"offset\":0,\"operation\":\"add\",\"profileEntityIds\":[6435,6436,6437,6438],\"sketchId\":\"sk_2gfqx\",\"symmetric\":false,\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":0.8},\"references\":{\"features\":[\"feature_mv2xb8os_1\"],\"profileEntityIds\":[6435,6436,6437,6438],\"references\":[],\"sketches\":[\"sk_2gfqx\"],\"topology\":[]},\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature_mv2xdhsp_3\",\"inputs\":[\"feature_mv2xd0p0_2\"],\"name\":\"Pattern 1\",\"params\":{\"angle\":360,\"axis\":\"y\",\"count\":32,\"countX\":2,\"countY\":2,\"countZ\":2,\"curveAlign\":\"tangent\",\"curveCount\":4,\"curveSpacing\":0,\"curveSpacingMode\":\"fit\",\"direction\":{\"x\":1,\"y\":0,\"z\":0},\"directionAxis\":\"x\",\"equalSpacing\":true,\"mergeResult\":true,\"mode\":\"circular\",\"radialDistance\":0,\"scope\":\"feature\",\"seedFeatureId\":\"feature_mv2xd0p0_2\",\"skipInstances\":\"\",\"spacing\":10,\"spacingIncrementX\":0,\"spacingIncrementY\":0,\"spacingIncrementZ\":0,\"spacingX\":10,\"spacingY\":10,\"spacingZ\":10},\"references\":{\"features\":[\"feature_mv2xd0p0_2\"],\"references\":[],\"sketches\":[],\"topology\":[]},\"suppressed\":false,\"type\":\"pattern\"}],\"history\":[{\"id\":\"history:sketch:sk_1zmp0\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_1zmp0\"},{\"id\":\"history:feature:feature_mv2xb8os_1\",\"kind\":\"feature\",\"suppressed\":false,\"targetId\":\"feature_mv2xb8os_1\"},{\"id\":\"history:sketch:sk_2gfqx\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_2gfqx\"},{\"id\":\"history:feature:feature_mv2xd0p0_2\",\"kind\":\"feature\",\"suppressed\":false,\"targetId\":\"feature_mv2xd0p0_2\"},{\"id\":\"history:feature:feature_mv2xdhsp_3\",\"kind\":\"feature\",\"suppressed\":false,\"targetId\":\"feature_mv2xdhsp_3\"}],\"overrides\":{},\"revision\":4,\"sketches\":[{\"constraints\":[{\"driven\":false,\"entity\":6426,\"exprError\":null,\"id\":6427,\"type\":\"diameter\",\"value\":6},{\"exprError\":null,\"id\":6428,\"point\":6425,\"type\":\"fixed\",\"x\":0,\"y\":0}],\"entities\":[{\"c\":6425,\"construction\":false,\"id\":6426,\"name\":\"Circle\",\"r\":3,\"type\":\"circle\"}],\"id\":\"sk_1zmp0\",\"name\":\"Top Plane sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[{\"id\":6425,\"x\":0,\"y\":0}],\"referenceId\":\"plane:top\"},{\"constraints\":[{\"entity\":6435,\"exprError\":null,\"id\":6440,\"type\":\"horizontal\"},{\"entity\":6436,\"exprError\":null,\"id\":6441,\"type\":\"vertical\"},{\"entity\":6437,\"exprError\":null,\"id\":6442,\"type\":\"horizontal\"},{\"entity\":6438,\"exprError\":null,\"id\":6443,\"type\":\"vertical\"},{\"exprError\":null,\"id\":6444,\"point\":6434,\"type\":\"fixed\",\"x\":3.1,\"y\":0},{\"entity\":6439,\"exprError\":null,\"id\":6445,\"point\":6434,\"type\":\"midpoint\"},{\"driven\":false,\"entity\":6435,\"exprError\":null,\"id\":6446,\"type\":\"distance\",\"value\":0.6000000000000001},{\"driven\":false,\"entity\":6436,\"exprError\":null,\"id\":6447,\"type\":\"distance\",\"value\":0.2}],\"entities\":[{\"a\":6430,\"b\":6431,\"construction\":false,\"id\":6435,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6431,\"b\":6432,\"construction\":false,\"id\":6436,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6432,\"b\":6433,\"construction\":false,\"id\":6437,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6433,\"b\":6430,\"construction\":false,\"id\":6438,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6430,\"b\":6432,\"construction\":true,\"id\":6439,\"name\":\"Center rectangle diagonal\",\"type\":\"line\"}],\"id\":\"sk_2gfqx\",\"name\":\"Top Plane sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[{\"id\":6430,\"x\":2.8,\"y\":-0.1},{\"id\":6431,\"x\":3.4000000000000004,\"y\":-0.1},{\"id\":6432,\"x\":3.4000000000000004,\"y\":0.1},{\"id\":6433,\"x\":2.8,\"y\":0.1},{\"id\":6434,\"x\":3.1,\"y\":0}],\"referenceId\":\"plane:top\"}]}",
+      "cold": "{\"definitionId\":\"cm_mv2xaz0p\",\"features\":[{\"id\":\"feature_mv2xb8os_1\",\"inputs\":[],\"name\":\"Extrude / Boss 1\",\"params\":{\"axis\":\"y\",\"depth\":0.8,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"blind\",\"from\":0,\"holeProfileEntityIds\":[],\"holes\":[],\"mergeResult\":true,\"offset\":0,\"operation\":\"add\",\"profileEntityIds\":[6426],\"sketchId\":\"sk_1zmp0\",\"symmetric\":false,\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":0.8},\"references\":{\"features\":[],\"profileEntityIds\":[6426],\"references\":[],\"sketches\":[\"sk_1zmp0\"],\"topology\":[]},\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature_mv2xd0p0_2\",\"inputs\":[\"feature_mv2xb8os_1\"],\"name\":\"Extrude / Boss 2\",\"params\":{\"axis\":\"y\",\"depth\":0.8,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"blind\",\"from\":0,\"holeProfileEntityIds\":[],\"holes\":[],\"mergeResult\":true,\"offset\":0,\"operation\":\"add\",\"profileEntityIds\":[6435,6436,6437,6438],\"sketchId\":\"sk_2gfqx\",\"symmetric\":false,\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":0.8},\"references\":{\"features\":[\"feature_mv2xb8os_1\"],\"profileEntityIds\":[6435,6436,6437,6438],\"references\":[],\"sketches\":[\"sk_2gfqx\"],\"topology\":[]},\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature_mv2xdhsp_3\",\"inputs\":[\"feature_mv2xd0p0_2\"],\"name\":\"Pattern 1\",\"params\":{\"angle\":360,\"axis\":\"y\",\"count\":32,\"countX\":2,\"countY\":2,\"countZ\":2,\"curveAlign\":\"tangent\",\"curveCount\":4,\"curveSpacing\":0,\"curveSpacingMode\":\"fit\",\"direction\":{\"x\":1,\"y\":0,\"z\":0},\"directionAxis\":\"x\",\"equalSpacing\":true,\"mergeResult\":true,\"mode\":\"circular\",\"radialDistance\":0,\"scope\":\"feature\",\"seedFeatureId\":\"feature_mv2xd0p0_2\",\"skipInstances\":\"\",\"spacing\":10,\"spacingIncrementX\":0,\"spacingIncrementY\":0,\"spacingIncrementZ\":0,\"spacingX\":10,\"spacingY\":10,\"spacingZ\":10},\"references\":{\"features\":[\"feature_mv2xd0p0_2\"],\"references\":[],\"sketches\":[],\"topology\":[]},\"suppressed\":false,\"type\":\"pattern\"}],\"history\":[{\"id\":\"history:sketch:sk_1zmp0\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_1zmp0\"},{\"id\":\"history:feature:feature_mv2xb8os_1\",\"kind\":\"feature\",\"suppressed\":false,\"targetId\":\"feature_mv2xb8os_1\"},{\"id\":\"history:sketch:sk_2gfqx\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_2gfqx\"},{\"id\":\"history:feature:feature_mv2xd0p0_2\",\"kind\":\"feature\",\"suppressed\":false,\"targetId\":\"feature_mv2xd0p0_2\"},{\"id\":\"history:feature:feature_mv2xdhsp_3\",\"kind\":\"feature\",\"suppressed\":false,\"targetId\":\"feature_mv2xdhsp_3\"}],\"overrides\":{},\"revision\":6,\"sketches\":[{\"constraints\":[{\"driven\":false,\"entity\":6426,\"exprError\":null,\"id\":6427,\"type\":\"diameter\",\"value\":6},{\"exprError\":null,\"id\":6428,\"point\":6425,\"type\":\"fixed\",\"x\":0,\"y\":0}],\"entities\":[{\"c\":6425,\"construction\":false,\"id\":6426,\"name\":\"Circle\",\"r\":3,\"type\":\"circle\"}],\"id\":\"sk_1zmp0\",\"name\":\"Top Plane sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[{\"id\":6425,\"x\":0,\"y\":0}],\"referenceId\":\"plane:top\"},{\"constraints\":[{\"entity\":6435,\"exprError\":null,\"id\":6440,\"type\":\"horizontal\"},{\"entity\":6436,\"exprError\":null,\"id\":6441,\"type\":\"vertical\"},{\"entity\":6437,\"exprError\":null,\"id\":6442,\"type\":\"horizontal\"},{\"entity\":6438,\"exprError\":null,\"id\":6443,\"type\":\"vertical\"},{\"exprError\":null,\"id\":6444,\"point\":6434,\"type\":\"fixed\",\"x\":3.1,\"y\":0},{\"entity\":6439,\"exprError\":null,\"id\":6445,\"point\":6434,\"type\":\"midpoint\"},{\"driven\":false,\"entity\":6435,\"exprError\":null,\"id\":6446,\"type\":\"distance\",\"value\":0.6000000000000001},{\"driven\":false,\"entity\":6436,\"exprError\":null,\"id\":6447,\"type\":\"distance\",\"value\":0.2}],\"entities\":[{\"a\":6430,\"b\":6431,\"construction\":false,\"id\":6435,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6431,\"b\":6432,\"construction\":false,\"id\":6436,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6432,\"b\":6433,\"construction\":false,\"id\":6437,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6433,\"b\":6430,\"construction\":false,\"id\":6438,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6430,\"b\":6432,\"construction\":true,\"id\":6439,\"name\":\"Center rectangle diagonal\",\"type\":\"line\"}],\"id\":\"sk_2gfqx\",\"name\":\"Top Plane sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[{\"id\":6430,\"x\":2.8,\"y\":-0.1},{\"id\":6431,\"x\":3.4000000000000004,\"y\":-0.1},{\"id\":6432,\"x\":3.4000000000000004,\"y\":0.1},{\"id\":6433,\"x\":2.8,\"y\":0.1},{\"id\":6434,\"x\":3.1,\"y\":0}],\"referenceId\":\"plane:top\"}]}"
+    },
+    {
+      "path": "lastRebuild.rebuiltAt",
+      "nominal": 1791668854732,
+      "cold": 1791669048737
+    },
+    {
+      "path": "referenceGeometry.0",
+      "cold": {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.1",
+      "cold": {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.2",
+      "cold": {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.3",
+      "cold": {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.4",
+      "cold": {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "referenceGeometry.5",
+      "cold": {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.0.signature",
+      "nominal": "cylinder:0:0.4:0:0.695:0:0.719:3.69:",
+      "cold": "cylinder:0:0.4:0:0.695:0:0.719:3.69:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.5.signature",
+      "nominal": "plane:2.9:0:0:0:-1:0:0.04:",
+      "cold": "plane:2.9:0:0:0:-1:0:0.04:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.9.signature",
+      "nominal": "plane:2.9:0.8:0:0:1:0:0.04:",
+      "cold": "plane:2.9:0.8:0:0:1:0:0.04:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.11.signature",
+      "nominal": "circle:0:0:0:0:1:0:4.612:",
+      "cold": "circle:0:0:0:0:1:0:4.612:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.13.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:4.612:",
+      "cold": "circle:0:0.8:0:0:1:0:4.612:generated-4"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.16.signature",
+      "nominal": "line:2.899:0:-0.1:1:0:0:0.198:",
+      "cold": "line:2.899:0:-0.1:1:0:0:0.198:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.18.signature",
+      "nominal": "line:2.899:0:0.1:-1:0:0:0.198:",
+      "cold": "line:2.899:0:0.1:-1:0:0:0.198:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.23.signature",
+      "nominal": "line:2.899:0.8:-0.1:1:0:0:0.198:",
+      "cold": "line:2.899:0.8:-0.1:1:0:0:0.198:generated-3"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.25.signature",
+      "nominal": "line:2.899:0.8:0.1:-1:0:0:0.198:",
+      "cold": "line:2.899:0.8:0.1:-1:0:0:0.198:generated-4"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.27.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xd0p0_2.topology.30.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-3"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:delta.topology.2.signature",
+      "nominal": "cylinder:0:0.4:0:-1:0:0:0.16:",
+      "cold": "cylinder:0:0.4:0:-1:0:0:0.16:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.6.signature",
+      "nominal": "plane:3.157:0.4:-0.526:0.195:0:0.981:0.321:",
+      "cold": "plane:3.157:0.4:-0.526:0.195:0:0.981:0.321:generated-152"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.7.signature",
+      "nominal": "plane:3.138:0:-0.624:0:-1:0:0.08:",
+      "cold": "plane:3.138:0:-0.624:0:-1:0:0.08:generated-146"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.8.signature",
+      "nominal": "cylinder:0:0.4:0:-0.981:0:0.195:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.981:0:0.195:0.16:generated-14"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.9.signature",
+      "nominal": "plane:3.138:0.8:-0.624:0:1:0:0.08:",
+      "cold": "plane:3.138:0.8:-0.624:0:1:0:0.08:generated-148"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.10.signature",
+      "nominal": "plane:3.335:0.4:-0.663:0.981:0:-0.195:0.16:",
+      "cold": "plane:3.335:0.4:-0.663:0.981:0:-0.195:0.16:generated-154"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.11.signature",
+      "nominal": "plane:3.118:0.4:-0.722:-0.195:0:-0.981:0.321:",
+      "cold": "plane:3.118:0.4:-0.722:-0.195:0:-0.981:0.321:generated-144"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.12.signature",
+      "nominal": "plane:2.994:0.4:-1.132:0.383:0:0.924:0.321:",
+      "cold": "plane:2.994:0.4:-1.132:0.383:0:0.924:0.321:generated-142"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.13.signature",
+      "nominal": "plane:2.956:0:-1.224:0:-1:0:0.08:",
+      "cold": "plane:2.956:0:-1.224:0:-1:0:0.08:generated-138"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.14.signature",
+      "nominal": "cylinder:0:0.4:0:-0.924:0:0.383:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.924:0:0.383:0.16:generated-12"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.15.signature",
+      "nominal": "plane:2.956:0.8:-1.224:0:1:0:0.08:",
+      "cold": "plane:2.956:0.8:-1.224:0:1:0:0.08:generated-140"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.16.signature",
+      "nominal": "plane:3.141:0.4:-1.301:0.924:0:-0.383:0.16:",
+      "cold": "plane:3.141:0.4:-1.301:0.924:0:-0.383:0.16:generated-150"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.17.signature",
+      "nominal": "plane:2.917:0.4:-1.317:-0.383:0:-0.924:0.321:",
+      "cold": "plane:2.917:0.4:-1.317:-0.383:0:-0.924:0.321:generated-136"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.18.signature",
+      "nominal": "plane:2.716:0.4:-1.694:0.556:0:0.831:0.321:",
+      "cold": "plane:2.716:0.4:-1.694:0.556:0:0.831:0.321:generated-132"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.19.signature",
+      "nominal": "plane:2.66:0:-1.778:0:-1:0:0.08:",
+      "cold": "plane:2.66:0:-1.778:0:-1:0:0.08:generated-128"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.20.signature",
+      "nominal": "cylinder:0:0.4:0:-0.831:0:0.556:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.831:0:0.556:0.16:generated-10"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.21.signature",
+      "nominal": "plane:2.66:0.8:-1.778:0:1:0:0.08:",
+      "cold": "plane:2.66:0.8:-1.778:0:1:0:0.08:generated-130"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.22.signature",
+      "nominal": "plane:2.827:0.4:-1.889:0.831:0:-0.556:0.16:",
+      "cold": "plane:2.827:0.4:-1.889:0.831:0:-0.556:0.16:generated-134"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.23.signature",
+      "nominal": "plane:2.604:0.4:-1.861:-0.556:0:-0.831:0.321:",
+      "cold": "plane:2.604:0.4:-1.861:-0.556:0:-0.831:0.321:generated-126"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.24.signature",
+      "nominal": "plane:2.333:0.4:-2.191:0.707:0:0.707:0.321:",
+      "cold": "plane:2.333:0.4:-2.191:0.707:0:0.707:0.321:generated-122"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.25.signature",
+      "nominal": "plane:2.263:0:-2.263:0:-1:0:0.08:",
+      "cold": "plane:2.263:0:-2.263:0:-1:0:0.08:generated-118"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.26.signature",
+      "nominal": "cylinder:0:0.4:0:-0.707:0:0.707:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.707:0:0.707:0.16:generated-8"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.27.signature",
+      "nominal": "plane:2.263:0.8:-2.263:0:1:0:0.08:",
+      "cold": "plane:2.263:0.8:-2.263:0:1:0:0.08:generated-120"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.28.signature",
+      "nominal": "plane:2.404:0.4:-2.404:0.707:0:-0.707:0.16:",
+      "cold": "plane:2.404:0.4:-2.404:0.707:0:-0.707:0.16:generated-124"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.29.signature",
+      "nominal": "plane:2.191:0.4:-2.333:-0.707:0:-0.707:0.321:",
+      "cold": "plane:2.191:0.4:-2.333:-0.707:0:-0.707:0.321:generated-116"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.30.signature",
+      "nominal": "plane:1.861:0.4:-2.604:0.831:0:0.556:0.321:",
+      "cold": "plane:1.861:0.4:-2.604:0.831:0:0.556:0.321:generated-112"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.31.signature",
+      "nominal": "plane:1.778:0:-2.66:0:-1:0:0.08:",
+      "cold": "plane:1.778:0:-2.66:0:-1:0:0.08:generated-108"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.32.signature",
+      "nominal": "cylinder:0:0.4:0:-0.556:0:0.831:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.556:0:0.831:0.16:generated-6"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.33.signature",
+      "nominal": "plane:1.778:0.8:-2.66:0:1:0:0.08:",
+      "cold": "plane:1.778:0.8:-2.66:0:1:0:0.08:generated-110"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.34.signature",
+      "nominal": "plane:1.889:0.4:-2.827:0.556:0:-0.831:0.16:",
+      "cold": "plane:1.889:0.4:-2.827:0.556:0:-0.831:0.16:generated-114"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.35.signature",
+      "nominal": "plane:1.694:0.4:-2.716:-0.831:0:-0.556:0.321:",
+      "cold": "plane:1.694:0.4:-2.716:-0.831:0:-0.556:0.321:generated-106"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.36.signature",
+      "nominal": "plane:1.317:0.4:-2.917:0.924:0:0.383:0.321:",
+      "cold": "plane:1.317:0.4:-2.917:0.924:0:0.383:0.321:generated-104"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.37.signature",
+      "nominal": "plane:1.224:0:-2.956:0:-1:0:0.08:",
+      "cold": "plane:1.224:0:-2.956:0:-1:0:0.08:generated-98"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.38.signature",
+      "nominal": "cylinder:0:0.4:0:-0.383:0:0.924:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.383:0:0.924:0.16:generated-4"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.39.signature",
+      "nominal": "plane:1.224:0.8:-2.956:0:1:0:0.08:",
+      "cold": "plane:1.224:0.8:-2.956:0:1:0:0.08:generated-100"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.40.signature",
+      "nominal": "plane:1.301:0.4:-3.141:0.383:0:-0.924:0.16:",
+      "cold": "plane:1.301:0.4:-3.141:0.383:0:-0.924:0.16:generated-102"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.41.signature",
+      "nominal": "plane:1.132:0.4:-2.994:-0.924:0:-0.383:0.321:",
+      "cold": "plane:1.132:0.4:-2.994:-0.924:0:-0.383:0.321:generated-96"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.42.signature",
+      "nominal": "plane:0.722:0.4:-3.118:0.981:0:0.195:0.321:",
+      "cold": "plane:0.722:0.4:-3.118:0.981:0:0.195:0.321:generated-94"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.43.signature",
+      "nominal": "plane:0.624:0:-3.138:0:-1:0:0.08:",
+      "cold": "plane:0.624:0:-3.138:0:-1:0:0.08:generated-88"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.44.signature",
+      "nominal": "cylinder:0:0.4:0:-0.195:0:0.981:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.195:0:0.981:0.16:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.45.signature",
+      "nominal": "plane:0.624:0.8:-3.138:0:1:0:0.08:",
+      "cold": "plane:0.624:0.8:-3.138:0:1:0:0.08:generated-90"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.46.signature",
+      "nominal": "plane:0.663:0.4:-3.335:0.195:0:-0.981:0.16:",
+      "cold": "plane:0.663:0.4:-3.335:0.195:0:-0.981:0.16:generated-92"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.47.signature",
+      "nominal": "plane:0.526:0.4:-3.157:-0.981:0:-0.195:0.321:",
+      "cold": "plane:0.526:0.4:-3.157:-0.981:0:-0.195:0.321:generated-86"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.48.signature",
+      "nominal": "plane:0.1:0.4:-3.199:1:0:0:0.321:",
+      "cold": "plane:0.1:0.4:-3.199:1:0:0:0.321:generated-84"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.49.signature",
+      "nominal": "plane:0:0:-3.2:0:-1:0:0.08:",
+      "cold": "plane:0:0:-3.2:0:-1:0:0.08:generated-78"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.50.signature",
+      "nominal": "cylinder:0:0.4:0:0:0:1:0.16:",
+      "cold": "cylinder:0:0.4:0:0:0:1:0.16:generated-16"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.51.signature",
+      "nominal": "plane:0:0.8:-3.2:0:1:0:0.08:",
+      "cold": "plane:0:0.8:-3.2:0:1:0:0.08:generated-82"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.52.signature",
+      "nominal": "plane:0:0.4:-3.4:0:0:-1:0.16:",
+      "cold": "plane:0:0.4:-3.4:0:0:-1:0.16:generated-80"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.53.signature",
+      "nominal": "plane:-0.1:0.4:-3.199:-1:0:0:0.321:",
+      "cold": "plane:-0.1:0.4:-3.199:-1:0:0:0.321:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.54.signature",
+      "nominal": "plane:-0.526:0.4:-3.157:0.981:0:-0.195:0.321:",
+      "cold": "plane:-0.526:0.4:-3.157:0.981:0:-0.195:0.321:generated-3"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.55.signature",
+      "nominal": "plane:-0.624:0:-3.138:0:-1:0:0.08:",
+      "cold": "plane:-0.624:0:-3.138:0:-1:0:0.08:generated-5"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.56.signature",
+      "nominal": "cylinder:0:0.4:0:0.195:0:0.981:0.16:",
+      "cold": "cylinder:0:0.4:0:0.195:0:0.981:0.16:generated-18"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.57.signature",
+      "nominal": "plane:-0.624:0.8:-3.138:0:1:0:0.08:",
+      "cold": "plane:-0.624:0.8:-3.138:0:1:0:0.08:generated-7"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.58.signature",
+      "nominal": "plane:-0.663:0.4:-3.335:-0.195:0:-0.981:0.16:",
+      "cold": "plane:-0.663:0.4:-3.335:-0.195:0:-0.981:0.16:generated-9"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.59.signature",
+      "nominal": "plane:-0.722:0.4:-3.118:-0.981:0:0.195:0.321:",
+      "cold": "plane:-0.722:0.4:-3.118:-0.981:0:0.195:0.321:generated-11"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.60.signature",
+      "nominal": "plane:-1.132:0.4:-2.994:0.924:0:-0.383:0.321:",
+      "cold": "plane:-1.132:0.4:-2.994:0.924:0:-0.383:0.321:generated-13"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.61.signature",
+      "nominal": "plane:-1.224:0:-2.956:0:-1:0:0.08:",
+      "cold": "plane:-1.224:0:-2.956:0:-1:0:0.08:generated-15"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.62.signature",
+      "nominal": "cylinder:0:0.4:0:0.383:0:0.924:0.16:",
+      "cold": "cylinder:0:0.4:0:0.383:0:0.924:0.16:generated-20"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.63.signature",
+      "nominal": "plane:-1.224:0.8:-2.956:0:1:0:0.08:",
+      "cold": "plane:-1.224:0.8:-2.956:0:1:0:0.08:generated-17"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.64.signature",
+      "nominal": "plane:-1.301:0.4:-3.141:-0.383:0:-0.924:0.16:",
+      "cold": "plane:-1.301:0.4:-3.141:-0.383:0:-0.924:0.16:generated-19"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.65.signature",
+      "nominal": "plane:-1.317:0.4:-2.917:-0.924:0:0.383:0.321:",
+      "cold": "plane:-1.317:0.4:-2.917:-0.924:0:0.383:0.321:generated-21"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.66.signature",
+      "nominal": "plane:-1.694:0.4:-2.716:0.831:0:-0.556:0.321:",
+      "cold": "plane:-1.694:0.4:-2.716:0.831:0:-0.556:0.321:generated-23"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.67.signature",
+      "nominal": "plane:-1.778:0:-2.66:0:-1:0:0.08:",
+      "cold": "plane:-1.778:0:-2.66:0:-1:0:0.08:generated-25"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.68.signature",
+      "nominal": "cylinder:0:0.4:0:0.556:0:0.831:0.16:",
+      "cold": "cylinder:0:0.4:0:0.556:0:0.831:0.16:generated-22"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.69.signature",
+      "nominal": "plane:-1.778:0.8:-2.66:0:1:0:0.08:",
+      "cold": "plane:-1.778:0.8:-2.66:0:1:0:0.08:generated-27"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.70.signature",
+      "nominal": "plane:-1.889:0.4:-2.827:-0.556:0:-0.831:0.16:",
+      "cold": "plane:-1.889:0.4:-2.827:-0.556:0:-0.831:0.16:generated-31"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.71.signature",
+      "nominal": "plane:-1.861:0.4:-2.604:-0.831:0:0.556:0.321:",
+      "cold": "plane:-1.861:0.4:-2.604:-0.831:0:0.556:0.321:generated-29"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.72.signature",
+      "nominal": "plane:-2.191:0.4:-2.333:0.707:0:-0.707:0.321:",
+      "cold": "plane:-2.191:0.4:-2.333:0.707:0:-0.707:0.321:generated-33"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.73.signature",
+      "nominal": "plane:-2.263:0:-2.263:0:-1:0:0.08:",
+      "cold": "plane:-2.263:0:-2.263:0:-1:0:0.08:generated-35"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.74.signature",
+      "nominal": "cylinder:0:0.4:0:0.707:0:0.707:0.16:",
+      "cold": "cylinder:0:0.4:0:0.707:0:0.707:0.16:generated-24"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.75.signature",
+      "nominal": "plane:-2.263:0.8:-2.263:0:1:0:0.08:",
+      "cold": "plane:-2.263:0.8:-2.263:0:1:0:0.08:generated-37"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.76.signature",
+      "nominal": "plane:-2.404:0.4:-2.404:-0.707:0:-0.707:0.16:",
+      "cold": "plane:-2.404:0.4:-2.404:-0.707:0:-0.707:0.16:generated-41"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.77.signature",
+      "nominal": "plane:-2.333:0.4:-2.191:-0.707:0:0.707:0.321:",
+      "cold": "plane:-2.333:0.4:-2.191:-0.707:0:0.707:0.321:generated-39"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.78.signature",
+      "nominal": "plane:-2.604:0.4:-1.861:0.556:0:-0.831:0.321:",
+      "cold": "plane:-2.604:0.4:-1.861:0.556:0:-0.831:0.321:generated-43"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.79.signature",
+      "nominal": "plane:-2.66:0:-1.778:0:-1:0:0.08:",
+      "cold": "plane:-2.66:0:-1.778:0:-1:0:0.08:generated-45"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.80.signature",
+      "nominal": "cylinder:0:0.4:0:0.831:0:0.556:0.16:",
+      "cold": "cylinder:0:0.4:0:0.831:0:0.556:0.16:generated-26"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.81.signature",
+      "nominal": "plane:-2.66:0.8:-1.778:0:1:0:0.08:",
+      "cold": "plane:-2.66:0.8:-1.778:0:1:0:0.08:generated-47"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.82.signature",
+      "nominal": "plane:-2.827:0.4:-1.889:-0.831:0:-0.556:0.16:",
+      "cold": "plane:-2.827:0.4:-1.889:-0.831:0:-0.556:0.16:generated-51"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.83.signature",
+      "nominal": "plane:-2.716:0.4:-1.694:-0.556:0:0.831:0.321:",
+      "cold": "plane:-2.716:0.4:-1.694:-0.556:0:0.831:0.321:generated-49"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.84.signature",
+      "nominal": "plane:-2.917:0.4:-1.317:0.383:0:-0.924:0.321:",
+      "cold": "plane:-2.917:0.4:-1.317:0.383:0:-0.924:0.321:generated-53"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.85.signature",
+      "nominal": "plane:-2.956:0:-1.224:0:-1:0:0.08:",
+      "cold": "plane:-2.956:0:-1.224:0:-1:0:0.08:generated-55"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.86.signature",
+      "nominal": "cylinder:0:0.4:0:0.924:0:0.383:0.16:",
+      "cold": "cylinder:0:0.4:0:0.924:0:0.383:0.16:generated-28"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.87.signature",
+      "nominal": "plane:-2.956:0.8:-1.224:0:1:0:0.08:",
+      "cold": "plane:-2.956:0.8:-1.224:0:1:0:0.08:generated-57"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.88.signature",
+      "nominal": "plane:-3.141:0.4:-1.301:-0.924:0:-0.383:0.16:",
+      "cold": "plane:-3.141:0.4:-1.301:-0.924:0:-0.383:0.16:generated-67"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.89.signature",
+      "nominal": "plane:-2.994:0.4:-1.132:-0.383:0:0.924:0.321:",
+      "cold": "plane:-2.994:0.4:-1.132:-0.383:0:0.924:0.321:generated-59"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.90.signature",
+      "nominal": "plane:-3.118:0.4:-0.722:0.195:0:-0.981:0.321:",
+      "cold": "plane:-3.118:0.4:-0.722:0.195:0:-0.981:0.321:generated-61"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.91.signature",
+      "nominal": "plane:-3.138:0:-0.624:0:-1:0:0.08:",
+      "cold": "plane:-3.138:0:-0.624:0:-1:0:0.08:generated-63"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.92.signature",
+      "nominal": "cylinder:0:0.4:0:0.981:0:0.195:0.16:",
+      "cold": "cylinder:0:0.4:0:0.981:0:0.195:0.16:generated-30"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.93.signature",
+      "nominal": "plane:-3.138:0.8:-0.624:0:1:0:0.08:",
+      "cold": "plane:-3.138:0.8:-0.624:0:1:0:0.08:generated-65"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.94.signature",
+      "nominal": "plane:-3.335:0.4:-0.663:-0.981:0:-0.195:0.16:",
+      "cold": "plane:-3.335:0.4:-0.663:-0.981:0:-0.195:0.16:generated-75"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.95.signature",
+      "nominal": "plane:-3.157:0.4:-0.526:-0.195:0:0.981:0.321:",
+      "cold": "plane:-3.157:0.4:-0.526:-0.195:0:0.981:0.321:generated-69"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.96.signature",
+      "nominal": "plane:-3.199:0.4:-0.1:0:0:-1:0.321:",
+      "cold": "plane:-3.199:0.4:-0.1:0:0:-1:0.321:generated-71"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.97.signature",
+      "nominal": "plane:-3.2:0:0:0:-1:0:0.08:",
+      "cold": "plane:-3.2:0:0:0:-1:0:0.08:generated-73"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.98.signature",
+      "nominal": "cylinder:0:0.4:0:1:0:0:0.16:",
+      "cold": "cylinder:0:0.4:0:1:0:0:0.16:generated-31"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.99.signature",
+      "nominal": "plane:-3.2:0.8:0:0:1:0:0.08:",
+      "cold": "plane:-3.2:0.8:0:0:1:0:0.08:generated-74"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.100.signature",
+      "nominal": "plane:-3.4:0.4:0:-1:0:0:0.16:",
+      "cold": "plane:-3.4:0.4:0:-1:0:0:0.16:generated-77"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.101.signature",
+      "nominal": "plane:-3.199:0.4:0.1:0:0:1:0.321:",
+      "cold": "plane:-3.199:0.4:0.1:0:0:1:0.321:generated-72"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.102.signature",
+      "nominal": "plane:-3.157:0.4:0.526:-0.195:0:-0.981:0.321:",
+      "cold": "plane:-3.157:0.4:0.526:-0.195:0:-0.981:0.321:generated-70"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.103.signature",
+      "nominal": "plane:-3.138:0:0.624:0:-1:0:0.08:",
+      "cold": "plane:-3.138:0:0.624:0:-1:0:0.08:generated-64"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.104.signature",
+      "nominal": "cylinder:0:0.4:0:0.981:0:-0.195:0.16:",
+      "cold": "cylinder:0:0.4:0:0.981:0:-0.195:0.16:generated-29"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.105.signature",
+      "nominal": "plane:-3.138:0.8:0.624:0:1:0:0.08:",
+      "cold": "plane:-3.138:0.8:0.624:0:1:0:0.08:generated-66"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.106.signature",
+      "nominal": "plane:-3.335:0.4:0.663:-0.981:0:0.195:0.16:",
+      "cold": "plane:-3.335:0.4:0.663:-0.981:0:0.195:0.16:generated-76"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.107.signature",
+      "nominal": "plane:-3.118:0.4:0.722:0.195:0:0.981:0.321:",
+      "cold": "plane:-3.118:0.4:0.722:0.195:0:0.981:0.321:generated-62"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.108.signature",
+      "nominal": "plane:-2.994:0.4:1.132:-0.383:0:-0.924:0.321:",
+      "cold": "plane:-2.994:0.4:1.132:-0.383:0:-0.924:0.321:generated-60"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.109.signature",
+      "nominal": "plane:-2.956:0:1.224:0:-1:0:0.08:",
+      "cold": "plane:-2.956:0:1.224:0:-1:0:0.08:generated-56"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.110.signature",
+      "nominal": "cylinder:0:0.4:0:0.924:0:-0.383:0.16:",
+      "cold": "cylinder:0:0.4:0:0.924:0:-0.383:0.16:generated-27"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.111.signature",
+      "nominal": "plane:-2.956:0.8:1.224:0:1:0:0.08:",
+      "cold": "plane:-2.956:0.8:1.224:0:1:0:0.08:generated-58"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.112.signature",
+      "nominal": "plane:-3.141:0.4:1.301:-0.924:0:0.383:0.16:",
+      "cold": "plane:-3.141:0.4:1.301:-0.924:0:0.383:0.16:generated-68"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.113.signature",
+      "nominal": "plane:-2.917:0.4:1.317:0.383:0:0.924:0.321:",
+      "cold": "plane:-2.917:0.4:1.317:0.383:0:0.924:0.321:generated-54"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.114.signature",
+      "nominal": "plane:-2.716:0.4:1.694:-0.556:0:-0.831:0.321:",
+      "cold": "plane:-2.716:0.4:1.694:-0.556:0:-0.831:0.321:generated-50"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.115.signature",
+      "nominal": "plane:-2.66:0:1.778:0:-1:0:0.08:",
+      "cold": "plane:-2.66:0:1.778:0:-1:0:0.08:generated-46"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.116.signature",
+      "nominal": "cylinder:0:0.4:0:0.831:0:-0.556:0.16:",
+      "cold": "cylinder:0:0.4:0:0.831:0:-0.556:0.16:generated-25"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.117.signature",
+      "nominal": "plane:-2.66:0.8:1.778:0:1:0:0.08:",
+      "cold": "plane:-2.66:0.8:1.778:0:1:0:0.08:generated-48"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.118.signature",
+      "nominal": "plane:-2.827:0.4:1.889:-0.831:0:0.556:0.16:",
+      "cold": "plane:-2.827:0.4:1.889:-0.831:0:0.556:0.16:generated-52"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.119.signature",
+      "nominal": "plane:-2.604:0.4:1.861:0.556:0:0.831:0.321:",
+      "cold": "plane:-2.604:0.4:1.861:0.556:0:0.831:0.321:generated-44"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.120.signature",
+      "nominal": "plane:-2.333:0.4:2.191:-0.707:0:-0.707:0.321:",
+      "cold": "plane:-2.333:0.4:2.191:-0.707:0:-0.707:0.321:generated-40"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.121.signature",
+      "nominal": "plane:-2.263:0:2.263:0:-1:0:0.08:",
+      "cold": "plane:-2.263:0:2.263:0:-1:0:0.08:generated-36"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.122.signature",
+      "nominal": "cylinder:0:0.4:0:0.707:0:-0.707:0.16:",
+      "cold": "cylinder:0:0.4:0:0.707:0:-0.707:0.16:generated-23"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.123.signature",
+      "nominal": "plane:-2.263:0.8:2.263:0:1:0:0.08:",
+      "cold": "plane:-2.263:0.8:2.263:0:1:0:0.08:generated-38"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.124.signature",
+      "nominal": "plane:-2.404:0.4:2.404:-0.707:0:0.707:0.16:",
+      "cold": "plane:-2.404:0.4:2.404:-0.707:0:0.707:0.16:generated-42"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.125.signature",
+      "nominal": "plane:-2.191:0.4:2.333:0.707:0:0.707:0.321:",
+      "cold": "plane:-2.191:0.4:2.333:0.707:0:0.707:0.321:generated-34"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.126.signature",
+      "nominal": "plane:-1.861:0.4:2.604:-0.831:0:-0.556:0.321:",
+      "cold": "plane:-1.861:0.4:2.604:-0.831:0:-0.556:0.321:generated-30"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.127.signature",
+      "nominal": "plane:-1.778:0:2.66:0:-1:0:0.08:",
+      "cold": "plane:-1.778:0:2.66:0:-1:0:0.08:generated-26"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.128.signature",
+      "nominal": "cylinder:0:0.4:0:0.556:0:-0.831:0.16:",
+      "cold": "cylinder:0:0.4:0:0.556:0:-0.831:0.16:generated-21"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.129.signature",
+      "nominal": "plane:-1.778:0.8:2.66:0:1:0:0.08:",
+      "cold": "plane:-1.778:0.8:2.66:0:1:0:0.08:generated-28"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.130.signature",
+      "nominal": "plane:-1.889:0.4:2.827:-0.556:0:0.831:0.16:",
+      "cold": "plane:-1.889:0.4:2.827:-0.556:0:0.831:0.16:generated-32"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.131.signature",
+      "nominal": "plane:-1.694:0.4:2.716:0.831:0:0.556:0.321:",
+      "cold": "plane:-1.694:0.4:2.716:0.831:0:0.556:0.321:generated-24"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.132.signature",
+      "nominal": "plane:-1.317:0.4:2.917:-0.924:0:-0.383:0.321:",
+      "cold": "plane:-1.317:0.4:2.917:-0.924:0:-0.383:0.321:generated-22"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.133.signature",
+      "nominal": "plane:-1.224:0:2.956:0:-1:0:0.08:",
+      "cold": "plane:-1.224:0:2.956:0:-1:0:0.08:generated-16"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.134.signature",
+      "nominal": "cylinder:0:0.4:0:0.383:0:-0.924:0.16:",
+      "cold": "cylinder:0:0.4:0:0.383:0:-0.924:0.16:generated-19"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.135.signature",
+      "nominal": "plane:-1.224:0.8:2.956:0:1:0:0.08:",
+      "cold": "plane:-1.224:0.8:2.956:0:1:0:0.08:generated-18"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.136.signature",
+      "nominal": "plane:-1.301:0.4:3.141:-0.383:0:0.924:0.16:",
+      "cold": "plane:-1.301:0.4:3.141:-0.383:0:0.924:0.16:generated-20"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.137.signature",
+      "nominal": "plane:-1.132:0.4:2.994:0.924:0:0.383:0.321:",
+      "cold": "plane:-1.132:0.4:2.994:0.924:0:0.383:0.321:generated-14"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.138.signature",
+      "nominal": "plane:-0.722:0.4:3.118:-0.981:0:-0.195:0.321:",
+      "cold": "plane:-0.722:0.4:3.118:-0.981:0:-0.195:0.321:generated-12"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.139.signature",
+      "nominal": "plane:-0.624:0:3.138:0:-1:0:0.08:",
+      "cold": "plane:-0.624:0:3.138:0:-1:0:0.08:generated-6"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.140.signature",
+      "nominal": "cylinder:0:0.4:0:0.195:0:-0.981:0.16:",
+      "cold": "cylinder:0:0.4:0:0.195:0:-0.981:0.16:generated-17"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.141.signature",
+      "nominal": "plane:-0.624:0.8:3.138:0:1:0:0.08:",
+      "cold": "plane:-0.624:0.8:3.138:0:1:0:0.08:generated-8"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.142.signature",
+      "nominal": "plane:-0.663:0.4:3.335:-0.195:0:0.981:0.16:",
+      "cold": "plane:-0.663:0.4:3.335:-0.195:0:0.981:0.16:generated-10"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.143.signature",
+      "nominal": "plane:-0.526:0.4:3.157:0.981:0:0.195:0.321:",
+      "cold": "plane:-0.526:0.4:3.157:0.981:0:0.195:0.321:generated-4"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.144.signature",
+      "nominal": "plane:-0.1:0.4:3.199:-1:0:0:0.321:",
+      "cold": "plane:-0.1:0.4:3.199:-1:0:0:0.321:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.145.signature",
+      "nominal": "plane:0:0:3.2:0:-1:0:0.08:",
+      "cold": "plane:0:0:3.2:0:-1:0:0.08:generated-79"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.146.signature",
+      "nominal": "cylinder:0:0.4:0:0:0:-1:0.16:",
+      "cold": "cylinder:0:0.4:0:0:0:-1:0.16:generated-15"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.147.signature",
+      "nominal": "plane:0:0.8:3.2:0:1:0:0.08:",
+      "cold": "plane:0:0.8:3.2:0:1:0:0.08:generated-83"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.148.signature",
+      "nominal": "plane:0:0.4:3.4:0:0:1:0.16:",
+      "cold": "plane:0:0.4:3.4:0:0:1:0.16:generated-81"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.149.signature",
+      "nominal": "plane:0.1:0.4:3.199:1:0:0:0.321:",
+      "cold": "plane:0.1:0.4:3.199:1:0:0:0.321:generated-85"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.150.signature",
+      "nominal": "plane:0.526:0.4:3.157:-0.981:0:0.195:0.321:",
+      "cold": "plane:0.526:0.4:3.157:-0.981:0:0.195:0.321:generated-87"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.151.signature",
+      "nominal": "plane:0.624:0:3.138:0:-1:0:0.08:",
+      "cold": "plane:0.624:0:3.138:0:-1:0:0.08:generated-89"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.152.signature",
+      "nominal": "cylinder:0:0.4:0:-0.195:0:-0.981:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.195:0:-0.981:0.16:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.153.signature",
+      "nominal": "plane:0.624:0.8:3.138:0:1:0:0.08:",
+      "cold": "plane:0.624:0.8:3.138:0:1:0:0.08:generated-91"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.154.signature",
+      "nominal": "plane:0.663:0.4:3.335:0.195:0:0.981:0.16:",
+      "cold": "plane:0.663:0.4:3.335:0.195:0:0.981:0.16:generated-93"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.155.signature",
+      "nominal": "plane:0.722:0.4:3.118:0.981:0:-0.195:0.321:",
+      "cold": "plane:0.722:0.4:3.118:0.981:0:-0.195:0.321:generated-95"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.156.signature",
+      "nominal": "plane:1.132:0.4:2.994:-0.924:0:0.383:0.321:",
+      "cold": "plane:1.132:0.4:2.994:-0.924:0:0.383:0.321:generated-97"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.157.signature",
+      "nominal": "plane:1.224:0:2.956:0:-1:0:0.08:",
+      "cold": "plane:1.224:0:2.956:0:-1:0:0.08:generated-99"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.158.signature",
+      "nominal": "cylinder:0:0.4:0:-0.383:0:-0.924:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.383:0:-0.924:0.16:generated-3"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.159.signature",
+      "nominal": "plane:1.224:0.8:2.956:0:1:0:0.08:",
+      "cold": "plane:1.224:0.8:2.956:0:1:0:0.08:generated-101"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.160.signature",
+      "nominal": "plane:1.301:0.4:3.141:0.383:0:0.924:0.16:",
+      "cold": "plane:1.301:0.4:3.141:0.383:0:0.924:0.16:generated-103"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.161.signature",
+      "nominal": "plane:1.317:0.4:2.917:0.924:0:-0.383:0.321:",
+      "cold": "plane:1.317:0.4:2.917:0.924:0:-0.383:0.321:generated-105"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.162.signature",
+      "nominal": "plane:1.694:0.4:2.716:-0.831:0:0.556:0.321:",
+      "cold": "plane:1.694:0.4:2.716:-0.831:0:0.556:0.321:generated-107"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.163.signature",
+      "nominal": "plane:1.778:0:2.66:0:-1:0:0.08:",
+      "cold": "plane:1.778:0:2.66:0:-1:0:0.08:generated-109"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.164.signature",
+      "nominal": "cylinder:0:0.4:0:-0.556:0:-0.831:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.556:0:-0.831:0.16:generated-5"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.165.signature",
+      "nominal": "plane:1.778:0.8:2.66:0:1:0:0.08:",
+      "cold": "plane:1.778:0.8:2.66:0:1:0:0.08:generated-111"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.166.signature",
+      "nominal": "plane:1.889:0.4:2.827:0.556:0:0.831:0.16:",
+      "cold": "plane:1.889:0.4:2.827:0.556:0:0.831:0.16:generated-115"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.167.signature",
+      "nominal": "plane:1.861:0.4:2.604:0.831:0:-0.556:0.321:",
+      "cold": "plane:1.861:0.4:2.604:0.831:0:-0.556:0.321:generated-113"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.168.signature",
+      "nominal": "plane:2.191:0.4:2.333:-0.707:0:0.707:0.321:",
+      "cold": "plane:2.191:0.4:2.333:-0.707:0:0.707:0.321:generated-117"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.169.signature",
+      "nominal": "plane:2.263:0:2.263:0:-1:0:0.08:",
+      "cold": "plane:2.263:0:2.263:0:-1:0:0.08:generated-119"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.170.signature",
+      "nominal": "cylinder:0:0.4:0:-0.707:0:-0.707:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.707:0:-0.707:0.16:generated-7"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.171.signature",
+      "nominal": "plane:2.263:0.8:2.263:0:1:0:0.08:",
+      "cold": "plane:2.263:0.8:2.263:0:1:0:0.08:generated-121"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.172.signature",
+      "nominal": "plane:2.404:0.4:2.404:0.707:0:0.707:0.16:",
+      "cold": "plane:2.404:0.4:2.404:0.707:0:0.707:0.16:generated-125"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.173.signature",
+      "nominal": "plane:2.333:0.4:2.191:0.707:0:-0.707:0.321:",
+      "cold": "plane:2.333:0.4:2.191:0.707:0:-0.707:0.321:generated-123"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.174.signature",
+      "nominal": "plane:2.604:0.4:1.861:-0.556:0:0.831:0.321:",
+      "cold": "plane:2.604:0.4:1.861:-0.556:0:0.831:0.321:generated-127"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.175.signature",
+      "nominal": "plane:2.66:0:1.778:0:-1:0:0.08:",
+      "cold": "plane:2.66:0:1.778:0:-1:0:0.08:generated-129"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.176.signature",
+      "nominal": "cylinder:0:0.4:0:-0.831:0:-0.556:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.831:0:-0.556:0.16:generated-9"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.177.signature",
+      "nominal": "plane:2.66:0.8:1.778:0:1:0:0.08:",
+      "cold": "plane:2.66:0.8:1.778:0:1:0:0.08:generated-131"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.178.signature",
+      "nominal": "plane:2.827:0.4:1.889:0.831:0:0.556:0.16:",
+      "cold": "plane:2.827:0.4:1.889:0.831:0:0.556:0.16:generated-135"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.179.signature",
+      "nominal": "plane:2.716:0.4:1.694:0.556:0:-0.831:0.321:",
+      "cold": "plane:2.716:0.4:1.694:0.556:0:-0.831:0.321:generated-133"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.180.signature",
+      "nominal": "plane:2.917:0.4:1.317:-0.383:0:0.924:0.321:",
+      "cold": "plane:2.917:0.4:1.317:-0.383:0:0.924:0.321:generated-137"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.181.signature",
+      "nominal": "plane:2.956:0:1.224:0:-1:0:0.08:",
+      "cold": "plane:2.956:0:1.224:0:-1:0:0.08:generated-139"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.182.signature",
+      "nominal": "cylinder:0:0.4:0:-0.924:0:-0.383:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.924:0:-0.383:0.16:generated-11"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.183.signature",
+      "nominal": "plane:2.956:0.8:1.224:0:1:0:0.08:",
+      "cold": "plane:2.956:0.8:1.224:0:1:0:0.08:generated-141"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.184.signature",
+      "nominal": "plane:3.141:0.4:1.301:0.924:0:0.383:0.16:",
+      "cold": "plane:3.141:0.4:1.301:0.924:0:0.383:0.16:generated-151"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.185.signature",
+      "nominal": "plane:2.994:0.4:1.132:0.383:0:-0.924:0.321:",
+      "cold": "plane:2.994:0.4:1.132:0.383:0:-0.924:0.321:generated-143"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.186.signature",
+      "nominal": "plane:3.118:0.4:0.722:-0.195:0:0.981:0.321:",
+      "cold": "plane:3.118:0.4:0.722:-0.195:0:0.981:0.321:generated-145"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.187.signature",
+      "nominal": "plane:3.138:0:0.624:0:-1:0:0.08:",
+      "cold": "plane:3.138:0:0.624:0:-1:0:0.08:generated-147"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.188.signature",
+      "nominal": "cylinder:0:0.4:0:-0.981:0:-0.195:0.16:",
+      "cold": "cylinder:0:0.4:0:-0.981:0:-0.195:0.16:generated-13"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.189.signature",
+      "nominal": "plane:3.138:0.8:0.624:0:1:0:0.08:",
+      "cold": "plane:3.138:0.8:0.624:0:1:0:0.08:generated-149"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.190.signature",
+      "nominal": "plane:3.335:0.4:0.663:0.981:0:0.195:0.16:",
+      "cold": "plane:3.335:0.4:0.663:0.981:0:0.195:0.16:generated-155"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.191.signature",
+      "nominal": "plane:3.157:0.4:0.526:0.195:0:-0.981:0.321:",
+      "cold": "plane:3.157:0.4:0.526:0.195:0:-0.981:0.321:generated-153"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.204.signature",
+      "nominal": "line:3.157:0:-0.526:-0.981:0:0.195:0.402:",
+      "cold": "line:3.157:0:-0.526:-0.981:0:0.195:0.402:generated-297"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.205.signature",
+      "nominal": "line:2.96:0.4:-0.487:0:-1:0:0.8:",
+      "cold": "line:2.96:0.4:-0.487:0:-1:0:0.8:generated-281"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.206.signature",
+      "nominal": "line:3.157:0.8:-0.526:-0.981:0:0.195:0.402:",
+      "cold": "line:3.157:0.8:-0.526:-0.981:0:0.195:0.402:generated-299"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.207.signature",
+      "nominal": "line:3.354:0.4:-0.565:0:1:0:0.8:",
+      "cold": "line:3.354:0.4:-0.565:0:1:0:0.8:generated-309"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.208.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.209.signature",
+      "nominal": "line:3.335:0:-0.663:0.195:0:0.981:0.2:",
+      "cold": "line:3.335:0:-0.663:0.195:0:0.981:0.2:generated-305"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.210.signature",
+      "nominal": "line:3.118:0:-0.722:0.981:0:-0.195:0.402:",
+      "cold": "line:3.118:0:-0.722:0.981:0:-0.195:0.402:generated-289"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.211.signature",
+      "nominal": "line:2.921:0.4:-0.683:0:-1:0:0.8:",
+      "cold": "line:2.921:0.4:-0.683:0:-1:0:0.8:generated-279"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.212.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-32"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.213.signature",
+      "nominal": "line:3.335:0.8:-0.663:0.195:0:0.981:0.2:",
+      "cold": "line:3.335:0.8:-0.663:0.195:0:0.981:0.2:generated-307"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.214.signature",
+      "nominal": "line:3.118:0.8:-0.722:0.981:0:-0.195:0.402:",
+      "cold": "line:3.118:0.8:-0.722:0.981:0:-0.195:0.402:generated-291"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.215.signature",
+      "nominal": "line:3.315:0.4:-0.761:0:1:0:0.8:",
+      "cold": "line:3.315:0.4:-0.761:0:1:0:0.8:generated-303"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.216.signature",
+      "nominal": "line:2.994:0:-1.132:-0.924:0:0.383:0.402:",
+      "cold": "line:2.994:0:-1.132:-0.924:0:0.383:0.402:generated-283"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.217.signature",
+      "nominal": "line:2.808:0.4:-1.055:0:-1:0:0.8:",
+      "cold": "line:2.808:0.4:-1.055:0:-1:0:0.8:generated-267"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.218.signature",
+      "nominal": "line:2.994:0.8:-1.132:-0.924:0:0.383:0.402:",
+      "cold": "line:2.994:0.8:-1.132:-0.924:0:0.383:0.402:generated-285"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.219.signature",
+      "nominal": "line:3.179:0.4:-1.209:0:1:0:0.8:",
+      "cold": "line:3.179:0.4:-1.209:0:1:0:0.8:generated-301"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.220.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.221.signature",
+      "nominal": "line:3.141:0:-1.301:0.383:0:0.924:0.2:",
+      "cold": "line:3.141:0:-1.301:0.383:0:0.924:0.2:generated-293"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.222.signature",
+      "nominal": "line:2.917:0:-1.317:0.924:0:-0.383:0.402:",
+      "cold": "line:2.917:0:-1.317:0.924:0:-0.383:0.402:generated-275"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.223.signature",
+      "nominal": "line:2.732:0.4:-1.24:0:-1:0:0.8:",
+      "cold": "line:2.732:0.4:-1.24:0:-1:0:0.8:generated-263"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.224.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-33"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.225.signature",
+      "nominal": "line:3.141:0.8:-1.301:0.383:0:0.924:0.2:",
+      "cold": "line:3.141:0.8:-1.301:0.383:0:0.924:0.2:generated-295"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.226.signature",
+      "nominal": "line:2.917:0.8:-1.317:0.924:0:-0.383:0.402:",
+      "cold": "line:2.917:0.8:-1.317:0.924:0:-0.383:0.402:generated-277"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.227.signature",
+      "nominal": "line:3.103:0.4:-1.394:0:1:0:0.8:",
+      "cold": "line:3.103:0.4:-1.394:0:1:0:0.8:generated-287"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.228.signature",
+      "nominal": "line:2.716:0:-1.694:-0.831:0:0.556:0.402:",
+      "cold": "line:2.716:0:-1.694:-0.831:0:0.556:0.402:generated-259"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.229.signature",
+      "nominal": "line:2.549:0.4:-1.583:0:-1:0:0.8:",
+      "cold": "line:2.549:0.4:-1.583:0:-1:0:0.8:generated-253"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.230.signature",
+      "nominal": "line:2.716:0.8:-1.694:-0.831:0:0.556:0.402:",
+      "cold": "line:2.716:0.8:-1.694:-0.831:0:0.556:0.402:generated-261"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.231.signature",
+      "nominal": "line:2.883:0.4:-1.806:0:1:0:0.8:",
+      "cold": "line:2.883:0.4:-1.806:0:1:0:0.8:generated-273"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.232.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-3"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.233.signature",
+      "nominal": "line:2.827:0:-1.889:0.556:0:0.831:0.2:",
+      "cold": "line:2.827:0:-1.889:0.556:0:0.831:0.2:generated-269"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.234.signature",
+      "nominal": "line:2.604:0:-1.861:0.831:0:-0.556:0.402:",
+      "cold": "line:2.604:0:-1.861:0.831:0:-0.556:0.402:generated-255"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.235.signature",
+      "nominal": "line:2.437:0.4:-1.749:0:-1:0:0.8:",
+      "cold": "line:2.437:0.4:-1.749:0:-1:0:0.8:generated-249"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.236.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-34"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.237.signature",
+      "nominal": "line:2.827:0.8:-1.889:0.556:0:0.831:0.2:",
+      "cold": "line:2.827:0.8:-1.889:0.556:0:0.831:0.2:generated-271"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.238.signature",
+      "nominal": "line:2.604:0.8:-1.861:0.831:0:-0.556:0.402:",
+      "cold": "line:2.604:0.8:-1.861:0.831:0:-0.556:0.402:generated-257"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.239.signature",
+      "nominal": "line:2.771:0.4:-1.972:0:1:0:0.8:",
+      "cold": "line:2.771:0.4:-1.972:0:1:0:0.8:generated-265"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.240.signature",
+      "nominal": "line:2.333:0:-2.191:-0.707:0:0.707:0.402:",
+      "cold": "line:2.333:0:-2.191:-0.707:0:0.707:0.402:generated-239"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.241.signature",
+      "nominal": "line:2.191:0.4:-2.049:0:-1:0:0.8:",
+      "cold": "line:2.191:0.4:-2.049:0:-1:0:0.8:generated-235"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.242.signature",
+      "nominal": "line:2.333:0.8:-2.191:-0.707:0:0.707:0.402:",
+      "cold": "line:2.333:0.8:-2.191:-0.707:0:0.707:0.402:generated-243"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.243.signature",
+      "nominal": "line:2.475:0.4:-2.333:0:1:0:0.8:",
+      "cold": "line:2.475:0.4:-2.333:0:1:0:0.8:generated-251"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.244.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-4"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.245.signature",
+      "nominal": "line:2.404:0:-2.404:0.707:0:0.707:0.2:",
+      "cold": "line:2.404:0:-2.404:0.707:0:0.707:0.2:generated-245"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.246.signature",
+      "nominal": "line:2.191:0:-2.333:0.707:0:-0.707:0.402:",
+      "cold": "line:2.191:0:-2.333:0.707:0:-0.707:0.402:generated-233"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.247.signature",
+      "nominal": "line:2.049:0.4:-2.191:0:-1:0:0.8:",
+      "cold": "line:2.049:0.4:-2.191:0:-1:0:0.8:generated-231"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.248.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-35"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.249.signature",
+      "nominal": "line:2.404:0.8:-2.404:0.707:0:0.707:0.2:",
+      "cold": "line:2.404:0.8:-2.404:0.707:0:0.707:0.2:generated-247"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.250.signature",
+      "nominal": "line:2.191:0.8:-2.333:0.707:0:-0.707:0.402:",
+      "cold": "line:2.191:0.8:-2.333:0.707:0:-0.707:0.402:generated-237"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.251.signature",
+      "nominal": "line:2.333:0.4:-2.475:0:1:0:0.8:",
+      "cold": "line:2.333:0.4:-2.475:0:1:0:0.8:generated-241"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.252.signature",
+      "nominal": "line:1.861:0:-2.604:-0.556:0:0.831:0.402:",
+      "cold": "line:1.861:0:-2.604:-0.556:0:0.831:0.402:generated-221"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.253.signature",
+      "nominal": "line:1.749:0.4:-2.437:0:-1:0:0.8:",
+      "cold": "line:1.749:0.4:-2.437:0:-1:0:0.8:generated-217"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.254.signature",
+      "nominal": "line:1.861:0.8:-2.604:-0.556:0:0.831:0.402:",
+      "cold": "line:1.861:0.8:-2.604:-0.556:0:0.831:0.402:generated-223"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.255.signature",
+      "nominal": "line:1.972:0.4:-2.771:0:1:0:0.8:",
+      "cold": "line:1.972:0.4:-2.771:0:1:0:0.8:generated-229"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.256.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-5"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.257.signature",
+      "nominal": "line:1.889:0:-2.827:0.831:0:0.556:0.2:",
+      "cold": "line:1.889:0:-2.827:0.831:0:0.556:0.2:generated-225"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.258.signature",
+      "nominal": "line:1.694:0:-2.716:0.556:0:-0.831:0.402:",
+      "cold": "line:1.694:0:-2.716:0.556:0:-0.831:0.402:generated-213"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.259.signature",
+      "nominal": "line:1.583:0.4:-2.549:0:-1:0:0.8:",
+      "cold": "line:1.583:0.4:-2.549:0:-1:0:0.8:generated-211"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.260.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-36"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.261.signature",
+      "nominal": "line:1.889:0.8:-2.827:0.831:0:0.556:0.2:",
+      "cold": "line:1.889:0.8:-2.827:0.831:0:0.556:0.2:generated-227"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.262.signature",
+      "nominal": "line:1.694:0.8:-2.716:0.556:0:-0.831:0.402:",
+      "cold": "line:1.694:0.8:-2.716:0.556:0:-0.831:0.402:generated-215"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.263.signature",
+      "nominal": "line:1.806:0.4:-2.883:0:1:0:0.8:",
+      "cold": "line:1.806:0.4:-2.883:0:1:0:0.8:generated-219"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.264.signature",
+      "nominal": "line:1.317:0:-2.917:-0.383:0:0.924:0.402:",
+      "cold": "line:1.317:0:-2.917:-0.383:0:0.924:0.402:generated-205"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.265.signature",
+      "nominal": "line:1.24:0.4:-2.732:0:-1:0:0.8:",
+      "cold": "line:1.24:0.4:-2.732:0:-1:0:0.8:generated-199"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.266.signature",
+      "nominal": "line:1.317:0.8:-2.917:-0.383:0:0.924:0.402:",
+      "cold": "line:1.317:0.8:-2.917:-0.383:0:0.924:0.402:generated-207"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.267.signature",
+      "nominal": "line:1.394:0.4:-3.103:0:1:0:0.8:",
+      "cold": "line:1.394:0.4:-3.103:0:1:0:0.8:generated-209"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.268.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-6"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.269.signature",
+      "nominal": "line:1.301:0:-3.141:0.924:0:0.383:0.2:",
+      "cold": "line:1.301:0:-3.141:0.924:0:0.383:0.2:generated-201"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.270.signature",
+      "nominal": "line:1.132:0:-2.994:0.383:0:-0.924:0.402:",
+      "cold": "line:1.132:0:-2.994:0.383:0:-0.924:0.402:generated-193"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.271.signature",
+      "nominal": "line:1.055:0.4:-2.808:0:-1:0:0.8:",
+      "cold": "line:1.055:0.4:-2.808:0:-1:0:0.8:generated-191"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.272.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-37"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.273.signature",
+      "nominal": "line:1.301:0.8:-3.141:0.924:0:0.383:0.2:",
+      "cold": "line:1.301:0.8:-3.141:0.924:0:0.383:0.2:generated-203"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.274.signature",
+      "nominal": "line:1.132:0.8:-2.994:0.383:0:-0.924:0.402:",
+      "cold": "line:1.132:0.8:-2.994:0.383:0:-0.924:0.402:generated-195"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.275.signature",
+      "nominal": "line:1.209:0.4:-3.179:0:1:0:0.8:",
+      "cold": "line:1.209:0.4:-3.179:0:1:0:0.8:generated-197"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.276.signature",
+      "nominal": "line:0.722:0:-3.118:-0.195:0:0.981:0.402:",
+      "cold": "line:0.722:0:-3.118:-0.195:0:0.981:0.402:generated-185"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.277.signature",
+      "nominal": "line:0.683:0.4:-2.921:0:-1:0:0.8:",
+      "cold": "line:0.683:0.4:-2.921:0:-1:0:0.8:generated-183"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.278.signature",
+      "nominal": "line:0.722:0.8:-3.118:-0.195:0:0.981:0.402:",
+      "cold": "line:0.722:0.8:-3.118:-0.195:0:0.981:0.402:generated-187"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.279.signature",
+      "nominal": "line:0.761:0.4:-3.315:0:1:0:0.8:",
+      "cold": "line:0.761:0.4:-3.315:0:1:0:0.8:generated-189"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.280.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-7"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.281.signature",
+      "nominal": "line:0.663:0:-3.335:0.981:0:0.195:0.2:",
+      "cold": "line:0.663:0:-3.335:0.981:0:0.195:0.2:generated-179"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.282.signature",
+      "nominal": "line:0.526:0:-3.157:0.195:0:-0.981:0.402:",
+      "cold": "line:0.526:0:-3.157:0.195:0:-0.981:0.402:generated-173"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.283.signature",
+      "nominal": "line:0.487:0.4:-2.96:0:-1:0:0.8:",
+      "cold": "line:0.487:0.4:-2.96:0:-1:0:0.8:generated-171"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.284.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-38"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.285.signature",
+      "nominal": "line:0.663:0.8:-3.335:0.981:0:0.195:0.2:",
+      "cold": "line:0.663:0.8:-3.335:0.981:0:0.195:0.2:generated-181"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.286.signature",
+      "nominal": "line:0.526:0.8:-3.157:0.195:0:-0.981:0.402:",
+      "cold": "line:0.526:0.8:-3.157:0.195:0:-0.981:0.402:generated-175"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.287.signature",
+      "nominal": "line:0.565:0.4:-3.354:0:1:0:0.8:",
+      "cold": "line:0.565:0.4:-3.354:0:1:0:0.8:generated-177"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.288.signature",
+      "nominal": "line:0.1:0:-3.199:0:0:1:0.402:",
+      "cold": "line:0.1:0:-3.199:0:0:1:0.402:generated-163"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.289.signature",
+      "nominal": "line:0.1:0.4:-2.998:0:-1:0:0.8:",
+      "cold": "line:0.1:0.4:-2.998:0:-1:0:0.8:generated-165"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.290.signature",
+      "nominal": "line:0.1:0.8:-3.199:0:0:1:0.402:",
+      "cold": "line:0.1:0.8:-3.199:0:0:1:0.402:generated-169"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.291.signature",
+      "nominal": "line:0.1:0.4:-3.4:0:1:0:0.8:",
+      "cold": "line:0.1:0.4:-3.4:0:1:0:0.8:generated-166"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.292.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-8"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.293.signature",
+      "nominal": "line:0:0:-3.4:1:0:0:0.2:",
+      "cold": "line:0:0:-3.4:1:0:0:0.2:generated-159"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.294.signature",
+      "nominal": "line:-0.1:0:-3.199:0:0:-1:0.402:",
+      "cold": "line:-0.1:0:-3.199:0:0:-1:0.402:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.295.signature",
+      "nominal": "line:-0.1:0.4:-2.998:0:-1:0:0.8:",
+      "cold": "line:-0.1:0.4:-2.998:0:-1:0:0.8:generated-3"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.296.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-39"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.297.signature",
+      "nominal": "line:0:0.8:-3.4:1:0:0:0.2:",
+      "cold": "line:0:0.8:-3.4:1:0:0:0.2:generated-161"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.298.signature",
+      "nominal": "line:-0.1:0.8:-3.199:0:0:-1:0.402:",
+      "cold": "line:-0.1:0.8:-3.199:0:0:-1:0.402:generated-7"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.299.signature",
+      "nominal": "line:-0.1:0.4:-3.4:0:1:0:0.8:",
+      "cold": "line:-0.1:0.4:-3.4:0:1:0:0.8:generated-4"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.300.signature",
+      "nominal": "line:-0.526:0:-3.157:0.195:0:0.981:0.402:",
+      "cold": "line:-0.526:0:-3.157:0.195:0:0.981:0.402:generated-11"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.301.signature",
+      "nominal": "line:-0.487:0.4:-2.96:0:-1:0:0.8:",
+      "cold": "line:-0.487:0.4:-2.96:0:-1:0:0.8:generated-9"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.302.signature",
+      "nominal": "line:-0.526:0.8:-3.157:0.195:0:0.981:0.402:",
+      "cold": "line:-0.526:0.8:-3.157:0.195:0:0.981:0.402:generated-13"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.303.signature",
+      "nominal": "line:-0.565:0.4:-3.354:0:1:0:0.8:",
+      "cold": "line:-0.565:0.4:-3.354:0:1:0:0.8:generated-15"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.304.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-9"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.305.signature",
+      "nominal": "line:-0.663:0:-3.335:0.981:0:-0.195:0.2:",
+      "cold": "line:-0.663:0:-3.335:0.981:0:-0.195:0.2:generated-17"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.306.signature",
+      "nominal": "line:-0.722:0:-3.118:-0.195:0:-0.981:0.402:",
+      "cold": "line:-0.722:0:-3.118:-0.195:0:-0.981:0.402:generated-23"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.307.signature",
+      "nominal": "line:-0.683:0.4:-2.921:0:-1:0:0.8:",
+      "cold": "line:-0.683:0.4:-2.921:0:-1:0:0.8:generated-21"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.308.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-40"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.309.signature",
+      "nominal": "line:-0.663:0.8:-3.335:0.981:0:-0.195:0.2:",
+      "cold": "line:-0.663:0.8:-3.335:0.981:0:-0.195:0.2:generated-19"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.310.signature",
+      "nominal": "line:-0.722:0.8:-3.118:-0.195:0:-0.981:0.402:",
+      "cold": "line:-0.722:0.8:-3.118:-0.195:0:-0.981:0.402:generated-25"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.311.signature",
+      "nominal": "line:-0.761:0.4:-3.315:0:1:0:0.8:",
+      "cold": "line:-0.761:0.4:-3.315:0:1:0:0.8:generated-27"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.312.signature",
+      "nominal": "line:-1.132:0:-2.994:0.383:0:0.924:0.402:",
+      "cold": "line:-1.132:0:-2.994:0.383:0:0.924:0.402:generated-31"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.313.signature",
+      "nominal": "line:-1.055:0.4:-2.808:0:-1:0:0.8:",
+      "cold": "line:-1.055:0.4:-2.808:0:-1:0:0.8:generated-29"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.314.signature",
+      "nominal": "line:-1.132:0.8:-2.994:0.383:0:0.924:0.402:",
+      "cold": "line:-1.132:0.8:-2.994:0.383:0:0.924:0.402:generated-33"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.315.signature",
+      "nominal": "line:-1.209:0.4:-3.179:0:1:0:0.8:",
+      "cold": "line:-1.209:0.4:-3.179:0:1:0:0.8:generated-35"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.316.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-10"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.317.signature",
+      "nominal": "line:-1.301:0:-3.141:0.924:0:-0.383:0.2:",
+      "cold": "line:-1.301:0:-3.141:0.924:0:-0.383:0.2:generated-39"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.318.signature",
+      "nominal": "line:-1.317:0:-2.917:-0.383:0:-0.924:0.402:",
+      "cold": "line:-1.317:0:-2.917:-0.383:0:-0.924:0.402:generated-43"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.319.signature",
+      "nominal": "line:-1.24:0.4:-2.732:0:-1:0:0.8:",
+      "cold": "line:-1.24:0.4:-2.732:0:-1:0:0.8:generated-37"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.320.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-41"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.321.signature",
+      "nominal": "line:-1.301:0.8:-3.141:0.924:0:-0.383:0.2:",
+      "cold": "line:-1.301:0.8:-3.141:0.924:0:-0.383:0.2:generated-41"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.322.signature",
+      "nominal": "line:-1.317:0.8:-2.917:-0.383:0:-0.924:0.402:",
+      "cold": "line:-1.317:0.8:-2.917:-0.383:0:-0.924:0.402:generated-45"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.323.signature",
+      "nominal": "line:-1.394:0.4:-3.103:0:1:0:0.8:",
+      "cold": "line:-1.394:0.4:-3.103:0:1:0:0.8:generated-47"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.324.signature",
+      "nominal": "line:-1.694:0:-2.716:0.556:0:0.831:0.402:",
+      "cold": "line:-1.694:0:-2.716:0.556:0:0.831:0.402:generated-51"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.325.signature",
+      "nominal": "line:-1.583:0.4:-2.549:0:-1:0:0.8:",
+      "cold": "line:-1.583:0.4:-2.549:0:-1:0:0.8:generated-49"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.326.signature",
+      "nominal": "line:-1.694:0.8:-2.716:0.556:0:0.831:0.402:",
+      "cold": "line:-1.694:0.8:-2.716:0.556:0:0.831:0.402:generated-53"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.327.signature",
+      "nominal": "line:-1.806:0.4:-2.883:0:1:0:0.8:",
+      "cold": "line:-1.806:0.4:-2.883:0:1:0:0.8:generated-57"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.328.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-11"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.329.signature",
+      "nominal": "line:-1.889:0:-2.827:0.831:0:-0.556:0.2:",
+      "cold": "line:-1.889:0:-2.827:0.831:0:-0.556:0.2:generated-63"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.330.signature",
+      "nominal": "line:-1.861:0:-2.604:-0.556:0:-0.831:0.402:",
+      "cold": "line:-1.861:0:-2.604:-0.556:0:-0.831:0.402:generated-59"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.331.signature",
+      "nominal": "line:-1.749:0.4:-2.437:0:-1:0:0.8:",
+      "cold": "line:-1.749:0.4:-2.437:0:-1:0:0.8:generated-55"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.332.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-42"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.333.signature",
+      "nominal": "line:-1.889:0.8:-2.827:0.831:0:-0.556:0.2:",
+      "cold": "line:-1.889:0.8:-2.827:0.831:0:-0.556:0.2:generated-65"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.334.signature",
+      "nominal": "line:-1.861:0.8:-2.604:-0.556:0:-0.831:0.402:",
+      "cold": "line:-1.861:0.8:-2.604:-0.556:0:-0.831:0.402:generated-61"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.335.signature",
+      "nominal": "line:-1.972:0.4:-2.771:0:1:0:0.8:",
+      "cold": "line:-1.972:0.4:-2.771:0:1:0:0.8:generated-67"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.336.signature",
+      "nominal": "line:-2.191:0:-2.333:0.707:0:0.707:0.402:",
+      "cold": "line:-2.191:0:-2.333:0.707:0:0.707:0.402:generated-71"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.337.signature",
+      "nominal": "line:-2.049:0.4:-2.191:0:-1:0:0.8:",
+      "cold": "line:-2.049:0.4:-2.191:0:-1:0:0.8:generated-69"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.338.signature",
+      "nominal": "line:-2.191:0.8:-2.333:0.707:0:0.707:0.402:",
+      "cold": "line:-2.191:0.8:-2.333:0.707:0:0.707:0.402:generated-75"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.339.signature",
+      "nominal": "line:-2.333:0.4:-2.475:0:1:0:0.8:",
+      "cold": "line:-2.333:0.4:-2.475:0:1:0:0.8:generated-79"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.340.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-12"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.341.signature",
+      "nominal": "line:-2.404:0:-2.404:0.707:0:-0.707:0.2:",
+      "cold": "line:-2.404:0:-2.404:0.707:0:-0.707:0.2:generated-83"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.342.signature",
+      "nominal": "line:-2.333:0:-2.191:-0.707:0:-0.707:0.402:",
+      "cold": "line:-2.333:0:-2.191:-0.707:0:-0.707:0.402:generated-77"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.343.signature",
+      "nominal": "line:-2.191:0.4:-2.049:0:-1:0:0.8:",
+      "cold": "line:-2.191:0.4:-2.049:0:-1:0:0.8:generated-73"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.344.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-43"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.345.signature",
+      "nominal": "line:-2.404:0.8:-2.404:0.707:0:-0.707:0.2:",
+      "cold": "line:-2.404:0.8:-2.404:0.707:0:-0.707:0.2:generated-85"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.346.signature",
+      "nominal": "line:-2.333:0.8:-2.191:-0.707:0:-0.707:0.402:",
+      "cold": "line:-2.333:0.8:-2.191:-0.707:0:-0.707:0.402:generated-81"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.347.signature",
+      "nominal": "line:-2.475:0.4:-2.333:0:1:0:0.8:",
+      "cold": "line:-2.475:0.4:-2.333:0:1:0:0.8:generated-89"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.348.signature",
+      "nominal": "line:-2.604:0:-1.861:0.831:0:0.556:0.402:",
+      "cold": "line:-2.604:0:-1.861:0.831:0:0.556:0.402:generated-93"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.349.signature",
+      "nominal": "line:-2.437:0.4:-1.749:0:-1:0:0.8:",
+      "cold": "line:-2.437:0.4:-1.749:0:-1:0:0.8:generated-87"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.350.signature",
+      "nominal": "line:-2.604:0.8:-1.861:0.831:0:0.556:0.402:",
+      "cold": "line:-2.604:0.8:-1.861:0.831:0:0.556:0.402:generated-95"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.351.signature",
+      "nominal": "line:-2.771:0.4:-1.972:0:1:0:0.8:",
+      "cold": "line:-2.771:0.4:-1.972:0:1:0:0.8:generated-103"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.352.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-13"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.353.signature",
+      "nominal": "line:-2.827:0:-1.889:0.556:0:-0.831:0.2:",
+      "cold": "line:-2.827:0:-1.889:0.556:0:-0.831:0.2:generated-107"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.354.signature",
+      "nominal": "line:-2.716:0:-1.694:-0.831:0:-0.556:0.402:",
+      "cold": "line:-2.716:0:-1.694:-0.831:0:-0.556:0.402:generated-97"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.355.signature",
+      "nominal": "line:-2.549:0.4:-1.583:0:-1:0:0.8:",
+      "cold": "line:-2.549:0.4:-1.583:0:-1:0:0.8:generated-91"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.356.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-44"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.357.signature",
+      "nominal": "line:-2.827:0.8:-1.889:0.556:0:-0.831:0.2:",
+      "cold": "line:-2.827:0.8:-1.889:0.556:0:-0.831:0.2:generated-109"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.358.signature",
+      "nominal": "line:-2.716:0.8:-1.694:-0.831:0:-0.556:0.402:",
+      "cold": "line:-2.716:0.8:-1.694:-0.831:0:-0.556:0.402:generated-99"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.359.signature",
+      "nominal": "line:-2.883:0.4:-1.806:0:1:0:0.8:",
+      "cold": "line:-2.883:0.4:-1.806:0:1:0:0.8:generated-111"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.360.signature",
+      "nominal": "line:-2.917:0:-1.317:0.924:0:0.383:0.402:",
+      "cold": "line:-2.917:0:-1.317:0.924:0:0.383:0.402:generated-113"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.361.signature",
+      "nominal": "line:-2.732:0.4:-1.24:0:-1:0:0.8:",
+      "cold": "line:-2.732:0.4:-1.24:0:-1:0:0.8:generated-101"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.362.signature",
+      "nominal": "line:-2.917:0.8:-1.317:0.924:0:0.383:0.402:",
+      "cold": "line:-2.917:0.8:-1.317:0.924:0:0.383:0.402:generated-115"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.363.signature",
+      "nominal": "line:-3.103:0.4:-1.394:0:1:0:0.8:",
+      "cold": "line:-3.103:0.4:-1.394:0:1:0:0.8:generated-127"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.364.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-14"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.365.signature",
+      "nominal": "line:-3.141:0:-1.301:0.383:0:-0.924:0.2:",
+      "cold": "line:-3.141:0:-1.301:0.383:0:-0.924:0.2:generated-133"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.366.signature",
+      "nominal": "line:-2.994:0:-1.132:-0.924:0:-0.383:0.402:",
+      "cold": "line:-2.994:0:-1.132:-0.924:0:-0.383:0.402:generated-121"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.367.signature",
+      "nominal": "line:-2.808:0.4:-1.055:0:-1:0:0.8:",
+      "cold": "line:-2.808:0.4:-1.055:0:-1:0:0.8:generated-105"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.368.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-45"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.369.signature",
+      "nominal": "line:-3.141:0.8:-1.301:0.383:0:-0.924:0.2:",
+      "cold": "line:-3.141:0.8:-1.301:0.383:0:-0.924:0.2:generated-135"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.370.signature",
+      "nominal": "line:-2.994:0.8:-1.132:-0.924:0:-0.383:0.402:",
+      "cold": "line:-2.994:0.8:-1.132:-0.924:0:-0.383:0.402:generated-123"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.371.signature",
+      "nominal": "line:-3.179:0.4:-1.209:0:1:0:0.8:",
+      "cold": "line:-3.179:0.4:-1.209:0:1:0:0.8:generated-141"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.372.signature",
+      "nominal": "line:-3.118:0:-0.722:0.981:0:0.195:0.402:",
+      "cold": "line:-3.118:0:-0.722:0.981:0:0.195:0.402:generated-129"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.373.signature",
+      "nominal": "line:-2.921:0.4:-0.683:0:-1:0:0.8:",
+      "cold": "line:-2.921:0.4:-0.683:0:-1:0:0.8:generated-117"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.374.signature",
+      "nominal": "line:-3.118:0.8:-0.722:0.981:0:0.195:0.402:",
+      "cold": "line:-3.118:0.8:-0.722:0.981:0:0.195:0.402:generated-131"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.375.signature",
+      "nominal": "line:-3.315:0.4:-0.761:0:1:0:0.8:",
+      "cold": "line:-3.315:0.4:-0.761:0:1:0:0.8:generated-147"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.376.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-15"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.377.signature",
+      "nominal": "line:-3.335:0:-0.663:0.195:0:-0.981:0.2:",
+      "cold": "line:-3.335:0:-0.663:0.195:0:-0.981:0.2:generated-149"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.378.signature",
+      "nominal": "line:-3.157:0:-0.526:-0.981:0:-0.195:0.402:",
+      "cold": "line:-3.157:0:-0.526:-0.981:0:-0.195:0.402:generated-137"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.379.signature",
+      "nominal": "line:-2.96:0.4:-0.487:0:-1:0:0.8:",
+      "cold": "line:-2.96:0.4:-0.487:0:-1:0:0.8:generated-119"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.380.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-46"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.381.signature",
+      "nominal": "line:-3.335:0.8:-0.663:0.195:0:-0.981:0.2:",
+      "cold": "line:-3.335:0.8:-0.663:0.195:0:-0.981:0.2:generated-151"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.382.signature",
+      "nominal": "line:-3.157:0.8:-0.526:-0.981:0:-0.195:0.402:",
+      "cold": "line:-3.157:0.8:-0.526:-0.981:0:-0.195:0.402:generated-139"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.383.signature",
+      "nominal": "line:-3.354:0.4:-0.565:0:1:0:0.8:",
+      "cold": "line:-3.354:0.4:-0.565:0:1:0:0.8:generated-153"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.384.signature",
+      "nominal": "line:-3.199:0:-0.1:1:0:0:0.402:",
+      "cold": "line:-3.199:0:-0.1:1:0:0:0.402:generated-143"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.385.signature",
+      "nominal": "line:-2.998:0.4:-0.1:0:-1:0:0.8:",
+      "cold": "line:-2.998:0.4:-0.1:0:-1:0:0.8:generated-125"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.386.signature",
+      "nominal": "line:-3.199:0.8:-0.1:1:0:0:0.402:",
+      "cold": "line:-3.199:0.8:-0.1:1:0:0:0.402:generated-145"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.387.signature",
+      "nominal": "line:-3.4:0.4:-0.1:0:1:0:0.8:",
+      "cold": "line:-3.4:0.4:-0.1:0:1:0:0.8:generated-156"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.388.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-16"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.389.signature",
+      "nominal": "line:-3.4:0:0:0:0:-1:0.2:",
+      "cold": "line:-3.4:0:0:0:0:-1:0.2:generated-155"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.390.signature",
+      "nominal": "line:-3.199:0:0.1:-1:0:0:0.402:",
+      "cold": "line:-3.199:0:0.1:-1:0:0:0.402:generated-144"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.391.signature",
+      "nominal": "line:-2.998:0.4:0.1:0:-1:0:0.8:",
+      "cold": "line:-2.998:0.4:0.1:0:-1:0:0.8:generated-126"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.392.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-47"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.393.signature",
+      "nominal": "line:-3.4:0.8:0:0:0:-1:0.2:",
+      "cold": "line:-3.4:0.8:0:0:0:-1:0.2:generated-158"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.394.signature",
+      "nominal": "line:-3.199:0.8:0.1:-1:0:0:0.402:",
+      "cold": "line:-3.199:0.8:0.1:-1:0:0:0.402:generated-146"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.395.signature",
+      "nominal": "line:-3.4:0.4:0.1:0:1:0:0.8:",
+      "cold": "line:-3.4:0.4:0.1:0:1:0:0.8:generated-157"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.396.signature",
+      "nominal": "line:-3.157:0:0.526:0.981:0:-0.195:0.402:",
+      "cold": "line:-3.157:0:0.526:0.981:0:-0.195:0.402:generated-138"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.397.signature",
+      "nominal": "line:-2.96:0.4:0.487:0:-1:0:0.8:",
+      "cold": "line:-2.96:0.4:0.487:0:-1:0:0.8:generated-120"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.398.signature",
+      "nominal": "line:-3.157:0.8:0.526:0.981:0:-0.195:0.402:",
+      "cold": "line:-3.157:0.8:0.526:0.981:0:-0.195:0.402:generated-140"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.399.signature",
+      "nominal": "line:-3.354:0.4:0.565:0:1:0:0.8:",
+      "cold": "line:-3.354:0.4:0.565:0:1:0:0.8:generated-154"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.400.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-17"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.401.signature",
+      "nominal": "line:-3.335:0:0.663:-0.195:0:-0.981:0.2:",
+      "cold": "line:-3.335:0:0.663:-0.195:0:-0.981:0.2:generated-150"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.402.signature",
+      "nominal": "line:-3.118:0:0.722:-0.981:0:0.195:0.402:",
+      "cold": "line:-3.118:0:0.722:-0.981:0:0.195:0.402:generated-130"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.403.signature",
+      "nominal": "line:-2.921:0.4:0.683:0:-1:0:0.8:",
+      "cold": "line:-2.921:0.4:0.683:0:-1:0:0.8:generated-118"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.404.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-48"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.405.signature",
+      "nominal": "line:-3.335:0.8:0.663:-0.195:0:-0.981:0.2:",
+      "cold": "line:-3.335:0.8:0.663:-0.195:0:-0.981:0.2:generated-152"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.406.signature",
+      "nominal": "line:-3.118:0.8:0.722:-0.981:0:0.195:0.402:",
+      "cold": "line:-3.118:0.8:0.722:-0.981:0:0.195:0.402:generated-132"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.407.signature",
+      "nominal": "line:-3.315:0.4:0.761:0:1:0:0.8:",
+      "cold": "line:-3.315:0.4:0.761:0:1:0:0.8:generated-148"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.408.signature",
+      "nominal": "line:-2.994:0:1.132:0.924:0:-0.383:0.402:",
+      "cold": "line:-2.994:0:1.132:0.924:0:-0.383:0.402:generated-122"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.409.signature",
+      "nominal": "line:-2.808:0.4:1.055:0:-1:0:0.8:",
+      "cold": "line:-2.808:0.4:1.055:0:-1:0:0.8:generated-106"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.410.signature",
+      "nominal": "line:-2.994:0.8:1.132:0.924:0:-0.383:0.402:",
+      "cold": "line:-2.994:0.8:1.132:0.924:0:-0.383:0.402:generated-124"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.411.signature",
+      "nominal": "line:-3.179:0.4:1.209:0:1:0:0.8:",
+      "cold": "line:-3.179:0.4:1.209:0:1:0:0.8:generated-142"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.412.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-18"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.413.signature",
+      "nominal": "line:-3.141:0:1.301:-0.383:0:-0.924:0.2:",
+      "cold": "line:-3.141:0:1.301:-0.383:0:-0.924:0.2:generated-134"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.414.signature",
+      "nominal": "line:-2.917:0:1.317:-0.924:0:0.383:0.402:",
+      "cold": "line:-2.917:0:1.317:-0.924:0:0.383:0.402:generated-114"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.415.signature",
+      "nominal": "line:-2.732:0.4:1.24:0:-1:0:0.8:",
+      "cold": "line:-2.732:0.4:1.24:0:-1:0:0.8:generated-102"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.416.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-49"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.417.signature",
+      "nominal": "line:-3.141:0.8:1.301:-0.383:0:-0.924:0.2:",
+      "cold": "line:-3.141:0.8:1.301:-0.383:0:-0.924:0.2:generated-136"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.418.signature",
+      "nominal": "line:-2.917:0.8:1.317:-0.924:0:0.383:0.402:",
+      "cold": "line:-2.917:0.8:1.317:-0.924:0:0.383:0.402:generated-116"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.419.signature",
+      "nominal": "line:-3.103:0.4:1.394:0:1:0:0.8:",
+      "cold": "line:-3.103:0.4:1.394:0:1:0:0.8:generated-128"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.420.signature",
+      "nominal": "line:-2.716:0:1.694:0.831:0:-0.556:0.402:",
+      "cold": "line:-2.716:0:1.694:0.831:0:-0.556:0.402:generated-98"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.421.signature",
+      "nominal": "line:-2.549:0.4:1.583:0:-1:0:0.8:",
+      "cold": "line:-2.549:0.4:1.583:0:-1:0:0.8:generated-92"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.422.signature",
+      "nominal": "line:-2.716:0.8:1.694:0.831:0:-0.556:0.402:",
+      "cold": "line:-2.716:0.8:1.694:0.831:0:-0.556:0.402:generated-100"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.423.signature",
+      "nominal": "line:-2.883:0.4:1.806:0:1:0:0.8:",
+      "cold": "line:-2.883:0.4:1.806:0:1:0:0.8:generated-112"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.424.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-19"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.425.signature",
+      "nominal": "line:-2.827:0:1.889:-0.556:0:-0.831:0.2:",
+      "cold": "line:-2.827:0:1.889:-0.556:0:-0.831:0.2:generated-108"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.426.signature",
+      "nominal": "line:-2.604:0:1.861:-0.831:0:0.556:0.402:",
+      "cold": "line:-2.604:0:1.861:-0.831:0:0.556:0.402:generated-94"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.427.signature",
+      "nominal": "line:-2.437:0.4:1.749:0:-1:0:0.8:",
+      "cold": "line:-2.437:0.4:1.749:0:-1:0:0.8:generated-88"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.428.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-50"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.429.signature",
+      "nominal": "line:-2.827:0.8:1.889:-0.556:0:-0.831:0.2:",
+      "cold": "line:-2.827:0.8:1.889:-0.556:0:-0.831:0.2:generated-110"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.430.signature",
+      "nominal": "line:-2.604:0.8:1.861:-0.831:0:0.556:0.402:",
+      "cold": "line:-2.604:0.8:1.861:-0.831:0:0.556:0.402:generated-96"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.431.signature",
+      "nominal": "line:-2.771:0.4:1.972:0:1:0:0.8:",
+      "cold": "line:-2.771:0.4:1.972:0:1:0:0.8:generated-104"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.432.signature",
+      "nominal": "line:-2.333:0:2.191:0.707:0:-0.707:0.402:",
+      "cold": "line:-2.333:0:2.191:0.707:0:-0.707:0.402:generated-78"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.433.signature",
+      "nominal": "line:-2.191:0.4:2.049:0:-1:0:0.8:",
+      "cold": "line:-2.191:0.4:2.049:0:-1:0:0.8:generated-74"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.434.signature",
+      "nominal": "line:-2.333:0.8:2.191:0.707:0:-0.707:0.402:",
+      "cold": "line:-2.333:0.8:2.191:0.707:0:-0.707:0.402:generated-82"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.435.signature",
+      "nominal": "line:-2.475:0.4:2.333:0:1:0:0.8:",
+      "cold": "line:-2.475:0.4:2.333:0:1:0:0.8:generated-90"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.436.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-20"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.437.signature",
+      "nominal": "line:-2.404:0:2.404:-0.707:0:-0.707:0.2:",
+      "cold": "line:-2.404:0:2.404:-0.707:0:-0.707:0.2:generated-84"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.438.signature",
+      "nominal": "line:-2.191:0:2.333:-0.707:0:0.707:0.402:",
+      "cold": "line:-2.191:0:2.333:-0.707:0:0.707:0.402:generated-72"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.439.signature",
+      "nominal": "line:-2.049:0.4:2.191:0:-1:0:0.8:",
+      "cold": "line:-2.049:0.4:2.191:0:-1:0:0.8:generated-70"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.440.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-51"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.441.signature",
+      "nominal": "line:-2.404:0.8:2.404:-0.707:0:-0.707:0.2:",
+      "cold": "line:-2.404:0.8:2.404:-0.707:0:-0.707:0.2:generated-86"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.442.signature",
+      "nominal": "line:-2.191:0.8:2.333:-0.707:0:0.707:0.402:",
+      "cold": "line:-2.191:0.8:2.333:-0.707:0:0.707:0.402:generated-76"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.443.signature",
+      "nominal": "line:-2.333:0.4:2.475:0:1:0:0.8:",
+      "cold": "line:-2.333:0.4:2.475:0:1:0:0.8:generated-80"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.444.signature",
+      "nominal": "line:-1.861:0:2.604:0.556:0:-0.831:0.402:",
+      "cold": "line:-1.861:0:2.604:0.556:0:-0.831:0.402:generated-60"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.445.signature",
+      "nominal": "line:-1.749:0.4:2.437:0:-1:0:0.8:",
+      "cold": "line:-1.749:0.4:2.437:0:-1:0:0.8:generated-56"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.446.signature",
+      "nominal": "line:-1.861:0.8:2.604:0.556:0:-0.831:0.402:",
+      "cold": "line:-1.861:0.8:2.604:0.556:0:-0.831:0.402:generated-62"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.447.signature",
+      "nominal": "line:-1.972:0.4:2.771:0:1:0:0.8:",
+      "cold": "line:-1.972:0.4:2.771:0:1:0:0.8:generated-68"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.448.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-21"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.449.signature",
+      "nominal": "line:-1.889:0:2.827:-0.831:0:-0.556:0.2:",
+      "cold": "line:-1.889:0:2.827:-0.831:0:-0.556:0.2:generated-64"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.450.signature",
+      "nominal": "line:-1.694:0:2.716:-0.556:0:0.831:0.402:",
+      "cold": "line:-1.694:0:2.716:-0.556:0:0.831:0.402:generated-52"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.451.signature",
+      "nominal": "line:-1.583:0.4:2.549:0:-1:0:0.8:",
+      "cold": "line:-1.583:0.4:2.549:0:-1:0:0.8:generated-50"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.452.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-52"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.453.signature",
+      "nominal": "line:-1.889:0.8:2.827:-0.831:0:-0.556:0.2:",
+      "cold": "line:-1.889:0.8:2.827:-0.831:0:-0.556:0.2:generated-66"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.454.signature",
+      "nominal": "line:-1.694:0.8:2.716:-0.556:0:0.831:0.402:",
+      "cold": "line:-1.694:0.8:2.716:-0.556:0:0.831:0.402:generated-54"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.455.signature",
+      "nominal": "line:-1.806:0.4:2.883:0:1:0:0.8:",
+      "cold": "line:-1.806:0.4:2.883:0:1:0:0.8:generated-58"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.456.signature",
+      "nominal": "line:-1.317:0:2.917:0.383:0:-0.924:0.402:",
+      "cold": "line:-1.317:0:2.917:0.383:0:-0.924:0.402:generated-44"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.457.signature",
+      "nominal": "line:-1.24:0.4:2.732:0:-1:0:0.8:",
+      "cold": "line:-1.24:0.4:2.732:0:-1:0:0.8:generated-38"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.458.signature",
+      "nominal": "line:-1.317:0.8:2.917:0.383:0:-0.924:0.402:",
+      "cold": "line:-1.317:0.8:2.917:0.383:0:-0.924:0.402:generated-46"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.459.signature",
+      "nominal": "line:-1.394:0.4:3.103:0:1:0:0.8:",
+      "cold": "line:-1.394:0.4:3.103:0:1:0:0.8:generated-48"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.460.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-22"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.461.signature",
+      "nominal": "line:-1.301:0:3.141:-0.924:0:-0.383:0.2:",
+      "cold": "line:-1.301:0:3.141:-0.924:0:-0.383:0.2:generated-40"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.462.signature",
+      "nominal": "line:-1.132:0:2.994:-0.383:0:0.924:0.402:",
+      "cold": "line:-1.132:0:2.994:-0.383:0:0.924:0.402:generated-32"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.463.signature",
+      "nominal": "line:-1.055:0.4:2.808:0:-1:0:0.8:",
+      "cold": "line:-1.055:0.4:2.808:0:-1:0:0.8:generated-30"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.464.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-53"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.465.signature",
+      "nominal": "line:-1.301:0.8:3.141:-0.924:0:-0.383:0.2:",
+      "cold": "line:-1.301:0.8:3.141:-0.924:0:-0.383:0.2:generated-42"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.466.signature",
+      "nominal": "line:-1.132:0.8:2.994:-0.383:0:0.924:0.402:",
+      "cold": "line:-1.132:0.8:2.994:-0.383:0:0.924:0.402:generated-34"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.467.signature",
+      "nominal": "line:-1.209:0.4:3.179:0:1:0:0.8:",
+      "cold": "line:-1.209:0.4:3.179:0:1:0:0.8:generated-36"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.468.signature",
+      "nominal": "line:-0.722:0:3.118:0.195:0:-0.981:0.402:",
+      "cold": "line:-0.722:0:3.118:0.195:0:-0.981:0.402:generated-24"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.469.signature",
+      "nominal": "line:-0.683:0.4:2.921:0:-1:0:0.8:",
+      "cold": "line:-0.683:0.4:2.921:0:-1:0:0.8:generated-22"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.470.signature",
+      "nominal": "line:-0.722:0.8:3.118:0.195:0:-0.981:0.402:",
+      "cold": "line:-0.722:0.8:3.118:0.195:0:-0.981:0.402:generated-26"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.471.signature",
+      "nominal": "line:-0.761:0.4:3.315:0:1:0:0.8:",
+      "cold": "line:-0.761:0.4:3.315:0:1:0:0.8:generated-28"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.472.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-23"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.473.signature",
+      "nominal": "line:-0.663:0:3.335:-0.981:0:-0.195:0.2:",
+      "cold": "line:-0.663:0:3.335:-0.981:0:-0.195:0.2:generated-18"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.474.signature",
+      "nominal": "line:-0.526:0:3.157:-0.195:0:0.981:0.402:",
+      "cold": "line:-0.526:0:3.157:-0.195:0:0.981:0.402:generated-12"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.475.signature",
+      "nominal": "line:-0.487:0.4:2.96:0:-1:0:0.8:",
+      "cold": "line:-0.487:0.4:2.96:0:-1:0:0.8:generated-10"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.476.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-54"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.477.signature",
+      "nominal": "line:-0.663:0.8:3.335:-0.981:0:-0.195:0.2:",
+      "cold": "line:-0.663:0.8:3.335:-0.981:0:-0.195:0.2:generated-20"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.478.signature",
+      "nominal": "line:-0.526:0.8:3.157:-0.195:0:0.981:0.402:",
+      "cold": "line:-0.526:0.8:3.157:-0.195:0:0.981:0.402:generated-14"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.479.signature",
+      "nominal": "line:-0.565:0.4:3.354:0:1:0:0.8:",
+      "cold": "line:-0.565:0.4:3.354:0:1:0:0.8:generated-16"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.480.signature",
+      "nominal": "line:-0.1:0:3.199:0:0:-1:0.402:",
+      "cold": "line:-0.1:0:3.199:0:0:-1:0.402:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.481.signature",
+      "nominal": "line:-0.1:0.4:2.998:0:-1:0:0.8:",
+      "cold": "line:-0.1:0.4:2.998:0:-1:0:0.8:generated-5"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.482.signature",
+      "nominal": "line:-0.1:0.8:3.199:0:0:-1:0.402:",
+      "cold": "line:-0.1:0.8:3.199:0:0:-1:0.402:generated-8"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.483.signature",
+      "nominal": "line:-0.1:0.4:3.4:0:1:0:0.8:",
+      "cold": "line:-0.1:0.4:3.4:0:1:0:0.8:generated-6"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.484.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-24"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.485.signature",
+      "nominal": "line:0:0:3.4:-1:0:0:0.2:",
+      "cold": "line:0:0:3.4:-1:0:0:0.2:generated-160"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.486.signature",
+      "nominal": "line:0.1:0:3.199:0:0:1:0.402:",
+      "cold": "line:0.1:0:3.199:0:0:1:0.402:generated-164"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.487.signature",
+      "nominal": "line:0.1:0.4:2.998:0:-1:0:0.8:",
+      "cold": "line:0.1:0.4:2.998:0:-1:0:0.8:generated-167"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.488.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-55"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.489.signature",
+      "nominal": "line:0:0.8:3.4:-1:0:0:0.2:",
+      "cold": "line:0:0.8:3.4:-1:0:0:0.2:generated-162"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.490.signature",
+      "nominal": "line:0.1:0.8:3.199:0:0:1:0.402:",
+      "cold": "line:0.1:0.8:3.199:0:0:1:0.402:generated-170"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.491.signature",
+      "nominal": "line:0.1:0.4:3.4:0:1:0:0.8:",
+      "cold": "line:0.1:0.4:3.4:0:1:0:0.8:generated-168"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.492.signature",
+      "nominal": "line:0.526:0:3.157:-0.195:0:-0.981:0.402:",
+      "cold": "line:0.526:0:3.157:-0.195:0:-0.981:0.402:generated-174"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.493.signature",
+      "nominal": "line:0.487:0.4:2.96:0:-1:0:0.8:",
+      "cold": "line:0.487:0.4:2.96:0:-1:0:0.8:generated-172"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.494.signature",
+      "nominal": "line:0.526:0.8:3.157:-0.195:0:-0.981:0.402:",
+      "cold": "line:0.526:0.8:3.157:-0.195:0:-0.981:0.402:generated-176"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.495.signature",
+      "nominal": "line:0.565:0.4:3.354:0:1:0:0.8:",
+      "cold": "line:0.565:0.4:3.354:0:1:0:0.8:generated-178"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.496.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-25"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.497.signature",
+      "nominal": "line:0.663:0:3.335:-0.981:0:0.195:0.2:",
+      "cold": "line:0.663:0:3.335:-0.981:0:0.195:0.2:generated-180"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.498.signature",
+      "nominal": "line:0.722:0:3.118:0.195:0:0.981:0.402:",
+      "cold": "line:0.722:0:3.118:0.195:0:0.981:0.402:generated-186"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.499.signature",
+      "nominal": "line:0.683:0.4:2.921:0:-1:0:0.8:",
+      "cold": "line:0.683:0.4:2.921:0:-1:0:0.8:generated-184"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.500.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-56"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.501.signature",
+      "nominal": "line:0.663:0.8:3.335:-0.981:0:0.195:0.2:",
+      "cold": "line:0.663:0.8:3.335:-0.981:0:0.195:0.2:generated-182"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.502.signature",
+      "nominal": "line:0.722:0.8:3.118:0.195:0:0.981:0.402:",
+      "cold": "line:0.722:0.8:3.118:0.195:0:0.981:0.402:generated-188"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.503.signature",
+      "nominal": "line:0.761:0.4:3.315:0:1:0:0.8:",
+      "cold": "line:0.761:0.4:3.315:0:1:0:0.8:generated-190"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.504.signature",
+      "nominal": "line:1.132:0:2.994:-0.383:0:-0.924:0.402:",
+      "cold": "line:1.132:0:2.994:-0.383:0:-0.924:0.402:generated-194"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.505.signature",
+      "nominal": "line:1.055:0.4:2.808:0:-1:0:0.8:",
+      "cold": "line:1.055:0.4:2.808:0:-1:0:0.8:generated-192"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.506.signature",
+      "nominal": "line:1.132:0.8:2.994:-0.383:0:-0.924:0.402:",
+      "cold": "line:1.132:0.8:2.994:-0.383:0:-0.924:0.402:generated-196"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.507.signature",
+      "nominal": "line:1.209:0.4:3.179:0:1:0:0.8:",
+      "cold": "line:1.209:0.4:3.179:0:1:0:0.8:generated-198"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.508.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-26"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.509.signature",
+      "nominal": "line:1.301:0:3.141:-0.924:0:0.383:0.2:",
+      "cold": "line:1.301:0:3.141:-0.924:0:0.383:0.2:generated-202"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.510.signature",
+      "nominal": "line:1.317:0:2.917:0.383:0:0.924:0.402:",
+      "cold": "line:1.317:0:2.917:0.383:0:0.924:0.402:generated-206"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.511.signature",
+      "nominal": "line:1.24:0.4:2.732:0:-1:0:0.8:",
+      "cold": "line:1.24:0.4:2.732:0:-1:0:0.8:generated-200"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.512.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-57"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.513.signature",
+      "nominal": "line:1.301:0.8:3.141:-0.924:0:0.383:0.2:",
+      "cold": "line:1.301:0.8:3.141:-0.924:0:0.383:0.2:generated-204"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.514.signature",
+      "nominal": "line:1.317:0.8:2.917:0.383:0:0.924:0.402:",
+      "cold": "line:1.317:0.8:2.917:0.383:0:0.924:0.402:generated-208"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.515.signature",
+      "nominal": "line:1.394:0.4:3.103:0:1:0:0.8:",
+      "cold": "line:1.394:0.4:3.103:0:1:0:0.8:generated-210"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.516.signature",
+      "nominal": "line:1.694:0:2.716:-0.556:0:-0.831:0.402:",
+      "cold": "line:1.694:0:2.716:-0.556:0:-0.831:0.402:generated-214"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.517.signature",
+      "nominal": "line:1.583:0.4:2.549:0:-1:0:0.8:",
+      "cold": "line:1.583:0.4:2.549:0:-1:0:0.8:generated-212"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.518.signature",
+      "nominal": "line:1.694:0.8:2.716:-0.556:0:-0.831:0.402:",
+      "cold": "line:1.694:0.8:2.716:-0.556:0:-0.831:0.402:generated-216"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.519.signature",
+      "nominal": "line:1.806:0.4:2.883:0:1:0:0.8:",
+      "cold": "line:1.806:0.4:2.883:0:1:0:0.8:generated-220"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.520.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-27"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.521.signature",
+      "nominal": "line:1.889:0:2.827:-0.831:0:0.556:0.2:",
+      "cold": "line:1.889:0:2.827:-0.831:0:0.556:0.2:generated-226"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.522.signature",
+      "nominal": "line:1.861:0:2.604:0.556:0:0.831:0.402:",
+      "cold": "line:1.861:0:2.604:0.556:0:0.831:0.402:generated-222"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.523.signature",
+      "nominal": "line:1.749:0.4:2.437:0:-1:0:0.8:",
+      "cold": "line:1.749:0.4:2.437:0:-1:0:0.8:generated-218"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.524.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-58"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.525.signature",
+      "nominal": "line:1.889:0.8:2.827:-0.831:0:0.556:0.2:",
+      "cold": "line:1.889:0.8:2.827:-0.831:0:0.556:0.2:generated-228"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.526.signature",
+      "nominal": "line:1.861:0.8:2.604:0.556:0:0.831:0.402:",
+      "cold": "line:1.861:0.8:2.604:0.556:0:0.831:0.402:generated-224"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.527.signature",
+      "nominal": "line:1.972:0.4:2.771:0:1:0:0.8:",
+      "cold": "line:1.972:0.4:2.771:0:1:0:0.8:generated-230"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.528.signature",
+      "nominal": "line:2.191:0:2.333:-0.707:0:-0.707:0.402:",
+      "cold": "line:2.191:0:2.333:-0.707:0:-0.707:0.402:generated-234"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.529.signature",
+      "nominal": "line:2.049:0.4:2.191:0:-1:0:0.8:",
+      "cold": "line:2.049:0.4:2.191:0:-1:0:0.8:generated-232"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.530.signature",
+      "nominal": "line:2.191:0.8:2.333:-0.707:0:-0.707:0.402:",
+      "cold": "line:2.191:0.8:2.333:-0.707:0:-0.707:0.402:generated-238"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.531.signature",
+      "nominal": "line:2.333:0.4:2.475:0:1:0:0.8:",
+      "cold": "line:2.333:0.4:2.475:0:1:0:0.8:generated-242"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.532.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-28"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.533.signature",
+      "nominal": "line:2.404:0:2.404:-0.707:0:0.707:0.2:",
+      "cold": "line:2.404:0:2.404:-0.707:0:0.707:0.2:generated-246"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.534.signature",
+      "nominal": "line:2.333:0:2.191:0.707:0:0.707:0.402:",
+      "cold": "line:2.333:0:2.191:0.707:0:0.707:0.402:generated-240"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.535.signature",
+      "nominal": "line:2.191:0.4:2.049:0:-1:0:0.8:",
+      "cold": "line:2.191:0.4:2.049:0:-1:0:0.8:generated-236"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.536.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-59"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.537.signature",
+      "nominal": "line:2.404:0.8:2.404:-0.707:0:0.707:0.2:",
+      "cold": "line:2.404:0.8:2.404:-0.707:0:0.707:0.2:generated-248"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.538.signature",
+      "nominal": "line:2.333:0.8:2.191:0.707:0:0.707:0.402:",
+      "cold": "line:2.333:0.8:2.191:0.707:0:0.707:0.402:generated-244"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.539.signature",
+      "nominal": "line:2.475:0.4:2.333:0:1:0:0.8:",
+      "cold": "line:2.475:0.4:2.333:0:1:0:0.8:generated-252"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.540.signature",
+      "nominal": "line:2.604:0:1.861:-0.831:0:-0.556:0.402:",
+      "cold": "line:2.604:0:1.861:-0.831:0:-0.556:0.402:generated-256"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.541.signature",
+      "nominal": "line:2.437:0.4:1.749:0:-1:0:0.8:",
+      "cold": "line:2.437:0.4:1.749:0:-1:0:0.8:generated-250"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.542.signature",
+      "nominal": "line:2.604:0.8:1.861:-0.831:0:-0.556:0.402:",
+      "cold": "line:2.604:0.8:1.861:-0.831:0:-0.556:0.402:generated-258"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.543.signature",
+      "nominal": "line:2.771:0.4:1.972:0:1:0:0.8:",
+      "cold": "line:2.771:0.4:1.972:0:1:0:0.8:generated-266"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.544.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-29"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.545.signature",
+      "nominal": "line:2.827:0:1.889:-0.556:0:0.831:0.2:",
+      "cold": "line:2.827:0:1.889:-0.556:0:0.831:0.2:generated-270"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.546.signature",
+      "nominal": "line:2.716:0:1.694:0.831:0:0.556:0.402:",
+      "cold": "line:2.716:0:1.694:0.831:0:0.556:0.402:generated-260"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.547.signature",
+      "nominal": "line:2.549:0.4:1.583:0:-1:0:0.8:",
+      "cold": "line:2.549:0.4:1.583:0:-1:0:0.8:generated-254"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.548.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-60"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.549.signature",
+      "nominal": "line:2.827:0.8:1.889:-0.556:0:0.831:0.2:",
+      "cold": "line:2.827:0.8:1.889:-0.556:0:0.831:0.2:generated-272"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.550.signature",
+      "nominal": "line:2.716:0.8:1.694:0.831:0:0.556:0.402:",
+      "cold": "line:2.716:0.8:1.694:0.831:0:0.556:0.402:generated-262"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.551.signature",
+      "nominal": "line:2.883:0.4:1.806:0:1:0:0.8:",
+      "cold": "line:2.883:0.4:1.806:0:1:0:0.8:generated-274"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.552.signature",
+      "nominal": "line:2.917:0:1.317:-0.924:0:-0.383:0.402:",
+      "cold": "line:2.917:0:1.317:-0.924:0:-0.383:0.402:generated-276"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.553.signature",
+      "nominal": "line:2.732:0.4:1.24:0:-1:0:0.8:",
+      "cold": "line:2.732:0.4:1.24:0:-1:0:0.8:generated-264"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.554.signature",
+      "nominal": "line:2.917:0.8:1.317:-0.924:0:-0.383:0.402:",
+      "cold": "line:2.917:0.8:1.317:-0.924:0:-0.383:0.402:generated-278"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.555.signature",
+      "nominal": "line:3.103:0.4:1.394:0:1:0:0.8:",
+      "cold": "line:3.103:0.4:1.394:0:1:0:0.8:generated-288"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.556.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-30"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.557.signature",
+      "nominal": "line:3.141:0:1.301:-0.383:0:0.924:0.2:",
+      "cold": "line:3.141:0:1.301:-0.383:0:0.924:0.2:generated-294"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.558.signature",
+      "nominal": "line:2.994:0:1.132:0.924:0:0.383:0.402:",
+      "cold": "line:2.994:0:1.132:0.924:0:0.383:0.402:generated-284"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.559.signature",
+      "nominal": "line:2.808:0.4:1.055:0:-1:0:0.8:",
+      "cold": "line:2.808:0.4:1.055:0:-1:0:0.8:generated-268"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.560.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-61"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.561.signature",
+      "nominal": "line:3.141:0.8:1.301:-0.383:0:0.924:0.2:",
+      "cold": "line:3.141:0.8:1.301:-0.383:0:0.924:0.2:generated-296"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.562.signature",
+      "nominal": "line:2.994:0.8:1.132:0.924:0:0.383:0.402:",
+      "cold": "line:2.994:0.8:1.132:0.924:0:0.383:0.402:generated-286"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.563.signature",
+      "nominal": "line:3.179:0.4:1.209:0:1:0:0.8:",
+      "cold": "line:3.179:0.4:1.209:0:1:0:0.8:generated-302"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.564.signature",
+      "nominal": "line:3.118:0:0.722:-0.981:0:-0.195:0.402:",
+      "cold": "line:3.118:0:0.722:-0.981:0:-0.195:0.402:generated-290"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.565.signature",
+      "nominal": "line:2.921:0.4:0.683:0:-1:0:0.8:",
+      "cold": "line:2.921:0.4:0.683:0:-1:0:0.8:generated-280"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.566.signature",
+      "nominal": "line:3.118:0.8:0.722:-0.981:0:-0.195:0.402:",
+      "cold": "line:3.118:0.8:0.722:-0.981:0:-0.195:0.402:generated-292"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.567.signature",
+      "nominal": "line:3.315:0.4:0.761:0:1:0:0.8:",
+      "cold": "line:3.315:0.4:0.761:0:1:0:0.8:generated-304"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.568.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.2:",
+      "cold": "circle:0:0:0:0:1:0:0.2:generated-31"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.569.signature",
+      "nominal": "line:3.335:0:0.663:-0.195:0:0.981:0.2:",
+      "cold": "line:3.335:0:0.663:-0.195:0:0.981:0.2:generated-306"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.570.signature",
+      "nominal": "line:3.157:0:0.526:0.981:0:0.195:0.402:",
+      "cold": "line:3.157:0:0.526:0.981:0:0.195:0.402:generated-298"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.571.signature",
+      "nominal": "line:2.96:0.4:0.487:0:-1:0:0.8:",
+      "cold": "line:2.96:0.4:0.487:0:-1:0:0.8:generated-282"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.572.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.2:",
+      "cold": "circle:0:0.8:0:0:1:0:0.2:generated-62"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.573.signature",
+      "nominal": "line:3.335:0.8:0.663:-0.195:0:0.981:0.2:",
+      "cold": "line:3.335:0.8:0.663:-0.195:0:0.981:0.2:generated-308"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.574.signature",
+      "nominal": "line:3.157:0.8:0.526:0.981:0:0.195:0.402:",
+      "cold": "line:3.157:0.8:0.526:0.981:0:0.195:0.402:generated-300"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3:instances.topology.575.signature",
+      "nominal": "line:3.354:0.4:0.565:0:1:0:0.8:",
+      "cold": "line:3.354:0.4:0.565:0:1:0:0.8:generated-310"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.1.signature",
+      "nominal": "cylinder:0:0.4:0:0.995:0:-0.098:0.311:",
+      "cold": "cylinder:0:0.4:0:0.995:0:-0.098:0.311:generated-31"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.3.signature",
+      "nominal": "cylinder:0:0.4:0:0.957:0:-0.29:0.311:",
+      "cold": "cylinder:0:0.4:0:0.957:0:-0.29:0.311:generated-29"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.5.signature",
+      "nominal": "cylinder:0:0.4:0:0.882:0:-0.471:0.311:",
+      "cold": "cylinder:0:0.4:0:0.882:0:-0.471:0.311:generated-27"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.7.signature",
+      "nominal": "cylinder:0:0.4:0:0.773:0:-0.634:0.311:",
+      "cold": "cylinder:0:0.4:0:0.773:0:-0.634:0.311:generated-25"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.9.signature",
+      "nominal": "cylinder:0:0.4:0:0.634:0:-0.773:0.311:",
+      "cold": "cylinder:0:0.4:0:0.634:0:-0.773:0.311:generated-23"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.11.signature",
+      "nominal": "cylinder:0:0.4:0:0.471:0:-0.882:0.311:",
+      "cold": "cylinder:0:0.4:0:0.471:0:-0.882:0.311:generated-21"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.13.signature",
+      "nominal": "cylinder:0:0.4:0:0.29:0:-0.957:0.311:",
+      "cold": "cylinder:0:0.4:0:0.29:0:-0.957:0.311:generated-19"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.15.signature",
+      "nominal": "cylinder:0:0.4:0:0.098:0:-0.995:0.311:",
+      "cold": "cylinder:0:0.4:0:0.098:0:-0.995:0.311:generated-17"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.17.signature",
+      "nominal": "cylinder:0:0.4:0:-0.098:0:-0.995:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.098:0:-0.995:0.311:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.19.signature",
+      "nominal": "cylinder:0:0.4:0:-0.29:0:-0.957:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.29:0:-0.957:0.311:generated-3"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.21.signature",
+      "nominal": "cylinder:0:0.4:0:-0.471:0:-0.882:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.471:0:-0.882:0.311:generated-5"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.23.signature",
+      "nominal": "cylinder:0:0.4:0:-0.634:0:-0.773:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.634:0:-0.773:0.311:generated-7"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.25.signature",
+      "nominal": "cylinder:0:0.4:0:-0.773:0:-0.634:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.773:0:-0.634:0.311:generated-9"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.27.signature",
+      "nominal": "cylinder:0:0.4:0:-0.882:0:-0.471:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.882:0:-0.471:0.311:generated-11"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.29.signature",
+      "nominal": "cylinder:0:0.4:0:-0.957:0:-0.29:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.957:0:-0.29:0.311:generated-13"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.31.signature",
+      "nominal": "cylinder:0:0.4:0:-0.995:0:-0.098:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.995:0:-0.098:0.311:generated-15"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.33.signature",
+      "nominal": "cylinder:0:0.4:0:-0.995:0:0.098:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.995:0:0.098:0.311:generated-16"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.35.signature",
+      "nominal": "cylinder:0:0.4:0:-0.957:0:0.29:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.957:0:0.29:0.311:generated-14"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.37.signature",
+      "nominal": "cylinder:0:0.4:0:-0.882:0:0.471:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.882:0:0.471:0.311:generated-12"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.39.signature",
+      "nominal": "cylinder:0:0.4:0:-0.773:0:0.634:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.773:0:0.634:0.311:generated-10"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.41.signature",
+      "nominal": "cylinder:0:0.4:0:-0.634:0:0.773:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.634:0:0.773:0.311:generated-8"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.43.signature",
+      "nominal": "cylinder:0:0.4:0:-0.471:0:0.882:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.471:0:0.882:0.311:generated-6"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.45.signature",
+      "nominal": "cylinder:0:0.4:0:-0.29:0:0.957:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.29:0:0.957:0.311:generated-4"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.47.signature",
+      "nominal": "cylinder:0:0.4:0:-0.098:0:0.995:0.311:",
+      "cold": "cylinder:0:0.4:0:-0.098:0:0.995:0.311:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.50.signature",
+      "nominal": "cylinder:0:0.4:0:0.098:0:0.995:0.311:",
+      "cold": "cylinder:0:0.4:0:0.098:0:0.995:0.311:generated-18"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.52.signature",
+      "nominal": "cylinder:0:0.4:0:0.29:0:0.957:0.311:",
+      "cold": "cylinder:0:0.4:0:0.29:0:0.957:0.311:generated-20"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.54.signature",
+      "nominal": "cylinder:0:0.4:0:0.471:0:0.882:0.311:",
+      "cold": "cylinder:0:0.4:0:0.471:0:0.882:0.311:generated-22"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.56.signature",
+      "nominal": "cylinder:0:0.4:0:0.634:0:0.773:0.311:",
+      "cold": "cylinder:0:0.4:0:0.634:0:0.773:0.311:generated-24"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.58.signature",
+      "nominal": "cylinder:0:0.4:0:0.773:0:0.634:0.311:",
+      "cold": "cylinder:0:0.4:0:0.773:0:0.634:0.311:generated-26"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.60.signature",
+      "nominal": "cylinder:0:0.4:0:0.882:0:0.471:0.311:",
+      "cold": "cylinder:0:0.4:0:0.882:0:0.471:0.311:generated-28"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.62.signature",
+      "nominal": "cylinder:0:0.4:0:0.957:0:0.29:0.311:",
+      "cold": "cylinder:0:0.4:0:0.957:0:0.29:0.311:generated-30"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.64.signature",
+      "nominal": "cylinder:0:0.4:0:0.995:0:0.098:0.311:",
+      "cold": "cylinder:0:0.4:0:0.995:0:0.098:0.311:generated-32"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.72.signature",
+      "nominal": "plane:2.917:0.4:-1.317:-0.383:0:-0.924:0.321:",
+      "cold": "plane:2.917:0.4:-1.317:-0.383:0:-0.924:0.321:generated-15"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.76.signature",
+      "nominal": "plane:2.333:0.4:-2.191:0.707:0:0.707:0.321:",
+      "cold": "plane:2.333:0.4:-2.191:0.707:0:0.707:0.321:generated-13"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.96.signature",
+      "nominal": "plane:-1.317:0.4:-2.917:-0.924:0:0.383:0.321:",
+      "cold": "plane:-1.317:0.4:-2.917:-0.924:0:0.383:0.321:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.100.signature",
+      "nominal": "plane:-2.191:0.4:-2.333:0.707:0:-0.707:0.321:",
+      "cold": "plane:-2.191:0.4:-2.333:0.707:0:-0.707:0.321:generated-4"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.114.signature",
+      "nominal": "plane:-3.199:0.4:0.1:0:0:1:0.321:",
+      "cold": "plane:-3.199:0.4:0.1:0:0:1:0.321:generated-7"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.162.signature",
+      "nominal": "plane:3.138:0.8:-0.624:0:1:0:0.08:",
+      "cold": "plane:3.138:0.8:-0.624:0:1:0:0.08:generated-16"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.164.signature",
+      "nominal": "plane:2.66:0.8:-1.778:0:1:0:0.08:",
+      "cold": "plane:2.66:0.8:-1.778:0:1:0:0.08:generated-14"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.166.signature",
+      "nominal": "plane:1.778:0.8:-2.66:0:1:0:0.08:",
+      "cold": "plane:1.778:0.8:-2.66:0:1:0:0.08:generated-11"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.168.signature",
+      "nominal": "plane:0.624:0.8:-3.138:0:1:0:0.08:",
+      "cold": "plane:0.624:0.8:-3.138:0:1:0:0.08:generated-9"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.174.signature",
+      "nominal": "plane:-2.66:0.8:-1.778:0:1:0:0.08:",
+      "cold": "plane:-2.66:0.8:-1.778:0:1:0:0.08:generated-5"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.177.signature",
+      "nominal": "plane:-3.2:0.8:0:0:1:0:0.08:",
+      "cold": "plane:-3.2:0.8:0:0:1:0:0.08:generated-8"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.179.signature",
+      "nominal": "plane:-2.956:0.8:1.224:0:1:0:0.08:",
+      "cold": "plane:-2.956:0.8:1.224:0:1:0:0.08:generated-6"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.182.signature",
+      "nominal": "plane:-1.778:0.8:2.66:0:1:0:0.08:",
+      "cold": "plane:-1.778:0.8:2.66:0:1:0:0.08:generated-3"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.184.signature",
+      "nominal": "plane:-0.624:0.8:3.138:0:1:0:0.08:",
+      "cold": "plane:-0.624:0.8:3.138:0:1:0:0.08:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.187.signature",
+      "nominal": "plane:0.624:0.8:3.138:0:1:0:0.08:",
+      "cold": "plane:0.624:0.8:3.138:0:1:0:0.08:generated-10"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.189.signature",
+      "nominal": "plane:1.778:0.8:2.66:0:1:0:0.08:",
+      "cold": "plane:1.778:0.8:2.66:0:1:0:0.08:generated-12"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.196.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-3"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.198.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-4"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.200.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-5"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.202.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-6"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.204.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-7"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.206.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-8"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.208.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-9"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.210.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-10"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.212.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-11"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.214.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-12"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.216.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-13"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.218.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-14"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.220.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-15"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.222.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-16"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.224.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-17"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.226.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-18"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.228.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-19"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.230.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-20"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.232.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-21"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.234.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-22"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.236.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-23"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.238.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-24"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.240.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-25"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.242.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-26"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.243.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.1:",
+      "cold": "circle:0:0:0:0:1:0:0.1:generated-1"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.247.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.1:",
+      "cold": "circle:0:0:0:0:1:0:0.1:generated-2"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.248.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-27"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.250.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-28"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.252.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-29"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.254.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-30"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.256.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-31"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.258.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-32"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.260.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-33"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.262.signature",
+      "nominal": "circle:0:0:0:0:1:0:0.389:",
+      "cold": "circle:0:0:0:0:1:0:0.389:generated-34"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.264.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-37"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.270.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-38"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.276.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-39"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.282.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-40"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.288.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-41"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.294.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-42"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.300.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-43"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.306.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-44"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.312.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-45"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.318.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-46"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.324.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-47"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.330.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-48"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.336.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-49"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.342.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-50"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.348.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-51"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.354.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-52"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.360.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-53"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.366.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-54"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.372.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-55"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.378.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-56"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.384.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-57"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.390.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-58"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.396.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-59"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.402.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-60"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.409.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-61"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.415.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-62"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.421.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-63"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.427.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-64"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.433.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-65"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.439.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-66"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.445.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-67"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.451.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.389:",
+      "cold": "circle:0:0.8:0:0:1:0:0.389:generated-68"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.478.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.1:",
+      "cold": "circle:0:0.8:0:0:1:0:0.1:generated-35"
+    },
+    {
+      "path": "exactTopologyCache.feature_mv2xdhsp_3.topology.482.signature",
+      "nominal": "circle:0:0.8:0:0:1:0:0.1:",
+      "cold": "circle:0:0.8:0:0:1:0:0.1:generated-36"
+    },
+    {
+      "path": "rollbackIndex",
+      "cold": null
+    },
+    {
+      "path": "lastStandardsAudit",
+      "cold": {
+        "at": 1791668978163,
+        "ok": true,
+        "checked": 0,
+        "blocking": []
+      }
+    }
+  ],
+  "coldTopologySignatureQualification": {
+    "count": 802,
+    "allOnlyAppendGeneratedSuffix": true,
+    "meshAllOtherFieldsExact": true,
+    "exactTopologyIdentityEqualityClaimed": false
+  }
+}

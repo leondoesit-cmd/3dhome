@@ -2621,6 +2621,7 @@ async function exactDisplayBody(p, document = E.def, requestedHead = null, optio
   if(!compiled.ok)throw new Error(compiled.issues[0]?.message || "Invalid feature history");
   var run=await regenerateFeatures({...compiled.document,features:compiled.features},{requestedHead:head,massProperties:options.massProperties,signal:options.signal,scope:options.scope,restoreMode:options.restoreMode,coalesceKey:options.coalesceViewport?'viewport:'+head:undefined});
   if(document===E.def && displayNode===currentHistoryNode() && displayEditRevision===E.massEditRevision){
+    if(run.ok!==false)document.exactTopologyCache=captureExactTopology(document,compiled.features,run);
     if(run.ok===false)E.exactDiagnosticRun=captureExactDiagnostics(document,displayNode,displayEditRevision,run);
     else if(E.exactDiagnosticRun?.kernelRun.issues.every(function(issue){return run.results.has(issue.feature);}))E.exactDiagnosticRun=null;
   }
@@ -2674,6 +2675,7 @@ function queueExactMesh(p) {
         clearTopologyCache(p);
       }
       p.meshData = meshData;
+      if (buildingDocument.metadata?.authoringSystem === "parametric-v1") p.bounds = meshDataBounds(meshData.positions);
       p.exactPending = false;
       p.exactError = null;
       syncStatus();
@@ -28196,6 +28198,7 @@ async function saveModel() {
 function syncPreviewFromHistory() {
   if (!isCanonicalAuthoring() || !E.def) return;
   var result = applyHistoryToPreviewParts(E.def);
+  var queued = new Set();
   (result.dirtyPartIds || []).forEach(function (id) {
     var part = (E.def.parts || []).find(function (item) { return item.id === id; });
     if (!part) return;
@@ -28203,9 +28206,19 @@ function syncPreviewFromHistory() {
     // without ordering a rebuild would erase it from the viewport for good.
     if (isKernelBody(part)) { queueKernelBody(part); return; }
     delete part.meshData;
+    delete part.bounds;
     part.exactPending = false;
     part.exactError = null;
-    if (partNeedsExactMesh(part)) queueExactMesh(part);
+    if (!part.suppressed && partSupportsExactMesh(part)) { queued.add(part); queueExactMesh(part); }
+  });
+  // A saved rollback may already contain suppressed compatibility operations.
+  // Its simple earlier body still needs native geometry, even though no active
+  // modifier makes the analytic preview require a kernel mesh.
+  if (E.def.rollbackIndex != null) activeParts(E.def).forEach(function (part) {
+    if (!queued.has(part) && !part.meshData && !part.exactPending && !part.exactError && partSupportsExactMesh(part)) {
+      delete part.bounds;
+      queueExactMesh(part);
+    }
   });
 }
 
