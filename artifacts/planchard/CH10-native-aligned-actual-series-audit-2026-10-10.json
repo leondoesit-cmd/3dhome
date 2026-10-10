@@ -1,0 +1,184 @@
+{
+  "checks": {
+    "sourceAuthoringExactExceptExplicitDerivedFields": true,
+    "originalBaseDrawingViewsAndDimsExact": true,
+    "undoWholeDrawingExactAP": true,
+    "redoWholeDrawingAndSvgExact": true,
+    "fiveViewsPreserveAlternate": true,
+    "genuineTopParentAndConfiguration": true,
+    "threeFiniteNoncollinearPicks": true,
+    "twoGenuineCutMaterialRegions": true,
+    "trueDepthThirtyOnePointSevenFiveMm": true,
+    "nonlinearProjectionCutFaceOnly": true,
+    "meshNotMutated": true,
+    "actualSvgHatchAndCaption": true,
+    "sharedSceneCutMaterial": true,
+    "actualHatchMidpointsInsideTrueCutRegions": true,
+    "derivedMeshBoundsMatchActualVertices": true
+  },
+  "qualifiedActualAlignedAccepted": true,
+  "coldAccepted": false,
+  "child": {
+    "id": "vocve1p1",
+    "dir": "alignedsection",
+    "label": "ALIGNED CUT-FACE A-A (UNFOLDED)",
+    "x": 359.7225842781815,
+    "y": 106.48026070276325,
+    "scale": null,
+    "configurationId": null,
+    "configurationName": null,
+    "primary": false,
+    "parent": "v75w22wl",
+    "hidden": null,
+    "displayStyle": "edges",
+    "centers": null,
+    "labelled": true,
+    "section": null,
+    "alignedSection": {
+      "version": 1,
+      "from": "v75w22wl",
+      "points": [
+        {
+          "u": 1.482925986653754,
+          "v": 0.009766059498995472
+        },
+        {
+          "u": -0.01375017798174838,
+          "v": 0.009766059498995472
+        },
+        {
+          "u": -0.01375017798174838,
+          "v": 1.5064422241344984
+        }
+      ],
+      "tag": "A"
+    },
+    "detail": null,
+    "cropSketch": null,
+    "brokenOut": null,
+    "auxiliary": null,
+    "breakView": null,
+    "alternatePosition": null
+  },
+  "actualFrame": {
+    "hinge": {
+      "x": -0.01375017798174838,
+      "y": 0,
+      "z": -0.009766059498995472
+    },
+    "rays": [
+      {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      }
+    ],
+    "depth": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "parent": {
+      "id": "v75w22wl",
+      "dir": "top",
+      "label": "TOP",
+      "x": null,
+      "y": null,
+      "scale": null,
+      "configurationId": null,
+      "configurationName": null,
+      "primary": false,
+      "parent": null,
+      "hidden": null,
+      "displayStyle": "edges",
+      "centers": null,
+      "labelled": true,
+      "section": null,
+      "alignedSection": null,
+      "detail": null,
+      "cropSketch": null,
+      "brokenOut": null,
+      "auxiliary": null,
+      "breakView": null,
+      "alternatePosition": null
+    },
+    "basis": {
+      "right": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "up": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "forward": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      }
+    }
+  },
+  "projection": {
+    "bounds": {
+      "u0": 0,
+      "u1": 3.1750000000000003,
+      "v0": -1.9178146271849499,
+      "v1": 1.895162175896097
+    },
+    "regionSummary": [
+      {
+        "keys": [
+          "leg",
+          "loops"
+        ],
+        "loops": [
+          {
+            "length": 13,
+            "first": {
+              "u": 3.1750000000000003,
+              "v": -1.9178146271849499
+            }
+          },
+          {
+            "length": 89,
+            "first": {
+              "u": 2.1832139219646094,
+              "v": 0
+            }
+          }
+        ]
+      },
+      {
+        "keys": [
+          "leg",
+          "loops"
+        ],
+        "loops": [
+          {
+            "length": 20,
+            "first": {
+              "u": 2.964830962634046,
+              "v": 1.8948593340595183
+            }
+          },
+          {
+            "length": 20,
+            "first": {
+              "u": 1.8230102452121606,
+              "v": 1.8949851781791445
+            }
+          }
+        ]
+      }
+    ],
+    "visibleEdges": 138
+  },
+  "qualification": "Actual3pick hinge slightly offnominalorigin; exact saved points are geometry truth, not ideal19.05radial claim. Realnative mesh two-plane sections unfolded, cutfaces only; no hiddenbackground/fullSOLIDWORKSparity. Cold pending."
+}

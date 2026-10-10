@@ -1,0 +1,46 @@
+{
+  "checks": {
+    "entireDrawingExact": true,
+    "actualSvgByteExact": true,
+    "completeProjectOnlyExplicitDerivedDifferences": true,
+    "actualNativeMeshCoordinatesAndFacesExact": true,
+    "boundsDifferenceOnlyRemovalOfOptionalDerivedCache": true,
+    "alternate16GuardsInheritedAfterIdenticalSourceDrawing": true,
+    "aligned15GuardsInheritedAfterIdenticalSourceDrawing": true
+  },
+  "actualCombinedAlternateAlignedColdAccepted": true,
+  "differences": [
+    {
+      "path": ".createdAt",
+      "a": 1791653735773,
+      "b": 1791653910963
+    },
+    {
+      "path": ".mainModel.parts.0.exactBuildToken",
+      "a": 18,
+      "b": 19
+    },
+    {
+      "path": ".mainModel.parts.0.meshData.bounds",
+      "a": {
+        "x0": -1.904623438211975,
+        "x1": 1.904623438211975,
+        "y0": 0,
+        "y1": 3.1750000000000003,
+        "z0": -1.904999396655993,
+        "z1": 1.9050000000000002
+      }
+    },
+    {
+      "path": ".mainModel.lastRebuild.rebuiltAt",
+      "a": 1791653714630,
+      "b": 1791653851682
+    },
+    {
+      "path": ".mainModel.lastStandardsAudit.at",
+      "a": 1791653513366,
+      "b": 1791653737880
+    }
+  ],
+  "qualification": "Entire actual Drawing/SVG/native mesh coordinates/faces/canonical authoring exact. Cold removes optional duplicate meshData.bounds cache and changes token/timestamps; part.bounds remains preserved. Saved off-centre cutting picks retained; no symmetric19.05 claim. Qualified native projection/hatch/contact guards inherited from identical source/picks. Singlebody rigid Alternate/cutfaces-only Aligned scope."
+}

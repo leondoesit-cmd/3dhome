@@ -1,0 +1,39 @@
+{
+  "checks": {
+    "nativeSourceAllAuthoringExact": true,
+    "baseDrawingAllFieldsExact": true,
+    "actualBodyIdAndConfiguration": true,
+    "actualTranslationOneCm": true,
+    "zeroRotationPivot": true,
+    "actualAllRigidPose": true,
+    "everyNativeVertexActuallyTranslated": true,
+    "sourceMeshNotMutated": true,
+    "projectionTranslatedOneCm": true,
+    "paperScaleTwentyMm": true,
+    "phantomActualSvgPattern": true,
+    "phantomSharedScene": true,
+    "removeClearsOverlay": true,
+    "undoWholeDrawingAndSvgExact": true,
+    "redoWholeDrawingAndSvgExact": true,
+    "nativeFiveSteps": true
+  },
+  "actualNativeAlternateQualifiedAccepted": true,
+  "coldAccepted": false,
+  "projection": {
+    "paperScale": 20,
+    "baseBounds": {
+      "u0": -1.904623438211975,
+      "u1": 1.904623438211975,
+      "v0": 0,
+      "v1": 3.1750000000000003
+    },
+    "altBounds": {
+      "u0": -0.9046234382119751,
+      "u1": 2.904623438211975,
+      "v0": 0,
+      "v1": 3.1750000000000003
+    },
+    "translationPaperMm": 20
+  },
+  "qualification": "Actual native single-body illustrative rigid pose; no second solved assembly/mate configuration or motion claim. Source authoring/native cached geometry exact apart rebuild time. Cold pending."
+}
