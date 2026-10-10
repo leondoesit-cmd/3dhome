@@ -739,6 +739,7 @@ export function cropProjection(projection, circle) {
   if (!projection || !circle) return projection;
   const radius = Number(circle.radius) || 0;
   if (!(radius > 0)) return projection;
+  const bounds={u0:circle.u-radius,u1:circle.u+radius,v0:circle.v-radius,v1:circle.v+radius};
   const clip = (segments) => {
     const out = [];
     for (const segment of segments || []) {
@@ -755,7 +756,11 @@ export function cropProjection(projection, circle) {
     circles: (projection.circles || []).filter((entry) =>
       Math.hypot(entry.u - circle.u, entry.v - circle.v) <= radius + entry.radius),
     surfaces: (projection.surfaces || []).map(surface=>({...surface,points:clipSurfaceToCircle(surface.points,circle)})).filter(surface=>surface.points.length>=3),
-    bounds: { u0: circle.u - radius, u1: circle.u + radius, v0: circle.v - radius, v1: circle.v + radius },
+    bounds,
+    // Native parent bounds describe the uncut stock, not this Detail bubble.
+    exactBounds:bounds,
+    displayBounds:bounds,
+    presentationCentre:{u:circle.u,v:circle.v},
     crop: { u: circle.u, v: circle.v, radius },
   };
 }

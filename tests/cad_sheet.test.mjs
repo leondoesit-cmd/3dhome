@@ -248,6 +248,26 @@ test("a detail crops its parent to the callout bubble", () => {
   }
 });
 
+test('native exact parent extents cannot enlarge Detail selection, layout or caption beyond its clip circle',()=>{
+  const body=bodies(BOX)[0];
+  body.exactBounds={min:{x:-10,y:0,z:-5},max:{x:10,y:20,z:5}};
+  const doc=createSheetDoc({views:[],scale:[1,2]});
+  doc.views=[createView('front',{id:'parent',primary:true}),createView('front',{id:'detail',label:'DETAIL A',parent:'parent',scale:[1,1],x:150,y:80,detail:{from:'parent',u:0,v:17,radius:2,tag:'A'}})];
+  const projector=createProjector(doc,[body]),scene=buildSheetScene(doc,{projection:projector});
+  const place=scene.views.find(v=>v.id==='detail');
+  assert.equal(place.box.w,40,'paper width is the40mm crop diameter, not full200mm native stock');
+  assert.equal(place.box.h,40,'paper height is the40mm crop diameter, not full200mm native stock');
+  assert.deepEqual(place.centre,{u:0,v:17});
+  const bubble=scene.items.find(i=>i.type==='circle'&&i.viewId==='detail'&&i.style==='detail');
+  assert.ok(bubble);assert.equal(bubble.r,20);assert.equal(bubble.cx,place.x);assert.equal(bubble.cy,place.y);
+  const caption=scene.items.find(i=>i.viewLabel==='detail');assert.equal(caption.y,place.y+20+7);
+  const cold=JSON.parse(JSON.stringify(doc));
+  assert.equal(sceneToSvg(buildSheetScene(cold,{projection:createProjector(cold,[body])})),sceneToSvg(scene));
+  const nested=createView('front',{id:'nested',parent:'detail',scale:[1,1],detail:{from:'detail',u:0,v:17,radius:1,tag:'B'}});doc.views.push(nested);
+  const nestedScene=buildSheetScene(doc,{projection:createProjector(doc,[body])});
+  assert.equal(nestedScene.views.find(v=>v.id==='nested').box.h,20,'nested Detail retains its own bounded bubble');
+});
+
 /* ---- tessellation -------------------------------------------------------- */
 
 test("an extrusion's hole survives to the drawing as a hole", () => {

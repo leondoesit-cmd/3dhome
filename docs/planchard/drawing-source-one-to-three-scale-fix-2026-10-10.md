@@ -1,0 +1,11 @@
+# Source1:3 and truthful view-scale controls
+
+Source PDF454/9-20 step118 requests BATTERY isometric1:3. The shared drawing scale list omitted that ratio; it now includes1:3 between1:2.5 and1:4, making it available in both sheet and selected-view dropdowns.
+
+The actual iso view row could correctly show1:2.5 while the inspector incorrectly showed As sheet with sheet1:2. Core automatic pictorial placement deliberately steps down one standard ratio; legacy null scale is automatic, not literal sheet inheritance. The inspector now distinguishes **Automatic (effective ratio)** from **As sheet**. Choosing As sheet persists `scaleMode:'sheet'` with null scale, genuinely following later sheet changes. Choosing Automatic removes that mode and restores the existing automatic rule; selecting an explicit ratio persists it and removes inheritance mode. Existing saved null scales retain their automatic geometry; no migration or existing model authoring occurs.
+
+Canonical view creation preserves the explicit sheet mode through normalization and cold load. Scene and inspector signatures include that mode. The sheet-option controller reacquires the live document after Undo capture, ensuring actual scale/style selections survive document normalization instead of changing a detached record.
+
+Actual parent recipe: select the BATTERY ISOMETRIC view, choose **View scale →1:3**, then **Display style →Shaded with edges**. Sheet **Scale →1:2** and Detail A **View scale →1:1** remain independently authorable. If leaving another pictorial automatic, its dropdown displays its effective ratio rather than claiming sheet scale. Source legacy/default view geometry is otherwise preserved; adding1:3 may change future auto-fit choices when that ratio best fits.
+
+Meaningful actual-controller regression covers legacy auto sheet1:2→iso1:2.5, truthful Automatic label, explicit1:3, As sheet following a later sheet1:4, normalized Undo, cold SVG equality, return to Automatic and persistent shaded-with-edges selection. Scale/shaded/template/note tests **16/16 PASS**; neighboring sheet/Break/Model Items tests **80/80 PASS**. Final gates: **679 modules linked,1487 source assertions, no free identifiers**. Scoped whitespace clean. Actual browser replay remains parent-owned; no browser/CAD/ADVANCE/Git edits.

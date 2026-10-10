@@ -12323,9 +12323,9 @@ function buildSheetPanel(host) {
         drawSketch();
       })).id="mdSheetViewConfiguration";
     }
-    var scaleControl=drawingViewScaleControl(selectedView.scale,t("sheetInherit"));
+    var scaleControl=drawingViewScaleControl(selectedView.scale,t("sheetInherit"),{automatic:selectedView.scaleMode!=='sheet',effectiveScale:sheet.scene?.().views.find(function(placed){return placed.id===selectedView.id;})?.scale});
     sheetRow(views, t("sheetViewScale"), sheetSelect(scaleControl.options, scaleControl.value, function (value) {
-      sheet.setSheetOption("viewScale", value === "sheet" ? "sheet" : value.split(":").map(Number));
+      sheet.setSheetOption("viewScale", value === "sheet" || value === "auto" ? value : value.split(":").map(Number));
       drawSketch();
     }));
     sheetRow(views, t("drawHiddenLines"), sheetSelect([
@@ -12398,7 +12398,7 @@ function syncSheetPanel() {
   var doc = drawingDocument(), sheet = drawingSheet();
   var selection = sheet.selection();
   var signature = doc.views.map(function (view) {
-    return view.id + ":" + view.label + ":" + drawingViewScaleControl(view.scale).value + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"");
+    return view.id + ":" + view.label + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"");
   }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "");
   if (host.getAttribute("data-signature") !== signature) {
     buildSheetPanel(host);

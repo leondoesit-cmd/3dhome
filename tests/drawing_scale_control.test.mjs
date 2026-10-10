@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {drawingViewScaleControl} from '../js/core/drawing_scale_control.js';
 import {createSheetDoc,createView,ensureSheetDoc,scaleValue,scaleLabel} from '../js/cad_sheet.js';
+import {createDrawingController} from '../js/modeler_drawing.js';
 
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 
@@ -65,4 +66,27 @@ test('actual drawing form maps Auxiliary checkbox to boolean control and preserv
     assert.equal(classes.has('md-sheet-form'),false);
   }
   const cancelled=context.sheetForm('Auxiliary view',[{key:'flip',type:'checkbox',value:false}]);form.onCancel();assert.equal(await cancelled,null);
+});
+
+test('source1:3 is authorable while automatic iso and explicit sheet inheritance remain distinct after normalized history/cold',()=>{
+  const def={drawing:createSheetDoc({views:['front','iso'],scale:[1,2]})},history=[];
+  let controller;
+  const host={doc:()=>ensureSheetDoc(def),bodies:()=>[],bodiesToken:()=>1,canvas:()=>({}),width:()=>900,height:()=>600,t:k=>k,
+    refresh(){},markDirty:()=>controller.invalidate(),pushUndo:()=>{history.push(JSON.stringify(def.drawing));def.drawing=JSON.parse(JSON.stringify(def.drawing));ensureSheetDoc(def);}};
+  controller=createDrawingController(host);const isoId=def.drawing.views[1].id;
+  controller.state.selection={kind:'view',id:isoId};
+  const iso=()=>def.drawing.views.find(v=>v.id===isoId),placed=()=>controller.scene().views.find(v=>v.id===isoId);
+  assert.equal(placed().scale,.4,'legacy automatic iso steps down from sheet1:2');
+  const automatic=drawingViewScaleControl(null,'As sheet',{automatic:true,effectiveScale:placed().scale});
+  assert.equal(automatic.value,'auto');assert.equal(automatic.options.find(o=>o.value==='auto').label,'Automatic (1:2.5)');
+  assert.ok(automatic.options.some(o=>o.value==='1:3'));
+  controller.setSheetOption('viewScale',[1,3]);assert.deepEqual(iso().scale,[1,3]);assert.equal(placed().scale,1/3);
+  controller.setSheetOption('viewScale','sheet');assert.equal(iso().scale,null);assert.equal(iso().scaleMode,'sheet');assert.equal(placed().scale,.5);
+  controller.setSheetOption('scale',[1,4]);assert.equal(placed().scale,.25,'explicit inheritance follows later sheet edits');
+  const svg=controller.svg(),cold=JSON.parse(JSON.stringify(def));ensureSheetDoc(cold);
+  assert.equal(cold.drawing.views[1].scaleMode,'sheet');assert.equal(createDrawingController({...host,doc:()=>ensureSheetDoc(cold)}).svg(),svg);
+  controller.setSheetOption('viewScale','auto');assert.equal(iso().scale,null);assert.equal(iso().scaleMode,undefined);assert.equal(placed().scale,.2);
+  def.drawing=JSON.parse(history.at(-1));controller.invalidate();assert.equal(placed().scale,.25,'Undo restores genuine sheet inheritance');
+  controller.setSheetOption('viewScale',[1,3]);controller.setSheetOption('viewDisplayStyle','shadedEdges');
+  assert.equal(iso().displayStyle,'shadedEdges');assert.deepEqual(iso().scale,[1,3]);
 });

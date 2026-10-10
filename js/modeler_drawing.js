@@ -129,7 +129,7 @@ export function createDrawingController(host) {
       host.bodiesToken(), host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
-        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
+        view.parent, view.scaleMode, view.hidden, view.displayStyle, view.centers, view.labelled, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
@@ -1469,8 +1469,8 @@ export function createDrawingController(host) {
   }
 
   function setSheetOption(key, value) {
-    const doc = host.doc();
     host.pushUndo(host.t("opSheetSetup"));
+    const doc = host.doc();
     if (key === "size" && SHEET_SIZES[value]) doc.size = value;
     else if (key === "orientation") doc.orientation = value === "portrait" ? "portrait" : "landscape";
     else if (key === "projection") doc.projection = value === "first" ? "first" : "third";
@@ -1490,7 +1490,10 @@ export function createDrawingController(host) {
     else if (key === "showZones") doc.showZones = !!value;
     else if (key === "viewScale" && state.selection?.kind === "view") {
       const view = doc.views.find((entry) => entry.id === state.selection.id);
-      if (view) view.scale = value === "sheet" ? null : value;
+      if (view) {
+        view.scale = value === "sheet" || value === "auto" ? null : value;
+        if(value === "sheet")view.scaleMode='sheet';else delete view.scaleMode;
+      }
     } else if (key === "viewDisplayStyle" && state.selection?.kind === "view") {
       const view=doc.views.find(entry=>entry.id===state.selection.id);
       if(view)view.displayStyle=["shaded","shadedEdges"].includes(value)?value:"edges";

@@ -47,7 +47,7 @@ export const SHEET_SIZES = Object.freeze({
    than a view that leaves a little air on the sheet. */
 export const STANDARD_SCALES = Object.freeze([
   [50, 1], [20, 1], [10, 1], [5, 1], [4, 1], [2, 1], [1, 1],
-  [1, 2], [1, 2.5], [1, 4], [1, 5], [1, 10], [1, 20], [1, 25], [1, 50], [1, 100], [1, 200], [1, 500],
+  [1, 2], [1, 2.5], [1, 3], [1, 4], [1, 5], [1, 10], [1, 20], [1, 25], [1, 50], [1, 100], [1, 200], [1, 500],
 ]);
 
 /* Model units are centimetres everywhere in this app; the sheet is metric
@@ -158,7 +158,8 @@ export function createView(dir, options = {}) {
     label: options.label || defaultViewLabel(dir),
     x: Number.isFinite(options.x) ? options.x : null,      // null = let the layout place it
     y: Number.isFinite(options.y) ? options.y : null,
-    scale: options.scale || null,                          // null = inherit the sheet scale
+    scale: options.scale || null,                          // null = automatic unless explicit sheet mode
+    ...(options.scaleMode==='sheet'?{scaleMode:'sheet'}:{}),
     configurationId: options.configurationId || null,      // null = active model configuration
     configurationName: options.configurationName || null,
     primary: !!options.primary,
@@ -235,7 +236,7 @@ export function titleBlockBox(doc) {
    isometric of a cube is 1.7× the area of the front view and dominates the
    page, so an undirected one steps down to the next standard scale. */
 function defaultViewScale(view, sheetScale) {
-  if (!view || view.primary || isOrthoView(view.dir) || view.section || view.detail) return sheetScale;
+  if (!view || view.scaleMode==='sheet' || view.primary || isOrthoView(view.dir) || view.section || view.detail) return sheetScale;
   const value = scaleValue(sheetScale);
   const index = STANDARD_SCALES.findIndex((scale) => scaleValue(scale) <= value + 1e-9);
   return STANDARD_SCALES[Math.min(STANDARD_SCALES.length - 1, (index < 0 ? 0 : index) + 1)];
