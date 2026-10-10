@@ -1,0 +1,100 @@
+{
+  "savedKey": "cm_mv2wd8pl",
+  "savedName": "Planchard Ch3 IN-CHAPTER B4 dimension errors - browser 2026-10-10",
+  "warmChecks": {
+    "fiftySevenCoordinatesTypesStylesExactRoundedArrows": true,
+    "threeCenterThreeHiddenAndTwelveIsoArcs": true,
+    "tenUniqueClosedNoncollapsedArrows": true,
+    "twelveNotesTwentySixRows": true,
+    "nineLiteralLabelsExact": true,
+    "legalReferenceAndSourceAmbiguityQualified": true,
+    "purePaperNoCadViewsImages": true,
+    "sourcePropertiesChosenSheet": true
+  },
+  "warmAccepted": true,
+  "sourceLayoutAccepted": true,
+  "sourceLayoutToleranceMm": 0.03,
+  "mismatches": [],
+  "noteLineRows": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    5,
+    8,
+    4
+  ],
+  "noteOffsets": [
+    {
+      "text": "Ø.500 THRU ALL",
+      "dx": -0.0028066095444785333,
+      "dy": 0.003188752874436318
+    },
+    {
+      "text": "(Ø.88)",
+      "dx": -0.009448880036543983,
+      "dy": 0.0032311020665005685
+    },
+    {
+      "text": ".12",
+      "dx": -0.00891569433061079,
+      "dy": -0.002554646477861411
+    },
+    {
+      "text": ".63",
+      "dx": -0.004199794107783816,
+      "dy": -0.003909931874702011
+    },
+    {
+      "text": "Ø.88",
+      "dx": 0.00037387413533451763,
+      "dy": -0.0003907639457310097
+    },
+    {
+      "text": "Ø.75",
+      "dx": -0.0003694960954732096,
+      "dy": 0.00041012417469232787
+    },
+    {
+      "text": "Top view",
+      "dx": 0.000356606727237363,
+      "dy": -0.00039960968041441447
+    },
+    {
+      "text": "Front view",
+      "dx": 0.0003304582459691119,
+      "dy": -0.0003949378079539656
+    },
+    {
+      "text": "Isometric view",
+      "dx": 0.0003230718579061431,
+      "dy": -0.0004032344880187111
+    }
+  ],
+  "svgSha256": "551b1f99a7d899884e950a0edf5d12a7caad85da08754e4eb712632fbb41e5ae",
+  "coldAccepted": true,
+  "qualification": "Illustrative paper geometry, approximate unshaded circular-arc Isometric not native/ellipse/shaded projection. Legal(Ø.88) reference and lower.63 ambiguity preserved. Arrow recipe rounded2decimalmm. Actual label origins checked within.03mm after ordinary browser corrections, not exact-origin witness; no manufacturing CAD/image/Undo claim.",
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesNameKeyExact": true,
+    "emptyAuthoredCadExact": true,
+    "svgByteExact": true
+  },
+  "wholeProjectDifferences": [
+    {
+      "path": "createdAt",
+      "warm": 1791668203713,
+      "cold": 1791668276928
+    },
+    {
+      "path": "mainModel.lastRebuild.rebuiltAt",
+      "warm": 1791668198601,
+      "cold": 1791668256862
+    }
+  ]
+}
