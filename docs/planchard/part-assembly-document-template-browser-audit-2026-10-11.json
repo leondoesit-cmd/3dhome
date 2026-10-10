@@ -1,0 +1,153 @@
+{
+  "status": "accepted-source-scoped-four-captures-reuse-two-kind-cold-library-and-override",
+  "guardsPassed": 25,
+  "rows": [
+    {
+      "name": "ASM-IN-ANSI",
+      "path": "artifacts/planchard/ASM-IN-ANSI-template-warm-browser-2026-10-11.mforge",
+      "key": "asm_mv30xdm8",
+      "properties": {
+        "lengthUnit": "in",
+        "massUnit": "lb",
+        "angleUnit": "deg",
+        "draftingStandard": "ANSI",
+        "projection": "first",
+        "lengthPrecision": 3,
+        "anglePrecision": 0,
+        "dualDimensions": false
+      },
+      "template": {
+        "version": 1,
+        "id": "c3fe8955-c20a-4dfe-9f25-5708ea607850",
+        "name": "ASM-IN-ANSI",
+        "kind": "assembly-template"
+      },
+      "activeDocument": {
+        "type": "assembly",
+        "key": "asm_mv30xdm8"
+      },
+      "historyRows": 0,
+      "emptyWorkingSketches": 0,
+      "guardsPassed": 6
+    },
+    {
+      "name": "ASM-MM-ISO",
+      "path": "artifacts/planchard/ASM-MM-ISO-template-warm-browser-2026-10-11.mforge",
+      "key": "asm_mv30y23l",
+      "properties": {
+        "lengthUnit": "mm",
+        "massUnit": "g",
+        "angleUnit": "deg",
+        "draftingStandard": "ISO",
+        "projection": "first",
+        "lengthPrecision": 2,
+        "anglePrecision": 0,
+        "dualDimensions": false
+      },
+      "template": {
+        "version": 1,
+        "id": "56e13421-0ecf-4832-b91c-ef1067550d0d",
+        "name": "ASM-MM-ISO",
+        "kind": "assembly-template"
+      },
+      "activeDocument": {
+        "type": "assembly",
+        "key": "asm_mv30y23l"
+      },
+      "historyRows": 0,
+      "emptyWorkingSketches": 0,
+      "guardsPassed": 6
+    },
+    {
+      "name": "PART-IN-ANSI",
+      "path": "artifacts/planchard/PART-IN-ANSI-template-warm-browser-2026-10-11.mforge",
+      "key": "cm_mv30z9u4",
+      "properties": {
+        "lengthUnit": "in",
+        "massUnit": "lb",
+        "angleUnit": "deg",
+        "draftingStandard": "ANSI",
+        "projection": "first",
+        "lengthPrecision": 3,
+        "anglePrecision": 0,
+        "dualDimensions": false
+      },
+      "template": {
+        "version": 1,
+        "id": "8e7782b2-9182-4305-9af1-c2e33481c04c",
+        "name": "PART-IN-ANSI",
+        "kind": "part-template"
+      },
+      "activeDocument": {
+        "type": "part",
+        "key": "cm_mv30z9u4"
+      },
+      "historyRows": 0,
+      "emptyWorkingSketches": 1,
+      "guardsPassed": 6
+    },
+    {
+      "name": "PART-MM-ISO",
+      "path": "artifacts/planchard/PART-MM-ISO-template-warm-browser-2026-10-11.mforge",
+      "key": "cm_mv310csk",
+      "properties": {
+        "lengthUnit": "mm",
+        "massUnit": "g",
+        "angleUnit": "deg",
+        "draftingStandard": "ISO",
+        "projection": "first",
+        "lengthPrecision": 2,
+        "anglePrecision": 0,
+        "dualDimensions": false
+      },
+      "template": {
+        "version": 1,
+        "id": "86588f73-64ee-4192-b02f-d35cfb73513a",
+        "name": "PART-MM-ISO",
+        "kind": "part-template"
+      },
+      "activeDocument": {
+        "type": "part",
+        "key": "cm_mv310csk"
+      },
+      "historyRows": 0,
+      "emptyWorkingSketches": 1,
+      "guardsPassed": 6
+    }
+  ],
+  "qualification": "Projection first on all4 is additional chosen default, not source template requirement; Assembly bundle mainModel is unrelated blank Part, activeDocument selects correct assembly.",
+  "followupGuardsPassed": 10,
+  "totalGuardsPassed": 35,
+  "coldSecondReuse": [
+    {
+      "name": "ASM-IN-ANSI",
+      "key": "asm_mv31301r",
+      "samePresetIdentity": true,
+      "sameDefaults": true,
+      "newDocumentIdentity": true,
+      "blank": true
+    },
+    {
+      "name": "PART-MM-ISO",
+      "key": "cm_mv31262m",
+      "samePresetIdentity": true,
+      "sameDefaults": true,
+      "newDocumentIdentity": true,
+      "blank": true
+    }
+  ],
+  "localOverride": {
+    "key": "asm_mv31301r",
+    "onlyChangedFields": [
+      "documentProperties.lengthPrecision",
+      "context.units.precision"
+    ],
+    "from": 3,
+    "to": 4
+  },
+  "qualifications": [
+    "Cold proves new independent documents from persisted Part and Assembly presets, not equality of each first saved witness after cold reopening",
+    "Both names per kind persisted in actual cold pickers per parent browser observation; newly generated ASM-IN properties3 after local override4 demonstrates preset independence, new last blank was not exported",
+    "No four-first-document cold equality claim"
+  ]
+}

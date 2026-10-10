@@ -158,7 +158,7 @@ test("the editor records the sources and re-derives from them", () => {
   assert.match(modeler, /function syncSweptSourceParts\(\) \{/);
   assert.match(modeler, /if \(syncSweptSourceParts\(\)\) changed = true;/);   // runs with the extrusions
   assert.match(modeler, /sources=sweepSourceRecord\(profile,profileLoop\.entityIds,path\);/);
-  assert.match(modeler, /sources=loftSourceRecord\(sectionSketches,sectionIds\);/);
+  assert.match(modeler, /sources=loftSourceRecord\(sectionSketches,sectionSources\);/);
   assert.match(modeler, /addKernelBodyPart\(created,type,params,sources\)/);
   // the snapshot is now built with the same mapping the resolver uses
   assert.doesNotMatch(modeler, /return \{x:point\.u,y:point\.v,z:0\};/);

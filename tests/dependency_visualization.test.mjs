@@ -30,8 +30,8 @@ test('actual canonical pattern fixture includes explicit sketch-plane support wi
  const before=JSON.stringify(document),g=partDependencyGraph(document),s=dependencyVisualization(g,'feature_mv2xd0p0_2');
  assert.ok(s.upstream.has('plane:top'));assert.ok(s.relations.some(e=>e.from==='plane:top'&&e.to==='sk_1zmp0'));
  assert.ok(!s.upstream.has('origin'));assert.equal(JSON.stringify(document),before);
- const collar={references:[{id:'plane6472',type:'plane',name:'Collar plane'}],sketches:[{id:'collar',referenceId:'plane6472'}],features:[{id:'boss',type:'extrude',params:{sketchId:'collar'}}]};
- assert.ok(dependencyVisualization(partDependencyGraph(collar),'boss').upstream.has('plane6472'));
+ const collar={references:[{id:'plane:top',type:'plane',name:'Top Plane'},{id:'plane6472',type:'plane',name:'Collar plane',baseReferenceId:'plane:top'}],sketches:[{id:'collar',referenceId:'plane6472'}],features:[{id:'boss',type:'extrude',params:{sketchId:'collar'}}]};
+ const chain=dependencyVisualization(partDependencyGraph(collar),'boss');assert.ok(chain.upstream.has('plane6472'));assert.ok(chain.upstream.has('plane:top'));assert.ok(chain.relations.some(e=>e.from==='plane:top'&&e.to==='plane6472'));
 });
 test('production mouse and keyboard hover send mate identity separately from rigid selection, and leave clears',()=>{
  const source=fs.readFileSync(new URL('../js/modeler_tree.js',import.meta.url),'utf8'),events={},calls=[];

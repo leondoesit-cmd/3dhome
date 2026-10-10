@@ -21,6 +21,8 @@ function rightSketch(){
 test('face support offset survives canonical compilation and exact support realignment independently of reverse start offset',()=>{
   const {document,sketch}=rightSketch();
   createFeatureDefinition(document,'box',{id:'body',params:{w:12,h:4,d:2}});
+  // Face-attached profiles must follow the body that supplies their support.
+  document.history=[document.history[1],document.history[0]];
   const support={kind:'face',ownerFeatureId:'body',persistentId:'body:face:x39',descriptor:{surface:'plane',origin:{x:3.9,y:0,z:0},normal:{x:1,y:0,z:0}}};
   sketch.support=support;sketch.referenceId=support.persistentId;setSketchOffset(document,sketch.id,.1);
   createFeatureDefinition(document,'extrude',{id:'rib',inputs:['body'],references:{sketches:[sketch.id]},params:{sketchId:sketch.id,direction:'reverse',offset:.2,depth:.5,profileEntityIds:sketch.entities.map(entity=>entity.id)}});

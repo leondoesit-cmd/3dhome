@@ -26,6 +26,12 @@ test("cadIcon accepts extra classes and aliases", () => {
   assert.ok(fromScissor.startsWith("<svg"));
 });
 
+test("layer, deposition and component-pattern ribbon actions have distinct genuine SVG glyphs",()=>{
+  const keys=['layeranalysis','fffslice','componentpattern','editcomponentpattern','removecomponentpattern'];
+  const glyphs=keys.map(key=>{const html=cadIcon(key);assert.ok(html.startsWith('<svg'),key);return html;});
+  assert.equal(new Set(glyphs).size,keys.length);
+});
+
 test("all features in FEATURE_CATALOG have corresponding CAD icons", () => {
   Object.keys(FEATURE_CATALOG).forEach((type) => {
     const spec = FEATURE_CATALOG[type];

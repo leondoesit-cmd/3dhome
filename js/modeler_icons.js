@@ -19,6 +19,11 @@ function colorPath(d, fill, stroke, sw, extra) {
 }
 
 export const CAD_ICONS = {
+  layeranalysis: () => p("M3 5 L10 2 L17 5 L10 8 Z", .2) + l("M3 9 L10 12 L17 9 M3 13 L10 16 L17 13 M10 8 V16") + l("M5 5 H15", .9),
+  fffslice: () => p("M7 2 H13 V6 L11 9 H9 L7 6 Z", .25) + l("M10 9 V11 M3 17 H17 M4 14 H16 M4 12 H8 M12 12 H16 M4 14 V17 M16 14 V17"),
+  componentpattern: () => p("M2 2 H6 V6 H2 Z", .45) + p("M10 2 H14 V6 H10 Z M2 10 H6 V14 H2 Z M10 10 H14 V14 H10 Z", .15) + l("M7 4 H9 M4 7 V9 M15 16 H19 M17 14 V18"),
+  editcomponentpattern: () => p("M2 2 H6 V6 H2 Z M10 2 H14 V6 H10 Z M2 10 H6 V14 H2 Z", .2) + l("M8 17 L10 12 L16 6 L19 9 L13 15 Z M15 7 L18 10"),
+  removecomponentpattern: () => p("M2 2 H6 V6 H2 Z M10 2 H14 V6 H10 Z M2 10 H6 V14 H2 Z", .15) + l("M11 11 L18 18 M18 11 L11 18"),
   // Repeat the last committed operation: a return arrow around a small solid.
   repeatlast: function () {
     return l("M4 6 A7 7 0 1 1 3 13 M4 2 L4 6 L8 6") +

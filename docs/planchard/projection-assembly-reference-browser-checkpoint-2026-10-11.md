@@ -1,5 +1,7 @@
 # Chrome projection and assembly reference checkpoint
 
+Follow-up actual Measure acceptance: after cold reopening the saved native study, ordinary Evaluate → Measure → Faces and two viewport picks produced **26°**. Measure → Points on the two actual UpperY planes recorded PointA y1.5cm and PointB y3.3cm, **ΔY1.8cm=18mm**. The picked points have different X/Z, so their straight-line distance is7.629159317cm; that is not mislabeled as the Distance mate plane separation. Genuine `CH10-{angle26,distance18}-measure-browser-2026-10-11.png` and corresponding DOM text files are protected. This supersedes the pending Measure statement below. The earlier0deg pick was an unaccepted selection trial; the accepted clean cold picks are directly visible. Source chosen-block qualification remains unchanged.
+
 Source: PDF201/4-21 and PDF214–215/4-34–35. Actual desktop Chrome (browser3/tab710862476), dark application UI, ordinary native tools. No CAD injection.
 
 The new Perspective button was present in Assembly after ordinary reload. Actual click sequence was pressed=true → false → true. Orthographic and restored Perspective screenshots are protected. `CH10-projection-restored-browser-2026-10-11.mforge` equals the cold study export in every field except `createdAt`; source geometry, transforms, mates and drawings are unchanged. Production camera/framing/picking/Normal To tests independently pass12/12. This browser checkpoint does not yet cover Part Normal To or projection-preference persistence.

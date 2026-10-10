@@ -227,7 +227,7 @@ test("sweep and loft push a body instead of only a history row", () => {
   const create = modeler.match(/function createMultiSketchFeature\(type, values\)[\s\S]*?\n\}\n/)[0];
   assert.match(create, /addKernelBodyPart/, "the additive branch adds a part");
   // and the subtractive twin still lands on the target's cut list
-  assert.match(create, /cutTarget\.cuts3d\.push\(\{kind:"sweep"/);
+  assert.match(create, /cutTarget\.cuts3d\.push\(type==="loft" \? \{kind:"loft"[\s\S]*: \{kind:"sweep"/);
 });
 
 test("editing a sweep or loft feature rebuilds its body", () => {

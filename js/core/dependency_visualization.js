@@ -12,7 +12,7 @@ export function partDependencyGraph(document){
     for(const from of refs)connect(from,String(sketch.id),'Sketch support');
   }
   for(const reference of [...(document?.references||[]),...(document?.referenceGeometry||[])]){
-    const to=idOf(reference);for(const ref of [...(reference.references?.features||[]),...(reference.references?.references||[])])connect(idOf(ref),to,'Reference geometry support');
+    const to=idOf(reference);for(const ref of [reference.baseReferenceId,reference.support?.ownerFeatureId,...(reference.references?.features||[]),...(reference.references?.references||[])].filter(Boolean))connect(idOf(ref),to,'Reference geometry support');
   }
   for(const feature of document?.features||[]){
     const refs=[...(feature.inputs||[]),...(feature.references?.features||[]),...(feature.references?.sketches||[]),...(feature.references?.references||[])].map(idOf);

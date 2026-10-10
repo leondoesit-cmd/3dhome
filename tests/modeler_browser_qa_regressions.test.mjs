@@ -5,12 +5,13 @@ import vm from 'node:vm';
 import {frameFromPlane,framePoint} from '../js/core/frame.js';
 import {alignExtrusionToSupport} from '../js/cad_feature_tree.js';
 import {dimensionUnit} from '../js/sketch_equations.js';
+import {toleranceFields,makeDimensionTolerance} from '../js/core/dimension_tolerance.js';
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function load(name, context) {
   let start=source.indexOf(`function ${name}(`);
   if(source.slice(start-6,start)==='async ')start-=6;
   const end=source.indexOf('\n}',start)+2;
-  return vm.runInNewContext(`(${source.slice(start,end)})`,context);
+  return vm.runInNewContext(`(${source.slice(start,end)})`,{cloneData:structuredClone,toleranceFields,makeDimensionTolerance,...context});
 }
 
 test('camera view changes preserve an active principal-plane model sketch',()=>{
@@ -250,7 +251,7 @@ test('Zoom to fit centers an off-origin sketch in its plane camera',()=>{
 test('view indicators follow the camera without changing the sketch plane',()=>{
  const buttons=['top','front','side','back','left'].map(id=>({id,on:false,attrs:{},getAttribute(){return id;},classList:{toggle(_name,on){buttons.find(b=>b.id===id).on=on;}},setAttribute(key,value){this.attrs[key]=value;}}));
  const E={view:'front',mode:'3d',pv:{az:Math.PI,el:.05}};
- const sync=load('syncViewButtons',{E,root:{querySelectorAll:()=>buttons},VIEW_PRESETS:[{id:'back',az:Math.PI,el:.05},{id:'right',az:Math.PI/2,el:.05}]});
+ const sync=load('syncViewButtons',{E,root:{querySelector:()=>null,querySelectorAll:()=>buttons},VIEW_PRESETS:[{id:'back',az:Math.PI,el:.05},{id:'right',az:Math.PI/2,el:.05}]});
  sync();
  assert.deepEqual(buttons.filter(b=>b.on).map(b=>b.id),['back']);
  assert.equal(buttons.find(b=>b.id==='back').attrs['aria-pressed'],'true');

@@ -4,6 +4,7 @@ import {applyCurrentExactDiagnostics,captureExactDiagnostics} from '../js/core/e
 import {publishRebuildStatus} from '../js/core/parametric_rebuild.js';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import {captureExactTopology} from '../js/core/exact_topology_cache.js';
 
 const healthy=()=>({ok:true,issues:[],status:[{targetId:'rib',historyId:'step4',state:'rebuilt'}]});
 const failure={ok:false,issues:[{code:'regeneration-failed',feature:'rib:tool',message:'Curved stopping surface failed'}]};
@@ -34,7 +35,7 @@ function displayFunction(context){
 test('background body failure retains feature diagnostics before releasing native run, and a complete retry clears it',async()=>{
   const document={metadata:{authoringSystem:'parametric-v1'},features:[{id:'rib'}]},node={},E={def:document,massEditRevision:1};let released=0;
   const run={ok:false,issues:[{code:'regeneration-failed',feature:'rib',message:'Native stop failed'}],results:new Map()};
-  const context={E,currentHistoryNode:()=>node,cutTargetFeatureId:()=> 'rib',compileKernelFeatureTree:()=>({ok:true,document:{},features:[]}),regenerateFeatures:async()=>run,releaseRegeneration:()=>{released++;},captureExactDiagnostics};
+  const context={E,currentHistoryNode:()=>node,cutTargetFeatureId:()=> 'rib',compileKernelFeatureTree:()=>({ok:true,document:{},features:[]}),regenerateFeatures:async()=>run,releaseRegeneration:()=>{released++;},captureExactDiagnostics,captureExactTopology};
   const display=displayFunction(context);await assert.rejects(display({featureId:'rib'}),/Native stop failed/);assert.equal(released,1);
   assert.equal(applyCurrentExactDiagnostics(healthy(),E.exactDiagnosticRun,document,node,1).ok,false);
   run.ok=true;run.issues=[];run.results.set('rib',{shape:{}});

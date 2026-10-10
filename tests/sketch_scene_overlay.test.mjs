@@ -5,13 +5,14 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {framePoint,frameFromPlane} from '../js/core/frame.js';
 import {analyzeSketchProfiles,analyzeSketchChains} from '../js/sketch_profiles.js';
 import {surfaceSketchWorldPolyline,surfacePoint} from '../js/core/surface_uv.js';
+import {isHoleWizardSketch} from '../js/core/hole_wizard_sketches.js';
 
 const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 const consumed=new Function(sourceFunctionText(source,'consumedSketchIds')+';return consumedSketchIds;')();
 const standard=new Function('fin',sourceFunctionText(source,'standardPlaneFrame')+';return standardPlaneFrame;')(Number.isFinite);
 function overlays(def,extra={}) {
   const E={docType:'part',mode:'3d',modelPlaneActive:false,...extra};
-  const run=new Function('E','ensureSketch','consumedSketchIds','ensureSketchDoc','standardPlaneFrame','framePoint','analyzeSketchProfiles','analyzeSketchChains','surfaceSketchWorldPolyline',sourceFunctionText(source,'documentSketchOverlays')+';return documentSketchOverlays;')(E,d=>d.sketches.find(s=>s.id===d.activeSketch),consumed,d=>d.sketches,standard,framePoint,analyzeSketchProfiles,analyzeSketchChains,surfaceSketchWorldPolyline);
+  const run=new Function('E','ensureSketch','consumedSketchIds','ensureSketchDoc','standardPlaneFrame','framePoint','analyzeSketchProfiles','analyzeSketchChains','surfaceSketchWorldPolyline','isHoleWizardSketch',sourceFunctionText(source,'documentSketchOverlays')+';return documentSketchOverlays;')(E,d=>d.sketches.find(s=>s.id===d.activeSketch),consumed,d=>d.sketches,standard,framePoint,analyzeSketchProfiles,analyzeSketchChains,surfaceSketchWorldPolyline,isHoleWizardSketch);
   return run(def);
 }
 function line(id,plane='front',offset=0) {

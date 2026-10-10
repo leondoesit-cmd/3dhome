@@ -16,10 +16,10 @@ test('preview displays and downloads the same sheet SVG as native assembly expor
   const expected=content();assert.match(expected,/VERIFY ROTATION/);assert.match(expected,/FIXTURE/);assert.match(expected,/3.811 kg/);
   const root=node('root'),links=[],blobs=[],revoked=[],failures=[];
   const context={E,root,document:{createElement:tag=>{const x=node(tag);if(tag==='a')links.push(x);return x;}},
-    el:(tag,_cls,text)=>node(tag,text),rejectFlexibleSpringPreview:()=>false,drawingSvgContent:content,
+    el:(tag,_cls,text)=>node(tag,text),rejectFlexibleSpringPreview:()=>false,prepareConfiguredDrawingExport:async()=>{},drawingSvgContent:content,
     drawingSvgFilename:compile('drawingSvgFilename',{E}),Blob,URL:{createObjectURL:blob=>{blobs.push(blob);return 'blob:sheet'+blobs.length;},revokeObjectURL:url=>revoked.push(url)},flash:x=>failures.push(x),t:x=>x,setTimeout:()=>{}};
   const preview=compile('showDrawingPreview',context),output=compile('exportDrawingSvg',context);
-  assert.equal(preview(),true);output();
+  assert.equal(await preview(),true);await output();
   const dialog=root.children[0],view=dialog.children.find(x=>x.tag==='div'),download=dialog.children.find(x=>x.tag==='a');
   assert.equal(view.innerHTML,expected,'rendered preview is the same sheet, not a second renderer');
   assert.equal(await blobs[0].text(),expected);assert.equal(await blobs[1].text(),expected);
@@ -29,11 +29,11 @@ test('preview displays and downloads the same sheet SVG as native assembly expor
   assert.equal(dialog.removed,true);assert.deepEqual(revoked,['blob:sheet1']);
 });
 
-test('preview preserves the scale qualification gate and creates no modal or download on failure',()=>{
+test('preview preserves the scale qualification gate and creates no modal or download on failure',async()=>{
   const root=node('root'),messages=[];
-  const preview=compile('showDrawingPreview',{root,rejectFlexibleSpringPreview:()=>false,
+  const preview=compile('showDrawingPreview',{root,rejectFlexibleSpringPreview:()=>false,prepareConfiguredDrawingExport:async()=>{},
     drawingSvgContent:()=>{throw new Error('Drawing scale does not fit');},flash:(message)=>messages.push(message)});
-  assert.equal(preview(),false);assert.deepEqual(root.children,[]);assert.deepEqual(messages,['Drawing scale does not fit']);
+  assert.equal(await preview(),false);assert.deepEqual(root.children,[]);assert.deepEqual(messages,['Drawing scale does not fit']);
 });
 
 test('visible Preview drawing applies dialog settings before generating the preview',()=>{

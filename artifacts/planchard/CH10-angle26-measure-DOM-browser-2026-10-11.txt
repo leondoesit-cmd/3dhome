@@ -1,0 +1,41 @@
+  - generic: Evaluate
+  - generic: Measure
+  - button "Close":
+  - generic: Click two faces to measure the angle between them
+  - generic: Face A
+  - generic: face
+  - generic: Face B
+  - generic: face
+  - generic: Angle
+  - generic: 26°
+  - button "Points"
+  - button "Faces"
+  - button "New measurement":
+    - text: New measurement
+  - text: 
+  - toolbar "Selection filter":
+    - button "All"
+    - button "Face"
+    - button "Edge"
+    - button "Vertex"
+    - button "Sketch" [disabled]
+    - button "Body"
+  - toolbar "Move direction":
+    - generic: Move direction
+    - button "Free" [pressed]:
+      - generic: Free
+    - button "X"
+    - button "Y"
+    - button "Z"
+  - text: 
+  - radiogroup "Ask the AI or run a command":
+    - radio "AI":
+      - text: AI
+    - radio "› Cmd" [checked]
+  - button "All commands":
+    - generic: All commands
+  - 'combobox "Type a command: “Extrude”, “Fillet”, “Hole wizard”…"'
+  - button "Speak your request":
+  - status:
+    - generic: Assembly
+    - t

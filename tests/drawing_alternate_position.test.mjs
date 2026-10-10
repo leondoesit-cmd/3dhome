@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import {alternatePositionBodies,canAlternatePosition} from '../js/core/drawing_alternate_position.js';
 import {createView,createSheetDoc,createProjector,buildSheetScene,sceneToSvg,measureDim,ensureSheetDoc,LINE_STYLES} from '../js/cad_sheet.js';
 import {createDrawingController} from '../js/modeler_drawing.js';
+import {ensureAssemblyDrawingDoc} from '../js/core/assembly_drawing_settings.js';
 import {projectionBounds} from '../js/core/hidden_line.js';
 import {tessellateParts} from '../js/core/part_tessellate.js';
 import {makeBrepExtrusion,shapeToMeshData,disposeBrep} from '../js/cad_kernel.js';
@@ -89,7 +90,7 @@ test('actual drawing owner persists assembly overlays and stored SVG export uses
   const svgCode=source.slice(source.indexOf('function drawingSvgContent()'),source.indexOf('function drawingSvgFilename()'));
   const E={docType:'assembly',assembly:{name:'Native repeated assembly',components:[{id:10},{id:11}]},def:{name:'Unrelated part',parts:[]}},partBefore=JSON.stringify(E.def);
   let fresh=0,stored=0;
-  const context={E,ensureSheetDoc,drawingSheet:()=>({svg:()=>{stored++;return 'stored-overlay-svg';}}),assemblyDrawingDocument:()=>({def:{parts:[{}]}}),buildDrawingScene:()=>{fresh++;return {};},sceneToSvg:()=> 'fresh-sheet',assemblyExplodeLines:()=>[],t:x=>x};
+  const context={E,ensureSheetDoc,ensureAssemblyDrawingDoc,drawingSheet:()=>({svg:()=>{stored++;return 'stored-overlay-svg';}}),assemblyDrawingDocument:()=>({def:{parts:[{}]}}),buildDrawingScene:()=>{fresh++;return {};},sceneToSvg:()=> 'fresh-sheet',assemblyExplodeLines:()=>[],t:x=>x};
   vm.runInNewContext(helper+svgCode,context);
   assert.equal(context.drawingSvgContent(),'fresh-sheet');assert.equal(fresh,1);
   const doc=context.drawingDocument();assert.deepEqual(Array.from(doc.views,v=>v.dir),['front','top','right','iso']);assert.equal(doc.title.title,E.assembly.name);

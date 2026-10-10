@@ -7,12 +7,13 @@ import { solveSketch } from '../js/sketch_solver.js';
 import { evaluateFeatureNumber } from '../js/modeler_feature_form.js';
 import {dimensionUnit} from '../js/sketch_equations.js';
 import {parseSketchDimensionEntry} from '../js/core/sketch_dimension_entry.js';
+import {toleranceFields,makeDimensionTolerance} from '../js/core/dimension_tolerance.js';
 
 const source = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
 function load(name, context) {
   const start = source.indexOf(`function ${name}(`);
   const end = source.indexOf('\n}', start) + 2;
-  return vm.runInNewContext(`(${source.slice(start, end)})`, context);
+  return vm.runInNewContext(`(${source.slice(start, end)})`, {cloneData:structuredClone,toleranceFields,makeDimensionTolerance,...context});
 }
 
 const near = (a, b, tol = 1e-9) => assert.ok(Math.abs(a - b) < tol, `${a} != ${b}`);

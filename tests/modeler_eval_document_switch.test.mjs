@@ -25,7 +25,7 @@ test('opening a different model hides its predecessor evaluation before replacin
 });
 
 test('blank, bundle and document-type replacements also invalidate old evaluation output',()=>{
-  for(const signature of ['async function newModel() {','async function openImportedBundle(bundle) {','function setDocumentType(type) {','function restoreModelerDraft(draft) {']) {
+  for(const signature of ['async function newModel(template) {','async function openImportedBundle(bundle) {','function setDocumentType(type) {','function restoreModelerDraft(draft) {']) {
     const start=source.indexOf(signature);
     assert.ok(start>=0);
     const beforeReplacement=source.slice(start,source.indexOf('E.def =',start));
