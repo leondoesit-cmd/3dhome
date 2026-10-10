@@ -325,8 +325,8 @@ test("feature Apply/Cancel sit in equal tracks so the label cannot paint under A
   assert.match(styles, /#modeler \.md-feature-actions \{[^}]*grid-template-columns: minmax\(0,1fr\) minmax\(0,1fr\)/);
   assert.match(styles, /#modeler \.md-quick-apply,\s*#modeler \.md-quick-cancel \{[^}]*overflow: hidden/s);
   assert.match(modelerSource, /namedButton\(btn\('<i class="ph ph-x"><\/i> '\+t\("m_cancel"\)/);
-  assert.match(modelerSource, /save\.dataset\.tip = tip/);
-  assert.match(modelerSource, /save\.removeAttribute\("title"\)/);
+  // Save tooltip and accessible name behavior is exercised by the real
+  // syncDirty handler in modeler_save_button.test.mjs.
   assert.doesNotMatch(modelerSource, /save\.title = dirty/);
   // 120px, not the old 158px: the view rail at 158 overlapped the viewport-help
   // control, which "desktop model editor: room context and viewport help do not

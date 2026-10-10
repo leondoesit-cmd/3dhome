@@ -1,5 +1,6 @@
 import {createSpringBinding,springSource,springMotionState,springPreviewMesh,hasUnverifiedSprings,restoreSpringEndpoint} from "./core/flexible_spring.js";
 import {createExactSaveCache} from "./core/exact_save_cache.js";
+import {syncSaveButtonAccessibility} from './modeler_save_button.js';
 import {shortcutConflict,validShortcutBindings} from './core/command_shortcuts.js';
 import {sketchGeometryBounds} from './core/sketch_view_fit.js';
 import {reassignSketchPlane} from './core/sketch_plane_edit.js';
@@ -3366,10 +3367,10 @@ function syncDirty() {
   if (!save) return;
   var dirty = documentDirty();
   save.classList.toggle("is-dirty", dirty);
-  var tip = dirty ? t("dirtySave") + " · Ctrl+S" : "Ctrl+S";
-  save.dataset.tip = tip;
-  save.setAttribute("aria-label", t("save") + " · " + tip);
-  save.removeAttribute("title");
+  syncSaveButtonAccessibility(save,{
+    label:t(E.docType === "assembly" ? "saveAssembly" : "save"),
+    dirty:dirty,dirtyText:t("dirtySave")
+  });
   syncStatus();
 }
 
