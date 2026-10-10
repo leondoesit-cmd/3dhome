@@ -1,0 +1,223 @@
+{
+  "scope": "Read-only audit of actual protected Chrome-native model/STEP. Source PDF105 printed2-19 requests approximate physical sizing; chosen dimensions are illustrative, not publisher exact or mass fitted. No material/source mass target.",
+  "accepted": true,
+  "checks": {
+    "threeFeatures": true,
+    "threeFullyDefinedSketches": true,
+    "sixHistorySteps": true,
+    "base60x40": true,
+    "baseHeight30": true,
+    "openingX20to40": true,
+    "openingHeight15": true,
+    "openingThroughZ": true,
+    "topHoleCenter": true,
+    "topHoleBlindReverse15": true,
+    "inputsUnmodified": true,
+    "oneConnectedValidNative": true,
+    "bounds60x30x40": true,
+    "analyticVolume": true,
+    "oneConnectedValidSTEP": true,
+    "stepDualZero": true,
+    "topHoleDiameterExpected": true
+  },
+  "key": "cm_mv294sxh",
+  "name": "Planchard Chapter2 bridge - illustrative isometric - browser 2026-10-10",
+  "analyticMm3": 58009.015655787465,
+  "nativeVolumeMm3": 58009.015655787494,
+  "analyticDeltaMm3": 2.9103830456733704e-11,
+  "mass": {
+    "volume": 58.00901565578749,
+    "centerOfMass": {
+      "x": 3,
+      "y": 1.6294068112857505,
+      "z": 2
+    },
+    "inertia": [
+      [
+        122.32503792038983,
+        0,
+        -5.684341886080802e-14
+      ],
+      [
+        0,
+        291.57940455728533,
+        0
+      ],
+      [
+        -5.684341886080802e-14,
+        0,
+        254.32503792038972
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 6,
+        "y": 3,
+        "z": 4
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 58.00901565578749,
+    "maxToleranceCm": 1.5e-07
+  },
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 58.00901565578754,
+      "maxToleranceCm": 1e-07
+    },
+    "mass": {
+      "volume": 58.00901565578754,
+      "centerOfMass": {
+        "x": 3,
+        "y": 1.6294068112857507,
+        "z": 2.000000000000001
+      },
+      "inertia": [
+        [
+          122.3250379203896,
+          5.684341886080802e-14,
+          5.684341886080802e-14
+        ],
+        [
+          5.684341886080802e-14,
+          291.5794045572851,
+          5.684341886080802e-14
+        ],
+        [
+          5.684341886080802e-14,
+          5.684341886080802e-14,
+          254.32503792038972
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max": {
+          "x": 6,
+          "y": 3,
+          "z": 4
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0,
+    "bytes": 33859,
+    "sha256": "e4f19865a165783c3b9c2549e6b57f047e08d0a6713cd15ae24731de18b82343"
+  },
+  "input": {
+    "path": "artifacts/planchard/CH2-BRIDGE-diameter-driver-settled-browser-2026-10-10.mforge",
+    "bytes": 151117,
+    "sha256": "0d9c196d4a93998e0900f5f80d22e0169f73aeca8d4aa41b20eaa5cd8df5b744"
+  },
+  "history": [
+    {
+      "id": "history:sketch:sk_1mi1j",
+      "kind": "sketch",
+      "targetId": "sk_1mi1j",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv296j11_1",
+      "kind": "feature",
+      "targetId": "feature_mv296j11_1",
+      "name": "Extrude / Boss 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_2b32q",
+      "kind": "sketch",
+      "targetId": "sk_2b32q",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv297ntl_2",
+      "kind": "feature",
+      "targetId": "feature_mv297ntl_2",
+      "name": "Extrude Cut 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_323c8",
+      "kind": "sketch",
+      "targetId": "sk_323c8",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv298htd_3",
+      "kind": "feature",
+      "targetId": "feature_mv298htd_3",
+      "name": "Extrude Cut 2",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "sourceSketches": [
+    {
+      "id": "sk_1mi1j",
+      "plane": "top",
+      "offset": 0,
+      "referenceId": "plane:top",
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_2b32q",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane:front",
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_323c8",
+      "plane": "top",
+      "offset": 3,
+      "referenceId": "plane:top",
+      "status": "fully-defined"
+    }
+  ],
+  "settledDriverComparison": {
+    "checks": {
+      "firstTwoSketchesExact": true,
+      "allFeatureDefinitionsExact": true,
+      "historyExact": true,
+      "noRollback": true,
+      "actualRebuildSucceeded": true,
+      "analyticDelta": true,
+      "wholeDrawingExactExceptNullCropNormalization": true
+    },
+    "pass": true,
+    "nominalVolumeMm3": 58303.53996706151,
+    "deltaMm3": -294.5243112740136,
+    "drawingNormalization": "cropSketch:null added to all4views, no other drawing changes"
+  },
+  "qualification": "Actual settled native/STEP driver proof accepted. Derived compatibility roofcut proxy remains D12; canonicalD13 and actualSTEP agree. Drawing adds only cropSketch:null. No unsupported literal wholeDrawing-exact or cached-proxy-refresh claim.",
+  "derivedProxyQualification": {
+    "sourceSketchRadiusCm": 0.65,
+    "savedProxyRadiusCm": 0.6000000000000001,
+    "matches": false,
+    "actualSTEPVerifiedD13": true,
+    "scope": "Derived compatibility cuts3d stale despite settled native; actual native body independently established by actualSTEP dual equivalence."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "checks": {
+    "fourViews": true,
+    "hiddenOff": true,
+    "A3LandscapeThirdMM": true,
+    "twoNotesRows6and4": true,
+    "everyNoteRowInSVG": true,
+    "chosenSizeSourceQualifier": true,
+    "featuresUnchangedDriver": true,
+    "firstTwoSketchesUnchangedDriver": true,
+    "drawingUnchangedDriver": true,
+    "historyUnchangedDriver": true,
+    "noRollbackDriver": true
+  },
+  "pass": true,
+  "actualPNGInspected": true,
+  "layout": "Four separate views, two notes, complete frame/title; Front/Top/Right2:1 iso1:1 visible actual UI. No overlaps seen.",
+  "driverQualification": "Actual saved canonicalD13 solves valid changed native when independently regenerated. Saved display cuts3d still D12, so actual browser native refresh/STEP proof remains required."
+}
