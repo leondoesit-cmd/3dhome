@@ -4,7 +4,7 @@ const cross = (a,b,c) => (b.u-a.u)*(c.v-a.v)-(b.v-a.v)*(c.u-a.u);
 const lerp = (a,b,t) => ({u:a.u+(b.u-a.u)*t,v:a.v+(b.v-a.v)*t,...(Number.isFinite(a.w)&&Number.isFinite(b.w)?{w:a.w+(b.w-a.w)*t}:{})});
 
 export function canCropView(view, document, {exploded=false}={}) {
-  return !!view && !view.detail && !view.brokenOut && !exploded && !view.exploded
+  return !!view && !view.detail && !view.brokenOut && !view.breakView && !exploded && !view.exploded
     && !(document.views || []).some(child=>child.detail && (child.detail.from===view.id || child.parent===view.id));
 }
 
@@ -77,6 +77,12 @@ export function cropDrawingProjection(projection,sketch,{outside=false}={}) {
   const boundary=cropSplinePoints(sketch), clip=edges=>(edges || []).flatMap(edge=>clipEdge(edge,boundary,outside));
   const visible=clip(projection.visible),hidden=clip(projection.hidden),circles=[];
   for(const circle of projection.circles || []) {
+    // Projected edge-on rims and unabsorbed fits are metadata for centres/axes,
+    // not drawable circles. Masking must never invent round ink from them.
+    if(circle.kind!=='round' || !['visible','hidden'].includes(circle.drawn)) {
+      if(pointInCrop(circle,boundary)!==outside)circles.push(circle);
+      continue;
+    }
     const ring=Array.from({length:256},(_,i)=>({u:circle.u+circle.radius*Math.cos(i*Math.PI/128),v:circle.v+circle.radius*Math.sin(i*Math.PI/128)}));
     const pieces=ring.flatMap((a,i)=>clipEdge({a,b:ring[(i+1)%ring.length]},boundary,outside));
     if(pieces.length===256 && pieces.every((edge,i)=>Math.hypot(edge.a.u-ring[i].u,edge.a.v-ring[i].v)<1e-8 && Math.hypot(edge.b.u-ring[(i+1)%256].u,edge.b.v-ring[(i+1)%256].v)<1e-8)) circles.push(circle);

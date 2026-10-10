@@ -7,12 +7,22 @@ import {createView,createSheetDoc,createProjector,buildSheetScene,sceneToSvg} fr
 const sketch={type:'closed-spline',closed:true,points:[{u:-3,v:-3},{u:3,v:-3},{u:3,v:3},{u:-3,v:3}]};
 const empty={visible:[],hidden:[],cuts:[],circles:[],surfaces:[]};
 test('crop clips crossing visible/hidden/cut edges and retains actual circular arcs only inside boundary',()=>{
-  const projection={...empty,visible:[{a:{u:-10,v:0},b:{u:10,v:0}}],hidden:[{a:{u:0,v:-10},b:{u:0,v:10}}],cuts:[{a:{u:-10,v:1},b:{u:10,v:1}}],circles:[{u:0,v:0,radius:1,drawn:'visible'},{u:3,v:0,radius:2,drawn:'hidden'},{u:20,v:0,radius:1,drawn:'visible'}]};
+  const projection={...empty,visible:[{a:{u:-10,v:0},b:{u:10,v:0}}],hidden:[{a:{u:0,v:-10},b:{u:0,v:10}}],cuts:[{a:{u:-10,v:1},b:{u:10,v:1}}],circles:[{u:0,v:0,radius:1,kind:'round',drawn:'visible'},{u:3,v:0,radius:2,kind:'round',drawn:'hidden'},{u:20,v:0,radius:1,kind:'round',drawn:'visible'}]};
   const result=cropDrawingProjection(projection,sketch),boundary=cropSplinePoints(sketch);
   assert.equal(result.circles.length,1,'fully enclosed circle survives, partial/outside circles do not');
   assert.ok(result.hidden.length>1,'partial circle becomes bounded line spans');
   for(const key of ['visible','hidden','cuts']) for(const edge of result[key]) for(const p of [edge.a,edge.b]) assert.ok(pointInCrop(p,boundary));
   assert.equal(projection.visible[0].a.u,-10,'projection input is unchanged');
+});
+test('inside/outside crop masks never promote edge-on or undrawn rim metadata into round ink',()=>{
+  const source={...empty,circles:[{u:3,v:0,radius:2,kind:'edge',visible:false,axis:{u:0,v:1}},
+    {u:0,v:0,radius:1,kind:'round',visible:true}]};
+  for(const outside of [false,true]) {
+    const result=cropDrawingProjection(source,sketch,{outside});
+    assert.equal(result.visible.length,0);
+    assert.equal(result.hidden.length,0);
+    assert.ok(result.circles.every(c=>!c.drawn),'metadata retains its non-ink classification');
+  }
 });
 test('concave closed spline clips shaded geometry with conserved enclosed area',()=>{
   const concave={type:'closed-spline',points:[{u:-4,v:-4},{u:4,v:-4},{u:4,v:4},{u:0,v:1},{u:-4,v:4}]};

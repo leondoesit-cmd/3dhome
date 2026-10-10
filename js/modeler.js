@@ -4102,6 +4102,8 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="uncrop"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove crop</span></button>' +
     '<button type="button" data-drawing-tool="brokenout"><i class="ph ph-scissors"></i><span>Broken-out section</span></button>' +
     '<button type="button" data-drawing-tool="unbrokenout"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove broken-out</span></button>' +
+    '<button type="button" data-drawing-tool="break"><i class="ph ph-scissors"></i><span>Break view / edit</span></button>' +
+    '<button type="button" data-drawing-tool="unbreak"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove Break</span></button>' +
     '<span class="md-drawing-tools-sep"></span>' +
     '<button type="button" id="mdSheetAutoDim"><i class="ph ph-ruler"></i><span>' + t("drawAutoDim") + '</span></button>' +
     '<button type="button" id="mdSheetModelItems"><i class="ph ph-ruler"></i><span>' + t("drawModelItems") + '</span></button>' +
@@ -12337,6 +12339,8 @@ function drawingHintText() {
   if (tool === "uncrop") return "Click a cropped drawing view to restore its full projection";
   if (tool === "brokenout") return "Choose an orthographic view, click boundary points, Enter sets removal depth in mm; Escape cancels";
   if (tool === "unbrokenout") return "Click a broken-out drawing view to restore its original projection";
+  if (tool === "break") return "Choose a single orthographic view; set original boundary coordinates and printed gap. Dimensions retain actual model values";
+  if (tool === "unbreak") return "Click a Break view to restore its complete original projection";
   if (tool === "note") return t("drawNoteHint");
   if (tool === "sheetarc") return t("drawPaperArcHint");
   if (["sheetline","sheetpolyline","sheetrect","sheetcircle"].includes(tool)) return t("drawPaperHint");

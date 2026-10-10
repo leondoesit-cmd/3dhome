@@ -5,7 +5,7 @@ import {triangulatePolygon,polygonArea} from './part_tessellate.js';
 import {pointInCrop} from './drawing_crop.js';
 
 export function canBreakOutView(view,{exploded=false}={}) {
-  return !!view && isOrthoView(view.dir) && !view.section && !view.detail && !view.cropSketch
+  return !!view && isOrthoView(view.dir) && !view.section && !view.detail && !view.cropSketch && !view.breakView
     && !exploded && !view.exploded && !['shaded','shadedEdges'].includes(view.displayStyle);
 }
 

@@ -35,3 +35,11 @@ On an accepted native model with a covered recess/bore, Drawing → **Broken-out
 Files owned in this change: new `js/core/drawing_broken_out.js`, `tests/drawing_broken_out.test.mjs`; complement masking extension in `js/core/drawing_crop.js`; minimal shared integration in `js/cad_sheet.js`, `js/modeler_drawing.js`, `js/modeler.js`; two controller regressions in `tests/cad_sheet.test.mjs`. Parent owns actual browser/model evidence, ADVANCE and commits. Unrelated concurrent extrusion-projection edits belong to another agent.
 
 Whole-app mutation follow-up: the actual Crop persistence failure exposed a shared stale-reference hazard across history callbacks. Broken-out creation/removal also now reacquire the current view by ID after `pushUndo`. The strengthened real authoring test replaces view records during the history callback, then verifies persisted full-document JSON depth and both Undo steps. Actual Broken-out browser acceptance remains pending.
+
+## Actual shallow-view false-circle fix
+
+Parent's actual Chrome shallow artifact is preserved as `artifacts/planchard/DRAWING-BROKENOUT-shallow-browser-2026-10-10.mforge` / SVG / PNG. Its saved Right view uses a 10 mm depth, from maximum X=60 mm to X=50 mm. The original Right projection correctly classifies the two roof-bore rims at (Z=20,Y=15/30) mm as invisible **edge-on metadata**, not round ink. The shared crop mask wrongly converted all circle metadata into 256 drawable spans each, producing the two false circles, including geometry extending outside the local patch.
+
+The mask now creates circular ink only for genuinely drawn round entries; edge-on and undrawn records remain metadata. Read-only reconstruction from the saved native mesh, without changing the artifact/model, yields **4 visible spans and 7 hidden spans**, down from **520 visible spans**; no Right-view circle or arc scene primitives remain. The depth plane is unchanged (front=6 cm, depth=1 cm, offset=5 cm). This is a projection-mask fix, not an exact-arc renderer change or an adjustment to the model/source bore.
+
+New regressions verify both inside/outside masking never promotes rim metadata and that a genuine shallow side-cylinder section cannot create face-on round ink. Combined scoped validation after this fix: **88/88 PASS**. Actual Chrome shallow/deep comparison after reload remains the parent's acceptance check.

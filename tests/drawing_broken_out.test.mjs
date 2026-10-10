@@ -34,6 +34,15 @@ test('depth uses chosen orientation front envelope; invalid modifier inputs are 
   for(const extra of [{dir:'iso'},{detail:{}},{section:{}},{cropSketch:sketch},{displayStyle:'shaded'}])assert.equal(canBreakOutView({...view(.5),...extra}),false);
   assert.equal(canBreakOutView(view(.5),{exploded:true}),false);
 });
+test('side-view shallow broken-out never draws face-on circles from edge-on cylinder rim metadata',()=>{
+  const nativeMesh=tessellateParts([{kind:'cyl',x:0,y:0,z:0,r:3,h:6}]);
+  const original=projectSolid(nativeMesh,'right');
+  assert.ok(original.circles.some(c=>c.kind==='edge'));
+  const region={type:'closed-spline',points:[{u:-1,v:1},{u:1,v:1},{u:1,v:3},{u:-1,v:3}]};
+  const result=projectBrokenOutView(nativeMesh,createView('right',{brokenOut:{sketch:region,depth:.5,datum:'front-envelope'}}));
+  assert.ok(result.visible.length<32,'edge-on rim metadata must not create hundreds of spurious circular spans');
+  assert.ok(result.circles.every(c=>c.kind!=='round'||!c.drawn));
+});
 
 test('broken-out shared scene preserves hidden outer region and clips all hatch after cold save/SVG',()=>{
   const doc=createSheetDoc();doc.views=[view(1.5)];doc.views[0].primary=true;

@@ -3,6 +3,7 @@ import { balloonRadius, layoutBalloonCenters } from "./core/balloon_layout.js";
 import {drawingPrimitiveItems} from './core/drawing_primitives.js';
 import { canCropView, cropDrawingProjection, clipCropEdges } from './core/drawing_crop.js';
 import { projectBrokenOutView } from './core/drawing_broken_out.js';
+import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges} from './core/drawing_break.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -19,7 +20,7 @@ import { projectBrokenOutView } from './core/drawing_broken_out.js';
  * three numbers.
  */
 
-import {
+import { 
   ORTHO_VIEWS, cropProjection, isOrthoView, projectSolid, projectionBounds, sectionBodies, viewBasis,
 } from "./core/hidden_line.js";
 
@@ -163,6 +164,7 @@ export function createView(dir, options = {}) {
     detail: options.detail || null,                        // {from, u, v, radius, tag}
     cropSketch: options.cropSketch || null,                // closed spline in projected model coordinates
     brokenOut: options.brokenOut || null,                  // closed spline + depth from projected front envelope
+    breakView: options.breakView || null,                  // source interval + printable paper gap
   };
 }
 
@@ -605,7 +607,7 @@ export function createProjector(doc, bodies, options = {}) {
   const resolving = new Set();
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0)].join("|");
+    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),view.scale,doc.scale].join("|");
     if (cache.has(key)) return cache.get(key);
     // Malformed saved parent graphs must not recurse forever or show unrelated geometry.
     if (resolving.has(view.id)) return null;
@@ -628,6 +630,12 @@ export function createProjector(doc, bodies, options = {}) {
       // Detail-parent restriction applies to new Crop authoring, not rendering.
       try { projection = canCropView(view,{views:[]}) ? cropDrawingProjection(projection,view.cropSketch) : null; }
       catch { projection = null; } // Invalid persisted boundaries never display uncropped geometry.
+    }
+    if(view.breakView && projection) {
+      try {
+        if(!canBreakView(view,doc) || (!view.scale && doc.scale==='fit'))throw new Error('Break needs one ordinary orthographic view and a fixed view scale');
+        projection=breakProjection({...projection,bounds:projectionBounds(projection)},view.breakView,paperPerModel(view.scale || doc.scale));
+      } catch(error) {projection={visible:[],hidden:[],circles:[],bounds:null,breakError:error.message};}
     }
     cache.set(key, projection);
     resolving.delete(view.id);
@@ -986,7 +994,7 @@ export function resolveDim(dim, index, basis, projection) {
     return result;
   }
   if (dim.auto === "extent") {
-    const bounds = projection ? projectionBounds(projection) : null;
+    const bounds = projection ? projection.sourceBounds || projectionBounds(projection) : null;
     if (!bounds) { result.dangling = true; return result; }
     result.dim = Object.assign({}, dim, { refs: boundsRefs(dim.type, bounds) });
     return result;
@@ -1264,7 +1272,8 @@ export function buildSheetScene(doc, provider, options = {}) {
   for (const view of doc.views) {
     const projection = provider?.projection ? provider.projection(view) : null;
     projections.set(view.id, projection);
-    const bounds = projection ? projectionBounds(projection) : null;
+    if(projection?.breakError)diagnostics.push({code:'invalid-break-view',viewId:view.id,message:projection.breakError});
+    const bounds = projection ? projection.displayBounds || projectionBounds(projection) : null;
     extents.set(view.id, bounds
       ? { w: Math.max(bounds.u1 - bounds.u0, 0.1), h: Math.max(bounds.v1 - bounds.v0, 0.1), bounds }
       : { w: 10, h: 10, bounds: null });
@@ -1287,14 +1296,20 @@ export function buildSheetScene(doc, provider, options = {}) {
     const centre = extent.bounds
       ? { u: (extent.bounds.u0 + extent.bounds.u1) / 2, v: (extent.bounds.v0 + extent.bounds.v1) / 2 }
       : { u: 0, v: 0 };
-    const toSheet = (point) => ({ x: place.x + (point.u - centre.u) * k, y: place.y - (point.v - centre.v) * k });
+    const toSheet = (point) => {
+      const mapped=projection?.breakMap ? projection.breakMap.forward(point) : point;
+      return mapped ? {x:place.x+(mapped.u-centre.u)*k,y:place.y-(mapped.v-centre.v)*k} : null;
+    };
     const frameBox = {
       x: place.x - place.w / 2, y: place.y - place.h / 2, w: place.w, h: place.h,
     };
     const record = {
       id: view.id, view, x: place.x, y: place.y, w: place.w, h: place.h, scale, k,
       centre, align: place.align, toSheet, box: frameBox, projection,
-      toModel: (point) => ({ u: centre.u + (point.x - place.x) / k, v: centre.v - (point.y - place.y) / k }),
+      toModel: (point) => {
+        const mapped={u:centre.u+(point.x-place.x)/k,v:centre.v-(point.y-place.y)/k};
+        return projection?.breakMap ? projection.breakMap.inverse(mapped) : mapped;
+      },
     };
     placements.push(record);
     if (!projection) continue;
@@ -1338,16 +1353,27 @@ export function buildSheetScene(doc, provider, options = {}) {
     }
     for (const segment of drawEdges ? projection.visible || [] : []) {
       const a = toSheet(segment.a), b = toSheet(segment.b);
-      items.push(exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "outline", view.id) || line(a.x, a.y, b.x, b.y, "outline", { viewId: view.id }));
+      items.push((!projection.breakMap && exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "outline", view.id)) || line(a.x, a.y, b.x, b.y, "outline", { viewId: view.id }));
     }
     if (showHidden) {
       for (const segment of projection.hidden || []) {
         const a = toSheet(segment.a), b = toSheet(segment.b);
-        items.push(exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "hidden", view.id) || line(a.x, a.y, b.x, b.y, "hidden", { viewId: view.id }));
+        items.push((!projection.breakMap && exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "hidden", view.id)) || line(a.x, a.y, b.x, b.y, "hidden", { viewId: view.id }));
       }
     }
     const appendCenterItems=marks=>{
       for(const mark of marks) {
+        if(projection.breakMap && mark.type==='line') {
+          const map=projection.breakMap,other=map.axis==='u'?'v':'u';
+          const p=toSheet({[map.axis]:map.from,[other]:0}),q=toSheet({[map.axis]:map.to,[other]:0});
+          const boundaries=map.axis==='u'?[p.x,q.x]:[p.y,q.y];
+          const paperMap={axis:map.axis,from:Math.min(...boundaries),to:Math.max(...boundaries),
+            retained:point=>point[map.axis]<=Math.min(...boundaries)||point[map.axis]>=Math.max(...boundaries)};
+          for(const edge of clipBreakEdges([{a:{u:mark.x1,v:mark.y1},b:{u:mark.x2,v:mark.y2}}],paperMap)) {
+            items.push({...mark,x1:edge.a.u,y1:edge.a.v,x2:edge.b.u,y2:edge.b.v});
+          }
+          continue;
+        }
         if(!projection.cropBoundary || mark.type!=='line') {items.push(mark);continue;}
         const edges=clipCropEdges([{a:record.toModel({x:mark.x1,y:mark.y1}),b:record.toModel({x:mark.x2,y:mark.y2})}],projection.cropBoundary);
         for(const edge of edges) {const a=toSheet(edge.a),b=toSheet(edge.b);items.push({...mark,x1:a.x,y1:a.y,x2:b.x,y2:b.y});}
@@ -1361,6 +1387,7 @@ export function buildSheetScene(doc, provider, options = {}) {
       if (showCenters && round.visible && round.kind === "round") appendCenterItems(centreMark(round, toSheet, k, view.id));
     }
     if (showCenters) appendCenterItems(axisCentrelines(projection.circles || [], toSheet, k, view.id, showHidden));
+    items.push(...breakBoundaryItems(record));
     const explodedView = doc.views.find(item => /^iso/.test(item.dir || ""));
     const explodeLeaders = (provider?.explodeLines || []).filter(leader =>
       leader.viewId ? leader.viewId === view.id : view.id === explodedView?.id);
@@ -1398,6 +1425,9 @@ export function buildSheetScene(doc, provider, options = {}) {
     const basis = place.projection?.basis || viewBasis(place.view.dir);
     const resolved = resolveDim(dim, topologyIndex, basis, place.projection);
     dims.set(dim.id, resolved);
+    if(place.projection?.breakMap && (resolved.dim.refs || []).some(p=>!place.toSheet(p))) {
+      diagnostics.push({code:'break-hidden-dimension-anchor',viewId:place.id,dimId:dim.id});continue;
+    }
     const measured = Object.assign({}, resolved.dim, { measure: measureDim(resolved.dim) });
     for (const item of dimensionItems(measured, place, doc, {
       selected: options.selectedDim === dim.id, dangling: resolved.dangling,
@@ -1409,7 +1439,7 @@ export function buildSheetScene(doc, provider, options = {}) {
   const automaticBalloonPositions = new Map();
   for (const place of placements) {
     const targets = (doc.notes || []).filter(note => note.balloon && note.autoBalloon && note.leader?.viewId === place.id)
-      .map(note => ({ id: note.id, text:note.text, point: place.toSheet(note.leader) }));
+      .map(note => ({ id: note.id, text:note.text, point: place.toSheet(note.leader) })).filter(target=>target.point);
     if (!targets.length) continue;
     const title = titleBlockBox(doc);
     const obstacles = [{ x0: title.x-4, y0: title.y-4, x1: title.x+title.w+4, y1: title.y+title.h+4 }];
@@ -1423,6 +1453,9 @@ export function buildSheetScene(doc, provider, options = {}) {
     const place = note.leader ? byId.get(note.leader.viewId) : null;
     const basis = place ? (place.projection?.basis || viewBasis(place.view.dir)) : null;
     const resolved = resolveNote(note, provider?.callouts, topologyIndex, basis, doc, provider?.properties);
+    if(place?.projection?.breakMap && !place.toSheet(resolved.note.leader)) {
+      notes.set(note.id,resolved);diagnostics.push({code:'break-hidden-note-anchor',viewId:place.id,noteId:note.id});continue;
+    }
     const automaticPosition = automaticBalloonPositions.get(note.id);
     if (automaticPosition && place) {
       const target = place.toSheet(resolved.note.leader);

@@ -24,8 +24,9 @@ import { planModelItems } from "./core/model_items.js";
 import {DRAWING_PRIMITIVE_TOOLS, drawingPrimitiveItems, drawingPrimitiveHit, snapDrawingPrimitivePoint, validateDrawingPrimitive} from "./core/drawing_primitives.js";
 import {canCropView,cropSplinePoints} from './core/drawing_crop.js';
 import {canBreakOutView,projectBrokenOutView} from './core/drawing_broken_out.js';
+import {canBreakView,breakProjection} from './core/drawing_break.js';
 
-export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", "crop", "uncrop", "brokenout", "unbrokenout", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
 /** Axis-aligned picks have only one meaningful projected measurement.
  * Moving its label past an endpoint must not turn that measurement into zero. */
@@ -123,7 +124,7 @@ export function createDrawingController(host) {
       host.bodiesToken(), host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
-        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.cropSketch,view.brokenOut, view.configurationId, view.configurationName]) hash = fold(hash, value);
+        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.cropSketch,view.brokenOut,view.breakView, view.configurationId, view.configurationName]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
@@ -467,8 +468,8 @@ export function createDrawingController(host) {
         points.push({ u: cross.u, v: cross.v, kind: "cross", pid: cross.pid, pid2: cross.pid2, at: cross.at });
       }
     }
-    place._snaps = points;
-    return points;
+    place._snaps = points.filter(p=>!projection?.breakMap || projection.breakMap.retained(p));
+    return place._snaps;
   }
 
   /* What a picked point IS, in the model. The snap set comes from the projected
@@ -510,6 +511,7 @@ export function createDrawingController(host) {
       if (!pointNearBox(sheetPoint, place.box, 8)) continue;
       for (const point of snapPoints(place)) {
         const at = place.toSheet(point);
+        if(!at)continue;
         const distance = Math.hypot(at.x - sheetPoint.x, at.y - sheetPoint.y);
         if (distance > reach) continue;
         const rank = point.kind === "end" ? 0 : point.kind === "centre" ? 1
@@ -585,6 +587,7 @@ export function createDrawingController(host) {
       /* The arm still under the pointer is a plain view point — it is only a
          preview, and nothing is bound until the third pick lands on a snap. */
       const third = place.toModel(cursor);
+      if(!third)return null;
       return { type: "angle", viewId: draft.viewId, offset: 12, refs: draft.refs.concat([{ u: third.u, v: third.v }]) };
     }
     if (draft.refs.length < 2) return null;
@@ -696,6 +699,10 @@ export function createDrawingController(host) {
       state.drag = { mode: "pan", x, y, ox: state.ox, oy: state.oy };
       return true;
     }
+    if(!DRAWING_PRIMITIVE_TOOLS[state.tool] && !['note','break','unbreak'].includes(state.tool)
+      && scene().views.some(place=>place.projection?.breakMap && pointNearBox(sheetPoint,place.box,0) && !place.toModel(sheetPoint))) {
+      host.flash('The Break gap contains no model geometry');return true;
+    }
     if (DRAWING_PRIMITIVE_TOOLS[state.tool]) {
       const type=DRAWING_PRIMITIVE_TOOLS[state.tool];
       const previous=state.draft?.kind==='primitive'?state.draft.points.at(-1):null;
@@ -804,6 +811,14 @@ export function createDrawingController(host) {
       placeNote(state.draft);
       return true;
     }
+    if(state.tool==='break' || state.tool==='unbreak') {
+      const hit=hitTest(sheetPoint),place=scene().views.find(p=>p.id===(hit?.kind==='view'?hit.id:null));
+      if(!place){host.flash('Choose the drawing view');return true;}
+      if(state.tool==='unbreak') {
+        if(place.view.breakView){host.pushUndo('Remove Break');host.doc().views.find(v=>v.id===place.id).breakView=null;invalidate();host.markDirty();host.refresh();}
+      } else commitBreak(place);
+      return true;
+    }
     if(['crop','uncrop','brokenout','unbrokenout'].includes(state.tool)) {
       const doc=host.doc();
       if(['crop','brokenout'].includes(state.draft?.kind)) {
@@ -838,7 +853,7 @@ export function createDrawingController(host) {
       const hit = hitTest(sheetPoint);
       const built = scene();
       const place = built.views.find((entry) => entry.id === (hit?.kind === "view" ? hit.id : null));
-      if (!place?.projection || place.view.brokenOut || (state.tool === "section" && (!isOrthoView(place.view.dir) || place.view.detail))) {
+      if (!place?.projection || place.view.breakView || place.view.brokenOut || (state.tool === "section" && (!isOrthoView(place.view.dir) || place.view.detail))) {
         host.flash(host.t("drawPickParent"));
         return true;
       }
@@ -1359,7 +1374,7 @@ export function createDrawingController(host) {
     }
     /* The same extents the sheet re-reads on rebuild (see resolveDim), so the
        dimension does not shift the instant it is placed. */
-    const bounds = projectionBounds(place.projection);
+    const bounds = place.projection.sourceBounds || projectionBounds(place.projection);
     if (!bounds) { if (!seeding) host.flash(host.t("drawNoGeometry")); return; }
     if (!seeding) host.pushUndo(host.t("opAddDim"));
     doc.dims = (doc.dims || []).filter((dim) => !dim.auto || dim.viewId !== place.id);
@@ -1470,6 +1485,29 @@ export function createDrawingController(host) {
     if (lower === "s" && !event.ctrlKey && !event.metaKey) { setTool("section"); return true; }
     if (lower === "h") { setSheetOption("showHidden", !host.doc().showHidden); host.refresh(); return true; }
     return false;
+  }
+
+  async function commitBreak(place) {
+    const doc=host.doc(),view=doc.views.find(v=>v.id===place.id),token=host.bodiesToken(),fingerprint=JSON.stringify(view);
+    try {
+      if(!canBreakView(view,doc) || host.isExplodedView?.(view))throw new Error('Break currently needs one ordinary orthographic edge view; remove other views first');
+      if(!host.promptFields)throw new Error('Break needs the drawing parameter form');
+      const bounds=place.projection.sourceBounds || projectionBounds(place.projection),old=view.breakView;
+      const answer=await host.promptFields('Break view — existing view, true dimensions',[
+        {key:'axis',label:'Shortening axis',type:'select',value:old?.axis || 'u',choices:[{value:'u',label:'Horizontal (vertical break lines)'},{value:'v',label:'Vertical (horizontal break lines)'}]},
+        {key:'from',label:'First boundary, original view coordinate (mm)',type:'number',value:(old?.from ?? (bounds.u0+(bounds.u1-bounds.u0)/3))*10,step:.1},
+        {key:'to',label:'Second boundary, original view coordinate (mm)',type:'number',value:(old?.to ?? (bounds.u0+2*(bounds.u1-bounds.u0)/3))*10,step:.1},
+        {key:'gapMm',label:'Printed gap (mm)',type:'number',value:old?.gapMm || 6,min:.1,step:.1},
+        {key:'style',label:'Break line style',type:'select',value:old?.style || 'zigzag',choices:[{value:'zigzag',label:'Zigzag'},{value:'wave',label:'Wavy'}]},
+      ],`Original coordinate bounds: horizontal ${bounds.u0*10} to ${bounds.u1*10} mm; vertical ${bounds.v0*10} to ${bounds.v1*10} mm. Keep both boundaries inside the chosen axis bounds. This version supports one orthographic view.`);
+      if(!answer)return;
+      if(host.doc()!==doc || host.bodiesToken()!==token || JSON.stringify(doc.views.find(v=>v.id===place.id))!==fingerprint)throw new Error('Drawing changed while choosing Break; retry');
+      const modifier={version:1,axis:answer.axis,from:Number(answer.from)/10,to:Number(answer.to)/10,gapMm:Number(answer.gapMm),style:answer.style};
+      breakProjection({...place.projection,bounds},modifier,place.k);
+      host.pushUndo('Break view');
+      const live=host.doc().views.find(v=>v.id===place.id);live.breakView=modifier;live.scale=place.scale;
+      invalidate();host.markDirty();host.flash('Break applied; dimensions retain original model values');host.refresh();
+    } catch(error) {host.flash(error.message);host.refresh();}
   }
 
   async function commitBrokenOut(draft) {
