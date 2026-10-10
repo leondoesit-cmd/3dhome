@@ -1,0 +1,25 @@
+{
+  "warmChecks": {
+    "allEighteenExactSourcePlanPrimitives": true,
+    "tenOutlineFourHiddenFourCenter": true,
+    "fiveNativeSourceLabelNotes": true,
+    "sourceAndEstimateExplicit": true,
+    "purePaperNoCadViewsDimensionsImages": true,
+    "styledSvgLineSemantics": true,
+    "closedFrontAndRight": true,
+    "a3ThirdAngleMillimetres": true
+  },
+  "warmAccepted": true,
+  "savedKey": "cm_mv2tu6ni",
+  "savedName": "Planchard Ch1 IN-CHAPTER Orthographic 7 graphic - browser 2026-10-10",
+  "primitiveMismatches": [],
+  "svgSha256": "30adc9589dbb2729c8f908b093a1a9cb41f5e7bf2245e4d7dea80e6458b3a7b0",
+  "coldAccepted": true,
+  "qualification": "SourcePNG69 independently inspected. Source rounded-foot/bevel three-view semantics reproduced with illustrative5mm grid/unit estimates; no exact publisher dimensions/CAD-bound geometry. ActualPNG notes/views/frame separated and unobstructed.",
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourceNameKeyPropertiesExact": true,
+    "authoredCadExact": true,
+    "svgByteExact": true
+  }
+}
