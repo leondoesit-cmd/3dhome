@@ -690,5 +690,117 @@
       "createdAt"
     ],
     "scope": "Stored bundle source invariance only; actual perspective/orthographic pixel proof remains parent browser evidence."
-  }
+  },
+  "distanceDriverUndo": [
+    {
+      "label": "distance20-driver",
+      "path": "artifacts/planchard/CH10-distance20-driver-browser-2026-10-11.mforge",
+      "bytes": 62631,
+      "sha256": "81a7694e7dcb6ceb0d571a05f2a1aa4a6c4c8dd31022b87dbb9287c82d9e4bd9",
+      "assemblyEqualCold": false,
+      "equalColdExceptDistanceValueAndMovingY": true,
+      "componentDefinitionsExactCold": true,
+      "movingTransform": {
+        "x": 6,
+        "y": 2,
+        "z": 3,
+        "rx": 0,
+        "ry": 26.00000000002113,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0.2249510543440447,
+          "z": 0,
+          "w": 0.9743700647851937
+        }
+      },
+      "distanceValueCm": 2,
+      "measuredDistanceMm": 20,
+      "normalAngleDegrees": 26.000000000021135,
+      "resolverIssues": [],
+      "resolverRebindings": [],
+      "solver": {
+        "ok": true,
+        "degreesOfFreedom": 2,
+        "issues": [],
+        "unsatisfied": [],
+        "rebindings": []
+      },
+      "rootPart": {
+        "key": "cm_mv31262m",
+        "name": "Planchard PART-MM-ISO template second reuse - browser 2026-10-11",
+        "parts": 0,
+        "features": 0,
+        "template": {
+          "version": 1,
+          "id": "86588f73-64ee-4192-b02f-d35cfb73513a",
+          "name": "PART-MM-ISO",
+          "kind": "part-template"
+        },
+        "units": {
+          "length": "mm",
+          "angle": "deg",
+          "mass": "g",
+          "precision": 2,
+          "anglePrecision": 0
+        }
+      },
+      "metadataUnits": "mm"
+    },
+    {
+      "label": "distance18-undo",
+      "path": "artifacts/planchard/CH10-distance18-undo-browser-2026-10-11.mforge",
+      "bytes": 62635,
+      "sha256": "e4e90463195e14a31427aa194231f11853a92b7719b163b1c0324963cf3fa849",
+      "assemblyEqualCold": true,
+      "equalColdExceptDistanceValueAndMovingY": true,
+      "componentDefinitionsExactCold": true,
+      "movingTransform": {
+        "x": 6,
+        "y": 1.8,
+        "z": 3,
+        "rx": 0,
+        "ry": 26.00000000002113,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0.2249510543440447,
+          "z": 0,
+          "w": 0.9743700647851937
+        }
+      },
+      "distanceValueCm": 1.8,
+      "measuredDistanceMm": 18,
+      "normalAngleDegrees": 26.000000000021135,
+      "resolverIssues": [],
+      "resolverRebindings": [],
+      "solver": {
+        "ok": true,
+        "degreesOfFreedom": 2,
+        "issues": [],
+        "unsatisfied": [],
+        "rebindings": []
+      },
+      "rootPart": {
+        "key": "cm_mv31262m",
+        "name": "Planchard PART-MM-ISO template second reuse - browser 2026-10-11",
+        "parts": 0,
+        "features": 0,
+        "template": {
+          "version": 1,
+          "id": "86588f73-64ee-4192-b02f-d35cfb73513a",
+          "name": "PART-MM-ISO",
+          "kind": "part-template"
+        },
+        "units": {
+          "length": "mm",
+          "angle": "deg",
+          "mass": "g",
+          "precision": 2,
+          "anglePrecision": 0
+        }
+      },
+      "metadataUnits": "mm"
+    }
+  ]
 }

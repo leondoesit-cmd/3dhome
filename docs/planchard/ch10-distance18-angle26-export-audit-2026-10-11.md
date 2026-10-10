@@ -19,3 +19,11 @@ The **whole bundle is not identical**: the warm root `mainModel` was the origina
 ## Projection control source invariance
 
 The protected `CH10-projection-restored-browser-2026-10-11.mforge` is exactly cold-equal in its complete assembly, root scratch Part and every other bundle value except `createdAt`. No CAD or mate changes are introduced by the actual perspective→orthographic→perspective sequence. Actual visual projection acceptance remains the parent's separate Chrome screenshots; this comparison establishes exported-source invariance only.
+
+## Actual distance driver and Undo
+
+The real `CH10-distance20-driver-browser-2026-10-11.mforge` changes exactly two assembly values relative to the initial cold assembly: distance mate6479 value1.8→2cm, and moving occurrence6478 transformY1.8→2cm. Every other assembly value—including both complete source/native definitions, all captured topology references, grounded pose and moving rotation—is exactly retained. Current native-reference resolution measures **20mm**, with **26.000000000021°** between the angle normals. Cloned solver replay succeeds with2DOF and no issues, rebindings or unsatisfied mates.
+
+The real `CH10-distance18-undo-browser-2026-10-11.mforge` restores the **complete assembly exactly equal to the initial cold assembly**. Native-reference separation returns to18mm and angle remains26°. Native source definitions/cache/meshes have no differences requiring derived-cache qualification in these two witnesses.
+
+Whole bundles include a separately authored root Part context from the intervening template witness: `cm_mv31262m`, `Planchard PART-MM-ISO template second reuse - browser 2026-10-11`,0 parts/0 features, genuine PART-MM-ISO provenance and mm/g document defaults. That root context differs from the initial cold empty `New model`; it is not a derived cache change or an assembly geometry change. Machine JSON records exact source/provenance/units and bundle hashes. Parent's reported real spin/blur/Undo authoring is supported by these exported states; no additional browser Measure or pixel acceptance is inferred.

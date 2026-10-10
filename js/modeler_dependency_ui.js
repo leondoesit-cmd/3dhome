@@ -23,6 +23,8 @@ function redrawArrows(root,record){
   root.querySelectorAll('.md-dependency-arrows').forEach(n=>n.remove());
   root.querySelectorAll('.md-dependency-anchor').forEach(n=>n.classList.remove('md-dependency-anchor'));
   if(!record.state)return;
+  const panel=root.querySelector('.md-dependency-panel'),calls=root.querySelector('.md-dependency-callouts');
+  if(panel&&calls){const box=panel.getBoundingClientRect(),width=Math.min(320,Math.max(120,window.innerWidth-16));calls.style.width=width+'px';calls.style.left=Math.max(8,Math.min(box.right+8,window.innerWidth-width-8))+'px';calls.style.top=Math.max(8,Math.min(box.top,window.innerHeight-196))+'px';}
   const index=dependencyTreeIndex(record.model);
   for(const mount of root.querySelectorAll('.md-tree-mount')){
     const bounds=mount.getBoundingClientRect(),visible=new Map();
@@ -56,10 +58,10 @@ export function renderDependencyPresentation(root,model,state,options,onOptions)
       const label=element('label'),input=element('input');input.type='checkbox';input.dataset.dependencyOption=key;input.setAttribute('aria-label',name);
       input.addEventListener('change',()=>onOptions(key,input.checked));label.append(input,element('span','',name));controls.appendChild(label);
     }
-    panel.append(controls,element('div','md-dependency-callouts'));host.insertBefore(panel,host.firstChild);
+    panel.appendChild(controls);host.insertBefore(panel,host.firstChild);
   }
   for(const input of panel.querySelectorAll('input'))input.checked=options[input.dataset.dependencyOption]!==false;
-  const calls=panel.querySelector('.md-dependency-callouts');calls.replaceChildren();
+  let calls=root.querySelector('.md-dependency-callouts');if(!calls){calls=element('div','md-dependency-callouts');calls.setAttribute('role','status');root.appendChild(calls);}calls.replaceChildren();
   if(state){
     const focus=state.graph.nodes.get(state.focus);calls.appendChild(element('strong','',focus.name));
     const index=dependencyTreeIndex(model),visible=new Set([...root.querySelectorAll('[data-node-id]')].filter(rowVisible).map(n=>n.dataset.nodeId));

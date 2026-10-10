@@ -50,21 +50,24 @@ test('actual assembly handler consumes occurrence/mate dependency identity rathe
 
 test('real presentation creates independent controls, named collapsed references, directed SVG arrows and recomputes scroll',()=>{
  class Node {
-  constructor(tag){this.tag=tag;this.children=[];this.dataset={};this.attributes={};this.events={};this.className='';this.rect={left:0,right:200,top:0,bottom:20,width:200,height:20};this.classList={add:n=>this.className+=' '+n,remove:n=>this.className=this.className.split(/\s+/).filter(c=>c!==n).join(' ')};}
+  constructor(tag){this.tag=tag;this.children=[];this.dataset={};this.attributes={};this.events={};this.className='';this.style={};this.rect={left:0,right:200,top:0,bottom:20,width:200,height:20};this.classList={add:n=>this.className+=' '+n,remove:n=>this.className=this.className.split(/\s+/).filter(c=>c!==n).join(' ')};}
   appendChild(n){n.parent=this;this.children.push(n);return n;}append(...nodes){nodes.forEach(n=>this.appendChild(n));}insertBefore(n){n.parent=this;this.children.unshift(n);}replaceChildren(){this.children=[];}remove(){this.parent.children=this.parent.children.filter(n=>n!==this);}
   setAttribute(k,v){this.attributes[k]=v;}addEventListener(k,fn){this.events[k]=fn;}getBoundingClientRect(){return this.rect;}
   querySelectorAll(selector){const match=n=>selector==='#mdParts'?n.attributes.id==='mdParts':selector==='[data-node-id]'?!!n.dataset.nodeId:selector==='input'?n.tag==='input':n.className.split(/\s+/).includes(selector.slice(1));return this.children.flatMap(n=>[...(match(n)?[n]:[]),...n.querySelectorAll(selector)]);}
   querySelector(s){return this.querySelectorAll(s)[0]||null;}
  }
  const oldDocument=globalThis.document,oldWindow=globalThis.window;
- globalThis.document={createElement:t=>new Node(t),createElementNS:(_,t)=>new Node(t)};globalThis.window={innerHeight:900};
+ globalThis.document={createElement:t=>new Node(t),createElementNS:(_,t)=>new Node(t)};globalThis.window={innerHeight:900,innerWidth:1200};
  try{
   const root=new Node('root'),host=new Node('div');host.setAttribute('id','mdParts');root.append(host);const mount=new Node('div');mount.className='md-tree-mount';host.append(mount);
   const boss=new Node('div');boss.dataset.nodeId='boss';const pattern=new Node('div');pattern.dataset.nodeId='pattern';pattern.rect={...pattern.rect,top:60,bottom:80};mount.append(boss,pattern);
   const model={nodes:[{id:'boss',name:'Boss1',targetId:'a',children:[{id:'sketch',name:'Base sketch',targetId:'s',children:[]}]},{id:'pattern',targetId:'b',name:'Pattern',children:[]}]};
   const doc={sketches:[{id:'s',name:'Base sketch'}],features:[{id:'a',name:'Boss1',type:'extrude',inputs:['s']},{id:'b',name:'Pattern',type:'pattern',inputs:['a']}]},before=JSON.stringify(doc),graph=partDependencyGraph(doc),options={parents:true,children:true};let state=dependencyVisualization(graph,'b',options);
   const draw=()=>renderDependencyPresentation(root,model,state,options,(key,value)=>{options[key]=value;state=dependencyVisualization(graph,'b',options);draw();});draw();
-  const text=n=>[n.textContent,...n.children.map(text)].join(' ');assert.match(text(host),/Base sketch → Boss1/);assert.match(text(host),/inside Boss1/);
+  const text=n=>[n.textContent,...n.children.map(text)].join(' ');assert.match(text(root),/Base sketch → Boss1/);assert.match(text(root),/inside Boss1/);
+  const calls=root.querySelector('.md-dependency-callouts');assert.equal(calls.parent,root,'reference content is outside tree/control host flow');assert.equal(host.querySelector('.md-dependency-callouts'),null);assert.equal(calls.style.left,'208px');
+  const panel=host.querySelector('.md-dependency-panel');assert.equal(panel.children.length,1,'only persistent controls consume tree layout space');
+  const css=fs.readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');const calloutStyle=css.match(/\.md-dependency-callouts \{([^}]+)\}/)[1];assert.match(calloutStyle,/position:\s*fixed/);assert.match(calloutStyle,/pointer-events:\s*none/);
   let svg=mount.querySelector('.md-dependency-arrows');assert.equal(svg.children.length,1);const first=svg.children[0].attributes.d;
   pattern.rect={...pattern.rect,top:100,bottom:120};root.events.scroll();svg=mount.querySelector('.md-dependency-arrows');assert.notEqual(svg.children[0].attributes.d,first);
   const parentInput=host.querySelectorAll('input').find(n=>n.dataset.dependencyOption==='parents');parentInput.checked=false;parentInput.events.change();assert.equal(state.upstream.size,0);assert.equal(mount.querySelector('.md-dependency-arrows').children.length,0);

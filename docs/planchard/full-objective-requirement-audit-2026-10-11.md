@@ -2,6 +2,8 @@
 
 **The preceding empty finite queue is not sufficient proof of the full objective. Three additional browser-recreatable outcomes remain incomplete or unlocated: genuine Part/Assembly template creation/reuse, assembly/mate dependency visualization, and exact18mm Distance/26°Angle workflow witnesses.** Accepted CAD/source worksheets remain preserved. This read-only audit checks all117 ledger identifiers, every Chapter4/design-intent/Chapter9 capability-matrix row, broader source inventory and old follow-ups; it does not independently regenerate all historical117 models or call a declaration of acceptance a new geometric proof.
 
+**Later verified override:** the explicit four Part/Assembly templates have now been implemented and genuinely captured/reused/saved in Chrome. Seven protected exports pass35/35 independent guards, including both-kind post-reload library reuse and local override isolation. That item is closed within source settings scope; the initial gap statement records discovery, not the current template status. Other newly identified workflows require their own actual acceptance evidence.
+
 Statuses: **P** documented actual source-scoped proof; **I** incomplete/unlocated required digital outcome; **U** source/proprietary/device outcome not verifiable from current evidence. P does not mean exact publisher BRep, production certification or complete proprietary functionality.
 
 ## Numbered exercise requirements
@@ -61,7 +63,7 @@ The ledger contains117 distinct identifiers:116 declared scoped acceptances and3
 |130chapter-endquestions|P answer scope|Actual review closure130/130; not geometry denominator.|
 |Chapter1 earlier21prompts|P scoped;U ambiguousH/I|Seven answer packs +six native paper graphics actual cold; source grid/visibility inferred. Plane7H genuinely ambiguous; no officialkey fabricated.|
 |Chapter2cube/bridge/viewlabels|P|Native cube/bridge/proxyD13driver restored/cold and source labels/WHD native worksheet.|
-|5-5–8Parttemplates /8-8–10Assemblytemplates|**I explicitcreation/reuse**|Source namedPART-IN-ANSI/PART-MM-ISO/ASM-IN-ANSI/ASM-MM-ISO activities. Currentcode has drawingpresets only; settingunitsafterNew is not storedkind-specifictemplate inheritance. See part-assembly-template-source-gap report for exactfour defaults and shortestordinarybrowsercapture/reload/reuse/independence proof.|
+|5-5–8Parttemplates /8-8–10Assemblytemplates|**P actual source settings workflow**;U proprietary binary|All four named templates captured/reused/saved with true IPS3/angle0 ANSI and MMGS2/angle0 ISO defaults. Actual both-kind reload reuse creates fresh blank identities; local override4 leaves captured precision3 intact. Seven bundles35/35 audited in part-assembly-document-template-browser-audit-2026-10-11.md/json. No four-first-document byte cold equality or `.prtdot/.asmdot` binary claim.|
 |2-7–8ellipse/cylinder|P|True analytic rotatingcircle/edge/endellipses/tangent cylinder/rearhalf/native driverUndo/cold.|
 |2-9–10Cabinet|P|Truecircle/45°50mmrecession for100physical/tangents/procedure/exactSavedcold.|
 |2-11–12road/two-point-house|P geometric explanations|ActualVPconstructs/windowlinefamilies/cold. Sourcephotograph not recreated, no calibratedcamera claim.|
@@ -80,7 +82,7 @@ The ledger contains117 distinct identifiers:116 declared scoped acceptances and3
 1. **Confirmed digital capability gap:** real assembly/mate dependency visualization. Reuse accepted two-component/two-mate ComponentPatternseed or WEIGHTHOOK, hover actual mate to show its two referenced occurrences and component to show incident mates; clear/sourceexact. Handle actual native topology refs/fullpaths and unresolved references honestly. No synthetic unrelated tree labels.
 2. **Unlocated exactsource-value workflow:** labelled native18mmDistance/26°Angle/Measure witness on appropriate independent savedcopy, value/pose/Undo/cold. Original screenshot assembly remains U until complete inputs recovered. Do not replace source requirements with mere paperconcept answers.
 3. **Potential selectable-projection parity gap:** inspect ordinaryModelEditor camera controls. Existing default perspective is P; if no user-selectableprojection exists, add boundedswitch and actualproof as product gap under full workflow parity. Do not count paperroad as camera-toggle acceptance.
-4. **Confirmed explicittemplate gap:** genuine kind-specific Part/Assembly document-default capture/reuse for four source-named presets, actualpicker/createblank/defaults/independence/reloadproof. Drawing templates do not cover this. Source permits fallbackdefaultdocument for later modeling but still explicitly assigns creationactivity.
+4. **Closed after this audit — explicittemplate gap:** genuine kind-specific Part/Assembly capture/reuse now has four named actual browser witnesses plus persisted picker/newblank and independence proof35/35. Drawing templates alone did not cover it; new document presets do. Proprietary binary compatibility remains unverifiable.
 
 No source-defined new fully dimensioned part reconstruction was uncovered. The four outcomes above are not physical/device barriers. Conversely arbitraryoriginalBRep/BRACKETtree fidelity, source-missingglyphs, physicalnutmeasurement/printing and incompleteexamassemblies cannot be solved by plausible inventedgeometry.
 

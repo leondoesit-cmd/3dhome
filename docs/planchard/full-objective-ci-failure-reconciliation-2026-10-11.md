@@ -11,3 +11,5 @@ The14 failures were stale test harnesses or invalid fixtures, not evidence to re
 - Face-supported offset fixture formerly placed the face sketch before its supporting stock body. The topology budget fixture additionally used the same sketch to create its own supporting stock. Fixtures now obey body-before-supported-sketch history. Product future-source validation is preserved. The compaction test explicitly requires valid compilation and adds an invalid-history case that must return the original cache unchanged.
 
 Focused result:72/72 passed (`scratch/planchard/full-ci-repair-focused.log`). Final full CI and all-agent gates are separate checks; this report does not claim their success before completion.
+
+The next default-sandbox full run encountered loopback HTTP `EACCES` in the relay bridge test. Isolated default rerun reproduced it while the child remained alive; the elevated isolated bridge test passed1/1. This confirms an environment restriction, not a reason to loosen readiness validation or skip the test. The full run is allowed to finish before an elevated final run; its result will be recorded separately.

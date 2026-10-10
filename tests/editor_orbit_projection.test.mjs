@@ -30,3 +30,13 @@ test('ordinary modeler toolbar has accessible checked projection control and no 
  const sync=sourceFunctionText(src,'syncViewButtons');assert.match(sync,/fixedFrame/);assert.match(sync,/aria-pressed/);
  const css=fs.readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');assert.match(css,/#modeler\.md-assembly\.md-is3d:not\(\.md-isdrawing\) \.md-views \{ display:flex !important; \}/);assert.match(src,/md-vgroup md-projection/);
 });
+test('actual Normal To with no face/sketch in arbitrary orbit uses Front datum without changing orbit preference',()=>{
+ const src=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),{p,o}=rig(),view={dist:50,big:false,render(){},getProjection:()=> 'perspective'};
+ const esrc=fs.readFileSync(new URL('../js/editor_view.js',import.meta.url),'utf8'),chunk=esrc.slice(esrc.indexOf('view.getProjection ='),esrc.indexOf('// Keep every zoom entry'));
+ new Function('view','opts','switchEditorCamera','perspectiveCam','normalCam','cam','bigZoom',`let orbitProjection='perspective';${chunk}`)(view,{normalToOrthographic:true},switchEditorCamera,p,o,p,()=>1);
+ let picked;view.lookAtFrame=f=>{picked=f;view.fixedFrame=f;view.setProjection(view.getProjection());};view.orbitTo=()=>assert.fail('Normal To must not use perspective orbit fallback');
+ const E={pv:view,mode:'3d',view:'iso',authoring:{phase:'idle'}},frame={origin:{x:0,y:0,z:0},normal:{x:0,y:0,z:1},yAxis:{x:0,y:1,z:0}};
+ new Function('E','faceSketchAttachment','sketchCameraFrame','standardPlaneFrame',sourceFunctionText(src,'orientModelToView')+';orientModelToView(true);')(E,()=>null,()=>null,(name,offset)=>{assert.equal(name,'front');assert.equal(offset,0);return frame;});
+ assert.equal(picked,frame);assert.equal(view.cam.isOrthographicCamera,true);assert.equal(view.getProjection(),'perspective');
+ const button={classList:{toggle(){}},setAttribute(k,v){this[k]=v;}},root={querySelector:()=>button,querySelectorAll:()=>[]};new Function('E','root','VIEW_PRESETS',sourceFunctionText(src,'syncViewButtons')+';syncViewButtons();')(E,root,[]);assert.equal(button['aria-pressed'],'false');assert.equal(button.disabled,true);
+});

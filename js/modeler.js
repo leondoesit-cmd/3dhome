@@ -6428,6 +6428,9 @@ function orientModelToView(force) {
   if (!force && E.modelPlaneActive) return;
   var faceFrame = force && E.authoring?.phase !== "sketch" ? faceSketchAttachment() : null;
   var frame = faceFrame?.frame || sketchCameraFrame();
+  // With no selected plane/face, Normal To uses the current principal datum;
+  // an arbitrary orbit has no drafting plane, so use the Front datum explicitly.
+  if(!frame && force)frame=standardPlaneFrame(['top','front','side'].includes(E.view)?E.view:'front',0);
   if (frame && E.pv.lookAtFrame) { E.pv.lookAtFrame(frame); return; }
   if (E.view === "top") E.pv.orbitTo(0, 1.5);
   else if (E.view === "front") E.pv.orbitTo(0, 0.05);
@@ -11621,7 +11624,7 @@ function saveCurrentDocument() {
 
 function syncViewButtons() {
   var projectionButton=root.querySelector('#mdPerspectiveView');
-  if(projectionButton){var perspective=!E.pv||E.pv.getProjection()==='perspective';projectionButton.classList.toggle('on',perspective);projectionButton.setAttribute('aria-pressed',String(perspective));projectionButton.disabled=!!E.pv?.fixedFrame;projectionButton.title=E.pv?.fixedFrame?'Normal To uses orthographic projection; orbit preference is retained':'Toggle perspective / orthographic orbit projection';}
+  if(projectionButton){var perspective=!E.pv||(!E.pv.fixedFrame&&E.pv.getProjection()==='perspective');projectionButton.classList.toggle('on',perspective);projectionButton.setAttribute('aria-pressed',String(perspective));projectionButton.disabled=!!E.pv?.fixedFrame;projectionButton.title=E.pv?.fixedFrame?'Normal To uses orthographic projection; orbit preference is retained':'Toggle perspective / orthographic orbit projection';}
   var active = E.view;
   if (E.mode === "3d" && E.pv) {
     var preset = !E.pv.fixedFrame && VIEW_PRESETS.find(function (item) {
