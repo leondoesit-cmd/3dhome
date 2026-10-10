@@ -1,0 +1,86 @@
+{
+  "savedKey": "cm_mv2uf8ek",
+  "savedName": "Planchard Ch3 IN-CHAPTER A2 dimension errors - browser 2026-10-10",
+  "warmChecks": {
+    "allFortyTwoPrimitiveCoordinatesTypesStylesExact": true,
+    "fourteenClosedNoncollapsedTriangles": true,
+    "tenNativeNotesTwentyFourRows": true,
+    "originalSevenNumericLabelsExact": true,
+    "sourceAnswersAndNoInventedDimensions": true,
+    "purePaperNoCadOrEmbeddedImage": true,
+    "sourcePropertiesAndFallbackDisclosure": true,
+    "chosenSheetAndReadableSeparatedLayout": true
+  },
+  "warmAccepted": true,
+  "mismatches": [],
+  "noteLineRows": [
+    5,
+    8,
+    4,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "noteOriginOffsets": [
+    {
+      "text": "1.00",
+      "dx": -0.2711400402766557,
+      "dy": -0.17628751772403461
+    },
+    {
+      "text": "5.50",
+      "dx": -0.27830799098293824,
+      "dy": -0.17628751772403461
+    },
+    {
+      "text": "2.00",
+      "dx": -0.2744937012832622,
+      "dy": -0.18264466722351358
+    },
+    {
+      "text": "1.50",
+      "dx": -0.2783858160407817,
+      "dy": -0.1818888833845449
+    },
+    {
+      "text": "2.00",
+      "dx": -0.2818855144533927,
+      "dy": -0.18264466722351358
+    },
+    {
+      "text": ".50",
+      "dx": -0.273465569988403,
+      "dy": -0.185625348026349
+    },
+    {
+      "text": "1.50",
+      "dx": -0.28279694840804837,
+      "dy": -0.18509987853394705
+    }
+  ],
+  "svgSha256": "b67d529ee334becfa3c9f36f98fd33122a52a0c502aacf73a6ff2403de8f89bb",
+  "qualification": "Source PDF150/3-22 image independently inspected against actual browser screenshot. Source-estimated paper strokes; literal erroneous labels retained. Numeric note origins have initial-click bias about -0.28/-0.18mm, not exact decimal origins. Default2.8mm font and outlined closed triangle arrows; no manufacturing geometry, source image insertion or physical dimensions claimed.",
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesNameKeyExact": true,
+    "emptyAuthoredCadExact": true,
+    "svgByteExact": true
+  },
+  "coldAccepted": true,
+  "wholeProjectDifferences": [
+    {
+      "path": "createdAt",
+      "warm": 1791665006568,
+      "cold": 1791665114318
+    },
+    {
+      "path": "mainModel.lastRebuild.rebuiltAt",
+      "warm": 1791664998017,
+      "cold": 1791665092590
+    }
+  ]
+}
