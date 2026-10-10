@@ -1,0 +1,255 @@
+{
+  "partsExact": false,
+  "partChanges": [
+    "parts/0/exactBuildToken",
+    "parts/0/meshData/bounds"
+  ],
+  "featuresExact": true,
+  "sketchesExact": true,
+  "materialExact": true,
+  "beforeDims": 10,
+  "afterDims": 12,
+  "detailId": "v1eocwbj",
+  "dims": [
+    {
+      "id": "dhumrh4o",
+      "type": "vertical",
+      "refs": [
+        {
+          "u": 0.5016672767864887,
+          "v": 11.430000000000007,
+          "pid": "feature_muk70mqo_8:tool:edge:profile:61:end",
+          "kind": "edge",
+          "at": "qu+"
+        },
+        {
+          "u": 0.6349999999999969,
+          "v": 9.906000000000006,
+          "pid": "feature_muk70mqo_8:tool:edge:profile:61:start",
+          "kind": "edge",
+          "at": "qu+"
+        }
+      ],
+      "precision": 3,
+      "text": "",
+      "dangling": false,
+      "measure": 1.524000000000001,
+      "label": "0.600 [15.24]",
+      "sourceFace": null
+    },
+    {
+      "id": "dv869w4b",
+      "type": "vertical",
+      "refs": [
+        {
+          "u": -2.297718501003064,
+          "v": 11.430000000000007,
+          "pid": "feature_muk70mow_7:tool:edge:profile:64:end",
+          "kind": "edge",
+          "at": "qu-"
+        },
+        {
+          "u": -3.4290000000000007,
+          "v": 10.287,
+          "pid": "feature_muk6fhqp_3:edge:generated:line:3",
+          "kind": "edge",
+          "at": "b"
+        }
+      ],
+      "precision": 3,
+      "text": "",
+      "dangling": false,
+      "measure": 1.143000000000006,
+      "label": "0.450 [11.43]",
+      "sourceFace": null
+    },
+    {
+      "id": "d0g16lgq",
+      "type": "vertical",
+      "refs": [
+        {
+          "u": -3.3020000000000005,
+          "v": 10.414,
+          "pid": "feature_muk6nevy_6:edge:generated:circle:10",
+          "kind": "edge",
+          "at": "qu-"
+        },
+        {
+          "u": -3.048,
+          "v": 9.905999999999999,
+          "pid": "feature_muk6ipxb_4:tool:edge:generated:line:4",
+          "kind": "edge",
+          "at": "a"
+        }
+      ],
+      "precision": 3,
+      "text": "",
+      "dangling": false,
+      "measure": 0.5080000000000009,
+      "label": "0.200 [5.08]",
+      "sourceFace": null
+    },
+    {
+      "id": "dsedjy7q",
+      "type": "angle",
+      "refs": [
+        {
+          "u": -1.2943839474300805,
+          "v": 11.430000000000007
+        },
+        {
+          "u": -1.1610512242165723,
+          "v": 9.906000000000006
+        },
+        {
+          "u": -1.1610512242165723,
+          "v": 11.430000000000007
+        }
+      ],
+      "modelItem": "feature:feature_muk70mow_7:draftAngle",
+      "coneAngle": {
+        "faceId": "feature_muk70mow_7:tool:face:generated:cone:1",
+        "featureId": "feature_muk70mow_7",
+        "side": 1
+      },
+      "dangling": false,
+      "measure": 5.000000000000007,
+      "label": "5°",
+      "sourceFace": {
+        "surface": "cone",
+        "origin": {
+          "x": -1.7960512242165723,
+          "y": 10.638205430922609,
+          "z": -1.7960512242165605
+        },
+        "normal": {
+          "x": -1.6475986004949775e-15,
+          "y": 0.08715574274765817,
+          "z": -0.9961946980917455
+        },
+        "measure": 5.462909061360229,
+        "bounds": {
+          "min": {
+            "x": -2.4310513242165723,
+            "y": 9.905999900000007,
+            "z": -2.4310513242165603
+          },
+          "max": {
+            "x": -1.1610511242165722,
+            "y": 11.430000100000006,
+            "z": -1.1610511242165604
+          }
+        },
+        "axis": {
+          "x": 8.431768820317422e-32,
+          "y": -1,
+          "z": -8.958754371587262e-32
+        },
+        "radius": 0.635,
+        "angle": 0.08726646259971647,
+        "referenceOrigin": {
+          "x": -1.7960512242165723,
+          "y": 9.906000000000006,
+          "z": -1.7960512242165605
+        },
+        "axisRange": [
+          -1.524000000000001,
+          0
+        ],
+        "centroid": {
+          "x": -1.7960512242165725,
+          "y": 10.638205430922609,
+          "z": -1.7960512242165603
+        }
+      }
+    },
+    {
+      "id": "d3uo8jpz",
+      "type": "angle",
+      "refs": [
+        {
+          "u": 0.5016672767864887,
+          "v": 11.430000000000007
+        },
+        {
+          "u": 0.6349999999999969,
+          "v": 9.906000000000006
+        },
+        {
+          "u": 0.6349999999999969,
+          "v": 11.430000000000007
+        }
+      ],
+      "modelItem": "feature:feature_muk70mqo_8:draftAngle",
+      "coneAngle": {
+        "faceId": "feature_muk70mqo_8:tool:face:generated:cone:1",
+        "featureId": "feature_muk70mqo_8",
+        "side": 1
+      },
+      "dangling": false,
+      "measure": 5.000000000000007,
+      "label": "5°",
+      "sourceFace": {
+        "surface": "cone",
+        "origin": {
+          "x": -3.134698366518864e-15,
+          "y": 10.638205430922609,
+          "z": 3.1347034487260957e-15
+        },
+        "normal": {
+          "x": -1.6475986004949775e-15,
+          "y": 0.08715574274765817,
+          "z": -0.9961946980917455
+        },
+        "measure": 5.462909061360229,
+        "bounds": {
+          "min": {
+            "x": -0.6350001000000031,
+            "y": 9.905999900000007,
+            "z": -0.6350000999999968
+          },
+          "max": {
+            "x": 0.6350000999999968,
+            "y": 11.430000100000006,
+            "z": 0.6350001000000031
+          }
+        },
+        "axis": {
+          "x": 8.431768820317422e-32,
+          "y": -1,
+          "z": -8.958754371587262e-32
+        },
+        "radius": 0.635,
+        "angle": 0.08726646259971647,
+        "referenceOrigin": {
+          "x": -3.134698366518864e-15,
+          "y": 9.906000000000006,
+          "z": 3.1347034487260957e-15
+        },
+        "axisRange": [
+          -1.524000000000001,
+          0
+        ],
+        "centroid": {
+          "x": -3.1483502450506054e-15,
+          "y": 10.638205430922609,
+          "z": 2.9976021664879227e-15
+        }
+      }
+    }
+  ],
+  "svgNativeAngleLabels": 2,
+  "svgHasLiteralOverride": false,
+  "allNonDangling": true,
+  "cold": {
+    "drawingExact": true,
+    "featuresExact": true,
+    "sketchesExact": true,
+    "metadataExact": true,
+    "partChanges": [
+      "parts/0/exactBuildToken",
+      "parts/0/meshData/bounds"
+    ],
+    "svgByteExact": true
+  }
+}
