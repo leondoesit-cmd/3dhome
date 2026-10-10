@@ -964,7 +964,17 @@ export async function makeBrepSweep(spec) {
   const oc = await loadCadKernel(), owned = [];
   try {
     const profileLoop = spec.profileSegments ? { points: spec.profile, segments: spec.profileSegments } : spec.profile;
-    const pathLoop = spec.pathSegments ? { points: spec.path, segments: spec.pathSegments } : spec.path;
+    // A single fitted multi-turn spine can make OCCT miss the crossings of a
+    // circular pipe and a coaxial cylinder. Cut then retains exterior cutter
+    // faces despite a valid positive-volume solid. Short spline spans retain
+    // the authored samples and give the surface intersector bounded turns.
+    const quarterSegments = spec.operation === 'subtract' && spec.helixId && spec.helix?.turns && spec.profileSegments && spec.path?.length > 8
+      ? Array.from({length:Math.ceil(spec.helix.turns*4)},(_,i)=>{
+        const count=Math.ceil(spec.helix.turns*4),last=spec.path.length-1;
+        const points=spec.path.slice(Math.round(i*last/count),Math.round((i+1)*last/count)+1);
+        return {type:'spline',from:points[0],to:points.at(-1),points};
+      }) : null;
+    const pathLoop = quarterSegments ? {points:spec.path,segments:quarterSegments} : spec.pathSegments ? { points: spec.path, segments: spec.pathSegments } : spec.path;
     const profilePoints = loopPoints(profileLoop).map(world), pathPoints = loopPoints(pathLoop).map(world);
     if (profilePoints.length < 3 || pathPoints.length < 2) throw new Error("Sweep requires a profile and path");
     const frames = pathFrames(pathPoints);

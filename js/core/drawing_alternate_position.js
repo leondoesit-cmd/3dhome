@@ -2,7 +2,7 @@ import {projectSolid,projectionBounds} from './hidden_line.js';
 
 export function canAlternatePosition(view) {
   return !!view && ['front','back','top','bottom','left','right','iso','isorear','isoleft'].includes(view.dir)
-    && !view.section && !view.detail && !view.auxiliary && !view.cropSketch && !view.brokenOut && !view.breakView
+    && !view.section && !view.alignedSection && !view.detail && !view.auxiliary && !view.cropSketch && !view.brokenOut && !view.breakView
     && !view.exploded && !['shaded','shadedEdges'].includes(view.displayStyle);
 }
 

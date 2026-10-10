@@ -1,0 +1,27 @@
+# Concentric axis direction UI — 2026-10-10
+
+Parent actual Chapter8 child assembly repair created native Concentric6400 with genuine axis references but reported an unwanted Hook orientation versus retained axial Coincident445. Existing inspector exposed plane-mate alignment and Screw axis opposition, but no Concentric axis-direction choice.
+
+The solver deliberately ignores generic `aligned` for concentric axes: a cylinder axis is undirected, so legacy mates preserve the currently equivalent direction. Merely adding the plane-alignment button would not drive a real change. This fix adds an explicit optional `axisOpposed` boolean for Concentric, with the absent field retaining automatic legacy behavior. Native targets use the explicit choice, and saved JSON retains it.
+
+Actual inspector dropdown **Concentric axis direction** offers **Automatic**, **Aligned**, **Opposed** directly. Automatic removes the override; Aligned sets false; Opposed sets true. Directions refer to the two resolved native axes, not an assumed global+Y direction. Choosing the branch that agrees with the retained axial face can solve the intended pose. A contradictory choice fails without publishing diagnostic poses, changing the mate, or adding Undo; the dropdown restores its previous selection. Existing **Screw axes: Aligned/Opposed** control remains available and unchanged.
+
+The setter clones mutable transforms/mates for trial solving, without duplicating component native geometry. Accepted changes record one Undo and publish solved transforms; the inspector then refreshes real mobility/status. No existing mate is auto-migrated or re-grounded. Parent actual saved child must be reopened after reload, select the intended Concentric row, choose the required direction, verify retained Coincident is resolved and the Hook stem orientation is correct, then Save/cold-export. Browser acceptance is still pending.
+
+20 focused tests pass: three new direction/native-cold/actual-inspector tests plus existing Vice coupled-screw and parallel-plane regressions. Final three-test rerun after avoiding geometry-copy overhead also passes. Tests prove automatic opposite-pose preservation, explicit aligned/opposed native solving, JSON replay, atomic rejection with retained axial mate, invalid-input rejection and direct accessible dropdown choices. Module/link/source gates pass: no free identifiers,673 linked modules,1487 assertions. Scoped whitespace check is clean; no browser/model/ADVANCE/Git actions by this agent.
+
+## Actual rejected trial reconciliation
+
+Parent actual Chrome Aligned/Opposed trials were correctly rejected. Read-only `C:/Users/liron/Downloads/WEIGHT-HOOK8_1_-_rebuilt_2026-09-28 (9).mforge` replay identifies another blocker: Coincident445.b retains old `feature_mukhbwfg_1:edge:generated:circle:7`. The saved descriptor meant stem endY.635cm, axis+Y, but the current exact topology at the same generated ID is an upper Hook circle centeredY1.590384097790737cm/Z.43325557923068325cm, axis(0,−.6588538746215092,−.7522709431423127). This silently reused generated identity is a topology-reference drift gap, not proof the new axis-direction choice failed.
+
+Current verified final Hook circle5 and6 both centerY.635cm/Z≈0, axis+Y, R.1905cm;5 is the negativeZ semicircle and6 positiveZ. Retained Weight rim `profile:342:start` centerY1.27cm/axis+Y is correct. Read-only cloned actual data, rebinding445.b to verified circle5 and setting6400.axisOpposed=false, solves **zero DOF/no issues/no unsatisfied mates**, Hook translation(0,.635,0)cm with identity orientation. It does not write a model or claim browser acceptance.
+
+Parent ordinary repair can replace445 references directly if picker supports the existing pair; otherwise delete only445, choose Aligned on6400 with valid Right-plane447, then recreate the actual axial Coincident from Weight rim to Hook circle5. Preserve new exact references through Save/cold check. Reused generated IDs need a separate general topology-identity repair; this bounded direction UI change does not fix or conceal that gap. Native custom-cut boundary consistency is independently under coverage-agent kernel review.
+
+## Actual browser seating acceptance and independent stored-reference replay
+
+Parent actual Chrome deleted drifted445, set6400 **Aligned**, and authored axial Coincident6401 using the current verified Hook circle5 and Weight `profile:342:start`. It displayed two components, three mates, zero DOF, no issues, clean Saved. Protected bundle `artifacts/planchard/WEIGHT-HOOK-native-axis-seating-browser-2026-10-10.mforge` is3,025,649bytes, with corresponding PNG.
+
+Independent read-only selection of exact `asm_mukhtlq5` from that protected bundle passes native-topology-backed solver replay:447 Right planes,6400 genuine cylinder axes with **axisOpposed:false**,6401 Weight start circle ↔ Hook generated circle5. Resolved axial circles coincide at worldY1.27cm, axes+Y; saved and replayed Hook pose both (0,.635,0)cm with identity quaternion. Solver converges without iteration or rebindings, rank6/zero DOF, zero issues/unsatisfied; exact frame resolution also reports no issues/rebindings. No model/artifact rewrites.
+
+This accepts stored axis-direction control and native seating references/pose. It does **not** accept the independently disputed custom-cut boundary, whole8.2 source geometry, material or interference; those proofs remain separate.

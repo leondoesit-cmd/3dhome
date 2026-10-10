@@ -27,8 +27,9 @@ import {canBreakOutView,projectBrokenOutView} from './core/drawing_broken_out.js
 import {auxiliaryFaceCandidates,resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
 import {canBreakView,alignedBreakPlan} from './core/drawing_break.js';
 import {canAlternatePosition,alternatePositionBodies} from './core/drawing_alternate_position.js';
+import {canAlignedSectionParent,projectAlignedSection} from './core/drawing_aligned_section.js';
 
-export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", "alternateposition", "removealternateposition", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "alignedsection", "detail", "crop", "uncrop", "brokenout", "unbrokenout", "break", "unbreak", "auxiliary", "alternateposition", "removealternateposition", ...Object.keys(DRAWING_PRIMITIVE_TOOLS)];
 
 /** Axis-aligned picks have only one meaningful projected measurement.
  * Moving its label past an endpoint must not turn that measurement into zero. */
@@ -126,7 +127,7 @@ export function createDrawingController(host) {
       host.bodiesToken(), host.model?.()?.customProperties, state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
-        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
+        view.parent, view.hidden, view.displayStyle, view.centers, view.labelled, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
@@ -376,6 +377,10 @@ export function createDrawingController(host) {
       try { for(const item of drawingPrimitiveItems({type:draft.type,points,style:'outline'}))paintItem(c,{...item,style:'highlight'}); } catch { /* First pick may coincide with cursor. */ }
       return;
     }
+    if(draft.kind==='alignedsection' && place) {
+      const points=draft.points.concat(draft.points.length<3 && state.cursor ? [place.toModel(state.cursor)] : []);
+      c.beginPath();points.map(p=>toScreen(place.toSheet(p))).forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke();return;
+    }
     if((draft.kind==='crop'||draft.kind==='brokenout') && place) {
       const points=draft.points.concat(state.cursor ? place.toModel(state.cursor) : []);
       let boundary=points;
@@ -465,7 +470,7 @@ export function createDrawingController(host) {
        topologyCrossings. Its identity travels on the snap point itself, because
        unlike every other snap it cannot be recovered by looking up one id. */
     const index = scene().topologyIndex, basis = projection?.basis;
-    if (index && basis) {
+    if (index && basis && !projection?.nonlinearProjection) {
       for (const cross of topologyCrossings(index, basis)) {
         points.push({ u: cross.u, v: cross.v, kind: "cross", pid: cross.pid, pid2: cross.pid2, at: cross.at });
       }
@@ -482,7 +487,7 @@ export function createDrawingController(host) {
   function bindAnchor(place, point) {
     const index = scene().topologyIndex;
     const basis = place.projection?.basis;
-    if (!index || !basis) return null;
+    if (!index || !basis || place.projection?.nonlinearProjection) return null;
     if (!place._anchors) place._anchors = topologyAnchors(index, basis);
     /* Coincidence, not proximity: a fraction of a percent of the view. Wide
        enough that a tessellated rim's fitted centre still counts as the rim it
@@ -696,6 +701,16 @@ export function createDrawingController(host) {
   function pointerDown(event, x, y) {
     const sheetPoint = toSheetMm(x, y);
     state.cursor = sheetPoint;
+    if(state.tool==='alignedsection' && event.button===0 && !event.altKey && !event.spaceKey) {
+      const doc=host.doc(),built=scene(),draft=state.draft;
+      const hit=draft?.kind==='alignedsection'?{id:draft.viewId}:hitTest(sheetPoint);
+      const place=built.views.find(p=>p.id===hit?.id),parent=doc.views.find(v=>v.id===place?.id);
+      if(!place?.projection || !canAlignedSectionParent(parent) || host.isExplodedView?.(parent)) {host.flash('Aligned Section needs an ordinary principal edge view');return true;}
+      if(draft?.kind==='alignedsection') {
+        if(draft.points.length<3)draft.points.push(place.toModel(sheetPoint));
+      } else state.draft={kind:'alignedsection',viewId:place.id,points:[place.toModel(sheetPoint)],token:host.bodiesToken(),fingerprint:JSON.stringify(parent)};
+      host.flash('Pick endpoint A, common hinge, endpoint B; Enter unfolds the two cut faces; Escape cancels');host.refresh();return true;
+    }
     if(state.tool==='auxiliary' && event.button===0 && !event.altKey) {
       const edge=straightEdgeAt(sheetPoint);
       if(edge)createAuxiliary(edge);
@@ -869,7 +884,7 @@ export function createDrawingController(host) {
       const hit = hitTest(sheetPoint);
       const built = scene();
       const place = built.views.find((entry) => entry.id === (hit?.kind === "view" ? hit.id : null));
-      if (!place?.projection || place.view.breakView || place.view.brokenOut || (state.tool === "section" && (!isOrthoView(place.view.dir) || place.view.detail))) {
+      if (!place?.projection || place.view.breakView || place.view.brokenOut || place.view.alignedSection || (state.tool === "section" && (!isOrthoView(place.view.dir) || place.view.detail))) {
         host.flash(host.t("drawPickParent"));
         return true;
       }
@@ -918,6 +933,7 @@ export function createDrawingController(host) {
     const built=scene();let best=null;
     for(const place of built.views) {
       if(!pointNearBox(sheetPoint,place.box,6))continue;
+      if(place.projection?.nonlinearProjection)continue;
       for(const [pid,entry] of built.topologyIndex || []) {
         if(entry.kind!=="edge" || entry.descriptor?.curve!=="line")continue;
         const refs=["a","b"].map(at=>({pid,kind:"edge",at,...resolveDimAnchor({pid,kind:"edge",at},built.topologyIndex,place.projection?.basis)}));
@@ -941,7 +957,7 @@ export function createDrawingController(host) {
       const basis=place.projection?.basis;
       // A mesh can fit a complete circle to a visible semicircular notch.
       // Prefer the exact trimmed edge so its callout is a bound radius.
-      if (basis && built.topologyIndex) {
+      if (basis && built.topologyIndex && !place.projection?.nonlinearProjection) {
         const project=(p)=>({u:p.x*basis.right.x+p.y*basis.right.y+p.z*basis.right.z,v:p.x*basis.up.x+p.y*basis.up.y+p.z*basis.up.z});
         const turn=(a)=>(a+Math.PI*4)%(Math.PI*2);
         for(const [pid,entry] of built.topologyIndex) {
@@ -1084,6 +1100,24 @@ export function createDrawingController(host) {
   }
 
   /* ---- commands ---------------------------------------------------------- */
+
+  function finishAlignedSection(draft) {
+    try {
+      const doc=host.doc(),parent=doc.views.find(v=>v.id===draft.viewId);
+      if(draft.token!==host.bodiesToken() || JSON.stringify(parent)!==draft.fingerprint)throw new Error('Aligned Section source changed; cancel and pick the cutting path again');
+      if(draft.points.length!==3 || !canAlignedSectionParent(parent) || host.isExplodedView?.(parent))throw new Error('Pick exactly two endpoints and their common hinge in an ordinary principal view');
+      const tag=nextSectionTag(doc),modifier={version:1,from:parent.id,points:draft.points.map(p=>({...p})),tag};
+      const candidate={id:'aligned-section-validation',dir:'alignedsection',configurationId:parent.configurationId,alignedSection:modifier};
+      const active=host.bodies()||[],bodies=host.bodiesForView?host.bodiesForView(parent,active):active;
+      projectAlignedSection(bodies,candidate,doc);
+      host.pushUndo('Aligned Section');
+      const liveDoc=host.doc(),live=liveDoc.views.find(v=>v.id===parent.id);
+      if(!live)throw new Error('Aligned Section parent disappeared');
+      const view=addViewToSheet(liveDoc,'alignedsection',{parent:live.id,configurationId:live.configurationId,configurationName:live.configurationName,alignedSection:modifier,label:'ALIGNED CUT-FACE '+tag+'-'+tag+' (UNFOLDED)'});
+      state.draft=null;state.selection={kind:'view',id:view.id};invalidate();host.markDirty();host.flash('Aligned cut faces unfolded; source solids unchanged. Unfolded coordinate dimensions are frozen references.');
+    } catch(error) {host.flash(error.message);}
+    host.refresh();
+  }
 
   function finishSection(draft, endPoint) {
     const built = scene();
@@ -1327,7 +1361,7 @@ export function createDrawingController(host) {
     const basis = place.projection?.basis || null;
     const plans=rows.map((row,index)=>{
       const existing=(doc.notes || []).find(note=>note.feature===row.id);
-      const projected=holeLeaderForViews(row,built.views);
+      const projected=holeLeaderForViews(row,built.views.filter(v=>!v.projection?.nonlinearProjection));
       const chosen=projected ? built.views.find(v=>v.id===projected.viewId) : place;
       const anchor = holeTopologyAnchor(built.topologyIndex, chosen.projection?.basis || basis, row.id, projected);
       const from = anchor ? chosen.toSheet(anchor) : { x: chosen.box.x, y: chosen.box.y };
@@ -1364,7 +1398,7 @@ export function createDrawingController(host) {
   }
 
   function insertModelItems() {
-    const doc = host.doc(), planned = planModelItems(host.model?.() || {}, doc, scene());
+    const doc = host.doc(),built=scene(),planned = planModelItems(host.model?.() || {}, doc, {...built,views:built.views.filter(v=>!v.projection?.nonlinearProjection)});
     if (planned.length) {
       host.pushUndo(host.t("drawModelItems"));
       doc.dims.push(...planned.map(dim => ({ ...dim, id:"d" + Math.random().toString(36).slice(2, 9) })));
@@ -1457,6 +1491,7 @@ export function createDrawingController(host) {
 
   function keyDown(event) {
     const key = event.key;
+    if(key==='Enter' && state.draft?.kind==='alignedsection') {finishAlignedSection(state.draft);return true;}
     if(key==='Enter' && state.draft?.kind==='brokenout') {commitBrokenOut(state.draft);return true;}
     if(key==='Enter' && state.draft?.kind==='crop') {
       const doc=host.doc(),view=doc.views.find(v=>v.id===state.draft.viewId);

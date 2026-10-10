@@ -15,3 +15,7 @@ Evidence: `artifacts/planchard/HOOK-custom-helix-cut-qualified-browser-2026-10-1
 ## Independent native containment completed
 
 Cut minus the actual precedingDome stock returns zero solids and zero positive volume. This is independent native BRep containment proof: no material is added outside stock. Canonicalcut/actualSTEP native geometry is accepted within the qualified optional variant. Wider native bounding estimates/tessellated display/header remain a presentation discrepancy, not certified source width; actualpreview envelope and finalcoldworkflow remain pending. Evidence: `artifacts/planchard/HOOK-custom-helix-cut-containment-readonly-2026-10-10.json`.
+
+## Stronger classifier diagnostic supersedes initial containment inference
+
+The earlier zero cut-minus-stock residual was insufficient: all30faces belong to the one solid, but1337actualmeshvertices exceed the stock Xwidth. Four widevertices classify nativecutON while stockOUT; moving farther outside classifies cutIN/stockOUT. Nativeintersection also incorrectly retains almost the entire cutter. Thus the originalqualifiedcut/STEP is a structural-pass diagnostic, not accepted physicalgeometry. Its auditJSON explicitlyrevokes nativeGeometryAccepted. Whole-turn spline sweep causes the cylinder intersector to miss crossings; splitting the same authored helixsamples into bounded quarter-turn spline spans repairs the intersection without dimensional/tolerance/Booleanflag changes. Fresh actualbrowser proof remains required.

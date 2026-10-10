@@ -2,6 +2,23 @@
 // Set it at the intended home pose before adding a motor or requesting travel.
 import {solveAssemblyMates} from './cad_mate_solver.js';
 
+// Undirected concentric axes keep legacy orientation unless explicitly chosen.
+// A failed direction change must not publish the solver's diagnostic pose.
+export function setConcentricAxisDirection(assembly,mateId,opposed,beforeCommit) {
+  const mate=assembly?.topologyMates?.find(item=>item.id===mateId);
+  if(mate?.type!=='concentric' || opposed!==null && typeof opposed!=='boolean')
+    return {ok:false,issues:[{code:'invalid-concentric-axis-direction',mate:mateId}]};
+  const trial={...assembly,components:(assembly.components || []).map(component=>({...component,transform:structuredClone(component.transform || {})})),
+    mates:structuredClone(assembly.mates || []),topologyMates:structuredClone(assembly.topologyMates)},changed=trial.topologyMates.find(item=>item.id===mateId);
+  if(opposed===null)delete changed.axisOpposed;else changed.axisOpposed=opposed;
+  const result=solveAssemblyMates(trial);
+  if(!result.ok)return result;
+  beforeCommit?.();
+  trial.components.forEach((component,index)=>{assembly.components[index].transform=component.transform;});
+  if(opposed===null)delete mate.axisOpposed;else mate.axisOpposed=opposed;
+  return result;
+}
+
 export function setScrewMateHandedness(mate, handedness) {
   if (mate?.type !== 'screw' || !['rh', 'lh'].includes(handedness)) return false;
   mate.handedness = handedness;

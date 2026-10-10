@@ -1,0 +1,35 @@
+{
+  "wideMeshVertexCount": 1337,
+  "totalMeshVertices": 37941,
+  "samples": [
+    {
+      "x": -0.22868072875185402,
+      "y": 0.2091891407941827,
+      "z": -0.0043918852993386605,
+      "cut": "TopAbs_ON",
+      "stock": "TopAbs_OUT"
+    },
+    {
+      "x": -0.2162403445400467,
+      "y": 0.365760279907564,
+      "z": 0.02361389812848663,
+      "cut": "TopAbs_ON",
+      "stock": "TopAbs_OUT"
+    },
+    {
+      "x": -0.21265826998392098,
+      "y": 0.44085687673917934,
+      "z": 0.04565680709709542,
+      "cut": "TopAbs_ON",
+      "stock": "TopAbs_OUT"
+    },
+    {
+      "x": -0.191235901821436,
+      "y": 0.1926166866865358,
+      "z": 0.1036409554420729,
+      "cut": "TopAbs_ON",
+      "stock": "TopAbs_OUT"
+    }
+  ],
+  "scope": "Read-only actual mesh vertices vs native solid classifiers; no CAD or state edits"
+}

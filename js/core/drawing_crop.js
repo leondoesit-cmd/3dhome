@@ -4,7 +4,7 @@ const cross = (a,b,c) => (b.u-a.u)*(c.v-a.v)-(b.v-a.v)*(c.u-a.u);
 const lerp = (a,b,t) => ({u:a.u+(b.u-a.u)*t,v:a.v+(b.v-a.v)*t,...(Number.isFinite(a.w)&&Number.isFinite(b.w)?{w:a.w+(b.w-a.w)*t}:{})});
 
 export function canCropView(view, document, {exploded=false}={}) {
-  return !!view && !view.detail && !view.brokenOut && !view.breakView && !view.alternatePosition && !exploded && !view.exploded
+  return !!view && !view.alignedSection && !view.detail && !view.brokenOut && !view.breakView && !view.alternatePosition && !exploded && !view.exploded
     && !(document.views || []).some(child=>child.detail && (child.detail.from===view.id || child.parent===view.id));
 }
 

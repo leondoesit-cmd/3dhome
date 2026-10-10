@@ -576,7 +576,7 @@ export function mateTarget(mate, fa, fb, moving, reader) {
        it match +axis unconditionally overturns the preceding face and plane
        mates. A screw is directed, so its advance still uses +axis. */
     const movingAxis = norm(axisB);
-    const direction = (mate.type === "concentric" && dot(axis, movingAxis) < 0) || (mate.type === "screw" && mate.axisOpposed)
+    const direction = (mate.type === "concentric" && (typeof mate.axisOpposed==='boolean' ? mate.axisOpposed : dot(axis, movingAxis) < 0)) || (mate.type === "screw" && mate.axisOpposed)
       ? { x: -axis.x, y: -axis.y, z: -axis.z } : axis;
     const actualAlong = dot({x:fb.origin.x-fa.origin.x,y:fb.origin.y-fa.origin.y,z:fb.origin.z-fa.origin.z},axis);
     const along = mate.type === "screw" && !mate.coupledMotion ? screwAdvance(mate).along : actualAlong;

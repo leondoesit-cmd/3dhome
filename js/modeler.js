@@ -177,7 +177,7 @@ import {formSubassembly} from './core/assembly_form_subassembly.js';
 import {assemblyDrawingBOM,occurrenceBOMKey} from './core/assembly_drawing_bom.js';
 import {assemblyMobilityReport,currentAssemblyMobility} from './core/assembly_mobility_status.js';
 import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds, worldFrame } from "./cad_mate_model.js";
-import { setScrewMateCoupledMotion, setScrewMateDrive, setScrewMateHandedness } from "./cad_screw_controls.js";
+import { setScrewMateCoupledMotion, setScrewMateDrive, setScrewMateHandedness, setConcentricAxisDirection } from "./cad_screw_controls.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { ribSketchReady } from "./core/rib_profile.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
@@ -4104,6 +4104,7 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="sheetarc">' + cadIcon("sarc") + '<span>' + t("drawPaperArc") + '</span></button>' +
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
     '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
+    '<button type="button" data-drawing-tool="alignedsection"><i class="ph ph-scissors"></i><span>Aligned cut-face section</span></button>' +
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
     '<button type="button" data-drawing-tool="auxiliary"><i class="ph ph-cube"></i><span>Auxiliary</span></button>' +
     '<button type="button" data-drawing-tool="crop"><i class="ph ph-crop"></i><span>Crop</span></button>' +
@@ -12387,6 +12388,7 @@ function drawingHintText() {
   if (tool === "break") return "Choose a single orthographic view; set original boundary coordinates and printed gap. Dimensions retain actual model values";
   if (tool === "unbreak") return "Click a Break view to restore its complete original projection";
   if (tool === "alternateposition") return "Choose a drawing view, then set an illustrative rigid native-body pose for its phantom overlay";
+  if (tool === "alignedsection") return "Pick endpoint A, hinge, endpoint B on a principal parent; Enter unfolds real cut faces; Escape cancels";
   if (tool === "removealternateposition") return "Click a drawing view to remove its Alternate Position overlay";
   if (tool === "note") return t("drawNoteHint");
   if (tool === "sheetarc") return t("drawPaperArcHint");
@@ -20038,6 +20040,20 @@ function planeMateReference(holderId, planeId) {
 
 /* One row per mate: what it is, which two components it holds, and — when the
    solver could not honour it — why. */
+function concentricAxisDirectionControl(mate) {
+  var control=el('select','md-input');
+  [['automatic','Automatic'],['aligned','Aligned'],['opposed','Opposed']].forEach(function(choice){var option=el('option','',choice[1]);option.value=choice[0];control.appendChild(option);});
+  var current=function(){return typeof mate.axisOpposed==='boolean'?(mate.axisOpposed?'opposed':'aligned'):'automatic';};
+  control.value=current();control.setAttribute('aria-label',"Concentric axis direction");
+  control.addEventListener('change',function(){
+    var next=control.value==='automatic'?null:control.value==='opposed';
+    var changed=setConcentricAxisDirection(E.assembly,mate.id,next,function(){pushUndo("Concentric axis direction");});
+    if(!changed.ok){control.value=current();flash("Concentric axis direction could not satisfy the assembly mates");return;}
+    solveAssembly({quiet:true});refreshAll({assemblyPoseOnly:true});
+  });
+  var row=el('label','md-mate-value');row.appendChild(el('span','',"Concentric axis direction"));row.appendChild(control);return row;
+}
+
 function mateRow(host, label, detail, issues, remove, rebound, valueEdit, alignmentEdit, contactEdit) {
   var row = el("div", "md-mate-row" + (issues && issues.length ? " md-mate-broken" : ""));
   var text = el("span", "");
@@ -20354,6 +20370,7 @@ function assemblyMateInspectorBody() {
         bindMateNumericCommit(input,function(){commit(input.value.trim()===''?null:Number(input.value),input);});
         wrap.appendChild(input); mateUiRow.appendChild(wrap);
       };
+      if(mate.type==='concentric')mateUiRow.appendChild(concentricAxisDirectionControl(mate));
       var acceptScrewSolve = function(result){
         invalidateInterference();
         var contextResult=updateAssemblyContexts(E.assembly);

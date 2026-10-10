@@ -6,6 +6,7 @@ import { projectBrokenOutView } from './core/drawing_broken_out.js';
 import {resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
 import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges,validateAlignedBreak} from './core/drawing_break.js';
 import {alternatePositionProjection,alternatePositionItems} from './core/drawing_alternate_position.js';
+import {projectAlignedSection,alignedSectionMarkerItems} from './core/drawing_aligned_section.js';
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -164,6 +165,7 @@ export function createView(dir, options = {}) {
     centers: options.centers !== undefined ? !!options.centers : null,
     labelled: options.labelled !== false,
     section: options.section || null,                      // {axis, at, from, arrows, tag}
+    alignedSection: options.alignedSection || null,         // two radial cut faces unfolded about a common hinge
     detail: options.detail || null,                        // {from, u, v, radius, tag}
     cropSketch: options.cropSketch || null,                // closed spline in projected model coordinates
     brokenOut: options.brokenOut || null,                  // closed spline + depth from projected front envelope
@@ -612,7 +614,7 @@ export function createProjector(doc, bodies, options = {}) {
   const resolving = new Set();
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),JSON.stringify(view.alternatePosition || 0),view.scale,doc.scale,view.breakView?.group?JSON.stringify(doc.views):''].join("|");
+    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.alignedSection || 0),view.alignedSection?JSON.stringify(doc.views.find(v=>v.id===view.alignedSection.from)||null):'', JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),JSON.stringify(view.alternatePosition || 0),view.scale,doc.scale,view.breakView?.group?JSON.stringify(doc.views):''].join("|");
     if (cache.has(key)) return cache.get(key);
     // Malformed saved parent graphs must not recurse forever or show unrelated geometry.
     if (resolving.has(view.id)) return null;
@@ -620,7 +622,11 @@ export function createProjector(doc, bodies, options = {}) {
     const viewBodies = options.bodiesForView ? options.bodiesForView(view) || bodies : bodies;
     const viewOptions={...options,shaded:["shaded","shadedEdges"].includes(view.displayStyle)};
     let projection = null;
-    if(view.auxiliary) {
+    if(view.alignedSection) {
+      try {projection=projectAlignedSection(viewBodies,view,doc);}
+      catch(error) {projection={visible:[],hidden:[],circles:[],bounds:null,alignedSectionError:error.message};}
+    }
+    else if(view.auxiliary) {
       try {projection=projectSolid(viewBodies,resolveAuxiliaryBasis(view,doc,createTopologyIndex(typeof options.topology==='function'?options.topology(view):options.topology)),viewOptions);}
       catch {projection=null;}
     }
@@ -1258,6 +1264,7 @@ function exactArcStroke(segment, topologyIndex, basis, toSheet, k, style, viewId
 /* Actual assembled/exploded world endpoints share the view's geometry mapper.
    Presentation lines carry no geometry or mate changes. */
 export function explodeLeaderItems(place, leaders) {
+  if(place.projection?.nonlinearProjection)return [];
   const basis = place.projection?.basis || viewBasis(place.view.dir);
   const valid = point => point && [point.x,point.y,point.z].every(Number.isFinite);
   const items=[];
@@ -1338,6 +1345,11 @@ export function buildSheetScene(doc, provider, options = {}) {
       },
     };
     placements.push(record);
+    if(projection?.alignedSectionError) {
+      diagnostics.push({code:'invalid-aligned-section',severity:'error',viewId:view.id,message:projection.alignedSectionError});
+      items.push(text(record.box.x,record.box.y-3,'Aligned Section unavailable',{size:2.5,viewId:view.id}));
+      continue;
+    }
     if (!projection) {
       if(view.auxiliary) {
         diagnostics.push({code:'auxiliary-reference-unavailable',severity:'error',viewId:view.id});
@@ -1378,6 +1390,10 @@ export function buildSheetScene(doc, provider, options = {}) {
       } else items.push({type:"poly",closed:true,pts:pts.slice(),paths:[pts],fill:surface.fill,viewId:view.id,shaded:true});
     }
 
+    for(const region of projection.sectionRegions || []) {
+      const loops=region.loops.map(loop=>loop.map(toSheet));
+      for(const segment of hatchLoops(loops,{spacing:2.2,angle:45}))items.push(line(segment.x1,segment.y1,segment.x2,segment.y2,'hatch',{viewId:view.id,alignedSectionLeg:region.leg}));
+    }
     if ((projection.cropSourceCuts || projection.cuts)?.length) {
       const boundary = analyzeSectionBoundaries(projection.cropSourceCuts || projection.cuts, Math.max(1e-4, (extent.w + extent.h) * 1e-3));
       diagnostics.push(...boundary.issues.map(issue => ({...issue,viewId:view.id})));
@@ -1400,7 +1416,7 @@ export function buildSheetScene(doc, provider, options = {}) {
     }
     for (const segment of drawEdges ? projection.visible || [] : []) {
       const a = toSheet(segment.a), b = toSheet(segment.b);
-      items.push((!projection.breakMap && exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "outline", view.id)) || line(a.x, a.y, b.x, b.y, "outline", { viewId: view.id }));
+      items.push((!projection.breakMap && !projection.nonlinearProjection && exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "outline", view.id)) || line(a.x, a.y, b.x, b.y, projection.nonlinearProjection?'section':'outline', { viewId: view.id }));
     }
     if (showHidden) {
       for (const segment of projection.hidden || []) {
@@ -1462,6 +1478,7 @@ export function buildSheetScene(doc, provider, options = {}) {
   /* Section and detail markers live on the PARENT view — the reader has to be
      told where the cut was taken, not just shown the result. */
   for (const view of doc.views) {
+    if(view.alignedSection && !placements.find(p=>p.id===view.id)?.projection?.alignedSectionError)items.push(...alignedSectionMarkerItems(view,placements));
     if (view.section && view.parent) items.push(...sectionMarker(view, placements, doc));
     if (view.detail && (view.parent || view.detail.from)) items.push(...detailMarker({...view,parent:view.parent || view.detail.from}, placements));
   }
@@ -1471,6 +1488,9 @@ export function buildSheetScene(doc, provider, options = {}) {
   for (const dim of doc.dims || []) {
     const place = byId.get(dim.viewId);
     if (!place) continue;
+    if(place.projection?.nonlinearProjection && (dim.refs || []).some(ref=>ref.pid)) {
+      diagnostics.push({code:'aligned-section-reference-unavailable',severity:'error',viewId:place.id,dimId:dim.id});continue;
+    }
     const basis = place.projection?.basis || viewBasis(place.view.dir);
     const resolved = resolveDim(dim, topologyIndex, basis, place.projection);
     dims.set(dim.id, resolved);
@@ -1500,6 +1520,9 @@ export function buildSheetScene(doc, provider, options = {}) {
   }
   for (const note of doc.notes || []) {
     const place = note.leader ? byId.get(note.leader.viewId) : null;
+    if(place?.projection?.nonlinearProjection && note.leader?.pid) {
+      diagnostics.push({code:'aligned-section-reference-unavailable',severity:'error',viewId:place.id,noteId:note.id});continue;
+    }
     const basis = place ? (place.projection?.basis || viewBasis(place.view.dir)) : null;
     const resolved = resolveNote(note, provider?.callouts, topologyIndex, basis, doc, provider?.properties);
     if(place?.projection?.breakMap && !place.toSheet(resolved.note.leader)) {
@@ -1994,8 +2017,8 @@ export function removeViewFromSheet(doc, id) {
   while (changed) {
     changed = false;
     for (const view of doc.views) {
-      if (removedIds.has(view.id) || !(view.section || view.detail || view.auxiliary)) continue;
-      if ([view.parent, view.section?.from, view.detail?.from,view.auxiliary?.from].some(parent => removedIds.has(parent))) {
+      if (removedIds.has(view.id) || !(view.section || view.alignedSection || view.detail || view.auxiliary)) continue;
+      if ([view.parent, view.section?.from,view.alignedSection?.from, view.detail?.from,view.auxiliary?.from].some(parent => removedIds.has(parent))) {
         removedIds.add(view.id);
         changed = true;
       }
@@ -2009,7 +2032,7 @@ export function removeViewFromSheet(doc, id) {
 }
 
 export function nextSectionTag(doc) {
-  const used = new Set((doc.views || []).map((view) => view.section?.tag || view.detail?.tag).filter(Boolean));
+  const used = new Set((doc.views || []).map((view) => view.section?.tag || view.alignedSection?.tag || view.detail?.tag).filter(Boolean));
   for (const letter of "ABCDEFGHJKLMNPQRSTUV") if (!used.has(letter)) return letter;
   return "A";
 }
