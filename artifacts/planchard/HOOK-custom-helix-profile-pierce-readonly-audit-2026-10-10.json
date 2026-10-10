@@ -1,0 +1,26 @@
+{
+  "checks": {
+    "fullyDefinedDiameterSource030in": true,
+    "genuinePierceRecord": true,
+    "worldCenterAtActualHelixStart": true,
+    "allExistingFeaturesExact": true,
+    "originalPathSketchesExact": true,
+    "oldThreadPreservedSuppressed": true
+  },
+  "passCount": 6,
+  "actualWorldCenterCm": {
+    "x": 0,
+    "y": 0.050800000000000005,
+    "z": -0.1905
+  },
+  "targetCm": {
+    "x": 0,
+    "y": 0.050800000000000005,
+    "z": -0.1905,
+    "t": 0,
+    "angle": 0,
+    "radius": 0.1905
+  },
+  "completeCutAccepted": false,
+  "sourceHierarchy": "Optional legacy companion custom helix branch; original Chapter7 tutorial#8-36 remains correct. No original polar/datum identity recovered or globalSavedlibrary comparison possible from context bundle."
+}

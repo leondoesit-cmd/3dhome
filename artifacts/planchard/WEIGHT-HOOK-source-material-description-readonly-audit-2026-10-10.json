@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "descriptionPureLeadQualified": true,
+    "allOtherDefinitionAuthoringExact": true,
+    "wholeChildMatesExact": true,
+    "wholeHookComponentExact": true,
+    "canonicalMaterialPreserved": true
+  },
+  "passCount": 5,
+  "descriptionCorrectionAccepted": true,
+  "fullAssemblyAcceptance": false
+}

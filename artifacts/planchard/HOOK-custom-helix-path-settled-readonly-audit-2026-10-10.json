@@ -1,0 +1,27 @@
+{
+  "checks": {
+    "oldThreadSuppressed": true,
+    "threadHistorySuppressed": true,
+    "circleFullyDefinedSourceDiameter": true,
+    "sourcePlaneOffset": true,
+    "sourceHelixScalarValues": true,
+    "resolvedReferenceOriginAxis": true,
+    "settledHistoryAndRebuild": true,
+    "originalSweepDomeUnchanged": true
+  },
+  "passCount": 8,
+  "helixFeatureId": "feature_mv2f15n5_1",
+  "helixReferenceId": "helix_mv2f15n5vfv",
+  "chosenStartPointCm": {
+    "x": 0,
+    "y": 0.0508,
+    "z": -0.1905
+  },
+  "chosenEndPointCm": {
+    "x": 0,
+    "y": 0.5588,
+    "z": -0.1905
+  },
+  "sourceQualification": "Original polar/datum unrecovered; modeled relative origin+Y/start radial direction are explicit reconstruction choices. Helix source scalar values match recovered source. Circular cut profile not yet authored.",
+  "completeHookAccepted": false
+}

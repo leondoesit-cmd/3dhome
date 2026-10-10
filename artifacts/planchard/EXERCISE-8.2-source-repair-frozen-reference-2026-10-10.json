@@ -113,5 +113,11 @@
     "notEquivalent": "Changing ANSI thread pitch/length alone does not reconstruct circular custom cut-sweep profile/source helix."
   },
   "acceptancePending": true,
-  "noCADAuthoring": true
+  "noCADAuthoring": true,
+  "sourceHierarchyCorrection": {
+    "chapter7BookPDF370": "RH#8-36 InchDie CutThread D.150in/P.02777778in/TrimStartface/PlainCarbonSteel; existing#8-36 is the correct tutorial thread specification.",
+    "chapter8BookPDF413414": "Copy companion WEIGHT/HOOK for8.1, insert8.1into8.2; companion legacy customhelix is a distinct source branch.",
+    "customHelixMandatoryForChapter7": false,
+    "qualifiedAssemblySubstitutionAllowed": "Retain explicitly qualified tutorial-hook reconstruction; do not label companion parity exact unless verified."
+  }
 }

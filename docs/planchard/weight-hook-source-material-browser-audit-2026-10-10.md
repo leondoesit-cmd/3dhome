@@ -1,0 +1,19 @@
+# WEIGHT-HOOK actual source material audit — 2026-10-10
+
+**Canonical material/geometry isolation10/10PASS; contradictory legacy Description correction pending.** Actual `WEIGHT-HOOK-source-material-browser-2026-10-10.mforge` contains childassemblyasm_mukhtlq5 with WEIGHT442/HOOK443 and three unchanged topology mates. WEIGHT sketches and all features compare deep-exact to the previous8.2 nested copy; HOOK definition is entirely unchanged. Independent WEIGHT native rebuild succeeds as one solid, volume3.781275754514555cm³, bounds25.4×12.7×19.05mm. At canonical density11.342g/cm³, computed mass42.887229607704086g.
+
+Actual custom materialPureLead, density11.342, partmaterialQualificationId6391 and engineeringMaterials grade/density/reference persist together. The official WEIGHT companion recovers material namePureLead; original density is unrecovered. Entered density is explicitly attributed to [NIH PubChem](https://pubchem.ncbi.nlm.nih.gov/ptable/density/), not falsely recovered from SOLIDWORKS. Condition states strength/service qualification unspecified; zero modulus/allowable strength/lifetime values remain unknown inputs and do not certify engineering performance.
+
+WEIGHT customProperties.Description still names PlainCarbonSteel from the legacy7.3model, contradicting the updated physical material. Parent was notified to correct this through Properties UI before final source-qualified acceptance. This audit does not replace geometry, author browser state, certify complete8.2 assembly or claim the unchanged HOOK matches the publisher custom helix. Parent reports child0DOF/three resolved mates; independent saved identity checks prove those mate definitions unchanged, while final fresh/cold acceptance remains separate.
+
+Evidence: `artifacts/planchard/WEIGHT-HOOK-source-material-readonly-audit-2026-10-10.json` and `EXERCISE-8.2-weight-lead-density-provenance-2026-10-10.json`. Parent owns browser,Save,ADVANCE and commits.
+
+## Actual Description correction accepted
+
+The parent corrected Description through Chrome and saved/exported `WEIGHT-HOOK-source-material-description-browser-2026-10-10.mforge`. Independent5/5PASS: actual Description now namesPureLead, density11.342/NIHPubChem external reference/original density unrecovered/strength-service unqualified. LegacyPlainCarbonSteel wording is gone. All other authoring except derived parts/rebuild is exact; entire HOOK component, three child mate definitions and canonical material/qualification remain exact. This supersedes the Description issue above. It does not close the separate HOOK custom-helix or final8.2assembly scope.
+
+## Source hierarchy correction — book thread versus legacy companion
+
+The primary Chapter7 tutorialPDF370/printed7-62 explicitly requests a right-hand#8-36InchDie cut thread, diameter.150in/pitch.02777778in, TrimwithStartface and PlainCarbonSteel. The existing modeled#8-36 feature therefore matches the book's thread specification; its difference from the recovered legacy companion custom4turnhelix is not itself a Chapter7 book error. The customhelix path is an optional alternate companion reconstruction/app-quality branch and must preserve the tutorial branch rather than replace it silently. Original end-face/offset selection still needs its own visual/source qualification.
+
+Chapter8 has a distinct instruction:PDF413/8-35 explicitly copies WEIGHT andHOOK fromChapter8Homework, andPDF414/8-36 inserts that8.1subassembly intoWeight-Link. Thus legacy companion parity is relevant to that copy-source assembly scope, while the tutorial#8-36 substitution may remain an explicitly qualified browser reconstruction. PureLead from copied companionWEIGHT is supported; exact source-native import and original persistent IDs are not claimed. Report descriptions must distinguish these two source paths. Earlier thread-mismatch statements in this report describe companion parity only, not a required replacement of the Chapter7 tutorial thread.

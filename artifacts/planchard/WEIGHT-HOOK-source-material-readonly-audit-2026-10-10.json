@@ -1,0 +1,79 @@
+{
+  "file": "artifacts/planchard/WEIGHT-HOOK-source-material-browser-2026-10-10.mforge",
+  "checks": {
+    "compile": true,
+    "nativeRebuild": true,
+    "oneSolid": true,
+    "sourcePureLeadCanonical": true,
+    "externalDensityExplicit": true,
+    "qualificationAssociated": true,
+    "unknownStrengthServiceNotInvented": true,
+    "weightFeaturesSketchesUnchanged": true,
+    "hookDefinitionExact": true,
+    "threeChildMateDefinitionsExact": true
+  },
+  "passCount": 10,
+  "mass": {
+    "volume": 3.781275754514555,
+    "centerOfMass": {
+      "x": -4.961890856336109e-17,
+      "y": 0.520336476413017,
+      "z": -7.039201862688873e-18
+    },
+    "inertia": [
+      [
+        1.3594519198697197,
+        -2.0034554302213772e-16,
+        1.523340956611305e-16
+      ],
+      [
+        -2.0034554302213772e-16,
+        2.2601568918894697,
+        -3.873232084013576e-17
+      ],
+      [
+        1.523340956611305e-16,
+        -3.873232084013576e-17,
+        1.8360992285019584
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": -1.27,
+        "y": 0,
+        "z": -0.9525
+      },
+      "max": {
+        "x": 1.27,
+        "y": 1.27,
+        "z": 0.9525
+      }
+    }
+  },
+  "nativeComputedMassG": 42.887229607704086,
+  "engineeringMaterial": {
+    "catalogId": "custom",
+    "grade": "Pure Lead",
+    "density": 11.342,
+    "densitySource": "NIH PubChem periodic density table, Pb 11.342 g/cm3: https://pubchem.ncbi.nlm.nih.gov/ptable/density/ ; external reference, source companion density unrecovered.",
+    "condition": "Pure Lead named by official WEIGHT companion metadata; strength and service qualification unspecified.",
+    "source": "",
+    "model": "qualified-rating",
+    "youngModulusMPa": 0,
+    "poissonRatio": 0,
+    "allowableBendingMPa": 0,
+    "allowableContactMPa": 0,
+    "minTemperatureC": 0,
+    "maxTemperatureC": 0,
+    "maxCycles": 0,
+    "maxHours": 0,
+    "maxRpm": 0,
+    "environment": "",
+    "lubrication": "",
+    "id": 6391
+  },
+  "contradictoryLegacyDescription": "Exercise 7.3 — lofted Plain Carbon Steel weight, centered Ø0.150 in through-hole",
+  "descriptionCorrectionPending": true,
+  "fullAssemblyAcceptance": false
+}

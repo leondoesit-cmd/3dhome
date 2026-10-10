@@ -25,3 +25,9 @@ Recommended next finite source repair: actual browser component452 Boss thicknes
 - `Chapter 8 Homework/FLATBAR.SLDPRT` — 115596 bytes; SHA256 `8a67f2fc0465024bf906b11ce8137fbed2812957d8754b735e6e9ae58e34165f`.
 - `Chapter 8 Homework/HOOK.SLDPRT` — 155292 bytes; SHA256 `352e398e121cc6b7a507f83d82b75d4ec080bc6554560892b7bbc244b6c53a78`.
 - `Chapter 8 Homework/WEIGHT.SLDPRT` — 66690 bytes; SHA256 `6abab7bbe9446bc624f59981ea679b8852b3ade7608f6624e25da145b129ccbf`.
+
+## Source hierarchy correction — book thread versus legacy companion
+
+The primary Chapter7 tutorialPDF370/printed7-62 explicitly requests a right-hand#8-36InchDie cut thread, diameter.150in/pitch.02777778in, TrimwithStartface and PlainCarbonSteel. The existing modeled#8-36 feature therefore matches the book's thread specification; its difference from the recovered legacy companion custom4turnhelix is not itself a Chapter7 book error. The customhelix path is an optional alternate companion reconstruction/app-quality branch and must preserve the tutorial branch rather than replace it silently. Original end-face/offset selection still needs its own visual/source qualification.
+
+Chapter8 has a distinct instruction:PDF413/8-35 explicitly copies WEIGHT andHOOK fromChapter8Homework, andPDF414/8-36 inserts that8.1subassembly intoWeight-Link. Thus legacy companion parity is relevant to that copy-source assembly scope, while the tutorial#8-36 substitution may remain an explicitly qualified browser reconstruction. PureLead from copied companionWEIGHT is supported; exact source-native import and original persistent IDs are not claimed. Report descriptions must distinguish these two source paths. Earlier thread-mismatch statements in this report describe companion parity only, not a required replacement of the Chapter7 tutorial thread.

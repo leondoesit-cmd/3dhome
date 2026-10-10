@@ -1,0 +1,19 @@
+{
+  "officialCompanionMaterial": "Pure Lead",
+  "officialCompanionDensityRecovered": false,
+  "inspectedRecoveredXMLDirectory": "scratch/planchard/ch8-companion-inspection/WEIGHT",
+  "externalDensityReference": {
+    "valueGPerCm3": 11.342,
+    "provider": "NIH PubChem",
+    "url": "https://pubchem.ncbi.nlm.nih.gov/ptable/density/",
+    "verifiedDate": "2026-10-10"
+  },
+  "crossCheck": {
+    "valueGPerCm3": 11.3,
+    "provider": "Royal Society of Chemistry",
+    "url": "https://periodic-table.rsc.org/element/82/lead",
+    "qualification": "rounded room-temperature reference"
+  },
+  "allowedClaim": "Pure Lead material matches recovered name; entered density comes from independently cited external reference, not recovered original SOLIDWORKS material-library scalar.",
+  "noCADAuthoring": true
+}
