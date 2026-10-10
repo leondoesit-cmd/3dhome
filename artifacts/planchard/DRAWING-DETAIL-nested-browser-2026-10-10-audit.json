@@ -1,0 +1,53 @@
+{
+  "accepted": true,
+  "scope": "Actual Chrome nested detail/deletion/Undo mechanism qualified. No final layout/cold acceptance. Read-only saved projections/deletion clone; no drawing/model writes.",
+  "checks": {
+    "sixViews": true,
+    "detailAFromIso": true,
+    "detailBFromA": true,
+    "scales4and10": true,
+    "positiveIndependentBounds": true,
+    "nonemptyActualProjections": true,
+    "transitiveClipping": true,
+    "deleteCascade": true,
+    "wholeDrawingUndoRestoreExact": true,
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "sourceHistoryExact": true,
+    "sourceRefsAndFrameExact": true,
+    "sourceCompatibilityGeometryExact": true
+  },
+  "clips": [
+    {
+      "id": "vg4zusio",
+      "tag": "A",
+      "visible": 79,
+      "hidden": 43,
+      "endpoints": 244,
+      "maxOutsideCm": [
+        2.220446049250313e-16
+      ]
+    },
+    {
+      "id": "vt037nvh",
+      "tag": "B",
+      "visible": 41,
+      "hidden": 1,
+      "endpoints": 84,
+      "maxOutsideCm": [
+        1.1102230246251565e-16,
+        -0.7969539505254432
+      ]
+    }
+  ],
+  "key": "cm_mv29vlwo_6221",
+  "sourceKey": "cm_mv294sxh",
+  "parametersQualification": "Saved copy synthesizes width6/depth4/height3cm canonical exposure metadata from empty parameters; all underlying sketch/feature/history/source geometry preserved.",
+  "drawingRestore": "WholeDrawing serialized JSON byte-identical, six original view IDs/scales/parents/notes/dimensions/title retained.",
+  "layoutQualification": "Actual intermediate PNG inspected: DetailB overlaps construction note. No final layout acceptance.",
+  "input": {
+    "bytes": 155198,
+    "sha256": "cba6da7fb14863fc168d10471104a1044d556c9c5a3661084d06bc21ce649700"
+  },
+  "svgBytes": 36602
+}

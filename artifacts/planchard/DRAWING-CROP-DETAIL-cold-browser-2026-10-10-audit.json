@@ -1,0 +1,149 @@
+{
+  "scope": "Read-only audit of actual protected Chrome-native model/STEP. Source PDF105 printed2-19 requests approximate physical sizing; chosen dimensions are illustrative, not publisher exact or mass fitted. No material/source mass target.",
+  "accepted": true,
+  "checks": {
+    "threeFeatures": true,
+    "threeFullyDefinedSketches": true,
+    "sixHistorySteps": true,
+    "base60x40": true,
+    "baseHeight30": true,
+    "openingX20to40": true,
+    "openingHeight15": true,
+    "openingThroughZ": true,
+    "topHoleCenter": true,
+    "topHoleD12": true,
+    "topHoleBlindReverse15": true,
+    "inputsUnmodified": true,
+    "oneConnectedValidNative": true,
+    "bounds60x30x40": true,
+    "analyticVolume": true
+  },
+  "key": "cm_mv29vlwo_6221",
+  "name": "Planchard drawing Crop and Detail - bridge branch - browser 2026-10-10",
+  "analyticMm3": 58303.539967061515,
+  "nativeVolumeMm3": 58303.53996706151,
+  "analyticDeltaMm3": -7.275957614183426e-12,
+  "mass": {
+    "volume": 58.30353996706151,
+    "centerOfMass": {
+      "x": 3,
+      "y": 1.632541780133108,
+      "z": 2.0000000000000004
+    },
+    "inertia": [
+      [
+        122.55073642565145,
+        -5.684341886080802e-14,
+        0
+      ],
+      [
+        -5.684341886080802e-14,
+        291.6946371940712,
+        2.842170943040401e-14
+      ],
+      [
+        0,
+        2.842170943040401e-14,
+        254.55073642565128
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 6,
+        "y": 3,
+        "z": 4
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 58.30353996706151,
+    "maxToleranceCm": 1.5e-7
+  },
+  "step": null,
+  "input": {
+    "path": "artifacts/planchard/DRAWING-CROP-DETAIL-cold-browser-2026-10-10.mforge",
+    "bytes": 155949,
+    "sha256": "b194f9c781006e3b0178405ba11d97288b8ec6c254474967bf724b06f4a7b23e"
+  },
+  "history": [
+    {
+      "id": "history:sketch:sk_1mi1j",
+      "kind": "sketch",
+      "targetId": "sk_1mi1j",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv296j11_1",
+      "kind": "feature",
+      "targetId": "feature_mv296j11_1",
+      "name": "Extrude / Boss 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_2b32q",
+      "kind": "sketch",
+      "targetId": "sk_2b32q",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv297ntl_2",
+      "kind": "feature",
+      "targetId": "feature_mv297ntl_2",
+      "name": "Extrude Cut 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_323c8",
+      "kind": "sketch",
+      "targetId": "sk_323c8",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv298htd_3",
+      "kind": "feature",
+      "targetId": "feature_mv298htd_3",
+      "name": "Extrude Cut 2",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "sourceSketches": [
+    {
+      "id": "sk_1mi1j",
+      "plane": "top",
+      "offset": 0,
+      "referenceId": "plane:top",
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_2b32q",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane:front",
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_323c8",
+      "plane": "top",
+      "offset": 3,
+      "referenceId": "plane:top",
+      "status": "fully-defined"
+    }
+  ]
+}

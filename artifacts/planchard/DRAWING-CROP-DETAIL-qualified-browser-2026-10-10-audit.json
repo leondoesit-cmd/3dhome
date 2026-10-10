@@ -1,0 +1,25 @@
+{
+  "qualifiedAccepted": true,
+  "checks": {
+    "sameSixViewIDs": true,
+    "allViewDefinitionsExact": true,
+    "sourceSketchesExact": true,
+    "sourceFeaturesExact": true,
+    "sourceHistoryExact": true,
+    "sourceFrameRefsExact": true,
+    "threeNotesRows6and4and5": true,
+    "allNoteRowsInActualSVG": true,
+    "detailCropSourceLabel": true,
+    "newTitleInSVG": true,
+    "actualSettledCropPNGVerified": true,
+    "actualFinalLayoutNoNoteViewOverlap": true
+  },
+  "sourceScope": "Source printed2-23/PDF109 Detail and2-26/PDF112 Crop. Illustrative bridge supporting CAD retained; chosen size remains qualified.",
+  "layout": "Actual settled PNG independently inspected: Top full bore plus clipped single right outeredge, top modifier persistent; DetailA4:1/DetailB10:1 and markers retained; note moved belowDetailA clear of thirdangle symbol/title, extra5LFsource note upperleft. Entire sheet/frame readable.",
+  "coldAccepted": false,
+  "input": {
+    "bytes": 156002,
+    "sha256": "c77b402051f54a11dacccfad40422155a8f8bad850f3f2be5cd330d84e655e07"
+  },
+  "svgBytes": 36932
+}

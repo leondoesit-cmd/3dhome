@@ -1,0 +1,71 @@
+{
+  "accepted": true,
+  "regenerationQualification": "Updated cut proxy now follows source from0/to4.0010001cm instead of historical -2..6cm overrun; adds sourceEntityId/holes defaults. Canonical sketches/features remain exact; roofD12 unchanged.",
+  "scope": "Actual Top Crop/Remove/Undo qualified mechanism only. Cold/final layout pending; prior iso crop PNG is failed diagnostic.",
+  "checks": {
+    "sixSameViewIDs": true,
+    "sameTopView": true,
+    "eligibleNoDescendantDetails": true,
+    "fiveFiniteClosedControls": true,
+    "valid60PointBoundary": true,
+    "actualNonemptyClippedProjection": true,
+    "allEndpointsInside": true,
+    "allSegmentMidpointsInside": true,
+    "actualProjectionModifier": true,
+    "wholeDrawingRemoveUndoRestoreExact": true,
+    "CADSketchesExact": true,
+    "CADFeaturesExact": true,
+    "CADHistoryExact": true,
+    "CADBasePartsExactExceptRegeneratedCuts": true,
+    "CADRefsFrameExact": true
+  },
+  "crop": {
+    "type": "closed-spline",
+    "closed": true,
+    "points": [
+      {
+        "u": 2.447426802150754,
+        "v": -0.37421350214985294
+      },
+      {
+        "u": 5.791065042293899,
+        "v": -0.6926552393063428
+      },
+      {
+        "u": 5.791065042293899,
+        "v": -3.47902043942563
+      },
+      {
+        "u": 2.925089407885489,
+        "v": -3.7178517422929973
+      },
+      {
+        "u": 2.1289850649942643,
+        "v": -2.6033056622452824
+      }
+    ]
+  },
+  "viewId": "vfgfhyvv",
+  "projection": {
+    "visible": 1,
+    "hidden": 1,
+    "circles": 2,
+    "fullVisible": 4,
+    "fullCircles": 2,
+    "endpoints": 4,
+    "boundaryCount": 60,
+    "bounds": {
+      "u0": 2.029472022132861,
+      "u1": 6.1791659094533715,
+      "v0": -3.843279640066224,
+      "v1": -0.2002499605551038
+    }
+  },
+  "input": {
+    "bytes": 155657,
+    "sha256": "35217630940737e53d6f40f713a3a93d7a3a4f252b0cbe3a796f28aba052398f"
+  },
+  "svgBytes": 36304,
+  "actualPNGQualification": "RestoredPNG shows full Top rectangle/circle and Unsavedchanges, apparently uncropped Remove stage; it does not prove rendered post-Undo crop. Saved crop/restored Drawing does contain exact modifier. Await settled rendered/cold evidence.",
+  "finalWorkflowAccepted": false
+}

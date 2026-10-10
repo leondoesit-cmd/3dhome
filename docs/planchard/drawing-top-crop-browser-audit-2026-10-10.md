@@ -1,0 +1,15 @@
+# Actual Top Crop saved mechanism audit — 2026-10-10
+
+**Qualified saved mechanism15/15 checks PASS; actual rendered restoration/final layout/cold pending.** Parent authors five controlpoints via ordinary Chrome clicks/Enter, removesCrop thenUndo and saves. Read-only bundle/projection audit writes onlyJSON/report. Earlier `DRAWING-CROP-iso-browser-2026-10-10.png` is failed diagnostic and is not accepted.
+
+Protected `DRAWING-CROP-top-browser-2026-10-10.mforge`155657bytes/SVG36304bytes and restoredbundle155657bytes. Modifier stays on originalTop viewvfgfhyvv, allsix viewIDs preserved including nestedDetails. Actual closed-spline five finite controls regenerate60-point periodic boundary with nonzeroarea/no crossings. Shared saved projection has onevisible/onehidden edge versus fourfullvisible; all four retainedsegment endpoints and midpoints insideboundary. WholeDrawing serializedJSON is exact between crop and actualRemove→Undo restored bundle.
+
+Source bridge sketches/features/history/references/localFrame exact against nestedDetail checkpoint. Compatibilitybase geometry exact excluding regenerated mesh/token/cuts. Updated frontcut now agrees source from0/to4.0010001cm instead of old oversize−2..6cm, adds sourceEntityId/emptyholes metadata; roofD12 stays unchanged. Do not claim parts byte-identical when current projection-sync normalization is real.
+
+Important screenshot qualification: `DRAWING-CROP-top-restored-browser-2026-10-10.png` independently inspected shows fullTop rectangle/circle, bottomUnsavedchanges and RemoveCrop tool active. This records uncroppedstage, not settled postUndo croppedrender. Parent separately observed partialcircle/edge afterinitialCrop; saved/restored documents contain modifier, but actualfinal renderedRestoration and coldproof remain pending. NestedDetailB noteoverlap likewise remains intermediate layout issue. No finalsheet acceptance claimed.
+
+Evidence `artifacts/planchard/DRAWING-CROP-top-browser-2026-10-10-audit.json`; readonly helper `scratch/planchard/crop-top-readonly-audit.mjs`. Neither source model nor browser state modified by audit.
+
+## Settled combined Detail/Crop qualified layout
+
+Protected `DRAWING-CROP-DETAIL-qualified-browser-2026-10-10.mforge`156002bytes/SVG36932bytes/actualPNG resolves earlier screenshot ambiguity. ActualPNG independently inspected: Top shows borecircle and one clipped outerrightedge, allotherouteredgesgone; actualDetailA4:1/B10:1 retained. Supportingnote moved clear belowDetailA and aboveTitle, thirdanglesymbol unobscured. New upperleft5LFnote identifies sourceprinted2-23/PDF109Detail and2-26/PDF112Crop and qualified illustrative CAD. Three notes6/4/5LFrows all reproduced inactualSVG, titleDETAILANDCROP. No view/note collision seen; fullsheetframe readable. Source sketch/feature/history/frame/references and entire six view definitions exact against crop intermediate. Qualified12/12 checksPASS; **actualrendered Crop and layout now qualified ACCEPTED**, cold persistencepending. EarlieruncroppedPNG retaineddiagnostic, not finalproof.
