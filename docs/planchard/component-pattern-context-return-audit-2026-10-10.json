@@ -1,0 +1,127 @@
+{
+  "checks": {
+    "postfixOnlyFourRebuildFieldsAndNineTinyPoses": true,
+    "postfixSignatureRefreshesStaleFiveHoleSummary": true,
+    "postfixWholeDrawingExact": true,
+    "undoAllAuthoredFieldsRestoredWithNineTinyPoses": true,
+    "undoWholeDrawingExact": true,
+    "undoSvgByteExact": true
+  },
+  "actualUnchangedEditReturnAndUndoAccepted": true,
+  "postfixDifferences": [
+    {
+      "path": ".components.0.def.parts.0.exactBuildToken",
+      "warm": 55,
+      "current": 58
+    },
+    {
+      "path": ".components.0.def.revision",
+      "warm": 6,
+      "current": 7
+    },
+    {
+      "path": ".components.0.def.lastRebuild.signature",
+      "warm": "Historical5HOLES summary, canonical/currentnative source already3HOLES",
+      "current": "Refreshed3HOLES summary and transactionrevision"
+    },
+    {
+      "path": ".components.0.def.lastRebuild.rebuiltAt",
+      "warm": 1791659160428,
+      "current": 1791660397773
+    },
+    {
+      "path": ".components.1.transform.rx",
+      "warm": 90,
+      "current": 89.99999999999999
+    },
+    {
+      "path": ".components.1.transform.q.x",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865475
+    },
+    {
+      "path": ".components.1.transform.q.w",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865476
+    },
+    {
+      "path": ".components.2.transform.rx",
+      "warm": 90,
+      "current": 89.99999999999997
+    },
+    {
+      "path": ".components.2.transform.q.x",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865474
+    },
+    {
+      "path": ".components.2.transform.q.w",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865478
+    },
+    {
+      "path": ".components.3.transform.rx",
+      "warm": 90,
+      "current": 89.99999999999997
+    },
+    {
+      "path": ".components.3.transform.q.x",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865474
+    },
+    {
+      "path": ".components.3.transform.q.w",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865478
+    }
+  ],
+  "undoDifferences": [
+    {
+      "path": ".components.1.transform.rx",
+      "warm": 90,
+      "current": 89.99999999999997
+    },
+    {
+      "path": ".components.1.transform.q.x",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865474
+    },
+    {
+      "path": ".components.1.transform.q.w",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865476
+    },
+    {
+      "path": ".components.2.transform.rx",
+      "warm": 90,
+      "current": 89.99999999999997
+    },
+    {
+      "path": ".components.2.transform.q.x",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865474
+    },
+    {
+      "path": ".components.2.transform.q.w",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865476
+    },
+    {
+      "path": ".components.3.transform.rx",
+      "warm": 90,
+      "current": 89.99999999999997
+    },
+    {
+      "path": ".components.3.transform.q.x",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865474
+    },
+    {
+      "path": ".components.3.transform.q.w",
+      "warm": 0.707106781187,
+      "current": 0.7071067811865476
+    }
+  ],
+  "coldAccepted": false,
+  "qualification": "Actual unchanged context Update/Finish plus ordinary screw selection confirms product lifecycle observed by parent. No authored source changed. UI selection state is not serialized or independently controlled. Cold pending."
+}

@@ -1,0 +1,10 @@
+{
+  "checks": {
+    "onlyRecipeAndGeneratedChildrenRemoved": true,
+    "sourceCarrierAndSeedWholeExact": true,
+    "bothNativeMateRecordsExact": true,
+    "undoEntireAssemblyExact": true
+  },
+  "actualRemoveAndUndoAccepted": true,
+  "qualification": "Actual generic UI removal and Undo preserve exact source definitions/native meshes/poses/config/mates; only recipe and generated children removed. Edit chooser Cancel observed separately by parent; no authoring change inferred. Drawing/cold pending."
+}

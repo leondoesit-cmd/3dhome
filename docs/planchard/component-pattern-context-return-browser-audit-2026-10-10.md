@@ -1,0 +1,9 @@
+# Actual unchanged context edit return and Undo
+
+Accepted **6/6** read-only protected-export checks. Parent used ordinary carrier context Linear Pattern1 unchanged3instances/1.27cm, Update/Finish, then selected the screw. Actual UI returned to its Component inspector with Edit component and no retained Pattern/Cancel command; protected PNG is the parent-observed lifecycle witness.
+
+`COMPONENT-PATTERN-context-return-postfix-browser-2026-10-10.mforge` differs from accepted native-Drawing baseline only in four carrier rebuild fields (exact-build token, transaction revision, rebuild signature/time) and nine tiny screw RX/quaternion normalization values below1eâˆ’12. Parsing the rebuild signature reveals that its historical diagnostic summary still described5HOLES and slot centres±2.54cm despite canonical/current native3HOLES. The genuine unchanged edit refreshes that summary to3HOLES/±1.27cm and transaction revision; actual canonical features/sketches/mesh already had3HOLES and remain unchanged. Thus signature byte equality or revision-only change is not claimed. Whole Drawing, native mesh geometry, canonical features/sketches, source mates/configuration/recipe/provenance are preserved.
+
+Actual Undo `COMPONENT-PATTERN-context-return-undo-browser-2026-10-10.mforge` restores all authored/native fields; only the same nine tiny pose rounding values remain relative to Drawing baseline. The **entire Drawing is exact**, and Undo SVG is byte-identical to accepted native-Drawing SVG. No persistent UI-selection state or physical-contact claim is inferred from bundle contents. Final cold remains pending.
+
+Evidence: `component-pattern-context-return-audit-2026-10-10.json`; helper `scratch/planchard/component-pattern-context-return-readonly.mjs`. No browser, CAD, code, app-state, ADVANCE or Git writes were performed.

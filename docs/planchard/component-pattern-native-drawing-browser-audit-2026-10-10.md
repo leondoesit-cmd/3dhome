@@ -1,0 +1,13 @@
+# Component-pattern actual native Drawing
+
+Accepted **14/14** read-only source/shared-scene/layout checks. Actual browser Drawing proves the repaired parts-only BOM with carrier quantity1, screw quantity3, and four occurrence-bound balloons. Final cold remains pending.
+
+`COMPONENT-PATTERN-native-drawing-browser-2026-10-10.mforge` retains the whole source assembly exactly to the original three-screw nominal when excluding its newly authored Drawing. Compared with the immediately preceding remove-Undo checkpoint, only the previously documented nine tiny screw RX/quaternion values normalize back to original nominal rounding; no source definition, mate, configuration or recipe changes occur.
+
+The native sheet is A3 landscape/mm/third angle, with one explicit2:1 shaded-edges isometric view `ve5m49wj`. It has no dimensions, paper primitives or imported images. Manual title SOURCE-DRIVEN SCREW PATTERN, manual number **2-35-STUDY**, Browser study and2026-10-10 persist. This is a chosen illustrative drawing layout/grayscale, not an exact publisher assembly/frame or physical-fit certificate.
+
+Independent reconstruction of the actual native meshes and nested Float32/Euler display projection produces the **entire actual SVG byte for byte**, including944 shaded-face paths, the repaired two-row BOM and four linked balloon circles/items. Ten disposable display mesh projections represent four native occurrence proofs; toolbox duplicate projection records are not counted as separate solids. Full paths6408,6409,component-pattern:6413:1 and:2 resolve genuine native triangle-centroid anchors; all three screws share live BOM item2. Centroid anchors may be occluded; persistent visible-face attachment is not claimed.
+
+All projected native polygon vertices and balloon circles lie inside the sheet frame. Exact polygon/rectangle overlap checks find no geometry intersection with the actual BOM rectangle(22,14,166.32,29.2mm) or title block. Shared-scene diagnostics are empty. Actual PNG inspection shows the complete readable frame/footer,2:1 three-screw model, quantity3 BOM and four separated balloons. Long source descriptions are wrapped/truncated with full SVG title text retained; empty carrier PartNo displays a dash, and screw source PartNo10 remains qualified as the WA10 proxy metadata.
+
+Evidence: `component-pattern-native-drawing-audit-2026-10-10.json`; read-only helper `scratch/planchard/component-pattern-native-scene-readonly.mjs`. No CAD, code, browser, app-state, ADVANCE or Git writes were performed. Count/spacing/remove drivers retain their earlier source-qualified acceptances; final cold must separately establish persistence.

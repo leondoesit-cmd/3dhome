@@ -1,0 +1,15 @@
+# Component Pattern: actual native Drawing and cold acceptance
+
+Accepted within the illustrative source-design-intent scope: **8/8 final cold checks pass**. The parent performed ordinary Chrome Save, cache-bypass reload, exact Saved-library reopen and Drawing exports. This independent audit reads the resulting protected files; it does not author CAD or operate the browser.
+
+Saved key: `asm_mv2ri66k`. Exact name: **Planchard source design-intent screw pattern - browser 2026-10-10**. Source context is PDF121 / printed2-35. Carrier and screw are the previously accepted FLATBAR configuration and illustrative WA10 M4 fixture proxy; this is not a claim of exact publisher hardware or certified physical fit.
+
+The cold selected assembly is entirely equal to `COMPONENT-PATTERN-context-return-undo-browser-2026-10-10.mforge`: four root occurrences, two exact native mates, all current feature/configuration inputs, recipe6413, both deterministic generated children and every placement. Each of the four occurrence definitions independently compiles, retains its current final exact-topology signature and reports one native solid. Disposable toolbox projection records are counted through the single-recipe native-solid contract.
+
+The whole Drawing is equal. Its one ISO2:1 shaded-edge view, four linked native-centroid balloons, two BOM rows with quantities1 carrier /3 screws and manual study title remain unchanged. The cold SVG is byte-exact to the accepted native Drawing export, SHA256 `dc338d3e9562f7484b532377f1a56aee03c632108dce29168922475907d4a489`. The earlier independent shared-scene audit established944 native shaded face paths and complete SVG equality; identical cold bytes preserve that result.
+
+Whole-project equality is qualified: exactly eight differences affect export time and the unrelated empty New-model workspace ID, empty seed-sketch ID and rebuild metadata. The selected assembly is exact. Compared with the first native Drawing baseline, the cold assembly retains nine screw rotation/quaternion normalizations below1e-12 introduced by context-return Undo. The unchanged context update refreshed a historically stale five-hole rebuild summary to the actual three-hole canonical source; it did not alter authored carrier geometry.
+
+Warm browser mobility was observed as1DOF. The cold browser reports **Mobility not checked**; no cold solver1DOF claim is made. Neither source material certification, independent mass equality nor a physical interference/production-fit acceptance is implied. Centroid balloon anchors, neutral-gray shading and the study frame remain qualified choices.
+
+Evidence: protected `artifacts/planchard/COMPONENT-PATTERN-native-drawing-cold-browser-2026-10-10.mforge`; SVG/PNG under `docs/planchard` with the same prefix. Machine results: `component-pattern-native-drawing-cold-audit-2026-10-10.json`. Read-only checker: `scratch/planchard/component-pattern-cold-readonly.mjs`. Earlier nominal, count/spacing drivers, remove/Undo, native scene and context-return reports retain their separate checks and diagnostic history.

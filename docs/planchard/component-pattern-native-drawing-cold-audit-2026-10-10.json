@@ -1,0 +1,124 @@
+{
+  "accepted": true,
+  "checks": {
+    "wholeSelectedAssemblyColdExact": true,
+    "wholeNativeDrawingColdExact": true,
+    "allFourCurrentNativeOne": true,
+    "exactTwoNativeMates": true,
+    "sourceRecipeAndGeneratedChildrenColdExact": true,
+    "svgByteExact": true,
+    "bomCarrierOneScrewThree": true,
+    "wholeProjectOnlyEightUnrelatedBlankWorkspaceFields": true
+  },
+  "savedKey": "asm_mv2ri66k",
+  "savedName": "Planchard source design-intent screw pattern - browser 2026-10-10",
+  "native": [
+    {
+      "path": [
+        6408
+      ],
+      "compile": true,
+      "lastStamp": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": [
+        6409
+      ],
+      "compile": true,
+      "lastStamp": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": [
+        "component-pattern:6413:1"
+      ],
+      "compile": true,
+      "lastStamp": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": [
+        "component-pattern:6413:2"
+      ],
+      "compile": true,
+      "lastStamp": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    }
+  ],
+  "bom": [
+    {
+      "name": "Planchard 9.4 FLATBAR - 3 5 7 HOLES - fresh from zero 2026-09-30",
+      "quantity": 1
+    },
+    {
+      "name": "ISO 4762 - M4 x 20",
+      "quantity": 3
+    }
+  ],
+  "svgSha256": "dc338d3e9562f7484b532377f1a56aee03c632108dce29168922475907d4a489",
+  "wholeProjectDifferences": [
+    {
+      "path": ".createdAt",
+      "warm": 1791660442918,
+      "cold": 1791660561633
+    },
+    {
+      "path": ".mainModel.id",
+      "warm": "cm_mv2s66o0",
+      "cold": "cm_mv2serwe"
+    },
+    {
+      "path": ".mainModel.key",
+      "warm": "cm_mv2s66o0",
+      "cold": "cm_mv2serwe"
+    },
+    {
+      "path": ".mainModel.sketches.0.id",
+      "warm": "sk_04yga",
+      "cold": "sk_05i5f"
+    },
+    {
+      "path": ".mainModel.lastRebuild.signature",
+      "warm": "{\"definitionId\":\"cm_mv2s66o0\",\"features\":[],\"history\":[{\"id\":\"history:sketch:sk_04yga\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_04yga\"}],\"overrides\":{},\"revision\":1,\"sketches\":[{\"constraints\":[],\"entities\":[],\"id\":\"sk_04yga\",\"name\":\"X·Z sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[],\"referenceId\":\"plane:top\"}]}",
+      "cold": "{\"definitionId\":\"cm_mv2serwe\",\"features\":[],\"history\":[{\"id\":\"history:sketch:sk_05i5f\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_05i5f\"}],\"overrides\":{},\"revision\":1,\"sketches\":[{\"constraints\":[],\"entities\":[],\"id\":\"sk_05i5f\",\"name\":\"X·Z sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[],\"referenceId\":\"plane:top\"}]}"
+    },
+    {
+      "path": ".mainModel.lastRebuild.rebuiltAt",
+      "warm": 1791660114689,
+      "cold": 1791660515401
+    },
+    {
+      "path": ".mainModel.activeSketch",
+      "warm": "sk_04yga",
+      "cold": "sk_05i5f"
+    },
+    {
+      "path": ".mainModel.definitionId",
+      "warm": "cm_mv2s66o0",
+      "cold": "cm_mv2serwe"
+    }
+  ],
+  "initialDrawingAssemblyExact": false,
+  "qualification": "Cold assembly is exact context-return Undo source, including nine tiny screw rotation/quaternion normalizations relative to first Drawing baseline. Warm observed mobility1DOF; cold UI reports Mobility not checked, so no cold solver certification. Illustrative source-design-intent study, not exact publisher carrier/screw fit, independent mass or physical contact certification."
+}
