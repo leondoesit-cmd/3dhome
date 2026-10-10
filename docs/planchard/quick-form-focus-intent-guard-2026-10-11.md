@@ -1,0 +1,9 @@
+# QuickForm delayed-autofocus intent guard — 2026-10-11
+
+Parent actual Paper annotation editing observed a verified Point1X subsequently receiving another field's value. The shared editor source has no paper-specific value rerender or numeric live handler: those coordinates are plain text fields, and `editPrimitive` supplies no `onLive`. However `openQuickForm` did queue a frame that always focused and selected the first input while its form instance stayed current. A delayed frame could therefore override a field/caret the user had already chosen. This is a confirmed generic source hazard, not proof that every browser automation misfill had that cause.
+
+The default-focus callback now additionally respects the opening active element and whether any input received focus, pointer interaction or an input event. After deliberate field interaction or a different active element, it does not focus/select the first field. Untouched forms retain their normal first-input default. Existing exact instance ownership protection remains; no value parser, saved paper coordinate, native CAD, library record or authored model was changed.
+
+Regression uses the actual shared `featureField` renderer and actual `openQuickForm` function with queued animation frames. It verifies Point1X176.76 and Point1Y114.08, chooses/types Y before the delayed frame, then sends follow-up text to the actual active element and requires X remain176.76. Other cases require untouched default focus/selection once, input/pointer intent and outside focus respected, and old-instance frames unable to focus a replacement. Related shared form lifecycle, dimensioned circle, image import and primitive/arc persistence tests remain green.
+
+Validation: **32/32 tests pass**. **Full gates pass: 685 linked modules / 1487 assertions; owned diff check clean.** Source is frozen; parent actual browser replay after a fresh load is pending. No browser/CAD/ADVANCE/Git action was performed.

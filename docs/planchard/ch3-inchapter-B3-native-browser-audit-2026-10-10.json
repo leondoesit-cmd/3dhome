@@ -1,0 +1,220 @@
+{
+  "savedKey": "cm_mv2vvsfk",
+  "savedName": "Planchard Ch3 IN-CHAPTER B3 dimension errors - browser 2026-10-10",
+  "warmChecks": {
+    "sixtyFiveCoordinatesTypesStylesExactRoundedArrowRecipe": true,
+    "nineHolesNineteenCenterlinesAndTwoArcs": true,
+    "tenUniqueClosedNoncollapsedArrows": true,
+    "tenNotesTwentyFourRows": true,
+    "sevenLiteralLabelsThicknessAndEQSPExact": true,
+    "correctionInterpretationsQualified": true,
+    "purePaperNoCadViewsImages": true,
+    "sourcePropertiesChosenReadableSheet": true
+  },
+  "warmAccepted": true,
+  "mismatches": [],
+  "noteLineRows": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    5,
+    8,
+    4
+  ],
+  "numericNoteOffsets": [
+    {
+      "text": "4.50",
+      "dx": -0.2764270253718877,
+      "dy": -0.17706695214016577
+    },
+    {
+      "text": ".09",
+      "dx": -0.2850404386259413,
+      "dy": -0.17670621866862746
+    },
+    {
+      "text": "6X Ø.19 Thru eqsp",
+      "dx": -0.2731473964307298,
+      "dy": -0.17838231164563467
+    },
+    {
+      "text": "4.00",
+      "dx": -0.27628288446209126,
+      "dy": -0.17935626845984132
+    },
+    {
+      "text": "Ø.19",
+      "dx": -0.2743424763253728,
+      "dy": -0.18271056163186472
+    },
+    {
+      "text": "Ø.19",
+      "dx": -0.2786707263115886,
+      "dy": -0.18271056163186472
+    },
+    {
+      "text": "R.25",
+      "dx": -0.284292792444063,
+      "dy": -0.1824028436710705
+    }
+  ],
+  "svgSha256": "c37c38c14efcfa68487ce2f4c1ccf20aec0c305897b057035fc464fc0663137d",
+  "coldAccepted": true,
+  "qualification": "Source-estimated educational paper reconstruction. Arrow recipe vertices rounded to two decimal paper mm; not exact publisher artwork. Original6X/EQSP/.09 retained; nine identical holes/pitch.50/both ends R.25 explicit interpretations. Default2.8mm font and initial-click bias qualified; no manufacturing CAD/image insertion/Undo witness. Earlier14primitive coordinate diagnostic is superseded, not accepted.",
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesNameKeyExact": true,
+    "emptyAuthoredCadExact": true,
+    "svgByteExact": true
+  },
+  "wholeProjectDifferences": [
+    {
+      "path": "createdAt",
+      "warm": 1791666965416,
+      "cold": 1791667049529
+    },
+    {
+      "path": "mainModel.history.0",
+      "cold": {
+        "id": "history:sketch:sk_1pu3m",
+        "kind": "sketch",
+        "targetId": "sk_1pu3m",
+        "name": "X·Z sketch",
+        "suppressed": false,
+        "status": "rebuilt"
+      }
+    },
+    {
+      "path": "mainModel.lastRebuild.rebuiltAt",
+      "warm": 1791666956398,
+      "cold": 1791667027438
+    },
+    {
+      "path": "mainModel.referenceGeometry.0",
+      "cold": {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.1",
+      "cold": {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.2",
+      "cold": {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.3",
+      "cold": {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.4",
+      "cold": {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.5",
+      "cold": {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    }
+  ]
+}

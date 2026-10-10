@@ -10674,7 +10674,16 @@ function openQuickForm(spec) {
   host.appendChild(actions);
 
   var first = inputs[spec.fields[0] && spec.fields[0].key];
-  if (first) requestAnimationFrame(function () { if(!ownsForm())return; try { first.focus(); if (first.select) first.select(); } catch (error) {} });
+  var openingFocus=document.activeElement,fieldInteracted=false;
+  Object.keys(inputs).forEach(function(key){
+    ["pointerdown","focus","input"].forEach(function(event){inputs[key].addEventListener?.(event,function(){fieldInteracted=true;});});
+  });
+  if (first) requestAnimationFrame(function () {
+    // A busy frame may arrive after the user chose or typed another field.
+    // Default focus must never steal that established caret/selection.
+    if(!ownsForm() || fieldInteracted || document.activeElement!==openingFocus)return;
+    try { first.focus(); if (first.select) first.select(); } catch (error) {}
+  });
   syncCommandManager();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
   return inputs;

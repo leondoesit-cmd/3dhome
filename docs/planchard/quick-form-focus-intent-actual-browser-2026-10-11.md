@@ -1,0 +1,5 @@
+# QuickForm focus intent — actual Chrome follow-up
+
+After saving B3, the parent cache-bypassed Chrome and loaded its exact Saved document `cm_mv2vvsfk`. The native ninth-circle editor showed centre X176.76/Y114.08 and rim X179.72/Y114.08. Ordinary field fills changed centre Y to114.09 and rim Y to114.10. Read-only DOM observation confirmed both X values stayed unchanged and focus remained in rim Y. Actual screenshot: `quick-form-focus-intent-browser-probe-2026-10-11.png`.
+
+Cancel, then ordinary reopening of the same circle, restored both original Y114.08 values and preserved X176.76/179.72. A second Cancel closed the form without saved changes. This proves ordinary field independence and cancellation on freshly loaded reviewed code; it does not independently force a delayed browser animation frame or attribute every earlier misfill to the fixed hazard. The queued-frame regression and independent review provide that bounded source evidence. B3's separate nominal/cold audit preserves the complete Drawing and SVG exactly.
