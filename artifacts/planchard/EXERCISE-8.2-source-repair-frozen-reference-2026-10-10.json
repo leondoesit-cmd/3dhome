@@ -1,0 +1,117 @@
+{
+  "sourceMetadata": "scratch/planchard/ch8-companion-inspection/source-dimensions.json",
+  "sourceExtractionLimit": "Recovered official dimension/material/configuration labels; no original full sketch coordinates or persistent face identity recovered.",
+  "baseline": "EXERCISE-8.2-refreshed-browser-2026-10-10.mforge",
+  "flatbar": {
+    "componentId": 452,
+    "definitionId": "cm_mukhi39s",
+    "bossFeatureId": "feature_mukhjc84_1",
+    "holeFeatureId": "feature_mukhpbcy_2",
+    "patternFeatureId": "feature_mukhptgp_3",
+    "sketchIds": [
+      "sk_0tpj9",
+      "sk_1d3vg"
+    ],
+    "source": {
+      "thicknessCm": 0.2286,
+      "centerSpanCm": 10.16,
+      "endRadiusCm": 0.635,
+      "boreDiameterCm": 0.4826,
+      "pitchCm": 1.27,
+      "count": 9,
+      "material": "2014 Alloy",
+      "configuration": "Default9HOLES"
+    },
+    "baselineBossParams": {
+      "operation": "add",
+      "endCondition": "blind",
+      "depth": 0.1524,
+      "offset": 0,
+      "direction": "forward",
+      "symmetric": false,
+      "draftAngle": 0,
+      "draftOutward": false,
+      "mergeResult": true,
+      "axis": "z",
+      "profileEntityIds": [
+        422,
+        423,
+        424,
+        425
+      ],
+      "holeProfileEntityIds": [],
+      "holes": [],
+      "sketchId": "sk_0tpj9",
+      "from": 0,
+      "to": 0.1524
+    },
+    "baselinePartMaterialFields": [
+      {
+        "materialName": "Aluminum 1060",
+        "density": 2.698790709244804,
+        "densitySource": "Hydro Alloy 1xxx, revision 2019/01, p. 1: 0.0975 lb/in³ (nominal)",
+        "materialCatalogId": "stock:aluminum1060"
+      }
+    ],
+    "expectedChangeScope": "Boss depth/to .1524 -> .2286cm; material Aluminum2014 catalog density2.80; original profile/sketch geometry, hole diameter, pattern count/pitch preserved; downstream native geometry/cache and assembly transforms may regenerate."
+  },
+  "hook": {
+    "componentId": 443,
+    "definitionId": "cm_mukh03lv",
+    "sweepFeatureId": "feature_mukhbwfg_1",
+    "domeFeatureId": "feature_mukhddsw_2",
+    "threadFeatureId": "feature_mukhr38c_1",
+    "currentThreadParams": {
+      "threadPreset": "inch-die-8-36",
+      "side": "external",
+      "mode": "modeled",
+      "diameterMm": 3.81,
+      "pitchMm": 0.7055555555555555,
+      "length": 0.635,
+      "handedness": "rh",
+      "toleranceClass": "2A",
+      "series": "fine",
+      "runoutStartMm": 0,
+      "runoutEndMm": 0,
+      "useFitLimits": false,
+      "family": "unified-thread",
+      "standard": "UNF basic 60-degree inch die",
+      "flankAngleDeg": 60,
+      "fitLimits": null,
+      "lengthMm": 6.35,
+      "diameter": 0.381,
+      "pitch": 0.07055555555555555,
+      "origin": {
+        "x": -1.3877787807814457e-17,
+        "y": 0,
+        "z": 1.3877787807814457e-17
+      },
+      "axis": {
+        "x": 2.9919570582127376e-123,
+        "y": 1,
+        "z": 0
+      },
+      "turns": 9,
+      "startAngle": 0,
+      "designation": "#8-36 UNF 2A"
+    },
+    "sourceCustomHelix": {
+      "heightCm": 0.508,
+      "pitchCm": 0.127,
+      "turns": 4,
+      "startAngleDeg": 0,
+      "circularCutProfileDiameterCm": 0.0762,
+      "threadPlaneOffsetCm": 0.0508
+    },
+    "matchingSourceFields": {
+      "sweepDiameterCm": 0.381,
+      "domeHeightCm": 0.127,
+      "stemCm": 0.635,
+      "firstBendRadiusCm": 1.27
+    },
+    "unresolvedSourcePath": "Upper loop D3=1inch not assigned to fully recovered datum/coordinates; existing reconstruction remains approximate.",
+    "notEquivalent": "Changing ANSI thread pitch/length alone does not reconstruct circular custom cut-sweep profile/source helix."
+  },
+  "acceptancePending": true,
+  "noCADAuthoring": true
+}

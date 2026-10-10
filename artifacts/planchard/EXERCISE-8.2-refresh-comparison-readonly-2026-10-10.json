@@ -1,0 +1,112 @@
+{
+  "matesDeepExact": true,
+  "componentChanges": [
+    {
+      "id": 451,
+      "changedKeys": [],
+      "beforeTransform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "afterTransform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 452,
+      "changedKeys": [
+        "transform",
+        "def"
+      ],
+      "beforeTransform": {
+        "x": 0,
+        "y": -5.08,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": -89.99999999999997,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.7071067811865474,
+          "w": 0.7071067811865476
+        }
+      },
+      "afterTransform": {
+        "x": 0,
+        "y": -5.08,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": -89.99999999999999,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.7071067811865475,
+          "w": 0.7071067811865476
+        }
+      }
+    },
+    {
+      "id": 456,
+      "changedKeys": [
+        "transform"
+      ],
+      "beforeTransform": {
+        "x": -0.113512926,
+        "y": -13.375368616,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": -2.0710780240029063,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.018072581341994753,
+          "w": 0.9998366775647097
+        }
+      },
+      "afterTransform": {
+        "x": -0.113512926,
+        "y": -13.375368616,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": -2.0710780222843135,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": -0.018072581326999643,
+          "w": 0.9998366775649806
+        }
+      }
+    }
+  ],
+  "flatbarDefinitionChangedKeys": [
+    "exactTopologyCache",
+    "parts"
+  ],
+  "noManualMateRebindingClaim": true,
+  "accepted": false
+}
