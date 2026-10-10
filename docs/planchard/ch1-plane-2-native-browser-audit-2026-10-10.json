@@ -1,0 +1,24 @@
+{
+  "warmChecks": {
+    "allFiveExactSourcePlanPrimitives": true,
+    "allFiveOutline": true,
+    "fiveNativeSourceLabelNotes": true,
+    "sourceAndEstimateExplicit": true,
+    "purePaperNoCadViewsDimensionsImages": true,
+    "styledSvgLineSemantics": true,
+    "closedRightRamp": true,
+    "a3ThirdAngleMillimetres": true
+  },
+  "warmAccepted": true,
+  "savedKey": "cm_mv2u1gr7",
+  "savedName": "Planchard Ch1 IN-CHAPTER Plane 2 graphic - browser 2026-10-10",
+  "svgSha256": "5937cf76c9838eb8c7765d5aa8526575df47921f6796fa3086ab48ef379c690e",
+  "coldAccepted": true,
+  "qualification": "SourcePNG71 independently inspected. Source ramp three-view semantics reproduced with illustrative5mm grid/unit estimates; no exact publisher dimensions/CAD-bound geometry. ActualPNG notes/views/frame separated and unobstructed.",
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourceNameKeyPropertiesExact": true,
+    "authoredCadExact": true,
+    "svgByteExact": true
+  }
+}
