@@ -1,0 +1,43 @@
+{
+  "qualifiedAccepted": true,
+  "coldPending": true,
+  "checks": {
+    "sixtyEightNativePrimitives": true,
+    "thirteenNotesTwentyThreeRows": true,
+    "sourceProfilesExact": true,
+    "roundedHoleExact": true,
+    "twoCenterStyledCrosses": true,
+    "twentyOneClosedNoncollapsedArrows": true,
+    "fortyFourNoncollapsedLines": true,
+    "wholeNumberDimensionValues": true,
+    "allNoteRowsInSVG": true,
+    "noCADOrAssociativeDimensionClaim": true,
+    "A3LandscapeThirdMm": true,
+    "illustrativeGraphicScaleQualification": true,
+    "sourceTitle": true,
+    "allPrimitiveCoordinatesFiniteInSheet": true,
+    "actualQualifiedPNGSourceLayoutReadable": true
+  },
+  "counts": {
+    "primitives": 68,
+    "lines": 44,
+    "closedProfilePolylines": 2,
+    "closedArrowTriangles": 21,
+    "circle": 1,
+    "notes": 13,
+    "LFrows": 23,
+    "CADviews": 0,
+    "CADfeatures": 0
+  },
+  "smallestLineMm": 3.00243678166035,
+  "arrowAreaRangeMm2": [
+    3.004797735284228,
+    6.009809441155085
+  ],
+  "input": {
+    "bytes": 17607,
+    "sha256": "2a384d99615e2d8cc9b3bdc90161c0bbda791f31f9c731576142c66d9821bbf5"
+  },
+  "svgBytes": 23022,
+  "qualification": "Source PDF175/printed3-47 asks whole-number estimated dimensions without physical units. Profiles are paper4:1/6:1 graphics under chosen1mm/grid, roundedholeD2/center3,3. Manual paper dimensions, no associative CAD driver or manufacturing-size claim. Coordinate click deviations remain below0.3mm; no exact requested annotation-coordinate claim."
+}

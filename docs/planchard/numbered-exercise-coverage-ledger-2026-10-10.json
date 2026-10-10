@@ -1,9 +1,9 @@
 {
   "date": "2026-10-10",
   "inventoryDenominator": 117,
-  "documentedScopedAcceptanceCount": 97,
-  "pendingCount": 20,
-  "numberedIdentifierFractionPercent": 82.90598290598291,
+  "documentedScopedAcceptanceCount": 99,
+  "pendingCount": 18,
+  "numberedIdentifierFractionPercent": 84.61538461538461,
   "wholeBookPercentCertified": false,
   "rule": "Count each frozen numbered identifier once. Multi-model2.2/2.3 require all pictured models. Preserve previously accepted explicit designer/replacement/illustrative qualifications; do not relabel them exact publisher-native parity. A scope-qualified acceptance is different from exact-source reconstruction. Chapter reviews/in-chapter activities/tutorials/physical steps are excluded from this denominator.",
   "reviewQuestions": {
@@ -17,8 +17,6 @@
     "separateDenominator": true
   },
   "pendingIds": [
-    "3.1",
-    "3.2",
     "3.3",
     "3.4",
     "3.5",
@@ -132,14 +130,14 @@
     {
       "id": "3.1",
       "group": "Chapter3",
-      "status": "pending",
-      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-3.1-3.2-browser-worksheet-audit-2026-10-10.md"
     },
     {
       "id": "3.2",
       "group": "Chapter3",
-      "status": "pending",
-      "evidence": "chapter3-graphics-browser-plan-2026-10-10.md"
+      "status": "documented-scoped-acceptance",
+      "evidence": "exercises-3.1-3.2-browser-worksheet-audit-2026-10-10.md"
     },
     {
       "id": "3.3",

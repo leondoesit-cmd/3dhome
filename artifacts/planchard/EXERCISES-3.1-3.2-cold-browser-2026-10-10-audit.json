@@ -1,0 +1,18 @@
+{
+  "coldAccepted": true,
+  "checks": {
+    "allAuthoringDescriptionUnitsExact": true,
+    "wholeDrawingExact": true,
+    "SVGByteExact": true,
+    "onlyEmptySketchHistoryNormalized": true,
+    "onlySixDefaultOriginRefsAdded": true,
+    "onlyHarmlessEmptyCacheAndCleanStandardsResultAdded": true,
+    "actualColdPNGSourceDimensionsNotesReadable": true
+  },
+  "input": {
+    "bytes": 18643,
+    "sha256": "95661d4ea0b8e3d83b10c347e74c2d6e43275733f2e70d4b51ba654bd223d8b3"
+  },
+  "svgBytes": 23022,
+  "qualification": "Manual paper dimensions/illustrative scales and roundedhole preserved. Cold365% viewport crops lowerfooter, complete unchangedSVG and priorqualifiedfullsheetPNG preserve entireframe. Newempty exactTopologyCache and cleanzero-checkstandards metadata are derived normalization."
+}
