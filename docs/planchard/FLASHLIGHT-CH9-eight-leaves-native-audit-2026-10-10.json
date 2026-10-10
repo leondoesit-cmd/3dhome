@@ -1,0 +1,264 @@
+{
+  "checks": {
+    "allEightCurrentKernelProofsMeasuredOne": true,
+    "sevenOtherLeafDefinitionsExact": true,
+    "allDrivingFeaturesHistoryAndParametersExact": true,
+    "housingEntitiesAndDrivingDimensionValuesExact": true,
+    "only31TinyHousingResolvedGeometryNumbers": true,
+    "wholeDrawingExact": true,
+    "allLeafPosesOccurrenceMetadataExact": true,
+    "allRootComponentPosesExact": true,
+    "sevenChainsExact": true,
+    "rootMateRecordsExact": true,
+    "all14SharedSceneChecks": true
+  },
+  "allEightCurrentNativeAndSourceAccepted": true,
+  "coldAccepted": false,
+  "housingResolvedNumericChanges": [
+    {
+      "path": "sketches.3.points.0.y",
+      "delta": 4.773959005888173e-15
+    },
+    {
+      "path": "sketches.3.points.1.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.points.2.y",
+      "delta": 4.440892098500626e-15
+    },
+    {
+      "path": "sketches.3.points.3.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.points.4.y",
+      "delta": 4.440892098500626e-15
+    },
+    {
+      "path": "sketches.3.points.5.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.points.6.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.points.7.y",
+      "delta": 4.773959005888173e-15
+    },
+    {
+      "path": "sketches.3.points.8.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.points.9.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.points.10.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.points.11.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.points.12.x",
+      "delta": 6.441966553997887e-17
+    },
+    {
+      "path": "sketches.3.points.12.y",
+      "delta": 4.773959005888173e-15
+    },
+    {
+      "path": "sketches.3.points.13.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.points.14.y",
+      "delta": 4.884981308350689e-15
+    },
+    {
+      "path": "sketches.3.boundaryCopies.0.source.descriptor.origin.x",
+      "delta": 6.441966553998676e-17
+    },
+    {
+      "path": "sketches.3.boundaryCopies.0.source.descriptor.origin.y",
+      "delta": 4.773959005888173e-15
+    },
+    {
+      "path": "sketches.3.boundaryCopies.0.source.descriptor.measure",
+      "delta": 2.842170943040401e-14
+    },
+    {
+      "path": "sketches.3.frame.origin.x",
+      "delta": 6.441966553998676e-17
+    },
+    {
+      "path": "sketches.3.frame.origin.y",
+      "delta": 4.773959005888173e-15
+    },
+    {
+      "path": "sketches.5.points.0.x",
+      "delta": 2.4868995751603507e-14
+    },
+    {
+      "path": "sketches.5.points.0.y",
+      "delta": 2.9627479339428355e-15
+    },
+    {
+      "path": "sketches.5.constraints.0.x",
+      "delta": 2.4868995751603507e-14
+    },
+    {
+      "path": "sketches.5.constraints.0.y",
+      "delta": 2.9627479339428355e-15
+    },
+    {
+      "path": "sketches.5.frame.origin.x",
+      "delta": 2.4868995751603507e-14
+    },
+    {
+      "path": "sketches.5.frame.origin.y",
+      "delta": 2.9627479339428355e-15
+    },
+    {
+      "path": "references.8.origin.x",
+      "delta": 2.4868995751603507e-14
+    },
+    {
+      "path": "references.8.origin.y",
+      "delta": 2.9627479339428355e-15
+    },
+    {
+      "path": "referenceGeometry.1.origin.x",
+      "delta": 2.4868995751603507e-14
+    },
+    {
+      "path": "referenceGeometry.1.origin.y",
+      "delta": 2.9627479339428355e-15
+    }
+  ],
+  "maxNumericDelta": 2.842170943040401e-14,
+  "nonNumericChanges": [],
+  "shadePaths": {
+    "actual": 37418,
+    "fresh": 37418
+  },
+  "nativeProof": [
+    {
+      "path": "1394",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 26,
+      "loweredFeatureCount": 27,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1395",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 2,
+      "loweredFeatureCount": 2,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1385",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 8,
+      "loweredFeatureCount": 9,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1386",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 1,
+      "loweredFeatureCount": 1,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1387/1379",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 14,
+      "loweredFeatureCount": 14,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1387/1381",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 23,
+      "loweredFeatureCount": 23,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1397/1372",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 9,
+      "loweredFeatureCount": 9,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1397/1373",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 12,
+      "loweredFeatureCount": 12,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    }
+  ],
+  "qualification": "Current actual serialized native proof and source-preserving browser rebuild accepted. Tiny resolved frame/point numeric changes measured, driving constraints exact. No independent mass equality, physical contact or final cold claim."
+}

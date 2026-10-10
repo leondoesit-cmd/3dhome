@@ -1,0 +1,57 @@
+{
+  "checks": {
+    "wholeSelectedAssemblyExact": true,
+    "wholeDrawingExact": true,
+    "allEightCurrentNativeOneAfterCold": true,
+    "actualSvgByteExact": true,
+    "activeOwnerMetadataExact": true,
+    "attachmentsAndOtherDrawingsExact": true,
+    "unrelatedMainModelStillEmpty": true,
+    "onlyKnownBlankWorkspaceIdentityAndTimeDiffs": true
+  },
+  "actualEightNativeFlashlightDrawingColdAccepted": true,
+  "svgSha256": "f6cb41bbdacefd7e4dd1900060c9836867f42bc9a10e6338ed28bc3af7eca0df",
+  "differences": [
+    {
+      "path": ".createdAt",
+      "warm": 1791658667548,
+      "cold": 1791658807697
+    },
+    {
+      "path": ".mainModel.id",
+      "warm": "cm_mv2qzay9",
+      "cold": "cm_mv2rd4bm"
+    },
+    {
+      "path": ".mainModel.key",
+      "warm": "cm_mv2qzay9",
+      "cold": "cm_mv2rd4bm"
+    },
+    {
+      "path": ".mainModel.sketches.0.id",
+      "warm": "sk_0n54d",
+      "cold": "sk_0xdxm"
+    },
+    {
+      "path": ".mainModel.lastRebuild.signature",
+      "warm": "{\"definitionId\":\"cm_mv2qzay9\",\"features\":[],\"history\":[{\"id\":\"history:sketch:sk_0n54d\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_0n54d\"}],\"overrides\":{},\"revision\":1,\"sketches\":[{\"constraints\":[],\"entities\":[],\"id\":\"sk_0n54d\",\"name\":\"X·Z sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[],\"referenceId\":\"plane:top\"}]}",
+      "cold": "{\"definitionId\":\"cm_mv2rd4bm\",\"features\":[],\"history\":[{\"id\":\"history:sketch:sk_0xdxm\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_0xdxm\"}],\"overrides\":{},\"revision\":1,\"sketches\":[{\"constraints\":[],\"entities\":[],\"id\":\"sk_0xdxm\",\"name\":\"X·Z sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[],\"referenceId\":\"plane:top\"}]}"
+    },
+    {
+      "path": ".mainModel.lastRebuild.rebuiltAt",
+      "warm": 1791658114404,
+      "cold": 1791658758225
+    },
+    {
+      "path": ".mainModel.activeSketch",
+      "warm": "sk_0n54d",
+      "cold": "sk_0xdxm"
+    },
+    {
+      "path": ".mainModel.definitionId",
+      "warm": "cm_mv2qzay9",
+      "cold": "cm_mv2rd4bm"
+    }
+  ],
+  "qualification": "Whole selected assembly incl eight native proofs, Drawing, mates, chains, occurrence metadata and placements exact after actual cold. Other bundle workspace blank identity changes explicitly retained. Source frame/grayscale/manual number/centroid anchors and physical-contact qualifications remain."
+}

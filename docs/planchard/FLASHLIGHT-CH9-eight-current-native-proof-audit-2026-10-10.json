@@ -1,0 +1,118 @@
+{
+  "rows": [
+    {
+      "path": "1394",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 26,
+      "loweredFeatureCount": 27,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1395",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 2,
+      "loweredFeatureCount": 2,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1385",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 8,
+      "loweredFeatureCount": 9,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1386",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 1,
+      "loweredFeatureCount": 1,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1387/1379",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 14,
+      "loweredFeatureCount": 14,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1396/1387/1381",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 23,
+      "loweredFeatureCount": 23,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1397/1372",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 9,
+      "loweredFeatureCount": 9,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    },
+    {
+      "path": "1397/1373",
+      "compileAccepted": true,
+      "issues": [],
+      "currentVerifiedFeatureCount": 12,
+      "loweredFeatureCount": 12,
+      "finalSignatureCurrent": true,
+      "solids": {
+        "known": true,
+        "count": 1,
+        "disconnected": false,
+        "projections": 1
+      }
+    }
+  ],
+  "allEightCurrentNativeAccepted": true,
+  "qualification": "Current compiler/stamp/count audit only, no independent BRep recomputation; per-row compile/current signature/measured counts above are authoritative. Missing counts or expired stamps are not certified; no validator relaxed."
+}
