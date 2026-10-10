@@ -84,3 +84,27 @@ test("a healthy database is opened as is", async (t) => {
   assert.equal(db.version, 2);
   assert.deepEqual(fake.upgrades, []);
 });
+
+test("blocked library open rejects immediately and cleans up a late connection without changing stores", async(t)=>{
+  let request,closed=0,aborted=0,created=0;
+  globalThis.indexedDB={open(){request={};return request;}};
+  t.after(()=>{delete globalThis.indexedDB;});
+  const promise=openModelLibraryDatabase();
+  const rejected=assert.rejects(promise,/blocked by another open tab/);
+  request.onblocked();await rejected;
+  request.result={close(){closed++;},createObjectStore(){created++;},objectStoreNames:{contains:()=>false}};
+  request.transaction={abort(){aborted++;}};
+  request.onupgradeneeded();request.onsuccess();
+  assert.equal(aborted,1,'late upgrade transaction is cancelled before stores change');
+  assert.equal(created,0);assert.equal(closed,1,'rejected open does not leak a connection');
+});
+
+test("version changes close the library connection without aborting a successful transaction",async(t)=>{
+  let request,closed=0,aborted=0;
+  const database={version:2,objectStoreNames:{contains:()=>true},close(){closed++;},transaction(){return {abort(){aborted++;}};}};
+  globalThis.indexedDB={open(){request={};queueMicrotask(()=>{request.result=database;request.onsuccess();});return request;}};
+  t.after(()=>{delete globalThis.indexedDB;});
+  assert.equal(await openModelLibraryDatabase(),database);
+  database.onversionchange();
+  assert.equal(closed,1);assert.equal(aborted,0);
+});

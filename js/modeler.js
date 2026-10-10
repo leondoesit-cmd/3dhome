@@ -433,7 +433,9 @@ async function refreshLibraryFromOtherTab() {
 if(libraryChannel)libraryChannel.addEventListener("message",function(){refreshLibraryFromOtherTab().catch(function(){});});
 function signalLibraryChange() { if(libraryChannel)libraryChannel.postMessage("changed"); }
 var lastLibrarySaveConflict=false;
+var lastLibrarySaveError=null;
 async function saveLib(records, options={}) {
+  lastLibrarySaveError=null;
   try {
     var result=options.mode==="delete" ? await deleteModelLibraryRecord(records)
       : options.mode==="merge" ? await mergeStoredModelLibrary(records,{conflict:options.conflict || "replace"})
@@ -445,7 +447,7 @@ async function saveLib(records, options={}) {
     if(!result.ok)return false;
     signalLibraryChange();
     return true;
-  } catch (e) { lastLibrarySaveConflict=false; return false; }
+  } catch (e) { lastLibrarySaveConflict=false;lastLibrarySaveError=e;return false; }
 }
 
 function loadAssemblies() {
@@ -27700,7 +27702,7 @@ async function saveModel() {
   saveProgress("saveWritingLibrary",savingDoc);
   if (!await saveLib(def,{expected:expectedRecord})) {
     if (!lastLibrarySaveConflict) {
-      report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull"));
+      report(t("reportKickerSave"), t("saveLibraryFailed"), lastLibrarySaveError ? String(lastLibrarySaveError.message || lastLibrarySaveError) : t("saveStorageFull"));
       return;
     }
     // A restored legacy draft may have no saved-record baseline. An edit in
@@ -27718,7 +27720,7 @@ async function saveModel() {
     if (E.def !== savingDoc || currentHistoryNode() !== savingNode) return;
     var copy=forkConflictingModel(def,"cm_"+Date.now().toString(36)+"_"+uid(),copyAnswer.name);
     if (!await saveLib(copy,{expected:null})) {
-      report(t("reportKickerSave"),t("saveLibraryFailed"),t(lastLibrarySaveConflict ? "saveCopyKeyConflict" : "saveStorageFull"));
+      report(t("reportKickerSave"),t("saveLibraryFailed"),lastLibrarySaveError ? String(lastLibrarySaveError.message || lastLibrarySaveError) : t(lastLibrarySaveConflict ? "saveCopyKeyConflict" : "saveStorageFull"));
       return;
     }
     def=copy;

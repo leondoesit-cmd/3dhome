@@ -17,11 +17,25 @@ const STORES=[[MODEL_STORE,"key"],[ASSEMBLY_STORE,"key"],[DRAFT_STORE,"id"]];
 function openAt(version) {
   return new Promise((resolve,reject)=>{
     const request=version==null ? indexedDB.open(DB_NAME) : indexedDB.open(DB_NAME,version);
+    let blocked=false;
+    request.onblocked=()=>{
+      blocked=true;
+      reject(new Error("Model library upgrade is blocked by another open tab; close that tab and retry Save"));
+    };
     request.onupgradeneeded=()=>{
+      // A rejected open can resume later when the other tab closes. Do not
+      // perform a delayed upgrade on behalf of a Save that already failed.
+      if(blocked){request.transaction?.abort();return;}
       const db=request.result;
       for (const [name,keyPath] of STORES) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name,{keyPath});
     };
-    request.onsuccess=()=>resolve(request.result);
+    request.onsuccess=()=>{
+      const db=request.result;
+      if(blocked){db.close();return;}
+      // close() waits for active transactions; it does not cancel a write.
+      db.onversionchange=()=>db.close();
+      resolve(db);
+    };
     request.onerror=()=>reject(request.error || new Error("Model library database failed"));
   });
 }
