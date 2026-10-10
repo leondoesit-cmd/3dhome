@@ -1,0 +1,9 @@
+# Exercise 2.3A browser model audit — 2026-10-10
+
+**Nominal native geometry 15/15 PASS; drawing 9/9 PASS. Final workflow pending actual STEP, saved-library cold replay and driver proof.** Source PDF126/printed2-40 requests an isometric drawing with approximate sizing. The native supporting model uses illustrative 80 × 40 × 15 mm base, a 20 × 40 mm upright extruded 35 mm above Y15, and a 15 × 20 mm viewer-facing open fork removed through the base. Dimensions, hidden depth and material are not specified by the publisher.
+
+Protected actual Chrome qualified bundle (133482 bytes) contains three fully defined Top sketches, three dependent features and six valid rebuilt history entries, with no rollback. Native read-only regeneration produces one valid connected solid with 80 × 50 × 40 mm bounds and volume exactly 71,500 mm³, agreeing with 48,000 + 28,000 − 4,500. Cut profile is X30..45/Z20..40 at Y15, reverse 15 mm to Y0; the +X/+Y/+Z isometric view exposes the fork and upright consistently with the source interpretation. Input bytes remain unchanged.
+
+Actual A3 landscape/mm/third-angle Drawing contains four native 1:1 views and two six-line source/construction notes, no imitation primitives, hidden lines off, correct source title/Description. All twelve note rows occur in the protected SVG (16218 bytes). Independently inspected actual PNG shows the upright and open fork, separate readable views/notes, and complete frame/title.
+
+No actual STEP is present at audit time. Export toasts alone are not STEP evidence; read-only native regeneration does not establish a successful browser STEP download, Save persistence or driver replay. Audit JSON: `artifacts/planchard/EXERCISE-2.3A-qualified-browser-2026-10-10-audit.json`; read-only harness: `scratch/planchard/exercise23a-native-readonly-audit.mjs`.
