@@ -133,6 +133,7 @@ export function createSheetDoc(options = {}) {
     projection: options.projection === "first" ? "first" : "third",
     units: UNIT_FACTORS[options.units] ? options.units : "mm",
     ...(Number.isInteger(options.precision)?{precision:clamp(options.precision,0,8)}:{}),
+    ...(Number.isInteger(options.anglePrecision)?{anglePrecision:clamp(options.anglePrecision,0,8)}:{}),
     ...(typeof options.trailingZeros==="boolean"?{trailingZeros:options.trailingZeros}:{}),
     scale: options.scale || "fit",
     showHidden: options.showHidden !== false,
@@ -802,7 +803,10 @@ export function dimensionText(dim, doc) {
   }
   const value = formatLength(dim.measure, Number.isInteger(dim.precision)&&dim.precision>=0&&dim.precision<=8 ? {...doc,precision:dim.precision} : doc);
   const prefix = dim.type === "diameter" ? "⌀" : dim.type === "radius" ? "R" : "";
-  if (dim.type === "angle") return trimNumber(Math.round(num(dim.measure) * 10) / 10) + "°" + suffix;
+  if (dim.type === "angle") {
+    const precision=Number.isInteger(dim.anglePrecision)?dim.anglePrecision:doc?.anglePrecision;
+    return (Number.isInteger(precision)&&precision>=0&&precision<=8?num(dim.measure).toFixed(precision):trimNumber(Math.round(num(dim.measure)*10)/10))+"°"+suffix;
+  }
   const secondary = UNIT_FACTORS[doc?.secondaryUnits] && doc.secondaryUnits !== doc.units
     ? " [" + formatLength(dim.measure, {units:doc.secondaryUnits,precision:doc.secondaryPrecision ?? 2,trailingZeros:true}) + "]" : "";
   return prefix + value + secondary + suffix;

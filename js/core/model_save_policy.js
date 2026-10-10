@@ -1,6 +1,7 @@
 import { validateDrawingPrimitive } from "./drawing_primitives.js";
 import {drawingImageItem} from './drawing_image.js';
 import {sheetPaper,SHEET_SIZES,UNIT_FACTORS} from '../cad_sheet.js';
+import {hasDocumentPresetDefaults} from './document_presets.js';
 
 // A reusable format/template is authored paper even before its first note.
 // Require the native schema; an ordinary empty editor has no provenance.
@@ -42,6 +43,7 @@ export function drawingOnlyContentSummary(definition) {
 // is drawn, and sketch geometry imported from an older document is work too.
 export function hasSaveableModelContent(definition) {
   if (!definition || typeof definition !== "object") return false;
+  if(hasDocumentPresetDefaults(definition))return true;
   if (Array.isArray(definition.parts) && definition.parts.length) return true;
   if(hasNativePresetSheet(definition))return true;
   if(savedImages(definition).length)return true;

@@ -1,0 +1,13 @@
+# Chrome projection and assembly reference checkpoint
+
+Source: PDF201/4-21 and PDF214–215/4-34–35. Actual desktop Chrome (browser3/tab710862476), dark application UI, ordinary native tools. No CAD injection.
+
+The new Perspective button was present in Assembly after ordinary reload. Actual click sequence was pressed=true → false → true. Orthographic and restored Perspective screenshots are protected. `CH10-projection-restored-browser-2026-10-11.mforge` equals the cold study export in every field except `createdAt`; source geometry, transforms, mates and drawings are unchanged. Production camera/framing/picking/Normal To tests independently pass12/12. This browser checkpoint does not yet cover Part Normal To or projection-preference persistence.
+
+Actual native Distance mate row `tmate:6479` hover produced focus plus upstream occurrence rows `comp:6477`/`comp:6478`, two SVG connectors, and named callouts with actual `feature_mv2x7ni4_1:face:side:6414` endpoints. With Parent references off and Child references still on, a fresh pointer departure/re-entry retained only mate focus and reported no enabled references.
+
+Actual Ground reference block hover produced component focus plus downstream Distance6479 and Angle6480 rows, two SVG connectors, named side6414 and side6413 callouts. With Child off and Parent still on, a fresh re-entry retained only component focus and reported no enabled references. Both controls were restored; pointer departed to empty viewport. `CH4-assembly-reference-cleared-browser-2026-10-11.mforge` equals the projection-restored export in every field except `createdAt`.
+
+Protected screenshots: `CH10-projection-{orthographic,perspective}-browser-2026-10-11.png`, `CH4-assembly-{mate,component}-reference-browser-2026-10-11.png`. Partial scope: actual collapsed/nested endpoint and updated Part full-reference browser demonstrations remain pending; these are covered by implementation tests but are not counted here as browser acceptance.
+
+Chapter10 native two-block study has accepted warm/cold export audit in `ch10-distance18-angle26-export-audit-2026-10-11.{md,json}`: resolved18mm,26°,2DOF, two native mates and two source-preserved solids. Original screenshot geometry is unspecified, so the chosen40×15×10mm blocks are disclosed. Actual Measure remains pending: an initial face-pick trial reported0°, so it was not accepted as source26° measurement. Cold reopen preserves the assembly and complete embedded source definitions, with negligible quaternion normalization; whole bundle has a separate fresh empty Part context and context units/createdAt differences, explicitly recorded by the audit. No original library Part was replaced.

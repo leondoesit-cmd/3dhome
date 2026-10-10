@@ -1,4 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
+import {occurrenceDependencyId} from '../js/core/dependency_visualization.js';
 import {nestedComponentOccurrence,createNestedComponentEdit,nestedEditStillCurrent,commitNestedComponentEdit,assemblyWithoutNestedOccurrence} from '../js/core/nested_component_edit.js';
 import {setDocumentProperty,assemblyPartNumber,documentDescription} from '../js/core/custom_properties.js';
 import {assemblyDrawingBOM} from '../js/core/assembly_drawing_bom.js';import {createHistory} from '../js/edit_history.js';import {sourceFunctionText} from './helpers/source_function.mjs';
@@ -43,7 +44,7 @@ test('cold component draft uses full occurrence path and rejects foreign roots o
 });
 test('tree nested leaf supports Enter edit yet ordinary selection remains rigid top component',()=>{
  const a=fixture(),E={assembly:a};const nodeFactory=new Function(sourceFunctionText(source,'assemblyTreeNode')+';return assemblyTreeNode;')();
- const tree=new Function('isSubassembly','assemblyTreeNode','assemblyCollapsed','t',sourceFunctionText(source,'subassemblyTreeRows')+';return subassemblyTreeRows;')(c=>c.kind==='assembly',nodeFactory,()=>false,t=>t);
+ const tree=new Function('isSubassembly','assemblyTreeNode','assemblyCollapsed','t','occurrenceDependencyId',sourceFunctionText(source,'subassemblyTreeRows')+';return subassemblyTreeRows;')(c=>c.kind==='assembly',nodeFactory,()=>false,t=>t,occurrenceDependencyId);
  const root=a.components[0],rows=tree(root,root.asm.components,'sub:left'),leaf=rows[0].children[0];assert.deepEqual(leaf.componentPath,['left','inner',7]);assert.equal(leaf.targetId,'left');assert.equal(leaf.can.edit,true);
  let received;const handlers=new Function('E','nestedComponentOccurrence','beginContextPart',sourceFunctionText(source,'assemblyTreeHandlers')+';return assemblyTreeHandlers;')(E,nestedComponentOccurrence,(...args)=>received=args)({});handlers.onEdit(leaf);assert.equal(received[0],nestedComponentOccurrence(a,leaf.componentPath).component);assert.deepEqual(received[2],leaf.componentPath);
 });

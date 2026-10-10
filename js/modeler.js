@@ -23,6 +23,8 @@ import {revolveThinProfile,thinSketchProfile} from './core/thin_profile.js';
 import {thinExtrudeAreas,thinExtrudeChainKey,thinExtrudeSketchReadiness} from './modeler_thin_extrude_profiles.js';
 import {threadPlacementFromFace} from './core/thread_placement.js';
 import {threadPlacementFromCircularEdge} from './core/thread_circular_start.js';
+import {occurrenceDependencyId,mateDependencyId,partDependencyGraph,assemblyDependencyGraph,dependencyVisualization} from './core/dependency_visualization.js';
+import {renderDependencyPresentation} from './modeler_dependency_ui.js';
 import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
 import {setExtrudeFeatureOperation} from './core/extrude_operation_edit.js';
@@ -50,6 +52,7 @@ import { captureExactTopology, verifiedExactTopology, verifiedFinalTopology } fr
 import { parallelStraightEdges } from "./core/edge_selection.js";
 import { modelDimensions, formatModelLength } from "./core/model_dimensions.js";
 import {documentLengthUnit,formatDocumentLength,formatDocumentScreenScale,lengthFromDocument,lengthToDocument} from './core/document_length_units.js';
+import {documentDefaults,validateDocumentDefaults,applyDocumentDefaults,captureDocumentPreset,loadDocumentPresets,saveDocumentPreset,documentFromPreset} from './core/document_presets.js';
 import {parseSketchDimensionEntry} from './core/sketch_dimension_entry.js';
 import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
 import {setGearMatePhase} from "./cad_gear_motion.js";
@@ -4163,6 +4166,7 @@ function buildDOM() {
     '<button data-view="left" data-tip="' + t("view_left") + '">' + cadIcon("view_right") + '<span>' + (getLang()==="en"?"Left":"שמאל") + ' · Z·Y</span></button>' +
     '<button type="button" id="mdNormalToView" data-tip="' + kt(t("normalTo"), "Ctrl+8") + '">' + cadIcon("normalTo") + "<span>" + t("normalTo") + "</span></button>" +
     "</div>" +
+    '<div class="md-vgroup md-projection"><button type="button" id="mdPerspectiveView" aria-label="Perspective" aria-pressed="true" title="Toggle perspective / orthographic orbit projection"><span>Perspective</span></button></div>' +
     '<div class="md-vgroup md-zoom">' +
     '<button data-zoom="in" data-tip="' + t("zoomIn") + '" aria-label="' + t("zoomIn") + '" title="' + t("zoomIn") + '">' + cadIcon("zoomIn") + '</button>' +
     '<button data-zoom="out" data-tip="' + t("zoomOut") + '" aria-label="' + t("zoomOut") + '" title="' + t("zoomOut") + '">' + cadIcon("zoomOut") + '</button>' +
@@ -4436,6 +4440,13 @@ function buildDOM() {
     orientModelToView(true);
     drawSketch();
   });
+  root.querySelector("#mdPerspectiveView").addEventListener("click", function () {
+    if(!E.pv)return;
+    var mode=E.pv.getProjection()==='perspective'?'orthographic':'perspective';
+    E.pv.setProjection(mode);
+    try{localStorage.setItem('modelforge:orbitProjection',mode);}catch(error){}
+    syncViewButtons();
+  });
   root.querySelector("#mdSketchPlaneChip").addEventListener("click", function () {
     showReferencePicker(E.tool);
   });
@@ -4630,6 +4641,9 @@ function buildDOM() {
   var dUnit = getDomainUnit("details");
   cons.innerHTML =
     '<label class="md-row"><span class="t">' + t("partUnits") + '</span><select id="mdDocumentLengthUnit" aria-label="' + t("partUnits") + '"><option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option><option value="in">in</option><option value="ft">ft</option></select></label>' +
+    '<button type="button" id="mdDocumentProperties" class="md-settings-btn">Document properties</button>' +
+    '<button type="button" id="mdSaveDocumentTemplate" class="md-settings-btn">Save document template</button>' +
+    '<button type="button" id="mdNewDocumentTemplate" class="md-settings-btn">New from document template</button>' +
     '<label class="md-row"><span class="t">' + t("gridSize") + '</span><input id="mdGrid" type="number" value="' + toDisp(5, "details") + '" min="1"><span class="u">' + dUnit + '</span></label>' +
     '<label class="md-check"><input type="checkbox" id="mdOsnap" checked><span>' + t("osnap") + "</span></label>" +
     '<label class="md-check"><input type="checkbox" id="mdNormalTo"><span>' + t("prefNormalTo") + "</span></label>" +
@@ -4723,6 +4737,9 @@ function buildDOM() {
   cons.querySelector("#mdDocumentLengthUnit").addEventListener("change", function () {
     setModelLengthUnit(this.value);
   });
+  cons.querySelector('#mdDocumentProperties').addEventListener('click',function(){void documentPresetAction('properties');});
+  cons.querySelector('#mdSaveDocumentTemplate').addEventListener('click',function(){void documentPresetAction('capture');});
+  cons.querySelector('#mdNewDocumentTemplate').addEventListener('click',function(){void documentPresetAction('new');});
   cons.querySelector("#mdGrid").addEventListener("change", function () { E.grid = Math.max(0.1, fromDisp(+this.value || 5, "details")); drawSketch(); syncStatus(); });
   cons.querySelector("#mdDepth").addEventListener("change", function () { E.depth = Math.max(0.1, fromDisp(+this.value || 60, "details")); });
   cons.querySelector("#mdBase").addEventListener("change", function () { E.baseOff = fromDisp(+this.value || 0, "details"); });
@@ -6949,6 +6966,7 @@ function setModelLengthUnit(value) {
   var unit=documentLengthUnit(value);if(unit===modelLengthUnit())return false;
   pushUndo(t("partUnits"));
   document.context ||= {};document.context.units ||= {};document.context.units.length=unit;
+  if(document.documentProperties)document.documentProperties.lengthUnit=unit;
   syncHead();refreshAll();return true;
 }
 function modelLengthText(cm, digits=10) {
@@ -11426,7 +11444,8 @@ async function newModel(template) {
   E.selectedReferenceId = null;
   E.mobileAddSelection = false;
   if (E.docType === "assembly") {
-    E.assembly = newAssembly();
+    E.assembly = template?.kind==='assembly-template'?documentFromPreset(newAssembly(),template,'assembly-template'):newAssembly();
+    if(template?.kind==='assembly-template')E.assembly.name='Assembly from '+template.name;
     assemblyOpenBaseline=null;
     invalidateInterference();
     E.componentSel = [];
@@ -11440,6 +11459,7 @@ async function newModel(template) {
     return;
   }
   E.def = newDef();
+  if(template?.kind==='part-template'){E.def=documentFromPreset(E.def,template,'part-template');E.def.name='Part from '+template.name;}
   if(template?.kind==='drawing-template'){E.def.drawing=drawingFromTemplate(template);E.def.name='Drawing from '+template.name;}
   libraryOpenBaseline=null;
   E.srcItem = null;
@@ -11600,6 +11620,8 @@ function saveCurrentDocument() {
 }
 
 function syncViewButtons() {
+  var projectionButton=root.querySelector('#mdPerspectiveView');
+  if(projectionButton){var perspective=!E.pv||E.pv.getProjection()==='perspective';projectionButton.classList.toggle('on',perspective);projectionButton.setAttribute('aria-pressed',String(perspective));projectionButton.disabled=!!E.pv?.fixedFrame;projectionButton.title=E.pv?.fixedFrame?'Normal To uses orthographic projection; orbit preference is retained':'Toggle perspective / orthographic orbit projection';}
   var active = E.view;
   if (E.mode === "3d" && E.pv) {
     var preset = !E.pv.fixedFrame && VIEW_PRESETS.find(function (item) {
@@ -12155,6 +12177,42 @@ function drawingTopology() {
    sheet's tools can await an answer without freezing the page. One field or
    several — a dimension is edited as its displayed value AND its own
    tolerance, which is one decision and so one dialog. */
+async function documentPresetAction(action) {
+  try {
+    if(E.contextEdit)throw new Error('Finish component editing before choosing document defaults');
+    const type=E.docType,owner=type==='assembly'?E.assembly:E.def,node=currentHistoryNode(),kind=type==='assembly'?'assembly-template':'part-template';
+    const unchanged=function(){if(E.docType!==type||(type==='assembly'?E.assembly:E.def)!==owner||currentHistoryNode()!==node)throw new Error('Document changed while choosing template; retry');};
+    if(action==='properties') {
+      const properties=documentDefaults(owner),choices=values=>values.map(value=>({value,label:value}));
+      const answer=await sheetForm('Document properties',[
+        {key:'lengthUnit',label:'Length unit',type:'select',value:properties.lengthUnit,choices:choices(['mm','cm','m','in','ft'])},
+        {key:'massUnit',label:'Mass unit',type:'select',value:properties.massUnit,choices:choices(['g','kg','lb'])},
+        {key:'draftingStandard',label:'Drafting standard',type:'select',value:properties.draftingStandard,choices:choices(['ANSI','ISO'])},
+        {key:'projection',label:'Default drawing projection',type:'select',value:properties.projection,choices:choices(['first','third'])},
+        {key:'lengthPrecision',label:'Length decimal places',type:'number',value:properties.lengthPrecision},
+        {key:'anglePrecision',label:'Angle decimal places',type:'number',value:properties.anglePrecision},
+        {key:'dualDimensions',label:'Default dual drawing dimensions',type:'boolean',value:properties.dualDimensions},
+      ],'Document input units and defaults for new drawings. Existing geometry and existing drawings retain their values.');
+      if(!answer)return;unchanged();
+      const defaults=validateDocumentDefaults({...answer,angleUnit:'deg',lengthPrecision:Number(answer.lengthPrecision),anglePrecision:Number(answer.anglePrecision)});
+      pushUndo('Edit document properties');const current=type==='assembly'?E.assembly:E.def;
+      Object.assign(current,applyDocumentDefaults(current,defaults));syncHead();refreshAll();return;
+    }
+    const records=loadDocumentPresets(localStorage).filter(r=>r.kind===kind);
+    if(action==='capture') {
+      const defaults=documentDefaults(owner),suggested=(type==='assembly'?'ASM':'PART')+(defaults.lengthUnit==='in'?'-IN-ANSI':'-MM-ISO');
+      const answer=await sheetForm('Save '+type+' template',[{key:'name',label:'Local template name',value:suggested}],
+        'Captures document units, drafting standard and precision. CAD, sketches, mates, materials, drawings and source identities are excluded.');
+      if(!answer)return;unchanged();const previous=records.find(r=>r.name===String(answer.name).trim());
+      saveDocumentPreset(localStorage,captureDocumentPreset(owner,{id:previous?.id||crypto.randomUUID(),name:answer.name,kind}));flash('Local '+type+' template saved');return;
+    }
+    if(!records.length)throw new Error('Save a '+type+' template first');
+    const answer=await sheetForm('New from '+type+' template',[{key:'preset',label:'Saved local template',type:'select',value:records[0].id,choices:records.map(r=>({value:r.id,label:r.name}))}],
+      'Creates an independent blank document from settings only. Existing saved documents remain unchanged.');
+    if(!answer)return;unchanged();const record=records.find(r=>r.id===answer.preset);if(!record)throw new Error('Document template was not found');await newModel(record);
+  } catch(error){flash(error.message);}
+}
+
 async function drawingPresetAction(action) {
   try {
     if(E.docType!=='part')throw new Error('Drawing presets currently apply to part drawing documents');
@@ -12591,7 +12649,9 @@ function drawingHintText() {
 
 function drawingDocument() {
   var owner=E.docType==='assembly'&&E.assembly?E.assembly:E.def;
+  var isNew=!owner.drawing;
   var doc=E.docType==='assembly'?ensureAssemblyDrawingDoc(owner):ensureSheetDoc(owner);
+  if(isNew&&owner.documentProperties){var defaults=documentDefaults(owner);doc.units=defaults.lengthUnit;doc.draftingStandard=defaults.draftingStandard;doc.projection=defaults.projection;doc.precision=defaults.lengthPrecision;doc.anglePrecision=defaults.anglePrecision;doc.secondaryUnits=defaults.dualDimensions?(defaults.lengthUnit==='in'?'mm':'in'):null;}
   doc.assemblyLayout=E.docType==='assembly';
   return doc;
 }
@@ -17386,7 +17446,7 @@ function assemblyCollapsed(id, fallback) {
 
 function assemblyTreeNode(fields) {
   return {
-    id: fields.id, kind: fields.kind, targetId: fields.targetId || null, historyId: null, componentPath:fields.componentPath || null,
+    id: fields.id, kind: fields.kind, targetId: fields.targetId || null, dependencyId:fields.dependencyId || null, historyId: null, componentPath:fields.componentPath || null,
     index: Number.isInteger(fields.index) ? fields.index : null,
     name: fields.name || "", detail: fields.detail || "", icon: fields.icon || "",
     state: "", suppressed: !!fields.suppressed, rolled: false, error: fields.error || null,
@@ -17451,7 +17511,7 @@ function subassemblyTreeRows(top, components, parentId, path) {
     var childPath=path.concat(child.id);
     var nested = isSubassembly(child) ? subassemblyTreeRows(top, child.asm.components, parentId + "/" + child.id,childPath) : [];
     return assemblyTreeNode({
-      id: parentId + "/" + child.id, kind: "subcomponent", targetId: top.id,componentPath:childPath,
+      id: parentId + "/" + child.id, kind: "subcomponent", targetId: top.id,componentPath:childPath,dependencyId:occurrenceDependencyId(childPath),
       name: child.name || child.modelKey || t("component"),
       icon: isSubassembly(child) ? "ph-stack" : "components",
       suppressed: child.visible === false, collapsed: assemblyCollapsed(parentId + "/" + child.id, true),
@@ -17503,7 +17563,7 @@ function assemblyTreeModel() {
     if (isSubassembly(component)) children = subassemblyTreeRows(component, component.asm.components, "sub:" + component.id);
     children = planeTreeRows(component.id, "comp:" + component.id).concat(children);
     return assemblyTreeNode({
-      id: "comp:" + component.id, kind: "component", targetId: component.id, index: index,
+      id: "comp:" + component.id, kind: "component", targetId: component.id, dependencyId:occurrenceDependencyId([component.id]), index: index,
       name: label,
       detail: [component.grounded ? t("treeGrounded") : "",
         component.inContext ? "→ In context"+(component.contextIssue?" · "+component.contextIssue:"") : "",
@@ -17528,7 +17588,7 @@ function assemblyTreeModel() {
 
   var mateRows = legacy.map(function (mate, index) {
     return assemblyTreeNode({
-      id: "mate:" + mate.id, kind: "mate", targetId: mate.a, index: index,
+      id: "mate:" + mate.id, kind: "mate", targetId: mate.a, dependencyId:mateDependencyId([],'legacy',mate.id), index: index,
       name: t(mate.type === "alignX" ? "mateX" : mate.type === "alignY" ? "mateY" : mate.type === "alignZ" ? "mateZ" : "mateDistance"),
       detail: componentLabel(mate.a) + " ↔ " + componentLabel(mate.b),
       icon: "ph-link", can: { select: true, remove: true },
@@ -17536,7 +17596,7 @@ function assemblyTreeModel() {
   }).concat(topology.map(function (mate, index) {
     var issues = mateIssuesFor(mate.id);
     return assemblyTreeNode({
-      id: "tmate:" + mate.id, kind: "mate", targetId: mate.a && mate.a.componentId,
+      id: "tmate:" + mate.id, kind: "mate", targetId: mate.a && mate.a.componentId, dependencyId:mateDependencyId([],'topology',mate.id),
       index: legacy.length + index,
       name: topologyMateLabel(mate.type,mate),
       detail: componentLabel(mate.a && mate.a.componentId) + " ↔ " + componentLabel(mate.b && mate.b.componentId),
@@ -17717,7 +17777,7 @@ function assemblyTreeHandlers(model) {
       refreshParts();
     },
     onContextMenu: function (node, event, api) { showAssemblyTreeMenu(node, event, api, handlers); },
-    onHover: function () {},
+    onHover: function (targetId,node) { setDependencyHighlight(node?.dependencyId || null); },
     onRollbackRelease: function () {},
   };
   return handlers;
@@ -17978,6 +18038,8 @@ function refreshComponents() {
   var mount = el("div", "md-tree-mount");
   host.appendChild(mount);
   E.treeState = renderTreeModel(mount, model, treeDeps(), assemblyTreeHandlers(model), E.treeState || {});
+  applyDependencyTreeClasses();
+  updateDependencyPresentation();
   applyFeatureFilter(host);
 }
 
@@ -18535,7 +18597,7 @@ function dependencyRole(targetId) {
 function applyDependencyTreeClasses() {
   if(!root)return;
   root.querySelectorAll("[data-history-target]").forEach(function(row){
-    var role=dependencyRole(row.dataset.historyTarget);
+    var role=dependencyRole(row.dataset.dependencyTarget || (E.docType==='assembly'?null:row.dataset.historyTarget));
     row.classList.toggle("md-dependency-focus",role==="focus");
     row.classList.toggle("md-dependency-upstream",role==="upstream");
     row.classList.toggle("md-dependency-downstream",role==="downstream");
@@ -18544,11 +18606,26 @@ function applyDependencyTreeClasses() {
 }
 
 function setDependencyHighlight(targetId) {
-  var next=targetId ? dependencySets(targetId) : null;
+  var graph=E.docType==='assembly'?assemblyDependencyGraph(E.assembly):partDependencyGraph(E.def);
+  var next=targetId ? dependencyVisualization(graph,String(targetId),E.dependencyOptions || {}) : null;
   if((E.dependencyHighlight&&E.dependencyHighlight.focus||null)===(next&&next.focus||null))return;
   E.dependencyHighlight=next;
+  E.dependencyOwner=E.docType==='assembly'?E.assembly:E.def;
   applyDependencyTreeClasses();
+  updateDependencyPresentation();
   refreshViewportSelection();
+}
+
+function updateDependencyPresentation() {
+  if(!root)return;
+  E.dependencyOptions ||= {parents:true,children:true};
+  if(E.dependencyOwner!==(E.docType==='assembly'?E.assembly:E.def))E.dependencyHighlight=null;
+  if(E.dependencyHighlight){var graph=E.docType==='assembly'?assemblyDependencyGraph(E.assembly):partDependencyGraph(E.def);E.dependencyHighlight=dependencyVisualization(graph,E.dependencyHighlight.focus,E.dependencyOptions);applyDependencyTreeClasses();}
+  renderDependencyPresentation(root,E.treeModel,E.dependencyHighlight,E.dependencyOptions,function(key,value){
+    E.dependencyOptions[key]=value;
+    var target=E.dependencyHighlight?.focus;E.dependencyHighlight=null;
+    setDependencyHighlight(target || null);
+  });
 }
 
 /* ================= the FeatureManager =================
@@ -19101,6 +19178,7 @@ function renderFeatureManagerTree(host) {
   host.appendChild(mount);
   E.treeState = renderTreeModel(mount, model, treeDeps(), treeHandlers(model), E.treeState || {});
   applyDependencyTreeClasses();
+  updateDependencyPresentation();
 }
 
 /* A reopened model starts a fresh undo timeline, but its parametric feature
@@ -24693,7 +24771,9 @@ function initPreview() {
     }, function () {});
     return;
   }
+  var orbitProjection='perspective';try{if(localStorage.getItem('modelforge:orbitProjection')==='orthographic')orbitProjection='orthographic';}catch(error){}
   E.pv = createEditorView({
+    projection:orbitProjection,
     canvas: root.querySelector("#mdPrev"),
     fov: 45, near: 0.1, far: 5000,
     grid: true, gridOpacity: 0.26, shadows: true,
@@ -25777,6 +25857,7 @@ function refreshLib() {
   var host = root.querySelector("#mdLib");
   libThumbQueue = [];
   host.innerHTML = "";
+  host.appendChild(btn('New from '+(E.docType==='assembly'?'assembly':'part')+' template',function(){void documentPresetAction('new');},'md-wide md-dashed'));
   if (E.docType === "assembly") {
     host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newAssembly"), newModel, "md-wide md-dashed"));
     host.appendChild(btn(getLang()==="en" ? "Save combined model to room library" : "שמירת מודל משולב לספריית החדר", publishAssemblyModel, "md-wide"));
@@ -26817,6 +26898,7 @@ function syncMassPropertiesEvaluation() {
 async function showMassProperties() {
   if (E.docType !== "part" && E.docType !== "assembly") return;
   var documentAtStart=E.docType==="assembly"?E.assembly:E.def;
+  if(documentAtStart.documentProperties)massDisplayUnits=documentDefaults(documentAtStart).massUnit==='lb'?'ips':documentDefaults(documentAtStart).massUnit==='g'?'mmg':'si';
   var snapshot=E.docType==="assembly"?cloneData(E.assembly):cloneData({...E.def,parts:activeParts(E.def)});
   var body = openEvalCard("mass", t("cmdEvaluate"), t("massProps"));
   if (!body) return;

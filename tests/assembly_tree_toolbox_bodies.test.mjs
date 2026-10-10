@@ -5,13 +5,14 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {toolboxFastener} from '../js/cad_toolbox.js';
 import {assemblyToolboxDocument,hasSingleToolboxKernelRecipe} from '../js/cad_assembly_toolbox.js';
 import {nativeSolidSummary} from '../js/core/native_solid_summary.js';
+import {occurrenceDependencyId,mateDependencyId} from '../js/core/dependency_visualization.js';
 
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function treeRow(def) {
   const component={id:1,name:'Fastener',def};
   const context={E:{assembly:{components:[component]},componentSel:[]},
     componentDef:c=>c.def,isSubassembly:()=>false,activeParts:d=>d?.parts||[],hasSingleToolboxKernelRecipe,nativeSolidSummary,
-    assemblyTreeNode:x=>x,assemblyCollapsed:()=>false,planeTreeRows:()=>[],ASSEMBLY_ORIGIN_ID:0,
+    assemblyTreeNode:x=>x,assemblyCollapsed:()=>false,planeTreeRows:()=>[],ASSEMBLY_ORIGIN_ID:0,occurrenceDependencyId,mateDependencyId,
     t:x=>x,tf:x=>x,countLabel:(n)=>`${n} solids`,freedomLabel:()=>'',componentFreedom:()=>null};
   const build=Function(...Object.keys(context),'return ('+sourceFunctionText(source,'assemblyTreeModel')+')')(...Object.values(context));
   return build().nodes.find(n=>n.id==='section:components').children[0];

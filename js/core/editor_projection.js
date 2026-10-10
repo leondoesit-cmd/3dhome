@@ -6,6 +6,18 @@ export function normalToFrustum(distance, fov, aspect) {
   return { left: -halfWidth, right: halfWidth, top: halfHeight, bottom: -halfHeight };
 }
 
+// Orbit projection changes keep the same target-plane scale and camera pose.
+export function switchEditorCamera(current, perspective, orthographic, mode, distance) {
+  if (!['perspective','orthographic'].includes(mode)) throw new Error('Choose perspective or orthographic projection');
+  const next=mode==='orthographic'?orthographic:perspective;
+  next.aspect=current.aspect;next.fov=current.fov;next.zoom=current.zoom;
+  next.near=current.near;next.far=current.far;
+  next.position.copy(current.position);next.quaternion.copy(current.quaternion);next.up.copy(current.up);
+  if(next.isOrthographicCamera)Object.assign(next,normalToFrustum(distance,next.fov,next.aspect));
+  next.updateProjectionMatrix();next.updateMatrixWorld(true);
+  return next;
+}
+
 export function pointerCameraRay(camera, ndcX, ndcY, origin, direction) {
   if (camera.isOrthographicCamera) {
     origin.set(ndcX, ndcY, -1).unproject(camera);

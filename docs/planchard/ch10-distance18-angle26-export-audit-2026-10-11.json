@@ -1,0 +1,694 @@
+{
+  "files": [
+    {
+      "path": "artifacts/planchard/CH10-distance18-angle26-baseline-browser-2026-10-11.mforge",
+      "sha256": "4e660f2bcbfc468f3e8004515948334443e3d75265d470d14cef3c3e46360fa5",
+      "bytes": 1531317
+    },
+    {
+      "path": "artifacts/planchard/CH10-distance18-angle26-warm-browser-2026-10-11.mforge",
+      "sha256": "79ca9a4ca3bab22bfcfb766045e5ffd09adfb3bb7060d54a417d13aad10c0958",
+      "bytes": 1534082
+    }
+  ],
+  "assemblyKey": "asm_mv30elaf",
+  "mainModelUnchanged": true,
+  "mainModelKey": "cm_mv2xaz0p",
+  "otherPayloadUnchanged": [
+    {
+      "key": "drawings",
+      "equal": true
+    },
+    {
+      "key": "metadata",
+      "equal": true
+    },
+    {
+      "key": "attachments",
+      "equal": true
+    }
+  ],
+  "componentCount": 2,
+  "legacyMateCount": 0,
+  "nativeMateCount": 2,
+  "components": [
+    {
+      "id": 6477,
+      "grounded": true,
+      "modelKey": "cm_mv2x1hnz",
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      "definitionUnchanged": true,
+      "definitionSHA256": "23c89537052635f1bfba3649860cf77beba03e29fdb11ab1339c058628d854e9",
+      "partCount": 1,
+      "featureCount": 1,
+      "compiledOK": true,
+      "compileIssues": [],
+      "currentVerifiedTopologyCount": 18,
+      "parts": [
+        {
+          "id": 6424,
+          "kind": "ext",
+          "featureId": "feature_mv2x7ni4_1",
+          "nativeSolidCount": 1,
+          "positionsCount": 108,
+          "bounds": {
+            "x0": -2,
+            "x1": 2,
+            "y0": 0,
+            "y1": 1.5,
+            "z0": -0.5,
+            "z1": 0.5
+          },
+          "meshSHA256": "b359eb4e59b41156ad638e7c3d6573e0c2c53d7b64ef685f3912738ac6127a93"
+        }
+      ]
+    },
+    {
+      "id": 6478,
+      "grounded": false,
+      "modelKey": "cm_mv2x1hnz",
+      "transform": {
+        "x": 6,
+        "y": 1.8,
+        "z": 3,
+        "rx": 0,
+        "ry": 26,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0.224951054344,
+          "z": 0,
+          "w": 0.974370064785
+        }
+      },
+      "definitionUnchanged": true,
+      "definitionSHA256": "23c89537052635f1bfba3649860cf77beba03e29fdb11ab1339c058628d854e9",
+      "partCount": 1,
+      "featureCount": 1,
+      "compiledOK": true,
+      "compileIssues": [],
+      "currentVerifiedTopologyCount": 18,
+      "parts": [
+        {
+          "id": 6424,
+          "kind": "ext",
+          "featureId": "feature_mv2x7ni4_1",
+          "nativeSolidCount": 1,
+          "positionsCount": 108,
+          "bounds": {
+            "x0": -2,
+            "x1": 2,
+            "y0": 0,
+            "y1": 1.5,
+            "z0": -0.5,
+            "z1": 0.5
+          },
+          "meshSHA256": "b359eb4e59b41156ad638e7c3d6573e0c2c53d7b64ef685f3912738ac6127a93"
+        }
+      ]
+    }
+  ],
+  "mateReferences": [
+    {
+      "id": 6479,
+      "type": "distance",
+      "aligned": true,
+      "value": 1.8,
+      "a": {
+        "componentId": 6477,
+        "persistentId": "feature_mv2x7ni4_1:face:side:6414"
+      },
+      "b": {
+        "componentId": 6478,
+        "persistentId": "feature_mv2x7ni4_1:face:side:6414"
+      }
+    },
+    {
+      "id": 6480,
+      "type": "angle",
+      "aligned": false,
+      "value": 26,
+      "a": {
+        "componentId": 6477,
+        "persistentId": "feature_mv2x7ni4_1:face:side:6413"
+      },
+      "b": {
+        "componentId": 6478,
+        "persistentId": "feature_mv2x7ni4_1:face:side:6413"
+      }
+    }
+  ],
+  "resolvedFrames": [
+    {
+      "id": 6479,
+      "type": "distance",
+      "value": 1.8,
+      "a": {
+        "surface": "plane",
+        "origin": {
+          "x": -4.85722573273506e-17,
+          "y": 1.5,
+          "z": 2.7755575615628914e-17
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 4
+      },
+      "b": {
+        "surface": "plane",
+        "origin": {
+          "x": 6,
+          "y": 3.3,
+          "z": 3
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "measure": 4
+      }
+    },
+    {
+      "id": 6480,
+      "type": "angle",
+      "value": 26,
+      "a": {
+        "surface": "plane",
+        "origin": {
+          "x": 2,
+          "y": 0.75,
+          "z": 6.938893903907228e-18
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "measure": 1.5
+      },
+      "b": {
+        "surface": "plane",
+        "origin": {
+          "x": 7.79758809259801,
+          "y": 2.55,
+          "z": 2.123257706421182
+        },
+        "normal": {
+          "x": 0.8987940462990053,
+          "y": 0,
+          "z": -0.4383711467894089
+        },
+        "measure": 1.5
+      }
+    }
+  ],
+  "resolverIssues": [],
+  "resolverRebindings": [],
+  "distanceCm": 1.7999999999999998,
+  "distanceMm": 18,
+  "normalAngleDegrees": 26.000000000021135,
+  "solver": {
+    "ok": true,
+    "degreesOfFreedom": 2,
+    "issues": [],
+    "unsatisfied": [],
+    "rebindings": []
+  },
+  "solveTransforms": [
+    {
+      "id": 6477,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    },
+    {
+      "id": 6478,
+      "transform": {
+        "x": 6,
+        "y": 1.8,
+        "z": 3,
+        "rx": 0,
+        "ry": 26,
+        "rz": 0,
+        "q": {
+          "x": 0,
+          "y": 0.224951054344,
+          "z": 0,
+          "w": 0.974370064785
+        }
+      }
+    }
+  ],
+  "scope": "Read-only exported-state audit; cloned solver replay, no current native regeneration or browser pixel claim.",
+  "onlyAssemblyTransformsAndNativeMatesChanged": true,
+  "cold": {
+    "path": "artifacts/planchard/CH10-distance18-angle26-cold-browser-2026-10-11.mforge",
+    "bytes": 62962,
+    "sha256": "32c5cb150a173cdff28f32f1975816135c1e5184a1cda7a404c44863c37d6cf6",
+    "assemblyExceptTransformsEqual": true,
+    "componentDefinitionsEqual": true,
+    "nativeMatesEqual": true,
+    "componentTransforms": [
+      {
+        "id": 6477,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "rx": 0,
+          "ry": 0,
+          "rz": 0,
+          "q": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          }
+        }
+      },
+      {
+        "id": 6478,
+        "transform": {
+          "x": 6,
+          "y": 1.8,
+          "z": 3,
+          "rx": 0,
+          "ry": 26.00000000002113,
+          "rz": 0,
+          "q": {
+            "x": 0,
+            "y": 0.2249510543440447,
+            "z": 0,
+            "w": 0.9743700647851937
+          }
+        }
+      }
+    ],
+    "mainModel": {
+      "key": "cm_mv30rz3x",
+      "name": "New model",
+      "partCount": 0,
+      "featureCount": 0,
+      "sketchCount": 1
+    },
+    "metadataUnits": {
+      "warm": "mm",
+      "cold": "cm"
+    },
+    "solver": {
+      "ok": true,
+      "degreesOfFreedom": 2,
+      "issues": [],
+      "unsatisfied": [],
+      "rebindings": []
+    },
+    "differences": [
+      {
+        "path": ".createdAt",
+        "warm": 1791674462127,
+        "cold": 1791674593258
+      },
+      {
+        "path": ".mainModel.id",
+        "warm": "cm_mv2xaz0p",
+        "cold": "cm_mv30rz3x"
+      },
+      {
+        "path": ".mainModel.key",
+        "warm": "cm_mv2xaz0p",
+        "cold": "cm_mv30rz3x"
+      },
+      {
+        "path": ".mainModel.name",
+        "warm": "Planchard Ch2 feature pattern and Ch4 rollback - browser 2026-10-11",
+        "cold": "New model"
+      },
+      {
+        "path": ".mainModel.sketches[0].id",
+        "warm": "sk_1zmp0",
+        "cold": "sk_0z46o"
+      },
+      {
+        "path": ".mainModel.sketches[0].name",
+        "warm": "Top Plane sketch",
+        "cold": "X·Z sketch"
+      },
+      {
+        "path": ".mainModel.sketches[0].points[0]",
+        "warm": {
+          "sha256": "687e01e6ba7ae1438e3b0fe58dbe49d652a49faa2fe07685dc1db5b6966f2cda",
+          "keys": [
+            "id",
+            "x",
+            "y"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.sketches[0].entities[0]",
+        "warm": {
+          "sha256": "a48b811ef2e2181712ba44fc283ea1a7dd0bab798354aa1dc9a86ec89a962744",
+          "keys": [
+            "id",
+            "type",
+            "name",
+            "c",
+            "r",
+            "construction"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.sketches[0].constraints[0]",
+        "warm": {
+          "sha256": "b2455f58e513cf9a3d3ca99b0d7f57fe4bc61afdc453634ed2ce8b60efa78625",
+          "keys": [
+            "id",
+            "type",
+            "entity",
+            "value",
+            "driven",
+            "exprError"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.sketches[0].constraints[1]",
+        "warm": {
+          "sha256": "8786b5ceeda869d6ba3b795930d13f20831e709c4bfe2f17943d7b7353f573b3",
+          "keys": [
+            "id",
+            "type",
+            "point",
+            "x",
+            "y",
+            "exprError"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.sketches[1]",
+        "warm": {
+          "sha256": "c6aa1d26281b01c82bb73791ce1cdc7f4955c5e3af8e3d3411f768a4689413c6",
+          "keys": [
+            "id",
+            "name",
+            "plane",
+            "offset",
+            "referenceId",
+            "points",
+            "entities",
+            "constraints",
+            "diagnostics",
+            "status"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.features[0]",
+        "warm": {
+          "sha256": "ed3abb818ba889196739b9d433a2cfd079de8cb9ea173cf9696e1a5359da2789",
+          "keys": [
+            "id",
+            "type",
+            "name",
+            "params",
+            "references",
+            "inputs",
+            "suppressed",
+            "state",
+            "diagnostics"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.features[1]",
+        "warm": {
+          "sha256": "fc67eb18550a5f74ba2e26acad694072ce45735216fa2fdb329a571e23151d19",
+          "keys": [
+            "id",
+            "type",
+            "name",
+            "params",
+            "references",
+            "inputs",
+            "suppressed",
+            "state",
+            "diagnostics"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.features[2]",
+        "warm": {
+          "sha256": "dd2636db1185fe6a8e6f362f81c9b79bf80fd9debb43c7611619651ddb93fcc6",
+          "keys": [
+            "id",
+            "type",
+            "name",
+            "params",
+            "references",
+            "inputs",
+            "suppressed",
+            "state",
+            "diagnostics"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.history[0]",
+        "warm": {
+          "sha256": "3303e92e8e28a92e117a6de885765efd1f9c63a3301f7156214fe4afc442d1f0",
+          "keys": [
+            "id",
+            "kind",
+            "targetId",
+            "name",
+            "suppressed",
+            "status"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.history[1]",
+        "warm": {
+          "sha256": "15e62497f1d9bdeb52473d07790aac81f6ab8363c4a35d072f5c126df10e86d4",
+          "keys": [
+            "id",
+            "kind",
+            "targetId",
+            "name",
+            "suppressed",
+            "status"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.history[2]",
+        "warm": {
+          "sha256": "a45ac7ad5de2000043f897d16f716c243bcb9f438ae643b95e64c64ce7a13cc3",
+          "keys": [
+            "id",
+            "kind",
+            "targetId",
+            "name",
+            "suppressed",
+            "status"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.history[3]",
+        "warm": {
+          "sha256": "92cb03d8d5abe18cfd2d3c5c33a71cf1b9d697149753c32ef9f8b3c2a0dafc9e",
+          "keys": [
+            "id",
+            "kind",
+            "targetId",
+            "name",
+            "suppressed",
+            "status"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.history[4]",
+        "warm": {
+          "sha256": "b0eb8aaf1c1c49fd60535fb26cdc70eea00a36f4d41a92c58aa1baa5ec1d8028",
+          "keys": [
+            "id",
+            "kind",
+            "targetId",
+            "name",
+            "suppressed",
+            "status"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.parts[0]",
+        "warm": {
+          "sha256": "5dc7b81798a8567544f2c8af2e39ca6eb58f6524eca369fc5f4f28be99b6bb81",
+          "keys": [
+            "id",
+            "kind",
+            "axis",
+            "from",
+            "to",
+            "pts",
+            "holes",
+            "profileEntityIds",
+            "sketchId",
+            "sketchDriven",
+            "supportBaseOffset",
+            "supportDepth",
+            "direction",
+            "symmetric",
+            "draftAngle",
+            "draftOutward",
+            "featureId",
+            "color",
+            "metal",
+            "rough",
+            "name",
+            "exactError",
+            "exactPending",
+            "exactBuildToken",
+            "merges3d",
+            "meshData",
+            "bounds"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.revision",
+        "warm": 8,
+        "cold": 1
+      },
+      {
+        "path": ".mainModel.lastRebuild.signature",
+        "warm": "{\"definitionId\":\"cm_mv2xaz0p\",\"features\":[{\"id\":\"feature_mv2xb8os_1\",\"inputs\":[],\"name\":\"Extrude / Boss 1\",\"params\":{\"axis\":\"y\",\"depth\":0.8,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"blind\",\"from\":0,\"holeProfileEntityIds\":[],\"holes\":[],\"mergeResult\":true,\"offset\":0,\"operation\":\"add\",\"profileEntityIds\":[6426],\"sketchId\":\"sk_1zmp0\",\"symmetric\":false,\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":0.8},\"references\":{\"features\":[],\"profileEntityIds\":[6426],\"references\":[],\"sketches\":[\"sk_1zmp0\"],\"topology\":[]},\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature_mv2xd0p0_2\",\"inputs\":[\"feature_mv2xb8os_1\"],\"name\":\"Extrude / Boss 2\",\"params\":{\"axis\":\"y\",\"depth\":0.8,\"direction\":\"forward\",\"draftAngle\":0,\"draftOutward\":false,\"endCondition\":\"blind\",\"from\":0,\"holeProfileEntityIds\":[],\"holes\":[],\"mergeResult\":true,\"offset\":0,\"operation\":\"add\",\"profileEntityIds\":[6435,6436,6437,6438],\"sketchId\":\"sk_2gfqx\",\"symmetric\":false,\"thickness\":0.1,\"thinFeature\":false,\"thinMode\":\"mid-plane\",\"to\":0.8},\"references\":{\"features\":[\"feature_mv2xb8os_1\"],\"profileEntityIds\":[6435,6436,6437,6438],\"references\":[],\"sketches\":[\"sk_2gfqx\"],\"topology\":[]},\"suppressed\":false,\"type\":\"extrude\"},{\"id\":\"feature_mv2xdhsp_3\",\"inputs\":[\"feature_mv2xd0p0_2\"],\"name\":\"Pattern 1\",\"params\":{\"angle\":360,\"axis\":\"y\",\"count\":32,\"countX\":2,\"countY\":2,\"countZ\":2,\"curveAlign\":\"tangent\",\"curveCount\":4,\"curveSpacing\":0,\"curveSpacingMode\":\"fit\",\"direction\":{\"x\":1,\"y\":0,\"z\":0},\"directionAxis\":\"x\",\"equalSpacing\":true,\"mergeResult\":true,\"mode\":\"circular\",\"radialDistance\":0,\"scope\":\"feature\",\"seedFeatureId\":\"feature_mv2xd0p0_2\",\"skipInstances\":\"\",\"spacing\":10,\"spacingIncrementX\":0,\"spacingIncrementY\":0,\"spacingIncrementZ\":0,\"spacingX\":10,\"spacingY\":10,\"spacingZ\":10},\"references\":{\"features\":[\"feature_mv2xd0p0_2\"],\"references\":[],\"sketches\":[],\"topology\":[]},\"suppressed\":false,\"type\":\"pattern\"}],\"history\":[{\"id\":\"history:sketch:sk_1zmp0\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_1zmp0\"},{\"id\":\"history:feature:feature_mv2xb8os_1\",\"kind\":\"feature\",\"suppressed\":false,\"targetId\":\"feature_mv2xb8os_1\"},{\"id\":\"history:sketch:sk_2gfqx\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_2gfqx\"},{\"id\":\"history:feature:feature_mv2xd0p0_2\",\"kind\":\"feature\",\"suppressed\":false,\"targetId\":\"feature_mv2xd0p0_2\"},{\"id\":\"history:feature:feature_mv2xdhsp_3\",\"kind\":\"feature\",\"suppressed\":false,\"targetId\":\"feature_mv2xdhsp_3\"}],\"overrides\":{},\"revision\":8,\"sketches\":[{\"constraints\":[{\"driven\":false,\"entity\":6426,\"exprError\":null,\"id\":6427,\"type\":\"diameter\",\"value\":6},{\"exprError\":null,\"id\":6428,\"point\":6425,\"type\":\"fixed\",\"x\":0,\"y\":0}],\"entities\":[{\"c\":6425,\"construction\":false,\"id\":6426,\"name\":\"Circle\",\"r\":3,\"type\":\"circle\"}],\"id\":\"sk_1zmp0\",\"name\":\"Top Plane sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[{\"id\":6425,\"x\":0,\"y\":0}],\"referenceId\":\"plane:top\"},{\"constraints\":[{\"entity\":6435,\"exprError\":null,\"id\":6440,\"type\":\"horizontal\"},{\"entity\":6436,\"exprError\":null,\"id\":6441,\"type\":\"vertical\"},{\"entity\":6437,\"exprError\":null,\"id\":6442,\"type\":\"horizontal\"},{\"entity\":6438,\"exprError\":null,\"id\":6443,\"type\":\"vertical\"},{\"exprError\":null,\"id\":6444,\"point\":6434,\"type\":\"fixed\",\"x\":3.1,\"y\":0},{\"entity\":6439,\"exprError\":null,\"id\":6445,\"point\":6434,\"type\":\"midpoint\"},{\"driven\":false,\"entity\":6435,\"exprError\":null,\"id\":6446,\"type\":\"distance\",\"value\":0.6000000000000001},{\"driven\":false,\"entity\":6436,\"exprError\":null,\"id\":6447,\"type\":\"distance\",\"value\":0.2}],\"entities\":[{\"a\":6430,\"b\":6431,\"construction\":false,\"id\":6435,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6431,\"b\":6432,\"construction\":false,\"id\":6436,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6432,\"b\":6433,\"construction\":false,\"id\":6437,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6433,\"b\":6430,\"construction\":false,\"id\":6438,\"name\":\"Line\",\"type\":\"line\"},{\"a\":6430,\"b\":6432,\"construction\":true,\"id\":6439,\"name\":\"Center rectangle diagonal\",\"type\":\"line\"}],\"id\":\"sk_2gfqx\",\"name\":\"Top Plane sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[{\"id\":6430,\"x\":2.8,\"y\":-0.1},{\"id\":6431,\"x\":3.4000000000000004,\"y\":-0.1},{\"id\":6432,\"x\":3.4000000000000004,\"y\":0.1},{\"id\":6433,\"x\":2.8,\"y\":0.1},{\"id\":6434,\"x\":3.1,\"y\":0}],\"referenceId\":\"plane:top\"}]}",
+        "cold": "{\"definitionId\":\"cm_mv30rz3x\",\"features\":[],\"history\":[{\"id\":\"history:sketch:sk_0z46o\",\"kind\":\"sketch\",\"suppressed\":false,\"targetId\":\"sk_0z46o\"}],\"overrides\":{},\"revision\":1,\"sketches\":[{\"constraints\":[],\"entities\":[],\"id\":\"sk_0z46o\",\"name\":\"X·Z sketch\",\"offset\":0,\"plane\":\"top\",\"points\":[],\"referenceId\":\"plane:top\"}]}"
+      },
+      {
+        "path": ".mainModel.lastRebuild.rebuiltAt",
+        "warm": 1791673510559,
+        "cold": 1791674568249
+      },
+      {
+        "path": ".mainModel.activeSketch",
+        "warm": "sk_2gfqx",
+        "cold": "sk_0z46o"
+      },
+      {
+        "path": ".mainModel.definitionId",
+        "warm": "cm_mv2xaz0p",
+        "cold": "cm_mv30rz3x"
+      },
+      {
+        "path": ".mainModel.context.units.length",
+        "warm": "mm",
+        "cold": "cm"
+      },
+      {
+        "path": ".mainModel.customProperties",
+        "warm": {
+          "sha256": "ba75f12fab3cc43726fe21dd2fe1d6b000035c09b2c363dc4281bd6549f0adcb",
+          "keys": [
+            "Description"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.exactTopologyCache",
+        "warm": {
+          "sha256": "e36a684892fb6c5047fdb1c3cf80ee06e724f5a369a218adae51de73d7295418",
+          "keys": [
+            "feature_mv2xb8os_1",
+            "feature_mv2xdhsp_3",
+            "feature_mv2xd0p0_2:tool",
+            "feature_mv2xd0p0_2",
+            "feature_mv2xdhsp_3:delta",
+            "feature_mv2xdhsp_3:instances"
+          ]
+        }
+      },
+      {
+        "path": ".mainModel.rollbackIndex",
+        "warm": null
+      },
+      {
+        "path": ".mainModel.lastStandardsAudit",
+        "warm": {
+          "sha256": "fd396d8a6da2dea1eadf939fce7ccfb4a04dc838e3ce4b3267ebcf17bef1331b",
+          "keys": [
+            "at",
+            "ok",
+            "checked",
+            "blocking"
+          ]
+        }
+      },
+      {
+        "path": ".assemblies[0].components[1].transform.ry",
+        "warm": 26,
+        "cold": 26.00000000002113
+      },
+      {
+        "path": ".assemblies[0].components[1].transform.q.y",
+        "warm": 0.224951054344,
+        "cold": 0.2249510543440447
+      },
+      {
+        "path": ".assemblies[0].components[1].transform.q.w",
+        "warm": 0.974370064785,
+        "cold": 0.9743700647851937
+      },
+      {
+        "path": ".metadata.units",
+        "warm": "mm",
+        "cold": "cm"
+      }
+    ]
+  },
+  "projectionRestored": {
+    "path": "artifacts/planchard/CH10-projection-restored-browser-2026-10-11.mforge",
+    "bytes": 62962,
+    "sha256": "ff84d2e82f171188730f43cfede223dddb219e984b090059f9edbe7568556f58",
+    "wholeBundleExceptCreatedAtEqual": true,
+    "assembliesEqual": true,
+    "mainModelEqual": true,
+    "differentTopLevelKeys": [
+      "createdAt"
+    ],
+    "scope": "Stored bundle source invariance only; actual perspective/orthographic pixel proof remains parent browser evidence."
+  }
+}

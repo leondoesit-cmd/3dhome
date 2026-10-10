@@ -26,6 +26,7 @@ function buildRow(node, depth, deps, handlers, state) {
   const row = deps.el("div", rowClasses(node));
   row.dataset.nodeId = node.id;
   if (node.targetId) row.dataset.historyTarget = node.targetId;
+  if (node.dependencyId) row.dataset.dependencyTarget = node.dependencyId;
   row.setAttribute("role", "treeitem");
   row.setAttribute("aria-level", String(depth + 1));
   row.dataset.depth = String(depth);
@@ -154,9 +155,9 @@ function wireRow(row, node, deps, handlers, state) {
   // section and therefore silently did nothing.
   row.addEventListener("focusin", () => { state.activeId = node.id; });
   if (handlers.onHover) {
-    row.addEventListener("mouseenter", () => handlers.onHover(node.targetId));
+    row.addEventListener("mouseenter", () => handlers.onHover(node.targetId,node));
     row.addEventListener("mouseleave", () => handlers.onHover(null));
-    row.addEventListener("focusin", () => handlers.onHover(node.targetId));
+    row.addEventListener("focusin", () => handlers.onHover(node.targetId,node));
     row.addEventListener("focusout", (event) => { if (!row.contains(event.relatedTarget)) handlers.onHover(null); });
   }
   if (node.can.reorder) {

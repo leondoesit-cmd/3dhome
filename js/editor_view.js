@@ -24,7 +24,7 @@ import { clearGroup } from "./primitives.js";
 import { guardRenderReentry } from "./core/render_guard.js";
 import { syncEditorClipping } from "./editor_renderer_clipping.js";
 import {planeBoundsFit} from './core/sketch_view_fit.js';
-import {normalToFrustum,orbitTargetFromFrame,frameTargetFromOrbit} from './core/editor_projection.js';
+import {normalToFrustum,orbitTargetFromFrame,frameTargetFromOrbit,switchEditorCamera} from './core/editor_projection.js';
 
 function clamp(v, a, b) {
   return v < a ? a : v > b ? b : v;
@@ -131,6 +131,7 @@ export function createEditorView(opts) {
     // Fitting and pan speed retain the equivalent target-plane field of view.
     normalCam.fov = cam.fov;
     normalCam.aspect = cam.aspect;
+    var orbitProjection=opts.projection==='orthographic'?'orthographic':'perspective';
     var ambient = new THREE.AmbientLight(0xffffff, LUX * (opts.ambient || 0.6));
     sc.add(ambient);
     var key = new THREE.DirectionalLight(0xfff2dd, LUX * (opts.keyLight || 0.95));
@@ -452,11 +453,11 @@ export function createEditorView(opts) {
         ty + Math.sin(lightEl) * lightDistance,
         tz + Math.cos(lightAz) * lightHorizontal
       );
-      if (view.fixedFrame) {
-        if (cam.isOrthographicCamera) {
+      if (cam.isOrthographicCamera) {
           Object.assign(cam, normalToFrustum(d, cam.fov, cam.aspect));
           cam.updateProjectionMatrix();
-        }
+      }
+      if (view.fixedFrame) {
         var frame = view.fixedFrame,
           origin = {
             x: frame.origin.x + view.target.x,
@@ -550,13 +551,7 @@ export function createEditorView(opts) {
         view.target.set(target.x, target.y, target.z);
       }
       view.fixedFrame = null;
-      if (cam !== perspectiveCam) {
-        perspectiveCam.aspect = cam.aspect;
-        perspectiveCam.zoom = cam.zoom;
-        perspectiveCam.updateProjectionMatrix();
-        cam = perspectiveCam;
-        view.cam = cam;
-      }
+      cam=switchEditorCamera(cam,perspectiveCam,normalCam,orbitProjection,view.dist*(view.big?bigZoom():1));view.cam=cam;
       cam.up.set(0, 1, 0);
       if (grid) {
         grid.quaternion.identity();
@@ -564,6 +559,15 @@ export function createEditorView(opts) {
       }
       if (render !== false) view.render();
     };
+    view.getProjection = function () { return orbitProjection; };
+    view.setProjection = function (mode) {
+      if (!['perspective','orthographic'].includes(mode)) return false;
+      orbitProjection=mode;
+      // Normal To remains orthographic without discarding the orbit preference.
+      cam=switchEditorCamera(cam,perspectiveCam,normalCam,view.fixedFrame&&opts.normalToOrthographic?'orthographic':mode,view.dist*(view.big?bigZoom():1));
+      view.cam=cam;view.render();return true;
+    };
+    if(orbitProjection==='orthographic'){cam=switchEditorCamera(cam,perspectiveCam,normalCam,orbitProjection,view.dist*(view.big?bigZoom():1));view.cam=cam;}
     // Keep every zoom entry point on the same distance limits. Editors use
     // this for their toolbar and for the sketch canvas layered over the model;
     // the preview canvas wheel uses it too.
@@ -581,6 +585,7 @@ export function createEditorView(opts) {
       var d = Number(distance);
       if (!(d > 0)) d = view.dist * (view.big ? bigZoom() : 1);
       var height = Math.max(1, cv.clientHeight || 1);
+      if(cam.isOrthographicCamera)return (cam.top-cam.bottom)/(cam.zoom*height);
       return 2 * d * Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.5)) / height;
     };
     view.worldPerPixel = function () {
