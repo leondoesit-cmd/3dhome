@@ -1,0 +1,29 @@
+{
+  "warmChecks": {
+    "twoNativeNotes": true,
+    "pureWorksheetNoCad": true,
+    "noViewsDimensionsPrimitivesImages": true,
+    "sourceAndInferenceExplicit": true,
+    "elevenLabelledClassificationRows": true,
+    "nativeDefaultFontAndLiteralSvgRows": true,
+    "a3MillimetreThirdAngle": true,
+    "notesWithinClearFrame": true
+  },
+  "warmAccepted": true,
+  "coldChecks": {
+    "wholeDrawingExact": true,
+    "sourcePropertiesAndIdentityExact": true,
+    "wholeAuthoredCadExact": true,
+    "svgByteExact": true
+  },
+  "coldAccepted": true,
+  "savedKey": "cm_mv2t21xw",
+  "savedName": "Planchard Ch1 IN-CHAPTER Plane 10 table - browser 2026-10-10",
+  "nativeNoteLineRows": [
+    4,
+    15
+  ],
+  "svgSha256": "d3efd44bbd517a7be99d71261452b0e89a267e51fd3f00329489bc4deeb03332",
+  "orientationInferredNotVisibilityCertified": true,
+  "qualification": "SourcePNG75 independently inspected. Eleven Top/Front/Right T/F/E orientation rows supported by figure; occlusion separate, not publisher key. Default2.8mm native notes; no CAD/source diagram reproduction."
+}
