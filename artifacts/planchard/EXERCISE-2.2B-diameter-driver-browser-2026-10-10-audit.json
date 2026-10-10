@@ -1,0 +1,225 @@
+{
+  "scope": "Read-only audit of actual protected Chrome-native model/STEP. Source PDF124 printed2-38 requests approximate physical sizing; chosen dimensions are illustrative, not publisher exact or mass fitted. No material/source mass target.",
+  "checks": {
+    "threeFeatures": true,
+    "threeFullyDefinedSketches": true,
+    "base65x40": true,
+    "baseHeight10": true,
+    "main50x40": true,
+    "mainStartsY10Height50": true,
+    "boreCenterX25Y35": true,
+    "boreThroughZ": true,
+    "inputsUnmodified": true,
+    "oneConnectedValidNative": true,
+    "bounds65x60x40": true,
+    "analyticVolume": true,
+    "oneConnectedValidSTEP": true,
+    "stepDualZero": true,
+    "frontBoreExpectedDiameter": true
+  },
+  "key": "cm_mv2b0z2h_6278",
+  "name": "Planchard 2.2B - bored stepped block - browser 2026-10-10",
+  "analyticMm3": 95809.29459900208,
+  "nativeVolumeMm3": 95809.29459900229,
+  "analyticDeltaMm3": 2.0372681319713593e-10,
+  "mass": {
+    "volume": 95.80929459900229,
+    "centerOfMass": {
+      "x": 2.703529313952417,
+      "y": 2.6858827441903297,
+      "z": 2
+    },
+    "inertia": [
+      [
+        490.61128774737426,
+        42.62471351171121,
+        0
+      ],
+      [
+        42.62471351171121,
+        420.14361207845695,
+        0
+      ],
+      [
+        0,
+        0,
+        655.2634475618252
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 6.5,
+        "y": 6,
+        "z": 4
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 95.80929459900229,
+    "maxToleranceCm": 1.000000004440892e-07
+  },
+  "step": {
+    "validation": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 95.80929459900145,
+      "maxToleranceCm": 1e-07
+    },
+    "mass": {
+      "volume": 95.80929459900145,
+      "centerOfMass": {
+        "x": 2.7035293139524104,
+        "y": 2.6858827441903257,
+        "z": 2.0000000000000004
+      },
+      "inertia": [
+        [
+          490.61128774737244,
+          42.62471351171189,
+          0
+        ],
+        [
+          42.62471351171189,
+          420.14361207845445,
+          1.1368683772161603e-13
+        ],
+        [
+          0,
+          1.1368683772161603e-13,
+          655.2634475618233
+        ]
+      ],
+      "solidCount": 1,
+      "bounds": {
+        "min": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "max": {
+          "x": 6.5,
+          "y": 6,
+          "z": 4
+        }
+      }
+    },
+    "nativeOutsideStepCm3": 0,
+    "stepOutsideNativeCm3": 0,
+    "bytes": 32643,
+    "sha256": "e2c0d45bc83f477698ec853388884bddcd41ffc095d919f4bae746d1cda62c19"
+  },
+  "input": {
+    "path": "artifacts/planchard/EXERCISE-2.2B-diameter-driver-browser-2026-10-10.mforge",
+    "bytes": 152897,
+    "sha256": "327257d69d24c472d054d382535853e6944831b986901279393992c54c8c2797"
+  },
+  "history": [
+    {
+      "id": "history:sketch:sk_127nb",
+      "kind": "sketch",
+      "targetId": "sk_127nb",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv2ahths_1",
+      "kind": "feature",
+      "targetId": "feature_mv2ahths_1",
+      "name": "Extrude / Boss 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_292in",
+      "kind": "sketch",
+      "targetId": "sk_292in",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv2aj0vx_2",
+      "kind": "feature",
+      "targetId": "feature_mv2aj0vx_2",
+      "name": "Extrude / Boss 2",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_32q0d",
+      "kind": "sketch",
+      "targetId": "sk_32q0d",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "pending"
+    },
+    {
+      "id": "history:sketch:sk_1229q",
+      "kind": "sketch",
+      "targetId": "sk_1229q",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv2b36i8_1",
+      "kind": "feature",
+      "targetId": "feature_mv2b36i8_1",
+      "name": "Extrude Cut 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "sourceSketches": [
+    {
+      "id": "sk_127nb",
+      "plane": "top",
+      "offset": 0,
+      "referenceId": "plane:top",
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_292in",
+      "plane": "top",
+      "offset": 1,
+      "referenceId": "plane:top",
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_1229q",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane:front",
+      "status": "fully-defined"
+    }
+  ],
+  "geometryAccepted": true,
+  "driverComparison": {
+    "checks": {
+      "allOtherAuthoringExact": true,
+      "wholeDrawingExact": true,
+      "sameSevenHistoryIncludingKnownOrphan": true,
+      "noRollback": true,
+      "savedCompatibilityProxyD31": true,
+      "expectedDeltaMinus610Pi": true
+    },
+    "pass": true,
+    "deltaMm3": -1916.371518689586,
+    "expectedDeltaMm3": -1916.371518689774,
+    "changes": [
+      "third circle radius1.5\u21921.55cm",
+      "diameterconstraint3\u21923.1cm"
+    ]
+  },
+  "workflowAccepted": false,
+  "qualification": "Actual driver native/STEP accepted independently. Same known orphan deleted notchsketch history remains; generic cleanup and actual post-fix cold pending. Earlier no-change Tab export is not driver evidence."
+}

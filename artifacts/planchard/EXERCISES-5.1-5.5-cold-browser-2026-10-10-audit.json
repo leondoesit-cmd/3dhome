@@ -1,0 +1,18 @@
+{
+  "coldAccepted": true,
+  "checks": {
+    "allOtherAuthoringExact": true,
+    "wholeDrawingExact": true,
+    "SVGByteExact": true,
+    "onlyEmptySketchHistoryNormalization": true,
+    "onlyStandardOriginRefsAdded": true,
+    "actualColdPNGReadableInspected": true
+  },
+  "sourceQualification": "Reasoned reconstruction plane choices under explicit convention; no official key/native publisher tree claim.",
+  "normalization": "Empty defaultsketch history and sixstandardrefs materialize; only lastRebuild otherwise changes.",
+  "input": {
+    "bytes": 6286,
+    "sha256": "8ce45cd5555a7f3c0807520df8a14b06488eb59bd36272d7fdc8fddc794912c9"
+  },
+  "svgBytes": 11249
+}
