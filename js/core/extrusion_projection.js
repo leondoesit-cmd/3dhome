@@ -89,10 +89,16 @@ export function synchronizeExtrusionProjections(document, compiled, run) {
     let changed=false;
     for (const record of [...(part.cuts3d || []),...(part.merges3d || [])]) {
       const feature=(compiled || []).find(f=>f.id===record.featureId+':tool'&&f.type==='extrude');
-      if (!feature || !run.results?.has(feature.id) || !feature.params?.support) continue;
+      // Principal-plane cutters have no face support, but their resolved
+      // profiles change with driving dimensions just like supported cutters.
+      if (!feature || !run.results?.has(feature.id)) continue;
       const params=run.resolvedExtrusions?.get(feature.id) || alignExtrusionToSupport(feature.params,run.topologyBindings || []);
       const next={axis:params.axis,frame:params.frame};
-      if(run.resolvedExtrusions?.has(feature.id)){next.loop=params.points;if(params.segments)next.segments=params.segments;if(params.holes)next.holes=params.holes;}
+      if(run.resolvedExtrusions?.has(feature.id)){
+        next.loop=params.points;
+        next.segments=params.segments;
+        next.holes=params.holes;
+      }
       // Through-all recipes already span the body. Move their interval with
       // the frame so that the same world-space extent remains covered.
       if (params.endCondition === "through-all" && record.frame && params.frame) {
@@ -101,7 +107,9 @@ export function synchronizeExtrusionProjections(document, compiled, run) {
         next.from=record.from+shift;next.to=record.to+shift;
       } else {next.from=params.from;next.to=params.to;}
       for(const [key,value] of Object.entries(next)) if(JSON.stringify(record[key])!==JSON.stringify(value)) {
-        record[key]=structuredClone(value);changed=true;
+        if(value===undefined)delete record[key];
+        else record[key]=structuredClone(value);
+        changed=true;
       }
     }
     if(changed){delete part.meshData;dirty.push(part.id);}

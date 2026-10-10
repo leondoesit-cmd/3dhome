@@ -1,0 +1,29 @@
+{
+  "scope": "Read-only regenerate/synchronize on an in-memory clone of actual settled browser export; source untouched. Actual Chrome reacceptance pending.",
+  "pass": true,
+  "checks": {
+    "nativeRebuildOK": true,
+    "dirtyBodyReturned": true,
+    "analyticRadiusCurrent": true,
+    "sampledRadiusCurrent": true,
+    "sourceUnchanged": true,
+    "idempotent": true
+  },
+  "beforeRoofRadius": 0.6000000000000001,
+  "afterRoofRadius": 0.649999999999995,
+  "sampledRadiusRange": [
+    0.649999999999995,
+    0.6499999999999952
+  ],
+  "changed": [
+    6198
+  ],
+  "notchBeforeRange": [
+    -2,
+    6
+  ],
+  "notchAfterRange": [
+    0,
+    4.001000100000001
+  ]
+}

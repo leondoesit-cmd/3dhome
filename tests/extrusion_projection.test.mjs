@@ -26,3 +26,31 @@ test('shared persistent face names use the binding for the specific feature cont
  synchronizeExtrusionProjections(document,compiled,run);
  assert.equal(document.parts[0].merges3d[0].frame.origin.y,.508);
 });
+
+test('principal-plane dimension rebuild refreshes both sampled and analytic cut recipes',()=>{
+ const circle=r=>Array.from({length:16},(_,i)=>({u:3+r*Math.cos(i*Math.PI/8),v:2+r*Math.sin(i*Math.PI/8)}));
+ const cut={featureId:'roof',axis:'y',from:3,to:1.5,loop:circle(.6),segments:[{type:'circle',center:{u:3,v:2},radius:.6}],holes:[{points:[{u:0,v:0}]}]};
+ const untouched={featureId:'other',axis:'z',loop:[{u:0,v:0}]};
+ const doc={parts:[{id:'bridge',cuts3d:[cut,untouched],meshData:{positions:[0]}}]};
+ const params={axis:'y',from:3,to:1.5,points:circle(.65),segments:[{type:'circle',center:{u:3,v:2},radius:.65}],holes:[]};
+ const compiled=[{id:'roof:tool',type:'extrude',params}];
+ // No face support: a fully defined principal-plane circle changed D12→13mm.
+ const run={ok:true,results:new Map([['roof:tool',{}]]),resolvedExtrusions:new Map([['roof:tool',params]])};
+ assert.deepEqual(synchronizeExtrusionProjections(doc,compiled,run),['bridge']);
+ assert.deepEqual(cut.loop,circle(.65));assert.equal(cut.segments[0].radius,.65);
+ assert.deepEqual(cut.holes,[]);assert.equal(doc.parts[0].meshData,undefined);
+ assert.deepEqual(untouched,{featureId:'other',axis:'z',loop:[{u:0,v:0}]});
+ assert.deepEqual(synchronizeExtrusionProjections(doc,compiled,run),[]);
+ // An unsuccessful/unbuilt tool must retain its last successful recipe.
+ const failed={results:new Map(),resolvedExtrusions:new Map([['roof:tool',{...params,points:circle(.7)}]])};
+ assert.deepEqual(synchronizeExtrusionProjections(doc,compiled,failed),[]);
+ assert.deepEqual(cut.loop,circle(.65));
+});
+
+test('rebuilt polygon removes obsolete analytic curve metadata',()=>{
+ const cut={featureId:'cut',axis:'z',from:0,to:1,segments:[{type:'circle',radius:1}],holes:[{points:[{u:0,v:0}]}]};
+ const params={axis:'z',from:0,to:1,points:[{u:0,v:0},{u:2,v:0},{u:0,v:2}]};
+ const document={parts:[{id:1,cuts3d:[cut]}]};
+ synchronizeExtrusionProjections(document,[{id:'cut:tool',type:'extrude',params}],{results:new Map([['cut:tool',{}]]),resolvedExtrusions:new Map([['cut:tool',params]])});
+ assert.deepEqual(cut.loop,params.points);assert.equal('segments' in cut,false);assert.equal('holes' in cut,false);
+});
