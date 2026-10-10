@@ -1,0 +1,163 @@
+{
+  "pass": true,
+  "qualifiedPass": true,
+  "checks": {
+    "sixteenNotes": true,
+    "exactQ1through15Order": true,
+    "allSourcePreparedAnswers": true,
+    "genuineLfRows": true,
+    "allSvgRows": true,
+    "sourceTitle": true,
+    "qualifiedSourceConvention": true,
+    "mechanicalArrowheadsQualified": true,
+    "zeroCad": true,
+    "zeroViewsPrimitivesDims": true,
+    "a3LandscapeThirdAngleMm": true,
+    "descriptionSource": true,
+    "inputsUnchanged": true
+  },
+  "sourceQuestionCount": 15,
+  "sourcePdf": 79,
+  "printedPage": "1-51",
+  "answers": {
+    "1": {
+      "topic": "Cartesian coordinates",
+      "matchesPreparedSourceAnswer": true
+    },
+    "2": {
+      "topic": "Axis intersection",
+      "matchesPreparedSourceAnswer": true
+    },
+    "3": {
+      "topic": "Right-hand rule",
+      "matchesPreparedSourceAnswer": true
+    },
+    "4": {
+      "topic": "Freehand sketching",
+      "matchesPreparedSourceAnswer": true
+    },
+    "5": {
+      "topic": "First versus third angle",
+      "matchesPreparedSourceAnswer": true
+    },
+    "6": {
+      "topic": "US first-angle statement",
+      "matchesPreparedSourceAnswer": true
+    },
+    "7": {
+      "topic": "Line precedence",
+      "matchesPreparedSourceAnswer": true
+    },
+    "8": {
+      "topic": "Hidden overrides visible",
+      "matchesPreparedSourceAnswer": true
+    },
+    "9": {
+      "topic": "2D quadrants",
+      "matchesPreparedSourceAnswer": true
+    },
+    "10": {
+      "topic": "Glass box",
+      "matchesPreparedSourceAnswer": true
+    },
+    "11": {
+      "topic": "Same six views",
+      "matchesPreparedSourceAnswer": true
+    },
+    "12": {
+      "topic": "Hatch material indication",
+      "matchesPreparedSourceAnswer": true
+    },
+    "13": {
+      "topic": "Mechanical dimension endings",
+      "matchesPreparedSourceAnswer": true
+    },
+    "14": {
+      "topic": "Break lines",
+      "matchesPreparedSourceAnswer": true
+    },
+    "15": {
+      "topic": "Front selection",
+      "matchesPreparedSourceAnswer": true
+    }
+  },
+  "key": "cm_mv26ag67",
+  "name": "Planchard Chapter1 - review Q1-Q15 - browser 2026-10-10",
+  "noteRows": [
+    4,
+    4,
+    2,
+    5,
+    4,
+    5,
+    3,
+    6,
+    3,
+    4,
+    5,
+    3,
+    3,
+    4,
+    5,
+    4
+  ],
+  "qualifiedBytes": 7790,
+  "svgBytes": 16666,
+  "sha256": "47984e2fdb8a4930182bac0a5eaa6f340abda93b6fc060536be1b5dc69f93ab3",
+  "svgSha256": "e09c81ac89ca2dccaed19905826f7378d5f28d0cc5921405980835ac08b5529f",
+  "qualification": "Prepared source-grounded independent review explanations,not official answer key or physical CAD model. Actual worksheet authored by parentChrome; auditreads only.",
+  "coldStatus": "complete",
+  "cold": {
+    "pass": true,
+    "wholeDrawingExact": true,
+    "presentModelFieldChecks": {
+      "activeSketch": true,
+      "appearances": true,
+      "assemblies": true,
+      "authoringMode": true,
+      "col": true,
+      "constraints": true,
+      "context": true,
+      "customProperties": true,
+      "definitionId": true,
+      "documentVersion": true,
+      "drawing": true,
+      "exactTopologyCache": true,
+      "features": true,
+      "history": false,
+      "id": true,
+      "key": true,
+      "kind": true,
+      "lastRebuild": false,
+      "lastStandardsAudit": true,
+      "localFrame": true,
+      "markups": true,
+      "metadata": true,
+      "name": true,
+      "namedSelections": true,
+      "notes": true,
+      "parameters": true,
+      "parts": true,
+      "price": true,
+      "referenceGeometry": false,
+      "references": true,
+      "revision": true,
+      "rollback": true,
+      "rules": true,
+      "schemaVersion": true,
+      "sketches": true,
+      "topologyBindings": true,
+      "variables": true
+    },
+    "changedFields": [
+      "history",
+      "lastRebuild",
+      "referenceGeometry"
+    ],
+    "defaultEmptySketchNormalizationVerified": true,
+    "svgByteExact": true,
+    "coldBytes": 8724,
+    "coldSha256": "1f6ccab94326ed728a84952321b0eda9ade74960acebbe88c1f85044093549c9",
+    "parentObserved": "Actual full hardreload/exactlibrary reopening;16notes,source/answercontent and layout,viewzoom333to350 only."
+  }
+}

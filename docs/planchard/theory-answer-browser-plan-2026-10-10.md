@@ -65,16 +65,16 @@ Source illustrations top-to-bottom have ranks3,1,4,2.
 
 ### 3.5–3.6 — PDF177 / printed3-49
 
-3.5 visible flange has **six** holes, while note says9X. Correct the note to6X Ø.50 THRU, equally spaced on Ø3.92 bolt circle. Side view depicts a central **external boss**, whereas Front Ø1.13 is drawn as a through-hole: views disagree; either the side boss or the front hole representation must be corrected to the intended object. Source does not settle which object was intended. The Ø3.92 leader actually points to the pitch circle and is not a wrong-diameter leader. Circle source9X and Front center-hole/Right protrusion for graphic answer.
+3.5 visible flange has **six** holes, while note says9X. Correct the note to6X Ø.50 THRU, equally spaced on Ø3.92 bolt circle. The Ø3.92 leader actually points to the pitch circle and is not a wrong-diameter leader. The central Front Ø1.13 circle can represent the **external boss** visible in Right; the note does not say THRU, so a center-hole/boss contradiction is not established. Circle source9X for the certain error. Inspect required hidden bore edges in Right separately; do not label every centerline a hidden line or invent a through center hole.
 
 ```text
 EXERCISE 3.5 - DIMENSION / VIEW ERRORS
 Source: printed 3-49 / PDF177.
 Six small holes are drawn, but the callout says9X.
 Use6X diameter .50 THRU, equally spaced on diameter3.92 bolt circle.
-Front shows a center hole; Right shows an external center boss.
-The two views must represent the same intended center feature.
-The source does not specify which center representation should win.
+The center diameter1.13 can describe the external boss in Right.
+Do not invent a center through-hole or claim those two views conflict.
+Verify the six through-hole projections/hidden edges in the Right view.
 ```
 
 3.6 visually nine holes along capsule centerline; first Ø.19 note lacks multiplicity/spacing; repeatR.25 at both ends is unnecessary repeated size. Source4.00 dimension is first-to-last center distance, not overall body length. Derived equal spacing4/8=.50in is valid **only when equal spacing is specified**; include9X/8spaces@.50 if selecting that common intended correction, labelled inference. Rounded end radius.25 implies width.50 and overall length4.50 if end-hole centers are end-arc centers; do not add both those dimensions as independent duplicate driving values. Circle bothR.25 notes and missing hole pattern definition.
