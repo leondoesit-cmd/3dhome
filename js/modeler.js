@@ -1,4 +1,5 @@
 import {componentPatternPlan,setComponentPattern,removeComponentPattern} from "./core/assembly_component_pattern.js";
+import {appendSavedLibrarySearch} from './modeler_library_search.js';
 import {makeDimensionTolerance,toleranceFields} from "./core/dimension_tolerance.js";
 import {createSpringBinding,springSource,springMotionState,springPreviewMesh,hasUnverifiedSprings,restoreSpringEndpoint} from "./core/flexible_spring.js";
 import {createExactSaveCache} from "./core/exact_save_cache.js";
@@ -25890,10 +25891,13 @@ async function saveAssemblyCopyAndOpen(assembly) {
   syncHead();refreshAll();refreshLib();fitPreview();flash("✓ "+tf("savedNamed",{name:name}));return true;
 }
 
+var librarySearchQueries={part:'',assembly:''};
 function refreshLib() {
   var host = root.querySelector("#mdLib");
   libThumbQueue = [];
   host.innerHTML = "";
+  var libraryKind=E.docType==='assembly'?'assembly':'part';
+  var librarySearch=appendSavedLibrarySearch(host,{query:librarySearchQueries[libraryKind],label:getLang()==='en'?(libraryKind==='assembly'?'Search saved assemblies':'Search saved models'):(libraryKind==='assembly'?'חיפוש הרכבות שמורות':'חיפוש מודלים שמורים'),noMatches:getLang()==='en'?'No matching saved models':'לא נמצאו מודלים מתאימים',onQuery:function(value){librarySearchQueries[libraryKind]=value;}});
   host.appendChild(btn('New from '+(E.docType==='assembly'?'assembly':'part')+' template',function(){void documentPresetAction('new');},'md-wide md-dashed'));
   if (E.docType === "assembly") {
     host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newAssembly"), newModel, "md-wide md-dashed"));
@@ -25901,6 +25905,7 @@ function refreshLib() {
     libraryTransferButtons(host);
     var assemblies = loadAssemblies();
     if (!assemblies.length) { emptyState(host, "ph-stack", t("assemblies"), t("noComponentsHint")); return; }
+    var assemblySearch=librarySearch;
     assemblies.forEach(function (assembly) {
       var card = el("div", "md-card" + (E.assembly && assembly.key === E.assembly.key ? " on" : ""));
       var top = el("div", "md-card-top");
@@ -25937,8 +25942,9 @@ function refreshLib() {
           refreshLib();
         });
       }, "md-card-x");
-      del.title = t("del"); card.appendChild(del); host.appendChild(card);
+      del.title = t("del"); card.appendChild(del); host.appendChild(card); assemblySearch.add(assembly,card);
     });
+    assemblySearch.apply();
     return;
   }
   host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newModel"), newModel, "md-wide md-dashed"));
@@ -25953,6 +25959,7 @@ function refreshLib() {
   appendDiskBackupNote(host);
   var lib = loadLib();
   if (!lib.length) { emptyState(host, "ph-folder-open", t("noLib"), t("noLibHint")); return; }
+  var partSearch=librarySearch;
   lib.forEach(function (m) {
     /* Clicking the card loads it — the row used to be inert with a "Load"
        button riding on it, which read as a list you could select from. */
@@ -26014,8 +26021,9 @@ function refreshLib() {
     }, "md-card-x");
     x.title = t("delModel");
     card.appendChild(x);
-    host.appendChild(card);
+    host.appendChild(card); partSearch.add(m,card);
   });
+  partSearch.apply();
 }
 
 function syncHead() {

@@ -20346,6 +20346,14 @@ body.compact-nav #md-sheet .m-icon-grid .m-grid-btn {
   flex-direction: column; padding: 6px 3px; gap: 4px; white-space: normal;
 }
 body.compact-nav #md-sheet .m-icon-grid .m-grid-btn span { display: block; font-size: max(11px, var(--fs-floor, 0px)); line-height: 1.2; }
+body.compact-nav #md-sheet .md-mobile-drawing-commands { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body.compact-nav #md-sheet .md-mobile-drawing-commands .m-grid-btn { min-width: 0; min-height: 60px; white-space: normal; }
+body.compact-nav #md-sheet .md-mobile-drawing-commands .m-grid-btn span { display: block; overflow: visible; overflow-wrap: break-word; }
+/* Paged command cards need a real deck budget; fit-content collapses when the
+   hidden pages do not contribute intrinsic height. Other menus still hug content. */
+body.compact-nav #md-sheet.md-drawing-command-sheet { height: min(46dvh, var(--mobile-sheet-cap)) !important; }
+body.compact-nav #md-sheet .md-mobile-drawing-group { flex-shrink: 0; }
+body.compact-nav #md-sheet.md-drawing-command-sheet .mobile-menu-page { overflow-y: auto; }
 body.compact-nav #modeler .md-command span { white-space: normal; overflow-wrap: anywhere; }
 body.compact-nav #md-sheet #mdLeftPanel { overflow-y: auto; }
 

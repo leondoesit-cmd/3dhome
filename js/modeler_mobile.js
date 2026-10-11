@@ -588,6 +588,7 @@ function closeSheet() {
   openKey = null;
   release();
   setSheetSearch(false);
+  if (sheet) sheet.classList.remove("md-drawing-command-sheet");
   if (sheet) {
     sheet.classList.remove("on", "tall");
     sheet.setAttribute("aria-modal", "false");
@@ -624,6 +625,7 @@ function showSheet(key, toggle) {
   sheetBody.innerHTML = "";
   setSheetSearch(false);
   var title = "";
+  sheet.classList.toggle("md-drawing-command-sheet", key === "cmd" && api.state().mode === "drawing");
   if (key === "view") {
     title = t("msheet_view");
     buildViewSheet();
@@ -632,14 +634,18 @@ function showSheet(key, toggle) {
     borrowPanel(".md-left");
   } else if (key === "cmd") {
     title = t("mnav_commands");
-    if (api && api.setCommandTab) {
-      var st = api.state();
-      if (st.mode === "2d" || st.emptyPart) api.setCommandTab("sketch");
-      else if (st.docType === "assembly") api.setCommandTab("assembly");
-      else api.setCommandTab("features");
+    if (api.state().mode === "drawing") {
+      buildDrawingCommands();
+    } else {
+      if (api && api.setCommandTab) {
+        var st = api.state();
+        if (st.mode === "2d" || st.emptyPart) api.setCommandTab("sketch");
+        else if (st.docType === "assembly") api.setCommandTab("assembly");
+        else api.setCommandTab("features");
+      }
+      borrowPanel(".md-commandmanager");
+      markGroupDrawers();
     }
-    borrowPanel(".md-commandmanager");
-    markGroupDrawers();
     setSheetSearch(true);
   } else if (key === "props") {
     title = t("tabShape");
@@ -752,6 +758,40 @@ function grid(cls) {
 
 function shortPhone() {
   return window.innerHeight <= 500;
+}
+
+/* The phone uses the live native drawing buttons as its command authority.
+   Leave that toolbar in its owner so selection updates and handlers stay shared. */
+function buildDrawingCommands() {
+  var owner = api.root;
+  var tools;
+  owner.querySelectorAll("#mdDrawingTools button").forEach(function (target, index) {
+    var label = target.querySelector("span");
+    var glyph = target.querySelector("svg, i");
+    var name = label ? label.textContent.trim() : target.getAttribute("aria-label") || target.title;
+    // Keep the heading and two touch rows atomic for the generated-page pager.
+    // One entire toolbar grid is taller than a page and strands its heading.
+    if (index % 4 === 0) {
+      var group = document.createElement("section");
+      group.className = "md-command-group md-mobile-drawing-group";
+      var heading = document.createElement("h5");
+      heading.className = "m-sheet-sec";
+      heading.textContent = t("modeDrawing") + " · " + name;
+      group.appendChild(heading);
+      tools = document.createElement("div");
+      tools.className = "m-grid m-grid-2 md-mobile-drawing-commands";
+      group.appendChild(tools);
+      sheetBody.appendChild(group);
+    }
+    var button = gridBtn(glyph ? glyph.outerHTML : "", name, target.classList.contains("on") || target.getAttribute("aria-pressed") === "true", function () {
+      if (api.root !== owner || api.state().mode !== "drawing" || !target.isConnected || target.disabled) return;
+      closeSheet();
+      target.click();
+    });
+    button.disabled = target.disabled;
+    button.dataset.drawingCommand = target.getAttribute("data-drawing-tool") || target.id;
+    tools.appendChild(button);
+  });
 }
 
 /* View: the three floating stacks that used to sit on top of the model —
