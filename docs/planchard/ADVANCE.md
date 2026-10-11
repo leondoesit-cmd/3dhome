@@ -4,7 +4,7 @@ Updated: **2026-10-11**. Read this first when resuming; older plans and STOP-HER
 
 ## Authoritative resume boundary — full-scope workflows in progress
 
-**LATEST MOBILE — 2026-10-11:** Alphabet of Lines1–3 and Orthographic1–5 accepted through phone touch, edit/Undo/Redo, Save, cold Saved reopen and native SVG. Orthographic5 independently drawn15 primitives/4notes. Accepted boundary printed1-39/PDF67; eight/21 Chapter1 in-chapter prompts,0/117 numbered homework. Drawing pinch repaired,81focusedtests/gates and actual phone gesture/identicalSVG verified; next fresh Orthographic6/printed1-40/PDF68. MOBILE_ADVANCE.md is authoritative; older desktop checkpoints remain history.
+**LATEST MOBILE — 2026-10-11:** Alphabet of Lines1–3 and Orthographic1–6 accepted through phone touch, edit/Undo/Redo, Save, cold Saved reopen and native SVG. Orthographic6 independently drawn17 primitives/4notes. Accepted boundary printed1-40/PDF68; nine/21 Chapter1 in-chapter prompts,0/117 numbered homework. Drawing pinch repair81focusedtests/gates and actual phone/identicalSVG verified. Next fresh Orthographic7/printed1-41/PDF69. MOBILE_ADVANCE.md is authoritative; older desktop checkpoints remain history.
 
 **MOBILE UPDATE — 2026-10-11:** Alphabet of Lines1–2 now accepted, printed1-25/PDF53; two/21 Chapter1 in-chapter prompts, zero/117 numbered homework. Saved worksheet MOBILE Ch1 Alphabet Lines 1-2, phone cold reopen/export and Undo/Redo verified. More-field touch CSS repaired and browser verified. Next Alphabet3 printed1-26/PDF54. MOBILE_ADVANCE.md governs current progress; older desktop boundary below is historical.
 
