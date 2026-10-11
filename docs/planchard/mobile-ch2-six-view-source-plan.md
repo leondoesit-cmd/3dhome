@@ -63,3 +63,5 @@ Under eachview addsourceviewname. Width belongsFront/Back/Top/Bottom;Height belo
 ## Separate same-page next illustration
 
 LowerPDF100illustration contains **three datum-oriented cylinders**: uprightcylinderonTopplane; horizontalcylinderusingFrontplane; anotherhorizontalorientationusingTopplane, eachwithOriginannotation. They explain base-sketch plane choice andorientation, and require a separate sourceguide/artifact. They are not partof thesix-viewblock andcannot becountedcomplete bythissheet. Afterthem, printed2-15/PDF101 horizontalandvertical stepped-shaft two-viewexamples follow.
+
+Verified actual native Paper Arc point order during authorship: start, through, end (not start/end/through). Approximate grid-rounded rims retained; source extent arrow graphics simplified to textual labels in accepted qualified witness.

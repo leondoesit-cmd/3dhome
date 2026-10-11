@@ -60,6 +60,25 @@ function editor(text, constraint, unit = 'cm') {
   return load('applyDimensionEditor', { ...base, dimensionUnit, fin: Number.isFinite, evaluateFeatureNumber, nameAvailable: () => true, pushUndo() {}, activateDrawingSketch() {}, resolveSketch: () => true, refreshAll() {}, H: { discard() {} }, flash() {}, t: (k) => k, constraintMeasure: () => 0 });
 }
 
+test('Smart Dimension opening and refusal focus the field without scrolling the phone editor header',()=>{
+ const controls=new Map(),focusOptions=[];
+ const root={scrollTop:0,querySelector(key){
+  if(!controls.has(key))controls.set(key,{value:'',focus(options){focusOptions.push(options);if(!options?.preventScroll)root.scrollTop=47.333;},select(){}});
+  return controls.get(key);
+ }};
+ const constraint={id:'d',type:'diameter',value:2.4},E={};
+ const context={root,E,hideDimensionEditor(){},dimensionEditorUnit:()=> 'mm',positionDimensionEditor(){},requestAnimationFrame:fn=>fn()};
+ load('showDimensionEditor',context)({},constraint);
+ assert.equal(root.scrollTop,0);assert.equal(controls.get('#mdDimValue').value,'24');
+ load('showDimensionRefusal',{root,refusalMessage:()=> 'Conflicting relation',flash(){},refreshAll(){}})({sketch:{},constraint},'24',{ids:[]});
+ assert.equal(root.scrollTop,0);assert.equal(focusOptions.length,2);
+ assert.ok(focusOptions.every(options=>options.preventScroll===true));
+ const css=readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+ const compactRoot=css.slice(css.indexOf('body.compact-nav #modeler {'),css.indexOf('\n}',css.indexOf('body.compact-nav #modeler {')));
+ assert.match(compactRoot,/overflow:\s*clip;/,'phone editor is not a programmatically scrollable viewport');
+ assert.match(css,/body\.compact-nav #md-sheet #mdLeftPanel\s*\{\s*overflow-y:\s*auto;/,'borrowed panel remains scrollable');
+});
+
 test('the dimension editor hides float noise but keeps the stored value when accepted unchanged', () => {
   const constraint = { id: 'd', type: 'radius', value: 22.29999999999997 };
   const controls = new Map();

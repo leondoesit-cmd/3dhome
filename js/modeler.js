@@ -15517,7 +15517,7 @@ function showDimensionRefusal(state, typed, why) {
   if (box) { box.textContent = msg; box.hidden = false; }
   flash(msg);
   refreshAll();
-  root.querySelector("#mdDimValue").focus();
+  root.querySelector("#mdDimValue").focus({ preventScroll:true });
 }
 
 function cancelDimensionEditor() {
@@ -15589,7 +15589,7 @@ function showDimensionEditor(sketch, constraint, options) {
   root.querySelector("#mdDimTolUpper").value = tolFields.upper;
   root.querySelector("#mdDimTolLower").value = tolFields.lower;
   positionDimensionEditor(options.clientX, options.clientY);
-  requestAnimationFrame(function () { value.focus(); value.select(); });
+  requestAnimationFrame(function () { value.focus({ preventScroll:true }); value.select(); });
   return true;
 }
 
@@ -15618,7 +15618,7 @@ function applyDimensionEditor() {
   /* Directed sketch angles may be negative (or zero for parallel lines).
      Length dimensions still require a positive value. */
   if (!fin(value) || (dimensionUnit(state.constraint) !== "angle" && value <= 0)) {
-    root.querySelector("#mdDimValue").focus();
+    root.querySelector("#mdDimValue").focus({ preventScroll:true });
     return false;
   }
   var constraint = state.constraint;

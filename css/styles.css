@@ -15097,7 +15097,10 @@ body.compact-nav #modeler {
   bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
   /* The sheet parks itself at translateY(100%), i.e. just below this box —
      without clipping it reads through the glass of the row beneath. */
-  overflow: hidden;
+  /* Unlike hidden, clip also prevents focus/scrollIntoView from scrolling
+     the entire editor and carrying its fixed-height header out of view.
+     Borrowed sheets and inspectors retain their own scroll containers. */
+  overflow: clip;
 }
 /* The planner's own two rows are still mounted on <body> underneath. They are
    for a document that is not on screen, and the panel backgrounds are glass —
