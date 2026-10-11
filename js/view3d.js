@@ -1550,7 +1550,7 @@ function sampledLayerMaterial(w, band, fallbackColor, xray) {
 function openingAtSample(w, s) {
   for (var i = 0; i < S.openings.length; i++) {
     var o = S.openings[i];
-    if (o.wall === w.id && s > o.s - o.width / 2 + 0.001 && s < o.s + o.width / 2 - 0.001) return o;
+    if (String(o.wall) === String(w.id) && s > o.s - o.width / 2 + 0.001 && s < o.s + o.width / 2 - 0.001) return o;
   }
   return null;
 }
@@ -1788,7 +1788,7 @@ function buildSampledWall(w, col) {
     else addSampledRailing(group, renderWall, gm, vertical, col, xray);
   });
   addWallFraming(group, renderWall, xray);
-  S.openings.filter(function (o) { return o.wall === w.id; }).forEach(function (o) { addSampledOpening(group, renderWall, o); });
+  S.openings.filter(function (o) { return String(o.wall) === String(w.id); }).forEach(function (o) { addSampledOpening(group, renderWall, o); });
   if (cutting) {
     clipBelow(group, Hc);
     addWallCaps(group, Hc); // curved and profiled walls get their cut tops too

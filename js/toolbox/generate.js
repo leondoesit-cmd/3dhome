@@ -723,7 +723,7 @@ function generateButtHinge(row, options, group) {
   const parts = [
     { kind: "box", name: "leaf A", x0: -W / 2, x1: 0, y0: 0, y1: T, z0: -L / 2, z1: L / 2, standardRole: "leaf" },
     { kind: "box", name: "leaf B", x0: 0, x1: W / 2, y0: 0, y1: T, z0: -L / 2, z1: L / 2, standardRole: "leaf" },
-    { kind: "cyl", name: "knuckle", x: 0, y: -K / 2 + T / 2, z: -L / 2, r: K / 2, h: L, standardRole: "knuckle" },
+    { kind: "cyl", name: "knuckle", x: 0, y: T / 2, z: -L / 2, r: K / 2, h: L, axis: "z", standardRole: "knuckle" },
   ];
   return pack("butt-hinge", "butt-hinge", row, options, parts, {
     group, category: "hardware", standard: "EN 1935 / ANSI/BHMA A156.1", material: "steel-zinc",
@@ -743,7 +743,7 @@ function generatePianoHinge(options, group) {
   const parts = [
     { kind: "box", name: "piano leaf A", x0: -W / 2, x1: 0, y0: 0, y1: T, z0: 0, z1: L, standardRole: "leaf" },
     { kind: "box", name: "piano leaf B", x0: 0, x1: W / 2, y0: 0, y1: T, z0: 0, z1: L, standardRole: "leaf" },
-    { kind: "cyl", name: "knuckle", x: 0, y: -mmToCm(PIANO_HINGE.knuckleDiaMm) / 2, z: 0, r: mmToCm(PIANO_HINGE.knuckleDiaMm) / 2, h: L, standardRole: "knuckle" },
+    { kind: "cyl", name: "knuckle", x: 0, y: T / 2, z: 0, r: mmToCm(PIANO_HINGE.knuckleDiaMm) / 2, h: L, axis: "z", standardRole: "knuckle" },
   ];
   return pack("piano-hinge", "piano-hinge", { size: lengthMm + "mm" }, options, parts, {
     group, lengthMm, category: "hardware", standard: "continuous / piano hinge", material: "steel-zinc",
@@ -787,7 +787,7 @@ function generateBarPull(row, options, group) {
   const parts = [
     { kind: "cyl", name: "post A", x: 0, y: 0, z: 0, r: mmToCm(row.postDiaMm) / 2, h: post, standardRole: "post" },
     { kind: "cyl", name: "post B", x: cc, y: 0, z: 0, r: mmToCm(row.postDiaMm) / 2, h: post, standardRole: "post" },
-    { kind: "ext", name: "bar", axis: "x", from: 0, to: cc, pts: circleLoop(0, 0, r, 16), standardRole: "bar" },
+    { kind: "ext", name: "bar", axis: "x", from: 0, to: cc, pts: circleLoop(0, post, r, 16), standardRole: "bar" },
   ];
   return pack("bar-pull", "bar-pull", row, options, parts, {
     group, category: "hardware", standard: "32mm system bar pull", material: options.material || "chrome", finish: "polished",
@@ -940,6 +940,8 @@ function generateElbow(row, options, group, angle) {
   const segs = lodSegments(lod, 20);
   const material = options.material || "pvc-u";
   const street = !!options.street;
+  const theta = angle * Math.PI / 180;
+  const bendDir = { x: Math.sin(theta), y: 0, z: Math.cos(theta) };
   const parts = lod >= 1
     ? [{
       kind: "rev", name: angle + "° elbow",
@@ -948,12 +950,12 @@ function generateElbow(row, options, group, angle) {
       standardRole: "body",
     }]
     : [
-      { kind: "cyl", name: "leg A", x: 0, y: 0, z: R, r: od / 2, h: R, standardRole: "leg" },
-      { kind: "ext", name: "leg B", axis: "x", from: 0, to: R, pts: circleLoop(0, 0, od / 2, 12), standardRole: "leg" },
+      { kind: "cyl", name: "leg A", x: 0, y: 0, z: 0, r: od / 2, h: R, axis: "z", standardRole: "leg" },
+      { kind: "cyl", name: "leg B", x: 0, y: 0, z: 0, r: od / 2, h: R, axis: bendDir, standardRole: "leg" },
     ];
   const ports = [
     matePort({ id: "end-a", type: "pipe", origin: { x: 0, y: 0, z: R }, axis: { x: 0, y: 0, z: 1 }, diameterMm: row.odMm, gender: street ? "male" : "socket" }),
-    matePort({ id: "end-b", type: "pipe", origin: { x: R, y: 0, z: 0 }, axis: { x: 1, y: 0, z: 0 }, diameterMm: row.odMm, gender: "socket" }),
+    matePort({ id: "end-b", type: "pipe", origin: { x: R * bendDir.x, y: 0, z: R * bendDir.z }, axis: bendDir, diameterMm: row.odMm, gender: "socket" }),
   ];
   const family = street ? "elbow-street" : (angle === 45 ? "elbow-45" : "elbow-90");
   return pack(family, family, row, options, parts, {

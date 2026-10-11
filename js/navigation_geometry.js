@@ -38,7 +38,7 @@ export function navigationPosition(state,point,rawProfile,rooms=[]){
   if(height>y+.01&&height<top)return {clear:false,reason:'headroom',id:feature.id};
  }
  for(const w of state.walls||[]){
-  if(w.physical===false||w.phase==='demolished')continue;
+  if(w.physical===false||w.phase==='demolition'||w.phase==='demolish'||w.phase==='demolished')continue;
   const q=projectToWall(w,point.x,point.z,state.nodes);if(!q)continue;
   const offset=w.loc==='face'&&Math.abs(w.dimSide)===1?-w.dimSide*w.thickness/2:0;
   const distance=offset?Math.hypot(point.x-q.x+q.tangent.z*offset,point.z-q.z-q.tangent.x*offset):q.distance;

@@ -4,12 +4,23 @@ import { wallLayerBands } from './wall_types.js';
 import { roomTypeOf } from './room_types.js';
 
 // Geometric clear floor area, not a regulatory or whole-building measurement.
-// Voids and intersecting solids are unresolved until polygon subtraction exists.
+// A void that actually crosses this room, and a solid that crosses it, stay
+// unresolved until polygon subtraction exists. A void in some other room does not.
+function voidHitsRoom(opening, bounds) {
+  if (!Number.isFinite(Number(opening?.x)) || !Number.isFinite(Number(opening?.z))) return false;
+  const rot = (Number(opening.rot) || 0) * Math.PI / 180;
+  const c = Math.abs(Math.cos(rot)), s = Math.abs(Math.sin(rot));
+  const hw = Math.abs(Number(opening.w) || 0) / 2, hd = Math.abs(Number(opening.d) || 0) / 2;
+  const ex = hw * c + hd * s, ez = hw * s + hd * c;
+  return opening.x - ex < bounds.x1 && opening.x + ex > bounds.x0
+    && opening.z - ez < bounds.z1 && opening.z + ez > bounds.z0;
+}
+
 export function roomClearArea(state, room) {
   const measurement = roomMeasurements(state, room);
   const bounds = measurement?.interiorBounds;
   if (!bounds) return {area:null, reason:'geometry'};
-  if (state.slabOpenings?.length) return {area:null, reason:'voids'};
+  if ((state.slabOpenings || []).some((opening) => voidHitsRoom(opening, bounds))) return {area:null, reason:'voids'};
   const own = new Set(String(room.key).split(','));
   const catalog = JSON.parse(JSON.stringify({wallTypes:state.wallTypes || [],walls:[]}));
   for (const original of state.walls) {

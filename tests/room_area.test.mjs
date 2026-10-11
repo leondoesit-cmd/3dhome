@@ -18,7 +18,10 @@ test('clear floor area uses individual wall faces and includes furniture without
  assert.equal(roomClearArea(state,room).area,10.36);
 });
 test('voids and interior wall solids remain unresolved',()=>{
- const {state,room}=fixture();state.slabOpenings=[{id:'void'}];
+ const {state,room}=fixture();
+ state.slabOpenings=[{id:'far',x:5000,z:5000,w:40,d:40}];
+ assert.equal(roomClearArea(state,room).area,10.36);
+ state.slabOpenings=[{id:'void',x:200,z:150,w:40,d:40}];
  assert.equal(roomClearArea(state,room).reason,'voids');state.slabOpenings=[];
  state.nodes.push({x:100,z:100},{x:200,z:100});
  state.walls.push({id:5,a:4,b:5,thickness:10});

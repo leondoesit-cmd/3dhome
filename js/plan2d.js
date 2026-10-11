@@ -864,7 +864,7 @@ function chromeSet() {
   // a selected wall's openings ride along, or a dragged wall would leave its
   // door behind on the model canvas
   out.wall.forEach(function (w) {
-    S.openings.forEach(function (o) { if (o.wall === w.id) add("opening", o); });
+    S.openings.forEach(function (o) { if (String(o.wall) === String(w.id)) add("opening", o); });
   });
   return out;
 }

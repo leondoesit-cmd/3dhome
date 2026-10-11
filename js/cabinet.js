@@ -1240,7 +1240,7 @@ export function normalizeSpec(sp, w, h, d) {
     // a closed box spends a board between compartments; a floating run spends
     // one under every shelf, including the bottom one
     distribute(sl, innerH - (sl.length - 1 + inner.boardPerSec) * st, function (s) {
-      return Math.min(STD.minSec, (SEC[s.t] || SEC.shelves).min);
+      return Math.max(STD.minSec, (SEC[s.t] || SEC.shelves).min);
     });
     c.secs.forEach(function (s) {
       s.h = Math.round(s.__size * 10) / 10;

@@ -100,9 +100,9 @@ export function parseColor(str) {
   }
 
   // hsl(h, s%, l%) or hsla(h, s%, l%, a)
-  const hslMatch = s.match(/^hsla?\(\s*([\d.]+)(?:deg)?\s*[, ]\s*([\d.]+)%\s*[, ]\s*([\d.]+)%(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/);
+  const hslMatch = s.match(/^hsla?\(\s*(-?[\d.]+)(?:deg)?\s*[, ]\s*([\d.]+)%\s*[, ]\s*([\d.]+)%(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/);
   if (hslMatch) {
-    const h = parseFloat(hslMatch[1]) % 360;
+    const h = ((parseFloat(hslMatch[1]) % 360) + 360) % 360;
     const sat = parseFloat(hslMatch[2]) / 100;
     const l = parseFloat(hslMatch[3]) / 100;
     const a = hslMatch[4] ? (hslMatch[4].endsWith("%") ? parseFloat(hslMatch[4]) / 100 : parseFloat(hslMatch[4])) : 1;

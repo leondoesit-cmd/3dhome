@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { S } from "../js/state.js";
 import { ensureWallTypes } from "../js/wall_types.js";
 import {
-  doorSwingPoly, polyHitsItem, checkSwingConflicts, sectorPoly, polysIntersect,
+  doorSwingPoly, doorSwingPolys, polyHitsItem, checkSwingConflicts, sectorPoly, polysIntersect,
   doorSwingBand, invalidateSwingCache, swingConflicts,
 } from "../js/swing_clearance.js";
 import {
@@ -88,6 +88,21 @@ test("the clearance sector sits on the side plan2d draws the arc", () => {
     const drawnZ = sy * tangent.x;
     assert.equal(centroidZ > 0, drawnZ > 0, dir + " sector is mirrored vs the drawn arc");
   }
+});
+
+test("a double door collides per leaf, not across the chord between them", () => {
+  reset();
+  const opening = { id: 9, type: "door", wall: 1, s: 200, width: 90, height: 205, swingDir: "R_IN", isDouble: true };
+  S.openings = [opening];
+  invalidateSwingCache();
+  assert.equal(doorSwingPolys(opening).length, 2);
+  const gap = { id: 21, type: "sofa", x: 200, z: -25, w: 4, d: 4, h: 80, rot: 0 };
+  assert.equal(polyHitsItem(doorSwingPoly(opening), gap), true);
+  S.items = [gap];
+  assert.equal(checkSwingConflicts(S).some(issue => issue.ref === 9), false);
+  S.items = [{ id: 21, type: "sofa", x: 170, z: -20, w: 8, d: 8, h: 80, rot: 0 }];
+  invalidateSwingCache();
+  assert.equal(checkSwingConflicts(S).some(issue => issue.ref === 9), true);
 });
 
 test("swing clearance compares vertical bands, not just footprints", () => {

@@ -209,3 +209,16 @@ test("a perspective sketch canvas is picked where the model is drawn, not where 
   assert.equal(hitScreenModelEdge(toScreen({ x: 0, y: 2.5, z: -2.5 }), [bspline], 8, toScreen, (d) => d.endpoints), null, "a curve's chord is not pickable");
   assert.match(modeler, /var modelVertex = pickScreen \? hitScreenModelVertex\(downPoint/, "the sketcher picks in screen space when the sketch is drawn through a camera");
 });
+
+test("an arc midpoint follows the curve, not the chord", () => {
+  const arc = {
+    kind: "edge", persistentId: "arc", ownerFeatureId: "body",
+    descriptor: {
+      curve: "circle", radius: 1, measure: Math.PI,
+      endpoints: [{ x: -1, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }],
+      arcMidpoint: { x: 0, y: 1, z: 0 },
+    },
+  };
+  const sketch = frontSketch([]);
+  assert.ok(near(modelEdgeAnchor(sketch, arc, "mid").y, 1));
+});

@@ -10,7 +10,7 @@ import {S} from './state.js';
 import {FURN,flabel} from './furniture.js';
 import {t} from './i18n.js';
 import {planningPlacementScene} from './planning_scene.js';
-import {doorSwingPoly,doorSwingBand,swingPolysForItem} from './swing_clearance.js';
+import {doorSwingPolys,doorSwingBand,swingPolysForItem} from './swing_clearance.js';
 import {previewPlannerCommand,executePlannerProposal} from './interaction.js';
 import {renderAgentPreview,clearAgentPreview} from './agent_preview.js';
 import {onAfterRender} from './plan2d.js';
@@ -47,7 +47,7 @@ export function roomFitSnapshot(roomKey){
   swingTemplates:Object.fromEntries(LAYOUT_TYPES.filter(type=>FURN[type]).map(type=>{const spec=FURN[type],item={id:'template',type,w:spec.w,d:spec.d,h:spec.h,x:0,z:0,rot:0};return [type,swingPolysForItem(item).map(sw=>({points:sw.poly,elev:sw.band.lo,h:sw.band.hi-sw.band.lo}))];})),
   access:{doors,voids:(S.slabOpenings||[]).map(openingCorners),entranceId:guide.details.entrances[S.workspace.activeFloor],width:guide.details.routeWidth},
   fixedIds:S.items.filter(i=>i.pinned||i.fixed||i.rotUser||i.mep).map(i=>i.id),
-  doorSwings:S.openings.map(o=>{const points=doorSwingPoly(o);const band=doorSwingBand(o);return points?{id:o.id,points,elev:band.lo,h:band.hi-band.lo}:null;}).filter(Boolean)};
+  doorSwings:S.openings.flatMap(o=>{const band=doorSwingBand(o);return doorSwingPolys(o).map(points=>({id:o.id,points,elev:band.lo,h:band.hi-band.lo}));})};
  return snapshot;
 }
 export function currentRoomFit(roomKey){return checkRoomFit(roomFitSnapshot(roomKey));}

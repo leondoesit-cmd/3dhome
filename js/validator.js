@@ -34,7 +34,7 @@ export function validateDesign() {
   S.walls.forEach((wall) => {
     const g = wallGeom(wall);
     if (g.L < 20) issues.push({ severity: "error", kind: "wall", ref: wall.id, message: "Wall is shorter than 20 cm." });
-    const openings = S.openings.filter((o) => o.wall === wall.id).sort((a, b) => a.s - b.s);
+    const openings = S.openings.filter((o) => String(o.wall) === String(wall.id)).sort((a, b) => a.s - b.s);
     openings.forEach((o, i) => {
       if (!fin(o.s) || !fin(o.width) || o.width < 30 || o.s - o.width / 2 < 0 || o.s + o.width / 2 > g.L)
         issues.push({ severity: "error", kind: "opening", ref: o.id, message: "Opening falls outside its wall or is too narrow." });

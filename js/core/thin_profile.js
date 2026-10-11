@@ -6,7 +6,8 @@ import {sketchWorldPoint} from './swept_sources.js';
 // by chain order, so resolve the side once for both preview and regeneration.
 export function revolveThinProfile(sketch, entityIds, thickness, mode='mid-plane', axis='y') {
   if(mode==='mid-plane')return thinSketchProfile(sketch,entityIds,thickness,mode);
-  const first=sketchProfileSegments(sketch,entityIds,1e-6,{open:true})?.[0];
+  const chain=sketchProfileSegments(sketch,entityIds,1e-6,{open:true});
+  const first=chain?.[0];
   if(!first || !['line','arc'].includes(first.type))return thinSketchProfile(sketch,entityIds,thickness,mode);
   const radial=q=>{const p=sketchWorldPoint(sketch,q.u,q.v);return axis==='x'?Math.hypot(p.y,p.z):axis==='z'?Math.hypot(p.x,p.y):Math.hypot(p.x,p.z);};
   const width=Number(thickness);
@@ -28,7 +29,10 @@ export function revolveThinProfile(sketch, entityIds, thickness, mode='mid-plane
     plus=radial({u:center.u-width*dy/length,v:center.v+width*dx/length});
     minus=radial({u:center.u+width*dy/length,v:center.v-width*dx/length});
   }
-  const outward=plus>=minus?'forward':'reverse';
+  let outward=plus>=minus?'forward':'reverse';
+  // A chain offset decreases the radius of an anticlockwise arc when d is positive.
+  // A lone arc does the opposite, so only multi-segment chains need the flip.
+  if(chain.length>1 && first.type==='arc' && arcTraversal(first)>0)outward=outward==='forward'?'reverse':'forward';
   return thinSketchProfile(sketch,entityIds,thickness,mode==='forward'?outward:outward==='forward'?'reverse':'forward');
 }
 

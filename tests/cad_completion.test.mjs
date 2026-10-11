@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {addCubicSpline,splineControls,bezierPoint,bezierLineHits} from '../js/sketch_spline.js';
+import {addCubicSpline,splineControls,bezierPoint,bezierLineHits,trimSplineAtLines} from '../js/sketch_spline.js';
 import {sampleSketchPath,sketchPathSegments} from '../js/core/swept_sources.js';
 import {makeBrepSweep,shapeMassProperties,disposeBrep} from '../js/cad_kernel.js';
 import {trimEntity} from '../js/sketch_trim.js';
@@ -121,4 +121,21 @@ test('cut broad phase includes crossing strips whose vertices are all outside',a
  const {cutFootprintsMayOverlap}=await import('../js/core/cut_scope.js');
  const strip=[{u:-5,v:-.2},{u:5,v:-.2},{u:5,v:.2},{u:-5,v:.2}];
  assert.equal(cutFootprintsMayOverlap(strip,{u0:-.2,u1:.2,v0:-5,v1:5}),true);
+});
+
+test('trimming a spline does not delete it when a replacement handle collapses', () => {
+  const s = blank();
+  const controls = [{ x: 0, y: 0 }, { x: 1e-7, y: 1 }, { x: 1, y: 1e-7 }, { x: 1, y: 0 }];
+  const entity = addCubicSpline(s, controls);
+  s.points.push({ id: 'la', x: -1, y: 0.01 }, { id: 'lb', x: 2, y: 0.01 });
+  s.entities.push({ id: 'cut', type: 'line', a: 'la', b: 'lb' });
+  const points = new Map(s.points.map(point => [point.id, point]));
+  assert.ok(bezierLineHits(splineControls(entity, points), points.get('la'), points.get('lb')).length > 0);
+  let threw = false;
+  let trimmed = true;
+  try { trimmed = trimSplineAtLines(s, entity, bezierPoint(controls, 0.5)); }
+  catch { threw = true; }
+  assert.equal(threw, false);
+  assert.equal(trimmed, false);
+  assert.ok(s.entities.some(item => item.id === entity.id));
 });

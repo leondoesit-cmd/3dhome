@@ -13,14 +13,23 @@ export function makeDimensionTolerance(upper, lower, unit='mm') {
 
 export function toleranceFields(tolerance, unit='mm') {
   if (!tolerance) return {upper:'0',lower:'0'};
-  const precision=tolerance.unit===unit?tolerance.precision:Math.max(3,tolerance.precision || 0);
-  return {upper:(tolerance.upper*factors[unit]).toFixed(precision),lower:(tolerance.lower*factors[unit]).toFixed(precision)};
+  const upper=tolerance.upper*factors[unit], lower=tolerance.lower*factors[unit];
+  let precision=tolerance.unit===unit?tolerance.precision:Math.max(3,tolerance.precision || 0);
+  if (tolerance.unit!==unit) {
+    const needed=value=>{
+      let places=precision;
+      while (places<8 && value && Number(value.toFixed(places))===0) places++;
+      return places;
+    };
+    precision=Math.max(needed(upper), needed(lower));
+  }
+  return {upper:upper.toFixed(precision),lower:lower.toFixed(precision)};
 }
 
 export function formatDimensionTolerance(tolerance, unit='mm') {
   if (tolerance?.kind!=='deviation' || !Number.isFinite(tolerance.upper) || !Number.isFinite(tolerance.lower) || tolerance.upper<tolerance.lower) return '';
   const fields=toleranceFields(tolerance, tolerance.unit==='deg'?'deg':unit);
-  const signed=s=>Number(s)<0?'−'+s.slice(1):'+'+s;
+  const signed=s=>String(s).trim().startsWith('-')?'−'+String(s).trim().slice(1):'+'+s;
   return signed(fields.upper)+'/'+signed(fields.lower)+(tolerance.unit==='deg'?'°':'');
 }
 

@@ -52,7 +52,7 @@ function Router(avoidOpenings) {
       taps: [],
       opens: (S.openings || [])
         .filter(function (o) {
-          return o && o.wall === w.id && o.type !== "window" && isFinite(o.width) && o.width > 0 && isFinite(o.s);
+          return o && String(o.wall) === String(w.id) && o.type !== "window" && isFinite(o.width) && o.width > 0 && isFinite(o.s);
         })
         .map(function (o) { return { a: o.s - o.width / 2, b: o.s + o.width / 2 }; }),
     };

@@ -140,7 +140,7 @@ function insidePoint(poly, pref) {
 function itemSpan(w, it, grow, reach) {
   var g = wallGeom(w);
   var hw = (it.w || 40) / 2, hd = (it.d || 40) / 2;
-  var ca = Math.cos((-(it.rot || 0) * Math.PI) / 180), sa = Math.sin((-(it.rot || 0) * Math.PI) / 180);
+  var ca = Math.cos(((it.rot || 0) * Math.PI) / 180), sa = Math.sin(((it.rot || 0) * Math.PI) / 180);
   var lo = Infinity, hi = -Infinity, near = Infinity;
   [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].forEach(function (c) {
     var px = it.x + c[0] * ca - c[1] * sa, pz = it.z + c[0] * sa + c[1] * ca;
@@ -159,7 +159,7 @@ function freeSpans(wid, blocked, openClear, minSpan, corner) {
   var L = wallGeom(w).L;
   var cuts = (blocked || []).slice();
   S.openings.forEach(function (o) {
-    if (o.wall !== wid) return;
+    if (String(o.wall) !== String(wid)) return;
     var pad = openClear == null ? C.opening : openClear;
     cuts.push({ a: o.s - o.width / 2 - pad, b: o.s + o.width / 2 + pad });
   });

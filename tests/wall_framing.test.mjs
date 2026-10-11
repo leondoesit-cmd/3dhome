@@ -45,11 +45,23 @@ test("doors replace interrupted studs with king/jack studs and a header", () => 
   const state = project([wall], [{ id: 8, wall: 2, type: "door", s: 150, width: 90, height: 210, sill: 0 }]);
   const result = wallFraming(state, wall);
   assert.equal(result.headers.length, 1);
-  assert.equal(result.headers[0].length, 100);
+  assert.equal(result.headers[0].length, 110);
   assert.equal(result.studs.filter(member => member.kind === "kingStud").length, 2);
   assert.equal(result.studs.filter(member => member.kind === "jackStud").length, 2);
   assert.ok(!result.studs.some(member => member.kind === "stud" && (member.s === 120 || member.s === 180)));
   assert.equal(result.plates.filter(member => member.kind === "bottomPlate").length, 2, "the door splits the bottom plate");
+});
+
+test("a second jack stud moves the king and lengthens the header", () => {
+  const wall = { id: 2, a: 0, b: 1, wallTypeId: "framed", height: 270 };
+  const state = project([wall], [{ id: 8, wall: 2, type: "door", s: 150, width: 90, height: 210, sill: 0 }]);
+  state.wallTypes[0].layers[0].framing.jackStudCount = 2;
+  const result = wallFraming(state, wall);
+  assert.equal(result.studs.filter(member => member.kind === "jackStud").length, 4);
+  assert.equal(result.headers[0].length, 120);
+  const kings = result.studs.filter(member => member.kind === "kingStud").map(member => member.s).sort((a, b) => a - b);
+  near(kings[0], 92.5);
+  near(kings[1], 207.5);
 });
 
 test("windows receive a sill and cripple studs while retaining the bottom plate", () => {

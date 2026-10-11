@@ -270,8 +270,11 @@ function buildBand(state, wall, geometry, openings, band, nextId) {
   }
 
   for (const opening of relevant) {
-    const leftKing = clamp(opening.left - config.studWidth / 2, 0, geometry.length);
-    const rightKing = clamp(opening.right + config.studWidth / 2, 0, geometry.length);
+    const jackCount = Math.max(0, config.jackStudCount);
+    const kingOut = (jackCount + 0.5) * config.studWidth;
+    const headerOut = (jackCount + 1) * config.studWidth;
+    const leftKing = clamp(opening.left - kingOut, 0, geometry.length);
+    const rightKing = clamp(opening.right + kingOut, 0, geometry.length);
     addVertical(context, "kingStud", leftKing, bodyBottom, band.top - topPlateDepth, opening.id);
     addVertical(context, "kingStud", rightKing, bodyBottom, band.top - topPlateDepth, opening.id);
 
@@ -280,7 +283,7 @@ function buildBand(state, wall, geometry, openings, band, nextId) {
     if (config.headers && headerHeight > EPS)
       addHorizontal(
         context, "header",
-        opening.left - config.studWidth, opening.right + config.studWidth,
+        opening.left - headerOut, opening.right + headerOut,
         headerBottom, headerHeight, opening.id, config.headerDepth,
       );
 

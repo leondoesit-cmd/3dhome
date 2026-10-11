@@ -2829,6 +2829,15 @@ function splitWallAt(w, s) {
       o.s -= s;
     }
   });
+  S.openings.forEach(function (o) {
+    var host = o.wall === w.id ? w : o.wall === w2.id ? w2 : null;
+    if (!host) return;
+    var length = wallGeom(host).L;
+    var width = Math.max(0, Number(o.width) || 0);
+    if (width > length) { width = length; o.width = width; }
+    var half = width / 2;
+    o.s = Math.max(half, Math.min(Math.max(half, length - half), Number(o.s) || 0));
+  });
   if (S.mep && S.mep.nodes)
     S.mep.nodes.forEach(function (n) {
       if (n.wall !== w.id || !fin(n.s)) return;

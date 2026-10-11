@@ -101,7 +101,7 @@ export function hitLiesOnFace(origin, direction, t, face) {
   if (bounds && !pointInAabb(point, bounds)) return false;
   const range = face?.descriptor?.axisRange;
   const axis = face?.descriptor?.axis;
-  const originOnAxis = face?.descriptor?.origin;
+  const originOnAxis = face?.descriptor?.referenceOrigin || face?.descriptor?.origin;
   if (Array.isArray(range) && range.length === 2 && axis && originOnAxis) {
     const along = (point.x - (originOnAxis.x || 0)) * (axis.x || 0)
       + (point.y - (originOnAxis.y || 0)) * (axis.y || 0)
@@ -139,7 +139,7 @@ export function raySurfaceHit(origin, direction, surface) {
     return rayCylinder(origin, direction, geom.origin, geom.axis, Number(geom.radius));
   }
   if (kind === "cone" || Number.isFinite(Number(geom.angle))) {
-    return rayCone(origin, direction, geom.origin, geom.axis, Number(geom.radius), Number(geom.angle));
+    return rayCone(origin, direction, geom.referenceOrigin || geom.origin, geom.axis, Number(geom.radius), Number(geom.angle));
   }
   return null;
 }

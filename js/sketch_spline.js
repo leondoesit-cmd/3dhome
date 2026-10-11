@@ -74,6 +74,12 @@ export function trimSplineAtLines(sketch,entity,pick){
   const samples=sampleBezier(p,.001),nearest=samples.reduce((best,q)=>Math.hypot(q.x-pick.x,q.y-pick.y)<Math.hypot(best.x-pick.x,best.y-pick.y)?q:best);
   const lo=hits.filter(t=>t<=nearest.t).at(-1)??0,hi=hits.find(t=>t>nearest.t)??1;
   const pieces=[];if(lo>0)pieces.push(splitBezier(p,lo)[0]);if(hi<1)pieces.push(splitBezier(p,hi)[1]);
-  const index=sketch.entities.indexOf(entity);sketch.entities.splice(index,1);
-  pieces.forEach((piece,i)=>{const e=addCubicSpline(sketch,piece);Object.assign(e,{construction:entity.construction,name:entity.name});if(piece[0]===p[0])e.a=entity.a;if(piece[3]===p[3])e.b=entity.b;if(i===0)e.id=entity.id;});return true;
+  const handleOk=controls=>Math.hypot(controls[1].x-controls[0].x,controls[1].y-controls[0].y)>=1e-8&&Math.hypot(controls[3].x-controls[2].x,controls[3].y-controls[2].y)>=1e-8;
+  if(pieces.some(piece=>!handleOk(piece)))return false;
+  const index=sketch.entities.indexOf(entity);if(index<0)return false;
+  const savedEntities=sketch.entities.slice(),savedPoints=sketch.points.slice();
+  sketch.entities.splice(index,1);
+  try{pieces.forEach((piece,i)=>{const e=addCubicSpline(sketch,piece);Object.assign(e,{construction:entity.construction,name:entity.name});if(piece[0]===p[0])e.a=entity.a;if(piece[3]===p[3])e.b=entity.b;if(i===0)e.id=entity.id;});}
+  catch(error){sketch.entities.splice(0,sketch.entities.length,...savedEntities);sketch.points.splice(0,sketch.points.length,...savedPoints);return false;}
+  return true;
 }

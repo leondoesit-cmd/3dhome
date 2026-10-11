@@ -50,10 +50,10 @@ export function formatLength(cm,unit,options){
     const totalIn=value*12;
     const sign=totalIn<0?"-":"";
     const abs=Math.abs(totalIn);
-    const feet=Math.floor(abs/12+1e-9);
-    const inches=abs-feet*12;
-    const inchText=Number(inches.toFixed(opts.digits!=null?opts.digits:1));
-    return sign+feet+"'-"+String(inchText).replace(/\.0$/, "")+'"';
+    let feet=Math.floor(abs/12+1e-9);
+    let inches=Number((abs-feet*12).toFixed(opts.digits!=null?opts.digits:1));
+    if(inches>=12){feet+=1;inches=0;}
+    return sign+feet+"'-"+String(inches).replace(/\.0$/, "")+'"';
   }
   const digits=opts.digits!=null?opts.digits:(use==="m"?2:use==="mm"?0:use==="in"?2:2);
   const shown=Number(value.toFixed(digits));

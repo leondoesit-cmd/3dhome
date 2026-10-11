@@ -30,7 +30,13 @@ export function surfacePoint(descriptor,u,v) {
     const radius=Number(descriptor.radius)||1,center=descriptor.center || descriptor.origin || {x:0,y:0,z:0},{axis,radial,uAxis}=basis({...descriptor,axis:descriptor.axis || {x:0,y:1,z:0}}),longitude=u/radius,latitude=v/radius,ring=Math.cos(latitude)*radius;
     return add(center,add(mul(axis,Math.sin(latitude)*radius),add(mul(radial,Math.cos(longitude)*ring),mul(uAxis,Math.sin(longitude)*ring))));
   }
-  const {axis,radial,uAxis}=basis(descriptor),origin=descriptor.origin || {x:0,y:0,z:0},baseRadius=Number(descriptor.radius)||1,radius=descriptor.surface==="cone"?Math.max(1e-6,baseRadius+v*Math.tan(Number(descriptor.angle)||0)):baseRadius,angle=u/Math.max(radius,1e-6);
+  const {axis,radial,uAxis}=basis(descriptor),origin=descriptor.origin || {x:0,y:0,z:0};
+  let baseRadius=Number(descriptor.radius)||1;
+  if(descriptor.surface==="cone" && descriptor.referenceOrigin){
+    const shift=dot({x:origin.x-descriptor.referenceOrigin.x,y:origin.y-descriptor.referenceOrigin.y,z:origin.z-descriptor.referenceOrigin.z},axis);
+    baseRadius=Math.max(1e-6,baseRadius+shift*Math.tan(Number(descriptor.angle)||0));
+  }
+  const radius=descriptor.surface==="cone"?Math.max(1e-6,baseRadius+v*Math.tan(Number(descriptor.angle)||0)):baseRadius,angle=u/Math.max(radius,1e-6);
   return add(origin,add(mul(axis,v),add(mul(radial,Math.cos(angle)*radius),mul(uAxis,Math.sin(angle)*radius))));
 }
 

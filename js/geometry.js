@@ -61,8 +61,9 @@ function boundsSignature() {
 }
 
 export function wallById(id) {
+  var key = String(id);
   for (var i = 0; i < S.walls.length; i++)
-    if (S.walls[i].id === id) return S.walls[i];
+    if (String(S.walls[i].id) === key) return S.walls[i];
   return null;
 }
 /* Return the opening whose empty span contains distance `s` along `w`.
@@ -74,7 +75,7 @@ export function openingAtWallPosition(w, s, pad) {
   var extra = fin(pad) ? Math.max(0, pad) : 0;
   for (var i = 0; i < S.openings.length; i++) {
     var o = S.openings[i];
-    if (!o || o.wall !== w.id || !fin(o.s) || !fin(o.width)) continue;
+    if (!o || String(o.wall) !== String(w.id) || !fin(o.s) || !fin(o.width)) continue;
     var half = Math.max(0, o.width) / 2;
     if (s > o.s - half - extra && s < o.s + half + extra) return o;
   }
@@ -405,7 +406,7 @@ export function wallSolidAtNode(w, nodeId, atHeight) {
     tol = 0.5;
   for (var i = 0; i < S.openings.length; i++) {
     var o = S.openings[i];
-    if (!o || o.wall !== w.id || !fin(o.s) || !fin(o.width)) continue;
+    if (!o || String(o.wall) !== String(w.id) || !fin(o.s) || !fin(o.width)) continue;
     var y0 = o.sill || 0;
     if (y0 > 0.01 || y0 + (o.height || 0) < H - 0.01) continue;
     var half = Math.max(0, o.width) / 2;

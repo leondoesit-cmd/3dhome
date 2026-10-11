@@ -1015,11 +1015,35 @@ export function resolveDimAnchor(ref, index, basis) {
   if (at === "mid" || at === "centre") return centre;
   const radius = num(descriptor.radius);
   if (!(radius > 0)) return null;
+  if (at !== "qu+" && at !== "qu-" && at !== "qv+" && at !== "qv-") return null;
+  const origin = descriptor.origin || descriptor.center;
+  const axis = descriptor.axis;
+  const axisLen = axis ? Math.hypot(num(axis.x), num(axis.y), num(axis.z)) : 0;
+  if (origin && axisLen > 1e-9) return circleQuadrant(origin, axis, axisLen, radius, basis, at);
   if (at === "qu+") return { u: centre.u + radius, v: centre.v };
   if (at === "qu-") return { u: centre.u - radius, v: centre.v };
   if (at === "qv+") return { u: centre.u, v: centre.v + radius };
   if (at === "qv-") return { u: centre.u, v: centre.v - radius };
   return null;
+}
+
+/* A quadrant of a tilted circle is the extremum of the projected ellipse,
+   not the view-plane offset of the full radius. Edge-on, that extremum
+   collapses and the anchor is omitted. */
+function circleQuadrant(origin, axis, axisLen, radius, basis, at) {
+  const ax = { x: axis.x / axisLen, y: axis.y / axisLen, z: axis.z / axisLen };
+  const view = at === "qu+" || at === "qu-" ? basis.right : basis.up;
+  const along = view.x * ax.x + view.y * ax.y + view.z * ax.z;
+  const plane = { x: view.x - ax.x * along, y: view.y - ax.y * along, z: view.z - ax.z * along };
+  const planeLen = Math.hypot(plane.x, plane.y, plane.z);
+  if (planeLen < 1e-8) return null;
+  const sign = at === "qu+" || at === "qv+" ? 1 : -1;
+  const scale = sign * radius / planeLen;
+  return projectToView({
+    x: origin.x + plane.x * scale,
+    y: origin.y + plane.y * scale,
+    z: origin.z + plane.z * scale,
+  }, basis);
 }
 
 const boundsRefs = (type, bounds) => (type === "vertical"

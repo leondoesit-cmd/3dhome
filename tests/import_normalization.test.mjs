@@ -122,3 +122,59 @@ test("direct import topology is available to downstream canonical features", () 
   assert.equal(run.topology[0].ownerFeatureId,definition.features[0].id);
   assert.equal(run.topology[0].descriptor.origin.x,0);
 });
+
+test("a recognized cylinder uses the analytic radius when the mesh falls short of it", () => {
+  const topology = [
+    { kind: "face", persistentId: "side", descriptor: { surface: "cylinder", origin: { x: 0, y: 10, z: 0 }, axis: { x: 0, y: 1, z: 0 }, radius: 10 } },
+    { kind: "face", persistentId: "bot", descriptor: { surface: "plane", origin: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: -1, z: 0 } } },
+    { kind: "face", persistentId: "top", descriptor: { surface: "plane", origin: { x: 0, y: 20, z: 0 }, normal: { x: 0, y: 1, z: 0 } } },
+    { kind: "edge", persistentId: "c0", descriptor: { curve: "circle", origin: { x: 0, y: 0, z: 0 }, radius: 10 } },
+    { kind: "edge", persistentId: "c1", descriptor: { curve: "circle", origin: { x: 0, y: 20, z: 0 }, radius: 10 } },
+  ];
+  const meshData = { positions: [4, 0, 0, -4, 0, 0, 0, 20, 4, -4, 0, 0, 0, 20, 4, 4, 20, 0] };
+  const definition = createImportedDefinition({ name: "Coarse cylinder", format: "mesh", meshData, topology });
+  assert.equal(definition.metadata.import.recognition, "cylinder");
+  assert.equal(definition.parts[0].r, 10);
+  assert.equal(definition.parameters.radius.expression, "10");
+});
+
+test("a recognized tube revolves the outer meridian and drops the bore", () => {
+  const cylinder = (radius, id) => ({ kind: "face", persistentId: id, descriptor: { surface: "cylinder", origin: { x: 0, y: 10, z: 0 }, axis: { x: 0, y: 1, z: 0 }, radius } });
+  const plane = (y, id, ny) => ({ kind: "face", persistentId: id, descriptor: { surface: "plane", origin: { x: 0, y, z: 0 }, normal: { x: 0, y: ny, z: 0 } } });
+  const topology = [cylinder(10, "outer"), cylinder(4, "inner"), plane(0, "bot", -1), plane(20, "top", 1)];
+  const ring = (y, r) => [r, y, 0, 0, y, r, -r, y, 0, 0, y, -r];
+  const meshData = { positions: [...ring(0, 10), ...ring(0, 4), ...ring(20, 10), ...ring(20, 4)] };
+  const definition = createImportedDefinition({ name: "Tube", format: "mesh", meshData, topology });
+  assert.equal(definition.metadata.import.recognition, "revolve");
+  const radii = definition.parts[0].pts.map(point => point.u);
+  assert.ok(radii.every(radius => radius === 0 || Math.abs(radius - 10) < 1e-6), radii.join(","));
+  assert.ok(!radii.some(radius => Math.abs(radius - 4) < 1e-6));
+});
+
+test("a full-circle import stores the sweep, not the step between copies", () => {
+  const box = (cx, cz) => {
+    const positions = [];
+    const x0 = cx - 5, x1 = cx + 5, y0 = 0, y1 = 10, z0 = cz - 5, z1 = cz + 5;
+    const faces = [
+      [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0]],
+      [[x0, y0, z1], [x0, y1, z1], [x1, y1, z1], [x1, y0, z1]],
+      [[x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1]],
+      [[x1, y0, z0], [x1, y0, z1], [x1, y1, z1], [x1, y1, z0]],
+      [[x0, y0, z0], [x0, y0, z1], [x1, y0, z1], [x1, y0, z0]],
+      [[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]],
+    ];
+    for (const face of faces) positions.push(...face[0], ...face[1], ...face[2], ...face[0], ...face[2], ...face[3]);
+    return positions;
+  };
+  const normals = [{ x: 1, y: 0, z: 0 }, { x: -1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, { x: 0, y: -1, z: 0 }, { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }];
+  const topology = [];
+  const centers = [[50, 0], [0, 50], [-50, 0], [0, -50]];
+  centers.forEach((_, index) => {
+    normals.forEach((normal, face) => topology.push({ kind: "face", persistentId: "f" + index + "-" + face, descriptor: { surface: "plane", origin: { x: 0, y: 0, z: 0 }, normal } }));
+    for (let edge = 0; edge < 12; edge++) topology.push({ kind: "edge", persistentId: "e" + index + "-" + edge, descriptor: { curve: "line", endpoints: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }] } });
+  });
+  const meshData = { positions: centers.flatMap(([x, z]) => box(x, z)) };
+  const definition = createImportedDefinition({ name: "Radial boxes", format: "mesh", meshData, topology });
+  assert.equal(definition.metadata.import.recognition, "circular-pattern");
+  assert.equal(definition.features.at(-1).params.angle, 360);
+});

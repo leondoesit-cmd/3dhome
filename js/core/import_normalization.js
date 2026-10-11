@@ -228,7 +228,7 @@ function classifyBoxComponents(components) {
   if(!same)return {recognition:"box-assembly",components};
   for(const axis of ["x","y","z"]){const other=["x","y","z"].filter((value)=>value!==axis);if(components.every((item)=>other.every((value)=>Math.abs(item.center[value]-first.center[value])<1e-4))){const sorted=components.slice().sort((a,b)=>a.center[axis]-b.center[axis]),spacing=sorted[1].center[axis]-sorted[0].center[axis];if(sorted.every((item,index)=>index===0||Math.abs(item.center[axis]-sorted[0].center[axis]-spacing*index)<1e-4))return {recognition:"linear-pattern",components:sorted,pattern:{axis,spacing,count:sorted.length}};}}
   const sameY=components.every((item)=>Math.abs(item.center.y-first.center.y)<1e-4),radii=components.map((item)=>Math.hypot(item.center.x,item.center.z));
-  if(sameY && radii[0]>1e-4 && radii.every((radius)=>Math.abs(radius-radii[0])<1e-4)){const sorted=components.slice().sort((a,b)=>Math.atan2(a.center.z,a.center.x)-Math.atan2(b.center.z,b.center.x)),angles=sorted.map((item)=>Math.atan2(item.center.z,item.center.x)),step=Math.PI*2/sorted.length;if(angles.slice(1).every((angle,index)=>Math.abs(angle-angles[index]-step)<1e-4))return {recognition:"circular-pattern",components:sorted,pattern:{axis:"y",angle:360/sorted.length,count:sorted.length}};}
+  if(sameY && radii[0]>1e-4 && radii.every((radius)=>Math.abs(radius-radii[0])<1e-4)){const sorted=components.slice().sort((a,b)=>Math.atan2(a.center.z,a.center.x)-Math.atan2(b.center.z,b.center.x)),angles=sorted.map((item)=>Math.atan2(item.center.z,item.center.x)),step=Math.PI*2/sorted.length;if(angles.slice(1).every((angle,index)=>Math.abs(angle-angles[index]-step)<1e-4))return {recognition:"circular-pattern",components:sorted,pattern:{axis:"y",angle:360,count:sorted.length}};}
   return {recognition:"box-assembly",components};
 }
 
@@ -240,7 +240,17 @@ function revolveProfile(meshData,bounds) {
   const tolerance=Math.max(1e-5,(bounds.max.y-bounds.min.y)*1e-5), levels=new Map();
   for(let index=0;index+2<(meshData.positions || []).length;index+=3){const x=meshData.positions[index],y=meshData.positions[index+1],z=meshData.positions[index+2],key=Math.round(y/tolerance),r=Math.hypot(x,z);if(r<tolerance)continue;const row=levels.get(key)||{y,rs:[]};if(!row.rs.some((value)=>Math.abs(value-r)<tolerance))row.rs.push(r);levels.set(key,row);}
   const rows=Array.from(levels.values()).sort((a,b)=>a.y-b.y); if(rows.length<2)return null;
-  const outer=[];rows.forEach((row)=>{row.rs.sort((a,b)=>b-a);row.rs.forEach((r)=>outer.push({u:r,v:row.y}));});
+  rows.forEach((row)=>row.rs.sort((a,b)=>b-a));
+  const outer=[];
+  rows.forEach((row,index)=>{
+    const prev=rows[index-1],next=rows[index+1];
+    // A bore shows up at every height. A shoulder shows up once, level with the
+    // next section's outer radius. Keep the shoulder; drop the bore.
+    row.rs.forEach((radius,place)=>{
+      const shoulder=(prev&&Math.abs(radius-prev.rs[0])<tolerance)||(next&&Math.abs(radius-next.rs[0])<tolerance);
+      if(place===0||shoulder)outer.push({u:radius,v:row.y});
+    });
+  });
   return [{u:0,v:bounds.min.y},...outer,{u:0,v:bounds.max.y}];
 }
 
@@ -342,6 +352,7 @@ export function normalizeImportedGeometry(source = {}) {
     exactPayload:clone(source.exactPayload),
     components:clone(components),
     pattern:clone(pattern),
+    ...(Number.isFinite(frame.radius) && frame.radius > 0 ? { radius: frame.radius * unitScale } : {}),
   };
 }
 
@@ -361,8 +372,10 @@ export function createImportedDefinition(source = {}, options = {}) {
     rules={id:"import.recognized-box",version:1,source:"import-reconstruction",family:"primitive",dimensions:{width:{min:1,continuous:true},depth:{min:1,continuous:true},height:{min:1,continuous:true}},configuration:{primitive:"box"},invariants:["analytic-box"]};
     authoringMode="hybrid";
   } else if (normalized.recognition==="cylinder") {
-    parameters={...envelopeParameters(b,true),radius:expressionParameter("radius","width/2")};
-    part={...common,kind:"cyl",x:0,y:b.min.y,z:0,r:(b.max.x-b.min.x)/2,r2:(b.max.x-b.min.x)/2,h:b.max.y-b.min.y,parametricEnvelope:"cylinder"};
+    const analytic=Number(normalized.radius), boxed=(b.max.x-b.min.x)/2, r=analytic>0?analytic:boxed;
+    parameters={...envelopeParameters(b,true),radius:expressionParameter("radius",String(r))};
+    if(analytic>0){parameters.width=createParameter("width",r*2,{label:"Width",exposure:"planner",min:.01,adjustable:true});parameters.depth=createParameter("depth",r*2,{label:"Depth",exposure:"planner",min:.01,adjustable:true});}
+    part={...common,kind:"cyl",x:0,y:b.min.y,z:0,r,r2:r,h:b.max.y-b.min.y,parametricEnvelope:"cylinder"};
     feature={id:normalized.id,type:"cylinder",name:"Recognized cylinder",inputs:[],params:{x:0,y:0,z:0,r:"$radius",h:"$height"},metadata:{recognizedFromImport:true}};
     rules={id:"import.recognized-cylinder",version:1,source:"import-reconstruction",family:"primitive",dimensions:{width:{min:1,continuous:true},depth:{min:1,continuous:true},height:{min:1,continuous:true}},linkedDimensions:[{source:"width",target:"depth",relation:"equal"},{source:"depth",target:"width",relation:"equal"}],configuration:{primitive:"cylinder"},invariants:["circular-section"]};
     authoringMode="hybrid";

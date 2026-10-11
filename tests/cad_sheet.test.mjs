@@ -15,7 +15,7 @@ import { polygonArea, tessellatePart, tessellateParts, triangulatePolygon } from
 import {
   STANDARD_SCALES, addViewToSheet, buildSheetScene, chainLoops, createProjector, createSheetDoc, createView,
   ensureSheetDoc, formatLength, hatchLoops, layoutViews, measureDim, removeViewFromSheet,
-  scaleLabel, sceneToSvg, titleBlockBox,
+  resolveDimAnchor, scaleLabel, sceneToSvg, titleBlockBox,
 } from "../js/cad_sheet.js";
 import { createDrawingController } from "../js/modeler_drawing.js";
 import { createDrawingSvg } from "../js/cad_drawings.js";
@@ -1441,4 +1441,28 @@ test('hole callout leader meets the rim and follows a changed bore radius', () =
     assert.ok(Math.abs(Math.hypot(leader.x1-centre.x, leader.y1-centre.y) - Math.hypot(rim.x-centre.x,rim.y-centre.y)) < 1e-8);
     assert.equal(note.leader.at, 'centre', 'stored topology reference remains unchanged');
   }
+});
+
+test("circle quadrant anchors follow the projected ellipse", () => {
+  const basis = viewBasis("front");
+  const index = new Map([["circle", {
+    kind: "edge",
+    descriptor: {
+      curve: "circle",
+      origin: { x: 0, y: 0, z: 0 },
+      axis: { x: 1, y: 0, z: 1 },
+      radius: 10,
+    },
+  }]]);
+  const quadrant = resolveDimAnchor({ pid: "circle", kind: "edge", at: "qu+" }, index, basis);
+  assert.ok(quadrant);
+  assert.ok(Math.abs(quadrant.u - 10 / Math.SQRT2) < 1e-6, quadrant.u);
+  assert.ok(Math.abs(quadrant.v) < 1e-6);
+  const edgeOn = new Map([["circle", {
+    kind: "edge",
+    descriptor: { curve: "circle", origin: { x: 0, y: 0, z: 0 }, axis: { x: 1, y: 0, z: 0 }, radius: 10 },
+  }]]);
+  assert.equal(resolveDimAnchor({ pid: "circle", kind: "edge", at: "qu+" }, edgeOn, basis), null);
+  const vertical = resolveDimAnchor({ pid: "circle", kind: "edge", at: "qv+" }, edgeOn, basis);
+  assert.ok(Math.abs(vertical.v - 10) < 1e-6);
 });

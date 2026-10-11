@@ -58,10 +58,14 @@ export function tangentArc(start, tangent, end) {
     const angle = (point) => Math.atan2(point.v - centre.v, point.u - centre.u);
     const tau = Math.PI * 2;
     const sweep = (angle(to) - angle(from) + tau) % tau;
-    const minor = Math.min(sweep, tau - sweep);
-    if (!best || minor < best.minor - 1e-12) best = { centre, radius, sweep, minor };
+    // CCW travel at `from` matches the requested tangent only for one side.
+    // The other side has to be stored from the far end so the rendered CCW arc still leaves `from` along that tangent, even when that sweep is the long way.
+    const align = ny * tx - nx * ty;
+    const along = align > 0
+      ? { start: from, end: to, sweep }
+      : { start: to, end: from, sweep: (tau - sweep) % tau };
+    if (!best || along.sweep < best.sweep - 1e-12) best = { centre, radius, start: along.start, end: along.end, sweep: along.sweep };
   }
   if (!best) return null;
-  const ordered = best.sweep <= Math.PI ? { start: from, end: to } : { start: to, end: from };
-  return { centre: best.centre, start: ordered.start, end: ordered.end, radius: best.radius };
+  return { centre: best.centre, start: best.start, end: best.end, radius: best.radius };
 }

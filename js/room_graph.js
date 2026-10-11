@@ -103,6 +103,14 @@ function straight(state, w) {
   return a && b ? { a, b } : null;
 }
 
+function fitOpeningOnLength(opening, length) {
+  const host = Math.max(0, length);
+  let width = Math.max(0, Number(opening.width) || 0);
+  if (width > host) { width = host; opening.width = width; }
+  const half = width / 2;
+  opening.s = Math.max(half, Math.min(Math.max(half, host - half), Number(opening.s) || 0));
+}
+
 function nextId(state) {
   const id = Number(state.idc) || 1;
   state.idc = id + 1;
@@ -131,6 +139,10 @@ export function splitWallAtNode(state, wall, ni) {
   (state.openings || []).forEach((o) => {
     if (o.wall !== wall.id) return;
     if (o.s > s) { o.wall = half.id; o.s -= s; }
+  });
+  (state.openings || []).forEach((o) => {
+    if (o.wall === wall.id) fitOpeningOnLength(o, s);
+    else if (o.wall === half.id) fitOpeningOnLength(o, total - s);
   });
   return half;
 }

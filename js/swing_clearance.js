@@ -121,10 +121,10 @@ export function sectorPoly(hinge, fromDir, toDir, radius, steps) {
   return pts;
 }
 
-export function doorSwingPoly(o, walls, nodes) {
+function doorSwingSectors(o, walls, nodes) {
   if (!o || o.type !== "door" || o.isSliding || o.isPocket) return null;
   var wall = wallById(o.wall);
-  if (!wall && walls) wall = walls.find(function (w) { return w.id === o.wall; });
+  if (!wall && walls) wall = walls.find(function (w) { return String(w.id) === String(o.wall); });
   if (!wall) return null;
   var gm = wallGeom(wall);
   if (!gm || !(gm.L > 0)) return null;
@@ -142,8 +142,8 @@ export function doorSwingPoly(o, walls, nodes) {
       rightHinge = { x: centre.x + tangent.x * hw, z: centre.z + tangent.z * hw },
       normal = side < 0 ? { x: tangent.z, z: -tangent.x } : { x: -tangent.z, z: tangent.x };
     return [
-      ...sectorPoly(leftHinge, tangent, normal, leftWidth, 8),
-      ...sectorPoly(rightHinge, { x: -tangent.x, z: -tangent.z }, normal, rightWidth, 8),
+      sectorPoly(leftHinge, tangent, normal, leftWidth, 8),
+      sectorPoly(rightHinge, { x: -tangent.x, z: -tangent.z }, normal, rightWidth, 8),
     ];
   }
   var swingDir = o.swingDir || "R_IN";
@@ -157,7 +157,21 @@ export function doorSwingPoly(o, walls, nodes) {
   var open = isInward
     ? { x: tangent.z, z: -tangent.x }
     : { x: -tangent.z, z: tangent.x };
-  return sectorPoly(hinge, closed, open, o.width, 12);
+  return [sectorPoly(hinge, closed, open, o.width, 12)];
+}
+
+/* One polygon per leaf. A double door is two sectors; stitching them into a
+   single ring adds a chord across the opening that collides with furniture
+   the leaves never reach. */
+export function doorSwingPolys(o, walls, nodes) {
+  var polys = doorSwingSectors(o, walls, nodes);
+  return polys || [];
+}
+
+export function doorSwingPoly(o, walls, nodes) {
+  var polys = doorSwingSectors(o, walls, nodes);
+  if (!polys || !polys.length) return null;
+  return polys.length === 1 ? polys[0] : polys.flat();
 }
 
 export function doorSwingBand(o) {
@@ -269,10 +283,12 @@ function cabinetApi() {
 }
 
 export function swingPolysForOpening(o) {
-  var poly = doorSwingPoly(o);
-  if (!poly) return [];
+  var polys = doorSwingPolys(o);
+  if (!polys.length) return [];
   var band = doorSwingBand(o);
-  return [{ kind: "door", id: o.id, poly: poly, band: band, ref: o }];
+  return polys.map(function (poly) {
+    return { kind: "door", id: o.id, poly: poly, band: band, ref: o };
+  });
 }
 
 export function swingPolysForItem(it) {
@@ -381,7 +397,8 @@ function signature(st) {
     h = hash(h, (o.width || 0) * 16); h = hash(h, (o.height || 0) * 16);
     h = hash(h, (o.sill || 0) * 16);
     h = hash(h, (o.swingDir || "R_IN").charCodeAt(0) + (o.swingDir || "R_IN").length * 7);
-    h = hash(h, (o.isSliding ? 2 : 0) + (o.isPocket ? 1 : 0) + (o.type === "door" ? 4 : 0));
+    h = hash(h, (o.isSliding ? 2 : 0) + (o.isPocket ? 1 : 0) + (o.type === "door" ? 4 : 0) + (o.isDouble ? 8 : 0));
+    h = hash(h, (Number(o.leafA) || 0) * 16);
   }
   var items = st.items || [];
   h = hash(h, items.length);

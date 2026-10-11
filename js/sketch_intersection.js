@@ -150,9 +150,9 @@ export function modelEdgeAnchor(sketch, edge, at) {
   const ends = edgeEndpoints(edge);
   if (ends.length < 2) throw new Error("The model edge has no end points to relate to");
   const a = ends[0], b = ends[ends.length - 1];
-  const world = at === "end" ? b : at === "mid"
-    ? { x: ((a.x || 0) + (b.x || 0)) / 2, y: ((a.y || 0) + (b.y || 0)) / 2, z: ((a.z || 0) + (b.z || 0)) / 2 }
-    : a;
+  const descriptor = edge?.descriptor || {};
+  const chord = { x: ((a.x || 0) + (b.x || 0)) / 2, y: ((a.y || 0) + (b.y || 0)) / 2, z: ((a.z || 0) + (b.z || 0)) / 2 };
+  const world = at === "end" ? b : at === "mid" ? (descriptor.arcMidpoint || chord) : a;
   if (at === "mid" && Math.hypot((a.x || 0) - (b.x || 0), (a.y || 0) - (b.y || 0), (a.z || 0) - (b.z || 0)) < EPS) throw new Error("A closed model edge has no midpoint to relate to");
   const uv = projectWorldToSketch(sketch, world);
   return { x: uv.x, y: uv.y };
