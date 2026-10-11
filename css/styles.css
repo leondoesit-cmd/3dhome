@@ -5663,6 +5663,14 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-drawing-tools button:hover { color: var(--text-main); background: var(--btn-bg-hover); }
 #modeler .md-drawing-tools button.on { color: var(--on-accent); border-color: var(--accent); background: var(--accent); }
 #modeler .md-drawing-tools-sep { width: 22px; height: 1px; margin: 3px auto; background: var(--separator); }
+body.compact-nav #modeler .md-drawing-tools { bottom: auto; max-height: calc(100% - 20px); overflow: visible; }
+body.compact-nav #modeler .md-drawing-tools button { min-height: 44px; }
+body.compact-nav #modeler .md-drawing-tools [data-mobile-rail-hidden="true"],
+body.compact-nav #modeler .md-drawing-tools .md-drawing-rail-control[hidden] { display:none; }
+#modeler .md-drawing-rail-groups { position:absolute; top:8px; inset-inline-start:64px; z-index:82; width:min(260px,calc(100% - 76px)); max-height:calc(100% - 24px); overflow-y:auto; padding:6px; display:grid; gap:4px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-panel); box-sizing:border-box; }
+#modeler .md-drawing-rail-groups[hidden] { display:none; }
+#modeler .md-drawing-rail-groups button { min-height:44px; padding:6px 10px; border:1px solid var(--border-color); border-radius:7px; background:var(--btn-bg); color:var(--text-main); text-align:start; white-space:normal; }
+#modeler .md-drawing-rail-groups button.on { border-color:var(--accent); background:var(--accent-soft); }
 
 /* ---- the sheet's own properties, where the tree and inspector would be ----
    A drawing has nothing to say about features or a sketch plane, and everything
@@ -16245,6 +16253,12 @@ body.dock-rail.compact-nav #modeler.md-tree-on .md-mobile-status {
   flex: 1 1 auto;
   gap: 10px;
 }
+body.compact-nav #modeler #md-sheet .md-sheet-fields .md-head-inputs { display:grid !important; grid-template-columns:minmax(0,1fr) 96px; align-items:start; width:100%; }
+body.compact-nav #modeler #md-sheet .md-sheet-fields .md-field:has(#mdName) { grid-column:1 / -1; }
+body.compact-nav #modeler #md-sheet .md-sheet-fields .md-field { align-self:start; min-width:0; }
+body.compact-nav #modeler #md-sheet .md-sheet-fields .md-field input { width:100%; max-width:none; box-sizing:border-box; }
+body.compact-nav #modeler #md-sheet .md-sheet-fields #mdDraftStatus { display:block; width:100%; white-space:normal; overflow-wrap:anywhere; }
+body.compact-nav #modeler #md-sheet .md-more-actions { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
 
 /* ==========================================================================
    Cabinet designer — compact (phone / foldable) chrome

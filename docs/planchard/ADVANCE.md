@@ -1,4 +1,4 @@
-Latest mobile checkpoint 2026-10-11: printed2-16/PDF102 exact inch shaft completed with actual length/large-diameter parameter-change QA, Undo, cold reopen and SVG11916bytes. Next2-17/PDF103 flatpart. See MOBILE_ADVANCE.md for qualifications and exact resume. Globalhomework11/117review15/130 unchanged.
+Latest mobile checkpoint 2026-10-11: printed2-17/PDF103 flat part completed in mobile touch with both Front+Top and Front-only/thickness-note alternatives, all source values audited in native SVG and cold reopen. Hole centers use fixed coordinate datums; edge-offset associativity not claimed. Mobile overlaps repaired, Drawing rail grouped, More fields/actions aligned. NEXT2-18/PDF104 countersink source inspection. See MOBILE_ADVANCE.md for qualifications and exact resume. Globalhomework11/117review15/130 unchanged.
 
 # Planchard ebook — live advance file
 

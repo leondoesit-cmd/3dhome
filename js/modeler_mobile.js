@@ -30,6 +30,7 @@
 import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
 import {drawingCommandGroup} from "./core/drawing_command_group.js";
 import {mobileFeedbackSpace} from './core/mobile_feedback_space.js';
+import {syncMobileDrawingRail,resetMobileDrawingRail} from './modeler_mobile_drawing_rail.js';
 
 /* The rest of the verbs that consume a closed profile, in the order a part is
    usually built. Extrude is NOT here: it is pushed by name in ctxActions so the
@@ -818,6 +819,7 @@ function buildDrawingCommands() {
   var owner = api.root;
   var tools,lastGroup=null,groupCount=0;
   owner.querySelectorAll("#mdDrawingTools button").forEach(function (target) {
+    if (target.classList.contains('md-drawing-rail-control')) return;
     var label = target.querySelector("span");
     var glyph = target.querySelector("svg, i");
     var name = label ? label.textContent.trim() : target.getAttribute("aria-label") || target.title;
@@ -983,7 +985,7 @@ function buildMoreSheet() {
   borrow(api.root.querySelector(".md-head-inputs"), fields);
 
   section(t("msheet_actions"));
-  var g1 = grid("m-grid-3 m-icon-grid");
+  var g1 = grid("m-grid-3 m-icon-grid md-more-actions");
   g1.appendChild(
     gridBtn('<i class="ph ph-floppy-disk"></i>', t("save"), false, function () {
       api.save();
@@ -1117,6 +1119,7 @@ function sig() {
 }
 
 function sync(force) {
+  if (api) syncMobileDrawingRail(api.root,t,compact());
   if (!api || !compact() || !api.state().open) return;
   adoptHint();
   applyTreeDock();
@@ -1203,6 +1206,7 @@ export function initModelerMobile(bridge) {
 // The editor closes by removing its own root: anything borrowed has to go home
 // first, or the tree would be deleted along with the sheet holding it.
 export function teardownModelerMobile() {
+  if (api) resetMobileDrawingRail(api.root);
   foldTab = null;
   if (api && api.root) api.root.classList.remove("md-fold-open");
   release();

@@ -280,6 +280,8 @@ export var TXT = {
   drawingHint: ["גיליון שרטוט · גררו מבט לאורך קו ההיטל · D למידה · S לחתך", "Drawing sheet · drag a view along its projection line · D to dimension · S to section"],
   drawToolSelect: ["בחירה", "Select"],
   drawGroupDimensions: ["בחירה ומידות", "Selection and dimensions"],
+  drawToolGroups: ["קבוצות כלים", "Tool groups"],
+  drawNextTools: ["הכלים הבאים", "Next tools"],
   drawGroupGeometry: ["גאומטריה על הדף", "Paper geometry"],
   drawGroupAnnotations: ["הערות ותמונות", "Notes and images"],
   drawGroupFormats: ["פורמטים ותבניות", "Formats and templates"],
