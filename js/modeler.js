@@ -25,6 +25,7 @@ import {threadPlacementFromFace} from './core/thread_placement.js';
 import {threadPlacementFromCircularEdge} from './core/thread_circular_start.js';
 import {occurrenceDependencyId,mateDependencyId,partDependencyGraph,assemblyDependencyGraph,dependencyVisualization} from './core/dependency_visualization.js';
 import {renderDependencyPresentation} from './modeler_dependency_ui.js';
+import {captureNamedCameraPose,restoreNamedCameraPose,namedCameraViews,addNamedCameraView,removeNamedCameraView} from './core/named_camera_views.js';
 import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
 import {setExtrudeFeatureOperation} from './core/extrude_operation_edit.js';
@@ -4166,7 +4167,7 @@ function buildDOM() {
     '<button data-view="left" data-tip="' + t("view_left") + '">' + cadIcon("view_right") + '<span>' + (getLang()==="en"?"Left":"שמאל") + ' · Z·Y</span></button>' +
     '<button type="button" id="mdNormalToView" data-tip="' + kt(t("normalTo"), "Ctrl+8") + '">' + cadIcon("normalTo") + "<span>" + t("normalTo") + "</span></button>" +
     "</div>" +
-    '<div class="md-vgroup md-projection"><button type="button" id="mdPerspectiveView" aria-label="Perspective" aria-pressed="true" title="Toggle perspective / orthographic orbit projection"><span>Perspective</span></button></div>' +
+    '<div class="md-vgroup md-projection"><button type="button" id="mdPerspectiveView" aria-label="Perspective" aria-pressed="true" title="Toggle perspective / orthographic orbit projection"><span>Perspective</span></button><button type="button" id="mdNamedViews" aria-label="Named views"><span>Named views</span></button></div>' +
     '<div class="md-vgroup md-zoom">' +
     '<button data-zoom="in" data-tip="' + t("zoomIn") + '" aria-label="' + t("zoomIn") + '" title="' + t("zoomIn") + '">' + cadIcon("zoomIn") + '</button>' +
     '<button data-zoom="out" data-tip="' + t("zoomOut") + '" aria-label="' + t("zoomOut") + '" title="' + t("zoomOut") + '">' + cadIcon("zoomOut") + '</button>' +
@@ -4447,6 +4448,7 @@ function buildDOM() {
     try{localStorage.setItem('modelforge:orbitProjection',mode);}catch(error){}
     syncViewButtons();
   });
+  root.querySelector('#mdNamedViews').addEventListener('click',showViewSelector);
   root.querySelector("#mdSketchPlaneChip").addEventListener("click", function () {
     showReferencePicker(E.tool);
   });
@@ -11210,6 +11212,35 @@ function showViewSelector() {
     });
     host.appendChild(button);
   });
+  host.appendChild(btn('Save current view…',openNamedCameraViewForm));
+  var owner=E.docType==='assembly'?E.assembly:E.def;
+  try{namedCameraViews(owner).forEach(function(saved){
+    var row=el('div','md-feature-actions');
+    row.appendChild(btn(saved.name,function(){
+      if(owner!==(E.docType==='assembly'?E.assembly:E.def)){flash('The view owner changed');return;}
+      try{var current=namedCameraViews(owner).find(function(record){return record.id===saved.id;});if(!current)throw new Error('The named view no longer exists');restoreNamedCameraPose(E.pv,current.pose,namedCameraCenterY());closeChromeOverlays();syncViewButtons();drawSketch();}catch(error){flash(error.message);}
+    }));
+    row.appendChild(btn('Delete '+saved.name,function(){
+      if(owner!==(E.docType==='assembly'?E.assembly:E.def)){flash('The view owner changed');return;}
+      if(!namedCameraViews(owner).some(function(record){return record.id===saved.id;})){flash('The named view no longer exists');return;}
+      pushUndo('Delete named view');var live=E.docType==='assembly'?E.assembly:E.def;
+      if(removeNamedCameraView(live,saved.id)){scheduleModelerDraft();syncDirty();syncUndoButtons();showViewSelector();}
+    }));host.appendChild(row);
+  });}catch(error){host.appendChild(el('small','',error.message));}
+}
+
+function namedCameraCenterY(){if(E.docType==='assembly')return 0;var bounds=defBounds(E.def);return (bounds.y0+bounds.y1)/2;}
+function openNamedCameraViewForm(){
+  var owner=E.docType==='assembly'?E.assembly:E.def,type=E.docType,history=currentHistoryNode(),pose;
+  try{pose=captureNamedCameraPose(E.pv,namedCameraCenterY());}catch(error){flash(error.message);return;}
+  closeChromeOverlays();
+  openQuickForm({action:'namedcameraview',title:'Save current view',hint:'Save this camera orientation, framing and projection on the current document. Model geometry is unchanged.',fields:[{key:'name',label:'View name',type:'text',value:''}],onApply:function(values){
+    if(type!==E.docType||owner!==(E.docType==='assembly'?E.assembly:E.def)||currentHistoryNode()!==history){flash('The document changed while naming the view');return false;}
+    var recordId=String(uid());
+    try{var preview=cloneData(owner);addNamedCameraView(preview,{id:recordId,name:values.name,pose:pose});}catch(error){flash(error.message);return false;}
+    pushUndo('Save named view');var live=E.docType==='assembly'?E.assembly:E.def;
+    addNamedCameraView(live,{id:recordId,name:values.name,pose:pose});scheduleModelerDraft();syncDirty();syncUndoButtons();return true;
+  }});
 }
 
 function showContextMenu(clientX, clientY, view) {

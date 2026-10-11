@@ -1,0 +1,442 @@
+{
+  "scope": "actual Chrome source custom-view warm/cold acceptance; no whole-book completion claim",
+  "source": {
+    "pdf": 201,
+    "printed": "4-21"
+  },
+  "files": [
+    {
+      "path": "artifacts\\planchard\\CH4-named-view-baseline-browser-2026-10-11.mforge",
+      "bytes": 1479429,
+      "sha256": "febf7c0a39f29cf7fbdd36d4b121eae151ad626b4546ce00aaf0a497523e9710"
+    },
+    {
+      "path": "artifacts\\planchard\\CH4-named-views-warm-browser-2026-10-11.mforge",
+      "bytes": 1475027,
+      "sha256": "8ad58a586af5936114def9acfe14425b822f6d24d76608cecf202c09640fcddb"
+    },
+    {
+      "path": "artifacts\\planchard\\CH4-named-views-cold-browser-2026-10-11.mforge",
+      "bytes": 1474962,
+      "sha256": "17e3ef0fda081c950f66dafcdb5bb1bc7e96654360a85ed9b5c1589bff8dfd26"
+    }
+  ],
+  "savedKey": "cm_mv31o07x_6477",
+  "views": [
+    {
+      "id": "6477",
+      "name": "Orbit perspective",
+      "pose": {
+        "az": 0.8,
+        "el": 0.5,
+        "dist": 14.474805698177788,
+        "zoom": 1,
+        "worldTarget": {
+          "x": 0,
+          "y": 0.4,
+          "z": 0
+        },
+        "projection": "perspective"
+      }
+    },
+    {
+      "id": "6478",
+      "name": "Normal To front",
+      "pose": {
+        "az": 0.8,
+        "el": 0.5,
+        "dist": 14.474805698177788,
+        "zoom": 1,
+        "worldTarget": {
+          "x": 0,
+          "y": 0.4,
+          "z": 0
+        },
+        "projection": "perspective",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "xAxis": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          },
+          "yAxis": {
+            "x": 0,
+            "y": 0,
+            "z": 1
+          },
+          "normal": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          }
+        }
+      }
+    }
+  ],
+  "checks": {
+    "id": true,
+    "key": true,
+    "name": true,
+    "features": true,
+    "sketches": true,
+    "references": true,
+    "history": true,
+    "drawing": true,
+    "configurations": true,
+    "rollbackIndex": true,
+    "localFrame": true
+  },
+  "baselineWarmDifferences": [
+    {
+      "path": "/createdAt",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/d",
+      "change": "removed"
+    },
+    {
+      "path": "/mainModel/exactTopologyCache/feature_mv2xb8os_1/signature",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/exactTopologyCache/feature_mv2xd0p0_2/signature",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/exactTopologyCache/feature_mv2xd0p0_2:tool/signature",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/exactTopologyCache/feature_mv2xdhsp_3/signature",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/exactTopologyCache/feature_mv2xdhsp_3:delta/signature",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/exactTopologyCache/feature_mv2xdhsp_3:instances/signature",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/h",
+      "change": "removed"
+    },
+    {
+      "path": "/mainModel/lastRebuild/rebuiltAt",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/lastStandardsAudit/at",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/metadata/namedCameraViews",
+      "change": "added"
+    },
+    {
+      "path": "/mainModel/parameters/depth",
+      "change": "removed"
+    },
+    {
+      "path": "/mainModel/parameters/height",
+      "change": "removed"
+    },
+    {
+      "path": "/mainModel/parameters/width",
+      "change": "removed"
+    },
+    {
+      "path": "/mainModel/parts/0/exactBuildToken",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/parts/0/meshData/bounds",
+      "change": "added"
+    },
+    {
+      "path": "/mainModel/w",
+      "change": "removed"
+    }
+  ],
+  "warmColdDifferences": [
+    {
+      "path": "/createdAt",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/lastRebuild/rebuiltAt",
+      "change": "value"
+    },
+    {
+      "path": "/mainModel/parts/0/meshData/bounds",
+      "change": "removed"
+    }
+  ],
+  "cacheSignatureAudit": [
+    {
+      "stage": "feature_mv2xb8os_1",
+      "changedSignatureKeys": [
+        "parameters"
+      ],
+      "cachedGeometryIdentical": true
+    },
+    {
+      "stage": "feature_mv2xd0p0_2:tool",
+      "changedSignatureKeys": [
+        "parameters"
+      ],
+      "cachedGeometryIdentical": true
+    },
+    {
+      "stage": "feature_mv2xd0p0_2",
+      "changedSignatureKeys": [
+        "parameters"
+      ],
+      "cachedGeometryIdentical": true
+    },
+    {
+      "stage": "feature_mv2xdhsp_3:delta",
+      "changedSignatureKeys": [
+        "parameters"
+      ],
+      "cachedGeometryIdentical": true
+    },
+    {
+      "stage": "feature_mv2xdhsp_3:instances",
+      "changedSignatureKeys": [
+        "parameters"
+      ],
+      "cachedGeometryIdentical": true
+    },
+    {
+      "stage": "feature_mv2xdhsp_3",
+      "changedSignatureKeys": [
+        "parameters"
+      ],
+      "cachedGeometryIdentical": true
+    }
+  ],
+  "parts": [
+    {
+      "id": 6429,
+      "baselineWarmPositionsEqual": true,
+      "baselineWarmNormalsEqual": true,
+      "warmColdWholeMeshEqual": false,
+      "nativeSolidCount": 1,
+      "bounds": {
+        "x0": -3.4,
+        "x1": 3.4,
+        "y0": 0,
+        "y1": 0.8,
+        "z0": -3.4,
+        "z1": 3.4
+      },
+      "warmColdMeshWithoutOptionalBoundsEqual": true
+    }
+  ],
+  "qualifications": [
+    "Normal To front is a free user label; actual stored frame is Top datum (+Y normal/+Z yAxis).",
+    "Only this independent mainModel is contained in these bundles; whole-library original-copy isolation is not independently provable from these exports.",
+    "Planner width/depth/height metadata and legacy w/h/d are removed in baseline-to-warm normalization; these are disclosed changes, not whole-document byte identity.",
+    "No independent fresh native kernel regeneration performed; native geometry compares protected actual browser caches/mesh."
+  ],
+  "parentObservedActions": [
+    "Capture orbit and Normal To",
+    "Recall perspective enabled versus fixed orthographic disabled",
+    "Delete fixed record then Undo restored it",
+    "Save clean",
+    "Hard reload and reopen exact Saved key",
+    "Cold recall both names"
+  ],
+  "compiled": {
+    "featureRecordsExact": true,
+    "issuesExact": true,
+    "features": 8,
+    "issues": []
+  },
+  "assembly": {
+    "files": [
+      {
+        "path": "artifacts\\planchard\\CH4-assembly-named-views-baseline-browser-2026-10-11.mforge",
+        "bytes": 1534598,
+        "sha256": "38e72746237acc974d69e0f6e41d4cc07a2e5e92dfa52e68ea536311688bdab2"
+      },
+      {
+        "path": "artifacts\\planchard\\CH4-assembly-named-views-warm-browser-2026-10-11.mforge",
+        "bytes": 1534804,
+        "sha256": "e1f59dd9fd79c5467bf98cf06e7bdc6195f863064d7f2059075be52c79109874"
+      },
+      {
+        "path": "artifacts\\planchard\\CH4-assembly-named-views-cold-browser-2026-10-11.mforge",
+        "bytes": 63195,
+        "sha256": "6b99f8ab31496e03b5553c0d69da18fd63916b288a3e8dc03c5b85056e35b575"
+      }
+    ],
+    "savedKey": "asm_mv328jas_6477",
+    "views": [
+      {
+        "id": "6481",
+        "name": "Assembly orbit",
+        "pose": {
+          "az": 0.8,
+          "el": 0.5,
+          "dist": 17.3972438795759,
+          "zoom": 1,
+          "worldTarget": {
+            "x": 3.008386832996358,
+            "y": 1.65,
+            "z": 1.9130696583641602
+          },
+          "projection": "perspective"
+        }
+      }
+    ],
+    "warmDifferences": [
+      {
+        "path": "/assemblies/0/components/1/transform/q/w",
+        "change": "value"
+      },
+      {
+        "path": "/assemblies/0/components/1/transform/q/y",
+        "change": "value"
+      },
+      {
+        "path": "/assemblies/0/components/1/transform/ry",
+        "change": "type"
+      },
+      {
+        "path": "/assemblies/0/metadata",
+        "change": "added"
+      },
+      {
+        "path": "/createdAt",
+        "change": "value"
+      }
+    ],
+    "partMainModelExact": true,
+    "componentDefinitionsExact": false,
+    "topologyMatesExact": true,
+    "partNamesAbsentFromAssembly": true,
+    "coldPending": false,
+    "warmColdCompleteAssemblyExact": false,
+    "warmColdWholeBundleDifferences": [
+      {
+        "path": "/assemblies/0/components/1/transform/q/w",
+        "change": "value"
+      },
+      {
+        "path": "/assemblies/0/components/1/transform/q/y",
+        "change": "value"
+      },
+      {
+        "path": "/assemblies/0/components/1/transform/ry",
+        "change": "type"
+      },
+      {
+        "path": "/createdAt",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/activeSketch",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/context/units/length",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/customProperties",
+        "change": "removed"
+      },
+      {
+        "path": "/mainModel/definitionId",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/exactTopologyCache",
+        "change": "removed"
+      },
+      {
+        "path": "/mainModel/features",
+        "change": "length",
+        "before": 3,
+        "after": 0
+      },
+      {
+        "path": "/mainModel/history",
+        "change": "length",
+        "before": 5,
+        "after": 0
+      },
+      {
+        "path": "/mainModel/id",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/key",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/lastRebuild/rebuiltAt",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/lastRebuild/signature",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/lastStandardsAudit",
+        "change": "removed"
+      },
+      {
+        "path": "/mainModel/metadata/namedCameraViews",
+        "change": "removed"
+      },
+      {
+        "path": "/mainModel/name",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/parts",
+        "change": "length",
+        "before": 1,
+        "after": 0
+      },
+      {
+        "path": "/mainModel/revision",
+        "change": "value"
+      },
+      {
+        "path": "/mainModel/rollbackIndex",
+        "change": "removed"
+      },
+      {
+        "path": "/mainModel/sketches",
+        "change": "length",
+        "before": 2,
+        "after": 1
+      },
+      {
+        "path": "/metadata/units",
+        "change": "value"
+      }
+    ],
+    "coldActiveDocument": {
+      "type": "assembly",
+      "key": "asm_mv328jas_6477"
+    },
+    "coldMainModelQualification": "Fresh nonactive blank Part after reload; replacement does not denote original Part deletion or modified assembly source.",
+    "coldRecordExact": true,
+    "sourceBodiesExactIgnoringDisclosedWarmOrientationRoundoff": true,
+    "baselineColdAssemblyExceptAddedNamedMetadataExact": true,
+    "warmColdAssemblyExceptDisclosedThreeOrientationValuesExact": true,
+    "coldExportUnitsQualification": "Top-level bundle units mm\u2192cm follows fresh inactive blank Part context; assembly source dimensions/poses and named world-cm pose are unchanged."
+  }
+}
