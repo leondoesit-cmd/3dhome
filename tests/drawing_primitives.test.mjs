@@ -74,6 +74,21 @@ test('annotation-only canonical save compiles regenerates and captures an empty 
  const run=await regenerateFeatures({...compiled.document,features:compiled.features});
  try{assert.equal(run.ok,true,JSON.stringify(run.issues));assert.equal(run.finalShape,null);const proof=captureExactTopology(t.def,compiled.features,run);assert.ok(proof);assert.equal(rebuildParametricDocument({...t.def,exactTopologyCache:proof}).ok,true);}finally{releaseRegeneration(run);}
 });
+test('rapid neighboring Paper picks do not open an existing annotation editor or lose the next segment',async()=>{
+ const t=table();let prompts=0;t.host.promptFields=async()=>{prompts++;return null;};
+ t.controller.setTool('sheetline');t.click(145,108);t.click(111,88);
+ const shaft=structuredClone(t.def.drawing.primitives[0]);
+ t.click(119,89);const draft=structuredClone(t.controller.state.draft),steps=t.undo.length;
+ assert.equal(t.controller.doubleClick({pointerType:'touch'},119,89),true);
+ assert.equal(prompts,0);assert.deepEqual(t.controller.state.draft,draft);assert.equal(t.undo.length,steps);
+ t.click(111,88);assert.equal(t.def.drawing.primitives.length,2);assert.deepEqual(t.def.drawing.primitives[0],shaft);
+ for(const tool of ['sheetline','sheetpolyline','sheetrect','sheetcircle','sheetarc','sheetellipse']){
+  t.controller.setTool(tool);assert.equal(t.controller.doubleClick({},128,98),true);assert.equal(prompts,0);
+ }
+ t.controller.setTool('select');assert.equal(t.controller.doubleClick({},128,98),true);
+ await new Promise(resolve=>setImmediate(resolve));assert.equal(prompts,1,'Select retains the precise annotation editor');
+});
+
 test('canvas double-click routes to paper edit fields and late answers cannot edit a replaced sheet',async()=>{
  const t=table();t.controller.setTool('sheetline');t.click(20,20);t.click(60,20);t.controller.setTool('select');
  t.answer({x0:'20',y0:'30',x1:'60',y1:'30',style:'center'});assert.equal(t.controller.doubleClick({},40,20),true);
