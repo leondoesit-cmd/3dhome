@@ -216,7 +216,12 @@ export function startTouchPrecisionTrial(options) {
   readout.innerHTML = "<strong></strong><small></small>"; panel.appendChild(readout);
   var coordinates = node("div", "touch-refine-coordinates");
   var axes = options.axes || ["X", "Y"], inputA = node("input"), inputB = node("input");
-  [inputA, inputB].forEach(function (input) { input.type = "number"; input.step = ".1"; input.inputMode = "decimal"; });
+  [inputA, inputB].forEach(function (input) {
+    input.type = "number"; input.step = ".1"; input.inputMode = "decimal";
+    // These coordinates use the caller's sketch/plan units. Keep direct typing:
+    // the global dimension dial assumes plan units and sits below this session.
+    input.setAttribute("data-knob", "off");
+  });
   coordinates.appendChild(node("label", null, axes[0])); coordinates.lastChild.appendChild(inputA);
   coordinates.appendChild(node("label", null, axes[1])); coordinates.lastChild.appendChild(inputB);
   panel.appendChild(coordinates);
@@ -321,7 +326,10 @@ export function startTouchPrecisionTrial(options) {
     root.remove();document.body.classList.remove("touch-precision-active");if(state.xray&&options.onXray)options.onXray(false);
     if(ok){if(options.onConfirm)options.onConfirm({x:state.x,y:state.y});}else if(options.onCancel)options.onCancel();
   }
-  cancel.onclick=function(){finish(false);};confirm.onclick=function(){finish(true);};window.addEventListener("keydown",keydown,true);
+  cancel.onclick=function(){finish(false);};
+  // Touch confirmation must read the focused field too: its change/blur may
+  // arrive after this click, or not arrive before the session removes it.
+  confirm.onclick=function(){applyInputs();finish(true);};window.addEventListener("keydown",keydown,true);
   state.setTarget=setTarget;state.finish=finish;sync();setTimeout(function(){if(activeSession===state&&options.onMove)options.onMove({x:state.x,y:state.y});},0);
   return state;
 }

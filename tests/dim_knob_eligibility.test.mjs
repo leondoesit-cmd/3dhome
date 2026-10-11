@@ -24,3 +24,12 @@ test('the dial leaves non-dimensions, protected fields and its own controls alon
   ]) assert.equal(eligible(field(changes)), false);
   assert.equal(eligible(null), false);
 });
+
+test('exact refinement coordinates can keep their native decimal typing and caller units', () => {
+  const coordinate = field({
+    type: 'number', inputMode: 'decimal', id: '',
+    getAttribute: name => name === 'data-knob' ? 'off' : null,
+  });
+  assert.equal(eligible(coordinate), false);
+  assert.equal(coordinate.readOnly, false);
+});

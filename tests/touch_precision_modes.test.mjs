@@ -18,6 +18,21 @@ const [ui, settings, interaction, modeler, css, i18n] = await Promise.all([
   readI18nSource(),
 ]);
 
+test("touch Confirm commits typed coordinates before removing the focused field", () => {
+  const body = ui.match(/confirm\.onclick=function\(\)\{([^}]+)\}/)?.[1];
+  assert.ok(body, "native touch confirmation handler exists");
+  const typed = { x: 6, y: 1 };
+  let point = { x: 3.2, y: 2.7 };
+  let committed;
+  const confirm = Function("applyInputs", "finish", body).bind(null,
+    () => { point = { ...typed }; },
+    ok => { if (ok) committed = { ...point }; },
+  );
+  // No change or blur event is delivered before the user's Confirm click.
+  confirm();
+  assert.deepEqual(committed, typed);
+});
+
 test("touch precision preferences default to the direct loupe and sanitize tuning", () => {
   const memory = new Map();
   globalThis.localStorage = {
