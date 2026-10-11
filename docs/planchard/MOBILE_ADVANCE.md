@@ -79,3 +79,8 @@ Current Plane7 printed1-46/PDF74: fresh MOBILE Ch1 Plane7 Qualified native touch
 
 ## Qualified mobile acceptance Plane 7 — 2026-10-11
 Printed1-46/PDF74 fresh MOBILE Ch1 Plane7 Qualified independently touch-authored seven-line native Note, A-G geometric inferred lists FRONT A,B,G;TOP C,E,G;RIGHT B,D,F. H white-opening ownership ambiguity explicitly retained; no complete A-H/publisher key claimed. Undo/Redo/name/description/Save/nativeSVG/cold Saved card reopen exact identity verified;one note. plane7.svg seven exact lines x113.172/y132.362–155.042,2.8mm/3.78mm pitch;plane7-reopened.png actual390x844 afterFit. Mobile activity17/21 is qualified worksheet acceptance, not resolution of H source.0/117homework. Next Plane8 printed1-46/PDF74.
+
+Current Plane8 printed1-46/PDF74 fresh MOBILE Ch1 Plane8: native touch six-line answer/Undo/Redo/name/description/Save requested. Export/cold reopen pending;accepted17/21.
+
+## Accepted Plane 8 — 2026-10-11
+Printed1-46/PDF74 fresh MOBILE Ch1 Plane8 touch-authored six-line native Note: FRONT A,B;TOP D,F;RIGHT B,C,E; vertical-diagonalB and horizontalD/F explanation. Undo/Redo/name/description/Save/nativeSVG/cold Saved card reopen exact identity verified;one note. plane8.svg six exact lines x113.172/y132.362–151.262,2.8mm/3.78mm pitch;plane8-reopened.png actual390x844 afterFit. Accepted18/21 Chapter1 in-chapter includes qualifiedPlane7;0/117homework. Next Plane9 printed1-46/PDF74, preserve orientation-versus-visible/I-occlusion qualification.
