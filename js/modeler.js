@@ -1,5 +1,6 @@
 import {componentPatternPlan,setComponentPattern,removeComponentPattern} from "./core/assembly_component_pattern.js";
 import {appendSavedLibrarySearch} from './modeler_library_search.js';
+import {sketchEntityStep,sketchEntitySwipe} from './core/sketch_entity_navigation.js';
 import {makeDimensionTolerance,toleranceFields} from "./core/dimension_tolerance.js";
 import {createSpringBinding,springSource,springMotionState,springPreviewMesh,hasUnverifiedSprings,restoreSpringEndpoint} from "./core/flexible_spring.js";
 import {createExactSaveCache} from "./core/exact_save_cache.js";
@@ -4238,6 +4239,7 @@ function buildDOM() {
     '<div id="mdEmptyStart" class="md-empty-start" role="group" aria-label="' + t("wfChoosePlane") + '" hidden>' +
       ["top","front","right"].map(function(plane){return '<button type="button" data-origin-plane="'+plane+'">'+t("view_"+plane)+'</button>';}).join("") + '</div>' +
     '<div class="md-context-toolbar" id="mdContextToolbar" hidden></div>' +
+    '<div class="md-entity-nav" id="mdEntityNav" hidden></div>' +
     /* The selection row: filters at the start, breadcrumb at the end, one flex
        row so they compete for width instead of overlapping at narrow sizes —
        and so the breadcrumb stops printing itself over the status line. */
@@ -7199,7 +7201,7 @@ function fitSketch() {
   var overlayRect=function(id){var node=root && root.querySelector(id);return node && !node.hidden ? node.getBoundingClientRect() : null;};
   var fitArea=sketchFitViewport(canvasRect,
     [overlayRect("#mdCoach"),overlayRect("#mdWorkflow"),overlayRect("#mdContextToolbar")],
-    [overlayRect("#mdRailBottom"),overlayRect("#mdRailRow"),overlayRect("#mdStatus")]);
+    [overlayRect("#mdRailBottom"),overlayRect("#mdRailRow"),overlayRect("#mdStatus"),overlayRect("#mdEntityNav")]);
   var u0, u1, v0, v1;
   var hasParts = renderedParts(E.def).length > 0;
   if (hasParts) {
@@ -11099,6 +11101,7 @@ function toggleIsolate() {
 
 function syncSelectionChrome() {
   if (!root) return;
+  syncSketchEntityNavigator();
   var input = chromeSelectionInput();
   var toolbar = root.querySelector("#mdContextToolbar");
   var items = contextToolbarItems(input);
@@ -11133,6 +11136,38 @@ function syncSelectionChrome() {
     });
   }
   syncModelerMobile();
+}
+
+function syncSketchEntityNavigator() {
+  var strip=root.querySelector("#mdEntityNav");if(!strip)return;
+  var sketch=(E.def.sketches || []).find(function(item){return item.id===E.def.activeSketch;});
+  var entities=sketch && sketch.entities || [];
+  var visible=E.docType!=="assembly" && E.mode!=="drawing" && !E.quickAction && E.tool==="select" && (E.mode==="2d" || E.authoring?.phase==="sketch") && entities.length>0;
+  strip.hidden=!visible;strip.innerHTML="";if(!visible)return;
+  var hebrew=getLang()!=="en",selected=selEntities().length===1?selEntities()[0]:null;
+  if(!entities.includes(selected))selected=null;
+  function step(direction){
+    var currentSketch=(E.def.sketches || []).find(function(item){return item.id===E.def.activeSketch;});
+    var chosen=sketchEntityStep(currentSketch?.entities || [],selEntities()[0],direction);
+    if(chosen){selectSketch(chosen,false);refreshSelection();}
+  }
+  var gesture=null;
+  strip.onpointerdown=function(event){if(event.pointerType!=="touch" || !event.isPrimary)return;gesture={id:event.pointerId,x:event.clientX,y:event.clientY};};
+  strip.onpointerup=function(event){
+    if(!gesture || gesture.id!==event.pointerId)return;
+    var direction=sketchEntitySwipe(event.clientX-gesture.x,event.clientY-gesture.y,getComputedStyle(strip).direction==="rtl");gesture=null;
+    if(direction){event.preventDefault();strip.dataset.suppressSwipeClick=String(Date.now()+500);step(direction);}
+  };
+  strip.onpointercancel=function(){gesture=null;};
+  if(!strip.dataset.swipeClickBound){strip.dataset.swipeClickBound="true";strip.addEventListener("click",function(event){if(Number(strip.dataset.suppressSwipeClick)>Date.now()){delete strip.dataset.suppressSwipeClick;event.preventDefault();event.stopImmediatePropagation();}},true);}
+  var previous=btn("‹",function(){step(-1);});previous.setAttribute("aria-label",hebrew?"הישות הקודמת בסקיצה":"Previous sketch entity");strip.appendChild(previous);
+  var caption=el("span","md-entity-nav-caption");caption.setAttribute("aria-live","polite");
+  caption.textContent=selected?(selected.name || selected.type)+" · "+(entities.indexOf(selected)+1)+" / "+entities.length:(hebrew?"בחר ישות בסקיצה":"Browse sketch entities")+" · "+entities.length;
+  caption.title=hebrew?"החלק ימינה או שמאלה לבחירת ישות":"Swipe left or right to select an entity";
+  strip.appendChild(caption);
+  var next=btn("›",function(){step(1);});next.setAttribute("aria-label",hebrew?"הישות הבאה בסקיצה":"Next sketch entity");strip.appendChild(next);
+  var parameters=btn(hebrew?"פרמטרים":"Parameters",function(){setTab("shape");showModelerSheet("props");});
+  parameters.disabled=!selected;parameters.setAttribute("aria-label",hebrew?"פרמטרים של הישות שנבחרה":"Selected entity parameters");strip.appendChild(parameters);
 }
 
 /* Each crumb names something already in the document, so selecting it is a

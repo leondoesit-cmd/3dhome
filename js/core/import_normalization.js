@@ -236,7 +236,7 @@ function inferBoxMates(components) {
   const mates=[];for(let a=0;a<components.length;a++)for(let b=a+1;b<components.length;b++)for(const axis of ["x","y","z"]){const other=["x","y","z"].filter((value)=>value!==axis),touch=Math.abs(components[a].max[axis]-components[b].min[axis])<1e-4||Math.abs(components[b].max[axis]-components[a].min[axis])<1e-4,overlap=other.every((value)=>Math.min(components[a].max[value],components[b].max[value])-Math.max(components[a].min[value],components[b].min[value])>1e-4);if(touch&&overlap)mates.push({id:"mate:"+(a+1)+":"+(b+1)+":"+axis,type:"coincident",a:"component:"+(a+1),b:"component:"+(b+1),axis});}return mates;
 }
 
-function revolveProfile(meshData,bounds) {
+function revolveProfile(meshData,bounds,topology=[]) {
   const tolerance=Math.max(1e-5,(bounds.max.y-bounds.min.y)*1e-5), levels=new Map();
   for(let index=0;index+2<(meshData.positions || []).length;index+=3){const x=meshData.positions[index],y=meshData.positions[index+1],z=meshData.positions[index+2],key=Math.round(y/tolerance),r=Math.hypot(x,z);if(r<tolerance)continue;const row=levels.get(key)||{y,rs:[]};if(!row.rs.some((value)=>Math.abs(value-r)<tolerance))row.rs.push(r);levels.set(key,row);}
   const rows=Array.from(levels.values()).sort((a,b)=>a.y-b.y); if(rows.length<2)return null;
@@ -251,6 +251,14 @@ function revolveProfile(meshData,bounds) {
       if(place===0||shoulder)outer.push({u:radius,v:row.y});
     });
   });
+  // A proven through-bore is material boundary, not redundant shoulder data.
+  // Require an analytic cylindrical face and the same inner radius at every
+  // sampled height before closing the meridian along that bore instead of axis.
+  const bore=topology.filter(entry=>entry.kind==='face'&&entry.descriptor?.surface==='cylinder')
+    .map(entry=>Number(entry.descriptor.radius))
+    .filter(radius=>radius>tolerance && rows.every(row=>row.rs[0]>radius+tolerance && row.rs.some(r=>Math.abs(r-radius)<tolerance)))
+    .sort((a,b)=>a-b)[0];
+  if(bore)return [...outer,...rows.slice().reverse().map(row=>({u:bore,v:row.y}))];
   return [{u:0,v:bounds.min.y},...outer,{u:0,v:bounds.max.y}];
 }
 
@@ -360,7 +368,7 @@ export function createImportedDefinition(source = {}, options = {}) {
   const normalized=source.bounds && source.meshData?.topology ? clone(source) : normalizeImportedGeometry(source);
   const b=normalized.bounds, id=options.id || "definition:"+normalized.id, partId=normalized.id+":part";
   const recognizedProfile=normalized.recognition==="extrusion" ? extrusionProfile(normalized.topology,b) : null;
-  const recognizedRevolve=normalized.recognition==="revolve" ? revolveProfile(normalized.meshData,b) : null;
+  const recognizedRevolve=normalized.recognition==="revolve" ? revolveProfile(normalized.meshData,b,normalized.topology) : null;
   if (normalized.recognition==="extrusion" && !recognizedProfile) normalized.recognition=null;
   if (normalized.recognition==="revolve" && !recognizedRevolve) normalized.recognition=null;
   const common={id:partId,featureId:normalized.id,name:normalized.name,color:options.color || "#aeb7c2",metal:.08,rough:.72};
@@ -373,7 +381,7 @@ export function createImportedDefinition(source = {}, options = {}) {
     authoringMode="hybrid";
   } else if (normalized.recognition==="cylinder") {
     const analytic=Number(normalized.radius), boxed=(b.max.x-b.min.x)/2, r=analytic>0?analytic:boxed;
-    parameters={...envelopeParameters(b,true),radius:expressionParameter("radius",String(r))};
+    parameters={...envelopeParameters(b,true),radius:expressionParameter("radius","width/2")};
     if(analytic>0){parameters.width=createParameter("width",r*2,{label:"Width",exposure:"planner",min:.01,adjustable:true});parameters.depth=createParameter("depth",r*2,{label:"Depth",exposure:"planner",min:.01,adjustable:true});}
     part={...common,kind:"cyl",x:0,y:b.min.y,z:0,r,r2:r,h:b.max.y-b.min.y,parametricEnvelope:"cylinder"};
     feature={id:normalized.id,type:"cylinder",name:"Recognized cylinder",inputs:[],params:{x:0,y:0,z:0,r:"$radius",h:"$height"},metadata:{recognizedFromImport:true}};

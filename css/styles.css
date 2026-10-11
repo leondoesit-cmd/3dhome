@@ -21205,3 +21205,28 @@ html[lang="he"] .survey-body p {
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/* Thumb-accessible sketch browsing uses the real canvas selection. */
+#modeler .md-entity-nav { display: none; }
+body.compact-nav #modeler .md-entity-nav:not([hidden]) {
+  display: flex;
+  position: fixed;
+  inset-inline: 8px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 8px);
+  z-index: 301;
+  min-height: 48px;
+  gap: 4px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  box-sizing: border-box;
+}
+#modeler .md-entity-nav button { min-width: 44px; min-height: 44px; flex-shrink: 0; }
+#modeler .md-entity-nav-caption { flex: 1; min-width: 0; align-self: center; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modeler .md-entity-nav { touch-action: pan-y; }
+/* Selection controls keep Add/Clear available. Stack the navigator above their
+   44px row instead of competing for the same thumb targets. */
+body.compact-nav:has(#md-selection-bar:not([hidden])) #modeler .md-entity-nav:not([hidden]) {
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 56px);
+}
+body.compact-nav.m-sheet-open #modeler .md-entity-nav:not([hidden]) { display: none; }

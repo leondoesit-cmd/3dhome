@@ -135,10 +135,17 @@ test("a recognized cylinder uses the analytic radius when the mesh falls short o
   const definition = createImportedDefinition({ name: "Coarse cylinder", format: "mesh", meshData, topology });
   assert.equal(definition.metadata.import.recognition, "cylinder");
   assert.equal(definition.parts[0].r, 10);
-  assert.equal(definition.parameters.radius.expression, "10");
+  assert.equal(definition.parameters.width.value,20);
+  assert.equal(definition.parameters.depth.value,20);
+  assert.equal(definition.parameters.radius.expression, "width/2");
+  const resized=rebuildDefinition(definition,{width:30,depth:30});
+  assert.equal(resized.ok,true,JSON.stringify(resized.issues));
+  assert.equal(resized.parameters.radius,15);
+  assert.equal(resized.bounds.max.x-resized.bounds.min.x,30);
+  assert.equal(resized.bounds.max.z-resized.bounds.min.z,30);
 });
 
-test("a recognized tube revolves the outer meridian and drops the bore", () => {
+test("a recognized tube preserves its through-bore and native material volume after cold rebuild", async () => {
   const cylinder = (radius, id) => ({ kind: "face", persistentId: id, descriptor: { surface: "cylinder", origin: { x: 0, y: 10, z: 0 }, axis: { x: 0, y: 1, z: 0 }, radius } });
   const plane = (y, id, ny) => ({ kind: "face", persistentId: id, descriptor: { surface: "plane", origin: { x: 0, y, z: 0 }, normal: { x: 0, y: ny, z: 0 } } });
   const topology = [cylinder(10, "outer"), cylinder(4, "inner"), plane(0, "bot", -1), plane(20, "top", 1)];
@@ -147,8 +154,18 @@ test("a recognized tube revolves the outer meridian and drops the bore", () => {
   const definition = createImportedDefinition({ name: "Tube", format: "mesh", meshData, topology });
   assert.equal(definition.metadata.import.recognition, "revolve");
   const radii = definition.parts[0].pts.map(point => point.u);
-  assert.ok(radii.every(radius => radius === 0 || Math.abs(radius - 10) < 1e-6), radii.join(","));
-  assert.ok(!radii.some(radius => Math.abs(radius - 4) < 1e-6));
+  assert.ok(radii.every(radius => Math.abs(radius - 4) < 1e-6 || Math.abs(radius - 10) < 1e-6), radii.join(","));
+  assert.ok(radii.some(radius => Math.abs(radius - 4) < 1e-6));
+  const cold=JSON.parse(JSON.stringify(definition));
+  assert.equal(rebuildDefinition(cold,{}).ok,true);
+  const {regenerateFeatures,releaseRegeneration}=await import('../js/cad_feature_tree.js');
+  const {shapeMassProperties}=await import('../js/cad_kernel.js');
+  const run=await regenerateFeatures(cold);
+  try{
+    assert.equal(run.ok,true,JSON.stringify(run.issues));
+    const mass=await shapeMassProperties(run.finalShape);
+    assert.ok(Math.abs(mass.volume-Math.PI*(10**2-4**2)*20)<1e-5,JSON.stringify(mass));
+  }finally{releaseRegeneration(run);}
 });
 
 test("a full-circle import stores the sweep, not the step between copies", () => {

@@ -20,6 +20,18 @@ test('invisible zero-area and off-canvas overlays leave fit unchanged',()=>{
  const area=sketchFitViewport(canvas,[rect(0,0,100,100),rect(900,200,0,46)],[rect(100,1300,300,30),overlays['#mdRailRow']]);
  assert.deepEqual(area,{x:0,y:0,w:canvas.width,h:canvas.height});
 });
+test('mobile navigator reserves bottom space without squeezing fit beneath it',()=>{
+ const phone=rect(0,48,390,748),navigator=rect(8,689,374,48);
+ const sketch={points:[{id:'c',x:0,y:0}],entities:[{type:'circle',c:'c',r:1.2}]};
+ const E={def:{sketches:[sketch]},view:'front',cw:0,ch:0,cv:{getBoundingClientRect:()=>phone}};
+ const root={querySelector:id=>id==='#mdEntityNav'?{hidden:false,getBoundingClientRect:()=>navigator}:null};
+ const bindings={E,root,sketchFitViewport,sizeSketch(){E.cw=phone.width;E.ch=phone.height;},sketchProjection:()=>null,renderedParts:()=>[],ensureSketchDoc:()=>[sketch],sameSketchContext:()=>true,ensureSketch:()=>sketch,activeSketchFrame:()=>null,sketchGeometryBounds,clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),SKETCH_MIN_SCALE:.3,SKETCH_MAX_SCALE:2000,drawSketch(){},syncStatus(){}};
+ const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ new Function(...Object.keys(bindings),sourceFunctionText(source,'fitSketch')+';return fitSketch;')(...Object.values(bindings))();
+ assert.ok(E.scl>100);
+ assert.ok(phone.top+E.oy+1.2*E.scl<navigator.top);
+ assert.ok(phone.top+E.oy-1.2*E.scl>phone.top);
+});
 for(const [view,frame] of [['front',null],['top',null],['top',{}]])test('actual fitSketch keeps a 30x50 mm profile within HUD-clear area for '+view+' '+(frame?'attached frame':'datum'),()=>{
  const sketch={id:'s1',points:[{id:'a',x:0,y:0},{id:'b',x:3,y:0},{id:'c',x:3,y:5},{id:'d',x:0,y:5}],entities:[{type:'line',a:'a',b:'b'},{type:'line',a:'b',b:'c'},{type:'line',a:'c',b:'d'},{type:'line',a:'d',b:'a'}]};
  const E={def:{sketches:[sketch]},view,cw:0,ch:0,cv:{getBoundingClientRect:()=>canvas}};const before=JSON.stringify(E.def);
