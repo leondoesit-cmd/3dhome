@@ -6101,6 +6101,11 @@ body.compact-nav #modeler.md-isdrawing .md-mid > #mdHint {
 #modeler.md-isdrawing .md-docmodes,
 #modeler.md-isdrawing .md-head-inputs,
 #modeler.md-isdrawing .md-head-actions button:not(#mdClose):not(#mdDrawing):not(#mdSave):not(#mdUndo):not(#mdRedo) { pointer-events: none; opacity: .48; }
+/* More hosts the actual document fields. Drawing's disabled header styling
+   must not follow these inputs into their explicit phone editing surface. */
+body.compact-nav #modeler.md-isdrawing #md-sheet .md-sheet-fields > .md-head-inputs.md-borrowed {
+  pointer-events: auto; opacity: 1;
+}
 
 #modeler .md-hint {
   font-size: 12px; font-weight: 500; padding: 7px 15px; border-radius: 20px;
