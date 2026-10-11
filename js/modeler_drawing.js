@@ -1189,6 +1189,15 @@ export function createDrawingController(host) {
     host.refresh();
   }
 
+  // Keep the paper point beneath the previous two-contact midpoint under the
+  // new midpoint. Equal contact spacing is pure pan, not a no-op zoom.
+  function pinchBy(factor, fromX, fromY, toX, toY) {
+    if(factor!==1)zoomBy(factor, fromX, fromY);
+    state.ox += toX-fromX;
+    state.oy += toY-fromY;
+    host.refresh();
+  }
+
   /* ---- commands ---------------------------------------------------------- */
 
   function finishAlignedSection(draft) {
@@ -1861,7 +1870,7 @@ export function createDrawingController(host) {
     getTool: () => state.tool,
     selection: () => state.selection,
     select: (value) => { state.selection = value; state.scene = null; host.refresh(); },
-    pointerDown, pointerMove, pointerUp, pointerCancel, doubleClick, wheel, keyDown, beginPinch, endPinch, resetSession, draftActions, finishDraft, cancelDraft,
+    pointerDown, pointerMove, pointerUp, pointerCancel, doubleClick, wheel, pinchBy, keyDown, beginPinch, endPinch, resetSession, draftActions, finishDraft, cancelDraft,
     deleteSelection, addView, duplicateSelectedView, autoDimension, autoComponentBalloons, insertModelItems, addHoleCallouts, setSheetOption, relayout, editDim, editPrimitive,
     danglingDims: () => sheetDimIssues(scene()),
     document: () => host.doc(),

@@ -17,15 +17,49 @@ function rig(withView=false){
 }
 const touch=id=>({button:0,pointerType:'touch',pointerId:id});
 
-function nativePinchListeners(c){
+function nativePinchListeners(c,rect={left:0,top:0}){
  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
  const start=source.indexOf('    var pinch = null;',source.indexOf('Two-finger pinch zoom'));
  const end=source.indexOf('  })();',start);assert.ok(start>0&&end>start);
- const listeners=new Map(),cv={addEventListener:(name,fn)=>listeners.set(name,fn),getBoundingClientRect:()=>({left:0,top:0})};
+ const listeners=new Map(),cv={addEventListener:(name,fn)=>listeners.set(name,fn),getBoundingClientRect:()=>rect};
  const context={cv,E:{mode:'drawing'},drawingSheet:()=>c,sketchProjection:()=>false,syncStatus(){}};
  vm.createContext(context);vm.runInContext('(function(){'+source.slice(start,end)+'})();',context);
  return listeners;
 }
+
+test('actual drawing two-finger pan moves enlarged paper80px without changing scale or document',()=>{
+ const {owner,c,history}=rig(),before=JSON.stringify(owner),listeners=nativePinchListeners(c);
+ c.zoomBy(2.6);const start={zoom:c.state.zoom,ox:c.state.ox,oy:c.state.oy};
+ c.pointerDown(touch(1),160,530);c.pointerDown(touch(2),210,530);
+ listeners.get('touchstart')({touches:[{clientX:160,clientY:530},{clientX:210,clientY:530}]});
+ for(let step=1;step<=8;step++){
+  const dx=10*step;
+  listeners.get('touchmove')({touches:[{clientX:160+dx,clientY:530},{clientX:210+dx,clientY:530}],preventDefault(){}});
+  c.pointerMove(touch(1),160+dx,530);c.pointerMove(touch(2),210+dx,530);
+ }
+ assert.equal(c.state.zoom,start.zoom);assert.ok(Math.abs(c.state.ox-start.ox-80)<1e-10);assert.equal(c.state.oy,start.oy);
+ listeners.get('touchend')({touches:[]});assert.equal(c.state.pinching,false);
+ assert.equal(JSON.stringify(owner),before);assert.deepEqual(history,{begin:0,cancel:0,commit:0,push:0});
+});
+
+test('combined drawing pinch and diagonal pan preserve moving paper anchor independent of event frequency and canvas inset',()=>{
+ const outcomes=[],rect={left:56,top:40};
+ for(const steps of [1,8,100]){
+  const {owner,c,history}=rig(),before=JSON.stringify(owner),listeners=nativePinchListeners(c,rect);
+  const anchor={x:(185-rect.left-c.state.ox)/c.state.zoom,y:(530-rect.top-c.state.oy)/c.state.zoom};
+  const zoom=c.state.zoom;
+  listeners.get('touchstart')({touches:[{clientX:160,clientY:530},{clientX:210,clientY:530}]});
+  for(let step=1;step<=steps;step++){
+   const progress=step/steps,cx=185+80*progress,cy=530-60*progress,spread=50+80*progress;
+   listeners.get('touchmove')({touches:[{clientX:cx-spread/2,clientY:cy},{clientX:cx+spread/2,clientY:cy}],preventDefault(){}});
+   assert.ok(Math.abs((cx-rect.left-c.state.ox)/c.state.zoom-anchor.x)<1e-9);
+   assert.ok(Math.abs((cy-rect.top-c.state.oy)/c.state.zoom-anchor.y)<1e-9);
+  }
+  assert.ok(Math.abs(c.state.zoom/zoom-2.6)<1e-10);outcomes.push([c.state.zoom,c.state.ox,c.state.oy]);
+  assert.equal(JSON.stringify(owner),before);assert.deepEqual(history,{begin:0,cancel:0,commit:0,push:0});
+ }
+ for(const outcome of outcomes)for(let index=0;index<3;index++)assert.ok(Math.abs(outcome[index]-outcomes[0][index])<1e-9);
+});
 
 test('drawing pinch endpoint ratio is independent of touch event frequency',()=>{
  const results=[];

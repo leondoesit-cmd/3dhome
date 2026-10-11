@@ -16952,7 +16952,7 @@ function wireSketch() {
     cv.addEventListener("touchstart", function (e) {
       if (e.touches.length === 2) {
         E.touchPrecision = null;
-        pinch = { dist: d2(e) };
+        pinch = { dist: d2(e), x:(e.touches[0].clientX+e.touches[1].clientX)/2, y:(e.touches[0].clientY+e.touches[1].clientY)/2 };
         if (E.mode === "drawing") drawingSheet().beginPinch();
       }
     }, { passive: true });
@@ -16976,7 +16976,8 @@ function wireSketch() {
       var k = f > 1 ? 1 / 1.12 : 1.12;
       // a sheet zooms the paper, not the sketch it is not showing
       if (E.mode === "drawing") {
-        drawingSheet().wheel({ deltaY: Math.log(f) / Math.log(1.0016) }, mx, my);
+        drawingSheet().pinchBy(1/f,pinch.x-r.left,pinch.y-r.top,mx,my);
+        pinch.x=mx+r.left;pinch.y=my+r.top;
         syncStatus();
         return;
       }
