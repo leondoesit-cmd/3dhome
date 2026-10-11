@@ -59,3 +59,8 @@ Current Plane3 printed1-44/PDF72 authored one six-line native touch answer in fr
 
 ## Accepted Plane 3 — 2026-10-11
 Printed1-44/PDF72, fresh MOBILE Ch1 Plane3 independently authored native touch Note: FRONT D,G; TOP A,B,C,F; RIGHT A,E; ramp/rear-wall/edge-on explanation. Undo/Redo, touch rename/description, Save validation, nativeSVG and cold Saved card reopen exact identity verified;one note. plane3.svg six exact lines x113.172/y132.362–151.262,2.8mm/3.78mm pitch clear of titleblock;plane3-reopened.png actual390x844 afterFit. Accepted13/21 Chapter1 in-chapter,0/117 homework. Next Plane4 transverse ramp/rear wall printed1-44/PDF72,nine primitives.
+
+Current Plane4 printed1-44/PDF72: native nine-primitives/four-notes transverse ramp independently touch-authored, open three-point ramp via Finish, exact native forms, final-note Undo/Redo, Save requested. SVG/cold reopen pending; accepted remains13/21.
+
+## Accepted Plane 4 — 2026-10-11
+Printed1-44/PDF72 fresh MOBILE Ch1 Plane4 Transverse Ramp: nine native touch annotations/four notes, double-tap coordinate forms, open three-point ramp via touchFinish, final-note Undo/Redo, Save/nativeSVG/cold Saved card reopen exact identity verified. plane4.svg nineteen exact unique visible segments; rear-wall edge180,175 to180,200 stops at base top, front remains rectangular. Estimated5mm-grid caveat/source retained. plane4-reopened.png actual390x844 afterFit. Accepted14/21 Chapter1 in-chapter,0/117 homework. Next Plane5 printed1-45/PDF73.
