@@ -4,7 +4,7 @@ Updated: **2026-10-11**. Read this first when resuming; older plans and STOP-HER
 
 ## Authoritative resume boundary — full-scope workflows in progress
 
-**LATEST MOBILE — 2026-10-11:** Mobile in-chapter21/21(qualifiedPlane7/9),homework7/117 through1.7 printed1-55/PDF83. Next1.8 printed1-56/PDF84 isometricreconstructionfromthreeviews. Chrome5/tab710863239,390x844/touch5/dark. MOBILE_ADVANCE.md authoritative; entirebookunfinished/olderdesktopexcluded.
+**LATEST MOBILE — 2026-10-11:** Mobile in-chapter21/21(qualifiedPlane7/9),homework8/117 through1.8 printed1-56/PDF84 nativepaperisometric (no native-solidclaim). Next1.9 printed1-57/PDF85 isometricfromthreeviews. Chrome5/tab710863239,390x844/touch5/dark. MOBILE_ADVANCE.md authoritative; entirebookunfinished/olderdesktopexcluded.
 
 **MOBILE UPDATE — 2026-10-11:** Alphabet of Lines1–2 now accepted, printed1-25/PDF53; two/21 Chapter1 in-chapter prompts, zero/117 numbered homework. Saved worksheet MOBILE Ch1 Alphabet Lines 1-2, phone cold reopen/export and Undo/Redo verified. More-field touch CSS repaired and browser verified. Next Alphabet3 printed1-26/PDF54. MOBILE_ADVANCE.md governs current progress; older desktop boundary below is historical.
 
@@ -899,6 +899,7 @@ Current Chrome tab710862476: Saved `Planchard Ch2 Perspective road - browser 202
 Prior five witnesses and their cold checks remain accepted. Fresh source audit located remaining unnumbered examples: true ellipse/cylinder construction PDF93–94 (2-7–2-8), Cabinet cylinder PDF96–97 (2-10–2-11), and perspective road PDF97 (2-11). Official companion Cosmetic Thread 5.16 is recoverable: the earlier assumed 31.75mm stock is not its source geometry; separate source branch is required. Dependency-hover browser witness and corrected transition-fit worked example PDF161/3-33 remain queued. Reports: `whole-book-objective-completion-audit-2026-10-11.md` and `publisher-errata-and-projection-illustrations-source-audit-2026-10-11.md`.
 
 Current browser: Chrome tab710862466, independent unsaved `Planchard Ch2 Cabinet cylinder construction - browser 2026-10-11`, A3 landscape/mm. Ordinary UI has authored two radius15mm circles, four Centerline crosses, Centerline receding axis and two Visible tangent generators. Front center100/150; back135.355339/114.644661; exact Cabinet50mm at45° represents100mm physical depth. Diameter30mm/layout are chosen illustration dimensions. Construction retains full rear circle; optional shading omitted. Note editor currently open; save/export/cold verification pending. Paper ellipse generic code frozen with23 focused tests and gates passing; independent review and actual Chrome replay pending. No whole-book percentage inferred from116/117 numbered exercises. Commit all verified tracked/untracked project work and push origin/planchard at next completed task, then continue.
+
 
 
 
