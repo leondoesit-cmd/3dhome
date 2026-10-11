@@ -1847,25 +1847,26 @@ function zoneMarks(frame) {
   return items;
 }
 
-/* The first/third-angle symbol: a truncated cone, drawn twice. Which side the
-   circles sit on IS the convention, so it is generated from doc.projection
-   rather than picked as a picture. */
+/* With the frustum's narrow end at left, third-angle has the end view at left
+   and first-angle at right (ISO 128-3 figures 5/7; Planchard 2021 page 2-16).
+   Rotating both views together preserves the convention; swapping only their
+   positions changes it. Keep the two views separated and centred on one axis. */
 function projectionSymbol(x, y, height, first) {
   const items = [];
-  const r1 = height * 0.42, r2 = height * 0.24, length = height * 1.25;
-  const coneX = first ? x + length * 0.55 : x + length * 0.05;
-  const circleX = first ? x + length * 0.05 : x + length * 0.62;
-  items.push(circle(circleX + r1, y, r1, "frame"));
-  items.push(circle(circleX + r1, y, r2, "frame"));
-  const big = first ? -1 : 1;
-  const tipX = coneX + (big > 0 ? length * 0.42 : 0);
-  const baseX = coneX + (big > 0 ? 0 : length * 0.42);
+  const r1 = height * 0.42, r2 = height * 0.24;
+  const length = height * 1.25, gap = height * 0.32;
+  const circleX = first ? x + length + gap + r1 : x + r1;
+  const tipX = first ? x : x + 2 * r1 + gap;
+  const baseX = tipX + length;
+  items.push(circle(circleX, y, r1, "frame"));
+  items.push(circle(circleX, y, r2, "frame"));
   items.push(poly([
     { x: baseX, y: y - r1 }, { x: tipX, y: y - r2 }, { x: tipX, y: y + r2 }, { x: baseX, y: y + r1 },
   ], "frame", { closed: true }));
   items.push(line(baseX, y - r1, baseX, y + r1, "frame"));
   items.push(line(tipX, y - r2, tipX, y + r2, "frame"));
-  items.push(line(x - 1, y, x + length + 1, y, "center"));
+  items.push(line(x - 1, y, x + 2 * r1 + gap + length + 1, y, "center"));
+  items.push(line(circleX, y - r1 - 1, circleX, y + r1 + 1, "center"));
   return items;
 }
 
