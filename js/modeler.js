@@ -127,7 +127,7 @@ import {
 import {
   buildTouchPrecisionSettings,
   dispatchPrecisionCommit, dispatchPrecisionDown, dispatchPrecisionMove, dispatchPrecisionUp, getTouchPrecisionMode, getTouchPrecisionPrefs,
-  releaseTouchPrecisionTrial, startTouchPrecisionTrial, touchPrecisionTrialOwns,
+  precisionModelPoint, releaseTouchPrecisionTrial, startTouchPrecisionTrial, touchPrecisionTrialOwns,
   updateTouchPrecisionTrial,
 } from "./touch_precision_ui.js";
 import { getMainScene, getRigLights, has3D } from "./view3d.js";
@@ -16299,7 +16299,8 @@ function wireSketch() {
       return;
     E.touchPrecision = beginTouchPrecision(e, localX, localY, r, precisionKind);
     var downPoint = touchPrecisionPoint(E.touchPrecision, localX, localY);
-    var uv = toUV(downPoint.x, downPoint.y);
+    var exactPrecision=precisionModelPoint(e);
+    var uv = exactPrecision ? {u:exactPrecision.x,v:exactPrecision.y} : toUV(downPoint.x, downPoint.y);
     if (e.button === 2) {
       e.preventDefault();
       E.drag = { mode: "gesture", px: e.clientX, py: e.clientY, moved: false };
@@ -16323,8 +16324,9 @@ function wireSketch() {
         return;
       }
     }
-    var sp = snapPt(uv, null, E.tool === "wall" && E.wallPts && E.wallPts.length ? E.wallPts[E.wallPts.length - 1] : null), su = sp.u, sv = sp.v;
-    E._suppressInference = e.ctrlKey || e.metaKey;
+    if(exactPrecision)E._osnap=null;
+    var sp = exactPrecision ? uv : snapPt(uv, null, E.tool === "wall" && E.wallPts && E.wallPts.length ? E.wallPts[E.wallPts.length - 1] : null), su = sp.u, sv = sp.v;
+    E._suppressInference = !!exactPrecision || e.ctrlKey || e.metaKey;
     if (E.tool === "sketchpoint") {
       var active = ensureSketch(E.def);
       pushUndo("Sketch point");
@@ -16822,7 +16824,8 @@ function wireSketch() {
       // a click that did not drag arms the tool instead of drawing a zero-sized
       // shape, so the second point can be clicked — or typed
       if (!travelled && !E.drag.sticky) { E.drag.sticky = true; drawSketch(); syncHint(); return; }
-      finishTwoPointTool(snapPt(toUV(releasePoint.x, releasePoint.y)));
+      var exactRelease=precisionModelPoint(e);
+      finishTwoPointTool(exactRelease ? {u:exactRelease.x,v:exactRelease.y} : snapPt(toUV(releasePoint.x, releasePoint.y)));
       return;
     }
     if (E.drag && E.drag.mode === "spoint") {
@@ -16835,7 +16838,8 @@ function wireSketch() {
     }
     if (E.drag && E.drag.mode === "draw") {
       var r = cv.getBoundingClientRect(), uv = toUV(releasePoint.x, releasePoint.y);
-      var sp = snapPt(uv), u1 = sp.u, v1 = sp.v, u0 = E.drag.u, v0 = E.drag.v;
+      var exactEnd=precisionModelPoint(e);
+      var sp = exactEnd ? {u:exactEnd.x,v:exactEnd.y} : snapPt(uv), u1 = sp.u, v1 = sp.v, u0 = E.drag.u, v0 = E.drag.v;
       if (Math.abs(u1 - u0) > 1 || Math.abs(v1 - v0) > 1) {
         pushUndo(t("opDraw"));
         if (E.tool === "cutc") {

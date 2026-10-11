@@ -154,11 +154,18 @@ function clamp(value, lo, hi) { return Math.max(lo, Math.min(hi, value)); }
 function emitPointer(canvas, type, point, pointerId) {
   if (!canvas || typeof PointerEvent === "undefined") return;
   var rect = canvas.getBoundingClientRect();
-  canvas.dispatchEvent(new PointerEvent(type, {
+  var event = new PointerEvent(type, {
     bubbles:true, cancelable:true, pointerType:"mouse", pointerId:pointerId || 987321,
     button:0, buttons:type === "pointerup" ? 0 : 1,
     clientX:rect.left + point.x, clientY:rect.top + point.y,
-  }));
+  });
+  if (point.exactModel) event.precisionModelPoint = { x:point.exactModel.x, y:point.exactModel.y };
+  canvas.dispatchEvent(event);
+}
+
+export function precisionModelPoint(event) {
+  var point=event && event.precisionModelPoint;
+  return point && Number.isFinite(point.x) && Number.isFinite(point.y) ? {x:point.x,y:point.y} : null;
 }
 
 export function dispatchPrecisionMove(canvas, point) {
@@ -251,9 +258,9 @@ export function startTouchPrecisionTrial(options) {
   function rect() { return options.canvas.getBoundingClientRect(); }
   function modelPoint() { return options.screenToModel ? options.screenToModel({x:state.x,y:state.y}) : {x:state.x,y:state.y}; }
   function syncInputs() {
-    var point = modelPoint();
-    if (document.activeElement !== inputA) inputA.value = isFinite(point.x) ? String(Math.round(point.x * 10) / 10) : "";
-    if (document.activeElement !== inputB) inputB.value = isFinite(point.y) ? String(Math.round(point.y * 10) / 10) : "";
+    var point = state.exactModel || modelPoint();
+    if (document.activeElement !== inputA) inputA.value = isFinite(point.x) ? String(state.exactModel ? point.x : Math.round(point.x * 10) / 10) : "";
+    if (document.activeElement !== inputB) inputB.value = isFinite(point.y) ? String(state.exactModel ? point.y : Math.round(point.y * 10) / 10) : "";
   }
   function sync() {
     var r=rect(), clientX=r.left+state.x, clientY=r.top+state.y;
@@ -267,16 +274,23 @@ export function startTouchPrecisionTrial(options) {
     readout.querySelector("small").textContent=desc&&desc.secondary || (mode === "rough" ? "1:"+state.ratio : "×"+state.zoom);
     syncInputs(); renderPortal();
   }
-  function setTarget(x,y,emit) {
-    var r=rect(); x=clamp(Number(x)||0,0,r.width); y=clamp(Number(y)||0,0,r.height);
-    if(state.lock==="h")y=state.initialY; if(state.lock==="v")x=state.initialX;
+  function setTarget(x,y,emit,exactModel) {
+    var r=rect();
+    if(!exactModel){x=clamp(Number(x)||0,0,r.width);y=clamp(Number(y)||0,0,r.height);
+      if(state.lock==="h")y=state.initialY; if(state.lock==="v")x=state.initialX;}
+    state.exactModel=exactModel || null;
+    if(!exactModel)state.coordinatesEdited=false;
     state.x=x;state.y=y;sync(); if(emit&&options.onMove)options.onMove({x:x,y:y});
   }
   function applyInputs() {
+    if(!state.coordinatesEdited && !state.exactModel)return;
     if(!options.modelToScreen)return; var a=Number(inputA.value),b=Number(inputB.value); if(!isFinite(a)||!isFinite(b))return;
-    var point=options.modelToScreen({x:a,y:b}); if(point)setTarget(point.x,point.y,true);
+    var model={x:a,y:b},point=options.modelToScreen(model); if(point)setTarget(point.x,point.y,true,model);
   }
-  inputA.onchange=applyInputs; inputB.onchange=applyInputs;
+  [inputA,inputB].forEach(function(input){
+    input.oninput=function(){state.coordinatesEdited=true;};
+    input.onchange=function(){state.coordinatesEdited=true;applyInputs();};
+  });
 
   function dragRelative(target, divisor) {
     target.addEventListener("pointerdown",function(e){
@@ -324,7 +338,7 @@ export function startTouchPrecisionTrial(options) {
   function finish(ok){
     if(activeSession!==state)return;activeSession=null;if(state.raf)cancelAnimationFrame(state.raf);window.removeEventListener("keydown",keydown,true);
     root.remove();document.body.classList.remove("touch-precision-active");if(state.xray&&options.onXray)options.onXray(false);
-    if(ok){if(options.onConfirm)options.onConfirm({x:state.x,y:state.y});}else if(options.onCancel)options.onCancel();
+    if(ok){if(options.onConfirm)options.onConfirm({x:state.x,y:state.y,exactModel:state.exactModel});}else if(options.onCancel)options.onCancel();
   }
   cancel.onclick=function(){finish(false);};
   // Touch confirmation must read the focused field too: its change/blur may
