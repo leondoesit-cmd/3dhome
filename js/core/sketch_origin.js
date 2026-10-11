@@ -34,3 +34,12 @@ export function ensureSketchOriginPoint(sketch, makeId) {
 export function pickIsOrigin(uv, tolerance) {
   return !!uv && Math.hypot(Number(uv.u ?? uv.x) || 0, Number(uv.v ?? uv.y) || 0) <= tolerance;
 }
+
+/* Smart Dimension must be able to acquire its datum even when an annotation
+   label covers it. Other tools retain annotation editing, and nearby actual
+   geometry keeps its normal acquisition priority. */
+export function smartDimensionOriginWins(tool, uv, tolerance, underPointer) {
+  if (tool !== "dim" || !pickIsOrigin(uv, tolerance)) return false;
+  return !underPointer || (!underPointer.type && Number.isFinite(underPointer.x) && Number.isFinite(underPointer.y)
+    && Math.hypot(underPointer.x, underPointer.y) <= ORIGIN_TOL);
+}

@@ -53,7 +53,7 @@ const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8
 test("the Select and Dimension tools ask the rule before grabbing a dimension", () => {
   assert.match(
     modeler,
-    /var sketchDim = dimensionHitYieldsToPoint\(placedDimensionHit\(ensureSketch\(E\.def\), dimLocalX, dimLocalY\), hitSketch\(uv, e\.pointerType\)\);/,
+    /var underPointer = hitSketch\(uv, e\.pointerType\);[\s\S]*?\? null : dimensionHitYieldsToPoint\(placedDimensionHit\(ensureSketch\(E\.def\), dimLocalX, dimLocalY\), underPointer\);/,
     "a leader hit gives way to the sketch point under the pointer",
   );
 });

@@ -5878,6 +5878,7 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
    box. It deliberately does not dim the entire editor or steal context. */
 #modeler .md-dimension-editor {
   position: absolute; z-index: 70; width: 278px; padding: 8px;
+  box-sizing: border-box; overflow-y: auto;
   border: 1px solid color-mix(in srgb,var(--accent) 52%,var(--border-color));
   border-radius: 10px; background: color-mix(in srgb,var(--bg-panel) 96%,transparent);
   color: var(--text-main); box-shadow: 0 14px 38px rgba(15,23,42,.22), 0 2px 8px rgba(15,23,42,.12);
@@ -5895,11 +5896,12 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
   border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
 }
 #modeler .md-dimension-editor-head button:hover { background: var(--btn-bg-hover); color: var(--text-main); }
-#modeler .md-dimension-editor label { display: grid; gap: 3px; color: var(--text-muted); font-size: max(9px, var(--fs-floor, 0px)); font-weight: 650; }
+#modeler .md-dimension-editor label { display: grid; min-width: 0; grid-template-columns: minmax(0,1fr); gap: 3px; color: var(--text-muted); font-size: max(9px, var(--fs-floor, 0px)); font-weight: 650; }
+#modeler .md-dimension-editor label > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 #modeler .md-dimension-input { display: grid; grid-template-columns: minmax(0,1fr) 38px; }
 #modeler .md-dimension-editor input,
 #modeler .md-dimension-editor select {
-  min-width: 0; height: 31px; padding: 0 8px; border: 1px solid var(--input-border);
+  min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; height: 31px; padding: 0 8px; border: 1px solid var(--input-border);
   border-radius: 6px; outline: none; background: var(--input-bg); color: var(--text-main);
   font: 600 12px/1 "Inter", "Rubik", sans-serif;
 }
@@ -15769,6 +15771,9 @@ body.compact-nav #md-sheet.on {
   visibility: visible;
   pointer-events: auto;
 }
+/* A closed dialog must not expose descendants whose own visibility overrides
+   inheritance (including the sheet's sticky header buttons). */
+body.compact-nav #md-sheet[aria-hidden="true"] { display: none; pointer-events: none; }
 /* the last tool row must not read as clipped by the contextual bar */
 body.compact-nav #md-sheet .md-sheet-host { padding-bottom: 10px; }
 body.compact-nav #md-sheet.tall {

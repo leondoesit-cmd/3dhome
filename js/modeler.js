@@ -2,6 +2,7 @@ import {componentPatternPlan,setComponentPattern,removeComponentPattern} from ".
 import {appendSavedLibrarySearch} from './modeler_library_search.js';
 import {sketchEntityStep,sketchEntitySwipe} from './core/sketch_entity_navigation.js';
 import {makeDimensionTolerance,toleranceFields} from "./core/dimension_tolerance.js";
+import {dimensionEditorPosition} from './core/dimension_editor_position.js';
 import {createSpringBinding,springSource,springMotionState,springPreviewMesh,hasUnverifiedSprings,restoreSpringEndpoint} from "./core/flexible_spring.js";
 import {createExactSaveCache} from "./core/exact_save_cache.js";
 import {syncSaveButtonAccessibility} from './modeler_save_button.js';
@@ -49,7 +50,7 @@ import { rasterTextContours } from "./sketch_text.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
 import { bindIntersectionTargets, bindModelEdgeTargets, bindPierceTargets, hitProjectedModelEdge, hitProjectedModelVertex, hitScreenModelEdge, hitScreenModelVertex, vertexEdgeBinding, modelEdgeAnchor } from "./sketch_intersection.js";
 import { copySketchForClipboard, pasteSketchGeometry, readSketchClipboard, writeSketchClipboard } from "./core/sketch_clipboard.js";
-import { ensureSketchOriginPoint, pickIsOrigin, sketchOriginPoint } from "./core/sketch_origin.js";
+import { ensureSketchOriginPoint, pickIsOrigin, sketchOriginPoint, smartDimensionOriginWins } from "./core/sketch_origin.js";
 import { offsetFaceBoundary, appendBoundarySketch } from "./cad_face_offset.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { captureExactTopology, verifiedExactTopology, verifiedFinalTopology } from './core/exact_topology_cache.js';
@@ -15484,7 +15485,7 @@ function placeDimensionAtPointer(sketch, constraint, px, py) {
 
 function hideDimensionEditor() {
   var editor = root && root.querySelector("#mdDimEditor");
-  if (editor) editor.hidden = true;
+  if (editor) { editor.hidden = true; delete editor._dimensionAnchor; }
   clearDimensionRefusal();
   E.dimEditor = null;
 }
@@ -15620,13 +15621,18 @@ function dimensionEditorUnit(constraint) {
 function positionDimensionEditor(clientX, clientY) {
   var editor = root && root.querySelector("#mdDimEditor"), mid = root && root.querySelector(".md-mid");
   if (!editor || !mid) return;
+  if (fin(clientX) && fin(clientY)) editor._dimensionAnchor = {x:clientX,y:clientY};
+  else if (editor._dimensionAnchor) { clientX = editor._dimensionAnchor.x; clientY = editor._dimensionAnchor.y; }
   var box = mid.getBoundingClientRect();
   editor.hidden = false;
+  editor.style.maxHeight = "";
   var width = editor.offsetWidth || 278, height = editor.offsetHeight || 184;
-  var x = clamp((fin(clientX) ? clientX - box.left : box.width / 2) + 16, 10, Math.max(10, box.width - width - 10));
-  var y = clamp((fin(clientY) ? clientY - box.top : box.height / 2) - 28, 10, Math.max(10, box.height - height - 10));
-  editor.style.left = x + "px";
-  editor.style.top = y + "px";
+  var obstacles = document.body.classList.contains("compact-nav")
+    ? Array.from(document.querySelectorAll('#md-selection-bar, #md-nav, #md-ctx, #modeler .md-entity-nav, #modeler .md-feature-nav')).filter(function (el) { return !el.hidden; }).map(function (el) { return el.getBoundingClientRect(); }) : [];
+  var position = dimensionEditorPosition(box, width, height, clientX, clientY, obstacles);
+  editor.style.left = position.x + "px";
+  editor.style.top = position.y + "px";
+  editor.style.maxHeight = position.maxHeight + "px";
 }
 
 function showDimensionEditor(sketch, constraint, options) {
@@ -16402,7 +16408,9 @@ function wireSketch() {
     }
     if (E.tool === "select" || E.tool === "dim") {
       var dimLocalX = e.clientX - r.left, dimLocalY = e.clientY - r.top;
-      var sketchDim = dimensionHitYieldsToPoint(placedDimensionHit(ensureSketch(E.def), dimLocalX, dimLocalY), hitSketch(uv, e.pointerType));
+      var underPointer = hitSketch(uv, e.pointerType);
+      var sketchDim = smartDimensionOriginWins(E.tool, uv, (e.pointerType === "touch" ? 14 : 7) / E.scl, underPointer)
+        ? null : dimensionHitYieldsToPoint(placedDimensionHit(ensureSketch(E.def), dimLocalX, dimLocalY), underPointer);
       if (sketchDim) {
         pushUndo(t("opMoveDim"));
         E.dimPick = [];
@@ -28555,6 +28563,7 @@ function refreshAll(options = {}) {
     syncContextActions();
     updateTourProgress();
     syncModelerMobile();
+    if (root && !root.querySelector("#mdDimEditor").hidden) positionDimensionEditor();
   } finally {
     assemblyPreviewSolved = previousAssemblyPreviewSolved;
   }
@@ -28885,6 +28894,7 @@ document.addEventListener("visibilitychange", scheduleLibThumbs);
 window.addEventListener("resize", queueModelerChrome);
 window.addEventListener("resize", function () {
   if (E.open && E.def) { sizeSketch(); drawSketch(); layout3DHost(); renderPreview(); }
+  if (E.open && root && !root.querySelector("#mdDimEditor").hidden) positionDimensionEditor();
 });
 /* Let the launcher's "m" shortcut see the editor's open state without reaching
    into this module scope before it is loaded. */
