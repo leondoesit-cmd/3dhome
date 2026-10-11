@@ -1170,7 +1170,7 @@ export function createDrawingController(host) {
   function doubleClick(event, x, y) {
     // Rapid neighboring drafting picks can also produce a native dblclick.
     // Keep those picks with the active Paper tool; Select owns annotation editing.
-    if (DRAWING_PRIMITIVE_TOOLS[state.tool]) return true;
+    if (DRAWING_PRIMITIVE_TOOLS[state.tool] || ['dim','diam','angle'].includes(state.tool)) return true;
     const sheetPoint = toSheetMm(x, y);
     const hit = hitTest(sheetPoint);
     if (hit?.kind === 'primitive') { editPrimitive(hit.id); return true; }

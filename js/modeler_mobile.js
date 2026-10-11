@@ -29,6 +29,7 @@
 
 import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
 import {drawingCommandGroup} from "./core/drawing_command_group.js";
+import {mobileFeedbackSpace} from './core/mobile_feedback_space.js';
 
 /* The rest of the verbs that consume a closed profile, in the order a part is
    usually built. Extrude is NOT here: it is pushed by name in ctxActions so the
@@ -424,10 +425,10 @@ function renderCtx() {
    min-height is the only thing the measured value feeds back into, so this
    cannot oscillate: a taller bar never makes itself shorter. */
 function measureCtx() {
+  measureFeedbackSpace();
   if (!ctxBar) return;
   var h = Math.round(ctxBar.getBoundingClientRect().height);
-  if (!h) return;
-  if (h !== lastCtxHeight) {
+  if (h && h !== lastCtxHeight) {
     lastCtxHeight = h;
     document.body.style.setProperty("--md-ctx-h", h + "px");
   }
@@ -438,7 +439,42 @@ function measureCtx() {
       measureCtx();
     });
     ctxResize.observe(ctxBar);
+    if (selectionBar) ctxResize.observe(selectionBar);
+    api.root.querySelectorAll('.md-mid, .md-entity-nav, .md-feature-nav, #mdHint').forEach(function (node) { ctxResize.observe(node); });
+    api.root.querySelectorAll('#mdRailBottom, #mdSketchOnFace').forEach(function (node) { ctxResize.observe(node); });
   }
+}
+
+function measureFeedbackSpace() {
+  if (!api) return;
+  if (!compact()) {
+    api.root.style.removeProperty('--md-drawing-feedback-footer');
+    api.root.style.removeProperty('--md-drawing-feedback-gutter');
+    api.root.style.removeProperty('--md-mobile-feedback-footer');
+    api.root.style.removeProperty('--md-mobile-shelf-footer');
+    api.root.style.removeProperty('--md-mobile-sketch-footer');
+    return;
+  }
+  var pane = api.root.querySelector('.md-mid'), hint = api.root.querySelector('#mdHint');
+  if (!pane || !hint) return;
+  var overlays = [selectionBar, ...api.root.querySelectorAll('.md-entity-nav, .md-feature-nav')].filter(function (node) { return node && !node.hidden; }).map(function (node) { return node.getBoundingClientRect(); });
+  var paneBox = pane.getBoundingClientRect(), hintHeight = hint.getBoundingClientRect().height;
+  var shelf = mobileFeedbackSpace(paneBox, hintHeight, overlays);
+  api.root.style.setProperty('--md-mobile-shelf-footer', shelf.footer + 'px');
+  var rail = api.root.querySelector('#mdRailBottom');
+  if (rail) overlays.push(rail.getBoundingClientRect());
+  var sketchSpace = mobileFeedbackSpace(paneBox, hintHeight, overlays);
+  api.root.style.setProperty('--md-mobile-sketch-footer', sketchSpace.footer + 'px');
+  var sketchAction = api.root.querySelector('#mdSketchOnFace');
+  if (sketchAction && !sketchAction.hidden) overlays.push(sketchAction.getBoundingClientRect());
+  var space = mobileFeedbackSpace(paneBox, hintHeight, overlays);
+  var st = api.state(), drawingTool = api.root.querySelector('.md-drawing-tools button[data-drawing-tool].on');
+  var tool = st.mode === 'drawing' ? drawingTool && drawingTool.dataset.drawingTool : st.tool;
+  hint.dataset.activeInstruction = tool && tool !== 'select' ? 'true' : 'false';
+  if (hint.dataset.activeInstruction === 'true') hint.classList.remove('ps-quiet');
+  api.root.style.setProperty('--md-drawing-feedback-footer', space.footer + 'px');
+  api.root.style.setProperty('--md-mobile-feedback-footer', space.footer + 'px');
+  api.root.style.setProperty('--md-drawing-feedback-gutter', space.gutter + 'px');
 }
 
 /* ---- bottom sheets ------------------------------------------------------ */
@@ -1082,6 +1118,7 @@ function sig() {
 
 function sync(force) {
   if (!api || !compact() || !api.state().open) return;
+  adoptHint();
   applyTreeDock();
   if (featureSheetOpen && !api.root.querySelector("#mdQuickSettings:not([hidden])")) closeSheet();
   var s = sig();
@@ -1092,6 +1129,7 @@ function sync(force) {
   renderCtx();
   renderSelectionBar();
   syncNav();
+  measureFeedbackSpace();
   var st = api.state();
   if (statusBanner) {
     var count = st.rebuildErrors || st.rebuildWarnings || 0;
@@ -1118,11 +1156,11 @@ function sync(force) {
    as wide as the viewport — the containing block the compact rule was written
    against. It goes home on teardown, because the desktop shelf still wants it. */
 function adoptHint() {
-  if (!api || !api.root || hintHome) return;
+  if (!api || !api.root) return;
   var hint = api.root.querySelector("#mdHint");
   var host = api.root.querySelector(".md-mid");
   if (!hint || !host || hint.parentNode === host) return;
-  hintHome = { parent: hint.parentNode, next: hint.nextSibling };
+  if (!hintHome) hintHome = { parent: hint.parentNode, next: hint.nextSibling };
   host.appendChild(hint);
 }
 

@@ -11896,6 +11896,9 @@ function syncHint() {
   }
   var hint = root && root.querySelector("#mdHint");
   if (!hint) return;
+  var instructionTool = E.mode === "drawing" ? drawingSheet().state.tool : E.tool;
+  hint.dataset.activeInstruction = instructionTool && instructionTool !== "select" ? "true" : "false";
+  if (hint.dataset.activeInstruction === "true") hint.classList.remove("ps-quiet");
   // A flash still on screen keeps the element; see flash() above.
   if (flashHolding()) return;
   if (E.tool === "paint") {

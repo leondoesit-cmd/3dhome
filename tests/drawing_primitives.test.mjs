@@ -82,7 +82,7 @@ test('rapid neighboring Paper picks do not open an existing annotation editor or
  assert.equal(t.controller.doubleClick({pointerType:'touch'},119,89),true);
  assert.equal(prompts,0);assert.deepEqual(t.controller.state.draft,draft);assert.equal(t.undo.length,steps);
  t.click(111,88);assert.equal(t.def.drawing.primitives.length,2);assert.deepEqual(t.def.drawing.primitives[0],shaft);
- for(const tool of ['sheetline','sheetpolyline','sheetrect','sheetcircle','sheetarc','sheetellipse']){
+ for(const tool of ['sheetline','sheetpolyline','sheetrect','sheetcircle','sheetarc','sheetellipse','dim','diam','angle']){
   t.controller.setTool(tool);assert.equal(t.controller.doubleClick({},128,98),true);assert.equal(prompts,0);
  }
  t.controller.setTool('select');assert.equal(t.controller.doubleClick({},128,98),true);

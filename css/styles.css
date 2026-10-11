@@ -6095,11 +6095,19 @@ body.compact-nav #modeler .md-quick-field select {
 }
 /* Mobile adopts the same hint directly into md-mid rather than its rail. */
 body.compact-nav #modeler.md-isdrawing { --md-drawing-feedback-footer: 0px; }
-body.compact-nav #modeler.md-isdrawing .md-mid > #mdHint {
+body.compact-nav #modeler .md-mid > #mdHint {
   position: absolute; inset-inline: 12px; top: auto;
-  bottom: calc(var(--md-drawing-feedback-footer) + 4px);
+  bottom: calc(var(--md-mobile-feedback-footer, 0px) + 4px);
   width: fit-content; max-width: calc(100% - 24px); margin-inline: auto;
+  white-space: normal; overflow-wrap: anywhere; -webkit-line-clamp: unset;
+  max-height: none;
+  background: var(--bg-panel); color: var(--text-main);
 }
+body.compact-nav #modeler .md-mid > #mdHint.flash { background: var(--accent); color: var(--on-accent); }
+body.compact-nav #modeler .md-mid > #mdHint[data-active-instruction="true"] { opacity: 1; }
+body.compact-nav #modeler #mdRailBottom { bottom: calc(var(--md-mobile-shelf-footer, 0px) + 4px); }
+body.compact-nav #modeler #mdSketchOnFace { bottom: calc(var(--md-mobile-sketch-footer, 0px) + 4px); }
+body.compact-nav #modeler.md-isdrawing .md-mid > #mdHint { inset-inline-start: 64px; max-width: calc(100% - 76px); }
 #modeler.md-isdrawing .md-docmodes,
 #modeler.md-isdrawing .md-head-inputs,
 #modeler.md-isdrawing .md-head-actions button:not(#mdClose):not(#mdDrawing):not(#mdSave):not(#mdUndo):not(#mdRedo) { pointer-events: none; opacity: .48; }

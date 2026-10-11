@@ -658,7 +658,7 @@ function watchHint(hint) {
     if (hint.classList.contains("ps-quiet")) hint.classList.remove("ps-quiet");
     clearTimeout(timer);
     timer = setTimeout(function () {
-      if (!hint.classList.contains("selection") && !hint.classList.contains("flash")) hint.classList.add("ps-quiet");
+      if (hint.dataset.activeInstruction !== "true" && !hint.classList.contains("selection") && !hint.classList.contains("flash")) hint.classList.add("ps-quiet");
     }, 4500);
   };
   /* The words, not the attributes: touching the class list (even to remove a
