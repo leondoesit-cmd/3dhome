@@ -247,6 +247,12 @@ var MODE_ICONS = { "3d": "mode3d", "2d": "mode2d", drawing: "drawing" };
    extrude gets abandoned. */
 function ctxActions() {
   var st = api.state();
+  if (st.mode === 'drawing' && st.drawingDraft) {
+    return [
+      {icon:'check',action:'finishdrawingdraft',label:'Finish · '+st.drawingDraft.pointCount+' points',primary:true,disabled:!st.drawingDraft.canFinish,run:api.finishDrawingDraft},
+      {icon:'cross',action:'canceldrawingdraft',label:t('m_cancel'),danger:true,run:api.cancelDrawingDraft},
+    ];
+  }
   if (st.cornerVisible) {
     var activeActions = [
       /* Short verbs: "Finish command" ellipses to "Finish com…" in a row that
@@ -1051,6 +1057,7 @@ function sig() {
     st.cornerVisible ? 1 : 0,
     st.closedSketch ? 1 : 0,
     st.canAccept ? 1 : 0,
+    st.drawingDraft ? JSON.stringify(st.drawingDraft) : '',
     st.selKey,
     api.canUndo() ? 1 : 0,
     api.canRedo() ? 1 : 0,

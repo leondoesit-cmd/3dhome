@@ -11495,6 +11495,7 @@ async function newModel(template) {
     return;
   }
   E.def = newDef();
+  E.sheet?.resetSession();
   if(template?.kind==='part-template'){E.def=documentFromPreset(E.def,template,'part-template');E.def.name='Part from '+template.name;}
   if(template?.kind==='drawing-template'){E.def.drawing=drawingFromTemplate(template);E.def.name='Drawing from '+template.name;}
   libraryOpenBaseline=null;
@@ -12746,7 +12747,7 @@ function drawingSheet() {
       chooseImage: chooseDrawingImage,
       chooseProjectImage: chooseDrawingProjectImage,
       presetAction: drawingPresetAction,
-      refresh: function () { drawSketch(); syncSheetPanel(); },
+      refresh: function () { drawSketch(); syncSheetPanel(); syncModelerMobile(); },
       editTitleBlock: function () {
         var field = root && root.querySelector("#mdSheetTitleField");
         if (field) { field.focus(); field.select(); }
@@ -28489,6 +28490,8 @@ function mobileBridge() {
     returnToParameters: returnToFeatureParameters,
     accept: finishActiveCommand,
     cancel: cancelActiveCommand,
+    finishDrawingDraft: function () { if(E.mode==='drawing')drawingSheet().finishDraft(); },
+    cancelDrawingDraft: function () { if(E.mode==='drawing')drawingSheet().cancelDraft(); },
     setMode: setMode,
     setView: setView,
     setSketchNormalTo: setSketchNormalTo,
@@ -28514,6 +28517,7 @@ function mobileBridge() {
       return {
         open: !!E.open,
         mode: E.mode,
+        drawingDraft: E.mode==='drawing' ? drawingSheet().draftActions() : null,
         view: E.view,
         sketchNormalTo: !!E.sketchNormalTo,
         tool: E.tool,
@@ -28616,6 +28620,7 @@ export function openModeler(editKey, def, srcItem) {
   var f = editKey && FURN[editKey] && FURN[editKey].custom;
   S.idc=nextDocumentNumericId(def || f,S.idc);
   E.def = def ? ensureParametricDocument(def) : f ? ensureParametricDocument(f) : newDef();
+  E.sheet?.resetSession();
   libraryOpenBaseline=cloneData(loadLib().find(function(model){return model.key===E.def.key;}) || null);
   E.def.metadata ||= {};
   if(!E.def.metadata.authoringSystem){

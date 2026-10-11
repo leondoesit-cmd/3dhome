@@ -89,6 +89,12 @@ export function createDrawingController(host) {
     pinching: false,
   };
   const touchPointers = new Set();
+  function resetSession() {
+    touchPointers.clear();
+    state.pinching = false;
+    state.drag = state.draft = state.snap = state.selection = state.hover = null;
+    invalidate();
+  }
   let projector = null;
   let projectionToken = -1;
 
@@ -1686,6 +1692,24 @@ export function createDrawingController(host) {
     return false;
   }
 
+  function draftActions() {
+    const draft=state.draft;
+    if(!draft)return null;
+    const points=draft.points || [];
+    const distinct=points.filter((point,index)=>points.slice(0,index).every(p=>Math.hypot(p.x-point.x,p.y-point.y)>1e-8));
+    const finishable=draft.kind==='primitive' && draft.type==='polyline';
+    return {kind:draft.kind,type:draft.type || '',pointCount:points.length,canFinish:finishable && distinct.length>=2};
+  }
+  function finishDraft() {
+    const actions=draftActions();
+    if(!actions?.canFinish)return false;
+    return keyDown({key:'Enter'});
+  }
+  function cancelDraft() {
+    if(!draftActions())return false;
+    return keyDown({key:'Escape'});
+  }
+
   async function commitAlternatePosition(place) {
     const doc=host.doc(),view=doc.views.find(v=>v.id===place.id),token=host.bodiesToken(),fingerprint=JSON.stringify(doc.views);
     try {
@@ -1837,7 +1861,7 @@ export function createDrawingController(host) {
     getTool: () => state.tool,
     selection: () => state.selection,
     select: (value) => { state.selection = value; state.scene = null; host.refresh(); },
-    pointerDown, pointerMove, pointerUp, pointerCancel, doubleClick, wheel, keyDown, beginPinch, endPinch,
+    pointerDown, pointerMove, pointerUp, pointerCancel, doubleClick, wheel, keyDown, beginPinch, endPinch, resetSession, draftActions, finishDraft, cancelDraft,
     deleteSelection, addView, duplicateSelectedView, autoDimension, autoComponentBalloons, insertModelItems, addHoleCallouts, setSheetOption, relayout, editDim, editPrimitive,
     danglingDims: () => sheetDimIssues(scene()),
     document: () => host.doc(),
