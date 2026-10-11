@@ -16,6 +16,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
+import { startDatumSketch } from "./helpers/browser_sketch_workflow.mjs";
 
 const chrome = await findChrome();
 const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
@@ -65,8 +66,7 @@ async function editor() {
    value attaches to is the live drag, so releasing first would be a different
    gesture with a different meaning. */
 async function typedRectangle(page, width, height) {
-  await page.eval(() => document.querySelector('#modeler [data-command="newsketch"]').click());
-  await page.waitUntil(() => window.cadSketchSnapshot?.().phase === "sketch", { what: "a datum sketch to open" });
+  await startDatumSketch(page);
   await page.eval(() => {
     const osnap = document.querySelector("#mdOsnap");
     if (osnap && osnap.checked) { osnap.checked = false; osnap.dispatchEvent(new Event("change", { bubbles: true })); }

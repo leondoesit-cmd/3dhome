@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
+import { startDatumSketch } from "./helpers/browser_sketch_workflow.mjs";
 
 const chrome = await findChrome();
 const opts = chrome ? {} : { skip: "no Chrome found" };
@@ -8,8 +9,10 @@ let page;
 test.after(async () => { if (page) await page.close(); });
 
 async function openEditor(width, height, lang) {
-  if (!page) page = await openPage({ width, height, lang, mobile: width < 1000, touch: width < 1000 });
-  await page.resize(width, height, { mobile: width < 1000, touch: width < 1000 });
+  // Each layout case owns a fresh browser profile. An older live editor can
+  // autosave after a storage removal and reopen a recovery dialog over the form.
+  if (page) await page.close();
+  page = await openPage({ width, height, lang, mobile: width < 1000, touch: width < 1000 });
 // These tests are about the classic compact chrome — the five-slot navigation
   // and the sheets measured against it. The Round-6 phone chrome replaces it by
   // default (tests/pro_compact.browser.mjs covers that), so they ask for the
@@ -29,9 +32,9 @@ async function openEditor(width, height, lang) {
 }
 
 async function closedProfile() {
-  await page.eval(() => document.querySelector('#modeler [data-command="newsketch"]').click());
-  await page.waitUntil(() => window.cadSketchSnapshot?.().phase === "sketch");
+  await startDatumSketch(page);
   await page.eval(async () => {
+    document.querySelector('#modeler [data-command="srect"]').click();
     const canvas = document.getElementById("mdCanvas");
     const r = canvas.getBoundingClientRect();
     const x = r.left + r.width * .35, y = r.top + r.height * .35;

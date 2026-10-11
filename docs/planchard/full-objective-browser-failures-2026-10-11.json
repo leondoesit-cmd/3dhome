@@ -1,0 +1,230 @@
+{
+  "run": "scratch/planchard/full-objective-final-ci-elevated-2026-10-11.log",
+  "exitCode": 1,
+  "unit": {
+    "tests": 4680,
+    "pass": 4680,
+    "fail": 0,
+    "skipped": 0
+  },
+  "browser": {
+    "tests": 645,
+    "pass": 400,
+    "fail": 35,
+    "skipped": 210,
+    "skipReason": "Existing disabled UI Customize tests"
+  },
+  "snapshotQualification": "Unit launch predates numericuid named-view follow-up; focused and actualChrome acceptance separate",
+  "failures": [
+    {
+      "location": "tests\\floorplan_remake.browser.mjs:166:1",
+      "name": "Browser QA: Interactive wall drafting, rooms, doors, windows and finishes (31557.6082ms)",
+      "reason": "Error: Runtime.evaluate timed out\n      at Timeout._onTimeout (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:245:45)\n      at listOnTimeout (node:internal/timers:635:17)\n      at process.processTimers (node:internal/timers:571:7)",
+      "details": "Error: Runtime.evaluate timed out\r\n      at Timeout._onTimeout (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:245:45)\r\n      at listOnTimeout (node:internal/timers:635:17)\r\n      at process.processTimers (node:internal/timers:571:7)"
+    },
+    {
+      "location": "tests\\kitchen_example.browser.mjs:76:1",
+      "name": "draw the kitchen remodel with the wall tool and typed sizes (68554.4326ms)",
+      "reason": "Error: Runtime.evaluate timed out\n      at Timeout._onTimeout (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:245:45)\n      at listOnTimeout (node:internal/timers:635:17)\n      at process.processTimers (node:internal/timers:571:7)",
+      "details": "Error: Runtime.evaluate timed out\r\n      at Timeout._onTimeout (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:245:45)\r\n      at listOnTimeout (node:internal/timers:635:17)\r\n      at process.processTimers (node:internal/timers:571:7)"
+    },
+    {
+      "location": "tests\\live_preview.browser.mjs:250:1",
+      "name": "a kernel-backed downstream feature is debounced and says it is stale (5325.4633ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: a tick took 16.60ms — the kernel gated the frame\n      at file:///C:/Users/liron/Desktop/3dhome/tests/live_preview.browser.mjs:295:12\n      at Array.forEach (<anonymous>)\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/live_preview.browser.mjs:293:9)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',",
+      "details": "AssertionError [ERR_ASSERTION]: a tick took 16.60ms — the kernel gated the frame\r\n      at file:///C:/Users/liron/Desktop/3dhome/tests/live_preview.browser.mjs:295:12\r\n      at Array.forEach (<anonymous>)\r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/live_preview.browser.mjs:293:9)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: false,\r\n    code: 'ERR_ASSERTION',\r\n    actual: false,\r\n    expected: true,\r\n    operator: '==',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\live_preview.browser.mjs:317:1",
+      "name": "the analytic tier costs a fraction of a frame and the kernel tier stays off the tick (6185.9673ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: the analytic tier does not fit in a frame — analytic x11 first 38.80ms, steady mean 25.44ms / worst 38.90ms | kernel-backed first 15.60ms, steady mean 15.22ms / worst 17.80ms\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/live_preview.browser.mjs:361:10)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,",
+      "details": "AssertionError [ERR_ASSERTION]: the analytic tier does not fit in a frame — analytic x11 first 38.80ms, steady mean 25.44ms / worst 38.90ms | kernel-backed first 15.60ms, steady mean 15.22ms / worst 17.80ms\r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/live_preview.browser.mjs:361:10)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: false,\r\n    code: 'ERR_ASSERTION',\r\n    actual: false,\r\n    expected: true,\r\n    operator: '==',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\mobile_menu_pages.browser.mjs:198:1",
+      "name": "short Planner menus hug the bottom and use only their content height (3588.2178ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: phone: sheet is attached to the thumb rows\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/mobile_menu_pages.browser.mjs:235:14)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,",
+      "details": "AssertionError [ERR_ASSERTION]: phone: sheet is attached to the thumb rows\r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/mobile_menu_pages.browser.mjs:235:14)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: false,\r\n    code: 'ERR_ASSERTION',\r\n    actual: false,\r\n    expected: true,\r\n    operator: '==',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\mobile_menu_pages.browser.mjs:340:1",
+      "name": "Model Editor and Cabinet sheets use the same one-card-at-a-time contract (5597.3485ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: Model Editor ends above navigation\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/mobile_menu_pages.browser.mjs:386:12)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,",
+      "details": "AssertionError [ERR_ASSERTION]: Model Editor ends above navigation\r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/mobile_menu_pages.browser.mjs:386:12)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: false,\r\n    code: 'ERR_ASSERTION',\r\n    actual: false,\r\n    expected: true,\r\n    operator: '==',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\mobile_touch_verbs.browser.mjs:31:1",
+      "name": "the contextual row offers each kind the verb that kind answers to (10763.8585ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    [\n      'Undo',\n      'Redo',\n      'Add door',\n  +   'Add window',",
+      "details": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\r\n  + actual - expected\r\n  \r\n    [\r\n      'Undo',\r\n      'Redo',\r\n      'Add door',\r\n  +   'Add window',\r\n      'Flip faces',\r\n      'Edit',\r\n      'Delete'\r\n    ]\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/mobile_touch_verbs.browser.mjs:59:12)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: [ 'Undo', 'Redo', 'Add door', 'Add window', 'Flip faces', 'Edit', 'Delete' ],\r\n    expected: [ 'Undo', 'Redo', 'Add door', 'Flip faces', 'Edit', 'Delete' ],\r\n    operator: 'deepStrictEqual',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\mobile_touch_verbs.browser.mjs:322:1",
+      "name": "picking a preset drops an uploaded floor image, and undo brings both back (9061.773ms)",
+      "reason": "Error: TypeError: Cannot read properties of null (reading 'click')\n      at <anonymous>:18:65\n      at Object.eval (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:457:15)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/mobile_touch_verbs.browser.mjs:326:17)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: TypeError: Cannot read properties of null (reading 'click')\r\n      at <anonymous>:18:65\r\n      at Object.eval (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:457:15)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/mobile_touch_verbs.browser.mjs:326:17)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\model_editor_desktop.browser.mjs:559:1",
+      "name": "desktop model editor: oblique rectangle preview matches the geometry committed on release (3496.8319ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: preview corner 0 moved 6.61px when committed\n      at file:///C:/Users/liron/Desktop/3dhome/tests/model_editor_desktop.browser.mjs:603:12\n      at Array.forEach (<anonymous>)\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/model_editor_desktop.browser.mjs:601:18)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',",
+      "details": "AssertionError [ERR_ASSERTION]: preview corner 0 moved 6.61px when committed\r\n      at file:///C:/Users/liron/Desktop/3dhome/tests/model_editor_desktop.browser.mjs:603:12\r\n      at Array.forEach (<anonymous>)\r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/model_editor_desktop.browser.mjs:601:18)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: false,\r\n    code: 'ERR_ASSERTION',\r\n    actual: false,\r\n    expected: true,\r\n    operator: '==',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\model_editor_desktop.browser.mjs:1015:1",
+      "name": "desktop model editor: an assembly is drawn by the FeatureManager tree (4070.6387ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: and a component reports what is inside it\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/model_editor_desktop.browser.mjs:1053:10)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: '2Tree B2 body projections · solid count not yet measured',\n    expected: /2 solids/,",
+      "details": "AssertionError [ERR_ASSERTION]: and a component reports what is inside it\r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/model_editor_desktop.browser.mjs:1053:10)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: false,\r\n    code: 'ERR_ASSERTION',\r\n    actual: '2Tree B2 body projections · solid count not yet measured',\r\n    expected: /2 solids/,\r\n    operator: 'match',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\model_editor_drawing.browser.mjs:277:1",
+      "name": "adding multiple views and re-laying out keeps zero overlaps and updates view scales (2331.1335ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n  + actual - expected\n  \n  + [\n  +   'ISOMETRIC × REAR'\n  + ]\n  - []\n  ",
+      "details": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\r\n  + actual - expected\r\n  \r\n  + [\r\n  +   'ISOMETRIC × REAR'\r\n  + ]\r\n  - []\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/model_editor_drawing.browser.mjs:304:10)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: [ 'ISOMETRIC × REAR' ],\r\n    expected: [],\r\n    operator: 'deepStrictEqual',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\modeler_loop_rhythm.browser.mjs:99:1",
+      "name": "a typed rectangle commits the number that was typed, not the one that was dragged (20273.2629ms)",
+      "reason": "Error: timed out waiting for a datum sketch to open\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async typedRectangle (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:69:3)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:101:15)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)",
+      "details": "Error: timed out waiting for a datum sketch to open\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async typedRectangle (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:69:3)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:101:15)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)"
+    },
+    {
+      "location": "tests\\modeler_loop_rhythm.browser.mjs:117:1",
+      "name": "a closed profile offers its features instead of guessing one (17644.9526ms)",
+      "reason": "Error: timed out waiting for a datum sketch to open\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async typedRectangle (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:69:3)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:119:3)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: timed out waiting for a datum sketch to open\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async typedRectangle (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:69:3)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:119:3)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\modeler_loop_rhythm.browser.mjs:140:1",
+      "name": "the ghost and the commit agree, and the commit costs one undo step (16369.4275ms)",
+      "reason": "Error: timed out waiting for a datum sketch to open\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async typedRectangle (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:69:3)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:142:3)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: timed out waiting for a datum sketch to open\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async typedRectangle (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:69:3)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:142:3)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\modeler_loop_rhythm.browser.mjs:182:1",
+      "name": "the corner's cancel throws the ghost away without touching history (16664.082ms)",
+      "reason": "Error: timed out waiting for a datum sketch to open\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async typedRectangle (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:69:3)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:184:3)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: timed out waiting for a datum sketch to open\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async typedRectangle (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:69:3)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_loop_rhythm.browser.mjs:184:3)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\modeler_responsive_flow.browser.mjs:50:3",
+      "name": "feature flow keeps readable controls and unobstructed forms at 344px (en) (20437.5555ms)",
+      "reason": "Error: timed out waiting for condition\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async closedProfile (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:33:3)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:58:5)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)",
+      "details": "Error: timed out waiting for condition\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async closedProfile (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:33:3)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:58:5)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)"
+    },
+    {
+      "location": "tests\\modeler_responsive_flow.browser.mjs:50:3",
+      "name": "feature flow keeps readable controls and unobstructed forms at 390px (he) (17365.0988ms)",
+      "reason": "Error: timed out waiting for condition\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async closedProfile (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:33:3)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:58:5)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: timed out waiting for condition\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async closedProfile (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:33:3)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:58:5)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\modeler_responsive_flow.browser.mjs:50:3",
+      "name": "feature flow keeps readable controls and unobstructed forms at 717px (en) (16875.4054ms)",
+      "reason": "Error: timed out waiting for condition\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async closedProfile (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:33:3)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:58:5)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: timed out waiting for condition\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async closedProfile (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:33:3)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:58:5)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\modeler_responsive_flow.browser.mjs:50:3",
+      "name": "feature flow keeps readable controls and unobstructed forms at 1280px (en) (16466.603ms)",
+      "reason": "Error: timed out waiting for condition\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async closedProfile (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:33:3)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:58:5)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: timed out waiting for condition\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async closedProfile (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:33:3)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_responsive_flow.browser.mjs:58:5)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\modeler_selection_grammar.browser.mjs:79:1",
+      "name": "the Sketch filter is disabled where it cannot acquire anything (18181.6354ms)",
+      "reason": "Error: timed out waiting for a datum sketch to open\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_selection_grammar.browser.mjs:95:3)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)",
+      "details": "Error: timed out waiting for a datum sketch to open\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_selection_grammar.browser.mjs:95:3)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)"
+    },
+    {
+      "location": "tests\\modeler_selection_grammar.browser.mjs:300:1",
+      "name": "finishing a sketch offers the four features instead of opening Extrude (16362.2676ms)",
+      "reason": "Error: timed out waiting for a datum sketch\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_selection_grammar.browser.mjs:303:3)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: timed out waiting for a datum sketch\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_selection_grammar.browser.mjs:303:3)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\modeler_viewport_overlap.browser.mjs:146:1",
+      "name": "nothing in the viewport covers anything else, from empty part to built solid (20226.0541ms)",
+      "reason": "Error: timed out waiting for a datum sketch to open\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_viewport_overlap.browser.mjs:152:3)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)",
+      "details": "Error: timed out waiting for a datum sketch to open\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_viewport_overlap.browser.mjs:152:3)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)"
+    },
+    {
+      "location": "tests\\modeler_viewport_overlap.browser.mjs:208:1",
+      "name": "the viewport stays uncluttered when the window is narrow (17312.6916ms)",
+      "reason": "Error: timed out waiting for a datum sketch to open\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_viewport_overlap.browser.mjs:212:3)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: timed out waiting for a datum sketch to open\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/modeler_viewport_overlap.browser.mjs:212:3)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\planning_remaining.browser.mjs:5:1",
+      "name": "reordered boundary packing applies every checklist room at its exact size in one undo (12750.2295ms)",
+      "reason": "Error: Error: Missing packed preview\n      at <anonymous>:13:91\n      at Object.eval (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:457:15)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/planning_remaining.browser.mjs:7:10)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)",
+      "details": "Error: Error: Missing packed preview\r\n      at <anonymous>:13:91\r\n      at Object.eval (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:457:15)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/planning_remaining.browser.mjs:7:10)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)"
+    },
+    {
+      "location": "tests\\pro_compact.browser.mjs:175:1",
+      "name": "desktop: one header, the search in the tabs row, Split over the inspector, and the classic layout on request (19493.6756ms)",
+      "reason": "Error: timed out waiting for the model editor's ribbon\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/pro_compact.browser.mjs:209:5)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)",
+      "details": "Error: timed out waiting for the model editor's ribbon\r\n      at Object.waitUntil (file:///C:/Users/liron/Desktop/3dhome/tools/browser_harness.mjs:504:42)\r\n      at async TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/pro_compact.browser.mjs:209:5)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)"
+    },
+    {
+      "location": "tests\\room_resize.browser.mjs:5:31",
+      "name": "exact resize is one undo step and preserves a captured baseline in en (3640.8143ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n  +   depth: 24512.5,\n  +   width: 32175\n  -   depth: 245.125,\n  -   width: 321.75",
+      "details": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\r\n  + actual - expected\r\n  \r\n    {\r\n  +   depth: 24512.5,\r\n  +   width: 32175\r\n  -   depth: 245.125,\r\n  -   width: 321.75\r\n    }\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_resize.browser.mjs:38:10)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: { width: 32175, depth: 24512.5 },\r\n    expected: { width: 321.75, depth: 245.125 },\r\n    operator: 'deepStrictEqual',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\room_resize.browser.mjs:5:31",
+      "name": "exact resize is one undo step and preserves a captured baseline in he (3039.9857ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n  +   depth: 24512.5,\n  +   width: 32175\n  -   depth: 245.125,\n  -   width: 321.75",
+      "details": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\r\n  + actual - expected\r\n  \r\n    {\r\n  +   depth: 24512.5,\r\n  +   width: 32175\r\n  -   depth: 245.125,\r\n  -   width: 321.75\r\n    }\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_resize.browser.mjs:38:10)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: { width: 32175, depth: 24512.5 },\r\n    expected: { width: 321.75, depth: 245.125 },\r\n    operator: 'deepStrictEqual',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\room_resize.browser.mjs:44:33",
+      "name": "inspector uses exact interior sizes and transactional edits in en (2195.6807ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n  +   depth: 3,\n  +   width: 3.5\n  -   depth: 300,\n  -   width: 350",
+      "details": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\r\n  + actual - expected\r\n  \r\n    {\r\n  +   depth: 3,\r\n  +   width: 3.5\r\n  -   depth: 300,\r\n  -   width: 350\r\n    }\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_resize.browser.mjs:75:10)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: { width: 3.5, depth: 3 },\r\n    expected: { width: 350, depth: 300 },\r\n    operator: 'deepStrictEqual',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\room_resize.browser.mjs:44:33",
+      "name": "inspector uses exact interior sizes and transactional edits in he (3377.4789ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n  +   depth: 3,\n  +   width: 3.5\n  -   depth: 300,\n  -   width: 350",
+      "details": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\r\n  + actual - expected\r\n  \r\n    {\r\n  +   depth: 3,\r\n  +   width: 3.5\r\n  -   depth: 300,\r\n  -   width: 350\r\n    }\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_resize.browser.mjs:75:10)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: { width: 3.5, depth: 3 },\r\n    expected: { width: 350, depth: 300 },\r\n    operator: 'deepStrictEqual',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\room_scan_ar.browser.mjs:79:1",
+      "name": "a tap on the crosshair adds a corner (11108.1383ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /1/. Input:\n  \n  '0 corners'\n  \n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_scan_ar.browser.mjs:98:12)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    generatedMessage: true,",
+      "details": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /1/. Input:\r\n  \r\n  '0 corners'\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_scan_ar.browser.mjs:98:12)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: '0 corners',\r\n    expected: /1/,\r\n    operator: 'match',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\room_scan_ar.browser.mjs:140:1",
+      "name": "restarting AR does not resume the abandoned trace (11925.5727ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /3/. Input:\n  \n  '1 corners'\n  \n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_scan_ar.browser.mjs:164:12)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: true,",
+      "details": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /3/. Input:\r\n  \r\n  '1 corners'\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_scan_ar.browser.mjs:164:12)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: '1 corners',\r\n    expected: /3/,\r\n    operator: 'match',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\room_scan_ar.browser.mjs:171:1",
+      "name": "a corner cannot be dropped on a table top (15116.6197ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  true !== false\n  \n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_scan_ar.browser.mjs:196:12)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: true,",
+      "details": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\r\n  \r\n  true !== false\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_scan_ar.browser.mjs:196:12)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: true,\r\n    expected: false,\r\n    operator: 'strictEqual',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\room_stamp.browser.mjs:228:1",
+      "name": "a selected room can be resized by pulling its side, and stops before collapsing (16265.431ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n  +   d: 3,\n  +   w: 3.5\n  -   d: 300,\n  -   w: 350",
+      "details": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\r\n  + actual - expected\r\n  \r\n    {\r\n  +   d: 3,\r\n  +   w: 3.5\r\n  -   d: 300,\r\n  -   w: 350\r\n    }\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_stamp.browser.mjs:270:12)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: { w: 3.5, d: 3 },\r\n    expected: { w: 350, d: 300 },\r\n    operator: 'deepStrictEqual',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\room_summary.browser.mjs:5:31",
+      "name": "selected room details are undoable and fit the mobile guide in en (2608.9616ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(r.text.includes('360'))\n  \n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_summary.browser.mjs:40:40)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    generatedMessage: true,",
+      "details": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\r\n  \r\n    assert.ok(r.text.includes('360'))\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_summary.browser.mjs:40:40)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: false,\r\n    expected: true,\r\n    operator: '==',\r\n    diff: 'simple'\r\n  }"
+    },
+    {
+      "location": "tests\\room_summary.browser.mjs:5:31",
+      "name": "selected room details are undoable and fit the mobile guide in he (3195.6283ms)",
+      "reason": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n  \n    assert.ok(r.text.includes('360'))\n  \n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_summary.browser.mjs:40:40)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: true,",
+      "details": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\r\n  \r\n    assert.ok(r.text.includes('360'))\r\n  \r\n      at TestContext.<anonymous> (file:///C:/Users/liron/Desktop/3dhome/tests/room_summary.browser.mjs:40:40)\r\n      at async Test.run (node:internal/test_runner/test:1389:7)\r\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\r\n    generatedMessage: true,\r\n    code: 'ERR_ASSERTION',\r\n    actual: false,\r\n    expected: true,\r\n    operator: '==',\r\n    diff: 'simple'\r\n  }"
+    }
+  ]
+}

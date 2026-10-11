@@ -210,9 +210,13 @@ test("short Planner menus hug the bottom and use only their content height", opt
       await page.eval(() => {
         const start = document.getElementById("start-screen");
         if (start) start.hidden = true;
-        document.querySelector('[data-mnav="tools"]').click();
+        // Tools now includes wall presets and the complete product catalog;
+        // it is intentionally a long menu. View remains the short destination
+        // whose natural height this test verifies (modes plus elevations).
+        document.querySelector('[data-mnav="view"]').dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
       });
       await page.eval(() => new Promise((resolve) => setTimeout(resolve, 420)));
+      await page.waitUntil(() => document.getElementById("m-sheet").getAnimations().every((animation) => animation.playState !== "running"), { what: "the short View sheet slide to settle" });
       const layout = await page.eval(() => {
         const sheet = document.getElementById("m-sheet");
         const body = document.getElementById("m-sheet-body");
@@ -232,7 +236,7 @@ test("short Planner menus hug the bottom and use only their content height", opt
           posture: document.body.className,
         };
       });
-      assert.ok(Math.abs(layout.bottom - layout.ctxTop) <= 1, name + ": sheet is attached to the thumb rows");
+      assert.ok(Math.abs(layout.bottom - layout.ctxTop) <= 1, name + ": sheet is attached to the thumb rows " + JSON.stringify(layout));
       assert.ok(Math.abs(layout.height - layout.expected) <= 4, name + ": no unused vertical menu space " + JSON.stringify(layout));
       assert.ok(layout.top > 0, name + ": a short menu never reaches the top edge");
       assert.ok(layout.height < layout.viewport * 0.55, name + ": canvas stays visible above the menu");
@@ -414,6 +418,7 @@ test("Model Editor and Cabinet sheets use the same one-card-at-a-time contract",
       more.click();
     });
     await page.eval(() => new Promise((resolve) => setTimeout(resolve, 250)));
+    await page.waitUntil(() => document.querySelector("#cabdes .cb-m-sheet").getAnimations().every((animation) => animation.playState !== "running"), { what: "the Cabinet More sheet slide to settle" });
     const cabinet = await page.eval(() => {
       const sheet = document.querySelector("#cabdes .cb-m-sheet");
       const nav = document.querySelector("#cabdes .cb-m-nav");
@@ -429,7 +434,7 @@ test("Model Editor and Cabinet sheets use the same one-card-at-a-time contract",
       };
     });
     if (cabinet.paged) assert.equal(cabinet.active, 1, "Cabinet lays out one card");
-    assert.ok(cabinet.bottom <= cabinet.controlsTop + 1, "Cabinet ends above navigation");
+    assert.ok(cabinet.bottom <= cabinet.controlsTop + 1, "Cabinet ends above navigation " + JSON.stringify(cabinet));
     assert.ok(
       cabinet.scrollH <= cabinet.clientH + 1,
       "Cabinet sheet scrolls continuously " + JSON.stringify(cabinet),

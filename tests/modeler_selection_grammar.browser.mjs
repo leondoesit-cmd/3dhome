@@ -8,6 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
+import { startDatumSketch } from "./helpers/browser_sketch_workflow.mjs";
 
 const chrome = await findChrome();
 const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
@@ -91,8 +92,7 @@ test("the Sketch filter is disabled where it cannot acquire anything", opts, asy
 
   // Opening a sketch is what makes sketch geometry pickable, and the button
   // follows that rather than the name of the mode.
-  await page.eval(() => document.querySelector('#modeler [data-command="newsketch"]').click());
-  await page.waitUntil(() => window.cadSketchSnapshot?.().phase === "sketch", { what: "a datum sketch to open" });
+  await startDatumSketch(page);
   await page.waitUntil(() => window.cadSelectionSnapshot?.().sketchFilterAvailable === true,
     { what: "the Sketch filter to become available" });
   const inSketch = await page.eval(filterState);
@@ -299,8 +299,7 @@ test("the inspector asks with a form, not with window.prompt", opts, async () =>
 
 test("finishing a sketch offers the four features instead of opening Extrude", opts, async () => {
   const page = await editor();
-  await page.eval(() => document.querySelector('#modeler [data-command="newsketch"]').click());
-  await page.waitUntil(() => window.cadSketchSnapshot?.().phase === "sketch", { what: "a datum sketch" });
+  await startDatumSketch(page);
 
   // Draw a closed rectangle with the sketch tool, then finish.
   await page.eval(() => {

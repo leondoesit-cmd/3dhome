@@ -1,0 +1,11 @@
+# Explicit datum-plane browser fixture reconciliation
+
+The isolated unchanged typed-rectangle test reproduced the full-CI failure: it clicked New sketch and waited for sketch mode, while the actual production workflow now requires choosing a reference plane. The product correctly stayed in the reference picker. The failure was not a numerical geometry regression.
+
+The new test helper clicks the existing New sketch control, requires the reference phase, selects the visible Top datum option, and waits for sketch mode. Four browser fixture files use this ordinary UI sequence; production code and saved book models are untouched. Numerical commit, ghost equality, single Undo step, modal tripwires, selection eligibility, feature offers, and viewport layout assertions remain unchanged.
+
+The first serial corrected run passed16/20: all4 modelling-loop tests,10 selection tests and2 viewport tests. The4 responsive flow cases reached sketch mode but their old setup additionally assumed the rectangle tool was already selected. They now click the real rectangle tool explicitly. Their first follow-up passed3/4, exposing a stale autosave recovery dialog in the reused Hebrew browser profile. Each independent layout case now owns a fresh browser profile, preserving the original form hit-testing and no-overlap assertions. Final responsive isolation passed4/4,0 skips in20.7 seconds. The complete bounded cohort is therefore20/20 across the two serial final verifications. Logs: `scratch/planchard/numeric-loop-isolated-original-2026-10-11.log`, `scratch/planchard/explicit-plane-browser-cohort-2026-10-11.log` and `scratch/planchard/explicit-plane-responsive-final-2026-10-11.log`.
+
+The unrelated wall-drafting test also reproduced its original `Runtime.evaluate timed out` failure in isolation. Its single async evaluation spans many frame waits and multiple wall/opening/furniture actions without returning a geometric result. No production fix, relaxed timeout or removed assertion is justified at this checkpoint. It remains a durable diagnostic for future phase instrumentation: `scratch/planchard/wall-interactive-isolated-2026-10-11.log`.
+
+Gates passed with no free identifiers,691 linked modules and1487 source assertions. The failed full CI remains failed; focused fixture verification does not replace that historical result.

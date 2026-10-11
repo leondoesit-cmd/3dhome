@@ -26,6 +26,7 @@ import {threadPlacementFromCircularEdge} from './core/thread_circular_start.js';
 import {occurrenceDependencyId,mateDependencyId,partDependencyGraph,assemblyDependencyGraph,dependencyVisualization} from './core/dependency_visualization.js';
 import {renderDependencyPresentation} from './modeler_dependency_ui.js';
 import {captureNamedCameraPose,restoreNamedCameraPose,namedCameraViews,addNamedCameraView,removeNamedCameraView} from './core/named_camera_views.js';
+import {withRetiredGpuChildren} from './core/gpu_child_retirement.js';
 import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
 import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
 import {setExtrudeFeatureOperation} from './core/extrude_operation_edit.js';
@@ -25371,7 +25372,7 @@ function syncReplacedBodyVisibility() {
 function patchLivePreviewLayer() {
   if (!E.pv || !E.pv.liveGrp || !E.pv.liveGrp.parent) return false;
   dropPreviewDecorationGroups();
-  clearGroup(E.pv.liveGrp);
+  return withRetiredGpuChildren(E.pv.liveGrp,function(){return true;},function(){return new THREE.Group();},clearGroup,function(){
   fillLivePreviewGroup(E.pv.liveGrp);
   applySectionClipping(E.pv.liveGrp);
   syncReplacedBodyVisibility();
@@ -25379,6 +25380,7 @@ function patchLivePreviewLayer() {
   E.pv.pickBounds = box.isEmpty() ? null : box.getBoundingSphere(new THREE.Sphere());
   E.pv.render();
   return true;
+  });
 }
 
 function markLiveDirtyPart(part) {
@@ -25508,13 +25510,14 @@ function patchEditedFeatureLayer() {
   var featureId = E.authoring && E.authoring.featureEdit && E.authoring.featureEdit.featureId;
   if (!featureId) return false;
   var ids = collectDirtyPartIds(featureId, E._liveDirtyPartIds);
-  dropCommittedGpu(function (child) {
-    return gpuChildMatchesPartIds(child, ids) || gpuChildMatchesFeature(child, featureId);
-  });
+  return withRetiredGpuChildren(E.pv.grp,function (child) {
+    return child!==E.pv.liveGrp && (gpuChildMatchesPartIds(child, ids) || gpuChildMatchesFeature(child, featureId));
+  },function(){return new THREE.Group();},clearGroup,function(){
   dropDecoMatching(function (part) { return ids[part.id] || partBelongsToFeature(part, featureId); });
   rebuildCommittedPartsById(ids);
   E._liveDirtyPartIds = null;
   return patchLivePreviewLayer();
+  });
 }
 
 /* Viewport-only refresh for a live feature ghost. refreshAll() clones the

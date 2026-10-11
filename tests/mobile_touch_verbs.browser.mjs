@@ -33,6 +33,11 @@ test("the contextual row offers each kind the verb that kind answers to", opts, 
   // has to hold its widest state there without becoming a swipeable rail.
   const page = await openPage({ width: 360, height: 780, lang: "en", mobile: true, touch: true });
   try {
+    // This is the classic full-width context row's no-scroll contract.
+    // Round-6 intentionally relocates it into a narrower scrolling dock;
+    // pro_compact.browser.mjs covers that separate presentation.
+    await page.eval(() => localStorage.setItem("mf.proSkin", "0"));
+    await page.goto("/");
     await page.eval(new Function("return (" + FIXTURE + ")()"));
     const rows = await page.eval(async () => {
       const { S } = await import("./js/state.js");
@@ -56,8 +61,8 @@ test("the contextual row offers each kind the verb that kind answers to", opts, 
 
     assert.deepEqual(rows.item.labels, ["Undo", "Redo", "Rotate 90°", "Copy", "Edit", "Delete"]);
     assert.deepEqual(rows.door.labels, ["Undo", "Redo", "Flip swing", "Edit", "Delete"]);
-    assert.deepEqual(rows.wall.labels, ["Undo", "Redo", "Add door", "Flip faces", "Edit", "Delete"]);
-    assert.deepEqual(rows.none.labels, ["Undo", "Redo"], "Undo/Redo never leave the row");
+    assert.deepEqual(rows.wall.labels, ["Undo", "Redo", "Add door", "Add window", "Flip faces", "Edit", "Delete"]);
+    assert.deepEqual(rows.none.labels, ["Undo", "Redo", "Center view", "OSNAP", "ORTHO", "GRID"], "Undo/Redo stay first while classic framing and drafting aids remain available");
     Object.entries(rows).forEach(([tag, row]) =>
       assert.ok(row.overflow <= 0, `the ${tag} row fits 360px without scrolling (${row.overflow}px over)`));
   } finally {

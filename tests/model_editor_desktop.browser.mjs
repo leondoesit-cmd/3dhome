@@ -1050,7 +1050,8 @@ test("desktop model editor: an assembly is drawn by the FeatureManager tree", op
   assert.deepEqual(shape.sections, ["section:planes", "section:components", "section:mates"], "the assembly tree exposes datum planes, components and mates");
   assert.equal(shape.components.length, 2);
   assert.match(shape.components[0], /grounded/, "the anchor says so on its row");
-  assert.match(shape.components[1], /2 solids/, "and a component reports what is inside it");
+  assert.match(shape.components[1], /2 body projections/, "and a component reports its two stored body projections");
+  assert.match(shape.components[1], /solid count not yet measured/, "unverified lightweight bodies are not presented as measured native solids");
 
   // a component expands to its own solids
   const nested = await page.eval(async () => {
@@ -1143,18 +1144,11 @@ test("desktop model editor: an assembly is drawn by the FeatureManager tree", op
   });
   assert.deepEqual(reordered, [mates[1], mates[0]], "the dragged mate moved past the other");
 
-  /* What the mates have not pinned down. The solver reads it off the rank of
-     the system it solved, and both the moved component's row and the status
-     bar say so — "solved" and "solved, and this part can still spin" are not
-     the same answer. */
-  const freedom = await page.eval(() => ({
-    row: [...document.querySelectorAll("#mdParts .md-tree-component")][1].textContent.replace(/\s+/g, " "),
-    status: document.getElementById("mdStatus").textContent,
-  }));
-  assert.match(freedom.row, /degree of freedom|degrees of freedom|fully constrained/,
-    "the moved component's row does not say what it has left");
-  assert.match(freedom.status, /degree of freedom|degrees of freedom/,
-    "the assembly status bar does not carry the freedom count");
+  // This deliberately conflicting pair must not advertise a valid mobility
+  // result merely because the iterative solver last placed one of its mates.
+  const conflictStatus = await page.eval(() => document.getElementById("mdStatus").textContent);
+  assert.match(conflictStatus, /unresolved mate/, "the conflicting mate pair is disclosed");
+  assert.match(conflictStatus, /Mobility not checked/, "conflict is not reported as validated freedom");
   const withCoincidentLast = await placed();
   assert.notDeepEqual(withCoincidentLast, withConcentricLast, "solve order is what the drag changed, not just the list");
 
@@ -1166,6 +1160,17 @@ test("desktop model editor: an assembly is drawn by the FeatureManager tree", op
     return document.querySelector('#mdParts [data-node-id^="tmate:"]').className.includes("md-suppressed");
   });
   assert.equal(freed, true, "the mate row reads as suppressed");
+
+  // With the conflicting mate suppressed, the valid remaining constraint
+  // should publish its actual freedom to both the occurrence and status row.
+  const freedom = await page.eval(() => ({
+    row: [...document.querySelectorAll("#mdParts .md-tree-component")][1].textContent.replace(/\s+/g, " "),
+    status: document.getElementById("mdStatus").textContent,
+  }));
+  assert.match(freedom.row, /degree of freedom|degrees of freedom|fully constrained/,
+    "the moved component's row does not say what it has left");
+  assert.match(freedom.status, /degree of freedom|degrees of freedom/,
+    "the valid assembly status bar does not carry the freedom count");
 
   const checkDetail = () => page.eval(() => [...document.querySelectorAll("[data-workflow-step]")]
     .find((button) => button.querySelector("b")?.textContent === "Check")?.querySelector("small")?.textContent);

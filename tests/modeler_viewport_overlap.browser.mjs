@@ -16,6 +16,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
+import { startDatumSketch } from "./helpers/browser_sketch_workflow.mjs";
 
 const chrome = await findChrome();
 const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
@@ -148,8 +149,7 @@ test("nothing in the viewport covers anything else, from empty part to built sol
 
   await check(page, "idle 3D on an empty part");
 
-  await page.eval(() => document.querySelector('#modeler [data-command="newsketch"]').click());
-  await page.waitUntil(() => window.cadSketchSnapshot?.().phase === "sketch", { what: "a datum sketch to open" });
+  await startDatumSketch(page);
   const sketching = await check(page, "sketch open");
   // The regression this file exists for: the plane chip and the confirmation
   // corner both docked to the top-end corner, and the chip won.
@@ -208,8 +208,7 @@ test("nothing in the viewport covers anything else, from empty part to built sol
 test("the viewport stays uncluttered when the window is narrow", opts, async () => {
   const page = await editor({ width: 900, height: 700 });
   await check(page, "narrow, idle");
-  await page.eval(() => document.querySelector('#modeler [data-command="newsketch"]').click());
-  await page.waitUntil(() => window.cadSketchSnapshot?.().phase === "sketch", { what: "a datum sketch to open" });
+  await startDatumSketch(page);
   await check(page, "narrow, sketching");
   await drawClosedProfile(page);
   await page.eval(() => document.getElementById("mdAcceptCommand").click());
