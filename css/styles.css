@@ -6117,6 +6117,15 @@ body.compact-nav #modeler.md-isdrawing #md-sheet .md-sheet-fields > .md-head-inp
   transition: opacity .2s ease, visibility .2s ease, transform .2s ease;
 }
 #modeler .md-hint.idle-dismissed { opacity: 0; visibility: hidden; transform: translateY(6px); }
+#modeler .md-polygon-controls {
+  position: absolute; inset-inline-end: 12px; top: 48px; z-index: 7;
+  display: flex; align-items: center; gap: 8px; padding: 4px 8px;
+  border: 1px solid var(--border-color); border-radius: 8px;
+  background: var(--bg-panel); color: var(--text-main);
+}
+#modeler .md-polygon-controls[hidden] { display: none; }
+#modeler .md-polygon-controls select { min-width: 64px; min-height: 44px; }
+body.compact-nav #modeler .md-polygon-controls { top: calc(var(--md-hint-h, 30px) + 8px); }
 #modeler .md-hint-help {
   /* The room-context chip occupies the bottom-end corner in Model mode. Keep
      Help above it instead of letting the round button peek through the chip. */

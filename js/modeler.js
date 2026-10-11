@@ -4231,6 +4231,9 @@ function buildDOM() {
     '</div>' +
     '<div class="md-hint" id="mdHint"></div>' +
     '</div>' +
+    '<label id="mdPolygonControls" class="md-polygon-controls" hidden>' + t("dyn_sides") +
+    ' <select id="mdPolygonSides" aria-label="' + t("dyn_sides") + '">' +
+    Array.from({length:22},function(_,i){return '<option value="'+(i+3)+'">'+(i+3)+'</option>';}).join('') + '</select></label>' +
     '<button type="button" id="mdHintHelp" class="md-hint-help" aria-label="' + t("hint3d") + '" title="' + t("hint3d") + '"><i class="ph ph-question"></i></button>' +
     '<div id="mdEmptyStart" class="md-empty-start" role="group" aria-label="' + t("wfChoosePlane") + '" hidden>' +
       ["top","front","right"].map(function(plane){return '<button type="button" data-origin-plane="'+plane+'">'+t("view_"+plane)+'</button>';}).join("") + '</div>' +
@@ -4600,6 +4603,7 @@ function buildDOM() {
   }
   root.querySelector("#mdSketchOnFace").addEventListener("click", function () { beginSketchWorkflow(null, { forceNew: true }); });
   root.querySelector("#mdHintHelp").addEventListener("click", function () { E.hintDismissed = false; syncHint(); });
+  bindPolygonSideControl(root.querySelector("#mdPolygonSides"));
   root.querySelector("#mdToggleLeft").addEventListener("click", function () { setPanelCollapsed("left", !E.leftCollapsed); });
   root.querySelector("#mdToggleRight").addEventListener("click", function () {
     /* Same button, the panel that is actually on screen: in Drawing mode the
@@ -11802,7 +11806,23 @@ function liveMeasureReadout() {
   return t("measureLength") + " " + modelLengthText(span.distance,8) + " " + modelLengthUnit();
 }
 
+function bindPolygonSideControl(input) {
+  input.addEventListener("change", function () {
+    var sides=Number(input.value);
+    if(!Number.isInteger(sides)||sides<3||sides>24){input.value=String(E.polySides);return;}
+    E.polySides=sides;
+    // The visible selector owns side count over an earlier keyboard draft.
+    if(E.dynInput && E.dynInput.tool==="spoly")delete E.dynInput.values.sides;
+    drawSketch();syncHint();
+  });
+}
+
 function syncHint() {
+  var polygonControls=root && root.querySelector("#mdPolygonControls");
+  if(polygonControls){
+    polygonControls.hidden=E.tool!=="spoly" || E.mode==="drawing" || (E.mode==="3d"&&!E.modelPlaneActive);
+    root.querySelector("#mdPolygonSides").value=String(E.polySides);
+  }
   var hint = root && root.querySelector("#mdHint");
   if (!hint) return;
   // A flash still on screen keeps the element; see flash() above.

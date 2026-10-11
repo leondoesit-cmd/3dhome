@@ -659,7 +659,7 @@ export var TXT = {
   cap_circpattern: ["מעגלי", "Circular"],
   slotHint: ["קליק: התחלת ציר · קליק: סוף · קליק: רוחב · הקלידו מספר לערך מדויק", "Click: centreline start · click: end · click: width · type a number for an exact value"],
   ellipseHint: ["קליק: מרכז · קליק: קצה הציר הראשי · קליק: רדיוס משני", "Click: centre · click: major axis end · click: minor radius"],
-  polygonHint: ["גררו מהמרכז לקודקוד · הקלידו מספר צלעות ב-Tab", "Drag centre → corner · Tab to type the side count"],
+  polygonHint: ["בחרו צלעות; גררו מהמרכז לקודקוד או הקישו על שניהם", "Choose Sides; drag center → corner or tap each point"],
   twoPointHint: ["גררו, או קליק־קליק · הקלידו מידה ואז Enter", "Drag, or click twice · type a size then Enter"],
   sketchCircPattern: ["מערך מעגלי", "Circular pattern"],
   circPatternNeed: ["בחרו ישויות ונקודת מרכז (או מעגל שמרכזו הציר)", "Select entities plus a centre point (or a circle whose centre is the axis)"],

@@ -37,7 +37,9 @@ const MODELER_PICK_TOOLS = new Set(["select", "dim", "trim", "extend", "offset",
    card promises exactly this ("experimental modes apply only to creation
    tools"), so the promise and the gate are written from the same list. */
 export function modelerPrecisionTrialAllowed(tool) {
-  return MODELER_CREATION_TOOLS.has(tool);
+  // Polygon's advertised center-to-corner drag supplies two defining points.
+  // A single-point refinement trial would replace its center with the release.
+  return tool !== "spoly" && MODELER_CREATION_TOOLS.has(tool);
 }
 
 export function modelerTouchPrecisionKind(tool, mode, sketchActive) {
