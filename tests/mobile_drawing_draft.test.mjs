@@ -68,3 +68,16 @@ test('ordinary same-document normalization preserves draft and contact ownership
  c.resetSession();assert.equal(c.draftActions(),null);assert.equal(c.state.pinching,false);
  assert.equal(r.calls.push,0);assert.equal(r.owner.drawing.primitives.length,0);
 });
+
+test('Drawing clears retained Part context and returning to model restores profile operations',()=>{
+ const source=readFileSync(new URL('../js/modeler_mobile.js',import.meta.url),'utf8');
+ const start=source.indexOf('function ctxActions()'),end=source.indexOf('\n}',start);
+ let state={mode:'drawing',closedSketch:true,cornerVisible:true,topologyCount:2,componentCount:1};
+ const context={api:{state:()=>state,coach:()=>assert.fail('Drawing cannot consume the Part coach'),
+  contextItems:()=>assert.fail('Drawing cannot consume retained Part picks'),chromeLabel:id=>id},
+  t:k=>k,CLOSED_SKETCH_VERBS:['extrudecut','revolve','loft'],CTX_MAX_ACTIONS:8};
+ vm.createContext(context);vm.runInContext(source.slice(start,end+2),context);
+ assert.equal(context.ctxActions().length,0);
+ state={mode:'3d',closedSketch:true};context.api.contextItems=()=>[];
+ assert.deepEqual(Array.from(context.ctxActions(),item=>item.action),['extrude','extrudecut','revolve','loft']);
+});

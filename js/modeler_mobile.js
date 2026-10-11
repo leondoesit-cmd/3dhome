@@ -254,6 +254,9 @@ function ctxActions() {
       {icon:'cross',action:'canceldrawingdraft',label:t('m_cancel'),danger:true,run:api.cancelDrawingDraft},
     ];
   }
+  // Drawing commands belong to its native toolbar; retained Part picks and
+  // profiles must not offer modelling operations on the sheet.
+  if (st.mode === 'drawing') return [];
   if (st.cornerVisible) {
     var activeActions = [
       /* Short verbs: "Finish command" ellipses to "Finish com…" in a row that

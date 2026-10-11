@@ -21258,3 +21258,8 @@ body.compact-nav #modeler #md-sheet #mdSheetPanel.md-borrowed {
   display:flex; flex:1; min-height:0; overflow-y:auto;
   box-shadow:none; box-sizing:border-box;
 }
+/* Details groups must keep their full content height. Flex shrinking plus
+   their native overflow:hidden otherwise clips controls before panel scroll. */
+body.compact-nav #modeler #md-sheet #mdSheetPanel.md-borrowed > * {
+  flex: 0 0 auto;
+}
