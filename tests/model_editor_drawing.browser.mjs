@@ -276,7 +276,8 @@ test("leaving and re-entering Drawing mode keeps the sheet that was drafted", op
 
 test("adding multiple views and re-laying out keeps zero overlaps and updates view scales", opts, async () => {
   const page = await sheetPage();
-  const res = await page.eval(() => {
+  const res = await page.eval(async () => {
+    const {scaleLabel}=await import('/js/cad_sheet.js');
     const sheet = window.cadDrawingSheet;
     sheet.addView("left");
     sheet.addView("back");
@@ -298,11 +299,13 @@ test("adding multiple views and re-laying out keeps zero overlaps and updates vi
       viewsCount: scene.views.length,
       overlap: hits,
       tags: viewListTags,
+      scales:scene.views.map(place=>scaleLabel(place.scale)),
     };
   });
   assert.equal(res.viewsCount, 7);
   assert.deepEqual(res.overlap, []);
   assert.ok(res.tags.length >= 7);
+  assert.deepEqual(res.tags,res.scales,"the view list reports the actual relaid-out scale of every view");
 });
 
 test("drawing mode hides tree toggle and eliminates inspector toggle overlap on sheet panel", opts, async () => {

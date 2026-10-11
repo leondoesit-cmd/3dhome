@@ -263,7 +263,7 @@ function clusterMetrics(doc, extents) {
   const primarySize = sizeOf(primary);
   const metrics = {
     primary, primarySize,
-    left: 0, right: 0, above: 0, below: 0,
+    left: 0, right: 0, rear: 0, above: 0, below: 0,
     floating: [],
   };
   const first = doc.projection === "first";
@@ -275,8 +275,12 @@ function clusterMetrics(doc, extents) {
       const above = (view.dir === "top") !== first;
       if (above) metrics.above = Math.max(metrics.above, size.h);
       else metrics.below = Math.max(metrics.below, size.h);
-    } else if (view.dir === "right" || view.dir === "left" || view.dir === "back") {
-      const right = view.dir === "back" ? true : (view.dir === "right") !== first;
+    } else if (view.dir === "back") {
+      // Rear unfolds beyond the adjacent side; it occupies another column,
+      // not the same maximum-width slot as Right/Left.
+      metrics.rear = Math.max(metrics.rear,size.w);
+    } else if (view.dir === "right" || view.dir === "left") {
+      const right = (view.dir === "right") !== first;
       if (right) metrics.right = Math.max(metrics.right, size.w);
       else metrics.left = Math.max(metrics.left, size.w);
     } else metrics.floating.push(view);
@@ -330,9 +334,9 @@ function placePrincipalCluster(doc, extents, sheetScale, area, mustFit = true) {
   const primarySize = sizeOf(primary);
   let gap = VIEW_GAP;
   if (!mustFit) {
-    const rawW = (metrics.left + metrics.right) * k + primarySize.w;
+    const rawW = (metrics.left + metrics.right + metrics.rear) * k + primarySize.w;
     const rawH = (metrics.above + metrics.below) * k + primarySize.h;
-    const gapsW = (metrics.left ? 1 : 0) + (metrics.right ? 1 : 0);
+    const gapsW = (metrics.left ? 1 : 0) + (metrics.right ? 1 : 0) + (metrics.rear ? 1 : 0);
     const gapsH = (metrics.above ? 1 : 0) + (metrics.below ? 1 : 0);
     const availW = area.w - rawW;
     const availH = area.h - rawH;
@@ -342,7 +346,7 @@ function placePrincipalCluster(doc, extents, sheetScale, area, mustFit = true) {
   }
   const spread = {
     left: metrics.left * k + (metrics.left ? gap : 0),
-    right: metrics.right * k + (metrics.right ? gap : 0),
+    right: (metrics.right + metrics.rear) * k + (metrics.right ? gap : 0) + (metrics.rear ? gap : 0),
     above: metrics.above * k + (metrics.above ? gap : 0),
     below: metrics.below * k + (metrics.below ? gap : 0),
   };
@@ -375,7 +379,7 @@ function placePrincipalCluster(doc, extents, sheetScale, area, mustFit = true) {
       x = anchor.x + (right ? 1 : -1) * (primarySize.w / 2 + size.w / 2 + gap);
       align = "horizontal";
     } else if (view.dir === "back") {
-      x = anchor.x + primarySize.w / 2 + metrics.right * k + size.w / 2 + gap * 2;
+      x = anchor.x + primarySize.w / 2 + (metrics.right ? metrics.right * k + gap : 0) + size.w / 2 + gap;
       align = "horizontal";
     }
     /* A dragged view keeps the projection line it is entitled to: an aligned

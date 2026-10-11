@@ -577,6 +577,13 @@ test("desktop model editor: oblique rectangle preview matches the geometry commi
     fire("pointerdown",x,y,1);fire("pointermove",x+52,y+29,1);fire("pointerup",x+52,y+29,0);
   });
   await page.waitUntil(() => !window.cadSketchSnapshot?.().hasFixedFrame, { what: "an oblique sketch camera" });
+  await page.waitUntil(() => {
+    const view=window.cadPreviewView,canvas=document.getElementById("mdCanvas");
+    if(!view?.rr?.domElement||!canvas)return false;
+    const host=view.rr.domElement.getBoundingClientRect(),overlay=canvas.getBoundingClientRect();
+    return host.width>4&&host.height>4&&Math.abs(host.width-overlay.width)<1&&Math.abs(host.height-overlay.height)<1
+      &&Math.abs(view.cam.aspect-host.width/host.height)<1e-6;
+  }, { what: "the oblique renderer and sketch overlay to share their current projection size" });
 
   const result = await page.eval(async () => {
     const osnap=document.getElementById("mdOsnap");
@@ -587,20 +594,21 @@ test("desktop model editor: oblique rectangle preview matches the geometry commi
       pointerId:92,pointerType:"mouse",isPrimary:true,button:0,buttons,clientX:x,clientY:y}));
     fire("pointerdown",x0,y0,1);fire("pointermove",x1,y1,1);
     await new Promise((resolve)=>requestAnimationFrame(resolve));
-    const preview=window.cadSketchSnapshot().previewRect;
+    const projectionState=()=>({aspect:window.cadPreviewView.cam.aspect,canvas:{width:canvas.getBoundingClientRect().width,height:canvas.getBoundingClientRect().height},host:{width:window.cadPreviewView.rr.domElement.getBoundingClientRect().width,height:window.cadPreviewView.rr.domElement.getBoundingClientRect().height}});
+    const previewState=window.cadSketchSnapshot(),preview=previewState.previewRect,previewProjection=projectionState();
     fire("pointerup",x1,y1,0);
     for (let i = 0; i < 20; i++) {
       await new Promise((resolve) => setTimeout(resolve, 25));
       if (window.cadSketchSnapshot().screenPoints.length >= 4) break;
     }
-    const committed=window.cadSketchSnapshot().screenPoints.slice(-4);
-    return {preview,committed};
+    const committedState=window.cadSketchSnapshot(),committed=committedState.screenPoints.slice(-4);
+    return {preview,committed,previewProjection,committedProjection:projectionState(),previewPose:previewState.viewPose,committedPose:committedState.viewPose,previewCamera:previewState.cam,committedCamera:committedState.cam,points:committedState.points};
   });
   assert.equal(result.preview?.length, 4, "rectangle rubber-band did not expose its four projected UV corners");
   assert.equal(result.committed.length, 4, "rectangle did not commit four projected corners");
   result.preview.forEach((point, index) => {
     const nearest=Math.min(...result.committed.map((other)=>Math.hypot(point.x-other.x,point.y-other.y)));
-    assert.ok(nearest < 1.25, `preview corner ${index} moved ${nearest.toFixed(2)}px when committed`);
+    assert.ok(nearest < 1.25, `preview corner ${index} moved ${nearest.toFixed(2)}px when committed ${JSON.stringify(result)}`);
   });
 });
 

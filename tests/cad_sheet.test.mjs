@@ -340,6 +340,26 @@ function overlappingViewLabels(scene, gap = 2) {
   return hits;
 }
 
+test("six orthographic views reserve the rear column before packing the isometric",()=>{
+  const parts=[
+    {kind:'box',x0:-10,x1:10,y0:0,y1:4,z0:-6,z1:6},
+    {kind:'box',x0:-10,x1:-6,y0:0,y1:14,z0:-6,z1:6},
+    {kind:'cyl',x:4,y:-1,z:0,r:2.5,h:6},
+  ],mesh=bodies(...parts);
+  for(const projection of ['first','third'])for(const size of ['A3','A4']){
+    const doc=createSheetDoc({views:['front','top','right','iso','left','back','bottom'],projection,size,scale:'fit'});
+    const scene=buildSheetScene(doc,{projection:createProjector(doc,mesh)});
+    assert.equal(scene.views.length,7);assert.deepEqual(overlappingViewLabels(scene),[],projection+' '+size);
+    const views=Object.fromEntries(scene.views.map(v=>[v.view.dir,v]));
+    assert.equal(views.back.y,views.front.y);assert.equal(views.right.y,views.front.y);assert.equal(views.top.x,views.front.x);
+    const rightNeighbor=projection==='third'?views.right:views.left;
+    assert.ok(views.back.box.x>=rightNeighbor.box.x+rightNeighbor.box.w+2,'rear occupies its own column beyond the adjacent side');
+    const title=titleBlockBox(doc);
+    for(const view of scene.views){assert.ok(view.box.x>=scene.frame.x0-1&&view.box.x+view.box.w<=scene.frame.x1+1);assert.ok(view.box.y>=scene.frame.y0-1&&view.box.y+view.box.h<=scene.frame.y1+1);assert.equal(view.box.x<title.x+title.w&&view.box.x+view.box.w>title.x&&view.box.y<title.y+title.h&&view.box.y+view.box.h>title.y,false);}
+    assert.ok(STANDARD_SCALES.some(s=>scaleLabel(s)===scaleLabel(scene.scale)));
+  }
+});
+
 test("pictorials and sections pack beside the principals instead of stacking on them", () => {
   const doc = createSheetDoc({ views: ["front", "top", "right", "iso"] });
   const front = doc.views[0];
