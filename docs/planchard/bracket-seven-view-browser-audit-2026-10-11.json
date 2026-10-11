@@ -1,0 +1,217 @@
+{
+  "scope": "Actual generic seven-view regression witness, not an original publisher BRACKET drawing. Production layout helpers and actual native mesh projection bounds; cold pending.",
+  "rows": [
+    {
+      "file": "artifacts/planchard/BRACKET-seven-view-third-angle-browser-2026-10-11.mforge",
+      "saved": {
+        "key": "cm_mv34dxl7_6547",
+        "name": "Planchard BRACKET seven-view drawing verification - browser 2026-10-11"
+      },
+      "checks": {
+        "sourceFeaturesExact": true,
+        "sourceSketchesExact": true,
+        "sourceHistoryExact": true,
+        "sourceNativeMeshExact": true,
+        "sevenDistinctDirections": true,
+        "projectionConvention": true,
+        "principalAlignment": true,
+        "correctProjectionSides": true,
+        "noViewOverlap": true,
+        "rearIsoSeparate": true,
+        "allViewsInsideFrame": true,
+        "inputUnchanged": true
+      },
+      "views": [
+        {
+          "dir": "front",
+          "x": 176.71662158690515,
+          "y": 127.5,
+          "w": 20,
+          "h": 90,
+          "align": null,
+          "scale": 1
+        },
+        {
+          "dir": "top",
+          "x": 176.71662158690515,
+          "y": 40,
+          "w": 20,
+          "h": 45,
+          "align": "vertical",
+          "scale": 1
+        },
+        {
+          "dir": "right",
+          "x": 229.21662158690515,
+          "y": 127.5,
+          "w": 45,
+          "h": 90,
+          "align": "horizontal",
+          "scale": 1
+        },
+        {
+          "dir": "iso",
+          "x": 390.71662158690515,
+          "y": 38.7296473468065,
+          "w": 22.566756826189703,
+          "h": 49.459294693613,
+          "align": null,
+          "scale": 0.5
+        },
+        {
+          "dir": "back",
+          "x": 281.71662158690515,
+          "y": 127.5,
+          "w": 20,
+          "h": 90,
+          "align": "horizontal",
+          "scale": 1
+        },
+        {
+          "dir": "left",
+          "x": 124.21662158690515,
+          "y": 127.5,
+          "w": 45,
+          "h": 90,
+          "align": "horizontal",
+          "scale": 1
+        },
+        {
+          "dir": "bottom",
+          "x": 176.71662158690515,
+          "y": 215,
+          "w": 20,
+          "h": 45,
+          "align": "vertical",
+          "scale": 1
+        }
+      ],
+      "sheetScale": [
+        1,
+        1
+      ],
+      "frame": {
+        "paper": {
+          "w": 420,
+          "h": 297,
+          "label": "A3"
+        },
+        "x0": 16,
+        "y0": 8,
+        "x1": 412,
+        "y1": 289,
+        "w": 396,
+        "h": 281
+      },
+      "overlaps": [],
+      "passed": 12,
+      "total": 12
+    },
+    {
+      "file": "artifacts/planchard/BRACKET-seven-view-first-angle-browser-2026-10-11.mforge",
+      "saved": {
+        "key": "cm_mv34dxl7_6547",
+        "name": "Planchard BRACKET seven-view drawing verification - browser 2026-10-11"
+      },
+      "checks": {
+        "sourceFeaturesExact": true,
+        "sourceSketchesExact": true,
+        "sourceHistoryExact": true,
+        "sourceNativeMeshExact": true,
+        "sevenDistinctDirections": true,
+        "projectionConvention": true,
+        "principalAlignment": true,
+        "correctProjectionSides": true,
+        "noViewOverlap": true,
+        "rearIsoSeparate": true,
+        "allViewsInsideFrame": true,
+        "inputUnchanged": true
+      },
+      "views": [
+        {
+          "dir": "front",
+          "x": 176.71662158690515,
+          "y": 127.5,
+          "w": 20,
+          "h": 90,
+          "align": null,
+          "scale": 1
+        },
+        {
+          "dir": "top",
+          "x": 176.71662158690515,
+          "y": 215,
+          "w": 20,
+          "h": 45,
+          "align": "vertical",
+          "scale": 1
+        },
+        {
+          "dir": "right",
+          "x": 124.21662158690515,
+          "y": 127.5,
+          "w": 45,
+          "h": 90,
+          "align": "horizontal",
+          "scale": 1
+        },
+        {
+          "dir": "iso",
+          "x": 390.71662158690515,
+          "y": 38.7296473468065,
+          "w": 22.566756826189703,
+          "h": 49.459294693613,
+          "align": null,
+          "scale": 0.5
+        },
+        {
+          "dir": "back",
+          "x": 281.71662158690515,
+          "y": 127.5,
+          "w": 20,
+          "h": 90,
+          "align": "horizontal",
+          "scale": 1
+        },
+        {
+          "dir": "left",
+          "x": 229.21662158690515,
+          "y": 127.5,
+          "w": 45,
+          "h": 90,
+          "align": "horizontal",
+          "scale": 1
+        },
+        {
+          "dir": "bottom",
+          "x": 176.71662158690515,
+          "y": 40,
+          "w": 20,
+          "h": 45,
+          "align": "vertical",
+          "scale": 1
+        }
+      ],
+      "sheetScale": [
+        1,
+        1
+      ],
+      "frame": {
+        "paper": {
+          "w": 420,
+          "h": 297,
+          "label": "A3"
+        },
+        "x0": 16,
+        "y0": 8,
+        "x1": 412,
+        "y1": 289,
+        "w": 396,
+        "h": 281
+      },
+      "overlaps": [],
+      "passed": 12,
+      "total": 12
+    }
+  ]
+}

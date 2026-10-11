@@ -1,0 +1,23 @@
+{
+  "checks": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "drawing": true,
+    "parts": false,
+    "key": true,
+    "name": true,
+    "customProperties": true,
+    "documentUnits": true
+  },
+  "changedTopLevelFields": [
+    "parts",
+    "lastRebuild",
+    "exactTopologyCache",
+    "lastStandardsAudit"
+  ],
+  "coldSaved": {
+    "key": "cm_mv34dxl7_6547",
+    "name": "Planchard BRACKET seven-view drawing verification - browser 2026-10-11"
+  }
+}

@@ -360,6 +360,44 @@ test("six orthographic views reserve the rear column before packing the isometri
   }
 });
 
+test("seven aligned views reserve overall-dimension and caption clearance in both angles",()=>{
+  // Actual cold BRACKET witness extents (cm), with its signed 12 mm overall offsets.
+  const mesh=bodies({kind:'box',x0:0,x1:2,y0:0,y1:9,z0:-2.25,z1:2.25});
+  for(const projection of ['first','third'])for(const offset of [-12,12]) {
+    const doc=createSheetDoc({views:['front','top','right','iso','back','left','bottom'],projection,size:'A3',scale:'fit'});
+    const front=doc.views.find(v=>v.dir==='front');
+    doc.dims=[{id:'width',auto:'extent',viewId:front.id,type:'horizontal',refs:[{u:0,v:0},{u:2,v:0}],offset},
+      {id:'height',auto:'extent',viewId:front.id,type:'vertical',refs:[{u:2,v:0},{u:2,v:9}],offset:12}];
+    const original=JSON.stringify(doc);
+    const scene=buildSheetScene(doc,{projection:createProjector(doc,mesh)});
+    assert.equal(scene.views.length,7);assert.deepEqual(overlappingViewLabels(scene),[]);
+    for(const item of scene.items.filter(i=>i.viewLabel || i.dimId)) {
+      const owner=item.viewLabel || item.viewId;
+      const box=item.type==='text'?{x:item.x-1,y:item.y-item.size,w:2,h:item.size*2}
+        :item.type==='line'?{x:Math.min(item.x1,item.x2),y:Math.min(item.y1,item.y2),w:Math.abs(item.x2-item.x1),h:Math.abs(item.y2-item.y1)}:null;
+      if(!box)continue;
+      for(const view of scene.views.filter(v=>v.id!==owner))assert.equal(
+        box.x<view.box.x+view.box.w && box.x+box.w>view.box.x && box.y<view.box.y+view.box.h && box.y+box.h>view.box.y,false,
+        projection+' annotation '+(item.viewLabel || item.dimId)+' clears '+view.view.dir);
+    }
+    const caption=scene.items.find(i=>i.viewLabel===front.id);
+    const below=scene.views.find(v=>v.view.dir===(projection==='first'?'top':'bottom'));
+    assert.ok(caption.y+caption.size+2<below.box.y,'caption and lower view retain readable clearance');
+    if(offset>0) {
+      const above=scene.views.find(v=>v.view.dir===(projection==='first'?'bottom':'top'));
+      const upperCaption=scene.items.find(i=>i.viewLabel===above.id);
+      assert.ok(upperCaption.y+upperCaption.size+offset+3<scene.views.find(v=>v.id===front.id).box.y,
+        'positive outward dimension band clears the upper caption');
+    }
+    assert.equal(JSON.stringify(doc),original,'layout does not edit authored scales, coordinates or dimensions');
+    assert.equal(scene.views.find(v=>v.view.dir==='top').x,scene.views.find(v=>v.id===front.id).x);
+    // Explicit user placement remains authoritative even if intentionally crowded.
+    doc.views.find(v=>v.dir==='top').y=123;
+    const manual=buildSheetScene(doc,{projection:createProjector(doc,mesh)});
+    assert.equal(manual.views.find(v=>v.view.dir==='top').y,123);
+  }
+});
+
 test("pictorials and sections pack beside the principals instead of stacking on them", () => {
   const doc = createSheetDoc({ views: ["front", "top", "right", "iso"] });
   const front = doc.views[0];

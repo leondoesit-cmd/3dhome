@@ -1,0 +1,114 @@
+{
+  "scope": "Actual browser seven-view label/dimension clearance using production scene, conservative text envelope estimate; source model/native authoring unchanged. Not original publisher Drawing.",
+  "rows": [
+    {
+      "file": "artifacts/planchard/BRACKET-seven-view-clearance-cold-browser-2026-10-11.mforge",
+      "saved": {
+        "key": "cm_mv34dxl7_6547",
+        "name": "Planchard BRACKET seven-view drawing verification - browser 2026-10-11"
+      },
+      "checks": {
+        "sourceFeaturesExact": true,
+        "sourceSketchesExact": true,
+        "sourceHistoryExact": true,
+        "authoredDrawingExact": true,
+        "sevenViews": true,
+        "nativeOne": true,
+        "noAnnotationOtherGeometryCollision": true,
+        "frontCaptionLowerViewGap": true,
+        "principalHalfScale": true,
+        "isoPointFourScale": true,
+        "sourceInputUnchanged": true
+      },
+      "passed": 11,
+      "total": 11,
+      "caption": {
+        "type": "text",
+        "x": 183.97329726952412,
+        "y": 162.4,
+        "text": "FRONT",
+        "size": 3.5,
+        "anchor": "middle",
+        "baseline": "alphabetic",
+        "style": "text",
+        "color": "#101418",
+        "weight": "bold",
+        "viewLabel": "vf513n4e"
+      },
+      "captionLowerViewClearanceMm": 3.5999999999999943,
+      "collisions": [],
+      "views": [
+        {
+          "dir": "front",
+          "k": 5,
+          "box": {
+            "x": 178.97329726952412,
+            "y": 94,
+            "w": 10,
+            "h": 45
+          }
+        },
+        {
+          "dir": "top",
+          "k": 5,
+          "box": {
+            "x": 178.97329726952412,
+            "y": 51.5,
+            "w": 10,
+            "h": 22.5
+          }
+        },
+        {
+          "dir": "right",
+          "k": 5,
+          "box": {
+            "x": 208.97329726952412,
+            "y": 94,
+            "w": 22.5,
+            "h": 45
+          }
+        },
+        {
+          "dir": "iso",
+          "k": 4,
+          "box": {
+            "x": 383.94659453904825,
+            "y": 13.999999999999996,
+            "w": 18.053405460951762,
+            "h": 39.567435754890404
+          }
+        },
+        {
+          "dir": "back",
+          "k": 5,
+          "box": {
+            "x": 251.4732972695241,
+            "y": 94,
+            "w": 10,
+            "h": 45
+          }
+        },
+        {
+          "dir": "left",
+          "k": 5,
+          "box": {
+            "x": 136.47329726952412,
+            "y": 94,
+            "w": 22.5,
+            "h": 45
+          }
+        },
+        {
+          "dir": "bottom",
+          "k": 5,
+          "box": {
+            "x": 178.97329726952412,
+            "y": 169.5,
+            "w": 10,
+            "h": 22.5
+          }
+        }
+      ]
+    }
+  ]
+}

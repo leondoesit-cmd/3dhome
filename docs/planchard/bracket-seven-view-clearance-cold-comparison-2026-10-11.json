@@ -1,0 +1,18 @@
+{
+  "checks": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "drawing": true,
+    "parts": false,
+    "key": true,
+    "name": true,
+    "documentUnits": true,
+    "customProperties": true
+  },
+  "changed": [
+    "parts",
+    "lastRebuild",
+    "lastStandardsAudit"
+  ]
+}

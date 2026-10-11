@@ -264,6 +264,8 @@ function clusterMetrics(doc, extents) {
   const metrics = {
     primary, primarySize,
     left: 0, right: 0, rear: 0, above: 0, below: 0,
+    primaryClearance: verticalAnnotationClearance(doc, primary),
+    aboveClearance: { top: 0, bottom: 0 }, belowClearance: { top: 0, bottom: 0 },
     floating: [],
   };
   const first = doc.projection === "first";
@@ -275,6 +277,10 @@ function clusterMetrics(doc, extents) {
       const above = (view.dir === "top") !== first;
       if (above) metrics.above = Math.max(metrics.above, size.h);
       else metrics.below = Math.max(metrics.below, size.h);
+      const band = above ? metrics.aboveClearance : metrics.belowClearance;
+      const clearance = verticalAnnotationClearance(doc, view);
+      band.top = Math.max(band.top, clearance.top);
+      band.bottom = Math.max(band.bottom, clearance.bottom);
     } else if (view.dir === "back") {
       // Rear unfolds beyond the adjacent side; it occupies another column,
       // not the same maximum-width slot as Right/Left.
@@ -291,6 +297,19 @@ function clusterMetrics(doc, extents) {
 const VIEW_GAP = 20;      // millimetres of paper between neighbouring principal views
 const FLOAT_GAP = 14;     // between pictorials, sections and details
 const LABEL_PAD = TEXT_SIZES.view + 8;  // caption parked under a view
+
+/* Horizontal dimensions use signed paper offsets. Reserve their outward band
+   before placing the next aligned view; its caption follows that band. */
+function verticalAnnotationClearance(doc, view) {
+  let top = 0, bottom = 0;
+  for (const dim of doc.dims || []) {
+    if (dim.viewId !== view.id || dim.type !== "horizontal" || dim.auto !== "extent") continue;
+    const offset = num(dim.offset, 10);
+    if (offset < 0) bottom = Math.max(bottom, -offset + 3);
+    else top = Math.max(top, offset + 3);
+  }
+  return { top, bottom: bottom + (view.labelled !== false ? LABEL_PAD : 0) };
+}
 
 function paperSizeOf(view, extents, doc, sheetScale) {
   const box = extents.get(view.id) || { w: 10, h: 10 };
@@ -344,11 +363,18 @@ function placePrincipalCluster(doc, extents, sheetScale, area, mustFit = true) {
     const maxGapH = gapsH > 0 ? availH / gapsH : VIEW_GAP;
     gap = Math.max(4, Math.min(VIEW_GAP, maxGapW, maxGapH));
   }
+  // Retain legacy best-effort placement for oversized explicitly forced scales
+  // without automatic dimensions. Fit and annotated layouts must reserve ink.
+  const reserveBands = mustFit || doc.scale === "fit" || (doc.dims || []).some(dim=>dim.auto==="extent");
+  const gapAbove = reserveBands ? Math.max(gap, metrics.aboveClearance.bottom + metrics.primaryClearance.top + 4) : gap;
+  const gapBelow = reserveBands ? Math.max(gap, metrics.primaryClearance.bottom + metrics.belowClearance.top + 4) : gap;
+  const outerTop = reserveBands ? (metrics.above ? metrics.aboveClearance.top : metrics.primaryClearance.top) : 0;
+  const outerBottom = reserveBands ? (metrics.below ? metrics.belowClearance.bottom : metrics.primaryClearance.bottom) : 0;
   const spread = {
     left: metrics.left * k + (metrics.left ? gap : 0),
     right: (metrics.right + metrics.rear) * k + (metrics.right ? gap : 0) + (metrics.rear ? gap : 0),
-    above: metrics.above * k + (metrics.above ? gap : 0),
-    below: metrics.below * k + (metrics.below ? gap : 0),
+    above: metrics.above * k + (metrics.above ? gapAbove : 0) + outerTop,
+    below: metrics.below * k + (metrics.below ? gapBelow : 0) + outerBottom,
   };
   const clusterW = spread.left + primarySize.w + spread.right;
   const clusterH = spread.above + primarySize.h + spread.below;
@@ -372,7 +398,7 @@ function placePrincipalCluster(doc, extents, sheetScale, area, mustFit = true) {
     let x = anchor.x, y = anchor.y, align = null;
     if (view.dir === "top" || view.dir === "bottom") {
       const above = (view.dir === "top") !== first;
-      y = anchor.y + (above ? -1 : 1) * (primarySize.h / 2 + size.h / 2 + gap);
+      y = anchor.y + (above ? -1 : 1) * (primarySize.h / 2 + size.h / 2 + (above ? gapAbove : gapBelow));
       align = "vertical";
     } else if (view.dir === "right" || view.dir === "left") {
       const right = (view.dir === "right") !== first;

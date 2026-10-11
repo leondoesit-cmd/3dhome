@@ -1,0 +1,1434 @@
+{
+  "file": "artifacts/planchard/BRACKET-seven-view-cold-browser-2026-10-11.mforge",
+  "saved": {
+    "key": "cm_mv34dxl7_6547",
+    "name": "Planchard BRACKET seven-view drawing verification - browser 2026-10-11"
+  },
+  "checks": {
+    "eightSourceFeatures": true,
+    "sourceNames": true,
+    "baseFourFeaturesExact": true,
+    "baseTwoSketchesExact": true,
+    "fourFullyDefinedSketches": true,
+    "twelveRealHistory": true,
+    "sourceLargeWizard": true,
+    "sourceLargePlacement": true,
+    "sourceTwoByFourPattern": true,
+    "analyticSourceCircle": true,
+    "analyticSourceCapsule": true,
+    "bothProfilesDriveCut": true,
+    "sourceReverse5Cut": true,
+    "sourceThreeCutPattern": true,
+    "nativeEightLargeBores": true,
+    "nativeTwoBaseBores": true,
+    "nativeThreeSmallBores": true,
+    "nativeSixSlotCaps": true,
+    "nativeSlotSemiCylinderArea": true,
+    "stockBoundsExact": true,
+    "storedNativeOne": true,
+    "compiledAndRegenerated": true,
+    "nativeValidOne": true,
+    "sourceAnalyticVolume": true,
+    "inputUnchanged": true
+  },
+  "passed": 25,
+  "total": 25,
+  "expectedVolumeCm3": 18.646272316964385,
+  "native": {
+    "volume": 18.646272316964385,
+    "centerOfMass": {
+      "x": 0.4200403409987159,
+      "y": 3.7549373343955574,
+      "z": 0.04314873558970233
+    },
+    "inertia": [
+      [
+        187.24803329075706,
+        11.108850580372895,
+        0.198167410962867
+      ],
+      [
+        11.108850580372895,
+        35.9464636832086,
+        -1.3988013874979268
+      ],
+      [
+        0.198167410962867,
+        -1.3988013874979268,
+        158.2144116805025
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": -2.25
+      },
+      "max": {
+        "x": 2,
+        "y": 9,
+        "z": 2.25
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 18.646272316964385,
+    "maxToleranceCm": 1.0000000055511151e-7
+  },
+  "nativeCylinderFaces": [
+    {
+      "ownerFeatureId": "feature_mv33rpnj_3",
+      "kind": "face",
+      "transportOrdinal": 2,
+      "persistentId": "feature_mv33rpnj_3:face:generated:cylinder:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 1.8,
+          "y": 0.25,
+          "z": -2.05
+        },
+        "normal": {
+          "x": 0.7071067811865476,
+          "y": 0,
+          "z": -0.7071067811865475
+        },
+        "measure": 0.15707963267948966,
+        "bounds": {
+          "min": {
+            "x": 1.7999999,
+            "y": -9.99999999976316e-8,
+            "z": -2.2500001
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 0.5000001,
+            "z": -2.0499999
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "radius": 0.2,
+        "referenceOrigin": {
+          "x": 1.8,
+          "y": 0,
+          "z": -2.05
+        },
+        "axisRange": [
+          2.36839153124352e-18,
+          0.5
+        ],
+        "centroid": {
+          "x": 1.9273239544735166,
+          "y": 0.25,
+          "z": -2.177323954473516
+        }
+      },
+      "signature": "cylinder:1.8:0.25:-2.05:0.707:0:-0.707:0.157:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv33rpnj_3",
+      "kind": "face",
+      "transportOrdinal": 3,
+      "persistentId": "feature_mv33rpnj_3:face:generated:cylinder:4",
+      "semantic": "generated-4",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 1.8,
+          "y": 0.25,
+          "z": 2.05
+        },
+        "normal": {
+          "x": 0.7071067811865464,
+          "y": 0,
+          "z": 0.7071067811865487
+        },
+        "measure": 0.15707963267948966,
+        "bounds": {
+          "min": {
+            "x": 1.7999998999999993,
+            "y": -9.99999999976316e-8,
+            "z": 2.0499999
+          },
+          "max": {
+            "x": 2.0000001,
+            "y": 0.5000001,
+            "z": 2.2500001
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "radius": 0.2,
+        "referenceOrigin": {
+          "x": 1.8,
+          "y": 0,
+          "z": 2.05
+        },
+        "axisRange": [
+          2.36839153124352e-18,
+          0.5
+        ],
+        "centroid": {
+          "x": 1.9273239544735166,
+          "y": 0.25,
+          "z": 2.177323954473516
+        }
+      },
+      "signature": "cylinder:1.8:0.25:2.05:0.707:0:0.707:0.157:generated-4"
+    },
+    {
+      "ownerFeatureId": "feature_mv33oyxu_1",
+      "kind": "face",
+      "transportOrdinal": 6,
+      "persistentId": "feature_mv33oyxu_1:face:generated:cylinder:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.7000000000000002,
+          "y": 0.7000000000000001,
+          "z": 0
+        },
+        "normal": {
+          "x": 0.7071067811865475,
+          "y": 0.7071067811865475,
+          "z": 0
+        },
+        "measure": 1.413716694115406,
+        "bounds": {
+          "min": {
+            "x": 0.49999989999999994,
+            "y": 0.49999989999999983,
+            "z": -2.2500001
+          },
+          "max": {
+            "x": 0.7000001,
+            "y": 0.7000000999999999,
+            "z": 2.2500001
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "radius": 0.20000000000000015,
+        "referenceOrigin": {
+          "x": 0.7000000000000002,
+          "y": 0.7000000000000001,
+          "z": -2.25
+        },
+        "axisRange": [
+          -4.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.5726760455264838,
+          "y": 0.5726760455264837,
+          "z": 5.245706505886012e-17
+        }
+      },
+      "signature": "cylinder:0.7:0.7:0:0.707:0.707:0:1.414:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv33uqi8_5:copy:1",
+      "kind": "face",
+      "transportOrdinal": 7,
+      "persistentId": "feature_mv33uqi8_5:copy:1:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 1.5,
+          "y": 0.25,
+          "z": 1.25
+        },
+        "normal": {
+          "x": -1.2246467991473532e-16,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 0.7853981633974483,
+        "bounds": {
+          "min": {
+            "x": 1.2499999,
+            "y": -1.0000000000680912e-7,
+            "z": 0.9999998999999999
+          },
+          "max": {
+            "x": 1.7500001,
+            "y": 0.5000001000000001,
+            "z": 1.5000001
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 1.5,
+          "y": 0.5,
+          "z": 1.25
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 1.5,
+          "y": 0.25,
+          "z": 1.25
+        }
+      },
+      "signature": "cylinder:1.5:0.25:1.25:0:0:-1:0.785:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv33tqf8_4:tool",
+      "kind": "face",
+      "transportOrdinal": 8,
+      "persistentId": "feature_mv33tqf8_4:tool:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 1.5,
+          "y": 0.25,
+          "z": -0.75
+        },
+        "normal": {
+          "x": -1.2246467991473532e-16,
+          "y": 0,
+          "z": -1
+        },
+        "measure": 0.7853981633974483,
+        "bounds": {
+          "min": {
+            "x": 1.2499999,
+            "y": -1.0000000000680912e-7,
+            "z": -1.0000001
+          },
+          "max": {
+            "x": 1.7500001,
+            "y": 0.5000001000000001,
+            "z": -0.4999999
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 1.5,
+          "y": 0.5,
+          "z": -0.75
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 1.5,
+          "y": 0.25,
+          "z": -0.75
+        }
+      },
+      "signature": "cylinder:1.5:0.25:-0.75:0:0:-1:0.785:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv33oyxu_1",
+      "kind": "face",
+      "transportOrdinal": 11,
+      "persistentId": "feature_mv33oyxu_1:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.7,
+          "y": 0.7,
+          "z": 0
+        },
+        "normal": {
+          "x": -0.7071067811865465,
+          "y": -0.7071067811865488,
+          "z": 0
+        },
+        "measure": 4.948008429403924,
+        "bounds": {
+          "min": {
+            "x": -9.999999999999985e-8,
+            "y": -9.999999999772565e-8,
+            "z": -2.2500001
+          },
+          "max": {
+            "x": 0.7000001000000023,
+            "y": 0.7000001000000001,
+            "z": 2.2500001
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "radius": 0.6999999999999998,
+        "referenceOrigin": {
+          "x": 0.7,
+          "y": 0.7,
+          "z": -2.25
+        },
+        "axisRange": [
+          -4.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.2543661593426931,
+          "y": 0.25436615934269313,
+          "z": -5.048499494386534e-17
+        }
+      },
+      "signature": "cylinder:0.7:0.7:0:-0.707:-0.707:0:4.948:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv33rpnj_3",
+      "kind": "face",
+      "transportOrdinal": 12,
+      "persistentId": "feature_mv33rpnj_3:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25000000000000056,
+          "y": 8.8,
+          "z": -2.05
+        },
+        "normal": {
+          "x": 0,
+          "y": 0.7071067811865464,
+          "z": -0.7071067811865487
+        },
+        "measure": 0.15707963267948966,
+        "bounds": {
+          "min": {
+            "x": -9.999999944488848e-8,
+            "y": 8.799999900000001,
+            "z": -2.2500001
+          },
+          "max": {
+            "x": 0.5000001000000005,
+            "y": 9.0000001,
+            "z": -2.0499999
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.2,
+        "referenceOrigin": {
+          "x": 0.5000000000000006,
+          "y": 8.8,
+          "z": -2.05
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25000000000000056,
+          "y": 8.927323954473517,
+          "z": -2.177323954473516
+        }
+      },
+      "signature": "cylinder:0.25:8.8:-2.05:0:0.707:-0.707:0.157:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv33rpnj_3",
+      "kind": "face",
+      "transportOrdinal": 14,
+      "persistentId": "feature_mv33rpnj_3:face:generated:cylinder:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25000000000000056,
+          "y": 8.8,
+          "z": 2.05
+        },
+        "normal": {
+          "x": 0,
+          "y": 0.7071067811865476,
+          "z": 0.7071067811865475
+        },
+        "measure": 0.15707963267948966,
+        "bounds": {
+          "min": {
+            "x": -9.999999944488848e-8,
+            "y": 8.799999900000001,
+            "z": 2.0499999
+          },
+          "max": {
+            "x": 0.5000001000000005,
+            "y": 9.0000001,
+            "z": 2.2500001
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.2,
+        "referenceOrigin": {
+          "x": 0.5000000000000006,
+          "y": 8.8,
+          "z": 2.05
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25000000000000056,
+          "y": 8.927323954473517,
+          "z": 2.177323954473516
+        }
+      },
+      "signature": "cylinder:0.25:8.8:2.05:0:0.707:0.707:0.157:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv33xfle_7:copy:1",
+      "kind": "face",
+      "transportOrdinal": 16,
+      "persistentId": "feature_mv33xfle_7:copy:1:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 2,
+          "z": 1.2500000000000049
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": -1
+        },
+        "measure": 1.5707963267948966,
+        "bounds": {
+          "min": {
+            "x": -1.000000001110223e-7,
+            "y": 1.4999999,
+            "z": 0.7499999000000048
+          },
+          "max": {
+            "x": 0.5000001000000001,
+            "y": 2.5000001000000003,
+            "z": 1.750000100000005
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.5,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 2,
+          "z": 1.2500000000000049
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 2,
+          "z": 1.2500000000000049
+        }
+      },
+      "signature": "cylinder:0.25:2:1.25:0:0:-1:1.571:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv33xfle_7:copy:3",
+      "kind": "face",
+      "transportOrdinal": 17,
+      "persistentId": "feature_mv33xfle_7:copy:3:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 4,
+          "z": 1.2500000000000049
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": -1
+        },
+        "measure": 1.5707963267948966,
+        "bounds": {
+          "min": {
+            "x": -1.0000000023268288e-7,
+            "y": 3.4999998999999997,
+            "z": 0.7499999000000046
+          },
+          "max": {
+            "x": 0.5000001000000003,
+            "y": 4.5000001,
+            "z": 1.7500001000000052
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.5,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 4,
+          "z": 1.2500000000000049
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 4,
+          "z": 1.2500000000000049
+        }
+      },
+      "signature": "cylinder:0.25:4:1.25:0:0:-1:1.571:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv33xfle_7:copy:5",
+      "kind": "face",
+      "transportOrdinal": 18,
+      "persistentId": "feature_mv33xfle_7:copy:5:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 6,
+          "z": 1.2500000000000049
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": -1
+        },
+        "measure": 1.5707963267948966,
+        "bounds": {
+          "min": {
+            "x": -1.0000000035514757e-7,
+            "y": 5.4999999,
+            "z": 0.7499999000000045
+          },
+          "max": {
+            "x": 0.5000001000000004,
+            "y": 6.5000001,
+            "z": 1.7500001000000052
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.5,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 6,
+          "z": 1.2500000000000049
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 6,
+          "z": 1.2500000000000049
+        }
+      },
+      "signature": "cylinder:0.25:6:1.25:0:0:-1:1.571:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv33xfle_7:copy:7",
+      "kind": "face",
+      "transportOrdinal": 19,
+      "persistentId": "feature_mv33xfle_7:copy:7:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 8,
+          "z": 1.2500000000000049
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": -1
+        },
+        "measure": 1.5707963267948966,
+        "bounds": {
+          "min": {
+            "x": -1.0000000055511151e-7,
+            "y": 7.4999999,
+            "z": 0.7499999000000044
+          },
+          "max": {
+            "x": 0.5000001000000005,
+            "y": 8.500000100000001,
+            "z": 1.7500001000000054
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.5,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 8,
+          "z": 1.2500000000000049
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 8,
+          "z": 1.2500000000000049
+        }
+      },
+      "signature": "cylinder:0.25:8:1.25:0:0:-1:1.571:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv3418nf_8:tool",
+      "kind": "face",
+      "transportOrdinal": 20,
+      "persistentId": "feature_mv3418nf_8:tool:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 3.1,
+          "z": -0.250000000000005
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": 1
+        },
+        "measure": 0.7853981633974483,
+        "bounds": {
+          "min": {
+            "x": -1.000000002220446e-7,
+            "y": 2.8499999,
+            "z": -0.5000001000000052
+          },
+          "max": {
+            "x": 0.5000001000000002,
+            "y": 3.3500001000000004,
+            "z": 9.999999522604099e-8
+          }
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 3.1,
+          "z": -0.250000000000005
+        },
+        "axisRange": [
+          -0.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 3.1,
+          "z": -0.25000000000000505
+        }
+      },
+      "signature": "cylinder:0.25:3.1:-0.25:0:0:1:0.785:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv33wu2t_6:tool",
+      "kind": "face",
+      "transportOrdinal": 21,
+      "persistentId": "feature_mv33wu2t_6:tool:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 2,
+          "z": -0.749999999999995
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": -1
+        },
+        "measure": 1.5707963267948966,
+        "bounds": {
+          "min": {
+            "x": -1.000000001110223e-7,
+            "y": 1.4999999,
+            "z": -1.2500000999999952
+          },
+          "max": {
+            "x": 0.5000001000000001,
+            "y": 2.5000001000000003,
+            "z": -0.2499998999999949
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.5,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 2,
+          "z": -0.749999999999995
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 2,
+          "z": -0.7499999999999949
+        }
+      },
+      "signature": "cylinder:0.25:2:-0.75:0:0:-1:1.571:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv33xfle_7:copy:2",
+      "kind": "face",
+      "transportOrdinal": 22,
+      "persistentId": "feature_mv33xfle_7:copy:2:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 4,
+          "z": -0.749999999999995
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": -1
+        },
+        "measure": 1.5707963267948966,
+        "bounds": {
+          "min": {
+            "x": -1.0000000023268288e-7,
+            "y": 3.4999998999999997,
+            "z": -1.2500000999999954
+          },
+          "max": {
+            "x": 0.5000001000000003,
+            "y": 4.5000001,
+            "z": -0.24999989999999478
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.5,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 4,
+          "z": -0.749999999999995
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 4,
+          "z": -0.7499999999999949
+        }
+      },
+      "signature": "cylinder:0.25:4:-0.75:0:0:-1:1.571:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv3418nf_8:tool",
+      "kind": "face",
+      "transportOrdinal": 24,
+      "persistentId": "feature_mv3418nf_8:tool:face:side:6535",
+      "semantic": "side:6535",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 2.7,
+          "z": -1.75
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 6.123233995736766e-17
+        },
+        "measure": 0.39269908169872414,
+        "bounds": {
+          "min": {
+            "x": -1.0000000011850266e-7,
+            "y": 2.4499999,
+            "z": -2.0000001000000003
+          },
+          "max": {
+            "x": 0.5000001000000002,
+            "y": 2.7000001000000005,
+            "z": -1.4999999
+          }
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 2.7,
+          "z": -1.75
+        },
+        "axisRange": [
+          -0.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 2.540845056908105,
+          "z": -1.75
+        }
+      },
+      "signature": "cylinder:0.25:2.7:-1.75:0:1:0:0.393:side:6535"
+    },
+    {
+      "ownerFeatureId": "feature_mv3418nf_8:tool",
+      "kind": "face",
+      "transportOrdinal": 25,
+      "persistentId": "feature_mv3418nf_8:tool:face:side:6533",
+      "semantic": "side:6533",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 3.5,
+          "z": -1.75
+        },
+        "normal": {
+          "x": 0,
+          "y": -1,
+          "z": -6.123233995736766e-17
+        },
+        "measure": 0.39269908169872414,
+        "bounds": {
+          "min": {
+            "x": -1.000000002220446e-7,
+            "y": 3.4999998999999997,
+            "z": -2.0000001000000003
+          },
+          "max": {
+            "x": 0.5000001000000002,
+            "y": 3.7500001000000003,
+            "z": -1.4999998999999997
+          }
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 3.5,
+          "z": -1.75
+        },
+        "axisRange": [
+          -0.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 3.6591549430918953,
+          "z": -1.75
+        }
+      },
+      "signature": "cylinder:0.25:3.5:-1.75:0:-1:0:0.393:side:6533"
+    },
+    {
+      "ownerFeatureId": "feature_mv341r4f_9:copy:1",
+      "kind": "face",
+      "transportOrdinal": 27,
+      "persistentId": "feature_mv341r4f_9:copy:1:face:generated:cylinder:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 5.1,
+          "z": -0.250000000000005
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": 1
+        },
+        "measure": 0.7853981633974483,
+        "bounds": {
+          "min": {
+            "x": -1.000000003330669e-7,
+            "y": 4.849999899999999,
+            "z": -0.5000001000000053
+          },
+          "max": {
+            "x": 0.5000001000000003,
+            "y": 5.3500001,
+            "z": 9.999999533706329e-8
+          }
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 5.1,
+          "z": -0.250000000000005
+        },
+        "axisRange": [
+          -0.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 5.1,
+          "z": -0.25000000000000505
+        }
+      },
+      "signature": "cylinder:0.25:5.1:-0.25:0:0:1:0.785:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv33xfle_7:copy:4",
+      "kind": "face",
+      "transportOrdinal": 28,
+      "persistentId": "feature_mv33xfle_7:copy:4:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 6,
+          "z": -0.749999999999995
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": -1
+        },
+        "measure": 1.5707963267948966,
+        "bounds": {
+          "min": {
+            "x": -1.0000000035514757e-7,
+            "y": 5.4999999,
+            "z": -1.2500000999999954
+          },
+          "max": {
+            "x": 0.5000001000000004,
+            "y": 6.5000001,
+            "z": -0.24999989999999464
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.5,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 6,
+          "z": -0.749999999999995
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 6,
+          "z": -0.7499999999999949
+        }
+      },
+      "signature": "cylinder:0.25:6:-0.75:0:0:-1:1.571:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv341r4f_9:copy:2",
+      "kind": "face",
+      "transportOrdinal": 29,
+      "persistentId": "feature_mv341r4f_9:copy:2:face:generated:cylinder:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 7.1,
+          "z": -0.250000000000005
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": 1
+        },
+        "measure": 0.7853981633974483,
+        "bounds": {
+          "min": {
+            "x": -1.000000004440892e-7,
+            "y": 6.849999899999999,
+            "z": -0.5000001000000054
+          },
+          "max": {
+            "x": 0.5000001000000004,
+            "y": 7.3500001,
+            "z": 9.99999954480856e-8
+          }
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 7.1,
+          "z": -0.250000000000005
+        },
+        "axisRange": [
+          -0.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 7.1,
+          "z": -0.25000000000000505
+        }
+      },
+      "signature": "cylinder:0.25:7.1:-0.25:0:0:1:0.785:generated-2"
+    },
+    {
+      "ownerFeatureId": "feature_mv33xfle_7:copy:6",
+      "kind": "face",
+      "transportOrdinal": 30,
+      "persistentId": "feature_mv33xfle_7:copy:6:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 8,
+          "z": -0.749999999999995
+        },
+        "normal": {
+          "x": 0,
+          "y": 1.2246467991473532e-16,
+          "z": -1
+        },
+        "measure": 1.5707963267948966,
+        "bounds": {
+          "min": {
+            "x": -1.0000000055511151e-7,
+            "y": 7.4999999,
+            "z": -1.2500000999999956
+          },
+          "max": {
+            "x": 0.5000001000000005,
+            "y": 8.500000100000001,
+            "z": -0.24999989999999445
+          }
+        },
+        "axis": {
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.5,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 8,
+          "z": -0.749999999999995
+        },
+        "axisRange": [
+          0,
+          0.5
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 8,
+          "z": -0.7499999999999949
+        }
+      },
+      "signature": "cylinder:0.25:8:-0.75:0:0:-1:1.571:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv341r4f_9:copy:1",
+      "kind": "face",
+      "transportOrdinal": 31,
+      "persistentId": "feature_mv341r4f_9:copy:1:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 4.7,
+          "z": -1.75
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 6.123233995736766e-17
+        },
+        "measure": 0.39269908169872414,
+        "bounds": {
+          "min": {
+            "x": -1.0000000024096733e-7,
+            "y": 4.4499999,
+            "z": -2.0000001000000003
+          },
+          "max": {
+            "x": 0.5000001000000003,
+            "y": 4.7000001000000005,
+            "z": -1.4999998999999997
+          }
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 4.7,
+          "z": -1.75
+        },
+        "axisRange": [
+          -0.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 4.540845056908105,
+          "z": -1.75
+        }
+      },
+      "signature": "cylinder:0.25:4.7:-1.75:0:1:0:0.393:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv341r4f_9:copy:1",
+      "kind": "face",
+      "transportOrdinal": 34,
+      "persistentId": "feature_mv341r4f_9:copy:1:face:generated:cylinder:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 5.5,
+          "z": -1.75
+        },
+        "normal": {
+          "x": 0,
+          "y": -1,
+          "z": -6.123233995736766e-17
+        },
+        "measure": 0.39269908169872414,
+        "bounds": {
+          "min": {
+            "x": -1.000000003330669e-7,
+            "y": 5.4999999,
+            "z": -2.0000001000000003
+          },
+          "max": {
+            "x": 0.5000001000000003,
+            "y": 5.7500001,
+            "z": -1.4999998999999997
+          }
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 5.5,
+          "z": -1.75
+        },
+        "axisRange": [
+          -0.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 5.659154943091894,
+          "z": -1.75
+        }
+      },
+      "signature": "cylinder:0.25:5.5:-1.75:0:-1:0:0.393:generated-3"
+    },
+    {
+      "ownerFeatureId": "feature_mv341r4f_9:copy:2",
+      "kind": "face",
+      "transportOrdinal": 35,
+      "persistentId": "feature_mv341r4f_9:copy:2:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 6.7,
+          "z": -1.75
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 6.123233995736766e-17
+        },
+        "measure": 0.39269908169872414,
+        "bounds": {
+          "min": {
+            "x": -1.000000004440892e-7,
+            "y": 6.4499999,
+            "z": -2.0000001000000003
+          },
+          "max": {
+            "x": 0.5000001000000004,
+            "y": 6.7000001000000005,
+            "z": -1.4999998999999995
+          }
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 6.7,
+          "z": -1.75
+        },
+        "axisRange": [
+          -0.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 6.540845056908105,
+          "z": -1.75
+        }
+      },
+      "signature": "cylinder:0.25:6.7:-1.75:0:1:0:0.393:generated-1"
+    },
+    {
+      "ownerFeatureId": "feature_mv341r4f_9:copy:2",
+      "kind": "face",
+      "transportOrdinal": 37,
+      "persistentId": "feature_mv341r4f_9:copy:2:face:generated:cylinder:3",
+      "semantic": "generated-3",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.25,
+          "y": 7.5,
+          "z": -1.75
+        },
+        "normal": {
+          "x": 0,
+          "y": -1,
+          "z": -6.123233995736766e-17
+        },
+        "measure": 0.39269908169872414,
+        "bounds": {
+          "min": {
+            "x": -1.000000004440892e-7,
+            "y": 7.4999999,
+            "z": -2.0000001000000003
+          },
+          "max": {
+            "x": 0.5000001000000004,
+            "y": 7.7500001,
+            "z": -1.4999998999999995
+          }
+        },
+        "axis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "radius": 0.25,
+        "referenceOrigin": {
+          "x": 0.5,
+          "y": 7.5,
+          "z": -1.75
+        },
+        "axisRange": [
+          -0.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.25,
+          "y": 7.659154943091894,
+          "z": -1.75
+        }
+      },
+      "signature": "cylinder:0.25:7.5:-1.75:0:-1:0:0.393:generated-3"
+    }
+  ],
+  "scope": "Read-only independent actual browser source-reconstructed BRACKET; original binary identities/Sketch1 bend ownership qualified. Warm checkpoint only; no driver/rollback/STEP/cold claim."
+}
