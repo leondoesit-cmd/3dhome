@@ -268,22 +268,28 @@ export function holeWizardThread(params, placement = {}) {
   return annotation;
 }
 
-export function holeCallout(params) {
+export function holeCallout(params, options = {}) {
   const hole = normalizeHoleWizard(params);
   const thru = hole.endCondition === "through-all";
   const inch = params.displayUnit === "in" || (!params.displayUnit && holeTableRow(hole.standardSize)?.imperial);
-  const dimension = mm => inch ? Number((mm / 25.4).toPrecision(10)) + " in" : round1(mm);
+  const divisor=inch?25.4:params.displayUnit==='cm'?10:params.displayUnit==='m'?1000:1;
+  const precision=Number.isInteger(options.precision)&&options.precision>=0&&options.precision<=8?options.precision:null;
+  const dimension = mm => {
+    const value=mm/divisor;
+    const text=precision==null?(inch?Number(value.toPrecision(10)):round1(value)):(options.trailingZeros??true)?value.toFixed(precision):Number(value.toFixed(precision));
+    return text+(inch?' in':'');
+  };
   const depth = thru ? " THRU" : " \u2193" + dimension(hole.depthMm);
-  const headRecess = hole.csinkStartDepthMm>0 ? " \u232D Ø"+dimension(hole.csinkDiameterMm)+"\u2193"+dimension(hole.csinkStartDepthMm) : "";
+  const headRecess = hole.csinkStartDepthMm>0 ? " \u2334 Ø"+dimension(hole.csinkDiameterMm)+"\u2193"+dimension(hole.csinkStartDepthMm) : "";
   if (hole.holeType === "simple") return "Ø" + dimension(hole.diameterMm) + depth;
   if (hole.holeType === "counterbore") {
-    return "Ø" + dimension(hole.diameterMm) + depth + " \u232D Ø" + dimension(hole.cboreDiameterMm) + "\u2193" + dimension(hole.cboreDepthMm);
+    return "Ø" + dimension(hole.diameterMm) + depth + " \u2334 Ø" + dimension(hole.cboreDiameterMm) + "\u2193" + dimension(hole.cboreDepthMm);
   }
   if (hole.holeType === "spotface") {
     return "Ø" + dimension(hole.diameterMm) + depth + " SF Ø" + dimension(hole.cboreDiameterMm);
   }
   if (hole.holeType === "countersink") {
-    return "Ø" + dimension(hole.diameterMm) + depth + headRecess + " \u2334 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
+    return "Ø" + dimension(hole.diameterMm) + depth + headRecess + " \u2335 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
   }
   const thread = threadCallout({
     threadPreset: hole.threadPreset,
@@ -296,10 +302,10 @@ export function holeCallout(params) {
     handedness: hole.handedness,
   });
   if (hole.holeType === "tap-counterbore") {
-    return thread + " \u232D Ø" + dimension(hole.cboreDiameterMm) + "\u2193" + dimension(hole.cboreDepthMm);
+    return thread + " \u2334 Ø" + dimension(hole.cboreDiameterMm) + "\u2193" + dimension(hole.cboreDepthMm);
   }
   if (hole.holeType === "tap-countersink") {
-    return thread + headRecess + " \u2334 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
+    return thread + headRecess + " \u2335 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
   }
   return thread;
 }

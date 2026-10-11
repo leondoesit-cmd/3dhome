@@ -25,7 +25,7 @@ export { holeCallout, holeLayoutPoints };
 
 /* Every live hole in a feature tree, as a drawing would call it out. A
    suppressed hole is not in the model, so it is not on the paper either. */
-export function holeCallouts(def) {
+export function holeCallouts(def, sheet = def?.drawing || {}) {
   const features = def?.features || [];
   const rows = [];
   features.forEach((feature) => {
@@ -56,7 +56,7 @@ export function holeCallouts(def) {
     rows.push({
       id: feature.id,
       item: rows.length + 1,
-      callout: holeCallout({...params, displayUnit:params.displayUnit || def?.context?.units?.length}),
+      callout: holeCallout({...params, displayUnit:sheet.units || params.displayUnit || def?.context?.units?.length},sheet),
       quantity,
       equalSpacing,
       points,worldPoints,axis,
@@ -74,9 +74,9 @@ export function calloutText(row) {
 
 /* featureId -> text, which is what a sheet needs to re-read a bound callout on
    every build without knowing anything about holes. */
-export function calloutTextById(def) {
+export function calloutTextById(def, sheet) {
   const out = new Map();
-  for (const row of holeCallouts(def)) out.set(row.id, calloutText(row));
+  for (const row of holeCallouts(def,sheet)) out.set(row.id, calloutText(row));
   return out;
 }
 

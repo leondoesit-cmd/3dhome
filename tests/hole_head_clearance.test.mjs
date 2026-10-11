@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {holeCallouts,calloutTextById} from '../js/core/hole_callout.js';
 import {normalizeHoleWizard,holeWizardSolids,holeCallout,holeWizardThread} from '../js/cad_hole_wizard.js';
 import {createPartDocument,createSketchDefinition,createFeatureDefinition} from '../js/core/parametric_document.js';
 import {compileKernelFeatureTree} from '../js/core/kernel_feature_adapter.js';
@@ -9,6 +10,19 @@ import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js'
 import {shapeMassProperties} from '../js/cad_kernel.js';
 const nominal={holeType:'countersink',standardSize:'custom',diameterMm:10,csinkDiameterMm:20,csinkAngle:82,depthMm:38.1,endCondition:'blind'};
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} versus ${b}`);
+test('sheet callouts preserve selected decimals and distinct countersink/counterbore symbols',()=>{
+ const params={...nominal,diameterMm:10.08,depthMm:38.1,csinkDiameterMm:19.64,layout:'circular',count:1,headClearanceEnabled:true,headClearanceMm:2.54};
+ const def={features:[{id:'h',type:'hole',params}],drawing:{units:'mm',precision:2,trailingZeros:true}};
+ const text=holeCallouts(def)[0].callout;
+ assert.equal(text,'Ø10.08 ↓38.10 ⌵ Ø24.06 82°');assert.equal(calloutTextById(def).get('h'),text);
+ assert.equal(holeCallouts(def,{units:'mm',precision:2})[0].callout,text,'integer sheet precision defaults trailing zeros on like linear dimensions');
+ assert.equal(holeCallouts(def,{units:'mm',precision:2,trailingZeros:false})[0].callout,'Ø10.08 ↓38.1 ⌵ Ø24.06 82°');
+ assert.match(holeCallout({...params,headClearanceMode:'added-counterbore'},def.drawing),/⌴ Ø19\.64↓2\.54 ⌵ Ø19\.64/);
+ assert.match(holeCallout({...params,holeType:'counterbore'},def.drawing),/⌴/);
+ assert.match(holeCallouts(def,{units:'in',precision:3,trailingZeros:true})[0].callout,/Ø0\.397 in/);
+ assert.equal(holeCallouts(def,{units:'cm',precision:3,trailingZeros:true})[0].callout,'Ø1.008 ↓3.810 ⌵ Ø2.406 82°');
+ assert.equal(holeCallouts(def,{units:'m',precision:5,trailingZeros:true})[0].callout,'Ø0.01008 ↓0.03810 ⌵ Ø0.02406 82°');
+});
 test('legacy native form supplies usable clearance defaults without overwriting saved values',()=>{
   const source=readFileSync(new URL('../js/modeler_feature_form.js',import.meta.url),'utf8');
   const fallback=source.split('\n').find(line=>line.includes("['headClearanceEnabled','headClearance','headClearanceMode']"));

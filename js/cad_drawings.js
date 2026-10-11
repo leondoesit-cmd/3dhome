@@ -192,7 +192,7 @@ export function buildDrawingScene(def, options = {}) {
   };
   const project = createProjector(doc, bodies, { bodiesForView: provider,topology });
   if (options.overallDimensions !== false && !doc.dims?.length) autoOverallDims(doc, project);
-  if (options.holeCallouts !== false && !doc.notes?.length) calloutNotes(doc, collectHoleCallouts(def));
+  if (options.holeCallouts !== false && !doc.notes?.length) calloutNotes(doc, collectHoleCallouts(def,doc));
   sheetNotes(doc,options.notes);
   if (options.balloonTargets?.length) balloonNotes(doc, options.balloonTargets);
   const balloons = Array.isArray(options.balloons) ? options.balloons
@@ -202,7 +202,7 @@ export function buildDrawingScene(def, options = {}) {
     projection: project,
     model: def,
     topology,
-    callouts: calloutTextById(def),
+    callouts: calloutTextById(def,doc),
     meta: { title: options.title || sheetTitle(def, doc) },
     properties: def?.customProperties || {},
     explodeLines: options.explodeLines,
