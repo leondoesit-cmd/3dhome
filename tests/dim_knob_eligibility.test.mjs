@@ -33,3 +33,13 @@ test('exact refinement coordinates can keep their native decimal typing and call
   assert.equal(eligible(coordinate), false);
   assert.equal(coordinate.readOnly, false);
 });
+
+test('borrowed CAD inspector numeric fields retain their own document units and typing', () => {
+  const offset = field({
+    type: 'number', id: '',
+    closest: selector => selector === '#mdRightPanel' ? { id: 'mdRightPanel' } : null,
+  });
+  assert.equal(eligible(offset), false);
+  assert.equal(offset.readOnly, false);
+  assert.equal(eligible(field({ type: 'number', id: 'count' })), true);
+});

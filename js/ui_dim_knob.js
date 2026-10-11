@@ -93,6 +93,10 @@ export function knobEligible(el) {
   if (el.type !== "number" && !lengthText) return false;
   if (el.disabled || el.readOnly) return false;
   if (el.getAttribute("data-knob") === "off") return false;
+  // The CAD inspector owns its document units (including cm offsets) and is
+  // borrowed into the mobile sheet. The planner dial cannot convert these
+  // anonymous fields using its default plan domain or cover that sheet.
+  if (el.closest("#mdRightPanel")) return false;
   return !el.closest("#start-screen, #dim-knob");
 }
 
