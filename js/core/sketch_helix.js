@@ -6,7 +6,7 @@ export function helixFromSketch(document,params){
   const sketch=(document.sketches || []).find(s=>s.id===params.sketchId),circle=sketch?.entities?.find(e=>e.id===params.circleId&&e.type==='circle'),center=sketch?.points?.find(p=>p.id===circle?.c);
   if(!center)throw new Error('Helix driving circle is unavailable');radius=circle.r;
   if(sketch.frameSpace==='local'&&sketch.frame){origin=framePoint(sketch.frame,center.x,center.y,0);axis=sketch.frame.normal;}
-  else if(sketch.plane==='right'){origin={x:sketch.offset||0,y:center.y,z:center.x};axis={x:1,y:0,z:0};}
+  else if(sketch.plane==='right'||sketch.plane==='side'){origin={x:sketch.offset||0,y:center.y,z:center.x};axis={x:1,y:0,z:0};}
   else if(sketch.plane==='front'){origin={x:center.x,y:center.y,z:sketch.offset||0};axis={x:0,y:0,z:1};}
   else{origin={x:center.x,y:sketch.offset||0,z:center.y};axis={x:0,y:1,z:0};}
  }
@@ -15,6 +15,7 @@ export function helixFromSketch(document,params){
  const height=variable?variable.height:params.definition==='pitch-turns'?Number(params.pitch)*Number(params.turns):Number(params.height);
  const delta=variable?0:params.taperMode==='angle'?height*Math.tan(Number(params.taperAngle)*Math.PI/180)*(params.taperOutward?1:-1):Number(params.taper || 0);
  if(!(radius>0)||!(height>0)||!(radius+delta>0))throw new Error('Helix radius and height must stay positive');
+ if(params.definition==='height-turns'&&!(Number(params.turns)>0))throw new Error('Helix turns must stay positive');
  return {...params,pitchMode:variable?'variable':'constant',pitchRegions:variable?.pitchRegions || [],origin,axis,radius:variable?.radius ?? radius,radiusEnd:variable?.radiusEnd ?? radius+delta,height,turns:variable?.turns ?? params.turns,pitch:params.definition==='height-turns'?height/Number(params.turns):Number(params.pitch),startAngle:Number(params.startAngle || 0)*Math.PI/180};
 }
 

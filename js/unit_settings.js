@@ -37,13 +37,13 @@ export const PRESET_DEFS = [
 export function isLocationInUS(lat, lon, label) {
   if (label && typeof label === "string") {
     var lbl = label.toLowerCase();
+    // A US state suffix wins over a shared place name ("Ontario, CA", "Mexico, MO").
+    if (/\b(?:united states|usa|u\.s\.a\.|u\.s\.|puerto rico)\b/i.test(lbl) || /,\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|PR|VI|GU)\b/.test(label)) {
+      return true;
+    }
     // Exclude foreign countries and Canadian provinces / Mexican states
     if (/\b(?:canada|ontario|quebec|qu[eé]bec|british columbia|alberta|manitoba|saskatchewan|nova scotia|new brunswick|newfoundland|toronto|vancouver|montreal|montr[eé]al|ottawa|calgary|edmonton|winnipeg|mexico|m[eé]xico|cdmx|jalisco|nuevo le[oó]n|guadalajara|monterrey|tijuana|cancun|canc[uú]n|united kingdom|uk|england|scotland|wales|australia|germany|france|israel|japan|china|india|brazil|argentina)\b/i.test(lbl)) {
       return false;
-    }
-    // Explicit US country or US state abbreviations
-    if (/\b(?:united states|usa|u\.s\.a\.|u\.s\.|puerto rico)\b/i.test(lbl) || /,\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|PR|VI|GU)\b/.test(label)) {
-      return true;
     }
   }
 
@@ -55,8 +55,9 @@ export function isLocationInUS(lat, lon, label) {
   if (lat >= 17.5 && lat <= 18.6 && lon >= -67.5 && lon <= -64.5) return true;
   // Hawaii
   if (lat >= 18.5 && lat <= 22.5 && lon >= -161.0 && lon <= -154.0) return true;
-  // Alaska
-  if (lat >= 51.0 && lat <= 71.5 && lon >= -175.0 && lon <= -130.0) return true;
+  // Alaska, including the western Aleutians (Adak) and the ones past the dateline (Attu).
+  if (lat >= 51.0 && lat <= 71.5 && lon >= -180 && lon <= -130.0) return true;
+  if (lat >= 51.0 && lat <= 55.5 && lon >= 170 && lon <= 180) return true;
 
   // North American continental checks:
   // Canadian border: latitude > 49.05 is Canada (49th parallel)
@@ -66,9 +67,15 @@ export function isLocationInUS(lat, lon, label) {
   // Ocean bounds for contiguous 48 states
   if (lon < -125.0 || lon > -66.9) return false;
 
+  // The 49th parallel misses southern Ontario, Montreal, and Victoria.
+  if (lat >= 43.55 && lat <= 49.05 && lon >= -83.6 && lon <= -73.3) return false;
+  if (lat >= 48.2 && lat <= 49.05 && lon >= -123.6 && lon <= -123.15) return false;
+
   // Northern Mexico border approximations:
-  // Baja California, Sonora, Chihuahua
-  if (lon >= -117.3 && lon <= -106.0 && lat < 31.33) return false;
+  // California and Baja, where the border sits near 32.6°N rather than 31.33.
+  if (lon >= -117.3 && lon < -114.85 && lat < 32.66) return false;
+  // Arizona, New Mexico, Chihuahua
+  if (lon >= -114.85 && lon <= -106.0 && lat < 31.33) return false;
   // Coahuila, Nuevo León, Tamaulipas
   if (lon > -106.0 && lon <= -97.5 && lat < 25.85) return false;
 
@@ -85,7 +92,7 @@ export function detectTimezoneUnitSystem() {
       var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (tz) {
         // Specific US timezones
-        var isUSTZ = /^(?:America\/(?:New_York|Detroit|Kentucky\/\w+|Indiana\/\w+|Chicago|Menominee|North_Dakota\/\w+|Denver|Boise|Phoenix|Los_Angeles|Anchorage|Juneau|Sitka|Metlakatla|Yakutat|Nome|Adak)|Pacific\/Honolulu)$/.test(tz);
+        var isUSTZ = /^(?:America\/(?:New_York|Detroit|Kentucky\/\w+|Indiana\/\w+|Chicago|Menominee|North_Dakota\/\w+|Denver|Boise|Phoenix|Los_Angeles|Anchorage|Juneau|Sitka|Metlakatla|Yakutat|Nome|Adak|Puerto_Rico|St_Thomas|Virgin)|Pacific\/(?:Honolulu|Guam|Saipan))$/.test(tz);
         return {
           system: isUSTZ ? "imperial" : "metric",
           reason: "timezone",

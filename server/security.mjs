@@ -15,8 +15,19 @@ function ipv4Parts(address) {
   return p.length === 4 && p.every((n) => n >= 0 && n <= 255) ? p : null;
 }
 
+// IPv4 buried in an IPv6 address: dotted or hex, mapped (::ffff:) or compatible (::).
+function embeddedIPv4(address) {
+  const a = String(address).toLowerCase().split("%")[0];
+  const dotted = a.match(/^(?:::ffff:|::)(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) return dotted[1];
+  const hex = a.match(/^(?:::ffff:|::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (!hex) return null;
+  const hi = parseInt(hex[1], 16), lo = parseInt(hex[2], 16);
+  return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
+}
+
 export function isPublicAddress(address) {
-  const v4 = ipv4Parts(address);
+  const v4 = ipv4Parts(address) || ipv4Parts(embeddedIPv4(address) || "");
   if (v4) {
     const [a, b] = v4;
     return !(
@@ -39,8 +50,7 @@ export function isPublicAddress(address) {
   if (a.startsWith("fc") || a.startsWith("fd")) return false; // unique-local
   if (/^fe[89ab]/.test(a)) return false; // link-local
   if (a.startsWith("ff")) return false; // multicast
-  const mapped = a.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  return mapped ? isPublicAddress(mapped[1]) : true;
+  return true;
 }
 
 function parseHttpUrl(raw) {
@@ -240,6 +250,8 @@ export function isLanAddress(address) {
     if (a === 192 && b === 0) return false;
     return true;
   }
+  const embedded = embeddedIPv4(address);
+  if (embedded) return isLanAddress(embedded);
   if (isIP(address) !== 6) return false;
   const a = address.toLowerCase().split("%")[0];
   if (a === "::") return false;
@@ -247,8 +259,7 @@ export function isLanAddress(address) {
   if (a.startsWith("fc") || a.startsWith("fd")) return true;
   if (/^fe[89ab]/.test(a)) return false;
   if (a.startsWith("ff")) return false;
-  const mapped = a.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  return mapped ? isLanAddress(mapped[1]) : false;
+  return false;
 }
 
 function lanPortOk(url) {

@@ -136,10 +136,11 @@ export function flatPattern(sheet) {
 }
 
 export function flatPatternSvg(sheet) {
-  const pattern=flatPattern(sheet), points=pattern.outline.map(p=>({x:p.x*10,y:p.y*10}));
+  const toPaper=(p)=>({x:p.x*10,y:-p.y*10});
+  const pattern=flatPattern(sheet), points=pattern.outline.map(toPaper);
   const minX=Math.min(...points.map(p=>p.x)),minY=Math.min(...points.map(p=>p.y));
   const width=Math.max(...points.map(p=>p.x))-minX,height=Math.max(...points.map(p=>p.y))-minY;
   const path=points.map((p,i)=>(i?"L":"M")+p.x+","+p.y).join(" ")+" Z";
-  const bends=pattern.bends.map(b=>`<line x1="${b.line[0].x*10}" y1="${b.line[0].y*10}" x2="${b.line[1].x*10}" y2="${b.line[1].y*10}"/>`).join("");
+  const bends=pattern.bends.map(b=>{const a=toPaper(b.line[0]),c=toPaper(b.line[1]);return `<line x1="${a.x}" y1="${a.y}" x2="${c.x}" y2="${c.y}"/>`;}).join("");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}mm" height="${height}mm" viewBox="${minX} ${minY} ${width} ${height}"><g fill="none" stroke-width="0.1"><path id="cut" stroke="black" d="${path}"/><g id="bends" stroke="blue" stroke-dasharray="2 1">${bends}</g></g></svg>`;
 }

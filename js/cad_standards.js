@@ -41,7 +41,7 @@ const ISO4017_PACK = Object.freeze(Object.fromEntries(
     return [key, Object.freeze({
       diameterMm: row.diameterMm, pitchMm: row.pitchMm,
       headAcrossFlatsMm: row.af, headHeightMm: row.h,
-      lengthsMm: PREFERRED_LENGTHS_MM.filter((mm) => mm >= row.diameterMm * 1.5 || mm >= 12),
+      lengthsMm: PREFERRED_LENGTHS_MM.filter((mm) => mm >= row.diameterMm * 1.5),
     })];
   }),
 ));

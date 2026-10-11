@@ -39,9 +39,9 @@
    diagnostics block); the rule here is the same — diagnose when an edit has
    settled and the panel is open, never while a corner is being dragged. */
 import { S, fin } from "./state.js";
-import { wallById, wallGeom, usedNodes } from "./geometry.js";
+import { wallById, wallGeom, usedNodes, openFaceDist, wallClearLength } from "./geometry.js";
 import {
-  wallCons, anchorPos, anchorNode, pinnedNodes, openingById, openingPos,
+  wallCons, anchorPos, anchorNode, pinnedNodes, openingById, openingPos, openingCornerCut,
 } from "./wall_constraints.js";
 import { rankOf } from "./sketch_solver.js";
 
@@ -211,12 +211,22 @@ export function conResiduals(c) {
        residuals are in that same units-of-`s` space. */
     case "openCentre": {
       var oc = openingById(c.opening), ocw = oc && wallById(oc.wall);
-      return ocw ? [oc.s - wallGeom(ocw).L / 2] : [];
+      return ocw ? [openFaceDist(ocw, oc.s) - wallClearLength(ocw) / 2] : [];
     }
     case "openDist": {
       var od = openingById(c.opening), odw = od && wallById(od.wall);
       if (!odw) return [];
-      return [(c.end === "b" ? wallGeom(odw).L - od.s : od.s) - c.value];
+      if (c.cornerNode != null) {
+        var corner = S.nodes[c.cornerNode], odp = openingPos(od);
+        if (corner && odp) {
+          var liveCut = openingCornerCut(c);
+          var measured = Math.hypot(odp.x - corner.x, odp.z - corner.z) -
+            (liveCut == null ? -(Number(c.cornerOffset) || 0) : liveCut);
+          return [measured - c.value];
+        }
+      }
+      var face = openFaceDist(odw, od.s), clear = wallClearLength(odw);
+      return [(c.end === "b" ? clear - face : face) - c.value];
     }
     case "openAlign": {
       var oa = openingPos(openingById(c.a)), ob = openingPos(openingById(c.b));

@@ -1631,7 +1631,8 @@ export async function chamferBrep(brep, distance, options = {}) {
   let added = 0;
   const mode = options.mode || "equal-distance";
   const firstDistance = Math.max(1e-6, Number(distance) || 0);
-  const secondDistance = Math.max(1e-6, Number(options.secondDistance) || 0);
+  const suppliedSecond = options.secondDistance;
+  const secondDistance = Math.max(1e-6, suppliedSecond == null || suppliedSecond === "" || !Number.isFinite(Number(suppliedSecond)) ? firstDistance : Number(suppliedSecond));
   const angleRadians = Math.max(1e-9, Math.min(Math.PI / 2 - 1e-9, Number(options.angle) * Math.PI / 180));
 
   // The asymmetric OCCT overloads need a face to identify the side on which
