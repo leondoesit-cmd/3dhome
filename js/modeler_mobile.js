@@ -28,6 +28,7 @@
    so the tree, the inspector and the ribbon have exactly one implementation. */
 
 import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
+import {drawingCommandGroup} from "./core/drawing_command_group.js";
 
 /* The rest of the verbs that consume a closed profile, in the order a part is
    usually built. Extrude is NOT here: it is pushed by name in ctxActions so the
@@ -654,9 +655,15 @@ function showSheet(key, toggle) {
     }
     setSheetSearch(true);
   } else if (key === "props") {
-    title = t("tabShape");
-    if (api && api.ensureInspectorFresh) api.ensureInspectorFresh();
-    borrowPanel(".md-right");
+    if (api.state().mode === "drawing") {
+      title = t("sheetSetup");
+      api.ensureDrawingSheetFresh?.();
+      borrowPanel("#mdSheetPanel");
+    } else {
+      title = t("tabShape");
+      if (api && api.ensureInspectorFresh) api.ensureInspectorFresh();
+      borrowPanel(".md-right");
+    }
   } else if (key === "more") {
     title = t("msheet_more");
     buildMoreSheet();
@@ -770,19 +777,23 @@ function shortPhone() {
    Leave that toolbar in its owner so selection updates and handlers stay shared. */
 function buildDrawingCommands() {
   var owner = api.root;
-  var tools;
-  owner.querySelectorAll("#mdDrawingTools button").forEach(function (target, index) {
+  var tools,lastGroup=null,groupCount=0;
+  owner.querySelectorAll("#mdDrawingTools button").forEach(function (target) {
     var label = target.querySelector("span");
     var glyph = target.querySelector("svg, i");
     var name = label ? label.textContent.trim() : target.getAttribute("aria-label") || target.title;
+    var command=target.getAttribute("data-drawing-tool") || target.id;
+    var semanticGroup=drawingCommandGroup(command);
     // Keep the heading and two touch rows atomic for the generated-page pager.
     // One entire toolbar grid is taller than a page and strands its heading.
-    if (index % 4 === 0) {
+    if (semanticGroup!==lastGroup || groupCount===4) {
+      var continuation=semanticGroup===lastGroup;
+      lastGroup=semanticGroup;groupCount=0;
       var group = document.createElement("section");
-      group.className = "md-command-group md-mobile-drawing-group";
+      group.className = "md-command-group md-mobile-drawing-group"+(continuation?" md-drawing-group-continuation":"");
       var heading = document.createElement("h5");
       heading.className = "m-sheet-sec";
-      heading.textContent = t("modeDrawing") + " · " + name;
+      heading.textContent = t("modeDrawing") + " · " + t(semanticGroup);
       group.appendChild(heading);
       tools = document.createElement("div");
       tools.className = "m-grid m-grid-2 md-mobile-drawing-commands";
@@ -795,8 +806,9 @@ function buildDrawingCommands() {
       target.click();
     });
     button.disabled = target.disabled;
-    button.dataset.drawingCommand = target.getAttribute("data-drawing-tool") || target.id;
+    button.dataset.drawingCommand = command;
     tools.appendChild(button);
+    groupCount++;
   });
 }
 

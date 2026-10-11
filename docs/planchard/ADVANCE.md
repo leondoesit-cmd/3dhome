@@ -4,7 +4,7 @@ Updated: **2026-10-11**. Read this first when resuming; older plans and STOP-HER
 
 ## Authoritative resume boundary — full-scope workflows in progress
 
-**LATEST MOBILE — 2026-10-11:** Mobile in-chapter21/21(qualifiedPlane7/9),homework9/117 through1.9 printed1-57/PDF85 native paper isometric (no native-solid claim). Next1.10 printed1-58/PDF86. Chrome5/tab710863239,390x844/touch5/dark. MOBILE_ADVANCE.md authoritative; entire book unfinished/older desktop excluded.
+**LATEST MOBILE — 2026-10-11:** Chapter1 qualifiedcomplete: in-chapter21/21, homework11/117, review15/130. Chapter2 qualified through printed2-14/PDF100; horizontal SOLID stepped shaft Example1 printed2-15/PDF101 now saved/cold verified, native1body4steps/X4Y2Z2cm, bothsketchesfullydefined, Front+Right drawing/automaticaxis/centremarks/nativeSVG export. Source-undimensioned illustrative sizes. NEXT independent vertical Example2 on101, then inch-dimensioned one-viewshaft102. Chrome4/tab710863765390x844touch/dark. Latestpushed44c6312; completed framing/compacttree/Sheetsettings/sixdistinctPapericons browser verified, broadericon source follow-up being finalized for checkpoint. MOBILE_ADVANCE.md authoritative; entirebookunfinished/olderdesktop8-54excluded.
 
 **MOBILE UPDATE — 2026-10-11:** Alphabet of Lines1–2 now accepted, printed1-25/PDF53; two/21 Chapter1 in-chapter prompts, zero/117 numbered homework. Saved worksheet MOBILE Ch1 Alphabet Lines 1-2, phone cold reopen/export and Undo/Redo verified. More-field touch CSS repaired and browser verified. Next Alphabet3 printed1-26/PDF54. MOBILE_ADVANCE.md governs current progress; older desktop boundary below is historical.
 

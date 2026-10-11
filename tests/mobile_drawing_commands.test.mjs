@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {drawingCommandGroup} from '../js/core/drawing_command_group.js';
 
 const source=readFileSync(new URL('../js/modeler_mobile.js',import.meta.url),'utf8');
 function actual(name){const start=source.indexOf('function '+name+'(');assert.ok(start>=0);const end=source.indexOf('\n}',start);return source.slice(start,end+2);}
@@ -14,7 +15,7 @@ function rig(state={mode:'drawing',emptyPart:true}){
   const owner={querySelector:()=>null,querySelectorAll:q=>q==='#mdDrawingTools button'?targets:[]};
   const c={api:{root:owner,state:()=>state,setCommandTab:tab=>calls.push('tab:'+tab)},document:{createElement:node,body:node()},
     sheet:node(),sheetBody:body,sheetTitle:node(),backdrop:node(),openKey:null,
-    t:k=>k,closeSheet:()=>calls.push('close'),sync:()=>{},syncNav:()=>{},ensureSheet:()=>{},release:()=>{},
+    t:k=>k,drawingCommandGroup,closeSheet:()=>calls.push('close'),sync:()=>{},syncNav:()=>{},ensureSheet:()=>{},release:()=>{},
     setSheetTall:()=>{},setSheetSearch:()=>{},borrowPanel:q=>calls.push('borrow:'+q),markGroupDrawers:()=>{},
     dockRail:()=>false,requestAnimationFrame:()=>{},pageOpenSheet:()=>{}};
   vm.createContext(c);vm.runInContext(['gridBtn','grid','section','buildDrawingCommands','showSheet'].map(actual).join('\n'),c);
@@ -40,9 +41,21 @@ test('a full native toolbar is split into atomic labelled groups of at most four
   r.groups().forEach((group,i)=>{
     assert.equal(group.children.length,2,'pager atom includes heading and grid together');
     assert.match(group.className,/md-command-group/,'existing pager recognizes the section boundary');
-    assert.equal(group.children[0].textContent,'modeDrawing · Native tool '+i*4);
+    assert.equal(group.children[0].textContent,'modeDrawing · drawGroupViews');
     assert.equal(group.children[1].children.length,4,'two columns need only two touch rows');
+    assert.equal(group.className.includes('md-drawing-group-continuation'),i>0,'only subsequent same-purpose chunks share a heading when adjacent on a page');
   });
+});
+test('purpose boundaries keep paper geometry separate from dimensions and images',()=>{
+  const r=rig();r.c.showSheet('cmd');
+  assert.deepEqual(r.groups().map(group=>group.children[0].textContent),[
+    'modeDrawing · drawGroupDimensions','modeDrawing · drawGroupGeometry',
+    'modeDrawing · drawGroupAnnotations','modeDrawing · drawGroupViews','modeDrawing · drawGroupFormats'
+  ]);
+  assert.deepEqual(r.groups().map(group=>group.children[1].children.map(button=>button.dataset.drawingCommand)),[
+    ['select','dim'],['sheetellipse'],['note'],['detail'],['saveformat']
+  ]);
+  assert.ok(r.groups().every(group=>!group.className.includes('md-drawing-group-continuation')),'new purposes always keep their heading');
 });
 test('actual shortcut closes the sheet before dispatching the original native handler',()=>{
   const r=rig();r.c.showSheet('cmd');r.buttons()[3].click();
@@ -71,4 +84,14 @@ test('non-Drawing phone command routing retains native Sketch, Assembly and Feat
     const r=rig(state);r.c.showSheet('cmd');assert.deepEqual(r.calls,['tab:'+tab,'borrow:.md-commandmanager']);assert.equal(r.buttons().length,0);
     assert.equal(r.c.sheet.classList.contains('md-drawing-command-sheet'),false);
   }
+});
+
+test('phone Drawing settings refresh and borrow the native sheet panel; Part keeps its inspector',()=>{
+ const drawing=rig({mode:'drawing',emptyPart:false});let refreshed=0;
+ drawing.c.api.ensureDrawingSheetFresh=()=>refreshed++;
+ drawing.c.api.ensureInspectorFresh=()=>assert.fail('Drawing cannot open stale sketch inspector');
+ drawing.c.showSheet('props');assert.equal(refreshed,1);assert.equal(drawing.c.sheetTitle.textContent,'sheetSetup');
+ assert.deepEqual(drawing.calls,['borrow:#mdSheetPanel']);
+ const part=rig({mode:'3d',docType:'part'});part.c.api.ensureInspectorFresh=()=>part.calls.push('fresh:inspector');
+ part.c.showSheet('props');assert.deepEqual(part.calls,['fresh:inspector','borrow:.md-right']);
 });

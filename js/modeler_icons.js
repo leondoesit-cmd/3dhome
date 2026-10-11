@@ -19,6 +19,24 @@ function colorPath(d, fill, stroke, sw, extra) {
 }
 
 export const CAD_ICONS = {
+  // Paper annotations have their own simple outlines; no feature/constraint marks.
+  sheetline: () => l("M3 16 L17 4",1.8) + '<circle cx="3" cy="16" r="1.2" fill="currentColor"/><circle cx="17" cy="4" r="1.2" fill="currentColor"/>',
+  sheetpolyline: () => l("M2 15 L7 5 L12 13 L18 4",1.8) + '<circle cx="7" cy="5" r="1.3" fill="currentColor"/><circle cx="12" cy="13" r="1.3" fill="currentColor"/>',
+  sheetrect: () => l("M3 5 H17 V15 H3 Z",1.8) + l("M5 5 V7 H3",.8),
+  sheetcircle: () => '<circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="10" cy="10" r="1" fill="currentColor"/>',
+  sheetarc: () => l("M3 15 A7 7 0 0 1 17 15",1.8) + '<circle cx="3" cy="15" r="1.3" fill="currentColor"/><circle cx="10" cy="8" r="1.3" fill="currentColor"/><circle cx="17" cy="15" r="1.3" fill="currentColor"/>',
+  sheetellipse: () => '<ellipse cx="10" cy="10" rx="8" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/>' + l("M10 8 V12 M8 10 H12",.8),
+  insertimage: () => l("M2 3 H14 V16 H2 Z M3 13 L7 8 L11 13 M10 11 L13 8 M15 15 H19 M17 13 V17") + '<circle cx="11" cy="6" r="1" fill="currentColor"/>',
+  insertprojectimage: () => l("M2 3 H13 V13 H2 Z M3 11 L6 7 L10 11 M12 14 L15 12 L18 14 L15 16 Z M12 14 V17 L15 19 L18 17 V14 M15 16 V19"),
+  editimage: () => l("M2 3 H16 V10 M2 3 V16 H8 M3 13 L7 8 L11 12 M10 17 L11 13 L16 8 L19 11 L14 16 Z M15 9 L18 12"),
+  saveformat: () => l("M2 2 H17 V12 M2 2 V18 H10 M4 13 H10 M7 13 V17 M13 15 H19 M16 12 V19 M14 17 L16 19 L18 17"),
+  applyformat: () => l("M3 2 H17 V18 H3 Z M3 13 H17 M10 13 V18 M6 6 H14 M11 3 L14 6 L11 9"),
+  savetemplate: () => l("M2 2 H11 L15 6 V12 M2 2 V17 H9 M11 2 V6 H15 M5 9 H11 M5 12 H9 M12 14 H18 V19 H12 Z M13 14 V16 H17 V14"),
+  newtemplate: () => l("M3 4 H12 L16 8 V18 H3 Z M12 4 V8 H16 M6 2 H15 L18 5 M8 12 H12 M10 10 V14"),
+  drawingsection: () => l("M3 4 H17 V16 H3 Z M9 2 V18",1.2) + colorPath("M6 3 L9 3 L7 5 M6 17 L9 17 L7 15","none","#2dd4bf",1.6),
+  alignedsection: () => l("M3 4 H17 V16 H3 Z",1.2) + colorPath("M8 2 V10 L15 17 M5 3 H8 L6 5 M13 18 L15 17 L15 14","none","#2dd4bf",1.6),
+  brokenout: () => l("M3 3 H17 V17 H3 Z M3 11 L7 9 L6 6 L11 7 L13 3 M4 14 L9 9 M7 16 L12 11",1.3),
+  breakview: () => l("M2 5 H7 L5 8 L8 11 L5 14 L7 16 H2 Z M18 5 H12 L14 8 L11 11 L14 14 L12 16 H18 Z",1.5),
   layeranalysis: () => p("M3 5 L10 2 L17 5 L10 8 Z", .2) + l("M3 9 L10 12 L17 9 M3 13 L10 16 L17 13 M10 8 V16") + l("M5 5 H15", .9),
   fffslice: () => p("M7 2 H13 V6 L11 9 H9 L7 6 Z", .25) + l("M10 9 V11 M3 17 H17 M4 14 H16 M4 12 H8 M12 12 H16 M4 14 V17 M16 14 V17"),
   componentpattern: () => p("M2 2 H6 V6 H2 Z", .45) + p("M10 2 H14 V6 H10 Z M2 10 H6 V14 H2 Z M10 10 H14 V14 H10 Z", .15) + l("M7 4 H9 M4 7 V9 M15 16 H19 M17 14 V18"),
@@ -590,10 +608,10 @@ export const CAD_ICONS = {
   // 3-Point Arc: start, through, end — no centre mark, so it is not the centerpoint arc
   arc3point: function () {
     return (
-      colorPath("M3 16 Q 10 3 17 16", "none", "currentColor", 1.6) +
-      '<circle cx="3" cy="16" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
-      '<circle cx="10" cy="7.2" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
-      '<circle cx="17" cy="16" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>'
+      colorPath("M3 15 A7 7 0 0 1 17 15", "none", "currentColor", 1.6) +
+      '<circle cx="3" cy="15" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
+      '<circle cx="10" cy="8" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
+      '<circle cx="17" cy="15" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>'
     );
   },
 
@@ -609,10 +627,11 @@ export const CAD_ICONS = {
   // Centerpoint Arc: centre, start and end
   sarc: function () {
     return (
-      colorPath("M3 15 C 3 6, 17 6, 17 15", "none", "currentColor", 1.6) +
-      '<circle cx="3" cy="15" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
-      '<circle cx="10" cy="8.2" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
-      '<circle cx="17" cy="15" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>'
+      colorPath("M3 15 A7 7 0 0 1 17 15", "none", "currentColor", 1.6) +
+      colorPath("M3 15 H17", "none", "#2684c7", .8, ' stroke-dasharray="2 1.5"') +
+      '<circle cx="3" cy="15" r="1.4" fill="#2684c7" stroke="currentColor" stroke-width="1"/>' +
+      '<circle cx="10" cy="15" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
+      '<circle cx="17" cy="15" r="1.4" fill="#2684c7" stroke="currentColor" stroke-width="1"/>'
     );
   },
 

@@ -254,6 +254,7 @@ import { registerGeneratedExtrusion } from "./core/generated_extrusion.js";
 import { queueModelBackup, listDiskBackups, fetchDiskBackup, missingFromLibrary, modelBackupStatus } from "./core/model_backup_client.js";
 import { leavesInputStanding, rebuildDefinition } from "./core/rebuild.js";
 import { buildTreeModel, findTreeNode, folderMemberIds } from "./core/tree_model.js";
+import {featureBrowseNodes,featureTreeContext} from './core/feature_browse.js';
 import { renderTreeModel } from "./modeler_tree.js";
 import { analyzeLegacyMigration, convertLegacyDocument, evaluateMigration, migrationGeometrySummary, retainLegacySource, restoreLegacyDocument } from "./core/migration_check.js";
 import { applyDocumentTopologyRebindings, applyTopologyRebindings, createTopologyReference, cutWallTopology, createTopologyRegistry, resolveTopologyReference, topologyForFeature, mergeSmoothTopology, isCylinderTessellationSeam, pointWithinCylinderArc, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
@@ -4123,30 +4124,30 @@ function buildDOM() {
     '<button type="button" data-drawing-tool="diam"><i class="ph ph-circle-dashed"></i><span>' + t("drawToolDiam") + '</span></button>' +
     '<button type="button" data-drawing-tool="baseline"><i class="ph ph-rows"></i><span>' + t("drawToolBaseline") + '</span><kbd>B</kbd></button>' +
     '<button type="button" data-drawing-tool="chain"><i class="ph ph-link-simple-horizontal"></i><span>' + t("drawToolChain") + '</span><kbd>C</kbd></button>' +
-    '<button type="button" data-drawing-tool="sheetline">' + cadIcon("dim") + '<span>' + t("drawPaperLine") + '</span></button>' +
-    '<button type="button" data-drawing-tool="sheetpolyline">' + cadIcon("spoly") + '<span>' + t("drawPaperPolyline") + '</span></button>' +
-    '<button type="button" data-drawing-tool="sheetrect">' + cadIcon("srect") + '<span>' + t("drawPaperRectangle") + '</span></button>' +
-    '<button type="button" data-drawing-tool="sheetcircle">' + cadIcon("scirc") + '<span>' + t("drawPaperCircle") + '</span></button>' +
-    '<button type="button" data-drawing-tool="sheetarc">' + cadIcon("sarc") + '<span>' + t("drawPaperArc") + '</span></button>' +
-    '<button type="button" data-drawing-tool="sheetellipse">' + cadIcon("sell") + '<span>' + t("drawPaperEllipse") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetline">' + cadIcon("sheetline") + '<span>' + t("drawPaperLine") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetpolyline">' + cadIcon("sheetpolyline") + '<span>' + t("drawPaperPolyline") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetrect">' + cadIcon("sheetrect") + '<span>' + t("drawPaperRectangle") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetcircle">' + cadIcon("sheetcircle") + '<span>' + t("drawPaperCircle") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetarc">' + cadIcon("sheetarc") + '<span>' + t("drawPaperArc") + '</span></button>' +
+    '<button type="button" data-drawing-tool="sheetellipse">' + cadIcon("sheetellipse") + '<span>' + t("drawPaperEllipse") + '</span></button>' +
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
-    '<button type="button" data-drawing-tool="insertimage"><i class="ph ph-image"></i><span>Insert image</span></button>' +
-    '<button type="button" data-drawing-tool="insertprojectimage"><i class="ph ph-image"></i><span>Insert project image</span></button>' +
-    '<button type="button" data-drawing-tool="editimage"><i class="ph ph-image"></i><span>Edit image</span></button>' +
+    '<button type="button" data-drawing-tool="insertimage">' + cadIcon("insertimage") + '<span>Insert image</span></button>' +
+    '<button type="button" data-drawing-tool="insertprojectimage">' + cadIcon("insertprojectimage") + '<span>Insert project image</span></button>' +
+    '<button type="button" data-drawing-tool="editimage">' + cadIcon("editimage") + '<span>Edit image</span></button>' +
     '<button type="button" data-drawing-tool="removeimage"><i class="ph ph-trash"></i><span>Remove image</span></button>' +
-    '<button type="button" data-drawing-tool="saveformat"><i class="ph ph-floppy-disk"></i><span>Save sheet format</span></button>' +
-    '<button type="button" data-drawing-tool="applyformat"><i class="ph ph-file"></i><span>Apply sheet format</span></button>' +
-    '<button type="button" data-drawing-tool="savetemplate"><i class="ph ph-floppy-disk"></i><span>Save drawing template</span></button>' +
-    '<button type="button" data-drawing-tool="newtemplate"><i class="ph ph-file-plus"></i><span>New from drawing template</span></button>' +
-    '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
-    '<button type="button" data-drawing-tool="alignedsection"><i class="ph ph-scissors"></i><span>Aligned cut-face section</span></button>' +
+    '<button type="button" data-drawing-tool="saveformat">' + cadIcon("saveformat") + '<span>Save sheet format</span></button>' +
+    '<button type="button" data-drawing-tool="applyformat">' + cadIcon("applyformat") + '<span>Apply sheet format</span></button>' +
+    '<button type="button" data-drawing-tool="savetemplate">' + cadIcon("savetemplate") + '<span>Save drawing template</span></button>' +
+    '<button type="button" data-drawing-tool="newtemplate">' + cadIcon("newtemplate") + '<span>New from drawing template</span></button>' +
+    '<button type="button" data-drawing-tool="section">' + cadIcon("drawingsection") + '<span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
+    '<button type="button" data-drawing-tool="alignedsection">' + cadIcon("alignedsection") + '<span>Aligned cut-face section</span></button>' +
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
     '<button type="button" data-drawing-tool="auxiliary"><i class="ph ph-cube"></i><span>Auxiliary</span></button>' +
     '<button type="button" data-drawing-tool="crop"><i class="ph ph-crop"></i><span>Crop</span></button>' +
     '<button type="button" data-drawing-tool="uncrop"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove crop</span></button>' +
-    '<button type="button" data-drawing-tool="brokenout"><i class="ph ph-scissors"></i><span>Broken-out section</span></button>' +
+    '<button type="button" data-drawing-tool="brokenout">' + cadIcon("brokenout") + '<span>Broken-out section</span></button>' +
     '<button type="button" data-drawing-tool="unbrokenout"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove broken-out</span></button>' +
-    '<button type="button" data-drawing-tool="break"><i class="ph ph-scissors"></i><span>Break view / edit</span></button>' +
+    '<button type="button" data-drawing-tool="break">' + cadIcon("breakview") + '<span>Break view / edit</span></button>' +
     '<button type="button" data-drawing-tool="unbreak"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove Break</span></button>' +
     '<button type="button" data-drawing-tool="alternateposition"><i class="ph ph-copy"></i><span>Alternate Position / edit</span></button>' +
     '<button type="button" data-drawing-tool="removealternateposition"><i class="ph ph-arrow-counter-clockwise"></i><span>Remove Alternate Position</span></button>' +
@@ -4240,6 +4241,7 @@ function buildDOM() {
       ["top","front","right"].map(function(plane){return '<button type="button" data-origin-plane="'+plane+'">'+t("view_"+plane)+'</button>';}).join("") + '</div>' +
     '<div class="md-context-toolbar" id="mdContextToolbar" hidden></div>' +
     '<div class="md-entity-nav" id="mdEntityNav" hidden></div>' +
+    '<div class="md-feature-nav" id="mdFeatureNav" hidden></div>' +
     /* The selection row: filters at the start, breadcrumb at the end, one flex
        row so they compete for width instead of overlapping at narrow sizes —
        and so the breadcrumb stops printing itself over the status line. */
@@ -11102,6 +11104,7 @@ function toggleIsolate() {
 function syncSelectionChrome() {
   if (!root) return;
   syncSketchEntityNavigator();
+  syncFeatureNavigator();
   var input = chromeSelectionInput();
   var toolbar = root.querySelector("#mdContextToolbar");
   var items = contextToolbarItems(input);
@@ -11142,7 +11145,8 @@ function syncSketchEntityNavigator() {
   var strip=root.querySelector("#mdEntityNav");if(!strip)return;
   var sketch=(E.def.sketches || []).find(function(item){return item.id===E.def.activeSketch;});
   var entities=sketch && sketch.entities || [];
-  var visible=E.docType!=="assembly" && E.mode!=="drawing" && !E.quickAction && E.tool==="select" && (E.mode==="2d" || E.authoring?.phase==="sketch") && entities.length>0;
+  var formOpen=!!root.querySelector("#mdQuickSettings:not([hidden])");
+  var visible=E.docType!=="assembly" && E.mode!=="drawing" && !formOpen && E.tool==="select" && (E.mode==="2d" || E.authoring?.phase==="sketch") && entities.length>0;
   strip.hidden=!visible;strip.innerHTML="";if(!visible)return;
   var hebrew=getLang()!=="en",selected=selEntities().length===1?selEntities()[0]:null;
   if(!entities.includes(selected))selected=null;
@@ -11168,6 +11172,37 @@ function syncSketchEntityNavigator() {
   var next=btn("›",function(){step(1);});next.setAttribute("aria-label",hebrew?"הישות הבאה בסקיצה":"Next sketch entity");strip.appendChild(next);
   var parameters=btn(hebrew?"פרמטרים":"Parameters",function(){setTab("shape");showModelerSheet("props");});
   parameters.disabled=!selected;parameters.setAttribute("aria-label",hebrew?"פרמטרים של הישות שנבחרה":"Selected entity parameters");strip.appendChild(parameters);
+}
+
+function syncFeatureNavigator() {
+  var strip=root.querySelector('#mdFeatureNav');if(!strip)return;
+  var model=currentTreeModel(),nodes=featureBrowseNodes(model);
+  var formOpen=!!root.querySelector('#mdQuickSettings:not([hidden])');
+  strip.hidden=E.docType!=='part'||E.mode!=='3d'||E.authoring?.phase==='sketch'||formOpen||!nodes.length;
+  strip.innerHTML='';if(strip.hidden)return;
+  var owner=E.def,hebrew=getLang()!=='en';
+  var chosen=nodes.find(function(node){return node.kind==='feature'?(E.authoring.featureSelection || []).includes(node.targetId):(E.authoring.sketchSelection || []).includes(node.targetId);});
+  function pick(id){
+    if(E.def!==owner)return;
+    var fresh=currentTreeModel(),node=featureBrowseNodes(fresh).find(function(item){return item.id===id;});
+    if(!node||node.suppressed||node.rolled)return;
+    if(node.kind==='sketch'){
+      E.authoring.featureSelection=[];E.authoring.sketchSelection=[node.targetId];E.topologySelection=[];E.ssel=[];
+      var consuming=(E.def.features || []).find(function(feature){return feature.references?.sketches?.some(function(ref){return (ref.id || ref)===node.targetId;})||feature.params?.sketchId===node.targetId;});
+      E.sel=consuming?partsForFeature(consuming.id)[0] || null:null;
+      refreshAll();
+    }else selectTreeNode(node,fresh,null);
+  }
+  function step(direction){var index=chosen?nodes.indexOf(chosen):(direction>0?-1:0);for(var i=0;i<nodes.length;i++){index=(index+direction+nodes.length)%nodes.length;if(!nodes[index].suppressed&&!nodes[index].rolled){pick(nodes[index].id);return;}}}
+  var previous=btn('‹',function(){step(-1);});previous.setAttribute('aria-label',hebrew?'השלב הקודם':'Previous feature');strip.appendChild(previous);
+  strip.appendChild(el('span','md-feature-nav-icon',cadIcon(chosen?.icon || 'feature')));
+  var select=el('select','md-feature-nav-select');select.setAttribute('aria-label',hebrew?'עיון בשלבי המודל':'Browse model features');
+  var placeholder=el('option');placeholder.value='';placeholder.textContent=hebrew?'בחר שלב במודל':'Choose a model feature';select.appendChild(placeholder);
+  nodes.forEach(function(node,index){var option=el('option');option.value=node.id;option.textContent=(index+1)+'. '+node.name+' · '+node.detail;option.disabled=!!(node.suppressed||node.rolled);select.appendChild(option);});
+  select.value=chosen?.id || '';select.title=chosen?chosen.name+' · '+chosen.detail:placeholder.textContent;
+  select.addEventListener('change',function(){pick(select.value);});strip.appendChild(select);
+  var next=btn('›',function(){step(1);});next.setAttribute('aria-label',hebrew?'השלב הבא':'Next feature');strip.appendChild(next);
+  var tree=btn(hebrew?'עץ':'Tree',function(){showModelerSheet('tree');});tree.setAttribute('aria-label',hebrew?'פתח עץ מודל מלא':'Expand feature tree');strip.appendChild(tree);
 }
 
 /* Each crumb names something already in the document, so selecting it is a
@@ -18799,6 +18834,7 @@ function currentTreeModel() {
     collapsed: treeCollapseState(),
     folders: E.def.treeFolders || [],
     labels: treeLabels(),
+    featureDetail:function(feature){return featureTreeContext(feature,E.def,function(value){return modelLengthText(value,5)+' '+modelLengthUnit();},featureTypeLabel);},
     definition: E.def,
   });
 }
@@ -18881,11 +18917,10 @@ function selectTreeNode(node, model, event) {
     if (additive) toggleTreeSelection(E.authoring.featureSelection, node.targetId);
     else {
       E.authoring.featureSelection = [node.targetId];
+      E.authoring.sketchSelection = [];
+      E.ssel = [];
       E.topologySelection = [];
-      E.sel = (E.def.parts || []).find(function (item) {
-        return item.featureId === node.targetId || item.derivedFeatureId === node.targetId
-          || cutTargetFeatureId(item) === node.targetId;
-      }) || null;
+      E.sel = partsForFeature(node.targetId)[0] || null;
     }
     refreshAll(); return;
   }
@@ -25259,7 +25294,7 @@ function fitPreview() {
     var span = box
       ? Math.max(1, Math.hypot(box.x1 - box.x0, box.y1 - box.y0, box.z1 - box.z0))
       : 180;
-    E.pv.frame(span * 1.5);
+    E.pv.frame(span * 1.5,box);
     if(box){
       var origin=E.pv.fixedFrame?.origin || {x:0,y:0,z:0};
       E.pv.target.set((box.x0+box.x1)/2-origin.x,(box.y0+box.y1)/2-origin.y,(box.z0+box.z1)/2-origin.z);
@@ -25289,7 +25324,7 @@ function fitPreview() {
   }
   var dx = b.x1 - b.x0, dy = b.y1 - b.y0, dz = b.z1 - b.z0,
     r = Math.max(1, Math.hypot(dx, dy, dz));
-  E.pv.frame(r * 1.5);
+  E.pv.frame(r * 1.5,b);
   // Plane-aligned sketch cameras use the frame origin plus the pan target.
   // Fitting the size alone leaves off-origin geometry behind the view controls.
   if (E.pv.fixedFrame) {
@@ -28612,6 +28647,7 @@ function mobileBridge() {
           "/" + (E.topologySelection || []).map(function (r) { return r.kind + (r.persistentId || ""); }).join(","),
       };
     },
+    ensureDrawingSheetFresh: syncSheetPanel,
     ensureInspectorFresh: function () {
       var id = activeTab("R") || "shape";
       if (typeof inspectorDirty !== "undefined" && inspectorDirty[id]) {

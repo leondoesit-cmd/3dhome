@@ -1,6 +1,33 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { cadIcon, CAD_ICONS, CAD_ICON_KEYS, ICON_ALIASES } from "../js/modeler_icons.js";
+
+test("paper primitives have distinct vector outlines and do not borrow dimension or CAD polygon icons",()=>{
+  const keys=['sheetline','sheetpolyline','sheetrect','sheetcircle','sheetarc','sheetellipse'];
+  const glyphs=keys.map(key=>cadIcon(key));
+  assert.equal(new Set(glyphs).size,keys.length);
+  glyphs.forEach(glyph=>assert.ok(glyph.startsWith('<svg')));
+  assert.notEqual(cadIcon('sheetline'),cadIcon('dim'));
+  assert.notEqual(cadIcon('sheetpolyline'),cadIcon('spoly'));
+  assert.notEqual(cadIcon('sheetarc'),cadIcon('sarc'));
+});
+test("drawing image, format and section actions have distinct semantic vector glyphs",()=>{
+  for(const keys of [
+    ['insertimage','insertprojectimage','editimage'],
+    ['saveformat','applyformat','savetemplate','newtemplate'],
+    ['drawingsection','alignedsection','brokenout','breakview']
+  ]){
+    const glyphs=keys.map(key=>cadIcon(key));
+    glyphs.forEach((glyph,index)=>assert.ok(glyph.startsWith('<svg'),keys[index]));
+    assert.equal(new Set(glyphs).size,keys.length);
+  }
+});
+test("CAD centerpoint arc marks its center rather than a third rim pick",()=>{
+  assert.notEqual(cadIcon('sarc'),cadIcon('arc3point'));
+  assert.match(cadIcon('sarc'),/cx="10" cy="15"/);
+  assert.match(cadIcon('arc3point'),/cx="10" cy="8"/);
+  assert.match(cadIcon('sarc'),/stroke-dasharray/);
+});
 import { FEATURE_CATALOG } from "../js/core/feature_catalog.js";
 import { buildCommandCatalog } from "../js/modeler_commands.js";
 

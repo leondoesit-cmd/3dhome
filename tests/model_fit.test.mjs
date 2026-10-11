@@ -7,7 +7,7 @@ const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 const bounds={x0:7,x1:11,y0:2,y1:8.62,z0:-2.8,z1:2.8};
 function fixture({fixedFrame=null,sketchBox=null}={}){
   const target={set(x,y,z){Object.assign(this,{x,y,z});}};
-  const view={fixedFrame,target,frame(distance){this.distance=distance;target.set(0,0,0);},
+  const view={fixedFrame,target,frame(distance,box){this.distance=distance;this.fitBounds=box;target.set(0,0,0);},
     render(){this.renderedCenter=fixedFrame?
       {x:target.x+fixedFrame.origin.x,y:target.y+fixedFrame.origin.y,z:target.z+fixedFrame.origin.z}:
       {x:target.x,y:target.y+(bounds.y0+bounds.y1)/2,z:target.z};}};
@@ -22,6 +22,7 @@ test('part Zoom to fit recenters an offset-origin native solid in orbit without 
   f.fit();
   assert.deepEqual(f.view.renderedCenter,{x:9,y:5.31,z:0});
   assert.equal(f.view.target.y,0);
+  assert.deepEqual(f.view.fitBounds,bounds,'part fit supplies measured bounds for viewport-aware framing');
   assert.ok(Math.abs(f.view.distance-Math.hypot(4,6.62,5.6)*1.5)<1e-12);
   f.view.target.set(-40,15,80);f.fit();
   assert.deepEqual(f.view.renderedCenter,{x:9,y:5.31,z:0},'a repeated Fit removes stale pan');

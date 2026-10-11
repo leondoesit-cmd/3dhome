@@ -20370,6 +20370,10 @@ body.compact-nav #md-sheet .md-mobile-drawing-commands .m-grid-btn span { displa
    hidden pages do not contribute intrinsic height. Other menus still hug content. */
 body.compact-nav #md-sheet.md-drawing-command-sheet { height: min(46dvh, var(--mobile-sheet-cap)) !important; }
 body.compact-nav #md-sheet .md-mobile-drawing-group { flex-shrink: 0; }
+/* Each four-command chunk remains a pager atom. A continuation keeps its
+   heading when it starts a new page, but shares the preceding heading on the
+   same visible page. No command or page boundary is merged. */
+body.compact-nav #md-sheet .mobile-menu-page > .md-mobile-drawing-group + .md-drawing-group-continuation > .m-sheet-sec { display: none; }
 body.compact-nav #md-sheet.md-drawing-command-sheet .mobile-menu-page { overflow-y: auto; }
 body.compact-nav #modeler .md-command span { white-space: normal; overflow-wrap: anywhere; }
 body.compact-nav #md-sheet #mdLeftPanel { overflow-y: auto; }
@@ -21230,3 +21234,27 @@ body.compact-nav:has(#md-selection-bar:not([hidden])) #modeler .md-entity-nav:no
   bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 56px);
 }
 body.compact-nav.m-sheet-open #modeler .md-entity-nav:not([hidden]) { display: none; }
+#modeler .md-feature-nav { display: none; }
+body.compact-nav #modeler .md-feature-nav:not([hidden]) {
+  display: flex; position: fixed; inset-inline: 8px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 8px);
+  z-index: 301; min-height: 48px; gap: 4px; padding: 2px 4px;
+  border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--bg-panel); box-sizing: border-box;
+}
+#modeler .md-feature-nav button { min-width: 44px; min-height: 44px; flex-shrink: 0; }
+#modeler .md-feature-nav-select { flex: 1; min-width: 0; min-height: 44px; font-size: 12px; }
+#modeler .md-feature-nav-icon { display: flex; align-items: center; width: 20px; flex-shrink: 0; }
+#modeler .md-feature-nav-icon .md-cad-icon { width: 20px; height: 20px; }
+body.compact-nav:has(#md-selection-bar:not([hidden])) #modeler .md-feature-nav:not([hidden]) {
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 56px);
+}
+body.compact-nav.m-sheet-open #modeler .md-feature-nav:not([hidden]) { display: none; }
+
+/* The phone Drawing settings sheet borrows the live native sheet panel. */
+body.compact-nav #modeler #mdSheetPanel:not(.md-borrowed) { display:none; }
+body.compact-nav #modeler #md-sheet #mdSheetPanel.md-borrowed {
+  position:static; inset:auto; width:100%; max-width:100%; max-height:none;
+  display:flex; flex:1; min-height:0; overflow-y:auto;
+  box-shadow:none; box-sizing:border-box;
+}

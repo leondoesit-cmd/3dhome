@@ -405,7 +405,7 @@ function canonicalHistory(def, options) {
       historyId: entry.id,
       index,
       name: friendlyTreeName(feature.name || entry.name, spec?.label || friendlyTreeName(feature.type, "Feature")),
-      detail: spec?.label || feature.type,
+      detail: options.featureDetail?.(feature) || spec?.label || feature.type,
       technicalDetail: feature.id,
       icon: feature.type,
       state: status.get(feature.id) || entry.status || "",

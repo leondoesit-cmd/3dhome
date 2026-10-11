@@ -24,6 +24,7 @@ import { clearGroup } from "./primitives.js";
 import { guardRenderReentry } from "./core/render_guard.js";
 import { syncEditorClipping } from "./editor_renderer_clipping.js";
 import {planeBoundsFit} from './core/sketch_view_fit.js';
+import {editorBoundsFitDistance} from './core/editor_view_fit.js';
 import {normalToFrustum,orbitTargetFromFrame,frameTargetFromOrbit,switchEditorCamera} from './core/editor_projection.js';
 
 function clamp(v, a, b) {
@@ -612,8 +613,11 @@ export function createEditorView(opts) {
       view.target.set(0, 0, 0);
       if (render !== false) view.render();
     };
-    view.frame = function (radius) {
-      view.dist = clamp(radius, minDist, maxDist);
+    view.frame = function (radius,bounds) {
+      view.resize(true);
+      const scale=view.big?bigZoom():1;
+      const fit=editorBoundsFitDistance(bounds,lastW,lastH,cam.fov,cam.isOrthographicCamera,cam.zoom);
+      view.dist = clamp(Math.max(radius,fit/scale), minDist, maxDist);
       view.target.set(0, 0, 0);
     };
     view.framePlane = function (bounds) {
