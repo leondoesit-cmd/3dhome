@@ -16854,6 +16854,7 @@ function wireSketch() {
   });
   cv.addEventListener("pointercancel", function (e) {
     cancel2DPointerMove();
+    if (E.mode === "drawing") { drawingSheet().pointerCancel(e); return; }
     if(touchPrecisionTrialOwns(e.pointerId)){
       releaseTouchPrecisionTrial(e.pointerId,true);E.touchPrecision=null;drawSketch();return;
     }
@@ -16947,6 +16948,7 @@ function wireSketch() {
       if (e.touches.length === 2) {
         E.touchPrecision = null;
         pinch = { dist: d2(e) };
+        if (E.mode === "drawing") drawingSheet().beginPinch();
       }
     }, { passive: true });
     cv.addEventListener("touchmove", function (e) {
@@ -16955,7 +16957,7 @@ function wireSketch() {
       var dist = d2(e);
       var f = pinch.dist / Math.max(dist, 1);
       pinch.dist = dist;
-      if (Math.abs(1 - f) < 0.002) return;
+      if (E.mode !== "drawing" && Math.abs(1 - f) < 0.002) return;
       if (sketchProjection() && E.pv) {
         E.pv.zoomBy(f);
         drawSketch();
@@ -16969,7 +16971,7 @@ function wireSketch() {
       var k = f > 1 ? 1 / 1.12 : 1.12;
       // a sheet zooms the paper, not the sketch it is not showing
       if (E.mode === "drawing") {
-        drawingSheet().wheel({ deltaY: f > 1 ? 120 : -120 }, mx, my);
+        drawingSheet().wheel({ deltaY: Math.log(f) / Math.log(1.0016) }, mx, my);
         syncStatus();
         return;
       }
@@ -16982,6 +16984,7 @@ function wireSketch() {
     }, { passive: false });
     function end(e) {
       if (e.touches.length < 2) pinch = null;
+      if (E.mode === "drawing" && e.touches.length === 0) drawingSheet().endPinch();
     }
     cv.addEventListener("touchend", end);
     cv.addEventListener("touchcancel", end);

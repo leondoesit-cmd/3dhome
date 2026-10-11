@@ -86,7 +86,9 @@ export function createDrawingController(host) {
     snap: null,
     scene: null,
     sceneKey: "",
+    pinching: false,
   };
+  const touchPointers = new Set();
   let projector = null;
   let projectionToken = -1;
 
@@ -724,7 +726,29 @@ export function createDrawingController(host) {
 
   /* ---- pointer ----------------------------------------------------------- */
 
+  function beginPinch() {
+    if (state.pinching) return;
+    state.pinching = true;
+    const drag = state.drag;
+    if (drag && ["view", "dim", "note"].includes(drag.mode)) cancelLayout(drag);
+    state.drag = null;
+    state.draft = null;
+    state.snap = null;
+    host.refresh();
+  }
+
+  function endPinch() {
+    state.pinching = false;
+    touchPointers.clear();
+    state.drag = null;
+  }
+
   function pointerDown(event, x, y) {
+    if (event.pointerType === "touch" && event.pointerId != null) {
+      touchPointers.add(event.pointerId);
+      if (touchPointers.size > 1) beginPinch();
+    }
+    if (state.pinching) return true;
     const sheetPoint = toSheetMm(x, y);
     state.cursor = sheetPoint;
     if(['insertimage','insertprojectimage','editimage','removeimage'].includes(state.tool)&&event.button===0&&!event.altKey&&!event.spaceKey) {
@@ -1031,6 +1055,7 @@ export function createDrawingController(host) {
   }
 
   function pointerMove(event, x, y) {
+    if (state.pinching) return true;
     const sheetPoint = toSheetMm(x, y);
     state.cursor = sheetPoint;
     if(state.draft?.kind==='primitive')state.cursor=snapDrawingPrimitivePoint(sheetPoint,host.doc().primitives,4/state.zoom,state.draft.points.at(-1),event.shiftKey,event.ctrlKey||event.metaKey);
@@ -1100,6 +1125,10 @@ export function createDrawingController(host) {
   }
 
   function pointerUp(event, x, y) {
+    if (event.pointerType === "touch" && event.pointerId != null) touchPointers.delete(event.pointerId);
+    if (state.pinching) {
+      return true;
+    }
     const drag = state.drag;
     state.drag = null;
     if (drag?.mode === "draft" && state.draft) {
@@ -1115,6 +1144,19 @@ export function createDrawingController(host) {
       else cancelLayout(drag);
       return true;
     }
+    host.refresh();
+    return true;
+  }
+
+  function pointerCancel(event) {
+    if (event.pointerId != null) touchPointers.delete(event.pointerId);
+    if (state.pinching) {
+      return true;
+    }
+    const drag = state.drag;
+    if (drag && ["view", "dim", "note"].includes(drag.mode)) cancelLayout(drag);
+    state.drag = null;
+    state.draft = null;
     host.refresh();
     return true;
   }
@@ -1795,7 +1837,7 @@ export function createDrawingController(host) {
     getTool: () => state.tool,
     selection: () => state.selection,
     select: (value) => { state.selection = value; state.scene = null; host.refresh(); },
-    pointerDown, pointerMove, pointerUp, doubleClick, wheel, keyDown,
+    pointerDown, pointerMove, pointerUp, pointerCancel, doubleClick, wheel, keyDown, beginPinch, endPinch,
     deleteSelection, addView, duplicateSelectedView, autoDimension, autoComponentBalloons, insertModelItems, addHoleCallouts, setSheetOption, relayout, editDim, editPrimitive,
     danglingDims: () => sheetDimIssues(scene()),
     document: () => host.doc(),

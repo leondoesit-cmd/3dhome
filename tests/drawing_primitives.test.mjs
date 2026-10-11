@@ -86,6 +86,28 @@ test('canvas double-click routes to paper edit fields and late answers cannot ed
  assert.equal(t.def.drawing.primitives.length,0);assert.equal(t.undo.length,steps);
 });
 
+test('phone-size Note prompt survives primitive edit and pointer-up at several paper positions',async()=>{
+ const t=table(true),points=[[20,20],[80,20],[80,40],[60,40],[60,60],[40,60],[40,40],[20,40],[20,20]];
+ t.controller.setTool('sheetpolyline');for(const p of points)t.click(...p);t.controller.keyDown({key:'Enter'});
+ for(let i=0;i<14;i++){t.controller.setTool('sheetline');t.click(100+i*3,30);t.click(100+i*3,70);}
+ const values={style:'center'};points.forEach(([x,y],i)=>{values['x'+i]=String(x);values['y'+i]=String(y);});
+ let fieldsSeen=0;t.host.promptFields=async(_title,fields)=>{fieldsSeen=fields.length;return values;};
+ t.controller.setTool('select');t.controller.doubleClick({},40,20);await new Promise(r=>setImmediate(r));
+ assert.equal(fieldsSeen,19);assert.equal(t.def.drawing.primitives[0].style,'center');assert.equal(t.def.drawing.primitives.length,15);
+ t.host.width=()=>338;t.host.height=()=>638;t.controller.fit();
+ for(const [x,y] of [[44,244],[88,247],[88,257],[98,312]]){
+  let resolve,prompts=0;t.host.promptFields=()=>{prompts++;return new Promise(r=>resolve=r);};
+  t.controller.setTool('select');t.controller.setTool('note');
+  const before=t.def.drawing.notes.length;
+  t.controller.pointerDown({button:0,pointerType:'touch'},x,y);
+  assert.equal(prompts,1,'Note opens independent of primitive hit or paper coordinate');
+  t.controller.pointerUp({button:0,pointerType:'touch'},x,y);
+  assert.equal(t.def.drawing.notes.length,before,'pointer-up neither supplies nor cancels the pending answer');
+  resolve({text:'Generic phone Note',depth:''});await new Promise(r=>setImmediate(r));
+  assert.equal(t.def.drawing.notes.length,before+1);assert.equal(t.controller.getTool(),'note');
+ }
+});
+
 test('real primitive editor commits exact paper coordinates/style to normalized live records through Undo Redo and cold SVG',async()=>{
  const t=table(true),cad=JSON.stringify({features:t.def.features,sketches:t.def.sketches,parts:t.def.parts,history:t.def.history});
  t.controller.setTool('sheetpolyline');for(const p of [[20,20],[60,20],[60,60],[20,20]])t.click(...p);t.controller.keyDown({key:'Enter'});

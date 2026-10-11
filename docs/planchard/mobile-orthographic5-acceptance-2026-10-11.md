@@ -1,0 +1,12 @@
+# Mobile Orthographic5 bridge — printed1-39/PDF67
+
+Independently authored through Chrome390x844/mobile touch on a fresh Drawing worksheet. Closed outline was tapped point by point; double-tap opened the native19-field annotation form. Touch-focus/visible form entry and touch scrolling supplied exact illustrative paper coordinates.14 further annotations used ordinary toolbar/touch picks and native5-field edit forms, including Visible/Hidden/Centerline selection. No CAD injection/import or desktop artifact reuse.
+
+15 paper annotations: FRONT closed U-notched outline +2 hidden bore lines +center; TOP rectangle/circle +2 hidden notch lines +2 centers; RIGHT rectangle +3 hidden lines +center. Four notes identify source, third-angle arrangement and TOP/FRONT/RIGHT. Source is undimensioned;5mm per illustrative grid unit and proportions are explicitly estimates, not publisher dimensions.
+
+Undo/Redo tested on final note. Save to library as MOBILE Ch1 Orthographic5 Bridge (actual displayed spacing: MOBILE Ch1 Orthographic 5 Bridge). Cold reload/Saved search/card shows15 annotations/4notes and opens through touch. Native SVG exports28 geometric items; read-only XML verification checked all28 exact coordinates, unique matches and7hidden/4center stroke styles. Geometry follows the source-only preparation including hidden bore edges stopping at notch roof. No precise physical-phone keyboard/GPU claim.
+
+A real two-finger zoom trial exposed simultaneous single-pointer pan overwriting the zoom origin; screenshot orthographic5-touch-zoom.png is the before-fix failure, not acceptance of pinch fidelity. The bounded repair passed parent phone verification recorded below. Near-top Note contacts sometimes produced no form; center150410 succeeded and labels140400/140470/200470 succeeded. Source primitive-edit/Note witness passed; no speculative Note reset installed.
+
+
+Parent actual phone acceptance: cold reload updated app, SavedBridge15annotations/4notes reopened through touch, nativeFit, identical50→130px stationary-centroid spread over6moves. TOP stays above FRONT and RIGHT stays visible; fresh one-finger upward20px pan resumes after contacts lift. Actual screenshots orthographic5-touch-zoom-verified.png / orthographic5-touch-pan-after-pinch.png. Native SVG after gesture byte-identical to original (SHA25641da231c7f0788a18cd9bb7a08cc59f69a15fbe03c963d8341236382252421eb). No physical-phone claim.
