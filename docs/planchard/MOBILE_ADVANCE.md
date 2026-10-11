@@ -64,3 +64,8 @@ Current Plane4 printed1-44/PDF72: native nine-primitives/four-notes transverse r
 
 ## Accepted Plane 4 — 2026-10-11
 Printed1-44/PDF72 fresh MOBILE Ch1 Plane4 Transverse Ramp: nine native touch annotations/four notes, double-tap coordinate forms, open three-point ramp via touchFinish, final-note Undo/Redo, Save/nativeSVG/cold Saved card reopen exact identity verified. plane4.svg nineteen exact unique visible segments; rear-wall edge180,175 to180,200 stops at base top, front remains rectangular. Estimated5mm-grid caveat/source retained. plane4-reopened.png actual390x844 afterFit. Accepted14/21 Chapter1 in-chapter,0/117 homework. Next Plane5 printed1-45/PDF73.
+
+Current Plane5 printed1-45/PDF73: fresh MOBILE Ch1 Plane5 native six-line Note, touch/Undo/Redo/name/description and Save requested. Export/cold reopen pending; accepted remains14/21.
+
+## Accepted Plane 5 — 2026-10-11
+Printed1-45/PDF73 fresh MOBILE Ch1 Plane5 independently touch-authored six-line native Note: FRONT B,D,F;TOP A,B,E;RIGHT B,C; oblique facet B area all three views. Undo/Redo, rename/description, Save/nativeSVG/cold Saved card reopen exact identity verified;one note. plane5.svg exact six lines x113.172/y132.362–151.262,2.8mm/3.78mm pitch clear of titleblock. plane5-reopened.png actual390x844 afterFit. Accepted15/21 Chapter1 in-chapter,0/117 homework. Next Plane6 triangular-corner graphic printed1-45/PDF73,eight primitives.
