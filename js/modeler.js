@@ -3680,7 +3680,18 @@ function el(tag, cls, html) {
 }
 function btn(label, cb, cls) {
   var b = el("button", cls || "", label);
-  b.addEventListener("click", cb);
+  if (cls === "md-quick-apply") {
+    // Both the form button and the mobile confirmation corner use this
+    // handler, even when the duplicate form actions are hidden.
+    var pending = false;
+    b.modelerApply = async function () {
+      if (pending || b.disabled) return;
+      pending = true;
+      try { return await cb.apply(b, arguments); }
+      finally { pending = false; }
+    };
+    b.addEventListener("click", b.modelerApply);
+  } else b.addEventListener("click", cb);
   return b;
 }
 
@@ -11370,15 +11381,9 @@ function finishActiveCommand() {
   var corner = confirmationCornerState(currentCornerInput());
   if (dynHasEntry() && dynCommit()) { syncContextActions(); return; }
   if (corner.mode === "feature") {
-    var apply = root.querySelector(".md-quick-apply");
+    var apply = root.querySelector("#mdQuickSettings .md-quick-apply");
     if (apply) {
-      /* The labelled form actions are hidden while the confirmation corner
-         owns the commit. Calling click() on a descendant of a hidden subtree
-         is ignored by some browser engines, leaving a feature command open
-         even though its inputs are valid. Temporarily expose that subtree so
-         both commit routes still use the same handler. */
-      var actions = apply.closest && apply.closest(".md-feature-actions");
-      if (actions && actions.hidden) actions.hidden = false;
+      if (apply.modelerApply) return apply.modelerApply();
       apply.click();
     }
     return;
@@ -11519,7 +11524,7 @@ function syncContextActions() {
    the beat — green check, red X, Enter, Esc — and the feature form's own
    apply/cancel pair repeats it a panel-width away from the geometry the user
    is looking at, which is the one place they are not. The row is hidden rather
-   than removed: finishActiveCommand still clicks .md-quick-apply behind it, so
+   than removed: finishActiveCommand invokes its native Apply handler, so
    both routes commit through exactly one code path and cannot drift apart.
    On compact screens the labelled thumb row owns these same actions and stays
    above the sheet and software keyboard, so the form can give its space back. */

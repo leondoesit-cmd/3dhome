@@ -1,3 +1,4 @@
+Latest mobile WIP2026-10-11: printed2-18/PDF104 countersink model saved/cold reopened; qualified mm units, illustrative base. Head-clearance implementation passes73focusedtests/gates; actual increased-mode touch trial saved. Drawing/modes/export still pending. Last accepted2-17/PDF103. See final CURRENT WIP entry in MOBILE_ADVANCE.md.
 Latest mobile checkpoint 2026-10-11: printed2-17/PDF103 flat part completed in mobile touch with both Front+Top and Front-only/thickness-note alternatives, all source values audited in native SVG and cold reopen. Hole centers use fixed coordinate datums; edge-offset associativity not claimed. Mobile overlaps repaired, Drawing rail grouped, More fields/actions aligned. NEXT2-18/PDF104 countersink source inspection. See MOBILE_ADVANCE.md for qualifications and exact resume. Globalhomework11/117review15/130 unchanged.
 
 # Planchard ebook — live advance file
@@ -985,5 +986,6 @@ Completed repairheaderfocus actualbrowserverified andfocusedgatesgreen;commitnow
 # Latest mobile checkpoint — 2026-10-11
 
 Authoritative current continuation is `MOBILE_ADVANCE.md`. Chrome6 phone emulation390x844/touch5/dark; active source printed2-14/PDF100. Six-view sheet accepted with qualifications; Top datum cylinder final cold reopened/accepted; independent Front cylinder fully defined and saved, final cold verification pending; Right not started. Other agent update6245644 fast-forwarded and audited; cylinder width-expression and through-bore import regressions repaired with12 import tests. Entity navigation strip Previous/Next/Parameters touch actions work, but Front sketch plane/framing issue and swipe addition remain under repair/QA. Whole book unfinished. Earlier desktop8-54 is separate and does not count mobile completion.
+
 
 

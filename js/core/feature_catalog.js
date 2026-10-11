@@ -689,6 +689,7 @@ export const FEATURE_CATALOG = Object.freeze({
       holeType: "simple", standard: "ISO 273", fastenerType: "generic", standardSize: "M6", fit: "normal", diameter: 0.66, depth: 10,
       endCondition: "through-all", drillPointAngle:118, countersink: false, countersinkDiameter: 1.2,
       counterbore: false, cboreDiameter: 1.1, cboreDepth: 0.66, csinkAngle: 90,
+      headClearanceEnabled:false,headClearance:0,headClearanceMode:'increased-countersink',
       threadDepth: 0, threadMode: "cosmetic", handedness: "rh", toleranceClass: "6H",
       layout: "sketch", countX: 2, countY: 2, spacingX: 4, spacingY: 4, count: 4, radius: 3, startAngle: 0,
       direction: "forward",
@@ -707,6 +708,7 @@ export const FEATURE_CATALOG = Object.freeze({
       drillPointAngle:{...ANGLE,min:60,max:180},
       countersink: BOOLEAN, countersinkDiameter: LENGTH, counterbore: BOOLEAN,
       cboreDiameter: LENGTH, cboreDepth: LENGTH, csinkAngle: { ...ANGLE, min: 60, max: 120 },
+      headClearanceEnabled:BOOLEAN,headClearance:{...LENGTH,min:0},headClearanceMode:ENUM('increased-countersink','added-counterbore'),
       threadDepth: { ...LENGTH, min: 0 },
       threadMode: ENUM("cosmetic", "modeled"), handedness: ENUM("rh", "lh"),
       layout: ENUM("sketch", "linear", "circular"),
@@ -775,6 +777,12 @@ export const FEATURE_CATALOG = Object.freeze({
         { key: "countersink", label: "Countersink", labelKey: "fcFldCountersink", type: "boolean" },
         { key: "countersinkDiameter", label: "C'sink diameter", labelKey: "fcFldCsinkDiameter", type: "number", unit: "length", min: 1e-6, step: 0.1 },
         { key: "csinkAngle", label: "C'sink angle", labelKey: "fcFldCsinkAngle", type: "number", unit: "angle", min: 60, max: 120, step: 1 },
+        { key:'headClearanceEnabled',label:'Head clearance',labelKey:'fcFldHeadClearanceEnabled',type:'boolean' },
+        { key:'headClearance',label:'Axial head clearance',labelKey:'fcFldHeadClearance',type:'number',unit:'length',min:0,step:.01 },
+        { key:'headClearanceMode',label:'Countersink clearance mode',labelKey:'fcFldHeadClearanceMode',type:'select',choices:[
+          {value:'increased-countersink',label:"Increased C'sink",labelKey:'fcOptIncreasedCsink'},
+          {value:'added-counterbore',label:"Added C'bore",labelKey:'fcOptAddedCbore'},
+        ] },
       ]},
       { id: "thread", label: "Thread", labelKey: "fcGrpThread", icon: "ph-spiral", fields: [
         { key: "threadDepth", label: "Thread engagement (0 = automatic)", labelKey: "fcFldThreadEngagement", type: "number", unit: "length", min: 0, step: 0.1 },

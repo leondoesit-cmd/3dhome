@@ -492,6 +492,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         : field.key==="seedFeatureIds" ? (state.params?.seedFeatureIds?.length ? state.params.seedFeatureIds : state.params?.seedFeatureId ? [state.params.seedFeatureId] : [])
         : state.params && state.params[field.key];
       if(type==='hole' && value==null && ['cylinderPlacementMethod','cylinderConstraintBranch','cylinderOnSurface','cylinderAlongZ','cylinderAlongY'].includes(field.key))value=field.key==='cylinderPlacementMethod'?'angular':field.key==='cylinderConstraintBranch'?'positive-z':true;
+      if(type==='hole' && value==null && ['headClearanceEnabled','headClearance','headClearanceMode'].includes(field.key))value=field.key==='headClearanceEnabled'?false:field.key==='headClearance'?0:'increased-countersink';
       if(type==="thread" && value==null && state.params?.fitLimits){
         var limits=state.params.fitLimits;
         if(field.key==="useFitLimits")value=true;

@@ -7,11 +7,11 @@ import { ensureParametricDocument, recordSketchInHistory, createFeatureDefinitio
 import { regenerateFeatures, releaseRegeneration } from '../js/cad_feature_tree.js';
 import { shapeMassProperties } from '../js/cad_kernel.js';
 
-function fixture() {
+function fixture(overrides={}) {
   const document=ensureParametricDocument({id:'test',features:[{id:'base',name:'Cylinder',type:'extrude',references:{sketches:['base-sketch']},params:{sketchId:'base-sketch',profileEntityIds:['circle'],depth:3.175}}],
     sketches:[{id:'base-sketch',name:'Base',referenceId:'plane:top',plane:'top',points:[{id:'centre',x:0,y:0}],entities:[{id:'circle',type:'circle',c:'centre',r:1.905}],constraints:[]}],history:[]});
   const params={cylindricalSource:{featureId:'base',circleId:'circle',faceReference:{persistentId:'base:side',ownerFeatureId:'base',descriptor:{surface:'cylinder'}}},
-    cylinderTopDistance:.635,cylinderPlacementMethod:'constraints',cylinderConstraintBranch:'positive-z',holeType:'counterbore',standard:'ANSI Inch',fastenerType:'socket-head-cap-screw',standardSize:'1/4-shcs',fit:'normal',endCondition:'through-all',cboreDepth:.889};
+    cylinderTopDistance:.635,cylinderPlacementMethod:'constraints',cylinderConstraintBranch:'positive-z',holeType:'counterbore',standard:'ANSI Inch',fastenerType:'socket-head-cap-screw',standardSize:'1/4-shcs',fit:'normal',endCondition:'through-all',cboreDepth:.889,...overrides};
   const pair=createHoleWizardSketchPair(params,document,{positionId:'position',profileId:'profile'});
   document.sketches.push(pair.position,pair.profile);recordSketchInHistory(document,pair.position);recordSketchInHistory(document,pair.profile);
   const feature=createFeatureDefinition(document,'hole',{id:'hole',name:'Counterbore',inputs:['base'],references:{features:['base'],sketches:['position','profile']},params:pair.params});
@@ -24,6 +24,16 @@ test('persisted position and profile contain functional geometry and solve after
   assert.ok(Math.abs(resolved.placement.frame.origin.y-2.54)<1e-9);assert.equal(resolved.placement.frame.origin.z,1.905);
   assert.equal(resolved.params.cboreDepth,.889);
   assert.equal(doc.sketches.find(s=>s.id==='profile').frame.xAxis.z,-1);
+});
+test('counterbore profile displays total head-clearance depth and native cutters apply it only once',()=>{
+  const f=fixture({headClearanceEnabled:true,headClearance:.2});
+  assert.ok(Math.abs(f.profile.dimensions.find(d=>d.name==='cboreDepth').value-1.089)<1e-9);
+  const doc=JSON.parse(JSON.stringify(f.document)),resolved=resolveHoleWizardInputs(doc.features.find(x=>x.id==='hole'),doc);
+  assert.ok(Math.abs(resolved.params.cboreDepth-.889)<1e-9);
+  const cuts=holeCutRecords(resolved.params,null,null,doc);assert.ok(Math.abs(cuts.find(c=>c.params.role==='counterbore').params.depth-1.089)<1e-9);
+  doc.sketches.find(s=>s.id==='profile').dimensions.find(d=>d.name==='cboreDepth').value=1.2;
+  const edited=resolveHoleWizardInputs(doc.features.find(x=>x.id==='hole'),doc);
+  assert.ok(Math.abs(holeCutRecords(edited.params,null,null,doc).find(c=>c.params.role==='counterbore').params.depth-1.2)<1e-9);
 });
 test('independent position and profile dimensions drive shared compatibility and native inputs',()=>{
   const f=fixture();f.position.topDistance=.8;f.profile.dimensions.find(d=>d.name==='diameter').value=.8;

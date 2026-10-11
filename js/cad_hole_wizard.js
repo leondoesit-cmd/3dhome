@@ -5,6 +5,7 @@
 import { metricThreadBasicDimensions } from "./cad_standards.js";
 import { threadCallout, threadAnnotation, mmToCm } from "./cad_thread.js";
 import { cylinderAxis } from "./core/cylinder_axis.js";
+import {holeHeadClearance} from './core/hole_head_clearance.js';
 
 export const HOLE_TYPES = Object.freeze([
   "simple", "counterbore", "countersink", "spotface", "tapped", "tap-counterbore", "tap-countersink",
@@ -106,14 +107,16 @@ export function normalizeHoleWizard(params = {}) {
   const endCondition = params.endCondition === "blind" ? "blind" : "through-all";
   const depthMm = pickMm(params.depthMm, params.depth) || (endCondition === "through-all" ? 0 : threadDiaMm * 2);
   const cboreDiaMm = pickMm(params.cboreDiameterMm, params.cboreDiameter) || row?.cboreDiaMm || diameterMm * 1.8;
-  const cboreDepthMm = pickMm(params.cboreDepthMm, params.cboreDepth) || row?.cboreDepthMm || row?.headHeightMm || threadDiaMm;
+  const nominalCboreDepthMm = pickMm(params.nominalCboreDepthMm ?? params.cboreDepthMm, params.cboreDepth) || row?.cboreDepthMm || row?.headHeightMm || threadDiaMm;
   /* The feature form spells this field `countersinkDiameter` (see the hole
      entry in core/feature_catalog.js) while the tables and the kernel spell it
      `csink`. Both spellings are accepted here; reading only one of them made
      the countersink diameter uneditable rather than merely mis-scaled. */
-  const csinkDiaMm = pickMm(params.csinkDiameterMm ?? params.countersinkDiameterMm, params.csinkDiameter ?? params.countersinkDiameter)
+  const nominalCsinkDiameterMm = pickMm(params.nominalCsinkDiameterMm ?? params.csinkDiameterMm ?? params.countersinkDiameterMm, params.csinkDiameter ?? params.countersinkDiameter)
     || row?.csinkDiaMm || diameterMm * 2;
   const csinkAngle = Number(params.csinkAngle) || row?.csinkAngle || 90;
+  const clearance = holeHeadClearance(params,type,nominalCsinkDiameterMm,nominalCboreDepthMm,csinkAngle);
+  const cboreDepthMm = clearance.cboreDepthMm, csinkDiaMm = clearance.csinkDiameterMm;
   // Absent in older documents: preserve their flat bottom. New Hole Wizard
   // forms explicitly request the SOLIDWORKS 2021 default 118° drill point.
   const drillPointAngle = params.drillPointAngle == null ? 180 : Number(params.drillPointAngle);
@@ -121,7 +124,8 @@ export function normalizeHoleWizard(params = {}) {
   const spotfaceDepthMm = Number(params.spotfaceDepthMm) || Math.max(0.3, cboreDiaMm * 0.05);
   const threaded = type.startsWith("tap");
   const threadDepthMm=pickMm(params.threadDepthMm,params.threadDepth) || 0;
-  const recessMm=type==='tap-counterbore'?cboreDepthMm:type==='tap-countersink'?Math.max(0,(csinkDiaMm-threadDiaMm)/2/Math.tan(csinkAngle*Math.PI/360)):0;
+  const recessMm=type.endsWith('counterbore')?cboreDepthMm:type.endsWith('countersink')?clearance.csinkStartDepthMm+Math.max(0,(csinkDiaMm-(threaded?threadDiaMm:diameterMm))/2/Math.tan(csinkAngle*Math.PI/360)):0;
+  if(clearance.headClearanceEnabled && clearance.headClearanceMm>0 && endCondition==='blind' && recessMm>depthMm+1e-6)throw new Error('Head clearance recess exceeds the blind drill depth');
   if(threaded && endCondition==='blind' && threadDepthMm>Math.max(0,depthMm-recessMm)+1e-6)throw new Error("Thread engagement exceeds available drill depth after the head recess");
   return {
     holeType: type,
@@ -148,6 +152,9 @@ export function normalizeHoleWizard(params = {}) {
     csinkDiameterMm: csinkDiaMm,
     csinkDiameter: mmToCm(csinkDiaMm),
     csinkAngle,
+    ...clearance,
+    nominalCsinkDiameterMm,nominalCboreDepthMm,
+    headClearance:mmToCm(clearance.headClearanceMm),
     drillPointAngle,
     spotfaceDepthMm,
     spotfaceDepth: mmToCm(spotfaceDepthMm),
@@ -197,6 +204,7 @@ export function holeWizardSolids(params) {
     solids.push({ role: "spotface", kind: "cylinder", diameter: hole.cboreDiameter, depth: hole.spotfaceDepth, endCondition: "blind" });
   }
   if (hole.holeType === "countersink" || hole.holeType === "tap-countersink") {
+    if (hole.csinkStartDepthMm>0) solids.push({role:'head-clearance',kind:'cylinder',diameter:hole.csinkDiameter,depth:mmToCm(hole.csinkStartDepthMm),endCondition:'blind'});
     const extra = (hole.csinkDiameter - boreDia) / 2;
     const half = (hole.csinkAngle * Math.PI) / 360;
     const depth = extra / Math.tan(half || 1e-6);
@@ -205,6 +213,7 @@ export function holeWizardSolids(params) {
       kind: "cone",
       diameter1: hole.csinkDiameter,
       diameter2: boreDia,
+      ...(hole.csinkStartDepthMm>0?{startDepth:mmToCm(hole.csinkStartDepthMm)}:{}),
       depth: Math.max(0.01, depth),
       angle: hole.csinkAngle,
       endCondition: "blind",
@@ -230,7 +239,7 @@ export function holeWizardThread(params, placement = {}) {
     if(lengthMm>0)threadOrigin={x:origin.x+axis.x*near,y:origin.y+axis.y*near,z:origin.z+axis.z*near};
   }
   const drillDepthMm=lengthMm;
-  const recessMm=hole.holeType==='tap-counterbore'?hole.cboreDepthMm:hole.holeType==='tap-countersink'?Math.max(0,(hole.csinkDiameterMm-hole.threadDiameterMm)/2/Math.tan(hole.csinkAngle*Math.PI/360)):0;
+  const recessMm=hole.holeType==='tap-counterbore'?hole.cboreDepthMm:hole.holeType==='tap-countersink'?hole.csinkStartDepthMm+Math.max(0,(hole.csinkDiameterMm-hole.threadDiameterMm)/2/Math.tan(hole.csinkAngle*Math.PI/360)):0;
   const availableMm=Math.max(0,drillDepthMm-recessMm);
   if(hole.threadDepthMm>0 && drillDepthMm>0 && hole.threadDepthMm>availableMm+1e-6)throw new Error("Thread engagement exceeds available drill depth after the head recess");
   lengthMm=drillDepthMm>0?(hole.threadDepthMm || availableMm):0;
@@ -265,6 +274,7 @@ export function holeCallout(params) {
   const inch = params.displayUnit === "in" || (!params.displayUnit && holeTableRow(hole.standardSize)?.imperial);
   const dimension = mm => inch ? Number((mm / 25.4).toPrecision(10)) + " in" : round1(mm);
   const depth = thru ? " THRU" : " \u2193" + dimension(hole.depthMm);
+  const headRecess = hole.csinkStartDepthMm>0 ? " \u232D Ø"+dimension(hole.csinkDiameterMm)+"\u2193"+dimension(hole.csinkStartDepthMm) : "";
   if (hole.holeType === "simple") return "Ø" + dimension(hole.diameterMm) + depth;
   if (hole.holeType === "counterbore") {
     return "Ø" + dimension(hole.diameterMm) + depth + " \u232D Ø" + dimension(hole.cboreDiameterMm) + "\u2193" + dimension(hole.cboreDepthMm);
@@ -273,7 +283,7 @@ export function holeCallout(params) {
     return "Ø" + dimension(hole.diameterMm) + depth + " SF Ø" + dimension(hole.cboreDiameterMm);
   }
   if (hole.holeType === "countersink") {
-    return "Ø" + dimension(hole.diameterMm) + depth + " \u2334 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
+    return "Ø" + dimension(hole.diameterMm) + depth + headRecess + " \u2334 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
   }
   const thread = threadCallout({
     threadPreset: hole.threadPreset,
@@ -289,7 +299,7 @@ export function holeCallout(params) {
     return thread + " \u232D Ø" + dimension(hole.cboreDiameterMm) + "\u2193" + dimension(hole.cboreDepthMm);
   }
   if (hole.holeType === "tap-countersink") {
-    return thread + " \u2334 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
+    return thread + headRecess + " \u2334 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
   }
   return thread;
 }

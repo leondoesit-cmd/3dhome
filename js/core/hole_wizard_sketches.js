@@ -162,6 +162,10 @@ export function resolveHoleWizardInputs(featureOrParams,document) {
   const resolved={...cloneDomain(params),...cloneDomain(profile.params),sketchId:profile.id,positionSketchId:position.id,holeProfileSketchId:profile.id,
     cylindricalSource:cloneDomain(position.source),cylinderPlacementMethod:'constraints',cylinderConstraintBranch:position.branch,cylinderTopDistance:position.topDistance,
     cylinderOnSurface:true,cylinderAlongZ:true,cylinderAlongY:true};
-  for(const name of ['diameter','cboreDiameter','cboreDepth']){const value=profileDimension(profile,name).value;resolved[name]=value;resolved[name+'Mm']=value*10;}
+  for(const name of ['diameter','cboreDiameter','cboreDepth']){
+    let value=profileDimension(profile,name).value;
+    if(name==='cboreDepth' && resolved.headClearanceEnabled){value-=normalizeHoleWizard(resolved).headClearance;if(!(value>0))throw new Error('Counterbore profile depth must exceed head clearance');resolved.nominalCboreDepthMm=value*10;}
+    resolved[name]=value;resolved[name+'Mm']=value*10;
+  }
   return {params:resolved,placement:cylindricalHolePlacement(resolved,document)};
 }
