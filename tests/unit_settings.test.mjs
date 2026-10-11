@@ -50,6 +50,10 @@ test("detectLocationUnitSystem identifies metric and US imperial locations accur
   // Canada must NOT be imperial even though it is in North America
   S.site = { enabled: true, lat: 43.6532, lon: -79.3832, label: "Toronto, Ontario, Canada" };
   assert.equal(detectLocationUnitSystem().system, "metric", "Toronto is Canada -> metric");
+  assert.equal(isLocationInUS(43.6532, -79.3832, null), false, "Toronto coordinates are not the US");
+  assert.equal(isLocationInUS(32.5149, -117.0382, null), false, "Tijuana is not the US");
+  assert.equal(isLocationInUS(51.883, -176.658, null), true, "Adak is Alaska");
+  assert.equal(isLocationInUS(34.06, -117.65, "Ontario, CA"), true, "Ontario, California is the US");
 
   S.site = { enabled: true, lat: 49.2827, lon: -123.1207, label: "Vancouver, BC, Canada" };
   assert.equal(detectLocationUnitSystem().system, "metric", "Vancouver is Canada -> metric");

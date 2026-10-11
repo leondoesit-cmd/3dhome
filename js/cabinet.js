@@ -285,7 +285,8 @@ function sameRun(a, b) {
   var sa = a.cab,
     sb = b.cab;
   if (!sa || !sb) return false;
-  if (Math.abs(((a.rot || 0) % 360) - ((b.rot || 0) % 360)) > 0.5) return false;
+  var turn = ((((a.rot || 0) - (b.rot || 0)) % 360) + 360) % 360;
+  if (Math.min(turn, 360 - turn) > 0.5) return false;
   if (Math.abs(a.d - b.d) > 1 || Math.abs(a.h - b.h) > 1) return false;
   if (Math.abs((sa.elev || 0) - (sb.elev || 0)) > 1) return false;
   if (Math.abs((sa.top || 0) - (sb.top || 0)) > 0.2) return false;

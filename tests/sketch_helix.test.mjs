@@ -11,3 +11,14 @@ test('LENSCAP circle drives an inward tapered helix from the offset rear plane',
  document.sketches[0].entities[0].r+=.2;assert.ok(Math.abs(helixFromSketch(document,params).radius-spec.radius-.2)<1e-9);
  assert.equal(helixFromSketch(document,{...params,startAngle:90}).startAngle,Math.PI/2);
 });
+test('a right-plane sketch stored as side drives a helix along X',()=>{
+ const document={sketches:[{id:'s',plane:'side',offset:4,points:[{id:'p',x:2,y:3}],entities:[{id:'c',type:'circle',c:'p',r:1.5}]}]};
+ const spec=helixFromSketch(document,{sketchId:'s',circleId:'c',height:10,definition:'height-turns',turns:2});
+ assert.deepEqual(spec.axis,{x:1,y:0,z:0});
+ assert.deepEqual(spec.origin,{x:4,y:3,z:2});
+ assert.equal(spec.pitch,5);
+});
+test('height-turns with zero turns is rejected',()=>{
+ const document={sketches:[{id:'s',plane:'top',points:[{id:'p',x:0,y:0}],entities:[{id:'c',type:'circle',c:'p',r:5}]}]};
+ assert.throws(()=>helixFromSketch(document,{sketchId:'s',circleId:'c',height:10,definition:'height-turns',turns:0}),/turns/);
+});

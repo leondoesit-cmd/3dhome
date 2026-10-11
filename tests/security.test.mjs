@@ -41,6 +41,11 @@ test("private, loopback, link-local, mapped, and multicast addresses are rejecte
     "fc00::1",
     "fe80::1",
     "::ffff:127.0.0.1",
+    "::ffff:7f00:1",
+    "::ffff:a9fe:a9fe",
+    "::10.0.0.1",
+    "::a00:1",
+    "::7f00:1",
   ]) assert.equal(isPublicAddress(address), false, address);
   assert.equal(isPublicAddress("8.8.8.8"), true);
   assert.equal(isPublicAddress("2606:4700:4700::1111"), true);

@@ -601,7 +601,7 @@ export function stabilizeOpeningCornerRefs(wall) {
 /* The named corner's finished-face setback changes when a return is moved or
    its angle/thickness changes. Resolve that cut from the live segment leaving
    the named node toward the opening, even when the original host was split. */
-function openingCornerCut(c) {
+export function openingCornerCut(c) {
   if (!c || c.cornerNode == null || !c.cornerDir) return null;
   var best = null, bestDot = -Infinity;
   (S.walls || []).forEach(function (w) {

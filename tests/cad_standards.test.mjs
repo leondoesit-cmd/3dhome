@@ -16,6 +16,8 @@ test("metric basic-profile geometry derives pitch and minor diameters",()=>{
 test("ISO 4017 validation requires the current edition and installed exact dimensions",()=>{
   const bolt=validateHexBolt({standard:"ISO 4017:2022",family:"hex-screw",diameterMm:8,pitchMm:1.25,lengthMm:30,flankAngleDeg:60,toleranceClass:"6g",productGrade:"A",headAcrossFlatsMm:13,headHeightMm:5.3});
   assert.equal(bolt.ok,true);
+  const short=validateHexBolt({standard:"ISO 4017:2022",family:"hex-screw",diameterMm:24,pitchMm:3,lengthMm:12,flankAngleDeg:60,toleranceClass:"6g",productGrade:"A",headAcrossFlatsMm:36,headHeightMm:15});
+  assert.ok(short.issues.some(i=>i.code==="preferred-length"));
 });
 
 test("involute gear validation enforces ISO module and pitch diameter",()=>{

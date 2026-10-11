@@ -63,7 +63,7 @@ export function fitTransform(bb, width, height, pad) {
   var W = Number(width), H = Number(height), opts = typeof pad === "object" && pad ? pad : {},
     pixelPad = Math.max(0, Number(typeof pad === "number" ? pad : opts.pixelPad) || 0),
     worldPad = Math.max(0, Number(opts.worldPad) || 0),
-    minSpan = Math.max(0, Number(opts.minSpan) || 30);
+    minSpan = Math.max(0, opts.minSpan == null || opts.minSpan === "" || !Number.isFinite(Number(opts.minSpan)) ? 30 : Number(opts.minSpan));
   if (!bb || !(W > 0) || !(H > 0)) return null;
   var minx = Number(bb.minx), minz = Number(bb.minz),
     maxx = Number(bb.maxx), maxz = Number(bb.maxz);
@@ -96,7 +96,7 @@ export function isOnScreen(x, z, margin) {
    only when the span is wider than the current view. It never zooms in. */
 export function ensurePointsVisible(points, margin) {
   if (!(S.SC > 0) || !(S.CW > 0) || !(S.CH > 0)) return false;
-  var m = margin == null ? 56 : Math.max(16, Number(margin) || 56);
+  var m = margin == null || margin === "" ? 56 : Math.max(16, Number.isFinite(Number(margin)) ? Number(margin) : 56);
   var pts = [];
   (points || []).forEach(function (p) {
     if (p && isFinite(p.x) && isFinite(p.z)) pts.push(p);
