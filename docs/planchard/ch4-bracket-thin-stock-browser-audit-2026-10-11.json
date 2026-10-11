@@ -1,0 +1,202 @@
+{
+  "file": "artifacts/planchard/CH4-BRACKET-thin-stock-browser-2026-10-11.mforge",
+  "saved": {
+    "key": "cm_mv33kxf4",
+    "name": "Planchard Ch4 BRACKET source reconstruction - browser 2026-10-11"
+  },
+  "checks": {
+    "singleSketchFeatureBody": true,
+    "sourceFrontPlane": true,
+    "sourceProfilePoints": true,
+    "genuineTwoLinesArc": true,
+    "fullyDefined": true,
+    "thinMidplane5x45": true,
+    "sourceProfileReferences": true,
+    "realHistory": true,
+    "storedNativeOne": true,
+    "sourceStockBounds": true,
+    "sourceBendRadii": true,
+    "compiledAndRegenerated": true,
+    "nativeValidOne": true,
+    "sourceAnalyticVolume": true,
+    "inputUnchanged": true
+  },
+  "passed": 15,
+  "total": 15,
+  "expectedVolumeCm3": 23.19043128087983,
+  "native": {
+    "volume": 23.19043128087984,
+    "centerOfMass": {
+      "x": 0.39793576000565745,
+      "y": 3.9635227470909133,
+      "z": -3.82993489401991e-17
+    },
+    "inertia": [
+      [
+        221.8465246244932,
+        12.735991906628144,
+        9.065125538606944e-17
+      ],
+      [
+        12.735991906628144,
+        43.04712493004092,
+        3.2398308843793987e-17
+      ],
+      [
+        9.065125538606944e-17,
+        3.2398308843793987e-17,
+        186.62594398156472
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 4.5483942528027216e-18,
+        "z": -2.25
+      },
+      "max": {
+        "x": 2,
+        "y": 9,
+        "z": 2.25
+      }
+    }
+  },
+  "validation": {
+    "valid": true,
+    "solidCount": 1,
+    "volumeCm3": 23.19043128087984,
+    "maxToleranceCm": 1.0000000005551115e-7
+  },
+  "storedBounds": {
+    "x0": 5.551115123125783e-17,
+    "x1": 2,
+    "y0": 7.347402426090523e-18,
+    "y1": 9,
+    "z0": -2.25,
+    "z1": 2.25
+  },
+  "storedExactBounds": {
+    "min": {
+      "x": 0,
+      "y": 4.5483942528027216e-18,
+      "z": -2.25
+    },
+    "max": {
+      "x": 2,
+      "y": 9,
+      "z": 2.25
+    }
+  },
+  "storedCylinderFaces": [
+    {
+      "ownerFeatureId": "feature_mv33oyxu_1",
+      "kind": "face",
+      "transportOrdinal": 1,
+      "persistentId": "feature_mv33oyxu_1:face:generated:cylinder:2",
+      "semantic": "generated-2",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.7000000000000002,
+          "y": 0.7000000000000001,
+          "z": 0
+        },
+        "normal": {
+          "x": 0.7071067811865475,
+          "y": 0.7071067811865475,
+          "z": 0
+        },
+        "measure": 1.413716694115406,
+        "bounds": {
+          "min": {
+            "x": 0.49999989999999994,
+            "y": 0.49999989999999983,
+            "z": -2.2500001
+          },
+          "max": {
+            "x": 0.7000001,
+            "y": 0.7000000999999999,
+            "z": 2.2500001
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "radius": 0.20000000000000015,
+        "referenceOrigin": {
+          "x": 0.7000000000000002,
+          "y": 0.7000000000000001,
+          "z": -2.25
+        },
+        "axisRange": [
+          -4.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.5726760455264838,
+          "y": 0.5726760455264837,
+          "z": 5.245706505886012e-17
+        }
+      },
+      "signature": "cylinder:0.7:0.7:0:0.707:0.707:0:1.414:"
+    },
+    {
+      "ownerFeatureId": "feature_mv33oyxu_1",
+      "kind": "face",
+      "transportOrdinal": 5,
+      "persistentId": "feature_mv33oyxu_1:face:generated:cylinder:1",
+      "semantic": "generated-1",
+      "descriptor": {
+        "surface": "cylinder",
+        "origin": {
+          "x": 0.7,
+          "y": 0.7,
+          "z": 0
+        },
+        "normal": {
+          "x": -0.7071067811865476,
+          "y": -0.7071067811865475,
+          "z": 0
+        },
+        "measure": 4.948008429403924,
+        "bounds": {
+          "min": {
+            "x": -1e-7,
+            "y": -9.999999999772579e-8,
+            "z": -2.2500001
+          },
+          "max": {
+            "x": 0.7000001,
+            "y": 0.7000001000000001,
+            "z": 2.2500001
+          }
+        },
+        "axis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "radius": 0.6999999999999998,
+        "referenceOrigin": {
+          "x": 0.7,
+          "y": 0.7,
+          "z": -2.25
+        },
+        "axisRange": [
+          -4.5,
+          0
+        ],
+        "centroid": {
+          "x": 0.2543661593426931,
+          "y": 0.25436615934269313,
+          "z": -5.048499494386534e-17
+        }
+      },
+      "signature": "cylinder:0.7:0.7:0:-0.707:-0.707:0:4.948:"
+    }
+  ],
+  "scope": "Actual browser-authored stock export read-only independent native regeneration. Original source analytic geometry matched; original Sketch1 bend-feature ownership not recovered. No final holes/fillets/cold acceptance claimed."
+}

@@ -1,0 +1,276 @@
+{
+  "files": {
+    "file": "artifacts/planchard/CH4-BRACKET-final-cold-browser-2026-10-11.mforge",
+    "stepfile": "artifacts/planchard/CH4-BRACKET-final-cold-browser-2026-10-11.step"
+  },
+  "saved": {
+    "name": "Planchard Ch4 BRACKET source reconstruction - browser 2026-10-11",
+    "key": "cm_mv33kxf4"
+  },
+  "checks": {
+    "warmAuthoringExact": true,
+    "undoAuthoringExact": true,
+    "rollbackReleased": true,
+    "allNativeCompile": true,
+    "nativeValidOne": true,
+    "stepValidOne": true,
+    "sourceNativeVolume": true,
+    "sourceSTEPVolume": true,
+    "dualSTEPResidual": true,
+    "storedSourceFacesExact": false,
+    "sourceInputsUnchanged": true
+  },
+  "passed": 10,
+  "total": 11,
+  "native": {
+    "volume": 18.646272316964385,
+    "centerOfMass": {
+      "x": 0.4200403409987159,
+      "y": 3.7549373343955574,
+      "z": 0.04314873558970233
+    },
+    "inertia": [
+      [
+        187.24803329075706,
+        11.108850580372895,
+        0.198167410962867
+      ],
+      [
+        11.108850580372895,
+        35.9464636832086,
+        -1.3988013874979268
+      ],
+      [
+        0.198167410962867,
+        -1.3988013874979268,
+        158.2144116805025
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": -2.25
+      },
+      "max": {
+        "x": 2,
+        "y": 9,
+        "z": 2.25
+      }
+    }
+  },
+  "step": {
+    "volume": 18.64627231696502,
+    "centerOfMass": {
+      "x": 0.4200403409987227,
+      "y": 3.7549373343954926,
+      "z": 0.04314873558971028
+    },
+    "inertia": [
+      [
+        187.24803329076212,
+        11.108850580373318,
+        0.19816741096288926
+      ],
+      [
+        11.108850580373318,
+        35.946463683209096,
+        -1.3988013874983336
+      ],
+      [
+        0.19816741096288926,
+        -1.3988013874983336,
+        158.2144116805071
+      ]
+    ],
+    "solidCount": 1,
+    "bounds": {
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": -2.25
+      },
+      "max": {
+        "x": 2,
+        "y": 9,
+        "z": 2.25
+      }
+    }
+  },
+  "validation": {
+    "native": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 18.646272316964385,
+      "maxToleranceCm": 1.0000000055511151e-7
+    },
+    "step": {
+      "valid": true,
+      "solidCount": 1,
+      "volumeCm3": 18.64627231696502,
+      "maxToleranceCm": 1e-7
+    }
+  },
+  "stepDualResidualCm3": [
+    0,
+    0
+  ],
+  "wholeModelDifferencesVsUndo": [
+    {
+      "path": "mainModel.parts.0.exactBuildToken",
+      "before": 23,
+      "after": 24
+    },
+    {
+      "path": "mainModel.lastRebuild.rebuiltAt",
+      "before": 1791680433600,
+      "after": 1791680538684
+    },
+    {
+      "path": "mainModel.referenceGeometry.0",
+      "after": {
+        "id": "plane:top",
+        "type": "reference_plane",
+        "name": "Top Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.1",
+      "after": {
+        "id": "plane:front",
+        "type": "reference_plane",
+        "name": "Front Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "xAxis": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.2",
+      "after": {
+        "id": "plane:right",
+        "type": "reference_plane",
+        "name": "Right Plane",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.3",
+      "after": {
+        "id": "axis:x",
+        "type": "reference_axis",
+        "name": "X Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.4",
+      "after": {
+        "id": "axis:y",
+        "type": "reference_axis",
+        "name": "Y Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "path": "mainModel.referenceGeometry.5",
+      "after": {
+        "id": "axis:z",
+        "type": "reference_axis",
+        "name": "Z Axis",
+        "origin": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "direction": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "path": "mainModel.lastStandardsAudit.at",
+      "before": 1791680085779,
+      "after": 1791680441266
+    }
+  ],
+  "scope": "Actual ordinary-browser cold source-reconstructed BRACKET with independently imported STEP, no proprietary source-BRep identity claim.",
+  "wholeModelDifferenceSummaryVsUndo": {
+    "mainModel.parts.0": 1,
+    "mainModel.parts.0.meshData.positions": 3015,
+    "mainModel.parts.0.meshData.normals": 1,
+    "mainModel.parts.0.meshData.colors": 1,
+    "mainModel.parts.0.meshData.topology": 93,
+    "mainModel.lastRebuild.rebuiltAt": 1,
+    "mainModel.referenceGeometry.0": 1,
+    "mainModel.referenceGeometry.1": 1,
+    "mainModel.referenceGeometry.2": 1,
+    "mainModel.referenceGeometry.3": 1,
+    "mainModel.referenceGeometry.4": 1,
+    "mainModel.referenceGeometry.5": 1,
+    "mainModel.exactTopologyCache": 2294,
+    "mainModel.lastStandardsAudit.at": 1
+  }
+}

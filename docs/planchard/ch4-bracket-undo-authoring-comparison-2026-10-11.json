@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "features": true,
+    "sketches": true,
+    "history": true,
+    "drawing": true,
+    "customProperties": true,
+    "documentUnits": true,
+    "rollbackIndex": false
+  },
+  "diffs": []
+}
