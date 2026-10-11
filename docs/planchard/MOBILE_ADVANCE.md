@@ -84,3 +84,8 @@ Current Plane8 printed1-46/PDF74 fresh MOBILE Ch1 Plane8: native touch six-line 
 
 ## Accepted Plane 8 — 2026-10-11
 Printed1-46/PDF74 fresh MOBILE Ch1 Plane8 touch-authored six-line native Note: FRONT A,B;TOP D,F;RIGHT B,C,E; vertical-diagonalB and horizontalD/F explanation. Undo/Redo/name/description/Save/nativeSVG/cold Saved card reopen exact identity verified;one note. plane8.svg six exact lines x113.172/y132.362–151.262,2.8mm/3.78mm pitch;plane8-reopened.png actual390x844 afterFit. Accepted18/21 Chapter1 in-chapter includes qualifiedPlane7;0/117homework. Next Plane9 printed1-46/PDF74, preserve orientation-versus-visible/I-occlusion qualification.
+
+Current Plane9 printed1-46/PDF74 fresh MOBILE Ch1 Plane9 Qualified native touch seven-line orientation answer, I-occlusion distinction retained; Undo/Redo/rename/description/Save requested. Export/cold reopen pending;accepted18/21.
+
+## Qualified mobile acceptance Plane 9 — 2026-10-11
+Printed1-46/PDF74 fresh MOBILE Ch1 Plane9 Qualified native touch seven-line orientation answer FRONT A,B,F;TOP B,C,D,F,G;RIGHT E,H,I,J with I possiblyoccludedbyH and quarter-roundF explanation. This is orientation classification, not certified all-visible publisher key. Undo/Redo/name/description/Save/nativeSVG/cold Saved card reopen exact identity verified;one note. plane9.svg seven exact lines x113.172/y132.362–155.042,2.8mm/3.78mm pitch;plane9-reopened.png actual390x844 afterFit. Accepted19/21 Chapter1 in-chapter includes qualifiedPlane7/9;0/117homework. Next Plane10 printed1-47/PDF75.
