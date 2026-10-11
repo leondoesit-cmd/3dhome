@@ -1,3 +1,5 @@
+Latest mobile checkpoint 2026-10-11: printed2-16/PDF102 exact inch shaft completed with actual length/large-diameter parameter-change QA, Undo, cold reopen and SVG11916bytes. Next2-17/PDF103 flatpart. See MOBILE_ADVANCE.md for qualifications and exact resume. Globalhomework11/117review15/130 unchanged.
+
 # Planchard ebook — live advance file
 
 Updated: **2026-10-11**. Read this first when resuming; older plans and STOP-HERE files contain superseded status.
@@ -983,4 +985,5 @@ Completed repairheaderfocus actualbrowserverified andfocusedgatesgreen;commitnow
 # Latest mobile checkpoint — 2026-10-11
 
 Authoritative current continuation is `MOBILE_ADVANCE.md`. Chrome6 phone emulation390x844/touch5/dark; active source printed2-14/PDF100. Six-view sheet accepted with qualifications; Top datum cylinder final cold reopened/accepted; independent Front cylinder fully defined and saved, final cold verification pending; Right not started. Other agent update6245644 fast-forwarded and audited; cylinder width-expression and through-bore import regressions repaired with12 import tests. Entity navigation strip Previous/Next/Parameters touch actions work, but Front sketch plane/framing issue and swipe addition remain under repair/QA. Whole book unfinished. Earlier desktop8-54 is separate and does not count mobile completion.
+
 
