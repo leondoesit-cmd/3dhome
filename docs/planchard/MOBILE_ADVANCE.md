@@ -69,3 +69,8 @@ Current Plane5 printed1-45/PDF73: fresh MOBILE Ch1 Plane5 native six-line Note, 
 
 ## Accepted Plane 5 — 2026-10-11
 Printed1-45/PDF73 fresh MOBILE Ch1 Plane5 independently touch-authored six-line native Note: FRONT B,D,F;TOP A,B,E;RIGHT B,C; oblique facet B area all three views. Undo/Redo, rename/description, Save/nativeSVG/cold Saved card reopen exact identity verified;one note. plane5.svg exact six lines x113.172/y132.362–151.262,2.8mm/3.78mm pitch clear of titleblock. plane5-reopened.png actual390x844 afterFit. Accepted15/21 Chapter1 in-chapter,0/117 homework. Next Plane6 triangular-corner graphic printed1-45/PDF73,eight primitives.
+
+Current Plane6 printed1-45/PDF73: fresh MOBILE Ch1 Plane6 Triangular Corner independently touch-authored eight native paper annotations/four notes, exact visible coordinate forms and final-note Undo/Redo; Save requested. Export/cold reopen pending. Accepted remains15/21.
+
+## Accepted Plane 6 — 2026-10-11
+Printed1-45/PDF73 fresh MOBILE Ch1 Plane6 Triangular Corner: eight native touch annotations/four notes, double-tap forms/touch scroll seven-point profile, final-note Undo/Redo, Save/nativeSVG/cold Saved card reopen exact identity verified. plane6.svg nineteen exact unique visible segments including front/top/right facet diagonals and stepped right base; estimated5mm-grid source caveat retained. plane6-reopened.png actual390x844 afterFit. Accepted16/21 Chapter1 in-chapter,0/117 homework. Next Plane7 printed1-46/PDF74; preserve ambiguous H-opening qualification.
