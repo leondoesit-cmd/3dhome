@@ -1,3 +1,5 @@
+ACTIVE2026-10-15: user resumed. PDF107/2-21 now has two native bowed-riser cuts, saved and portable exported;10history1body. Next high-land undercut, underside interpretation and cold verification. Last accepted exercise106; contiguous frontier103. See final MOBILE_ADVANCE entry.
+
 STOPPED2026-10-15 at user request: drawing checkpoint107/2-21 saved, Saved-card reopened, native SVG+editable mforge+PNG exported. Full107 replica still WIP (curved risers, undercut, underside). Last completed exercise106/2-20. Contiguous frontier103;104 gaps remain. Paused; no automatic continuation. See final MOBILE_ADVANCE entry.
 
 WIP2026-10-15:107/2-21 native stepped solid+two face counterbores saved,6steps,Frontsketch10DOF; source curvedmiddle/underside relief/section/cold verification pending.106worksheet+textoverlap fix pushed f536758. Resume final MOBILE_ADVANCE entry; goal active.
