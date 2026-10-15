@@ -11,7 +11,7 @@ import {
   MATERIALS, materialById, materialForLegacy, isMaterialRef, materialRef, materialFromRef,
   materialUrl, materialFiles, codexPrompt, isOrganic, previewUrlFor,
 } from "../js/material_library.js";
-import { pickMaterialTier } from "../js/material_tier.js";
+import { pickMaterialTier, isSoftwareRendererName } from "../js/material_tier.js";
 import { PBR_FAMILIES } from "../js/pbr_textures.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -106,6 +106,9 @@ test("device tier: 2k on desktop, 1k on touch, small-screen or low-memory device
   assert.equal(pickMaterialTier({ coarse: true, override: "2k" }), "2k");
   assert.equal(pickMaterialTier({ override: "1k" }), "1k");
   assert.equal(pickMaterialTier({ override: "4k" }), "2k");
+  // a CPU rasteriser decodes and uploads every map itself
+  assert.equal(pickMaterialTier({ software: true, deviceMemory: 32, minScreen: 1440 }), "1k");
+  assert.equal(pickMaterialTier({ software: true, override: "2k" }), "2k");
 });
 
 test("every baked material folder is complete", () => {
@@ -116,4 +119,11 @@ test("every baked material folder is complete", () => {
     for (const f of materialFiles(m.id)) assert.ok(existsSync(join(root, f)), f);
   }
   assert.ok(baked >= 0);
+});
+
+test("software rasterisers are recognised by their WebGL renderer name", () => {
+  for (const n of ["ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)", "llvmpipe (LLVM 15.0.7, 256 bits)", "Microsoft Basic Render Driver"])
+    assert.equal(isSoftwareRendererName(n), true, n);
+  for (const n of ["ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)", "Apple M2", "Adreno (TM) 740", ""])
+    assert.equal(isSoftwareRendererName(n), false, n);
 });

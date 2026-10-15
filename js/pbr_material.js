@@ -27,7 +27,7 @@
 import { THREE, TSL } from "./three_lazy.js";
 import { S } from "./state.js";
 import { materialFromRef, materialForLegacy, materialById, materialUrl, isOrganic } from "./material_library.js";
-import { materialTier } from "./material_tier.js";
+import { materialTier, materialLibraryEnabled } from "./material_tier.js";
 import { PRESET_TEXTURES, getTexturePresetDataUrl } from "./textures.js";
 
 /** Catalogue entry for a saved value, or null when it is not a library material. */
@@ -65,6 +65,7 @@ export function pbrTextures(entry) {
   // no DOM (Node tests, workers): nothing can load an image — callers keep
   // their procedural texture, the same guard primitives.js pbrTex() has
   if (!entry || failedIds.has(entry.id) || !THREE.TextureLoader || typeof document === "undefined") return null;
+  if (!materialLibraryEnabled()) return null;
   var tier = materialTier();
   var map = loadTexture(materialUrl(entry.id, "color", tier), true, entry.id);
   var normalMap = loadTexture(materialUrl(entry.id, "normal", tier), false, entry.id);

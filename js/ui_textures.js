@@ -15,6 +15,7 @@ import { render2D } from "./plan2d.js";
 import { t, getLang } from "./i18n.js";
 import { TEXTURE_CATEGORIES, PRESET_TEXTURES, getTexturePresetDataUrl, searchOnlineFreeTextures, SEARCH_SOURCES, translateSearchQuery } from "./textures.js";
 import { materialById, materialRef, materialThumbUrl, materialUrl } from "./material_library.js";
+import { materialLibraryEnabled } from "./material_tier.js";
 import { detectRooms } from "./geometry.js";
 
 /* Built-in presets that have a baked library set are saved as "mat:<id>"
@@ -22,11 +23,22 @@ import { detectRooms } from "./geometry.js";
 function libraryRef(tex) {
   return tex && !tex.isOnline && materialById(tex.id) ? materialRef(tex.id) : null;
 }
+/* The ball is shown only where 3D will render the baked set (not on a
+   software rasteriser, which keeps the procedural textures). */
+function showsBakedThumb(tex) {
+  return !!libraryRef(tex) && materialLibraryEnabled();
+}
 /* Card / swatch background: the baked material ball over the procedural
    swatch, so a card still shows something offline or before the bake. */
 function previewBackground(tex, fallbackUrl) {
   var layers = [];
-  if (libraryRef(tex)) layers.push("url('" + materialThumbUrl(tex.id) + "') center / 82% no-repeat");
+  if (showsBakedThumb(tex)) {
+    layers.push("url('" + materialThumbUrl(tex.id) + "') center / 82% no-repeat");
+    // a soft studio backdrop for the rendered ball; the procedural swatch
+    // underneath only shows through faintly (and fully if the ball is missing
+    // its card still reads as that material)
+    layers.push("radial-gradient(circle at 50% 42%, rgba(92,96,104,.84), rgba(36,39,46,.9))");
+  }
   if (fallbackUrl) layers.push("url('" + fallbackUrl + "') center / cover");
   return layers.join(", ");
 }
@@ -469,7 +481,7 @@ function createTextureCard(tex, index, isOnline) {
   };
   
   card.onmouseenter = function(e) {
-    showHoverPreview(libraryRef(tex) ? materialUrl(tex.id, "color", "1k") : previewUrl, e, texName);
+    showHoverPreview(showsBakedThumb(tex) ? materialUrl(tex.id, "color", "1k") : previewUrl, e, texName);
   };
   card.onmouseleave = function() {
     hideHoverPreview();
