@@ -272,7 +272,9 @@ export function createDrawingController(host) {
     }
     if (item.type === "text") {
       const at = toScreen({ x: item.x, y: item.y });
-      const size = Math.max(4, item.size * state.zoom);
+      // Scale text with its paper cell and line spacing, including mobile fit.
+      // A screen-pixel minimum makes titles and multiline notes overlap.
+      const size = item.size * state.zoom;
       c.save();
       c.translate(at.x, at.y);
       if (item.rotate) c.rotate(item.rotate * Math.PI / 180);

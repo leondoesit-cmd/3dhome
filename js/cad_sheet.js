@@ -1874,19 +1874,30 @@ function sheetTextWidth(value, size) {
   return [...String(value || "")].reduce((width, char) => width + (/[MW@]/.test(char) ? .9 : /[ilI1.,:;!|]/.test(char) ? .3 : .58) * size, 0);
 }
 
+// Bold capitals and SVG tracking need more room than ordinary metadata.
+function sheetTitleWidth(value, size) {
+  return [...String(value || "")].reduce((width, char) => width +
+    (/[MW@]/.test(char) ? 1 : /[ilI1.,:;!| ]/.test(char) ? .34 : /[A-Z]/.test(char) ? .8 : .64) * size, 0);
+}
+
 function sheetTitleLines(value, maxWidth, size) {
-  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
-  const lines = ["", ""];
-  for (const word of words) {
-    const index = lines[0] && sheetTextWidth(lines[0] + " " + word, size) > maxWidth ? 1 : 0;
-    const candidate = lines[index] ? lines[index] + " " + word : word;
-    if (sheetTextWidth(candidate, size) <= maxWidth) { lines[index] = candidate; continue; }
-    let clipped = candidate;
-    while (clipped && sheetTextWidth(clipped + "…", size) > maxWidth) clipped = clipped.slice(0, -1);
-    lines[index] = clipped + "…";
-    break;
+  let remaining = String(value || "").trim().replace(/\s+/g, " ");
+  const lines = [];
+  while (remaining && lines.length < 2) {
+    if (sheetTitleWidth(remaining, size) <= maxWidth) { lines.push(remaining); break; }
+    let count = remaining.length;
+    while (count > 0 && sheetTitleWidth(remaining.slice(0, count), size) > maxWidth) count--;
+    if (lines.length === 1) {
+      while (count > 0 && sheetTitleWidth(remaining.slice(0, count) + "…", size) > maxWidth) count--;
+      lines.push(remaining.slice(0, count).trimEnd() + "…");
+      break;
+    }
+    const space = remaining.lastIndexOf(" ", count);
+    if (space > 0) count = space;
+    lines.push(remaining.slice(0, count));
+    remaining = remaining.slice(count).trimStart();
   }
-  return lines.filter(Boolean);
+  return lines;
 }
 
 function sheetFieldText(value, maxWidth) {
@@ -1920,13 +1931,13 @@ function titleBlockItems(doc, provider, sheetScale) {
   items.push(text(box.x + 3, box.y + 6.4, meta.company || meta.author || "", { size: TEXT_SIZES.meta, weight: "600", color: "#334155" }));
   items.push(text(box.x + box.w - 3, box.y + 6.4, meta.date || "", { size: TEXT_SIZES.small, anchor: "end", color: "#6b7280" }));
   const title = String(meta.title || "");
-  const titleWidth = box.w - 31; // leave the revision and frame clear
+  const titleWidth = box.w - Math.max(31, sheetTitleWidth("REV " + (meta.revision || "A"), TEXT_SIZES.view) + 9); // revision, padding and frame
   const single = sheetTitleLines(title, titleWidth, TEXT_SIZES.title);
   if (single.length === 1 && !single[0].endsWith("…")) {
-    items.push(text(box.x + 3, rowY[0] - 2.4, single[0], { size: TEXT_SIZES.title, weight: "bold" }));
+    items.push(text(box.x + 3, rowY[0] - 2.4, single[0], { size: TEXT_SIZES.title, weight: "bold", fullText: title }));
   } else {
     const lines = sheetTitleLines(title, titleWidth, 3.2);
-    lines.forEach((line, index) => items.push(text(box.x + 3, box.y + 11.2 + index * 4.2, line, { size: 3.2, weight: "bold" })));
+    lines.forEach((line, index) => items.push(text(box.x + 3, box.y + 11.2 + index * 4.2, line, { size: 3.2, weight: "bold", fullText: title })));
   }
 
   field(box.x + 3, rowY[0] + 3.4, "MATERIAL", meta.material, box.w * .3 - 6);
