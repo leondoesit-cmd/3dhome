@@ -28708,6 +28708,7 @@ function mobileBridge() {
       return {
         open: !!E.open,
         mode: E.mode,
+        modelPlaneActive: !!E.modelPlaneActive,
         drawingDraft: E.mode==='drawing' ? drawingSheet().draftActions() : null,
         view: E.view,
         sketchNormalTo: !!E.sketchNormalTo,

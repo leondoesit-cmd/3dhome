@@ -686,7 +686,7 @@ function showSheet(key, toggle) {
     } else {
       if (api && api.setCommandTab) {
         var st = api.state();
-        if (st.mode === "2d" || st.emptyPart) api.setCommandTab("sketch");
+        if (st.mode === "2d" || st.modelPlaneActive || st.emptyPart) api.setCommandTab("sketch");
         else if (st.docType === "assembly") api.setCommandTab("assembly");
         else api.setCommandTab("features");
       }
