@@ -12,6 +12,14 @@ export function normalizeSectionHatch(value) {
  return SECTION_HATCH_PATTERNS.some(pattern=>pattern.value===value)?value:'uniform';
 }
 
+// Label a chosen drawing convention without changing the structural section tag.
+export function sectionHatchCaption(view) {
+ const key=normalizeSectionHatch(view?.hatchPattern);
+ if(key==='uniform' || !(view?.section || view?.alignedSection || view?.brokenOut))return '';
+ const pattern=SECTION_HATCH_PATTERNS.find(item=>item.value===key);
+ return pattern.label.split(' · ')[0].toUpperCase()+' PATTERN';
+}
+
 // All families use paper millimetres and the same even-odd boundary clipper.
 // Broken strokes are geometry, rather than renderer-specific dash state.
 export function sectionHatchSegments(loops,pattern,hatchLoops) {

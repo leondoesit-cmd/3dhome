@@ -1,4 +1,4 @@
-import {SECTION_HATCH_PATTERNS} from "./core/section_hatch.js";
+import {SECTION_HATCH_PATTERNS,sectionHatchCaption} from "./core/section_hatch.js";
 import {componentPatternPlan,setComponentPattern,removeComponentPattern} from "./core/assembly_component_pattern.js";
 import {appendSavedLibrarySearch} from './modeler_library_search.js';
 import {sketchEntityStep,sketchEntitySwipe} from './core/sketch_entity_navigation.js';
@@ -12581,7 +12581,7 @@ function buildSheetPanel(host) {
   doc.views.forEach(function (view) {
     var selection = sheet.selection();
     var row = el("div", "md-sheet-view" + (selection && selection.kind === "view" && selection.id === view.id ? " on" : ""));
-    var name = btn('<i class="ph ph-frame-corners"></i><span>' + (view.label || view.dir) + "</span><small>" +
+    var name = btn('<i class="ph ph-frame-corners"></i><span>' + (view.label || view.dir) + (sectionHatchCaption(view) ? " · " + sectionHatchCaption(view) : "") + "</span><small>" +
       scaleLabel(sheet.scene().views.find(function (placed) { return placed.id === view.id; })?.scale || view.scale || sheet.scene().scale) + "</small>", function () {
       sheet.select({ kind: "view", id: view.id });
     }, "md-sheet-view-name");

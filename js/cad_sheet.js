@@ -1,4 +1,4 @@
-import {normalizeSectionHatch,sectionHatchSegments} from "./core/section_hatch.js";
+import {normalizeSectionHatch,sectionHatchSegments,sectionHatchCaption} from "./core/section_hatch.js";
 import {resolveDimensionTolerance} from "./core/dimension_tolerance.js";
 import {sectionRibMasks,excludeRibHatch} from './core/section_rib_hatch.js';
 import {coneDraftAngle} from './core/drawing_cone_angle.js';
@@ -1571,7 +1571,7 @@ export function buildSheetScene(doc, provider, options = {}) {
       const suffix = scaleValue(record.scale) !== scaleValue(layout.sheetScale)
         ? "  (" + scaleLabel(view.scale || record.scale) + ")" : "";
       const label = view.label || defaultViewLabel(view.dir);
-      labels.push({ record, caption: (view.configurationName ? label.replace(/(?: copy)+$/, "") : label) + (view.configurationName ? " · " + view.configurationName : "") + suffix });
+      labels.push({ record, patternCaption: sectionHatchCaption(view), caption: (view.configurationName ? label.replace(/(?: copy)+$/, "") : label) + (view.configurationName ? " · " + view.configurationName : "") + suffix });
     }
   }
 
@@ -1661,6 +1661,9 @@ export function buildSheetScene(doc, provider, options = {}) {
     }
     items.push(text(label.record.x, bottom + 7, label.caption, {
       size: TEXT_SIZES.view, anchor: "middle", weight: "bold", viewLabel: label.record.id,
+    }));
+    if(label.patternCaption)items.push(text(label.record.x,bottom+10.8,label.patternCaption,{
+      size:2.5,anchor:"middle",weight:"bold",viewLabel:label.record.id,hatchPatternLabel:true,
     }));
   }
 

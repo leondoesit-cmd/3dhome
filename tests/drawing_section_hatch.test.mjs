@@ -41,3 +41,27 @@ test('ordinary selected-section setting survives normalization/cold and updates 
  def.drawing=JSON.parse(steps[0]);assert.equal(c.svg(),original,'Undo restores uniform scene');
  def.drawing.views.at(-1).hatchPattern='bad';assert.equal(ensureSheetDoc(def).views.at(-1).hatchPattern,'uniform');
 });
+
+test('copied section pattern captions are distinct below unchanged section designation and survive cold export',()=>{
+ const def={name:'Hatch sampler',drawing:createSheetDoc({views:['top']})};
+ const parent=def.drawing.views[0];
+ for(const pattern of SECTION_HATCH_PATTERNS.slice(1))addViewToSheet(def.drawing,'front',{
+  label:'SECTION A-A',parent:parent.id,section:{axis:'horizontal',at:0,from:parent.id,flip:false,tag:'A'},hatchPattern:pattern.value,
+ });
+ ensureSheetDoc(def);
+ const before=JSON.stringify(def.drawing.views.map(v=>({label:v.label,section:v.section})));
+ const bodies=tessellateParts([{kind:'box',x0:-3,x1:3,y0:0,y1:6,z0:-2,z1:2}]);
+ const scene=buildSheetScene(def.drawing,{projection:createProjector(def.drawing,bodies)}),labels=scene.items.filter(i=>i.hatchPatternLabel);
+ assert.equal(labels.length,6);assert.equal(new Set(labels.map(i=>i.text)).size,6);
+ for(const label of labels){
+  assert.match(label.text,/ PATTERN$/);
+  const designation=scene.items.find(i=>i.viewLabel===label.viewLabel&&!i.hatchPatternLabel);
+  assert.equal(designation.text,'SECTION A-A');assert.equal(label.x,designation.x);
+  assert.ok(label.y-designation.y>label.size);
+  assert.ok(label.y < scene.views.find(v=>v.id===label.viewLabel).box.y+scene.views.find(v=>v.id===label.viewLabel).box.h+11.5,'subtitle stays in reserved label band');
+ }
+ assert.equal(JSON.stringify(def.drawing.views.map(v=>({label:v.label,section:v.section}))),before);
+ const cold=JSON.parse(JSON.stringify(def));ensureSheetDoc(cold);
+ assert.equal(sceneToSvg(buildSheetScene(cold.drawing,{projection:createProjector(cold.drawing,bodies)})),sceneToSvg(scene));
+ assert.match(sceneToSvg(scene),/>COPPER \/ BRASS PATTERN<\/text>/);
+});
