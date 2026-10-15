@@ -92,3 +92,34 @@ PDF109/2-23 Detail View Example1 is a particular plate, not numbered homework. T
 
 ### PDF109 source clarification after enlarged image audit (2026-10-15)
 Partially dimensioned illustrative plate. Source-supported hole centers relative lower-left=(0,0):lower-right=(19.8,0),upper-right=(19.8,19.8),central=(9.8,9.9);3xdiameter3.5THRU/counterborediameter6.5depth3.5;main vertical datum29;hooked upper-left corner45degrees;detail B scale4:1. Local detail labels8,3.2,1.25,6.3,3,1 visible but exact edge assignment requires source care. Three central circles have no diameters/depths;thickness absent;overallwidth obscured;corner radius annotation ambiguous. Do not silently callR19 R1.9 or assign localvalues toguessededges. Proposed illustrative mm29x29mainenvelope/thickness6,4.6margins and steppedcentraldiameters17/12/8 depths1/2/Through are ASSUMPTIONS,notpublisherdimensions. Native closedoutline should preserve hooked/reentrant notch;source upperhook slightlyabovetopdatum. Verify linkedDetail propagation+restore/cold/export. Do not reuse generic rib detail as plate completion.
+
+### PDF109 native-touch outline plan — corrected main datum (2026-10-15)
+
+Source-only proportional tracing; no CAD created or accepted by this plan. Coordinates below are Front-plane centimetres for visible native point editing after spatial touch. All X coordinates, local notch geometry and three straight corner bevels are illustrative raster interpretations. Y values were multiplied by 2.9/2.8448 so the main top datum (vertices6/7) is exactly2.9cm above the bottom, preserving the source29 value under the explicitly assumed millimetre interpretation. The hook tip consequently reaches2.9563cm. Do not call this an exact source outline, certify an ambiguous corner radius, or infer local detail dimension assignments from these coordinates. Connect vertices in order and close20→1.
+
+| Vertex | X cm | Y cm |
+|---:|---:|---:|
+| 1 | -1.4148 | 0.2046 |
+| 2 | -1.2184 | 0.0000 |
+| 3 | 1.2486 | 0.0000 |
+| 4 | 1.4500 | 0.2046 |
+| 5 | 1.4500 | 2.6749 |
+| 6 | 1.2486 | 2.9000 |
+| 7 | -0.1108 | 2.9000 |
+| 8 | -0.4833 | 2.5215 |
+| 9 | -0.9214 | 2.9563 |
+| 10 | -1.0825 | 2.7926 |
+| 11 | -1.0120 | 2.7210 |
+| 12 | -0.9415 | 2.7926 |
+| 13 | -0.8056 | 2.6545 |
+| 14 | -1.1882 | 2.2658 |
+| 15 | -1.3191 | 2.3988 |
+| 16 | -1.2486 | 2.4704 |
+| 17 | -1.3191 | 2.5420 |
+| 18 | -1.4500 | 2.4090 |
+| 19 | -1.0422 | 1.9947 |
+| 20 | -1.4148 | 1.6163 |
+
+Proposed peripheral hole centers in cm: lower-left(-.99,.46), lower-right(.99,.46), upper-right(.99,2.44). Central concentric feature center(-.01,1.45). These preserve source center spacings19.8mm horizontally/vertically and central offsets9.8mm/9.9mm relative to lower-left. Absolute placement relative to the traced outline remains assumed. Three peripheral holes use source-read Ø3.5mm Through, counterboreØ6.5mm depth3.5mm; suggested6mm plate thickness is illustrative.
+
+Read-only polygon-distance check: nearest outline clearance from each peripheral center is respectively4.248mm,4.600mm,4.600mm. Subtracting counterbore radius3.25mm leaves minimum material clearances .998mm,1.350mm,1.350mm. Central center is11.671mm from the nearest outline; assumed outerØ17mm leaves3.171mm. Its closest peripheral center is approximately13.930mm away, leaving approximately2.180mm between assumedØ17 central recess andØ6.5 peripheral counterbore. These numerical checks apply to this illustrative tracing, not publisher manufacturing requirements. Native preview/solid validation and actual linked DetailB still required.
