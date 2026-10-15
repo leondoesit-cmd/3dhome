@@ -1,4 +1,6 @@
+import {normalizeSectionHatch,sectionHatchSegments} from "./core/section_hatch.js";
 import {resolveDimensionTolerance} from "./core/dimension_tolerance.js";
+import {sectionRibMasks,excludeRibHatch} from './core/section_rib_hatch.js';
 import {coneDraftAngle} from './core/drawing_cone_angle.js';
 import { analyzeSectionBoundaries } from "./core/section_boundaries.js";
 import { balloonRadius, layoutBalloonCenters } from "./core/balloon_layout.js";
@@ -172,6 +174,7 @@ export function createView(dir, options = {}) {
     displayStyle: ["shaded","shadedEdges"].includes(options.displayStyle) ? options.displayStyle : "edges",
     centers: options.centers !== undefined ? !!options.centers : null,
     labelled: options.labelled !== false,
+    hatchPattern: normalizeSectionHatch(options.hatchPattern),
     section: options.section || null,                      // {axis, at, from, arrows, tag}
     alignedSection: options.alignedSection || null,         // two radial cut faces unfolded about a common hinge
     detail: options.detail || null,                        // {from, u, v, radius, tag}
@@ -195,6 +198,7 @@ export function ensureSheetDoc(def, options = {}) {
   const doc = def.drawing;
   doc.views = doc.views.filter(Boolean).map((view) => Object.assign(createView(view.dir, view), view));
   doc.views.forEach(view => {
+    view.hatchPattern = normalizeSectionHatch(view.hatchPattern);
     view.configurationName = view.configurationId
       ? (def.configurations || []).find(cfg => cfg.id === view.configurationId)?.name || null
       : null;
@@ -714,7 +718,13 @@ function projectSection(doc, view, bodies, options) {
   /* Everything between the reader and the plane goes: the clip normal is the
      direction the section is viewed FROM, which is the opposite of the arrows. */
   const cut = sectionBodies(bodies, { normal: { x: -sight.x, y: -sight.y, z: -sight.z }, origin });
-  return projectSolid(cut.bodies, view.dir, Object.assign({}, options, { cuts: cut.cuts }));
+  const projection=projectSolid(cut.bodies, view.dir, Object.assign({}, options, { cuts: cut.cuts }));
+  if(view.section.excludeLongitudinalRibs!==false) {
+    const masks=sectionRibMasks(bodies,cut.plane,projection.basis);
+    projection.ribHatchMasks=masks.groups;
+    projection.ribHatchIssues=masks.issues;
+  }
+  return projection;
 }
 
 /* ---- scene primitives --------------------------------------------------- */
@@ -763,7 +773,8 @@ export function hatchLoops(loops, options = {}) {
   const normal = { x: -dir.y, y: dir.x };
   const corners = [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x0, y: y1 }, { x: x1, y: y1 }];
   const offsets = corners.map((point) => point.x * normal.x + point.y * normal.y);
-  const start = Math.ceil(Math.min(...offsets) / spacing) * spacing;
+  const phase = Number.isFinite(options.offset) ? options.offset : 0;
+  const start = Math.ceil((Math.min(...offsets) - phase) / spacing) * spacing + phase;
   const end = Math.max(...offsets);
   const along = corners.map((point) => point.x * dir.x + point.y * dir.y);
   const tMin = Math.min(...along) - spacing, tMax = Math.max(...along) + spacing;
@@ -1473,7 +1484,7 @@ export function buildSheetScene(doc, provider, options = {}) {
 
     for(const region of projection.sectionRegions || []) {
       const loops=region.loops.map(loop=>loop.map(toSheet));
-      for(const segment of hatchLoops(loops,{spacing:2.2,angle:45}))items.push(line(segment.x1,segment.y1,segment.x2,segment.y2,'hatch',{viewId:view.id,alignedSectionLeg:region.leg}));
+      for(const segment of sectionHatchSegments(loops,view.hatchPattern,hatchLoops))items.push(line(segment.x1,segment.y1,segment.x2,segment.y2,'hatch',{viewId:view.id,alignedSectionLeg:region.leg}));
     }
     if ((projection.cropSourceCuts || projection.cuts)?.length) {
       const boundary = analyzeSectionBoundaries(projection.cropSourceCuts || projection.cuts, Math.max(1e-4, (extent.w + extent.h) * 1e-3));
@@ -1487,7 +1498,15 @@ export function buildSheetScene(doc, provider, options = {}) {
         if(projection.crop) {const c=toSheet(projection.crop);edges=cropProjection({visible:edges},{u:c.x,v:c.y,radius:projection.crop.radius*k}).visible;}
         for(const edge of edges) items.push(line(edge.a.u,edge.a.v,edge.b.u,edge.b.v,style,{viewId:view.id}));
       };
-      for (const segment of hatchLoops(loops, { spacing: 2.2, angle: 45 })) emitClipped({x:segment.x1,y:segment.y1},{x:segment.x2,y:segment.y2},"hatch");
+      const ribMasks=(projection.ribHatchMasks || []).map(mask=>mask.loops.map(loop=>loop.map(toSheet)));
+      for(const message of projection.ribHatchIssues || []) {
+        diagnostics.push({code:'rib-hatch-exclusion-unavailable',severity:'warning',viewId:view.id,message});
+        items.push(text(record.box.x,record.box.y-6,message,{size:2.5,anchor:'start',viewId:view.id}));
+      }
+      for (const segment of sectionHatchSegments(loops,view.hatchPattern,hatchLoops)) {
+        for(const kept of excludeRibHatch(segment,ribMasks))emitClipped({x:kept.x1,y:kept.y1},{x:kept.x2,y:kept.y2},"hatch");
+      }
+      for(const mask of ribMasks)for(const loop of mask)for(let i=0;i<loop.length;i++)emitClipped(loop[i],loop[(i+1)%loop.length],"section");
       for (const loop of loops) {
         for (let i = 0; i < loop.length; i++) {
           const a = loop[i], b = loop[(i + 1) % loop.length];

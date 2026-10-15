@@ -1,4 +1,5 @@
 import {pierceSketchToHelix} from './core/sketch_pierce.js';
+import {shapeToMeshData} from './cad_kernel.js';
 import {isWorkerCacheBody} from './core/worker_body_cache.js';
 import {helixFromSketch} from './core/sketch_helix.js';
 import {offsetSketchFrame} from './core/sketch_offset.js';
@@ -405,6 +406,20 @@ export async function regenerateFeatures(def, options = {}) {
           if(!linkedSketch.frame)effectiveParams={...effectiveParams,axis:linkedSketch.plane==="front"?"z":linkedSketch.plane==="side"?"x":"y",from:Number(linkedSketch.offset)||0};
         }
         result = await ribBrep(source, effectiveParams);
+        // A drawing convention must never remove the web from the solid.
+        // Preserve only the genuinely added material as a separate hatch mask.
+        if (effectiveParams.orientation === "parallel") {
+          let delta;
+          try {
+            delta = await booleanBrep("subtract", result, source);
+            const mesh = await shapeToMeshData(delta, {deflection:.24,angle:.16});
+            if(!mesh.positions?.length)throw new Error("The rib has no independently measurable added material");
+            const axis = effectiveParams.axis || "y";
+            result.sectionRibs = [...(source.sectionRibs || []),{featureId:feature.id, normal:effectiveParams.frame?.normal || {x:axis==="x"?1:0,y:axis==="y"?1:0,z:axis==="z"?1:0}, positions:Array.from(mesh.positions)}];
+            if(source.sectionRibIssue)result.sectionRibIssue=source.sectionRibIssue;
+          } catch(error) { result.sectionRibIssue="Rib hatch exclusion unavailable: "+String(error?.message || error); }
+          finally { if(delta)disposeBrep(delta); }
+        } else result.sectionRibIssue = "Longitudinal hatch exclusion currently requires a parallel-to-sketch Rib";
       }
       else if (feature.type === "thicken") {
         const source = results.get(feature.inputs[0]);
@@ -460,6 +475,9 @@ export async function regenerateFeatures(def, options = {}) {
         disposeBrep(prior);
       }
       const inputResults = (feature.inputs || []).map((id) => results.get(id)).filter(Boolean);
+      if (feature.type !== "rib" && !result.sectionRibs && inputResults.some(input=>input.sectionRibs?.length || input.sectionRibIssue)) {
+        result.sectionRibIssue = "Rib hatch exclusion needs rebuilding for a downstream geometry operation";
+      }
       result.topology = keepRestoredNames ? restoredTopology : topologyForFeature(feature, effectiveParams, inputResults) || [];
       if (result.shape && !keepRestoredNames) result.topology = extractBrepTopology(result, {
         ownerFeatureId: feature.id,

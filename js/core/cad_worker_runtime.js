@@ -17,7 +17,7 @@ import {
   shellBrep, filletBrep, chamferBrep, domeBrep, draftBrep, makeBrepExtrusion, brepMaterialIntersection, brepFaceLineIntersections,
 } from '../cad_kernel.js';
 
-const resultFields=['kind','operation','invalid','approximate','looseTolerance','placement','threadGeometry','spec','points','mesh','annotation','sketchId'];
+const resultFields=['kind','operation','invalid','approximate','looseTolerance','placement','threadGeometry','spec','points','mesh','annotation','sketchId','sectionRibs','sectionRibIssue'];
 // Native algorithm changes must not resurrect older persisted results at
 // identical dimensions. Version only changed operations to retain expensive
 // unchanged upstream Shell and Boolean bodies.

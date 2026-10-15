@@ -3367,7 +3367,9 @@ export async function shapeToMeshData(brep, options = {}) {
       }
     }
   }
-  return { positions, normals, colors, faceRanges, subshapeMap, exactBounds: shapeBounds(oc, brep.shape, false) };
+  return { positions, normals, colors, faceRanges, subshapeMap, exactBounds: shapeBounds(oc, brep.shape, false),
+    ...(brep.sectionRibs ? {sectionRibs:structuredClone(brep.sectionRibs)} : {}),
+    ...(brep.sectionRibIssue ? {sectionRibIssue:brep.sectionRibIssue} : {}) };
 }
 
 export async function transformBrep(brep, transform = {}) {

@@ -1,3 +1,4 @@
+import {SECTION_HATCH_PATTERNS} from "./core/section_hatch.js";
 import {componentPatternPlan,setComponentPattern,removeComponentPattern} from "./core/assembly_component_pattern.js";
 import {appendSavedLibrarySearch} from './modeler_library_search.js';
 import {sketchEntityStep,sketchEntitySwipe} from './core/sketch_entity_navigation.js';
@@ -12246,7 +12247,8 @@ function drawingBodies() {
     var direct = tessellateParts(parts);
     if (direct.length === parts.length) return direct.map(function(body,index){
       var exactBounds=parts[index].meshData?.exactBounds;
-      return exactBounds ? {...body,exactBounds} : body;
+      var ribMissing=parts.length===1 && !body.sectionRibs?.length && !body.sectionRibIssue && (E.def.features || []).some(function(feature){return feature.type==='rib'&&!feature.suppressed;});
+      return {...body,...(exactBounds?{exactBounds}:{}),...(ribMissing?{sectionRibIssue:'Rebuild the part to prepare longitudinal rib hatch exclusion'}:{})};
     });
   }
   if (!threeLoaded() || typeof THREE === "undefined" || !THREE.Group) return tessellateParts(parts);
@@ -12621,6 +12623,19 @@ function buildSheetPanel(host) {
         drawSketch();
       })).id="mdSheetViewConfiguration";
     }
+    if(selectedView.section || selectedView.alignedSection || selectedView.brokenOut) {
+      var hatchPicker=sheetSelect(SECTION_HATCH_PATTERNS,selectedView.hatchPattern || 'uniform',function(value){
+        sheet.setSheetOption('viewHatchPattern',value);drawSketch();
+      });
+      hatchPicker.setAttribute('aria-label','Section hatch pattern');
+      sheetRow(views,'Section hatch pattern',hatchPicker);
+      views.appendChild(el('small','md-note','Drafting pattern only; does not assign or certify material.'));
+    }
+    if(selectedView.section) {
+      sheetRow(views,'Longitudinal ribs',sheetSelect([{value:'exclude',label:'Leave unhatched'},{value:'hatch',label:'Hatch with section'}],selectedView.section.excludeLongitudinalRibs===false?'hatch':'exclude',function(value){
+        sheet.setSheetOption('viewExcludeRibs',value==='exclude');drawSketch();
+      }));
+    }
     var scaleControl=drawingViewScaleControl(selectedView.scale,t("sheetInherit"),{automatic:selectedView.scaleMode!=='sheet',effectiveScale:sheet.scene?.().views.find(function(placed){return placed.id===selectedView.id;})?.scale});
     sheetRow(views, t("sheetViewScale"), sheetSelect(scaleControl.options, scaleControl.value, function (value) {
       sheet.setSheetOption("viewScale", value === "sheet" || value === "auto" ? value : value.split(":").map(Number));
@@ -12716,7 +12731,7 @@ function syncSheetPanel() {
   var doc = drawingDocument(), sheet = drawingSheet();
   var selection = sheet.selection();
   var signature = doc.views.map(function (view) {
-    return view.id + ":" + view.label + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.displayStyle + ":" + (view.configurationId||"")+":"+JSON.stringify(configuredDrawingStatus(view)&&{status:configuredDrawingStatus(view).status,reason:configuredDrawingStatus(view).reason});
+    return view.id + ":" + view.label + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.hatchPattern + ":" + view.displayStyle + ":" + (view.configurationId||"")+":"+JSON.stringify(configuredDrawingStatus(view)&&{status:configuredDrawingStatus(view).status,reason:configuredDrawingStatus(view).reason});
   }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "") + "#" + JSON.stringify(doc.title.sources || {});
   if (host.getAttribute("data-signature") !== signature) {
     buildSheetPanel(host);

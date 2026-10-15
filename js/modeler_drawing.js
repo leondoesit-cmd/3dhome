@@ -1,3 +1,4 @@
+import {normalizeSectionHatch} from "./core/section_hatch.js";
 import {modelItemTolerance} from "./core/dimension_tolerance.js";
 import {resolveComponentBalloon} from './core/assembly_balloon.js';
 import { holeLeaderForViews, holeTopologyAnchor } from "./core/hole_callout.js";
@@ -138,7 +139,7 @@ export function createDrawingController(host) {
       host.bodiesToken(), host.model?.()?.name, host.model?.()?.customProperties, host.bom?.(), host.componentBalloons?.(), host.explodeLines?.(), state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
-        view.parent, view.scaleMode, view.hidden, view.displayStyle, view.centers, view.labelled, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
+        view.parent, view.hatchPattern, view.scaleMode, view.hidden, view.displayStyle, view.centers, view.labelled, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
       if(dim.coneAngle) {
@@ -1636,6 +1637,12 @@ export function createDrawingController(host) {
     } else if (key === "viewDisplayStyle" && state.selection?.kind === "view") {
       const view=doc.views.find(entry=>entry.id===state.selection.id);
       if(view)view.displayStyle=["shaded","shadedEdges"].includes(value)?value:"edges";
+    } else if (key === "viewHatchPattern" && state.selection?.kind === "view") {
+      const view=doc.views.find(entry=>entry.id===state.selection.id);
+      if(view && (view.section || view.alignedSection || view.brokenOut))view.hatchPattern=normalizeSectionHatch(value);
+    } else if (key === "viewExcludeRibs" && state.selection?.kind === "view") {
+      const view=doc.views.find(entry=>entry.id===state.selection.id);
+      if(view?.section)view.section.excludeLongitudinalRibs=!!value;
     } else if (key === "viewHidden" && state.selection?.kind === "view") {
       const view = doc.views.find((entry) => entry.id === state.selection.id);
       if (view) view.hidden = value === "sheet" ? null : !!value;

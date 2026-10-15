@@ -3,7 +3,7 @@
 export const nativeOperationRevisions=Object.freeze({
  loft:'associative-terminal-point-cut-1',
  fillet:'supported-corner-repair-3',
-  rib:'parallel-draft-1',
+  rib:'parallel-section-delta-2',
 });
 
 export function nativeOperationRevision(feature) {
