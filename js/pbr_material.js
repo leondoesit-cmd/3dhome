@@ -62,7 +62,9 @@ function loadTexture(url, srgb, id) {
 
 /** Shared textures for an entry, or null until every bitmap is decoded. */
 export function pbrTextures(entry) {
-  if (!entry || failedIds.has(entry.id) || !THREE.TextureLoader) return null;
+  // no DOM (Node tests, workers): nothing can load an image — callers keep
+  // their procedural texture, the same guard primitives.js pbrTex() has
+  if (!entry || failedIds.has(entry.id) || !THREE.TextureLoader || typeof document === "undefined") return null;
   var tier = materialTier();
   var map = loadTexture(materialUrl(entry.id, "color", tier), true, entry.id);
   var normalMap = loadTexture(materialUrl(entry.id, "normal", tier), false, entry.id);

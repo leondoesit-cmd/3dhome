@@ -21406,3 +21406,10 @@ body.compact-nav.sheet-drawers #right-inspector.panel-tall {
 }
 /* The Round-6 layout has its own inspector grip (.ps-sheet-grip); never two. */
 body.pro-compact.sheet-drawers #right-inspector > .m-panel-grip { display: none; }
+
+/* A library piece held on touch (planner_chrome.js bindLibraryDrag): lifted. */
+.furn-item.touch-lifted {
+  transform: scale(1.06);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--accent, #3b82f6);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}

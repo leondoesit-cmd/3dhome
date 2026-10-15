@@ -182,7 +182,10 @@ test("Planner placement guidance and dynamic labels stay visible and localized",
       };
     });
     assert.equal(cancelled.placeType, null, "Cancel left furniture placement armed");
-    assert.equal(cancelled.actions.includes("Edit"), true, "selection actions did not return after cancelling placement");
+    // the item's own verbs come back (on a phone the labelled row holds three,
+    // so Edit may sit behind More; Rotate always leads an item's row)
+    assert.equal(cancelled.actions.includes("Rotate 90°"), true, "selection actions did not return after cancelling placement");
+    assert.equal(cancelled.actions.includes("Cancel"), false, "placement Cancel stayed on the row");
   } finally {
     await page.close();
   }
