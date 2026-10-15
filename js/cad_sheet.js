@@ -51,7 +51,7 @@ export const SHEET_SIZES = Object.freeze({
    than inventing 1:3.7, because a scale a reader cannot reason about is worse
    than a view that leaves a little air on the sheet. */
 export const STANDARD_SCALES = Object.freeze([
-  [50, 1], [20, 1], [10, 1], [5, 1], [4, 1], [2, 1], [1, 1],
+  [50, 1], [20, 1], [10, 1], [5, 1], [4, 1], [2, 1], [3, 2], [1, 1],
   [1, 2], [1, 2.5], [1, 3], [1, 4], [1, 5], [1, 10], [1, 20], [1, 25], [1, 50], [1, 100], [1, 200], [1, 500],
 ]);
 
@@ -719,6 +719,7 @@ function projectSection(doc, view, bodies, options) {
      direction the section is viewed FROM, which is the opposite of the arrows. */
   const cut = sectionBodies(bodies, { normal: { x: -sight.x, y: -sight.y, z: -sight.z }, origin });
   const projection=projectSolid(cut.bodies, view.dir, Object.assign({}, options, { cuts: cut.cuts }));
+  projection.sectionHatchPattern=view.hatchPattern || 'uniform';
   if(view.section.excludeLongitudinalRibs!==false) {
     const masks=sectionRibMasks(bodies,cut.plane,projection.basis);
     projection.ribHatchMasks=masks.groups;
@@ -1496,7 +1497,9 @@ export function buildSheetScene(doc, provider, options = {}) {
       for(const segment of sectionHatchSegments(loops,view.hatchPattern,hatchLoops))items.push(line(segment.x1,segment.y1,segment.x2,segment.y2,'hatch',{viewId:view.id,alignedSectionLeg:region.leg}));
     }
     if ((projection.cropSourceCuts || projection.cuts)?.length) {
-      const boundary = analyzeSectionBoundaries(projection.cropSourceCuts || projection.cuts, Math.max(1e-4, (extent.w + extent.h) * 1e-3));
+      // This weld joins numerical copies of a shared mesh vertex, not nearby
+      // geometric details. A display-scale tolerance can collapse small bores.
+      const boundary = analyzeSectionBoundaries(projection.cropSourceCuts || projection.cuts, Math.max(1e-7, (extent.w + extent.h) * 1e-7));
       diagnostics.push(...boundary.issues.map(issue => ({...issue,viewId:view.id})));
       if (!boundary.ok) items.push(text(record.box.x, record.box.y - 3, "Section boundary needs repair — hatching omitted", {size:2.5,anchor:"start",viewId:view.id}));
       const loops = boundary.loops.map((loop) => loop.map((point) => toSheet(point)));
@@ -1504,7 +1507,7 @@ export function buildSheetScene(doc, provider, options = {}) {
       const emitClipped=(a,b,style)=>{
         let edges=[{a:{u:a.x,v:a.y},b:{u:b.x,v:b.y}}];
         if(cropBoundary)edges=clipCropEdges(edges,cropBoundary);
-        if(projection.crop) {const c=toSheet(projection.crop);edges=cropProjection({visible:edges},{u:c.x,v:c.y,radius:projection.crop.radius*k}).visible;}
+        for(const boundary of projection.circularClipBoundaries || (projection.crop?[projection.crop]:[])) {const c=toSheet(boundary);edges=cropProjection({visible:edges},{u:c.x,v:c.y,radius:boundary.radius*k}).visible;}
         for(const edge of edges) items.push(line(edge.a.u,edge.a.v,edge.b.u,edge.b.v,style,{viewId:view.id}));
       };
       const ribMasks=(projection.ribHatchMasks || []).map(mask=>mask.loops.map(loop=>loop.map(toSheet)));
@@ -1512,7 +1515,7 @@ export function buildSheetScene(doc, provider, options = {}) {
         diagnostics.push({code:'rib-hatch-exclusion-unavailable',severity:'warning',viewId:view.id,message});
         items.push(text(record.box.x,record.box.y-6,message,{size:2.5,anchor:'start',viewId:view.id}));
       }
-      for (const segment of sectionHatchSegments(loops,view.hatchPattern,hatchLoops)) {
+      for (const segment of sectionHatchSegments(loops,projection.sectionHatchPattern || view.hatchPattern,hatchLoops)) {
         for(const kept of excludeRibHatch(segment,ribMasks))emitClipped({x:kept.x1,y:kept.y1},{x:kept.x2,y:kept.y2},"hatch");
       }
       for(const mask of ribMasks)for(const loop of mask)for(let i=0;i<loop.length;i++)emitClipped(loop[i],loop[(i+1)%loop.length],"section");

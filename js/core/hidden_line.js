@@ -753,6 +753,9 @@ export function cropProjection(projection, circle) {
     visible: clip(projection.visible),
     hidden: clip(projection.hidden),
     cuts: clip(projection.cuts),
+    // Reconstruct material from the original closed rings, then clip its hatch
+    // strokes. The visible cropped cut fragments are generally open curves.
+    cropSourceCuts: projection.cropSourceCuts || projection.cuts,
     circles: (projection.circles || []).filter((entry) =>
       Math.hypot(entry.u - circle.u, entry.v - circle.v) <= radius + entry.radius),
     surfaces: (projection.surfaces || []).map(surface=>({...surface,points:clipSurfaceToCircle(surface.points,circle)})).filter(surface=>surface.points.length>=3),

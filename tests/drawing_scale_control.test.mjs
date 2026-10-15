@@ -90,3 +90,20 @@ test('source1:3 is authorable while automatic iso and explicit sheet inheritance
   controller.setSheetOption('viewScale',[1,3]);controller.setSheetOption('viewDisplayStyle','shadedEdges');
   assert.equal(iso().displayStyle,'shadedEdges');assert.deepEqual(iso().scale,[1,3]);
 });
+
+
+test('Detail 3:2 is selectable and preserves 15 mm paper distance per model centimetre through cold save',()=>{
+  const def={drawing:createSheetDoc({views:[],scale:[1,1]})};
+  def.drawing.views=[createView('front',{id:'parent',primary:true}),createView('front',{id:'detail',parent:'parent',label:'DETAIL C',detail:{from:'parent',u:0,v:0,radius:1,tag:'C'}})];
+  const host={doc:()=>ensureSheetDoc(def),bodies:()=>[],bodiesToken:()=>1,canvas:()=>({}),width:()=>900,height:()=>600,t:k=>k,refresh(){},markDirty(){},pushUndo(){}};
+  const controller=createDrawingController(host);controller.select({kind:'view',id:'detail'});
+  assert.ok(drawingViewScaleControl(null).options.some(o=>o.value==='3:2'));
+  controller.setSheetOption('scale',[3,2]);controller.setSheetOption('viewScale',[3,2]);
+  const scene=controller.scene(),placed=scene.views.find(v=>v.id==='detail');
+  assert.equal(placed.scale,1.5);
+  const a=placed.toSheet({u:0,v:0}),b=placed.toSheet({u:1,v:0});assert.equal(b.x-a.x,15);
+  const svg=controller.svg();assert.match(svg,/DETAIL C/);assert.match(svg,/3:2/);
+  const cold=JSON.parse(JSON.stringify(def));ensureSheetDoc(cold);
+  assert.deepEqual(cold.drawing.scale,[3,2]);assert.deepEqual(cold.drawing.views[1].scale,[3,2]);
+  const restored=createDrawingController({...host,doc:()=>ensureSheetDoc(cold)});assert.equal(restored.svg(),svg);
+});

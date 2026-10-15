@@ -1,3 +1,4 @@
+import {lengthFromDocument} from './core/document_length_units.js';
 import {normalizeSectionHatch} from "./core/section_hatch.js";
 import {modelItemTolerance} from "./core/dimension_tolerance.js";
 import {resolveComponentBalloon} from './core/assembly_balloon.js';
@@ -5,7 +6,7 @@ import { holeLeaderForViews, holeTopologyAnchor } from "./core/hole_callout.js";
 
 // Commit explicitly on mobile: dismissing a software keyboard does not
 // consistently dispatch change. Read the live field only when applying.
-export function bindDetailTagControls(input, button, sheet, viewId, redraw) {
+export function bindDetailTagControls(input, button, sheet, viewId, redraw, optionKey='viewDetailTag') {
   const apply=()=>{
     const tag=String(input.value || '').trim().toUpperCase();
     if(!/^[A-Z][A-Z0-9]{0,7}$/.test(tag)) {
@@ -14,8 +15,22 @@ export function bindDetailTagControls(input, button, sheet, viewId, redraw) {
     }
     input.setCustomValidity('');
     sheet.select({kind:'view',id:viewId});
-    sheet.setSheetOption('viewDetailTag',tag);
+    sheet.setSheetOption(optionKey,tag);
     input.value=tag;redraw();
+  };
+  button.addEventListener('click',apply);
+  input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();event.stopPropagation();apply();}});
+  input.addEventListener('input',()=>input.setCustomValidity(''));
+}
+export function bindSectionTagControls(input, button, sheet, viewId, redraw) {
+  bindDetailTagControls(input,button,sheet,viewId,redraw,'viewSectionTag');
+}
+export function bindSectionPositionControls(input,button,sheet,viewId,unit,redraw) {
+  const apply=()=>{
+    const raw=String(input.value).trim(),value=Number(raw);
+    if(!raw || !Number.isFinite(value)){input.setCustomValidity('Enter a finite parent-view coordinate.');input.reportValidity();return;}
+    input.setCustomValidity('');sheet.select({kind:'view',id:viewId});
+    sheet.setSheetOption('viewSectionAt',lengthFromDocument(value,unit));redraw();
   };
   button.addEventListener('click',apply);
   input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();event.stopPropagation();apply();}});
@@ -1628,6 +1643,8 @@ export function createDrawingController(host) {
   }
 
   function setSheetOption(key, value) {
+    if(key==='viewSectionTag' && !/^[A-Z][A-Z0-9]{0,7}$/.test(String(value || '').trim().toUpperCase()))return;
+    if(key==='viewSectionAt' && (value===null || value==='' || !Number.isFinite(Number(value))))return;
     host.pushUndo(host.t("opSheetSetup"));
     const doc = host.doc();
     if (key === "size" && SHEET_SIZES[value]) doc.size = value;
@@ -1660,6 +1677,16 @@ export function createDrawingController(host) {
         view.detail.tag=tag;
         view.label='DETAIL '+tag;
       }
+    } else if (key === "viewSectionTag" && state.selection?.kind === "view") {
+      const view=doc.views.find(entry=>entry.id===state.selection.id);
+      const tag=String(value || '').trim().toUpperCase();
+      if(view?.section && /^[A-Z][A-Z0-9]{0,7}$/.test(tag)) {
+        view.section.tag=tag;
+        view.label='SECTION '+tag+'-'+tag;
+      }
+    } else if (key === "viewSectionAt" && state.selection?.kind === "view") {
+      const view=doc.views.find(entry=>entry.id===state.selection.id);
+      if(view?.section)view.section.at=Number(value);
     } else if (key === "viewDisplayStyle" && state.selection?.kind === "view") {
       const view=doc.views.find(entry=>entry.id===state.selection.id);
       if(view)view.displayStyle=["shaded","shadedEdges"].includes(value)?value:"edges";

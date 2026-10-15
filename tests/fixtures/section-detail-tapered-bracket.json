@@ -1,0 +1,926 @@
+{
+  "schemaVersion": 8,
+  "id": "cm_mv99ezxf",
+  "authoringMode": "fully-parametric",
+  "sketches": [
+    {
+      "id": "sk_1lkgi",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 7001,
+          "x": -5,
+          "y": 0
+        },
+        {
+          "id": 7002,
+          "x": 5,
+          "y": 0
+        },
+        {
+          "id": 7004,
+          "x": 5,
+          "y": 1
+        },
+        {
+          "id": 7006,
+          "x": 1.95,
+          "y": 1
+        },
+        {
+          "id": 7008,
+          "x": 0.55,
+          "y": 5
+        },
+        {
+          "id": 7010,
+          "x": -0.55,
+          "y": 5
+        },
+        {
+          "id": 7012,
+          "x": -1.95,
+          "y": 1
+        },
+        {
+          "id": 7014,
+          "x": -5,
+          "y": 1
+        }
+      ],
+      "entities": [
+        {
+          "id": 7003,
+          "type": "line",
+          "name": "Line",
+          "a": 7001,
+          "b": 7002,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 7005,
+          "type": "line",
+          "name": "Line",
+          "a": 7002,
+          "b": 7004,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 7007,
+          "type": "line",
+          "name": "Line",
+          "a": 7004,
+          "b": 7006,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 7009,
+          "type": "line",
+          "name": "Line",
+          "a": 7006,
+          "b": 7008,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 7011,
+          "type": "line",
+          "name": "Line",
+          "a": 7008,
+          "b": 7010,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 7013,
+          "type": "line",
+          "name": "Line",
+          "a": 7010,
+          "b": 7012,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 7015,
+          "type": "line",
+          "name": "Line",
+          "a": 7012,
+          "b": 7014,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 7017,
+          "type": "line",
+          "name": "Line",
+          "a": 7014,
+          "b": 7001,
+          "construction": false,
+          "weight": 2
+        }
+      ],
+      "constraints": [
+        {
+          "type": "vertical",
+          "entity": 7017,
+          "id": 7018,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [
+        {
+          "severity": "warning",
+          "code": "under-constrained-sketch",
+          "sketchId": "sk_1lkgi",
+          "dof": 15,
+          "message": "Front Plane sketch has 15 degrees of freedom"
+        }
+      ],
+      "status": "partially-defined"
+    },
+    {
+      "id": "sk_2mnnn",
+      "name": "Front Plane sketch",
+      "plane": "front",
+      "offset": 0,
+      "referenceId": "plane:front",
+      "points": [
+        {
+          "id": 7020,
+          "x": 0,
+          "y": 2.9
+        }
+      ],
+      "entities": [
+        {
+          "id": 7021,
+          "type": "circle",
+          "name": "Circle",
+          "c": 7020,
+          "r": 0.5,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 7022,
+          "type": "diameter",
+          "entity": 7021,
+          "value": 1,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 7023,
+          "type": "fixed",
+          "point": 7020,
+          "x": 0,
+          "y": 2.9,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_36nuz",
+      "name": "Top Plane sketch",
+      "plane": "top",
+      "offset": 0,
+      "referenceId": "plane:top",
+      "points": [
+        {
+          "id": 7024,
+          "x": 3,
+          "y": 1,
+          "fixed": false
+        },
+        {
+          "id": 7027,
+          "x": -3,
+          "y": 1,
+          "fixed": false
+        }
+      ],
+      "entities": [
+        {
+          "id": 7025,
+          "type": "point",
+          "p": 7024,
+          "name": "Point"
+        },
+        {
+          "id": 7028,
+          "type": "point",
+          "p": 7027,
+          "name": "Point"
+        }
+      ],
+      "constraints": [
+        {
+          "id": 7026,
+          "type": "fixed",
+          "point": 7024,
+          "x": 3,
+          "y": 1,
+          "exprError": null
+        },
+        {
+          "id": 7029,
+          "type": "fixed",
+          "point": 7027,
+          "x": -3,
+          "y": 1,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_4fo4v",
+      "name": "Face sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "feature_mv99k90u_1:face:side:7009",
+      "support": {
+        "type": "topology-reference",
+        "ownerFeatureId": "feature_mv99p40f_3",
+        "kind": "face",
+        "persistentId": "feature_mv99k90u_1:face:side:7009",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 1.25,
+            "y": 3,
+            "z": 1
+          },
+          "normal": {
+            "x": 0.9438583563660174,
+            "y": 0.33035042472810605,
+            "z": 0
+          },
+          "measure": 8.475848040166834,
+          "bounds": {
+            "min": {
+              "x": 0.5499999000000001,
+              "y": 0.9999999,
+              "z": -1.0000000000000002e-7
+            },
+            "max": {
+              "x": 1.9500001,
+              "y": 5.0000001,
+              "z": 2.0000001
+            }
+          }
+        },
+        "signature": "plane:1.25:3:1:0.944:0.33:0:8.476:"
+      },
+      "points": [
+        {
+          "id": 7031,
+          "x": 0,
+          "y": -0.424
+        }
+      ],
+      "entities": [
+        {
+          "id": 7030,
+          "type": "circle",
+          "name": "Circle",
+          "c": 7031,
+          "r": 0.175,
+          "construction": false
+        }
+      ],
+      "constraints": [],
+      "frame": {
+        "origin": {
+          "x": 1.25,
+          "y": 3,
+          "z": 0.9999999999999999
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "yAxis": {
+          "x": -0.33035042472810605,
+          "y": 0.9438583563660174,
+          "z": 0
+        },
+        "normal": {
+          "x": 0.9438583563660174,
+          "y": 0.33035042472810605,
+          "z": 0
+        }
+      },
+      "frameSpace": "local",
+      "frameAnchor": "bounds-center",
+      "supportOffset": 0,
+      "diagnostics": [
+        {
+          "severity": "warning",
+          "code": "under-constrained-sketch",
+          "sketchId": "sk_4fo4v",
+          "dof": 3,
+          "message": "Face sketch has 3 degrees of freedom"
+        }
+      ],
+      "status": "under-defined"
+    },
+    {
+      "id": "sk_57ngk",
+      "name": "Face sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "feature_mv99k90u_1:face:side:7009",
+      "support": {
+        "type": "topology-reference",
+        "ownerFeatureId": "feature_mv99qtto_4",
+        "kind": "face",
+        "persistentId": "feature_mv99k90u_1:face:side:7009",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 1.2483917946496557,
+            "y": 3.0045948724295553,
+            "z": 1
+          },
+          "normal": {
+            "x": 0.9438583563660174,
+            "y": 0.33035042472810605,
+            "z": 0
+          },
+          "measure": 8.379636765150646,
+          "bounds": {
+            "min": {
+              "x": 0.5499999000000001,
+              "y": 0.9999999,
+              "z": -1.0000000000000002e-7
+            },
+            "max": {
+              "x": 1.9500001,
+              "y": 5.0000001,
+              "z": 2.0000001
+            }
+          }
+        },
+        "signature": "plane:1.248:3.005:1:0.944:0.33:0:8.38:"
+      },
+      "points": [
+        {
+          "id": 7032,
+          "x": 0,
+          "y": 0.954
+        }
+      ],
+      "entities": [
+        {
+          "id": 7033,
+          "type": "circle",
+          "name": "Circle",
+          "c": 7032,
+          "r": 0.175,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 7034,
+          "type": "diameter",
+          "entity": 7033,
+          "value": 0.35,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 7035,
+          "type": "fixed",
+          "point": 7032,
+          "x": 0,
+          "y": 0.954,
+          "exprError": null
+        }
+      ],
+      "frame": {
+        "origin": {
+          "x": 1.25,
+          "y": 3,
+          "z": 0.9999999999999999
+        },
+        "xAxis": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "yAxis": {
+          "x": -0.33035042472810605,
+          "y": 0.9438583563660174,
+          "z": 0
+        },
+        "normal": {
+          "x": 0.9438583563660174,
+          "y": 0.33035042472810605,
+          "z": 0
+        }
+      },
+      "frameSpace": "local",
+      "frameAnchor": "bounds-center",
+      "supportOffset": 0,
+      "diagnostics": [],
+      "status": "fully-defined"
+    }
+  ],
+  "features": [
+    {
+      "id": "feature_mv99k90u_1",
+      "type": "extrude",
+      "name": "Extrude / Boss 1",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 2,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "z",
+        "profileEntityIds": [
+          7003,
+          7005,
+          7007,
+          7009,
+          7011,
+          7013,
+          7015,
+          7017
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1lkgi",
+        "from": 0,
+        "to": 2
+      },
+      "references": {
+        "sketches": [
+          "sk_1lkgi"
+        ],
+        "features": [],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          7003,
+          7005,
+          7007,
+          7009,
+          7011,
+          7013,
+          7015,
+          7017
+        ]
+      },
+      "inputs": [],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mv99ntep_2",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 1",
+      "params": {
+        "operation": "subtract",
+        "endCondition": "through-all",
+        "depth": 2,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "z",
+        "profileEntityIds": [
+          7021
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2mnnn",
+        "from": 0,
+        "to": 2.001
+      },
+      "references": {
+        "sketches": [
+          "sk_2mnnn"
+        ],
+        "features": [
+          "feature_mv99k90u_1"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          7021
+        ]
+      },
+      "inputs": [
+        "feature_mv99k90u_1"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mv99p40f_3",
+      "type": "hole",
+      "name": "Hole wizard 1",
+      "params": {
+        "holeType": "simple",
+        "standard": "ISO 273",
+        "fastenerType": "generic",
+        "standardSize": "custom",
+        "fit": "normal",
+        "diameter": 0.8,
+        "depth": 2,
+        "endCondition": "through-all",
+        "drillPointAngle": 118,
+        "countersink": false,
+        "countersinkDiameter": 1.2,
+        "counterbore": false,
+        "cboreDiameter": 1.1,
+        "cboreDepth": 0.66,
+        "csinkAngle": 90,
+        "headClearanceEnabled": false,
+        "headClearance": 0,
+        "headClearanceMode": "increased-countersink",
+        "threadDepth": 0,
+        "threadMode": "cosmetic",
+        "handedness": "rh",
+        "toleranceClass": "6H",
+        "layout": "sketch",
+        "countX": 2,
+        "countY": 2,
+        "spacingX": 4,
+        "spacingY": 4,
+        "count": 4,
+        "radius": 3,
+        "startAngle": 0,
+        "direction": "reverse",
+        "offset": 1,
+        "cylinderPlacementMethod": "angular",
+        "cylinderConstraintBranch": "positive-z",
+        "cylinderOnSurface": true,
+        "cylinderAlongZ": true,
+        "cylinderAlongY": true,
+        "separateHoleSketches": false,
+        "displayUnit": "cm",
+        "holePositionPointIds": [
+          7024,
+          7027
+        ],
+        "profileEntityIds": [],
+        "sketchId": "sk_36nuz",
+        "operation": "subtract",
+        "callout": "Ø0.8 THRU"
+      },
+      "references": {
+        "sketches": [
+          "sk_36nuz"
+        ],
+        "features": [
+          "feature_mv99ntep_2"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": []
+      },
+      "inputs": [
+        "feature_mv99ntep_2"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mv99qtto_4",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 2",
+      "params": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 1,
+        "offset": 0,
+        "direction": "reverse",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "frame",
+        "profileEntityIds": [
+          7030
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_4fo4v",
+        "from": 0,
+        "to": -1
+      },
+      "references": {
+        "sketches": [
+          "sk_4fo4v"
+        ],
+        "features": [
+          "feature_mv99p40f_3"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          7030
+        ]
+      },
+      "inputs": [
+        "feature_mv99p40f_3"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mv99rukl_5",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 3",
+      "params": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 1,
+        "offset": 0,
+        "direction": "reverse",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "frame",
+        "profileEntityIds": [
+          7033
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_57ngk",
+        "from": 0,
+        "to": -1
+      },
+      "references": {
+        "sketches": [
+          "sk_57ngk"
+        ],
+        "features": [
+          "feature_mv99qtto_4"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          7033
+        ]
+      },
+      "inputs": [
+        "feature_mv99qtto_4"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    }
+  ],
+  "history": [
+    {
+      "id": "history:sketch:sk_1lkgi",
+      "kind": "sketch",
+      "targetId": "sk_1lkgi",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "warning"
+    },
+    {
+      "id": "history:feature:feature_mv99k90u_1",
+      "kind": "feature",
+      "targetId": "feature_mv99k90u_1",
+      "name": "Extrude / Boss 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_2mnnn",
+      "kind": "sketch",
+      "targetId": "sk_2mnnn",
+      "name": "Front Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv99ntep_2",
+      "kind": "feature",
+      "targetId": "feature_mv99ntep_2",
+      "name": "Extrude Cut 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_36nuz",
+      "kind": "sketch",
+      "targetId": "sk_36nuz",
+      "name": "Top Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv99p40f_3",
+      "kind": "feature",
+      "targetId": "feature_mv99p40f_3",
+      "name": "Hole wizard 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_4fo4v",
+      "kind": "sketch",
+      "targetId": "sk_4fo4v",
+      "name": "Face sketch",
+      "suppressed": false,
+      "status": "warning"
+    },
+    {
+      "id": "history:feature:feature_mv99qtto_4",
+      "kind": "feature",
+      "targetId": "feature_mv99qtto_4",
+      "name": "Extrude Cut 2",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_57ngk",
+      "kind": "sketch",
+      "targetId": "sk_57ngk",
+      "name": "Face sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv99rukl_5",
+      "kind": "feature",
+      "targetId": "feature_mv99rukl_5",
+      "name": "Extrude Cut 3",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "parts": [],
+  "drawing": {
+    "version": 1,
+    "draftingStandard": "custom",
+    "secondaryUnits": "",
+    "secondaryPrecision": 2,
+    "size": "A4",
+    "orientation": "landscape",
+    "projection": "third",
+    "units": "mm",
+    "scale": [
+      1,
+      1
+    ],
+    "showHidden": true,
+    "showCenters": true,
+    "showZones": true,
+    "views": [
+      {
+        "id": "v8g9s6wk",
+        "dir": "top",
+        "label": "TOP",
+        "x": null,
+        "y": null,
+        "scale": null,
+        "configurationId": null,
+        "configurationName": null,
+        "primary": true,
+        "parent": null,
+        "hidden": null,
+        "displayStyle": "edges",
+        "centers": null,
+        "labelled": true,
+        "hatchPattern": "uniform",
+        "section": null,
+        "alignedSection": null,
+        "detail": null,
+        "cropSketch": null,
+        "brokenOut": null,
+        "auxiliary": null,
+        "breakView": null,
+        "alternatePosition": null
+      },
+      {
+        "id": "vismnebk",
+        "dir": "front",
+        "label": "SECTION A-A",
+        "x": null,
+        "y": null,
+        "scale": null,
+        "configurationId": null,
+        "configurationName": null,
+        "primary": false,
+        "parent": "v8g9s6wk",
+        "hidden": null,
+        "displayStyle": "edges",
+        "centers": null,
+        "labelled": true,
+        "hatchPattern": "uniform",
+        "section": {
+          "axis": "horizontal",
+          "at": -1.0431886133654373,
+          "from": "v8g9s6wk",
+          "flip": false,
+          "tag": "A"
+        },
+        "alignedSection": null,
+        "detail": null,
+        "cropSketch": null,
+        "brokenOut": null,
+        "auxiliary": null,
+        "breakView": null,
+        "alternatePosition": null
+      },
+      {
+        "id": "v48dfyw8",
+        "dir": "front",
+        "label": "DETAIL C",
+        "x": null,
+        "y": null,
+        "scale": [
+          3,
+          2
+        ],
+        "configurationId": null,
+        "configurationName": null,
+        "primary": false,
+        "parent": "vismnebk",
+        "hidden": null,
+        "displayStyle": "edges",
+        "centers": null,
+        "labelled": true,
+        "hatchPattern": "uniform",
+        "section": null,
+        "alignedSection": null,
+        "detail": {
+          "from": "vismnebk",
+          "u": 0.14310344827586335,
+          "v": 2.8726734556000793,
+          "radius": 1.7410344827586186,
+          "tag": "C"
+        },
+        "cropSketch": null,
+        "brokenOut": null,
+        "auxiliary": null,
+        "breakView": null,
+        "alternatePosition": null
+      }
+    ],
+    "dims": [],
+    "notes": [],
+    "primitives": [],
+    "images": [],
+    "title": {
+      "revision": "A",
+      "sheet": 1,
+      "sheets": 1,
+      "title": "MOBILE Ch2 Section Parent Detail C WIP",
+      "number": "",
+      "author": "",
+      "company": "",
+      "material": "",
+      "finish": "",
+      "mass": "",
+      "date": "",
+      "tolerance": ""
+    },
+    "assemblyLayout": false,
+    "seeded": true,
+    "precision": 1
+  }
+}

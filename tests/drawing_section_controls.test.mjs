@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createSheetDoc,createView,ensureSheetDoc,createProjector} from '../js/cad_sheet.js';
+import {createDrawingController,bindSectionTagControls,bindSectionPositionControls} from '../js/modeler_drawing.js';
+import {tessellateParts} from '../js/core/part_tessellate.js';
+const field=value=>Object.assign(new EventTarget(),{value,setCustomValidity(v){this.validity=v;},reportValidity(){}});
+test('native Section Apply buttons update designation, parent marker and exact cut while preserving linked Detail through undo/cold',()=>{
+ const def={drawing:createSheetDoc({views:[],scale:[1,1]})};
+ def.drawing.views=[createView('top',{id:'parent',primary:true}),createView('front',{id:'section',parent:'parent',label:'SECTION A-A',section:{from:'parent',axis:'horizontal',at:-3,flip:true,tag:'A'}}),createView('front',{id:'detail',parent:'section',label:'DETAIL C',scale:[3,2],detail:{from:'section',u:0,v:1,radius:.5,tag:'C'}})];
+ const bodies=tessellateParts([{kind:'box',x0:-5,x1:5,y0:0,y1:5,z0:0,z1:2}]),history=[];
+ let controller;const host={doc:()=>ensureSheetDoc(def),bodies:()=>bodies,bodiesToken:()=>1,canvas:()=>({}),width:()=>900,height:()=>600,t:k=>k,refresh(){},markDirty(){controller.invalidate();},pushUndo(){history.push(JSON.stringify(def));def.drawing=JSON.parse(JSON.stringify(def.drawing));ensureSheetDoc(def);}};
+ controller=createDrawingController(host);
+ const initialChild=JSON.stringify(def.drawing.views[2]),tag=field('b'),tagButton=new EventTarget(),position=field('-10'),positionButton=new EventTarget();
+ bindSectionTagControls(tag,tagButton,controller,'section',()=>{});bindSectionPositionControls(position,positionButton,controller,'section','mm',()=>{});
+ controller.select({kind:'view',id:'parent'});tagButton.dispatchEvent(new Event('click'));
+ assert.equal(def.drawing.views[1].label,'SECTION B-B');assert.equal(def.drawing.views[1].section.tag,'B');
+ positionButton.dispatchEvent(new Event('click'));assert.equal(def.drawing.views[1].section.at,-1);
+ assert.equal(JSON.stringify(def.drawing.views[2]),initialChild);
+ const scene=controller.scene(),parent=scene.views.find(v=>v.id==='parent'),marker=scene.items.find(i=>i.style==='cutline'&&i.viewId==='parent');
+ assert.equal(marker.y1,parent.toSheet({u:0,v:-1}).y);
+ assert.ok(scene.items.filter(i=>i.type==='text'&&i.text==='B').length>=2,'both cutting arrows use B');
+ const projected=createProjector(def.drawing,bodies)(def.drawing.views[1]);assert.ok(projected.cuts.length>0,'actual cut crosses box at Z=1');
+ const svg=controller.svg();assert.match(svg,/SECTION B-B/);
+ const cold=JSON.parse(JSON.stringify(def));ensureSheetDoc(cold);assert.equal(createDrawingController({...host,doc:()=>ensureSheetDoc(cold)}).svg(),svg);
+ const n=history.length;tag.value='1bad';tagButton.dispatchEvent(new Event('click'));position.value='';positionButton.dispatchEvent(new Event('click'));assert.equal(history.length,n);assert.ok(tag.validity);assert.ok(position.validity);
+ def.drawing=JSON.parse(history.at(-1)).drawing;controller.invalidate();assert.equal(def.drawing.views[1].section.at,-3);assert.equal(def.drawing.views[1].section.tag,'B');
+});

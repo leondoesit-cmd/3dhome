@@ -181,7 +181,7 @@ import {drawingViewScaleControl} from "./core/drawing_scale_control.js";
 import {decodeDrawingImage} from "./core/drawing_image.js";
 import {importDrawingProjectImage} from "./core/drawing_project_image.js";
 import {captureDrawingPreset,applyDrawingFormat,drawingFromTemplate,loadDrawingPresets,saveDrawingPreset} from './core/drawing_presets.js';
-import { DRAWING_TOOLS, createDrawingController, bindDetailTagControls } from "./modeler_drawing.js";
+import { DRAWING_TOOLS, createDrawingController, bindDetailTagControls, bindSectionTagControls, bindSectionPositionControls } from "./modeler_drawing.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern, flatPatternSvg } from "./cad_sheet_metal.js";
@@ -11999,7 +11999,7 @@ function syncHint() {
   if (help) help.classList.toggle("on", !!(idle && E.hintDismissed));
   var sketchAction = root && root.querySelector("#mdSketchOnFace");
   if (sketchAction) {
-    var canSketchFace = E.docType === "part" && E.mode === "3d" && !E.facePick && !!selectedSketchableFace();
+    var canSketchFace = E.docType === "part" && E.mode === "3d" && !E.modelPlaneActive && !E.facePick && !!selectedSketchableFace();
     sketchAction.hidden = !canSketchFace;
   }
   // the rebuild banner parks itself under the hint; tell it how tall that is
@@ -12633,6 +12633,25 @@ function buildSheetPanel(host) {
   var selected = sheet.selection();
   var selectedView = selected && selected.kind === "view" && doc.views.filter(function (view) { return view.id === selected.id; })[0];
   if (selectedView) {
+    if(selectedView.section) {
+      var sectionTagInput=el('input','');
+      sectionTagInput.type='text';sectionTagInput.value=selectedView.section.tag || 'A';
+      sectionTagInput.maxLength=8;sectionTagInput.setAttribute('aria-label','Section tag');
+      sheetRow(views,'Section tag',sectionTagInput);
+      var sectionTagApply=el('button','md-sheet-btn','Apply Section tag');sectionTagApply.type='button';
+      bindSectionTagControls(sectionTagInput,sectionTagApply,sheet,selectedView.id,drawSketch);
+      views.appendChild(sectionTagApply);
+      var sectionPositionUnit=modelLengthUnit(),sectionPositionAxis=selectedView.section.axis==='vertical'?'U':'V';
+      var sectionPositionInput=el('input','');sectionPositionInput.type='number';sectionPositionInput.step='any';
+      sectionPositionInput.value=String(lengthToDocument(Number(selectedView.section.at)||0,sectionPositionUnit));
+      var sectionPositionLabel='Cut line '+sectionPositionAxis+' ('+sectionPositionUnit+')';
+      sectionPositionInput.setAttribute('aria-label',sectionPositionLabel);
+      sectionPositionInput.title='Signed parent-view coordinate along '+sectionPositionAxis+'.';
+      sheetRow(views,sectionPositionLabel,sectionPositionInput);
+      var sectionPositionApply=el('button','md-sheet-btn','Apply Section position');sectionPositionApply.type='button';
+      bindSectionPositionControls(sectionPositionInput,sectionPositionApply,sheet,selectedView.id,sectionPositionUnit,drawSketch);
+      views.appendChild(sectionPositionApply);
+    }
     if(selectedView.detail) {
       var detailTagInput=el('input','');
       detailTagInput.type='text';detailTagInput.value=selectedView.detail.tag || 'A';
@@ -12762,7 +12781,7 @@ function syncSheetPanel() {
   var doc = drawingDocument(), sheet = drawingSheet();
   var selection = sheet.selection();
   var signature = doc.views.map(function (view) {
-    return view.id + ":" + view.label + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.hatchPattern + ":" + view.displayStyle + ":" + (view.configurationId||"")+":"+JSON.stringify(configuredDrawingStatus(view)&&{status:configuredDrawingStatus(view).status,reason:configuredDrawingStatus(view).reason});
+    return view.id + ":" + view.label + ":" + JSON.stringify(view.section) + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.hatchPattern + ":" + view.displayStyle + ":" + (view.configurationId||"")+":"+JSON.stringify(configuredDrawingStatus(view)&&{status:configuredDrawingStatus(view).status,reason:configuredDrawingStatus(view).reason});
   }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "") + "#" + JSON.stringify(doc.title.sources || {});
   if (host.getAttribute("data-signature") !== signature) {
     buildSheetPanel(host);
