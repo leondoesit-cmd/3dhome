@@ -1,6 +1,10 @@
 """Bake Codex source textures into tiling PBR sets for assets/materials/.
 
-    blender -b --factory-startup -P tools/textures/bake_pbr.py -- [--no-thumb] [id ...]
+    blender -b --factory-startup -P tools/textures/bake_pbr.py -- [--no-thumb] [--skip-existing] [--part i/n] [id ...]
+
+--skip-existing leaves ids whose full file set is already there; --part 2/3
+bakes every third id starting at the second, so n Blender processes can split
+one batch without overlapping.
 
 Reads tools/textures/src/<id>.png and the catalogue (js/material_library.js,
 parsed for the fields below), then writes
@@ -326,15 +330,31 @@ def bake(entry, thumb=True):
         render_thumb(entry, folder)
 
 
+def complete(mid):
+    folder = os.path.join(OUT, mid)
+    names = ["color_2k.webp", "color_1k.webp", "normal_2k.webp", "normal_1k.webp", "orm_1k.webp", "thumb.webp"]
+    return all(os.path.exists(os.path.join(folder, n)) for n in names)
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     thumb = "--no-thumb" not in argv
-    ids = [a for a in argv if not a.startswith("--")]
+    skip = "--skip-existing" in argv
+    part = None
+    if "--part" in argv:
+        k, n = argv[argv.index("--part") + 1].split("/")
+        part = (int(k) - 1, int(n))
+    ids = [a for i, a in enumerate(argv) if not a.startswith("--") and (i == 0 or argv[i - 1] != "--part")]
     cat = load_catalogue()
     if not ids:
         ids = sorted(f[:-4] for f in os.listdir(SRC) if f.endswith(".png"))
-    report = {"ok": [], "missing": [], "unknown": [], "failed": {}}
+    if part:
+        ids = ids[part[0]::part[1]]
+    report = {"ok": [], "missing": [], "unknown": [], "failed": {}, "skipped": []}
     for mid in ids:
+        if skip and complete(mid):
+            report["skipped"].append(mid)
+            continue
         if mid not in cat:
             report["unknown"].append(mid)
             continue

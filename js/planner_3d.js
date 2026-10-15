@@ -12,6 +12,7 @@ import { getMainCamera, has3D, plannerPointer3D, plannerPlanePoint3D, requestRen
 import { previewSurveyVertex, surveyVertexPlane, snapSurveyVertex } from './survey_vertex.js';
 import { st } from './survey_strings.js';
 import { dispatchPlannerInput, cancelPlannerGesture, setPlannerInputView } from './planner_input.js';
+import { touchClaims3D, isTouchTap } from './planner_touch.js';
 import { onAfterRender, render2D } from './plan2d.js';
 import { movePlanToolsTo } from './plan_tools_dock.js';
 import { wallGeom, detectRooms } from './geometry.js';
@@ -19,19 +20,11 @@ import { t, onLangChange } from './i18n.js';
 import { fmtLen } from './display_units.js';
 
 let pane, canvas, hud, modeButton, lookButton, personButton, dragId=null, lastInput=null, look=false, constraintHits=[];
-/* Touch in the 3D pane. A finger is navigation unless it plainly means an
-   edit: a drawing tool is active, or it lands on the piece that is already
-   selected. Everything else (empty space, an unselected sofa filling half the
-   screen) orbits, and a short still tap selects — the same "select first, then
-   drag" rule the 2D plan uses on touch. A second finger always navigates. */
+/* Touch in the 3D pane: see planner_touch.js for who owns a finger. A second
+   finger always navigates. */
 const touchIds=new Set();
 let touchTap=null;
 const TAP_SLOP=10, TAP_MS=450;
-export function touchClaims3D(tool, hit, sel) {
-  if (tool && tool !== 'select') return true;
-  if (!hit) return false;
-  return !!sel && sel.ref === hit.ref;
-}
 let roofButton;
 let vertexHits=[],vertexDrag=null;
 let planLayersWereHidden=null;
@@ -184,8 +177,8 @@ export function initPlanner3D() {
       touchIds.delete(e.pointerId);
       // a still, short touch that did not orbit is a tap: select what is under it
       const tap=touchTap;touchTap=null;
-      if(type==='pointerup'&&tap&&tap.id===e.pointerId&&dragId==null&&performance.now()-tap.t<TAP_MS&&
-        Math.hypot(e.clientX-tap.x,e.clientY-tap.y)<=TAP_SLOP&&!touchIds.size){
+      if(type==='pointerup'&&tap&&tap.id===e.pointerId&&dragId==null&&!touchIds.size&&
+        isTouchTap(tap,{x:e.clientX,y:e.clientY},performance.now(),TAP_SLOP,TAP_MS)){
         if(send('down',e))send('up',e);
         return;
       }

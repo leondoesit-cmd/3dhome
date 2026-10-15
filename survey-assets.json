@@ -527,6 +527,7 @@
     "/js/planner_chrome.js",
     "/js/planner_drawing.js",
     "/js/planner_input.js",
+    "/js/planner_touch.js",
     "/js/planner_tutorial.js",
     "/js/planner_workflow.js",
     "/js/planning_activity.js",
