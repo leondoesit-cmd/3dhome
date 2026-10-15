@@ -207,15 +207,30 @@ html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip {
   background: transparent;
   box-shadow: var(--ui-track-ring);
   color: var(--text-muted);
-  font-family: inherit;
+  font-family: Inter, system-ui, sans-serif;
   font-size: var(--ui-fs-sm);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip :is(.t, kbd) {
+  font-family: Inter, system-ui, sans-serif;
+}
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip .t {
+  color: inherit !important;
+  font-size: var(--ui-fs-sm);
+  font-weight: 600;
+}
+/* styles.css paints .cad-chip.on (and its .t / kbd) solid with !important */
 html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip.on {
-  background: var(--ui-on-bg);
-  color: var(--ui-on-fg);
+  background: var(--ui-on-bg) !important;
+  border-color: transparent !important;
+  color: var(--ui-on-fg) !important;
   box-shadow: var(--ui-on-ring);
+}
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip.on .t { color: var(--ui-on-fg) !important; }
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip.on kbd {
+  background: color-mix(in srgb, var(--accent) 16%, transparent) !important;
+  color: var(--ui-on-fg) !important;
 }
 
 /* ---- 6. controls floating over the canvas -------------------------------------
