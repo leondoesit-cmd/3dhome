@@ -35,7 +35,7 @@ export function holeCallouts(def, sheet = def?.drawing || {}) {
     if(sketchId && !sketch && (!params.layout || params.layout==="sketch"))return;
     const points = holeLayoutPoints(params,sketch);
     const plane=sketch?.plane || (params.axis==="x"?"side":params.axis==="z"?"front":"top");
-    const placement={...sketch,plane,offset:Number(params.offset ?? sketch?.offset)||0};
+    const placement={...sketch,plane,offset:(sketch?.frame?0:Number(sketch?.offset)||0)+(Number(params.offset)||0)};
     if(params.frame){placement.frameSpace="local";placement.frame=params.frame;}
     const axis=cylinderAxis(placement.frame?.normal || (plane==="side"?"x":plane==="front"?"z":"y"));
     const worldPoints=points.map(p=>{const q=sketchWorldPoint(placement,p.u,p.v);if(placement.frame)for(const key of ["x","y","z"])q[key]+=axis[key]*(Number(params.offset)||0);return q;});

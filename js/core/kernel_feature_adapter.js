@@ -328,6 +328,13 @@ function lowerHoleFeature(feature, document, base, target) {
   if(!target)throw new Error("Hole requires a target body");
   const resolved=resolveHoleWizardInputs(feature,document);
   const sketchParams=resolved.placement ? {...resolved.params,...resolved.placement} : lowerExtrudeParams(feature,document),wizard=holeWizardSolids(resolved.params);
+  if(!resolved.placement){
+    const sketch=document.sketches?.find(item=>item.id===sketchParams.sketchId);
+    sketchParams.holeOffsetNormal=true;
+    // Hole offset is signed along the sketch normal, independent of cut direction.
+    sketchParams.from=(sketch?.frame?0:Number(sketch?.offset)||0)+(Number(feature.params?.offset)||0);
+    sketchParams.to=sketchParams.from+(feature.params?.direction==='reverse'?-1:1)*(Number(feature.params?.depth)||0);
+  }
   const compiled=[];let lastId=target;
   wizard.solids.forEach((solid,index)=>{
     const suffix=wizard.solids.length===1?"":":"+solid.role;

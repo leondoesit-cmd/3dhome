@@ -2,6 +2,25 @@ import {normalizeSectionHatch} from "./core/section_hatch.js";
 import {modelItemTolerance} from "./core/dimension_tolerance.js";
 import {resolveComponentBalloon} from './core/assembly_balloon.js';
 import { holeLeaderForViews, holeTopologyAnchor } from "./core/hole_callout.js";
+
+// Commit explicitly on mobile: dismissing a software keyboard does not
+// consistently dispatch change. Read the live field only when applying.
+export function bindDetailTagControls(input, button, sheet, viewId, redraw) {
+  const apply=()=>{
+    const tag=String(input.value || '').trim().toUpperCase();
+    if(!/^[A-Z][A-Z0-9]{0,7}$/.test(tag)) {
+      input.setCustomValidity('Use 1–8 letters or digits, starting with a letter.');
+      input.reportValidity();return;
+    }
+    input.setCustomValidity('');
+    sheet.select({kind:'view',id:viewId});
+    sheet.setSheetOption('viewDetailTag',tag);
+    input.value=tag;redraw();
+  };
+  button.addEventListener('click',apply);
+  input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();event.stopPropagation();apply();}});
+  input.addEventListener('input',()=>input.setCustomValidity(''));
+}
 /* Drawing mode: the sheet you can work on.
  *
  * cad_sheet.js decides what a sheet contains and core/hidden_line.js decides
@@ -1633,6 +1652,13 @@ export function createDrawingController(host) {
       if (view) {
         view.scale = value === "sheet" || value === "auto" ? null : value;
         if(value === "sheet")view.scaleMode='sheet';else delete view.scaleMode;
+      }
+    } else if (key === "viewDetailTag" && state.selection?.kind === "view") {
+      const view=doc.views.find(entry=>entry.id===state.selection.id);
+      const tag=String(value || '').trim().toUpperCase();
+      if(view?.detail && /^[A-Z][A-Z0-9]{0,7}$/.test(tag)) {
+        view.detail.tag=tag;
+        view.label='DETAIL '+tag;
       }
     } else if (key === "viewDisplayStyle" && state.selection?.kind === "view") {
       const view=doc.views.find(entry=>entry.id===state.selection.id);

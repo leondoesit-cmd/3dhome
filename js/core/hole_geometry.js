@@ -39,7 +39,7 @@ export function holeCutRecords(params, sketch, entityIds, document) {
   const axis=sketch?.plane==='front'?'z':sketch?.plane==='side'?'x':'y';
   return holeWizardSolids(params).solids.map(solid=>({kind:'hole',params:{...params,...solid,
     diameter:solid.diameter || solid.diameter1,centres:structuredClone(centres),axis,frame:sketch?.frameSpace==='local'?structuredClone(sketch.frame):undefined,
-    support:sketch?.support,from:Number(params.offset)||0,requireIntersection:true}}));
+    support:sketch?.support,from:(sketch?.frameSpace==='local'?0:Number(sketch?.offset)||0)+(Number(params.offset)||0),requireIntersection:true}}));
 }
 
 // The feature tree is authoritative, but the viewport also keeps lightweight

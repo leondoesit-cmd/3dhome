@@ -181,7 +181,7 @@ import {drawingViewScaleControl} from "./core/drawing_scale_control.js";
 import {decodeDrawingImage} from "./core/drawing_image.js";
 import {importDrawingProjectImage} from "./core/drawing_project_image.js";
 import {captureDrawingPreset,applyDrawingFormat,drawingFromTemplate,loadDrawingPresets,saveDrawingPreset} from './core/drawing_presets.js';
-import { DRAWING_TOOLS, createDrawingController } from "./modeler_drawing.js";
+import { DRAWING_TOOLS, createDrawingController, bindDetailTagControls } from "./modeler_drawing.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern, flatPatternSvg } from "./cad_sheet_metal.js";
@@ -12633,6 +12633,15 @@ function buildSheetPanel(host) {
   var selected = sheet.selection();
   var selectedView = selected && selected.kind === "view" && doc.views.filter(function (view) { return view.id === selected.id; })[0];
   if (selectedView) {
+    if(selectedView.detail) {
+      var detailTagInput=el('input','');
+      detailTagInput.type='text';detailTagInput.value=selectedView.detail.tag || 'A';
+      detailTagInput.maxLength=8;detailTagInput.setAttribute('aria-label','Detail tag');
+      sheetRow(views,'Detail tag',detailTagInput);
+      var detailTagApply=el('button','md-sheet-btn','Apply Detail tag');detailTagApply.type='button';
+      bindDetailTagControls(detailTagInput,detailTagApply,sheet,selectedView.id,drawSketch);
+      views.appendChild(detailTagApply);
+    }
     views.appendChild(btn('<i class="ph ph-copy"></i> Copy selected view', function(){
       sheet.duplicateSelectedView();
       drawSketch();
@@ -18658,11 +18667,12 @@ function openFeatureEditor(feature) {
     var supportCompiled=compileKernelFeatureTree(E.def);
     var supportTopology=supportCompiled.ok ? verifiedExactTopology(E.def,supportCompiled.features) : new Map();
     supportChoices=holeSupportChoices(earlier,supportTopology,supportSketch.support,supportStageId,modelLengthUnit());
-    if(supportChoices.length){
+    if(supportChoices.length || !supportSketch.support){
       var supportRow=el("label","md-row md-row-wide");supportRow.appendChild(el("span","t",t("sketchSupportFace")));
       supportSelect=document.createElement("select");supportSelect.setAttribute("aria-label",t("sketchSupportFace"));
+      if(!supportSketch.support){var datumOption=document.createElement("option");datumOption.value="";datumOption.textContent="Datum sketch (unattached) · "+(supportSketch.plane || "top");supportSelect.appendChild(datumOption);}
       supportChoices.forEach(function(choice){var option=document.createElement("option");option.value=choice.key;option.textContent=choice.label;supportSelect.appendChild(option);});
-      supportSelect.value=supportSketch.support ? "current" : supportChoices[0].key;
+      supportSelect.value=supportSketch.support ? "current" : "";
       supportRow.appendChild(supportSelect);host.appendChild(supportRow);
       host.appendChild(el("p","md-field-hint","Choose the feature stage whose face defines the hole position. Changing support preserves local point coordinates; adjust Positions afterward to preserve the intended model location. Earlier stages use verified native faces, before later trimming."));
     }

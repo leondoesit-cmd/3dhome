@@ -481,6 +481,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     }
     group.fields.forEach(function (sourceField) {
       var field = { ...sourceField };
+      if(type==='hole' && field.key==='offset' && (state.params?.cylindricalSource || state.params?.positionSketchId))return;
       if(field.dynamicChoices==="feature-seed")field.choices=[{value:"",label:"Select a feature"},...(options.featureSeeds || [])];
       if (type === "toolbox" && field.dynamicChoices === "toolbox-size") {
         var initialFamily = toolboxFamily(state.params && state.params.kind);
@@ -492,6 +493,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         : field.key==="seedFeatureIds" ? (state.params?.seedFeatureIds?.length ? state.params.seedFeatureIds : state.params?.seedFeatureId ? [state.params.seedFeatureId] : [])
         : state.params && state.params[field.key];
       if(type==='hole' && value==null && ['cylinderPlacementMethod','cylinderConstraintBranch','cylinderOnSurface','cylinderAlongZ','cylinderAlongY'].includes(field.key))value=field.key==='cylinderPlacementMethod'?'angular':field.key==='cylinderConstraintBranch'?'positive-z':true;
+      if(type==='hole' && field.key==='offset' && value==null)value=0;
       if(type==='hole' && value==null && ['headClearanceEnabled','headClearance','headClearanceMode'].includes(field.key))value=field.key==='headClearanceEnabled'?false:field.key==='headClearance'?0:'increased-countersink';
       if(type==="thread" && value==null && state.params?.fitLimits){
         var limits=state.params.fitLimits;
@@ -504,6 +506,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       }
       if (field.unit === 'length') field = {...field, inputUnit:documentLengthUnit(options.units?.length)};
       var input = featureField(hostForField(field), field, value, {...options,radius:state.params?.radius,pitch:state.params?.pitch,turns:state.params?.turns});
+      if(type==='hole' && field.key==='offset')input.title='Signed displacement along the sketch/frame normal. Reversing the cut does not reverse this offset.';
       var control = { field: field, input: input };
       controls.push(control);
       var live = function () {

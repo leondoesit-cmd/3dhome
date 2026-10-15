@@ -692,7 +692,7 @@ export const FEATURE_CATALOG = Object.freeze({
       headClearanceEnabled:false,headClearance:0,headClearanceMode:'increased-countersink',
       threadDepth: 0, threadMode: "cosmetic", handedness: "rh", toleranceClass: "6H",
       layout: "sketch", countX: 2, countY: 2, spacingX: 4, spacingY: 4, count: 4, radius: 3, startAngle: 0,
-      direction: "forward",
+      direction: "forward", offset:0,
       cylinderPlacementMethod:'angular',cylinderConstraintBranch:'positive-z',cylinderOnSurface:true,cylinderAlongZ:true,cylinderAlongY:true,separateHoleSketches:false,
     },
     parameters: {
@@ -716,7 +716,7 @@ export const FEATURE_CATALOG = Object.freeze({
       countY: { type: "number", integer: true, min: 1, max: 32 },
       spacingX: LENGTH, spacingY: LENGTH,
       count: { type: "number", integer: true, min: 1, max: 32 }, radius: LENGTH, startAngle: ANGLE,
-      direction: ENUM("forward", "reverse"),
+      direction: ENUM("forward", "reverse"), offset:SIGNED_LENGTH,
     },
     editor: { groups: [
       { id:'cylindricalPosition',label:'Cylindrical face position',fields:[
@@ -766,6 +766,7 @@ export const FEATURE_CATALOG = Object.freeze({
           {value:"blind",label:"Blind",labelKey:"fcOptBlind"},
           {value:"through-all",label:"Through all",labelKey:"fcOptThroughAll"},
         ] },
+        { key:"offset",label:"Start offset (+ sketch normal)",type:"number",unit:"length",step:.1 },
         { key: "depth", label: "Depth", labelKey: "fcFldDepth", type: "number", unit: "length", min: 1e-6, step: 0.1 },
         { key: "drillPointAngle", label: "Drill point angle (180° = flat)", type: "number", unit: "angle", min:60,max:180,step:1 },
         { key: "direction", label: "Direction", labelKey: "fcFldDirection", type: "select", choices: DIRECTIONS },

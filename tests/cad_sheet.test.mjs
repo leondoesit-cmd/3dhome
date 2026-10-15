@@ -9,7 +9,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  consolidateSegments, cropProjection, projectSolid, sectionBodies, viewAxes, viewBasis, viewForSight,
+  consolidateSegments, cropProjection, circleCropArcs, projectSolid, sectionBodies, viewAxes, viewBasis, viewForSight,
 } from "../js/core/hidden_line.js";
 import { polygonArea, tessellatePart, tessellateParts, triangulatePolygon } from "../js/core/part_tessellate.js";
 import {
@@ -17,13 +17,72 @@ import {
   ensureSheetDoc, formatLength, hatchLoops, layoutViews, measureDim, removeViewFromSheet,
   resolveDimAnchor, scaleLabel, sceneToSvg, titleBlockBox,
 } from "../js/cad_sheet.js";
-import { createDrawingController } from "../js/modeler_drawing.js";
+import { createDrawingController, bindDetailTagControls } from "../js/modeler_drawing.js";
 import { createDrawingSvg } from "../js/cad_drawings.js";
 import { topologyForFeature } from "../js/core/topology.js";
 import { calloutText, calloutTextById, holeCallouts } from "../js/core/hole_callout.js";
 
 const BOX = { kind: "box", x0: -10, x1: 10, y0: 0, y1: 20, z0: -5, z1: 5 };
 const bodies = (...parts) => tessellateParts(parts);
+
+test('Detail clips analytic visible and hidden circles and center lines, including nested bubbles',()=>{
+  const boundary={u:0,v:0,radius:2};
+  const rounds=[{u:1.5,v:0,radius:1,drawn:'visible',visible:true,kind:'round'},
+    {u:-1.5,v:0,radius:1,drawn:'hidden',visible:true,kind:'round'},
+    {u:0,v:-1.5,radius:1,drawn:'visible',visible:true,kind:'round'},
+    {u:0,v:0,radius:5,drawn:'visible',visible:true,kind:'round'}];
+  const source={visible:[],hidden:[],circles:rounds,bounds:{u0:-5,v0:-5,u1:5,v1:5}};
+  const projection=cropProjection(source,boundary);
+  const doc=createSheetDoc({views:[],scale:[1,1]});doc.showCenters=true;doc.showHidden=true;
+  doc.views=[createView('front',{id:'detail',label:'DETAIL B',scale:[1,1],x:80,y:80,detail:{...boundary,tag:'B'}})];
+  const scene=buildSheetScene(doc,{projection:()=>projection});
+  const place=scene.views[0],centre=place.toSheet(boundary),limit=2*place.k;
+  const strokes=scene.items.filter(i=>i.viewId==='detail' && ['outline','hidden','center'].includes(i.style));
+  assert.ok(strokes.some(i=>i.type==='arc'&&i.style==='outline'));
+  assert.ok(strokes.some(i=>i.type==='arc'&&i.style==='hidden'));
+  assert.ok(!strokes.some(i=>i.type==='circle'),'no complete crossing circles');
+  for(const item of strokes) {
+    const points=item.type==='arc'?Array.from({length:101},(_,j)=>({x:item.cx+item.r*Math.cos(item.a0+(item.a1-item.a0)*j/100),y:item.cy+item.r*Math.sin(item.a0+(item.a1-item.a0)*j/100)})):
+      item.type==='line'?[{x:item.x1,y:item.y1},{x:item.x2,y:item.y2}]:[];
+    for(const p of points)assert.ok(Math.hypot(p.x-centre.x,p.y-centre.y)<=limit+1e-7);
+  }
+  assert.match(sceneToSvg(scene),/<path d="M[^"]+A/,'SVG retains analytic arcs');
+  const nested=cropProjection(projection,{u:1,v:0,radius:1.2});
+  const caption=scene.items.find(item=>item.viewLabel==='detail');
+  assert.equal(caption.y,place.box.y+place.box.h+7,'cropped-away arc bounds do not push the caption down');
+  assert.equal(nested.circularClipBoundaries.length,2);
+  for(const arc of circleCropArcs(rounds[0],nested.circularClipBoundaries))for(let j=0;j<=100;j++){
+    const a=arc.a0+(arc.a1-arc.a0)*j/100,u=1.5+Math.cos(a),v=Math.sin(a);
+    for(const b of nested.circularClipBoundaries)assert.ok(Math.hypot(u-b.u,v-b.v)<=b.radius+1e-8);
+  }
+});
+
+test('native Detail tag setter keeps parent marker and caption together after save',()=>{
+  const rig=table({parts:[BOX]}),c=rig.controller,doc=rig.document.drawing;
+  const parent=doc.views[0];
+  const detail=addViewToSheet(doc,parent.dir,{parent:parent.id,label:'DETAIL A',detail:{from:parent.id,u:0,v:0,radius:2,tag:'A'}});
+  c.select({kind:'view',id:detail.id});c.setSheetOption('viewDetailTag','b');
+  const live=()=>rig.document.drawing.views.find(v=>v.id===detail.id);
+  assert.equal(live().detail.tag,'B');assert.equal(live().label,'DETAIL B');
+  c.setSheetOption('viewDetailTag','');assert.equal(live().detail.tag,'B');
+  const cold=JSON.parse(JSON.stringify(rig.document.drawing));assert.equal(cold.views.at(-1).detail.tag,'B');
+  assert.match(c.svg(),/DETAIL B/);
+});
+
+test('Detail Apply UI callback commits live field without change and reacquires its selected view',()=>{
+  const rig=table({parts:[BOX]}),c=rig.controller,doc=rig.document.drawing,parent=doc.views[0];
+  const detail=addViewToSheet(doc,parent.dir,{parent:parent.id,label:'DETAIL A',detail:{from:parent.id,u:0,v:0,radius:2,tag:'A'}});
+  const input=new EventTarget(),button=new EventTarget();input.value='A';
+  input.setCustomValidity=value=>{input.validityMessage=value;};input.reportValidity=()=>{};
+  let redraws=0;bindDetailTagControls(input,button,c,detail.id,()=>redraws++);
+  c.select({kind:'view',id:parent.id});input.value=' b ';
+  button.dispatchEvent(new Event('click'));
+  const live=()=>rig.document.drawing.views.find(v=>v.id===detail.id);
+  assert.equal(live().label,'DETAIL B');assert.equal(live().detail.tag,'B');assert.equal(redraws,1);
+  assert.equal(rig.steps().at(-1),'opSheetSetup');assert.match(c.svg(),/DETAIL B/);
+  input.value='';button.dispatchEvent(new Event('click'));assert.equal(live().detail.tag,'B');assert.ok(input.validityMessage);
+  rig.undo();assert.equal(live().label,'DETAIL A');
+});
 
 test("Detail gestures accept isometric and Detail parents, retain scale labels and cold geometry", () => {
   const rig = table({ parts: [BOX] });

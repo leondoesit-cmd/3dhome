@@ -762,7 +762,31 @@ export function cropProjection(projection, circle) {
     displayBounds:bounds,
     presentationCentre:{u:circle.u,v:circle.v},
     crop: { u: circle.u, v: circle.v, radius },
+    circularClipBoundaries: [...(projection.circularClipBoundaries || []), {u:circle.u,v:circle.v,radius}],
   };
+}
+
+// Exact angular intervals retained by every ancestor Detail bubble. Keeping
+// circles analytic avoids both full-circle leakage and faceted SVG exports.
+export function circleCropArcs(round, boundaries = []) {
+  const tau=Math.PI*2, cuts=[0,tau], r=round.radius;
+  for(const boundary of boundaries) {
+    const dx=boundary.u-round.u,dy=boundary.v-round.v,d=Math.hypot(dx,dy);
+    if(!(d>1e-12 && r>0))continue;
+    const cosine=(d*d+r*r-boundary.radius*boundary.radius)/(2*d*r);
+    if(cosine<=-1 || cosine>=1)continue;
+    const angle=Math.atan2(dy,dx),half=Math.acos(cosine);
+    for(const a of [angle-half,angle+half])cuts.push((a%tau+tau)%tau);
+  }
+  cuts.sort((a,b)=>a-b);
+  const arcs=[];
+  for(let i=1;i<cuts.length;i++) {
+    const a0=cuts[i-1],a1=cuts[i],mid=(a0+a1)/2;
+    if(a1-a0<1e-12)continue;
+    const u=round.u+r*Math.cos(mid),v=round.v+r*Math.sin(mid);
+    if(boundaries.every(b=>Math.hypot(u-b.u,v-b.v)<=b.radius+1e-10))arcs.push({a0,a1});
+  }
+  return arcs;
 }
 
 function clipSurfaceToCircle(points,circle) {

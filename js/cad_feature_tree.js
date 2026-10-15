@@ -626,14 +626,15 @@ export function alignExtrusionToSupport(params, resolutions = []) {
       base={x:p.x-n.x*distance,y:p.y-n.y*distance,z:p.z-n.z*distance};
     }
     const frame=offsetSketchFrame(realignFrame(params.frame,base,descriptor.normal),base,descriptor.normal,params.supportOffset);
-    return { ...params, frame, from: symmetric ? reversed*(baseOffset-depth/2) : reversed*baseOffset, to: symmetric ? reversed*(baseOffset+depth/2) : reversed*(baseOffset+depth) };
+    const start=(params.holeOffsetNormal?1:reversed)*baseOffset;
+    return { ...params, frame, from: symmetric ? start-reversed*depth/2 : start, to: symmetric ? start+reversed*depth/2 : start+reversed*depth };
   }
   const axis = params.axis || "y";
   const coordinate = Number(descriptor.origin[axis]) || 0;
   const direction = (Math.sign(Number(descriptor.normal[axis]) || 1) || 1) * reversed;
   const baseOffset = Number(params.baseOffset) || 0;
   const depth = Math.max(1e-6, Math.abs(Number(params.depth) || Math.abs(Number(params.to) - Number(params.from))));
-  const center = coordinate + direction * baseOffset;
+  const center = coordinate + direction * (params.holeOffsetNormal?reversed:1) * baseOffset;
   return { ...params, from: symmetric ? center-direction*depth/2 : center, to: symmetric ? center+direction*depth/2 : center+direction*depth };
 }
 

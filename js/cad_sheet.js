@@ -31,7 +31,7 @@ import {resolveComponentBalloon} from './core/assembly_balloon.js';
  */
 
 import {
-  ORTHO_VIEWS, cropProjection, isOrthoView, projectSolid, projectionBounds, sectionBodies, viewBasis,
+  ORTHO_VIEWS, cropProjection, circleCropArcs, isOrthoView, projectSolid, projectionBounds, sectionBodies, viewBasis,
 } from "./core/hidden_line.js";
 
 /* ISO and ANSI paper sizes in millimetres, landscape. A sheet is described by the paper it is
@@ -1329,6 +1329,15 @@ function dimensionItems(dim, place, doc, options = {}) {
  *                    meta, bom }
  * @returns { paper, items, views, scale } — millimetres, ready to paint.
  */
+// Only the retained arc reserves caption space, never its cropped-away circle.
+function arcLowerBound(item) {
+  const tau=Math.PI*2,turn=a=>(a%tau+tau)%tau;
+  const start=item.anticlockwise?item.a1:item.a0,end=item.anticlockwise?item.a0:item.a1;
+  const span=turn(end-start),toBottom=turn(Math.PI/2-start);
+  const reachesBottom=Math.abs(end-start)>=tau-1e-10 || toBottom<=span+1e-10;
+  return item.cy+item.r*(reachesBottom?1:Math.max(Math.sin(item.a0),Math.sin(item.a1)));
+}
+
 function exactArcStroke(segment, topologyIndex, basis, toSheet, k, style, viewId) {
   if (!topologyIndex || !basis) return null;
   const project = p => ({u:p.x*basis.right.x+p.y*basis.right.y+p.z*basis.right.z,v:p.x*basis.up.x+p.y*basis.up.y+p.z*basis.up.z});
@@ -1526,6 +1535,13 @@ export function buildSheetScene(doc, provider, options = {}) {
     }
     const appendCenterItems=marks=>{
       for(const mark of marks) {
+        if(projection.circularClipBoundaries?.length && mark.type==='line') {
+          let edges=[{a:record.toModel({x:mark.x1,y:mark.y1}),b:record.toModel({x:mark.x2,y:mark.y2})}];
+          for(const boundary of projection.circularClipBoundaries)edges=cropProjection({visible:edges},boundary).visible;
+          if(projection.cropBoundary)edges=clipCropEdges(edges,projection.cropBoundary);
+          for(const edge of edges){const a=toSheet(edge.a),b=toSheet(edge.b);items.push({...mark,x1:a.x,y1:a.y,x2:b.x,y2:b.y});}
+          continue;
+        }
         if(projection.breakMap && mark.type==='line') {
           const map=projection.breakMap,other=map.axis==='u'?'v':'u';
           const p=toSheet({[map.axis]:map.from,[other]:0}),q=toSheet({[map.axis]:map.to,[other]:0});
@@ -1545,7 +1561,12 @@ export function buildSheetScene(doc, provider, options = {}) {
     for (const round of projection.circles || []) {
       if (drawEdges && (round.drawn === "visible" || (round.drawn === "hidden" && showHidden))) {
         const centrePoint = toSheet(round);
-        items.push(circle(centrePoint.x, centrePoint.y, round.radius * k, round.drawn === "hidden" ? "hidden" : "outline", { viewId: view.id }));
+        const style=round.drawn === "hidden" ? "hidden" : "outline";
+        const arcs=circleCropArcs(round,projection.circularClipBoundaries);
+        for(const arc of arcs) {
+          if(arc.a1-arc.a0>=Math.PI*2-1e-10)items.push(circle(centrePoint.x,centrePoint.y,round.radius*k,style,{viewId:view.id}));
+          else items.push({type:'arc',cx:centrePoint.x,cy:centrePoint.y,r:round.radius*k,a0:-arc.a1,a1:-arc.a0,style,viewId:view.id});
+        }
       }
       if (showCenters && round.visible && round.kind === "round") appendCenterItems(centreMark(round, toSheet, k, view.id));
     }
@@ -1655,7 +1676,8 @@ export function buildSheetScene(doc, provider, options = {}) {
       if (item.viewId !== label.record.id) continue;
       const low = item.type === "line" ? Math.max(item.y1, item.y2)
         : item.type === "text" ? item.y + item.size
-          : item.type === "circle" || item.type === "arc" ? item.cy + item.r
+          : item.type === "arc" ? arcLowerBound(item)
+            : item.type === "circle" ? item.cy + item.r
             : item.type === "poly" ? Math.max(...item.pts.map((point) => point.y)) : -Infinity;
       if (Number.isFinite(low) && low > bottom && (item.balloon || low < label.record.box.y + label.record.box.h + 60)) bottom = low;
     }
