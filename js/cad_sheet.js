@@ -1588,8 +1588,9 @@ export function buildSheetScene(doc, provider, options = {}) {
       items.push(circle(centrePoint.x, centrePoint.y, projection.crop.radius * k, "detail", { viewId: view.id }));
     }
     if(projection.brokenOutBoundary) {
-      const points=projection.brokenOutBoundary.map(toSheet);
-      for(let i=0;i<points.length;i++) {const a=points[i],b=points[(i+1)%points.length];items.push(line(a.x,a.y,b.x,b.y,"section",{viewId:view.id,brokenOutBoundary:true}));}
+      const boundary=projection.brokenOutBoundary;
+      const segments=projection.brokenOutBoundarySegments || boundary.map((a,i)=>({a,b:boundary[(i+1)%boundary.length]}));
+      for(const segment of segments) {const a=toSheet(segment.a),b=toSheet(segment.b);items.push(line(a.x,a.y,b.x,b.y,"section",{viewId:view.id,brokenOutBoundary:true}));}
     }
     if (view.labelled !== false) {
       const suffix = scaleValue(record.scale) !== scaleValue(layout.sheetScale)

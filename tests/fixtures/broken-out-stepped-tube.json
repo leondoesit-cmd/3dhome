@@ -1,0 +1,549 @@
+{
+  "schemaVersion": 8,
+  "id": "cm_mv9algib",
+  "authoringMode": "fully-parametric",
+  "sketches": [
+    {
+      "id": "sk_1wbnw",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 7036,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 7037,
+          "type": "circle",
+          "name": "Circle",
+          "c": 7036,
+          "r": 2,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 7038,
+          "type": "diameter",
+          "entity": 7037,
+          "value": 4,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 7039,
+          "type": "fixed",
+          "point": 7036,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_2kb46",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 7041,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 7042,
+          "type": "circle",
+          "name": "Circle",
+          "c": 7041,
+          "r": 0.5,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 7043,
+          "type": "diameter",
+          "entity": 7042,
+          "value": 1,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 7044,
+          "type": "fixed",
+          "point": 7041,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_3dd3o",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 7046,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 7047,
+          "type": "circle",
+          "name": "Circle",
+          "c": 7046,
+          "r": 1.7,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 7048,
+          "type": "diameter",
+          "entity": 7047,
+          "value": 3.4,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 7049,
+          "type": "fixed",
+          "point": 7046,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_4vme4",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 7051,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "entities": [
+        {
+          "id": 7052,
+          "type": "circle",
+          "name": "Circle",
+          "c": 7051,
+          "r": 1.2,
+          "construction": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": 7053,
+          "type": "diameter",
+          "entity": 7052,
+          "value": 2.4,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": 7054,
+          "type": "fixed",
+          "point": 7051,
+          "x": 0,
+          "y": 0,
+          "exprError": null
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    }
+  ],
+  "features": [
+    {
+      "id": "feature_mv9am81n_1",
+      "type": "extrude",
+      "name": "Extrude / Boss 1",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 6,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          7037
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_1wbnw",
+        "from": 0,
+        "to": 6
+      },
+      "references": {
+        "sketches": [
+          "sk_1wbnw"
+        ],
+        "features": [],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          7037
+        ]
+      },
+      "inputs": [],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mv9and9z_2",
+      "type": "extrude",
+      "name": "Extrude / Boss 2",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 0.8,
+        "offset": 6,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          7042
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_2kb46",
+        "from": 6,
+        "to": 6.8
+      },
+      "references": {
+        "sketches": [
+          "sk_2kb46"
+        ],
+        "features": [
+          "feature_mv9am81n_1"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          7042
+        ]
+      },
+      "inputs": [
+        "feature_mv9am81n_1"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mv9aodwx_3",
+      "type": "extrude",
+      "name": "Extrude / Boss 3",
+      "params": {
+        "operation": "add",
+        "endCondition": "blind",
+        "depth": 1.2,
+        "offset": 6.8,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "axis": "x",
+        "profileEntityIds": [
+          7047
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_3dd3o",
+        "from": 6.8,
+        "to": 8
+      },
+      "references": {
+        "sketches": [
+          "sk_3dd3o"
+        ],
+        "features": [
+          "feature_mv9and9z_2"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          7047
+        ]
+      },
+      "inputs": [
+        "feature_mv9and9z_2"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mv9apu7e_5",
+      "type": "extrudeCut",
+      "name": "Extrude Cut 1",
+      "params": {
+        "operation": "subtract",
+        "endCondition": "blind",
+        "depth": 5.5,
+        "offset": 0,
+        "direction": "forward",
+        "symmetric": false,
+        "draftAngle": 0,
+        "draftOutward": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "keepTool": false,
+        "axis": "x",
+        "profileEntityIds": [
+          7052
+        ],
+        "holeProfileEntityIds": [],
+        "holes": [],
+        "sketchId": "sk_4vme4",
+        "from": 0,
+        "to": 5.5
+      },
+      "references": {
+        "sketches": [
+          "sk_4vme4"
+        ],
+        "features": [
+          "feature_mv9aodwx_3"
+        ],
+        "topology": [],
+        "references": [],
+        "profileEntityIds": [
+          7052
+        ]
+      },
+      "inputs": [
+        "feature_mv9aodwx_3"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    }
+  ],
+  "history": [
+    {
+      "id": "history:sketch:sk_1wbnw",
+      "kind": "sketch",
+      "targetId": "sk_1wbnw",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv9am81n_1",
+      "kind": "feature",
+      "targetId": "feature_mv9am81n_1",
+      "name": "Extrude / Boss 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_2kb46",
+      "kind": "sketch",
+      "targetId": "sk_2kb46",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv9and9z_2",
+      "kind": "feature",
+      "targetId": "feature_mv9and9z_2",
+      "name": "Extrude / Boss 2",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_3dd3o",
+      "kind": "sketch",
+      "targetId": "sk_3dd3o",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv9aodwx_3",
+      "kind": "feature",
+      "targetId": "feature_mv9aodwx_3",
+      "name": "Extrude / Boss 3",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_4vme4",
+      "kind": "sketch",
+      "targetId": "sk_4vme4",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mv9apu7e_5",
+      "kind": "feature",
+      "targetId": "feature_mv9apu7e_5",
+      "name": "Extrude Cut 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "parts": [],
+  "drawing": {
+    "version": 1,
+    "draftingStandard": "custom",
+    "secondaryUnits": "",
+    "secondaryPrecision": 2,
+    "size": "A4",
+    "orientation": "landscape",
+    "projection": "third",
+    "units": "mm",
+    "scale": [
+      1,
+      1
+    ],
+    "showHidden": true,
+    "showCenters": true,
+    "showZones": true,
+    "views": [
+      {
+        "id": "v69g2ps1",
+        "dir": "front",
+        "label": "FRONT",
+        "x": null,
+        "y": null,
+        "scale": null,
+        "configurationId": null,
+        "configurationName": null,
+        "primary": true,
+        "parent": null,
+        "hidden": null,
+        "displayStyle": "edges",
+        "centers": null,
+        "labelled": true,
+        "hatchPattern": "uniform",
+        "section": null,
+        "alignedSection": null,
+        "detail": null,
+        "cropSketch": null,
+        "brokenOut": {
+          "sketch": {
+            "type": "closed-spline",
+            "closed": true,
+            "points": [
+              {
+                "u": 1.19736842105263,
+                "v": 1.807894736842104
+              },
+              {
+                "u": 1.3710526315789453,
+                "v": 2.6473684210526303
+              },
+              {
+                "u": 2.673684210526315,
+                "v": 2.907894736842104
+              },
+              {
+                "u": 3.831578947368419,
+                "v": 2.1552631578947357
+              },
+              {
+                "u": 3.94736842105263,
+                "v": 1.1421052631578932
+              },
+              {
+                "u": 3.252631578947367,
+                "v": 0.4763157894736835
+              },
+              {
+                "u": 2.007894736842104,
+                "v": 0.534210526315789
+              },
+              {
+                "u": 1.2842105263157877,
+                "v": 1.0842105263157875
+              }
+            ]
+          },
+          "depth": 2,
+          "datum": "front-envelope"
+        },
+        "auxiliary": null,
+        "breakView": null,
+        "alternatePosition": null
+      }
+    ],
+    "dims": [],
+    "notes": [
+      {
+        "id": "nxhz5qpn",
+        "x": 122.75172413793102,
+        "y": 120.08016199572336,
+        "text": "PDF110 / BROKEN-OUT EXAMPLE1\nSource is undimensioned; all sizes assumed.\nTube bore and end wall are illustrative.\nThick source bands are not proven solid features.\nLocal depth 20mm demonstrates material exposure.",
+        "leader": null
+      }
+    ],
+    "primitives": [],
+    "images": [],
+    "title": {
+      "revision": "A",
+      "sheet": 1,
+      "sheets": 1,
+      "title": "BROKEN-OUT - QUALIFIED INTERPRETATION",
+      "number": "2-24 / PDF110",
+      "author": "",
+      "company": "",
+      "material": "",
+      "finish": "",
+      "mass": "",
+      "date": "",
+      "tolerance": ""
+    },
+    "assemblyLayout": false,
+    "seeded": true
+  }
+}

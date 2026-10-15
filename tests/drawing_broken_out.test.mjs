@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {canBreakOutView,brokenOutDepthRange,projectBrokenOutView} from '../js/core/drawing_broken_out.js';
+import {canBreakOutView,brokenOutDepthRange,projectBrokenOutView,clipBreakBoundaryToBodies} from '../js/core/drawing_broken_out.js';
+import fs from 'node:fs';
+import {compileKernelFeatureTree} from '../js/core/kernel_feature_adapter.js';
+import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js';
+import {shapeToMeshData,validateBrepForExport} from '../js/cad_kernel.js';
 import {cropDrawingProjection,pointInCrop,cropSplinePoints} from '../js/core/drawing_crop.js';
 import {projectSolid} from '../js/core/hidden_line.js';
 import {tessellateParts} from '../js/core/part_tessellate.js';
@@ -14,6 +18,37 @@ const bodies=tessellateParts([
 const sketch={type:'closed-spline',closed:true,points:[{u:-2,v:-2},{u:2,v:-2},{u:2,v:2},{u:-2,v:2}]};
 const modifier=depth=>({sketch,depth,datum:'front-envelope'});
 const view=depth=>createView('front',{id:'p',brokenOut:modifier(depth)});
+
+test('break boundary clips to projected material, leaving through holes and gaps empty inside bounding box',()=>{
+  const pierced=tessellateParts([{kind:'ext',axis:'z',from:0,to:1,pts:[{u:-3,v:-2},{u:3,v:-2},{u:3,v:2},{u:-3,v:2}],holes:[ring(0)]}]);
+  const segments=clipBreakBoundaryToBodies([{u:-4,v:0},{u:4,v:0},{u:4,v:.3},{u:-4,v:.3}],pierced,'front');
+  assert.ok(segments.length>=4);
+  for(const e of segments)for(let i=0;i<=10;i++){
+    const u=e.a.u+(e.b.u-e.a.u)*i/10,v=e.a.v+(e.b.v-e.a.v)*i/10;
+    assert.ok(Math.abs(u)<=3+1e-8);assert.ok(Math.hypot(u,v)>=.99,'through hole has no break line');
+  }
+});
+
+test('native mobile stepped tube ends visible break line at silhouette while keeping closed removal spline',async()=>{
+  const def=JSON.parse(fs.readFileSync(new URL('./fixtures/broken-out-stepped-tube.json',import.meta.url)));
+  const compiled=compileKernelFeatureTree(def),run=await regenerateFeatures({...compiled.document,features:compiled.features});
+  try {
+    const solid=run.results.get(def.features.at(-1).id);assert.equal((await validateBrepForExport(solid)).solidCount,1);
+    const mesh=await shapeToMeshData(solid),doc=def.drawing,original=JSON.stringify(doc.views[0].brokenOut);
+    const projector=createProjector(doc,[mesh]),projection=projector(doc.views[0]),scene=buildSheetScene(doc,{projection:projector});
+    assert.ok(projection.brokenOutBoundary.some(p=>p.v>2.5),'closed removal shape remains above stock');
+    assert.ok(projection.brokenOutBoundarySegments.length<projection.brokenOutBoundary.length);
+    for(const e of projection.brokenOutBoundarySegments)for(const p of[e.a,e.b])assert.ok(p.v<=2+1e-7,'visible break line stops at actual silhouette');
+    const meshTop=Math.max(...Array.from(mesh.positions).filter((_,i)=>i%3===1));
+    assert.ok(projection.brokenOutBoundarySegments.some(e=>Math.abs(e.a.v-meshTop)<1e-7 || Math.abs(e.b.v-meshTop)<1e-7));
+    const placed=scene.views[0];
+    for(const line of scene.items.filter(i=>i.brokenOutBoundary))for(const p of[{x:line.x1,y:line.y1},{x:line.x2,y:line.y2}])assert.ok(placed.toModel(p).v<=2+1e-7);
+    assert.equal(scene.items.filter(i=>i.style==='hatch').length,12,'local material exposure unchanged');
+    assert.equal(JSON.stringify(doc.views[0].brokenOut),original);
+    const cold=JSON.parse(JSON.stringify(doc));
+    assert.equal(sceneToSvg(buildSheetScene(cold,{projection:createProjector(cold,[mesh])})),sceneToSvg(scene));
+  }finally{releaseRegeneration(run);}
+});
 
 test('actual depth section reveals a covered bore only inside broken-out region and retains outside HLR',()=>{
   const original=projectSolid(bodies,'front'),result=projectBrokenOutView(bodies,view(1.5));

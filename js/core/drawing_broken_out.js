@@ -21,6 +21,36 @@ export function brokenOutDepthRange(bodies,dir) {
   return {front,back,extent:front-back};
 }
 
+// Clip the visible break line to the union of projected mesh triangles. A
+// bounding box would still draw through empty gaps, notches and through holes.
+export function clipBreakBoundaryToBodies(boundary,bodies,dir) {
+  const basis=viewBasis(dir),project=(p,i)=>({u:p[i]*basis.right.x+p[i+1]*basis.right.y+p[i+2]*basis.right.z,v:p[i]*basis.up.x+p[i+1]*basis.up.y+p[i+2]*basis.up.z});
+  const cross=(a,b,c)=>(b.u-a.u)*(c.v-a.v)-(b.v-a.v)*(c.u-a.u),triangles=[];
+  for(const body of bodies)for(let i=0;i<(body.positions?.length || 0);i+=9) {
+    const tri=[project(body.positions,i),project(body.positions,i+3),project(body.positions,i+6)],area=cross(...tri);
+    if(Math.abs(area)>1e-12)triangles.push({points:tri,sign:Math.sign(area)});
+  }
+  const result=[];
+  for(let i=0;i<boundary.length;i++) {
+    const a=boundary[i],b=boundary[(i+1)%boundary.length],intervals=[];
+    for(const tri of triangles) {
+      let lo=0,hi=1;
+      for(let j=0;j<3 && hi>lo;j++) {
+        const c=tri.points[j],d=tri.points[(j+1)%3],fa=cross(c,d,a)*tri.sign,fb=cross(c,d,b)*tri.sign;
+        if(fa<0 && fb<0){hi=-1;break;}
+        if(fa<0)lo=Math.max(lo,fa/(fa-fb));
+        if(fb<0)hi=Math.min(hi,fa/(fa-fb));
+      }
+      if(hi-lo>1e-10)intervals.push([lo,hi]);
+    }
+    intervals.sort((x,y)=>x[0]-y[0]);const merged=[];
+    for(const interval of intervals){const last=merged.at(-1);if(last && interval[0]<=last[1]+1e-9)last[1]=Math.max(last[1],interval[1]);else merged.push(interval.slice());}
+    const point=t=>({u:a.u+(b.u-a.u)*t,v:a.v+(b.v-a.v)*t});
+    for(const [lo,hi]of merged)result.push({a:point(lo),b:point(hi)});
+  }
+  return result;
+}
+
 export function projectBrokenOutView(bodies,view,options={}) {
   if(!canBreakOutView(view)) throw new Error('Broken-out supports an ordinary orthographic edge view');
   const modifier=view.brokenOut;
@@ -57,5 +87,6 @@ export function projectBrokenOutView(bodies,view,options={}) {
   return {...original,visible:outside.visible.concat(inside.visible),hidden:outside.hidden.concat(inside.hidden),
     circles:outside.circles.concat(inside.circles),cuts:inside.cuts,surfaces:[],
     cropSourceCuts:cut.cuts,sectionClipBoundary:inside.cropBoundary,brokenOutBoundary:inside.cropBoundary,
+    brokenOutBoundarySegments:clipBreakBoundaryToBodies(inside.cropBoundary,bodies,view.dir),
     brokenOutPlane:{front,depth,offset,datum:'front-envelope'}};
 }
