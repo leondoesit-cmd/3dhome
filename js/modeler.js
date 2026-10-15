@@ -1,7 +1,7 @@
 import {SECTION_HATCH_PATTERNS,sectionHatchCaption} from "./core/section_hatch.js";
 import {componentPatternPlan,setComponentPattern,removeComponentPattern} from "./core/assembly_component_pattern.js";
 import {appendSavedLibrarySearch} from './modeler_library_search.js';
-import {sketchEntityStep,sketchEntitySwipe} from './core/sketch_entity_navigation.js';
+import {sketchEntityStep,sketchEntitySwipe,selectedSketchNavigationEntity,sketchNavigationTarget} from './core/sketch_entity_navigation.js';
 import {makeDimensionTolerance,toleranceFields} from "./core/dimension_tolerance.js";
 import {dimensionEditorPosition} from './core/dimension_editor_position.js';
 import {createSpringBinding,springSource,springMotionState,springPreviewMesh,hasUnverifiedSprings,restoreSpringEndpoint} from "./core/flexible_spring.js";
@@ -11154,6 +11154,22 @@ function syncSelectionChrome() {
   syncModelerMobile();
 }
 
+function openSketchPointCoordinates(sketch,point) {
+  if(!point)return;
+        var coordinateError="",surfaceUV=sketch.frameSpace==="surface-uv";
+        openQuickForm({action:"pointcoordinates",title:"Point coordinates",hint:surfaceUVGuide(sketch)||"Locate and constrain this point on its sketch plane.",failureMessage:function(){return coordinateError;},fields:[
+          {key:"x",label:surfaceUV?"U coordinate":"Horizontal coordinate",type:"number",value:point.x,unit:"length"},
+          {key:"y",label:surfaceUV?"V coordinate":"Vertical coordinate",type:"number",value:point.y,unit:"length"}
+        ],onApply:function(values){
+          var x=Number(values.x),y=Number(values.y);if(!Number.isFinite(x)||!Number.isFinite(y))return false;
+          pushUndo("Point coordinates");var previous=cloneData(sketch.constraints),oldPoint={x:point.x,y:point.y,fixed:point.fixed};
+          sketch.constraints=sketch.constraints.filter(function(c){return !(c.type==='fixed'&&c.point===point.id);});
+          point.fixed=false;sketch.constraints.push({id:uid(),type:"fixed",point:point.id,x:x,y:y});
+          if(!resolveSketch(true)){var fixIds=addedConstraintIds(sketch,previous),fixWhy=explainSketchConflict(sketch,{keep:fixIds}),fixSubject=constraintCaption(sketch.constraints[sketch.constraints.length-1],sketch);sketch.constraints=previous;Object.assign(point,oldPoint);resolveSketch(false);H.discard();coordinateError=refusalMessage(sketch,fixSubject,fixIds,fixWhy)+" For linked endpoints, use Translate sketch geometry to move them together, or edit the conflicting relation.";showSketchRefusal(sketch,fixSubject,fixIds,fixWhy);return false;}
+          refreshAll();return true;
+        }});
+}
+
 function syncSketchEntityNavigator() {
   var strip=root.querySelector("#mdEntityNav");if(!strip)return;
   var sketch=(E.def.sketches || []).find(function(item){return item.id===E.def.activeSketch;});
@@ -11161,12 +11177,13 @@ function syncSketchEntityNavigator() {
   var formOpen=!!root.querySelector("#mdQuickSettings:not([hidden])");
   var visible=E.docType!=="assembly" && E.mode!=="drawing" && !formOpen && E.tool==="select" && (E.mode==="2d" || E.authoring?.phase==="sketch") && entities.length>0;
   strip.hidden=!visible;strip.innerHTML="";if(!visible)return;
-  var hebrew=getLang()!=="en",selected=selEntities().length===1?selEntities()[0]:null;
+  var hebrew=getLang()!=="en",selected=selectedSketchNavigationEntity(sketch,E.ssel || []);
   if(!entities.includes(selected))selected=null;
   function step(direction){
     var currentSketch=(E.def.sketches || []).find(function(item){return item.id===E.def.activeSketch;});
-    var chosen=sketchEntityStep(currentSketch?.entities || [],selEntities()[0],direction);
-    if(chosen){selectSketch(chosen,false);refreshSelection();}
+    var chosen=sketchEntityStep(currentSketch?.entities || [],selectedSketchNavigationEntity(currentSketch,E.ssel || []),direction);
+    var target=sketchNavigationTarget(currentSketch,chosen);
+    if(target){selectSketch(target,false);refreshSelection();}
   }
   var gesture=null;
   strip.onpointerdown=function(event){if(event.pointerType!=="touch" || !event.isPrimary)return;gesture={id:event.pointerId,x:event.clientX,y:event.clientY};};
@@ -11183,7 +11200,11 @@ function syncSketchEntityNavigator() {
   caption.title=hebrew?"החלק ימינה או שמאלה לבחירת ישות":"Swipe left or right to select an entity";
   strip.appendChild(caption);
   var next=btn("›",function(){step(1);});next.setAttribute("aria-label",hebrew?"הישות הבאה בסקיצה":"Next sketch entity");strip.appendChild(next);
-  var parameters=btn(hebrew?"פרמטרים":"Parameters",function(){setTab("shape");showModelerSheet("props");});
+  var parameters=btn(hebrew?"פרמטרים":"Parameters",function(){
+    var currentSketch=ensureSketch(E.def),entity=selectedSketchNavigationEntity(currentSketch,E.ssel || []);
+    if(entity?.type==='point'){openSketchPointCoordinates(currentSketch,sketchNavigationTarget(currentSketch,entity));return;}
+    setTab("shape");showModelerSheet("props");
+  });
   parameters.disabled=!selected;parameters.setAttribute("aria-label",hebrew?"פרמטרים של הישות שנבחרה":"Selected entity parameters");strip.appendChild(parameters);
 }
 
@@ -11957,6 +11978,7 @@ function syncHint() {
     E.tool === "offset" ? t("offsetHint") :
     E.tool === "dim" ? t("dimHint2") :
     t("dimHint") + " · " + t("vertexHint");
+  if(compact && E.tool === "select" && E.mode !== "drawing" && (E.mode !== "3d" || E.modelPlaneActive))hint.textContent=t("sketchTouchNavigation")+" · "+hint.textContent;
   if (E.mode === "3d" && E.modelPlaneActive) {
     hint.textContent = t("modelPlaneHint") + ": " + sketchPlaneCaption() + " · " + hint.textContent;
   }
@@ -16312,6 +16334,22 @@ var cancel2DPointerMoveGlobal = null;
 
 function wireSketch() {
   var cv = E.cv;
+  var sketchContacts=new Set();
+  function takeOverSketchNavigation() {
+    if(E.mode==='drawing')return;
+    E._sketchPinching=true;
+    cancel2DPointerMove();
+    if(E.drag?.touchTransaction)H.abort();
+    E.drag=null;E.touchPrecision=null;
+  }
+  cv.addEventListener('pointerdown',function(e){
+    if(e.pointerType!=='touch')return;
+    sketchContacts.add(e.pointerId);
+    if(sketchContacts.size>=2)takeOverSketchNavigation();
+  },true);
+  function releaseSketchContact(e){sketchContacts.delete(e.pointerId);}
+  cv.addEventListener('pointerup',releaseSketchContact,true);
+  cv.addEventListener('pointercancel',releaseSketchContact,true);
   function getCanvasRect() {
     if (!E._cvRect) {
       E._cvRect = cv.getBoundingClientRect();
@@ -16380,7 +16418,7 @@ function wireSketch() {
     return true;
   }
   cv.addEventListener("pointerdown", function (e) {
-    if (threeFinger()) return;
+    if (threeFinger() || (E.mode !== "drawing" && E._sketchPinching)) return;
     if (E.dimEditor && !applyDimensionEditor()) return;
     if(e.isTrusted)cv.setPointerCapture(e.pointerId);
     var r = getCanvasRect();
@@ -16454,7 +16492,9 @@ function wireSketch() {
       var pointId = newSketchPoint(active, { u: su, v: sv });
       active.entities.push({ id: uid(), type: "point", p: pointId, name: "Point" });
       selectSketch(sketchPoint(active, pointId), false);
-      resolveSketch(false); refreshAll(); return;
+      resolveSketch(false); refreshAll();
+      if(e.pointerType==='touch')openSketchPointCoordinates(active,sketchPoint(active,pointId));
+      return;
     }
     if (E.tool === "wall" || E.tool === "constr") {
       // An idle Construction click on a curve keeps the existing toggle action;
@@ -16711,11 +16751,11 @@ function wireSketch() {
     if (isSketchObject(p)) {
       selectSketch(p, e.ctrlKey || e.metaKey || E.mobileAddSelection);
       if (!p.type && !(e.ctrlKey || e.metaKey)) {
-        pushUndo(t("opDragPt"));
+        if(e.pointerType==='touch')H.begin(t("opDragPt"));else pushUndo(t("opDragPt"));
         // The point under the cursor is authoritative while you hold it: pin it
         // so the solver moves everything else to suit, instead of being free to
         // slide it back and undo the drag.
-        E.drag = { mode: "spoint", pt: p, moved: false, wasFixed: !!p.fixed };
+        E.drag = { mode: "spoint", pt: p, moved: false, wasFixed: !!p.fixed, touchTransaction:e.pointerType==='touch' };
         p.fixed = true;
       }
       refreshAll();
@@ -16802,7 +16842,7 @@ function wireSketch() {
   cancel2DPointerMoveGlobal = cancel2DPointerMove;
 
   function process2DPointerMove(e) {
-    if (threeFinger()) return;
+    if (threeFinger() || (E.mode !== "drawing" && E._sketchPinching)) return;
     var r = getCanvasRect();
     var localX = e.clientX - r.left, localY = e.clientY - r.top;
     if (E.mode === "drawing") { drawingSheet().pointerMove(e, localX, localY); syncStatus(); return; }
@@ -16907,7 +16947,7 @@ function wireSketch() {
   });
   cv.addEventListener("pointerup", async function (e) {
     flush2DPointerMove();
-    if (threeFinger()) return;
+    if (threeFinger() || (E.mode !== "drawing" && E._sketchPinching)) return;
     if (E.mode === "drawing") {
       var sheetRect = getCanvasRect();
       drawingSheet().pointerUp(e, e.clientX - sheetRect.left, e.clientY - sheetRect.top);
@@ -16951,7 +16991,8 @@ function wireSketch() {
     }
     if (E.drag && E.drag.mode === "spoint") {
       E.drag.pt.fixed = E.drag.wasFixed;   // the pin lasts only for the drag
-      if (!E.drag.moved) H.discard();
+      if(E.drag.touchTransaction){if(E.drag.moved){H.commit(t("opDragPt"));scheduleModelerDraft();}else H.cancel();}
+      else if (!E.drag.moved) H.discard();
       E.drag = null;
       resolveSketch(false);
       refreshAll();
@@ -16981,6 +17022,7 @@ function wireSketch() {
   cv.addEventListener("pointercancel", function (e) {
     cancel2DPointerMove();
     if (E.mode === "drawing") { drawingSheet().pointerCancel(e); return; }
+    if(E.drag?.touchTransaction){H.abort();E.drag=null;E.touchPrecision=null;return;}
     if(touchPrecisionTrialOwns(e.pointerId)){
       releaseTouchPrecisionTrial(e.pointerId,true);E.touchPrecision=null;drawSketch();return;
     }
@@ -17073,6 +17115,7 @@ function wireSketch() {
     cv.addEventListener("touchstart", function (e) {
       if (e.touches.length === 2) {
         E.touchPrecision = null;
+        if(E.mode !== "drawing")takeOverSketchNavigation();
         pinch = { dist: d2(e), x:(e.touches[0].clientX+e.touches[1].clientX)/2, y:(e.touches[0].clientY+e.touches[1].clientY)/2 };
         if (E.mode === "drawing") drawingSheet().beginPinch();
       }
@@ -17083,18 +17126,19 @@ function wireSketch() {
       var dist = d2(e);
       var f = pinch.dist / Math.max(dist, 1);
       pinch.dist = dist;
-      if (E.mode !== "drawing" && Math.abs(1 - f) < 0.002) return;
-      if (sketchProjection() && E.pv) {
-        E.pv.zoomBy(f);
-        drawSketch();
-        syncStatus();
-        return;
-      }
       var r = cv.getBoundingClientRect();
       var a = e.touches[0], b = e.touches[1];
       var mx = (a.clientX + b.clientX) / 2 - r.left;
       var my = (a.clientY + b.clientY) / 2 - r.top;
-      var k = f > 1 ? 1 / 1.12 : 1.12;
+      var projection=sketchProjection();
+      if (projection && E.pv) {
+        var uv=toUV(pinch.x-r.left,pinch.y-r.top);
+        var anchor=framePoint(projection.frame,uv.u,uv.v,0);
+        var previewRect=E.pv.rr.domElement.getBoundingClientRect();
+        E.pv.pinchAt(f,anchor,mx+r.left-previewRect.left,my+r.top-previewRect.top);
+        pinch.x=mx+r.left;pinch.y=my+r.top;
+        invalidateSketchProjection();drawSketch();syncStatus();return;
+      }
       // a sheet zooms the paper, not the sketch it is not showing
       if (E.mode === "drawing") {
         drawingSheet().pinchBy(1/f,pinch.x-r.left,pinch.y-r.top,mx,my);
@@ -17102,15 +17146,17 @@ function wireSketch() {
         syncStatus();
         return;
       }
-      var ns = clamp(E.scl * k, SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
-      E.ox = mx - ((mx - E.ox) / E.scl) * ns;
-      E.oy = my - ((my - E.oy) / E.scl) * ns;
+      var ns = clamp(E.scl / f, SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
+      E.ox = mx - ((pinch.x-r.left - E.ox) / E.scl) * ns;
+      E.oy = my - ((pinch.y-r.top - E.oy) / E.scl) * ns;
+      pinch.x=mx+r.left;pinch.y=my+r.top;
       E.scl = ns;
       drawSketch();
       syncStatus();
     }, { passive: false });
     function end(e) {
       if (e.touches.length < 2) pinch = null;
+      if(e.touches.length===0)E._sketchPinching=false;
       if (E.mode === "drawing" && e.touches.length === 0) drawingSheet().endPinch();
     }
     cv.addEventListener("touchend", end);
@@ -17123,7 +17169,7 @@ function wireSketch() {
   });
   cv.addEventListener("contextmenu", function (e) {
     e.preventDefault();
-    if (threeFinger()) return;
+    if (threeFinger() || (E.mode !== "drawing" && E._sketchPinching)) return;
     if (E.drag && E.drag.mode === "gesture" && E.drag.moved) return;
     showContextMenu(e.clientX, e.clientY);
   });
@@ -21550,18 +21596,7 @@ function fillSketchPane() {
     if (selPoints().length === 1 && !selEntities().length) {
       host.appendChild(btn("Set point coordinates", function () {
         var point=selPoints()[0];if(!point)return;
-        var coordinateError="",surfaceUV=sketch.frameSpace==="surface-uv";
-        openQuickForm({action:"pointcoordinates",title:"Point coordinates",hint:surfaceUVGuide(sketch)||"Locate and constrain this point on its sketch plane.",failureMessage:function(){return coordinateError;},fields:[
-          {key:"x",label:surfaceUV?"U coordinate":"Horizontal coordinate",type:"number",value:point.x,unit:"length"},
-          {key:"y",label:surfaceUV?"V coordinate":"Vertical coordinate",type:"number",value:point.y,unit:"length"}
-        ],onApply:function(values){
-          var x=Number(values.x),y=Number(values.y);if(!Number.isFinite(x)||!Number.isFinite(y))return false;
-          pushUndo("Point coordinates");var previous=cloneData(sketch.constraints),oldPoint={x:point.x,y:point.y,fixed:point.fixed};
-          sketch.constraints=sketch.constraints.filter(function(c){return !(c.type==='fixed'&&c.point===point.id);});
-          point.fixed=false;sketch.constraints.push({id:uid(),type:"fixed",point:point.id,x:x,y:y});
-          if(!resolveSketch(true)){var fixIds=addedConstraintIds(sketch,previous),fixWhy=explainSketchConflict(sketch,{keep:fixIds}),fixSubject=constraintCaption(sketch.constraints[sketch.constraints.length-1],sketch);sketch.constraints=previous;Object.assign(point,oldPoint);resolveSketch(false);H.discard();coordinateError=refusalMessage(sketch,fixSubject,fixIds,fixWhy)+" For linked endpoints, use Translate sketch geometry to move them together, or edit the conflicting relation.";showSketchRefusal(sketch,fixSubject,fixIds,fixWhy);return false;}
-          refreshAll();return true;
-        }});
+        openSketchPointCoordinates(sketch,point);
       },"md-wide"));
       host.appendChild(btn("Pierce curve",function(){
         /* Pierce to a helix snaps the sketch onto its start or end; pierce to a

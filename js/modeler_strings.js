@@ -265,6 +265,7 @@ export var TXT = {
   loftFail: ["Loft נתמך רק על חלקי אקסטרוד (ללא חורים)", "Loft works on extrude parts without holes"],
   /* step names for the history list — what the panel calls each operation */
   hint3d: ["גררו לסיבוב · שלוש אצבעות או Shift+גרירה להזזה · גלגלת לזום", "Drag to orbit · 3-finger or Shift-drag to pan · wheel to zoom"],
+  sketchTouchNavigation: ["שתי אצבעות להזזה ולזום", "Two fingers to pan and pinch to zoom"],
   hint3dTouch: ["גרירה = סיבוב · שתי אצבעות = הזזה · צביטה = זום · לחיצה ארוכה = בחירה מדויקת", "Drag to orbit · two fingers to pan · pinch to zoom · long-press for precise selection"],
   touchAddSelection: ["הוספה לבחירה", "Add to selection"],
   touchReplaceSelection: ["החלפת בחירה", "Replace selection"],

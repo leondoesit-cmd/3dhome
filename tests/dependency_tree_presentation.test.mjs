@@ -51,3 +51,20 @@ test('legacy dependency rows retain the same highlight declarations as unified r
     assert.equal(legacy.match(marker)?.[0],unified.match(marker)?.[0]);assert.ok(unified.match(marker));
   }
 });
+
+test('dependency callout disappears when its panel or focus leaves the visible tree, without relocating to header',()=>{
+ const src=fs.readFileSync(new URL('../js/modeler_dependency_ui.js',import.meta.url),'utf8');
+ const box=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});
+ const ancestor={hidden:false,style:{overflowY:'hidden'},getBoundingClientRect:()=>box(0,100,390,500),parentElement:null};
+ const panel={parentElement:ancestor,getBoundingClientRect:()=>box(10,120,300,60)};
+ const row={dataset:{nodeId:'n'},parentElement:ancestor,getBoundingClientRect:()=>box(10,200,300,40)};
+ const calls={hidden:false,style:{left:'20px',top:'180px'}};
+ const root={querySelector:s=>s==='.md-dependency-panel'?panel:calls,querySelectorAll:s=>s==='[data-node-id]'?[row]:[]};
+ const window={innerWidth:390,innerHeight:844,getComputedStyle:n=>n.style||{}};
+ const redraw=new Function('window',sourceFunctionText(src,'dependencyTreeIndex')+sourceFunctionText(src,'dependencyTreeAnchor')+sourceFunctionText(src,'rowVisible')+sourceFunctionText(src,'redrawArrows')+';return redrawArrows;')(window);
+ const record={model:{nodes:[{id:'n',targetId:'sketch'}]},state:{focus:'sketch',relations:[]}};
+ for(const change of [()=>ancestor.hidden=true,()=>panel.getBoundingClientRect=()=>box(0,0,0,0),()=>row.getBoundingClientRect=()=>box(10,700,300,40),()=>record.dismissed=true]){
+  ancestor.hidden=false;panel.getBoundingClientRect=()=>box(10,120,300,60);row.getBoundingClientRect=()=>box(10,200,300,40);record.dismissed=false;calls.hidden=false;
+  change();redraw(root,record);assert.equal(calls.hidden,true);assert.deepEqual(calls.style,{left:'20px',top:'180px'});
+ }
+});

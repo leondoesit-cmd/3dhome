@@ -12,9 +12,12 @@ export function dependencyTreeAnchor(index,target,visible){
 }
 function element(tag,cls,text){const node=document.createElement(tag);node.className=cls||'';if(text!==undefined)node.textContent=text;return node;}
 function rowVisible(row){
-  const r=row.getBoundingClientRect();if(!r.width||!r.height||r.bottom<=0||r.top>=window.innerHeight)return false;
+  if(!row || row.isConnected===false)return false;
+  const r=row.getBoundingClientRect();if(!r.width||!r.height||r.right<=0||r.left>=window.innerWidth||r.bottom<=0||r.top>=window.innerHeight)return false;
   for(let parent=row.parentElement;parent;parent=parent.parentElement){
-    const overflow=window.getComputedStyle(parent).overflowY;
+    const style=window.getComputedStyle(parent);
+    if(parent.hidden||style.display==='none'||style.visibility==='hidden')return false;
+    const overflow=style.overflowY;
     if(['auto','scroll','hidden','clip'].includes(overflow)){const b=parent.getBoundingClientRect();if(r.bottom<=b.top||r.top>=b.bottom)return false;}
   }
   return true;
@@ -22,8 +25,12 @@ function rowVisible(row){
 function redrawArrows(root,record){
   root.querySelectorAll('.md-dependency-arrows').forEach(n=>n.remove());
   root.querySelectorAll('.md-dependency-anchor').forEach(n=>n.classList.remove('md-dependency-anchor'));
-  if(!record.state)return;
   const panel=root.querySelector('.md-dependency-panel'),calls=root.querySelector('.md-dependency-callouts');
+  const visibleIds=new Set([...root.querySelectorAll("[data-node-id]")].filter(rowVisible).map(row=>row.dataset.nodeId));
+  const focusAnchor=record.state&&dependencyTreeAnchor(dependencyTreeIndex(record.model),record.state.focus,visibleIds);
+  const visible=!!record.state&&!record.dismissed&&rowVisible(panel)&&!!focusAnchor;
+  if(calls)calls.hidden=!visible;
+  if(!visible)return;
   if(panel&&calls){const box=panel.getBoundingClientRect(),width=Math.min(320,Math.max(120,window.innerWidth-16));calls.style.width=width+'px';calls.style.left=Math.max(8,Math.min(box.right+8,window.innerWidth-width-8))+'px';calls.style.top=Math.max(8,Math.min(box.top,window.innerHeight-196))+'px';}
   const index=dependencyTreeIndex(record.model);
   for(const mount of root.querySelectorAll('.md-tree-mount')){
@@ -48,8 +55,20 @@ export function renderDependencyPresentation(root,model,state,options,onOptions)
   let record=hosts.get(root);
   if(!record){record={};hosts.set(root,record);
     root.addEventListener('scroll',()=>redrawArrows(root,record),true);
+    root.addEventListener('pointerdown',event=>{
+      record.dismissed=!event.target.closest?.('#mdParts');redrawArrows(root,record);
+    },true);
+    root.addEventListener('transitionend',()=>redrawArrows(root,record),true);
+    if(typeof MutationObserver!=='undefined'){
+      record.visibilityObserver=new MutationObserver(()=>{
+        const panel=root.querySelector('.md-dependency-panel');
+        if(!rowVisible(panel)){record.dismissed=true;const calls=root.querySelector('.md-dependency-callouts');if(calls&&!calls.hidden)calls.hidden=true;}
+      });
+      record.visibilityObserver.observe(root,{subtree:true,attributes:true,attributeFilter:['class','hidden']});
+    }
     if(typeof ResizeObserver!=='undefined'){record.observer=new ResizeObserver(()=>redrawArrows(root,record));record.observer.observe(root);}
   }
+  if(record.state?.focus!==state?.focus)record.dismissed=false;
   Object.assign(record,{model,state});
   let panel=host.querySelector('.md-dependency-panel');
   if(!panel){panel=element('div','md-dependency-panel');panel.setAttribute('aria-label','Dynamic reference visualization');

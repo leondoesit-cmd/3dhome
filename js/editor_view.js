@@ -587,7 +587,7 @@ export function createEditorView(opts) {
       if (!(d > 0)) d = view.dist * (view.big ? bigZoom() : 1);
       var height = Math.max(1, cv.clientHeight || 1);
       if(cam.isOrthographicCamera)return (cam.top-cam.bottom)/(cam.zoom*height);
-      return 2 * d * Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.5)) / height;
+      return 2 * d * Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.5)) / (height * cam.zoom);
     };
     view.worldPerPixel = function () {
       return view.worldPerPixelAtDistance(view.dist * (view.big ? bigZoom() : 1));
@@ -602,12 +602,29 @@ export function createEditorView(opts) {
       view.place();
       cam.updateMatrixWorld();
       var height = Math.max(1, cv.clientHeight || 1);
-      var scale = 2 * view.dist * Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.5)) / height;
+      var scale = view.worldPerPixel();
       var right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
       var up = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
       view.target.addScaledVector(right, -dx * scale);
       view.target.addScaledVector(up, dy * scale);
       if (render !== false) view.render();
+    };
+    // Keep an actual sketch-plane point beneath the moving pinch midpoint.
+    view.pinchAt = function (factor, anchor, x, y) {
+      if (!(factor > 0) || !anchor) return;
+      view.dist = clamp(view.dist * factor, minDist, maxDist);
+      view.place();cam.updateMatrixWorld(true);
+      var point = new THREE.Vector3(anchor.x,anchor.y,anchor.z);
+      var projected = point.clone().project(cam);
+      var width = Math.max(1,cv.clientWidth), height = Math.max(1,cv.clientHeight);
+      var dx = x - (projected.x*.5+.5)*width;
+      var dy = y - (-projected.y*.5+.5)*height;
+      var depth = -point.clone().applyMatrix4(cam.matrixWorldInverse).z;
+      var scale = view.worldPerPixelAtDistance(depth);
+      var right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,0);
+      var up = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld,1);
+      view.target.addScaledVector(right,-dx*scale).addScaledVector(up,dy*scale);
+      view.render();
     };
     view.resetPan = function (render) {
       view.target.set(0, 0, 0);
