@@ -427,9 +427,12 @@ export function updateCadHud() {
   if (!bar) return;
   var unit = hudUnit("plan");
   var unitLabel = t("guide_unit_" + unit);
+  var noCoord = curX == null || !fin(curX);
+  // a lone dash read as a stray glyph in the bottom bar: no pointer, no readout
+  if (elCoord.classList.contains("is-empty") !== noCoord) elCoord.classList.toggle("is-empty", noCoord);
   lastCoord = setText(
     elCoord,
-    curX == null || !fin(curX)
+    noCoord
       ? "—"
       : "X " + hudFmt(curX, { suffix: false, domain: "plan" }) + "   Y " + hudFmt(-curZ, { suffix: false, domain: "plan" }) +
         (unit === "ft" ? "" : "  " + unitLabel),

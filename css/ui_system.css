@@ -302,3 +302,115 @@ html body.pro-compact :is(.ps-more-item, #m-sheet .m-grid-btn) {
   font-size: 14px;
   font-weight: 500;
 }
+
+/* ---- 8. the 3D view's own controls ---------------------------------------------
+   Two rows of differently drawn buttons were stacked in the top-right corner:
+   Drawing overlay / Dollhouse (bordered, solid accent on hover) and under them
+   Walk / Look / First-third person / Invisible roof (bordered, outlined when
+   on). What you SEE stays top-right as floating controls; how you MOVE is one
+   toolbar at the foot of the view, the way 3D viewers put it, with icons and
+   the shared on-state. Third person only shows while walking (planner_3d.js). */
+html body.pro-skin #view-3d > :is(.view-edit-btn, .view-max-btn) {
+  height: 32px;
+  min-height: 32px;
+  border: 0;
+  border-radius: var(--ui-r);
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+  color: var(--text-main);
+  font-size: var(--ui-fs);
+  font-weight: 600;
+  gap: 6px;
+}
+html body.pro-skin #view-3d > .view-max-btn { width: 32px; padding: 0; }
+html body.pro-skin #view-3d > .view-edit-btn i { font-size: 16px; }
+html body.pro-skin #view-3d > :is(.view-edit-btn, .view-max-btn):hover {
+  background: linear-gradient(var(--btn-bg-hover), var(--btn-bg-hover)), var(--ui-float-bg);
+  color: var(--text-main);
+}
+html body.pro-skin #view-3d > .view-edit-btn:is(.active, [aria-pressed="true"]) {
+  background: linear-gradient(var(--ui-on-bg), var(--ui-on-bg)), var(--ui-float-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring), var(--ui-float-ring);
+}
+
+html body.pro-skin #view-3d > .planner-navigation {
+  top: auto;
+  bottom: 12px;
+  /* centred in the room left of the 86px compass (styles.css does the same) */
+  left: calc(50% - 51px);
+  right: auto;
+  inset-inline-end: auto;
+  transform: translateX(-50%);
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px;
+  max-width: calc(100% - 220px);
+  border: 0;
+  border-radius: calc(var(--ui-r) + 2px);
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+  backdrop-filter: none;
+}
+html body.pro-skin #view-3d > .planner-navigation > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--ui-h);
+  min-height: var(--ui-h);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ui-r-sm);
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-main);
+  font-size: var(--ui-fs);
+  font-weight: 500;
+  line-height: 1;
+}
+html body.pro-skin #view-3d > .planner-navigation > button[hidden] { display: none; }
+html body.pro-skin #view-3d > .planner-navigation > button i { font-size: 16px; color: var(--text-muted); }
+html body.pro-skin #view-3d > .planner-navigation > button:hover { background: var(--btn-bg-hover); border: 0; }
+html body.pro-skin #view-3d > .planner-navigation > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+html body.pro-skin #view-3d > .planner-navigation > button[aria-pressed="true"] {
+  background: var(--ui-on-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring);
+  font-weight: 600;
+}
+html body.pro-skin #view-3d > .planner-navigation > button[aria-pressed="true"] i { color: inherit; }
+/* camera (walk, third person) | input (look) | light (roof). The DOM order is
+   walk, look, person, roof — the phone's toolbar reads it — so the person
+   toggle is moved next to Walk visually only. */
+html body.pro-skin #view-3d > .planner-navigation > .pn-walk { order: 0; }
+html body.pro-skin #view-3d > .planner-navigation > .pn-person { order: 1; }
+html body.pro-skin #view-3d > .planner-navigation > .pn-look { order: 2; }
+html body.pro-skin #view-3d > .planner-navigation > .pn-roof { order: 3; }
+html body.pro-skin #view-3d > .planner-navigation > :is(.pn-look, .pn-roof) {
+  position: relative;
+  margin-inline-start: 7px;
+}
+html body.pro-skin #view-3d > .planner-navigation > :is(.pn-look, .pn-roof)::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -5px;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: var(--border-color);
+  pointer-events: none;
+}
+/* narrow desktops: icons only, the names stay on the tooltips */
+@media (max-width: 1180px) {
+  html body.pro-skin #view-3d > .planner-navigation > button { width: var(--ui-h); padding: 0; justify-content: center; }
+  html body.pro-skin #view-3d > .planner-navigation > button span { display: none; }
+}
+/* the first-use hint stands above the toolbar */
+html body.pro-skin.ps-plan-docked #center-canvas.max-view-3d #view-3d > .hint { bottom: 62px; }
+
+/* ---- 9. the bottom bar's pointer readout -------------------------------------------
+   With no pointer over the plan (and always in 3D) it printed a lone "—". It
+   keeps its width so the drafting aids do not jump when the pointer arrives. */
+html body:is(.pro-skin, .pro-compact) #cad-status #cadCoord.is-empty { visibility: hidden; }

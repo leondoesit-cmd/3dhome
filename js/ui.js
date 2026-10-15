@@ -1127,6 +1127,8 @@ export function syncEnvUI() {
 
 // show/hide + label the first/third-person + free-move toggle buttons
 function syncWalkView(on, mode) {
+  // the 3D view's own Walk / Third person toggles (planner_3d.js) follow too
+  window.dispatchEvent(new Event("planner-navigation-restored"));
   var btn = document.getElementById("walkViewBtn");
   if (btn) {
     btn.style.display = on ? "" : "none";

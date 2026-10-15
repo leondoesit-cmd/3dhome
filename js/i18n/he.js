@@ -50,6 +50,7 @@ export default {
   dynamicMirror: "שיקוף דינמי",
 
   planner_person: 'גוף ראשון / שלישי',
+  planner_third_person: 'גוף שלישי',
   planner_orbit: 'מבט מסביב',
   planner_walk: 'הליכה',
   planner_look: 'הסתכלות וניווט',

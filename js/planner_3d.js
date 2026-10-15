@@ -8,7 +8,7 @@ import { footprint } from './layout_analysis.js';
 import { FURN } from './furniture.js';
 import { S, SNAP_GRID } from './state.js';
 import { THREE } from './three_lazy.js';
-import { getMainCamera, has3D, plannerPointer3D, plannerPlanePoint3D, requestRender, toggleWalk, isWalk, toggleWalkView, setPlannerRenderHook, setLegacyTouchEdit } from './view3d.js';
+import { getMainCamera, has3D, plannerPointer3D, plannerPlanePoint3D, requestRender, toggleWalk, isWalk, toggleWalkView, walkViewMode, setPlannerRenderHook, setLegacyTouchEdit } from './view3d.js';
 import { previewSurveyVertex, surveyVertexPlane, snapSurveyVertex } from './survey_vertex.js';
 import { st } from './survey_strings.js';
 import { dispatchPlannerInput, cancelPlannerGesture, setPlannerInputView } from './planner_input.js';
@@ -111,13 +111,26 @@ function send(phase,e) {
   const sent=dispatchPlannerInput(phase,input);
   requestRender(); paintPlanner3D(); return sent;
 }
+/* Each button is a toggle with a fixed name and an on-state. The names used to
+   flip to the other mode ("Walk" became "Orbit", "Look" became "Build / edit"),
+   so a pressed button named the mode you were NOT in. The tooltip says what a
+   click does next instead. */
+function navButton(icon) {
+  const b=document.createElement('button');b.type='button';
+  const i=document.createElement('i');i.className='ph '+icon;i.setAttribute('aria-hidden','true');
+  b.append(i,document.createElement('span'));return b;
+}
+function setNav(b,label,title,on) {
+  const s=b.querySelector('span');if(s.textContent!==label)s.textContent=label;
+  b.title=title;b.setAttribute('aria-pressed',String(on));
+}
 function labels() {
-  if(roofButton){roofButton.textContent=t('invisible_roof');roofButton.title=t('invisible_roof_hint');roofButton.setAttribute('aria-pressed',String(!!S.invisibleRoof));}
-  modeButton.textContent=t(isWalk()?'planner_orbit':'planner_walk');
-  if(personButton)personButton.textContent=t('planner_person');
-  modeButton.setAttribute('aria-pressed',String(isWalk()));
-  lookButton.textContent=t(look?'planner_build':'planner_look');
-  lookButton.setAttribute('aria-pressed',String(look));
+  if(roofButton)setNav(roofButton,t('invisible_roof'),t('invisible_roof_hint'),!!S.invisibleRoof);
+  const walking=isWalk();
+  setNav(modeButton,t('planner_walk'),t(walking?'planner_orbit':'planner_walk'),walking);
+  // first / third person only means something while walking
+  if(personButton){setNav(personButton,t('planner_third_person'),t('planner_person'),walking&&walkViewMode()==='tpv');personButton.hidden=!walking;}
+  setNav(lookButton,t('planner_look'),t(look?'planner_build':'planner_look'),look);
 }
 export function syncPlannerViewport(mode) {
   if(!pane)return;
@@ -137,11 +150,11 @@ export function initPlanner3D() {
   const old=document.getElementById('edit3dBtn');if(old)old.hidden=true;
   hud=document.createElement('canvas');hud.id='planner-3d-hud';hud.setAttribute('aria-hidden','true');pane.append(hud);
   const bar=document.createElement('div');bar.className='planner-navigation';bar.setAttribute('role','toolbar');
-  modeButton=document.createElement('button');modeButton.type='button';
+  modeButton=navButton('ph-person-simple-walk');modeButton.className='pn-walk';
   modeButton.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();toggleWalk();labels();requestRender();};
-  lookButton=document.createElement('button');lookButton.type='button';lookButton.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();look=!look;labels();};
-  const person=document.createElement('button');personButton=person;person.type='button';person.textContent=t('planner_person');person.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();if(!isWalk())toggleWalk(true);toggleWalkView();labels();};
-  roofButton=document.createElement('button');roofButton.type='button';roofButton.id='planner-invisible-roof';
+  lookButton=navButton('ph-hand-grabbing');lookButton.className='pn-look';lookButton.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();look=!look;labels();};
+  const person=navButton('ph-user-focus');personButton=person;person.className='pn-person';person.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();if(!isWalk())toggleWalk(true);toggleWalkView();labels();};
+  roofButton=navButton('ph-umbrella-simple');roofButton.className='pn-roof';roofButton.id='planner-invisible-roof';
   roofButton.onclick=()=>{S.invisibleRoof=!S.invisibleRoof;S.dirty3D=true;const cb=document.getElementById('cb_invisible_roof');if(cb)cb.checked=S.invisibleRoof;window.dispatchEvent(new Event('planner-navigation-restored'));labels();requestRender();};
   bar.append(modeButton,lookButton,person,roofButton);pane.append(bar);labels();onLangChange(labels);window.addEventListener('planner-navigation-restored',labels);
   document.getElementById('plan')?.addEventListener('pointerdown',()=>{

@@ -50,6 +50,7 @@ export default {
   dynamicMirror: "Dynamic mirror",
 
   planner_person: 'First / third person',
+  planner_third_person: 'Third person',
   planner_orbit: 'Orbit',
   planner_walk: 'Walk',
   planner_look: 'Look / navigate',
