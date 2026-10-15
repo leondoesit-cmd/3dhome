@@ -37,11 +37,13 @@ import {
   clearGroup,
   polyMesh,
   floorTexture,
+  worldUVs,
   groundTexture,
 } from "./primitives.js";
 import { FURN, lampColor, buildItem as buildFurn, elevOffset, itemVSpan } from "./furniture.js";
 import { refreshRuntimePlacements } from "./core/runtime.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
+import { pbrEntryFor, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById } from "./pbr_material.js";
 import { HumanFactory } from "./human.js";
 import { SITE, llToLocalCm } from "./site.js";
 import {
@@ -122,6 +124,13 @@ export function plannerPlanePoint3D(cx,cy,origin,normal) {
   const plane=new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(normal.x,normal.y,normal.z),new THREE.Vector3(origin.x,origin.y,origin.z));
   const p=pointerRay(cx,cy).ray.intersectPlane(plane,new THREE.Vector3());
   return p?{x:p.x,y:p.y,z:p.z}:null;
+}
+/* The planner (planner_3d.js) owns editing in its 3D pane and decides itself
+   which touches are edits; it turns this off so a finger it leaves to
+   navigation is never grabbed by the older edit-mode piece drag. */
+var legacyTouchEdit = true;
+export function setLegacyTouchEdit(on) {
+  legacyTouchEdit = !!on;
 }
 export function plannerPointer3D(cx,cy) {
   if (!ready3D || !camera || extTick) return null;
@@ -717,7 +726,8 @@ function buildSiteDressing(streetView) {
   g.userData.role = "site";
   var pv = lay.paving,
     pm = polyMesh([{ x: pv.x0, z: pv.z0 }, { x: pv.x1, z: pv.z0 }, { x: pv.x1, z: pv.z1 }, { x: pv.x0, z: pv.z1 }],
-      -1.2, 180, new THREE.MeshStandardMaterial({ map: floorTexture("pavers"), roughness: 0.88, metalness: 0 }));
+      -1.2, 180, pbrSurfaceMaterial(materialById("floor_pavers")) ||
+        new THREE.MeshStandardMaterial({ map: floorTexture("pavers"), roughness: 0.88, metalness: 0 }));
   if (pm) {
     pm.receiveShadow = true;
     pm.castShadow = false;
@@ -1198,22 +1208,34 @@ function buildStraightWall(w, col, tex) {
       var mat = new THREE.MeshStandardMaterial(materialProps);
       // A user-applied wall texture remains the visible finish, while an
       // authored assembly without a texture keeps each layer's semantic color.
-      if (tex) {
+      // A library material ("mat:<id>") becomes a PBR node material once its
+      // bitmaps are in; until then (or offline) its old procedural preset.
+      var bandTex = tex;
+      var wallPbr = !isGlass && pbrEntryFor(bandTex);
+      if (wallPbr) {
+        var pbrScale = w.texScale || wallPbr.sizeCm;
+        var pbrMat = pbrSurfaceMaterial(wallPbr, { repeat: [1 / pbrScale, 1 / pbrScale] });
+        if (pbrMat) {
+          mat = pbrMat;
+          bandTex = null;
+        } else bandTex = legacyTextureUrl(wallPbr);
+      }
+      if (bandTex) {
         if (!S.customTexCache) S.customTexCache = {};
-        if (!S.customTexCache[tex]) {
-          var tx = new THREE.TextureLoader().load(tex, function() { S.dirty3D = true; S.repaint3D = true; });
+        if (!S.customTexCache[bandTex]) {
+          var tx = new THREE.TextureLoader().load(bandTex, function() { S.dirty3D = true; S.repaint3D = true; });
           tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
           tx.colorSpace = THREE.SRGBColorSpace;
-          S.customTexCache[tex] = tx;
+          S.customTexCache[bandTex] = tx;
         }
         var scale = w.texScale || 200;
-        if (S.customTexCache[tex].image) {
-          var txc = S.customTexCache[tex].clone();
+        if (S.customTexCache[bandTex].image) {
+          var txc = S.customTexCache[bandTex].clone();
           txc.repeat.set(1 / scale, 1 / scale);
           mat.map = txc;
           mat.color.setHex(0xffffff);
         }
-        var bUrl = getTexturePresetBumpUrl(tex);
+        var bUrl = getTexturePresetBumpUrl(bandTex);
         if (bUrl) {
           if (!S.customBumpCache) S.customBumpCache = {};
           if (!S.customBumpCache[bUrl]) {
@@ -2257,6 +2279,13 @@ function applyItemOps() {
 // Zero opacity keeps the camera and AO pass clear. The renderer's shadow
 // override uses opaque depth for these untextured, double-sided surfaces.
 function plannerCeilingMaterial(xray) {
+  // An opaque ceiling gets the baked paint (polyMesh uv: one unit per 160 cm).
+  if (S.showCeiling && !xray) {
+    var paint = pbrSurfaceMaterial(materialById("ceiling_paint"), {
+      repeat: [160 / 200, 160 / 200], tint: 0xf3efe6, side: THREE.DoubleSide,
+    });
+    if (paint) return paint;
+  }
   return new THREE.MeshStandardMaterial({
     color: 0xf3efe6, roughness: 0.96, side: THREE.DoubleSide,
     transparent: !S.showCeiling || xray,
@@ -2302,9 +2331,11 @@ export function rebuild3D() {
     gd = bb.d + 900,
     gt = groundTexture();
   gt.repeat.set(gw / 160, gd / 160);
+  var lawn = materialById("ground_lawn");
   var gp = new THREE.Mesh(
     new THREE.PlaneGeometry(gw, gd),
-    new THREE.MeshStandardMaterial({ map: gt, roughness: 0.97, metalness: 0 }),
+    pbrSurfaceMaterial(lawn, { repeat: [gw / lawn.sizeCm, gd / lawn.sizeCm] }) ||
+      new THREE.MeshStandardMaterial({ map: gt, roughness: 0.97, metalness: 0 }),
   );
   gp.rotation.x = -Math.PI / 2;
   gp.position.set(bb.cx, -2.5, bb.cz);
@@ -2325,6 +2356,22 @@ export function rebuild3D() {
   function fmatFor(t, customTex, customBump) {
     var key = customTex ? "custom_" + customTex : t;
     if (!matCache[key]) {
+      // Library material first: a "mat:<id>" finish, or the baked version of
+      // this floor type. Not ready yet → the procedural floor below, which a
+      // finished load replaces on the rebuild it triggers.
+      var floorPbr = customTex ? pbrEntryFor(customTex) : pbrEntryFor("floor:" + t);
+      if (floorPbr) {
+        var pbrFloor = pbrSurfaceMaterial(floorPbr, { side: THREE.DoubleSide, envMapIntensity: 0.7 });
+        if (pbrFloor) {
+          matCache[key] = pbrFloor;
+          return pbrFloor;
+        }
+        if (customTex) {
+          var legacyKey = legacyFloorKey(floorPbr);
+          if (legacyKey) { t = legacyKey; customTex = null; }
+          else customTex = legacyTextureUrl(floorPbr);
+        }
+      }
       // per-material sheen so polished floors reflect the environment (IBL) like a showroom
       var FLOOR_ROUGH = {
         epoxy: 0.12,
@@ -2363,6 +2410,7 @@ export function rebuild3D() {
         if (!S.customTexCache[customTex]) {
           var tx = new THREE.TextureLoader().load(customTex, function() { S.repaint3D = true; });
           tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+          tx.colorSpace = THREE.SRGBColorSpace;
           S.customTexCache[customTex] = tx;
         }
         mat.map = S.customTexCache[customTex];
@@ -2419,7 +2467,8 @@ export function rebuild3D() {
       var cTex = S.roomMeta[r.key] && S.roomMeta[r.key].floorTex;
       var cScale = S.roomMeta[r.key] && S.roomMeta[r.key].floorScale;
       var cBump = S.roomMeta[r.key] && S.roomMeta[r.key].floorBump;
-      var scaleVal = cScale ? cScale : (cTex ? 200 : (TILE[t] || 240));
+      var cEntry = cTex && pbrEntryFor(cTex);
+      var scaleVal = cScale ? cScale : (cEntry ? cEntry.sizeCm : cTex ? 200 : (TILE[t] || 240));
       var fmat = fmatFor(t, cTex, cBump);
       if (xrayFloor) {
         fmat = fmat.clone();
@@ -2504,7 +2553,8 @@ export function rebuild3D() {
       var ft = rk ? roomFloor(rk) : "tiles";
       var cTex = rk && S.roomMeta[rk] && S.roomMeta[rk].floorTex;
       var cScale = rk && S.roomMeta[rk] && S.roomMeta[rk].floorScale;
-      var scaleVal = cScale ? cScale : (cTex ? 200 : (TILE[ft] || 240));
+      var bmEntry = cTex && pbrEntryFor(cTex);
+      var scaleVal = cScale ? cScale : (bmEntry ? bmEntry.sizeCm : cTex ? 200 : (TILE[ft] || 240));
       var bmMat = fmatFor(ft, cTex);
       if (xrayFloor) {
         bmMat = bmMat.clone();
@@ -2676,7 +2726,10 @@ export function rebuild3D() {
       var roofGeo = new THREE.BufferGeometry();
       roofGeo.setAttribute("position", new THREE.Float32BufferAttribute(roofPositions, 3));
       roofGeo.computeVertexNormals();
-      var roofMesh = new THREE.Mesh(roofGeo, new THREE.MeshStandardMaterial({ color: 0x725b50, roughness: 0.82, side: THREE.DoubleSide }));
+      var roofEntry = materialById(S.roof.finish) || materialById("roof_clay_tile");
+      worldUVs(roofGeo, roofEntry.sizeCm);
+      var roofMesh = new THREE.Mesh(roofGeo, pbrSurfaceMaterial(roofEntry, { side: THREE.DoubleSide }) ||
+        new THREE.MeshStandardMaterial({ color: 0x725b50, roughness: 0.82, side: THREE.DoubleSide }));
       roofMesh.castShadow = true;
       roofMesh.receiveShadow = true;
       roofMesh.userData.role = "roof";
@@ -4765,6 +4818,7 @@ function build3D() {
            which a Touch does not carry — a plain object supplies the mouse
            defaults (a second finger is how you pan, so nothing is lost). */
         if (
+          legacyTouchEdit &&
           editDown({
             clientX: lx,
             clientY: ly,

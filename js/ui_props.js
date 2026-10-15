@@ -2,6 +2,7 @@ import { fillRoomBoundaries } from "./ui_room_boundaries.js";
 import { roomMeasurements } from "./room_summary.js";
 import { roomClearArea } from "./room_area.js";
 import { S, hexStr, TILE } from "./state.js";
+import { previewUrlFor } from "./material_library.js";
 import { wallById, roomByKey, roomFloor, roomName, wallGeom, itemsInRoom, wallClearLength, wallDimSide, wallSideNormal, jointInfo, nodeDegree } from "./geometry.js";
 import { flabel, isLamp, lampColor, variantList, variantOf, vlabel, itemVSpan } from "./furniture.js";
 import { t } from "./i18n.js";
@@ -1039,7 +1040,7 @@ function fillWallFinish(w) {
     el2.className = "wi-sw";
     var chip2 = document.createElement("span");
     chip2.className = "wi-sw-chip";
-    chip2.style.backgroundImage = 'url("' + w.tex + '")';
+    chip2.style.backgroundImage = 'url("' + previewUrlFor(w.tex) + '")';
     var txt2 = document.createElement("span");
     txt2.className = "wi-sw-txt";
     txt2.innerHTML = "<b></b><span></span>";

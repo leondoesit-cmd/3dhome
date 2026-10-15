@@ -49,7 +49,8 @@ self.addEventListener('message',event=>{
 });
 self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
-  if(event.request.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/')||!(url.pathname==='/'||/\.(html|js|mjs|css|wasm|gz|woff2?|ttf|json|svg|png|webp|jpg)$/.test(url.pathname)))return;
+  // Baked material maps are large and never precached: leave them to the browser (no 4 s abort).
+  if(event.request.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/')||url.pathname.startsWith('/assets/materials/')||!(url.pathname==='/'||/\.(html|js|mjs|css|wasm|gz|woff2?|ttf|json|svg|png|webp|jpg)$/.test(url.pathname)))return;
   event.respondWith((async()=>{
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4000);
     try{const response=await fetch(event.request,{signal:controller.signal});if(response.ok)return response;

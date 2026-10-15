@@ -31,16 +31,35 @@ test("selection verbs follow the KIND, so no row offers an action that kind cann
   // Copy button that did nothing at all when pressed.
   assert.match(interaction, /export function dupSel\(\)\s*\{\s*if \(S\.sel && S\.sel\.kind === "item"\)/);
   assert.match(shell, /function selActions\(\)/);
-  assert.match(shell, /if \(kind === "item" \|\| kind === "items"\)[\s\S]*?rotSel90[\s\S]*?dupBtn/);
+  assert.match(shell, /if \(kind === "item"\)[\s\S]*?rotSel90[\s\S]*?finishBtn[\s\S]*?dupBtn/);
+  assert.match(shell, /if \(kind === "items"\)[\s\S]*?rotSel90[\s\S]*?dupBtn/);
   assert.match(shell, /if \(kind === "wall"\)[\s\S]*?addWallDoor[\s\S]*?reverseWallLayers/);
   assert.match(shell, /if \(kind === "node"\)[\s\S]*?ndSquare/);
   assert.match(shell, /if \(kind === "marker"\)[\s\S]*?mkPlace/);
   assert.match(shell, /if \(kind === "room"\)[\s\S]*?roomFloor/);
   // autoArrange tidies EVERY room, so it must not sit on one room's row.
   assert.doesNotMatch(shell, /run\("autoArrange"\)/);
-  // dupBtn is declared once and only reached from the two kinds that can copy.
+  // dupBtn is declared once and only reached from the two kinds that can copy
+  // (a single piece and a multi-selection).
   const dupUses = shell.match(/dupBtn/g) || [];
-  assert.equal(dupUses.length, 2, "Copy is declared once and used by items only");
+  assert.equal(dupUses.length, 3, "Copy is declared once and used by item and items only");
+});
+
+test("the context row never holds more than four verbs; the rest go behind More", () => {
+  assert.match(shell, /export var CTX_MAX = 4;/);
+  // the labelled Round-6 toolbar shares its row with tools/library/ask
+  assert.match(shell, /export var CTX_MAX_LABELLED = 3;/);
+  assert.match(shell, /max = max \|\| \(proCompact\(\) && !document\.body\.classList\.contains\("dock-rail"\) \? CTX_MAX_LABELLED : CTX_MAX\)/);
+  assert.match(shell, /function selActions\(\) \{\s*return capActions\(selActionList\(\), moreBtn\);/);
+  // 3D gets the same cap (its navigation buttons plus Frame and Photo)
+  assert.match(shell, /viewMode\(\) === "3d"[\s\S]*?capActions\(navActions\(\)/);
+  assert.match(shell, /key === "overflow"\) buildOverflowSheet\(\)/);
+});
+
+test("Finish opens the material library on rooms, walls and pieces", () => {
+  assert.match(shell, /finishBtn = \{[^}]*run\("openTextureGallery"\)/);
+  for (const kind of ["item", "wall", "room"])
+    assert.match(shell, new RegExp('if \\(kind === "' + kind + '"\\)[\\s\\S]*?finishBtn'), kind);
 });
 
 test("a hinged door offers Flip swing and a sliding one does not", () => {

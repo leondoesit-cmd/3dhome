@@ -357,6 +357,8 @@ export default {
   m_a_square: "ישר ל-90°",
   m_a_place: "הנח פריט",
   m_a_floor: "ריצוף",
+  m_a_finish: "גימור",
+  m_a_more: "עוד",
   floor_pick_title: "בחירת ריצוף לפי מראה",
   floor_custom_dropped: "התמונה שהועלתה הוחלפה בריצוף שנבחר",
   m_view_hold: "הקשה מחליפה תוכנית/תלת־ממד · לחיצה ארוכה לפיצול ולחתכים",

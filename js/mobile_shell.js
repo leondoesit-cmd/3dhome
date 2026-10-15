@@ -462,16 +462,50 @@ function cancelPlacement() {
 
    The row stays at most four controls: under .compact-nav they are 44px
    icon squares (css/styles.css), so four plus the pinned Undo/Redo still fits
-   a 320px screen without the row having to scroll. */
+   a 320px screen without the row having to scroll. A kind with more verbs
+   than that keeps the first three and puts the rest behind "More" (a short
+   sheet), rather than letting the row scroll its last verbs off-screen.
+
+   "Finish" opens the material library aimed at the selection (the gallery
+   reads S.sel: a room's floor, a wall's face, a piece's surfaces). */
+export var CTX_MAX = 4;
+/* The Round-6 bottom toolbar (pro-compact) labels every verb and shares the
+   row with the tools grid, library and ask buttons: four labelled verbs ran
+   its last one off the right edge of a 390px phone. A docked tablet/fold
+   (dock-rail) has the width for four. */
+export var CTX_MAX_LABELLED = 3;
+var overflowItems = [];
+export function capActions(list, more, max) {
+  max = max || (proCompact() && !document.body.classList.contains("dock-rail") ? CTX_MAX_LABELLED : CTX_MAX);
+  if (list.length <= max) return list;
+  var head = list.slice(0, max - 1), rest = list.slice(max - 1);
+  return head.concat([more(rest)]);
+}
+function moreBtn(rest) {
+  return { icon: "ph-dots-three-outline", label: t("m_a_more"), run: function () { overflowItems = rest; showSheet("overflow"); } };
+}
 function selActions() {
+  return capActions(selActionList(), moreBtn);
+}
+function selActionList() {
   var kind = selKind();
   var propsBtn = { icon: "ph-sliders-horizontal", label: t("m_a_props"), run: function () { showSheet("props"); } };
   var delBtn = { icon: "ph-trash", label: t("m_a_del"), danger: true, run: function () { run("deleteSel"); } };
   var dupBtn = { icon: "ph-copy", label: t("m_a_dup"), run: function () { run("dupSel"); } };
+  var finishBtn = { icon: "ph-paint-brush-broad", label: t("m_a_finish"), run: function () { run("openTextureGallery"); } };
 
-  if (kind === "item" || kind === "items") {
+  if (kind === "item") {
     /* Orienting a piece is the most repeated edit in a furnished plan and it
        had no control at all outside the inspector's rotation row. */
+    return [
+      { icon: "ph-arrow-clockwise", label: t("m_a_rot90"), run: function () { run("rotSel90"); } },
+      finishBtn,
+      propsBtn,
+      dupBtn,
+      delBtn,
+    ];
+  }
+  if (kind === "items") {
     return [
       { icon: "ph-arrow-clockwise", label: t("m_a_rot90"), run: function () { run("rotSel90"); } },
       dupBtn,
@@ -489,9 +523,10 @@ function selActions() {
   if (kind === "wall") {
     return [
       { icon: "ph-door", label: t("m_a_adddoor"), run: function () { run("addWallDoor"); } },
+      finishBtn,
       { icon: "ph-frame-corners", label: t("m_a_addwindow"), run: function () { run("addWallWindow"); } },
-      { icon: "ph-flip-horizontal", label: t("m_a_flipwall"), run: function () { run("reverseWallLayers"); } },
       propsBtn,
+      { icon: "ph-flip-horizontal", label: t("m_a_flipwall"), run: function () { run("reverseWallLayers"); } },
       delBtn,
     ];
   }
@@ -518,6 +553,7 @@ function selActions() {
        nothing. */
     return [
       { icon: "ph-paint-roller", label: t("m_a_floor"), run: function () { run("roomFloor"); } },
+      finishBtn,
       propsBtn,
       delBtn,
     ];
@@ -538,11 +574,15 @@ function ctxActions() {
     ];
   }
   if (viewMode() === "3d") {
-    return (proCompact() ? navActions() : []).concat([
-      { icon: "ph-cursor-click", label: t("m_edit3d"), on: !!S.edit3D, run: function () { run("edit3d"); } },
+    /* A selection in 3D gets its own verbs (Finish above all: 3D is where a
+       material is judged). Otherwise the 3D pane's navigation. Walk and Look
+       were only offered under the Round-6 layout, so a phone in the default
+       layout could not leave orbit at all. */
+    if (selKind()) return selActions();
+    return capActions(navActions().concat([
       { icon: "ph-crosshair-simple", label: t("frame"), run: function () { run("frame"); } },
       { icon: "ph-camera", label: t("photo"), run: function () { run("photo"); } },
-    ]);
+    ]), moreBtn);
   }
   if (drawing()) {
     // Mid-draw the aids ARE the controls: they decide what the next click
@@ -840,6 +880,45 @@ function ensureSheet() {
   });
 }
 
+/* The library and inspector are real panels shown AS sheets on a phone
+   (showSheet "add" / "props"), and their grip was a ::before decoration: it
+   looked draggable and did nothing, so a 46dvh inspector could only be closed
+   by tapping the backdrop and never made taller for a long wall form. This
+   gives them the same grip gesture as the built sheets — down to dismiss, up
+   for full height — on a 44px strip, not the 4px bar. */
+function ensurePanelGrips() {
+  ["left-sidebar", "right-inspector"].forEach(function (id) {
+    var panel = $(id);
+    if (!panel || panel.querySelector(":scope > .m-panel-grip")) return;
+    var grip = document.createElement("div");
+    grip.className = "m-panel-grip";
+    grip.setAttribute("aria-hidden", "true");
+    panel.insertBefore(grip, panel.firstChild);
+    var y0 = 0, live = false;
+    grip.addEventListener("touchstart", function (e) {
+      live = e.touches.length === 1 && document.body.classList.contains("sheet-drawers");
+      y0 = live ? e.touches[0].clientY : 0;
+    }, { passive: true });
+    grip.addEventListener("touchmove", function (e) {
+      if (!live || e.touches.length !== 1) return;
+      var dy = e.touches[0].clientY - y0;
+      if (dy > 70) {
+        live = false;
+        closeSheet();
+      } else if (dy < -50) {
+        live = false;
+        panel.classList.add("panel-tall");
+      }
+    }, { passive: true });
+    grip.addEventListener("touchend", function () { live = false; });
+    // a tap on the grip toggles the height (the grip is not a keyboard target:
+    // the inspector's own controls and Escape cover keyboard use)
+    grip.addEventListener("click", function () {
+      if (document.body.classList.contains("sheet-drawers")) panel.classList.toggle("panel-tall");
+    });
+  });
+}
+
 function closeSheet() {
   var closingKey = openSheet;
   if (closingKey === "props" && foldTab != null) {
@@ -864,6 +943,10 @@ function closeSheet() {
   // The library and inspector are real panels, not sheet content: they are
   // shown in place (see showSheet) and have to be put back too.
   document.body.classList.remove("show-left", "show-right");
+  ["left-sidebar", "right-inspector"].forEach(function (id) {
+    var panel = $(id);
+    if (panel) panel.classList.remove("panel-tall");
+  });
   syncNav();
   if (closingKey === "props" && onboardingActive && onboardingStage === "edit") {
     onboardingStage = "preview";
@@ -926,8 +1009,9 @@ function showSheet(key) {
   if (key === "tools") buildToolsSheet();
   else if (key === "view") buildViewSheet();
   else if (key === "more") buildMoreSheet();
+  else if (key === "overflow") buildOverflowSheet();
   sheetTitle.textContent = t(
-    key === "tools" ? "msheet_tools" : key === "view" ? "msheet_view" : "msheet_more",
+    key === "tools" ? "msheet_tools" : key === "view" ? "msheet_view" : key === "overflow" ? "m_a_more" : "msheet_more",
   );
   openSheet = key;
   sheet.classList.add("on");
@@ -939,6 +1023,27 @@ function showSheet(key) {
   syncNav();
   /* Tools, View and More are short named sections that scroll naturally.
      Inspector forms still use labelled page tabs via pageInspector(). */
+}
+
+/* The context row's overflow: the verbs that did not fit, as a labelled grid
+   (danger red, the same as on the row). */
+function buildOverflowSheet() {
+  var grid = document.createElement("div");
+  grid.className = "m-grid m-icon-grid";
+  overflowItems.forEach(function (a) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "m-grid-btn" + (a.danger ? " danger" : "") + (a.on ? " on" : "");
+    b.setAttribute("aria-label", a.label);
+    b.innerHTML = '<i class="ph ' + a.icon + '"></i><span></span>';
+    b.querySelector("span").textContent = a.label;
+    b.addEventListener("click", function () {
+      closeSheet();
+      a.run();
+    });
+    grid.appendChild(b);
+  });
+  sheetBody.appendChild(grid);
 }
 
 /* Tools: the same commands as the desktop rail, but as a labelled grid. The
@@ -1473,6 +1578,7 @@ export function initMobileShell() {
   initNav();
   buildStrip();
   buildFoldRail();
+  ensurePanelGrips();
   ensureSheet();
   // ui.js owns the legacy swipe/backdrop handlers. Observe the shared drawer
   // classes so their dismissals also retire our backdrop and expanded state.

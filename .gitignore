@@ -16,3 +16,7 @@ tmp/
 # disk copies of saved models (server/model_backup.mjs)
 .model-backups/
 *.mforge
+
+# Codex source images and run log for the material bake (tools/textures)
+tools/textures/src/
+tools/textures/gen_log.json

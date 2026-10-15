@@ -8,7 +8,7 @@ import { footprint } from './layout_analysis.js';
 import { FURN } from './furniture.js';
 import { S, SNAP_GRID } from './state.js';
 import { THREE } from './three_lazy.js';
-import { getMainCamera, has3D, plannerPointer3D, plannerPlanePoint3D, requestRender, toggleWalk, isWalk, toggleWalkView, setPlannerRenderHook } from './view3d.js';
+import { getMainCamera, has3D, plannerPointer3D, plannerPlanePoint3D, requestRender, toggleWalk, isWalk, toggleWalkView, setPlannerRenderHook, setLegacyTouchEdit } from './view3d.js';
 import { previewSurveyVertex, surveyVertexPlane, snapSurveyVertex } from './survey_vertex.js';
 import { st } from './survey_strings.js';
 import { dispatchPlannerInput, cancelPlannerGesture, setPlannerInputView } from './planner_input.js';
@@ -19,6 +19,19 @@ import { t, onLangChange } from './i18n.js';
 import { fmtLen } from './display_units.js';
 
 let pane, canvas, hud, modeButton, lookButton, personButton, dragId=null, lastInput=null, look=false, constraintHits=[];
+/* Touch in the 3D pane. A finger is navigation unless it plainly means an
+   edit: a drawing tool is active, or it lands on the piece that is already
+   selected. Everything else (empty space, an unselected sofa filling half the
+   screen) orbits, and a short still tap selects — the same "select first, then
+   drag" rule the 2D plan uses on touch. A second finger always navigates. */
+const touchIds=new Set();
+let touchTap=null;
+const TAP_SLOP=10, TAP_MS=450;
+export function touchClaims3D(tool, hit, sel) {
+  if (tool && tool !== 'select') return true;
+  if (!hit) return false;
+  return !!sel && sel.ref === hit.ref;
+}
 let roofButton;
 let vertexHits=[],vertexDrag=null;
 let planLayersWereHidden=null;
@@ -149,22 +162,47 @@ export function initPlanner3D() {
     document.body.classList.add('used-3d');
     if(!has3D()||gameActive()||e.button!==0||look)return;
     activate();
+    if(e.pointerType==='touch'){
+      touchIds.add(e.pointerId);
+      if(touchIds.size>1){
+        // second finger: abandon any edit so the pinch/pan below gets both
+        if(dragId!=null){send('cancel',e);if(canvas.hasPointerCapture(dragId))canvas.releasePointerCapture(dragId);dragId=null;}
+        touchTap=null;return;
+      }
+      const input=sample(e);
+      if(!touchClaims3D(S.tool,input&&input.hit,S.sel)){touchTap={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};return;}
+    }
     if(send('down',e)){dragId=e.pointerId;canvas.setPointerCapture(e.pointerId);e.preventDefault();e.stopImmediatePropagation();}
   },true);
   canvas.addEventListener('pointermove',e=>{
     if(!has3D()||gameActive()||look)return;
-    if(dragId===e.pointerId||(!e.buttons&&document.documentElement.dataset.plannerViewport==='3d'))send('move',e);
+    if(touchTap&&touchTap.id===e.pointerId&&Math.hypot(e.clientX-touchTap.x,e.clientY-touchTap.y)>TAP_SLOP)touchTap=null;
+    if(dragId===e.pointerId||(!e.buttons&&e.pointerType!=='touch'&&document.documentElement.dataset.plannerViewport==='3d'))send('move',e);
   });
   for(const type of ['pointerup','pointercancel'])canvas.addEventListener(type,e=>{
+    if(e.pointerType==='touch'){
+      touchIds.delete(e.pointerId);
+      // a still, short touch that did not orbit is a tap: select what is under it
+      const tap=touchTap;touchTap=null;
+      if(type==='pointerup'&&tap&&tap.id===e.pointerId&&dragId==null&&performance.now()-tap.t<TAP_MS&&
+        Math.hypot(e.clientX-tap.x,e.clientY-tap.y)<=TAP_SLOP&&!touchIds.size){
+        if(send('down',e))send('up',e);
+        return;
+      }
+    }
     if(dragId!==e.pointerId)return;
     send(type==='pointerup'?'up':'cancel',e);dragId=null;
     if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
     e.preventDefault();e.stopImmediatePropagation();
   },true);
-  // Suppress legacy mouse/touch edit listeners; navigation gestures continue
-  // to their existing handlers when Look or the right button is used.
+  // Suppress legacy mouse edit listeners; navigation continues to its own
+  // handlers when Look or the right button is used. Touch is suppressed only
+  // while this pane owns the gesture (an edit captured above) — otherwise the
+  // view's one-finger orbit and two-finger pinch/pan run as usual.
+  setLegacyTouchEdit(false);
   for(const type of ['mousedown','touchstart','touchmove','touchend'])canvas.addEventListener(type,e=>{
-    if(!gameActive()&&!look&&(type.startsWith('touch')||e.button===0)){e.preventDefault();e.stopImmediatePropagation();}
+    if(gameActive()||look)return;
+    if(type.startsWith('touch')?dragId!=null:e.button===0){e.preventDefault();e.stopImmediatePropagation();}
   },{capture:true,passive:false});
   canvas.addEventListener('dblclick',e=>{if(!look&&!gameActive()){send('double',e);e.preventDefault();e.stopImmediatePropagation();}},true);
   onAfterRender(()=>{paintPlanner3D();requestRender();});

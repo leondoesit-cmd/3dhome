@@ -3,6 +3,7 @@ import { THREE, ADDONS } from "./three_lazy.js";
 import { S, fin, PHYSICS_MATS, MAT_PROPS, FABRIC, WOOD, TOP, BEDC, RUGC, STEEL, ISL, GREEN, CAB } from "./state.js";
 import { pbrPixels } from "./pbr_textures.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
+import { pbrEntryFor, pbrTextures, applyPbrMaps, legacyTextureUrl } from "./pbr_material.js";
 
 // Classify a part's physical material from how it is actually rendered:
 // transmissive/transparent → glass, high metalness → metal, then the
@@ -81,11 +82,22 @@ function withSkinTexture(opt) {
 export function applyTextureToMaterial(m, opt, width, height, depth) {
   opt = withSkinTexture(opt);
   if (!m || !opt || !opt.tex) return;
+  var texUrl = opt.tex;
+  // Library material: full PBR maps once loaded, its old preset meanwhile.
+  var lib = pbrEntryFor(texUrl);
+  if (lib) {
+    var libScale = opt.texScale || lib.sizeCm;
+    var libDim = Math.max(Math.abs(width) || 0, Math.abs(depth) || 0) || 100;
+    if (applyPbrMaps(m, lib, Math.max(libDim / libScale, 0.001), Math.max((Math.abs(height) || 100) / libScale, 0.001),
+      { tint: opt.texColor })) return;
+    texUrl = legacyTextureUrl(lib);
+    if (!texUrl) return;
+  }
   if (!S.customTexCache) S.customTexCache = {};
-  if (!S.customTexCache[opt.tex]) {
+  if (!S.customTexCache[texUrl]) {
     var loader = new THREE.TextureLoader();
     loader.setCrossOrigin("anonymous");
-    var tx = loader.load(opt.tex, function () {
+    var tx = loader.load(texUrl, function () {
       // Parts built while this was still loading were left untextured on
       // purpose; the event invalidates the item cache so they get rebuilt.
       S.dirty3D = true;
@@ -97,22 +109,22 @@ export function applyTextureToMaterial(m, opt, width, height, depth) {
     });
     tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
     if (THREE.SRGBColorSpace) tx.colorSpace = THREE.SRGBColorSpace;
-    S.customTexCache[opt.tex] = tx;
+    S.customTexCache[texUrl] = tx;
   }
   // Wait for the bitmap before handing the material a map. Texture.copy() sets
   // needsUpdate on every clone, so a clone taken while the loader is still
   // fetching is version>0 with `image === null` — and updateTexture() then
   // throws on `image.complete`, killing the render pass (black viewport).
   // The loader callback above flags a rebuild, which re-runs this with an image.
-  if (!S.customTexCache[opt.tex].image) return;
-  var tex = S.customTexCache[opt.tex].clone();
+  if (!S.customTexCache[texUrl].image) return;
+  var tex = S.customTexCache[texUrl].clone();
   var maxDim = Math.max(Math.abs(width) || 0, Math.abs(depth) || 0) || 100;
   var scale = opt.texScale || 200;
   tex.repeat.set(Math.max(maxDim / scale, 0.001), Math.max((Math.abs(height) || 100) / scale, 0.001));
   m.map = tex;
   m.color.setHex(opt.texColor != null ? opt.texColor : 0xffffff);
 
-  var bUrl = getTexturePresetBumpUrl(opt.tex);
+  var bUrl = getTexturePresetBumpUrl(texUrl);
   if (bUrl) {
     if (!S.customBumpCache) S.customBumpCache = {};
     if (!S.customBumpCache[bUrl]) {
@@ -206,7 +218,21 @@ function applyDetail(m, geo, srcColor, opt, finalColor) {
   if (!m || m.map || opt.tex || opt.trans || opt.transmission != null || opt.emis != null || opt.noDetail) return;
   var fam = opt.pbr || COLOR_PBR[srcColor];
   if (!fam) return;
-  if (fam === "oak" && finalColor != null && finalColor !== srcColor && paintedFinish(finalColor)) fam = "plaster";
+  var painted = fam === "oak" && finalColor != null && finalColor !== srcColor && paintedFinish(finalColor);
+  // Baked library detail (Codex source, Blender-derived normal + ORM) when
+  // it has loaded; the procedural family below until then.
+  var lib = pbrEntryFor("pbr:" + (painted ? "lacquer" : fam));
+  if (lib && pbrTextures(lib)) {
+    worldUVs(geo, lib.sizeCm);
+    applyPbrMaps(m, lib, 1, 1, { normalScale: 0.7 });
+    var base = opt.rough != null ? opt.rough : m.roughness;
+    // the ORM map holds the catalogue's roughness; keep a part's own glossier
+    // or rougher intent by scaling it rather than discarding it
+    m.roughness = Math.min(1.6, Math.max(0.3, base / ((lib.rough[0] + lib.rough[1]) / 2 || 1)));
+    if (opt.metal != null) m.metalness = opt.metal;
+    return;
+  }
+  if (painted) fam = "plaster";
   var t = pbrTex(fam);
   if (!t || !t.map) return;
   worldUVs(geo, t.tileCm);

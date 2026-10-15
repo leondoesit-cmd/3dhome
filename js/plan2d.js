@@ -59,6 +59,7 @@ import { roomClearArea } from "./room_area.js";
 import { fmtAreaM2, fmtLen, unitLabel } from "./display_units.js";
 import { isPresentation, planStyle, planTheme } from "./plan_style.js";
 import { patternFill } from "./plan_patterns.js";
+import { floorImageFor, floorImageSource } from "./plan_material_fill.js";
 import { floorPaintCanvas, floorMeanColor, groundPaintCanvas } from "./primitives.js";
 import { itemSprite } from "./plan_sprites.js";
 import { spriteMode } from "./plan_sprite_key.js";
@@ -2530,6 +2531,11 @@ function wallBandPolygon(w, from, to) {
    layer keyed by that state and blit it, so an idle animated overlay does not
    re-tessellate every enclosure sixty times a second. */
 var roomLayer = { key: "", canvas: null, rooms: null, hid: null };
+/* A floor image finished loading: drop the cached room layer and repaint. */
+function presentationImageReady() {
+  roomLayer.key = "";
+  render2D();
+}
 function paintRooms(ctx, rooms, dpr) {
   var pres = isPresentation(),
     view = { OX: S.OX, OY: S.OY, SC: S.SC, dpr: dpr || 1 };
@@ -2553,9 +2559,17 @@ function paintRooms(ctx, rooms, dpr) {
       ctx.setLineDash([]);
     } else if (pres) {
       var ft = roomFloor(r.key) || "wood";
-      ctx.fillStyle = patternFill(ctx, ft, function (level) {
-        return floorPaintCanvas(ft, level);
-      }, floorMeanColor(ft), TILE[ft] || 200, view);
+      var rm = S.roomMeta[r.key];
+      // a custom finish (library material or uploaded image) is what the room
+      // looks like — the floor type underneath is only its fallback
+      var img = rm && floorImageFor(rm.floorTex, rm.floorScale);
+      ctx.fillStyle = img
+        ? patternFill(ctx, "img:" + img.url, function (level) {
+            return floorImageSource(img.url, level, presentationImageReady);
+          }, floorMeanColor(ft), img.tileCm, view)
+        : patternFill(ctx, ft, function (level) {
+            return floorPaintCanvas(ft, level);
+          }, floorMeanColor(ft), TILE[ft] || 200, view);
       ctx.fill();
     } else {
       ctx.fillStyle = FILL2D[roomFloor(r.key)] || "#efe7d6";
@@ -2635,7 +2649,10 @@ function drawCachedRooms() {
     "|" +
     rooms
       .map(function (r) {
-        return r.key + (roomHidden(r.key) ? "h" : "") + (roomFloor(r.key) || "");
+        var ft = S.roomMeta[r.key] && S.roomMeta[r.key].floorTex;
+        // data URLs run to megabytes: their length and tail identify them
+        var ftKey = ft ? ft.length + ":" + ft.slice(-24) + ":" + (S.roomMeta[r.key].floorScale || "") : "";
+        return r.key + (roomHidden(r.key) ? "h" : "") + (roomFloor(r.key) || "") + ftKey;
       })
       .join(";") +
     "|" + planStyle() + "|" + (pixelW / (S.CW || 1)) +

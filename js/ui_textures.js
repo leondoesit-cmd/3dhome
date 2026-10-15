@@ -14,6 +14,22 @@ import { roomMetaFor, fillProps } from "./ui_props.js";
 import { render2D } from "./plan2d.js";
 import { t, getLang } from "./i18n.js";
 import { TEXTURE_CATEGORIES, PRESET_TEXTURES, getTexturePresetDataUrl, searchOnlineFreeTextures, SEARCH_SOURCES, translateSearchQuery } from "./textures.js";
+import { materialById, materialRef, materialThumbUrl, materialUrl } from "./material_library.js";
+import { detectRooms } from "./geometry.js";
+
+/* Built-in presets that have a baked library set are saved as "mat:<id>"
+   (a few bytes, full PBR in 3D) instead of the generated canvas's data URL. */
+function libraryRef(tex) {
+  return tex && !tex.isOnline && materialById(tex.id) ? materialRef(tex.id) : null;
+}
+/* Card / swatch background: the baked material ball over the procedural
+   swatch, so a card still shows something offline or before the bake. */
+function previewBackground(tex, fallbackUrl) {
+  var layers = [];
+  if (libraryRef(tex)) layers.push("url('" + materialThumbUrl(tex.id) + "') center / 82% no-repeat");
+  if (fallbackUrl) layers.push("url('" + fallbackUrl + "') center / cover");
+  return layers.join(", ");
+}
 
 var modalEl = null;
 var activeTarget = "floor"; // "floor", "all_floors", "wall", "all_walls", "item", "cab_doors", "cab_body", "cab_top"
@@ -64,7 +80,7 @@ function toggleFavorite(tex) {
       source: tex.source || "Built-in",
       sourceColor: tex.sourceColor || "#8b5cf6",
       thumbUrl: tex.thumbUrl || getTexturePresetDataUrl(tex),
-      textureUrl: tex.textureUrl || (tex.generate ? getTexturePresetDataUrl(tex) : tex.thumbUrl),
+      textureUrl: libraryRef(tex) || tex.textureUrl || (tex.generate ? getTexturePresetDataUrl(tex) : tex.thumbUrl),
       scale: tex.scale || 200,
       isOnline: !!tex.isOnline
     };
@@ -212,7 +228,7 @@ function createTextureGalleryModal() {
             <span id="texSelectionMeta">${isHe ? "לאחר הבחירה תוכלו לכוון ולהחיל" : "Fine-tune it before applying"}</span>
           </div>
         </div>
-        <div class="tex-controls">
+        <div class="tex-controls" id="texControls">
           <div class="tex-control-group">
             <label>${isHe ? "גודל טקסטורה (ס\"מ):" : "Tile Size (cm):"}</label>
             <input type="range" id="texScaleRange" min="50" max="600" step="10" value="${currentScale}" />
@@ -234,6 +250,7 @@ function createTextureGalleryModal() {
         <div class="tex-footer-actions">
           <button class="btn-secondary" id="texUploadCustomBtn"><i class="ph ph-upload-simple"></i> ${isHe ? "העלה תמונה אישית" : "Upload File"}</button>
           <button class="btn-danger" id="texRemoveBtn"><i class="ph ph-trash"></i> ${isHe ? "הסר טקסטורה" : "Remove Texture"}</button>
+          <button class="btn-secondary tex-adjust-btn" id="texAdjustBtn" aria-expanded="false" aria-controls="texControls" aria-label="${isHe ? "כוונון גודל, עומק וגוון" : "Adjust size, depth and tint"}"><i class="ph ph-sliders-horizontal"></i></button>
           <button class="tex-apply-btn" id="texApplyBtn" disabled><i class="ph ph-check"></i> ${isHe ? "החל חומר" : "Apply material"}</button>
         </div>
       </footer>
@@ -287,6 +304,12 @@ function createTextureGalleryModal() {
   };
 
   document.getElementById("texApplyBtn").onclick = applySelectedTexture;
+  // phones fold the sliders away (css: .tex-adjust-open); this unfolds them
+  document.getElementById("texAdjustBtn").onclick = function () {
+    var box = modalEl.querySelector(".tex-modal-container");
+    var open = box.classList.toggle("tex-adjust-open");
+    this.setAttribute("aria-expanded", String(open));
+  };
 
   document.getElementById("texRemoveBtn").onclick = function () {
     if (onTextureSelectCallback) {
@@ -413,7 +436,7 @@ function createTextureCard(tex, index, isOnline) {
   }
   
   card.innerHTML =
-    '<div class="tex-preview" style="background-image:url(\'' + previewUrl + '\')">' + badgeHtml + '<span class="tex-selected-mark"><i class="ph ph-check"></i></span></div>' +
+    '<div class="tex-preview" style="background:' + previewBackground(tex, previewUrl).replace(/"/g, "&quot;") + '">' + badgeHtml + '<span class="tex-selected-mark"><i class="ph ph-check"></i></span></div>' +
     '<div class="tex-card-copy"><div class="tex-card-title" title="' + texName.replace(/"/g, '&quot;') + '">' + texName + '</div><div class="tex-card-meta">' + (tex.scale || 200) + ' cm</div></div>';
   
   var fav = isFavorite(tex.id);
@@ -446,7 +469,7 @@ function createTextureCard(tex, index, isOnline) {
   };
   
   card.onmouseenter = function(e) {
-    showHoverPreview(previewUrl, e, texName);
+    showHoverPreview(libraryRef(tex) ? materialUrl(tex.id, "color", "1k") : previewUrl, e, texName);
   };
   card.onmouseleave = function() {
     hideHoverPreview();
@@ -459,7 +482,7 @@ function selectTexture(tex, isOnline, previewUrl) {
   selectedTexture = {
     tex: tex,
     previewUrl: previewUrl,
-    textureUrl: isOnline ? (tex.textureUrl || previewUrl) : previewUrl,
+    textureUrl: isOnline ? (tex.textureUrl || previewUrl) : (libraryRef(tex) || previewUrl),
     isOnline: isOnline
   };
   currentScale = tex.scale || 200;
@@ -494,7 +517,7 @@ function updateSelectionPanel() {
   }
   var tex = selectedTexture.tex;
   swatch.innerHTML = "";
-  swatch.style.backgroundImage = "url('" + selectedTexture.previewUrl + "')";
+  swatch.style.background = previewBackground(tex, selectedTexture.previewUrl);
   name.textContent = isHe ? tex.name.he : tex.name.en;
   updateSelectionMeta();
 }
@@ -693,15 +716,16 @@ function applyTextureToTarget(texUrl, defaultScale) {
       m.floorBump = bump;
     }
   } else if (activeTarget === "all_floors") {
-    if (S.sel && S.sel.kind === "room") {
-      var m = roomMetaFor();
-      if (m) {
-        m.floorTex = texUrl;
-        m.floorScale = scale;
-        m.floorBump = bump;
-      }
-    }
-    S.floorTex = texUrl || "wood";
+    // S.floorTex is the default floor TYPE (a painter key read by roomFloor),
+    // not an image: writing a URL there turned every floor into concrete.
+    // Put the finish on each room instead.
+    if (!S.roomMeta) S.roomMeta = {};
+    detectRooms().forEach(function (r) {
+      var meta = S.roomMeta[r.key] || (S.roomMeta[r.key] = {});
+      meta.floorTex = texUrl;
+      meta.floorScale = texUrl ? scale : null;
+      meta.floorBump = texUrl ? bump : null;
+    });
     S.floorBump = bump;
   } else if (activeTarget === "wall") {
     if (S.sel && S.sel.kind === "wall") {

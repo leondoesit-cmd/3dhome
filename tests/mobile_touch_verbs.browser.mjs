@@ -59,9 +59,9 @@ test("the contextual row offers each kind the verb that kind answers to", opts, 
       return out;
     });
 
-    assert.deepEqual(rows.item.labels, ["Undo", "Redo", "Rotate 90°", "Copy", "Edit", "Delete"]);
+    assert.deepEqual(rows.item.labels, ["Undo", "Redo", "Rotate 90°", "Finish", "Edit", "More"]);
     assert.deepEqual(rows.door.labels, ["Undo", "Redo", "Flip swing", "Edit", "Delete"]);
-    assert.deepEqual(rows.wall.labels, ["Undo", "Redo", "Add door", "Add window", "Flip faces", "Edit", "Delete"]);
+    assert.deepEqual(rows.wall.labels, ["Undo", "Redo", "Add door", "Finish", "Add window", "More"]);
     assert.deepEqual(rows.none.labels, ["Undo", "Redo", "Center view", "OSNAP", "ORTHO", "GRID"], "Undo/Redo stay first while classic framing and drafting aids remain available");
     Object.entries(rows).forEach(([tag, row]) =>
       assert.ok(row.overflow <= 0, `the ${tag} row fits 360px without scrolling (${row.overflow}px over)`));

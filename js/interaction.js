@@ -5259,7 +5259,21 @@ export function initInteraction() {
       if (!hk) return false;
       var rm = roomByKey(hk);
       var roomSel = { kind: "room", ref: hk };
+      /* On touch the floor is also where you put your finger to pan, and on a
+         zoomed-in plan there is little else to grab: a drag that starts in a
+         room nobody had selected used to carry the room (and its furniture)
+         off instead. Touch now follows "select first, then drag" — the press
+         still selects the room, but only a drag on the ALREADY selected room
+         moves it; otherwise the finger pans. Mouse is unchanged. */
+      var priorSel = e.pointerType === "touch" ? preTouchSel : S.sel;
+      var wasSelected = !!priorSel && priorSel.kind === "room" && priorSel.ref === hk;
       select(roomSel);
+      if (e.pointerType === "touch" && !wasSelected && !inputIs3D()) {
+        S.action = "pan";
+        S.panStart = { ox: S.OX, oy: S.OY, px: e.offsetX, py: e.offsetY };
+        render2D();
+        return true;
+      }
       /* canDrag folds in all three of the old conditions — the work set,
          S.lockStruct, and the per-room padlock it reads out of S.roomMeta
          (a room selection's ref is a KEY, not an object). `rm` staying in

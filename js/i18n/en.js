@@ -356,6 +356,8 @@ export default {
   m_a_square: "Square to 90°",
   m_a_place: "Place item",
   m_a_floor: "Floor",
+  m_a_finish: "Finish",
+  m_a_more: "More",
   floor_pick_title: "Pick a floor by look",
   floor_custom_dropped: "The uploaded image was replaced by the floor you picked",
   m_view_hold: "Tap to switch Plan / 3D · hold for Split and elevations",

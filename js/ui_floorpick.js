@@ -16,6 +16,7 @@
  * not become.
  */
 import { floorSwatch } from "./primitives.js";
+import { materialById, materialThumbUrl } from "./material_library.js";
 import { escapeHTML } from "./safe.js";
 import { t } from "./i18n.js";
 import { openModal } from "./ui.js";
@@ -44,8 +45,10 @@ function option(node) {
   return { value: node.value, label: (node.textContent || node.value).trim() };
 }
 
+/* The baked material ball when the library has this floor, the painted
+   swatch otherwise — and as the fallback when the ball cannot load. */
 function tile(entry, current) {
-  var url = floorSwatch(entry.value, 128);
+  var url = materialById("floor_" + entry.value) ? materialThumbUrl("floor_" + entry.value) : floorSwatch(entry.value, 128);
   var on = entry.value === current;
   return (
     '<button type="button" class="floor-tile' + (on ? " on" : "") +
@@ -81,6 +84,13 @@ export function openFloorPicker(current, onPick, opts) {
     })
     .join("");
   dlg.body.appendChild(body);
+  body.addEventListener("error", function (e) {
+    var img = e.target;
+    if (!img || img.tagName !== "IMG" || img.dataset.fallback) return;
+    var hit = img.closest("[data-floor]");
+    img.dataset.fallback = "1";
+    if (hit) img.src = floorSwatch(hit.dataset.floor, 128);
+  }, true);
 
   body.addEventListener("click", function (e) {
     var hit = e.target.closest("[data-floor]");
