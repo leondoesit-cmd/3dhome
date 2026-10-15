@@ -1234,11 +1234,11 @@ export function createDrawingController(host) {
     const at = horizontal ? model.v : model.u;
     const basis = viewBasis(place.view.dir);
     const along = axis === "vertical" ? basis.right : basis.up;
-    /* The arrows point the way the reader looks, and the drag says nothing
-       about that — it only draws the line. So the convention picks: a vertical
-       cut is looked at from the left (arrows point right), a horizontal one
-       from above (arrows point down), and Shift while cutting reverses it. */
-    const flip = axis === "vertical" ? !!draft.flip : !draft.flip;
+    /* Sight is perpendicular to the directed cutting line: clockwise on
+       paper (left-to-right points down; top-to-bottom points left). Reversing
+       the touch drag reverses the arrows and view; Shift remains an override. */
+    const forwardDrag = horizontal ? endPoint.x > draft.start.x : endPoint.y > draft.start.y;
+    const flip = forwardDrag !== !!draft.flip;
     const sight = flip ? { x: -along.x, y: -along.y, z: -along.z } : along;
     const tag = nextSectionTag(doc);
     host.pushUndo(host.t("opAddView"));

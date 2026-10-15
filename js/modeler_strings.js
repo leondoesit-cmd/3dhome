@@ -309,7 +309,7 @@ export var TXT = {
   drawDimHint: ["בחרו נקודה, נקודה שנייה, ואז לחצו במקום שבו המידה תשב", "Pick a point, pick a second, then click where the dimension line goes"],
   drawDiamHint: ["לחצו על מעגל כדי למדוד קוטר או רדיוס", "Click a circle to dimension its diameter or radius"],
   drawAngleHint: ["בחרו שתי צלעות ישרות, או שלוש נקודות: זרוע, פינה, זרוע", "Pick two straight edges, or three points: arm, corner, arm"],
-  drawSectionHint: ["גררו קו חתך על פני מבט · כיוון הגרירה הוא כיוון ההסתכלות", "Drag a cutting line across a view · the drag direction is the direction of sight"],
+  drawSectionHint: ["גררו קו חתך על פני מבט · גרירה הפוכה הופכת את כיוון ההסתכלות", "Drag a cutting line across a view · reverse the drag to reverse the viewing direction"],
   drawDetailHint: ["גררו עיגול סביב האזור שיוגדל", "Drag a circle around the area to enlarge"],
   drawNoteHint: ["הערה על הגיליון · לחצו על גאומטריה כדי לצרף חץ", "A note on the sheet · click geometry first to attach a leader"],
   drawNoteTitle: ["טקסט הערה", "Note text"],

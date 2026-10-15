@@ -1,3 +1,5 @@
+ACTIVE2026-10-15: PDF107/2-21 section example qualified complete, native16steps1body/coldreopen/equal authoring/SVG/phone proof; touch Section direction bug fixed and verified. NEXT108/2-22 material hatches + rib section. Contiguous frontier103 due104gaps. See final MOBILE_ADVANCE entry.
+
 ACTIVE2026-10-15: user resumed. PDF107/2-21 now has two native bowed-riser cuts, saved and portable exported;10history1body. Next high-land undercut, underside interpretation and cold verification. Last accepted exercise106; contiguous frontier103. See final MOBILE_ADVANCE entry.
 
 STOPPED2026-10-15 at user request: drawing checkpoint107/2-21 saved, Saved-card reopened, native SVG+editable mforge+PNG exported. Full107 replica still WIP (curved risers, undercut, underside). Last completed exercise106/2-20. Contiguous frontier103;104 gaps remain. Paused; no automatic continuation. See final MOBILE_ADVANCE entry.
