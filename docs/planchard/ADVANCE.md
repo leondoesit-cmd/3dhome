@@ -1,3 +1,5 @@
+STOPPED2026-10-15 at user request: drawing checkpoint107/2-21 saved, Saved-card reopened, native SVG+editable mforge+PNG exported. Full107 replica still WIP (curved risers, undercut, underside). Last completed exercise106/2-20. Contiguous frontier103;104 gaps remain. Paused; no automatic continuation. See final MOBILE_ADVANCE entry.
+
 WIP2026-10-15:107/2-21 native stepped solid+two face counterbores saved,6steps,Frontsketch10DOF; source curvedmiddle/underside relief/section/cold verification pending.106worksheet+textoverlap fix pushed f536758. Resume final MOBILE_ADVANCE entry; goal active.
 LATEST2026-10-15: mobile in-chapterExercise2 printed2-20/PDF106 accepted with cold Saved reopen/nativeSVG/phone proof. NEXT107/2-21 section example;104illustration gaps remain, contiguous boundary103. Canvas text overlap fixed;89focusedtests/allgates pass. Full goal active. See final MOBILE_ADVANCE entry.
 RESUMED2026-10-15 at user request: full mobile-only book goal active again. HEAD4879304 synchronized with origin/planchard; next task printed2-20/PDF106. Accepted105 independently; pending104 illustrations leave contiguous boundary103. Latest mobile counts Chapter1 in-chapter21/21, numbered homework11/117, reviews15/130. Earlier STOP entries are historical.
@@ -991,7 +993,3 @@ Completed repairheaderfocus actualbrowserverified andfocusedgatesgreen;commitnow
 # Latest mobile checkpoint — 2026-10-11
 
 Authoritative current continuation is `MOBILE_ADVANCE.md`. Chrome6 phone emulation390x844/touch5/dark; active source printed2-14/PDF100. Six-view sheet accepted with qualifications; Top datum cylinder final cold reopened/accepted; independent Front cylinder fully defined and saved, final cold verification pending; Right not started. Other agent update6245644 fast-forwarded and audited; cylinder width-expression and through-bore import regressions repaired with12 import tests. Entity navigation strip Previous/Next/Parameters touch actions work, but Front sketch plane/framing issue and swipe addition remain under repair/QA. Whole book unfinished. Earlier desktop8-54 is separate and does not count mobile completion.
-
-
-
-
