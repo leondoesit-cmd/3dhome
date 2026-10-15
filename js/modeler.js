@@ -12832,9 +12832,9 @@ function drawingHintText() {
   if (tool === "section") return t("drawSectionHint");
   if (tool === "detail") return t("drawDetailHint");
   if (tool === "auxiliary") return "Choose a named inclined edge in a principal view, then select its native planar face";
-  if (tool === "crop") return "Choose a drawing view, click boundary points, Enter closes the crop spline; Escape cancels";
+  if (tool === "crop") return "Tap a drawing view and boundary points, then Finish boundary; Cancel discards (Enter/Escape also work)";
   if (tool === "uncrop") return "Click a cropped drawing view to restore its full projection";
-  if (tool === "brokenout") return "Choose an orthographic view, click boundary points, Enter sets removal depth in mm; Escape cancels";
+  if (tool === "brokenout") return "Tap an orthographic view and boundary points, then Finish boundary to set depth in mm; Cancel discards";
   if (tool === "unbrokenout") return "Click a broken-out drawing view to restore its original projection";
   if (tool === "break") return "Choose a single orthographic view; set original boundary coordinates and printed gap. Dimensions retain actual model values";
   if (tool === "unbreak") return "Click a Break view to restore its complete original projection";

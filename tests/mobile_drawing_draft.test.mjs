@@ -4,16 +4,39 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {createDrawingController} from '../js/modeler_drawing.js';
 import {createSheetDoc,ensureSheetDoc} from '../js/cad_sheet.js';
+import {tessellateParts} from '../js/core/part_tessellate.js';
 
-function rig(){
- let owner={name:'Draft witness',parts:[],drawing:createSheetDoc({views:[]})};
+function rig(options={}){
+ let owner={name:'Draft witness',parts:options.parts || [],drawing:createSheetDoc({views:options.views || []})};
  const history=[],calls={push:0,dirty:0};
- const c=createDrawingController({doc:()=>ensureSheetDoc(owner),model:()=>owner,bodies:()=>[],bodiesToken:()=>1,width:()=>338,height:()=>638,topology:()=>null,
-  refresh(){},flash(){},t:k=>k,pushUndo(){calls.push++;history.push(structuredClone(owner));owner=structuredClone(owner);},markDirty(){calls.dirty++;}});
+ const c=createDrawingController({doc:()=>ensureSheetDoc(owner),model:()=>owner,bodies:()=>tessellateParts(owner.parts),bodiesToken:()=>1,width:()=>338,height:()=>638,topology:()=>null,promptFields:options.promptFields,
+  canvas:()=>({}),refresh(){},flash(){},t:k=>k,pushUndo(){calls.push++;history.push(structuredClone(owner));owner=structuredClone(owner);},markDirty(){calls.dirty++;}});
  return {c,calls,get owner(){return owner;},replace(value){owner=value;},undo(){owner=history.pop();}};
 }
 const touch=id=>({button:0,pointerType:'touch',pointerId:id});
 function pick(c,id,x,y){c.pointerDown(touch(id),x,y);c.pointerUp(touch(id),x,y);}
+
+test('touch Broken-out context Finish closes model-coordinate boundary and asks depth; Cancel discards Crop',async()=>{
+ const prompts=[];
+ const r=rig({parts:[{kind:'box',x0:0,x1:6,y0:-2,y1:2,z0:-2,z1:2}],views:['front'],promptFields:async(title,fields)=>{prompts.push({title,fields});return {depth:20};}}),c=r.c;
+ c.fit();const view=c.scene().views[0],at=(u,v)=>{const p=view.toSheet({u,v});return [p.x*c.state.zoom+c.state.ox,p.y*c.state.zoom+c.state.oy];};
+ const source=readFileSync(new URL('../js/modeler_mobile.js',import.meta.url),'utf8'),start=source.indexOf('function ctxActions()'),end=source.indexOf('\n}',start);
+ const context={api:{state:()=>({mode:'drawing',drawingDraft:c.draftActions()}),finishDrawingDraft:()=>c.finishDraft(),cancelDrawingDraft:()=>c.cancelDraft()},t:k=>k};
+ vm.createContext(context);vm.runInContext(source.slice(start,end+2),context);
+ c.setTool('brokenout');pick(c,1,...at(1,1));pick(c,2,...at(1,1));
+ assert.equal(c.draftActions().canFinish,false,'duplicate u/v points do not enable Finish');
+ pick(c,3,...at(3,1));assert.equal(c.draftActions().canFinish,false);
+ pick(c,4,...at(3,2.5));pick(c,5,...at(1,2.5));
+ const actions=context.ctxActions();assert.match(actions[0].label,/^Finish boundary/);assert.equal(actions[0].disabled,false);
+ actions[0].run();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(prompts.length,1);assert.match(prompts[0].fields[0].label,/\(mm\)/);
+ const applied=r.owner.drawing.views[0].brokenOut;assert.equal(applied.depth,2);assert.equal(applied.datum,'front-envelope');
+ assert.equal(r.owner.drawing.views.length,1);assert.equal(r.calls.push,1);assert.equal(c.draftActions(),null);
+ assert.equal(c.scene().views[0].projection.brokenOutPlane.offset,0);
+ r.undo();c.invalidate();assert.equal(r.owner.drawing.views[0].brokenOut,null);
+ c.setTool('crop');pick(c,6,...at(1,1));pick(c,7,...at(3,1));pick(c,8,...at(3,2));
+ assert.equal(c.draftActions().canFinish,true);context.ctxActions()[1].run();assert.equal(c.draftActions(),null);assert.equal(r.owner.drawing.views[0].cropSketch,null);
+});
 
 test('touch Finish commits an open four-point polyline through native normalized history; Cancel never saves a draft',()=>{
  const r=rig(),c=r.c;c.setTool('sheetpolyline');

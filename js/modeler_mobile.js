@@ -252,7 +252,7 @@ function ctxActions() {
   var st = api.state();
   if (st.mode === 'drawing' && st.drawingDraft) {
     return [
-      {icon:'check',action:'finishdrawingdraft',label:'Finish · '+st.drawingDraft.pointCount+' points',primary:true,disabled:!st.drawingDraft.canFinish,run:api.finishDrawingDraft},
+      {icon:'check',action:'finishdrawingdraft',label:(['crop','brokenout'].includes(st.drawingDraft.kind)?'Finish boundary':'Finish')+' · '+st.drawingDraft.pointCount+' points',primary:true,disabled:!st.drawingDraft.canFinish,run:api.finishDrawingDraft},
       {icon:'cross',action:'canceldrawingdraft',label:t('m_cancel'),danger:true,run:api.cancelDrawingDraft},
     ];
   }

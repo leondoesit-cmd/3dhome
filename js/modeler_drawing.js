@@ -960,7 +960,10 @@ export function createDrawingController(host) {
       const doc=host.doc();
       if(['crop','brokenout'].includes(state.draft?.kind)) {
         const place=scene().views.find(p=>p.id===state.draft.viewId);
-        if(place && state.draft.points.length<64) state.draft.points.push(place.toModel(sheetPoint));
+        if(place && state.draft.points.length<64) {
+          const point=place.toModel(sheetPoint),last=state.draft.points.at(-1);
+          if(!last || Math.hypot(point.u-last.u,point.v-last.v)>1e-8)state.draft.points.push(point);
+        }
         host.refresh();return true;
       }
       const hit=hitTest(sheetPoint),place=scene().views.find(p=>p.id===(hit?.kind==='view'?hit.id:null));
@@ -979,11 +982,11 @@ export function createDrawingController(host) {
       if(state.tool==='brokenout') {
         if(!canBreakOutView(place.view,{exploded:!!host.isExplodedView?.(place.view)})) {host.flash('Broken-out needs an ordinary orthographic edge view without Crop, Section or Detail');return true;}
         state.draft={kind:'brokenout',viewId:place.id,points:[place.toModel(sheetPoint)]};
-        host.flash('Click boundary points; Enter closes the spline and asks for removal depth in mm');host.refresh();return true;
+        host.flash('Tap boundary points, then Finish boundary to choose removal depth in mm (Enter also works)');host.refresh();return true;
       }
       if(!canCropView(place.view,doc,{exploded:!!host.isExplodedView?.(place.view)})) {host.flash('Crop cannot use a Detail, a Detail parent or an exploded view');return true;}
       state.draft={kind:'crop',viewId:place.id,points:[place.toModel(sheetPoint)]};
-      host.flash('Click at least three boundary points; Enter closes the crop spline; Escape cancels');
+      host.flash('Tap at least three boundary points, then Finish boundary (Enter also works); Cancel discards');
       host.refresh();return true;
     }
     if (state.tool === "section" || state.tool === "detail") {
@@ -1770,9 +1773,11 @@ export function createDrawingController(host) {
     const draft=state.draft;
     if(!draft)return null;
     const points=draft.points || [];
-    const distinct=points.filter((point,index)=>points.slice(0,index).every(p=>Math.hypot(p.x-point.x,p.y-point.y)>1e-8));
+    const boundary=['crop','brokenout'].includes(draft.kind);
+    const coords=point=>boundary?[point.u,point.v]:[point.x,point.y];
+    const distinct=points.filter((point,index)=>points.slice(0,index).every(p=>Math.hypot(coords(p)[0]-coords(point)[0],coords(p)[1]-coords(point)[1])>1e-8));
     const finishable=draft.kind==='primitive' && draft.type==='polyline';
-    return {kind:draft.kind,type:draft.type || '',pointCount:points.length,canFinish:finishable && distinct.length>=2};
+    return {kind:draft.kind,type:draft.type || '',pointCount:points.length,canFinish:boundary?distinct.length>=3:finishable && distinct.length>=2};
   }
   function finishDraft() {
     const actions=draftActions();

@@ -1,0 +1,27 @@
+{
+  "source": "Parent agent supplied native browser dev.logs; subagent did not access browser.",
+  "observation_before_filter_reload": true,
+  "before_reload": {
+    "times_utc": [
+      "08:40:53.609Z",
+      "08:40:53.610Z"
+    ],
+    "message": "TypeError: Cannot read properties of undefined (reading 'length')",
+    "frame": "at HTMLDocument.handleKeyDown (chrome-extension://ihhkmalpkhkoedlmcnilbbhhbhnicjga/page-events.js:6:18596)"
+  },
+  "after_reload": {
+    "times_utc": [
+      "08:52:06.285Z",
+      "08:52:06.286Z"
+    ],
+    "same_extension_error_reported": true,
+    "native_svg_export_succeeded": true,
+    "generic_toast_still_observed": true
+  },
+  "limits": [
+    "Console stack does not establish what filename/error/stack fields the page ErrorEvent exposed.",
+    "Exact supplied extension frame is classified by helper in Node; opaque Script error events deliberately remain visible.",
+    "Browser-loaded module response hashes were not inspected.",
+    "This evidence does not establish a viewport-reset cause or claim toast fixed."
+  ]
+}

@@ -5,6 +5,7 @@
 // from main.js rather than importing ui.js, so there is no import cycle with
 // the module it protects. history.js and ui.js only import the tiny
 // markDirty/markSaved pair from here.
+import {isExtensionOriginError} from "./core/error_origin.js";
 import { t, onLangChange } from "./i18n.js";
 import { needsRecovery, pruneCleanSessions } from "./recovery.js";
 
@@ -303,6 +304,7 @@ function showFatal(msg) {
 }
 function installErrorNet() {
   window.addEventListener("error", function (e) {
+    if (isExtensionOriginError(e)) return;
     var el = e && e.target && e.target !== window ? e.target : null;
     if (el && el.tagName) {
       // A resource failed. Only code and styles are load-bearing enough to
@@ -319,6 +321,7 @@ function installErrorNet() {
     else showFatal(t("err_generic"));
   }, true);
   window.addEventListener("unhandledrejection", function (e) {
+    if (isExtensionOriginError(e)) return;
     var reason = (e && (e.reason && (e.reason.message || e.reason.stack) || String(e.reason))) || "";
     if (/getSupportedExtensions|WebGL|WebGPU|GPUAdapter|three\.webgpu/i.test(reason)) return;
     if (api && api.flash) api.flash(t("err_generic"), "error");
