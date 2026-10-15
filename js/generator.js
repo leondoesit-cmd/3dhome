@@ -9,6 +9,7 @@ import { FURN } from "./furniture.js";
 import { wallDrawCommand, openingPlaceCommand, itemPlaceCommand, executeCommand } from "./commands/index.js";
 import { autoInfrastructure } from "./mep_auto.js";
 import { registeredMEPProfile } from "./mep_profile.js";
+import { FRONT_CLEARANCE, HABITABLE, frontZone, frontVector, doorClearZones, itemBox, boxesOverlap, partnersOf, bedSideZones } from "./apartment_rules.js";
 
 function generatedEnv(extra = {}) {
   return Object.assign({ domain: "planner", state: S, itemCatalog: FURN }, extra);
@@ -261,14 +262,24 @@ export function buildLayout(layout, replace, replaceInfrastructure) {
     }
   });
 
-  // Add windows
+  // Add windows. Habitable rooms get glazing of at least a tenth of their
+  // floor area: the layout's window is widened up to a sensible single-pane
+  // limit, and a second (or third) window is added when one is not enough.
   layout.windows.forEach(win => {
     let rM = layout.rooms.find(r => r.name === win.room);
-    if(rM) {
-      let candidates = S.walls.filter(w => isExteriorWall(w, rM));
-      addOpeningOnCandidates(candidates, {
-        type: "window", width: win.width, height: win.height, sill: win.sill, edge: 25, gap: 25
-      });
+    if (!rM) return;
+    let candidates = S.walls.filter(w => isExteriorWall(w, rM));
+    let floorArea = (rM.x1 - rM.x0 - WALL_T) * (rM.z1 - rM.z0 - WALL_T);
+    let need = HABITABLE.has(roomTypeOf(rM)) ? floorArea * 0.1 : 0;
+    let maxWidth = Math.max(win.width, win.height >= 180 ? 260 : 200);
+    let glazed = 0;
+    for (let n = 0; n < 3 && (n === 0 || glazed < need); n++) {
+      let wanted = Math.min(maxWidth, Math.max(n === 0 ? win.width : 80, Math.ceil((need - glazed) / win.height / 10) * 10));
+      let placed = null;
+      for (let width = wanted; !placed && width >= Math.min(win.width, 60); width -= 20)
+        placed = addOpeningOnCandidates(candidates, { type: "window", width, height: win.height, sill: win.sill, edge: 25, gap: 40 });
+      if (!placed) break;
+      glazed += placed.width * placed.height;
     }
   });
 }
@@ -329,38 +340,74 @@ function openingZone(op, depth) {
     : { x0: cx - depth, x1: cx + depth, z0: cz - along, z1: cz + along };
 }
 
+// The finished floor of a room: room polygons follow wall centre lines.
+function finishedBounds(roomPts) {
+  return roomBounds(roomPts, WALL_T / 2);
+}
+
+// Every candidate position is held to the rulebook in js/apartment_rules.js:
+// the piece sits on the finished floor, keeps `clearance` from other pieces,
+// leaves doorways and (for tall pieces) windows clear, keeps the floor in front
+// of it free to use, and does not step into the front zone of anything placed
+// before it. A clearance is a gap to other furniture, never to the wall behind.
 function canPlace(item, roomPts, clearance = 0, options = {}) {
-  let grow = clearance / 2;
-  let aabb = aabbOf(item, grow);
+  let box = aabbOf(item);
+  let fb = finishedBounds(roomPts);
+  if (box.x0 < fb.x0 - 0.5 || box.x1 > fb.x1 + 0.5 || box.z0 < fb.z0 - 0.5 || box.z1 > fb.z1 + 0.5) return false;
+  // Corners are tested a hair inside so an L-shaped room cannot hide a piece
+  // in its re-entrant corner.
+  if (!pointInPoly(box.x0 + 0.5, box.z0 + 0.5, roomPts) || !pointInPoly(box.x1 - 0.5, box.z0 + 0.5, roomPts) ||
+      !pointInPoly(box.x1 - 0.5, box.z1 - 0.5, roomPts) || !pointInPoly(box.x0 + 0.5, box.z1 - 0.5, roomPts)) return false;
 
-  // Check all four footprint corners. The generated plans are rectangular,
-  // but this also keeps the engine safe when buildLayout receives an L-shape.
-  if (!pointInPoly(aabb.x0, aabb.z0, roomPts) || !pointInPoly(aabb.x1, aabb.z0, roomPts) ||
-      !pointInPoly(aabb.x1, aabb.z1, roomPts) || !pointInPoly(aabb.x0, aabb.z1, roomPts)) return false;
+  if ((options.exclusionZones || []).some(zone => aabbOverlap(box, zone))) return false;
 
-  if ((options.exclusionZones || []).some(zone => aabbOverlap(aabbOf(item), zone))) return false;
+  let overlay = !!NON_BLOCKING[item.type];
+  let depth = FRONT_CLEARANCE[item.type];
+  let myFront = !overlay && depth ? frontZone(item, depth) : null;
+  if (myFront && (myFront.x0 < fb.x0 - 0.5 || myFront.x1 > fb.x1 + 0.5 || myFront.z0 < fb.z0 - 0.5 || myFront.z1 > fb.z1 + 0.5)) return false;
 
-  if (!NON_BLOCKING[item.type]) {
-    for(let i=0; i<S.items.length; i++) {
+  if (!overlay) {
+    let grown = aabbOf(item, clearance / 2);
+    for (let i = 0; i < S.items.length; i++) {
       let o = S.items[i];
-      if (NON_BLOCKING[o.type]) continue;
-      if (o.useZone && aabbOverlap(aabbOf(item), o.useZone)) return false;
+      if (NON_BLOCKING[o.type] || o.supportId != null || o.mounted) continue;
+      if (!pointInPoly(o.x, o.z, roomPts)) continue;
+      if (aabbOverlap(grown, aabbOf(o), options.itemGap == null ? 2 : options.itemGap)) return false;
+      if (o.useZone && aabbOverlap(box, o.useZone)) return false;
+      if (o.keepClear && o.keepClear.some(zone => aabbOverlap(box, zone))) return false;
       if (options.useZone && aabbOverlap(options.useZone, aabbOf(o))) return false;
-      if (aabbOverlap(aabb, aabbOf(o), options.itemGap || 2)) return false;
+      let theirDepth = FRONT_CLEARANCE[o.type];
+      if (theirDepth && !partnersOf(o, item) && boxesOverlap(frontZone(o, theirDepth), box)) return false;
+      if (myFront && !partnersOf(item, o) && boxesOverlap(myFront, itemBox(o))) return false;
     }
   }
 
-  for(let i=0; i<S.openings.length; i++) {
+  // Ceiling fixtures and table-top pieces do not interact with openings; wall
+  // decor only has to stay off the glass.
+  if (overlay && !options.avoidWindows) return true;
+  for (let i = 0; i < S.openings.length; i++) {
     let op = S.openings[i];
     let isDoor = (op.type === "door" || op.type === "passage");
+    if (isDoor && !overlay) {
+      let ruleDepth = op.type === "door" ? Math.min(op.width, 90) : 60;
+      let zones = doorClearZones(op, S.walls, Math.max(ruleDepth, (options.doorDepth || 0) - WALL_T / 2) + 4);
+      if (zones.some(zone => aabbOverlap(box, zone))) return false;
+    }
     let blocksWin = op.type === "window" && ((item.h || 0) > op.sill || options.avoidWindows);
-    if (isDoor || blocksWin) {
-      let zone = openingZone(op, isDoor ? (options.doorDepth || 105) : 35);
-      if (zone && aabbOverlap(aabbOf(item), zone)) return false;
+    if (blocksWin) {
+      let zone = openingZone(op, 35);
+      if (zone && aabbOverlap(box, zone)) return false;
     }
   }
 
   return true;
+}
+
+// Whether a patch of floor (an axis-aligned box) is free to stand in: on the
+// finished floor, out of doorways, and clear of furniture and its use zones.
+function floorZoneFree(zone, roomPts, options = {}) {
+  return canPlace({ type: "_clearFloor", x: (zone.x0 + zone.x1) / 2, z: (zone.z0 + zone.z1) / 2,
+    w: zone.x1 - zone.x0, d: zone.z1 - zone.z0, h: 1, rot: 0 }, roomPts, 0, options);
 }
 
 function sideOrder(rule, bounds) {
@@ -379,9 +426,10 @@ function sideOrder(rule, bounds) {
 function wallCandidate(item, bounds, side, frac, clearance) {
   let he = halfXZ(item);
   // Room polygons follow wall centre-lines. Half a wall plus a 1cm tolerance
-  // puts the furniture back against the finished wall surface (rather than
-  // leaving the old, visibly floating 20cm gap).
-  let inset = WALL_T / 2 + 1 + clearance / 2;
+  // puts the furniture back against the finished wall surface. Clearance is
+  // checked against other pieces in canPlace; it never floats a piece off
+  // its wall.
+  let inset = WALL_T / 2 + 1;
   if (side === "north") return { x: bounds.x0 + he.hx + (bounds.x1 - bounds.x0 - he.hx * 2) * frac, z: bounds.z0 + he.hz + inset, rot: 0 };
   if (side === "east") return { x: bounds.x1 - he.hx - inset, z: bounds.z0 + he.hz + (bounds.z1 - bounds.z0 - he.hz * 2) * frac, rot: 90 };
   if (side === "south") return { x: bounds.x0 + he.hx + (bounds.x1 - bounds.x0 - he.hx * 2) * frac, z: bounds.z1 - he.hz - inset, rot: 180 };
@@ -613,6 +661,8 @@ function placeKitchenRun(room, preferredSides) {
   let sequences = [
     ["fridge", "base", "sink", "dishwasher", "base", "cooktop", "oven"],
     ["fridge", "sink", "dishwasher", "base", "cooktop", "oven"],
+    ["fridge", "base", "sink", "base", "cooktop"],
+    ["fridge", "sink", "base", "cooktop"],
     ["fridge", "sink", "cooktop"],
   ];
   let bounds = roomBounds(room.pts, WALL_T / 2 + 1);
@@ -659,21 +709,101 @@ function placeKitchenRun(room, preferredSides) {
   return markZone(essentials, "kitchen");
 }
 
-function placeDiningSet(room, exclusionZones = []) {
-  let table = placeItem("table", room, { center: true, clearance: 65, doorDepth: 90, exclusionZones });
-  if (!table) {
-    // A dining function outranks decorative living-room extras. In the
-    // smallest open plans, release those optional pieces before giving up on
-    // the table altogether.
-    let optional = new Set(["coffee", "armchair", "plant", "floorLamp"]);
-    S.items.filter(it => it.functionalZone === "living" && optional.has(it.type) && pointInPoly(it.x, it.z, room.pts))
-      .forEach(it => S.items.splice(S.items.indexOf(it), 1));
-    table = placeItem("table", room, { center: true, clearance: 42, doorDepth: 78, exclusionZones });
+// Beds follow their own rule: headboard on a solid wall, never under a window,
+// at least 60cm of floor along one long side to get in (both sides for a
+// double bed whenever the room allows), and the foot never blocking a door.
+function placeBed(type, room, preferredSides) {
+  let bounds = roomBounds(room.pts, 0), fb = finishedBounds(room.pts);
+  let candidates = [];
+  for (let side of sideOrder({ preferredSides }, bounds)) for (let frac of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9, 0, 1]) {
+    let rot = side === "north" ? 0 : side === "east" ? 90 : side === "south" ? 180 : 270;
+    let bed = makeCatalogItem(type, rot);
+    if (!bed) return null;
+    Object.assign(bed, wallCandidate(bed, bounds, side, frac, 0));
+    let b = aabbOf(bed);
+    let gaps = side === "north" || side === "south" ? [b.x0 - fb.x0, fb.x1 - b.x1] : [b.z0 - fb.z0, fb.z1 - b.z1];
+    let minGap = Math.min(...gaps), maxGap = Math.max(...gaps);
+    if (maxGap < 60) continue;
+    // a side gap is either usable floor or tight against the wall, never a
+    // 10-50cm slot nobody can stand in
+    if (minGap > 3 && minGap < 50) continue;
+    if (!canPlace(bed, room.pts, 0, { avoidWindows: true, doorDepth: 72 })) continue;
+    // the walk-around zone at the foot of the bed
+    if (!floorZoneFree(frontZone(bed, 60), room.pts)) continue;
+    let score = (minGap >= 50 ? 100 : 0) - Math.abs(gaps[0] - gaps[1]) * 0.05 - sideOrder({ preferredSides }, bounds).indexOf(side) * 5;
+    candidates.push({ bed, score });
   }
-  if (!table) return null;
-  table.functionalZone = "dining";
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.score - a.score);
+  let bed = candidates[0].bed;
+  // Later pieces must leave the getting-in sides and the foot of the bed free.
+  bed.keepClear = [frontZone(bed, 60)].concat(bedSideZones(bed).filter(zone =>
+    zone.x0 >= fb.x0 - 0.5 && zone.x1 <= fb.x1 + 0.5 && zone.z0 >= fb.z0 - 0.5 && zone.z1 <= fb.z1 + 0.5));
+  return commitGeneratedItem(bed);
+}
+
+// A nightstand belongs beside the pillows with its back on the headboard wall,
+// not halfway down the side of the mattress.
+function placeNightstands(bed, room) {
+  let placed = [];
+  let f = FURN.nightstand;
+  if (!f || !bed) return placed;
+  let rad = bed.rot * Math.PI / 180;
+  let front = { x: -Math.sin(rad), z: Math.cos(rad) }, right = { x: Math.cos(rad), z: Math.sin(rad) };
+  let back = bed.d / 2 - f.d / 2;
+  for (let dir of [1, -1]) {
+    let ns = makeCatalogItem("nightstand", bed.rot);
+    let lateral = bed.w / 2 + f.w / 2 + 4;
+    ns.x = Math.round((bed.x - front.x * back + right.x * lateral * dir) * 100) / 100;
+    ns.z = Math.round((bed.z - front.z * back + right.z * lateral * dir) * 100) / 100;
+    if (!canPlace(ns, room.pts, 0, { itemGap: 2, doorDepth: 60 })) continue;
+    ns.functionalZone = "sleeping";
+    ns.groupId = bed.groupId || (bed.groupId = uid());
+    placed.push(commitGeneratedItem(ns));
+  }
+  return placed;
+}
+
+// Task light for a kitchen without an island pendant: a ceiling track over the
+// front edge of the worktop run, so the cook is not working in their own shadow.
+function placeKitchenTaskLight(room, run) {
+  if (!FURN.trackLight || !run || !run.length) return null;
+  if (S.items.some(it => it.type === "pendant" && pointInPoly(it.x, it.z, room.pts) && S.items.some(t => t.id === it.supportId && t.type === "island"))) return null;
+  let modules = run.filter(it => it.type !== "fridge");
+  if (!modules.length) return null;
+  let f = frontVector(modules[0].rot);
+  let cx = modules.reduce((a, it) => a + it.x, 0) / modules.length;
+  let cz = modules.reduce((a, it) => a + it.z, 0) / modules.length;
+  let light = makeCatalogItem("trackLight", modules[0].rot);
+  let reach = modules[0].d / 2 + 15;
+  light.x = cx + f.x * reach;
+  light.z = cz + f.z * reach;
+  if (!canPlace(light, room.pts, 0, {})) return null;
+  light.functionalZone = "kitchen";
+  light.groupId = modules[0].groupId;
+  return commitGeneratedItem(light);
+}
+
+// A desk lamp stands at a back corner of the desk, clear of the laptop.
+function placeDeskLamp(desk) {
+  if (!desk || !FURN.tableLamp) return null;
+  let lamp = makeCatalogItem("tableLamp", desk.rot);
+  let rad = desk.rot * Math.PI / 180;
+  let f = frontVector(desk.rot), right = { x: Math.cos(rad), z: Math.sin(rad) };
+  let lateral = desk.w / 2 - lamp.w / 2 - 4, back = desk.d / 2 - lamp.d / 2 - 4;
+  lamp.x = desk.x - right.x * lateral - f.x * back;
+  lamp.z = desk.z - right.z * lateral - f.z * back;
+  lamp.supportId = desk.id;
+  lamp.functionalZone = desk.functionalZone || "work";
+  return commitGeneratedItem(lamp);
+}
+
+// Dining is a set or nothing: a table only stays where at least two chairs fit
+// around it with room to pull them out. Positions are searched from the middle
+// of the free floor outward, in both orientations, keeping the one that seats
+// the most people.
+function seatDiningSet(table, room, exclusionZones) {
   let chairSpec = FURN.chair;
-  if (!chairSpec) return table;
   let rad = table.rot * Math.PI / 180;
   let right = { x: Math.cos(rad), z: Math.sin(rad) };
   let front = { x: -Math.sin(rad), z: Math.cos(rad) };
@@ -683,24 +813,80 @@ function placeDiningSet(room, exclusionZones = []) {
     { v: front, dist: table.d / 2 + chairSpec.d / 2 + 12, rot: table.rot + 180 },
     { v: { x: -front.x, z: -front.z }, dist: table.d / 2 + chairSpec.d / 2 + 12, rot: table.rot },
   ];
-  let groupId = uid();
-  table.groupId = groupId;
+  let chairs = [];
   spots.forEach(spot => {
     let chair = makeCatalogItem("chair", (spot.rot + 360) % 360);
     chair.x = table.x + spot.v.x * spot.dist;
     chair.z = table.z + spot.v.z * spot.dist;
-    if (canPlace(chair, room.pts, 8, { doorDepth: 90, exclusionZones })) {
-      chair.groupId = groupId;
-      chair.functionalZone = "dining";
-      chair.facesId = table.id;
-      commitGeneratedItem(chair);
-    }
+    // 20cm behind every chair to pull it out and sit down
+    let pull = frontZone(Object.assign({}, chair, { rot: (chair.rot + 180) % 360 }), 20);
+    if (canPlace(chair, room.pts, 8, { doorDepth: 90, exclusionZones: exclusionZones.concat(chairs.map(c => aabbOf(c))) }) &&
+        floorZoneFree(pull, room.pts, { exclusionZones }))
+      chairs.push(chair);
   });
+  return chairs;
+}
+
+function placeDiningSet(room, exclusionZones = []) {
+  if (!FURN.table || !FURN.chair) return null;
+  let table = findDiningSet(room, exclusionZones);
+  if (!table) {
+    // A dining function outranks decorative living-room extras. In the
+    // smallest open plans, release those optional pieces before giving up on
+    // the table altogether.
+    let optional = new Set(["armchair", "plant", "floorLamp"]);
+    S.items.filter(it => it.functionalZone === "living" && optional.has(it.type) && pointInPoly(it.x, it.z, room.pts))
+      .forEach(it => S.items.splice(S.items.indexOf(it), 1));
+    table = findDiningSet(room, exclusionZones);
+  }
+  return table;
+}
+
+function findDiningSet(room, exclusionZones) {
+  let best = bestDiningSet(room, exclusionZones);
+  if (!best) return null;
+  let groupId = uid();
+  let table = commitGeneratedItem(Object.assign(best.table, { functionalZone: "dining", groupId }));
+  best.chairs.forEach(chair => commitGeneratedItem(Object.assign(chair, { groupId, functionalZone: "dining", facesId: table.id })));
   placeItem("pendant", room, { onTopOf: "table" });
   return table;
 }
 
-function placeLivingPair(room, combined, exclusionZones) {
+function bestDiningSet(room, exclusionZones) {
+  let bounds = finishedBounds(room.pts);
+  let spans = { x: bounds.x1 - bounds.x0, z: bounds.z1 - bounds.z0 };
+  let candidates = [];
+  let fracs = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.12, 0.88];
+  for (let rot of [0, 90]) {
+    let h = halfXZ(makeCatalogItem("table", rot));
+    for (let fx of fracs) for (let fz of fracs)
+      candidates.push({ rot, x: bounds.x0 + spans.x * fx, z: bounds.z0 + spans.z * fz, off: Math.hypot(fx - 0.5, fz - 0.5) });
+    // in a compact room the table may stand with one end against a wall
+    for (let f of fracs) {
+      candidates.push({ rot, x: bounds.x0 + h.hx + 1, z: bounds.z0 + spans.z * f, off: 1 + Math.abs(f - 0.5) });
+      candidates.push({ rot, x: bounds.x1 - h.hx - 1, z: bounds.z0 + spans.z * f, off: 1 + Math.abs(f - 0.5) });
+      candidates.push({ rot, x: bounds.x0 + spans.x * f, z: bounds.z0 + h.hz + 1, off: 1 + Math.abs(f - 0.5) });
+      candidates.push({ rot, x: bounds.x0 + spans.x * f, z: bounds.z1 - h.hz - 1, off: 1 + Math.abs(f - 0.5) });
+    }
+  }
+  let best = null;
+  for (let c of candidates) {
+    let table = makeCatalogItem("table", c.rot);
+    table.x = c.x; table.z = c.z;
+    if (!canPlace(table, room.pts, 40, { doorDepth: 90, exclusionZones })) continue;
+    let chairs = seatDiningSet(table, room, exclusionZones);
+    if (chairs.length < 2) continue;
+    let score = chairs.length * 100 - c.off * 40;
+    if (!best || score > best.score) best = { table, chairs, score };
+  }
+  return best;
+}
+
+// Sofa/TV arrangements in preference order, uncommitted. For each sofa spot
+// the TV is tried against the opposite wall first, then at a comfortable
+// ~2.6m, then as close as minView allows (the clear distance from seat front
+// to screen, 1.5-4.5m).
+function* livingPairCandidates(room, combined, exclusionZones, minView) {
   let bounds = roomBounds(room.pts, 0);
   let sides = combined ? ["south", "north", "east", "west"] : ["south", "west", "east", "north"];
   let fracs = combined ? [0.96, 0.04, 0.72, 0.28, 0.84, 0.16, 0.6, 0.4, 0.5] : [0.5, 0.3, 0.7, 0.18, 0.82];
@@ -709,52 +895,117 @@ function placeLivingPair(room, combined, exclusionZones) {
     let sofa = makeCatalogItem("sofa", rot);
     Object.assign(sofa, wallCandidate(sofa, bounds, side, frac, 20));
     if (!canPlace(sofa, room.pts, 20, { doorDepth: 105, exclusionZones })) continue;
-    sofa.functionalZone = "living";
-    sofa = commitGeneratedItem(sofa);
-    if (!sofa) continue;
-
-    let tv = makeCatalogItem("tv", sofa.rot);
-    let rad = sofa.rot * Math.PI / 180;
-    let front = { x: -Math.sin(rad), z: Math.cos(rad) };
-    let tvHalf = halfXZ(tv);
-    let wallGap = WALL_T / 2 + 1;
+    let front = frontVector(sofa.rot);
+    let tvSpec = makeCatalogItem("tv", sofa.rot), tvHalf = halfXZ(tvSpec);
+    let wallGap = WALL_T / 2 + 1, base = sofa.d / 2 + tvSpec.d / 2;
     let maxDist = front.x > 0.5 ? bounds.x1 - wallGap - tvHalf.hx - sofa.x
       : front.x < -0.5 ? sofa.x - (bounds.x0 + wallGap + tvHalf.hx)
       : front.z > 0.5 ? bounds.z1 - wallGap - tvHalf.hz - sofa.z
       : sofa.z - (bounds.z0 + wallGap + tvHalf.hz);
-    let placedTv = null;
-    // Start at the opposite wall, then step inward. This keeps the pair on one
-    // optical axis even when a doorway means the TV console must float.
-    for (let dist = maxDist; dist >= 145; dist -= 15) {
-      tv.x = sofa.x + front.x * dist;
-      tv.z = sofa.z + front.z * dist;
-      if (canPlace(tv, room.pts, 8, { doorDepth: 78, exclusionZones })) {
-        tv.functionalZone = "living";
-        tv.facesId = sofa.id;
-        tv = commitGeneratedItem(tv);
-        if (!tv) continue;
-        sofa.facesId = tv.id;
-        placedTv = tv;
-        break;
+    let hi = Math.min(maxDist, 450 + base), lo = minView + base;
+    let tried = new Set();
+    for (let start of [hi, Math.min(hi, 260 + base)]) {
+      for (let dist = start; dist >= lo; dist -= 15) {
+        let key = Math.round(dist);
+        if (tried.has(key)) break;
+        tried.add(key);
+        let tv = makeCatalogItem("tv", sofa.rot);
+        tv.x = sofa.x + front.x * dist;
+        tv.z = sofa.z + front.z * dist;
+        if (canPlace(tv, room.pts, 8, { doorDepth: 78, exclusionZones })) { yield { sofa, tv }; break; }
       }
     }
-    if (placedTv) return { sofa, tv: placedTv };
-    S.items.splice(S.items.indexOf(sofa), 1);
   }
-  return null;
 }
 
-function furnishLiving(room, combined, exclusionZones = []) {
-  let rug = placeItem("rug", room, { center: true, exclusionZones });
-  if (rug) rug.functionalZone = "living";
-  let pair = placeLivingPair(room, combined, exclusionZones);
-  if (!pair) return null;
+// Commits the first arrangement that also leaves room for a dining set when
+// the room needs one: in a long open plan, a sofa-to-TV axis down the full
+// length of the room would otherwise leave nowhere to eat.
+function placeLivingPair(room, combined, exclusionZones, withDining) {
+  let fallback = null, chosen = null;
+  for (let minView of [150, 100]) {
+    for (let cand of livingPairCandidates(room, combined, exclusionZones, minView)) {
+      fallback = fallback || cand;
+      if (!withDining || bestDiningSet(room, exclusionZones.concat([aabbOf(cand.sofa, 22), aabbOf(cand.tv, 22), viewingZone(cand.sofa, cand.tv)]))) { chosen = cand; break; }
+    }
+    if (chosen) break;
+  }
+  chosen = chosen || fallback;
+  if (!chosen) return null;
+  let sofa = commitGeneratedItem(Object.assign(chosen.sofa, { functionalZone: "living" }));
+  let tv = commitGeneratedItem(Object.assign(chosen.tv, { functionalZone: "living", facesId: sofa.id }));
+  sofa.facesId = tv.id;
+  return { sofa, tv };
+}
+
+// The floor between the sofa and the TV is the viewing corridor: nothing
+// taller than a coffee table may stand in it. Same definition as the
+// tv-sightline rule in js/apartment_rules.js: as wide as the narrower of the
+// two pieces, centred on their shared axis.
+function viewingZone(sofa, tv) {
+  let a = aabbOf(sofa), b = aabbOf(tv), f = frontVector(sofa.rot), half = Math.min(sofa.w, tv.w) / 2;
+  if (Math.abs(f.z) > 0.5) return { x0: sofa.x - half, x1: sofa.x + half, z0: Math.min(a.z0, b.z0), z1: Math.max(a.z1, b.z1) };
+  return { x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), z0: sofa.z - half, z1: sofa.z + half };
+}
+
+function rotationFacing(dx, dz) {
+  return ((Math.round(Math.atan2(-dx, dz) * 180 / Math.PI / 90) * 90) % 360 + 360) % 360;
+}
+
+function placeFacing(type, room, x, z, facing, exclusionZones) {
+  let it = makeCatalogItem(type, rotationFacing(facing.x, facing.z));
+  if (!it) return null;
+  it.x = x; it.z = z;
+  if (!canPlace(it, room.pts, 8, { exclusionZones, doorDepth: 90 })) return null;
+  return commitGeneratedItem(it);
+}
+
+// Living rooms: the sofa/TV pair first, then (when the room also serves as
+// the dining room) the dining set, then the pieces that dress the seating
+// group around whatever floor is left.
+function furnishLiving(room, combined, exclusionZones = [], withDining = false) {
+  let pair = placeLivingPair(room, combined, exclusionZones, withDining);
+  if (!pair) {
+    let rug = placeItem("rug", room, { center: true, exclusionZones });
+    if (rug) rug.functionalZone = "living";
+    if (withDining) placeDiningSet(room, exclusionZones);
+    return null;
+  }
+  let { sofa } = pair;
+  pair.viewZone = viewingZone(sofa, pair.tv);
+  let tallExclusions = exclusionZones.concat([pair.viewZone]);
+  if (withDining) placeDiningSet(room, tallExclusions);
+  let front = frontVector(sofa.rot), right = { x: Math.cos(sofa.rot * Math.PI / 180), z: Math.sin(sofa.rot * Math.PI / 180) };
+  // Coffee table 40-45cm in front of the seat: close enough to reach, far
+  // enough to walk past the knees.
+  let coffee = placeItem("coffee", room, { frontOf: "sofa", dist: 42, lateral: [0], clearance: 0, doorDepth: 90, exclusionZones });
+  // The rug anchors the group: centred on the coffee table, its near edge
+  // tucked under the sofa's front legs.
+  let rug = makeCatalogItem("rug", sofa.rot);
+  if (rug) {
+    let reach = sofa.d / 2 + 42 + ((FURN.coffee && FURN.coffee.d) || 55) / 2;
+    rug.x = sofa.x + front.x * reach;
+    rug.z = sofa.z + front.z * reach;
+    if (canPlace(rug, room.pts, 0, { exclusionZones })) commitGeneratedItem(rug);
+    else rug = placeItem("rug", room, { center: true, exclusionZones });
+  }
+  // An armchair closes the conversation group at the end of the coffee table,
+  // turned toward it rather than lined up beside the sofa.
+  let armchair = null;
+  if (coffee && FURN.armchair) {
+    for (let dir of [1, -1]) {
+      let lateral = FURN.coffee.w / 2 + 35 + FURN.armchair.d / 2;
+      armchair = placeFacing("armchair", room, coffee.x + right.x * lateral * dir, coffee.z + right.z * lateral * dir,
+        { x: -right.x * dir, z: -right.z * dir }, tallExclusions);
+      if (armchair) break;
+    }
+  }
+  if (!armchair) armchair = placeItem("armchair", room, { nextTo: "sofa", dist: 35, clearance: 12, exclusionZones: tallExclusions });
   let extras = [
-    placeItem("coffee", room, { frontOf: "sofa", dist: 32, clearance: 12, doorDepth: 100, exclusionZones }),
-    placeItem("armchair", room, { nextTo: "sofa", dist: 35, clearance: 12, exclusionZones }),
-    placeItem("plant", room, { nextTo: "sofa", dist: 15, exclusionZones }),
-    placeItem("floorLamp", room, { nextTo: "sofa", dist: 8, exclusionZones }),
-    placeWallMounted("art", room, pair.sofa),
+    coffee, rug, armchair,
+    placeItem("floorLamp", room, { nextTo: "sofa", dist: 8, exclusionZones: tallExclusions }),
+    placeItem("plant", room, { nextTo: "sofa", dist: 15, exclusionZones: tallExclusions }),
+    placeWallMounted("art", room, sofa),
   ];
   extras.filter(Boolean).forEach(it => it.functionalZone = "living");
   return pair;
@@ -771,13 +1022,12 @@ function furnishRoom(roomMeta, dr) {
     // creates a readable kitchen zone instead of letting cabinets spread along
     // the full shared wall behind the living area.
     let kitchen = placeKitchenRun(dr, ["west", "north", "east"]);
+    placeKitchenTaskLight(dr, kitchen);
     let kitchenZone = kitchenWorkZone(kitchen);
     let exclusions = kitchenZone ? [kitchenZone] : [];
-    furnishLiving(dr, true, exclusions);
-    placeDiningSet(dr, exclusions);
+    furnishLiving(dr, true, exclusions, true);
   } else if (type === "living") {
-    furnishLiving(dr, false);
-    placeDiningSet(dr);
+    furnishLiving(dr, false, [], true);
   } else if (type === "dining") {
     placeItem("rug", dr, { center: true });
     placeDiningSet(dr);
@@ -788,12 +1038,13 @@ function furnishRoom(roomMeta, dr) {
     if (desk) {
       placeItem("officeChair", dr, { frontOf: "desk", faceTarget: true, dist: 18, clearance: 12 });
       placeItem("laptop", dr, { onTopOf: "desk" });
+      placeDeskLamp(desk);
     }
     placeItem("bookshelf", dr, { wall: true, preferredSides: ["east", "west", "south"], clearance: 20, avoidWindows: true });
     placeItem("armchair", dr, { wall: true, preferredSides: ["south", "west"], clearance: 20, doorDepth: 90 });
     placeItem("plant", dr, { wall: true, preferredSides: ["west", "south"], clearance: 10 });
   } else if (type === "kitchen") {
-    placeKitchenRun(dr, ["west", "north", "south", "east"]);
+    let run = placeKitchenRun(dr, ["west", "north", "south", "east"]);
     let b = roomBounds(dr.pts);
     if ((b.x1 - b.x0) * (b.z1 - b.z0) > 210000) {
       let island = placeItem("island", dr, { center: true, clearance: 90, doorDepth: 100 });
@@ -803,26 +1054,26 @@ function furnishRoom(roomMeta, dr) {
         placeItem("pendant", dr, { onTopOf: "island" });
       }
     }
+    placeKitchenTaskLight(dr, run);
   } else if (type === "masterBedroom" || type === "bedroom") {
-    placeItem("rug", dr, { center: true });
-    let bed = placeItem("bed", dr, { wall: true, preferredSides: ["west", "east", "north"], clearance: 22, avoidWindows: true, doorDepth: 72 }) ||
-      placeItem("bed", dr, { wall: true, preferredSides: ["west", "east", "north"], clearance: 10, doorDepth: 52 });
+    let bed = placeBed("bed", dr, ["west", "east", "north", "south"]);
     if (bed) {
-      placeItem("nightstand", dr, { nextTo: "bed", dist: 8 });
-      placeItem("nightstand", dr, { nextTo: "bed", dist: 8 });
-      placeItem("tableLamp", dr, { onTopOf: "nightstand" });
-      placeItem("tableLamp", dr, { onTopOf: "nightstand" });
+      bed.functionalZone = "sleeping";
+      placeNightstands(bed, dr).forEach(() => placeItem("tableLamp", dr, { onTopOf: "nightstand" }));
+      let rug = placeItem("rug", dr, { frontOf: "bed", dist: -bed.d * 0.45, lateral: [0] });
+      if (rug) rug.functionalZone = "sleeping";
       placeWallMounted("art", dr, bed);
-    }
+    } else placeItem("rug", dr, { center: true });
     placeItem("wardrobe", dr, { wall: true, preferredSides: ["north", "south", "east", "west"], clearance: 45, avoidWindows: true, doorDepth: 100 });
     let dresser = placeItem("dresser", dr, { wall: true, preferredSides: ["south", "east", "north"], clearance: 30, avoidWindows: true });
     if (dresser) placeWallMounted("wallMirror", dr, dresser);
   } else if (type === "kidsRoom") {
-    placeItem("bunk", dr, { wall: true, preferredSides: ["west", "east", "north"], clearance: 24, avoidWindows: true, doorDepth: 105 });
+    placeBed("bunk", dr, ["west", "east", "north", "south"]);
     let desk = placeItem("desk", dr, { wall: true, preferredSides: ["north", "east", "south"], clearance: 32, doorDepth: 95 });
     if (desk) {
       placeItem("officeChair", dr, { frontOf: "desk", faceTarget: true, dist: 18, clearance: 12 });
       placeItem("laptop", dr, { onTopOf: "desk" });
+      placeDeskLamp(desk);
     }
     placeItem("wardrobe", dr, { wall: true, preferredSides: ["south", "east", "north"], clearance: 35, avoidWindows: true, doorDepth: 95 });
     placeItem("bookshelf", dr, { wall: true, preferredSides: ["east", "north", "south"], clearance: 20, avoidWindows: true });
@@ -870,6 +1121,9 @@ function applyApartmentLayout(layout, replace, furnish = true, replaceInfrastruc
       furnishRoom(rm, dr);
     }
   });
+  // keep-clear zones only steer this run; they are stale the moment the user
+  // moves a bed, so they are not saved with the document
+  S.items.forEach(it => { delete it.keepClear; });
 }
 
 export const apartmentGenerateCommand = Object.freeze({

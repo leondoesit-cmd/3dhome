@@ -2085,6 +2085,8 @@ export default {
   ag_append: "Append to Existing",
   ag_create: "Create",
   ag_generated: "Apartment generated successfully",
+  ag_rules_ok: "Apartment generated · all placement rules pass ({w} design notes)",
+  ag_rules_issues: "Apartment generated with {n} rule issues",
   bp_menu: "Import Blueprint",
   bp_menu_t: "Import a plan from a blueprint image (local model)",
   bp_title: "Import Blueprint",

@@ -68,6 +68,7 @@ import {
   wallPointAt,
   wallTangentAt,
   distSeg,
+  pointInPoly,
 } from "./geometry.js";
 import { holesForRoom, hitSlabOpening, openingCorners, slabOpenings } from "./slab_openings.js";
 import { roofMeshTriangles } from "./roof.js";
@@ -2746,14 +2747,28 @@ export function rebuild3D() {
     var s = clamp(o.s, o.width / 2, gm.L - o.width / 2),
       y = o.sill + o.height / 2;
     var winDist = Math.max(o.width, o.height) * 4 + 260;
-    var pl = new THREE.PointLight(
-      0xcfe2f2,
-      legacyIntensity(0.9, winDist) * S.dayK,
-      winDist,
-      2,
-    );
     var wp = wallPointAt(w, s);
-    pl.position.set(wp.x, y, wp.z);
+    // Sky light pours IN through the glass: a wide spot just inside the room
+    // the window serves, aimed into it and slightly down, with its throw
+    // stopped at that room. A point light on the wall centre line lit the
+    // facade and the room behind a partition as much as the room with the
+    // window, and pulled inside it burned a hotspot onto the window wall.
+    var inset = (w.thickness || WALL_T) / 2 + 4, lightRoom = null, lx = wp.x, lz = wp.z, nx = 0, nz = 0;
+    [1, -1].some(function (side) {
+      var px = wp.x - gm.uz * inset * side, pz = wp.z + gm.ux * inset * side;
+      lightRoom = roomContaining(px - gm.uz * 30 * side, pz + gm.ux * 30 * side);
+      if (lightRoom) { lx = px; lz = pz; nx = -gm.uz * side; nz = gm.ux * side; }
+      return !!lightRoom;
+    });
+    var throwCm = lightRoom ? Math.min(winDist, roomReach(lightRoom, lx, lz, y)) : winDist;
+    var pl = lightRoom
+      ? new THREE.SpotLight(0xcfe2f2, legacyIntensity(0.9, winDist) * S.dayK, throwCm, Math.PI * 0.44, 1, 2)
+      : new THREE.PointLight(0xcfe2f2, legacyIntensity(0.9, winDist) * S.dayK, winDist, 2);
+    pl.position.set(lx, y, lz);
+    if (lightRoom) {
+      pl.target.position.set(lx + nx * 200, y - 70, lz + nz * 200);
+      dyn.add(pl.target);
+    }
     pl.userData.baseI = legacyIntensity(0.9, winDist);
     pl.userData.win = true;
     /* Daylight is LIGHTING, not structure: it hangs off `dyn` rather than
@@ -2763,6 +2778,7 @@ export function rebuild3D() {
   });
   dyn.add(itemsRoot);
   syncItems(hid);
+  fitPracticalLights();
   // MEP conduits + device markers embedded in the model. buildMEP3D takes its
   // parent, and returns early on its own m.show / m.show3D flags — those stay
   // as filters ON TOP of the mep layer, which owns the root's visibility.
@@ -2784,6 +2800,61 @@ export function rebuild3D() {
   updateSeeThrough(); // the wall groups are brand new: re-apply the dollhouse cut
   applyLayers3D(); // the roots are brand new too: re-apply hide/ghost to them
   window.dispatchEvent(new Event("scene3d:rebuilt"));
+}
+
+/* ---- practical lights stay in their room --------------------------------
+   A PointLight knows nothing about walls: unshadowed, it lights straight
+   through them, so a 6.8m ceiling-light throw used to wash the bedroom next
+   door as brightly as its own. Each lamp's range is clipped to the farthest
+   corner of the room it hangs in — the physical falloff window is smooth, so
+   the clip itself never shows — while its intensity stays calibrated to its
+   own catalogue throw. At dusk and at night (when practicals carry the scene)
+   the main ceiling fixture of each room also casts a soft shadow, so furniture
+   sits on the floor instead of floating in flat light. Shadow maps update on
+   demand only, so the cost is paid when something moves, not every frame. */
+function roomContaining(x, z) {
+  var rooms = detectRooms();
+  for (var i = 0; i < rooms.length; i++) if (pointInPoly(x, z, rooms[i].pts)) return rooms[i];
+  return null;
+}
+function roomReach(room, x, z, y) {
+  var far = 0;
+  room.pts.forEach(function (p) { far = Math.max(far, Math.hypot(p.x - x, p.z - z, y || 0)); });
+  return Math.max(220, far + 40);
+}
+var PRACTICAL_SHADOW = { ceilingLight: 1, pendant: 1, chandelier: 1 };
+function fitPracticalLights() {
+  if (!itemsRoot) return;
+  var night = (S.artK || 0) > 0.5 && plannerShadowsEnabled && !gameRendererLock && renderer && renderer.shadowMap.enabled;
+  var shadowRooms = {};
+  itemsRoot.children.forEach(function (g) {
+    var it = g.userData && g.userData.item;
+    if (!it || !FURN[it.type] || !FURN[it.type].lamp) return;
+    var room = roomContaining(it.x, it.z);
+    g.traverse(function (o) {
+      if (!(o.isPointLight || o.isSpotLight) || o.userData.baseI == null) return;
+      if (o.userData.throwCm == null) o.userData.throwCm = o.distance;
+      var y = o.position.y + elevOffset(it);
+      o.distance = room ? Math.min(o.userData.throwCm, roomReach(room, it.x, it.z, y)) : o.userData.throwCm;
+      var cast = !!(night && room && o.isPointLight && PRACTICAL_SHADOW[it.type] && !shadowRooms[room.key]);
+      if (cast) shadowRooms[room.key] = true;
+      if (o.castShadow !== cast) {
+        o.castShadow = cast;
+        if (cast) {
+          o.shadow.mapSize.set(512, 512);
+          o.shadow.camera.near = 4;
+          o.shadow.bias = -0.002;
+          o.shadow.normalBias = 2.5;
+          o.shadow.radius = 5;
+        }
+      }
+      if (cast) {
+        o.shadow.camera.far = o.distance;
+        if (o.shadow.camera.updateProjectionMatrix) o.shadow.camera.updateProjectionMatrix();
+      }
+    });
+  });
+  requestShadowUpdate();
 }
 
 function tagItemPhysicsRole(g, it) {
@@ -3661,8 +3732,14 @@ export function applyEnv() {
   var lowK = on ? 1 - clamp(E / 0.7, 0, 1) : 1;
   // LUX: physical lights divide irradiance by PI, so every pre-r185 intensity
   // literal in this rig is PI too dim as written. See gpu.js.
-  sun.intensity = LUX * (on ? 0.35 + 1.15 * dk : 0);
-  sun.color.copy(lerpC(0xfff4e0, 0xff7a36, lowK));
+  // The sun is the key light and the sky is fill. With the sky map at full
+  // strength the two came out nearly equal, so interiors read flat and white
+  // walls clipped; a stronger, warmer sun over a dimmer sky gives shadows
+  // that actually model the rooms. The penumbra widens as the sun drops.
+  sun.intensity = LUX * (on ? 0.45 + 1.4 * dk : 0);
+  sun.color.copy(lerpC(0xfff1db, 0xff7a36, lowK));
+  sun.shadow.radius = 3 + 6 * lowK;
+  scene.environmentIntensity = on ? 0.62 + 0.25 * lowK : 0.55;
   hemi.intensity = LUX * (0.02 + 0.05 * dk); // env map now supplies most sky ambient
   flt.intensity = LUX * 0.0;
   // gradient sky: zenith->horizon colors, shared with the path tracer via envPT
@@ -3715,6 +3792,7 @@ export function applyEnv() {
       o.material.emissiveIntensity = off ? 0 : 0.4 + 1.4 * S.artK;
     }
   });
+  fitPracticalLights(); // night practicals take over the shadows from the sun
   applySite(); // keep the site skybox/sky-dome visibility in sync with day/night
   runRelightHooks();
 }
@@ -4150,7 +4228,8 @@ export function extractPTScene() {
   }
   /* undo the candela conversion so the tracer sees pre-r185 intensity units */
   function legacyPower(o) {
-    var d = o.distance || 0;
+    // calibrated against the lamp's catalogue throw, not its room-clipped range
+    var d = o.userData.throwCm || o.distance || 0;
     if (!(d > 0)) return o.intensity / (Math.PI * 250 * 250);
     return (o.intensity * 16) / (Math.PI * d * d);
   }

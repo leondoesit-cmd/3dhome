@@ -1361,6 +1361,8 @@ export default {
   ag_append: "הוסף לקיים (Append)",
   ag_create: "צור",
   ag_generated: "דירה נוצרה בהצלחה",
+  ag_rules_ok: "הדירה נוצרה · כל כללי השיבוץ מתקיימים ({w} הערות תכנון)",
+  ag_rules_issues: "הדירה נוצרה עם {n} הפרות כללים",
   bp_menu: "ייבוא שרטוט",
   bp_menu_t: "ייבוא תוכנית מתמונת שרטוט (מודל מקומי)",
   bp_title: "ייבוא שרטוט (Blueprint)",

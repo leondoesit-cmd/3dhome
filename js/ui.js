@@ -3510,7 +3510,7 @@ export function initUI() {
         var sz = sizeSel.value;
         var rep = repSel.value === "replace";
         dlg.close();
-        var loaded = await Promise.all([import("./generator.js")]);
+        var loaded = await Promise.all([import("./generator.js"), import("./apartment_rules.js")]);
         var generated = executeCommand(loaded[0].apartmentGenerateCommand, {
           size: sz,
           replace: rep,
@@ -3557,7 +3557,12 @@ export function initUI() {
         // the generator names its own rooms — don't prompt for each one
         withoutRoomPrompts(refreshTree);
         fitView();
-        flash(t("ag_generated"), "success");
+        // Report the rulebook verdict, not just "done": the generator is held to
+        // zero rule errors, and any design notes are worth knowing about.
+        var audit = loaded[1].auditApartment(S);
+        flash(audit.errors
+          ? t("ag_rules_issues").replace("{n}", audit.errors)
+          : t("ag_rules_ok").replace("{w}", audit.warnings), audit.errors ? "error" : "success");
       };
       dlg.actions.appendChild(btnCancel);
       dlg.actions.appendChild(btnGen);
