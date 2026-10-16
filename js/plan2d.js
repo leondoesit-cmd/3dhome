@@ -30,7 +30,7 @@ import {
 } from "./wall_draw.js";
 import { normalizeWallKind, curvedWallOutline, pointAtWall, tangentAtWall, makeArcFromThreePoints } from "./wall_curves.js";
 import { referenceFloorScene } from "./floors.js";
-import { FURN, flabel, isLamp, lampColor, fcolor, itemVSpan, vspec } from "./furniture.js";
+import { FURN, flabel, isLamp, lampColor, fcolor, itemVSpan, knownVSpan, measureVSpanSoon, vspec } from "./furniture.js";
 import { isSmartType, devicePowered } from "./smarthome.js";
 import { planCab } from "./cabinet.js";
 import { t } from "./i18n.js";
@@ -3863,8 +3863,15 @@ function drawItem(it) {
        lamps are pictured like any other piece. */
     if (isPresentation() && it.w > 0 && it.d > 0) {
       var lv = null;
-      try { lv = itemVSpan(it); } catch (e) { lv = null; }
-      if (lv && lv.lo >= 150) {
+      try { lv = knownVSpan(it); } catch (e) { lv = null; }
+      // not measured yet (a fresh plan): wait for it rather than build the
+      // model inside this paint, and do not flash a ceiling fitting meanwhile
+      if (!lv) {
+        measureVSpanSoon(it);
+        if (isSelL) drawLamp(it, f, isSelL);
+        return;
+      }
+      if (lv.lo >= 150) {
         if (isSelL) drawLamp(it, f, isSelL);
         return;
       }
@@ -3935,10 +3942,20 @@ function drawItem(it) {
    technical glyph — while the picture is still being baked, or for the pieces
    (sensors, small smart devices) whose symbol says more than a render. */
 function drawItemPresentation(it, w, d, isSel) {
-  var vspan = null;
-  try { vspan = itemVSpan(it); } catch (e) { vspan = null; }
   // lamps reach here only when they stand on the floor (see drawItem)
-  var mode = spriteMode(it, { lamp: false, vspan: vspan });
+  var mode = spriteMode(it, { lamp: false });
+  if (mode === "sprite") {
+    // whether it hangs above the plan cut needs its measured height; not
+    // measured yet (a fresh plan) → its line glyph until it is, rather than
+    // building the model inside this paint
+    var vspan = null;
+    try { vspan = knownVSpan(it); } catch (e) { vspan = null; }
+    if (!vspan) {
+      measureVSpanSoon(it);
+      return false;
+    }
+    mode = spriteMode(it, { lamp: false, vspan: vspan });
+  }
   if (mode === "glyph") return false;
   if (mode === "overhead") {
     // hung above the plan cut: outline only, dashed, like a drafted upper

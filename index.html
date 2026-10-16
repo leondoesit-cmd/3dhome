@@ -2333,8 +2333,8 @@
       three r185, WebGPU build. three.webgpu.js re-exports all of core on top of
       WebGPURenderer + the node/TSL system, so every `import * as THREE from
       "three"` in js/ keeps working unchanged and there is exactly ONE copy of the
-      core classes. The editor also loads WebGLRenderer from three.module.js;
-      both entry points share the same three.core.js and scene classes.
+      core classes. Every 3D canvas in the app, the CAD editor included, runs on
+      it; the AR room scan's raw WebXR layer is the one WebGL exception.
       WebGPURenderer picks a WebGPU backend where available and falls back to its
       own WebGL2 backend otherwise — append ?forceWebGL to the URL to pin the
       fallback path. r128 is kept at vendor/three-r128 for rollback.

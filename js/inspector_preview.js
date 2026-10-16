@@ -119,7 +119,6 @@ function ensureRenderer() {
       canvas: canvas,
       antialias: true,
       alpha: false,
-      preferWebGL: true,
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.shadowMap.enabled = false;

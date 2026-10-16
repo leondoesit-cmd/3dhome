@@ -11,7 +11,7 @@ import {
   MATERIALS, materialById, materialForLegacy, isMaterialRef, materialRef, materialFromRef,
   materialUrl, materialFiles, codexPrompt, isOrganic, previewUrlFor,
 } from "../js/material_library.js";
-import { pickMaterialTier, isSoftwareRendererName } from "../js/material_tier.js";
+import { pickMaterialTier, isSoftwareRendererName, isSoftwareAdapter } from "../js/material_tier.js";
 import { PBR_FAMILIES } from "../js/pbr_textures.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -126,4 +126,14 @@ test("software rasterisers are recognised by their WebGL renderer name", () => {
     assert.equal(isSoftwareRendererName(n), true, n);
   for (const n of ["ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)", "Apple M2", "Adreno (TM) 740", ""])
     assert.equal(isSoftwareRendererName(n), false, n);
+});
+
+test("software WebGPU adapters are recognised from their adapter info", () => {
+  assert.equal(isSoftwareAdapter({ info: { isFallbackAdapter: true, vendor: "google" } }), true);
+  assert.equal(isSoftwareAdapter({ isFallbackAdapter: true, info: {} }), true, "pre-info Chrome builds");
+  assert.equal(isSoftwareAdapter({ info: { vendor: "google", architecture: "swiftshader" } }), true);
+  assert.equal(isSoftwareAdapter({ info: { vendor: "mesa", description: "llvmpipe (LLVM 15.0.7, 256 bits)" } }), true);
+  assert.equal(isSoftwareAdapter({ info: { vendor: "nvidia", architecture: "blackwell" } }), false);
+  assert.equal(isSoftwareAdapter({ info: { vendor: "apple", architecture: "metal-3" } }), false);
+  assert.equal(isSoftwareAdapter(null), false);
 });

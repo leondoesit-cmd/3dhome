@@ -11,7 +11,7 @@
 //     into a synthetic "other" category, and search runs over FURN itself, so
 //     no buildable piece is hidden.
 import { FURN, flabel, clabel, CATALOG } from "./furniture.js";
-import { modelThumb, hasThumb, loadThumbCache } from "./thumbs.js";
+import { modelThumb, thumbAsync, hasThumb, loadThumbCache } from "./thumbs.js";
 import { escapeHTML } from "./safe.js";
 import { t } from "./i18n.js";
 import { openModal } from "./ui.js";
@@ -63,23 +63,17 @@ function thumbTag(type) {
 }
 
 /* Same deal as the side library: paint the labels first, render the models
-   afterwards a time-slice per frame, so a 60-hit search shows its 60 tiles on
-   the keystroke instead of blocking on 60 WebGL renders. `run` is bumped by the
-   next grid so an in-flight fill for a superseded grid stops. */
+   afterwards through thumbAsync, so a 60-hit search shows its 60 tiles on the
+   keystroke instead of blocking on 60 WebGL renders. `run` is bumped by the
+   next grid so a superseded grid's late pictures are dropped. */
 var hydrateRun = 0;
 async function hydrate(root) {
   var run = ++hydrateRun;
   await loadThumbCache();
   if (run !== hydrateRun || !root.isConnected) return;
-  var queue = Array.prototype.slice.call(root.querySelectorAll("[data-thumb]"));
-  if (!queue.length) return;
-  var step = function () {
-    if (run !== hydrateRun) return;
-    var t0 = performance.now();
-    while (queue.length && performance.now() - t0 < 8) {
-      var el = queue.shift(),
-        url = modelThumb(el.dataset.thumb);
-      if (!el.isConnected) continue;
+  Array.prototype.forEach.call(root.querySelectorAll("[data-thumb]"), function (el) {
+    thumbAsync(el.dataset.thumb).then(function (url) {
+      if (run !== hydrateRun || !el.isConnected) return;
       if (url) {
         var img = document.createElement("img");
         img.className = "furn-thumb";
@@ -87,10 +81,8 @@ async function hydrate(root) {
         img.alt = "";
         el.replaceWith(img);
       } else el.removeAttribute("data-thumb");
-    }
-    if (queue.length) setTimeout(step, 0);
-  };
-  setTimeout(step, 0);
+    });
+  });
 }
 
 /* Open the browser. `onPick(type)` is called with the chosen catalogue type and

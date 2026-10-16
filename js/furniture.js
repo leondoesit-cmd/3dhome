@@ -17,6 +17,8 @@ export {
   clearVSpanCache,
   elevOffset,
   itemVSpan,
+  knownVSpan,
+  measureVSpanSoon,
   isLamp,
   lampColor,
   mkItem,

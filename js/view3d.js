@@ -43,7 +43,7 @@ import {
 import { FURN, lampColor, buildItem as buildFurn, elevOffset, itemVSpan } from "./furniture.js";
 import { refreshRuntimePlacements } from "./core/runtime.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
-import { pbrEntryFor, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById } from "./pbr_material.js";
+import { pbrEntryFor, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById, sharedRepeat } from "./pbr_material.js";
 import { HumanFactory } from "./human.js";
 import { SITE, llToLocalCm } from "./site.js";
 import {
@@ -363,6 +363,27 @@ export function setGameRenderEffect(factory) {
   if (gameEffect) gameEffect.dispose();
   gameEffect = null;
   gameEffectFactory = factory;
+}
+/* WebGPURenderer ignores the autoUpdate / needsUpdate switches on renderer.shadowMap — those
+   were WebGLRenderer's. Its ShadowNode reads each LIGHT's shadow.autoUpdate
+   (default true), so left alone every shadow map, the 4096² sun plus a
+   six-face cube per shadowed room light at night, re-rendered on every orbit
+   frame and the shadow passes were most of the frame. The on-demand policy is
+   applied per light instead: `now` redraws every shadow this frame, otherwise
+   a map is kept unless it has never been drawn (a light that starts casting,
+   or comes into view, between requests would otherwise show an empty map). */
+var drawnShadows = new WeakSet();
+function lightShown(o) {
+  for (var a = o; a; a = a.parent) if (!a.visible) return false;
+  return o.layers.test(camera.layers);
+}
+function syncShadowUpdates(now) {
+  scene.traverse(function (o) {
+    if (!o.isLight || !o.castShadow || !o.shadow) return;
+    var sh = o.shadow, draw = now || !drawnShadows.has(sh);
+    sh.autoUpdate = draw;
+    if (draw && lightShown(o)) drawnShadows.add(sh);
+  });
 }
 export function requestRender() { needsRender = true; settle = SETTLE_FRAMES; }
 export function requestShadowUpdate() { shadowsDirty = true; needsRender = true; settle = SETTLE_FRAMES; }
@@ -1231,9 +1252,7 @@ function buildStraightWall(w, col, tex) {
         }
         var scale = w.texScale || 200;
         if (S.customTexCache[bandTex].image) {
-          var txc = S.customTexCache[bandTex].clone();
-          txc.repeat.set(1 / scale, 1 / scale);
-          mat.map = txc;
+          mat.map = sharedRepeat(S.customTexCache[bandTex], 1 / scale, 1 / scale); // one upload per repeat
           mat.color.setHex(0xffffff);
         }
         var bUrl = getTexturePresetBumpUrl(bandTex);
@@ -1245,9 +1264,7 @@ function buildStraightWall(w, col, tex) {
             S.customBumpCache[bUrl] = btx;
           }
           if (S.customBumpCache[bUrl].image) {
-            var btxCloned = S.customBumpCache[bUrl].clone();
-            btxCloned.repeat.set(1 / scale, 1 / scale);
-            mat.bumpMap = btxCloned;
+            mat.bumpMap = sharedRepeat(S.customBumpCache[bUrl], 1 / scale, 1 / scale);
             mat.bumpScale = w.texBump != null ? w.texBump : 0.20;
           }
         }
@@ -1859,6 +1876,58 @@ function placeItem(g, it) {
   }
 }
 
+/* ---- light identity ---------------------------------------------------------
+   three keys every lit shader on the scene's light OBJECTS: LightsNode hashes
+   each light's id and sorts the lights by it. A light rebuilt as a new object
+   therefore changes the key of every lit material in the house, and each one
+   regenerates its node graph. When the fresh ids also reorder the spot/point
+   sequence, the shader text changes and every one of them recompiles: ~16
+   programs of ~100 KB with 18 lights, 1-3 s apiece on the WebGL2 fallback.
+   Window daylight is rebuilt on every rebuild3D and outlived the cached lamps,
+   so the second rebuild after a load always flipped the order and paid that
+   in full (twice just for opening the cabinet designer).
+
+   So both kinds take their light from here: a light of the same type that a
+   previous build let go, lowest id first. An unchanged house gets back exactly
+   the light set it had, and nothing recompiles. A released light keeps its
+   shadow map, so lamps rebuilt at night stop leaking one cube target each. */
+var spareLights = { PointLight: [], SpotLight: [] };
+var windowLights = []; // the daylight lights of the last rebuild3D
+
+function takeLight(type, color, intensity, distance, decay, angle, penumbra) {
+  var spare = spareLights[type], l;
+  if (spare.length) {
+    spare.sort(function (a, b) { return a.id - b.id; });
+    l = spare.shift();
+  } else l = type === "SpotLight" ? new THREE.SpotLight() : new THREE.PointLight();
+  l.color.set(color);
+  l.intensity = intensity;
+  l.distance = distance;
+  l.decay = decay;
+  if (l.isSpotLight) {
+    l.angle = angle;
+    l.penumbra = penumbra;
+    l.target = new THREE.Object3D();
+  }
+  l.position.set(0, 0, 0);
+  l.visible = true;
+  l.castShadow = false; // fitPracticalLights sets the shadow up again if it casts
+  l.userData = { pooledLight: true };
+  return l;
+}
+
+function releaseLight(l) {
+  if (l.parent) l.parent.remove(l);
+  drawnShadows.delete(l.shadow); // a reused caster draws its new surroundings
+  spareLights[l.isSpotLight ? "SpotLight" : "PointLight"].push(l);
+}
+
+function releaseItemLights(g) {
+  var lights = [];
+  g.traverse(function (o) { if (o.isLight && o.userData.pooledLight) lights.push(o); });
+  lights.forEach(releaseLight);
+}
+
 function buildItem(it) {
   var f = FURN[it.type];
   if (!f) return null;
@@ -1893,13 +1962,14 @@ function buildItem(it) {
         var base = legacyIntensity(L.intensity * mul, L.dist || 500);
         var pl;
         if (it.spot) {
-          pl = new THREE.SpotLight(
+          pl = takeLight(
+            "SpotLight",
             col,
             base * (0.45 + 1.9 * S.artK),
             L.dist || 500,
+            2,
             ((it.cone != null ? it.cone : 45) * Math.PI) / 180,
-            0.5,
-            2
+            0.5
           );
           var pitch = (it.pitch != null ? it.pitch : 0) * Math.PI / 180;
           var tObj = new THREE.Object3D();
@@ -1907,12 +1977,7 @@ function buildItem(it) {
           g.add(tObj);
           pl.target = tObj;
         } else {
-          pl = new THREE.PointLight(
-            col,
-            base * (0.45 + 1.9 * S.artK),
-            L.dist || 500,
-            2
-          );
+          pl = takeLight("PointLight", col, base * (0.45 + 1.9 * S.artK), L.dist || 500, 2);
         }
         pl.position.set(0, ly, 0);
         pl.userData.baseI = base;
@@ -2199,6 +2264,7 @@ function dropItem(id) {
   // here points at a clone, and disposing that would strand the original
   ghostSwap(c.g, false);
   itemsRoot.remove(c.g);
+  releaseItemLights(c.g);
   disposeSubtree(c.g);
   itemCache.delete(id);
 }
@@ -2738,6 +2804,8 @@ export function rebuild3D() {
     }
   }
   // daylight through each WINDOW (soft sky light at the opening, scaled by daylight)
+  windowLights.forEach(releaseLight); // same lights back, same shaders (see takeLight)
+  windowLights = [];
   S.openings.forEach(function (o) {
     if (o.type !== "window") return;
     if (hid.walls[o.wall]) return;
@@ -2762,8 +2830,9 @@ export function rebuild3D() {
     });
     var throwCm = lightRoom ? Math.min(winDist, roomReach(lightRoom, lx, lz, y)) : winDist;
     var pl = lightRoom
-      ? new THREE.SpotLight(0xcfe2f2, legacyIntensity(0.9, winDist) * S.dayK, throwCm, Math.PI * 0.44, 1, 2)
-      : new THREE.PointLight(0xcfe2f2, legacyIntensity(0.9, winDist) * S.dayK, winDist, 2);
+      ? takeLight("SpotLight", 0xcfe2f2, legacyIntensity(0.9, winDist) * S.dayK, throwCm, 2, Math.PI * 0.44, 1)
+      : takeLight("PointLight", 0xcfe2f2, legacyIntensity(0.9, winDist) * S.dayK, winDist, 2);
+    windowLights.push(pl);
     pl.position.set(lx, y, lz);
     if (lightRoom) {
       pl.target.position.set(lx + nx * 200, y - 70, lz + nz * 200);
@@ -3935,8 +4004,7 @@ export function setStreetViewCube(faces) {
     svBox.geometry.dispose();
     [].concat(svBox.material || []).forEach(function (m) {
       if (m.map) m.map.dispose();
-      if (m.uniforms && m.uniforms.sky && m.uniforms.sky.value)
-        m.uniforms.sky.value.dispose();
+      if (m.userData.sky) m.userData.sky.dispose();
       m.dispose();
     });
     svBox = null;
@@ -3975,22 +4043,22 @@ export function setStreetViewCube(faces) {
   // orbits a small room near the center, so parallax against a sphere this
   // large reads as "at infinity".
   var geo = new THREE.SphereGeometry(SV_RADIUS, 64, 32);
-  var mat = new THREE.ShaderMaterial({
-    uniforms: { sky: { value: cubeTex } },
-    // Sample direction is the per-fragment object-space direction from the
-    // sphere center — exact for every fragment.
-    vertexShader:
-      "varying vec3 vPos;\n" +
-      "void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-    // -x flip = the BackSide (inside-out) mirroring fix. Raw sample, no tone
-    // mapping: the pano is a finished photo — ACES washes it out.
-    fragmentShader:
-      "uniform samplerCube sky; varying vec3 vPos;\n" +
-      "void main(){ vec3 d = normalize(vPos); gl_FragColor = textureCube(sky, vec3(-d.x, d.y, d.z)); }",
+  // A node material: the node builder rejects a raw ShaderMaterial and swaps
+  // in a blank default, which is what this dome drew until it was ported.
+  var mat = new THREE.MeshBasicNodeMaterial({
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
+    // The pano is a finished photo — ACES washes it out. (Honoured on the
+    // direct render path; the post pipeline tone-maps the whole frame.)
+    toneMapped: false,
   });
+  // Sample direction is the per-fragment object-space direction from the
+  // sphere center — exact for every fragment. The cube-texture node applies
+  // the -x flip itself for a plain CubeTexture: the same BackSide (inside-out)
+  // mirroring fix the GLSL version did by hand.
+  mat.colorNode = TSL.cubeTexture(cubeTex, TSL.positionLocal.normalize());
+  mat.userData.sky = cubeTex;
   svBox = new THREE.Mesh(geo, mat);
   if (faces._panoLat && faces._panoLon) {
     svBox.userData = { panoLat: faces._panoLat, panoLon: faces._panoLon };
@@ -4429,9 +4497,9 @@ function build3D() {
   // which is what gives the sun a penumbra instead of a hard stencil edge.
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   // Shadows are camera-independent, so there's no reason to re-render the (4K)
-  // shadow map every frame while the user just orbits. Update it on demand —
-  // only when geometry or the sun actually moved (see shadowsDirty).
-  renderer.shadowMap.autoUpdate = false;
+  // shadow map every frame while the user just orbits. They update on demand —
+  // only when geometry or the sun actually moved (see shadowsDirty) — per light,
+  // through syncShadowUpdates: WebGPURenderer has no renderer-wide switch.
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
@@ -4483,6 +4551,15 @@ function build3D() {
     // single-sampled depth GTAO/TRAA read produces a per-frame WebGPU
     // sample-count validation error on the depth copy.
     var scenePass = TSL.pass(scene, camera, { samples: 0 });
+    // three's velocity node keeps the previous CAMERA view matrix in the
+    // per-object uniform group, so every camera move dirtied every object's
+    // uniform buffer: one upload per mesh per frame, which on the WebGPU
+    // backend (a queue.writeBuffer each) was the bulk of an orbit frame. The
+    // value is per camera, like the previous projection beside it, so it
+    // belongs to the render group: uploaded once per pass, and a static mesh's
+    // own buffer stays untouched while the view moves.
+    if (TSL.velocity.previousCameraViewMatrix && TSL.renderGroup)
+      TSL.velocity.previousCameraViewMatrix.setGroup(TSL.renderGroup);
     scenePass.setMRT(TSL.mrt({ output: TSL.output, normal: TSL.normalView, velocity: TSL.velocity }));
     var colorNode = scenePass.getTextureNode("output");
     var depthNode = scenePass.getTextureNode("depth");
@@ -4559,20 +4636,32 @@ function build3D() {
         R * Math.cos(el) * Math.sin(az),
       );
     }
-    var sg = new THREE.BufferGeometry();
-    sg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    stars = new THREE.Points(
-      sg,
-      new THREE.PointsMaterial({
-        color: 0xcfdcf2,
-        size: 2.5,
-        sizeAttenuation: false,
-        transparent: true,
-        opacity: 0.9,
-        depthWrite: false,
-        fog: false,
-      }),
-    );
+    // Instanced billboard quads, not THREE.Points: WebGPU only draws 1px point
+    // primitives, so a 2.5px Points star field shrank to specks. A
+    // PointsNodeMaterial on a MESH runs three's sprite expansion instead, with
+    // the same size / sizeAttenuation meaning PointsMaterial had.
+    var quad = new THREE.PlaneGeometry(1, 1);
+    var sg = new THREE.InstancedBufferGeometry();
+    sg.setIndex(quad.index.clone());
+    sg.setAttribute("position", quad.attributes.position.clone());
+    sg.setAttribute("iPos", new THREE.InstancedBufferAttribute(new Float32Array(pos), 3));
+    sg.instanceCount = pos.length / 3;
+    quad.dispose();
+    var starMat = new THREE.PointsNodeMaterial({
+      color: 0xcfdcf2,
+      size: 2.5,
+      sizeAttenuation: false,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      fog: false,
+    });
+    starMat.positionNode = TSL.attribute("iPos");
+    stars = new THREE.Mesh(sg, starMat);
+    // the quad's own bounds are 1cm at the origin; the dome is 68m out, so
+    // neither culling nor a scene raycast may use them
+    stars.frustumCulled = false;
+    stars.raycast = function () {};
     stars.visible = false;
     stars.renderOrder = -1;
     scene.add(stars);
@@ -5158,25 +5247,26 @@ function build3D() {
       // extLive (Night Shift tick) is true every frame but the indoor scene is
       // mostly static — throttle shadow passes to ~5 Hz to avoid hammering the
       // GPU with a 4096² depth re-render 60 times a second.
+      var shadowPass = false;
       if (extLive) {
-        if (!shadowThrottleT || time - shadowThrottleT > 200) {
-          renderer.shadowMap.needsUpdate = true;
-          shadowThrottleT = time;
-        }
+        // The external modes' own lights (Night Shift's flashlight) move with
+        // the player every frame; their shadows stay live, see syncShadowUpdates.
+        shadowPass = true;
       } else if (shadowsDirty || physicsLive || doorsMoving) {
-        renderer.shadowMap.needsUpdate = true;
+        shadowPass = true;
         shadowsDirty = false;
         shadowThrottleT = time;
       } else if (humansLive) {
-        // Same reasoning as extLive above: people move slowly and are small in
-        // frame, so re-rendering a 4096² depth map for their sway on every
-        // frame is the most expensive thing in an otherwise static room. Cap
-        // it at ~5 Hz. Geometry and physics keep the immediate path above.
+        // People move slowly and are small in frame, so re-rendering a 4096²
+        // depth map for their sway on every frame is the most expensive thing
+        // in an otherwise static room. Cap it at ~5 Hz. Geometry and physics
+        // keep the immediate path above.
         if (!shadowThrottleT || time - shadowThrottleT > 200) {
-          renderer.shadowMap.needsUpdate = true;
+          shadowPass = true;
           shadowThrottleT = time;
         }
       }
+      syncShadowUpdates(shadowPass);
       syncSelectionOutline();
       try {
         renderScene();

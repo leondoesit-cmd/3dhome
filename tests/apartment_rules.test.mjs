@@ -131,6 +131,6 @@ test("the 3D view keeps lamps in their own room and lets daylight in through the
   const env = src.slice(src.indexOf("export function applyEnv()"), src.indexOf("var relightHooks"));
   assert.match(env, /fitPracticalLights\(\)/, "a change of hour re-fits practical shadows");
   assert.match(env, /scene\.environmentIntensity =/, "the sky map is fill, balanced under the sun");
-  assert.match(rebuild, /new THREE\.SpotLight\(0xcfe2f2/, "window daylight is aimed into its room");
+  assert.match(rebuild, /takeLight\("SpotLight", 0xcfe2f2/, "window daylight is aimed into its room");
   assert.match(src, /var d = o\.userData\.throwCm \|\| o\.distance/, "path-tracer power ignores the room clip");
 });

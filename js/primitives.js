@@ -3,7 +3,7 @@ import { THREE, ADDONS } from "./three_lazy.js";
 import { S, fin, PHYSICS_MATS, MAT_PROPS, FABRIC, WOOD, TOP, BEDC, RUGC, STEEL, ISL, GREEN, CAB } from "./state.js";
 import { pbrPixels } from "./pbr_textures.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
-import { pbrEntryFor, pbrTextures, applyPbrMaps, legacyTextureUrl } from "./pbr_material.js";
+import { pbrEntryFor, pbrTextures, pbrDeferFallback, applyPbrMaps, legacyTextureUrl, sharedRepeat } from "./pbr_material.js";
 
 // Classify a part's physical material from how it is actually rendered:
 // transmissive/transparent → glass, high metalness → metal, then the
@@ -117,11 +117,11 @@ export function applyTextureToMaterial(m, opt, width, height, depth) {
   // throws on `image.complete`, killing the render pass (black viewport).
   // The loader callback above flags a rebuild, which re-runs this with an image.
   if (!S.customTexCache[texUrl].image) return;
-  var tex = S.customTexCache[texUrl].clone();
   var maxDim = Math.max(Math.abs(width) || 0, Math.abs(depth) || 0) || 100;
   var scale = opt.texScale || 200;
-  tex.repeat.set(Math.max(maxDim / scale, 0.001), Math.max((Math.abs(height) || 100) / scale, 0.001));
-  m.map = tex;
+  var ru = Math.max(maxDim / scale, 0.001), rv = Math.max((Math.abs(height) || 100) / scale, 0.001);
+  // shared per repeat, not cloned per part: each clone is its own GPU upload
+  m.map = sharedRepeat(S.customTexCache[texUrl], ru, rv);
   m.color.setHex(opt.texColor != null ? opt.texColor : 0xffffff);
 
   var bUrl = getTexturePresetBumpUrl(texUrl);
@@ -139,9 +139,7 @@ export function applyTextureToMaterial(m, opt, width, height, depth) {
     }
   }
   if (bUrl && S.customBumpCache[bUrl].image) { // same wait-for-bitmap rule as the map
-    var btxCloned = S.customBumpCache[bUrl].clone();
-    btxCloned.repeat.set(Math.max(maxDim / scale, 0.001), Math.max((Math.abs(height) || 100) / scale, 0.001));
-    m.bumpMap = btxCloned;
+    m.bumpMap = sharedRepeat(S.customBumpCache[bUrl], ru, rv);
     m.bumpScale = opt.texBump != null ? opt.texBump : 0.20;
   }
   m.needsUpdate = true;
@@ -233,6 +231,9 @@ function applyDetail(m, geo, srcColor, opt, finalColor) {
     return;
   }
   if (painted) fam = "plaster";
+  // a thumbnail build that is redone once the library bitmaps land: do not
+  // compute a procedural family only to throw it away
+  if (lib && !(fam in pbrCache) && pbrDeferFallback(lib)) return;
   var t = pbrTex(fam);
   if (!t || !t.map) return;
   worldUVs(geo, t.tileCm);
@@ -1074,10 +1075,18 @@ export function floorPaintCanvas(type, px) {
 var meanCache = {};
 export function floorMeanColor(type) {
   if (meanCache[type]) return meanCache[type];
-  var c = floorPaintCanvas(type, 16);
   var col = "#d0cec9";
   try {
-    var d = c.getContext("2d").getImageData(0, 0, 16, 16).data,
+    /* Its own small canvas, CPU-backed (willReadFrequently): a readback of
+       an accelerated one waits for the GPU, and right after a plan is
+       generated the 3D view keeps the GPU busy — ~70 ms for a few floors
+       inside the first presentation paint. */
+    var c = document.createElement("canvas");
+    c.width = c.height = 16;
+    var x = c.getContext("2d", { willReadFrequently: true });
+    x.scale(16 / 256, 16 / 256);
+    (PAINT[type] || PAINT.concrete)(x);
+    var d = x.getImageData(0, 0, 16, 16).data,
       r = 0, g = 0, b = 0, n = d.length / 4;
     for (var i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
     col = "rgb(" + Math.round(r / n) + "," + Math.round(g / n) + "," + Math.round(b / n) + ")";

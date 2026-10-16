@@ -11,7 +11,11 @@ test("Night Shift renders fire through a dedicated additive particle pool", () =
   assert.match(world, /blending:\s*THREE\.AdditiveBlending/);
   assert.match(world, /export function spawnFirePart\(/);
   assert.match(game, /spawnFirePart\(/);
-  assert.match(world, /mg\.setAttribute\("uv", new THREE\.BufferAttribute\(mu, 2\)\)/);
+  // dust motes are instanced sprite quads (WebGPU draws Points at 1px); the
+  // spray texture is sampled from the quad's own position, so no uv lookup
+  // can warn about a missing attribute when the FX pass wakes
+  assert.match(world, /mg = instancedQuad\(MN\)/);
+  assert.match(world, /texture\(TEX\.spray, positionGeometry\.xy\.add\(vec2\(0\.5\)\)\)/);
 });
 
 test("Night Shift graphics tiers control its own expensive render paths", () => {

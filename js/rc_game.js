@@ -2494,7 +2494,7 @@ function tick(delta) {
   stepShards(dt, now);
   stepSpray(dt, now);
   R.waters.forEach(function (w) {
-    if (w.mat) w.mat.uniforms.uTime.value = now / 1000;
+    if (w.mat) w.mat.userData.waterUniforms.uTime.value = now / 1000;
   });
   // On-foot movement is simulation, not presentation: it must run regardless of
   // which camera owns the frame (results orbit, editor overview), exactly like

@@ -15,14 +15,15 @@
 //   view.setBig(true);   // fill the middle pane
 //   view.render();
 //
-// The editor uses classic WebGLRenderer (see gpu.js). It renders the CAD
-// materials directly without converting them into node shader graphs.
+// The editor runs on the same WebGPURenderer as the rest of the app (see
+// gpu.js): a WebGPU backend where the browser has one, its WebGL2 fallback
+// elsewhere. Section planes live on the ClippingGroup root, which the node
+// renderer reads straight from the scene graph.
 
 import { THREE } from "./three_lazy.js";
 import { createRenderer, render as gpuRender, ready as gpuReady, LUX } from "./gpu.js";
 import { clearGroup } from "./primitives.js";
 import { guardRenderReentry } from "./core/render_guard.js";
-import { syncEditorClipping } from "./editor_renderer_clipping.js";
 import {planeBoundsFit} from './core/sketch_view_fit.js';
 import {editorBoundsFitDistance} from './core/editor_view_fit.js';
 import {normalToFrustum,orbitTargetFromFrame,frameTargetFromOrbit,switchEditorCamera} from './core/editor_projection.js';
@@ -114,7 +115,7 @@ export function createEditorView(opts) {
 
   var view = null;
   try {
-    var rr = createRenderer({ canvas: cv, antialias: true, alpha: true, classicWebGL: true });
+    var rr = createRenderer({ canvas: cv, antialias: true, alpha: true });
     /* alpha:true alone no longer clears transparent — WebGPURenderer defaults
        to an opaque clear, so the preview came out on a black slab instead of
        the panel behind it. Ask for a fully transparent clear explicitly. */
@@ -173,7 +174,7 @@ export function createEditorView(opts) {
       });
       sc.add(grid);
     }
-    // Keep section state on the root; syncEditorClipping applies it to materials.
+    // The node renderer reads section planes from the scene graph, not materials.
     var grp = new THREE.ClippingGroup();
     grp.enabled = false;
     sc.add(grp);
@@ -484,7 +485,6 @@ export function createEditorView(opts) {
     view.render = function () {
       if (opts.active && !opts.active()) return;
       view.resize();
-      syncEditorClipping(rr, grp);
       // an editor with a second destination for the same parts (the modeler's
       // context room) takes over here and draws it its own way
       if (opts.draw && opts.draw(view)) { if (opts.afterRender) opts.afterRender(view); return; }

@@ -61,12 +61,45 @@ export function materialLibraryEnabled() {
   return !software;
 }
 
-/* Is WebGL running on a CPU rasteriser? Asked of a throwaway 1x1 context. */
+/* Is the GPU a CPU rasteriser? The WebGPU adapter answers first: the app
+   renders on WebGPU wherever the browser has it, so that adapter is the one
+   that matters, and asking it costs no context. primeGpuTier() asks it once at
+   boot; until it has answered (or where there is no WebGPU adapter at all and
+   the renderer falls back to WebGL2) a throwaway 1x1 WebGL context answers. */
 const SOFTWARE_GPU = /swiftshader|llvmpipe|softpipe|software|basic render/i;
 export function isSoftwareRendererName(name) {
   return SOFTWARE_GPU.test(String(name || ""));
 }
+
+/** What a WebGPU adapter says about itself: a fallback adapter is software by
+ *  definition, otherwise its vendor/architecture/description strings are
+ *  matched like a WebGL renderer name. Pure (tested in Node). */
+export function isSoftwareAdapter(adapter) {
+  if (!adapter) return false;
+  const info = adapter.info || {};
+  if (info.isFallbackAdapter || adapter.isFallbackAdapter) return true;
+  return isSoftwareRendererName([info.vendor, info.architecture, info.device, info.description].join(" "));
+}
+
+let adapterSoftware = null; // null until primeGpuTier() has an answer
+let priming = null;
+
+/** Ask the WebGPU adapter once (idempotent). Resolves when it has answered,
+ *  or immediately where WebGPU is absent. */
+export function primeGpuTier() {
+  if (priming) return priming;
+  priming = (async function () {
+    try {
+      if (typeof navigator === "undefined" || !navigator.gpu) return;
+      const adapter = await navigator.gpu.requestAdapter();
+      if (adapter) adapterSoftware = isSoftwareAdapter(adapter);
+    } catch (e) { /* no adapter: the WebGL probe answers */ }
+  })();
+  return priming;
+}
+
 function softwareRenderer() {
+  if (adapterSoftware !== null) return adapterSoftware;
   try {
     const c = document.createElement("canvas");
     const gl = c.getContext("webgl2") || c.getContext("webgl");

@@ -85,14 +85,16 @@ var vSpanCache = new Map();
 export function clearVSpanCache() {
   vSpanCache.clear();
 }
+// variant is part of the key: a wall-hung toilet or a four-poster bed
+// occupies a different vertical span than the model's default shape
+function vSpanKey(it) {
+  return it.type + ":" + it.w + "x" + it.d + "x" + it.h + ":" + (it.variant || "");
+}
 // The span the piece's own geometry occupies, before any per-item offset.
 function baseVSpan(it) {
   var f = it && FURN[it.type];
   if (!f) return { lo: 0, hi: (it && it.h) || 0 };
-  // variant is part of the key: a wall-hung toilet or a four-poster bed
-  // occupies a different vertical span than the model's default shape
-  var key =
-    it.type + ":" + it.w + "x" + it.d + "x" + it.h + ":" + (it.variant || "");
+  var key = vSpanKey(it);
   var hit = vSpanCache.get(key);
   if (hit) return hit;
   /* three is late-bound, and this probe is on the 2D path (stack labels,
@@ -136,6 +138,43 @@ export function itemVSpan(it) {
   var b = baseVSpan(it);
   var off = elevOffset(it);
   return off ? { lo: b.lo + off, hi: b.hi + off } : b;
+}
+
+/* For paint paths, where measuring is too slow to do inline: a first paint
+   of a generated home would build every distinct piece (~90 ms of one task)
+   just to learn which ones hang above the plan cut. knownVSpan() answers
+   only from the cache (null when the piece has not been measured yet), and
+   measureVSpanSoon() measures it in idle moments, a few pieces per slice,
+   then dispatches "vspan:ready" once so the plan repaints. */
+export function knownVSpan(it) {
+  if (!it || !FURN[it.type]) return itemVSpan(it);
+  return vSpanCache.has(vSpanKey(it)) ? itemVSpan(it) : null;
+}
+var toMeasure = new Map(), measureAsked = false;
+export function measureVSpanSoon(it) {
+  if (!it || !FURN[it.type]) return;
+  var key = vSpanKey(it);
+  if (vSpanCache.has(key) || toMeasure.has(key)) return;
+  toMeasure.set(key, it);
+  if (measureAsked) return;
+  measureAsked = true;
+  var idle = typeof requestIdleCallback === "function"
+    ? function (fn) { requestIdleCallback(fn, { timeout: 200 }); }
+    : function (fn) { setTimeout(function () { fn({ timeRemaining: function () { return 8; } }); }, 16); };
+  var slice = function (deadline) {
+    var t0 = Date.now();
+    toMeasure.forEach(function (piece, k) {
+      // budget: what the idle period has left, at least a few ms when it timed out
+      if (Date.now() - t0 > Math.max(4, deadline.timeRemaining() - 2)) return;
+      toMeasure.delete(k);
+      try { baseVSpan(piece); } catch (e) { /* measured as floor-standing on the next ask */ }
+    });
+    if (toMeasure.size && threeLoaded()) return void idle(slice);
+    toMeasure.clear();
+    measureAsked = false;
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("vspan:ready"));
+  };
+  idle(slice);
 }
 
 export function isLamp(it) {

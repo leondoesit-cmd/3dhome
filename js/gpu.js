@@ -117,25 +117,16 @@ var FORCE_WEBGL =
 
 /**
  * @param {object} opts  WebGPURenderer options (canvas, antialias, alpha, ...).
- * @param {boolean} [opts.preferWebGL]  Use the WebGL2 backend even when WebGPU
- *   is available. Worth it for small offscreen/preview canvases: WebGPU buys
- *   them nothing, its init is slower, and its readback (toDataURL) is async.
- * @param {boolean} [opts.classicWebGL] Use the GLSL WebGLRenderer directly.
- *   Editor previews use this to avoid node graph conversion of CAD materials.
+ *
+ * Every 3D canvas in the app comes through here, so every one gets the same
+ * backend policy. Each renderer keeps its own GPUDevice on purpose: three's
+ * GPU resource caches are per renderer whether or not the device is shared,
+ * and a renderer that created its device destroys it on dispose(), which
+ * would take every other view down with the one that closed.
  */
 export function createRenderer(opts) {
   opts = Object.assign({}, opts || {});
-  var classicWebGL = !!opts.classicWebGL;
-  delete opts.classicWebGL;
-  var preferWebGL = !!opts.preferWebGL;
-  delete opts.preferWebGL;
-  if (classicWebGL) {
-    var classic = new THREE.WebGLRenderer(opts);
-    classic.initialized = true;
-    classic._readyPromise = Promise.resolve(classic);
-    return classic;
-  }
-  opts.forceWebGL = FORCE_WEBGL || preferWebGL;
+  opts.forceWebGL = FORCE_WEBGL;
   var r = new THREE.WebGPURenderer(opts);
   // Kick init immediately so it overlaps with the caller's scene building.
   r._readyPromise = r.init().then(function () { return r; });

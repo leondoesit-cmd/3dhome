@@ -103,7 +103,7 @@ import { reattachFeatureSketchSupport, reattachSketchSupport, sketchSupportNeeds
 import {holeSupportChoices,holeSupportChoiceReference} from './core/hole_support_choices.js';
 import {compactAssemblyTopologySnapshots,compactDocumentTopologySnapshots} from './core/project_topology_budget.js';
 import { FURN, PRICE, CATALOG, flabel, clearVSpanCache, buildItem } from "./furniture.js";
-import { modelThumb, hasThumb, loadThumbCache } from "./thumbs.js";
+import { modelThumb, thumbAsync, hasThumb, loadThumbCache } from "./thumbs.js";
 import { usedCustomModels, refreshCatalogSelect } from "./model_catalog.js";
 import { reportEditorOpenState } from "./modeler_launch.js";
 import {
@@ -111,6 +111,7 @@ import {
   projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML,
 } from "./pro_shell.js";
 import { box, cyl, sph, clearGroup } from "./primitives.js";
+import { sharedRepeat } from "./pbr_material.js";
 import { syncViewportSelectionMaterial } from "./core/viewport_selection.js";
 import { getLang, onLangChange } from "./i18n.js";
 import * as ribbon from "./uikit_host/ribbon.js";
@@ -905,9 +906,8 @@ function applyTexTo(mesh, p, wCm, hCm) {
   // image, which throws inside the renderer's texture upload; the loader
   // callback above re-runs this once the image is decoded.
   if (!S.customTexCache[p.tex].image) return;
-  var tex = S.customTexCache[p.tex].clone();
-  tex.repeat.set((wCm || 100) / 100, (hCm || 100) / 100);
-  mesh.material.map = tex;
+  // shared per repeat: every clone is its own GPU upload (see pbr_material.js)
+  mesh.material.map = sharedRepeat(S.customTexCache[p.tex], (wCm || 100) / 100, (hCm || 100) / 100);
   mesh.material.color.setHex(0xffffff);
   mesh.material.needsUpdate = true;
 }
@@ -26025,7 +26025,7 @@ async function recoverLegacyModelerDraft() {
 /* A saved model's card shows the model, the same picture as its planner
    library tile (js/thumbs.js renders it once and stores it; the warm-up there
    has usually made it before the list is opened). A picture not made yet is
-   filled in a moment later, one per tick, so the list never waits on WebGL. */
+   filled in a moment later (thumbAsync), so the list never waits on WebGL. */
 var libThumbQueue = [], libThumbTimer = 0;
 function libraryThumbnailsVisible() {
   var host = root && root.querySelector("#mdLib"), pane = host && host.closest('.md-pane[data-pane="lib"]');
@@ -26052,14 +26052,15 @@ function fillLibThumbs() {
   if (!libraryThumbnailsVisible()) return;
   loadThumbCache().then(function () {
     if (!libraryThumbnailsVisible()) return;
-    var job = libThumbQueue.shift(), wait = 16;
-    if (job && job.box.isConnected) {
-      var url = modelThumb(job.type);
-      if (url) { var img = el("img", "md-card-thumb"); img.src = url; img.alt = ""; job.box.replaceWith(img); }
-      // the renderer was still starting (nothing stored): ask again shortly
-      else if (!hasThumb(job.type) && (job.tries = (job.tries || 0) + 1) < 40) { libThumbQueue.push(job); wait = 150; }
-    }
-    if (libThumbQueue.length && libraryThumbnailsVisible()) libThumbTimer = setTimeout(fillLibThumbs, wait);
+    // thumbAsync draws the missing ones in short steps (and waits for the
+    // renderer if it is still starting); a stored one resolves at once
+    libThumbQueue.splice(0).forEach(function (job) {
+      if (!job.box.isConnected) return;
+      thumbAsync(job.type).then(function (url) {
+        if (!url || !job.box.isConnected) return;
+        var img = el("img", "md-card-thumb"); img.src = url; img.alt = ""; job.box.replaceWith(img);
+      });
+    });
   });
 }
 

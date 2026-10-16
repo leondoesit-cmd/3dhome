@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
   Fn, Discard, attribute, uniform, texture, uv, positionView, positionLocal,
-  vec2, vec3, vec4, float, mix, sin, smoothstep, screenDPR,
+  positionGeometry, vec2, vec3, vec4, float, mix, sin, smoothstep, screenDPR,
 } from "three/tsl";
 import { LUX, legacyIntensity } from "./gpu.js";
 // The flashlight keeps a SOFT decay on purpose: it is the only thing the
@@ -1218,13 +1218,9 @@ export function initFX() {
 
   // --- dust motes: the flashlight beam needs something to catch
   var MN = 440,
-    mg = new THREE.BufferGeometry(),
+    mg = instancedQuad(MN),
     mp = new Float32Array(MN * 3),
-    mc = new Float32Array(MN * 3),
-    // WebGPURenderer turns PointsMaterial's sprite map into a node lookup.
-    // Supplying a stable centre UV prevents its first render from warning
-    // about a missing vertex attribute whenever a weapon wakes the FX pass.
-    mu = new Float32Array(MN * 2);
+    mc = new Float32Array(MN * 3);
   for (var k = 0; k < MN; k++) {
     mp[k * 3] = rr(-700, 700);
     mp[k * 3 + 1] = rr(0, 280);
@@ -1233,25 +1229,27 @@ export function initFX() {
     mc[k * 3] = warm ? 1 : 0.72;
     mc[k * 3 + 1] = warm ? 0.92 : 0.82;
     mc[k * 3 + 2] = warm ? 0.7 : 1;
-    mu[k * 2] = mu[k * 2 + 1] = 0.5;
   }
-  mg.setAttribute("position", new THREE.BufferAttribute(mp, 3));
-  mg.setAttribute("color", new THREE.BufferAttribute(mc, 3));
-  mg.setAttribute("uv", new THREE.BufferAttribute(mu, 2));
-  var motes = new THREE.Points(
-    mg,
-    new THREE.PointsMaterial({
-      size: 3.1,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.55,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      sizeAttenuation: true,
-      map: TEX.spray,
-      alphaTest: 0.02,
-    })
+  // Instanced sprites, like the particle pools above: a 3px Points cloud is
+  // 1px dots on WebGPU. PointsNodeMaterial keeps PointsMaterial's size and
+  // sizeAttenuation meaning; the old vertex colour and sprite map become a
+  // per-instance colour times the spray texture across the quad.
+  mg.setAttribute("iPos", new THREE.InstancedBufferAttribute(mp, 3));
+  mg.setAttribute("iCol", new THREE.InstancedBufferAttribute(mc, 3));
+  var moteMat = new THREE.PointsNodeMaterial({
+    size: 3.1,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+    alphaTest: 0.02,
+  });
+  moteMat.positionNode = attribute("iPos");
+  moteMat.colorNode = vec4(attribute("iCol"), 1).mul(
+    texture(TEX.spray, positionGeometry.xy.add(vec2(0.5)))
   );
+  var motes = new THREE.Mesh(mg, moteMat);
   motes.frustumCulled = false;
   noRaycast(motes);
   g.add(motes);
@@ -1283,7 +1281,7 @@ export function setFXDensity(value) {
   if (Z.impacts) Z.impacts.activeN = Math.max(q === 0 ? 6 : 12, Math.round(Z.impacts.list.length * visual));
   if (Z.motes) {
     Z.motes.activeN = Math.max(moteMin, Math.round(Z.motes.n * visual));
-    Z.motes.geo.setDrawRange(0, Z.motes.activeN);
+    Z.motes.geo.instanceCount = Z.motes.activeN;
   }
 }
 
@@ -2075,7 +2073,7 @@ export function stepFX(dt) {
       var moteDt = M.updateT;
       M.updateT = 0;
       M.phase += moteDt * 0.35;
-      var ma = M.geo.attributes.position.array,
+      var ma = M.geo.attributes.iPos.array,
         px = Z.p.x,
         pz = Z.p.z,
         moteScale = moteDt * 60;
@@ -2091,7 +2089,7 @@ export function stepFX(dt) {
         if (ma[q * 3 + 1] > 265) ma[q * 3 + 1] = 4;
         else if (ma[q * 3 + 1] < 2) ma[q * 3 + 1] = 262;
       }
-      M.geo.attributes.position.needsUpdate = true;
+      M.geo.attributes.iPos.needsUpdate = true;
     }
   }
   Z.shake = Math.max(0, Z.shake - dt * 2.6);

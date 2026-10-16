@@ -39,6 +39,8 @@ export { materialById };
 
 var texCache = new Map(); // url → THREE.Texture (shared, never disposed)
 var failedIds = new Set();
+var inFlight = new Set(); // one promise per load still on the wire
+var quiet = 0;
 
 function onLoaded() {
   S.dirty3D = true;
@@ -46,13 +48,49 @@ function onLoaded() {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("customTextureLoaded"));
 }
 
+/* Run a build whose texture loads nobody else is waiting on (the library
+   thumbnail warm-up). A finished load normally rebuilds the whole 3D view and
+   re-bakes the plan sprites; the warm-up starts a few hundred of them, so it
+   asks quietly and waits with pbrLoading() instead. A load that a normal
+   build also asks for before it lands announces itself as usual. */
+export function quietPbrLoads(fn, rebuilds) {
+  quiet++;
+  if (rebuilds) deferring++;
+  try { return fn(); } finally { quiet--; if (rebuilds) deferring--; }
+}
+var deferring = 0;
+/* True inside a quiet build that will be redone once its loads land (the
+   warm-up's: see pbrLoading) while `entry`'s bitmaps are still on the wire:
+   a stand-in made now would be thrown away, so callers may skip an
+   expensive one (primitives.js's procedural detail, ~60 ms per family). */
+export function pbrDeferFallback(entry) {
+  return deferring > 0 && !!entry && !failedIds.has(entry.id) && inFlight.size > 0 && materialLibraryEnabled();
+}
+
+/** Settles once every texture load in flight right now has finished (or
+ *  failed); null when nothing is loading. */
+export function pbrLoading() {
+  return inFlight.size ? Promise.all(Array.from(inFlight)) : null;
+}
+
 function loadTexture(url, srgb, id) {
   var tx = texCache.get(url);
-  if (tx) return tx;
+  if (tx) {
+    if (!quiet && !tx.image) tx.userData.announce = true;
+    return tx;
+  }
+  var settle;
+  var wait = new Promise(function (resolve) { settle = function () { inFlight.delete(wait); resolve(); }; });
+  inFlight.add(wait);
   var loader = new THREE.TextureLoader();
-  tx = loader.load(url, onLoaded, undefined, function () {
+  tx = loader.load(url, function (t) {
+    settle();
+    if (t.userData.announce) onLoaded();
+  }, undefined, function () {
     failedIds.add(id);
+    settle();
   });
+  tx.userData.announce = !quiet;
   tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
   tx.anisotropy = 8;
   tx.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -94,11 +132,42 @@ export function pbrFailed(entry) {
   return !!entry && failedIds.has(entry.id);
 }
 
-function repeated(tx, ru, rv) {
-  var c = tx.clone(); // clones share the Source, so the GPU upload is shared too
-  c.repeat.set(ru, rv);
+/* ---- one GPU texture per image and repeat ----
+   WebGPURenderer uploads a texture per Texture OBJECT, on both backends.
+   Classic WebGLRenderer shared the upload through the Source, so a clone per
+   material used to be free; here it is a full 2k colour + normal + ORM
+   upload with mipmaps, per mesh. The generated large apartment held ~650 of
+   them (11 GB) from 18 images, and opening the cabinet designer on the
+   WebGL2 fallback then ran the GPU process out of memory and lost every
+   context in the page at once.
+
+   So a repeat the texture already has IS the texture, and any other repeat
+   gets one clone per distinct value, remembered per image. Size-driven
+   repeats (a custom finish scaled to each part) can take many values, so
+   the memory is a short most-recent list; a clone that falls off it is only
+   forgotten, never disposed, because a live material may still hold it.
+   Callers must treat the result as shared: never change its repeat, offset
+   or rotation, and never dispose it. */
+var REPEAT_KEEP = 48;
+var repeatClones = new WeakMap(); // base texture → Map("ru,rv" → clone), oldest first
+
+export function sharedRepeat(tx, ru, rv) {
+  if (!tx || (tx.repeat.x === ru && tx.repeat.y === rv)) return tx;
+  var byRepeat = repeatClones.get(tx);
+  if (!byRepeat) repeatClones.set(tx, (byRepeat = new Map()));
+  var key = ru + "," + rv,
+    c = byRepeat.get(key);
+  if (c) byRepeat.delete(key);
+  else {
+    c = tx.clone();
+    c.repeat.set(ru, rv);
+    if (byRepeat.size >= REPEAT_KEEP) byRepeat.delete(byRepeat.keys().next().value);
+  }
+  byRepeat.set(key, c);
   return c;
 }
+
+var repeated = sharedRepeat;
 
 /**
  * Put an entry's maps on an existing MeshStandardMaterial / MeshPhysicalMaterial.
@@ -186,7 +255,12 @@ export function pbrSurfaceMaterial(entry, o) {
   o = o || {};
   var T = TSL;
   var rep = o.repeat || [1, 1];
-  var uvNode = T.uv().mul(T.vec2(rep[0], rep[1]));
+  /* Repeat and tint are UNIFORMS, not literals. A literal is part of the
+     shader text, so every surface size (a lawn fitted to the house, a wall
+     finish at its own scale) and every tint compiled its own ~100 KB program
+     — and re-compiled whenever the house bounds moved. As uniforms, all the
+     surfaces of one kind share a single program. */
+  var uvNode = T.uv().mul(T.uniform(new THREE.Vector2(rep[0], rep[1])));
   var anti = o.antiTile != null ? o.antiTile : isOrganic(entry.id);
   var color, normal, orm;
   if (anti) {
@@ -201,7 +275,7 @@ export function pbrSurfaceMaterial(entry, o) {
   }
   var physical = (entry.kind === "clearcoat" || entry.kind === "polished") && THREE.MeshPhysicalNodeMaterial;
   var mat = physical ? new THREE.MeshPhysicalNodeMaterial() : new THREE.MeshStandardNodeMaterial();
-  var tint = T.color(o.tint != null ? o.tint : 0xffffff);
+  var tint = T.uniform(new THREE.Color(o.tint != null ? o.tint : 0xffffff));
   mat.colorNode = color.rgb.mul(tint);
   mat.normalNode = T.normalMap(normal.rgb);
   mat.roughnessNode = orm.g;

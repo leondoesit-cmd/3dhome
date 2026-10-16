@@ -67,10 +67,16 @@ initLayers();
 // apply static translations for the current language before anything renders
 applyStatic();
 
+// Ask the WebGPU adapter whether it is a software rasteriser now, while the
+// plan view boots, so the baked-material tier is settled before the first 3D
+// material asks for it (js/material_tier.js).
+primeGpuTier();
+
 import { addFurnItem } from "./ui.js";
 import { CATALOG } from "./furniture.js";
-import { modelThumb, hasThumb, clearThumbCache, loadThumbCache } from "./thumbs.js";
+import { modelThumb, thumbAsync, hasThumb, clearThumbCache, loadThumbCache } from "./thumbs.js";
 import { escapeHTML } from "./safe.js";
+import { primeGpuTier } from "./material_tier.js";
 
 /* Wire the plan-level constraint layers into every solve, here rather than
    inside wall_constraints.js: both of those modules read wallCons(), so
@@ -86,9 +92,9 @@ let searchQ = ""; // live library filter; non-empty overrides navPath with a fla
 
 // A model tile shows the model itself, rendered off-screen by thumbs.js. That
 // is real WebGL work, so the grid is painted FIRST and the pictures are filled
-// in afterwards, a time-slice per frame: a search that matches 60 pieces shows
-// its 60 labels on the keystroke instead of blocking it on 60 renders. Renders
-// are memoized by type, so a category you come back to fills in instantly.
+// in afterwards, asynchronously: a search that matches 60 pieces shows its 60
+// labels on the keystroke instead of blocking it on 60 renders. Renders are
+// memoized by type, so a category you come back to fills in instantly.
 function thumbTag(type) {
   if (hasThumb(type)) {
     const url = modelThumb(type);
@@ -124,19 +130,13 @@ async function hydrateThumbs(ui) {
   if (run !== _hydrateRun || !ui.isConnected) return;
   const pending = Array.from(ui.querySelectorAll("[data-thumb]"));
   if (!pending.length) return;
-  const queue = [];
-  let scheduled = false;
-  // setTimeout, not requestAnimationFrame: rAF is suspended while the page is
-  // occluded/backgrounded, which would leave a panel full of blank tiles that
-  // only fill in if the compositor happens to wake up.
-  const step = () => {
-    scheduled = false;
-    if (run !== _hydrateRun) return;
-    const t0 = performance.now();
-    while (queue.length && performance.now() - t0 < 8) {
-      const el = queue.shift(),
-        url = modelThumb(el.dataset.thumb);
-      if (!el.isConnected) continue;
+  // thumbAsync draws a picture the warm-up has not reached yet in short
+  // steps off the critical path (a stored one resolves at once), so asking
+  // for a whole screenful in one go never blocks the panel.
+  const enqueue = (el) => {
+    if (!el || !el.isConnected || !el.dataset.thumb) return;
+    thumbAsync(el.dataset.thumb).then((url) => {
+      if (!el.isConnected || !el.dataset.thumb) return;
       if (url) {
         const img = document.createElement("img");
         img.className = "furn-thumb";
@@ -146,19 +146,7 @@ async function hydrateThumbs(ui) {
       } else {
         el.removeAttribute("data-thumb");
       }
-    }
-    if (queue.length) {
-      scheduled = true;
-      setTimeout(step, 0);
-    }
-  };
-  const enqueue = (el) => {
-    if (!el || !el.isConnected || !el.dataset.thumb) return;
-    queue.push(el);
-    if (!scheduled) {
-      scheduled = true;
-      setTimeout(step, 0);
-    }
+    });
   };
   if (typeof IntersectionObserver === "function") {
     const observer = new IntersectionObserver(
