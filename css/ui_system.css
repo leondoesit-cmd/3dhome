@@ -414,3 +414,114 @@ html body.pro-skin.ps-plan-docked #center-canvas.max-view-3d #view-3d > .hint { 
    With no pointer over the plan (and always in 3D) it printed a lone "—". It
    keeps its width so the drafting aids do not jump when the pointer arrives. */
 html body:is(.pro-skin, .pro-compact) #cad-status #cadCoord.is-empty { visibility: hidden; }
+
+/* ---- 10. the plan's floating controls ----------------------------------------------
+   2D now wears the 3D view's corners: top-left says WHERE you are (floor
+   track, layers chip under it); top-right is how you SEE it (plan style,
+   maximise, the orientation gizmo under them); the right edge is the
+   workflow column. Before, the style button sat alone in the bottom-left
+   (styles.css parks it there for a plan tool strip pro-skin never shows),
+   the maximise button and gizmo each sat on a square dock card, and
+   pro_skin.css drew the floor track as a radius-16 pill and the column as a
+   radius-12 card with !important or stronger selectors than section 6. */
+/* floors: the same track in 2D and 3D. styles.css forces 38px in 3D. */
+html body.pro-skin #center-canvas #plan-tools .pt-panel[data-panel="floors"] {
+  height: auto !important;
+  min-height: 0 !important;
+}
+html body.pro-skin #center-canvas #floor-tabs {
+  height: 32px !important;
+  min-height: 0 !important;
+  padding: 3px !important;
+  border-radius: var(--ui-r) !important;
+  background: var(--ui-float-bg) !important;
+  box-shadow: var(--ui-float-ring) !important;
+}
+/* the maximise button and the gizmo draw their own shapes (a square, a
+   disc); the free dock card behind them showed as a second outline */
+html body.pro-skin #view-2d #plan-tools .pt-panel.pt-free:is([data-panel="max"], [data-panel="gizmo"]) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* the plan gizmo has no disc of its own: it gets the 3D gizmo's round shape */
+html body.pro-skin #view-2d #plan-tools .pt-panel.pt-free[data-panel="gizmo"] {
+  border-radius: 50%;
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+}
+/* plan style: back beside maximise, its twin, as styles.css first had it */
+html body.pro-skin #view-2d > .plan-style-btn,
+html body.pro-skin #view-2d.plan-tools-compact > .plan-style-btn {
+  top: calc(12px + var(--plan-corner-lift, 0px));
+  bottom: auto;
+  inset-inline-start: auto;
+  inset-inline-end: 52px;
+}
+html body.pro-skin #view-2d :is(.plan-style-btn, .view-max-btn) {
+  color: var(--text-main);
+  backdrop-filter: none;
+}
+/* hover was solid accent and so was "presentation on": the shared states */
+html body.pro-skin #view-2d :is(.plan-style-btn, .view-max-btn):hover {
+  background: linear-gradient(var(--btn-bg-hover), var(--btn-bg-hover)), var(--ui-float-bg);
+  color: var(--text-main);
+}
+html body.pro-skin #view-2d .plan-style-btn[aria-pressed="true"] {
+  background: linear-gradient(var(--ui-on-bg), var(--ui-on-bg)), var(--ui-float-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring), var(--ui-float-ring);
+}
+/* the workflow column: units | fit, layers, drawing space | done. Its top
+   is pinned rather than centred, so Done and the opening fields appearing
+   grow it downward instead of sliding the buttons under the pointer. */
+html body.pro-skin #center-canvas > #planner-workflow {
+  top: calc(50% - 68px);
+  transform: none;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--ui-r);
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+}
+html body.pro-skin #center-canvas > #planner-workflow > button {
+  width: var(--ui-h);
+  height: var(--ui-h);
+  min-height: var(--ui-h);
+  border-radius: var(--ui-r-sm);
+  color: var(--text-main);
+}
+html body.pro-skin #center-canvas > #planner-workflow > button:hover { background: var(--btn-bg-hover); }
+html body.pro-skin #center-canvas > #planner-workflow > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+html body.pro-skin #center-canvas > #planner-workflow > button[aria-pressed="true"] {
+  background: var(--ui-on-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring);
+}
+html body.pro-skin #center-canvas > #planner-workflow > :is(#workflowFit, #workflowDone) {
+  position: relative;
+  margin-top: 5px;
+}
+html body.pro-skin #center-canvas > #planner-workflow > :is(#workflowFit, #workflowDone)::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 6px;
+  right: 6px;
+  height: 1px;
+  background: var(--border-color);
+  pointer-events: none;
+}
+/* "Done placing" only exists while a tool is armed: a greyed check on an
+   icon-only column read as a broken button. When it shows it is the one
+   thing to do, so it is the primary. */
+html body.pro-skin #center-canvas > #planner-workflow > #workflowDone:disabled { display: none; }
+html body.pro-skin #center-canvas > #planner-workflow > #workflowDone:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+html body.pro-skin #center-canvas > #planner-workflow > #workflowDone:not(:disabled):hover {
+  background: color-mix(in srgb, var(--accent) 86%, #000);
+}
