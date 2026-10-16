@@ -790,7 +790,67 @@ function buildSiteDressing(streetView) {
 function cutH() {
   var game = typeof document !== "undefined" && document.body &&
     /(^| )(lava-on|zombies-on|rc-playing)( |$)/.test(document.body.className);
+  if (buildingShadowWalls) return Infinity;
   return cutHeightFor(S.cutaway, { walk: walk, game: game });
+}
+
+/* ---- shadow-only geometry ----
+   What the view takes away so you can see in (the walls above the dollhouse
+   cut, the near walls in edit view, the ceilings and roof over a cut house, an
+   "invisible" roof) is still part of the building, so it must still stop the
+   sun. Hiding it outright let daylight pour straight down onto every floor.
+   Those pieces live on in `shadowRoot` on a layer the view camera (and every
+   raycast) skips but the sun's shadow camera renders, with no userData of
+   their own, so selection, physics, the drawing overlay and export never see
+   them. */
+var SHADOW_ONLY_LAYER = 5;
+var shadowRoot = null;
+var buildingShadowWalls = false; // cutH() reports no cut while the full-height shadow walls build
+var shadowStandIns = new WeakMap(); // wall group -> its shadow-only copy (see-through walls)
+function makeShadowOnly(o) {
+  o.traverse(function (n) {
+    n.layers.set(SHADOW_ONLY_LAYER);
+    n.userData = {};
+    if (n.isMesh) n.receiveShadow = false;
+  });
+  return o;
+}
+/* A shadow-only copy sharing the source's geometry and materials. Built by
+   hand rather than with clone(): clone() JSON-copies userData, which on door
+   and opening groups holds live objects. */
+function shadowCopy(src) {
+  var out = src.isMesh ? new THREE.Mesh(src.geometry, src.material) : new THREE.Group();
+  out.position.copy(src.position);
+  out.quaternion.copy(src.quaternion);
+  out.scale.copy(src.scale);
+  if (src.isMesh) out.castShadow = src.castShadow;
+  src.children.forEach(function (c) {
+    if (c.visible !== false) out.add(shadowCopy(c));
+  });
+  return out;
+}
+/* Rebuild the walls a dollhouse cut lowered at their full height, into
+   shadowRoot. The builders add straight to structureRoot and register door
+   pivots, so both are redirected for the duration. */
+function buildShadowWalls(hid) {
+  var keepRoot = structureRoot, doorCount = scene.doors ? scene.doors.length : 0;
+  var tmp = new THREE.Group();
+  structureRoot = tmp;
+  buildingShadowWalls = true;
+  try {
+    S.walls.forEach(function (w) {
+      if (hid.walls[w.id] || !(w.height > cutH0())) return;
+      buildWall(w, WALLC, null);
+    });
+  } finally {
+    buildingShadowWalls = false;
+    structureRoot = keepRoot;
+    if (scene.doors) scene.doors.length = doorCount;
+  }
+  tmp.children.slice().forEach(function (g) { shadowRoot.add(makeShadowOnly(g)); });
+}
+function cutH0() {
+  return cutHeightFor(S.cutaway, { walk: false, game: false });
 }
 function relMatrix(obj, root) {
   var m = new THREE.Matrix4();
@@ -2383,6 +2443,11 @@ export function rebuild3D() {
   clearGroup(dyn); // takes the previous structureRoot and mepRoot with it
   structureRoot = new THREE.Group();
   mepRoot = new THREE.Group();
+  shadowRoot = new THREE.Group();
+  shadowRoot.userData.physicsRole = "ignore";
+  shadowRoot.userData.exportSkip = true;
+  shadowStandIns = new WeakMap();
+  dyn.add(shadowRoot);
   /* Which layer each root IS, as data rather than as a module-local variable.
      js/blender_export.js walks `dyn` from the outside and has to know where the
      three roots end and the individual walls, slabs and pieces begin; matching
@@ -2676,13 +2741,14 @@ export function rebuild3D() {
         jm.userData.role = "jamb";
         structureRoot.add(jm);
       });
-      // Cover passage bridges as well as the enclosed rooms.
-      if (S.showCeiling || xrayCeiling || S.invisibleRoof) {
+      // Cover passage bridges as well as the enclosed rooms. Built even with
+      // ceilings off (at opacity 0, like the rooms'): it still shades the floor.
+      {
         var cMat = plannerCeilingMaterial(xrayCeiling);
         var cm = polyMesh(pts, jH, 160, cMat);
         if (cm) {
           cm.receiveShadow = S.showCeiling && !xrayCeiling;
-          cm.castShadow = !!S.invisibleRoof || (S.showCeiling && !xrayCeiling);
+          cm.castShadow = !xrayCeiling;
           cm.userData.role = S.showCeiling || xrayCeiling ? "ceiling" : "ceilingHidden";
           structureRoot.add(cm);
         }
@@ -2697,7 +2763,8 @@ export function rebuild3D() {
          cut until stacked storeys render together. */
       var m = polyMesh(r.pts, r.ceilH, 160, rmat);
       if (m) {
-        m.castShadow = !!S.invisibleRoof || (S.showCeiling && !xrayCeiling);
+        // hidden or not, the ceiling is what keeps the noon sun off the floor
+        m.castShadow = !xrayCeiling;
         m.receiveShadow = S.showCeiling && !xrayCeiling;
         /* With ceilings switched off this slab is still built, at opacity 0, so
            the room keeps a surface for rays and physics. Say so, rather than
@@ -2786,7 +2853,10 @@ export function rebuild3D() {
     if (hid.walls[w.id]) return;
     buildWall(w, wallColorMap[w.id] != null ? wallColorMap[w.id] : S.wallColor, w.tex);
   });
-  if (S.roof && !S.invisibleRoof) {
+  // the walls a dollhouse cut lowered still throw their full-height shadows
+  if (isFinite(cutH())) buildShadowWalls(hid);
+  // an invisible roof is still built, as a shadow caster only
+  if (S.roof) {
     var roofTriangles = roofMeshTriangles(S.roof), roofPositions = [];
     roofTriangles.forEach(function (triangle) { triangle.forEach(function (p) { roofPositions.push(p.x, p.y, p.z); }); });
     if (roofPositions.length) {
@@ -2800,7 +2870,8 @@ export function rebuild3D() {
       roofMesh.castShadow = true;
       roofMesh.receiveShadow = true;
       roofMesh.userData.role = "roof";
-      structureRoot.add(roofMesh);
+      if (S.invisibleRoof) shadowRoot.add(makeShadowOnly(roofMesh));
+      else structureRoot.add(roofMesh);
     }
   }
   // daylight through each WINDOW (soft sky light at the opening, scaled by daylight)
@@ -2860,10 +2931,14 @@ export function rebuild3D() {
     initPhysicsForScene();
   }
   applySite(); // reposition the aerial overlay for the new content bounds
-  // a cut house has no ceiling to look down through
+  // a cut house has no ceiling to look down through, but its rooms are still
+  // roofed against the sun: the ceilings and roof go shadow-only
   if (isFinite(cutH()))
-    structureRoot.traverse(function (o) {
-      if (o.userData && (o.userData.role === "ceiling" || o.userData.role === "roof")) o.visible = false;
+    structureRoot.children.filter(function (o) {
+      return o.userData && (o.userData.role === "ceiling" || o.userData.role === "roof");
+    }).forEach(function (o) {
+      if (o.castShadow) shadowRoot.add(makeShadowOnly(o));
+      else o.visible = false;
     });
   // external modes (RC race) rebuild their collision snapshot off this event
   updateSeeThrough(); // the wall groups are brand new: re-apply the dollhouse cut
@@ -3044,6 +3119,8 @@ function updateSeeThrough() {
       if (g.userData.seeThrough) {
         g.userData.seeThrough = false;
         g.visible = true;
+        var shown = shadowStandIns.get(g);
+        if (shown) shown.visible = false;
         changed = true;
       }
       return;
@@ -3068,6 +3145,14 @@ function updateSeeThrough() {
     if (g.userData.seeThrough !== between || g.visible === between) changed = true;
     g.userData.seeThrough = between;
     g.visible = !between;
+    // the wall stepped out of the view, not out of the sunlight
+    var standIn = shadowStandIns.get(g);
+    if (between && !standIn && shadowRoot) {
+      standIn = makeShadowOnly(shadowCopy(g));
+      shadowStandIns.set(g, standIn);
+      shadowRoot.add(standIn);
+    }
+    if (standIn) standIn.visible = between;
   });
   /* Visibility is a render input just like camera position. toggleEdit3D()
      calls this directly, outside upd(), so without this wake-up the cutaway
@@ -3841,9 +3926,9 @@ export function applyEnv() {
   // refresh image-based lighting to match the new sky (ground tone darkens at night)
   updateEnvMap(zen, hor, on ? "3a3d30" : "0a0d14",
     new THREE.Vector3(dx, dy, dz).normalize(), sun.color, on ? dk : 0);
-  // a dollhouse view looks straight down at sunlit floors, with no ceiling
-  // shading them: expose for that rather than for a room seen from inside
-  renderer.toneMappingExposure = on ? (isFinite(cutH()) ? 0.9 : 1.12) : 0.95;
+  // a dollhouse view keeps its ceilings and full-height walls as shadow
+  // casters (see shadowRoot), so its rooms are lit like rooms seen from inside
+  renderer.toneMappingExposure = on ? 1.12 : 0.95;
   S.artK = on ? 0.12 + 0.55 * (1 - dk) : 1.0;
   dyn.traverse(function (o) {
     if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) {
@@ -4527,6 +4612,9 @@ function build3D() {
   // the proud baseboard/door-frame trim (0.8–1.3cm) needs extra clearance.
   sun.shadow.normalBias = 3.5;
   sun.shadow.radius = 6; // penumbra width; needs PCFSoftShadowMap to have any effect
+  // the sun also sees what the view hides (see shadowRoot); a mask beyond
+  // layer 0 stops the shadow camera inheriting the view camera's layers
+  sun.shadow.camera.layers.enable(SHADOW_ONLY_LAYER);
   scene.add(sun);
   scene.add(sun.target);
   flt = new THREE.DirectionalLight(0xeaf0ff, LUX * 0.26);
