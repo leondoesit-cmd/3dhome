@@ -64,9 +64,10 @@ test('hole wizard cuts exact blind, through, stepped and countersunk holes witho
  for(const params of [
   {holeType:'simple',diameter:1,depth:2,endCondition:'blind'},
   {holeType:'simple',diameter:1,depth:.1,endCondition:'through-all'},
-  // Offset is measured along the pull direction: -10 places the reverse
-  // cutter at the upper Y10 face before it drills back into the stock.
-  {holeType:'simple',diameter:1,depth:2,endCondition:'blind',direction:'reverse',offset:-10},
+  // Offset is signed along the sketch normal whatever the cut direction
+  // (see hole_start_offset): +10 places the reverse cutter at the upper Y10
+  // face before it drills back into the stock.
+  {holeType:'simple',diameter:1,depth:2,endCondition:'blind',direction:'reverse',offset:10},
   {holeType:'counterbore',diameter:1,depth:2,endCondition:'blind',cboreDiameter:2,cboreDepth:1},
   {holeType:'countersink',diameter:1,depth:2,endCondition:'blind',csinkDiameter:2,csinkAngle:90},
  ]){
