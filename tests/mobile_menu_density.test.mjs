@@ -1,8 +1,12 @@
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile as readRaw } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
+
+// Git may check sources out with CRLF (core.autocrlf); the block patterns below
+// are written against LF, so read every source with its line endings normalized.
+const readFile = async (url, encoding) => (await readRaw(url, encoding)).replace(/\r\n/g, "\n");
 
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 const planner = await readFile(new URL("../js/mobile_shell.js", import.meta.url), "utf8");

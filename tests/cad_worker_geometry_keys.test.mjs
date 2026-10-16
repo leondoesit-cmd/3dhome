@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {cadWorkerGeometryKeys} from '../js/core/cad_worker_runtime.js';
+import {nativeOperationRevisions} from '../js/core/native_operation_revision.js';
 import {stableStringify} from '../js/core/dependency_graph.js';
 
 test('worker Shell cache tolerates saved attached-frame roundoff but tracks driving edits',()=>{
@@ -99,7 +100,9 @@ test('native operation revisions invalidate changed algorithms only from their f
  assert.equal(keys.get('shell').includes('kernelRevision'),false);
  assert.ok(keys.get('blend').includes('supported-corner-repair-3'));
  assert.ok(keys.get('web').includes('supported-corner-repair-3'));
- assert.ok(keys.get('web').includes('parallel-draft-1'));
+ // a rib algorithm bump (parallel-draft-1 -> parallel-section-delta-2) expires its own key
+ assert.ok(keys.get('web').includes(nativeOperationRevisions.rib));
+ assert.equal(keys.get('web').includes('parallel-draft-1'),false,'a superseded rib revision cannot keep its cache');
 });
 
 test('canonical union transport preserves serialized union keys but invalidates changed downstream corner fillings',()=>{

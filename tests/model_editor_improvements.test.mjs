@@ -155,7 +155,10 @@ test("a flashed message survives the refresh that follows it", () => {
   assert.match(code, /var hold = holdMs \|\| FLASH_MS;[\s\S]{0,120}E\.flashUntil = Date\.now\(\) \+ hold/);
   assert.match(code, /function flashHolding\(\) \{\s*return !!\(E\.flashUntil && Date\.now\(\) < E\.flashUntil\);/);
   const hint = code.slice(code.indexOf("function syncHint("));
-  assert.match(hint.slice(0, 260), /if \(flashHolding\(\)\) return;/);
+  // the guard must run before syncHint writes any text into #mdHint
+  const guard = hint.search(/if \(flashHolding\(\)\) return;/);
+  assert.ok(guard > 0, "syncHint yields to a held flash");
+  assert.ok(guard < hint.search(/hint\.(textContent|innerHTML)\s*=/), "the flash guard precedes the first hint write");
   // and the ordering workaround that used to paper over it is gone
   assert.match(code, /if \(why\) flash\(why\);\s*refreshAll\(\);/);
 });

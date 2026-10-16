@@ -31,6 +31,7 @@ test('actual point-only Hole positioning sketch renders geometry and edits coord
  const start=source.indexOf('      host.appendChild(btn("Set point coordinates"'),end=source.indexOf('      host.appendChild(btn("Pierce curve"',start);
  const editorContext={...context,host,sketch,selPoints:()=>E.ssel,openQuickForm:form=>{quick=form;},pushUndo:label=>H.push(label),cloneData:structuredClone,uid:()=> 'new-fixed',
   resolveSketch:()=>{const result=solveSketch(sketch);return result.status==='fully-constrained';},refreshAll:()=>refreshes++,H};
+ editorContext.openSketchPointCoordinates=new Function(...Object.keys(editorContext),sourceFunctionText(source,'openSketchPointCoordinates')+';return openSketchPointCoordinates;')(...Object.values(editorContext));
  new Function(...Object.keys(editorContext),source.slice(start,end))(...Object.values(editorContext));
  host.children.at(-1).click();assert.equal(quick.title,'Point coordinates');
  const before=JSON.stringify(sketch);assert.equal(quick.onApply({x:NaN,y:0}),false);assert.equal(JSON.stringify(sketch),before);

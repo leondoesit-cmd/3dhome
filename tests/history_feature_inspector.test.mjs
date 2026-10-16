@@ -15,7 +15,7 @@ function harness(part) {
     el:(tag,cls,text)=>({tag,cls,text,children:[],appendChild(node){this.children.push(node);}}),
     btn:(text,click)=>({text,click}),openFeatureEditor:feature=>{context.opened=feature;},
     refreshAll(){},cutTargetFeatureId:p=>p.head};
-  for(const name of ['topologySelectionFeature','inspectorHistoryFeature','fillShape','selectTreeNode']) {
+  for(const name of ['partBelongsToFeature','partsForFeature','topologySelectionFeature','inspectorHistoryFeature','fillShape','selectTreeNode']) {
     context[name]=Function(...Object.keys(context),'return ('+sourceFunctionText(source,name)+')')(...Object.values(context));
   }
   return {E,host,context,hole,base};

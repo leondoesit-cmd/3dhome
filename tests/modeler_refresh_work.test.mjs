@@ -7,7 +7,7 @@ import { sourceFunctionText } from './helpers/source_function.mjs';
 const source = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
 function refreshFixture() {
   const work = { solves: 0, builds: 0, selections: 0, supportSyncs: 0, historySyncs: 0 }, E = { mode: '3d', docType: 'assembly', assembly: { components: [] } };
-  const context = { E, assemblySolveFresh: false, assemblyPreviewSolved: false, coreRunFresh: false, histPanel: null,
+  const context = { E, root: null, assemblySolveFresh: false, assemblyPreviewSolved: false, coreRunFresh: false, histPanel: null,
     applyAssemblyMates() { work.solves++; }, syncFaceSupportedSketchFrames() { work.supportSyncs++; },
     isCanonicalAuthoring: () => false, syncPreviewFromHistory() { work.historySyncs++; },
     refreshViewportSelection() { work.selections++; }, addExplodeLeaders() {}, addInterferenceVisuals() {},
