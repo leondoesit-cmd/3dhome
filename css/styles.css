@@ -792,7 +792,13 @@ button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Paint only, never size. `all` eased every button's height, width and
+     padding, so whatever measured a button right after a size change (the
+     ribbon and dock fitting, a layout switch, a test) read the size it was
+     leaving, and in a page that is not painting the ease never ran at all. */
+  transition-property: background-color, color, border-color, box-shadow, opacity, transform, filter, outline-color;
+  transition-duration: 0.2s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   box-shadow: var(--shadow-sm);
 }
@@ -801,7 +807,7 @@ button i {
   font-size: 1.2rem;
   color: inherit;
   opacity: 0.8;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 
 button:hover {
