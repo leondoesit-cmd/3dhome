@@ -525,3 +525,28 @@ html body.pro-skin #center-canvas > #planner-workflow > #workflowDone:not(:disab
 html body.pro-skin #center-canvas > #planner-workflow > #workflowDone:not(:disabled):hover {
   background: color-mix(in srgb, var(--accent) 86%, #000);
 }
+
+/* ---- 11. big touch screens: the desktop layout, finger-sized -----------------
+   An iPad Pro in landscape (1366x1024) or a Surface is too big for the
+   compact chrome, so it keeps the ribbon and the panels (js/chrome_posture.js
+   touchDesk). It used to keep their mouse sizes too: 30px buttons, 26px tabs
+   and menu rows. Same layout, the compact layouts' token heights, and every
+   menu row and tab at least 44px. The pane hints already switch to their touch
+   wording off the pointer (js/mobile_shell.js applyTouchHints). */
+html body.touch-desk:is(.pro-skin, .pro-compact) {
+  --ui-h-sm: 32px;
+  --ui-h: 40px;
+}
+html body.touch-desk .pr-bar { height: 44px; }
+html body.touch-desk .pr-tab { min-height: 44px; }
+html body.touch-desk.pro-skin .pr-editor-ribbon .pr-items,
+html body.touch-desk.pro-skin .pr-editor-ribbon.pr-dense .pr-items { grid-template-rows: repeat(2, 40px); gap: 3px; }
+html body.touch-desk.pro-skin .pr-editor-ribbon .pr-tool,
+html body.touch-desk.pro-skin .pr-editor-ribbon.pr-dense .pr-tool,
+html body.touch-desk.pro-skin .pr-editor-ribbon .pr-items > .pr-fold-more { height: 40px; }
+html body.touch-desk .pr-menu-item,
+html body.touch-desk .dropdown-menu :is(button, [role="menuitem"]),
+html body.touch-desk .pr-every-panel .pe-tools button { min-height: 44px; }
+html body.touch-desk .pr-every-panel .pe-editors button,
+html body.touch-desk .pr-every-panel .pe-x { min-height: 40px; min-width: 40px; }
+html body.touch-desk #topbar :is(button, .dd-btn) { min-height: 40px; }

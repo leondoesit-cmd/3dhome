@@ -117,7 +117,10 @@ test("closing your own loop gets the touch reach that picking already had", () =
 });
 
 test("the tool finder gets a door in the thumb zone", () => {
-  assert.match(shell, /m_more_find[\s\S]*?toolSearchInput[\s\S]*?input\.focus\(\)/);
+  // More → Find a tool opens the tools sheet on its search, the same ranked
+  // search of all three editors as the sheet's own field and Ctrl+K
+  assert.match(shell, /m_more_find[\s\S]*?setTimeout\(findTool/);
+  assert.match(shell, /function findTool\(\) \{[\s\S]*?showSheet\("tools"\)[\s\S]*?\.pro-sheet-search input[\s\S]*?input\.focus\(\)/);
 });
 
 test("every new mobile label is translated in both languages", () => {

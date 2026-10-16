@@ -324,6 +324,7 @@ export default {
   m_more_settings: "Help & settings",
   m_more_project: "Project",
   m_more_extras: "Advanced tools & extras",
+  m_more_need_sel: "Select something on the plan to duplicate, group or delete it.",
   mcoach_room_done: "Room created. Tip: tap with two fingers anywhere to undo.",
   mcoach_add_door: "Add a door",
   mcoach_opening_done: "The opening is ready. Add your first piece of furniture.",

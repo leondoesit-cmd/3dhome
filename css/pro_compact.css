@@ -4,7 +4,7 @@
    plan, the model or the cabinet. Loaded after css/pro_skin.css. */
 
 /* ---- what goes: the strip rows, the permanent command bar, the old grid --- */
-body.pro-compact { --m-editor-strip: 0px; --ps-dock-h: 52px; --mobile-nav-block: env(safe-area-inset-bottom, 0px); --m-ctx-block: var(--ps-dock-h); }
+body.pro-compact { --m-editor-strip: 0px; --ps-dock-h: 56px; --mobile-nav-block: env(safe-area-inset-bottom, 0px); --m-ctx-block: var(--ps-dock-h); }
 body.pro-compact.md-open { --m-ctx-block: var(--ps-dock-h); }
 /* a fold floats the toolbar on the drawing, as it did the bar: nothing to reserve */
 body.pro-compact.dock-rail, body.pro-compact.dock-rail.md-open { --mobile-nav-block: 0px; --m-ctx-block: 0px; }
@@ -158,6 +158,38 @@ body.pro-compact.zombies-on .ps-dock, body.pro-compact.lava-on .ps-dock { displa
 .ps-dock-ask .ps-ask-glyph { width: 25px; height: 25px; }
 body.ps-ask-open .ps-dock-ask { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--on-accent, #fff) 55%, transparent); }
 .ps-dock-slot { flex: 1 1 auto; min-width: 0; display: flex; border-inline: 1px solid var(--border-color); margin-inline: 2px; }
+/* the two browsers name themselves under their icons */
+.ps-dock > :is(.ps-dock-grid, .ps-dock-browse) { flex-direction: column; gap: 1px; width: 50px; font-size: 19px; }
+.ps-dock .ps-cap { font-size: max(11px, var(--fs-floor, 0px)); font-weight: 600; line-height: 1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-measuring, .ps-measuring * { transition: none !important; }
+/* the verbs that do not fit sit out (js/pro_compact.js fitDockRow) for More */
+/* (the class repeats to outrank the rows' own display: flex !important, whose
+   selector carries an id and five classes) */
+body.pro-compact .ps-dock .ps-ctx-over,
+html body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) > .ps-ctx-over.ps-ctx-over.ps-ctx-over.ps-ctx-over { display: none !important; }
+.ps-dock-more {
+  flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 50px; padding: 0 6px; border: 0; border-radius: 10px; background: transparent; color: var(--text-main);
+  font: inherit; font-size: 12px; font-weight: 600; line-height: 1.1; cursor: pointer;
+}
+.ps-dock-more[hidden] { display: none; }
+.ps-dock-more i { font-size: 19px; }
+.ps-dock-more[aria-expanded="true"] { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); }
+.ps-dock-menu {
+  position: fixed; z-index: 460; display: flex; flex-direction: column; min-width: 200px; max-width: calc(100vw - 12px);
+  max-height: 60vh; overflow-y: auto; padding: 4px; border-radius: var(--ui-r-lg, 12px);
+  background: var(--pro-surface, var(--bg-panel)); color: var(--text-main);
+  box-shadow: 0 0 0 1px var(--border-color), 0 10px 28px rgba(0, 0, 0, 0.24);
+}
+.ps-dock-menu > button {
+  display: flex; align-items: center; justify-content: flex-start; gap: 12px; width: 100%; min-height: 46px; padding: 0 12px; border: 0; border-radius: var(--ui-r, 8px);
+  background: transparent; color: inherit; font: inherit; font-size: 14px; font-weight: 500; text-align: start; cursor: pointer;
+}
+.ps-dock-menu > button :is(i, svg) { font-size: 20px; width: 20px; height: 20px; flex: none; }
+.ps-dock-menu > button:active, .ps-dock-menu > button:focus-visible { background: var(--btn-bg); outline: none; }
+.ps-dock-menu > button.on { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); }
+.ps-dock-menu > button.danger { color: var(--danger, #dc2626); }
+.ps-dock-menu > button:disabled { opacity: 0.45; }
 /* the editors' context rows, moved in whole: one row that scrolls sideways */
 body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) {
   position: static !important; display: flex !important; flex: 1 1 auto; flex-wrap: nowrap !important; align-items: stretch; align-content: stretch;
@@ -396,3 +428,10 @@ body.pro-skin.ps-layers-open .pt-panel > #layer-chips,
 body.pro-skin.ps-layers-open .pt-panel[data-panel="layers"] { display: flex !important; }
 /* in 3D the layers ride on the top edge's zone: a card, not a band across the view */
 body.pro-skin.ps-layers-open #view-3d .pt-panel[data-panel="layers"] { width: 240px !important; max-width: 240px !important; align-self: flex-start; border-radius: 12px; box-shadow: var(--shadow-md), 0 0 0 1px var(--border-color); }
+
+/* ---- More sheet: why a verb is greyed, and Reset all on its own ------------- */
+#m-sheet .m-list-note { margin: 2px 4px 6px; font-size: 12px; line-height: 1.35; color: var(--text-muted); }
+#m-sheet .m-more-danger { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+/* a verb that needs a selection reads as unavailable, not as a broken button */
+#m-sheet .m-list-btn:disabled { opacity: 0.42; cursor: default; }
+#m-sheet .m-list-btn.danger:disabled, #m-sheet .m-list-btn.danger:disabled i { color: var(--text-muted); }

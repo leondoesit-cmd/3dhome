@@ -1233,11 +1233,20 @@ function appendMenuGroup(title, menu, options) {
   }
   var list = document.createElement("div");
   list.className = "m-list";
+  var noSel = !selKind(), greyed = 0;
   menu.querySelectorAll("button[data-act]").forEach(function (src) {
     var act = src.getAttribute("data-act");
     if ((options.exclude || []).indexOf(act) >= 0) return;
-    list.appendChild(clonedAction(src));
+    var b = clonedAction(src);
+    if (noSel && (options.needSel || []).indexOf(act) >= 0) { b.disabled = true; greyed++; }
+    list.appendChild(b);
   });
+  if (greyed) {
+    var note = document.createElement("p");
+    note.className = "m-list-note";
+    note.textContent = t("m_more_need_sel");
+    host.appendChild(note);
+  }
   if (options.append) options.append.forEach(function (src) {
     if (src) list.appendChild(clonedAction(src));
   });
@@ -1264,6 +1273,15 @@ function quickAction(id) {
     src.click();
   });
   return b;
+}
+
+/* Open the tools sheet on its search field (More → Find a tool, Ctrl+K). */
+function findTool() {
+  if (openSheet !== "tools") showSheet("tools");
+  if (!sheetBody) return;
+  sheetBody.scrollTop = 0;
+  var input = sheetBody.querySelector(".pro-sheet-search input");
+  if (input) { input.focus(); input.select(); }
 }
 
 function buildMoreSheet() {
@@ -1321,22 +1339,42 @@ function buildMoreSheet() {
     '<i class="ph ph-caret-right"></i>';
   find.querySelector("strong").textContent = t("m_more_find");
   find.querySelector("small").textContent = t("m_more_find_desc");
+  /* The same search as the tools sheet's own field: every tool of all three
+     editors, ranked (js/pro_catalog.js matchTools). It used to open the top
+     bar's older search, a second index with different answers. */
   find.addEventListener("click", function () {
     closeSheet();
-    setTimeout(function () {
-      var root = $("toolSearch");
-      if (root) {
-        var field = root.querySelector(".tool-search-field");
-        if (field) field.click();
-      }
-      var input = $("toolSearchInput");
-      if (input) {
-        input.focus();
-        input.select();
-      }
-    }, 80);
+    setTimeout(findTool, 80);
   });
   cards.appendChild(find);
+
+  /* Order: what you make (project, export), what you change (edit), how the
+     app behaves (settings), the extras — and Reset all last, alone. It used
+     to sit inside Project between Mobile room scan and Duplicate, one slip
+     from a thumb aimed at either. */
+  var fileMenu = menuByKey("menu_file");
+  var reset = fileMenu && fileMenu.querySelector('[data-act="reset"]');
+  // Save is already promoted in the two-column shortcut group. Listing the
+  // same action again a few rows later makes the project section look like it
+  // has two save scopes when both buttons run the identical command.
+  appendMenuGroup(t("m_more_project"), fileMenu, { exclude: ["reset", "save"] });
+  appendMenuGroup(t("menu_export"), menuByKey("menu_export"));
+  /* Duplicate, Group, Ungroup and Delete act on the selection: with nothing
+     selected they are greyed and say why, rather than doing nothing. */
+  var editOpts = { needSel: ["dupSel", "groupItems", "ungroupItems", "deleteSel"] };
+  /* Round-6: Undo and Redo sit in the header; the edit history, which that
+     layout's header does not show as a dropdown, is here instead. */
+  if (proCompact()) {
+    var hist = document.createElement("button");
+    hist.type = "button";
+    hist.className = "m-list-btn";
+    hist.innerHTML = '<i class="ph ph-clock-counter-clockwise"></i><span></span>';
+    hist.querySelector("span").textContent = t("hist_title");
+    hist.addEventListener("click", function () { closeSheet(); setTimeout(openHistoryPop, 0); });
+    editOpts.exclude = ["undo", "redo"];
+    editOpts.extra = [hist];
+  }
+  appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"), editOpts);
 
   var quickTitle = document.createElement("h5");
   quickTitle.className = "m-sheet-sec";
@@ -1350,24 +1388,6 @@ function buildMoreSheet() {
   });
   if (quick.children.length) sheetBody.appendChild(quick);
 
-  var fileMenu = menuByKey("menu_file");
-  var reset = fileMenu && fileMenu.querySelector('[data-act="reset"]');
-  // Save is already promoted in the two-column shortcut group. Listing the
-  // same action again a few rows later makes the project section look like it
-  // has two save scopes when both buttons run the identical command.
-  appendMenuGroup(t("m_more_project"), fileMenu, { exclude: ["reset", "save"], append: [reset] });
-  /* Round-6: Undo and Redo sit in the header; the edit history, which that
-     layout's header does not show as a dropdown, is here instead. */
-  if (proCompact()) {
-    var hist = document.createElement("button");
-    hist.type = "button";
-    hist.className = "m-list-btn";
-    hist.innerHTML = '<i class="ph ph-clock-counter-clockwise"></i><span></span>';
-    hist.querySelector("span").textContent = t("hist_title");
-    hist.addEventListener("click", function () { closeSheet(); setTimeout(openHistoryPop, 0); });
-    appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"), { exclude: ["undo", "redo"], extra: [hist] });
-  } else appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"));
-  appendMenuGroup(t("menu_export"), menuByKey("menu_export"));
   /* RC / Night Shift / lava are games. The planner More sheet keeps Walk
      (first-person tour), Photo, Model Editor and textures — the extras that
      still belong to designing the house. */
@@ -1375,6 +1395,12 @@ function buildMoreSheet() {
     collapsed: true,
     exclude: ["rc", "zombies", "lava", "openModeler", "uikitCustomize", "friends", "agent"],
   });
+  if (reset) {
+    var danger = document.createElement("div");
+    danger.className = "m-list m-more-danger";
+    danger.appendChild(clonedAction(reset));
+    sheetBody.appendChild(danger);
+  }
 }
 // Topbar menus are portaled to <body> when first opened (the glass topbar
 // clips fixed children), so a dropdown may no longer hold its own menu.
@@ -1594,6 +1620,7 @@ export function initMobileShell() {
   });
   // the Round-6 compact chrome (js/pro_compact.js) opens sheets and names the work
   window.__mobileShowSheet = function (key) { if (openSheet !== key) showSheet(key); };
+  window.__mobileFindTool = findTool;
   window.__plannerHeadTitle = headTitle;
   window.addEventListener("planner-selection", function () {
     requestAnimationFrame(function () {

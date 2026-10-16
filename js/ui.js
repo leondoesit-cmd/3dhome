@@ -3115,6 +3115,7 @@ export function initUI() {
       document.body.classList.remove("posture-ready");
     }
     document.body.classList.toggle("compact-nav", p.compact);
+    if (document.body.classList.contains("touch-desk") !== p.touchDesk) document.body.classList.toggle("touch-desk", p.touchDesk);
     // The floor strip hides itself on a compact layout while there is only one
     // floor; crossing the threshold has to re-ask it, or it stays hidden on a
     // desktop window that was merely narrow a moment ago.

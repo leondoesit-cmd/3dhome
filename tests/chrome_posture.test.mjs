@@ -96,3 +96,18 @@ test("ui.js and main.js drive chrome from chromePosture", async () => {
   assert.doesNotMatch(ui, /w >= 700 && landscape/);
   assert.doesNotMatch(main, /innerWidth <= 768 \|\| \(window\.innerWidth <= 1024/);
 });
+
+/* Big touch screens keep the desktop layout but take touch sizing
+   (body.touch-desk); every compact posture and every mouse window does not. */
+test("touchDesk: only a touch screen too big for the compact chrome", () => {
+  const td = (w, h, touch) => chromePosture(w, h, { touch }).touchDesk;
+  assert.equal(td(1366, 1024, true), true, "iPad Pro landscape");
+  assert.equal(td(1024, 1366, true), false, "iPad Pro portrait is compact (dock rail)");
+  assert.equal(td(1920, 1080, true), true, "touch laptop / Surface");
+  assert.equal(td(1366, 1024, false), false, "same size with a mouse");
+  assert.equal(td(1440, 900, false), false, "laptop");
+  assert.equal(td(1104, 884, true), false, "unfolded Fold is compact, not touchDesk");
+  assert.equal(td(1024, 768, true), false, "tablet landscape is compact");
+  assert.equal(td(390, 844, true), false, "phone");
+  for (const c of CASES) assert.equal(chromePosture(c.w, c.h, { touch: c.touch }).touchDesk && chromePosture(c.w, c.h, { touch: c.touch }).compact, false, c.name + ": never both");
+});

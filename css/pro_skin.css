@@ -212,6 +212,10 @@ body.pro-skin .pr-tool:hover { background: var(--btn-bg); }
 body.pro-skin .pr-tool.on { background: var(--pro-ink); color: var(--pro-on-ink); }
 body.pro-skin .pr-tool.on kbd { color: color-mix(in srgb, var(--pro-on-ink) 70%, transparent); }
 body.pro-skin .pr-glabel { height: 16px; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--pro-faint-text); }
+body.pro-skin .pro-ribbon.pr-dense:not(.pr-editor-ribbon) .pr-tool { width: 54px; padding-inline: 1px; }
+/* whole words: "Rectang-le" read as two */
+body.pro-skin .pro-ribbon.pr-dense:not(.pr-editor-ribbon) .pr-tool span { font-size: max(10px, var(--fs-floor, 0px)); letter-spacing: -0.01em; hyphens: manual; -webkit-hyphens: manual; }
+body.pro-skin :is(.pr-group.pr-g-folded > .pr-fold, .pr-items > .pr-fold-more) { height: 64px; padding-top: 4px; }
 
 /* ---- side panels ---------------------------------------------------------- */
 body.pro-skin #left-sidebar { width: 272px; min-width: 272px; background: var(--pro-surface); border-inline-end: 1px solid var(--border-color); box-shadow: none; }
@@ -520,7 +524,8 @@ body.pro-compact #m-sheet .m-grid-btn.on { background: var(--pro-ink); color: va
 body.pro-compact #m-sheet .m-grid-btn.danger { color: var(--danger, #dc2626); }
 body.pro-compact #m-sheet .m-sheet-head { font-size: 15px; font-weight: 700; }
 body.pro-compact #m-sheet .m-sheet-sec { font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--pro-faint-text); }
-body.pro-compact #m-sheet .pro-sheet-ask { display: none; }
+/* the sheet's field is its tool search now (the AI has the dock's Ask button) */
+body.pro-compact #m-sheet .pro-sheet-ask { display: flex; background: var(--btn-bg); box-shadow: none; }
 body.pro-compact #m-sheet .pro-chip { border: 0; border-radius: 16px; background: var(--btn-bg); color: var(--text-main); box-shadow: none; font-weight: 600; }
 body.pro-compact #m-sheet .pro-chip.on { background: var(--pro-ink); color: var(--pro-on-ink); }
 
@@ -596,6 +601,9 @@ body.pro-compact.m-sheet-open #modeler .md-tour-card { top: calc(var(--md-head-b
   background: var(--btn-bg); color: var(--text-main); font: inherit; font-size: 12px; text-align: start; cursor: pointer;
 }
 .pr-every-panel .pe-tools button:hover { background: var(--accent-soft); color: var(--accent); }
+.pr-every-panel .pe-tools button.pe-active { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); box-shadow: var(--ui-on-ring, none); }
+.pr-every-panel .pe-tools button small { flex: none; font-size: max(10.5px, var(--fs-floor, 0px)); color: var(--pro-faint-text); }
+.pr-every-panel .pe-recent { grid-column: 1 / -1; }
 .pr-every-panel .pe-tools button i { font-size: 15px; color: var(--text-muted); flex: none; }
 .pr-every-panel .pe-tools button span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pr-every-panel .pe-tools button kbd { font: max(10px, var(--fs-floor, 0px)) ui-monospace, Consolas, monospace; color: var(--pro-faint-text); background: none; border: 0; }
@@ -813,11 +821,20 @@ body.pro-skin #modeler .md-rail-row { bottom: 54px; }
 body.pro-skin:not(.compact-nav) #modeler .md-rail-bottom { bottom: 96px; max-height: calc(50% - 98px); }
 body.pro-skin #modeler .md-mid > .md-status > * { white-space: nowrap; flex: none; }
 
-/* a narrower window: the tools take a third row before any fall off the end */
-body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-items { grid-template-rows: repeat(3, 27px); gap: 1px 2px; }
-body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-tool { height: 27px; }
-body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-tool i { font-size: 16px; }
-body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-tool span { font-size: 12px; }
+/* a narrower window (js/ribbon_fit.js): dense takes a third row before any
+   group folds into its drop-down button */
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-items { grid-template-rows: repeat(3, 27px); gap: 1px 2px; }
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-tool { height: 27px; }
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-tool i { font-size: 16px; }
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-tool span { font-size: 12px; }
+/* a folded group fills the rows its tools had */
+body.pro-skin .pr-editor-ribbon .pr-group.pr-g-folded > .pr-fold { flex: 1 1 auto; height: auto; min-height: 62px; min-width: 70px; }
+body.pro-skin .pr-editor-ribbon .pr-fold > span { font-size: 12.5px; }
+/* the "+N" of a split first group is one more cell of the tool grid */
+body.pro-skin .pr-editor-ribbon .pr-items > .pr-fold-more { flex-direction: row; gap: 4px; height: 30px; min-height: 0; min-width: 0; padding: 0 8px; }
+body.pro-skin .pr-editor-ribbon .pr-items > .pr-fold-more > i:first-child { font-size: 17px; }
+body.pro-skin .pr-editor-ribbon .pr-items > .pr-fold-more > span { font-size: 12.5px; }
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-items > .pr-fold-more { height: 27px; }
 
 /* ---- narrow desktop windows (501–1100px) keep this layout ---------------- */
 /* the editors' headers: every piece at its own width, the switcher shortest */

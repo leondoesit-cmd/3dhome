@@ -192,7 +192,7 @@ export const PRO_HE = {
   "Relations": "יחסים", "Parallel": "מקביל", "Perpendicular": "ניצב", "Collinear": "על קו אחד", "Equal length": "אורך שווה", "Horizontal": "אופקי", "Vertical": "אנכי", "Point on wall": "נקודה על קיר", "Symmetric": "סימטרי",
   "Corners": "פינות", "Square to 90°": "ישר ל־90°", "Fillet": "עיגול פינה", "Chamfer": "שיפוע", "Equal spacing": "מרווח שווה", "Pin": "קבע",
   "Solve": "פתרון", "Warnings & DOF": "אזהרות ודרגות חופש", "Repin": "קבע מחדש", "Flip": "הפוך", "Parameters": "פרמטרים",
-  "Interior": "פנים", "Place": "הצבה", "Library": "ספרייה", "Real size": "מידה אמיתית", "Duplicate": "שכפל", "Delete": "מחק",
+  "Interior": "פנים", "Place": "הצבה", "Library": "ספרייה", "Real size": "מידה אמיתית", "Duplicate": "שכפל", "Delete": "מחיקת בחירה",
   "Arrange": "סידור", "Align left": "יישור לשמאל", "Align top": "יישור למעלה", "Distribute": "פיזור", "Face wall": "פנים לקיר", "Group": "קבץ", "Ungroup": "בטל קיבוץ", "Rotate 90°": "סובב 90°",
   "Finish": "גימור", "Textures": "טקסטורות", "Floor texture": "טקסטורת רצפה", "Wall texture": "טקסטורת קיר", "Match floor": "התאם רצפה", "Seamless": "ללא תפר",
   "MEP": "תשתיות", "Networks": "רשתות", "Electrical": "חשמל", "Water": "מים", "Drainage": "ניקוז", "Comms": "תקשורת", "Air con": "מיזוג", "Gas": "גז",
@@ -249,4 +249,42 @@ Object.assign(PRO_HE, {
 /* The label in the UI language; English when a string has no Hebrew yet. */
 export function proLabel(text, lang) {
   return lang === "he" ? PRO_HE[text] || text : text;
+}
+
+/* Every tool that answers a typed query, best first — one matcher for the
+   Every command panel (Ctrl+K), the phone and fold tool search, and the
+   bars' suggestions, so "dim" finds Smart dimension the same way everywhere.
+   A tool's names are its label, its Hebrew label and its aliases. Rank:
+     0 a name IS the query          ("wall")
+     1 a name starts with it        ("wa" → Wall, Wall types)
+     2 a word of a name starts with it ("dim" → Smart dimension)
+     3 a name contains it
+     4 every word of the query is in a name, its group, its tab or its
+       editor ("door plan" → the planner's Door)
+   Ties keep catalog order. Tools with no binding never match. */
+var EDITOR_WORDS = { plan: "Planner Plan", model: "Model editor Model", cab: "Cabinet designer Cabinet" };
+export function matchTools(query, editors) {
+  var q = String(query || "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (!q) return [];
+  var words = q.split(" ");
+  var hits = [];
+  proTools().forEach(function (t, order) {
+    if (!t.bind) return;
+    if (editors && editors.indexOf(t.editor) < 0) return;
+    var names = [t.label, proLabel(t.label, "he")].concat(t.aliases || []).map(function (n) { return String(n).toLowerCase(); });
+    var rank = 9;
+    names.forEach(function (n) {
+      if (n === q) rank = Math.min(rank, 0);
+      else if (n.indexOf(q) === 0) rank = Math.min(rank, 1);
+      else if (n.split(/[\s\-–·/]+/).some(function (w) { return w.indexOf(q) === 0; })) rank = Math.min(rank, 2);
+      else if (n.indexOf(q) >= 0) rank = Math.min(rank, 3);
+    });
+    if (rank > 4) {
+      var hay = names.concat([t.group, proLabel(t.group, "he"), t.tab, proLabel(t.tab, "he"), EDITOR_WORDS[t.editor] || ""]).join(" ").toLowerCase();
+      if (words.every(function (w) { return hay.indexOf(w) >= 0; })) rank = 4;
+    }
+    if (rank <= 4) hits.push({ tool: t, rank: rank, order: order });
+  });
+  hits.sort(function (a, b) { return a.rank - b.rank || a.order - b.order; });
+  return hits.map(function (h) { return h.tool; });
 }

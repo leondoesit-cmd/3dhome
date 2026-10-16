@@ -14,7 +14,7 @@ function fixture(){
   const doc={createElement:()=>node(),querySelector:selector=>selector.includes('data-command="explode"')?command:null,
     querySelectorAll:()=>buttons};
   const context={document:doc,window:{MutationObserver:Observer},MutationObserver:Observer,
-    requestAnimationFrame:callback=>{frame=callback;},L:label=>label,M:key=>key,runProBinding:()=>{},railBindActive:()=>false};
+    requestAnimationFrame:callback=>{frame=callback;},L:label=>label,M:key=>key,runProBinding:()=>{},railBindActive:()=>false,syncFolds:()=>{}};
   const api=new Function(...Object.keys(context),'var ribbon=null;'+['syncModelDocumentRibbon','syncExplodeBinding','toolButton','watchEditorCommandState','syncActive'].map(name=>sourceFunctionText(source,name)).join('\n')+';return {toolButton,watchEditorCommandState,syncActive};')(...Object.values(context));
   return{api,command,document:doc,set buttons(value){buttons=value;},get observer(){return observer;},get options(){return observeOptions;},runFrame(){const callback=frame;frame=null;callback();},node};
 }

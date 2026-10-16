@@ -325,6 +325,7 @@ export default {
   m_more_settings: "עזרה והגדרות",
   m_more_project: "פרויקט",
   m_more_extras: "כלים מתקדמים ותוספות",
+  m_more_need_sel: "בחרו פריט בתוכנית כדי לשכפל, לקבץ או למחוק אותו.",
   mcoach_room_done: "החדר נוצר. טיפ: הקשה בשתי אצבעות מבטלת את הפעולה האחרונה.",
   mcoach_add_door: "הוספת דלת",
   mcoach_opening_done: "הפתח מוכן. עכשיו הוסיפו רהיט ראשון לחדר.",

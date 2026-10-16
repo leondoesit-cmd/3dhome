@@ -8,7 +8,7 @@ test('selecting Evaluate replaces the panel accessible name and selected-tab rel
  const tabs=['Features','Evaluate'].map(()=>({attrs:{},classList:{toggle(){}},setAttribute(key,value){this.attrs[key]=value;}}));
  const panel={attrs:{'aria-label':'Features','aria-labelledby':'pr-tab-model-0'},setAttribute(key,value){this.attrs[key]=value;}};
  const host={querySelectorAll:()=>tabs,querySelector:selector=>selector==='.pr-groups'?panel:{scrollIntoView(){}},classList:{contains:()=>false}};
- const context={PRO_CATALOG:{model:{tabs:[['Features',[]],['Evaluate',[]]]}},L:value=>value,store(){},syncActive(){}};
+ const context={PRO_CATALOG:{model:{tabs:[['Features',[]],['Evaluate',[]]]}},L:value=>value,store(){},syncActive(){},closeFoldMenu(){},foldButton:()=>({}),fitRibbon(){}};
  const fill=new Function(...Object.keys(context),sourceFunctionText(source,'fillRibbon')+';return fillRibbon;')(...Object.values(context));
  fill(host,'model',1,'tabs.model');
  assert.equal(panel.attrs['aria-label'],'Evaluate');assert.equal(panel.attrs['aria-labelledby'],'pr-tab-model-1');

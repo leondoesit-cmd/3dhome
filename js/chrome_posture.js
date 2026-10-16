@@ -26,7 +26,13 @@ export function chromePosture(w, h, opts) {
   /* Cover screens and phones: the stacked split is too cramped. Tablets and
      unfolded inners are not phones, in either orientation. */
   var phone = shortEdge <= 500;
+  /* A touch screen too big for the compact chrome (iPad Pro landscape
+     1366×1024, a Surface) keeps the desktop layout — ribbon, panels — but
+     a finger is not a cursor: its controls get touch-sized targets and its
+     hints stop saying "right-click" (css/ui_system.css, body.touch-desk). */
+  var touchDesk = touch && !compact;
   return {
+    touchDesk: touchDesk,
     compact: compact,
     roomy: roomy,
     phone: phone,
