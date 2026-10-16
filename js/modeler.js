@@ -9706,7 +9706,22 @@ function renderFinishEdgeList() {
     browser.open=browseOpen;
     browser.addEventListener("toggle",function(){host.dataset.edgeBrowserOpen=String(browser.open);});
     browser.appendChild(summary);
-    var choices=el("div","md-edge-browser-choices");
+    var filterBar=el('div','md-edge-browser-filter');
+    var filterInput=el('input','md-edge-browser-search');filterInput.type='search';
+    filterInput.setAttribute('aria-label','Filter edges');filterInput.placeholder='Filter edges · e.g. line 5';
+    filterInput.value=host.dataset.edgeBrowserFilter || '';
+    var filterCount=el('span','md-edge-browser-count');filterCount.setAttribute('role','status');filterCount.setAttribute('aria-live','polite');
+    var clearFilter=btn('Clear filter',function(){filterInput.value='';applyEdgeFilter(true);filterInput.focus?.();},'md-edge-browser-clear');
+    filterBar.appendChild(filterInput);filterBar.appendChild(clearFilter);filterBar.appendChild(filterCount);browser.appendChild(filterBar);
+    var choices=el("div","md-edge-browser-choices"),filterRows=[];
+    function applyEdgeFilter(resetScroll){
+      var query=filterInput.value || '',terms=query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean),shown=0;
+      host.dataset.edgeBrowserFilter=query;
+      filterRows.forEach(function(row){var match=terms.every(function(term){return row.label.includes(term);});row.button.hidden=!match;if(match)shown++;});
+      filterCount.textContent=shown+' of '+filterRows.length+' edges';clearFilter.disabled=!query;
+      if(resetScroll)choices.scrollTop=0;
+    }
+    filterInput.addEventListener('input',function(){applyEdgeFilter(true);});
     candidates.forEach(function(reference,index){
       var selected=edges.some(function(edge){return sameFinishEdge(edge,reference);});
       var choice=btn("",function(){toggleFinishEdges([reference]);},"md-wide");
@@ -9714,13 +9729,15 @@ function renderFinishEdgeList() {
       var marker=el("span","md-edge-browser-marker",selected?"✓":"");
       marker.setAttribute("aria-hidden","true");
       choice.appendChild(marker);
-      choice.appendChild(el("span","md-edge-browser-label",(index+1)+" · "+finishEdgeDescription(reference)));
+      var edgeLabel=(index+1)+" · "+finishEdgeDescription(reference);
+      choice.appendChild(el("span","md-edge-browser-label",edgeLabel));
+      filterRows.push({button:choice,label:edgeLabel.toLocaleLowerCase()});
       choice.addEventListener("mouseenter",function(){E.hoverTopology=reference;refreshChangedPart(part);});
       choice.addEventListener("mouseleave",function(){E.hoverTopology=null;refreshChangedPart(part);});
       choices.appendChild(choice);
     });
     browser.appendChild(choices);host.appendChild(browser);
-    choices.scrollTop=browseScroll;
+    applyEdgeFilter(false);choices.scrollTop=browseScroll;
   }
   var list = el("div", "md-finish-edges-list");
   edges.forEach(function (reference, index) {

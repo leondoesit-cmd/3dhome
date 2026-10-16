@@ -8,7 +8,7 @@ import {featureField} from '../js/modeler_feature_form.js';
 function el(tag,cls='',text=''){
  const node={tagName:tag.toUpperCase(),cls,children:[],attrs:{},dataset:{},textContent:text,scrollTop:0,classList:{add(){},remove(){}},
   appendChild(child){this.children.push(child);return child;},setAttribute(key,value){this.attrs[key]=value;},removeAttribute(key){delete this.attrs[key];},
-  addEventListener(){},setCustomValidity(){},get options(){return this.children;},set innerHTML(value){this.children=[];},
+  addEventListener(name,fn){(this.listeners ||= {})[name]=fn;},setCustomValidity(){},get options(){return this.children;},set innerHTML(value){this.children=[];},
   querySelector(selector){const wanted=selector.slice(1);return this.children.find(child=>child.cls===wanted)||this.children.map(child=>child.querySelector(selector)).find(Boolean);}};
  return node;
 }
@@ -72,4 +72,26 @@ test('actual Shell edit handler persists multi-opening targets and independent t
  assert.deepEqual(editor.read(),[{facePersistentId:'top',thickness:2.5}]);assert.equal(edits,2);
  assert.equal(Object.hasOwn(feature,'syncShellThicknesses'),false,'functions must not be stored on persisted feature objects');
  assert.deepEqual(JSON.parse(JSON.stringify(feature)).references.topology,feature.references.topology);
+});
+
+
+test('actual 268-edge browser AND filter keeps selected IDs and query across redraws and clears without selecting hidden rows',()=>{
+ const host=el('div'),part={id:'lugs'},candidates=Array.from({length:268},(_,i)=>({kind:'edge',persistentId:'edge:'+i,descriptor:{curve:i%2?'circle':'line',origin:{x:5,y:i,z:1}}}));let selected=[];
+ const E={authoring:{},topologySelection:[]};let render;
+ const context={root:{querySelector:()=>host},E,selectedSolid:()=>part,currentFinishEdges:()=>selected,activeFilletParams:()=>null,syncFilletEndpoints(){},
+  allCandidateFinishEdges:()=>candidates,el,btn,t:key=>key,selectedTopologyFaces:()=>[],setFinishEdges(){},parallelStraightEdges:()=>[],
+  sameFinishEdge:(a,b)=>a.persistentId===b.persistentId,finishEdgeDescription:ref=>ref.descriptor.curve+' · center (5, '+ref.descriptor.origin.y+', 1) mm',
+  toggleFinishEdges:refs=>{selected=selected.some(ref=>ref.persistentId===refs[0].persistentId)?selected.filter(ref=>ref.persistentId!==refs[0].persistentId):selected.concat(refs);render();},
+  refreshChangedPart(){},finishEdgeLabel:ref=>ref.persistentId};
+ render=new Function(...Object.keys(context),sourceFunctionText(source,'renderFinishEdgeList')+';return renderFinishEdgeList;')(...Object.values(context));render();
+ const query=value=>{const input=host.querySelector('.md-edge-browser-search');input.value=value;input.listeners.input();};
+ const rows=()=>host.querySelector('.md-edge-browser-choices').children;
+ query('LINE center 20');assert.equal(rows().filter(r=>!r.hidden).length,8);assert.equal(host.querySelector('.md-edge-browser-count').textContent,'8 of 268 edges');
+ rows()[20].click();assert.equal(host.querySelector('.md-edge-browser-search').value,'LINE center 20');assert.equal(rows()[20].attrs['aria-pressed'],'true');
+ rows()[200].click();assert.deepEqual(selected.map(r=>r.persistentId),['edge:20','edge:200']);
+ query('circle 21');assert.equal(rows()[20].hidden,true);assert.deepEqual(selected.map(r=>r.persistentId),['edge:20','edge:200']);
+ render();assert.equal(host.querySelector('.md-edge-browser-search').value,'circle 21');
+ query('nothing matches');assert.equal(rows().filter(r=>!r.hidden).length,0);assert.equal(host.querySelector('.md-edge-browser-count').textContent,'0 of 268 edges');
+ host.querySelector('.md-edge-browser-clear').click();assert.equal(rows().filter(r=>!r.hidden).length,268);assert.equal(host.dataset.edgeBrowserFilter,'');assert.equal(rows()[20].attrs['aria-pressed'],'true');
+ const css=readFileSync(new URL('../css/modeler.css',import.meta.url),'utf8');assert.match(css,/\.md-edge-browser-label\s*\{[^}]*overflow-wrap: anywhere/s);assert.match(css,/button\[hidden\]\s*\{\s*display: none !important/);
 });
