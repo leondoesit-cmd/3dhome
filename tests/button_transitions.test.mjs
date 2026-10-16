@@ -20,6 +20,27 @@ function block(selector) {
 
 const SIZE = /^(all|width|height|min-width|min-height|max-width|max-height|padding.*|margin.*|font-size|gap|inset.*|top|left|right|bottom|flex.*)$/;
 
+test("no stylesheet eases `all`", async () => {
+  const { readdir } = await import("node:fs/promises");
+  const hits = [];
+  for (const dir of ["css", "uikit"]) {
+    const files = (await readdir(new URL("../" + dir + "/", import.meta.url), { recursive: true })).filter((f) => String(f).endsWith(".css"));
+    for (const f of files) {
+      const text = (await readFile(new URL("../" + dir + "/" + String(f).replace(/\\/g, "/"), import.meta.url), "utf8")).replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const m of text.matchAll(/transition\s*:\s*([^;}]+)/g)) {
+        if (m[1].split(",").some((part) => part.trim().split(/\s+/)[0] === "all")) hits.push(dir + "/" + f + ": transition: " + m[1].trim());
+      }
+    }
+  }
+  assert.deepEqual(hits, []);
+});
+
+test("the shared --ease-paint list names paint properties only", () => {
+  const m = css.match(/--ease-paint:\s*([^;]+);/);
+  assert.ok(m, "styles.css defines --ease-paint");
+  for (const name of m[1].split(",").map((p) => p.trim())) assert.doesNotMatch(name, SIZE, "--ease-paint must not list " + name);
+});
+
 for (const selector of ["button", "button i"]) {
   test(`the global ${selector} rule transitions paint properties only`, () => {
     const body = block(selector);

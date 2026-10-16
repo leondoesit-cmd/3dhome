@@ -777,6 +777,17 @@ canvas {
   margin: 0 8px;
 }
 
+/* What a control may ease: paint, never size or place. A `transition: all`
+   eased width, height and padding too, so anything that measured a control
+   right after it changed size read the size it was leaving (and, in a page
+   that is not painting, kept reading it). Rules that ease use their own
+   duration with this list: `transition: <time> <easing>;
+   transition-property: var(--ease-paint);`. tests/button_transitions.test.mjs
+   keeps `transition: all` out of css/. */
+:root {
+  --ease-paint: background-color, color, border-color, box-shadow, opacity, transform, filter, outline-color;
+}
+
 /* Button & Tool Styles */
 button {
   background: var(--btn-bg);
@@ -1197,7 +1208,7 @@ button.btn-accent .md-cad-icon,
   background: color-mix(in srgb, var(--bg-surface, #000) 4%, transparent);
   border: 1px solid var(--border-color);
   box-sizing: border-box;
-  transition: all 0.15s ease;
+  transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 #layer-chips[data-axis="h"] .lchip:hover {
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border-color));
@@ -2165,7 +2176,7 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
   display: flex;
   align-items: center;
   gap: 4px;
-  transition: all 0.2s;
+  transition: 0.2s; transition-property: var(--ease-paint);
   font-size: max(11px, var(--fs-floor, 0px));
 }
 .furn-cat:hover {
@@ -2199,7 +2210,7 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
   color: var(--text-muted);
   cursor: pointer;
   font-size: max(11px, var(--fs-floor, 0px));
-  transition: all 0.2s;
+  transition: 0.2s; transition-property: var(--ease-paint);
 }
 .furn-subcat:hover {
   color: var(--text-main);
@@ -2290,7 +2301,7 @@ textarea {
   font-size: 13px;
   width: 100%;
   box-sizing: border-box;
-  transition: all 0.2s ease;
+  transition: 0.2s ease; transition-property: var(--ease-paint);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
@@ -2513,7 +2524,7 @@ label span:first-child {
   background: var(--btn-bg);
   cursor: pointer;
   border: 1px solid var(--btn-border);
-  transition: all 0.2s ease;
+  transition: 0.2s ease; transition-property: var(--ease-paint);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2622,7 +2633,7 @@ label span:first-child {
   align-items: center;
   gap: 10px;
   color: var(--text-muted);
-  transition: all 0.2s ease;
+  transition: 0.2s ease; transition-property: var(--ease-paint);
 }
 .trItem:hover,
 .trRoom:hover {
@@ -2825,7 +2836,7 @@ body.used-2d #view-2d > .hint {
   letter-spacing: 0.03em;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1); transition-property: var(--ease-paint);
 }
 .cad-chip .t {
   color: var(--text-main) !important;
@@ -4174,7 +4185,7 @@ body.rc-playing #view-3d .view-dollhouse-btn { display: none; }
   font-family: inherit;
   font-size: 13px;
   box-sizing: border-box;
-  transition: all 0.2s ease;
+  transition: 0.2s ease; transition-property: var(--ease-paint);
 }
 .lib-search input:focus {
   outline: none;
@@ -4719,7 +4730,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-tour-head > button {
   flex: none; display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
   border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg);
-  color: var(--text-muted); cursor: pointer; transition: all .16s ease;
+  color: var(--text-muted); cursor: pointer; transition: .16s ease; transition-property: var(--ease-paint);
 }
 #modeler .md-tour-head-actions > button:hover,
 #modeler .md-tour-head > button:hover { color: var(--text-main); border-color: var(--accent); }
@@ -6275,7 +6286,7 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
   font-size: max(11px, var(--fs-floor, 0px));
   font-weight: 600;
   box-shadow: var(--shadow-sm);
-  transition: all 0.15s ease;
+  transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 #modeler .md-profile-offer button:hover {
   background: var(--btn-bg-hover);
@@ -6903,7 +6914,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
   display: grid; grid-template-columns: 44px minmax(0, 1fr) 20px; align-items: center; gap: 12px;
   min-height: 92px; padding: 14px; border: 1.5px solid var(--border-color); border-radius: 12px;
   background: var(--btn-bg); color: var(--text-main); text-align: start; cursor: pointer;
-  box-shadow: var(--shadow-sm); transition: all .16s ease;
+  box-shadow: var(--shadow-sm); transition: .16s ease; transition-property: var(--ease-paint);
 }
 .planner-guide-hub button:hover {
   border-color: var(--accent);
@@ -6936,7 +6947,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
 .planner-guide-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .planner-guide-tabs button {
   min-width: 0; min-height: 60px; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
-  border: 1.5px solid var(--border-color); border-radius: 10px; background: var(--btn-bg); color: var(--text-muted); cursor: pointer; transition: all .16s ease;
+  border: 1.5px solid var(--border-color); border-radius: 10px; background: var(--btn-bg); color: var(--text-muted); cursor: pointer; transition: .16s ease; transition-property: var(--ease-paint);
 }
 .planner-guide-tabs button:hover:not(.active) {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--border-color));
@@ -6970,7 +6981,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
 .planner-guide-mode-switch button {
   display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px;
   border: none; background: transparent; color: var(--text-muted); font-size: max(11px, var(--fs-floor, 0px)); font-weight: 600; cursor: pointer;
-  transition: all 0.15s ease;
+  transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 .planner-guide-mode-switch button.active {
   background: var(--btn-bg); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -7183,7 +7194,8 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
   position: absolute;
   z-index: 20;
   pointer-events: none;
-  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* it glides between targets: left/top are its motion, not a layout change */
+  transition: left 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -7274,7 +7286,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
 .planner-guide-speak-btn {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
   border: 1.5px solid var(--border-color); border-radius: 8px; background: var(--btn-bg);
-  color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .16s ease;
+  color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; transition: .16s ease; transition-property: var(--ease-paint);
 }
 .planner-guide-speak-btn:hover {
   border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--btn-bg)); color: var(--accent);
@@ -7310,7 +7322,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
   display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; width: 100%;
   padding: 10px 14px; border: 1.5px solid color-mix(in srgb, var(--accent) 60%, var(--border-color));
   border-radius: 10px; background: color-mix(in srgb, var(--accent) 10%, var(--btn-bg));
-  color: var(--text-main); cursor: pointer; font-size: 13px; font-weight: 700; transition: all .16s ease;
+  color: var(--text-main); cursor: pointer; font-size: 13px; font-weight: 700; transition: .16s ease; transition-property: var(--ease-paint);
 }
 .planner-guide-practice:hover { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 .planner-guide-practice:hover i { color: var(--on-accent); }
@@ -7343,7 +7355,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
 .planner-tour-head > button {
   flex: none; display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
   border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg);
-  color: var(--text-muted); cursor: pointer; transition: all .16s ease;
+  color: var(--text-muted); cursor: pointer; transition: .16s ease; transition-property: var(--ease-paint);
 }
 .planner-tour-head-actions > button:hover,
 .planner-tour-head > button:hover { color: var(--text-main); border-color: var(--accent); }
@@ -7505,7 +7517,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-  transition: all 0.15s ease;
+  transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 .video-studio-ctrl-bar button:hover {
   background: var(--btn-bg-hover);
@@ -7559,7 +7571,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
   min-width: 0;
   white-space: normal;
   line-height: 1.25;
-  transition: all 0.15s ease;
+  transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 .video-studio-reel-chip:hover {
   background: var(--btn-bg-hover);
@@ -7592,7 +7604,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
   font-size: 12px;
   font-weight: 600;
   text-align: start;
-  transition: all 0.15s ease;
+  transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 .video-studio-presets button:hover {
   background: var(--btn-bg-hover);
@@ -7644,7 +7656,7 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
   background: var(--bg-panel);
   border: 1.5px solid var(--btn-border);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 .video-studio-frame-card:hover {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--btn-border));
@@ -9902,7 +9914,7 @@ body.fold-stack #view-resizer {
 #cabdes .cb-slider-hdr { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; color: var(--text-main); font-size: max(0.75rem, var(--fs-floor, 0px)); }
 #cabdes .cb-slider-wrap input[type="range"] { width: 170px; accent-color: var(--accent); cursor: pointer; height: 5px; }
 #cabdes .cb-stage-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 2px; border-radius: 8px; background: var(--input-bg); border: 1px solid var(--input-border); }
-#cabdes .cb-chip-stage { padding: 4px 7px; font-size: max(0.68rem, var(--fs-floor, 0px)); border-radius: 6px; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
+#cabdes .cb-chip-stage { padding: 4px 7px; font-size: max(0.68rem, var(--fs-floor, 0px)); border-radius: 6px; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; transition: 0.15s ease; transition-property: var(--ease-paint); white-space: nowrap; }
 #cabdes .cb-chip-stage:hover { background: var(--btn-bg-hover); color: var(--text-main); }
 #cabdes .cb-chip-stage.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
 #cabdes .cb-actions { display: flex; align-items: center; justify-self: end; gap: 8px; }
@@ -10498,7 +10510,7 @@ body.fold-stack #view-resizer {
   --text-main: #f3f4f6; --text-muted: #a0aec0; color: #f3f4f6;
   transform: scale(0.96) translateY(20px);
   opacity: 0;
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: 0.5s cubic-bezier(0.16, 1, 0.3, 1); transition-property: var(--ease-paint);
 }
 .tex-modal-backdrop.open .tex-modal-container {
   transform: scale(1) translateY(0);
@@ -10521,7 +10533,7 @@ body.fold-stack #view-resizer {
 .tex-modal-title i { font-size: 24px; color: var(--accent, #3b82f6); -webkit-text-fill-color: initial; filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.4)); }
 .tex-modal-close {
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); font-size: 20px; color: var(--text-muted, #a0aec0);
-  cursor: pointer; border-radius: 50%; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer; border-radius: 50%; transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition-property: var(--ease-paint);
   width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
 }
 .tex-modal-close:hover { color: #fff; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); transform: rotate(90deg) scale(1.05); box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
@@ -10538,7 +10550,7 @@ body.fold-stack #view-resizer {
 .tex-search-box input {
   width: 100%; padding: 14px 48px 14px 20px; border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.3);
-  color: #fff; font-size: 15px; outline: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #fff; font-size: 15px; outline: none; transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition-property: var(--ease-paint);
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
 .tex-search-box input:focus {
@@ -10563,7 +10575,7 @@ body.fold-stack #view-resizer {
 .tex-target-box select {
   padding: 10px 18px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.3); color: #fff; font-size: 14px; font-weight: 500; cursor: pointer;
-  transition: all 0.3s; appearance: none; padding-right: 36px;
+  transition: 0.3s; transition-property: var(--ease-paint); appearance: none; padding-right: 36px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23a0aec0' viewBox='0 0 256 256'%3E%3Cpath d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 14px center;
 }
@@ -10575,7 +10587,7 @@ body.fold-stack #view-resizer {
 .tex-view-btn {
   padding: 8px; border-radius: 8px; border: none;
   background: transparent; color: var(--text-muted, #a0aec0); cursor: pointer;
-  font-size: 18px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); display: flex; align-items: center;
+  font-size: 18px; transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1); transition-property: var(--ease-paint); display: flex; align-items: center;
 }
 .tex-view-btn:hover { color: #fff; }
 .tex-view-btn.active { background: rgba(255,255,255,0.1); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
@@ -10591,9 +10603,9 @@ body.fold-stack #view-resizer {
   padding: 10px 20px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255,255,255,0.02); color: var(--text-muted, #a0aec0); font-size: 13.5px;
   cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); font-weight: 500;
+  transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition-property: var(--ease-paint); font-weight: 500;
 }
-.tex-cat-btn i { font-size: 16px; opacity: 0.8; transition: all 0.3s; }
+.tex-cat-btn i { font-size: 16px; opacity: 0.8; transition: 0.3s; transition-property: var(--ease-paint); }
 .tex-cat-btn:hover { background: rgba(255,255,255,0.06); color: #fff; transform: translateY(-1px); }
 .tex-cat-btn.active {
   background: linear-gradient(135deg, var(--accent, #3b82f6) 0%, #6366f1 100%);
@@ -10613,7 +10625,7 @@ body.fold-stack #view-resizer {
 .tex-source-chip {
   padding: 6px 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.04);
   background: rgba(0,0,0,0.2); color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 500;
-  cursor: pointer; white-space: nowrap; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer; white-space: nowrap; transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1); transition-property: var(--ease-paint);
 }
 .tex-source-chip:hover { background: rgba(255,255,255,0.05); color: #fff; }
 .tex-source-chip.active {
@@ -10677,7 +10689,7 @@ body.fold-stack #view-resizer {
 .tex-card {
   border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);
   background: rgba(255,255,255,0.02); overflow: hidden; cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative;
+  transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition-property: var(--ease-paint); position: relative;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 .tex-card::before {
@@ -10899,7 +10911,7 @@ body.fold-stack #view-resizer {
   font-size: 14px;
   cursor: pointer;
   z-index: 5;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1); transition-property: var(--ease-paint);
 }
 .tex-card-star:hover {
   transform: scale(1.15);
@@ -12823,7 +12835,7 @@ html:not([data-ui="legacy"]) #left-sidebar[data-left="tree"] > [data-left-pane="
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   box-sizing: border-box;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1); transition-property: var(--ease-paint);
 }
 .empty-next button:hover {
   background: color-mix(in srgb, var(--accent-soft) 70%, var(--btn-bg));
@@ -12946,7 +12958,7 @@ html[data-ui="legacy"] #wallProps details.insp-more { display: contents; }
   white-space: normal;
   line-height: 1.35;
   word-break: break-word;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1); transition-property: var(--ease-paint);
 }
 .start-actions button:hover {
   border-color: var(--accent);
@@ -18523,7 +18535,7 @@ body.compact-nav #right-inspector > .site-section {
 .unit-reset-all-domains-btn {
   font-size: max(11px, var(--fs-floor, 0px)); padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border-color);
   background: var(--input-bg); color: var(--text-main); cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
-  transition: all .15s;
+  transition: .15s; transition-property: var(--ease-paint);
 }
 .unit-reset-all-domains-btn:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -18574,7 +18586,7 @@ body.compact-nav #right-inspector > .site-section {
 .unit-row-reset-btn {
   display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px;
   border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-muted);
-  cursor: pointer; transition: all .15s; font-size: 13px;
+  cursor: pointer; transition: .15s; transition-property: var(--ease-paint); font-size: 13px;
 }
 .unit-row-reset-btn:hover:not(:disabled) {
   border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--input-bg));
@@ -20081,7 +20093,7 @@ body.compact-nav #plan-tools::after { display: none; }
   display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
   border: none; border-radius: 14px; background: transparent;
   color: var(--text-muted); font-size: max(11px, var(--fs-floor, 0px)); font-weight: 600; cursor: pointer;
-  transition: all 0.15s ease;
+  transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 #modeler .md-paint-mode-toggle button.on,
 #modeler .md-notes-mode-toggle button.on {
@@ -20119,7 +20131,7 @@ body.compact-nav #plan-tools::after { display: none; }
 #modeler .md-paint-tool-btn {
   display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px;
   border: 1px solid transparent; background: transparent; color: var(--text-muted);
-  cursor: pointer; font-size: 14px; transition: all 0.15s ease;
+  cursor: pointer; font-size: 14px; transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 #modeler .md-paint-tool-btn:hover {
   background: var(--btn-bg-hover); color: var(--text-main);
@@ -20207,7 +20219,7 @@ body.compact-nav #plan-tools::after { display: none; }
 #modeler .md-note-cat-chip {
   padding: 3px 8px; border-radius: 12px; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 600;
   border: 1px solid transparent; background: var(--input-bg); color: var(--text-muted);
-  cursor: pointer; transition: all 0.15s ease;
+  cursor: pointer; transition: 0.15s ease; transition-property: var(--ease-paint);
 }
 #modeler .md-note-cat-chip.on {
   color: #ffffff; border-color: transparent;
