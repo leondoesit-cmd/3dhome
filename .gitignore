@@ -13,6 +13,12 @@ server/.prodsize-cache.json
 .idea/
 scratch/
 tmp/
+# floor-plan recognition bench: generated output, the real (scraped, not
+# redistributable) plan corpus and third-party datasets — see
+# tools/plan_bench.mjs
+bench/out/
+bench/plans/
+bench/datasets/
 # disk copies of saved models (server/model_backup.mjs)
 .model-backups/
 *.mforge
