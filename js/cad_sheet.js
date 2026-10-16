@@ -655,9 +655,17 @@ export function layoutViews(doc, extents) {
 export function createProjector(doc, bodies, options = {}) {
   const cache = new Map();
   const resolving = new Set();
+  /* A section bakes its hatch pattern into its projection and a Detail of it
+     inherits that, so the pattern of the section a view is cut from belongs in
+     the key; otherwise a pattern change keeps painting the old hatch. */
+  const sectionPatternOf = (view) => {
+    const seen = new Set();
+    while (view && view.detail && !seen.has(view.id)) { seen.add(view.id); view = (doc.views || []).find((entry) => entry.id === view.detail.from); }
+    return view && view.section ? view.hatchPattern || "uniform" : "";
+  };
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.alignedSection || 0),view.alignedSection?JSON.stringify(doc.views.find(v=>v.id===view.alignedSection.from)||null):'', JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),JSON.stringify(view.alternatePosition || 0),view.scale,doc.scale,view.breakView?.group?JSON.stringify(doc.views):''].join("|");
+    const key = view.id + "#" + [sectionPatternOf(view), view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.alignedSection || 0),view.alignedSection?JSON.stringify(doc.views.find(v=>v.id===view.alignedSection.from)||null):'', JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),JSON.stringify(view.alternatePosition || 0),view.scale,doc.scale,view.breakView?.group?JSON.stringify(doc.views):''].join("|");
     if (cache.has(key)) return cache.get(key);
     // Malformed saved parent graphs must not recurse forever or show unrelated geometry.
     if (resolving.has(view.id)) return null;
