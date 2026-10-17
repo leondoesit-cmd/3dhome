@@ -16,7 +16,9 @@ function ifcGuid(value) {
   let seed = 2166136261;
   for (const char of String(value)) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619) >>> 0;
   let out = "";
-  for (let i = 0; i < 22; i++) { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; out += alphabet[seed & 63]; }
+  // 22 base-64 digits carry 128 bits, so the leading digit holds only the top
+  // two: IfcGloballyUniqueId must start with 0-3 or readers reject the file.
+  for (let i = 0; i < 22; i++) { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; out += alphabet[seed & (i ? 63 : 3)]; }
   return out;
 }
 export function downloadText(name, text, type) {

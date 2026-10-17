@@ -178,7 +178,7 @@ import {
   wallMaterialQuantities,
 } from "./wall_types.js";
 import { normalizeWallKind, normalizeWallProfile, setWallKind } from "./wall_curves.js";
-import { wallSchedule, wallScheduleCSV } from "./wall_schedule.js";
+import { wallSchedule, wallScheduleCSV, csvCell } from "./wall_schedule.js";
 import { wallFramingTakeoff } from "./wall_framing.js";
 import { convertCadToWalls } from "./cad_to_walls.js";
 import { convertGeoJsonToWalls } from "./geojson_to_walls.js";
@@ -995,12 +995,13 @@ function exportWallScheduleFile() {
   ensureWallTypes(S);
   var csv = wallScheduleCSV(wallSchedule(S));
   var quantities = wallMaterialQuantities(S);
+  function cell(value) { return typeof value === "number" ? '"' + value.toFixed(3) + '"' : csvCell(value); }
   csv += "\r\n\r\n\"Material\",\"Layer role\",\"Phase\",\"Length (m)\",\"Net area (m²)\",\"Volume (m³)\"";
   quantities.forEach(function (q) {
     Object.keys(q.phases || {}).forEach(function (phase) {
       var p = q.phases[phase];
       csv += "\r\n" + [q.material, q.role || q.layer, phase, p.length / 100, p.netArea / 10000, p.volume / 1000000]
-        .map(function (value) { return '"' + String(typeof value === "number" ? value.toFixed(3) : value).replace(/"/g, '""') + '"'; }).join(",");
+        .map(cell).join(",");
     });
   });
   var framing = wallFramingTakeoff(S);
@@ -1008,7 +1009,7 @@ function exportWallScheduleFile() {
     csv += "\r\n\r\n\"Framing material\",\"Member\",\"Phase\",\"Count\",\"Length (m)\",\"Volume (m³)\"";
     framing.quantities.forEach(function (q) {
       csv += "\r\n" + [q.material, q.kind, q.phase, q.count, q.length / 100, q.volume / 1000000]
-        .map(function (value) { return '"' + String(typeof value === "number" ? value.toFixed(3) : value).replace(/"/g, '""') + '"'; }).join(",");
+        .map(cell).join(",");
     });
   }
   saveTextDownload("wall-schedule.csv", csv);

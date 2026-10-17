@@ -637,6 +637,10 @@ function makeParser(onMessage, onClose, sock) {
         off = 10;
       }
       if (len > 32 * 1024 * 1024) return sock.destroy(); // 32MB sanity cap
+      // RFC 6455 §5.5: control frames carry at most 125 bytes and are never
+      // fragmented. A longer ping used to be echoed with its length truncated
+      // into one byte — a malformed pong that desynchronised the stream.
+      if (op >= 8 && (len > 125 || !fin)) return sock.destroy();
       const maskOff = off;
       if (masked) off += 4;
       if (buf.length < off + len) return;
@@ -678,7 +682,9 @@ function rosterFor(viewer) {
       .filter(
         (c) =>
           c.code &&
-          (c === viewer || c.room === viewer.room || viewer.watch.has(c.code)),
+          // two clients that have not joined a room yet are not in the SAME
+          // room: null === null exposed every lobby client to every other
+          (c === viewer || (viewer.room && c.room === viewer.room) || viewer.watch.has(c.code)),
       )
       .map((c) => ({ code: c.code, name: c.name || "", room: c.room || "" })),
   };
@@ -700,7 +706,7 @@ function broadcastRoom(room, obj, except) {
 }
 function toCode(sender, code, obj) {
   const c = [...clients].find((c) => c.code === code);
-  if (c && (c.room === sender.room || sender.watch.has(code))) sendObj(c, obj);
+  if (c && ((sender.room && c.room === sender.room) || sender.watch.has(code))) sendObj(c, obj);
 }
 
 http.on("upgrade", (req, sock) => {

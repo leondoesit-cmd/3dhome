@@ -41,8 +41,11 @@ export function isLocationInUS(lat, lon, label) {
     if (/\b(?:united states|usa|u\.s\.a\.|u\.s\.|puerto rico)\b/i.test(lbl) || /,\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|PR|VI|GU)\b/.test(label)) {
       return true;
     }
-    // Exclude foreign countries and Canadian provinces / Mexican states
-    if (/\b(?:canada|ontario|quebec|qu[eé]bec|british columbia|alberta|manitoba|saskatchewan|nova scotia|new brunswick|newfoundland|toronto|vancouver|montreal|montr[eé]al|ottawa|calgary|edmonton|winnipeg|mexico|m[eé]xico|cdmx|jalisco|nuevo le[oó]n|guadalajara|monterrey|tijuana|cancun|canc[uú]n|united kingdom|uk|england|scotland|wales|australia|germany|france|israel|japan|china|india|brazil|argentina)\b/i.test(lbl)) {
+    // Exclude foreign countries and Canadian provinces / Mexican states — but
+    // not the US names that contain one ("Santa Fe, New Mexico", "New England"),
+    // which fall through to the coordinates instead.
+    var foreign = lbl.replace(/\bnew (?:mexico|england)\b/g, " ");
+    if (/\b(?:canada|ontario|quebec|qu[eé]bec|british columbia|alberta|manitoba|saskatchewan|nova scotia|new brunswick|newfoundland|toronto|vancouver|montreal|montr[eé]al|ottawa|calgary|edmonton|winnipeg|mexico|m[eé]xico|cdmx|jalisco|nuevo le[oó]n|guadalajara|monterrey|tijuana|cancun|canc[uú]n|united kingdom|uk|england|scotland|wales|australia|germany|france|israel|japan|china|india|brazil|argentina)\b/i.test(foreign)) {
       return false;
     }
   }

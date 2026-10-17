@@ -5,7 +5,17 @@ import { S } from "./state.js";
 import { t, setDisplayUnitVars, applyStatic, onLangChange } from "./i18n.js";
 import { planningDisplayUnit } from "./planning_guide.js";
 import { parseLength, formatLength, formatArea, parseArea, toDisplayLength, fromDisplayLength, PLANNING_UNITS } from "./planning_units.js";
-import { getDomainUnit, getDomainDigits, inferDomainFromElementId } from "./unit_settings.js";
+import { getDomainUnit, getDomainDigits, inferDomainFromElementId, loadUnitSettings } from "./unit_settings.js";
+
+/* The Units pane's "show unit suffix" and "feet-inches" switches. A caller's
+   explicit option still wins (an editable field never carries a suffix). */
+function withDisplayOptions(opts) {
+  var settings = loadUnitSettings();
+  var out = Object.assign({}, opts);
+  if (out.suffix == null && settings.showSuffix === false) out.suffix = false;
+  if (out.feetInches == null && settings.feetInches === false) out.feetInches = false;
+  return out;
+}
 
 export function displayUnit(domain) {
   if (domain) return getDomainUnit(domain);
@@ -28,7 +38,7 @@ export function fmtLen(cm, options) {
   var dom = opts.domain || opts.part || null;
   var unit = opts.unit || (dom ? displayUnit(dom) : displayUnit());
   var digits = opts.digits != null ? opts.digits : (dom ? getDomainDigits(dom) : undefined);
-  return formatLength(cm, unit, Object.assign({}, opts, { digits: digits }));
+  return formatLength(cm, unit, Object.assign(withDisplayOptions(opts), { digits: digits }));
 }
 
 export function fmtAreaM2(m2, options) {
@@ -37,7 +47,7 @@ export function fmtAreaM2(m2, options) {
   var dom = opts.domain || "area";
   var unit = opts.unit || displayUnit(dom);
   var digits = opts.digits != null ? opts.digits : getDomainDigits(dom);
-  return formatArea(Number(m2) * 10000, unit, Object.assign({}, opts, { digits: digits }));
+  return formatArea(Number(m2) * 10000, unit, Object.assign(withDisplayOptions(opts), { digits: digits }));
 }
 
 export function parseAreaM2(text, domainOrFallback) {
@@ -103,7 +113,7 @@ export function writeLen(el, cm, options) {
   el.value = formatLength(cm, unit, {
     suffix: false,
     digits: digits,
-    feetInches: opts.feetInches,
+    feetInches: withDisplayOptions(opts).feetInches,
   });
 }
 

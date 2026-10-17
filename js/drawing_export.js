@@ -22,28 +22,31 @@ export function drawingSVG(snapshot,bounds,{furniture=true,dimensions=true,label
  return mask+walls+voids+openings+items+`<g id="survey-features">${survey}</g>`+`<g id="room-labels">${names}${dims}</g>`;
 }
 export function drawingDXF(snapshot,{furniture=true,dimensions=true,fmt=null}={}){
+ // DXF Y points up while plan +z runs down the page, as in drawingSVG. Writing
+ // z straight into Y mirrored the plan top-to-bottom, so every Y here is -z.
+ const Y=z=>-z;
  const layers=['WALLS','ROOMS','OPENINGS','DOOR_SWINGS','FLOOR_VOIDS','FURNITURE','LABELS','DIMENSIONS','SURVEY'];
  let out='0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1021\n9\n$INSUNITS\n70\n5\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n5\n1\n100\nAcDbSymbolTable\n70\n'+layers.length+'\n';
  for(const layer of layers)out+='0\nLAYER\n2\n'+layer+'\n70\n0\n62\n7\n6\nCONTINUOUS\n';
  out+='0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
- const polyline=(points,layer)=>{if(points.length<2)return;out+='0\nLWPOLYLINE\n100\nAcDbEntity\n8\n'+layer+'\n100\nAcDbPolyline\n90\n'+points.length+'\n70\n1\n';for(const p of points)out+='10\n'+p.x+'\n20\n'+p.z+'\n';};
+ const polyline=(points,layer)=>{if(points.length<2)return;out+='0\nLWPOLYLINE\n100\nAcDbEntity\n8\n'+layer+'\n100\nAcDbPolyline\n90\n'+points.length+'\n70\n1\n';for(const p of points)out+='10\n'+p.x+'\n20\n'+Y(p.z)+'\n';};
  for(const [key,layer]of [['walls','WALLS'],['openings','OPENINGS'],['swings','DOOR_SWINGS'],['voids','FLOOR_VOIDS']])snapshot[key].forEach(poly=>polyline(poly,layer));
  snapshot.rooms.forEach(room=>polyline(room.points,'ROOMS'));
  if(furniture)snapshot.items.forEach(poly=>polyline(poly,'FURNITURE'));
  // R2007 uses UTF-8; native text also displays correctly in independent readers.
- const text=(value,x,z,layer,height)=>{const safe=String(value).replace(/[\r\n]/g,' ');out+='0\nTEXT\n100\nAcDbEntity\n8\n'+layer+'\n100\nAcDbText\n10\n'+x+'\n20\n'+z+'\n30\n0\n40\n'+height+'\n1\n'+safe+'\n72\n1\n11\n'+x+'\n21\n'+z+'\n31\n0\n100\nAcDbText\n73\n2\n';};
- snapshot.rooms.forEach(room=>{text(room.name,room.cx,room.cz,'LABELS',12);if(room.width&&room.depth)text(Number(room.width.toFixed(2))+' x '+Number(room.depth.toFixed(2))+' cm',room.cx,room.cz-16,'DIMENSIONS',9);});
+ const text=(value,x,z,layer,height)=>{const safe=String(value).replace(/[\r\n]/g,' ');out+='0\nTEXT\n100\nAcDbEntity\n8\n'+layer+'\n100\nAcDbText\n10\n'+x+'\n20\n'+Y(z)+'\n30\n0\n40\n'+height+'\n1\n'+safe+'\n72\n1\n11\n'+x+'\n21\n'+Y(z)+'\n31\n0\n100\nAcDbText\n73\n2\n';};
+ snapshot.rooms.forEach(room=>{text(room.name,room.cx,room.cz,'LABELS',12);if(room.width&&room.depth)text(Number(room.width.toFixed(2))+' x '+Number(room.depth.toFixed(2))+' cm',room.cx,room.cz+16,'DIMENSIONS',9);});
  // chained exterior dimension strings, from the same geometry the sheet draws
  if(dimensions&&snapshot.walls.length){
   const g=dimensionGeometry(snapshot.walls,{off1:60,off2:110,gap:8,over:8,tick:6,textOff:8});
-  const line=(a,b)=>{out+='0\nLINE\n100\nAcDbEntity\n8\nDIMENSIONS\n100\nAcDbLine\n10\n'+a.x+'\n20\n'+a.z+'\n30\n0\n11\n'+b.x+'\n21\n'+b.z+'\n31\n0\n';};
+  const line=(a,b)=>{out+='0\nLINE\n100\nAcDbEntity\n8\nDIMENSIONS\n100\nAcDbLine\n10\n'+a.x+'\n20\n'+Y(a.z)+'\n30\n0\n11\n'+b.x+'\n21\n'+Y(b.z)+'\n31\n0\n';};
   g.lines.forEach(l=>line(l.a,l.b));
   g.texts.forEach(t=>text(fmt?fmt(t.len):String(Number(t.len.toFixed(1))),t.x,t.z,'DIMENSIONS',10));
  }
  for(const f of snapshot.surveyFeatures||[]){
-  if(f.kind==='point'){const p=f.points[0];out+='0\nPOINT\n8\nSURVEY\n10\n'+p.x+'\n20\n'+p.z+'\n30\n'+p.y+'\n';continue;}
+  if(f.kind==='point'){const p=f.points[0];out+='0\nPOINT\n8\nSURVEY\n10\n'+p.x+'\n20\n'+Y(p.z)+'\n30\n'+p.y+'\n';continue;}
   out+='0\nPOLYLINE\n8\nSURVEY\n66\n1\n70\n'+(f.kind==='face'?9:8)+'\n';
-  for(const p of f.points)out+='0\nVERTEX\n8\nSURVEY\n10\n'+p.x+'\n20\n'+p.z+'\n30\n'+p.y+'\n70\n32\n';
+  for(const p of f.points)out+='0\nVERTEX\n8\nSURVEY\n10\n'+p.x+'\n20\n'+Y(p.z)+'\n30\n'+p.y+'\n70\n32\n';
   out+='0\nSEQEND\n8\nSURVEY\n';
  }
  return out+'0\nENDSEC\n0\nEOF\n';

@@ -31,7 +31,10 @@ export function parseLength(text,defaultUnit){
     const feet=finiteNumber(feetInches[1]);
     const inches=feetInches[2]==null?0:finiteNumber(feetInches[2]);
     if(!Number.isFinite(feet)||!Number.isFinite(inches))return NaN;
-    return feet*PLANNING_UNITS.ft+inches*PLANNING_UNITS.in;
+    // The sign belongs to the whole length: -5'-6" is -(5'6"), as formatLength
+    // writes it, not -5' + 6".
+    const sign=raw.startsWith("-")?-1:1;
+    return sign*(Math.abs(feet)*PLANNING_UNITS.ft+inches*PLANNING_UNITS.in);
   }
   const unitValue=raw.match(/^(-?\d+(?:\.\d+)?)\s*([A-Za-z'"]+)?$/);
   if(!unitValue)return NaN;
