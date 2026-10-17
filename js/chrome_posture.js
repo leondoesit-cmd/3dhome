@@ -31,6 +31,11 @@ export function chromePosture(w, h, opts) {
      a finger is not a cursor: its controls get touch-sized targets and its
      hints stop saying "right-click" (css/ui_system.css, body.touch-desk). */
   var touchDesk = touch && !compact;
+  /* A phone on its side keeps bottom sheets, but a 390px-tall sheet leaves
+     Properties about 80px for its cards once its grip and identity card are
+     drawn. There the inspector docks as a scrolling column beside the plan,
+     as on a fold; the library and the generated sheets stay sheets. */
+  var sideInspector = compact && !roomy && w > h && h <= 500 && w >= 640;
   return {
     touchDesk: touchDesk,
     compact: compact,
@@ -39,6 +44,7 @@ export function chromePosture(w, h, opts) {
     dockRail: compact && roomy,
     sheetDrawers: compact && !roomy,
     splitRow: compact && roomy,
+    sideInspector: sideInspector,
   };
 }
 

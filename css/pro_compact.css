@@ -313,7 +313,7 @@ body.pro-compact.sheet-drawers #right-inspector > .ps-sheet-grip {
 }
 body.pro-compact.sheet-drawers #right-inspector > .ps-sheet-grip span { width: 40px; height: 4px; border-radius: 2px; background: var(--border-color); }
 body.pro-compact.sheet-drawers #right-inspector::before { display: none !important; }
-body.pro-compact.sheet-drawers:not(.dock-rail):not(.ps-insp-full) #right-inspector { max-height: min(46dvh, var(--mobile-sheet-cap, 68dvh)) !important; }
+body.pro-compact.sheet-drawers:not(.dock-rail):not(.side-inspector):not(.ps-insp-full) #right-inspector { max-height: min(46dvh, var(--mobile-sheet-cap, 68dvh)) !important; }
 /* the plan above it is what it edits: not dimmed (a tap on it still closes the sheet) */
 body.pro-compact.show-right #m-sheet-backdrop,
 body.pro-compact.show-left #m-sheet-backdrop { background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }

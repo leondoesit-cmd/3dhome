@@ -3108,7 +3108,7 @@ export function initUI() {
        queries never match there — roomy is both-axes tablet-sized instead. */
     var p = windowChromePosture();
     var flipped = document.body.classList.contains("compact-nav") !== p.compact;
-    var key = [p.compact, p.dockRail, p.sheetDrawers, p.splitRow].join("|");
+    var key = [p.compact, p.dockRail, p.sheetDrawers, p.splitRow, p.sideInspector].join("|");
     var settled = key !== posturePrev;
     if (settled) {
       posturePrev = key;
@@ -3123,6 +3123,7 @@ export function initUI() {
     document.body.classList.toggle("dock-rail", p.dockRail);
     document.body.classList.toggle("sheet-drawers", p.sheetDrawers);
     document.body.classList.toggle("split-row", p.splitRow);
+    document.body.classList.toggle("side-inspector", p.sideInspector);
     if (settled) settlePosture();
     window.dispatchEvent(new CustomEvent("mf-posture"));
   }

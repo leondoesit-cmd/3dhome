@@ -9,6 +9,7 @@ function classes(p) {
   if (p.dockRail) out.push("dock-rail");
   if (p.sheetDrawers) out.push("sheet-drawers");
   if (p.splitRow) out.push("split-row");
+  if (p.sideInspector) out.push("side-inspector");
   return out.join(" ");
 }
 
@@ -21,7 +22,7 @@ const CASES = [
   {
     name: "iPhone 14 landscape",
     w: 844, h: 390, touch: true,
-    compact: true, roomy: false, phone: true, classes: "compact-nav sheet-drawers",
+    compact: true, roomy: false, phone: true, classes: "compact-nav sheet-drawers side-inspector",
   },
   {
     name: "Galaxy Fold cover",
@@ -110,4 +111,20 @@ test("touchDesk: only a touch screen too big for the compact chrome", () => {
   assert.equal(td(1024, 768, true), false, "tablet landscape is compact");
   assert.equal(td(390, 844, true), false, "phone");
   for (const c of CASES) assert.equal(chromePosture(c.w, c.h, { touch: c.touch }).touchDesk && chromePosture(c.w, c.h, { touch: c.touch }).compact, false, c.name + ": never both");
+});
+
+/* Only a phone on its side docks Properties as a column: portrait phones and
+   small landscape phones keep the bottom sheet, folds and tablets dock-rail. */
+test("sideInspector: a phone held landscape, nothing else", () => {
+  const side = (w, h, touch = true) => chromePosture(w, h, { touch }).sideInspector;
+  assert.equal(side(844, 390), true, "iPhone 14 landscape");
+  assert.equal(side(932, 430), true, "iPhone Pro Max landscape");
+  assert.equal(side(390, 844), false, "portrait phone");
+  assert.equal(side(568, 320), false, "too narrow for a column beside the plan");
+  assert.equal(side(1024, 768), false, "tablet landscape is dock-rail");
+  assert.equal(side(1440, 900, false), false, "desktop");
+  for (const c of CASES) {
+    const p = chromePosture(c.w, c.h, { touch: c.touch });
+    assert.ok(!p.sideInspector || p.sheetDrawers, c.name + ": a side inspector is a sheet-drawers variant");
+  }
 });

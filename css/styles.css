@@ -15113,6 +15113,52 @@ body.dock-rail #m-sheet {
   bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 8px);
 }
 
+/* ---- a phone on its side: Properties docks beside the plan ----------------
+   body.side-inspector (js/chrome_posture.js). A 390px-tall bottom sheet left
+   the inspector's page cards ~80px, under rows that are 180-220px tall on
+   their own, so here the inspector is the fold's scrolling column at the
+   inline end, between the header and the thumb rows. The library and the
+   generated sheets stay bottom sheets. Closed, it keeps the sheet's parking
+   transform below the screen. Positions are !important because the pro
+   skin's sheet rules are. */
+body.compact-nav.side-inspector {
+  --side-inspector-col: clamp(260px, 36vw, 340px);
+}
+body.compact-nav.sheet-drawers.side-inspector #right-inspector {
+  position: fixed !important;
+  top: var(--mobile-topbar-block, 56px) !important;
+  bottom: calc(var(--mobile-nav-block, 0px) + var(--m-ctx-reserve, 0px) + var(--kb, 0px)) !important;
+  inset-inline: auto 0 !important;
+  width: var(--side-inspector-col) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+  border: none;
+  border-inline-start: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+/* The column scrolls, so its page cards keep their content height instead of
+   shrinking to fit it the way a sheet's must. */
+body.compact-nav.sheet-drawers.side-inspector #right-inspector > .panel-section,
+body.compact-nav.sheet-drawers.side-inspector #right-inspector :is(.mobile-paged-menu, .mobile-page-shell, .mobile-page-deck) {
+  flex-shrink: 0 !important;
+}
+body.compact-nav.sheet-drawers.side-inspector #right-inspector > :is(.m-panel-grip, .ps-sheet-grip) {
+  display: none !important;
+}
+body.compact-nav.side-inspector.show-right #m-sheet-backdrop {
+  display: none !important;
+}
+body.compact-nav.side-inspector.show-right #workspace {
+  padding-inline-end: var(--side-inspector-col);
+  box-sizing: border-box;
+}
+
 /* ---- split direction ----------------------------------------------------- */
 
 body.split-row #center-canvas {
