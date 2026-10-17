@@ -256,7 +256,8 @@ test("targetLocked understands layers, rooms, groups and any locked object", () 
   assert.match(fn, /S\.roomMeta\[sel\.ref\]/);
   assert.match(fn, /Array\.isArray\(sel\.refs\)/);
   assert.match(fn, /sel\.refs\.every\(/, "a multi-selection is locked only when every ref is");
-  assert.match(fn, /return !!\(sel\.ref && sel\.ref\.locked\);/,
+  // refLocked (js/user_layers.js): the object's own pin or its user layer's padlock
+  assert.match(fn, /return refLocked\(sel\.ref\);/,
     "the object test is generic, so it reaches walls, openings and MEP nodes");
   // rank is deliberately NOT part of it: refusing to DELETE an off-work-set
   // object is a harsher policy than refusing to drag one, and only canDrag
@@ -291,7 +292,7 @@ test("a refused drag is announced on the window, with the gate that failed", () 
   assert.match(fn, /new CustomEvent\("layers:blocked-drag"/);
   /* `where` distinguishes the pane so one pill serves both; js/view3d.js
      emits the same four fields with where: "3d". */
-  assert.match(fn, /detail: \{ sel: sel, layer: id, reason: reason, where: inputIs3D\(\)\?"3d":"2d" \}/);
+  assert.match(fn, /detail: \{ sel: sel, layer: id, reason: reason, ulayer: ul, where: inputIs3D\(\)\?"3d":"2d" \}/);
   // the three reasons, in the order canDrag tests them
   assert.match(fn, /reason = "object"/);
   assert.match(fn, /layerRank\(id\) !== 0\) reason = "rank"/);

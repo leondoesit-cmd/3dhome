@@ -435,3 +435,31 @@ body.pro-skin.ps-layers-open #view-3d .pt-panel[data-panel="layers"] { width: 24
 /* a verb that needs a selection reads as unavailable, not as a broken button */
 #m-sheet .m-list-btn:disabled { opacity: 0.42; cursor: default; }
 #m-sheet .m-list-btn.danger:disabled, #m-sheet .m-list-btn.danger:disabled i { color: var(--text-muted); }
+
+/* ---- the Layers drop-down: what the desktop Layers tab carries -------------
+   The editing line, the workspace buttons, the counts and state tags, the
+   floor-below row and the user's own layers (js/ui_layers.js). The help
+   sentence and the Page Up / Page Down hint are for a keyboard: left out. */
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip.lchip-x[hidden] { display: none !important; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-status {
+  display: block; margin-bottom: 2px; padding: 4px 8px 8px; border-bottom: 1px solid var(--border-color);
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-status-h { display: none; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-presets {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 4px 0 6px;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-presets button { min-height: 52px; font-size: 12px; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-count:not(:empty) {
+  display: inline-block; flex: none; min-width: 18px; margin-inline-end: 2px; color: var(--text-muted); font-size: 12px; text-align: end;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag:not(:empty) {
+  display: inline-block; flex: none; padding: 1px 7px; border-radius: 999px; background: var(--btn-bg); color: var(--text-muted); font-size: max(11px, var(--fs-floor, 0px)); font-weight: 600;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag[data-kind="edit"] { background: var(--accent-soft); color: var(--accent); }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-user {
+  display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color);
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-ref .lchip-name { cursor: default; }
+body.pro-compact .walls-pop .walls-keys { display: none; }
+/* the lit row already says which layer is being edited; its name needs the room */
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag[data-kind="edit"] { display: none; }

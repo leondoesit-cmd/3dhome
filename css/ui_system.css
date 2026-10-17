@@ -346,6 +346,9 @@ html body.pro-skin #view-3d > .planner-navigation {
   justify-content: center;
   gap: 2px;
   padding: 3px;
+  /* positioned from the middle, shrink-to-fit would size it to the half of
+     the pane right of `left` and squeeze the buttons out of their own bar */
+  width: max-content;
   max-width: calc(100% - 220px);
   border: 0;
   border-radius: calc(var(--ui-r) + 2px);
@@ -388,6 +391,7 @@ html body.pro-skin #view-3d > .planner-navigation > .pn-walk { order: 0; }
 html body.pro-skin #view-3d > .planner-navigation > .pn-person { order: 1; }
 html body.pro-skin #view-3d > .planner-navigation > .pn-look { order: 2; }
 html body.pro-skin #view-3d > .planner-navigation > .pn-roof { order: 3; }
+html body.pro-skin #view-3d > .planner-navigation > .pn-walls { order: 4; }
 html body.pro-skin #view-3d > .planner-navigation > :is(.pn-look, .pn-roof) {
   position: relative;
   margin-inline-start: 7px;
@@ -402,6 +406,9 @@ html body.pro-skin #view-3d > .planner-navigation > :is(.pn-look, .pn-roof)::bef
   background: var(--border-color);
   pointer-events: none;
 }
+/* a 3D pane too narrow for the names (js/planner_3d.js measures it) */
+html body.pro-skin #view-3d > .planner-navigation.pn-icons > button { width: var(--ui-h); padding: 0; justify-content: center; }
+html body.pro-skin #view-3d > .planner-navigation.pn-icons > button span { display: none; }
 /* narrow desktops: icons only, the names stay on the tooltips */
 @media (max-width: 1180px) {
   html body.pro-skin #view-3d > .planner-navigation > button { width: var(--ui-h); padding: 0; justify-content: center; }

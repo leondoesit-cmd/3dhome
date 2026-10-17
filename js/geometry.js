@@ -1,6 +1,7 @@
 import {shapeBoundarySignature} from "./room_shapes.js";
 // Pure topology / geometry helpers over the wall graph (no DOM, no THREE).
 import { S, WALL_H, WALL_T, fin, clamp, uid } from "./state.js";
+import { hideUserLayerItems } from "./user_layers.js";
 import {
   wallCurveGeom,
   pointAtWall,
@@ -1424,6 +1425,8 @@ export function anyRoomHidden() {
    Returns { items:{id:1}, walls:{id:1} }; both empty when nothing is hidden. */
 export function hiddenSets(rooms) {
   var res = { items: {}, walls: {} };
+  // pieces on a hidden user layer (js/user_layers.js) leave by the same door
+  hideUserLayerItems(res.items);
   if (!anyRoomHidden()) return res;
   rooms = rooms || detectRooms();
   var hid = rooms.filter(function (r) {

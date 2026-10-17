@@ -61,6 +61,7 @@ import {
 } from "./history.js";
 import { isWalk } from "./view3d.js";
 import { layerRank, layerOf, canDrag, aiCanMove, isLayerLocked, isLayerHidden } from "./layers.js";
+import { refLocked, itemUserUnpickable, userLayerOf } from "./user_layers.js";
 import { planIndex } from "./spatial_index.js";
 import {
   ensureMEP, snapMEPPoint, routeResolve, wallPath, addNode, hitMEP, nodePos,
@@ -446,7 +447,8 @@ function hitItem(px, pz) {
   // both passes still run newest-first, so the piece drawn on top wins
   for (i = near.length - 1; i >= 0; i--) {
     it = near[i].ref;
-    if (hid.items[it.id]) continue;
+    // hidden pieces, and pieces on a faded user layer, are not there to grab
+    if (hid.items[it.id] || itemUserUnpickable(it)) continue;
     if (
       isLamp(it) &&
       inItem(
@@ -460,7 +462,7 @@ function hitItem(px, pz) {
   }
   for (i = near.length - 1; i >= 0; i--) {
     it = near[i].ref;
-    if (hid.items[it.id]) continue;
+    if (hid.items[it.id] || itemUserUnpickable(it)) continue;
     if (!isLamp(it) && inItem(px, pz, it, 0)) return it;
   }
   return null;
@@ -3243,9 +3245,10 @@ function targetLocked(sel) {
     var meta = S.roomMeta && S.roomMeta[sel.ref];
     return !!(meta && meta.locked);
   }
+  // refLocked: its own pin, or the padlock of the user layer it is on
   if (Array.isArray(sel.refs))
-    return sel.refs.length > 0 && sel.refs.every(function (r) { return !!(r && r.locked); });
-  return !!(sel.ref && sel.ref.locked);
+    return sel.refs.length > 0 && sel.refs.every(refLocked);
+  return refLocked(sel.ref);
 }
 
 /* A drag was asked for and refused. The reason is worth showing at the cursor —
@@ -3257,17 +3260,27 @@ function targetLocked(sel) {
      "rank"   — the layer is visible but off the work set (or unreachable)
      "layer"  — the layer's own padlock is closed
      "object" — the thing itself is pinned
+     "ulayer" — the user layer it is on is locked (`ulayer` is that layer's id)
    `layer` is the layer id, or null for a kind that belongs to no layer. */
 function blockedDrag(sel) {
   if (!sel || typeof window === "undefined" || !window.dispatchEvent) return;
   var id = layerOf(sel.kind),
-    reason = "object";
+    reason = "object",
+    ul = null;
   if (!id || layerRank(id) !== 0) reason = "rank";
   else if (isLayerLocked(id)) reason = "layer";
+  else {
+    var first = sel.ref || (sel.refs && sel.refs[0]),
+      L = first && !first.locked ? userLayerOf(first) : null;
+    if (L && L.locked) {
+      reason = "ulayer";
+      ul = L.id;
+    }
+  }
   window.dispatchEvent(
     new CustomEvent("layers:blocked-drag", {
       // `where` lets one pill serve both panes; js/view3d.js emits "3d".
-      detail: { sel: sel, layer: id, reason: reason, where: inputIs3D()?"3d":"2d" },
+      detail: { sel: sel, layer: id, reason: reason, ulayer: ul, where: inputIs3D()?"3d":"2d" },
     }),
   );
 }

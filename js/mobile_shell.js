@@ -41,6 +41,7 @@ import { getLang } from "./i18n.js";
 import { fmtLen } from "./display_units.js";
 import { pickTitle, pushRecent } from "./compact_head.js";
 import { openHistoryPop } from "./history_pop.js";
+import { openWallsMenu, wallsNavSpec } from "./ui_wall_view.js";
 
 var ctxBar = null,
   sheet = null,
@@ -664,6 +665,9 @@ function navActions() {
       });
     });
   }
+  // Walls (Up / Cutaway / Down and how a cut wall looks) opens its own card
+  var walls = wallsNavSpec();
+  out.push({ icon: walls.icon, label: walls.label, run: openWallsMenu });
   // the 3D pane's own Draw and Dollhouse buttons float over the model on a desktop
   [["drawing3dBtn", "ph-pencil-line", "m_nav_draw"], ["dollhouseBtn", "ph-house", "m_nav_dollhouse"]].forEach(function (d) {
     var b = $(d[0]);
@@ -1616,6 +1620,10 @@ export function initMobileShell() {
   });
   window.addEventListener("planner-tool", function () {
     rememberTool(S.tool);
+    sync(true);
+  });
+  // the 3D row's Walls entry names the switch's position
+  window.addEventListener("walls3d:changed", function () {
     sync(true);
   });
   // the Round-6 compact chrome (js/pro_compact.js) opens sheets and names the work

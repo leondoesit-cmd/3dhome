@@ -17,6 +17,7 @@ import { onAfterRender, render2D } from './plan2d.js';
 import { movePlanToolsTo } from './plan_tools_dock.js';
 import { wallGeom, detectRooms } from './geometry.js';
 import { t, onLangChange } from './i18n.js';
+import { wallsButton } from './ui_wall_view.js';
 import { fmtLen } from './display_units.js';
 
 let pane, canvas, hud, modeButton, lookButton, personButton, dragId=null, lastInput=null, look=false, constraintHits=[];
@@ -156,7 +157,12 @@ export function initPlanner3D() {
   const person=navButton('ph-user-focus');personButton=person;person.className='pn-person';person.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();if(!isWalk())toggleWalk(true);toggleWalkView();labels();};
   roofButton=navButton('ph-umbrella-simple');roofButton.className='pn-roof';roofButton.id='planner-invisible-roof';
   roofButton.onclick=()=>{S.invisibleRoof=!S.invisibleRoof;S.dirty3D=true;const cb=document.getElementById('cb_invisible_roof');if(cb)cb.checked=S.invisibleRoof;window.dispatchEvent(new Event('planner-navigation-restored'));labels();requestRender();};
-  bar.append(modeButton,lookButton,person,roofButton);pane.append(bar);labels();onLangChange(labels);window.addEventListener('planner-navigation-restored',labels);
+  // Walls: Up / Cutaway / Down and how a cut wall looks (js/ui_wall_view.js)
+  bar.append(modeButton,lookButton,person,roofButton,wallsButton());pane.append(bar);
+  // a pane too narrow for the names keeps the icons; the names stay on the tooltips
+  const fit=()=>{bar.classList.remove('pn-icons');if(bar.scrollWidth>bar.clientWidth+1)bar.classList.add('pn-icons');};
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(fit).observe(pane);
+  window.addEventListener('walls3d:changed',fit);onLangChange(fit);labels();onLangChange(labels);window.addEventListener('planner-navigation-restored',labels);
   document.getElementById('plan')?.addEventListener('pointerdown',()=>{
     cancelVertex();
     set3DChrome(false);

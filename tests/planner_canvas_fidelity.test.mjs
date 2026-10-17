@@ -45,7 +45,7 @@ test('room cache paints at backing resolution, blits at CSS size and reuses unch
     detectRooms: () => [], hiddenSets: () => { hiddenQueries++; return {}; }, roomsTopologyKey: () => 'room',
     roomLayer: { key: '', canvas: null }, document: { createElement: () => cache },
     paintRooms: () => { paints++; }, pc: { drawImage: (...args) => draws.push(args) },
-    planStyle: () => 'technical',
+    planStyle: () => 'technical', userLayerKey: () => '',
   });
   vm.runInContext(source.slice(source.indexOf('function drawCachedRooms()'), source.indexOf('function drawReferenceFloor()')), ctx);
   ctx.drawCachedRooms();

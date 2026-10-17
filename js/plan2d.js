@@ -55,6 +55,7 @@ import { openingCorners, slabOpenings } from "./slab_openings.js";
 import { openingHasSwingConflict } from "./swing_clearance.js";
 import { cursors, pruneCursors } from "./plan_sync.js";
 import { isLayerVisible, isLayerGhosted, isLayerHidden, layerRank } from "./layers.js";
+import { itemUserVis, userLayerKey } from "./user_layers.js";
 import { roomClearArea } from "./room_area.js";
 import { fmtAreaM2, fmtLen, unitLabel } from "./display_units.js";
 import { isPresentation, planStyle, planTheme } from "./plan_style.js";
@@ -2654,6 +2655,7 @@ function drawCachedRooms() {
         var ftKey = ft ? ft.length + ":" + ft.slice(-24) + ":" + (S.roomMeta[r.key].floorScale || "") : "";
         return r.key + (roomHidden(r.key) ? "h" : "") + (roomFloor(r.key) || "") + ftKey;
       })
+      .concat("ul=" + userLayerKey()) // hiddenSets() also answers for user layers
       .join(";") +
     "|" + planStyle() + "|" + (pixelW / (S.CW || 1)) +
     (S.site && S.site.enabled && S.site.show2D ? "|site" : "");
@@ -3852,7 +3854,22 @@ export function drawCabinetPlanSwings(context,P,sx,sz) {
   });
 }
 
+/* A piece on a faded user layer (js/user_layers.js) draws at a third of its
+   strength; the hidden ones never get here (hiddenSets). */
 function drawItem(it) {
+  if (it && it.ulayer && itemUserVis(it) === "ghost") {
+    pc.save();
+    pc.globalAlpha *= 0.35;
+    try {
+      drawItemInner(it);
+    } finally {
+      pc.restore();
+    }
+    return;
+  }
+  drawItemInner(it);
+}
+function drawItemInner(it) {
   var f = FURN[it.type],
     isSelL = (chromeOn && S.sel && S.sel.kind === "item" && S.sel.ref === it) ||
       (chromeOn && S.sel && S.sel.kind === "items" && S.sel.refs.indexOf(it) !== -1) ||

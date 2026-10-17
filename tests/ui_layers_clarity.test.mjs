@@ -19,7 +19,7 @@ test("the Layers tab says which layer is being edited and what that means", () =
   assert.match(src, /function syncStatus\(\)/);
   // the tag sits beside the name button, never inside it: pro_compact reads
   // the work layer's name from that button's text
-  assert.match(src, /row\.append\(name, tag, eye, lock, more\)/);
+  assert.match(src, /row\.append\(name, count, tag, eye, lock, more\)/);
   assert.match(css, /\.lchip-status,\s*\.lchip-tag \{ display: none; \}/);
   assert.match(css, /\.ps-left-layers > #layer-chips \.lchip-status \{/);
 });

@@ -4245,6 +4245,21 @@ body.rc-playing #view-3d .view-dollhouse-btn { display: none; }
 .toast.toast-success i {
   color: var(--success);
 }
+/* the one button a toast may carry (flash(msg, kind, action)) */
+.toast .toast-act {
+  flex: none;
+  pointer-events: auto;
+  margin-inline-start: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--btn-border);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.toast .toast-act:hover { background: var(--btn-bg-hover); }
 
 /* ---- shared modal (auto-generate, floor match — bp-modal base) ---- */
 .modal-list {
@@ -19874,6 +19889,105 @@ body.pro-skin .ps-left-layers > #layer-chips .lchip-tag[data-kind="edit"] {
   color: var(--accent);
 }
 
+/* Workspaces, counts, the floor reference and the user's own layers: the
+   desktop Layers tab only, like the status line. The extra rows carry .lchip
+   for their look, so they are hidden with a selector that outranks the
+   strips' own `.lchip` display rules. */
+.lchip-presets,
+.lchip-user,
+.lchip-count { display: none; }
+#layer-chips .lchip.lchip-x { display: none !important; }
+body.pro-skin .ps-left-layers > #layer-chips .lchip.lchip-x { display: flex !important; }
+body.pro-skin .ps-left-layers > #layer-chips .lchip.lchip-x[hidden] { display: none !important; }
+body.pro-skin .ps-left-layers > #layer-chips .lchip-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 0 8px;
+}
+.lchip-presets button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 2px;
+  border: 1px solid var(--btn-border);
+  border-radius: 9px;
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 600;
+  cursor: pointer;
+}
+.lchip-presets button i { font-size: 16px; }
+.lchip-presets button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lchip-presets button:hover { background: var(--btn-bg-hover); color: var(--text-main); }
+.lchip-presets button.on { background: var(--accent-soft); border-color: var(--accent-glow); color: var(--accent); }
+body.pro-skin .ps-left-layers > #layer-chips .lchip-count:not(:empty) {
+  display: inline-block;
+  flex: none;
+  min-width: 18px;
+  margin-inline-end: 4px;
+  color: var(--text-muted);
+  font-family: var(--pro-mono, inherit);
+  font-size: max(11px, var(--fs-floor, 0px));
+  text-align: end;
+}
+.lchip-ref { margin-top: 6px; }
+.lchip-ref .lchip-name { display: flex; align-items: center; color: var(--text-muted); cursor: default; }
+body.pro-skin .ps-left-layers > #layer-chips .lchip-user {
+  display: block;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+.lchip-user-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 6px 4px;
+  color: var(--text-muted);
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lchip-user-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--btn-border);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.lchip-user-add:hover { background: var(--btn-bg-hover); }
+.lchip-user-empty {
+  padding: 2px 6px 4px;
+  color: var(--text-muted);
+  font-size: max(11px, var(--fs-floor, 0px));
+  line-height: 1.35;
+}
+.layer-pop .lp-name input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--btn-border);
+  border-radius: 7px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font: inherit;
+}
+.layer-pop .lp-solo:disabled { opacity: 0.5; cursor: default; }
+
 /* Per-layer overrides. Portaled to <body> and fixed, because #plan-tools is a
    bounded, internally scrolling column that would clip it. */
 .layer-pop {
@@ -19933,6 +20047,10 @@ body.pro-skin .ps-left-layers > #layer-chips .lchip-tag[data-kind="edit"] {
 }
 .layer-pop .lp-solo:hover { background: var(--btn-bg-hover); }
 .layer-pop .lp-sep { height: 1px; margin: 8px 0; background: var(--border-color); }
+/* a row that does not apply right now (the cut-wall look while walls are Up
+   or Down): still there to set ahead, drawn quieter */
+.layer-pop .lp-off { opacity: 0.55; }
+.layer-pop .walls-mode-h { margin: -2px 0 8px; }
 .layer-pop .lp-check { cursor: pointer; }
 .layer-pop .lp-check input { flex: none; margin: 0; }
 .layer-pop .lp-check span { flex: 1 1 auto; min-width: 0; white-space: normal; }

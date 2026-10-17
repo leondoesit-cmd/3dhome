@@ -105,6 +105,8 @@ import { wallFraming } from "./wall_framing.js";
 import { fmtLen } from "./display_units.js";
 import { ceilingHeight } from "./elevation.js";
 import { classifyOpeningCut, clipTrianglesBelowY, topFaceTriangles, cutHeightFor, nearSideWall } from "./wall_cut.js";
+import { nearCutOn, cutStyle, STUB_HEIGHT, FADE_LEVEL } from "./wall_view.js";
+import { itemUserVis, itemUserUnpickable } from "./user_layers.js";
 import { siteLayout } from "./site_dressing.js";
 import { skyPixels } from "./sky_model.js";
 
@@ -789,6 +791,7 @@ function buildSiteDressing(streetView) {
 function cutH() {
   var game = typeof document !== "undefined" && document.body &&
     /(^| )(lava-on|zombies-on|rc-playing)( |$)/.test(document.body.className);
+  if (stubBuildH) return stubBuildH; // a near-wall stub is building (stubFor)
   if (buildingShadowWalls) return Infinity;
   return cutHeightFor(S.cutaway, { walk: walk, game: game });
 }
@@ -2191,6 +2194,12 @@ export function applyLayers3D() {
     e.root.visible = isLayerVisible(e.id) || isLayerGhosted(e.id);
     ghostRoot(e.root, isLayerGhosted(e.id));
   });
+  // a ghost swap hands a faded near wall's clones back: fade it again
+  updateSeeThrough(true);
+  // ...and un-ghosting the Furniture layer hands back a faded user layer's
+  itemCache.forEach(function (c) {
+    if (c.g.userData.userGhost || (c.g.userData.item && c.g.userData.item.ulayer)) syncUserGhost(c.g);
+  });
   needsRender = true;
 }
 
@@ -2199,6 +2208,17 @@ export function applyLayers3D() {
    module scope rather than inside init3D because the switch can be flipped
    before the 3D view has ever been opened — ready3D gates the work, and a
    scene built later picks the state up from rebuild3D's own call. */
+if (typeof window !== "undefined") {
+  // the Walls switch or the cut style changed; a new selection moves what
+  // the cut opens towards and which wall it keeps
+  ["walls3d:changed", "planner-selection"].forEach(function (type) {
+    window.addEventListener(type, function () {
+      if (!ready3D) return;
+      updateSeeThrough();
+      warmFadePipelines();
+    });
+  });
+}
 if (typeof window !== "undefined")
   window.addEventListener("layers:changed", function () {
     if (!ready3D) return;
@@ -2349,13 +2369,32 @@ function syncItems(hid) {
     var c = itemCache.get(it.id);
     if (c && c.sig != null && c.sig === itemSig(it)) {
       placeItem(c.g, it);
+      syncUserGhost(c.g);
       return;
     }
-    buildAndCache(it);
+    var g = buildAndCache(it);
+    if (g) syncUserGhost(g);
   });
   Array.from(itemCache.keys()).forEach(function (id) {
     if (!live[id]) dropItem(id);
   });
+}
+
+/* A piece on a faded user layer (js/user_layers.js) is ghosted on its own,
+   with the same clone-and-park swap the Furniture layer's ghost uses. The two
+   share the meshes: the layer ghost skips a mesh that is already ghosted, and
+   un-ghosting the layer hands every clone back, so applyLayers3D() runs this
+   again for every cached piece afterwards. */
+function syncUserGhost(g) {
+  var it = g && g.userData.item;
+  var want = !!(it && it.ulayer && itemUserVis(it) === "ghost");
+  if (want) {
+    ghostSwap(g, true);
+    g.userData.userGhost = true;
+  } else if (g && g.userData.userGhost) {
+    g.userData.userGhost = false;
+    if (!(itemsRoot && itemsRoot.userData.ghostHeld)) ghostSwap(g, false);
+  }
 }
 
 /* Drain S.items3D — the cheap path a drag or an inspector edit uses instead of
@@ -2444,6 +2483,11 @@ export function rebuild3D() {
   dyn.remove(itemsRoot); // keep the furniture subtree out of the disposal below
   clearGroup(dyn); // takes the previous structureRoot and mepRoot with it
   structureRoot = new THREE.Group();
+  stubRoot = new THREE.Group();
+  stubRoot.userData.physicsRole = "ignore";
+  stubRoot.userData.exportSkip = true;
+  structureRoot.add(stubRoot);
+  wallBuildArgs = {};
   mepRoot = new THREE.Group();
   shadowRoot = new THREE.Group();
   shadowRoot.userData.physicsRole = "ignore";
@@ -2853,7 +2897,8 @@ export function rebuild3D() {
   drawingHoverObj = null; // its meshes were just disposed
   S.walls.forEach(function (w) {
     if (hid.walls[w.id]) return;
-    buildWall(w, wallColorMap[w.id] != null ? wallColorMap[w.id] : S.wallColor, w.tex);
+    wallBuildArgs[w.id] = [wallColorMap[w.id] != null ? wallColorMap[w.id] : S.wallColor, w.tex];
+    buildWall(w, wallBuildArgs[w.id][0], wallBuildArgs[w.id][1]);
   });
   // the walls a dollhouse cut lowered still throw their full-height shadows
   if (isFinite(cutH())) buildShadowWalls(hid);
@@ -2944,6 +2989,7 @@ export function rebuild3D() {
     });
   // the wall groups are brand new: re-apply the cut as it stood, without a fade
   updateSeeThrough(true);
+  warmFadePipelines();
   applyLayers3D(); // the roots are brand new too: re-apply hide/ghost to them
   // external modes (RC race) rebuild their collision snapshot off this event
   window.dispatchEvent(new Event("scene3d:rebuilt"));
@@ -3094,24 +3140,31 @@ function upd() {
 
 /* Walls that stand between the camera and what it is looking at are the whole
    reason a piece "can only be dragged from certain angles": you cannot aim at
-   what you cannot see. In 3D edit mode the near side of the house steps out of
-   the way (the dollhouse cut every CAD view does; which walls count is
-   nearSideWall() in js/wall_cut.js), and steps back the moment edit mode is
-   off. A wall fades out and in over SEE_FADE_MS instead of popping, so walls
-   trading places while you orbit read as one movement rather than a flicker.
+   what you cannot see. While the Walls switch (js/wall_view.js) is on Cutaway,
+   the near side of the house steps out of the way in 3D edit mode (which walls
+   count is nearSideWall() in js/wall_cut.js).
+
+   - What it opens towards is the selected room or piece when one is on screen,
+     else the orbit target: the cut follows what you are working on, not where
+     the last pan happened to leave the camera's pivot.
+   - The selected wall (or the wall of a selected door or window) never steps
+     away: you cannot edit a wall that vanishes when you pick it.
+   - A cut wall becomes a knee-high stub, a faint ghost, or nothing, by the
+     user's choice (cutStyle), and walls fade over SEE_FADE_MS rather than pop.
+
    No rebuild is triggered, so this is safe to run on every camera move. */
 function updateSeeThrough(instant) {
   if (!dyn || !camera || !tgt) return;
   // the dollhouse cut already opens every room; hiding whole walls on top of
   // it would take their caps away too
-  var on = (!!S.edit3D || framedInterior) && !walk && !extTick && !isFinite(cutH());
+  var on = ((!!S.edit3D && nearCutOn()) || framedInterior) && !walk && !extTick && !isFinite(cutH());
   var changed = false;
   /* Wall groups are children of structureRoot, not of `dyn` — a one-level scan
      aimed at `dyn` would match nothing at all and the dollhouse cut would
      silently stop happening, which is the same trap the humans pass fell into
      when furniture moved under itemsRoot (see updateHumans). */
   if (!structureRoot) return;
-  var cam = camera.position;
+  var cam = camera.position, aim = on ? seeAim() : tgt, keep = on ? keptWalls() : null;
   structureRoot.children.forEach(function (g) {
     var w = g.userData && g.userData.wall;
     if (!w) return;
@@ -3122,14 +3175,12 @@ function updateSeeThrough(instant) {
        the rebuild immediately afterwards. */
     if (S.walls.indexOf(w) < 0) return;
     var was = !!g.userData.seeThrough, cut = false;
-    if (on) {
+    if (on && keep.indexOf(w) < 0) {
       var gm = wallGeom(w);
       if (!gm || gm.L < 1) return;
-      cut = nearSideWall({ ax: gm.a.x, az: gm.a.z, ux: gm.ux, uz: gm.uz, L: gm.L, half: wallThickness(w, S) / 2 }, cam, tgt, was);
+      cut = nearSideWall({ ax: gm.a.x, az: gm.a.z, ux: gm.ux, uz: gm.uz, L: gm.L, half: wallThickness(w, S) / 2 }, cam, aim, was);
     }
-    // a wall whose visibility drifted from its state (nothing fading it) is
-    // put back too, not only one whose state flips
-    if (cut === was && (g.userData.seeFade || g.visible !== cut)) return;
+    if (cut === was && !seeOutOfStep(g, cut)) return;
     setSeeThrough(g, cut, instant);
     changed = true;
   });
@@ -3137,6 +3188,22 @@ function updateSeeThrough(instant) {
      calls this directly, outside upd(), so without this wake-up the cutaway
      did not appear until the next orbit or Frame action. */
   if (changed) needsRender = true;
+}
+
+// How far a cut wall fades: a faint ghost in the "fade" style, out otherwise.
+function seeRest(cut) {
+  return !cut ? 1 : cutStyle() === "fade" ? FADE_LEVEL : 0;
+}
+/* Does this wall's picture disagree with its state? True after the cut style
+   changed, or when something else touched its visibility: a wall is re-synced
+   then, not only when its cut state flips. A wall still moving is in step as
+   long as it is moving towards the right place. */
+function seeOutOfStep(g, cut) {
+  var rest = seeRest(cut), f = g.userData.seeFade;
+  if (f) return f.to !== rest;
+  var stub = g.userData.seeStub;
+  if ((cut && cutStyle() === "stub") !== !!(stub && stub.visible)) return true;
+  return rest === 1 ? !g.visible : rest === 0 ? g.visible : true;
 }
 
 function setSeeThrough(g, cut, instant) {
@@ -3149,36 +3216,164 @@ function setSeeThrough(g, cut, instant) {
     shadowRoot.add(standIn);
   }
   if (standIn) standIn.visible = cut;
-  fadeWall(g, cut ? 0 : 1, instant);
+  // a wall coming back loses its stub at once; one going away gets it when it
+  // lands (endSeeFade), so the two never stand in the same place
+  if (!cut && g.userData.seeStub) g.userData.seeStub.visible = false;
+  fadeWall(g, seeRest(cut), instant);
+  if (!g.userData.seeFade) syncStub(g);
 }
 
-/* ---- the fade itself ----
-   Same rule as ghostSwap: the materials under a wall can be shared, so a fade
-   works on per-mesh clones parked on userData.seeBase and hands the originals
-   back the moment it ends. At rest a wall is either plainly visible or
-   plainly hidden (group.visible), with its own materials — exactly what
-   picking, export and the layer ghost expect. */
+function syncStub(g) {
+  var want = !!g.userData.seeThrough && cutStyle() === "stub";
+  var stub = want ? stubFor(g) : g.userData.seeStub;
+  if (stub) stub.visible = want;
+}
+
+/* The walls the cut leaves alone whatever the camera does: the one being
+   edited. A selected door or window keeps its wall for the same reason. */
+function keptWalls() {
+  var sel = S.sel, out = [];
+  if (!sel) return out;
+  if (sel.kind === "wall" && sel.ref) out.push(sel.ref);
+  else if (sel.kind === "walls" && sel.refs) out = sel.refs.slice();
+  else if (sel.kind === "opening" && sel.ref) {
+    var w = wallById(sel.ref.wall);
+    if (w) out.push(w);
+  }
+  return out;
+}
+
+/* Where the cut opens towards: the selected room's middle or the selected
+   pieces, while that point is on screen; the orbit target otherwise. */
+var seeAimV = null;
+function seeAim() {
+  var p = selectionAim();
+  if (!p) return tgt;
+  if (!seeAimV) seeAimV = new THREE.Vector3();
+  seeAimV.set(p.x, tgt.y, p.z).project(camera);
+  if (seeAimV.z > 1 || Math.abs(seeAimV.x) > 1 || Math.abs(seeAimV.y) > 1) return tgt;
+  return { x: p.x, y: tgt.y, z: p.z };
+}
+function selectionAim() {
+  var sel = S.sel;
+  if (!sel) return null;
+  var pts = null;
+  if (sel.kind === "room") {
+    var room = roomByKey(sel.ref);
+    pts = room && room.nidx && room.nidx.map(function (i) { return S.nodes[i]; });
+  } else if (sel.kind === "item" && sel.ref) pts = [sel.ref];
+  else if (sel.kind === "items" && sel.refs) pts = sel.refs;
+  pts = (pts || []).filter(function (p) { return p && isFinite(p.x) && isFinite(p.z); });
+  if (!pts.length) return null;
+  var x = 0, z = 0;
+  pts.forEach(function (p) { x += p.x; z += p.z; });
+  return { x: x / pts.length, z: z / pts.length };
+}
+
+/* ---- the stub ----
+   The knee-high wall a cut wall leaves in the "stub" style, built by the same
+   wall builder the dollhouse cut uses (cutH() answers STUB_HEIGHT while it
+   runs), so doors stay open gaps, windows sit above it and its top gets the
+   cut cap. Built the first time a wall is cut, into stubRoot under
+   structureRoot so the structure layer's hide and ghost reach it; it has no
+   tags of its own, so picking, physics and export pass it by. */
+var stubRoot = null,
+  stubBuildH = 0,
+  wallBuildArgs = {}; // wall id -> [colour, texture] it was built with
+function stubFor(g) {
+  if (g.userData.seeStub) return g.userData.seeStub;
+  var w = g.userData.wall;
+  if (!stubRoot || !w) return null;
+  var keepRoot = structureRoot, doorCount = scene.doors ? scene.doors.length : 0;
+  var tmp = new THREE.Group(), args = wallBuildArgs[w.id] || [S.wallColor, w.tex];
+  structureRoot = tmp;
+  stubBuildH = STUB_HEIGHT;
+  try {
+    buildWall(w, args[0], args[1]);
+  } finally {
+    stubBuildH = 0;
+    structureRoot = keepRoot;
+    if (scene.doors) scene.doors.length = doorCount;
+  }
+  var stub = new THREE.Group();
+  tmp.children.slice().forEach(function (c) { stub.add(c); });
+  stub.traverse(function (o) {
+    o.userData = {};
+  });
+  stub.visible = false;
+  // built after the structure layer was ghosted: ghost it too, as the rest are
+  if (structureRoot.userData.ghostHeld) ghostSwap(stub, true);
+  stubRoot.add(stub);
+  g.userData.seeStub = stub;
+  return stub;
+}
+
+/* ---- the movement itself ----
+   Two ways for a near wall to go, both over SEE_FADE_MS:
+
+   "sink"  — Low and Hidden. The wall slides down into the floor (to stub
+             height, or all the way), the way the games that made the switch
+             familiar do it. Only the group's position moves: no material is
+             touched, so nothing new has to be compiled on the GPU and the
+             first orbit is as smooth as the hundredth.
+   "alpha" — Faded. The wall's materials are swapped for per-mesh clones
+             (userData.seeBase parks the originals, the rule ghostSwap follows,
+             because materials can be shared) and their opacity eases. A wall
+             resting faded keeps its clones (seeHeld) until it comes back or
+             settleSeeFades() hands them back before the layer ghost or a
+             rebuild touches the same materials. The clones need transparent
+             GPU pipelines; warmFadePipelines() builds those ahead of time. */
 var SEE_FADE_MS = 180;
-var seeFading = new Set();
+var seeFading = new Set(), // walls moving this frame
+  seeHeld = new Set(); // every wall mid-way or resting faded
 function fadeWall(g, to, instant) {
   var f = g.userData.seeFade;
   var from = f ? f.k : g.visible ? 1 : 0;
-  if (from === to && !f) return;
+  if (!f && from === to) return;
+  var mode = (to > 0 && to < 1) || (from > 0 && from < 1 && !f) || cutStyle() === "fade" ? "alpha" : "sink";
+  if (f && f.mode !== mode) {
+    // the style changed mid-way: land where this one was going, then move anew
+    endSeeFade(g);
+    f = null;
+    from = g.visible ? 1 : 0;
+    if (from === to) return;
+  }
   if (instant || !renderer || !renderer.initialized) {
     // a brand-new wall takes its predecessor's state as it is, and nothing
-    // drawn yet has a fade to watch
-    if (f) endSeeFade(g);
-    g.visible = to > 0;
+    // drawn yet has a movement to watch
+    if (f) {
+      f.to = to > 0 ? 1 : 0;
+      endSeeFade(g);
+    }
+    if (to === 0 || to === 1) {
+      g.visible = to > 0;
+      return;
+    }
+    f = holdSeeFade(g, to, "alpha");
+    seeFading.delete(g);
+    g.visible = true;
+    paintSeeFade(g);
     return;
   }
-  if (!f) {
-    f = g.userData.seeFade = { k: from, to: to };
-    seeMaterials(g, true);
-  }
+  if (!f) f = holdSeeFade(g, from, mode);
   f.to = to;
   g.visible = true;
   seeFading.add(g);
   paintSeeFade(g);
+}
+function holdSeeFade(g, k, mode) {
+  var w = g.userData.wall,
+    H = (w && Number(w.height)) || 250;
+  var f = (g.userData.seeFade = {
+    k: k,
+    to: k,
+    mode: mode,
+    y0: g.position.y,
+    drop: Math.max(0, H - (cutStyle() === "stub" ? STUB_HEIGHT : 0)),
+  });
+  if (mode === "alpha") seeMaterials(g, true);
+  seeHeld.add(g);
+  return f;
 }
 function seeMaterials(g, on) {
   g.traverse(function (o) {
@@ -3205,8 +3400,13 @@ function seeMaterials(g, on) {
   });
 }
 function paintSeeFade(g) {
-  var k = g.userData.seeFade.k,
+  var f = g.userData.seeFade,
+    k = f.k,
     e = k * k * (3 - 2 * k); // smoothstep: no visible kink at either end
+  if (f.mode === "sink") {
+    g.position.y = f.y0 - (1 - e) * f.drop;
+    return;
+  }
   g.traverse(function (o) {
     if (!o.userData.seeBase) return;
     [].concat(o.material).forEach(function (m) {
@@ -3217,32 +3417,105 @@ function paintSeeFade(g) {
 function endSeeFade(g) {
   var f = g.userData.seeFade;
   seeFading.delete(g);
+  seeHeld.delete(g);
   if (!f) return;
-  seeMaterials(g, false);
+  if (f.mode === "alpha") seeMaterials(g, false);
+  else g.position.y = f.y0;
   delete g.userData.seeFade;
   g.visible = f.to > 0;
+  syncStub(g);
 }
-// Advance every running fade by one frame; true while any is still running.
+// Advance every running movement by one frame; true while any is still running.
 function stepSeeFades(delta) {
   var step = delta / SEE_FADE_MS;
   Array.from(seeFading).forEach(function (g) {
     var f = g.userData.seeFade;
     if (!f) return void seeFading.delete(g);
     f.k = f.to > f.k ? Math.min(f.to, f.k + step) : Math.max(f.to, f.k - step);
-    if (f.k === f.to) endSeeFade(g);
-    else paintSeeFade(g);
+    if (f.k !== f.to) paintSeeFade(g);
+    else if (f.to === 0 || f.to === 1) endSeeFade(g);
+    else {
+      paintSeeFade(g);
+      seeFading.delete(g); // resting faded: clones stay, frames stop
+    }
   });
   return seeFading.size > 0;
 }
-// Jump every running fade to its end: before the layer ghost swaps the same
-// materials, and before a rebuild disposes them.
+/* Land every wall mid-way or resting faded: before the layer ghost swaps the
+   same materials, and before a rebuild disposes them. A resting faded wall
+   comes back shown; updateSeeThrough(true) puts it back afterwards. */
 function settleSeeFades() {
-  Array.from(seeFading).forEach(endSeeFade);
+  Array.from(seeHeld).forEach(function (g) {
+    var f = g.userData.seeFade;
+    if (f) f.to = f.to > 0 ? 1 : 0;
+    endSeeFade(g);
+  });
 }
+
+/* The first faded wall used to stall the view for seconds: every wall material
+   needs a transparent variant, and the GPU compiled them all on the frame the
+   fade began. While the Faded style is chosen, this builds one variant per
+   kind of wall material ahead of time, asynchronously, on tiny stand-in meshes
+   that stay in the scene (a pipeline lives only while something uses it). */
+var warmRoot = null,
+  warmKeys = new Set(),
+  warmGeo = null,
+  warmQueued = false;
+function warmKey(m) {
+  return [m.type, m.side, m.vertexColors ? 1 : 0]
+    .concat(["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap", "alphaMap", "bumpMap"].map(function (k) {
+      return m[k] ? 1 : 0;
+    }))
+    .join("|");
+}
+function warmFadePipelines() {
+  if (warmQueued || cutStyle() !== "fade" || !renderer || !renderer.compileAsync || !structureRoot || !scene || !camera) return;
+  warmQueued = true;
+  var run = function () {
+    warmQueued = false;
+    if (!structureRoot || !scene) return;
+    if (!warmRoot) {
+      warmRoot = new THREE.Group();
+      warmRoot.name = "fade pipeline warm-up";
+      warmRoot.userData.physicsRole = "ignore";
+      warmRoot.userData.exportSkip = true;
+      warmGeo = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+    }
+    var fresh = [];
+    structureRoot.traverse(function (o) {
+      if (!o.isMesh || !o.material || o.userData.seeBase) return;
+      [].concat(o.material).forEach(function (m) {
+        if (!m || m.transparent) return;
+        var key = warmKey(m);
+        if (warmKeys.has(key)) return;
+        warmKeys.add(key);
+        var c = m.clone();
+        c.transparent = true;
+        c.depthWrite = false;
+        c.opacity = 0.001;
+        var mesh = new THREE.Mesh(warmGeo, c);
+        mesh.frustumCulled = false;
+        mesh.castShadow = mesh.receiveShadow = false;
+        mesh.position.copy(tgt);
+        mesh.raycast = function () {};
+        warmRoot.add(mesh);
+        fresh.push(mesh);
+      });
+    });
+    if (!fresh.length) return;
+    if (warmRoot.parent !== scene) scene.add(warmRoot);
+    renderer.compileAsync(warmRoot, camera, scene).catch(function () {
+      /* a failed warm-up only means the first fade compiles on the spot */
+    });
+  };
+  if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 1500 });
+  else setTimeout(run, 200);
+}
+
 /* Is this hit on something the near-side cut has taken away? THREE.Raycaster
    tests neither `visible` nor an ancestor's, so a wall group that is hidden
-   (or fading out) still answers every ray with its own meshes — and so do the
-   doors and windows hung in it. */
+   (or fading, or resting faded) still answers every ray with its own meshes —
+   and so do the doors and windows hung in it. */
 function cutAway(o) {
   for (var a = o; a; a = a.parent) if (!a.visible || (a.userData && a.userData.seeThrough)) return true;
   return false;
@@ -3473,7 +3746,9 @@ function targetOf(obj) {
   for (var o = obj; o; o = o.parent) {
     if (!o.userData) continue;
     if (o.userData.item)
-      return layerRank("furniture") === Infinity ? null : { kind: "item", ref: o.userData.item };
+      return layerRank("furniture") === Infinity || itemUserUnpickable(o.userData.item)
+        ? null
+        : { kind: "item", ref: o.userData.item };
     if (o.userData.opening) {
       if (layerRank("structure") === Infinity || o.userData.opening.locked) return null;
       return { kind: "opening", ref: o.userData.opening };

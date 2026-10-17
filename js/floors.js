@@ -410,6 +410,25 @@ export function floorAbove(workspace = S.workspace) {
   return best;
 }
 
+// The storey directly under the active one (the mirror of floorAbove), or null.
+export function floorBelow(workspace = S.workspace) {
+  const floors = Array.isArray(workspace && workspace.floors) ? workspace.floors : [];
+  const activeIndex = floors.findIndex((f) => f.id === (workspace && workspace.activeFloor));
+  if (activeIndex < 0) return null;
+  const activeElev = Number(floors[activeIndex].elevation) || 0;
+  let best = null, bestElev = -Infinity, bestIndex = -Infinity;
+  floors.forEach((f, i) => {
+    if (i === activeIndex) return;
+    const elev = Number(f.elevation) || 0;
+    const lower = elev < activeElev || (elev === activeElev && i < activeIndex);
+    if (!lower) return;
+    if (elev > bestElev || (elev === bestElev && i > bestIndex)) {
+      best = f; bestElev = elev; bestIndex = i;
+    }
+  });
+  return best;
+}
+
 /* Write a slab void into another storey's stored scene. The active storey is
    captured first, or the next captureFloor() would overwrite this edit. */
 export function addSlabOpeningToFloor(floorId, opening) {

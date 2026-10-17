@@ -357,6 +357,8 @@ export function setCutaway(patch) {
   S.cutaway = normalizeCutaway(Object.assign({}, S.cutaway, patch || {}));
   syncCutawayUI();
   S.dirty3D = true;
+  // the 3D view's Walls switch (js/ui_wall_view.js) shows the same bit
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("walls3d:changed"));
 }
 
 /* ---- persistence: one serializer shared by localStorage save and file export ---- */
@@ -830,7 +832,10 @@ export function quietly(fn) {
   }
 }
 
-export function flash(msg, kind) {
+/* `action` ({ label, run }) adds one button to the toast — an immediate way to
+   take back what the message announces — and keeps it up a little longer so
+   there is time to reach for it. */
+export function flash(msg, kind, action) {
   if (quiet) return;
   if (!toastRoot) {
     toastRoot = document.createElement("div");
@@ -849,16 +854,31 @@ export function flash(msg, kind) {
         : "ph-info";
   el.innerHTML = '<i class="ph ' + ic + '"></i><span></span>';
   el.querySelector("span").textContent = msg;
-  toastRoot.appendChild(el);
-  requestAnimationFrame(function () {
-    el.classList.add("on");
-  });
-  setTimeout(function () {
+  var gone = false;
+  function dismiss() {
+    if (gone) return;
+    gone = true;
     el.classList.remove("on");
     setTimeout(function () {
       el.remove();
     }, 300);
-  }, 2400);
+  }
+  if (action && action.label && typeof action.run === "function") {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "toast-act";
+    btn.textContent = action.label;
+    btn.addEventListener("click", function () {
+      dismiss();
+      action.run();
+    });
+    el.appendChild(btn);
+  }
+  toastRoot.appendChild(el);
+  requestAnimationFrame(function () {
+    el.classList.add("on");
+  });
+  setTimeout(dismiss, action ? 4500 : 2400);
 }
 
 // Minimal shared modal on the .bp-overlay/.bp-modal theme classes.

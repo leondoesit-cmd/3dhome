@@ -88,7 +88,8 @@ test("focusAt keeps rank 1 — it frames the view, it does not select", () => {
 
 test("targetOf skips unreachable items and locked openings", () => {
   const target = slice(view3d, "function targetOf(", "function pickEditTarget(");
-  assert.match(target, /layerRank\("furniture"\) === Infinity \? null/);
+  // ...and a piece on a faded or hidden user layer (js/user_layers.js)
+  assert.match(target, /layerRank\("furniture"\) === Infinity \|\| itemUserUnpickable\(o\.userData\.item\)\s*\?\s*null/);
   assert.match(target, /layerRank\("structure"\) === Infinity \|\| o\.userData\.opening\.locked/);
   // bare walls stay skipped: the ray must carry on to the piece behind them
   assert.match(target, /if \(o\.userData\.wall\) return \{ kind: "wall"/);

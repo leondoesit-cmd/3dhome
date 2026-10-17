@@ -28,6 +28,9 @@
    run over the graph, but a cycle here would be felt first as a module that
    loads with half its bindings still in the temporal dead zone. */
 import { S, LAYER_IDS, defaultLayers } from "./state.js";
+/* The one exception to the import rule above: user_layers.js imports
+   state.js and nothing else, so it cannot close a cycle through here. */
+import { refLocked } from "./user_layers.js";
 
 /* The layer TABLE and its defaults live in state.js, next to the rest of S, so
    that S is well-formed for a module that reads `S.layers` without importing
@@ -133,14 +136,15 @@ function selfLocked(sel) {
     var meta = S.roomMeta && S.roomMeta[sel.ref];
     return !!(meta && meta.locked);
   }
+  // refLocked: its own pin, or the padlock of the user layer it is on
   if (Array.isArray(sel.refs))
     return (
       sel.refs.length > 0 &&
       sel.refs.every(function (r) {
-        return !!(r && r.locked);
+        return refLocked(r);
       })
     );
-  return !!(sel.ref && sel.ref.locked);
+  return refLocked(sel.ref);
 }
 
 /* May the AI helper move this? The owner's call: the AI is exempt from the

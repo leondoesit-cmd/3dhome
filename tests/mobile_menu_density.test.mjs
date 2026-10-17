@@ -205,7 +205,8 @@ test("phone planner chrome keeps readable nav labels and hides the 2D view cube"
   assert.match(view3d, /compact \? 1\.05 : 0\.95/);
   assert.match(view3d, /clamp\(ceilingHeight\(\) \* 0\.78, 180, 230\)/);
   assert.match(view3d, /framedInterior = compact/);
-  assert.match(view3d, /\(!!S\.edit3D \|\| framedInterior\)/);
+  // the phone's framed interior cuts the near walls whatever the Walls switch says
+  assert.match(view3d, /\(\(!!S\.edit3D && nearCutOn\(\)\) \|\| framedInterior\)/);
   assert.match(view3d, /if \(changed\) needsRender = true/);
   assert.match(view3d, /compact && effective === "performance"\) effective = "balanced"/);
 });
