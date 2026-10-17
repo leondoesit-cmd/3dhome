@@ -42,9 +42,14 @@ var LAYER_ICON = {
   annotations: "ph-crosshair",
   underlay: "ph-image",
 };
-// The eye is three-state, and the icon has to read as the state it IS.
-var VIS_ICON = { show: "ph-eye", ghost: "ph-eye-closed", hide: "ph-eye-slash" };
-var VIS_NEXT = { show: "ghost", ghost: "hide", hide: "show" };
+/* The eye is a plain show/hide switch, the way every layer list people know
+   works. It used to cycle show -> ghost -> hide, so one click on a visible
+   layer only dimmed it and a second click was needed to hide it, and nothing
+   on screen said which of the three states a layer was in. "Faded" lives in
+   the layer's menu now, and the row says when a layer is faded or hidden. A
+   faded layer keeps the open eye, drawn dimmer (css .lchip.ghosted). */
+var VIS_ICON = { show: "ph-eye", ghost: "ph-eye", hide: "ph-eye-slash" };
+var VIS_IDS = ["show", "ghost", "hide"];
 
 /* Which layer each drawing tool edits. `select` is deliberately absent: the
    select tool is what you use *while* working on any layer, so it must never
@@ -73,6 +78,7 @@ var TOOL_SET = {
 
 var strip = null; // #layer-chips
 var rows = {}; // layer id -> the elements of its chip, so sync() never queries
+var status = null; // the "Editing: ..." line above the rows
 
 function labelOf(id) {
   return t("lay_" + id);
@@ -114,11 +120,14 @@ function setWorkSet(id, announce) {
    leaves the room outline visible to aim at instead of a blank sheet. A second
    solo on a layer that is already the only one shown puts everything back —
    otherwise the gesture is a one-way door out of a five-layer plan. */
-function solo(id) {
-  var alone = LAYER_IDS.every(function (o) {
+function soloed(id) {
+  return LAYER_IDS.every(function (o) {
     var L = layerState(o);
     return o === id ? L.vis === "show" : L.vis !== "show";
   });
+}
+function solo(id) {
+  var alone = soloed(id);
   LAYER_IDS.forEach(function (o) {
     layerState(o).vis = alone ? "show" : o === id ? "show" : "ghost";
   });
@@ -132,6 +141,17 @@ function build() {
   if (!strip) return;
   strip.textContent = "";
   rows = {};
+  /* What the work set IS, in words. The accent fill on one row was the only
+     cue, and nothing said what being "on" a layer means: the other layers
+     still select but never drag, and the tools move you between layers on
+     their own. Shown where there is room for it (the desktop's Layers tab);
+     the strips over the plan hide it (css .lchip-status). */
+  status = document.createElement("div");
+  status.className = "lchip-status";
+  status.innerHTML =
+    '<div class="lchip-status-line"><i class="ph" aria-hidden="true"></i><span class="lchip-status-name"></span>' +
+    '<span class="lchip-status-mode"></span></div><div class="lchip-status-h"></div>';
+  strip.appendChild(status);
   LAYER_IDS.forEach(function (id) {
     var row = document.createElement("div");
     row.className = "lchip";
@@ -156,9 +176,15 @@ function build() {
     eye.addEventListener("click", function (e) {
       if (e.shiftKey) return solo(id);
       var L = layerState(id);
-      L.vis = VIS_NEXT[L.vis] || "show";
+      L.vis = L.vis === "show" ? "hide" : "show";
       commit();
     });
+
+    /* "Editing", "Faded" or "Hidden": the state a glance at the row has to
+       answer. A sibling of the name button rather than part of it, because
+       js/pro_compact.js reads the work layer's name from that button's text. */
+    var tag = document.createElement("span");
+    tag.className = "lchip-tag";
 
     var lock = document.createElement("button");
     lock.type = "button";
@@ -183,9 +209,9 @@ function build() {
       openPopover(id, more);
     });
 
-    row.append(name, eye, lock, more);
+    row.append(name, tag, eye, lock, more);
     strip.appendChild(row);
-    rows[id] = { row: row, name: name, eye: eye, lock: lock, more: more };
+    rows[id] = { row: row, name: name, tag: tag, eye: eye, lock: lock, more: more };
   });
   strip.setAttribute("role", "radiogroup");
   sync();
@@ -213,22 +239,43 @@ function sync() {
       L = layerState(id);
     if (!r || !L) return;
     var on = S.workSet === id || S.workSet === "all";
+    var auto = !!L.locked && !!L.autoLock;
     r.row.classList.toggle("on", on);
     r.row.classList.toggle("ghosted", L.vis === "ghost");
     r.row.classList.toggle("hidden-layer", L.vis === "hide");
     r.row.classList.toggle("locked", !!L.locked);
+    // the automatic lock is the layer system working, not a warning: it is
+    // drawn quieter than a padlock the user closed by hand
+    r.row.classList.toggle("autolocked", auto);
     r.name.setAttribute("aria-checked", on ? "true" : "false");
+    r.tag.textContent = L.vis !== "show" ? t("lay_vis_" + L.vis) : on && S.workSet !== "all" ? t("lay_tag_edit") : "";
+    r.tag.setAttribute("data-kind", L.vis !== "show" ? L.vis : on ? "edit" : "");
     r.eye.querySelector("i").className = "ph " + (VIS_ICON[L.vis] || "ph-eye");
-    r.eye.title = t("lay_vis_" + L.vis) + " · " + t("lay_solo");
+    r.eye.title =
+      t("lay_vis_" + L.vis) + " · " + t(L.vis === "show" ? "lay_eye_hide" : "lay_eye_show") + " · " + t("lay_solo");
     r.eye.setAttribute("aria-label", r.eye.title);
+    r.eye.setAttribute("aria-pressed", L.vis === "show" ? "true" : "false");
     r.lock.querySelector("i").className =
       "ph " + (L.locked ? "ph-lock-simple" : "ph-lock-simple-open");
-    r.lock.title = t(L.locked ? "lay_unlock" : "lay_lock");
+    r.lock.title = auto ? t("lay_autolocked") : t(L.locked ? "lay_unlock" : "lay_lock");
     r.lock.setAttribute("aria-label", r.lock.title);
   });
+  syncStatus();
   syncLockBtn();
   syncStructureRim();
   if (popFor) fillPopover();
+}
+
+function syncStatus() {
+  if (!status) return;
+  var all = S.workSet === "all";
+  status.querySelector("i").className = "ph " + (all ? "ph-stack" : LAYER_ICON[S.workSet] || "ph-stack");
+  status.querySelector(".lchip-status-name").textContent = all
+    ? t("lay_status_all")
+    : t("lay_status", { name: labelOf(S.workSet) });
+  status.querySelector(".lchip-status-mode").textContent =
+    "· " + t(S.workSetPinned ? "lay_status_pinned" : "lay_status_follow");
+  status.querySelector(".lchip-status-h").textContent = all ? "" : t("lay_status_h");
 }
 
 /* The plan toolbar's padlock and the structure chip's padlock are the same
@@ -345,6 +392,7 @@ function overrideRow(key, get, set) {
     var b = document.createElement("button");
     b.type = "button";
     b.textContent = t(o[1]);
+    if (o[0] === null) b.title = t("lay_ov_auto_t");
     b.className = get() === o[0] ? "on" : "";
     b.addEventListener("click", function () {
       set(o[0]);
@@ -382,6 +430,15 @@ function fillPopover() {
   h.className = "lp-head";
   h.textContent = labelOf(id);
   pop.appendChild(h);
+  pop.appendChild(visibilityRow(L));
+  var only = document.createElement("button");
+  only.type = "button";
+  only.className = "lp-solo";
+  only.textContent = t(soloed(id) ? "lay_unsolo_btn" : "lay_solo_btn");
+  only.addEventListener("click", function () {
+    solo(id);
+  });
+  pop.appendChild(only);
   pop.appendChild(
     overrideRow(
       "lay_pick",
@@ -425,6 +482,10 @@ function fillPopover() {
       },
     ),
   );
+  // the one setting here that is not about this layer: set apart from the rest
+  var sep = document.createElement("div");
+  sep.className = "lp-sep";
+  pop.appendChild(sep);
   pop.appendChild(
     checkRow(
       "lay_pin",
@@ -440,6 +501,31 @@ function fillPopover() {
   hint.className = "lp-hint";
   hint.textContent = t("lay_pin_h");
   pop.appendChild(hint);
+}
+
+// Visible / Faded / Hidden: the three visibility states, each named.
+function visibilityRow(L) {
+  var wrap = document.createElement("div");
+  wrap.className = "lp-row";
+  var lab = document.createElement("span");
+  lab.className = "lp-lab";
+  lab.textContent = t("lay_vis");
+  wrap.appendChild(lab);
+  var seg = document.createElement("div");
+  seg.className = "lp-seg";
+  VIS_IDS.forEach(function (v) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = t("lay_vis_" + v);
+    b.className = L.vis === v ? "on" : "";
+    b.addEventListener("click", function () {
+      L.vis = v;
+      commit();
+    });
+    seg.appendChild(b);
+  });
+  wrap.appendChild(seg);
+  return wrap;
 }
 
 /* ---- the unlock pill ----

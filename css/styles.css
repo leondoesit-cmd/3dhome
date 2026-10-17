@@ -19823,14 +19823,63 @@ body.lava-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
 .lchip.ghosted .lchip-name { opacity: 0.55; }
 .lchip.hidden-layer .lchip-name { opacity: 0.45; text-decoration: line-through; }
 .lchip.locked .lchip-lock { color: var(--warn); }
+/* the automatic lock is the layer system at work, not a warning */
+.lchip.autolocked .lchip-lock { color: var(--text-muted); }
+/* a faded layer keeps the open eye, drawn dimmer */
+.lchip.ghosted .lchip-eye i { opacity: 0.5; }
 .lchip .lchip-more { font-size: 13px; }
+
+/* The "Editing: …" line and the per-row state tags need room, so they show
+   only in the desktop's Layers tab; every strip over the plan hides them. */
+.lchip-status,
+.lchip-tag { display: none; }
+body.pro-skin .ps-left-layers > #layer-chips .lchip-status {
+  display: block;
+  margin-bottom: 4px;
+  padding: 4px 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+.lchip-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.lchip-status-line i { color: var(--accent); font-size: 15px; }
+.lchip-status-name,
+.lchip-status-mode { white-space: nowrap; }
+.lchip-status-mode { color: var(--text-muted); font-weight: 500; }
+.lchip-status-h {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: max(11px, var(--fs-floor, 0px));
+  line-height: 1.35;
+}
+body.pro-skin .ps-left-layers > #layer-chips .lchip-tag:not(:empty) {
+  display: inline-block;
+  flex: none;
+  margin-inline-end: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  font-weight: 600;
+}
+body.pro-skin .ps-left-layers > #layer-chips .lchip-tag[data-kind="edit"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 
 /* Per-layer overrides. Portaled to <body> and fixed, because #plan-tools is a
    bounded, internally scrolling column that would clip it. */
 .layer-pop {
   position: fixed;
   z-index: 60;
-  width: 232px;
+  width: 264px;
   padding: 10px;
   border-radius: 12px;
   background: var(--bg-panel);
@@ -19871,8 +19920,22 @@ body.lava-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
 }
 .layer-pop .lp-seg button + button { border-inline-start: 1px solid var(--btn-border); }
 .layer-pop .lp-seg button.on { background: var(--accent); color: var(--on-accent); }
+.layer-pop .lp-solo {
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--btn-border);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font: inherit;
+  cursor: pointer;
+}
+.layer-pop .lp-solo:hover { background: var(--btn-bg-hover); }
+.layer-pop .lp-sep { height: 1px; margin: 8px 0; background: var(--border-color); }
 .layer-pop .lp-check { cursor: pointer; }
-.layer-pop .lp-check input { margin: 0; }
+.layer-pop .lp-check input { flex: none; margin: 0; }
+.layer-pop .lp-check span { flex: 1 1 auto; min-width: 0; white-space: normal; }
 .layer-pop .lp-hint {
   margin-top: 4px;
   color: var(--text-muted);

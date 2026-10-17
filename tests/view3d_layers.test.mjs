@@ -121,7 +121,7 @@ test("the two direct dyn.children walks were flattened over the new roots", () =
   assert.match(phys, /c !== itemsRoot && c !== structureRoot && c !== mepRoot/);
   assert.match(phys, /\.concat\(structureRoot \? structureRoot\.children : \[\]\)/);
   assert.match(phys, /\.concat\(mepRoot \? mepRoot\.children : \[\]\)/);
-  const see = slice(view3d, "function updateSeeThrough()", "export function frameView()");
+  const see = slice(view3d, "function updateSeeThrough(", "function setSeeThrough(");
   assert.match(see, /structureRoot\.children\.forEach/);
   assert.doesNotMatch(see, /dyn\.children/);
 });

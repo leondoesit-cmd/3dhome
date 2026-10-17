@@ -104,7 +104,7 @@ import { layerRank, layerOf, isLayerVisible, isLayerGhosted } from "./layers.js"
 import { wallFraming } from "./wall_framing.js";
 import { fmtLen } from "./display_units.js";
 import { ceilingHeight } from "./elevation.js";
-import { classifyOpeningCut, clipTrianglesBelowY, topFaceTriangles, cutHeightFor } from "./wall_cut.js";
+import { classifyOpeningCut, clipTrianglesBelowY, topFaceTriangles, cutHeightFor, nearSideWall } from "./wall_cut.js";
 import { siteLayout } from "./site_dressing.js";
 import { skyPixels } from "./sky_model.js";
 
@@ -141,6 +141,7 @@ export function plannerPointer3D(cx,cy) {
   if (!['wall','arcwall','rect','roomstamp','slabvoid'].includes(S.tool)) {
     for(const rank of [0,1]) {
       for(const h of ray.intersectObjects(pickableRoots(rank),true)) {
+        if(cutAway(h.object))continue;
         const target=targetOf(h.object);
         if(!target)continue;
         hit={...target,rank,point:{x:h.point.x,y:h.point.y,z:h.point.z}};
@@ -323,9 +324,7 @@ function drawingHoverTarget(cx, cy) {
   for (var i = 0; i < hits.length; i++) {
     var o = hits[i].object;
     if (!o.visible || o.type === "Sprite" || !o.isMesh) continue;
-    var hiddenAncestor = false;
-    for (var a = o; a; a = a.parent) if (!a.visible) { hiddenAncestor = true; break; }
-    if (hiddenAncestor) continue;
+    if (cutAway(o)) continue;
     var mats = Array.isArray(o.material) ? o.material : [o.material];
     if (!mats.some(function (m) { return m && m.visible && (!m.transparent || m.opacity >= 0.5); })) continue;
     for (var t = o; t; t = t.parent) {
@@ -2172,6 +2171,8 @@ function ghostRoot(root, on) {
   if (!root) return;
   on = !!on;
   if (!!root.userData.ghostHeld === on) return;
+  // a near wall mid-fade wears clones of its own: hand them back first
+  if (root === structureRoot) settleSeeFades();
   ghostSwap(root, on);
   root.userData.ghostHeld = on;
 }
@@ -2437,6 +2438,7 @@ export function rebuild3D() {
      about to take are un-ghosted: itemsRoot survives the disposal intact, and
      re-cloning every catalogue material on it once per rebuild would be pure
      churn. applyLayers3D() at the end puts the other two back. */
+  settleSeeFades(); // the same goes for a near wall caught mid-fade
   ghostRoot(structureRoot, false);
   ghostRoot(mepRoot, false);
   dyn.remove(itemsRoot); // keep the furniture subtree out of the disposal below
@@ -2940,9 +2942,10 @@ export function rebuild3D() {
       if (o.castShadow) shadowRoot.add(makeShadowOnly(o));
       else o.visible = false;
     });
-  // external modes (RC race) rebuild their collision snapshot off this event
-  updateSeeThrough(); // the wall groups are brand new: re-apply the dollhouse cut
+  // the wall groups are brand new: re-apply the cut as it stood, without a fade
+  updateSeeThrough(true);
   applyLayers3D(); // the roots are brand new too: re-apply hide/ghost to them
+  // external modes (RC race) rebuild their collision snapshot off this event
   window.dispatchEvent(new Event("scene3d:rebuilt"));
 }
 
@@ -3091,11 +3094,13 @@ function upd() {
 
 /* Walls that stand between the camera and what it is looking at are the whole
    reason a piece "can only be dragged from certain angles": you cannot aim at
-   what you cannot see. In 3D edit mode those near-side walls step out of the
-   way (the dollhouse cut every CAD view does), and step back the moment edit
-   mode is off. Only visibility is touched — no material is mutated and no
-   rebuild is triggered — so this is safe to run on every camera move. */
-function updateSeeThrough() {
+   what you cannot see. In 3D edit mode the near side of the house steps out of
+   the way (the dollhouse cut every CAD view does; which walls count is
+   nearSideWall() in js/wall_cut.js), and steps back the moment edit mode is
+   off. A wall fades out and in over SEE_FADE_MS instead of popping, so walls
+   trading places while you orbit read as one movement rather than a flicker.
+   No rebuild is triggered, so this is safe to run on every camera move. */
+function updateSeeThrough(instant) {
   if (!dyn || !camera || !tgt) return;
   // the dollhouse cut already opens every room; hiding whole walls on top of
   // it would take their caps away too
@@ -3106,6 +3111,7 @@ function updateSeeThrough() {
      silently stop happening, which is the same trap the humans pass fell into
      when furniture moved under itemsRoot (see updateHumans). */
   if (!structureRoot) return;
+  var cam = camera.position;
   structureRoot.children.forEach(function (g) {
     var w = g.userData && g.userData.wall;
     if (!w) return;
@@ -3115,49 +3121,131 @@ function updateSeeThrough() {
        The live wall objects are authoritative; the old group disappears on
        the rebuild immediately afterwards. */
     if (S.walls.indexOf(w) < 0) return;
-    if (!on) {
-      if (g.userData.seeThrough) {
-        g.userData.seeThrough = false;
-        g.visible = true;
-        var shown = shadowStandIns.get(g);
-        if (shown) shown.visible = false;
-        changed = true;
-      }
-      return;
+    var was = !!g.userData.seeThrough, cut = false;
+    if (on) {
+      var gm = wallGeom(w);
+      if (!gm || gm.L < 1) return;
+      cut = nearSideWall({ ax: gm.a.x, az: gm.a.z, ux: gm.ux, uz: gm.uz, L: gm.L, half: wallThickness(w, S) / 2 }, cam, tgt, was);
     }
-    var gm = wallGeom(w);
-    if (!gm || gm.L < 1) return;
-    // signed side of the wall's infinite line for the camera and for the point
-    // the view is centred on; opposite signs mean the wall is in between
-    var nx = -gm.uz, nz = gm.ux;
-    var dc = (camera.position.x - gm.a.x) * nx + (camera.position.z - gm.a.z) * nz,
-      dt = (tgt.x - gm.a.x) * nx + (tgt.z - gm.a.z) * nz;
-    var between = dc * dt < 0 && Math.abs(dc) > wallThickness(w, S) / 2;
-    // ...and only if the wall actually spans the line of sight, not if it is
-    // an unrelated wall whose infinite line happens to cut the view
-    if (between) {
-      var t = Math.abs(dc) / Math.max(1e-3, Math.abs(dc) + Math.abs(dt));
-      var cx = camera.position.x + (tgt.x - camera.position.x) * t,
-        cz = camera.position.z + (tgt.z - camera.position.z) * t;
-      var sAt = (cx - gm.a.x) * gm.ux + (cz - gm.a.z) * gm.uz;
-      between = sAt > -60 && sAt < gm.L + 60;
-    }
-    if (g.userData.seeThrough !== between || g.visible === between) changed = true;
-    g.userData.seeThrough = between;
-    g.visible = !between;
-    // the wall stepped out of the view, not out of the sunlight
-    var standIn = shadowStandIns.get(g);
-    if (between && !standIn && shadowRoot) {
-      standIn = makeShadowOnly(shadowCopy(g));
-      shadowStandIns.set(g, standIn);
-      shadowRoot.add(standIn);
-    }
-    if (standIn) standIn.visible = between;
+    // a wall whose visibility drifted from its state (nothing fading it) is
+    // put back too, not only one whose state flips
+    if (cut === was && (g.userData.seeFade || g.visible !== cut)) return;
+    setSeeThrough(g, cut, instant);
+    changed = true;
   });
   /* Visibility is a render input just like camera position. toggleEdit3D()
      calls this directly, outside upd(), so without this wake-up the cutaway
      did not appear until the next orbit or Frame action. */
   if (changed) needsRender = true;
+}
+
+function setSeeThrough(g, cut, instant) {
+  g.userData.seeThrough = cut;
+  // the wall stepped out of the view, not out of the sunlight
+  var standIn = shadowStandIns.get(g);
+  if (cut && !standIn && shadowRoot) {
+    standIn = makeShadowOnly(shadowCopy(g));
+    shadowStandIns.set(g, standIn);
+    shadowRoot.add(standIn);
+  }
+  if (standIn) standIn.visible = cut;
+  fadeWall(g, cut ? 0 : 1, instant);
+}
+
+/* ---- the fade itself ----
+   Same rule as ghostSwap: the materials under a wall can be shared, so a fade
+   works on per-mesh clones parked on userData.seeBase and hands the originals
+   back the moment it ends. At rest a wall is either plainly visible or
+   plainly hidden (group.visible), with its own materials — exactly what
+   picking, export and the layer ghost expect. */
+var SEE_FADE_MS = 180;
+var seeFading = new Set();
+function fadeWall(g, to, instant) {
+  var f = g.userData.seeFade;
+  var from = f ? f.k : g.visible ? 1 : 0;
+  if (from === to && !f) return;
+  if (instant || !renderer || !renderer.initialized) {
+    // a brand-new wall takes its predecessor's state as it is, and nothing
+    // drawn yet has a fade to watch
+    if (f) endSeeFade(g);
+    g.visible = to > 0;
+    return;
+  }
+  if (!f) {
+    f = g.userData.seeFade = { k: from, to: to };
+    seeMaterials(g, true);
+  }
+  f.to = to;
+  g.visible = true;
+  seeFading.add(g);
+  paintSeeFade(g);
+}
+function seeMaterials(g, on) {
+  g.traverse(function (o) {
+    if (!o.isMesh || !o.material) return;
+    if (on) {
+      if (o.userData.seeBase) return;
+      o.userData.seeBase = o.material;
+      var fades = [].concat(o.material).map(function (m) {
+        var c = m.clone();
+        c.userData.seeOpacity = c.transparent ? c.opacity : 1;
+        c.transparent = true;
+        c.depthWrite = false; // a fading wall must not hide what it is uncovering
+        return c;
+      });
+      o.material = Array.isArray(o.userData.seeBase) ? fades : fades[0];
+    } else {
+      if (!o.userData.seeBase) return;
+      [].concat(o.material).forEach(function (m) {
+        m.dispose();
+      });
+      o.material = o.userData.seeBase;
+      delete o.userData.seeBase;
+    }
+  });
+}
+function paintSeeFade(g) {
+  var k = g.userData.seeFade.k,
+    e = k * k * (3 - 2 * k); // smoothstep: no visible kink at either end
+  g.traverse(function (o) {
+    if (!o.userData.seeBase) return;
+    [].concat(o.material).forEach(function (m) {
+      m.opacity = m.userData.seeOpacity * e;
+    });
+  });
+}
+function endSeeFade(g) {
+  var f = g.userData.seeFade;
+  seeFading.delete(g);
+  if (!f) return;
+  seeMaterials(g, false);
+  delete g.userData.seeFade;
+  g.visible = f.to > 0;
+}
+// Advance every running fade by one frame; true while any is still running.
+function stepSeeFades(delta) {
+  var step = delta / SEE_FADE_MS;
+  Array.from(seeFading).forEach(function (g) {
+    var f = g.userData.seeFade;
+    if (!f) return void seeFading.delete(g);
+    f.k = f.to > f.k ? Math.min(f.to, f.k + step) : Math.max(f.to, f.k - step);
+    if (f.k === f.to) endSeeFade(g);
+    else paintSeeFade(g);
+  });
+  return seeFading.size > 0;
+}
+// Jump every running fade to its end: before the layer ghost swaps the same
+// materials, and before a rebuild disposes them.
+function settleSeeFades() {
+  Array.from(seeFading).forEach(endSeeFade);
+}
+/* Is this hit on something the near-side cut has taken away? THREE.Raycaster
+   tests neither `visible` nor an ancestor's, so a wall group that is hidden
+   (or fading out) still answers every ray with its own meshes — and so do the
+   doors and windows hung in it. */
+function cutAway(o) {
+  for (var a = o; a; a = a.parent) if (!a.visible || (a.userData && a.userData.seeThrough)) return true;
+  return false;
 }
 
 /* The presentation cutaway camera: three-quarter azimuth, steep from above,
@@ -3322,7 +3410,7 @@ function focusAt(cx, cy) {
     hits = ray
       .intersectObjects(roots.concat(pickableRoots(0), pickableRoots(1)), true)
       .filter(function (h) {
-        return h.object.visible && h.object.type !== "Sprite";
+        return h.object.type !== "Sprite" && !cutAway(h.object);
       });
   var p = hits.length ? hits[0].point : pointerGround(cx, cy);
   if (!p) return;
@@ -3417,7 +3505,7 @@ function pickEditTarget(cx, cy) {
     var hits = ray.intersectObjects(roots, true);
     for (var i = 0; i < hits.length; i++) {
       var h = hits[i];
-      if (!h.object.visible || h.object.type === "Sprite") continue;
+      if (h.object.type === "Sprite" || cutAway(h.object)) continue;
       var t = targetOf(h.object);
       if (!t || t.kind === "wall") continue;
       return { kind: t.kind, ref: t.ref, point: h.point, rank: rank };
@@ -5318,6 +5406,10 @@ function build3D() {
     // Collect live animations. Each of these mutates the scene, so any of them
     // being active means we must paint this frame (and the next).
     var doorsMoving = updateDoors();
+    if (seeFading.size) {
+      stepSeeFades(delta);
+      needsRender = true;
+    }
     var humansLive = updateHumans(time);
     var physicsLive = isPhysicsBusy();
     // Nothing can be painted until the WebGPU/WebGL2 backend has finished its
