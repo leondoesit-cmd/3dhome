@@ -9,7 +9,11 @@ import { contentBounds } from "./geometry.js";
 import { wrapPlanSVG } from "./sheet_print.js";
 
 function esc(value) { return String(value == null ? "" : value).replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
-function csv(value) { const s = String(value == null ? "" : value); return /[\",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function csv(value) {
+  let s = String(value == null ? "" : value);
+  if (typeof value !== "number" && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[\",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
 function step(value) { return String(value == null ? "" : value).replace(/'/g, "''").replace(/[\r\n]/g, " "); }
 function ifcGuid(value) {
   const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$";

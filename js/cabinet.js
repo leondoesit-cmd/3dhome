@@ -1205,7 +1205,7 @@ export function normalizeSpec(sp, w, h, d) {
     sp.top = 0;
   }
   if (sp.plinthType === "none") sp.plinth = 0;
-  else if (!sp.plinth) sp.plinth = (FAM[sp.fam] || FAM.wardrobe).plinth || 8;
+  else if (sp.plinth == null) sp.plinth = (FAM[sp.fam] || FAM.wardrobe).plinth || 8;
   if (!sp.cols || !sp.cols.length) sp.cols = [{ w: 60, secs: [sec("shelves", 100)], door: door("none") }];
   tagParts(sp);
 

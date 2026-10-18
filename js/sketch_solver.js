@@ -68,8 +68,9 @@ function entityMap(sketch) {
 }
 
 function wrapAngle(a) {
-  while (a > Math.PI) a -= Math.PI * 2;
-  while (a < -Math.PI) a += Math.PI * 2;
+  a %= Math.PI * 2;
+  if (a > Math.PI) a -= Math.PI * 2;
+  if (a < -Math.PI) a += Math.PI * 2;
   return a;
 }
 
@@ -924,6 +925,7 @@ export function planeLabel(plane) {
 const idleToolboxSketches = new WeakMap();
 
 export function ensureSketchDoc(def) {
+  if (!def || typeof def !== "object") return [];
   if (!Array.isArray(def.sketches)) def.sketches = [];
   discardIncidentalToolboxSketches(def);
   const existingToolboxBody = (def.features || []).some(feature => feature.type === "toolbox");
@@ -959,6 +961,7 @@ export function ensureSketchDoc(def) {
 // The sketch every edit lands in. Callers that just want "the working sketch"
 // keep working unchanged; which one that is now depends on the active plane.
 export function ensureSketch(def) {
+  if (!def || typeof def !== "object") return blankSketch("top", 0);
   const list = ensureSketchDoc(def);
   if (list.length) return list.find((s) => s.id === def.activeSketch) || list[0];
   // Read-only editor badges and camera controls need a working plane, not a
@@ -994,7 +997,7 @@ export function removeSketch(def, id) {
     list.splice(i, 1);
   }
   const remaining = def.sketches;
-  if (def.activeSketch === id) def.activeSketch = remaining[Math.max(0, i - 1)].id;
+  if (def.activeSketch === id) def.activeSketch = remaining[Math.max(0, i - 1)]?.id || null;
   return true;
 }
 
@@ -1004,7 +1007,7 @@ export function removeSketch(def, id) {
    history row the tree never shows it, so it could not be deleted either:
    LENSCAP carried an invisible empty "X·Z sketch" that way. */
 export function sketchIsAbandoned(def, sketch) {
-  if (!sketch || sketch.id === def.activeSketch || sketch.support || sketch.frameSpace === "local") return false;
+  if (!def || !sketch || sketch.id === def.activeSketch || sketch.support || sketch.frameSpace === "local") return false;
   if ((sketch.points || []).length || (sketch.entities || []).length || (sketch.constraints || []).length) return false;
   if (String(sketch.name || "") !== planeLabel(sketch.plane) + " sketch") return false;
   const rest = { ...def, sketches: (def.sketches || []).filter((s) => s !== sketch), activeSketch: undefined, exactTopologyCache: undefined };
@@ -1013,6 +1016,7 @@ export function sketchIsAbandoned(def, sketch) {
 }
 
 export function pruneAbandonedSketches(def) {
+  if (!def) return [];
   const dropped = ensureSketchDoc(def).filter((sketch) => sketchIsAbandoned(def, sketch)).map((sketch) => sketch.id);
   return dropped.filter((id) => removeSketch(def, id));
 }
@@ -1052,6 +1056,10 @@ export function removeSketchEntity(sketch, id) {
    not harmless: it keeps two degrees of freedom in the count, so a sketch that
    looks finished never reports itself as fully defined. */
 export function pruneOrphanPoints(sketch) {
+  if (!sketch || typeof sketch !== "object") return;
+  sketch.points ||= [];
+  sketch.entities ||= [];
+  sketch.constraints ||= [];
   const used = new Set();
   sketch.entities.forEach((e) => entityPoints(sketch, e).forEach((p) => used.add(p.id)));
   /* A pattern's centre of rotation is in use even when no entity draws it — it

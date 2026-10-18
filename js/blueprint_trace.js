@@ -281,7 +281,7 @@ export function syncBlueprintTraceControls() {
   if (typeof document === "undefined") return;
   var cur = S.blueprintTrace;
   var sig = cur
-    ? (cur.name || "") + "|" + cur.opacity + "|" + (cur.visible !== false) + "|" + cur.cmPerPx
+    ? (cur.name || "") + "|" + cur.opacity + "|" + (cur.visible !== false) + "|" + cur.cmPerPx + '|' + document.documentElement.dataset.plannerViewport
     : "";
   // cheap early-out: nothing the bar renders has moved since the last repaint
   if (sig === controlsSig && document.getElementById("bp-trace-controls")) return;
@@ -302,12 +302,15 @@ export function syncBlueprintTraceControls() {
       '<button type="button" data-bptrace="remove"><i class="ph ph-x"></i></button>';
     host.appendChild(bar);
   }
+  if (!bar.closest('.pt-panel') && bar.parentNode !== host) host.appendChild(bar);
   var ref = S.blueprintTrace;
   bar.hidden = !ref;
   if (!ref) return;
   bar.querySelector(".bp-trace-name").textContent = ref.name || t("bp_trace_sheet");
   bar.querySelector('[data-bptrace="walls"] span').textContent = t("bp_trace_walls");
+  bar.querySelector('[data-bptrace="walls"]').setAttribute('aria-label', t('bp_trace_walls'));
   var range = bar.querySelector('input[type="range"]');
+  range.setAttribute('aria-label', 'Reference image opacity');
   range.value = String(fin(ref.opacity) ? ref.opacity : 0.55);
   var vis = bar.querySelector('[data-bptrace="visible"]');
   vis.title = t(ref.visible === false ? "bp_trace_show" : "bp_trace_hide");

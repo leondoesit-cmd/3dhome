@@ -194,8 +194,8 @@ export function applyPbrMaps(mat, entry, ru, rv, o) {
   // the maps carry the values; the scalars become plain multipliers
   mat.roughness = 1;
   mat.metalness = entry.metal > 0 ? 1 : 0;
-  if (!entry.tint) mat.color.setHex(o.tint != null ? o.tint : 0xffffff);
-  else if (o.tint != null) mat.color.setHex(o.tint);
+  if (!entry.tint) mat.color.setHex(0xffffff);
+  else mat.color.setHex(o.tint != null ? o.tint : 0xffffff);
   if ((entry.kind === "clearcoat" || entry.kind === "polished") && "clearcoat" in mat) {
     mat.clearcoat = 0.45;
     mat.clearcoatRoughness = 0.06;
@@ -279,7 +279,7 @@ export function pbrSurfaceMaterial(entry, o) {
   mat.colorNode = color.rgb.mul(tint);
   mat.normalNode = T.normalMap(normal.rgb);
   mat.roughnessNode = orm.g;
-  mat.metalnessNode = orm.b;
+  mat.metalnessNode = entry.metal > 0 ? orm.b : T.float(0);
   mat.aoNode = orm.r;
   if (physical) {
     mat.clearcoat = 0.45;

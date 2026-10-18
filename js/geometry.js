@@ -53,11 +53,12 @@ function topologySignature() {
 function boundsSignature() {
   var out = topologySignature() + "|" + S.items.length + "|" + (S.slabOpenings || []).length;
   S.items.forEach(function (it) {
-    out += ";" + it.id + "," + it.x + "," + it.z + "," + it.w + "," + it.d;
+    out += ";" + it.id + "," + it.x + "," + it.z + "," + it.w + "," + it.d + "," + it.rot;
   });
   (S.slabOpenings || []).forEach(function (o) {
     out += ";v" + o.id + "," + o.x + "," + o.z + "," + o.w + "," + o.d + "," + o.rot;
   });
+  out += JSON.stringify(S.walls.map(w=>[w.thickness,w.bulge,w.loc,w.dimSide]));
   return out;
 }
 
@@ -1045,20 +1046,22 @@ export function contentBounds() {
   });
   S.items.forEach(function (it) {
     if (!fin(it.x) || !fin(it.z) || !fin(it.w) || !fin(it.d)) return;
-    var r = Math.max(it.w, it.d) / 2;
-    minx = Math.min(minx, it.x - r);
-    maxx = Math.max(maxx, it.x + r);
-    minz = Math.min(minz, it.z - r);
-    maxz = Math.max(maxz, it.z + r);
+    var angle=(it.rot||0)*Math.PI/180,c=Math.abs(Math.cos(angle)),s=Math.abs(Math.sin(angle));
+    var rx=(it.w*c+it.d*s)/2,rz=(it.w*s+it.d*c)/2;
+    minx = Math.min(minx, it.x - rx);
+    maxx = Math.max(maxx, it.x + rx);
+    minz = Math.min(minz, it.z - rz);
+    maxz = Math.max(maxz, it.z + rz);
     any = true;
   });
   (S.slabOpenings || []).forEach(function (o) {
     if (!fin(o.x) || !fin(o.z) || !(o.w > 0) || !(o.d > 0)) return;
-    var rr = Math.max(o.w, o.d) / 2;
-    minx = Math.min(minx, o.x - rr);
-    maxx = Math.max(maxx, o.x + rr);
-    minz = Math.min(minz, o.z - rr);
-    maxz = Math.max(maxz, o.z + rr);
+    var angle=(o.rot||0)*Math.PI/180,c=Math.abs(Math.cos(angle)),s=Math.abs(Math.sin(angle));
+    var rx=(o.w*c+o.d*s)/2,rz=(o.w*s+o.d*c)/2;
+    minx = Math.min(minx, o.x - rx);
+    maxx = Math.max(maxx, o.x + rx);
+    minz = Math.min(minz, o.z - rz);
+    maxz = Math.max(maxz, o.z + rz);
     any = true;
   });
   if (!any) {

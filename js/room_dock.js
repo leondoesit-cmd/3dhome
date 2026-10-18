@@ -55,7 +55,8 @@ export function dockFaces(state, options) {
   const faces = [];
   state.walls.forEach((w) => {
     if (skip && skip.has(w.id)) return;
-    if (w.geometry && w.geometry.type === "arc") return;
+    if ((w.geometry && w.geometry.type === "arc") || (w.curve && w.curve.type === "arc") ||
+        (w.bulge != null && Math.abs(w.bulge) > 1e-6)) return;
     const a = state.nodes[w.a], b = state.nodes[w.b];
     if (!a || !b) return;
     const axis = axisOf(a, b, tol);

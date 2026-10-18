@@ -67,7 +67,7 @@ function plainCopy(value) {
 const WALL_FIELDS = [
   "thickness", "height", "tex", "wallTypeId", "layers", "layersReversed", "datum",
   "kind", "phase", "upperWallTypeId", "splitHeight", "profile", "railing", "join",
-  "layerOverrides", "dimSide", "loc", "geometry",
+  "layerOverrides", "dimSide", "loc", "geometry", "curve", "bulge", "radius", "cornerTreatment",
   "clearL", "lock", "lockL", "lockClearL", "lockAng",
 ];
 

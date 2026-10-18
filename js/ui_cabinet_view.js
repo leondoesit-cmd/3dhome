@@ -1116,8 +1116,9 @@ function hit(p) {
     if (p.x < c2.x0 - L.t || p.x > c2.x1 + L.t) continue;
     // dividers before cells: the top edge of a compartment is also the bottom
     // of the shelf above it, and grabbing the shelf has to win
+    var st = L.st || L.t;
     for (var si = 1; si < c2.secs.length; si++)
-      if (Math.abs(p.y - c2.secs[si].y0 + L.t / 2) < tol + L.t / 2) return { kind: "secDiv", col: ci, i: si };
+      if (Math.abs(p.y - c2.secs[si].y0 + st / 2) < tol + st / 2) return { kind: "secDiv", col: ci, i: si };
     for (var sj = 0; sj < c2.secs.length; sj++) {
       var s = c2.secs[sj];
       if (p.y >= s.y0 && p.y <= s.y1) return { kind: "cell", col: ci, sec: sj };
@@ -1138,7 +1139,6 @@ export function wireCanvas() {
     if (!live()) return;
     var p = toModel(e);
     if (E.tool) {
-      api.act(T(E.tool === "erase" ? "opErase" : "opDraw"));
       if (E.tool === "erase") eraseAt(p);
       else if (E.tool === "vwall") drawVWall(ghostAt(p));
       else drawHWall(ghostAt(p), e.shiftKey);
@@ -1188,7 +1188,7 @@ export function wireCanvas() {
       if (a >= 12 && b >= 12) {
         cols[i - 1].w = a;
         cols[i].w = b;
-        cols[i - 1].fixed = cols[i].fixed = false;
+        cols[i - 1].fixed = cols[i].fixed = true;
       }
     } else {
       var c2 = cols[d.h.col],
@@ -1237,9 +1237,10 @@ export function wireCanvas() {
       }
     } else if (h.kind === "col" || h.kind === "colDiv") {
       var u = displayUnit("furniture");
-      var ci = h.col != null ? h.col : h.i,
-        c2 = sp().cols[ci],
-        v2 = prompt(T("colW") + ' (' + u + ')', Math.round(toDisp(c2.w, "furniture")));
+      var ci = h.col != null ? h.col : (h.kind === "colDiv" ? h.i - 1 : h.i),
+        c2 = sp().cols[ci];
+      if (!c2) return;
+      var v2 = prompt(T("colW") + ' (' + u + ')', Math.round(toDisp(c2.w, "furniture")));
       if (v2 != null && fin(+v2)) {
         var parsedW = fromDisp(+v2, "furniture");
         if (parsedW > 10) {
@@ -1382,7 +1383,7 @@ function ghostAt(p) {
           });
         });
         hc.push({ v: (s.y0 + s.y1) / 2, why: "mid" });
-        hc = hc.concat(roundCands(0, s.y0 + 5, s.y1 - 5, "round"));
+        hc = hc.concat(roundCands(s.y0, 5, (s.y1 - s.y0) - 5, "round"));
         var sn2 = pickSnap(p.y, hc, tol),
           ha = sn2.v - s.y0 - t2 / 2,
           hb = s.y1 - sn2.v - t2 / 2;
@@ -1399,6 +1400,7 @@ function ghostAt(p) {
 
 function drawVWall(g) {
   if (!g || !g.ok) return api.flashHint(T("tooSmall"));
+  api.act(T("opDraw"));
   api.touch();
   var cols = sp().cols,
     c = cols[g.col],
@@ -1407,6 +1409,8 @@ function drawVWall(g) {
   copy.w = g.b;
   delete c.fixed;
   delete copy.fixed;
+  delete copy.hid;
+  if (copy.secs) copy.secs.forEach(function (s) { delete s.hid; });
   cols.splice(g.col + 1, 0, copy);
   E.sel = { col: g.col + 1, sec: 0 };
   api.changed();
@@ -1423,7 +1427,6 @@ function drawHWall(g, all) {
     t = sp().shelf || sp().panel,
     targets = all ? L.cols.map(function (_, i) { return i; }) : [g.col],
     done = 0;
-  api.touch();
   targets.forEach(function (ci) {
     var lc = L.cols[ci],
       col = sp().cols[ci];
@@ -1435,10 +1438,28 @@ function drawHWall(g, all) {
       if (a < 8 || b < 8) return;
       var s = col.secs[j],
         copy = JSON.parse(JSON.stringify(s));
+      if (!done) {
+        api.act(T("opDraw"));
+        api.touch();
+      }
       s.h = a;
       copy.h = b;
       delete s.fixed;
       delete copy.fixed;
+      delete copy.hid;
+      // Divide counted fittings rather than installing the full set twice.
+      if (s.t === "drawers" || s.t === "pullout") {
+        var count = s.n != null ? s.n : Math.max(1, Math.round((ls.y1 - ls.y0) / (s.t === "drawers" ? STD.drawerH + (sp().gap || 0) : 24))),
+          lower = Math.min(count, Math.max(1, Math.round(count * a / (a + b))));
+        s.n = lower;
+        copy.n = count - lower;
+        delete s.heights;
+        delete copy.heights;
+        if (copy.n <= 0) copy = { t: "shelves", h: b, n: 0 };
+      } else if (!["shelves", "shoe", "open", "box"].includes(s.t)) {
+        // An appliance or other single fitting stays in the original zone.
+        copy = { t: "shelves", h: b, n: 0 };
+      }
       col.secs.splice(j + 1, 0, copy);
       done++;
       return;
@@ -1452,6 +1473,15 @@ function drawHWall(g, all) {
   api.changed();
 }
 
+function sectionContent(s) {
+  return s.t && s.t !== "shelves" ? 1 : 0;
+}
+function columnContent(c) {
+  return c.secs.reduce(function (sum, s) { return sum + sectionContent(s); }, 0) +
+    (c.door && c.door.t && c.door.t !== "none" ? 1 : 0) +
+    (c.kind && c.kind !== "normal" ? 1 : 0);
+}
+
 // Erase: click a partition and the two zones it separated become one.
 function eraseAt(p) {
   var h = hit(p);
@@ -1459,13 +1489,15 @@ function eraseAt(p) {
   if (h.kind === "colDiv") {
     var cols = sp().cols;
     if (cols.length <= 1) return;
+    api.act(T("opErase"));
     api.touch();
     /* Two bays become one, and one of the two interiors has to go. Losing the
        plainer one is nearly always what was meant — you rub out a divider to
        let the good side spread, not to keep the empty side. */
     var a = cols[h.i - 1],
       b = cols[h.i],
-      keep = b.secs.length > a.secs.length ? b : a;
+      richness = columnContent(b) - columnContent(a),
+      keep = richness > 0 || (richness === 0 && b.secs.length > a.secs.length) ? b : a;
     keep.w = a.w + b.w + (isFloat(sp()) ? 0 : sp().panel);
     delete keep.fixed;
     cols.splice(h.i - 1, 2, keep);
@@ -1474,10 +1506,12 @@ function eraseAt(p) {
   } else if (h.kind === "secDiv") {
     var col2 = sp().cols[h.col];
     if (!col2 || col2.secs.length <= 1) return;
+    api.act(T("opErase"));
     api.touch();
     var sa = col2.secs[h.i - 1],
       sb = col2.secs[h.i],
-      keepS = sb.h > sa.h ? sb : sa;
+      content = sectionContent(sb) - sectionContent(sa),
+      keepS = content > 0 || (content === 0 && sb.h > sa.h) ? sb : sa;
     keepS.h = sa.h + sb.h + (sp().shelf || sp().panel);
     delete keepS.fixed;
     col2.secs.splice(h.i - 1, 2, keepS);
@@ -1524,10 +1558,9 @@ export function exportPNG() {
   a.href = out.toDataURL("image/png");
   a.download = "cabinet-elevation.png";
   a.click();
-  E.axis = restoreAxis;
-  if (restoreMode === "split") { setMode("split"); if (restoreAxis !== "front") setAxis(restoreAxis); }
+  if (restoreAxis !== "front") setAxis(restoreAxis);
+  if (restoreMode === "split") setMode("split");
   else if (restoreMode === "3d") setMode("3d");
-  else if (restoreAxis !== "front") setAxis(restoreAxis);
 }
 
 /* The elevation as a shop drawing: white background, a title block with the

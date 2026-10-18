@@ -2,8 +2,8 @@
 export function parseCabinetDimension(text, unit = 'mm') {
   if (!['mm', 'cm', 'm', 'in', 'ft'].includes(unit)) throw new Error('Choose a supported length unit.');
   let input = String(text).trim();
-  const suffix = input.match(/\s*(mm|cm|m|in|ft|\")$/i);
-  if (suffix) { unit = suffix[1] === '"' ? 'in' : suffix[1].toLowerCase(); input = input.slice(0, -suffix[0].length).trim(); }
+  const suffix = input.match(/\s*(mm|cm|m|in|ft|"|')$/i);
+  if (suffix) { unit = suffix[1] === '"' ? 'in' : suffix[1] === "'" ? 'ft' : suffix[1].toLowerCase(); input = input.slice(0, -suffix[0].length).trim(); }
   let value;
   if (unit === 'in' && /^\d+\s+\d+\/\d+$/.test(input)) {
     const [whole, numerator, denominator] = input.split(/[\s/]+/).map(Number);

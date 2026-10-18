@@ -1,10 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
+import {useCentimetres} from './helpers/planner_units.mjs';
 const opts=await findChrome()?{}:{skip:'no Chrome'};
+test('room labels use the room domain when the plan uses a different unit',opts,async()=>{
+ const page=await openPage({width:390,height:844,mobile:true,touch:true,lang:'en'});
+ try{
+  const result=await page.eval(async()=>{
+   const {saveUnitSettings}=await import('/js/unit_settings.js');
+   const {S}=await import('/js/state.js'),{detectRooms}=await import('/js/geometry.js');
+   const {armRoomStamp,updateRoomGhost,commitRoomStamp}=await import('/js/interaction.js');
+   const {select}=await import('/js/ui_props.js'),{openPlanningGuide,renderPlanningGuide}=await import('/js/ui_planning_guide.js');
+   document.querySelector('[data-start="recreate"]').click();
+   saveUnitSettings({preset:'metric_mm',overrides:{rooms:{unit:'m'},plan:{unit:'mm'}}});
+   armRoomStamp('bedroom');updateRoomGhost(0,0);commitRoomStamp();select({kind:'room',ref:detectRooms()[0].key});openPlanningGuide();renderPlanningGuide();
+   return ['width','depth'].map(key=>{const input=document.querySelector('[data-guide-field="guide_resize_'+key+'"]');return {label:input.parentElement.firstElementChild.textContent,value:Number(input.value)};});
+  });
+  assert.deepEqual(result,[{label:'Interior width (m)',value:3.5},{label:'Interior depth (m)',value:3}]);
+ }finally{await page.close();}
+});
 for(const lang of ['en','he'])test('selected room details are undoable and fit the mobile guide in '+lang,opts,async()=>{
  const page=await openPage({width:390,height:844,mobile:true,touch:true,lang});
  try{
+ await useCentimetres(page);
  const r=await page.eval(async()=>{
   const {S}=await import('/js/state.js');
   const {editPlanningGuide,editRoomDetails,openPlanningGuide,renderPlanningGuide}=await import('/js/ui_planning_guide.js');

@@ -1,4 +1,5 @@
 import { cylinderAxis } from "./core/cylinder_axis.js";
+import { holeSpan } from "./core/hole_span.js";
 import { revolveBounds, revolveRecipe } from "./core/revolve_geometry.js";
 import { tessellatePart } from "./core/part_tessellate.js";
 import { toolFeatureRecipe, toolRangeForAxis, translateToolRecord } from "./core/tool_recipe.js";
@@ -69,7 +70,6 @@ export function basePartBounds(p) {
   if (p.kind === "direct" || p.kind === "mesh") return {x0:0,x1:0,y0:0,y1:0,z0:0,z1:0};
   if (p.kind === "box") return { x0: Math.min(p.x0, p.x1), x1: Math.max(p.x0, p.x1), y0: Math.min(p.y0, p.y1), y1: Math.max(p.y0, p.y1), z0: Math.min(p.z0, p.z1), z1: Math.max(p.z0, p.z1) };
   if (p.kind === "cyl") return cylinderBounds(p);
-  if (p.kind === "cyl") { var R = Math.max(p.r, p.r2 != null ? p.r2 : p.r); return { x0: p.x - R, x1: p.x + R, y0: p.y, y1: p.y + p.h, z0: p.z - R, z1: p.z + R }; }
   if (p.kind === "sph") return { x0: p.x - p.r, x1: p.x + p.r, y0: p.y - p.r, y1: p.y + p.r, z0: p.z - p.r, z1: p.z + p.r };
   if (p.kind === "rev") return revolveBounds(p);
   if (p.kind === "loft") {
@@ -142,6 +142,8 @@ export function partNeedsExactMesh(p) {
      draw prisms — so a non-zero draft angle is what makes the kernel the only
      honest renderer of this body. */
   if (p.kind === "ext" && Math.abs(Number(p.draftAngle) || 0) > 1e-9) return true;
+  // The lightweight extruder only supports through-holes.
+  if ((p.holes || []).some(function (hole) { return hole && !hole.suppressed && (hole.from != null || hole.to != null); })) return true;
   if (fin(p.exactFillet) && p.exactFillet > 0) return true;
   if ((p.exactOperations || []).some(function (operation) { return !operation.suppressed; })) return true;
   if ((p.cuts3d || []).some(function (cut) { return !cut.suppressed; })) return true;
@@ -246,7 +248,7 @@ export function movePart(p, dx, dy, dz) {
     if (p.axis === "y") { lu = dx; lv = dz; lw = dy; }
     else if (p.axis === "z") { lu = dx; lv = dy; lw = dz; }
     else { lu = dz; lv = dy; lw = dx; }
-    [p.pts0, p.pts1].forEach(function (lp) { lp.forEach(function (q) { q.u += lu; q.v += lv; }); });
+    [p.pts0 || [], p.pts1 || []].forEach(function (lp) { lp.forEach(function (q) { q.u += lu; q.v += lv; }); });
     p.from += lw; p.to += lw;
   }
   // A kernel body carries its placement as an offset applied after the build,
@@ -493,7 +495,8 @@ export async function exactBrepForPart(p) {
   var b = partBounds(p), cuts = [];
   (p.holes || []).forEach(function (entry) {
     var loop = holeLoop(entry);
-    if (loop.length >= 3) cuts.push({axis:p.axis,frame:p.frame,from:p.from,to:p.to,loop:loop,historyIndex:-1});
+    var span = holeSpan(p, entry);
+    if (loop.length >= 3 && span.from < span.to) cuts.push({axis:p.axis,frame:p.frame,from:span.from,to:span.to,loop:loop,historyIndex:-1});
   });
   (p.cuts3d || []).forEach(function (cut) { if (!cut.suppressed) cuts.push(cut); });
   var merges = (p.merges3d || []).filter(function (entry) { return !entry.suppressed; });
@@ -655,7 +658,7 @@ export function stdMat(p) {
 
 export function revMaxR(p) {
   var R = 0;
-  p.pts.forEach(function (q) { R = Math.max(R, Math.abs(q.u)); });
+  (p?.pts || []).forEach(function (q) { if (q && Number.isFinite(q.u)) R = Math.max(R, Math.abs(q.u)); });
   return R;
 }
 
@@ -753,7 +756,8 @@ export function placePatternCopy(copy, params, placement, circularStep) {
    vertices 1 and 2 in every triangle, including their normals and colors. */
 function reflectProjectionMesh(part,axis) {
   var data=part.meshData, component={x:0,y:1,z:2}[axis];
-  if(data.exactBounds){var oldMin=data.exactBounds.min[axis];data.exactBounds.min[axis]=-data.exactBounds.max[axis];data.exactBounds.max[axis]=-oldMin;}
+  if(!data)return;
+  if(data.exactBounds && data.exactBounds.min && data.exactBounds.max){var oldMin=data.exactBounds.min[axis];data.exactBounds.min[axis]=-data.exactBounds.max[axis];data.exactBounds.max[axis]=-oldMin;}
   [data.positions,data.normals].forEach(function(values){
     if(!values)return;
     for(var i=component;i<values.length;i+=3)values[i]=-values[i];
@@ -774,6 +778,16 @@ function reflectProjectionMesh(part,axis) {
   clearMeshProjectionCache(data);clearTopologyCache(part);
 }
 
+function mirrorExtrusionSpan(part) {
+  var from = part.from; part.from = -part.to; part.to = -from;
+  (part.holes || []).forEach(function (hole) {
+    if (!hole || Array.isArray(hole) || (hole.from == null && hole.to == null)) return;
+    var from = hole.from;
+    hole.from = hole.to != null ? -hole.to : null;
+    hole.to = from != null ? -from : null;
+  });
+}
+
 export function mirrorProjectionPart(q,planeId) {
   /* Mirroring works by negating coordinates in the part's own definition, and
      a kernel body's definition is a recipe in the sketch coordinates it was
@@ -790,7 +804,7 @@ export function mirrorProjectionPart(q,planeId) {
     // Reflection reverses handedness. Negating normal AND local depth keeps
     // the frame right-handed while placing every point at its reflection.
     ["x","y","z"].forEach(function(axis){q.frame.normal[axis]=-q.frame.normal[axis];});
-    q.from=-q.from;q.to=-q.to;
+    mirrorExtrusionSpan(q);
     // The mirrored copy has its own placement, not the seed's face attachment.
     delete q.support;delete q.supportBaseOffset;delete q.supportDepth;
     delete q.profileEntityIds;delete q.sketchId;
@@ -817,14 +831,14 @@ export function mirrorProjectionPart(q,planeId) {
   var plane=planeId || "plane:right",loops=function(part){return part.kind==="loft"?[part.pts0,part.pts1]:[part.pts].concat((part.holes || []).map(function (hl) { return holeLoop(hl, true); }));};
   if(plane==="plane:top"){
     if(q.kind==="box"){var y0=q.y0;q.y0=-q.y1;q.y1=-y0;}
-    else if(q.kind==="cyl"){q.y=-q.y-q.h;}else if(q.kind==="sph")q.y=-q.y;else if(q.kind==="rev"){q.pts.forEach(function(v){v.v=-v.v;});q.pts.reverse();}
-    else if(q.axis==="y"){var fy=q.from;q.from=-q.to;q.to=-fy;}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){v.v=-v.v;});loop && loop.reverse();});
+    else if(q.kind==="sph")q.y=-q.y;else if(q.kind==="rev"){q.pts.forEach(function(v){v.v=-v.v;});q.pts.reverse();}
+    else if(q.axis==="y"){mirrorExtrusionSpan(q);}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){v.v=-v.v;});loop && loop.reverse();});
   } else if(plane==="plane:front"){
-    if(q.kind==="box"){var z0=q.z0;q.z0=-q.z1;q.z1=-z0;}else if(q.kind==="cyl"||q.kind==="sph"||q.kind==="rev")q.z=-q.z;
-    else if(q.axis==="z"){var fz=q.from;q.from=-q.to;q.to=-fz;}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){if(q.axis==="x")v.u=-v.u;else v.v=-v.v;});loop && loop.reverse();});
+    if(q.kind==="box"){var z0=q.z0;q.z0=-q.z1;q.z1=-z0;}else if(q.kind==="sph"||q.kind==="rev")q.z=-q.z;
+    else if(q.axis==="z"){mirrorExtrusionSpan(q);}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){if(q.axis==="x")v.u=-v.u;else v.v=-v.v;});loop && loop.reverse();});
   } else {
-    if(q.kind==="box"){var x0=q.x0;q.x0=-q.x1;q.x1=-x0;}else if(q.kind==="cyl"||q.kind==="sph"||q.kind==="rev")q.x=-q.x;
-    else if(q.axis==="x"){var fx=q.from;q.from=-q.to;q.to=-fx;}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){v.u=-v.u;});loop && loop.reverse();});
+    if(q.kind==="box"){var x0=q.x0;q.x0=-q.x1;q.x1=-x0;}else if(q.kind==="sph"||q.kind==="rev")q.x=-q.x;
+    else if(q.axis==="x"){mirrorExtrusionSpan(q);}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){v.u=-v.u;});loop && loop.reverse();});
   }
   return q;
 }

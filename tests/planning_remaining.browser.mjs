@@ -13,7 +13,7 @@ test('reordered boundary packing applies every checklist room at its exact size 
    editPlanningGuide({action:'edit',id:`packed-${i}`,width,depth});
   }
   openPlanningGuide();renderPlanningGuide();await new Promise(requestAnimationFrame);
-  const boundary=document.querySelector('[data-guide-field="draft_boundary"]');boundary.value='0,0\n500,0\n500,400\n0,400';boundary.dispatchEvent(new Event('change'));
+  const boundary=document.querySelector('[data-guide-field="draft_boundary"]');boundary.value='0cm,0cm\n500cm,0cm\n500cm,400cm\n0cm,400cm';boundary.dispatchEvent(new Event('change'));
   document.querySelector('[data-guide-action="draft_preview"]').click();
   for(let i=0;i<100&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
   const apply=document.querySelector('[data-guide-action="draft_apply"]');if(!apply)throw new Error('Missing packed preview');

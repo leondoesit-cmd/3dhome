@@ -1,5 +1,6 @@
 import { revolveInterval, revolvePoint } from "./revolve_geometry.js";
 import { cylinderAxis } from "./cylinder_axis.js";
+import { holeSpan } from "./hole_span.js";
 /* Triangles for a document's bodies, without a renderer.
  *
  * The drawing sheet needs the same solid the viewport shows, but it also has to
@@ -206,9 +207,10 @@ function extrusionTriangles(part) {
   const outline = (part.pts || []).map((point) => ({ u: num(point.u), v: num(point.v) }));
   if (outline.length < 3) return [];
   const holes = (part.holes || [])
-    .map((hole) => (Array.isArray(hole) ? hole : hole?.points || hole?.loop || []))
-    .filter((loop) => loop && loop.length >= 3 && !loop.suppressed)
-    .map((loop) => loop.map((point) => ({ u: num(point.u), v: num(point.v) })));
+    .filter(hole => hole && !hole.suppressed)
+    .map(hole => ({loop: Array.isArray(hole) ? hole : hole.points || hole.loop || hole.pts || [], ...holeSpan(part, hole)}))
+    .filter(hole => hole.loop.length >= 3 && hole.from < hole.to)
+    .map(hole => ({...hole, loop:hole.loop.map(point => ({u:num(point.u), v:num(point.v)}))}));
   const frame = extrusionFrame(part);
   const at = (u, v, w) => ({
     x: frame.origin.x + frame.u.x * u + frame.v.x * v + frame.w.x * w,
@@ -226,22 +228,29 @@ function extrusionTriangles(part) {
   };
   const flip = cross.x * frame.w.x + cross.y * frame.w.y + cross.z * frame.w.z < 0;
   const out = [];
-  for (const triangle of triangulatePolygon(outline, holes)) {
-    const [a, b, c] = flip ? [triangle[0], triangle[2], triangle[1]] : triangle;
-    pushTriangle(out, at(a.u, a.v, high), at(b.u, b.v, high), at(c.u, c.v, high));
-    pushTriangle(out, at(a.u, a.v, low), at(c.u, c.v, low), at(b.u, b.v, low));
-  }
-  const wall = (loop, outward) => {
+  const cap = (loop, openings, depth, upward) => {
+    for (const triangle of triangulatePolygon(loop, openings)) {
+      const [a,b,c] = flip === upward ? [triangle[0],triangle[2],triangle[1]] : triangle;
+      pushTriangle(out, at(a.u,a.v,depth), at(b.u,b.v,depth), at(c.u,c.v,depth));
+    }
+  };
+  cap(outline, holes.filter(hole => hole.to === high).map(hole => hole.loop), high, true);
+  cap(outline, holes.filter(hole => hole.from === low).map(hole => hole.loop), low, false);
+  const wall = (loop, outward, from = low, to = high) => {
     const ring = loop.slice();
     if ((polygonArea(ring) > 0) !== outward) ring.reverse();
     if (flip) ring.reverse();
     for (let i = 0; i < ring.length; i++) {
       const a = ring[i], b = ring[(i + 1) % ring.length];
-      pushQuad(out, at(a.u, a.v, low), at(b.u, b.v, low), at(b.u, b.v, high), at(a.u, a.v, high));
+      pushQuad(out, at(a.u, a.v, from), at(b.u, b.v, from), at(b.u, b.v, to), at(a.u, a.v, to));
     }
   };
   wall(outline, true);
-  for (const hole of holes) wall(hole, false);
+  for (const hole of holes) {
+    wall(hole.loop, false, hole.from, hole.to);
+    if (hole.from > low) cap(hole.loop, [], hole.from, true);
+    if (hole.to < high) cap(hole.loop, [], hole.to, false);
+  }
   return out;
 }
 

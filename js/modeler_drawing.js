@@ -1252,9 +1252,10 @@ export function createDrawingController(host) {
       const candidate={id:'aligned-section-validation',dir:'alignedsection',configurationId:parent.configurationId,alignedSection:modifier};
       const active=host.bodies()||[],bodies=host.bodiesForView?host.bodiesForView(parent,active):active;
       projectAlignedSection(bodies,candidate,doc);
-      host.pushUndo('Aligned Section');
-      const liveDoc=host.doc(),live=liveDoc.views.find(v=>v.id===parent.id);
+      let liveDoc=host.doc(),live=liveDoc.views.find(v=>v.id===parent.id);
       if(!live)throw new Error('Aligned Section parent disappeared');
+      host.pushUndo('Aligned Section');
+      liveDoc=host.doc();live=liveDoc.views.find(v=>v.id===parent.id);
       const view=addViewToSheet(liveDoc,'alignedsection',{parent:live.id,configurationId:live.configurationId,configurationName:live.configurationName,alignedSection:modifier,label:'ALIGNED CUT-FACE '+tag+'-'+tag+' (UNFOLDED)'});
       state.draft=null;state.selection={kind:'view',id:view.id};invalidate();host.markDirty();host.flash('Aligned cut faces unfolded; source solids unchanged. Unfolded coordinate dimensions are frozen references.');
     } catch(error) {host.flash(error.message);}
@@ -1280,7 +1281,7 @@ export function createDrawingController(host) {
     const sight = flip ? { x: -along.x, y: -along.y, z: -along.z } : along;
     const tag = nextSectionTag(doc);
     host.pushUndo(host.t("opAddView"));
-    const view = addViewToSheet(doc, viewForSight(sight), {
+    const view = addViewToSheet(host.doc(), viewForSight(sight), {
       label: "SECTION " + tag + "-" + tag,
       parent: place.id,
       section: { axis, at, from: place.id, flip, tag },
@@ -1302,7 +1303,7 @@ export function createDrawingController(host) {
     if (!(radius > 0.2)) { host.flash(host.t("drawDetailSmall")); return; }
     const tag = nextSectionTag(doc);
     host.pushUndo(host.t("opAddView"));
-    const view = addViewToSheet(doc, place.view.dir, {
+    const view = addViewToSheet(host.doc(), place.view.dir, {
       label: "DETAIL " + tag,
       parent: place.id,
       detail: { from: place.id, u: centre.u, v: centre.v, radius, tag },
@@ -1424,7 +1425,9 @@ export function createDrawingController(host) {
     const next=answer.text;
     if(next===note.text)return;
     host.pushUndo(host.t("opEditNote"));
-    note.text = next;
+    const live = host.doc().notes.find(entry => entry.id === id);
+    if (!live) return;
+    live.text = next;
     host.markDirty();
   }
 
@@ -1432,12 +1435,12 @@ export function createDrawingController(host) {
     try {
       const primitive=validateDrawingPrimitive({id:'p'+Math.random().toString(36).slice(2,9),type:draft.type,points:draft.points,style:'outline'},sheetPaper(host.doc()));
       host.pushUndo('Add drawing annotation');
-      host.doc().primitives.push(primitive);state.selection={kind:'primitive',id:primitive.id};state.draft=null;
+      (host.doc().primitives ||= []).push(primitive);state.selection={kind:'primitive',id:primitive.id};state.draft=null;
       invalidate();host.markDirty();return true;
     } catch(error) {host.flash(error.message);return false;}
   }
   async function editPrimitive(id) {
-    const doc=host.doc(),primitive=doc.primitives.find(p=>p.id===id);
+    const doc=host.doc(),primitive=(doc.primitives || []).find(p=>p.id===id);
     if(!primitive || !host.promptFields)return;
     const owner=host.model?.(),history=host.historyToken?.(),stamp=JSON.stringify(primitive);
     const ellipse=primitive.type==='ellipse' ? drawingEllipseGeometry(primitive.points) : null;
@@ -1486,10 +1489,12 @@ export function createDrawingController(host) {
       removeViewFromSheet(host.doc(), selection.id);
     } else if (selection.kind === "dim") {
       host.pushUndo(host.t("opDeleteDim"));
-      doc.dims = doc.dims.filter((entry) => entry.id !== selection.id);
+      const live = host.doc();
+      live.dims = live.dims.filter((entry) => entry.id !== selection.id);
     } else if (selection.kind === "note") {
       host.pushUndo(host.t("opDeleteNote"));
-      doc.notes = doc.notes.filter((entry) => entry.id !== selection.id);
+      const live = host.doc();
+      live.notes = live.notes.filter((entry) => entry.id !== selection.id);
     } else if (selection.kind === 'primitive') {
       host.pushUndo('Delete drawing annotation');
       const live=host.doc();live.primitives=live.primitives.filter(entry=>entry.id!==selection.id);
@@ -1515,8 +1520,8 @@ export function createDrawingController(host) {
   }
 
   function addView(dir) {
-    const doc = host.doc();
     host.pushUndo(host.t("opAddView"));
+    const doc = host.doc();
     const view = addViewToSheet(doc, dir, { label: defaultViewLabel(dir) });
     state.selection = { kind: "view", id: view.id };
     invalidate();
@@ -1524,16 +1529,20 @@ export function createDrawingController(host) {
   }
 
   function duplicateSelectedView() {
-    const doc = host.doc();
-    const source = state.selection?.kind === "view" ? doc.views.find(view => view.id === state.selection.id) : null;
+    let doc = host.doc();
+    let source = state.selection?.kind === "view" ? doc.views.find(view => view.id === state.selection.id) : null;
     if (!source) return null;
     host.pushUndo(host.t("opAddView"));
+    doc = host.doc();
+    source = doc.views.find(view => view.id === source.id);
+    if (!source) return null;
     const copy = addViewToSheet(doc, source.dir, {
       ...source, id: undefined, label: source.label, primary: false,
       x: Number.isFinite(source.x) ? source.x + 80 : null,
       y: Number.isFinite(source.y) ? source.y : null,
       configurationId: source.configurationId,
     });
+    doc.dims ||= [];
     for (const dimension of doc.dims.filter(item => item.viewId === source.id)) {
       doc.dims.push({ ...structuredClone(dimension), id: "d" + Math.random().toString(36).slice(2, 9), viewId: copy.id });
     }
@@ -1554,7 +1563,7 @@ export function createDrawingController(host) {
      honest about that where an arrow aimed at the nearest circle would not
      be. */
   function addHoleCallouts(options = {}) {
-    const doc = host.doc();
+    let doc = host.doc();
     const rows = host.holeCallouts ? host.holeCallouts() || [] : [];
     if (!rows.length) { if (!options.quiet) host.flash(host.t("drawNoHoles")); return 0; }
     const allBuilt = scene();
@@ -1574,8 +1583,11 @@ export function createDrawingController(host) {
     const pending=plans.filter(plan=>plan.changed);
     if (!pending.length) { if (!options.quiet) host.flash(host.t("drawCalloutsDone")); return 0; }
     if (!options.undoStarted) host.pushUndo(host.t("opAddCallout"));
+    doc = host.doc();
+    doc.notes ||= [];
     let unbound = 0;
-    pending.forEach(({row,index,existing,chosen,from,leader})=>{
+    pending.forEach(({row,index,existing:plannedExisting,chosen,from,leader})=>{
+      const existing = plannedExisting && doc.notes.find(note => note.id === plannedExisting.id);
       if (!leader) unbound++;
       if(existing){
         const old=existing.leader,oldView=built.views.find(view=>view.id===old?.viewId);
@@ -1604,8 +1616,9 @@ export function createDrawingController(host) {
     const doc = host.doc(),built=scene(),planned = planModelItems(host.model?.() || {}, doc, {...built,views:built.views.filter(v=>!v.projection?.nonlinearProjection&&host.canUseTopologyForView?.(v.view)!==false)});
     if (planned.length) {
       host.pushUndo(host.t("drawModelItems"));
-      doc.dims.push(...planned.map(dim => ({ ...dim, id:"d" + Math.random().toString(36).slice(2, 9) })));
-      state.selection = { kind:"dim", id:doc.dims[doc.dims.length - 1].id };
+      const live = host.doc();
+      live.dims.push(...planned.map(dim => ({ ...dim, id:"d" + Math.random().toString(36).slice(2, 9) })));
+      state.selection = { kind:"dim", id:live.dims[live.dims.length - 1].id };
       invalidate();
       host.markDirty();
     }
@@ -1617,7 +1630,6 @@ export function createDrawingController(host) {
   /* Automatic overall dimensions: the two sizes every drawing carries, placed
      on the primary view so a sheet is useful the moment it is opened. */
   function autoDimension(seeding) {
-    const doc = host.doc();
     const built = scene();
     const targetId = !seeding && state.selection?.kind === "view" ? state.selection.id : built.primaryId;
     const place = built.views.find((entry) => entry.id === targetId);
@@ -1630,6 +1642,7 @@ export function createDrawingController(host) {
     const bounds = place.projection.sourceBounds || projectionBounds(place.projection);
     if (!bounds) { if (!seeding) host.flash(host.t("drawNoGeometry")); return; }
     if (!seeding) host.pushUndo(host.t("opAddDim"));
+    const doc = host.doc();
     doc.dims = (doc.dims || []).filter((dim) => !dim.auto || dim.viewId !== place.id);
     /* auto:"extent" is a reference in its own right — "how wide this view is" —
        so the sheet re-reads the bounds on every rebuild. auto:true (what older
@@ -1713,14 +1726,16 @@ export function createDrawingController(host) {
   }
 
   function relayout() {
-    const doc = host.doc();
     host.pushUndo(host.t("opSheetSetup"));
+    const doc = host.doc();
     doc.views.forEach((view) => { view.x = null; view.y = null; });
     state.scene = null;
     host.markDirty();
   }
 
   function keyDown(event) {
+    const tag = (event.target?.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable) return false;
     const key = event.key;
     if(key==='Enter' && state.draft?.kind==='alignedsection') {finishAlignedSection(state.draft);return true;}
     if(key==='Enter' && state.draft?.kind==='brokenout') {commitBrokenOut(state.draft);return true;}
@@ -1730,6 +1745,7 @@ export function createDrawingController(host) {
         if(!canCropView(view,doc,{exploded:!!host.isExplodedView?.(view)})) throw new Error('Crop parent is no longer available');
         const sketch={type:'closed-spline',closed:true,points:state.draft.points.map(p=>({...p}))};
         cropSplinePoints(sketch);
+        if(!host.doc().views.some(v=>v.id===view.id))throw new Error('Crop parent is no longer available');
         host.pushUndo('Crop view');
         const live=host.doc().views.find(v=>v.id===view.id);
         if(!live)throw new Error('Crop parent is no longer available');
@@ -1880,9 +1896,12 @@ export function createDrawingController(host) {
       if(!answer || answer.depth===null)return;
       const currentDoc=host.doc(),current=currentDoc.views.find(v=>v.id===view.id);
       if(currentDoc!==doc || host.bodiesToken()!==token || JSON.stringify(current)!==fingerprint)throw new Error('Drawing or model changed while choosing depth; retry Broken-out');
-      const modifier={sketch,depth:Number(answer.depth)/10,datum:'front-envelope'};
+      const depth=Number(answer.depth);
+      if(!Number.isFinite(depth) || depth<0)throw new Error('Invalid broken-out depth');
+      const modifier={sketch,depth:depth/10,datum:'front-envelope'};
       const bodies=host.bodies() || [],configured=host.bodiesForView ? host.bodiesForView(current,bodies) : bodies;
       projectBrokenOutView(configured,{...current,brokenOut:modifier});
+      if(!host.doc().views.some(v=>v.id===current.id))throw new Error('Broken-out parent is no longer available');
       host.pushUndo('Broken-out section');
       const live=host.doc().views.find(v=>v.id===current.id);
       if(!live)throw new Error('Broken-out parent is no longer available');

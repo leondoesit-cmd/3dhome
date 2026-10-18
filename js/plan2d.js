@@ -1937,7 +1937,8 @@ function drawFreeAnnotations() {
         for (const [px, py] of [[x, y], [x2, y2]]) {
           pc.beginPath(); pc.moveTo(px - nx * 7, py - ny * 7); pc.lineTo(px + nx * 7, py + ny * 7); pc.stroke();
         }
-        pc.fillText(fmtLen(Math.hypot(a.x2 - a.x, a.z2 - a.z), { domain: "plan" }), (x + x2) / 2 + nx * 8, (y + y2) / 2 + ny * 8);
+        const distance = Math.hypot(a.x2 - a.x, a.z2 - a.z);
+        pc.fillText(a.unit === 'cm' ? Math.round(distance * 10) / 10 + ' cm' : fmtLen(distance, { domain: "plan" }), (x + x2) / 2 + nx * 8, (y + y2) / 2 + ny * 8);
       } else {
         for (const [px, py] of [[x, y], [x2, y2]]) { pc.beginPath(); pc.arc(px, py, 10, 0, Math.PI * 2); pc.stroke(); pc.fillText(a.text || "A", px - 4, py + 4); }
       }

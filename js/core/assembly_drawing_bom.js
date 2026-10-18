@@ -13,7 +13,10 @@ export function assemblyDrawingBOM(assembly,scope='partsOnly') {
   const flat=generateOccurrenceBOM(leaves.map(leaf=>leaf.component));
   const itemByIdentity=new Map(flat.map((row,index)=>[row.key,index+1]));
   rows.push(...flat.map((row,index)=>({...row,item:index+1,depth:0})));
-  for(const leaf of leaves)itemByPath.set(occurrenceBOMKey(leaf.path),itemByIdentity.get(generateOccurrenceBOM([leaf.component])[0].key));
+  for(const leaf of leaves){
+   const identity=generateOccurrenceBOM([leaf.component])[0];
+   if(identity && itemByIdentity.has(identity.key))itemByPath.set(occurrenceBOMKey(leaf.path),itemByIdentity.get(identity.key));
+  }
   return {rows,itemByPath};
  }
  const visit=(entries,prefix='',depth=0)=>{
@@ -21,6 +24,7 @@ export function assemblyDrawingBOM(assembly,scope='partsOnly') {
   for(const entry of entries){
    if(!visible(entry.component))continue;
    const identity=generateOccurrenceBOM([entry.component])[0];
+   if(!identity)continue;
    if(!groups.has(identity.key))groups.set(identity.key,{row:identity,entries:[]});
    groups.get(identity.key).entries.push(entry);
   }

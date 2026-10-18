@@ -9,7 +9,7 @@ import { solveRoomCons } from "./room_cons.js";
 import { roomHidden } from "./geometry.js";
 import { pushHistory } from "./history.js";
 import { FURN, flabel, clabel, defaultScene } from "./furniture.js";
-import { init3D, has3D, frameView, setSize } from "./view3d.js";
+import { init3D, has3D, frameView, frameDollhouse, setSize } from "./view3d.js";
 import { fitView, render2D, sizeCanvas, initPlanGizmo } from "./plan2d.js";
 import {
   fillProps,
@@ -412,6 +412,8 @@ if (localStorage.getItem("mf_uikit") === "1") {
    zero-sized pane (phone on "plan", or either view maximized away) means the
    user is not looking at 3D, so three is never even downloaded. */
 var init3DQueued = false;
+var blueprintOverviewPending = false;
+var blueprintOverviewActive = false;
 function maybeInit3D() {
   if (has3D() || init3DQueued) return;
   init3DQueued = true;
@@ -425,15 +427,16 @@ function maybeInit3D() {
      of patience is what makes the phone case honest — a session that starts on
      the plan never downloads the renderer at all. */
   setTimeout(function () {
-    init3DQueued = false;
-    if (has3D()) return;
+    if (has3D()) { init3DQueued = false; return; }
     var L = document.getElementById("view-3d");
-    if (!L || !L.clientWidth || !L.clientHeight) return;
+    if (!L || !L.clientWidth || !L.clientHeight) { init3DQueued = false; return; }
     init3D().then(function (ok) {
       if (!ok) return;
       setSize(L.clientWidth, L.clientHeight);
-      frameView();
-    });
+      if (blueprintOverviewPending) { blueprintOverviewPending = false; frameDollhouse(); }
+      else frameView();
+    }).catch(function (error) { console.error("3D initialization failed", error); })
+      .finally(function () { init3DQueued = false; });
   }, 0);
 }
 
@@ -441,7 +444,10 @@ const resizeAll = throttle(() => {
   maybeInit3D();
   if (has3D()) {
     var L = document.getElementById("view-3d");
-    if (L) setSize(L.clientWidth, L.clientHeight);
+    if (L) {
+      setSize(L.clientWidth, L.clientHeight);
+      if (blueprintOverviewActive && L.clientWidth && L.clientHeight) frameDollhouse();
+    }
   }
   sizeCanvas();
   render2D();
@@ -467,6 +473,10 @@ if (window.ResizeObserver) {
 var resizer = document.getElementById("view-resizer");
 var view3d = document.getElementById("view-3d");
 var view2d = document.getElementById("view-2d");
+if (view3d) {
+  view3d.addEventListener("pointerdown", function () { blueprintOverviewActive = false; });
+  view3d.addEventListener("wheel", function () { blueprintOverviewActive = false; }, { passive: true });
+}
 
 /* The two "drag to orbit / drag item…" bubbles are first-run help, and they
    sit right where the model is. Once a view has actually been used the hint
@@ -675,6 +685,18 @@ function setViewMode(mode) {
   } catch (_) {}
 }
 window.__setViewMode = setViewMode;
+window.addEventListener('blueprint:converted', function () {
+  blueprintOverviewActive = true;
+  blueprintOverviewPending = true;
+  setViewMode('3d');
+  if (has3D()) requestAnimationFrame(function () {
+    var pane = document.getElementById('view-3d');
+    if (pane) setSize(pane.clientWidth, pane.clientHeight);
+    blueprintOverviewPending = false;
+    frameDollhouse();
+  });
+  else maybeInit3D();
+});
 window.addEventListener("blueprint:trace-walls", function () {
   // A trace command can be launched while 3D is maximized. Bring the calibrated
   // sheet into view instead of arming an invisible wall tool behind that pane.
@@ -697,7 +719,11 @@ var VIEWMODE_KEY = "home3d_mobile_view";
 function isCompactPhoneViewport() {
   return windowChromePosture().phone;
 }
-function applyPhoneView() {
+function applyPhoneView(preserveExisting = false) {
+  if (preserveExisting && centerCanvas) {
+    var current = centerCanvas.classList.contains('max-view-3d') ? '3d' : centerCanvas.classList.contains('max-view-2d') ? 'plan' : 'split';
+    if (current !== 'split') { setViewMode(current); return; }
+  }
   if (isCompactPhoneViewport()) {
     // Phone / Fold cover screen: stacked split is too cramped — go single-pane.
     var saved = sessionStorage.getItem(VIEWMODE_KEY);
@@ -714,7 +740,7 @@ var wasPhone = isCompactPhoneViewport();
 function checkPhoneCrossing() {
   if (isCompactPhoneViewport() === wasPhone) return;
   wasPhone = isCompactPhoneViewport();
-  applyPhoneView();
+  applyPhoneView(true);
 }
 window.addEventListener("resize", checkPhoneCrossing);
 window.addEventListener("mf-posture", checkPhoneCrossing);

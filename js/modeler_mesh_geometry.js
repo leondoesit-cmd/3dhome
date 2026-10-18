@@ -9,6 +9,7 @@
    are cleared through clearTopologyCache(part) rather than by whoever happens
    to notice a part changed. */
 import { THREE } from "./three_lazy.js";
+import { holeSpan } from "./core/hole_span.js";
 import { fin } from "./state.js";
 import { meshFeatureEdges, meshSmoothFaces } from "./core/mesh_projection.js";
 import { framePoint } from "./core/frame.js";
@@ -21,7 +22,7 @@ export function holeLoop(hl, includeSuppressed) {
   if (!hl) return [];
   if (Array.isArray(hl)) return hl;
   if (!includeSuppressed && hl.suppressed) return [];
-  return hl.points || hl.loop || [];
+  return hl.points || hl.loop || hl.pts || [];
 }
 
 export function hexNum(s) { return parseInt(String(s || "#999999").replace("#", ""), 16); }
@@ -184,7 +185,8 @@ export function holeAndCutEdges(part, featureId) {
    and the face pass read them from. */
 export function forEachCutLoop(part, visit) {
   (part.holes || []).forEach(function (hl, index) {
-    visit(holeLoop(hl), "profile:" + index, part.from, part.to, part.frame, part.axis);
+    var span = holeSpan(part, hl);
+    if (span.from < span.to) visit(holeLoop(hl), "profile:" + index, span.from, span.to, part.frame, part.axis);
   });
   (part.cuts3d || []).forEach(function (cut, index) {
     if (!cut || cut.suppressed) return;
@@ -316,7 +318,8 @@ export function edgePoints(descriptor) {
 export function edgesGeometricallyMatch(a, b) {
   if (!a || !b) return false;
   var da = a.descriptor || {}, db = b.descriptor || {};
-  if ((da.curve === "circle" || db.curve === "circle") && (da.curve === "circle" && db.curve === "circle")) {
+  if (da.curve && db.curve && da.curve !== db.curve) return false;
+  if (da.curve === "circle" && db.curve === "circle") {
     return circleDescriptorsMatch(da, db);
   }
   var pa = edgePoints(da), pb = edgePoints(db);

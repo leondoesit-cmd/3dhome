@@ -169,11 +169,8 @@ function buildKnob() {
     var dy = e.clientY - start.y;
     start = null;
     if (Math.abs(dy) > 12) { turn(k, dy < 0 ? 1 : -1); return; }
-    // a tap: on the neighbour peeking above or below turns to it, the front opens the list
-    var r = k.getBoundingClientRect(), y = e.clientY - r.top;
-    if (y < r.height * 0.28) turn(k, -1);
-    else if (y > r.height * 0.72) turn(k, 1);
-    else openKnobMenu(k);
+    // Every tap opens the visible choices; swiping still changes editors.
+    openKnobMenu(k);
   });
   k.addEventListener("pointercancel", function () { clearTimeout(held); start = null; });
   k.addEventListener("keydown", function (e) {

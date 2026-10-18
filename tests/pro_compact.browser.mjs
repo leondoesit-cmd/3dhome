@@ -205,11 +205,18 @@ test("desktop: one header, the search in the tabs row, Split over the inspector,
     await page.eval(() => window.__setViewMode("3d"));
     await page.waitUntil(() => document.getElementById("view-3d").parentElement.id === "center-canvas", { what: "the 3D back on the canvas" });
     // the editors get the catalog ribbon under their header
-    await page.eval(async () => { (await import("/js/pro_shell.js")).switchEditor("model"); });
+    await page.eval(async () => { await (await import("/js/pro_shell.js")).switchEditor("model"); });
     await page.waitUntil(() => {
       const rb = document.querySelector("#modeler .pr-editor-ribbon");
-      return rb && rb.getBoundingClientRect().height > 60 && !!document.querySelector("#modeler .md-head > #mdModes");
-    }, { what: "the model editor's ribbon" });
+      return rb && rb.getBoundingClientRect().height > 60 && !!document.querySelector("#modeler .md-head #mdModes");
+    }, { what: "the model editor's ribbon" }).catch(async error=>{
+      const state=await page.eval(()=>{
+        const ribbon=document.querySelector('#modeler .pr-editor-ribbon'),modes=document.getElementById('mdModes');
+        return {ribbonHeight:ribbon?.getBoundingClientRect().height,modesParent:modes?.parentElement.className,
+          modesInHead:!!document.querySelector('#modeler .md-head #mdModes'),visibility:document.visibilityState};
+      });
+      throw new Error(error.message+': '+JSON.stringify({ ...state, errors:page.consoleErrors }));
+    });
     // the classic desktop layout, on request
     await page.eval(async () => { (await import("/js/pro_shell.js")).switchEditor("plan"); localStorage.setItem("mf.proSkin", "0"); });
     await page.goto("/");

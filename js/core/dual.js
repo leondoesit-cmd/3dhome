@@ -94,9 +94,10 @@ export const atLeast = (a, k) => (valueOf(a) > k ? a : k);
    constant, so the slope passes through unchanged. */
 export function wrapTurn(a) {
   let w = valueOf(a);
-  while (w > Math.PI) w -= Math.PI * 2;
-  while (w < -Math.PI) w += Math.PI * 2;
-  return add(a, w - valueOf(a));
+  w %= Math.PI * 2;
+  if (w > Math.PI) w -= Math.PI * 2;
+  if (w < -Math.PI) w += Math.PI * 2;
+  return chain(w, a, 1, 0, 0);
 }
 
 /* Scatter residual values into dense Jacobian rows. */

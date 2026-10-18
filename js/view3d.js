@@ -3115,8 +3115,9 @@ function hangWindowCloth(container) {
 function cP() {
   phi = Math.max(0.12, Math.min(Math.PI / 2, phi));
 }
+var overviewRadiusLimit = 4000;
 function cR() {
-  radius = Math.max(180, Math.min(4000, radius));
+  radius = Math.max(180, Math.min(overviewRadiusLimit, radius));
 }
 function upd() {
   if (extTick) return; // an external mode (RC race) owns the camera
@@ -3531,7 +3532,11 @@ export function frameDollhouse() {
   sun.target.position.set(bb.cx, 0, bb.cz);
   // a tall, narrow pane fits the house by its width: pull back to suit
   var aspect = camera && camera.aspect > 0 ? camera.aspect : 1.6;
-  radius = clamp((Math.hypot(bb.w, bb.d) * 1.08 + 160) * Math.max(1, Math.pow(1.5 / aspect, 0.85)), 300, 4000);
+  var distance = (Math.hypot(bb.w, bb.d) * 1.08 + 160) * Math.max(1, Math.pow(1.5 / aspect, 0.85));
+  // A cover screen needs more than the normal 40 m orbit ceiling to fit an
+  // entire apartment. Keep that range available when the user then zooms.
+  overviewRadiusLimit = Math.max(4000, Math.min(12000, distance * 1.2));
+  radius = clamp(distance, 300, overviewRadiusLimit);
   theta = 0.78;
   phi = 0.62;
   userMoved = true;
@@ -3541,6 +3546,7 @@ export function frameDollhouse() {
 
 export function frameView() {
   if (!ready3D) return;
+  overviewRadiusLimit = 4000;
   var bb = contentBounds();
   var diag = Math.hypot(bb.w, bb.d);
   var compact = plannerCompact();

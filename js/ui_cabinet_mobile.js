@@ -762,6 +762,7 @@ function applyCompact() {
 /* The overlay can remain mounted while closed. Release session resources
    explicitly so a hidden designer does not keep polling or handling resize. */
 export function disposeCabinetMobile() {
+  giveBack();
   // the overlay is rebuilt per open: the rail and panel go with it
   foldRail = foldPanel = null;
   foldTab = null;

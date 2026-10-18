@@ -46,13 +46,15 @@ export function tilePixelAt(worldX, worldZ, view, tileCm, level) {
   return { u: mod((px - m.e) / m.a), v: mod((py - m.f) / m.d) };
 }
 
-var patCache = new Map();
+var patContextCache = new WeakMap();
 
 /* A fillStyle for `source(level)` tiled at tileCm: a transformed pattern, or
    `flat` when the tile is too small on screen. `source` returns a canvas. */
 export function patternFill(ctx, cacheKey, source, flat, tileCm, view) {
   var level = patternLevel(tileCm, view.SC, view.dpr);
   if (level === "flat" || !ctx || typeof ctx.createPattern !== "function") return flat;
+  var patCache = patContextCache.get(ctx);
+  if (!patCache) patContextCache.set(ctx, (patCache = new Map()));
   var key = cacheKey + "@" + level;
   var pat = patCache.get(key);
   if (!pat) {

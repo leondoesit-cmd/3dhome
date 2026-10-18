@@ -36,6 +36,7 @@ import { promisify } from "node:util";
 import { lookupProduct } from "../js/prodsize.js";
 import { resolvePublicUrl, safeHttpGet, safeLanRequest, safeStaticFile } from "./security.mjs";
 import { listModelBackups, readModelBackup, readModelBackupAttachments, validBackupKey, writeModelBackup } from "./model_backup.mjs";
+import { createBlueprintVision } from './blueprint_vision.mjs';
 
 const PORT = parseInt(process.argv[2], 10) || parseInt(process.env.PORT, 10) || 8765;
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), ".."));
@@ -543,8 +544,10 @@ async function modelBackup(req, u, res) {
 const tlsCert = process.env.HOME3D_TLS_CERT, tlsKey = process.env.HOME3D_TLS_KEY;
 if (!!tlsCert !== !!tlsKey) throw new Error("Set both HOME3D_TLS_CERT and HOME3D_TLS_KEY");
 const tlsOptions = tlsCert ? { cert: await readFile(tlsCert), key: await readFile(tlsKey) } : null;
+const blueprintVision = createBlueprintVision({root:ROOT,json,readJsonBody,allowedOrigin});
 const serve = async (req, res) => {
   const u = new URL(req.url || "/", "http://localhost");
+  if (u.pathname === '/api/blueprint') return blueprintVision(req,res);
   if (u.pathname === "/api/prodsize") return prodsize(u, res);
   if (u.pathname === "/api/smarthome") return smarthomeProxy(req, res);
   if (u.pathname === "/api/agent/status") return agentStatus(req, res);
@@ -706,7 +709,7 @@ function broadcastRoom(room, obj, except) {
 }
 function toCode(sender, code, obj) {
   const c = [...clients].find((c) => c.code === code);
-  if (c && ((sender.room && c.room === sender.room) || sender.watch.has(code))) sendObj(c, obj);
+  if (c && ((sender.room && c.room === sender.room) || sender.watch.has(code) || c.watch.has(sender.code))) sendObj(c, obj);
 }
 
 http.on("upgrade", (req, sock) => {

@@ -13,7 +13,7 @@ function keyboard(E, extra = {}) {
   return extract('modeler', 'onKey', {
     E, root:null, document:{activeElement:null}, modelerDecisionOpen:()=>false,
     handleSelectionFilterChord:()=>false, dynKey:()=>false, dynHasEntry:()=>false,
-    KEY_TOOL, KEY_VIEW, isSketchObject:()=>false, ...extra,
+    KEY_TOOL, KEY_VIEW, isSketchObject:()=>false, isCanonicalAuthoring:()=>false, ...extra,
   });
 }
 const editor = () => ({open:true, mode:'3d', docType:'part', def:{parts:[]}});
@@ -103,6 +103,7 @@ test('exact meshes smooth supplied facet normals while preserving sharp corners'
 const partBoundsForTest=extract('modeler_part_geometry','basePartBounds',{isKernelBody:()=>false,framePoint});
 const mirrorForTest=extract('modeler_part_geometry','mirrorProjectionPart',{
   isKernelBody:q=>q.kind==='kernel',basePartBounds:partBoundsForTest,cloneData:structuredClone,
+  mirrorExtrusionSpan:extract('modeler_part_geometry','mirrorExtrusionSpan',{}),
   reflectProjectionMesh:extract('modeler_part_geometry','reflectProjectionMesh',{clearMeshProjectionCache:()=>{},clearTopologyCache:()=>{}}),
 });
 import { frameFromPlane, framePoint, frameCross, frameDot } from '../js/core/frame.js';
@@ -117,7 +118,8 @@ test('framed mirrors reflect every profile point and retain a right-handed frame
     const copy=mirrorForTest(structuredClone(seed),'plane:'+plane);
     assert.equal(copy.support,undefined);
     assert.ok(Math.abs(frameDot(frameCross(copy.frame.xAxis,copy.frame.yAxis),copy.frame.normal)-1)<1e-8);
-    for(const p of seed.pts)for(const [before,after] of [[seed.from,copy.from],[seed.to,copy.to]]){
+    assert.ok(copy.from < copy.to);
+    for(const p of seed.pts)for(const [before,after] of [[seed.from,copy.to],[seed.to,copy.from]]){
       const expected=framePoint(seed.frame,p.u,p.v,before);expected[axis]*=-1;
       const actual=framePoint(copy.frame,p.u,p.v,after);
       for(const key of ['x','y','z'])assert.ok(Math.abs(actual[key]-expected[key])<1e-8);

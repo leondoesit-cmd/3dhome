@@ -101,7 +101,7 @@ export function parseSkippedPatternInstances(value) {
   const skipped=new Set();
   const add=(number)=>{const instance=Math.round(Number(number));if(Number.isFinite(instance)&&instance>0)skipped.add(instance);};
   if(Array.isArray(value)){value.forEach(add);return skipped;}
-  String(value || "").split(/[\s,;]+/).filter(Boolean).forEach((token)=>{
+  String(value || "").replace(/(\d)\s*-\s*(?=\d)/g,'$1-').split(/[\s,;]+/).filter(Boolean).forEach((token)=>{
     const range=token.match(/^(\d+)\s*-\s*(\d+)$/);
     if(!range){add(token);return;}
     const start=Math.min(Number(range[1]),Number(range[2])),end=Math.max(Number(range[1]),Number(range[2]));

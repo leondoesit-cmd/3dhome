@@ -74,7 +74,7 @@ test('explicit new sketch on the same face preserves the earlier profile and own
  });
  assert.equal(attach(false),true);
  assert.equal(E.def.sketches.length,1);
- assert.equal(attach(true),true);
+ assert.equal(attach(true,false),true);
  assert.equal(E.def.sketches.length,2);
  assert.equal(E.def.activeSketch,'terminals');
  assert.equal(E.def.sketches[0],old);

@@ -146,7 +146,9 @@ export function cutFootprint(part, bounds, frame, axisName, holeLoop = (hole) =>
   // A merged boss extends the stock beyond the original part's profile. Use
   // the complete body's conservative envelope here; native intersection below
   // still decides whether the cutter actually removes material.
-  if ((part?.merges3d || []).some((merge) => !merge.suppressed)) {
+  const rotations=[...(Array.isArray(part?.patternRotations)?part.patternRotations:[]),part?.patternRotation];
+  const rotated=rotations.some(r=>r && ['x','y','z'].includes(r.axis) && Number.isFinite(Number(r.angle)) && Number(r.angle)!==0);
+  if (rotated || (part?.merges3d || []).some((merge) => !merge.suppressed)) {
     if (frame) return boundsInFrame(bounds, frame);
     if (axisName === "y") return { u0: bounds.x0, u1: bounds.x1, v0: bounds.z0, v1: bounds.z1 };
     if (axisName === "z") return { u0: bounds.x0, u1: bounds.x1, v0: bounds.y0, v1: bounds.y1 };

@@ -129,11 +129,16 @@ export function faceSurface(face) {
 }
 
 export function raySurfaceHit(origin, direction, surface) {
+  return raySurfaceHits(origin, direction, surface)[0] ?? null;
+}
+
+function raySurfaceHits(origin, direction, surface) {
   const geom = faceSurface(surface);
-  if (!geom) return null;
+  if (!geom) return [];
   const kind = geom.surface || (geom.normal && !geom.axis ? "plane" : geom.axis && Number(geom.radius) > 0 ? "cylinder" : null);
   if (kind === "plane" || (geom.normal && kind !== "cylinder" && kind !== "cone")) {
-    return rayPlane(origin, direction, geom.origin, geom.normal);
+    const hit=rayPlane(origin, direction, geom.origin, geom.normal);
+    return Number.isFinite(hit)?[hit]:[];
   }
   if (kind === "cylinder" || (geom.axis && Number.isFinite(Number(geom.radius)) && !Number.isFinite(Number(geom.angle)))) {
     return rayCylinder(origin, direction, geom.origin, geom.axis, Number(geom.radius));
@@ -141,7 +146,7 @@ export function raySurfaceHit(origin, direction, surface) {
   if (kind === "cone" || Number.isFinite(Number(geom.angle))) {
     return rayCone(origin, direction, geom.referenceOrigin || geom.origin, geom.axis, Number(geom.radius), Number(geom.angle));
   }
-  return null;
+  return [];
 }
 
 export function resolvedEndFace(params, resolutions = []) {
@@ -218,13 +223,14 @@ function profileSamples(params) {
 }
 
 function sampleHitsFace(origin, pull, face, options = {}) {
-  const hit = raySurfaceHit(origin, pull, face);
-  if (!Number.isFinite(hit)) return null;
-  if (options.skipNear && hit < NEAR) return null;
-  const onFace = options.onFace
-    ? options.onFace(origin, pull, hit, face)
-    : hitLiesOnFace(origin, pull, hit, face);
-  return onFace ? hit : null;
+  for(const hit of raySurfaceHits(origin, pull, face)) {
+    if (options.skipNear && hit < NEAR) continue;
+    const onFace = options.onFace
+      ? options.onFace(origin, pull, hit, face)
+      : hitLiesOnFace(origin, pull, hit, face);
+    if(onFace)return hit;
+  }
+  return null;
 }
 
 function firstHit(samples, from, params, pull, faces, options = {}) {
@@ -268,7 +274,7 @@ function rayPlane(origin, direction, planeOrigin, planeNormal) {
 }
 
 function rayCylinder(origin, direction, cylOrigin, cylAxis, radius) {
-  if (!(radius > 0) || !cylOrigin || !cylAxis) return null;
+  if (!(radius > 0) || !cylOrigin || !cylAxis) return [];
   const axis = frameNormalize(cylAxis);
   const w = {
     x: (origin.x || 0) - (cylOrigin.x || 0),
@@ -277,11 +283,11 @@ function rayCylinder(origin, direction, cylOrigin, cylAxis, radius) {
   };
   const dPerp = perp(direction, axis), wPerp = perp(w, axis);
   const a = frameDot(dPerp, dPerp), b = 2 * frameDot(dPerp, wPerp), c = frameDot(wPerp, wPerp) - radius * radius;
-  return smallestPositiveRoot(a, b, c);
+  return positiveRoots(a, b, c);
 }
 
 function rayCone(origin, direction, coneOrigin, coneAxis, radius, angle) {
-  if (!coneOrigin || !coneAxis) return null;
+  if (!coneOrigin || !coneAxis) return [];
   if (!Number.isFinite(angle) || Math.abs(angle) < 1e-9) return rayCylinder(origin, direction, coneOrigin, coneAxis, radius);
   const axis = frameNormalize(coneAxis);
   const tanA = Math.tan(angle);
@@ -292,7 +298,7 @@ function rayCone(origin, direction, coneOrigin, coneAxis, radius, angle) {
   const v = { x: (origin.x || 0) - apex.x, y: (origin.y || 0) - apex.y, z: (origin.z || 0) - apex.z };
   const dU = frameDot(direction, axis), vU = frameDot(v, axis);
   const dD = frameDot(direction, direction), vD = frameDot(v, direction), vV = frameDot(v, v);
-  return smallestPositiveRoot(dU * dU - dD * c2, 2 * (vU * dU - vD * c2), vU * vU - vV * c2);
+  return positiveRoots(dU * dU - dD * c2, 2 * (vU * dU - vD * c2), vU * vU - vV * c2);
 }
 
 function perp(vector, axis) {
@@ -300,16 +306,16 @@ function perp(vector, axis) {
   return { x: (vector.x || 0) - axis.x * amount, y: (vector.y || 0) - axis.y * amount, z: (vector.z || 0) - axis.z * amount };
 }
 
-function smallestPositiveRoot(a, b, c) {
+function positiveRoots(a, b, c) {
   const roots = [];
   if (Math.abs(a) < 1e-14) {
     if (Math.abs(b) > 1e-14) roots.push(-c / b);
   } else {
     const disc = b * b - 4 * a * c;
-    if (disc < 0) return null;
+    if (disc < 0) return [];
     const sqrt = Math.sqrt(disc);
     roots.push((-b - sqrt) / (2 * a), (-b + sqrt) / (2 * a));
   }
   const positive = roots.filter((root) => Number.isFinite(root) && root > NEAR);
-  return positive.length ? Math.min(...positive) : null;
+  return positive.sort((a,b)=>a-b);
 }

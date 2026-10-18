@@ -52,7 +52,8 @@ test("erasing a swipe of markup is one undo step, not one per stroke", () => {
   assert.match(fn, /return true;/, "it reports what it removed so the caller can count");
 
   const drag = body(md, "function beginMarkupDrag(", "\nfunction eraseMarkupAt(");
-  assert.match(drag, /if \(erased\) pushUndo\(/, "one undo step, at pointerup");
+  assert.match(drag, /if \(!erased\) pushUndo\(/, "one undo step, before the first removal");
+  assert.ok(fn.indexOf("beforeErase();") < fn.indexOf("E.def.markups.splice("), "capture history before mutating the stroke list");
 });
 
 test("dragging the paint tool coalesces its rebuilds to one per frame", () => {

@@ -6,7 +6,7 @@ export function drawingBounds(snapshot,{furniture=true}={}){
  const minx=Math.min(...points.map(p=>p.x))-2,maxx=Math.max(...points.map(p=>p.x))+2,minz=Math.min(...points.map(p=>p.z))-2,maxz=Math.max(...points.map(p=>p.z))+2;
  return {minx,maxx,minz,maxz,w:maxx-minx,d:maxz-minz};
 }
-export function drawingSVG(snapshot,bounds,{furniture=true,dimensions=true,labels=true}={}){
+export function drawingSVG(snapshot,bounds,{furniture=true,dimensions=true,labels=true,fmt=null}={}){
  // +z runs DOWN the page, as in the editor (it used to be mirrored top-to-bottom)
  const x=v=>v-bounds.minx,y=v=>v-bounds.minz;
  const points=poly=>poly.map(p=>x(p.x)+','+y(p.z)).join(' ');
@@ -16,7 +16,7 @@ export function drawingSVG(snapshot,bounds,{furniture=true,dimensions=true,label
  const openings=`<g id="openings">${polygons(snapshot.openings,'fill="none" stroke="#617d8b" stroke-width="1"')}${polygons(snapshot.swings,'fill="none" stroke="#617d8b" stroke-width="1"')}</g>`;
  const voids=`<g id="floor-voids">${polygons(snapshot.voids,'fill="none" stroke="#6a6560" stroke-width="1" stroke-dasharray="8 5"')}</g>`;
  const names=labels?snapshot.rooms.map(room=>`<text x="${x(room.cx)}" y="${y(room.cz)}" text-anchor="middle" font-size="12" fill="#20242a">${esc(room.name)}</text>`).join(''):'';
- const dims=dimensions?snapshot.rooms.filter(room=>room.width&&room.depth).map(room=>`<text x="${x(room.cx)}" y="${y(room.cz)+16}" text-anchor="middle" font-size="9" fill="#555">${Number(room.width.toFixed(2))} × ${Number(room.depth.toFixed(2))} cm</text>`).join(''):'';
+ const dims=dimensions?snapshot.rooms.filter(room=>room.width&&room.depth).map(room=>`<text x="${x(room.cx)}" y="${y(room.cz)+16}" text-anchor="middle" font-size="9" fill="#555">${esc(fmt?fmt(room.width)+' x '+fmt(room.depth):Number(room.width.toFixed(2))+' × '+Number(room.depth.toFixed(2))+' cm')}</text>`).join(''):'';
  const items=furniture?`<g id="furniture">${polygons(snapshot.items,'fill="#d8c8a8" stroke="#564c3f" stroke-width="1"')}</g>`:'';
  const survey=(snapshot.surveyFeatures||[]).map(f=>f.kind==='point'?`<circle cx="${x(f.points[0].x)}" cy="${y(f.points[0].z)}" r="2"/>`:`<${f.kind==='face'?'polygon':'polyline'} points="${points(f.points)}" fill="none" stroke="#5265ad" stroke-width="1"><title>${esc(f.label)}</title></${f.kind==='face'?'polygon':'polyline'}>`).join('');
  return mask+walls+voids+openings+items+`<g id="survey-features">${survey}</g>`+`<g id="room-labels">${names}${dims}</g>`;
@@ -35,7 +35,7 @@ export function drawingDXF(snapshot,{furniture=true,dimensions=true,fmt=null}={}
  if(furniture)snapshot.items.forEach(poly=>polyline(poly,'FURNITURE'));
  // R2007 uses UTF-8; native text also displays correctly in independent readers.
  const text=(value,x,z,layer,height)=>{const safe=String(value).replace(/[\r\n]/g,' ');out+='0\nTEXT\n100\nAcDbEntity\n8\n'+layer+'\n100\nAcDbText\n10\n'+x+'\n20\n'+Y(z)+'\n30\n0\n40\n'+height+'\n1\n'+safe+'\n72\n1\n11\n'+x+'\n21\n'+Y(z)+'\n31\n0\n100\nAcDbText\n73\n2\n';};
- snapshot.rooms.forEach(room=>{text(room.name,room.cx,room.cz,'LABELS',12);if(room.width&&room.depth)text(Number(room.width.toFixed(2))+' x '+Number(room.depth.toFixed(2))+' cm',room.cx,room.cz+16,'DIMENSIONS',9);});
+ snapshot.rooms.forEach(room=>{text(room.name,room.cx,room.cz,'LABELS',12);if(room.width&&room.depth)text(fmt?fmt(room.width)+' x '+fmt(room.depth):Number(room.width.toFixed(2))+' x '+Number(room.depth.toFixed(2))+' cm',room.cx,room.cz+16,'DIMENSIONS',9);});
  // chained exterior dimension strings, from the same geometry the sheet draws
  if(dimensions&&snapshot.walls.length){
   const g=dimensionGeometry(snapshot.walls,{off1:60,off2:110,gap:8,over:8,tick:6,textOff:8});

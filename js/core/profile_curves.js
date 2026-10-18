@@ -217,6 +217,7 @@ export function pathFrames(points) {
       length += Math.hypot(path[i].x - previous.x, path[i].y - previous.y, path[i].z - previous.z);
       const t = tangents[i], projected = { x: normal.x - t.x * dot(normal, t), y: normal.y - t.y * dot(normal, t), z: normal.z - t.z * dot(normal, t) };
       if (Math.hypot(projected.x, projected.y, projected.z) > 1e-9) normal = norm(projected);
+      else normal = norm(cross(frames[i - 1].binormal, t));
     }
     frames.push({ origin: path[i], tangent: tangents[i], normal, binormal: norm(cross(tangents[i], normal)), distance: length });
   }

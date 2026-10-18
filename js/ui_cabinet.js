@@ -361,6 +361,7 @@ function buildDOM() {
     // a drawing tool owns Escape first — it exits the tool, not the designer
     if (e.key === "Escape" && E.tool) return setTool(null);
     if (e.key === "Escape") return cancelCabinet();
+    if (typing) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
       e.preventDefault();
       return e.shiftKey ? redo() : undo();
@@ -369,7 +370,6 @@ function buildDOM() {
       e.preventDefault();
       return redo();
     }
-    if (typing) return;
     if (e.key === "/") {
       e.preventDefault();
       return E.host.querySelector("#cbSearch").focus();
@@ -469,6 +469,7 @@ function dismissSizeDlg() {
 }
 
 function showSizeProposal(dimension, result, input) {
+  if (isSizeDlgOpen()) dismissSizeDlg();
   var dlg = E.host.querySelector("#cbSizeDlg");
   if (!dlg) return;
   E.sizeDlg = { dimension: dimension, result: result, input: input };
@@ -530,7 +531,7 @@ function applyOverallSize(dimension, input) {
   var limit = CAB_LIMITS[dimension];
   var value;
   try { value = parseCabinetDimension(input.value, displayUnit("furniture")); }
-  catch (error) { flashHint(error.message); return; }
+  catch (error) { flashHint(error.message); syncDimInputs(); return; }
   if (!limit || !Number.isFinite(value) || Math.abs(value - E.it[limit.field]) < 0.0001) {
     syncDimInputs();
     return;
@@ -867,13 +868,18 @@ function copyColumn() {
     flashHint(T("copySec") + " ✓");
     return;
   }
-  E.clip = { kind: "col", json: JSON.stringify(sp().cols[E.sel.col]) };
+  var column = sp().cols[E.sel.col];
+  if (!column) return;
+  E.clip = { kind: "col", json: JSON.stringify(column) };
   flashHint(T("copyCol") + " ✓");
 }
 function pasteColumn() {
   if (!E.clip || !sp() || sp().corner === "diag") return;
   var v = JSON.parse(E.clip.json);
+  delete v.hid;
+  if (v.secs) v.secs.forEach(function (s) { delete s.hid; });
   if (E.clip.kind === "sec") {
+    if (!E.sel || E.sel.col == null) return;
     var col = sp().cols[E.sel.col];
     if (!col) return;
     // the new compartment takes its share out of the one it lands next to,
@@ -883,7 +889,7 @@ function pasteColumn() {
     if (host) {
       var available = host.h - (sp().shelf || sp().panel);
       if (available < 20) return;
-      act(T("pasteCol"));
+      act(T("pasteSec"));
       touch();
       v.h = Math.max(10, Math.min(v.h || available / 2, available - 10));
       host.h = available - v.h;
@@ -894,8 +900,9 @@ function pasteColumn() {
     act(T("pasteCol"));
     touch();
     delete v.fixed;
-    sp().cols.splice(E.sel.col + 1, 0, v);
-    E.sel = { col: E.sel.col + 1, sec: 0 };
+    var insertAt = E.sel && E.sel.col != null ? E.sel.col + 1 : sp().cols.length;
+    sp().cols.splice(insertAt, 0, v);
+    E.sel = { col: insertAt, sec: 0 };
   }
   changed();
 }

@@ -257,13 +257,29 @@ export function solveRoomRect(c) {
   var halfU = (Math.max.apply(null, u) - Math.min.apply(null, u)) / 2,
     halfV = (Math.max.apply(null, v) - Math.min.apply(null, v)) / 2;
 
+  // Assign the rectangle's corners in the polygon's cyclic order. Independent
+  // projection signs can assign two skewed vertices to the very same corner.
+  var signs = [[-1,-1],[1,-1],[1,1],[-1,1]];
+  var area = pts.reduce(function (sum,p,i) {
+    var q = pts[(i+1)%4];
+    return sum+p.x*q.z-q.x*p.z;
+  },0);
+  var direction = area >= 0 ? 1 : -1, bestStart = 0, bestCost = Infinity;
+  for (var start = 0; start < 4; start++) {
+    var cost = 0;
+    for (var j = 0; j < 4; j++) {
+      var sign = signs[(start+direction*j+4)%4];
+      cost += (u[j]-sign[0]*halfU)**2+(v[j]-sign[1]*halfV)**2;
+    }
+    if (cost < bestCost) { bestCost = cost; bestStart = start; }
+  }
   var moved = 0;
   for (var k = 0; k < 4; k++) {
-    var su = u[k] >= 0 ? 1 : -1, sv = v[k] >= 0 ? 1 : -1;
+    var corner = signs[(bestStart+direction*k+4)%4], su = corner[0], sv = corner[1];
     var wantX = cx + ux * su * halfU + nx * sv * halfV,
       wantZ = cz + uz * su * halfU + nz * sv * halfV;
     var node = S.nodes[nidx[k]];
-    if (!node) continue;
+    if (!node || node.locked) continue;
     var d = Math.hypot(wantX - node.x, wantZ - node.z);
     if (d < 1e-6) continue;
     node.x = wantX;

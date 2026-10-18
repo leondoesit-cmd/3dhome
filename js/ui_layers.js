@@ -679,13 +679,14 @@ function syncCounts() {
 
 function selectableOn(id) {
   var hid = hiddenSets();
-  if (id === "structure")
+  if (id === "structure") {
     return (S.walls || []).filter(function (w) {
-      return !hid.walls[w.id];
+      return w && !hid.walls[w.id];
     });
+  }
   if (id === "furniture")
     return (S.items || []).filter(function (it) {
-      return !hid.items[it.id] && !itemUserUnpickable(it);
+      return it && !hid.items[it.id] && !itemUserUnpickable(it);
     });
   return [];
 }
@@ -840,9 +841,10 @@ function renderUserRows() {
     name.querySelector(".lchip-t").textContent = L.name;
     name.title = t("ul_sel_t", { name: L.name });
     name.addEventListener("click", function () {
+      var hid = hiddenSets();
       selectRefs(
         itemsOnUserLayer(L.id).filter(function (it) {
-          return !itemUserUnpickable(it);
+          return !hid.items[it.id];
         }),
         "item",
         "items",

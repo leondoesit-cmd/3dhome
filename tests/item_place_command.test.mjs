@@ -29,7 +29,7 @@ test("item.place prepares a snapped serializable plan from catalog dimensions", 
     plan: {
       command: "item.place",
       expectedVersion: 12,
-      params: { type: "chair", x: 14, z: -4, rot: 0, w: 48, d: 52, h: 86 },
+      params: { type: "chair", x: 14, z: -4, rot: 0, rotationSpecified: false, w: 48, d: 52, h: 86 },
     },
   });
   assert.doesNotThrow(() => JSON.stringify(result.plan));
@@ -42,7 +42,7 @@ test("item.place accepts Map catalogs and long dimension names", () => {
   );
   assert.equal(result.ok, true);
   assert.deepEqual(result.plan.params, {
-    type: "sofa", x: 2, z: 4, rot: 90, w: 210, d: 92, h: 82,
+    type: "sofa", x: 2, z: 4, rot: 90, rotationSpecified: true, w: 210, d: 92, h: 82,
   });
 });
 

@@ -47,7 +47,10 @@ export function fillHits() {
     if (!matches(doorLabel(k)) || n > 11) return;
     var fit = doorFit(k, fc),
       b = btn('<i class="ph ph-door"></i><span>' + doorLabel(k) + "</span>", function () {
-        var c = sp().cols[E.sel.col];
+        var ci = E.sel && E.sel.col != null ? E.sel.col : 0,
+          c = sp()?.cols[ci];
+        if (!c) return;
+        api.act(T("door"));
         c.door = c.door || {};
         c.door.t = k;
         api.touch();
@@ -61,10 +64,12 @@ export function fillHits() {
 }
 
 export function applySecType(k) {
+  if (!sp() || !E.sel || E.sel.col == null || !SEC[k]) return;
   var col = sp().cols[E.sel.col],
-    s = col && col.secs[E.sel.sec];
+    s = col && col.secs?.[E.sel.sec];
   if (!s) return;
   var m = SEC[k];
+  api.act(T("secType"));
   s.t = k;
   delete s.n;
   delete s.heights;
@@ -154,16 +159,16 @@ export function startBlank() {
 }
 
 function presetPreview(p) {
-  var family = FAM[p.fam], same = sp().fam === p.fam;
+  var s = sp(), family = FAM[p.fam] || FAM.wardrobe, same = !!(s && s.fam === p.fam);
   var width = E.it.w, height = same ? E.it.h : family.h, depth = same ? E.it.d : family.d;
-  var spec = makeSpec(p.id, width, height, depth, JSON.parse(JSON.stringify(E.it.cab)));
+  var spec = makeSpec(p.id, width, height, depth, s ? JSON.parse(JSON.stringify(s)) : undefined);
   var x = 2, total = spec.cols.reduce(function (sum, column) { return sum + column.w; }, 0);
   var lines = '<rect x="2" y="2" width="76" height="66" rx="1"/>';
   spec.cols.forEach(function (column) {
-    var w = 76 * column.w / total, y = 68, sum = column.secs.reduce(function (n, section) { return n + section.h; }, 0);
+    var w = total > 0 ? 76 * column.w / total : 0, y = 68, sum = column.secs.reduce(function (n, section) { return n + section.h; }, 0);
     if (x > 2) lines += '<path d="M' + x + ' 2V68"/>';
     column.secs.forEach(function (section, index) {
-      y -= 66 * section.h / sum;
+      y -= sum > 0 ? 66 * section.h / sum : 0;
       if (index < column.secs.length - 1) lines += '<path d="M' + x + ' ' + y + 'h' + w + '"/>';
     });
     x += w;
@@ -185,9 +190,10 @@ export function fillPresetCards(wrap, fam) {
       '<div class="cb-p-fam">' + famLabel(p.fam) + "</div>" + presetPreview(p);
     card.addEventListener("click", function () {
       var it = E.it,
+        s = sp(),
         f = FAM[p.fam];
       // a preset from another family brings that family's proportions with it
-      if (sp().fam !== p.fam) {
+      if (s && f && s.fam !== p.fam) {
         it.d = f.d;
         it.h = f.h;
         api.syncDimInputs();
@@ -380,13 +386,13 @@ export function fillInspector() {
         delete s.heights;
         api.touch();
         api.changed();
-      }, 1, 8)));
+      }, 1, 8, null)));
     if (s.t === "shelves" || s.t === "shoe") {
       wrap.appendChild(row(T("count"), numInput(s.n != null ? s.n : Math.max(0, Math.round(s.h / (s.space || STD.shelfSpace)) - 1), function (v) {
         s.n = Math.max(0, Math.round(v));
         api.touch();
         api.changed();
-      }, 0, 20)));
+      }, 0, 20, null)));
       wrap.appendChild(row(T("spacing"), numInput(s.space || (s.t === "shoe" ? STD.shoeSpace : STD.shelfSpace), function (v) {
         s.space = v;
         delete s.n;
@@ -399,7 +405,7 @@ export function fillInspector() {
         s.n = Math.max(1, Math.round(v));
         api.touch();
         api.changed();
-      }, 1, 8)));
+      }, 1, 8, null)));
     var br = el("div", "cb-btnrow");
     br.appendChild(btn('<i class="ph ph-rows-plus-bottom"></i> ' + T("splitSec"), splitSection));
     br.appendChild(btn('<i class="ph ph-trash"></i> ' + T("delSec"), delSection, "btn-danger"));
@@ -454,7 +460,7 @@ export function fillInspector() {
   })));
   if (plain && col.door && ["hinged", "glass", "mirror", "folding"].indexOf(col.door.t) >= 0) {
     // "auto" is the default: one leaf up to a comfortable width, a pair above
-    var laid = E.view && E.view.L.cols[E.sel.col],
+    var laid = E.view?.L?.cols?.[E.sel?.col],
       autoN = laid ? laid.doorLeaves : 1;
     wrap.appendChild(row(T("leaves"), select(
       [["", T("auto") + " (" + autoN + ")"], ["1", "1"], ["2", "2"]],
@@ -547,16 +553,19 @@ export function fillInspector() {
    every column, which is how a full-width shelf is meant to be drawn. */
 
 export function refillColumn(col, mode) {
+  if (!col || !sp()) return;
+  var H = E.view && E.view.L ? E.view.L.yt - E.view.L.yb : (E.it?.h || 240) - (sp().plinth || 0);
   api.act(T("fillCol"));
   api.touch();
-  col.secs = columnFill(mode, E.view.L.yt - E.view.L.yb, sp().panel);
-  E.sel = { col: E.sel.col, sec: 0 };
+  col.secs = columnFill(mode, H, sp().panel);
+  E.sel = { col: E.sel?.col ?? sp().cols.indexOf(col), sec: 0 };
   api.changed();
 }
 export function splitSection() {
-  if (!sp() || isCorner(sp())) return;
-  var col = sp().cols[E.sel.col],
-    i = E.sel.sec,
+  if (!sp() || isCorner(sp()) || !E.sel || E.sel.sec == null) return;
+  var col = sp().cols[E.sel.col];
+  if (!col || !col.secs || !col.secs[E.sel.sec]) return;
+  var i = E.sel.sec,
     s = col.secs[i],
     half = (s.h - (sp().shelf || sp().panel)) / 2;
   if (half < 10) return;
@@ -568,45 +577,53 @@ export function splitSection() {
   api.changed();
 }
 export function delSection() {
+  if (!sp() || !E.sel || E.sel.sec == null) return;
+  var col = sp().cols[E.sel.col];
+  if (!col || !col.secs[E.sel.sec] || col.secs.length <= 1) return;
   api.act(T("delSec"));
   api.touch();
-  var col = sp().cols[E.sel.col];
-  if (!col || col.secs.length <= 1) return;
   col.secs.splice(E.sel.sec, 1);
   E.sel.sec = Math.min(E.sel.sec, col.secs.length - 1);
   api.changed();
 }
 export function splitColumn() {
-  if (!sp() || isCorner(sp())) return;
+  if (!sp() || isCorner(sp()) || !E.sel || E.sel.col == null) return;
   var cols = sp().cols,
     i = E.sel.col,
-    c = cols[i],
-    half = (c.w - (isFloat(sp()) ? 0 : sp().panel)) / 2;
+    c = cols[i];
+  if (!c) return;
+  var half = (c.w - (isFloat(sp()) ? 0 : sp().panel)) / 2;
   if (half < 15) return;
   api.act(T("splitCol"));
   api.touch();
   c.w = half;
   delete c.fixed;
   var copy = JSON.parse(JSON.stringify(c));
+  delete copy.hid;
+  if (copy.secs) copy.secs.forEach(function (s) { delete s.hid; });
   copy.w = half;
   cols.splice(i + 1, 0, copy);
   api.changed();
 }
 export function dupColumn() {
-  if (!sp() || isCorner(sp())) return;
+  if (!sp() || isCorner(sp()) || !E.sel || E.sel.col == null) return;
+  var cols = sp().cols;
+  if (!cols[E.sel.col]) return;
   api.act(T("dupCol"));
   api.touch();
-  var cols = sp().cols,
-    copy = JSON.parse(JSON.stringify(cols[E.sel.col]));
+  var copy = JSON.parse(JSON.stringify(cols[E.sel.col]));
   delete copy.fixed;
+  delete copy.hid;
+  if (copy.secs) copy.secs.forEach(function (s) { delete s.hid; });
   cols.splice(E.sel.col + 1, 0, copy);
   api.changed();
 }
 export function delColumn() {
+  if (!sp() || !E.sel || E.sel.col == null) return;
+  var cols = sp().cols;
+  if (!cols || cols.length <= 1 || !cols[E.sel.col]) return;
   api.act(T("delCol"));
   api.touch();
-  var cols = sp().cols;
-  if (cols.length <= 1) return;
   cols.splice(E.sel.col, 1);
   E.sel = { col: Math.max(0, E.sel.col - 1), sec: 0 };
   api.changed();
@@ -687,8 +704,11 @@ export function fillLook() {
           s.stock = s.stock || {};
           s.stock[r[0]] = v;
           if (sh) {
-            if (r[0] === "carcass") s.panel = sh.t;
-            else if (r[0] === "back" && s.back > 0) s.back = sh.t;
+            if (r[0] === "carcass") {
+              var oldPanel = s.panel;
+              s.panel = sh.t;
+              if (!s.shelf || s.shelf === oldPanel) s.shelf = sh.t;
+            } else if (r[0] === "back" && s.back > 0) s.back = sh.t;
             else if (r[0] === "top" && s.top > 0) s.top = sh.t;
           }
           api.changed(true);
@@ -773,7 +793,11 @@ export function fillTechnical() {
         var sheet = sheetById(value);
         s.stock = s.stock || {};
         s.stock[entry[0]] = value;
-        if (sheet && entry[0] === "carcass") { s.panel = sheet.t; s.shelf = sheet.t; }
+        if (sheet && entry[0] === "carcass") {
+          var oldPanel = s.panel;
+          s.panel = sheet.t;
+          if (!s.shelf || s.shelf === oldPanel) s.shelf = sheet.t;
+        }
         if (sheet && entry[0] === "back" && s.back > 0) s.back = sheet.t;
         api.act(T(entry[1])); api.changed(true);
       })));
@@ -881,11 +905,14 @@ export function fillMine() {
       // size this cabinet is, and never re-planned behind the user's back
       var cab = JSON.parse(JSON.stringify(u.cab));
       cab.auto = false;
+      api.act(T("opPreset") + " · " + (u.name || ""));
       E.it.cab = cab;
       normalizeSpec(cab, E.it.w, E.it.h, E.it.d);
       E.sel = { col: 0, sec: 0 };
       fillPresets();
       fillFamilies();
+      api.touch();
+      api.setTool(null);
       api.changed(true);
     });
     wrap.appendChild(card);
@@ -898,6 +925,7 @@ export function fillHardware() {
   var wrap = E.host.querySelector("#cbHw");
   if (!sp()) return;
   wrap.innerHTML = "";
+  sp().hw = sp().hw || {};
   var hw = sp().hw;
   function pick(key, group, label) {
     wrap.appendChild(row(label, select(Object.keys(HW[group]).map(function (k) {
@@ -939,8 +967,8 @@ export function fillBOM() {
   var L = layoutCab(E.it),
     boards = cutList(E.it, L),
     hwl = hardwareList(E.it, L);
-  var manufacturing = S.parametric && S.parametric.definitions[E.it.definitionId];
-  if (manufacturing && manufacturing.metadata.manufacturingReviewRequired) wrap.appendChild(el("div", "cb-check cb-warn", T("manufacturingReview")));
+  var manufacturing = S.parametric?.definitions?.[E.it.definitionId];
+  if (manufacturing?.metadata?.manufacturingReviewRequired) wrap.appendChild(el("div", "cb-check cb-warn", T("manufacturingReview")));
   var tb = el("table", "cb-bom");
   tb.innerHTML = "<thead><tr><th>" + T("boards") + "</th><th>" + T("qty") + "</th></tr></thead>";
   var body = el("tbody");
@@ -988,8 +1016,8 @@ export function exportBOM() {
     isEn() ? "Sheet material" : "חומר גלם",
     isEn() ? "Banding (m each)" : "קנט (מ׳ ליחידה)",
   ]];
-  var manufacturing = S.parametric && S.parametric.definitions[E.it.definitionId];
-  if (manufacturing && manufacturing.metadata.manufacturingReviewRequired) rows.push([T("manufacturingReview")]);
+  var manufacturing = S.parametric?.definitions?.[E.it.definitionId];
+  if (manufacturing?.metadata?.manufacturingReviewRequired) rows.push([T("manufacturingReview")]);
   cutList(E.it).forEach(function (r) {
     var sh = r.sheet ? sheetById(r.sheet) : null;
     rows.push([

@@ -235,7 +235,7 @@ export class CDP {
     }
     this.pending.clear();
   }
-  send(method, params = {}) {
+  send(method, params = {}, timeoutMs = 30000) {
     if (this.dead) return handled(Promise.reject(this.dead));
     const id = ++this.id;
     const promise = new Promise((resolve, reject) => {
@@ -243,7 +243,7 @@ export class CDP {
       // the event loop alive long after the test has finished
       const timer = setTimeout(() => {
         if (this.pending.delete(id)) reject(new Error(method + " timed out"));
-      }, 30000);
+      }, timeoutMs);
       timer.unref?.();
       this.pending.set(id, { resolve, reject, timer });
     });
@@ -347,6 +347,11 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
       "--user-data-dir=" + profile,
       "--no-first-run",
       "--no-default-browser-check",
+      // Concurrent Windows test browsers must keep servicing layout/paint
+      // callbacks even when another test window becomes the foreground one.
+      "--disable-background-timer-throttling",
+      "--disable-renderer-backgrounding",
+      "--disable-backgrounding-occluded-windows",
       /* No GPU and no SwiftShader: the editor's three.js preview throws on a
          null WebGL context here, which callers filter out (see NO_GL in
          tests/model_editor_layout.browser.mjs). Software GL would render it for
@@ -433,6 +438,13 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
     send: (method, params) => cdp.send(method, params),
 
     async eval(fn, ...args) {
+      return page.evalWithTimeout(30000, fn, ...args);
+    },
+
+    // Large end-to-end drafting recipes deliberately span many paint frames.
+    // Their explicit budget must not relax timeouts for ordinary UI actions.
+    async evalWithTimeout(timeoutMs, fn, ...args) {
+      if (!Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 180000) throw new Error('Invalid browser evaluation timeout');
       const expr = "(" + fn.toString() + ")(" + args.map((a) => JSON.stringify(a)).join(",") + ")";
       let res;
       try {
@@ -440,14 +452,14 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
           expression: expr,
           awaitPromise: true,
           returnByValue: true,
-        });
+        }, timeoutMs);
       } catch (err) {
         if (err && err.message && err.message.includes("Promise was collected")) {
           res = await cdp.send("Runtime.evaluate", {
             expression: expr,
             awaitPromise: true,
             returnByValue: true,
-          });
+          }, timeoutMs);
         } else {
           throw err;
         }

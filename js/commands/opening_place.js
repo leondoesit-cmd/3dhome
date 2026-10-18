@@ -131,6 +131,9 @@ export function applyOpeningPlace(plan, env) {
   var state = stateOf(env), params = plan && plan.params;
   var wall = params && wallOf(state, params.wallId);
   if (!wall) return fail("HOST_WALL_NOT_FOUND");
+  const checked=prepareOpeningPlace(params,env);
+  if(!checked.ok)return checked;
+  if(checked.plan.params.s!==params.s)return fail("OPENING_OUT_OF_BOUNDS");
   if (!Array.isArray(state.openings) || !finite(Number(state.idc)))
     return fail("INVALID_OPENING_VALUE");
   var opening = {

@@ -3190,8 +3190,9 @@ export function selectAtScreen(ox, oy) {
     if (hi) {
       var toSelect = [hi];
       if (hi.groupId) {
+        var hid = hiddenSets();
         toSelect = S.items.filter(function (it) {
-          return it.groupId === hi.groupId;
+          return it.groupId === hi.groupId && !hid.items[it.id] && !itemUserUnpickable(it);
         });
       }
       select(
@@ -3291,9 +3292,9 @@ function applyRemove(sel) {
     S.items = S.items.filter(function (i) { return i !== sel.ref; });
     orphanChildren(null);
   } else if (sel.kind === "items") {
-    var lockedSkipped = sel.refs.filter(function (i) { return i.locked; }).length;
+    var lockedSkipped = sel.refs.filter(function (i) { return refLocked(i); }).length;
     S.items = S.items.filter(function (i) {
-      return sel.refs.indexOf(i) === -1 || i.locked;
+      return sel.refs.indexOf(i) === -1 || refLocked(i);
     });
     if (lockedSkipped) flash(t("f_someLockedSkipped", { n: lockedSkipped }));
     orphanChildren(null);
@@ -5103,7 +5104,10 @@ export function initInteraction() {
         if (hi) {
           var toSelect = [hi];
           if (hi.groupId) {
-            toSelect = S.items.filter(function(it) { return it.groupId === hi.groupId; });
+            var hid = hiddenSets();
+            toSelect = S.items.filter(function(it) {
+              return it.groupId === hi.groupId && !hid.items[it.id] && !itemUserUnpickable(it);
+            });
           }
 
           if (e.shiftKey) {

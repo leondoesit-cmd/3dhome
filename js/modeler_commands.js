@@ -47,7 +47,7 @@ export function bomTableRows(rows, components) {
   var byKey = new Map();
   (components || []).forEach(function (component) {
     if (!component) return;
-    var key = component.modelKey || component.name || "Unknown";
+    var key = component.modelKey || component.assemblyKey || component.name || "Unknown";
     if (!byKey.has(key)) byKey.set(key, component);
   });
   return (rows || []).map(function (row, index) {
@@ -67,9 +67,9 @@ export function bomCsv(rows, headers, withMaterial) {
   var columns = withMaterial ? 4 : 3;
   var cell = function (value) {
     var text = value == null ? "" : String(value);
-    return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
   };
-  var lines = [(headers || []).slice(0, columns).map(cell).join(",")];
+  var lines = headers && headers.length ? [headers.slice(0, columns).map(cell).join(",")] : [];
   (rows || []).forEach(function (row) {
     var cells = [row.item, row.quantity, row.name];
     if (withMaterial) cells.push(row.material);
@@ -141,7 +141,7 @@ export function buildCommandCatalog(ctx) {
     { id:"smartmates", icon:"ph-magnet", label:"Smart mates", group:t("cmdEvaluate"), terms:"assembly infer mate drag", available:assemblyDoc, reason:needAsm },
     { id:"sheetmetal", icon:"ph-fold", label:"Sheet metal", group:t("cmdFeatures"), terms:"base flange edge flange unfold", available:partDoc, reason:needPart },
     { id:"branch", icon:"ph-git-branch", label:"Branch", group:t("cmdEvaluate"), terms:"undo history tree alternate branch" },
-    { id:"directsph", icon:"ph-sphere", label:t("tool_sph"), group:t("grpDirect"), shortcut:"S", terms:"sphere primitive center centre diameter parametric precise", available:partDoc, reason:needPart },
+    { id:"directsph", icon:"ph-sphere", label:t("tool_sph"), group:t("grpDirect"), terms:"sphere primitive center centre diameter parametric precise", available:partDoc, reason:needPart },
     { id:"directpoly", icon:"ph-polygon", label:t("tool_poly"), group:t("grpDirect"), shortcut:"P", terms:"polygon extrude direct", available:directOk, reason:needDirect },
     { id:"directrev", icon:"ph-spiral", label:t("tool_rev"), group:t("grpDirect"), terms:"revolve profile sketch direct", available:directOk, reason:needDirect },
     { id:"newsketch", icon:"ph-pencil-line", label:t("createSketch"), group:t("cmdFeatures"), terms:"reference plane face profile", available:function(){ return partDoc(); }, reason:needPart },
@@ -182,7 +182,7 @@ export function buildCommandCatalog(ctx) {
     /* cad_drawings.js has drawn assembly sheets with BOM balloons all along;
        only this gate kept them out of reach. */
     { id:"drawing", icon:"ph-file-svg", label:t("drawingExport"), group:t("cmdEvaluate"),
-      available:function(){ return partDoc() || (assemblyDoc() && E.assembly && E.assembly.components.length); },
+      available:function(){ return partDoc() || (assemblyDoc() && components()); },
       reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needPart(); } },
     { id:"mass", icon:"ph-scales", label:t("massProps"), group:t("cmdEvaluate"),
       available:function(){ return partDoc()?solids():assemblyDoc()&&components(); },
@@ -193,8 +193,8 @@ export function buildCommandCatalog(ctx) {
       available:function(){ return partDoc() ? solids() : components(); },
       reason:function(){ return partDoc() ? t("cmdNeedSolid") : t("cmdNeedOneComponent"); } },
     { id:"section", icon:"ph-selection-background", label:t("sectionView"), group:t("cmdEvaluate"), terms:"clip clipping slice cross section interior", available:function(){ return partDoc() ? solids() : components(); }, reason:function(){ return partDoc() ? t("cmdNeedSolid") : t("cmdNeedOneComponent"); } },
-    { id:"paint", icon:"ph-paint-brush", label:t("tool_paint"), group:t("cmdEvaluate"), shortcut:"P", terms:"paint color appearance face material finish brush", available:function(){ return partDoc(); }, reason:needPart },
-    { id:"note", icon:"ph-note-pencil", label:t("tool_note"), group:t("cmdEvaluate"), shortcut:"N", terms:"note annotation callout markup draw ink comment redline", available:function(){ return partDoc(); }, reason:needPart },
+    { id:"paint", icon:"ph-paint-brush", label:t("tool_paint"), group:t("cmdEvaluate"), terms:"paint color appearance face material finish brush", available:function(){ return partDoc(); }, reason:needPart },
+    { id:"note", icon:"ph-note-pencil", label:t("tool_note"), group:t("cmdEvaluate"), terms:"note annotation callout markup draw ink comment redline", available:function(){ return partDoc(); }, reason:needPart },
     { id:"standards", icon:"ph-seal-check", label:t("standardsAudit"), group:t("cmdEvaluate"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"stdscrew", icon:"ph-screwdriver", label:t("stdScrewCommand"), group:t("cmdFeatures"), available:function(){return partDoc();}, reason:needPart },
     { id:"stdgear", icon:"ph-gear-six", label:t("stdGearCommand"), group:t("cmdFeatures"), available:function(){return partDoc();}, reason:needPart },

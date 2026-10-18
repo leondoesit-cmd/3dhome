@@ -19,11 +19,12 @@ export const roomMergeCommand=Object.freeze({
  },
  apply(plan,env){
   const state=env.state,p=plan.params;
+  const prevWalls=state.walls,prevOpenings=state.openings;
   state.walls=state.walls.filter(w=>!p.shared.includes(String(w.id)));
   state.openings=state.openings.filter(o=>!p.openingIds.includes(o.id));
   const expected=[...new Set([...p.primary.split(','),...p.secondary.split(',')])].filter(id=>!p.shared.includes(id));
   const room=env.services.detectRooms().find(r=>r.key.split(',').length===expected.length&&r.key.split(',').every(id=>expected.includes(id)));
-  if(!room)return fail('MERGE_TOPOLOGY');
+  if(!room){state.walls=prevWalls;state.openings=prevOpenings;return fail('MERGE_TOPOLOGY');}
   delete state.roomMeta[p.primary];delete state.roomMeta[p.secondary];
   const hid=p.keep.hid||'r'+state.idc++;
   state.roomMeta[room.key]={...p.keep,hid,cx:room.cx,cz:room.cz,shape:{version:1,type:'custom',wallIds:room.key.split(',')},

@@ -73,9 +73,15 @@ export function applyItemDuplicate(plan, env) {
   var grouped = params.regroup && params.items.some(function(item) { return item.groupId != null; });
   var groupId = grouped ? state.idc++ : null;
   var created = [];
+  var idMap = new Map();
+  params.items.forEach(function(source) { idMap.set(source.id, state.idc++); });
   params.items.forEach(function(source) {
     var item = snapshot(source);
-    item.id = state.idc++;
+    item.id = idMap.get(source.id);
+    if (source.on != null) {
+      if (idMap.has(source.on)) item.on = idMap.get(source.on);
+      else delete item.on;
+    }
     item.x = Number(source.x) + params.offsetX;
     item.z = Number(source.z) + params.offsetZ;
     delete item.locked;

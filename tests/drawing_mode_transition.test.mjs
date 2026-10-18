@@ -39,3 +39,28 @@ test("drawing host layout cannot compile a hidden preview shader during mode tra
   E.pv=null;
   assert.doesNotThrow(()=>vm.runInContext("layout3DHost()",context));
 });
+
+test('a delayed renderer inherits the current viewport home before its first render',async()=>{
+  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const start=source.indexOf('function initPreview() {'),end=source.indexOf('/* The isolated editor normally owns',start);
+  assert.ok(start>=0 && end>start);
+  for(const [mode,split,expected] of [['3d',false,true],['2d',true,true],['2d',false,false],['drawing',false,false]]){
+    let loaded=false,finishLoad,renderedBig;
+    const loading=new Promise(resolve=>{finishLoad=resolve;}),relocations=[];
+    const E={mode:'2d',split:false,open:true,pv:null},canvas={addEventListener(){}};
+    const noop=()=>{};
+    const context={E,root:{querySelector:()=>canvas},window:{},localStorage:{getItem:()=>null},
+      THREE:{ClippingGroup:class{}},threeLoaded:()=>loaded,loadThree:()=>loading,
+      createEditorView:()=>({big:false,setBig(big,render){this.big=big;assert.equal(render,false);},invalidateSize:noop}),
+      swapView(big,view,options){relocations.push(big);view.setBig(big,options.render);},
+      layout3DHost(){renderedBig=E.pv.big;},updatePreview:noop,renderPreview:noop,
+      drawInRoom:noop,pickAssemblyComponent:noop,beginInstant3dDrag:noop,showSelectThrough:noop,
+      growSelectionFromDoubleClick:noop,editorLightingSettings:noop,previewMouseGesture:noop};
+    vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+    vm.runInContext('initPreview()',context);
+    E.mode=mode;E.split=split;loaded=true;finishLoad();await loading;await Promise.resolve();
+    assert.equal(E.pv.big,expected,`${mode}/${split}: delayed renderer retained thumbnail sizing`);
+    assert.equal(renderedBig,expected,'the first host render ran before current placement was applied');
+    assert.deepEqual(relocations,[expected]);
+  }
+});

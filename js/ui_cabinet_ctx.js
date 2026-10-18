@@ -3,6 +3,7 @@
 
 import { clamp, fin } from "./state.js";
 import { getLang } from "./i18n.js";
+import { displayUnit, toDisp, fromDisp } from "./display_units.js";
 
 export const api = {};
 
@@ -358,16 +359,19 @@ export function row(label, node) {
   r.appendChild(node);
   return r;
 }
-export function numInput(val, cb, min, max) {
+// Counts opt out of length conversion with a null domain.
+export function numInput(val, cb, min, max, domain = "furniture") {
   var i = el("input");
   i.type = "number";
   i.inputMode = "decimal";
-  i.step = "0.1";
-  if (min != null) i.min = min;
-  if (max != null) i.max = max;
-  i.value = formatCmInput(val);
+  i.step = domain ? "any" : "1";
+  if (domain) i.title = displayUnit(domain);
+  if (min != null) i.min = formatCmInput(domain ? toDisp(min, domain) : min);
+  if (max != null) i.max = formatCmInput(domain ? toDisp(max, domain) : max);
+  i.value = formatCmInput(domain ? toDisp(val, domain) : val);
   function commit() {
-    var v = +i.value;
+    if (!i.value.trim()) return;
+    var v = domain ? fromDisp(+i.value, domain) : +i.value;
     if (!fin(v)) return;
     cb(clamp(v, min == null ? 0 : min, max == null ? 1e5 : max));
   }

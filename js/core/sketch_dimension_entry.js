@@ -9,7 +9,7 @@ export function parseSketchDimensionEntry(text, constraint, documentUnit, lookup
   if (!source) throw new Error('Empty expression');
   const kind = dimensionUnit(constraint);
   const plainNumber = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(source);
-  const numericCalculation = /^[\d\s().+\-*/%^]+$/.test(source);
+  const numericCalculation = /^[\d\s().+\-*/%^]+$/.test(source.replace(/(?:\d+\.?\d*|\.\d+)[eE][+-]?\d+/g, '0'));
   if (plainNumber || numericCalculation) {
     const numeric = plainNumber ? Number(source) : evaluateExpression(source);
     if (!Number.isFinite(numeric)) throw new Error('Result is not a number');

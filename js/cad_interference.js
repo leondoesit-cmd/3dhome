@@ -4,7 +4,7 @@ import { revolveInterval, revolvePlacement, revolveBounds } from "./core/revolve
 // Interference Detection, Mass Properties & Bill of Materials (BOM).
 
 import {rotationOf} from "./cad_mate_model.js";
-import {applyRigidMatrix,rotatedPatternBounds} from "./core/pattern_geometry.js";
+import {applyRigidMatrix,rotatedPatternBounds,rotatePointAroundAxis} from "./core/pattern_geometry.js";
 import { brepMaterialIntersection } from "./cad_kernel.js";
 import { framePoint } from "./core/frame.js";
 import { bomIdentity } from "./toolbox/schema.js";
@@ -248,7 +248,7 @@ function partMass(part) {
      an invented one on a mass report. */
   if (part.kind === "kernel" && !(part.meshData && (part.meshData.positions || []).length >= 9)) return none;
   const positions = part.meshData && part.meshData.positions;
-  if (Array.isArray(positions) && positions.length >= 9) {
+  if ((Array.isArray(positions) || ArrayBuffer.isView(positions)) && positions.length >= 9) {
     // Divergence theorem over the triangle soup — exact for a closed mesh.
     let volume = 0, x = 0, y = 0, z = 0;
     for (let i = 0; i + 8 < positions.length; i += 9) {
@@ -266,13 +266,16 @@ function partMass(part) {
 }
 
 export function computeMassProperties(def, options) {
-  const density = Number(options && options.density) > 0 ? Number(options.density) : 7.85; // g/cm³, steel default
+  const requestedDensity = Number(options && options.density);
+  const density = Number.isFinite(requestedDensity) && requestedDensity > 0 ? requestedDensity : 7.85; // g/cm³, steel default
   let totalVolume = 0, sx = 0, sy = 0, sz = 0, unmeasured = 0;
   for (const part of def.parts || []) {
-    if (!part || part.suppressed) continue;
+    if (!part || part.suppressed || part.previewOnly) continue;
     const m = partMass(part);
-    if (m.volume <= 0) { unmeasured++; continue; }
-    totalVolume += m.volume; sx += m.volume * m.x; sy += m.volume * m.y; sz += m.volume * m.z;
+    let center = {x:m.x,y:m.y,z:m.z};
+    for (const rotation of part.patternRotations || []) center = rotatePointAroundAxis(center,rotation.axis,rotation.angle,rotation.pivot);
+    if (m.volume <= 0 || ![m.volume,center.x,center.y,center.z].every(Number.isFinite)) { unmeasured++; continue; }
+    totalVolume += m.volume; sx += m.volume * center.x; sy += m.volume * center.y; sz += m.volume * center.z;
   }
   const round = (value) => Math.round(value * 100) / 100;
   return {

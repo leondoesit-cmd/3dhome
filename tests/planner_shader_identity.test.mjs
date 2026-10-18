@@ -11,8 +11,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const view3d = readFileSync(join(root, "js/view3d.js"), "utf8");
-const pbr = readFileSync(join(root, "js/pbr_material.js"), "utf8");
+// A core.autocrlf checkout has CRLF on disk; the patterns below match LF.
+const view3d = readFileSync(join(root, "js/view3d.js"), "utf8").replace(/\r\n/g, "\n");
+const pbr = readFileSync(join(root, "js/pbr_material.js"), "utf8").replace(/\r\n/g, "\n");
 
 function fnBody(src, name) {
   const m = src.match(new RegExp("\\nfunction " + name + "\\([^)]*\\) \\{[\\s\\S]*?\\n\\}\\n"));

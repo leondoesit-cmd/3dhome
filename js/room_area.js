@@ -27,11 +27,18 @@ export function roomClearArea(state, room) {
     if (own.has(String(original.id))) continue;
     const wall = JSON.parse(JSON.stringify(original));
     const geom = wallCurveGeom(wall,state.nodes);
-    if (!geom || geom.kind !== 'line') return {area:null,reason:'solids'};
+    if (!geom) return {area:null,reason:'solids'};
     const bands = wallLayerBands(wall,catalog);
     const offset = wall.loc === 'face' && Math.abs(wall.dimSide) === 1 ? -wall.dimSide*wall.thickness/2 : 0;
     const lo = Math.min(...bands.map(b=>b.start))+offset;
     const hi = Math.max(...bands.map(b=>b.end))+offset;
+    if (geom.kind !== 'line') {
+      // The full circle bounds are conservative; expand for the wall faces.
+      const radius = geom.radius + Math.max(Math.abs(lo),Math.abs(hi));
+      if (geom.center.x+radius < bounds.x0 || geom.center.x-radius > bounds.x1 ||
+          geom.center.z+radius < bounds.z0 || geom.center.z-radius > bounds.z1) continue;
+      return {area:null,reason:'solids'};
+    }
     const points = [geom.a,geom.b].flatMap(p=>[lo,hi].map(d=>({x:p.x-geom.uz*d,z:p.z+geom.ux*d})));
     if (Math.min(...points.map(p=>p.x)) < bounds.x1-1e-6 && Math.max(...points.map(p=>p.x)) > bounds.x0+1e-6 &&
         Math.min(...points.map(p=>p.z)) < bounds.z1-1e-6 && Math.max(...points.map(p=>p.z)) > bounds.z0+1e-6)

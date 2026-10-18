@@ -581,9 +581,12 @@ test("desktop model editor: oblique rectangle preview matches the geometry commi
     const view=window.cadPreviewView,canvas=document.getElementById("mdCanvas");
     if(!view?.rr?.domElement||!canvas)return false;
     const host=view.rr.domElement.getBoundingClientRect(),overlay=canvas.getBoundingClientRect();
+    window.obliqueProjectionState={aspect:view.cam.aspect,big:view.big,host:{width:host.width,height:host.height,clientWidth:view.rr.domElement.clientWidth,clientHeight:view.rr.domElement.clientHeight},overlay:{width:overlay.width,height:overlay.height}};
     return host.width>4&&host.height>4&&Math.abs(host.width-overlay.width)<1&&Math.abs(host.height-overlay.height)<1
-      &&Math.abs(view.cam.aspect-host.width/host.height)<1e-6;
-  }, { what: "the oblique renderer and sketch overlay to share their current projection size" });
+      &&Math.abs(view.cam.aspect-view.rr.domElement.clientWidth/view.rr.domElement.clientHeight)<1e-6;
+  }, { what: "the oblique renderer and sketch overlay to share their current projection size" }).catch(async error=>{
+    throw new Error(error.message+': '+JSON.stringify(await page.eval(()=>window.obliqueProjectionState)));
+  });
 
   const result = await page.eval(async () => {
     const osnap=document.getElementById("mdOsnap");
@@ -1320,7 +1323,7 @@ test("desktop model editor: Settings labels and header actions do not overlap", 
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
   await page.eval(() => document.querySelector('#modeler [data-tab="set"]').click());
   const chrome = await page.eval(() => {
-    const name = document.querySelector("#modeler .md-field");
+    const name = document.getElementById('mdName').closest('.md-field');
     const label = name?.querySelector("span");
     const input = name?.querySelector("input");
     const save = document.getElementById("mdSave");

@@ -132,9 +132,20 @@ export function edgesAreTangent(a, b, tolerance = 0.02) {
   if (ea.length < 2 || eb.length < 2) return false;
   const span = Math.max(Math.abs(Number(a?.descriptor?.measure) || 0), Math.abs(Number(b?.descriptor?.measure) || 0), 1);
   const tol = Math.max(1e-4, span * 0.02);
-  const da = unit(sub(ea[1], ea[0])), db = unit(sub(eb[1], eb[0]));
-  if (Math.abs(Math.abs(dot(da, db)) - 1) > tolerance) return false;
-  return ea.some((pa) => eb.some((pb) => len(sub(pa, pb)) <= tol));
+  const tangentAt=(edge,ends,point)=>{
+    const d=edge.descriptor || {};
+    if(d.curve==='circle' && d.origin && d.axis){
+      const radial=sub(point,d.origin),axis=d.axis;
+      const tangent=vec(axis.y*radial.z-axis.z*radial.y,axis.z*radial.x-axis.x*radial.z,axis.x*radial.y-axis.y*radial.x);
+      return len(tangent)>1e-9?unit(tangent):null;
+    }
+    const tangent=sub(ends[1],ends[0]);return len(tangent)>1e-9?unit(tangent):null;
+  };
+  return ea.some(pa=>eb.some(pb=>{
+    if(len(sub(pa,pb))>tol)return false;
+    const da=tangentAt(a,ea,pa),db=tangentAt(b,eb,pb);
+    return !!da && !!db && Math.abs(Math.abs(dot(da,db))-1)<=tolerance;
+  }));
 }
 
 /* Every edge that bounds the face under the pointer. From an edge, the loop is

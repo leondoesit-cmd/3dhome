@@ -352,7 +352,7 @@ test("picking a preset drops an uploaded floor image, and undo brings both back"
       const undone = { floor: (S.roomMeta[key] || {}).floor, tex: !!(S.roomMeta[key] || {}).floorTex };
       return { row, overflow: bar.scrollWidth - bar.clientWidth, marked, after, undone };
     });
-    assert.deepEqual(out.row, ["Undo", "Redo", "Floor", "Edit", "Delete"],
+    assert.deepEqual(out.row, ["Undo", "Redo", "Floor", "Finish", "More"],
       "a room's row leads with the property nobody can name from memory");
     assert.ok(out.overflow <= 0, "and still fits without scrolling");
     assert.deepEqual(out.marked, ["wood"], "the picker opens showing what the floor is now");
