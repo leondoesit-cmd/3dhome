@@ -7,6 +7,7 @@ import { connect, createServer } from "node:net";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { waitForRelay } from "./helpers/relay_readiness.mjs";
 import { S } from "../js/state.js";
 import { collideCircle } from "../js/col2d.js";
 import { parseLength, formatLength } from "../js/planning_units.js";
@@ -129,13 +130,11 @@ async function startRelay(t) {
     child.kill("SIGTERM");
     await rm(identityFile, { force: true });
   });
-  for (let i = 0; i < 60; i++) {
-    try {
-      if ((await fetch(`http://127.0.0.1:${port}/api/ping`)).ok) return port;
-    } catch (_) {}
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  throw new Error("relay did not start");
+  await waitForRelay(`http://127.0.0.1:${port}/api/ping`, child, {
+    attempts: 60,
+    delay: () => new Promise((resolve) => setTimeout(resolve, 50)),
+  });
+  return port;
 }
 
 function maskedFrame(opcode, payload) {
