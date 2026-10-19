@@ -43,7 +43,7 @@ import {
 import { FURN, lampColor, buildItem as buildFurn, elevOffset, itemVSpan } from "./furniture.js";
 import { refreshRuntimePlacements } from "./core/runtime.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
-import { pbrEntryFor, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById, sharedRepeat } from "./pbr_material.js";
+import { pbrEntryFor, pbrTextures, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById, sharedRepeat } from "./pbr_material.js";
 import { HumanFactory } from "./human.js";
 import { SITE, llToLocalCm } from "./site.js";
 import {
@@ -288,6 +288,9 @@ var envDeferred = false;
 var needsRender = true; // paint the next frame
 var shadowsDirty = true; // rebuild the sun shadow map next paint (geometry/sun changed)
 var shadowThrottleT = 0;  // timestamp of last shadow pass (for extLive throttle)
+var regionShadowT = 0; // timestamp of the last drag-region shadow redraw
+var shadowsFromRebuild = false, rebuildShadowT = 0; // a wall drag rebuilds every frame
+var lastRebuildT = -1e9; // when the last full rebuild ran (see the compile below it)
 var qualityPreset = "auto";
 var gameRendererLock = false;
 var drawingOverlay = null, drawingEnabled = false, drawingCanvas = null;
@@ -378,12 +381,105 @@ function lightShown(o) {
   for (var a = o; a; a = a.parent) if (!a.visible) return false;
   return o.layers.test(camera.layers);
 }
-function syncShadowUpdates(now) {
+/* `box`: the region an item drag changed. Only the lights that can reach it
+   redraw — a sofa moved in the lounge does not re-render the bedroom lamp's
+   six-face cube. The sun reaches everything. */
+/* ---- a rebuild keeps the shaders it already has ----
+   three caches each built node shader (keyed by material and geometry
+   layout) only while a live material uses it, and frees it with the last
+   one. A rebuild disposed every old wall, floor and trim material BEFORE the
+   new, identical ones were drawn, so each rebuild threw the whole cache away
+   and the next frame built every shader graph again: ~140 ms of every wall
+   drag, editor tweak or undo, where the rebuild itself is ~15 ms. The old
+   subtree is now detached at once (nothing draws or picks it) and disposed
+   only after the new scene has been painted, by which time every shader it
+   shares with the new one has been picked up again. */
+var retired = [];
+function retireGroup(g) {
+  if (!g) return;
+  var kids = g.children.slice();
+  kids.forEach(function (c) { g.remove(c); });
+  // rebuilds while nothing paints (the plan view) must not pile up
+  while (retired.length >= 2) disposeEntry(retired.shift());
+  retired.push({ kids: kids, frames: 2 });
+}
+function disposeEntry(r) {
+  var holder = new THREE.Group();
+  /* a pooled light (window daylight) is handed back to the new build, and
+     anything else re-used is parented again by now: leave those alone */
+  r.kids.forEach(function (c) { if (!c.parent && !c.isLight) holder.add(c); });
+  clearGroup(holder);
+}
+function disposeRetired() {
+  retired = retired.filter(function (r) {
+    if (--r.frames > 0) return true;
+    disposeEntry(r);
+    return false;
+  });
+}
+/* One planner surface material per distinct finish, kept across rebuilds.
+   three caches a built node shader only while a material using it is alive,
+   and a fresh node graph never matches the old one's cache key anyway (its
+   nodes are new objects), so a rebuild that made the floor, wall-finish,
+   lawn and roof materials afresh re-built all of their shaders — and their
+   shadow-pass variants — on the next frame. A shared material's own
+   dispose() does nothing, so clearGroup and every other disposal path pass
+   it by; a clone (x-ray, ghosting, fades) is an ordinary material again.
+   Only falling out of this memo releases one. */
+var surfaceMemo = new Map(), SURFACE_MEMO_MAX = 96;
+function keepShared() {}
+function isSharedSurface(m) {
+  return !!m && m.dispose === keepShared;
+}
+function surfaceMaterial(entry, o) {
+  var rp = (o && o.repeat) || [1, 1];
+  var tx = pbrTextures(entry);
+  if (!tx) return null;
+  var key = [entry.id, tx.map && tx.map.uuid, rp[0], rp[1], o && o.tint, o && o.side, o && o.envMapIntensity, o && o.antiTile].join("|");
+  var hit = surfaceMemo.get(key);
+  if (hit) {
+    surfaceMemo.delete(key); // most recently used last
+    surfaceMemo.set(key, hit);
+    return hit;
+  }
+  var mat = pbrSurfaceMaterial(entry, o);
+  if (!mat) return null;
+  mat.dispose = keepShared;
+  surfaceMemo.set(key, mat);
+  if (surfaceMemo.size > SURFACE_MEMO_MAX) {
+    var oldest = surfaceMemo.keys().next().value;
+    THREE.Material.prototype.dispose.call(surfaceMemo.get(oldest));
+    surfaceMemo.delete(oldest);
+  }
+  return mat;
+}
+var shadowDirtyBox = null, _lightPos = null;
+function markShadowRegion(box) {
+  if (!box || box.isEmpty()) return;
+  if (shadowDirtyBox) shadowDirtyBox.union(box);
+  else shadowDirtyBox = box.clone();
+  needsRender = true;
+  settle = SETTLE_FRAMES;
+}
+function lightReaches(o, box) {
+  if (o.isDirectionalLight) return true;
+  if (!_lightPos) _lightPos = new THREE.Vector3();
+  o.getWorldPosition(_lightPos);
+  return !o.distance || box.distanceToPoint(_lightPos) < o.distance;
+}
+/* `hold`: rebuilds are coming back to back (see rebuildShadowT). A map that
+   has a picture already (a window light handed back to the pool and out again
+   on every rebuild) keeps it until the paced redraw; only a light that has
+   never drawn draws at once. */
+var everDrawn = new WeakSet();
+function syncShadowUpdates(now, box, hold) {
   scene.traverse(function (o) {
     if (!o.isLight || !o.castShadow || !o.shadow) return;
-    var sh = o.shadow, draw = now || !drawnShadows.has(sh);
+    var sh = o.shadow;
+    var stale = !drawnShadows.has(sh) && !(hold && everDrawn.has(sh));
+    var draw = now || stale || (!!box && lightReaches(o, box));
     sh.autoUpdate = draw;
-    if (draw && lightShown(o)) drawnShadows.add(sh);
+    if (draw && lightShown(o)) { drawnShadows.add(sh); everDrawn.add(sh); }
   });
 }
 export function requestRender() { needsRender = true; settle = SETTLE_FRAMES; }
@@ -427,6 +523,7 @@ function applyPlannerQuality() {
   if (aoPass) aoPass.resolutionScale = effective === "quality" ? 1 : 0.5;
   var canvas = renderer.domElement;
   setSize(canvas.clientWidth || 1, canvas.clientHeight || 1);
+  fitPracticalLights();
   requestShadowUpdate();
   return effective;
 }
@@ -446,12 +543,14 @@ export function setGameRendererQuality(quality) {
   usePost = false;
   var canvas = renderer.domElement;
   setSize(canvas.clientWidth || 1, canvas.clientHeight || 1);
+  fitPracticalLights(); // a game redraws every casting light each frame
   requestShadowUpdate();
 }
 
 export function clearGameRendererQuality() {
   setGameRenderEffect(null);
   gameRendererLock = false;
+  fitPracticalLights();
 }
 var skyCanvas,
   skyTex,
@@ -749,7 +848,7 @@ function buildSiteDressing(streetView) {
   g.userData.role = "site";
   var pv = lay.paving,
     pm = polyMesh([{ x: pv.x0, z: pv.z0 }, { x: pv.x1, z: pv.z0 }, { x: pv.x1, z: pv.z1 }, { x: pv.x0, z: pv.z1 }],
-      -1.2, 180, pbrSurfaceMaterial(materialById("floor_pavers")) ||
+      -1.2, 180, surfaceMaterial(materialById("floor_pavers")) ||
         new THREE.MeshStandardMaterial({ map: floorTexture("pavers"), roughness: 0.88, metalness: 0 }));
   if (pm) {
     pm.receiveShadow = true;
@@ -1298,7 +1397,7 @@ function buildStraightWall(w, col, tex) {
       var wallPbr = !isGlass && pbrEntryFor(bandTex);
       if (wallPbr) {
         var pbrScale = w.texScale || wallPbr.sizeCm;
-        var pbrMat = pbrSurfaceMaterial(wallPbr, { repeat: [1 / pbrScale, 1 / pbrScale] });
+        var pbrMat = surfaceMaterial(wallPbr, { repeat: [1 / pbrScale, 1 / pbrScale] });
         if (pbrMat) {
           mat = pbrMat;
           bandTex = null;
@@ -1332,6 +1431,7 @@ function buildStraightWall(w, col, tex) {
         }
       }
       if (xray) {
+        if (isSharedSurface(mat)) mat = mat.clone(); // never change a shared surface
         mat.transparent = true;
         mat.opacity = 0.18;
         mat.depthWrite = false;
@@ -2273,6 +2373,22 @@ function selected3DBox() {
   if (!found || box.isEmpty()) return null;
   return box.expandByScalar(2);
 }
+/* The camera half of TRAA's velocity (build3D): this frame's and the last
+   painted frame's unjittered view-projection. Called outside render(), where
+   TRAA has already taken its sub-pixel jitter back off the projection. */
+var velUniforms = null;
+function syncCameraVelocity() {
+  if (!velUniforms) return;
+  camera.updateMatrixWorld();
+  velUniforms.prevViewProj.value.copy(velUniforms.curViewProj.value);
+  velUniforms.curViewProj.value.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  velUniforms.projInv.value.copy(camera.projectionMatrixInverse);
+  velUniforms.world.value.copy(camera.matrixWorld);
+  if (!velUniforms.primed) {
+    velUniforms.prevViewProj.value.copy(velUniforms.curViewProj.value);
+    velUniforms.primed = true;
+  }
+}
 function syncSelectionOutline() {
   if (!scene) return;
   if (!selectionOutline) {
@@ -2410,7 +2526,7 @@ function applyItemOps() {
   S.items.forEach(function (it) {
     byId[it.id] = it;
   });
-  var escalate = false;
+  var escalate = false, region = new THREE.Box3(), lampMoved = false;
   S.items3D.forEach(function (mode, id) {
     var it = byId[id],
       c = itemCache.get(id);
@@ -2420,6 +2536,9 @@ function applyItemOps() {
       escalate = true;
       return;
     }
+    // where the piece was and where it lands: both shadows change
+    region.union(new THREE.Box3().setFromObject(c.g));
+    if (FURN[it.type] && FURN[it.type].lamp) lampMoved = true;
     if (mode === "move") placeItem(c.g, it);
     else {
       var signature = itemSig(it);
@@ -2429,9 +2548,15 @@ function applyItemOps() {
         c.sig = itemSig(it);
       } else if (!buildAndCache(it)) escalate = true;
     }
+    var now = itemCache.get(id);
+    if (now) region.union(new THREE.Box3().setFromObject(now.g));
   });
   S.items3D.clear();
-  shadowsDirty = true;
+  /* A lamp carried into another room, or out of the house, takes its range
+     clip and its shadow with it: left alone it kept the old room's settings
+     and lit the rooms through the walls from outside. */
+  if (lampMoved) fitPracticalLights();
+  markShadowRegion(region);
   needsRender = true;
   /* A piece rebuilt on this path arrives with fresh, solid materials, so a
      ghosted furniture layer has to be re-applied over it. ghostRoot's flag
@@ -2448,7 +2573,7 @@ function applyItemOps() {
 function plannerCeilingMaterial(xray) {
   // An opaque ceiling gets the baked paint (polyMesh uv: one unit per 160 cm).
   if (S.showCeiling && !xray) {
-    var paint = pbrSurfaceMaterial(materialById("ceiling_paint"), {
+    var paint = surfaceMaterial(materialById("ceiling_paint"), {
       repeat: [160 / 200, 160 / 200], tint: 0xf3efe6, side: THREE.DoubleSide,
     });
     if (paint) return paint;
@@ -2466,7 +2591,9 @@ export function rebuild3D() {
   refreshRuntimePlacements(S);
   if (!gameRendererLock) renderer.shadowMap.enabled = plannerShadowsEnabled || !!S.invisibleRoof;
   // geometry is changing — the shadow map and the frame both need a redraw
+  // (paced, see rebuildShadowT in the loop)
   shadowsDirty = true;
+  shadowsFromRebuild = true;
   needsRender = true;
   S.items3D.clear(); // a full rebuild subsumes every queued per-item update
   clearPhysics();
@@ -2481,7 +2608,7 @@ export function rebuild3D() {
   ghostRoot(structureRoot, false);
   ghostRoot(mepRoot, false);
   dyn.remove(itemsRoot); // keep the furniture subtree out of the disposal below
-  clearGroup(dyn); // takes the previous structureRoot and mepRoot with it
+  retireGroup(dyn); // takes the previous structureRoot and mepRoot with it
   structureRoot = new THREE.Group();
   stubRoot = new THREE.Group();
   stubRoot.userData.physicsRole = "ignore";
@@ -2512,7 +2639,7 @@ export function rebuild3D() {
   var lawn = materialById("ground_lawn");
   var gp = new THREE.Mesh(
     new THREE.PlaneGeometry(gw, gd),
-    pbrSurfaceMaterial(lawn, { repeat: [gw / lawn.sizeCm, gd / lawn.sizeCm] }) ||
+    surfaceMaterial(lawn, { repeat: [gw / lawn.sizeCm, gd / lawn.sizeCm] }) ||
       new THREE.MeshStandardMaterial({ map: gt, roughness: 0.97, metalness: 0 }),
   );
   gp.rotation.x = -Math.PI / 2;
@@ -2539,7 +2666,7 @@ export function rebuild3D() {
       // finished load replaces on the rebuild it triggers.
       var floorPbr = customTex ? pbrEntryFor(customTex) : pbrEntryFor("floor:" + t);
       if (floorPbr) {
-        var pbrFloor = pbrSurfaceMaterial(floorPbr, { side: THREE.DoubleSide, envMapIntensity: 0.7 });
+        var pbrFloor = surfaceMaterial(floorPbr, { side: THREE.DoubleSide, envMapIntensity: 0.7 });
         if (pbrFloor) {
           matCache[key] = pbrFloor;
           return pbrFloor;
@@ -2912,7 +3039,7 @@ export function rebuild3D() {
       roofGeo.computeVertexNormals();
       var roofEntry = materialById(S.roof.finish) || materialById("roof_clay_tile");
       worldUVs(roofGeo, roofEntry.sizeCm);
-      var roofMesh = new THREE.Mesh(roofGeo, pbrSurfaceMaterial(roofEntry, { side: THREE.DoubleSide }) ||
+      var roofMesh = new THREE.Mesh(roofGeo, surfaceMaterial(roofEntry, { side: THREE.DoubleSide }) ||
         new THREE.MeshStandardMaterial({ color: 0x725b50, roughness: 0.82, side: THREE.DoubleSide }));
       roofMesh.castShadow = true;
       roofMesh.receiveShadow = true;
@@ -3016,38 +3143,104 @@ function roomReach(room, x, z, y) {
   return Math.max(220, far + 40);
 }
 var PRACTICAL_SHADOW = { ceilingLight: 1, pendant: 1, chandelier: 1 };
+/* ---- one shadow budget for every light that can cast ----
+   Every shadow map is one more sampled texture in EVERY lit material's
+   fragment stage, and WebGPU's default per-stage limit is 16; the PBR maps
+   and the environment take about five. Past it every pipeline in the house
+   fails at once (a big flat at night used to ask for a cube per room), and
+   each map is also five more depth taps in every pixel. So the lights that
+   cast are chosen here, in order of what it costs the picture to go without:
+     1. a lamp OUTSIDE every room whose throw reaches the house. Unshadowed,
+        it lights the rooms straight through a blind wall. Over budget it is
+        clipped at the wall instead, which loses its glow on the facade but
+        never leaks in.
+     2. at dusk and at night, the main ceiling fixture of each room (largest
+        rooms first), so furniture sits on the floor in lamplight;
+     3. by day, the brightest windows' daylight (the sky seen through the
+        glass), so furniture throws its shadow away from the window. They
+        hand over to the practicals at dusk rather than adding to them.
+   The sun takes one slot by day. A light whose map is stale after this
+   (it starts casting, or its range moved) is redrawn on its own; nothing
+   here invalidates the other maps. */
+var MAX_SHADOW_MAPS = 8;
+function distToRooms(x, z) {
+  var best = Infinity;
+  detectRooms().forEach(function (r) {
+    var n = r.pts.length;
+    for (var i = 0; i < n; i++) {
+      var p = r.pts[i], q = r.pts[(i + 1) % n], dx = q.x - p.x, dz = q.z - p.z;
+      var t = clamp(((x - p.x) * dx + (z - p.z) * dz) / (dx * dx + dz * dz || 1), 0, 1);
+      best = Math.min(best, Math.hypot(x - p.x - t * dx, z - p.z - t * dz));
+    }
+  });
+  return best;
+}
+function castSetup(o, kind) {
+  var sh = o.shadow;
+  if (kind === "window") {
+    // a pooled light keeps the map it already has (see takeLight)
+    if (!sh.map) sh.mapSize.set(512, 512);
+    sh.radius = 4; // the sky through a window is a big source
+    sh.bias = -0.0006;
+    sh.normalBias = 3;
+    sh.camera.near = 12; // clears the window's own frame and sill trim
+  } else {
+    if (!sh.map) sh.mapSize.set(512, 512);
+    sh.camera.near = 4;
+    sh.bias = -0.002;
+    sh.normalBias = 2.5;
+    sh.radius = 5;
+  }
+  var far = Math.max(60, o.distance);
+  if (sh.camera.far !== far) {
+    sh.camera.far = far;
+    if (sh.camera.updateProjectionMatrix) sh.camera.updateProjectionMatrix();
+    drawnShadows.delete(sh);
+  }
+}
 function fitPracticalLights() {
   if (!itemsRoot) return;
-  var night = (S.artK || 0) > 0.5 && plannerShadowsEnabled && !gameRendererLock && renderer && renderer.shadowMap.enabled;
-  var shadowRooms = {};
+  var allowed = plannerShadowsEnabled && !gameRendererLock && !!renderer && renderer.shadowMap.enabled;
+  var night = (S.artK || 0) > 0.5;
+  var want = [], shadowRooms = {}, leaking = [];
   itemsRoot.children.forEach(function (g) {
     var it = g.userData && g.userData.item;
     if (!it || !FURN[it.type] || !FURN[it.type].lamp) return;
-    var room = roomContaining(it.x, it.z);
+    var room = roomContaining(it.x, it.z), gap = room ? 0 : distToRooms(it.x, it.z);
     g.traverse(function (o) {
       if (!(o.isPointLight || o.isSpotLight) || o.userData.baseI == null) return;
       if (o.userData.throwCm == null) o.userData.throwCm = o.distance;
       var y = o.position.y + elevOffset(it);
       o.distance = room ? Math.min(o.userData.throwCm, roomReach(room, it.x, it.z, y)) : o.userData.throwCm;
-      var cast = !!(night && room && o.isPointLight && PRACTICAL_SHADOW[it.type] && !shadowRooms[room.key]);
-      if (cast) shadowRooms[room.key] = true;
-      if (o.castShadow !== cast) {
-        o.castShadow = cast;
-        if (cast) {
-          o.shadow.mapSize.set(512, 512);
-          o.shadow.camera.near = 4;
-          o.shadow.bias = -0.002;
-          o.shadow.normalBias = 2.5;
-          o.shadow.radius = 5;
-        }
-      }
-      if (cast) {
-        o.shadow.camera.far = o.distance;
-        if (o.shadow.camera.updateProjectionMatrix) o.shadow.camera.updateProjectionMatrix();
+      if (!room && gap < o.distance) {
+        // the room outlines run down the wall centre lines
+        leaking.push({ l: o, clip: Math.max(30, gap) });
+        want.push({ l: o, kind: "lamp", rank: 0, size: 0 });
+      } else if (room && night && o.isPointLight && PRACTICAL_SHADOW[it.type] && !shadowRooms[room.key]) {
+        shadowRooms[room.key] = true;
+        want.push({ l: o, kind: "lamp", rank: 1, size: room.area || 0 });
       }
     });
   });
-  requestShadowUpdate();
+  if (!night && (S.dayK || 0) > 0.02)
+    windowLights.forEach(function (l) {
+      if (l.isSpotLight) want.push({ l: l, kind: "window", rank: 2, size: l.userData.baseI });
+    });
+  want.sort(function (a, b) { return a.rank - b.rank || b.size - a.size; });
+  var slots = allowed ? MAX_SHADOW_MAPS - (sun && sun.castShadow ? 1 : 0) : 0;
+  var casting = new Set();
+  want.slice(0, Math.max(0, slots)).forEach(function (w) { casting.add(w.l); });
+  // over budget, a lamp outside the house stops at the wall instead
+  leaking.forEach(function (k) { if (!casting.has(k.l)) k.l.distance = k.clip; });
+  var lights = windowLights.slice();
+  itemsRoot.traverse(function (o) { if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) lights.push(o); });
+  lights.forEach(function (o) {
+    var cast = casting.has(o);
+    if (cast) castSetup(o, o.userData.win ? "window" : "lamp");
+    if (o.castShadow !== cast) o.castShadow = cast;
+  });
+  needsRender = true;
+  settle = SETTLE_FRAMES;
 }
 
 function tagItemPhysicsRole(g, it) {
@@ -4262,7 +4455,14 @@ export function applyEnv() {
   sun.intensity = LUX * (on ? 0.45 + 1.4 * dk : 0);
   sun.color.copy(lerpC(0xfff1db, 0xff7a36, lowK));
   sun.shadow.radius = 3 + 6 * lowK;
-  scene.environmentIntensity = on ? 0.62 + 0.25 * lowK : 0.55;
+  // a sun below the horizon still cost a 4096² pass and a texture in every shader
+  sun.castShadow = on;
+  /* Light in the order nature has it: the sun's patch through a window is
+     several times brighter than the diffuse sky light around it, which is
+     brighter than the bounce that fills the rest of the room. The window
+     sky light used to put twice the sun's illuminance on the floor beside the
+     glass, so a sun patch vanished into it. */
+  scene.environmentIntensity = on ? 0.53 + 0.21 * lowK : 0.55;
   hemi.intensity = LUX * (0.02 + 0.05 * dk); // env map now supplies most sky ambient
   flt.intensity = LUX * 0.0;
   // gradient sky: zenith->horizon colors, shared with the path tracer via envPT
@@ -4297,12 +4497,12 @@ export function applyEnv() {
     new THREE.Vector3(dx, dy, dz).normalize(), sun.color, on ? dk : 0);
   // a dollhouse view keeps its ceilings and full-height walls as shadow
   // casters (see shadowRoot), so its rooms are lit like rooms seen from inside
-  renderer.toneMappingExposure = on ? 1.12 : 0.95;
+  renderer.toneMappingExposure = on ? 1.28 : 0.95;
   S.artK = on ? 0.12 + 0.55 * (1 - dk) : 1.0;
   dyn.traverse(function (o) {
     if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) {
       o.intensity = o.userData.win
-        ? o.userData.baseI * 1.5 * dk
+        ? o.userData.baseI * 0.6 * dk
         : o.userData.baseI * (0.45 + 1.9 * S.artK);
     }
     if (
@@ -4945,11 +5145,13 @@ function build3D() {
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
-  // PCFSoft is available again on WebGPURenderer: shadow filtering goes through
-  // the TSL node system (PCFSoftShadowFilter), not the old WebGLShadowMap that
-  // deprecated this type. It is the only filter here that honours shadow.radius,
-  // which is what gives the sun a penumbra instead of a hard stencil edge.
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // PCF, not PCFSoft: in r185 PCFSoftShadowFilter is a fixed 3×3-texel gather
+  // that never reads shadow.radius, so every penumbra this rig sets (the sun
+  // widening at dusk, the night practicals) came out as the same hard edge.
+  // PCFShadowFilter samples a Vogel disk scaled by shadow.radius, rotated per
+  // pixel — the penumbra the radius asks for. Point lights use their own
+  // filter, which reads radius either way.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   // Shadows are camera-independent, so there's no reason to re-render the (4K)
   // shadow map every frame while the user just orbits. They update on demand —
   // only when geometry or the sun actually moved (see shadowsDirty) — per light,
@@ -5017,21 +5219,47 @@ function build3D() {
     // own buffer stays untouched while the view moves.
     if (TSL.velocity.previousCameraViewMatrix && TSL.renderGroup)
       TSL.velocity.previousCameraViewMatrix.setGroup(TSL.renderGroup);
-    scenePass.setMRT(TSL.mrt({ output: TSL.output, normal: TSL.normalView, velocity: TSL.velocity }));
+    /* No per-object velocity in the MRT. With a velocity target bound, three
+       refreshes EVERY object's uniforms on every frame (needsVelocity), even
+       a static wall, even inside a recorded bundle: ~7 ms of an orbit frame
+       on the ~830 meshes of a furnished flat (half the frame). TRAA gets a camera-motion
+       velocity instead, rebuilt from depth and last frame's camera — exact
+       for everything that stands still, which in a planner is everything but
+       the piece being dragged, and TRAA's variance clipping keeps that one
+       from smearing. Matrices are the unjittered ones, as three's own
+       velocity uses (see syncCameraVelocity). */
+    scenePass.setMRT(TSL.mrt({ output: TSL.output, normal: TSL.normalView }));
     var colorNode = scenePass.getTextureNode("output");
     var depthNode = scenePass.getTextureNode("depth");
     var normalNode = scenePass.getTextureNode("normal");
-    var velocityNode = scenePass.getTextureNode("velocity");
+    velUniforms = {
+      curViewProj: TSL.uniform(new THREE.Matrix4()),
+      prevViewProj: TSL.uniform(new THREE.Matrix4()),
+      projInv: TSL.uniform(new THREE.Matrix4()),
+      world: TSL.uniform(new THREE.Matrix4()),
+      primed: false,
+    };
+    var cameraVelocity = TSL.Fn(function () {
+      var uvN = TSL.uv();
+      var depth = depthNode.load(uvN.mul(depthNode.size())).r;
+      var view = TSL.getViewPosition(uvN, depth, velUniforms.projInv);
+      var world = velUniforms.world.mul(TSL.vec4(view, 1));
+      var cur = velUniforms.curViewProj.mul(world), prev = velUniforms.prevViewProj.mul(world);
+      return TSL.vec4(cur.xy.div(cur.w).sub(prev.xy.div(prev.w)), 0, 1);
+    })();
+    var velocityNode = TSL.convertToTexture(cameraVelocity);
 
     aoPass = ADDONS.ao(depthNode, normalNode, camera);
     // GTAO's radius is in WORLD units, unlike the old SSAO kernelRadius which was
     // in its own screen-ish space. Scene units are centimetres (room ~400–600cm),
     // so contact occlusion wants tens of cm, not the 0.25 metre-scale default.
-    aoPass.radius.value = 18;
-    aoPass.distanceExponent.value = 1.2;
-    aoPass.thickness.value = 12;
+    // ~35 cm reaches from under a sofa or a bed out to where its skylight
+    // shadow would fall, so furniture sits on the floor, not above it
+    aoPass.radius.value = 35;
+    aoPass.distanceExponent.value = 1.6;
+    aoPass.thickness.value = 20;
     aoPass.distanceFallOff.value = 1;
-    aoPass.scale.value = 1.1; // slightly over 1: interiors read better with firm contact shadows
+    aoPass.scale.value = 1.25; // over 1: interiors read better with firm contact shadows
     aoPass.samples.value = 16;
 
     // AO multiplies the beauty pass, then TRAA resolves the result.
@@ -5045,7 +5273,9 @@ function build3D() {
     var stage = (/[?&]post=(\w+)/.exec(location.search) || [])[1] ||
       (function () { try { return localStorage.getItem("home3d_post"); } catch (e) { return null; } })() ||
       "traa";
-    post.outputNode = stage === "raw" ? colorNode : stage === "ao" ? lit : traaPass;
+    // "vel" shows TRAA's camera velocity (|ndc offset| × 20) for checking reprojection
+    post.outputNode = stage === "raw" ? colorNode : stage === "ao" ? lit
+      : stage === "vel" ? TSL.vec4(velocityNode.sample(TSL.uv()).xy.abs().mul(20), 0, 1) : traaPass;
     usePost = true;
   } catch (e) {
     console.warn("post-processing unavailable, falling back to direct render:", e);
@@ -5636,10 +5866,16 @@ function build3D() {
       try {
         rebuild3D();
         applyEnv();
-        // compile() issues GPU work, so it too has to wait for the backend
-        if (renderer && renderer.initialized && scene && camera) {
+        /* compile() issues GPU work, so it too has to wait for the backend.
+           It walks the whole scene in a render context of its own — the frame
+           that follows does all of that again — so it only pays when there
+           is time before the next rebuild: during a drag it was ~17 ms of
+           every frame. */
+        var nowT = performance.now();
+        if (renderer && renderer.initialized && scene && camera && nowT - lastRebuildT > 400) {
           renderer.compile(scene, camera);
         }
+        lastRebuildT = nowT;
       } catch (err) {
         if (window.console && console.error)
           console.error("rebuild3D failed:", err);
@@ -5708,14 +5944,25 @@ function build3D() {
       // extLive (Night Shift tick) is true every frame but the indoor scene is
       // mostly static — throttle shadow passes to ~5 Hz to avoid hammering the
       // GPU with a 4096² depth re-render 60 times a second.
-      var shadowPass = false;
+      var shadowPass = false, shadowBox = shadowDirtyBox, shadowHold = false;
+      shadowDirtyBox = null;
       if (extLive) {
         // The external modes' own lights (Night Shift's flashlight) move with
         // the player every frame; their shadows stay live, see syncShadowUpdates.
         shadowPass = true;
+      } else if (shadowsDirty && shadowsFromRebuild && !physicsLive && !doorsMoving &&
+          time - rebuildShadowT < 100) {
+        shadowHold = true;
+        /* Rebuild after rebuild (a wall or opening being dragged): every map
+           redrawn on each one was a third of the frame. They follow at
+           ~10 Hz; the dirt is kept, so the frame after the last rebuild still
+           gets its full redraw. */
+        needsRender = true;
       } else if (shadowsDirty || physicsLive || doorsMoving) {
         shadowPass = true;
+        if (shadowsFromRebuild) rebuildShadowT = time;
         shadowsDirty = false;
+        shadowsFromRebuild = false;
         shadowThrottleT = time;
       } else if (humansLive) {
         // People move slowly and are small in frame, so re-rendering a 4096²
@@ -5727,10 +5974,21 @@ function build3D() {
           shadowThrottleT = time;
         }
       }
-      syncShadowUpdates(shadowPass);
+      /* A drag moves its piece every pointer event, and redrawing the maps
+         that reach it (the sun's 4096², a room's six-face cube, the windows)
+         on each one was most of a drag frame. They follow at ~10 Hz while it
+         moves; the region is kept, and keeps the loop awake, until the
+         redraw where the piece came to rest has landed. */
+      if (shadowBox && !shadowPass && time - regionShadowT < 100) {
+        markShadowRegion(shadowBox);
+        shadowBox = null;
+      } else if (shadowBox) regionShadowT = time;
+      syncCameraVelocity();
+      syncShadowUpdates(shadowPass, shadowBox, shadowHold);
       syncSelectionOutline();
       try {
         renderScene();
+        if (retired.length) disposeRetired();
       } catch (e) {
         // Never silently swallow this: a broken post-processing graph paints
         // pure black and an empty catch makes it look like nothing ran at all.

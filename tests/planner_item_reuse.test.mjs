@@ -26,6 +26,10 @@ function fixture() {
     buildAndCache() { work.builds++; return {}; },
     updateCabinetRuntimeMesh() { work.runtime++; return true; },
     isLayerGhosted: () => false, ghostSwap() { work.ghosts++; }, isPhysicsEnabled: () => false,
+    // shadows: only the region a piece left and landed in is redrawn
+    THREE: { Box3: class { union() { return this; } setFromObject() { return this; } } },
+    FURN: {}, fitPracticalLights() { work.lampFits = (work.lampFits || 0) + 1; },
+    markShadowRegion(box) { context.shadowRegion = box; },
     shadowsDirty: false, needsRender: false };
   vm.createContext(context); vm.runInContext(sourceFunctionText(source, 'applyItemOps'), context);
   return { context, item, group, work };
@@ -35,7 +39,8 @@ test('unchanged item build requests retain geometry and update the live placemen
   context.S.items = [{ ...item }]; context.S.items3D.set('cab', 'build'); context.applyItemOps();
   assert.equal(work.builds, 0); assert.equal(work.runtime, 0); assert.equal(work.moves, 1);
   assert.equal(group.live, context.S.items[0]); assert.equal(context.S.dirty3D, false);
-  assert.equal(context.shadowsDirty, true); assert.equal(context.needsRender, true);
+  assert.ok(context.shadowRegion, 'the moved region is marked'); assert.equal(context.shadowsDirty, false);
+  assert.equal(context.needsRender, true);
 });
 test('cabinet runtime reuse updates the signature and skips unrelated scene geometry', () => {
   const { context, item, work } = fixture();

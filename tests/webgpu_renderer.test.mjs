@@ -109,9 +109,9 @@ test('ported node materials expose the uniforms their game loops drive', () => {
 test('planner orbit frames stay free of shadow passes and per-mesh uploads', () => {
   const view3d = read('js/view3d.js');
   // on-demand shadows are driven per light, every painted frame
-  assert.match(view3d, /function syncShadowUpdates\(now\)/);
+  assert.match(view3d, /function syncShadowUpdates\(now, box, hold\)/);
   assert.match(view3d, /sh\.autoUpdate = draw;/);
-  assert.match(view3d, /syncShadowUpdates\(shadowPass\);\s*syncSelectionOutline\(\);/);
+  assert.match(view3d, /syncShadowUpdates\(shadowPass, shadowBox, shadowHold\);\s*syncSelectionOutline\(\);/);
   // the previous camera view matrix is per camera, not per mesh
   assert.match(view3d, /TSL\.velocity\.previousCameraViewMatrix\.setGroup\(TSL\.renderGroup\)/);
 });

@@ -156,7 +156,8 @@ test("the ghost flag keeps applyLayers3D off the hot path", () => {
 test("rebuild3D un-ghosts before it disposes, or the originals leak", () => {
   const build = slice(view3d, "export function rebuild3D()", "scene.doors = []");
   const unghost = build.indexOf("ghostRoot(structureRoot, false)");
-  const clear = build.indexOf("clearGroup(dyn)");
+  // the old scene is retired (detached now, disposed after the next paint)
+  const clear = build.indexOf("retireGroup(dyn)");
   assert.ok(unghost >= 0 && clear > unghost, "restore materials before disposing them");
 });
 
