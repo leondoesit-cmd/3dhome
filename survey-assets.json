@@ -463,6 +463,7 @@
     "/js/mobile_shell.js",
     "/js/model_catalog.js",
     "/js/modeler.js",
+    "/js/modeler/dimension_entry.js",
     "/js/modeler/sketch_guide.js",
     "/js/modeler_chrome.js",
     "/js/modeler_commands.js",
