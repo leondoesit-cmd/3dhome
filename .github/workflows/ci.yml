@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # LFS stays off: the tests only check material URLs, and pulling the
+      # ~240 MB of textures on every run would eat the free LFS bandwidth.
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # module + link gates: catch the missing export that silently kills the UI
+      - run: npm run check
+      # pure-Node tests; the *.browser.mjs suite (npm run test:browser) needs a
+      # GPU Chrome and runs locally
+      - run: npm test

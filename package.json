@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server/relay.mjs",
     "setup:blueprint": "node tools/setup_blueprint_vision.mjs",
-    "test": "node --test tests/*.test.mjs uikit/tests/*.test.mjs",
+    "test": "node --test --test-timeout=600000 tests/*.test.mjs uikit/tests/*.test.mjs",
     "check:modules": "node tools/module_check.mjs",
     "check:links": "node tools/link_check.mjs",
     "check:assertions": "node tools/comment_assertions.mjs",
