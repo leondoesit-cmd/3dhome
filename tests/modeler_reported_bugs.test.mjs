@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -17,7 +18,7 @@ import {drawingEllipseGeometry, drawingArcGeometry} from '../js/core/drawing_pri
 import {addViewToSheet} from '../js/cad_sheet.js';
 import {formatLength} from '../js/planning_units.js';
 
-const read = file => readFileSync(new URL('../js/' + file, import.meta.url), 'utf8');
+const read = file => file === 'modeler.js' ? modelerSource() : readFileSync(new URL('../js/' + file, import.meta.url), 'utf8');
 const source = read('modeler.js'), geometry = read('modeler_part_geometry.js');
 const mesh = read('modeler_mesh_geometry.js'), mobile = read('modeler_mobile.js');
 function load(text, name, bindings = {}) {

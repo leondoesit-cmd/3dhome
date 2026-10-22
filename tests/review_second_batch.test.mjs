@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import { toolFeatureRecipe, translateToolRecord } from "../js/core/tool_recipe.js";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +10,7 @@ import { axisAngleMatrix,rotationOf } from '../js/cad_mate_model.js';
 import { detectInterference } from '../js/cad_interference.js';
 import { makeBrepPrimitive,disposeBrep } from '../js/cad_kernel.js';
 import { regenerateFeatures,releaseRegeneration,addFeature } from '../js/cad_feature_tree.js';
-const source=file=>readFileSync(new URL('../js/'+file+'.js',import.meta.url),'utf8');
+const source=file=>file==='modeler'?modelerSource():readFileSync(new URL('../js/'+file+'.js',import.meta.url),'utf8');
 function extract(file,name,bindings={}){
  const text=source(file).match(new RegExp('(?:export )?function '+name+'\\([^]*?\\r?\\n\\}\\r?\\n'))[0];
  return Function(...Object.keys(bindings),'return ('+text.replace(/^export /,'')+')')(...Object.values(bindings));

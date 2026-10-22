@@ -1,12 +1,13 @@
 // The shared editor switcher (js/pro_shell.js): Planner · Model · Cabinet in the
 // planner ribbon, the model editor header and the cabinet designer header.
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerEditor, switchEditor, activeEditor, editorSwitchHTML } from "../js/pro_shell.js";
 import { PRO_HE } from "../js/pro_catalog.js";
 
-const src = (f) => readFileSync(new URL("../js/" + f, import.meta.url), "utf8");
+const src = (f) => (f === "modeler.js" ? modelerSource() : readFileSync(new URL("../js/" + f, import.meta.url), "utf8"));
 
 // proToast needs just enough of a document to append its status line.
 const toasts = [];
