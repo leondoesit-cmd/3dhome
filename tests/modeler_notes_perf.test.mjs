@@ -57,7 +57,7 @@ test("erasing a swipe of markup is one undo step, not one per stroke", () => {
 });
 
 test("dragging the paint tool coalesces its rebuilds to one per frame", () => {
-  /* MODEL_EDITOR_PERF_PLAN.md forbids uncoalesced rebuild work on
+  /* docs/plans/MODEL_EDITOR_PERF_PLAN.md forbids uncoalesced rebuild work on
      pointermove. Painting called updatePreview() and refreshParts()
      synchronously for every newly touched face. */
   const fn = body(md, "  var paintedCount = 0;", "\n  paintTarget(hit);");

@@ -1,6 +1,6 @@
 # Model editor UX implementation
 
-Implemented from `MODEL_EDITOR_UX_PLAN.md`, 10 September 2026. Existing responsive work and unrelated working-tree changes were preserved. This is a local implementation; no deployment or PR was created.
+Implemented from `plans/MODEL_EDITOR_UX_PLAN.md`, 10 September 2026. Existing responsive work and unrelated working-tree changes were preserved. This is a local implementation; no deployment or PR was created.
 
 ## Delivered
 

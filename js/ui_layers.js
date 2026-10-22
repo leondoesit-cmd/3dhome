@@ -340,7 +340,7 @@ function syncLockBtn() {
    drag can move a wall, and it is worth a standing reminder because the whole
    point of the work set is that most of the time it cannot. Not keyed on
    `!locked` alone: structure defaults to unlocked (see "No default-on
-   structure lock" in LAYERS_PERF_PLAN.md), so that rim would never be off. */
+   structure lock" in docs/plans/LAYERS_PERF_PLAN.md), so that rim would never be off. */
 function syncStructureRim() {
   var live = layerRank("structure") === 0 && !isLayerLocked("structure");
   ["view-2d", "view-3d"].forEach(function (id) {

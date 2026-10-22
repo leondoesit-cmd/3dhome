@@ -23555,7 +23555,7 @@ function beginPaintDrag(event, view) {
      stops a face being repainted — but every one of those still forced a
      synchronous updatePreview() and refreshParts() from a pointermove
      handler. Sweeping thirty faces meant thirty full rebuilds, which is the
-     uncoalesced-work-on-pointermove that MODEL_EDITOR_PERF_PLAN.md exists to
+     uncoalesced-work-on-pointermove that docs/plans/MODEL_EDITOR_PERF_PLAN.md exists to
      forbid. Mark dirty, rebuild once on the next frame. */
   var rebuildFrame = 0;
   function scheduleRebuild() {
