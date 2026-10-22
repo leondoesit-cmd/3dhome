@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {documentDescription,setDocumentDescription,setDocumentProperty} from '../js/core/custom_properties.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function node(tag){return {tag,children:[],style:{},value:'',appendChild(child){this.children.push(child);},append(...children){this.children.push(...children);},querySelectorAll(tag){return this.children.filter(child=>child.tag===tag);},setAttribute(){},addEventListener(){},showModal(){},close(){},remove(){},focus(){},closest(){return {style:{}};}};}
 
 function fixture(docType='assembly'){

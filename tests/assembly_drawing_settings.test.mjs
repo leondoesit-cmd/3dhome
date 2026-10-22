@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -29,7 +30,7 @@ test('invalid legacy settings use sheet defaults; finite ratio and independent m
 });
 
 test('actual Assembly drawing dialog offers ordinary native entry after applying settings',()=>{
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),start=source.indexOf('function showAssemblyDrawingSettings('),end=source.indexOf('\nasync function exportThreeMfDocument',start);
+ const source=modelerSource(),start=source.indexOf('function showAssemblyDrawingSettings('),end=source.indexOf('\nasync function exportThreeMfDocument',start);
  const assembly=fixture(),events=[],dialogs=[];
  const node=(tag,text='')=>({tag,text,style:{},children:[],value:'',setAttribute(){},append(...items){this.children.push(...items);},appendChild(item){this.children.push(item);},addEventListener(){},showModal(){},close(){events.push('close');},remove(){}});
  const context={E:{assembly},root:{querySelector:()=>null,appendChild:d=>dialogs.push(d)},document:{createElement:tag=>node(tag)},el:(tag,cls,text)=>node(tag,text),SHEET_SIZES,t:k=>k,

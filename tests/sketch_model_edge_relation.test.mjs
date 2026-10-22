@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -150,7 +151,7 @@ test("a rebuild whose model edge is gone fails with a message and does not keep 
 
 /* --- the editor wiring (no browser here; the link gate covers the imports) --- */
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 
 test("the sketcher picks corners and edges, and Coincident, Midpoint and Convert take them", () => {
   assert.match(modeler, /var modelVertex = pickScreen \? hitScreenModelVertex\([\s\S]{0,260}hitProjectedModelVertex\(ensureSketch\(E\.def\)[\s\S]{0,200}var modelEdge = modelVertex \|\| \(pickScreen \? hitScreenModelEdge\([\s\S]{0,200}hitProjectedModelEdge\(/, "a corner beats its edge when picking, in screen space over a camera and on the plane otherwise");

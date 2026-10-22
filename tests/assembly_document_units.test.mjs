@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {documentLengthUnit} from '../js/core/document_length_units.js';
 import {compactAssemblyTopologySnapshots} from '../js/core/project_topology_budget.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 function fixture(){
   const E={docType:'assembly',assembly:{key:'shock',name:'SHOCK',components:[],mates:[]},def:{name:'Inactive part',context:{units:{length:'in'}}}};

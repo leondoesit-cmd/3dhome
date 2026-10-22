@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -18,12 +19,12 @@ test("drawing viewport relocation suppresses rendering before mode controls upda
   assert.equal(resized,1);assert.equal(big,false);assert.equal(renders,0);
   assert.throws(()=>swap(true,view),/Shader build cycle/);
   assert.equal(big,true);assert.equal(renders,1);
-  const modeler=readFileSync(new URL("../js/modeler.js",import.meta.url),"utf8");
+  const modeler=modelerSource();
   assert.match(modeler,/swapView\(m === "3d" \|\| split, E\.pv, \{ render: m !== "drawing" \}\)/);
 });
 
 test("drawing host layout cannot compile a hidden preview shader during mode transition",()=>{
-  const source=readFileSync(new URL("../js/modeler.js",import.meta.url),"utf8");
+  const source=modelerSource();
   const start=source.indexOf("function layout3DHost() {");
   const end=source.indexOf("/* Frame whatever is modelled",start);
   assert.ok(start>=0&&end>start);
@@ -41,7 +42,7 @@ test("drawing host layout cannot compile a hidden preview shader during mode tra
 });
 
 test('a delayed renderer inherits the current viewport home before its first render',async()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('function initPreview() {'),end=source.indexOf('/* The isolated editor normally owns',start);
   assert.ok(start>=0 && end>start);
   for(const [mode,split,expected] of [['3d',false,true],['2d',true,true],['2d',false,false],['drawing',false,false]]){

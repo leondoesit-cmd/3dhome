@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -15,7 +16,7 @@ test('Drawing mode keeps enabled Undo/Redo controls clickable',()=>{
 });
 
 test('actual model-history Undo/Redo rebuilds the cached drawing without entering Model mode',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('const H = createHistory({');
   const end=source.indexOf('/* ---- what is inside a document',start);
   const E={mode:'drawing',docType:'part',sheetToken:0,assembly:null,
@@ -52,7 +53,7 @@ test('actual model-history Undo/Redo rebuilds the cached drawing without enterin
 });
 
 test('actual history Undo/Redo hides stale exact mass before replacing the document',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('const H = createHistory({');
   const end=source.indexOf('/* ---- what is inside a document',start);
   const card={hidden:false};
@@ -79,7 +80,7 @@ test('actual history Undo/Redo hides stale exact mass before replacing the docum
 });
 
 test('a late exact mesh refreshes the visible drawing and inspector without a WebGL preview',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const part={id:'late-body',kind:'box',x0:0,x1:1,y0:0,y1:1,z0:0,z1:2,exactPending:true};
   const E={mode:'drawing',docType:'part',sheetToken:0,pv:null,
     def:{parts:[part],drawing:createSheetDoc({views:['right','iso'],scale:[1,1]})}};

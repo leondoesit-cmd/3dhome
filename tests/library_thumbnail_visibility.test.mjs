@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(){
   const state={open:true,hidden:false,library:false,fingerprints:0,renders:0,tasks:[],cacheReads:0};

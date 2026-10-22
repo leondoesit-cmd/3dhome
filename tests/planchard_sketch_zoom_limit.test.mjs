@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 // HOUSING step 312 picks an R .1 in [2.54 mm] sketch fillet for Mirror Entities.
 // At the old 20 px/cm zoom ceiling that arc is ~5 px and cannot be selected.
-const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const src = modelerSource();
 
 test('wheel, pinch and toolbar zoom share a sketch zoom ceiling far above 20 px/cm', () => {
   const m = src.match(/var SKETCH_MIN_SCALE = ([\d.]+), SKETCH_MAX_SCALE = ([\d.]+);/);

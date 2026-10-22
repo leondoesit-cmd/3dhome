@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -120,7 +121,7 @@ test('a sketch that solves has nothing to explain', () => {
 });
 
 test('the dimension editor explains a refused value and names the dimension', () => {
-  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  const src = modelerSource();
   const apply = src.slice(src.indexOf('function applyDimensionEditor()'), src.indexOf('function deleteDimensionEditor()'));
   assert.match(apply, /explainSketchConflict\(state\.sketch, \{ keep: \[constraint\.id\] \}\)/);
   assert.match(apply, /mdDimError/);
@@ -145,7 +146,7 @@ test('a relation added in several copies at once keeps every copy in the explana
 });
 
 test('the relations toolbar explains a refused relation and paints what it fought', () => {
-  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  const src = modelerSource();
   const apply = src.slice(src.indexOf('function applyConstraint(type)'), src.indexOf('/* ---- mirror & pattern'));
   assert.match(apply, /explainSketchConflict\(sketch, \{ keep: ids \}\)/);
   assert.match(apply, /showRelationRefusal\(sketch, added, why\)/);
@@ -175,7 +176,7 @@ test('parallel lines asked to be perpendicular turn, and a real conflict names w
 });
 
 test('a refusal from the toolbar holds the hint long enough to read, and lets it wrap', () => {
-  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  const src = modelerSource();
   assert.match(src, /showSketchRefusal\(sketch, names\.join\(", "\), added\.map\(function \(c\) \{ return c\.id; \}\), why\)/);
   assert.match(src, /flash\(refusalMessage\(sketch, subject, keepIds, why\), RELATION_REFUSAL_MS\)/);
   assert.match(src, /hint\.classList\.toggle\("wrap", !!holdMs\)/);

@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {evaluateMassProperties} from '../js/cad_mass_properties.js';
 function deferred(){let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};}
 const result=y=>({volumeCm3:2,massKg:.0146,density:7.3,accuracy:'exact',centerOfMass:{x:4.223753,y,z:0},bodies:[]});
 function fixture(){
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('var massDisplayUnits = "si";'),end=source.indexOf('\n/* ---- Measure ----',start);
   assert.ok(start>=0 && end>start);
   let node=1;const E={def:{parts:[{id:'rib-body'}]},docType:'part',evalCard:null},jobs=[],painted=[];

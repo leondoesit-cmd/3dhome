@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -85,7 +86,7 @@ test('ordinary same-document normalization preserves draft and contact ownership
  assert.equal(c.draftActions().pointCount,2);assert.equal(c.draftActions().canFinish,true);
  c.beginPinch();r.replace(structuredClone(r.owner));c.scene();assert.equal(c.state.pinching,true);
  c.endPinch();c.setTool('sheetpolyline');pick(c,3,80,200);assert.equal(c.draftActions().pointCount,1);
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  assert.match(source,/E\.def = newDef\(\);\s+E\.sheet\?\.resetSession\(\);/);
  assert.match(source,/E\.def = def \? ensureParametricDocument\(def\) : f \? ensureParametricDocument\(f\) : newDef\(\);\s+E\.sheet\?\.resetSession\(\);/);
  c.resetSession();assert.equal(c.draftActions(),null);assert.equal(c.state.pinching,false);

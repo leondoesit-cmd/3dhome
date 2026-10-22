@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {featureField,featureControlValue,validateFeatureInputs} from '../js/mode
 import {addDimensionedCircle} from '../js/sketch_dimensioned_circle.js';
 import {solveSketch} from '../js/sketch_solver.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function node(tag,cls='',text=''){
  return {tagName:tag.toUpperCase(),className:cls,textContent:text,dataset:{},children:[],listeners:{},attrs:{},classList:{add(){},remove(){}},value:'',validity:'',
   appendChild(child){this.children.push(child);child.parent=this;},setAttribute(key,value){this.attrs[key]=value;},removeAttribute(key){delete this.attrs[key];},

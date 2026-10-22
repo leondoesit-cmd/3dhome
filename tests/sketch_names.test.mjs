@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -60,7 +61,7 @@ test('name tags are drawn once per target, stacked where they would overlap', ()
 });
 
 test('every refusal in the editor explains itself; none falls back to the bare message', () => {
-  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  const src = modelerSource();
   assert.doesNotMatch(src, /flash\(t\("overDefined"\)\)/);
   const sites = ['function applySketchFilletFromSelection', 'function appendToSketch', 'function smartDimension', 'pushUndo("Point coordinates")', 'pushUndo("Place at sketch origin")', 'function addLineRule', 'var liveSketch = ensureSketch(E.def);'];
   for (const site of sites) {

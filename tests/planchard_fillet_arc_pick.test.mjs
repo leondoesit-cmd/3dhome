@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,7 +7,7 @@ import { filletSketchCorner } from '../js/sketch_fillet.js';
 // HOUSING Sketchsquare steps 335–336: the lower corners join a side line and
 // an arc. The Sketch Fillet tool refused an arc pick outright, and its
 // selection only forwarded lines, so "pick the line, pick the arc" never worked.
-const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const src = modelerSource();
 
 test('the Sketch Fillet tool accepts an arc as a pick and forwards selected arcs', () => {
   const branch = src.slice(src.indexOf('if (E.tool === "sketchfillet") {'), src.indexOf('if (E.tool === "trim" || E.tool === "extend"'));

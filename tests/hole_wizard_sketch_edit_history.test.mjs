@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHoleWizardSketchPair,resolveHoleWizardInputs} from '../js/core/hole_wizard_sketches.js';
@@ -60,7 +61,7 @@ test('cold history and solve dispatch diagnose malformed and unconstrained sketc
 function actualEditor(exact){
   const document=fixture(),records=holeCutRecords(document.features.at(-1).params,null,[],document);records.forEach(record=>record.featureId='hole');document.parts=[{id:'part',cuts3d:records}];
   const E={def:document,mode:'3d',massEditRevision:1},state={undo:0,node:'initial',spec:null,releases:0};
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),body=source.slice(source.indexOf('function editHoleWizardSketch('),source.indexOf('\nfunction editSketchFromHistory('));
+  const source=modelerSource(),body=source.slice(source.indexOf('function editHoleWizardSketch('),source.indexOf('\nfunction editSketchFromHistory('));
   const env={E,root:{querySelector:()=>({appendChild(){}})},setMode(){},cloneData:structuredClone,updatePreview(){},modelLengthText:v=>String(v),editedHoleWizardSketch,
     openQuickForm:spec=>{state.spec=spec;return {};},el:()=>({setAttribute(){},textContent:''}),resolveHoleWizardInputs,holeCallout,syncHoleCutPlacement,
     exactDisplayBody:async (part,nativeDocument=E.def)=>{await exact?.(part,state,nativeDocument,E);return {release(){state.releases++;}};},currentHistoryNode:()=>state.node,pushUndo(){state.undo++;E.massEditRevision++;},

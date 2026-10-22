@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,7 +7,7 @@ import {createMotionStudy,captureMotionStudyBaseline,addRotaryMotor,addScrewMoto
 import {solveTopologyMates,topologyReference} from '../js/cad_mates.js';
 import {setRotation,axisAngleMatrix} from '../js/cad_mate_model.js';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const start=source.indexOf('function motionScrewMateLabel(');
 const end=source.indexOf('\n/* The Evaluate command',start);
 const formSource=source.slice(start,end);

@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -114,7 +115,7 @@ test('motion preview assembles nested explode offsets and restores presentation 
 });
 
 test('browser playback frame callbacks avoid an illegal options receiver and close without rebuilding or solving',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const body=source.slice(source.indexOf('function openMotionPlayback('),source.indexOf('function createDefaultMotionStudy('));
   const callbacks=body.match(/requestFrame:(callback=>requestAnimationFrame\(callback\)),cancelFrame:(id=>cancelAnimationFrame\(id\))/);
   assert.ok(callbacks,'Platform animation APIs must be wrapped, not called as options methods');
@@ -159,7 +160,7 @@ test('actual preview UI commits duration on Enter, Play, Reset and Keep without 
     createMotionPlaybackExecutor:()=>({dispose(){},evaluate:async(trial,id,time)=>{trial.motionStudies[0].time=time;return{ok:true};}}),
     requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},invalidateInterference:()=>{},refreshAssemblyPosePreview:()=>true,
     renderPreview:()=>{},syncDirty:()=>{},pushUndo:()=>undos++,closeFeaturePanel:()=>{},refreshAll:()=>{}};
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   vm.runInNewContext('var motionPlaybackCancel=null;'+sourceFunctionText(source,'openMotionPlayback')+';openMotionPlayback("study");',context);
   assert.equal(inputs.duration.value,'10');assert.equal(playback.state.duration,10);
   inputs.duration.value='12';let prevented=false,stopped=false;

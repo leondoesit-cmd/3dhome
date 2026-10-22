@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(callback){
  const actions={hidden:true};let listener,clicks=0;
  const button={disabled:false,addEventListener(type,fn){listener=fn;},click(){clicks++;},closest:()=>actions};

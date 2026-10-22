@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -9,7 +10,7 @@ import {dimensionUnit} from '../js/sketch_equations.js';
 import {parseSketchDimensionEntry} from '../js/core/sketch_dimension_entry.js';
 import {toleranceFields,makeDimensionTolerance} from '../js/core/dimension_tolerance.js';
 
-const source = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const source = modelerSource();
 function load(name, context) {
   const start = source.indexOf(`function ${name}(`);
   const end = source.indexOf('\n}', start) + 2;

@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {meshDataBounds} from '../js/core/kernel_body.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(regenerate){
   const part={id:'spring-body',featureId:'sweep'},component={id:'spring',def:{parts:[part],features:[{id:'sweep'}]}},E={assembly:{components:[component]}};
   const calls={native:0,releases:[],refresh:0,solve:0,fit:0,options:[],flashes:[]};

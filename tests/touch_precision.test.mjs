@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -110,7 +111,7 @@ test("legacy lifted-coordinate code is absent", async () => {
     readFile(new URL("../js/touch_precision.js", import.meta.url), "utf8"),
     readFile(new URL("../js/wall_draw.js", import.meta.url), "utf8"),
     readFile(new URL("../js/interaction.js", import.meta.url), "utf8"),
-    readFile(new URL("../js/modeler.js", import.meta.url), "utf8"),
+    modelerSource(),
   ]);
   assert.doesNotMatch(precision, /return "lift"|adaptiveTouchVector|TOUCH_PRECISION_MIN_PX/);
   assert.doesNotMatch(walls, /touchEffectiveOffsetY|TOUCH_DRAW_OFFSET_PX/);
@@ -121,7 +122,7 @@ test("legacy lifted-coordinate code is absent", async () => {
 test("both canvases render the shared lens and modeler clears it on cancel", async () => {
   const [plan, modeler] = await Promise.all([
     readFile(new URL("../js/plan2d.js", import.meta.url), "utf8"),
-    readFile(new URL("../js/modeler.js", import.meta.url), "utf8"),
+    modelerSource(),
   ]);
   assert.match(plan, /drawTouchPrecisionLens\(pc, plan, tc,/);
   assert.match(plan, /distances: touchLensDistances\(tc\)/);

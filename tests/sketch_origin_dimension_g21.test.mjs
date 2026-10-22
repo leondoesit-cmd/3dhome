@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -44,7 +45,7 @@ test("HandlePath: a 2.500 in dimension from the Origin to the horizontal line se
 
 /* --- the editor wiring ---------------------------------------------------- */
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 
 test("Smart Dimension picks the Origin when nothing else is under the pointer", () => {
   assert.match(modeler, /var dhit = hitSketch\(uv, e\.pointerType\);[\s\S]{0,420}if \(!dhit && pickIsOrigin\(uv, \(e\.pointerType === "touch" \? 14 : 7\) \/ E\.scl\)\) \{/, "a miss near (0, 0) is an Origin pick");

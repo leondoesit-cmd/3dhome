@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 test('worker footer retains an actionable Cancel button across timer refreshes',()=>{
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('function syncExactWorkerActivity(){'),end=source.indexOf('\nfunction syncStatusLine()',start);
   const node=(cls='')=>({className:cls,children:[],appendChild(child){this.children.push(child);child.parent=this;},setAttribute(){},querySelector(selector){return this.children.find(child=>'.'+child.className===selector)||null;},remove(){this.parent.children=this.parent.children.filter(child=>child!==this);},set textContent(value){this.text=value;this.children=[];},get textContent(){return this.text;}});
   const status=node(),job={startedAt:Date.now(),name:'Exact model',progress:null};let jobs=[job],cancelled=0,flashed='';

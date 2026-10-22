@@ -6,6 +6,7 @@
  * A merged feature now records its solid on the body it lands on (`merges3d`,
  * the additive mirror of `cuts3d`) and the exact rebuild fuses it there.
  */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -14,7 +15,7 @@ import { featureDefaults, featureSpec } from "../js/core/feature_catalog.js";
 import { regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
 import { booleanBrep, disposeBrep, loadCadKernel, makeBrepExtrusion, makeBrepPrimitive } from "../js/cad_kernel.js";
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
 

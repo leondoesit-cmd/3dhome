@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 test('an intermediate disconnected sweep path retains the last preview and recovers after its joints reconnect', () => {
-  const source = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  const source = modelerSource();
   const start = source.indexOf('function syncSweptSourceParts() {');
   const end = source.indexOf('\nfunction syncFaceSupportedSketchFrames()', start);
   assert.ok(start >= 0 && end > start);

@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {buildDrawingScene} from '../js/cad_drawings.js';
 import {sceneToSvg} from '../js/cad_sheet.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function node(tag,text='') {return {tag,textContent:text,style:{},children:[],events:{},appendChild(x){this.children.push(x);},append(...x){this.children.push(...x);},setAttribute(k,v){this[k]=v;},querySelector:()=>null,addEventListener(k,fn){this.events[k]=fn;},showModal(){this.open=true;},close(){this.open=false;this.events.close?.();},remove(){this.removed=true;},click(){this.clicked=true;}};}
 const compile=(name,context)=>Function(...Object.keys(context),'return ('+sourceFunctionText(source,name)+')')(...Object.values(context));
 

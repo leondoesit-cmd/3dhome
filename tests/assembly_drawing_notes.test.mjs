@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -9,7 +10,7 @@ import {generateBOM} from '../js/cad_interference.js';
 import {createExplodedView,addExplodeStep,applyExplodedView,explodeLines} from '../js/cad_exploded_view.js';
 import {flattenAssembly} from '../js/core/assembly_structure.js';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function element(tag){return {tag,children:[],style:{},events:{},value:'',appendChild(child){this.children.push(child);},append(...children){this.children.push(...children);},setAttribute(key,value){this[key]=value;},addEventListener(key,fn){this.events[key]=fn;},showModal(){this.open=true;},close(){this.open=false;},remove(){},focus(){this.focused=true;}};}
 const el=(tag,_class,text)=>Object.assign(element(tag),{textContent:text});
 const body={kind:'assembly',parts:[{id:'disc',kind:'box',x0:-3,x1:3,y0:-3,y1:3,z0:-1,z1:1}]};

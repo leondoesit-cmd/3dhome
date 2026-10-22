@@ -13,6 +13,7 @@
  * carries — the three axis rotations the viewport applies and the single rigid
  * matrix the kernel is handed.
  */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -258,7 +259,7 @@ test("a placement with no transform fails loudly instead of stacking a copy on t
 
 /* --- the editor wiring --------------------------------------------------- */
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
 

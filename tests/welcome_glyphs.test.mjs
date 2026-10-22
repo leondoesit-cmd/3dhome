@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -21,7 +22,7 @@ test("each start-gallery art key has a distinct CAD silhouette", () => {
 });
 
 test("the modeler start screen wires those glyphs and drops the missing cubes-three icon", async () => {
-  const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const modeler = modelerSource();
   const commands = await readFile(new URL("../js/modeler_commands.js", import.meta.url), "utf8");
   assert.match(modeler, /import \{ welcomeGlyph \} from "\.\/modeler_welcome_glyphs\.js"/);
   assert.match(modeler, /welcomeGlyph\(card\.art\)/);

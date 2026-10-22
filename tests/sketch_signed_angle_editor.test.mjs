@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,7 +7,7 @@ import {dimensionUnit} from '../js/sketch_equations.js';
 import {makeDimensionTolerance} from '../js/core/dimension_tolerance.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const start=source.indexOf('function applyDimensionEditor() {');
 const end=source.indexOf('function deleteDimensionEditor()',start);
 

@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-let source = fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+let source = modelerSource();
 source = source.replace(/\r\n/g,"\n");
 const cancelledCheck=source.slice(source.indexOf('function exactPreviewWasCancelled()'),source.indexOf('\n\n',source.indexOf('function exactPreviewWasCancelled()')));
 const cancel=source.slice(source.indexOf('function cancelExactModelRebuild()'),source.indexOf('\nfunction scheduleExactRestore()',source.indexOf('function cancelExactModelRebuild()')));

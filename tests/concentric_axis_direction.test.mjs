@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -26,7 +27,7 @@ test('direction conflict with retained axial face rejects without mutation or Un
 });
 
 test('actual inspector control directly selects Aligned/Opposed/Automatic with an accessible stable name',()=>{
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),a=fixture(true),mate=a.topologyMates[0];let undo=0,refresh=0;
+ const source=modelerSource(),a=fixture(true),mate=a.topologyMates[0];let undo=0,refresh=0;
  const context={E:{assembly:a},setConcentricAxisDirection,pushUndo:()=>undo++,flash:()=>{throw new Error('unexpected rejection');},solveAssembly:()=>solveTopologyMates(a),refreshAll:()=>refresh++,el:(tag,cls,label)=>({tag,label,children:[],appendChild(c){this.children.push(c);},setAttribute(k,v){this[k]=v;},addEventListener(k,fn){this[k]=fn;}})};
  const make=new Function(...Object.keys(context),sourceFunctionText(source,'concentricAxisDirectionControl')+';return concentricAxisDirectionControl;')(...Object.values(context));
  for(const value of ['aligned','opposed','automatic']){const control=make(mate).children[1];assert.equal(control['aria-label'],'Concentric axis direction');assert.deepEqual(control.children.map(o=>o.label),['Automatic','Aligned','Opposed']);control.value=value;control.change();}

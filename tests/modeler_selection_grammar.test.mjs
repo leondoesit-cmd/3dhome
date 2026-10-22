@@ -8,6 +8,7 @@
    branch, assigning a sketch entity to the slot that holds the selected solid.
    js/modeler.js cannot be imported under Node (bare `three` specifiers), so
    these are read off the source in the style of the other modeler suites. */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -16,7 +17,7 @@ import { selectionFilterAllows, cycleOverlappingHits, SELECTION_FILTERS } from "
 import { vertexEntriesFrom, vertexKey } from "../js/core/topology_selection.js";
 import { topologyForFeature } from "../js/core/topology.js";
 
-let source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let source = modelerSource();
 source = source.replace(/\r\n/g,"\n");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");

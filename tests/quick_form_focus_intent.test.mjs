@@ -1,6 +1,7 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';import {featureField} from '../js/modeler_feature_form.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
  const frames=[],buttons=[],document={activeElement:null,body:{classList:{contains:()=>false}}};
  function node(tag,cls='',text=''){return {tagName:tag.toUpperCase(),className:cls,textContent:text,dataset:{},children:[],listeners:{},attrs:{},value:'',hidden:false,selected:0,focused:0,

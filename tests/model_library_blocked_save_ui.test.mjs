@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
 test('actual Save handler releases busy/pending state after rejected storage and permits retry without marking clean',async()=>{
- const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const handler=source.slice(source.indexOf('function saveCurrentDocument()'),source.indexOf('function syncViewButtons()'));
  const doc={},messages=[],statuses=[],attributes=new Map(),button={dataset:{},removeAttribute:key=>attributes.delete(key)};
  let attempts=0;

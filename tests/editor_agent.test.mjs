@@ -1,5 +1,6 @@
 // The AI helper of the model editor and the cabinet designer (js/editor_agent.js):
 // it only prepares proposals, names what it picked, and never applies anything.
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -100,7 +101,7 @@ test("the cabinet designer proposes sizes, compartments and doors through its ow
 });
 
 test("the model editor proposes global variables through the equation path", () => {
-  const md = src("js/modeler.js");
+  const md = modelerSource();
   assert.match(md, /registerEditorAgent\("model", \{/);
   assert.match(md, /var trial = modelAgentTry\(v, expr\);\s*if \(trial\.error\) return \{ ok: false, reason: "BAD_EXPRESSION"/);
   assert.match(md, /pushUndo\("AI: " \+ v\.name\);/);

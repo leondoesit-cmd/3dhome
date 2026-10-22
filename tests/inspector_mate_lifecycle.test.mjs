@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {captureLockPose} from '../js/cad_mates.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
  const components=['base','cover','screw'].map((id,i)=>({id,grounded:i===0,transform:{x:i,y:0,z:0,rx:0,ry:0,rz:0}}));
  const E={assembly:{components,topologyMates:[]},componentSel:components.slice(0,2),topologySelection:[],quickAction:'mate',collectingFeature:true};

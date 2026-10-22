@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {drawingRailPlan} from '../js/core/drawing_rail_groups.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const commands=[...source.slice(source.indexOf('id="mdDrawingTools"'),source.indexOf('id="mdSheetPanel"')).matchAll(/(?:data-drawing-tool|id)="([^"]+)"/g)].map(m=>m[1]);
 test('every native Drawing command stays reachable through purpose groups and bounded pages',()=>{
   for(const size of [1,3,6]){

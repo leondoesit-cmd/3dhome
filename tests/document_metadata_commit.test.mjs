@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {createHistory} from '../js/edit_history.js';
 import {documentDescription,setDocumentDescription} from '../js/core/custom_properties.js';
 import {createProjectBundle,importProjectBundleText,activeProjectDocument} from '../js/cad_project_bundle.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 test('document text blur and Enter commit before a refresh, with one undo per distinct value',()=>{
   const input={value:'New model',events:{},addEventListener(event,handler){this.events[event]=handler;}};
   const doc={name:'New model'};let undo=0,dirty=0;

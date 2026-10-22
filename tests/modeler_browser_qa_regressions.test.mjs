@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,7 +7,7 @@ import {frameFromPlane,framePoint} from '../js/core/frame.js';
 import {alignExtrusionToSupport} from '../js/cad_feature_tree.js';
 import {dimensionUnit} from '../js/sketch_equations.js';
 import {toleranceFields,makeDimensionTolerance} from '../js/core/dimension_tolerance.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function load(name, context) {
   let start=source.indexOf(`function ${name}(`);
   if(source.slice(start-6,start)==='async ')start-=6;

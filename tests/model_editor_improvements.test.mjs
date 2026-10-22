@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -5,7 +6,7 @@ import { stripComments } from "./source.mjs";
 import { runInNewContext } from "node:vm";
 import {defaultTopologyMateAlignment} from '../js/cad_mate_reference_choices.js';
 
-const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
 /* The editor's [he, en] table lives in js/modeler_strings.js. */

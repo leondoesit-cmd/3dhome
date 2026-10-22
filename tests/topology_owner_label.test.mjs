@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -8,7 +9,7 @@ import vm from 'node:vm';
    "Base Extrude" in the selection name and the Shape panel. The picked
    reference already names its owner; the label must use it. */
 
-const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const src = modelerSource();
 function load(name, context) {
   const start = src.indexOf('function ' + name + '(');
   let depth = 0, end = src.indexOf('{', start);

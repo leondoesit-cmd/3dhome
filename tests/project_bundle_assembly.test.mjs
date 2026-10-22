@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -7,7 +8,7 @@ const inactivePart = { key: "part-new", name: "New model", parts: [], history: [
 const savedAssembly = { key: "asm-batteryplate", name: "BATTERYANDPLATE", components: [{ id: "battery" }], topologyMates: [] };
 
 test("editor exports only its active document, preserving nested assembly definitions", async () => {
-  const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const source = modelerSource();
   const handler = source.slice(source.indexOf("async function exportBundleDocument()"), source.indexOf("function importBundleDocument()"));
   assert.match(handler, /createProjectBundle\(E\.def, \[\], \[\]/);
   assert.doesNotMatch(handler, /loadAssemblies\(/);
@@ -48,7 +49,7 @@ test("an older export with an empty inactive part recovers its sole assembly", (
 });
 
 test("bundle import UI opens an assembly and clears its stale part document state", async () => {
-  const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const source = modelerSource();
   const start = source.indexOf("function importBundleDocument()");
   const end = source.indexOf("\nfunction createDefaultExplodedView", start);
   const handler = source.slice(start, end);

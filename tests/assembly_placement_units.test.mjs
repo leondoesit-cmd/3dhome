@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,7 +7,7 @@ import {lengthFromDocument,lengthToDocument,formatDocumentLength,documentLengthU
 import {normalizePose} from '../js/cad_mate_model.js';
 import {solveTopologyMates} from '../js/cad_mates.js';
 import {applyDrivenAssemblyPlacement} from '../js/core/assembly_placement.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function node(tag,_class,text){return {tag,textContent:text,children:[],events:{},value:'',appendChild(child){this.children.push(child);},append(...children){this.children.push(...children);},addEventListener(event,fn){this.events[event]=fn;},setAttribute(){}};}
 function all(node){return [node,...node.children.flatMap(all)];}
 function fixture(unit,grounded=false){

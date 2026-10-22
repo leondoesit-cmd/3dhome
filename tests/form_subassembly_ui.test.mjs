@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -10,7 +11,7 @@ import {buildDrawingScene} from '../js/cad_drawings.js';
 import {sceneToSvg} from '../js/cad_sheet.js';
 import {documentDescription,assemblyPartNumber,setDocumentProperty} from '../js/core/custom_properties.js';
 import {assemblyHasExplodedOffsets,defaultExplodeLayout,createExplodedView,addExplodeStep,applyExplodedView,explodeTargets,explodedOccurrenceOffset} from '../js/cad_exploded_view.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const bundle=JSON.parse(readFileSync(new URL('../artifacts/planchard/AP-assembly-free-home-browser-2026-10-08.mforge',import.meta.url)));
 function fixture(){
  const assembly=structuredClone(bundle.assemblies[0]),E={docType:'assembly',assembly,componentSel:assembly.components.slice(0,6),topologySelection:[]};

@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { sourceFunctionText } from './helpers/source_function.mjs';
 
-const source = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const source = modelerSource();
 function refreshFixture() {
   const work = { solves: 0, builds: 0, selections: 0, supportSyncs: 0, historySyncs: 0 }, E = { mode: '3d', docType: 'assembly', assembly: { components: [] } };
   const context = { E, root: null, assemblySolveFresh: false, assemblyPreviewSolved: false, coreRunFresh: false, histPanel: null,

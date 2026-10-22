@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {createSheetDoc,ensureSheetDoc,SHEET_SIZES,STANDARD_SCALES,scaleLabel} from '../js/cad_sheet.js';
 import {setSheetTitleSource,sheetTitleMeta} from '../js/core/custom_properties.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function element(tag='div',cls='',text='') {
   const attrs={},listeners={},node={tagName:tag,children:[],className:cls,textContent:text,value:'',open:false,scrollTop:0,clientHeight:200,maxScroll:240,
     setAttribute(k,v){attrs[k]=v;},getAttribute(k){return attrs[k]??null;},appendChild(n){this.children.push(n);n.parentNode=this;},

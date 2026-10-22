@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,7 +7,7 @@ import * as named from '../js/core/named_camera_views.js';
 import {orbitTargetFromFrame,frameTargetFromOrbit,switchEditorCamera} from '../js/core/editor_projection.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {libraryBundle,parseLibraryBundle} from '../js/core/model_library_store.js';
-const src=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const src=modelerSource();
 const stateSource=fs.readFileSync(new URL('../js/state.js',import.meta.url),'utf8');
 const frame={origin:{x:3,y:9,z:5},xAxis:{x:1,y:0,z:0},yAxis:{x:0,y:1,z:0},normal:{x:0,y:0,z:1}};
 function viewport(centerY=8){

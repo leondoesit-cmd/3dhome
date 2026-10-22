@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const close=source.slice(source.indexOf('function closeEvalCard() {'),source.indexOf('function evalRow('));
 
 test('opening a different model hides its predecessor evaluation before replacing the definition',()=>{

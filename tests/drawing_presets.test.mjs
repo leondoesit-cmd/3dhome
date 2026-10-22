@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -5,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {captureDrawingPreset,applyDrawingFormat,drawingFromTemplate,saveDrawingPreset,loadDrawingPresets} from '../js/core/drawing_presets.js';
 import {createSheetDoc,buildSheetScene,sceneToSvg,ensureSheetDoc} from '../js/cad_sheet.js';
 const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jr5sAAAAASUVORK5CYII=';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){const d=createSheetDoc({size:'A4',units:'in',scale:[2,1],title:{company:'Example School',author:'Student',tolerance:'±.005 in',mass:'PART MASS',title:'PART DESCRIPTION'}});
  d.images=[{id:'logo',dataUrl:png,x:20,y:20,w:25,h:10}];d.primitives=[{id:'border-line',type:'line',points:[{x:20,y:30},{x:45,y:30}]}];
  d.notes=[{id:'general',x:20,y:40,text:'GENERAL TOLERANCE'},{id:'part-note',x:20,y:50,text:'PART NOTE',leader:{viewId:d.views[0].id,u:0,v:0}}];

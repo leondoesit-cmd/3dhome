@@ -1,3 +1,4 @@
+import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -8,7 +9,7 @@ import { checkLateBoundThree } from "../tools/module_check.mjs";
 const chrome = await findChrome();
 const browserOpts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
 
-const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerSource = readModelerSource();
 
 /* ---- Behavioural tests (real runtime invariants in the browser) -------- */
 

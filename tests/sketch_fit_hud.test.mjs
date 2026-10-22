@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -26,7 +27,7 @@ test('mobile navigator reserves bottom space without squeezing fit beneath it',(
  const E={def:{sketches:[sketch]},view:'front',cw:0,ch:0,cv:{getBoundingClientRect:()=>phone}};
  const root={querySelector:id=>id==='#mdEntityNav'?{hidden:false,getBoundingClientRect:()=>navigator}:null};
  const bindings={E,root,sketchFitViewport,sizeSketch(){E.cw=phone.width;E.ch=phone.height;},sketchProjection:()=>null,renderedParts:()=>[],ensureSketchDoc:()=>[sketch],sameSketchContext:()=>true,ensureSketch:()=>sketch,activeSketchFrame:()=>null,sketchGeometryBounds,clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),SKETCH_MIN_SCALE:.3,SKETCH_MAX_SCALE:2000,drawSketch(){},syncStatus(){}};
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  new Function(...Object.keys(bindings),sourceFunctionText(source,'fitSketch')+';return fitSketch;')(...Object.values(bindings))();
  assert.ok(E.scl>100);
  assert.ok(phone.top+E.oy+1.2*E.scl<navigator.top);
@@ -37,7 +38,7 @@ for(const [view,frame] of [['front',null],['top',null],['top',{}]])test('actual 
  const E={def:{sketches:[sketch]},view,cw:0,ch:0,cv:{getBoundingClientRect:()=>canvas}};const before=JSON.stringify(E.def);
  const root={querySelector:id=>overlays[id]?{hidden:false,getBoundingClientRect:()=>overlays[id]}:null};let measured=0;
  const bindings={E,root,sketchFitViewport,sizeSketch(){measured++;E.cw=canvas.width;E.ch=canvas.height;},sketchProjection:()=>null,renderedParts:()=>[],ensureSketchDoc:()=>[sketch],sameSketchContext:()=>true,ensureSketch:()=>sketch,activeSketchFrame:()=>frame,sketchGeometryBounds,clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),SKETCH_MIN_SCALE:.3,SKETCH_MAX_SCALE:2000,drawSketch(){},syncStatus(){}};
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');const fit=new Function(...Object.keys(bindings),sourceFunctionText(source,'fitSketch')+';return fitSketch;')(...Object.values(bindings));fit();
+ const source=modelerSource();const fit=new Function(...Object.keys(bindings),sourceFunctionText(source,'fitSketch')+';return fitSketch;')(...Object.values(bindings));fit();
  assert.equal(measured,1);assert.equal(JSON.stringify(E.def),before);
  const globalY=sketch.points.map(point=>canvas.top+E.oy+(view==='top'&&!frame?1:-1)*point.y*E.scl);
  assert.ok(Math.min(...globalY)>=224.666+40-1e-8);assert.ok(Math.max(...globalY)<=1170.667-40+1e-8);

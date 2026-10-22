@@ -1,10 +1,11 @@
+import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createTopologyRegistry, mergeSmoothTopology, resolveFinishTargetIds } from "../js/core/topology.js";
 import { cycleOverlappingHits } from "../js/modeler_chrome.js";
 
-const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerSource = readModelerSource();
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
 /* Pick-to-reference and reference-to-screen geometry, split out of js/modeler.js. */

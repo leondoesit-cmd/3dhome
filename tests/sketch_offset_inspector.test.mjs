@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {synchronizeSketchExtrusionFrames} from '../js/core/extrusion_projection.
 
 function node(){return {children:[],listeners:{},appendChild(child){this.children.push(child);},setAttribute(){},addEventListener(type,action){(this.listeners[type] ||= []).push(action);},dispatchEvent(event){for(const action of this.listeners[event.type] || [])action(event);return true;}};}
 function fixture(){
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('var propGen = 0;'),end=source.indexOf('\n/* The inspector was one long column:',start);
   assert.ok(start>=0 && end>start);
   const sketch={id:'new-right-sketch',plane:'side',referenceId:'plane:right',frameSpace:'local',offset:0,frame:{origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0},xAxis:{x:0,y:0,z:1},yAxis:{x:0,y:1,z:0}}};

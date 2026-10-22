@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {putModelLibraryRecord,loadModelLibrary,putAssemblyLibraryRecord} from '.
 import {compactAssemblyTopologySnapshots} from '../js/core/project_topology_budget.js';
 
 test('cross-tab saves refresh the assembly insertion catalogue without changing authored occurrences', async () => {
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('async function refreshLibraryFromOtherTab() {');
   const end=source.indexOf('\nif(libraryChannel)',start);
   const saved={key:'fresh-holder',name:'Revised holder',parts:[{id:'body'}]};
@@ -35,7 +36,7 @@ test('cross-tab saves refresh the assembly insertion catalogue without changing 
 });
 
 test('cross-tab catalogue registration leaves stored library baselines exact and preserves real conflict detection', async () => {
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('async function refreshLibraryFromOtherTab() {');
   const end=source.indexOf('\nif(libraryChannel)',start);
   assert.ok(start>=0 && end>start);
@@ -54,7 +55,7 @@ test('cross-tab catalogue registration leaves stored library baselines exact and
 });
 
 test('opening a compacted assembly keeps the full stored optimistic baseline', async () => {
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('var occurrenceSnapshot=compactAssemblyTopologySnapshots(assembly);');
   const end=source.indexOf('S.idc = nextDocumentNumericId',start);
   assert.ok(start>=0 && end>start);

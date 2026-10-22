@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {compactDocumentTopologySnapshots,compactAssemblyTopologySnapshots} from '../js/core/project_topology_budget.js';
 import {subassemblyComponent} from '../js/core/assembly_structure.js';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 test('assembly workflow checks library presence without traversing saved geometry',()=>{
   const unused={key:'saved'};

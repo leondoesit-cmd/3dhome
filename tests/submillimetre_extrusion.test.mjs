@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -10,7 +11,7 @@ import {shapeMassProperties} from '../js/cad_kernel.js';
 import {extrusionPreviewDirection} from '../js/core/extrusion_projection.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fn(start,next){const at=source.indexOf(start);return source.slice(at,source.indexOf('\nfunction '+next+'(',at));}
 function fixture() {
   const document=createPartDocument({id:'thin-boss'}),sketch={id:'thin-profile',plane:'top',offset:0,points:[],entities:[],constraints:[]};

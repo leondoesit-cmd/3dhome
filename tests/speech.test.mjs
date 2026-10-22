@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -6,7 +7,7 @@ import { cleanSpeechText, stopSpeaking, isSpeaking, speak, toggleSpeak, bindSpea
 
 const speechCode = await readFile(new URL("../js/speech.js", import.meta.url), "utf8");
 const plannerCode = await readFile(new URL("../js/planner_tutorial.js", import.meta.url), "utf8");
-const modelerCode = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerCode = modelerSource();
 const i18nCode = await readI18nSource();
 
 test("speech module provides text normalization and cleaning", () => {

@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {assemblyDependencyGraph,partDependencyGraph,dependencyVisualization,occurrenceDependencyId as occurrence,mateDependencyId as mate} from '../js/core/dependency_visualization.js';
 import {dependencyTreeIndex,dependencyTreeAnchor,renderDependencyPresentation} from '../js/modeler_dependency_ui.js';
@@ -42,7 +43,7 @@ test('production mouse and keyboard hover send mate identity separately from rig
  events.mouseleave[0]();assert.equal(calls.at(-1)[0],null);events.focusin.forEach(fn=>fn());assert.equal(calls.at(-1)[1],node);events.focusout[0]({relatedTarget:null});assert.equal(calls.at(-1)[0],null);
 });
 test('actual assembly handler consumes occurrence/mate dependency identity rather than rigid selection target',()=>{
- const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),calls=[];
+ const source=modelerSource(),calls=[];
  const handlers=new Function('setDependencyHighlight',sourceFunctionText(source,'assemblyTreeHandlers')+';return assemblyTreeHandlers;')(id=>calls.push(id))({});
  handlers.onHover('left',{dependencyId:mate([],'topology',3)});assert.equal(calls.at(-1),mate([],'topology',3));
  handlers.onHover('left',{dependencyId:occurrence(['left',7])});assert.equal(calls.at(-1),occurrence(['left',7]));handlers.onHover(null);assert.equal(calls.at(-1),null);

@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {createExplodedView,addExplodeStep,applyExplodedView,explodeTargets} from '../js/cad_exploded_view.js';
 import {featureControlValue} from '../js/modeler_feature_form.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 test('Explode step seeds all selected components and authors a grouped step without changing mate poses',()=>{
  const components=[1,2,3].map(id=>({id,name:'Component '+id,transform:{x:id,y:0,z:0}}));

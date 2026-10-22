@@ -1,6 +1,7 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
  const element=()=>({children:[],hidden:false,value:'',classList:{add(){},remove(){},contains:()=>false},appendChild(x){this.children.push(x);},setAttribute(){},focus(){},select(){},addEventListener(){}});
  const host=element(),buttons=[],fields=[],closed=[],E={authoring:{},docType:'assembly',mode:'3d'},calls={refresh:0,valid:true};

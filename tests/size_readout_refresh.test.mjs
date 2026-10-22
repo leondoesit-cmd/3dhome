@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -5,7 +6,7 @@ import { readFileSync } from 'node:fs';
 /* The size above the tree was written only by refreshParts(), which runs before
    a merged body's exact mesh lands. Rolling HOUSING back and releasing it left
    the analytic Base Extrude size ("11×3×11 cm") above a 7 cm and an 18 cm body. */
-const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const src = modelerSource();
 const body = (name) => { const at = src.indexOf('function ' + name + '('); return src.slice(at, src.indexOf('\n}\n', at)); };
 
 test('the part size readout has one writer (the other is the assembly component count)', () => {

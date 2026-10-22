@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -24,7 +25,7 @@ test('playback completes earlier steps before later steps and reset preserves po
 });
 
 test('playback chooser restores named saved views and their durations while preserving grouped steps and assembly poses',()=>{
- const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const assembly={activeExplodedView:null,components:[{id:'a',transform:{x:1,y:2,z:3}},{id:'b',transform:{x:4,y:5,z:6}}],explodedViews:[{id:'seven',name:'Book groups',animationDurationSeconds:14,steps:[{id:'s1',components:['a','b'],direction:{x:10,y:0,z:0}}]},{id:'detail',name:'Detail view',animationDurationSeconds:6,steps:[{id:'s2',components:['b'],direction:{x:0,y:5,z:0}}]}]};
  const poses=JSON.stringify(assembly.components.map(c=>c.transform)),groups=JSON.stringify(assembly.explodedViews);let spec,change,undos=0,refreshes=0,frame;
  const duration={value:'14',addEventListener(){}},chooser={value:'seven',addEventListener(event,fn){change=fn;}},actions={children:[],appendChild(x){this.children.push(x);}},host={isConnected:true,hidden:false,querySelector:()=>actions,appendChild(){}};
@@ -48,7 +49,7 @@ test('sequential progress follows nested occurrence paths and clamps endpoints',
 });
 
 test('playback moves existing GPU groups without rebuilding geometry; Stop and Reset cancel frames',()=>{
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('let explodedPlaybackStop = null;'),end=source.indexOf('\n/* One explode step',start);
   const component={id:'a',transform:{x:3,y:4,z:5}},assembly={components:[component],activeExplodedView:'v',explodedViews:[{id:'v',steps:[{components:['a'],direction:{x:10,y:0,z:0}}]}]};
   const mesh={_cadExplodeComponent:component,userData:{},position:{set(...values){this.values=values;}}};

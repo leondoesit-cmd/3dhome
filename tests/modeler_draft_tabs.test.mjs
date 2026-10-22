@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -69,7 +70,7 @@ test("legacy indexed draft remains until a deliberate claim and moves to one tab
 });
 
 test("editor initialization never auto-claims an unattributed legacy draft",async()=>{
-  const source=await readFile(new URL("../js/modeler.js",import.meta.url),"utf8");
+  const source=modelerSource();
   const init=source.slice(source.indexOf("async function initializeModelLibrary("),source.indexOf("function writeLibraryIndex("));
   assert.match(init,/loadModelerDraftRecord\(modelerDraftOwnerId\)/);
   assert.doesNotMatch(init,/claimLegacyModelerDraftRecord|claimLegacyModelerDraft\(/);

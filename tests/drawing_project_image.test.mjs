@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -68,7 +69,7 @@ test('ordinary project-image drawing path shares native pixel persistence, norma
 });
 
 test('actual ordinary project URL form cancels without fetching and toolbar dispatch is visible',async()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),start=source.indexOf('async function chooseDrawingProjectImage()'),end=source.indexOf('function chooseDrawingImage()',start);
+  const source=modelerSource(),start=source.indexOf('async function chooseDrawingProjectImage()'),end=source.indexOf('function chooseDrawingImage()',start);
   let fields,calls=0;const context={sheetForm:async(title,f)=>{assert.equal(title,'Insert project image');fields=f;return null;},importDrawingProjectImage:async()=>{calls++;}};
   vm.createContext(context);vm.runInContext(source.slice(start,end),context);assert.equal(await context.chooseDrawingProjectImage(),null);assert.equal(calls,0);assert.equal(fields[0].label,'Project image URL');
   context.sheetForm=async()=>({url});context.importDrawingProjectImage=async value=>{assert.equal(value,url);calls++;return {dataUrl};};assert.equal((await context.chooseDrawingProjectImage()).dataUrl,dataUrl);assert.equal(calls,1);
@@ -77,7 +78,7 @@ test('actual ordinary project URL form cancels without fetching and toolbar disp
 
 test('actual URL and XYWH QuickForm close lifecycle inserts native image without self-invalidating source guards',async()=>{
   await browserDecode(async()=>{
-    const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+    const source=modelerSource();
     const element=()=>({children:[],hidden:false,value:'',classList:{add(){},remove(){},contains:()=>false},appendChild(n){this.children.push(n);},setAttribute(){},focus(){},select(){}});
     const panel=element(),buttons=[],fields=[],def={name:'Native source',drawing:createSheetDoc({views:[]})},messages=[];let token=1,controller,previews=0;
     const context={E:{authoring:{},docType:'part',mode:'drawing',def},root:{querySelector:()=>panel,classList:{add(){},remove(){}}},motionPlaybackCancel:null,

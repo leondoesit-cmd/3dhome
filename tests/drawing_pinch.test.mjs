@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -18,7 +19,7 @@ function rig(withView=false){
 const touch=id=>({button:0,pointerType:'touch',pointerId:id});
 
 function nativePinchListeners(c,rect={left:0,top:0}){
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const start=source.indexOf('    var pinch = null;',source.indexOf('Two-finger pinch zoom'));
  const end=source.indexOf('  })();',start);assert.ok(start>0&&end>start);
  const listeners=new Map(),cv={addEventListener:(name,fn)=>listeners.set(name,fn),getBoundingClientRect:()=>rect};
@@ -80,7 +81,7 @@ test('drawing pinch endpoint ratio is independent of touch event frequency',()=>
 
 test('actual canvas pinch listeners preserve a stationary paper anchor despite interleaved pointer moves',()=>{
  const {owner,c,history}=rig(),before=JSON.stringify(owner);
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const start=source.indexOf('    var pinch = null;',source.indexOf('Two-finger pinch zoom'));
  const end=source.indexOf('  })();',start);assert.ok(start>0&&end>start);
  const listeners=new Map(),cv={addEventListener:(name,fn)=>listeners.set(name,fn),getBoundingClientRect:()=>({left:0,top:0})};

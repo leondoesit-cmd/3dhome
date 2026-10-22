@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -5,7 +6,7 @@ import { sourceFunctionText } from './helpers/source_function.mjs';
 
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 const mdMobile = await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8");
-const md = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const md = modelerSource();
 /* The editor's [he, en] table, split out of js/modeler.js. */
 const mdStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 const mdTopologyPick = await readFile(new URL("../js/modeler_topology_pick.js", import.meta.url), "utf8");

@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const modeler=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const modeler=modelerSource();
 const tree=fs.readFileSync(new URL('../js/modeler_tree.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
 const rowClasses=new Function(sourceFunctionText(tree,'rowClasses')+';return rowClasses;')();

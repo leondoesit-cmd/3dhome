@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import {Group as NativeGroup,Vector3} from '../vendor/three/three.module.js';
 import {nestedComponentOccurrence,assemblyWithoutNestedOccurrence} from '../js/core/nested_component_edit.js';
 import {explodedOccurrenceOffset} from '../js/cad_exploded_view.js';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fn(name,next){return source.slice(source.indexOf('function '+name+'('),source.indexOf('\nfunction '+next+'(',source.indexOf('function '+name+'(')));}
 class Group {
   constructor(){this.userData={};this.children=[];this.matrix={copy(){return this;},invert(){return this;}};this.position={set:(...values)=>this.xyz=values};this.rotation={set:(...values)=>this.euler=values};}

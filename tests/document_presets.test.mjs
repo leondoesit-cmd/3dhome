@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ import {hasSaveableModelContent} from '../js/core/model_save_policy.js';
 import {createSheetDoc,ensureSheetDoc,dimensionText} from '../js/cad_sheet.js';
 import {ensureAssemblyDrawingDoc} from '../js/core/assembly_drawing_settings.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const defaults=unit=>({lengthUnit:unit,massUnit:unit==='in'?'lb':'g',angleUnit:'deg',draftingStandard:unit==='in'?'ANSI':'ISO',projection:unit==='in'?'third':'first',lengthPrecision:unit==='in'?3:2,anglePrecision:0,dualDimensions:false});
 const blank=()=>ensureParametricDocument({key:'cm_new',parts:[],sketches:[],features:[],history:[]});
 const preset=(kind='part-template',unit='mm')=>captureDocumentPreset(applyDocumentDefaults(blank(),defaults(unit)),{id:kind+unit,name:kind+unit,kind});

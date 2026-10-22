@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const clone=x=>structuredClone(x);
 function fixture({form,save}={}){
  const assembly={key:'original',id:'original',name:'FLASHLIGHT',components:[{id:'occurrence',modelKey:'part',transform:{x:1},def:{key:'part',features:[{id:'sweep',params:{path:[1,2]}}],history:[{targetId:'sweep'}],parts:[{id:15,meshData:{positions:[1,2,3],topology:[{persistentId:'sweep:face'}]}}]}}],mates:[{id:'mate',a:{componentId:'occurrence',reference:{persistentId:'sweep:face'}},aligned:true}],explodedViews:[{id:'explode',offsets:{occurrence:{y:5}}}],drawing:{views:[{id:'iso'}],dims:[{id:'dim',refs:[{pid:'sweep:face'}]}]},history:[{id:'assembly-step'}]};

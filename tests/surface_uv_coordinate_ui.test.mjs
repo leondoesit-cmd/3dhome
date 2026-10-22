@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import {parse} from '../vendor/acorn/acorn.mjs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {cylinderUVDomain,surfacePoint} from '../js/core/surface_uv.js';
 import {solveSketch,translateSketchGeometry} from '../js/sketch_solver.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const descriptor={surface:'cylinder',radius:.29,origin:{x:1.8,y:0,z:0},referenceOrigin:{x:-2.2,y:0,z:0},axis:{x:-1,y:0,z:0},axisRange:[-4.4,-3.6]};
 
 test('journal UV guide translates native reference range into surface origin coordinates',()=>{

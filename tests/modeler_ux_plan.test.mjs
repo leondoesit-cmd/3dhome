@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { boundsMayOverlap } from '../js/cad_kernel.js';
 import { applyHandleDrag, patternHandlePose } from '../js/modeler_instant3d.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 test('selected body decorations remain intact while another body is hovered',()=>{
   const a={part:{id:'a',featureId:'fa'},group:{children:[{}]},dirty:true};

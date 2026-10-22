@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {createExplodedView,applyExplodedView,applyExplodedProgress,assemblyHasExplodedOffsets} from '../js/cad_exploded_view.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 test('New exploded view preserves the previous groups, resets nested offsets and leaves assembly poses unchanged',()=>{
   const child={id:'child',transform:{x:2,y:4,z:6}},parent={id:'parent',kind:'assembly',transform:{x:10},asm:{components:[child]}};
   const assembly={components:[parent,{id:'bolt',transform:{x:1,y:3,z:5}}],activeExplodedView:'old',

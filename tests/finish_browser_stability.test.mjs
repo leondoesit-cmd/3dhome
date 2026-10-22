@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -13,7 +14,7 @@ function el(tag,cls='',text=''){
  return node;
 }
 const btn=(text,click,cls)=>Object.assign(el('button',cls,text),{click});
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 test('actual edge renderer preserves scroll and physical row labels across checked selection and async redraw',()=>{
  const host=el('div'),part={id:'stock'},candidates=Array.from({length:24},(_,i)=>({kind:'edge',persistentId:'edge:'+i,descriptor:{origin:{x:5,y:i,z:5}}}));let selected=[];

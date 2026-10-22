@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
  const part={id:1},st={},E={docType:'part',mode:'3d',def:{parts:[part]},coreRun:{issues:[],bodies:[{}]}};
  const bindings={E,root:{querySelector:()=>st},t:key=>key,activeParts:def=>def.parts,

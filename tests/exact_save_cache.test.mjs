@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createExactSaveCache} from '../js/core/exact_save_cache.js';
@@ -55,7 +56,7 @@ function viewportFixture(afterPublish=()=>{}) {
     exactBuildTimers:new Map(),clearTopologyCache:noop,refreshChangedPart:noop,refreshParts:noop,
     exactRunStamp:()=> 'current-proof',exactSaveCache:cache,syncAuthoringWorkflow:noop,
     rebuildFailureMessage:()=> 'failed',console:{error:noop}};
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('async function regenerateExactModelNow('),end=source.indexOf('\n/* An assembly is exported',start);
   const rebuild=new Function(...Object.keys(bindings),source.slice(start,end)+';return regenerateExactModelNow;')(...Object.values(bindings));
   return {...proof,E,cache,rebuild};

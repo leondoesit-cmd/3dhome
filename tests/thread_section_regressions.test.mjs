@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {runInNewContext} from 'node:vm';
 
-const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
 const commands = await readFile(new URL("../js/modeler_commands.js", import.meta.url), "utf8");
 

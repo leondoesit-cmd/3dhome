@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -21,7 +22,7 @@ test('live search keeps native card identity/actions, clears and restores whole 
  search.input.value='';search.input.listeners.input();assert.equal(cards.filter(c=>!c.hidden).length,300);assert.ok(cards.every(c=>c.style.display===''));assert.deepEqual(updates,['unmatched','']);assert.equal(host.children[1].textContent,'300 / 300');
 });
 test('both native library branches register real cards and preserve query through refresh',()=>{
- const src=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),start=src.indexOf('function refreshLib()'),end=src.indexOf('\nfunction syncHead()',start),body=src.slice(start,end);
+ const src=modelerSource(),start=src.indexOf('function refreshLib()'),end=src.indexOf('\nfunction syncHead()',start),body=src.slice(start,end);
  assert.match(body,/assemblySearch\.add\(assembly,card\)/);assert.match(body,/partSearch\.add\(m,card\)/);
  assert.match(body,/librarySearchQueries\[libraryKind\]=value/);
  assert.ok(body.indexOf('appendSavedLibrarySearch(')<body.indexOf('host.appendChild(btn('),'search precedes all action buttons on the narrow phone pane');

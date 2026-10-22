@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -5,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { FEATURE_CATALOG } from "../js/core/feature_catalog.js";
 import { featureField, readFeatureParameterForm } from "../js/modeler_feature_form.js";
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 
 function el(tag, className, html) {
   return {

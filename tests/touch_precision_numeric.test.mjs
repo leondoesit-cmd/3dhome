@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -5,7 +6,7 @@ import { sourceFunctionText } from './helpers/source_function.mjs';
 import { dispatchPrecisionCommit, precisionModelPoint } from '../js/touch_precision_ui.js';
 
 const ui=readFileSync(new URL('../js/touch_precision_ui.js',import.meta.url),'utf8');
-const modeler=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const modeler=modelerSource();
 
 test('explicit numeric target preserves off-canvas projection and ignores drag locks',()=>{
   const state={lock:'v',initialX:20};

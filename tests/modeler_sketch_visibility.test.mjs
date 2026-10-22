@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const source = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const source = modelerSource();
 const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 
 test("consumed sketches can be explicitly shown in the 3D viewport", () => {

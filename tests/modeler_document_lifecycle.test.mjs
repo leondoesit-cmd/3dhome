@@ -6,12 +6,13 @@
    solid belonging to a model the user had closed, and replaced unsaved work
    without asking. These assertions pin the invariants that fix them, in the
    same source-reading style the other modeler suites use. */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 
-const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const source = modelerSource();
 /* The editor's [he, en] table lives in js/modeler_strings.js. */
 const strings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 const draftSource = await readFile(new URL("../js/modeler_draft.js", import.meta.url), "utf8");

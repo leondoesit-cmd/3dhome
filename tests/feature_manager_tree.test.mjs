@@ -1,3 +1,4 @@
+import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -389,7 +390,7 @@ test("legacy rollback is mapped past the matching feature and its sketch", () =>
 
 /* ---- the editor actually uses the one renderer ---- */
 
-const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerSource = readModelerSource();
 /* The editor's [he, en] table lives in js/modeler_strings.js. */
 const modelerStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 const rendererSource = await readFile(new URL("../js/modeler_tree.js", import.meta.url), "utf8");

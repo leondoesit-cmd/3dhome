@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ const readFile = async (url, encoding) => (await readRaw(url, encoding)).replace
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 const planner = await readFile(new URL("../js/mobile_shell.js", import.meta.url), "utf8");
 const modeler = await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8");
-const modelerCore = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerCore = modelerSource();
 const cabinet = await readFile(new URL("../js/ui_cabinet_mobile.js", import.meta.url), "utf8");
 const main = await readFile(new URL("../js/main.js", import.meta.url), "utf8");
 const props = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf8");

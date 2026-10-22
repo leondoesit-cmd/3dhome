@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {createHistory} from '../js/edit_history.js';
 import {parseSketchDimensionEntry} from '../js/core/sketch_dimension_entry.js';
 import {dimensionUnit} from '../js/sketch_equations.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 test('actual sketch dimension inspector Enter records its own Undo and stops global commands',()=>{
  let document={sketches:[{id:'sketch',constraints:[{id:'radius',type:'radius',value:0.5}]}]};
  const sketch=document.sketches[0],con=sketch.constraints[0];let undoTitle='',refreshes=0;

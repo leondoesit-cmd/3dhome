@@ -1,6 +1,7 @@
 // Every tool in the pro ribbon must bind to something that already exists:
 // a planner action or tool in index.html, a panel id, a model-editor command
 // from the real catalog, a cabinet-designer control, and a real Phosphor icon.
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -11,7 +12,7 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const cabinetSrc = ["ui_cabinet.js", "ui_cabinet_view.js", "ui_cabinet_inspect.js"].map((f) => readFileSync(new URL("../js/" + f, import.meta.url), "utf8")).join("\n");
 const mepUi = readFileSync(new URL("../js/ui_mep.js", import.meta.url), "utf8");
 const mepCore = readFileSync(new URL("../js/mep.js", import.meta.url), "utf8");
-const modelerSrc = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerSrc = modelerSource();
 const ribbonIds = new Set([...modelerSrc.matchAll(/commandButton\("([a-z0-9]+)"/g)].map((m) => m[1]));
 const relationIds = (modelerSrc.match(/var RIBBON_RELATIONS = \[([^\]]*)\]/) || ["", ""])[1].match(/[a-z]+/g) || [];
 const nestSrc = readFileSync(new URL("../js/ui_nest.js", import.meta.url), "utf8") + readFileSync(new URL("../js/ui_cabinet_production.js", import.meta.url), "utf8");

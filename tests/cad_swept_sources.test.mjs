@@ -6,6 +6,7 @@
  * the snapshot mapped (u,v) -> (x,y) whatever plane the sketch was on, which is
  * how a sweep along a helix came out as a zero-volume sheet.
  */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -16,7 +17,7 @@ import { disposeBrep, loadCadKernel, makeBrepSweep } from "../js/cad_kernel.js";
 import { sampleHelix } from "../js/cad_helix.js";
 import { synchronizeSketchHelices } from "../js/core/sketch_helix.js";
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 
 const volume = async (brep) => {
   const oc = await loadCadKernel(), props = new oc.GProp_GProps_1();

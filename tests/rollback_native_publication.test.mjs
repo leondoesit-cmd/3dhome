@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -10,7 +11,7 @@ import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js'
 import {shapeToMeshData,shapeSolidCount} from '../js/cad_kernel.js';
 import {meshDataBounds} from '../js/core/kernel_body.js';
 import {partSupportsExactMesh} from '../js/modeler_part_geometry.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/ch4_rollback_native_source.json',import.meta.url),'utf8')).document;
 const fn=(name,context)=>new Function(...Object.keys(context),sourceFunctionText(source,name)+';return '+name)(...Object.values(context));
 function historyHost(document){

@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -54,7 +55,7 @@ test('nested assembly snapshots restore missing mates, authored legacy axis mate
 });
 
 test('configuration UI captures assembly and solves on switch, with Output entry',()=>{
- const source=sourceFunctionText(fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),'showConfigurations');
+ const source=sourceFunctionText(modelerSource(),'showConfigurations');
  const E={docType:'assembly',assembly:{components:[{id:'a',transform:pose(0)}],topologyMates:[]},def:{features:[]}};
  let choose,items,solves=0,refreshes=0;
  const bindings={E,ensureConfigurations,circularSweepTableRows:()=>null,t:x=>x,showPickList:(a,b,list,cb)=>{items=list;choose=cb;},pushUndo:()=>{},updateConfiguration,captureConfiguration,setActiveConfiguration,refreshAll:()=>refreshes++,flash:()=>{},solveAssembly:()=>solves++,isCanonicalAuthoring:()=>false};

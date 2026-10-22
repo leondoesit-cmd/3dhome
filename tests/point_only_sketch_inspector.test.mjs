@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {solveSketch} from '../js/sketch_solver.js';
 import {createHistory} from '../js/edit_history.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function node(tag,cls,text){return {tag,cls,text,children:[],dataset:{},events:{},style:{},appendChild(child){this.children.push(child);},addEventListener(type,fn){this.events[type]=fn;},setAttribute(key,value){this[key]=value;},closest(){return null;}};}
 const walk=n=>[n,...n.children.flatMap(walk)];
 

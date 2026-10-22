@@ -24,3 +24,4 @@ ModelForge (repo `3dhome`) is a **local-first, browser-based parametric CAD / ho
 ### Writing tests
 - **Prefer behaviour over source text.** Put the logic in a function Node can import (no bare `three` import at module level; take `THREE`/`TSL` as arguments, as `js/room_bounce.js` does) and test inputs against outputs. A regex over a source file passes while the behaviour is wrong and breaks on harmless refactors.
 - Regexes over source are for wiring Node cannot run (a GPU-only call, an event hook). Match code, never the wording of a comment (`tools/comment_assertions.mjs` flags assertions only a comment satisfies).
+- Tests that need `js/modeler.js` source read it through `tests/helpers/modeler_source.mjs` (`modelerSource()`), which includes the modules split out under `js/modeler/`.

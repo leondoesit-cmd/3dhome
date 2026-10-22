@@ -6,11 +6,12 @@
  * "this must not happen on every frame" is to check that the call is not
  * written there. Each one below records a defect that shipped.
  */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const md = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const md = modelerSource();
 const layers = await readFile(new URL("../js/ui_layers.js", import.meta.url), "utf8");
 
 function body(source, start, end) {

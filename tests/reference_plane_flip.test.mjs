@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { resolveOffsetPlanes,referencePlaneOffset } from "../js/core/offset_planes.js";
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 
 /* SOLIDWORKS' Plane PropertyManager states an offset as a positive distance and

@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -50,7 +51,7 @@ test('the dimension is drawn from the point to its foot on the line', () => {
 });
 
 test('the Dimension tool offers point-then-line and line-then-point', () => {
-  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  const src = modelerSource();
   const branch = src.slice(src.indexOf('if (E.tool === "dim") {'), src.indexOf('var dtarget = dimensionTarget(dhit, uv);'));
   assert.match(branch, /type: "pointLine", point: pickedPoint\.id, line: dhit\.id/);
   assert.match(branch, /type: "pointLine", point: dhit\.id, line: pendingLine\.id/);

@@ -8,6 +8,7 @@
    the modeler's walk sites at the source, which is how this file is tested
    elsewhere (js/modeler.js is a browser module).
 */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -28,7 +29,7 @@ import { featureDefaults, featureSpec } from "../js/core/feature_catalog.js";
 import { createDefinition, migrateDefinition } from "../js/core/schema.js";
 import { computeMassProperties } from "../js/cad_interference.js";
 
-let modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let modeler = modelerSource();
 modeler = modeler.replace(/\r\n/g,"\n");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = (await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8")).replace(/\r\n/g, "\n");

@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -10,7 +11,7 @@ import {canonicalFeatureTopologyReferences} from '../js/core/feature_input_stage
 function node(tag){return {tag,children:[],listeners:{},attributes:{},value:'',appendChild(child){this.children.push(child);return child;},setAttribute(key,value){this.attributes[key]=value;},addEventListener(key,handler){this.listeners[key]=handler;}};}
 function plane(id,owner,x){return {persistentId:id,ownerFeatureId:owner,kind:'face',semantic:id,descriptor:{surface:'plane',origin:{x,y:0,z:0},normal:{x:1,y:0,z:0}}};}
 function fixture(type='extrude',unit='cm',actualTarget=null){
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('function addTerminatingFaceChoices('),end=source.indexOf('\nfunction openParametricFeature(',start);
   assert.ok(start>=0 && end>start);
   const target=actualTarget || plane('inner-wall','shell:cut:cavity',11.6),outside=plane('outer-wall','shell',12),suppressed=plane('suppressed-face','suppressed',13),future=plane('future-face','future',14);

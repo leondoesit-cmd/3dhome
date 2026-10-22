@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -10,7 +11,7 @@ import {synchronizeSketchExtrusionFrames,extrusionPreviewDirection} from '../js/
 import {createHistory} from '../js/edit_history.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const fixture=()=>JSON.parse(readFileSync(new URL('../artifacts/planchard/ADVANCED-Q1-rear-four-fillet-refresh-browser-2026-10-09.mforge',import.meta.url),'utf8')).mainModel;
 const load=(name,ctx)=>new Function(...Object.keys(ctx),sourceFunctionText(source,name)+';return '+name+';')(...Object.values(ctx));
 function callbackText(){let callback;function visit(n){if(!n||typeof n!=='object')return;if(n.type==='VariableDeclarator'&&n.id?.name==='contourRefresh')callback=n.init.arguments[1];for(const v of Object.values(n)){if(Array.isArray(v))v.forEach(visit);else if(v&&typeof v==='object')visit(v);}}visit(parse(source,{ecmaVersion:'latest',sourceType:'module'}));assert.ok(callback);return source.slice(callback.start,callback.end);}

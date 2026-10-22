@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -26,6 +27,6 @@ test('measured hint positioning and paired theme contrast apply to Model and Ske
   assert.match(css,/#mdHint\s*\{ inset-inline-start:\s*64px; max-width:\s*calc\(100% - 76px\)/);
   const compact = readFileSync(new URL('../js/pro_compact.js',import.meta.url),'utf8');
   assert.match(compact,/hint\.dataset\.activeInstruction !== "true" && !hint\.classList\.contains\("selection"\)/);
-  const modeler = readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const modeler = modelerSource();
   assert.match(modeler,/var instructionTool = E\.mode === "drawing" \? drawingSheet\(\)\.state\.tool : E\.tool;[\s\S]*?hint\.dataset\.activeInstruction = instructionTool/);
 });

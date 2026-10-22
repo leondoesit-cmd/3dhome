@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {compileKernelFeatureTree} from '../js/core/kernel_feature_adapter.js';
 import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js';
 import {shapeMassProperties,validateBrepForExport} from '../js/cad_kernel.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
   const E={def:createPartDocument({units:{length:'mm'}})},undos=[],messages=[];
   let spec,serial=0,refreshes=0;

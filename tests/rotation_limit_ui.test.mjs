@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {topologyReference,mateRequirementFor,mateFramesSupport,mateFrameSupports
 import {worldFrame} from '../js/cad_mate_model.js';
 import {rotationLimitMateSpec,rotationLimitMeasure} from '../js/cad_rotation_limit_mate.js';
 import {addRotationLimitMate,setRotationLimitMateSettings,setRotationLimitMateDrive,setRotationLimitMateReferences} from '../js/cad_rotation_limit_controls.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const axis=(id,name,direction={x:1,y:0,z:0})=>topologyReference(id,'axis',name,{surface:'axis',origin:{x:0,y:0,z:0},axis:direction});
 function fixture(){
  const assembly={components:[{id:'reader',grounded:true,transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0}},{id:'clapper',transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0}}],topologyMates:[{id:'hinge',type:'concentric',a:axis('reader','hinge'),b:axis('clapper','hinge')}]};

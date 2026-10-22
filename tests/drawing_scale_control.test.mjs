@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {drawingViewScaleControl} from '../js/core/drawing_scale_control.js';
 import {createSheetDoc,createView,ensureSheetDoc,scaleValue,scaleLabel} from '../js/cad_sheet.js';
 import {createDrawingController} from '../js/modeler_drawing.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 test('numeric placement scales, ratio arrays/objects and inherited scales stay represented without mutation',()=>{
   for(const scale of [2,.5,.73,[2,1],{n:3,d:2},null]) {

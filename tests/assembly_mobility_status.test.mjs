@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {assemblyMobilityReport,currentAssemblyMobility} from '../js/core/assembly_mobility_status.js';
 import {solveTopologyMates} from '../js/cad_mates.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const fixture=()=>({components:[{id:'fixed',grounded:true,transform:{x:0,y:0,z:0,rx:0,ry:0,rz:0}}],mates:[],topologyMates:[]});
 test('assembly status explicitly shows native checked zero mobility and distinguishes fresh 1/2 from unknown/stale results',()=>{
  const assembly=fixture(),E={docType:'assembly',assembly,componentSel:[],mateDegreesOfFreedom:0},status={innerHTML:''};

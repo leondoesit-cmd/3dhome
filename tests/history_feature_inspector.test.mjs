@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function harness(part) {
   const base={id:'boss',type:'extrude',name:'Base extrude',params:{depth:8}};
   const hole={id:'holes',type:'hole',name:'Hole wizard 1',params:{diameter:4.5}};

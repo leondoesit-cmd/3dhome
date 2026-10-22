@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 for(const fixedFrame of [null,{origin:{x:10,y:20,z:30}}])test('assembly Fit centers asymmetric exploded bounds'+(fixedFrame?' in a fixed frame':''),()=>{
   const box={x0:-5.5,x1:15.5,y0:-8,y1:39,z0:-20,z1:24};

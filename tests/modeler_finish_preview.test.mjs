@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -13,7 +14,7 @@ import {
   projectToProfile,
 } from "../js/modeler_finish_preview.js";
 
-let modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let modeler = modelerSource();
 modeler = modeler.replace(/\r\n/g,"\n");
 /* The editor's [he, en] table lives in js/modeler_strings.js. */
 const modelerStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");

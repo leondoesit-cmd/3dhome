@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -34,7 +35,7 @@ test('ordinary modeler command refresh publishes explode state before the Pro As
   const E={docType:'assembly',assembly:{components:[{id:'base'},{id:'bolt'}]}};
   const bindings={E,assemblyHasExplodedOffsets,t:key=>key,syncRelationCommands:()=>{},commandCatalog:()=>[{id:'explode',label:'Exploded view'}],
     isCanonicalAuthoring:()=>false,FEATURE_COMMAND:{},COMMAND_TOOLTIP:{},root:{ownerDocument:f.document,querySelector:()=>null,querySelectorAll:()=>[f.command]}};
-  const modeler=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const modeler=modelerSource();
   const refresh=new Function(...Object.keys(bindings),sourceFunctionText(modeler,'syncExplodeCommandState')+sourceFunctionText(modeler,'syncCommandManager')+';return syncCommandManager;')(...Object.values(bindings));
   refresh();assert.equal(f.command.getAttribute('aria-label'),'explodeAssembly');assert.equal(first.span.textContent,'explodeAssembly');
   let recreated=f.api.toolButton(tool);assert.equal(recreated.span.textContent,'explodeAssembly');assert.equal(recreated.getAttribute('aria-pressed'),'false');

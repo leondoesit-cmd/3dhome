@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -10,7 +11,7 @@ import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js'
 import {topologyReferenceFromEntry} from '../js/modeler_pick_geometry.js';
 import {applyDocumentTopologyRebindings,createTopologyRegistry,resolveFeatureTopologyReferences} from '../js/core/topology.js';
 
-const source = fs.readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const source = modelerSource();
 function fn(name, next) {
   const start = source.indexOf('function ' + name + '(');
   return source.slice(start, source.indexOf('\nfunction ' + next + '(', start));
