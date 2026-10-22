@@ -124,7 +124,41 @@ var FORCE_WEBGL =
  * and a renderer that created its device destroys it on dispose(), which
  * would take every other view down with the one that closed.
  */
+/* three r185: when a light stops casting (castShadow -> false), the next
+   shader build for ANY object disposes that light's shadow node — its map
+   included — while every shader built before still references it, and
+   cached ones are re-used if the light casts again. The next frame then
+   throws in ShadowNode.updateShadow (shadowMap is null), and the planner
+   falls back to a bare render with no AO or anti-aliasing. Lights here
+   switch shadows on and off as a matter of course (the sun at dusk, the
+   shadow budget handing maps between windows and lamps), so the node is
+   kept instead: idle while the light does not cast, and the very same node
+   (and map) when it casts again. Disposing the light still frees it. */
+function keepShadowNodes() {
+  var A = THREE.AnalyticLightNode && THREE.AnalyticLightNode.prototype;
+  if (A && A.__keepsShadowNode) return;
+  /* This leans on three's internals (tests/three_shadow_patch_guard pins them
+     against the vendored copy). Say so if an upgrade moved them, rather than
+     quietly losing the AO/TRAA pipeline the first time a light stops casting. */
+  if (!A || typeof A.setup !== "function" || String(A.setup).indexOf("shadowNode") < 0) {
+    if (!keepShadowNodes.warned) console.warn("gpu.js: three's AnalyticLightNode changed; the keep-shadow-node patch is off (re-check it against this three)");
+    keepShadowNodes.warned = true;
+    return;
+  }
+  var setup = A.setup;
+  A.setup = function (builder) {
+    if (this.light && !this.light.castShadow && this.shadowNode !== null) {
+      var keep = this.shadowNode;
+      this.shadowNode = null; // so setup() takes its no-shadow path without disposing
+      try { return setup.call(this, builder); } finally { this.shadowNode = keep; }
+    }
+    return setup.call(this, builder);
+  };
+  A.__keepsShadowNode = true;
+}
+
 export function createRenderer(opts) {
+  keepShadowNodes();
   opts = Object.assign({}, opts || {});
   opts.forceWebGL = FORCE_WEBGL;
   var r = new THREE.WebGPURenderer(opts);

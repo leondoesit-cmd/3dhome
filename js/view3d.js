@@ -17,12 +17,14 @@ import { createCameraSweep } from './camera_sweep.js';
 // and TRAA replaces FXAA (temporal, resolves edges instead of blurring them).
 import { THREE, TSL, ADDONS, loadThree, threeLoaded } from "./three_lazy.js";
 import { createRenderer, LUX, legacyIntensity } from "./gpu.js";
+import { primeGpuTier } from "./material_tier.js";
 import {
   S,
   clamp,
   fin,
   TILE,
   WALL_T,
+  WALL_H,
   FLOOR,
   WALLC,
   GLASS,
@@ -43,7 +45,8 @@ import {
 import { FURN, lampColor, buildItem as buildFurn, elevOffset, itemVSpan } from "./furniture.js";
 import { refreshRuntimePlacements } from "./core/runtime.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
-import { pbrEntryFor, pbrTextures, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById, sharedRepeat } from "./pbr_material.js";
+import { pbrEntryFor, pbrTextures, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById, sharedRepeat, textureMisses } from "./pbr_material.js";
+import { createRoomBounce, roomIrradiance, spotFlux, pointFlux } from "./room_bounce.js";
 import { HumanFactory } from "./human.js";
 import { SITE, llToLocalCm } from "./site.js";
 import {
@@ -291,6 +294,7 @@ var shadowThrottleT = 0;  // timestamp of last shadow pass (for extLive throttle
 var regionShadowT = 0; // timestamp of the last drag-region shadow redraw
 var shadowsFromRebuild = false, rebuildShadowT = 0; // a wall drag rebuilds every frame
 var lastRebuildT = -1e9; // when the last full rebuild ran (see the compile below it)
+var firstCompiled = false, compileGate = false; // the first build compiles before it draws
 var qualityPreset = "auto";
 var gameRendererLock = false;
 var drawingOverlay = null, drawingEnabled = false, drawingCanvas = null;
@@ -2055,6 +2059,7 @@ function placeItem(g, it) {
    shadow map, so lamps rebuilt at night stop leaking one cube target each. */
 var spareLights = { PointLight: [], SpotLight: [] };
 var windowLights = []; // the daylight lights of the last rebuild3D
+var roomBounce = null; // the one light carrying each room's bounce, see fitBounceLights
 
 function takeLight(type, color, intensity, distance, decay, angle, penumbra) {
   var spare = spareLights[type], l;
@@ -2421,9 +2426,12 @@ window.addEventListener("catalogUpdated", function () {
    (an image-less clone crashes the renderer's texture upload). The piece built
    during that window has no map and its signature is unchanged, so the item
    cache would serve the untextured group forever — invalidate it when the
-   image lands. */
+   image lands. Only the pieces that were built short of a bitmap
+   (buildAndCache notes it): bumping catalogRev here threw away every piece
+   in the house, and a texture first wanted by the walls (the dollhouse cut's
+   finishes) then rebuilt all the furniture once per image that landed. */
 window.addEventListener("customTextureLoaded", function () {
-  catalogRev++;
+  itemCache.forEach(function (c) { if (c.missedTexture) c.sig = null; });
   S.dirty3D = true;
   needsRender = true;
 });
@@ -2470,8 +2478,9 @@ function dropItem(id) {
 // that a builder which annotates its item doesn't make the entry miss forever.
 function buildAndCache(it) {
   dropItem(it.id);
+  var missed = textureMisses();
   var g = buildItem(it);
-  if (g) itemCache.set(it.id, { g: g, sig: itemSig(it), catalogRev: catalogRev });
+  if (g) itemCache.set(it.id, { g: g, sig: itemSig(it), catalogRev: catalogRev, missedTexture: textureMisses() !== missed });
   return g;
 }
 
@@ -3093,6 +3102,7 @@ export function rebuild3D() {
   dyn.add(itemsRoot);
   syncItems(hid);
   fitPracticalLights();
+  buildBounceLights(rooms);
   // MEP conduits + device markers embedded in the model. buildMEP3D takes its
   // parent, and returns early on its own m.show / m.show3D flags — those stay
   // as filters ON TOP of the mep layer, which owns the root's visibility.
@@ -3132,6 +3142,43 @@ export function rebuild3D() {
    the main ceiling fixture of each room also casts a soft shadow, so furniture
    sits on the floor instead of floating in flat light. Shadow maps update on
    demand only, so the cost is paid when something moves, not every frame. */
+/* ---- light that bounces: the room fills itself ----
+   Split-flux interreflection per room, carried by ONE light for the whole
+   house (see js/room_bounce.js): the flux that enters each room through its
+   windows and from its lamps, times ρ/(1−ρ), spread over the room's surfaces.
+   Walls stop it exactly — the map it reads is the plan — and the light is
+   always on and never casts, so refitting it never changes the light set the
+   shaders are keyed on. ρ = 0.5: pale walls and a mid floor. */
+var BOUNCE_RHO = 0.5;
+var bounceRooms = []; // the rooms the bounce map was last drawn for
+function buildBounceLights(rooms) {
+  if (!roomBounce) return;
+  var shown = rooms.filter(function (r) { return !roomHidden(r.key); });
+  var same = shown.length === bounceRooms.length && shown.every(function (r, i) { return r === bounceRooms[i]; });
+  if (!same) {
+    bounceRooms = shown;
+    roomBounce.setRooms(shown);
+  }
+  fitBounceLights();
+}
+function lightFlux(l) {
+  return l.isSpotLight ? spotFlux(l.intensity, l.angle, l.penumbra) : pointFlux(l.intensity);
+}
+function fitBounceLights() {
+  if (!roomBounce) return;
+  var sources = [];
+  function add(x, z, l) {
+    sources.push({ x: x, z: z, flux: lightFlux(l), color: [l.color.r, l.color.g, l.color.b] });
+  }
+  windowLights.forEach(function (l) { if (l.visible && l.intensity > 0) add(l.position.x, l.position.z, l); });
+  if (itemsRoot) itemsRoot.children.forEach(function (g) {
+    var it = g.userData && g.userData.item;
+    if (!it || !FURN[it.type] || !FURN[it.type].lamp) return;
+    g.traverse(function (o) { if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null && o.visible) add(it.x, it.z, o); });
+  });
+  roomBounce.setIrradiance(roomIrradiance(bounceRooms, sources, BOUNCE_RHO, WALL_H));
+  needsRender = true;
+}
 function roomContaining(x, z) {
   var rooms = detectRooms();
   for (var i = 0; i < rooms.length; i++) if (pointInPoly(x, z, rooms[i].pts)) return rooms[i];
@@ -3146,7 +3193,8 @@ var PRACTICAL_SHADOW = { ceilingLight: 1, pendant: 1, chandelier: 1 };
 /* ---- one shadow budget for every light that can cast ----
    Every shadow map is one more sampled texture in EVERY lit material's
    fragment stage, and WebGPU's default per-stage limit is 16; the PBR maps
-   and the environment take about five. Past it every pipeline in the house
+   and the environment take about five, the bounce map (js/room_bounce.js)
+   one more. Past it every pipeline in the house
    fails at once (a big flat at night used to ask for a cube per room), and
    each map is also five more depth taps in every pixel. So the lights that
    cast are chosen here, in order of what it costs the picture to go without:
@@ -4516,6 +4564,7 @@ export function applyEnv() {
     }
   });
   fitPracticalLights(); // night practicals take over the shadows from the sun
+  fitBounceLights(); // and the light they let in fills each room
   applySite(); // keep the site skybox/sky-dome visibility in sync with day/night
   runRelightHooks();
 }
@@ -5115,7 +5164,12 @@ export function extractPTScene() {
    `typeof THREE` check gave on a browser without it. */
 export function init3D() {
   if (init3DPromise) return init3DPromise;
-  init3DPromise = loadThree().then(build3D).catch(function (e) {
+  /* The scene's materials ask the material tier whether the GPU is a CPU
+     rasteriser. Until the WebGPU adapter has answered that (primeGpuTier,
+     started at boot) the tier finds out by creating a throwaway WebGL
+     context — ~0.7 s with the main thread blocked, on every first visit. The
+     adapter answers within the time three takes to load anyway. */
+  init3DPromise = Promise.all([loadThree(), primeGpuTier()]).then(build3D).catch(function (e) {
     if (window.console && console.error) console.error("three failed to load:", e);
     var v3d = document.getElementById("v3d"),
       nothree = document.getElementById("nothree");
@@ -5193,6 +5247,10 @@ function build3D() {
   scene.add(flt);
   dyn = new THREE.Group();
   scene.add(dyn);
+  // on `scene`, not `dyn`: one light for the life of the view (see fitBounceLights)
+  roomBounce = createRoomBounce(THREE, TSL);
+  roomBounce.register(renderer);
+  scene.add(roomBounce.light);
   /* From here on there IS a scene, so the has3D()/ready3D guards must open:
      the rest of this function calls applyEnv() and rebuild3D(), which are two
      of them. Everything they need (scene, renderer, camera, dyn) exists. */
@@ -5228,10 +5286,9 @@ function build3D() {
        the piece being dragged, and TRAA's variance clipping keeps that one
        from smearing. Matrices are the unjittered ones, as three's own
        velocity uses (see syncCameraVelocity). */
-    scenePass.setMRT(TSL.mrt({ output: TSL.output, normal: TSL.normalView }));
+    scenePass.setMRT(TSL.mrt({ output: TSL.output }));
     var colorNode = scenePass.getTextureNode("output");
     var depthNode = scenePass.getTextureNode("depth");
-    var normalNode = scenePass.getTextureNode("normal");
     velUniforms = {
       curViewProj: TSL.uniform(new THREE.Matrix4()),
       prevViewProj: TSL.uniform(new THREE.Matrix4()),
@@ -5249,17 +5306,21 @@ function build3D() {
     })();
     var velocityNode = TSL.convertToTexture(cameraVelocity);
 
-    aoPass = ADDONS.ao(depthNode, normalNode, camera);
+    /* Normals from depth, not from a normal target: the walls are flat-shaded
+       and re-cut by the dollhouse, and their vertex normals disagreed with the
+       depth GTAO marches through — every wall seen from above read as ~40%
+       occluded (dark grey) on open, flat plaster. Depth is the truth GTAO
+       measures against anyway, and dropping the normal target saves a
+       full-screen write per frame. */
+    aoPass = ADDONS.ao(depthNode, null, camera);
     // GTAO's radius is in WORLD units, unlike the old SSAO kernelRadius which was
     // in its own screen-ish space. Scene units are centimetres (room ~400–600cm),
     // so contact occlusion wants tens of cm, not the 0.25 metre-scale default.
-    // ~35 cm reaches from under a sofa or a bed out to where its skylight
-    // shadow would fall, so furniture sits on the floor, not above it
-    aoPass.radius.value = 35;
-    aoPass.distanceExponent.value = 1.6;
-    aoPass.thickness.value = 20;
+    aoPass.radius.value = 18;
+    aoPass.distanceExponent.value = 1.2;
+    aoPass.thickness.value = 12;
     aoPass.distanceFallOff.value = 1;
-    aoPass.scale.value = 1.25; // over 1: interiors read better with firm contact shadows
+    aoPass.scale.value = 1.1; // slightly over 1: interiors read better with firm contact shadows
     aoPass.samples.value = 16;
 
     // AO multiplies the beauty pass, then TRAA resolves the result.
@@ -5273,9 +5334,11 @@ function build3D() {
     var stage = (/[?&]post=(\w+)/.exec(location.search) || [])[1] ||
       (function () { try { return localStorage.getItem("home3d_post"); } catch (e) { return null; } })() ||
       "traa";
-    // "vel" shows TRAA's camera velocity (|ndc offset| × 20) for checking reprojection
+    // "vel" shows TRAA's camera velocity (|ndc offset| × 20) for checking reprojection,
+    // "aoonly" the ambient occlusion alone
     post.outputNode = stage === "raw" ? colorNode : stage === "ao" ? lit
-      : stage === "vel" ? TSL.vec4(velocityNode.sample(TSL.uv()).xy.abs().mul(20), 0, 1) : traaPass;
+      : stage === "vel" ? TSL.vec4(velocityNode.sample(TSL.uv()).xy.abs().mul(20), 0, 1)
+      : stage === "aoonly" ? TSL.vec4(TSL.vec3(aoPass.getTextureNode().r), 1) : traaPass;
     usePost = true;
   } catch (e) {
     console.warn("post-processing unavailable, falling back to direct render:", e);
@@ -5872,8 +5935,36 @@ function build3D() {
            is time before the next rebuild: during a drag it was ~17 ms of
            every frame. */
         var nowT = performance.now();
-        if (renderer && renderer.initialized && scene && camera && nowT - lastRebuildT > 400) {
-          renderer.compile(scene, camera);
+        if (renderer && scene && camera && !firstCompiled) {
+          /* The first build: every shader in the house is new. Drawn
+             straight away, the next frame built them all in one task —
+             1.5–3 s with the page frozen right after the 3D view opened.
+             compileAsync builds them one object at a time with the page live
+             between, and the view waits for it (a few seconds at most).
+             Only the first time: compileAsync walks EVERY object and yields
+             between them, so a later rebuild that brings a handful of new
+             shaders (the first dollhouse cut) held the view still for two
+             seconds; drawn at once it builds just those, in ~0.1–0.25 s.
+             The first build often runs before the GPU backend is up; it
+             still claims the hold, and the compile starts once the backend
+             is (the loop draws nothing before that anyway). */
+          firstCompiled = true;
+          compileGate = true;
+          // past a blink, say why the view is still empty (index.html #v3dPrep)
+          var prep = document.getElementById("v3dPrep");
+          var prepT = setTimeout(function () { if (compileGate && prep) prep.style.display = "block"; }, 300);
+          var open = function () {
+            compileGate = false; needsRender = true; settle = SETTLE_FRAMES;
+            clearTimeout(prepT);
+            if (prep) prep.style.display = "none";
+          };
+          var compileFirst = function () {
+            return Promise.race([
+              Promise.resolve(renderer.compileAsync(scene, camera)).catch(function () {}),
+              new Promise(function (r) { setTimeout(r, 6000); }),
+            ]);
+          };
+          (renderer.initialized ? compileFirst() : Promise.resolve(renderer.init()).then(compileFirst)).then(open, open);
         }
         lastRebuildT = nowT;
       } catch (err) {
@@ -5932,6 +6023,7 @@ function build3D() {
     // Nothing can be painted until the WebGPU/WebGL2 backend has finished its
     // async init; keep the loop alive and pick up on the frame after it lands.
     if (!renderer || !renderer.initialized) return;
+    if (compileGate) return; // the first build is still compiling (see the rebuild above)
     var live = doorsMoving || humansLive || physicsLive || extLive;
     if (needsRender || live || settle > 0) {
       // Live animation keeps TRAA's history fed on its own; `settle` only has to

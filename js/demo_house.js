@@ -7,7 +7,7 @@ import { S } from "./state.js";
 import { generateApartment } from "./generator.js";
 import { normalizeCutaway } from "./wall_cut.js";
 import { openingHasSwingConflict } from "./swing_clearance.js";
-import { mkItem } from "./furniture.js";
+import { mkItem, defaultScene } from "./furniture.js";
 
 const SWINGS = ["R_IN", "L_IN", "R_OUT", "L_OUT"];
 /* A door the generator hung into its own fixtures (a bathroom door onto the
@@ -22,6 +22,17 @@ export function clearDoorSwings(state) {
     else o.swingDir = was;
   });
   return fixed;
+}
+
+/* The plan every session opens on (boot, Reset, the start screen's demo): the
+   furnished two-bedroom "large" layout from js/generation_layout.js, without
+   services. Falls back to the old single-room scene if generation is refused. */
+export function defaultApartment() {
+  const result = generateApartment("large", true, { infrastructure: false });
+  if (result && result.ok === false) { defaultScene(); S.roomMeta = {}; return result; }
+  clearDoorSwings(S);
+  S.sel = null;
+  return result;
 }
 
 export const SHOWCASE_VIEW = Object.freeze({ planStyle: "presentation", cutaway: { on: true, height: 150, cap: "white" }, hour: 15 });

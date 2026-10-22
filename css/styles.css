@@ -3439,6 +3439,23 @@ body.rc-playing #view-3d .view-dollhouse-btn { display: none; }
   backdrop-filter: blur(12px);
 }
 
+/* the first open of the 3D view, while its shaders build (view3d compileGate);
+   no transition, it has to read the moment it appears */
+#v3dPrep {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+  font-weight: 600;
+  display: none;
+  background: var(--bg-panel);
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+}
+
 /* Photomode Overlay */
 #photoOverlay {
   position: fixed;

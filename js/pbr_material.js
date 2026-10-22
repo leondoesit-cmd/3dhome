@@ -41,6 +41,16 @@ var texCache = new Map(); // url → THREE.Texture (shared, never disposed)
 var failedIds = new Set();
 var inFlight = new Set(); // one promise per load still on the wire
 var quiet = 0;
+/* How many times a build asked for a bitmap that had not arrived yet (and
+   so drew a stand-in). The planner compares it around each piece it builds:
+   only a piece that missed needs building again when a load lands. */
+var misses = 0;
+export function textureMisses() {
+  return misses;
+}
+export function noteTextureMiss() {
+  misses++;
+}
 
 function onLoaded() {
   S.dirty3D = true;
@@ -82,14 +92,40 @@ function loadTexture(url, srgb, id) {
   var settle;
   var wait = new Promise(function (resolve) { settle = function () { inFlight.delete(wait); resolve(); }; });
   inFlight.add(wait);
-  var loader = new THREE.TextureLoader();
-  tx = loader.load(url, function (t) {
+  var done = function (t) {
     settle();
     if (t.userData.announce) onLoaded();
-  }, undefined, function () {
+  };
+  var fail = function () {
     failedIds.add(id);
     settle();
-  });
+  };
+  /* Decoded off the main thread. An <img> is decoded by the upload itself
+     (copyExternalImageToTexture / texImage2D), on the main thread, the first
+     time a material using it is drawn: the house's 2k colour, normal and ORM
+     maps made opening the 3D view freeze for over a second. An ImageBitmap
+     arrives decoded. It is flipped here because WebGL2 ignores UNPACK_FLIP_Y
+     for bitmaps, and left uncorrected (the normal and ORM maps are data, the
+     colour map is tagged sRGB on the texture). */
+  if (typeof createImageBitmap === "function" && typeof fetch === "function") {
+    tx = new THREE.Texture();
+    tx.flipY = false;
+    fetch(url)
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.status + " " + url);
+        return r.blob();
+      })
+      .then(function (blob) {
+        return createImageBitmap(blob, { imageOrientation: "flipY", premultiplyAlpha: "none", colorSpaceConversion: "none" });
+      })
+      .then(function (bmp) {
+        tx.image = bmp;
+        tx.needsUpdate = true;
+        done(tx);
+      }, fail);
+  } else {
+    tx = new THREE.TextureLoader().load(url, done, undefined, fail);
+  }
   tx.userData.announce = !quiet;
   tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
   tx.anisotropy = 8;
@@ -110,7 +146,10 @@ export function pbrTextures(entry) {
   var ormMap = loadTexture(materialUrl(entry.id, "orm", tier), false, entry.id);
   // Same wait-for-bitmap rule as applyTextureToMaterial: a texture handed to
   // a material before its image exists kills the render pass on upload.
-  if (!map.image || !normalMap.image || !ormMap.image) return null;
+  if (!map.image || !normalMap.image || !ormMap.image) {
+    misses++;
+    return null;
+  }
   return { map: map, normalMap: normalMap, ormMap: ormMap };
 }
 

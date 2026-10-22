@@ -430,6 +430,7 @@ export default {
   ctx_editProps: "Edit properties",
   ctx_addItemHere: "Add item here",
   nothree: "Could not load the 3D engine. The 2D editor is still active.",
+  prepare3d: "Preparing the 3D view…",
 
   tools: "Tool:",
   tool_select: "Select",
@@ -910,7 +911,7 @@ export default {
   start_blank: "Blank plan",
   start_blank_d: "Start from walls — the rectangle tool closes a room fast",
   start_demo: "Furnished demo",
-  start_demo_d: "A starter room with a sofa and kitchen",
+  start_demo_d: "A furnished two-bedroom apartment with kitchen and bathroom",
   start_generate: "Generate apartment",
   start_generate_d: "A full apartment at a size you choose",
   start_import: "Import JSON",

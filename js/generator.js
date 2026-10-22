@@ -1131,7 +1131,7 @@ export const apartmentGenerateCommand = Object.freeze({
   failureCodes: Object.freeze(["INVALID_GENERATOR_SIZE", "INVALID_GENERATOR_ENVIRONMENT", "PROTECTED_STRUCTURE", "UNKNOWN_MEP_PROFILE"]),
   prepare: function(params, env) {
     params = params || {};
-    var size = params.size == null ? "small" : String(params.size);
+    var size = params.size == null ? "large" : String(params.size);
     if (["small", "large", "random", "showcase"].indexOf(size) === -1)
       return { ok: false, reason: "INVALID_GENERATOR_SIZE" };
     if (!env || env.state !== S) return { ok: false, reason: "INVALID_GENERATOR_ENVIRONMENT" };
@@ -1212,7 +1212,7 @@ export const apartmentGenerateCommand = Object.freeze({
   },
 });
 
-export function generateApartment(size = "small", replace = true, opts = {}) {
+export function generateApartment(size = "large", replace = true, opts = {}) {
   return executeCommand(apartmentGenerateCommand, {
     size: size, replace: replace, replaceInfrastructure: replace, infrastructure: opts.infrastructure !== false,
     seed: size === "random" ? Math.floor(Math.random() * 0xffffffff) : 1,

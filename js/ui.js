@@ -32,12 +32,12 @@ import {
   isLamp,
   lampColor,
   mkItem,
-  defaultScene,
   emptyScene,
   PRICE,
   itemPrice,
   clearVSpanCache,
 } from "./furniture.js";
+import { defaultApartment } from "./demo_house.js";
 import { t, toggleLang, onLangChange } from "./i18n.js";
 import { snapshotSmart, loadSmart, ensureSmartHome, syncSmartFromLamp } from "./smarthome.js";
 import { pushDevice } from "./smarthome_connect.js";
@@ -3516,8 +3516,8 @@ export function initUI() {
         return sel;
       }
       var sizeSel = selRow("ag_size", [
-        ["small", "ag_small"],
         ["large", "ag_large"],
+        ["small", "ag_small"],
         ["random", "ag_random"],
       ]);
       var repSel = selRow("ag_action", [
@@ -4130,8 +4130,7 @@ export function initUI() {
     } else if (act === "reset") {
       if (typeof window !== "undefined" && !window.confirm(t("reset_confirm"))) return;
       pushHistory();
-      defaultScene();
-      S.roomMeta = {};
+      defaultApartment();
       S.blueprintTrace = null;
       syncBlueprintTraceControls();
       S.markers = []; // points belong to the plan that was reset away

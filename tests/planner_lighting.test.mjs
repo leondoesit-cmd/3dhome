@@ -56,7 +56,7 @@ test("a drag redraws only the shadows that reach it, at a capped rate", () => {
 test("orbit frames skip per-object uniform refreshes", () => {
   // a velocity target in the scene MRT makes three refresh every object's
   // uniforms on every frame; TRAA reprojects from depth + camera instead
-  assert.match(src, /scenePass\.setMRT\(TSL\.mrt\(\{ output: TSL\.output, normal: TSL\.normalView \}\)\);/);
+  assert.match(src, /scenePass\.setMRT\(TSL\.mrt\(\{ output: TSL\.output \}\)\);/);
   assert.doesNotMatch(src, /velocity: TSL\.velocity/);
   assert.match(src, /traaPass = ADDONS\.traa\(lit, depthNode, velocityNode, camera\);/);
   const loop = between("var live = doorsMoving", "updateViewGizmo();");
@@ -78,5 +78,51 @@ test("a rebuild keeps the shaders it already has", () => {
   assert.match(between("export function rebuild3D()", "function tagItemPhysicsRole"), /retireGroup\(dyn\);/,
     "the old scene is disposed after the new one has painted");
   assert.match(src, /if \(retired\.length\) disposeRetired\(\);/);
-  assert.match(src, /nowT - lastRebuildT > 400\) \{\s*renderer\.compile\(scene, camera\);/, "no full compile on back-to-back rebuilds");
+  assert.match(src, /scene && camera && !firstCompiled\) \{/, "only the first build waits for compileAsync");
+  assert.doesNotMatch(src, /renderer\.compile\(scene, camera\)/, "never the synchronous whole-scene compile");
+});
+
+test("opening the 3D view never freezes the page on one big task", async () => {
+  // the tier probe would create a throwaway WebGL context (~0.7 s blocked)
+  assert.match(between("export function init3D()", "function build3D()"), /Promise\.all\(\[loadThree\(\), primeGpuTier\(\)\]\)/);
+  // new shaders are built by compileAsync before the view draws, not by one frame
+  assert.match(src, /renderer\.compileAsync\(scene, camera\)/);
+  assert.match(src, /if \(compileGate\) return;/);
+  // library bitmaps are decoded off the main thread, not by the upload
+  const pbr = (await readFile(join(root, "js/pbr_material.js"), "utf8")).replace(/\r\n/g, "\n");
+  const load = pbr.slice(pbr.indexOf("function loadTexture("), pbr.indexOf("/** Shared textures for an entry"));
+  assert.match(load, /createImageBitmap\(blob, \{ imageOrientation: "flipY", premultiplyAlpha: "none", colorSpaceConversion: "none" \}\)/);
+  assert.match(load, /tx\.flipY = false;/, "WebGL2 ignores UNPACK_FLIP_Y for bitmaps");
+});
+
+test("a texture landing rebuilds only the pieces built without it", () => {
+  const ev = between('window.addEventListener("customTextureLoaded"', "function itemSig(");
+  assert.doesNotMatch(ev, /catalogRev\+\+/, "a finish first wanted by the walls must not rebuild every piece");
+  assert.match(ev, /if \(c\.missedTexture\) c\.sig = null;/);
+  assert.match(between("function buildAndCache(", "// Reconcile itemsRoot"), /missedTexture: textureMisses\(\) !== missed/);
+});
+
+test("each lit room fills itself with the light that enters it", () => {
+  // wiring only — the arithmetic and the no-leak rule are in room_bounce.test.mjs
+  const fit = between("function fitBounceLights()", "function roomContaining(");
+  assert.match(fit, /windowLights\.forEach/, "daylight entering through the room's windows");
+  assert.match(fit, /FURN\[it\.type\]\.lamp/, "and its lamps at night");
+  assert.match(fit, /roomBounce\.setIrradiance\(roomIrradiance\(/);
+  assert.match(between("function build3D()", "ready3D = true;"), /roomBounce\.register\(renderer\);\n  scene\.add\(roomBounce\.light\);/,
+    "one light, registered with the renderer, for the life of the view");
+  assert.doesNotMatch(between("var BOUNCE_RHO", "function roomContaining("), /\.visible =|takeLight\(/,
+    "never toggled or swapped: the light set every shader is keyed on stays put");
+  assert.match(between("export function applyEnv()", "var relightHooks"), /fitBounceLights\(\);/);
+});
+
+test("ambient occlusion reads normals from depth, not a normal target", () => {
+  assert.match(src, /aoPass = ADDONS\.ao\(depthNode, null, camera\);/);
+  assert.match(src, /scenePass\.setMRT\(TSL\.mrt\(\{ output: TSL\.output \}\)\);/);
+});
+
+test("a light that stops casting keeps its shadow node", async () => {
+  const gpu = (await readFile(join(root, "js/gpu.js"), "utf8")).replace(/\r\n/g, "\n");
+  assert.match(gpu, /function keepShadowNodes\(\)/);
+  assert.match(gpu, /this\.shadowNode = null;.*\n\s*try \{ return setup\.call\(this, builder\); \} finally \{ this\.shadowNode = keep; \}/);
+  assert.match(gpu, /export function createRenderer\(opts\) \{\n  keepShadowNodes\(\);/);
 });

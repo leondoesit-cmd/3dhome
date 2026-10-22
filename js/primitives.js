@@ -3,7 +3,7 @@ import { THREE, ADDONS } from "./three_lazy.js";
 import { S, fin, PHYSICS_MATS, MAT_PROPS, FABRIC, WOOD, TOP, BEDC, RUGC, STEEL, ISL, GREEN, CAB } from "./state.js";
 import { pbrPixels } from "./pbr_textures.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
-import { pbrEntryFor, pbrTextures, pbrDeferFallback, applyPbrMaps, legacyTextureUrl, sharedRepeat } from "./pbr_material.js";
+import { pbrEntryFor, pbrTextures, pbrDeferFallback, applyPbrMaps, legacyTextureUrl, sharedRepeat, noteTextureMiss } from "./pbr_material.js";
 
 // Classify a part's physical material from how it is actually rendered:
 // transmissive/transparent → glass, high metalness → metal, then the
@@ -116,7 +116,10 @@ export function applyTextureToMaterial(m, opt, width, height, depth) {
   // fetching is version>0 with `image === null` — and updateTexture() then
   // throws on `image.complete`, killing the render pass (black viewport).
   // The loader callback above flags a rebuild, which re-runs this with an image.
-  if (!S.customTexCache[texUrl].image) return;
+  if (!S.customTexCache[texUrl].image) {
+    noteTextureMiss(); // built without it: rebuilt when it lands
+    return;
+  }
   var maxDim = Math.max(Math.abs(width) || 0, Math.abs(depth) || 0) || 100;
   var scale = opt.texScale || 200;
   var ru = Math.max(maxDim / scale, 0.001), rv = Math.max((Math.abs(height) || 100) / scale, 0.001);

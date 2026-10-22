@@ -1,5 +1,5 @@
 import { newDocumentKey } from "./redesign.js";
-import { showcaseHouse } from "./demo_house.js";
+import { showcaseHouse, defaultApartment } from "./demo_house.js";
 import { initPlannerWorkflow } from "./planner_workflow.js";
 import { normalizePlanningGuide } from "./planning_guide.js";
 import { initPlanningGuide, openPlanningGuide } from "./ui_planning_guide.js";
@@ -18,7 +18,7 @@ import {
   syncPlanStyleUI,
   syncCutawayUI,
 } from "./ui.js";
-import { defaultScene, emptyScene, FURN } from "./furniture.js";
+import { emptyScene, FURN } from "./furniture.js";
 import { rebuildProject } from "./core/project.js";
 import { setTool } from "./interaction.js";
 import { resetLayers, saveLayers } from "./layers.js";
@@ -280,7 +280,7 @@ function refreshAfterScene() {
      rebuildProject's own garbage collection is what removes them. The three
      in-home game modes build their courses from that map, so a skipped rebuild
      left them climbing furniture that is no longer in the plan. main.js
-     already does this after its own defaultScene() call at boot. */
+     already does this after its own defaultApartment() call at boot. */
   rebuildProject(S, FURN);
   loadMEP(S.mep || null);
   refreshMEPPanel();
@@ -331,7 +331,7 @@ function applyStart(kind) {
     loadMEP(null);
     setTool(intention === "explore" ? "select" : "rect");
   } else if (kind === "demo") {
-    defaultScene();
+    defaultApartment();
     S.workspace.guidance = normalizePlanningGuide(null);
     loadMEP(null);
     setTool("select");

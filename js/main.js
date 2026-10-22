@@ -8,7 +8,8 @@ import { solveRoomCons } from "./room_cons.js";
 
 import { roomHidden } from "./geometry.js";
 import { pushHistory } from "./history.js";
-import { FURN, flabel, clabel, defaultScene } from "./furniture.js";
+import { FURN, flabel, clabel } from "./furniture.js";
+import { defaultApartment } from "./demo_house.js";
 import { init3D, has3D, frameView, frameDollhouse, setSize } from "./view3d.js";
 import { fitView, render2D, sizeCanvas, initPlanGizmo } from "./plan2d.js";
 import {
@@ -340,7 +341,7 @@ onLangChange(function () {
 });
 
 // scene data BEFORE the 3D render loop starts (its first frame runs synchronously)
-defaultScene();
+defaultApartment();
 rebuildProject(S, FURN);
 /* init3D() used to run HERE, which put three.js (3.5 MB) on the synchronous
    boot path: nothing below could run until the renderer had been fetched,

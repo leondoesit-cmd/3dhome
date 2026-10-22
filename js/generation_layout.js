@@ -177,7 +177,7 @@ export function generationPlan(size, replace, state, seed, constraints={}) {
   if (size === "random") {
     layout = randomLayout(seed);
   } else {
-    layout = LAYOUTS[size] || LAYOUTS["small"];
+    layout = LAYOUTS[size] || LAYOUTS["large"];
     // Clone layout because we might shift it
     layout = JSON.parse(JSON.stringify(layout));
   }
