@@ -74,7 +74,8 @@ function texUnpack(key, value) {
    entry, as `spatial` — so it is dropped here and re-captured on the way back
    in. And an INACTIVE floor's scene is not touched at all between edits, so it
    can be shared by reference: captureFloor() replaces the active floor's scene
-   object, which is the only one that ever needs a new token. Same bargain as
+   object, and cross-storey edits must also replace the scene they change.
+   Each replacement receives a new token. Same bargain as
    the texture pool above, and bounded the same way — by the number of distinct
    storey scenes in a session, not by the number of edits. */
 const baselinePool = new Map(), baselineTokens = new WeakMap();

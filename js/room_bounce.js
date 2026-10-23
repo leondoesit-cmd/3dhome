@@ -140,6 +140,15 @@ export function roomIrradiance(rooms, sources, rho, wallH) {
   });
 }
 
+/* An unfinished room often has neither windows nor lamps. In the daylight
+   dollhouse editor its hidden ceiling must not make finishes impossible to
+   inspect. This is a view-only irradiance floor, never a physical source:
+   walkthroughs, night views and covered models keep the physical lighting. */
+export function roomInspectionFill({ walk, showCeiling, covered, daylight, physicalMode }) {
+  if (walk || showCeiling || covered || physicalMode) return 0;
+  return 0.35 * Math.max(0, Math.min(1, Number(daylight) || 0));
+}
+
 /* ---- the same map stops the lights that cannot cast ----
    A light with a shadow map is stopped by the walls it sees. One without is a
    sphere: it lit the room behind a partition as brightly as its own (a floor
@@ -228,6 +237,9 @@ export function createRoomBounce(THREE, TSL, opts) {
   var span = TSL.uniform(1);
   var ceilTop = TSL.uniform(250);
   var masksOn = TSL.uniform(1).onRenderUpdate(function () { return opts.masks && !opts.masks() ? 0 : 1; });
+  var inspection = TSL.uniform(0).onRenderUpdate(function () {
+    return opts.inspection ? opts.inspection() : 0;
+  });
   var one = TSL.float(1);
 
   // every read is the same texture, so a material binds it once; always mip
@@ -297,7 +309,11 @@ export function createRoomBounce(THREE, TSL, opts) {
       return "RoomBounceLightNode";
     }
     setup(builder) {
-      builder.context.irradiance.addAssign(this.colorNode.mul(planTexel().rgb));
+      var texel = planTexel();
+      // Only room interiors receive the editor fill; keep the outdoor rig and
+      // every brighter room unchanged. No extra light or shader variants.
+      var fill = inspection.mul(TSL.step(0.5, texel.a));
+      builder.context.irradiance.addAssign(this.colorNode.mul(TSL.max(texel.rgb, TSL.vec3(fill))));
     }
   }
 

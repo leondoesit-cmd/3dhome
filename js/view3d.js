@@ -46,7 +46,7 @@ import { FURN, lampColor, buildItem as buildFurn, elevOffset, itemVSpan } from "
 import { refreshRuntimePlacements } from "./core/runtime.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
 import { pbrEntryFor, pbrTextures, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById, sharedRepeat, textureMisses } from "./pbr_material.js";
-import { createRoomBounce, roomIrradiance, spotFlux, pointFlux, lightMaskRoom, SKY_ONLY, UNMASKED } from "./room_bounce.js";
+import { createRoomBounce, roomIrradiance, roomInspectionFill, spotFlux, pointFlux, lightMaskRoom, SKY_ONLY, UNMASKED } from "./room_bounce.js";
 import { HumanFactory } from "./human.js";
 import { SITE, llToLocalCm } from "./site.js";
 import {
@@ -5443,7 +5443,15 @@ function build3D() {
   // Its plan map also keeps the sky and every unshadowed light out of the
   // rooms they cannot reach (see fitLightMasks); a game grading the house
   // with its own rig holds the masks off.
-  roomBounce = createRoomBounce(THREE, TSL, { masks: function () { return !gameRendererLock && !relightHooks.length; } });
+  roomBounce = createRoomBounce(THREE, TSL, {
+    masks: function () { return !gameRendererLock && !relightHooks.length; },
+    inspection: function () {
+      return roomInspectionFill({
+        walk, showCeiling: S.showCeiling, covered: !!S.roof && !S.invisibleRoof,
+        daylight: S.dayK, physicalMode: gameRendererLock || relightHooks.length > 0,
+      });
+    },
+  });
   roomBounce.register(renderer);
   roomBounce.confineSky(scene);
   scene.add(roomBounce.light);
