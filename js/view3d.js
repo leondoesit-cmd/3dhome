@@ -16,7 +16,7 @@ import { createCameraSweep } from './camera_sweep.js';
 // node graph: GTAO replaces SSAO (ground-truth occlusion, far fewer artifacts)
 // and TRAA replaces FXAA (temporal, resolves edges instead of blurring them).
 import { THREE, TSL, ADDONS, loadThree, threeLoaded } from "./three_lazy.js";
-import { createRenderer, LUX, legacyIntensity, retainShaderCaches } from "./gpu.js";
+import { createRenderer, LUX, legacyIntensity } from "./gpu.js";
 import { primeGpuTier } from "./material_tier.js";
 import {
   S,
@@ -5382,9 +5382,6 @@ function build3D() {
   // this has to do is wake it once the backend is live and report which one we
   // actually got — useful when a machine silently lands on the WebGL2 fallback.
   renderer.init().then(function () {
-    // the dusk and dawn shadow handoffs re-key every material; keep the
-    // other half of the day's shaders instead of rebuilding them each time
-    retainShaderCaches(renderer);
     // Anything that needed real GPU work during init3D was deferred to here.
     // applyEnv() rebuilds the IBL/PMREM environment, the sky and the sun from
     // current state, so re-running it is the whole catch-up.
