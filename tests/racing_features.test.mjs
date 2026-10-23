@@ -363,6 +363,13 @@ test("tyre marks fade through a node material", async () => {
   assert.match(traffic, /uniform\(0\), uLife: uniform\(SKID_LIFE\)/);
 });
 
+test("a time-of-day switch refills the cars' environment instead of replacing it", async () => {
+  const sky = await read("js/drive_sky.js");
+  // a new PMREM target re-keyed every car material (prefilterInto: tests/sky_model.test.mjs)
+  assert.match(sky, /const rt = prefilterInto\(D\.pmrem, D\.envTex, D\.envRT\);\s*if \(rt === D\.envRT\) return;/);
+  assert.doesNotMatch(sky, /D\.pmrem\.fromEquirectangular\(D\.envTex\)/);
+});
+
 test("a retired environment map waits for the frames that used it", async () => {
   const [sky, drive] = await Promise.all([read("js/drive_sky.js"), read("js/drive.js")]);
   assert.match(sky, /ENV_RETIRE_FRAMES/);
