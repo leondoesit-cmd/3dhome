@@ -157,6 +157,58 @@ function keepShadowNodes() {
   A.__keepsShadowNode = true;
 }
 
+/* three r185 frees a shader the moment no object uses it: NodeManager.delete
+   drops the node-builder state, Pipelines._releasePipeline/_releaseProgram
+   the pipeline and its programs. A change that re-keys every material — a
+   light starting or stopping to cast, which three hashes into every lit
+   material — then rebuilds all of them, and changing back rebuilds them
+   again. The planner does exactly that twice an evening (the shadow budget
+   hands the maps from the sun and windows to the ceiling lamps, then the sun
+   sets) and once a morning: ~0.8 s each on a large flat, every time.
+   Retire instead of free: a released entry stays where three looks for it,
+   so the next request for that key is an ordinary cache hit, and only the
+   `cap` least recently released are really freed. Leans on three's
+   internals (tests/shader_retain.test.mjs pins them). */
+export function retainShaderCaches(r, cap) {
+  var nodes = r && r._nodes, pipes = r && r._pipelines;
+  if (!nodes || !(nodes.nodeBuilderCache instanceof Map) || !pipes ||
+      typeof pipes._releasePipeline !== "function" || typeof pipes._releaseProgram !== "function") {
+    if (!retainShaderCaches.warned) console.warn("gpu.js: three's shader caches changed; retainShaderCaches is off (re-check it against this three)");
+    retainShaderCaches.warned = true;
+    return false;
+  }
+  if (pipes.__retainsShaders) return true;
+  cap = cap || 256;
+  var retired = new Map(); // entry -> really free it; oldest release first
+  function retire(entry, free) {
+    retired.delete(entry);
+    retired.set(entry, free);
+    while (retired.size > cap) {
+      var old = retired.keys().next().value, freeOld = retired.get(old);
+      retired.delete(old);
+      if (old.usedTimes === 0) freeOld(); // a revived entry is simply in use again
+    }
+  }
+  var cache = nodes.nodeBuilderCache, drop = cache.delete;
+  cache.delete = function (key) {
+    var state = cache.get(key);
+    if (state === undefined) return false;
+    retire(state, function () { if (cache.get(key) === state) drop.call(cache, key); });
+    return true;
+  };
+  var releasePipeline = pipes._releasePipeline, releaseProgram = pipes._releaseProgram;
+  pipes._releasePipeline = function (pipeline) {
+    var self = this;
+    retire(pipeline, function () { if (self.caches.get(pipeline.cacheKey) === pipeline) releasePipeline.call(self, pipeline); });
+  };
+  pipes._releaseProgram = function (program) {
+    var self = this;
+    retire(program, function () { if (self.programs[program.stage].get(program.code) === program) releaseProgram.call(self, program); });
+  };
+  pipes.__retainsShaders = true;
+  return true;
+}
+
 export function createRenderer(opts) {
   keepShadowNodes();
   opts = Object.assign({}, opts || {});

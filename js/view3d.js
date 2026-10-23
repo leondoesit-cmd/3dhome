@@ -16,7 +16,7 @@ import { createCameraSweep } from './camera_sweep.js';
 // node graph: GTAO replaces SSAO (ground-truth occlusion, far fewer artifacts)
 // and TRAA replaces FXAA (temporal, resolves edges instead of blurring them).
 import { THREE, TSL, ADDONS, loadThree, threeLoaded } from "./three_lazy.js";
-import { createRenderer, LUX, legacyIntensity } from "./gpu.js";
+import { createRenderer, LUX, legacyIntensity, retainShaderCaches } from "./gpu.js";
 import { primeGpuTier } from "./material_tier.js";
 import {
   S,
@@ -111,7 +111,7 @@ import { classifyOpeningCut, clipTrianglesBelowY, topFaceTriangles, cutHeightFor
 import { nearCutOn, cutStyle, STUB_HEIGHT, FADE_LEVEL } from "./wall_view.js";
 import { itemUserVis, itemUserUnpickable } from "./user_layers.js";
 import { siteLayout } from "./site_dressing.js";
-import { skyPixels } from "./sky_model.js";
+import { skyPixels, prefilterInto } from "./sky_model.js";
 
 /* "Is there a live 3D scene?" — a QUESTION now, not a load-time constant.
    It used to be `typeof THREE !== "undefined"`, i.e. always true, evaluated the
@@ -4393,6 +4393,7 @@ function lerpC(a, b, t) {
 // Called from applyEnv whenever the sky colors change (not per-frame — PMREM is costly).
 var lastSkyKey = null;
 var lastEnvKey = null; // skip the costly PMREM re-prefilter when the sky palette is unchanged
+var hdrSkyTex = null; // the half-float sky that is prefiltered into envRT
 /* The environment as a half-float procedural sky (js/sky_model.js): linear
    radiance with the sun's glow and disc above 1, so glossy surfaces show a
    real highlight and the prefiltered fill is brighter on the sun's side.
@@ -4411,14 +4412,21 @@ function hdrSkyTexture(zenC, horC, groundHex, sunDir, sunCol, day) {
       sunI: 30 * day,
       glowI: 0.9 * day,
     };
-    var f = skyPixels(W, H, [sunDir.x, sunDir.y, sunDir.z], p), half = new Uint16Array(f.length);
+    var f = skyPixels(W, H, [sunDir.x, sunDir.y, sunDir.z], p);
+    // one texture for the session, refilled in place: a new one per hour
+    // was a fresh GPU allocation for a picture of the same size and format
+    var tex = hdrSkyTex;
+    if (!tex) {
+      tex = new THREE.DataTexture(new Uint16Array(f.length), W, H, THREE.RGBAFormat, THREE.HalfFloatType);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.colorSpace = THREE.LinearSRGBColorSpace;
+      tex.minFilter = tex.magFilter = THREE.LinearFilter;
+      tex.generateMipmaps = false;
+    }
+    var half = tex.image.data;
     for (var i = 0; i < f.length; i++) half[i] = THREE.DataUtils.toHalfFloat(f[i]);
-    var tex = new THREE.DataTexture(half, W, H, THREE.RGBAFormat, THREE.HalfFloatType);
-    tex.mapping = THREE.EquirectangularReflectionMapping;
-    tex.colorSpace = THREE.LinearSRGBColorSpace;
-    tex.minFilter = tex.magFilter = THREE.LinearFilter;
-    tex.generateMipmaps = false;
     tex.needsUpdate = true;
+    hdrSkyTex = tex;
     return tex;
   } catch (e) {
     return null;
@@ -4449,14 +4457,8 @@ function updateEnvMap(zenC, horC, groundHex, sunDir, sunCol, day) {
   var hdr = sunDir ? hdrSkyTexture(zenC, horC, groundHex, sunDir, sunCol || new THREE.Color(0xffffff), day || 0) : null;
   if (hdr) {
     var hrt = null;
-    try { hrt = pmrem.fromEquirectangular(hdr); } catch (e) { hrt = null; }
-    hdr.dispose();
-    if (hrt) {
-      if (envRT) envRT.dispose();
-      envRT = hrt;
-      scene.environment = hrt.texture;
-      return;
-    }
+    try { hrt = prefilterSky(hdr); } catch (e) { hrt = null; }
+    if (hrt) return;
   }
   var ex = envSrcCanvas.getContext("2d"),
     H = envSrcCanvas.height,
@@ -4472,10 +4474,20 @@ function updateEnvMap(zenC, horC, groundHex, sunDir, sunCol, day) {
   ex.fillStyle = grd;
   ex.fillRect(0, 0, envSrcCanvas.width, H);
   envSrcTex.needsUpdate = true;
-  var rt = pmrem.fromEquirectangular(envSrcTex);
-  if (envRT) envRT.dispose();
-  envRT = rt;
+  prefilterSky(envSrcTex);
+}
+/* Prefilter `src` into the environment the scene already holds (see
+   prefilterInto): same target, new pixels. A new target per sky re-keyed
+   every lit material (~640 ms per time-of-day step on a large flat), and a
+   target disposed while a bind group still holds it fails the next submit. */
+function prefilterSky(src) {
+  var rt = prefilterInto(pmrem, src, envRT);
+  if (rt !== envRT) {
+    if (envRT) envRT.dispose();
+    envRT = rt;
+  }
   scene.environment = rt.texture;
+  return rt;
 }
 
 export function applyEnv() {
@@ -5382,6 +5394,9 @@ function build3D() {
   // this has to do is wake it once the backend is live and report which one we
   // actually got — useful when a machine silently lands on the WebGL2 fallback.
   renderer.init().then(function () {
+    // the dusk and dawn shadow handoffs re-key every material; keep the
+    // other half of the day's shaders instead of rebuilding them each time
+    retainShaderCaches(renderer);
     // Anything that needed real GPU work during init3D was deferred to here.
     // applyEnv() rebuilds the IBL/PMREM environment, the sky and the sun from
     // current state, so re-running it is the whole catch-up.
