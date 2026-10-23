@@ -149,3 +149,14 @@ test("a light that stops casting keeps its shadow node", async () => {
   assert.match(gpu, /this\.shadowNode = null;.*\n\s*try \{ return setup\.call\(this, builder\); \} finally \{ this\.shadowNode = keep; \}/);
   assert.match(gpu, /export function createRenderer\(opts\) \{\n  keepShadowNodes\(\);/);
 });
+
+test("the inspector preview draws the planner scene with the planner's light masks", async () => {
+  const preview = (await readFile(join(root, "js/inspector_preview.js"), "utf8")).replace(/\r\n/g, "\n");
+  assert.match(preview, /if \(!plannerLights\) plannerLights = registerPlannerLights\(renderer\);/);
+  assert.match(between("export function registerPlannerLights(", "export function getMainScene()"), /roomBounce\.register\(r\);/);
+  // each light keeps the mask it would have without a shadow map (effectiveMaskRoom)
+  const fit = between("function fitLightMasks()", "function lightFlux(");
+  assert.match(fit, /l\.userData\.maskRoomUnshadowed = lightMaskRoom\(rooms, l\.position\.x, l\.position\.z, false\);/);
+  assert.match(fit, /o\.userData\.maskRoomUnshadowed = lightMaskRoom\(rooms, it\.x, it\.z, false\);/);
+  assert.match(fit, /sun\.userData\.maskRoomUnshadowed = SKY_ONLY;/);
+});

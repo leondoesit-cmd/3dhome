@@ -23,6 +23,7 @@ import {
   skyAdmits,
   ceilingTop,
   packPlanMap,
+  effectiveMaskRoom,
 } from "../js/room_bounce.js";
 
 const rect = (x0, z0, x1, z1, ceilH = 250) => ({
@@ -177,4 +178,19 @@ test("the map's alpha is the room number the lights are masked to", () => {
   assert.deepEqual(at(-20, 200), [0, 0, 0, 0], "outside every room: no bounce, room 0");
   assert.equal(roomNumberAt(twoRooms, 600, 200), 2);
   assert.equal(roomNumberAt(twoRooms, -20, 200), 0);
+});
+
+test("a casting light falls back to its room where no shadow map is drawn", () => {
+  // the lamp beside the partition casts in the main view...
+  const casting = lightMaskRoom(twoRooms, 365, 200, true), own = lightMaskRoom(twoRooms, 365, 200, false);
+  assert.equal(effectiveMaskRoom(casting, own, true), UNMASKED, "its shadow map stops it");
+  // ...but the inspector preview draws no shadows: there it is masked to its room
+  const preview = effectiveMaskRoom(casting, own, false);
+  assert.equal(preview, 1);
+  assert.ok(!reaches(preview, bathSide), "so it does not light the bathroom side of the wall");
+  // the sun: shadowed in the main view, sky-only without its map
+  assert.equal(effectiveMaskRoom(UNMASKED, SKY_ONLY, false), SKY_ONLY);
+  // a light the planner never masked (a game's, the preview's studio lights) stays stock
+  assert.equal(effectiveMaskRoom(undefined, undefined, false), UNMASKED);
+  assert.equal(effectiveMaskRoom(2, 2, false), 2);
 });

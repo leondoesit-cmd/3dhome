@@ -5,7 +5,7 @@ import { t, onLangChange } from "./i18n.js";
 import { THREE, threeLoaded } from "./three_lazy.js";
 import { S } from "./state.js";
 import { createRenderer, ready, render as renderGPU } from "./gpu.js";
-import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D, init3D } from "./view3d.js";
+import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D, init3D, registerPlannerLights } from "./view3d.js";
 import { wallById, wallGeom, wallTangentAt } from "./geometry.js";
 
 var host = null,
@@ -14,6 +14,7 @@ var host = null,
   resetBtn = null,
   roofBtn = null,
   renderer = null,
+  plannerLights = false, // registerPlannerLights has run on this renderer
   camera = null,
   overlayScene = null,
   overlayRoot = null,
@@ -235,6 +236,10 @@ function paint() {
     height = Math.max(2, Math.round(rect.height));
   if (width <= 2 || height <= 2) return;
   renderer.shadowMap.enabled = !!S.invisibleRoof;
+  // the planner's light classes (room bounce, and the masks that stop the
+  // sky and every light without a drawn shadow map at walls and ceilings);
+  // stock nodes here showed light through every wall
+  if (!plannerLights) plannerLights = registerPlannerLights(renderer);
   renderer.setSize(width, height, false);
   updateCamera(width, height);
   scene.updateMatrixWorld(true);

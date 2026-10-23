@@ -178,6 +178,14 @@ export function facingRoom(grid, x, z, nx, nz) {
 export function skyAdmits(room, y, ny, ceilTop) {
   return room === 0 || y + (ny || 0) * NORMAL_REACH_CM > ceilTop;
 }
+/* The mask a light gets in ONE renderer. A light that casts is left to its
+   shadow map (UNMASKED), but only where that map is drawn: a renderer with
+   shadows off (the inspector preview) would let it through every wall, so
+   there it falls back to the mask it would have without a shadow. */
+export function effectiveMaskRoom(maskRoom, unshadowed, shadowedHere) {
+  if (maskRoom === UNMASKED && !shadowedHere && unshadowed != null) return unshadowed;
+  return maskRoom == null ? UNMASKED : maskRoom;
+}
 export function maskAdmits(maskRoom, room, underSky) {
   if (maskRoom === SKY_ONLY) return !!underSky;
   return maskRoom === UNMASKED || maskRoom === room;
@@ -257,8 +265,9 @@ export function createRoomBounce(THREE, TSL, opts) {
       }
       update(frame) {
         super.update(frame);
-        var m = this.light.userData.maskRoom;
-        this.maskRoomNode.value = m == null ? UNMASKED : m;
+        var ud = this.light.userData, r = frame && frame.renderer;
+        var shadowedHere = !!(this.light.castShadow && r && r.shadowMap && r.shadowMap.enabled);
+        this.maskRoomNode.value = effectiveMaskRoom(ud.maskRoom, ud.maskRoomUnshadowed, shadowedHere);
       }
       setupDirect(builder) {
         var d = super.setupDirect(builder);

@@ -205,6 +205,14 @@ var SV_CAM_H = 250, // backdrop center height on floor 0 (cm, ~pano eye level)
   // angle (as if the facing facade were ~SV_BLDG_DIST away). floor=0 is level.
   SV_BLDG_DIST = 2000;
 
+/* A second renderer drawing the planner scene (the inspector preview) needs
+   the same light classes: the room-bounce light, and the masks that stop
+   unshadowed lights and the sky at walls and ceilings. */
+export function registerPlannerLights(r) {
+  if (!roomBounce || !r) return false;
+  roomBounce.register(r);
+  return true;
+}
 export function getMainScene() {
   return scene;
 }
@@ -3174,17 +3182,25 @@ function fitLightMasks() {
   var rooms = roomBounce.rooms();
   // the sky's own light reaches only what is under the open sky, and the sun
   // too whenever it has no shadow map to stop it at the roof (shadows off)
+  // maskRoomUnshadowed: the mask in a renderer that draws no shadow maps
+  // (the inspector preview), see effectiveMaskRoom
   if (hemi) hemi.userData.maskRoom = SKY_ONLY;
-  if (sun) sun.userData.maskRoom = sun.castShadow && renderer && renderer.shadowMap.enabled ? UNMASKED : SKY_ONLY;
+  if (sun) {
+    sun.userData.maskRoom = sun.castShadow && renderer && renderer.shadowMap.enabled ? UNMASKED : SKY_ONLY;
+    sun.userData.maskRoomUnshadowed = SKY_ONLY;
+  }
   windowLights.forEach(function (l) {
     l.userData.maskRoom = lightMaskRoom(rooms, l.position.x, l.position.z, l.castShadow);
+    l.userData.maskRoomUnshadowed = lightMaskRoom(rooms, l.position.x, l.position.z, false);
   });
   if (itemsRoot) itemsRoot.children.forEach(function (g) {
     var it = g.userData && g.userData.item;
     if (!it || !FURN[it.type] || !FURN[it.type].lamp) return;
     g.traverse(function (o) {
-      if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null)
+      if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) {
         o.userData.maskRoom = lightMaskRoom(rooms, it.x, it.z, o.castShadow);
+        o.userData.maskRoomUnshadowed = lightMaskRoom(rooms, it.x, it.z, false);
+      }
     });
   });
   needsRender = true;
