@@ -13,6 +13,16 @@ import {
   rasterRooms,
   roomAt,
   roomIrradiance,
+  NORMAL_REACH_CM,
+  UNMASKED,
+  SKY_ONLY,
+  roomNumberAt,
+  lightMaskRoom,
+  facingRoom,
+  maskAdmits,
+  skyAdmits,
+  ceilingTop,
+  packPlanMap,
 } from "../js/room_bounce.js";
 
 const rect = (x0, z0, x1, z1, ceilH = 250) => ({
@@ -95,4 +105,76 @@ test("flux of three's lights: 4πI for a point, the smoothstep cone for a spot",
 test("a source outside every room lights none of them", () => {
   const out = roomIrradiance([lounge, bath], [{ x: -300, z: 200, flux: 1e6, color: WHITE }], 0.5);
   assert.deepEqual(out, [[0, 0, 0], [0, 0, 0]]);
+});
+
+/* ---- the masks: the plan map stops what has no shadow map ----
+   A surface is a point and the normal of the face it lies on; the map gives
+   it a room number (0 outside), as each fragment reads it on the GPU. */
+const WALL_T = 12;
+const twoRooms = [lounge, bath];
+const grid2 = rasterRooms(twoRooms);
+const surface = (x, z, nx = 0, nz = 0, y = 100, ny = 0) => ({ room: facingRoom(grid2, x, z, nx, nz), y, ny });
+const reaches = (maskRoom, s) => maskAdmits(maskRoom, s.room, skyAdmits(s.room, s.y, s.ny, ceilingTop(twoRooms)));
+// the faces of the shared wall at x = 400, and of the lounge's outer wall at x = 0
+const loungeSide = surface(400 - WALL_T / 2, 200, -1, 0);
+const bathSide = surface(400 + WALL_T / 2, 200, 1, 0);
+const facade = surface(-WALL_T / 2, 200, -1, 0);
+const loungeInside = surface(WALL_T / 2, 200, 1, 0);
+
+test("a lamp without a shadow lights its own room and stops at the wall", () => {
+  // a floor lamp 35 cm from the partition: its sphere of light crosses it
+  const mask = lightMaskRoom(twoRooms, 365, 200, false);
+  assert.equal(mask, 1);
+  assert.ok(reaches(mask, surface(200, 200, 0, 0, 0, 1)), "the lounge floor");
+  assert.ok(reaches(mask, loungeSide), "its own face of the partition");
+  assert.ok(!reaches(mask, bathSide), "not the bathroom's face of it");
+  assert.ok(!reaches(mask, surface(450, 200, 0, 0, 0, 1)), "nor the bathroom floor just behind it");
+  assert.ok(!reaches(mask, facade), "nor the house's outside");
+});
+
+test("a light that casts is left to its shadow map", () => {
+  const mask = lightMaskRoom(twoRooms, 365, 200, true);
+  assert.equal(mask, UNMASKED);
+  // the shadow stops it at the wall and lets it through a doorway; the mask must not do either
+  assert.ok(reaches(mask, bathSide));
+});
+
+test("a lamp in the garden lights the facade, not the rooms behind it", () => {
+  const mask = lightMaskRoom(twoRooms, -120, 200, false);
+  assert.equal(mask, 0);
+  assert.ok(reaches(mask, facade));
+  assert.ok(!reaches(mask, loungeInside), "the inner face of the same wall stays dark");
+});
+
+test("the sky reaches only what no ceiling covers", () => {
+  const top = ceilingTop(twoRooms);
+  assert.equal(top, 250);
+  const sky = (s) => reaches(SKY_ONLY, s);
+  assert.ok(!sky(surface(600, 200, 0, 0, 0, 1)), "a windowless room's floor, under its hidden ceiling");
+  assert.ok(!sky(bathSide), "or its walls");
+  assert.ok(!sky(surface(600, 200, 0, 0, 250, -1)), "or the underside of its ceiling");
+  assert.ok(sky(surface(600, 200, 0, 0, 250, 1)), "the top of a flat roof is under the sky");
+  assert.ok(sky(surface(600, 200, 0, 0, 330, 0)), "and so is everything above the ceilings");
+  assert.ok(sky(facade), "an outer wall face");
+  assert.ok(sky(surface(-200, 200, 0, 0, 0, 1)), "the garden");
+  // a surface's room is read NORMAL_REACH_CM out along its normal: further than half a wall
+  assert.ok(NORMAL_REACH_CM > WALL_T / 2);
+});
+
+test("a taller room raises the line the sky starts at", () => {
+  assert.equal(ceilingTop([lounge, rect(400, 0, 800, 400, 320)]), 320);
+  assert.equal(ceilingTop([], 250), 250);
+});
+
+test("the map's alpha is the room number the lights are masked to", () => {
+  const out = packPlanMap(grid2, [[1, 2, 3], [4, 5, 6]], (v) => v, new Float32Array(GRID * GRID * 4));
+  const at = (x, z) => {
+    const i = Math.floor((x - grid2.x0) / grid2.cell), j = Math.floor((z - grid2.z0) / grid2.cell);
+    return Array.from(out.slice((j * GRID + i) * 4, (j * GRID + i) * 4 + 4));
+  };
+  assert.deepEqual(at(200, 200), [1, 2, 3, roomNumberAt(twoRooms, 200, 200)]);
+  assert.deepEqual(at(600, 200), [4, 5, 6, roomNumberAt(twoRooms, 600, 200)]);
+  assert.deepEqual(at(-20, 200), [0, 0, 0, 0], "outside every room: no bounce, room 0");
+  assert.equal(roomNumberAt(twoRooms, 600, 200), 2);
+  assert.equal(roomNumberAt(twoRooms, -20, 200), 0);
 });

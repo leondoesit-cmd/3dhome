@@ -140,19 +140,141 @@ export function roomIrradiance(rooms, sources, rho, wallH) {
   });
 }
 
-/* ---- the three.js half ---- */
-var NORMAL_REACH_CM = 15; // a wall face samples 15 cm out along its normal: its own room
+/* ---- the same map stops the lights that cannot cast ----
+   A light with a shadow map is stopped by the walls it sees. One without is a
+   sphere: it lit the room behind a partition as brightly as its own (a floor
+   lamp beside a wall lit a sealed bedroom at night). The sky was worse: the
+   environment map and the hemisphere light reach every surface, so a room
+   with no window was lit through its hidden ceiling. The plan map also holds,
+   per texel, which room it is (0 outside every room), and the GPU half reads
+   it per fragment, just as the bounce does:
+     - a light that does not cast lights only the surfaces of its own room
+       (a light outside every room, only what is outside);
+     - the sky lights only what is outside every room or above the ceilings,
+       and so does the sun while it has no shadow map (shadows off).
+   A surface's room is read a little way out along its normal, so the two
+   faces of a wall belong to the two sides they face. Both rules only ever
+   take light away where a wall or a ceiling stands; daylight still comes in
+   through the windows, carried by the window spots and the bounce. */
+export var NORMAL_REACH_CM = 15; // a wall face samples 15 cm out along its normal: its own room
+export var UNMASKED = -1; // a light that casts: its shadow map stops it at the walls
+export var SKY_ONLY = -2; // a light from the sky: it reaches what the sky reaches
 
-export function createRoomBounce(THREE, TSL) {
+/* the room number (rooms[i] -> i + 1, 0 outside every room) at a plan point */
+export function roomNumberAt(rooms, x, z) {
+  for (var i = 0; i < rooms.length; i++) if (pointInPoly(x, z, rooms[i].pts)) return i + 1;
+  return 0;
+}
+/* the room whose surfaces a light may reach: its own, or any if it casts */
+export function lightMaskRoom(rooms, x, z, casts) {
+  return casts ? UNMASKED : roomNumberAt(rooms, x, z);
+}
+/* the room number the map gives a surface at (x, z) facing along (nx, nz) */
+export function facingRoom(grid, x, z, nx, nz) {
+  return roomAt(grid, x + (nx || 0) * NORMAL_REACH_CM, z + (nz || 0) * NORMAL_REACH_CM) + 1;
+}
+/* the two rules the shaders below apply per fragment: is the surface under
+   the open sky, and does a light with this mask room reach it */
+export function skyAdmits(room, y, ny, ceilTop) {
+  return room === 0 || y + (ny || 0) * NORMAL_REACH_CM > ceilTop;
+}
+export function maskAdmits(maskRoom, room, underSky) {
+  if (maskRoom === SKY_ONLY) return !!underSky;
+  return maskRoom === UNMASKED || maskRoom === room;
+}
+/* the highest ceiling: a surface above it is under the open sky */
+export function ceilingTop(rooms, wallH) {
+  var top = 0;
+  rooms.forEach(function (r) { top = Math.max(top, r.ceilH || wallH || 250); });
+  return top || wallH || 250;
+}
+/* the map's texels: RGB the room's bounce irradiance, A its room number */
+export function packPlanMap(grid, perRoom, toHalf, out) {
+  var zero = toHalf(0), idx = grid.index;
+  var texel = perRoom.map(function (e, i) { return [toHalf(e[0]), toHalf(e[1]), toHalf(e[2]), toHalf(i + 1)]; });
+  for (var t = 0, n = idx.length; t < n; t++) {
+    var h = idx[t] ? texel[idx[t] - 1] : null, o = t * 4;
+    out[o] = h ? h[0] : zero;
+    out[o + 1] = h ? h[1] : zero;
+    out[o + 2] = h ? h[2] : zero;
+    out[o + 3] = h ? h[3] : zero;
+  }
+  return out;
+}
+
+/* ---- the three.js half ----
+   opts.masks(): false while a game's own grade holds the view (lava glowing
+   up from the floors), which turns both masks off. */
+export function createRoomBounce(THREE, TSL, opts) {
+  opts = opts || {};
   var data = new Uint16Array(GRID * GRID * 4);
   var map = new THREE.DataTexture(data, GRID, GRID, THREE.RGBAFormat, THREE.HalfFloatType);
-  map.magFilter = map.minFilter = THREE.LinearFilter;
+  // nearest: the alpha is a room number, and a blend of rooms 3 and 5 would
+  // read as room 4 (the irradiance is one value per room anyway)
+  map.magFilter = map.minFilter = THREE.NearestFilter;
   map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping;
   map.generateMipmaps = false;
   map.colorSpace = THREE.NoColorSpace; // irradiance, already linear
   map.needsUpdate = true;
   var origin = TSL.uniform(new THREE.Vector2(0, 0));
   var span = TSL.uniform(1);
+  var ceilTop = TSL.uniform(250);
+  var masksOn = TSL.uniform(1).onRenderUpdate(function () { return opts.masks && !opts.masks() ? 0 : 1; });
+  var one = TSL.float(1);
+
+  // every read is the same texture, so a material binds it once; always mip
+  // 0, which the environment pass would otherwise replace with its roughness
+  // level (the map has no other mips: they read as "outside every room")
+  function planTexel() {
+    var p = TSL.positionWorld.xz.add(TSL.normalWorld.xz.mul(NORMAL_REACH_CM));
+    return TSL.texture(map, p.sub(origin).div(span)).level(0);
+  }
+  function masked(open) {
+    return one.sub(masksOn.mul(one.sub(open)));
+  }
+  // 1 where the sky reaches the fragment (skyAdmits), 0 under a ceiling
+  function underSky() {
+    var inRoom = TSL.step(0.5, planTexel().a);
+    var above = TSL.step(ceilTop, TSL.positionWorld.y.add(TSL.normalWorld.y.mul(NORMAL_REACH_CM)));
+    return TSL.max(one.sub(inRoom), above);
+  }
+  function skyOpen() {
+    return masked(underSky());
+  }
+  // 1 where a light with this mask room reaches the fragment (maskAdmits)
+  function lightOpen(maskRoom) {
+    var sky = one.sub(TSL.step(SKY_ONLY + 0.5, maskRoom));
+    var any = TSL.step(SKY_ONLY + 0.5, maskRoom).mul(one.sub(TSL.step(UNMASKED + 0.5, maskRoom)));
+    var same = one.sub(TSL.step(0.5, TSL.abs(planTexel().a.sub(maskRoom))));
+    return masked(TSL.max(TSL.max(any, same), sky.mul(underSky())));
+  }
+  // light.userData.maskRoom picks the rule; a light without one is stock
+  function maskedLightNode(Base) {
+    return class extends Base {
+      constructor(light) {
+        super(light);
+        this.maskRoomNode = TSL.uniform(UNMASKED).setGroup(TSL.renderGroup);
+      }
+      update(frame) {
+        super.update(frame);
+        var m = this.light.userData.maskRoom;
+        this.maskRoomNode.value = m == null ? UNMASKED : m;
+      }
+      setupDirect(builder) {
+        var d = super.setupDirect(builder);
+        if (d && d.lightColor) d.lightColor = d.lightColor.mul(lightOpen(this.maskRoomNode));
+        return d;
+      }
+    };
+  }
+  // the stock HemisphereLightNode.setup, times its mask
+  class SkyHemisphereLightNode extends maskedLightNode(THREE.HemisphereLightNode) {
+    setup(builder) {
+      var w = TSL.normalWorld.dot(this.lightDirectionNode).mul(0.5).add(0.5);
+      var e = TSL.mix(this.groundColorNode, this.colorNode, w);
+      builder.context.irradiance.addAssign(e.mul(lightOpen(this.maskRoomNode)));
+    }
+  }
 
   class RoomBounceLight extends THREE.Light {
     constructor() {
@@ -166,39 +288,61 @@ export function createRoomBounce(THREE, TSL) {
       return "RoomBounceLightNode";
     }
     setup(builder) {
-      var p = TSL.positionWorld.xz.add(TSL.normalWorld.xz.mul(NORMAL_REACH_CM));
-      var e = TSL.texture(map, p.sub(origin).div(span)).rgb;
-      builder.context.irradiance.addAssign(this.colorNode.mul(e));
+      builder.context.irradiance.addAssign(this.colorNode.mul(planTexel().rgb));
     }
   }
 
   var light = new RoomBounceLight();
   light.userData.bounce = true; // exporters skip it: Blender does its own GI
-  var grid = rasterRooms([]);
+  var grid = rasterRooms([]), rooms = [];
 
   return {
     light: light,
     register: function (renderer) {
       renderer.library.addLight(RoomBounceLightNode, RoomBounceLight);
+      // the stock classes are already in this renderer's library and
+      // addLight will not redefine one; a light with no mask room set
+      // (anything a game adds) renders exactly as the stock node
+      var nodes = renderer.library.lightNodes;
+      nodes.set(THREE.PointLight, maskedLightNode(THREE.PointLightNode));
+      nodes.set(THREE.SpotLight, maskedLightNode(THREE.SpotLightNode));
+      nodes.set(THREE.DirectionalLight, maskedLightNode(THREE.DirectionalLightNode));
+      nodes.set(THREE.HemisphereLight, SkyHemisphereLightNode);
+    },
+    /* The scene's environment, stopped at the ceilings: the PMREM three
+       makes of scene.environment, times skyOpen. A getter, so a game that
+       nulls scene.environment for its own grade still turns it off, and a
+       new sky texture swaps into the same node. */
+    confineSky: function (scene) {
+      var pmrem = null, node = null;
+      Object.defineProperty(scene, "environmentNode", {
+        configurable: true,
+        get: function () {
+          var env = scene.environment;
+          if (!env || !env.isTexture) return null;
+          if (!pmrem) {
+            pmrem = TSL.pmremTexture(env);
+            node = pmrem.mul(skyOpen());
+          } else if (pmrem.value !== env) pmrem.value = env;
+          return node;
+        },
+      });
     },
     /* the rooms whose light it carries; the map follows on the next fit */
-    setRooms: function (rooms) {
-      grid = rasterRooms(rooms);
+    setRooms: function (shown, wallH) {
+      rooms = shown;
+      grid = rasterRooms(shown);
       origin.value.set(grid.x0, grid.z0);
       span.value = grid.cell * grid.size;
+      ceilTop.value = ceilingTop(shown, wallH);
+    },
+    /* the rooms the map numbers, in order: a light's mask room indexes them */
+    rooms: function () {
+      return rooms;
     },
     /* irradiance per room (linear RGB), in the order given to setRooms */
     setIrradiance: function (perRoom) {
-      var toHalf = THREE.DataUtils.toHalfFloat, zero = toHalf(0), one = toHalf(1);
-      var halves = perRoom.map(function (e) { return [toHalf(e[0]), toHalf(e[1]), toHalf(e[2])]; });
-      var idx = grid.index;
-      for (var t = 0, n = idx.length; t < n; t++) {
-        var h = idx[t] ? halves[idx[t] - 1] : null, o = t * 4;
-        data[o] = h ? h[0] : zero;
-        data[o + 1] = h ? h[1] : zero;
-        data[o + 2] = h ? h[2] : zero;
-        data[o + 3] = one;
-      }
+      packPlanMap(grid, perRoom, THREE.DataUtils.toHalfFloat, data);
       map.needsUpdate = true;
       light.userData.irradiance = perRoom; // for inspection from the console
     },

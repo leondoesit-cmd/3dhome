@@ -24,15 +24,37 @@ test("shadows use the PCF filter that reads shadow.radius", () => {
 });
 
 test("no light reaches a room except through its openings", () => {
-  // the fill light stays dark: nothing may shine down through a hidden ceiling
-  assert.match(between("export function applyEnv()", "var relightHooks"), /flt\.intensity = LUX \* 0\.0;/);
+  // wiring only — which surface each mask lets light reach is in room_bounce.test.mjs
+  // no fill light: a shadowless directional shone through every wall and ceiling
+  assert.doesNotMatch(src, /new THREE\.DirectionalLight\(0xeaf0ff/);
   assert.doesNotMatch(src, /SKY_CASTER_LAYER/);
   const fit = between("function fitPracticalLights()", "function tagItemPhysicsRole");
   assert.match(fit, /!room && gap < o\.distance/, "a lamp outside every room that reaches the house is found");
   assert.match(fit, /rank: 0/, "and it is first in line for a shadow");
-  assert.match(fit, /k\.l\.distance = k\.clip/, "over budget it stops at the wall instead");
+  assert.match(fit, /fitLightMasks\(\);/, "whatever is left without a shadow is masked to its room");
+  const masks = between("function fitLightMasks()", "function lightFlux(");
+  assert.match(masks, /lightMaskRoom\(rooms, l\.position\.x, l\.position\.z, l\.castShadow\)/, "window daylight");
+  assert.match(masks, /lightMaskRoom\(rooms, it\.x, it\.z, o\.castShadow\)/, "lamps");
+  assert.match(masks, /hemi\.userData\.maskRoom = SKY_ONLY;/, "the sky light stops at the ceilings");
+  assert.match(masks, /sun\.castShadow && renderer && renderer\.shadowMap\.enabled \? UNMASKED : SKY_ONLY/,
+    "and so does a sun with no shadow map");
+  assert.match(between("function buildBounceLights(", "function fitLightMasks("), /fitLightMasks\(\);/,
+    "renumbered rooms re-mask the lights");
   const ops = between("function applyItemOps()", "// Zero opacity keeps");
-  assert.match(ops, /if \(lampMoved\) fitPracticalLights\(\);/, "a dragged lamp takes its clip and shadow along");
+  assert.match(ops, /if \(lampMoved\) fitPracticalLights\(\);/, "a dragged lamp takes its mask and shadow along");
+});
+
+test("the shaders read the room map the masks are written in", async () => {
+  // GPU-only: Node cannot build the node materials
+  const rb = (await readFile(join(root, "js/room_bounce.js"), "utf8")).replace(/\r\n/g, "\n");
+  assert.match(rb, /TSL\.texture\(map, p\.sub\(origin\)\.div\(span\)\)\.level\(0\)/,
+    "mip 0 always: the environment pass samples at its roughness level, and the map has no other mips");
+  assert.match(rb, /map\.magFilter = map\.minFilter = THREE\.NearestFilter;/, "room numbers are never blended");
+  assert.match(rb, /nodes\.set\(THREE\.PointLight, maskedLightNode\(THREE\.PointLightNode\)\);/);
+  assert.match(rb, /nodes\.set\(THREE\.SpotLight, maskedLightNode\(THREE\.SpotLightNode\)\);/);
+  assert.match(rb, /nodes\.set\(THREE\.DirectionalLight, maskedLightNode\(THREE\.DirectionalLightNode\)\);/);
+  assert.match(rb, /nodes\.set\(THREE\.HemisphereLight, SkyHemisphereLightNode\);/);
+  assert.match(rb, /node = pmrem\.mul\(skyOpen\(\)\);/, "the environment map stops at the ceilings");
 });
 
 test("every casting light shares one budget under the 16-texture stage limit", () => {
@@ -108,7 +130,8 @@ test("each lit room fills itself with the light that enters it", () => {
   assert.match(fit, /windowLights\.forEach/, "daylight entering through the room's windows");
   assert.match(fit, /FURN\[it\.type\]\.lamp/, "and its lamps at night");
   assert.match(fit, /roomBounce\.setIrradiance\(roomIrradiance\(/);
-  assert.match(between("function build3D()", "ready3D = true;"), /roomBounce\.register\(renderer\);\n  scene\.add\(roomBounce\.light\);/,
+  assert.match(between("function build3D()", "ready3D = true;"),
+    /roomBounce\.register\(renderer\);\n  roomBounce\.confineSky\(scene\);\n  scene\.add\(roomBounce\.light\);/,
     "one light, registered with the renderer, for the life of the view");
   assert.doesNotMatch(between("var BOUNCE_RHO", "function roomContaining("), /\.visible =|takeLight\(/,
     "never toggled or swapped: the light set every shader is keyed on stays put");

@@ -16,7 +16,7 @@ import { createCameraSweep } from './camera_sweep.js';
 // node graph: GTAO replaces SSAO (ground-truth occlusion, far fewer artifacts)
 // and TRAA replaces FXAA (temporal, resolves edges instead of blurring them).
 import { THREE, TSL, ADDONS, loadThree, threeLoaded } from "./three_lazy.js";
-import { createRenderer, LUX, legacyIntensity } from "./gpu.js";
+import { createRenderer, LUX, legacyIntensity, retainShaderCaches } from "./gpu.js";
 import { primeGpuTier } from "./material_tier.js";
 import {
   S,
@@ -46,7 +46,7 @@ import { FURN, lampColor, buildItem as buildFurn, elevOffset, itemVSpan } from "
 import { refreshRuntimePlacements } from "./core/runtime.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
 import { pbrEntryFor, pbrTextures, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById, sharedRepeat, textureMisses } from "./pbr_material.js";
-import { createRoomBounce, roomIrradiance, spotFlux, pointFlux } from "./room_bounce.js";
+import { createRoomBounce, roomIrradiance, spotFlux, pointFlux, lightMaskRoom, SKY_ONLY, UNMASKED } from "./room_bounce.js";
 import { HumanFactory } from "./human.js";
 import { SITE, llToLocalCm } from "./site.js";
 import {
@@ -186,7 +186,7 @@ export function has3D() {
    instead of building a second renderer on the same canvas. */
 var init3DPromise = null;
 
-var scene, renderer, camera, dyn, sun, hemi, flt, stars, selectionOutline;
+var scene, renderer, camera, dyn, sun, hemi, stars, selectionOutline;
 // real-world site overlay (js/site.js): aerial ground group + street-view skybox.
 // Both live on `scene` (not `dyn`) so they survive rebuild3D's dyn.clear().
 var siteGroup = null, // holds the aerial ground plane, rotated by groundRot
@@ -223,7 +223,8 @@ export function getDynGroup() {
 }
 // the scene's key lights, so a mode can save/restore the whole lighting rig
 export function getRigLights() {
-  return { sun: sun, hemi: hemi, fill: flt, stars: stars, sky: skyDome };
+  // no fill light: a directional fill shone through every wall and ceiling
+  return { sun: sun, hemi: hemi, fill: null, stars: stars, sky: skyDome };
 }
 // A detached copy of the live selection bounds for secondary cameras such as
 // the inspector preview. Returning a clone prevents its fit calculations from
@@ -3072,7 +3073,8 @@ export function rebuild3D() {
     var wp = wallPointAt(w, s);
     // Sky light pours IN through the glass: a wide spot just inside the room
     // the window serves, aimed into it and slightly down, with its throw
-    // stopped at that room. A point light on the wall centre line lit the
+    // stopped at that room (its far corner, and while it does not cast, the
+    // room mask: see fitLightMasks). A point light on the wall centre line lit the
     // facade and the room behind a partition as much as the room with the
     // window, and pulled inside it burned a hotspot onto the window wall.
     var inset = (w.thickness || WALL_T) / 2 + 4, lightRoom = null, lx = wp.x, lz = wp.z, nx = 0, nz = 0;
@@ -3138,7 +3140,9 @@ export function rebuild3D() {
    door as brightly as its own. Each lamp's range is clipped to the farthest
    corner of the room it hangs in — the physical falloff window is smooth, so
    the clip itself never shows — while its intensity stays calibrated to its
-   own catalogue throw. At dusk and at night (when practicals carry the scene)
+   own catalogue throw. A sphere that fills the corners still crosses the
+   nearest wall, so a lamp that does not cast is also masked to its own room
+   (fitLightMasks). At dusk and at night (when practicals carry the scene)
    the main ceiling fixture of each room also casts a soft shadow, so furniture
    sits on the floor instead of floating in flat light. Shadow maps update on
    demand only, so the cost is paid when something moves, not every frame. */
@@ -3157,9 +3161,33 @@ function buildBounceLights(rooms) {
   var same = shown.length === bounceRooms.length && shown.every(function (r, i) { return r === bounceRooms[i]; });
   if (!same) {
     bounceRooms = shown;
-    roomBounce.setRooms(shown);
+    roomBounce.setRooms(shown, WALL_H);
   }
+  fitLightMasks(); // the rooms may have been renumbered
   fitBounceLights();
+}
+/* Which room each unshadowed light may light (see js/room_bounce.js): its
+   own, numbered as the plan map numbers them. A casting light is stopped by
+   its shadow map, so it keeps reaching through a doorway into the next room. */
+function fitLightMasks() {
+  if (!roomBounce) return;
+  var rooms = roomBounce.rooms();
+  // the sky's own light reaches only what is under the open sky, and the sun
+  // too whenever it has no shadow map to stop it at the roof (shadows off)
+  if (hemi) hemi.userData.maskRoom = SKY_ONLY;
+  if (sun) sun.userData.maskRoom = sun.castShadow && renderer && renderer.shadowMap.enabled ? UNMASKED : SKY_ONLY;
+  windowLights.forEach(function (l) {
+    l.userData.maskRoom = lightMaskRoom(rooms, l.position.x, l.position.z, l.castShadow);
+  });
+  if (itemsRoot) itemsRoot.children.forEach(function (g) {
+    var it = g.userData && g.userData.item;
+    if (!it || !FURN[it.type] || !FURN[it.type].lamp) return;
+    g.traverse(function (o) {
+      if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null)
+        o.userData.maskRoom = lightMaskRoom(rooms, it.x, it.z, o.castShadow);
+    });
+  });
+  needsRender = true;
 }
 function lightFlux(l) {
   return l.isSpotLight ? spotFlux(l.intensity, l.angle, l.penumbra) : pointFlux(l.intensity);
@@ -3198,10 +3226,9 @@ var PRACTICAL_SHADOW = { ceilingLight: 1, pendant: 1, chandelier: 1 };
    fails at once (a big flat at night used to ask for a cube per room), and
    each map is also five more depth taps in every pixel. So the lights that
    cast are chosen here, in order of what it costs the picture to go without:
-     1. a lamp OUTSIDE every room whose throw reaches the house. Unshadowed,
-        it lights the rooms straight through a blind wall. Over budget it is
-        clipped at the wall instead, which loses its glow on the facade but
-        never leaks in.
+     1. a lamp OUTSIDE every room whose throw reaches the house: with a
+        shadow it lights the rooms through their windows. Over budget its
+        mask keeps it outside them (see fitLightMasks), facade glow intact.
      2. at dusk and at night, the main ceiling fixture of each room (largest
         rooms first), so furniture sits on the floor in lamplight;
      3. by day, the brightest windows' daylight (the sky seen through the
@@ -3250,7 +3277,7 @@ function fitPracticalLights() {
   if (!itemsRoot) return;
   var allowed = plannerShadowsEnabled && !gameRendererLock && !!renderer && renderer.shadowMap.enabled;
   var night = (S.artK || 0) > 0.5;
-  var want = [], shadowRooms = {}, leaking = [];
+  var want = [], shadowRooms = {};
   itemsRoot.children.forEach(function (g) {
     var it = g.userData && g.userData.item;
     if (!it || !FURN[it.type] || !FURN[it.type].lamp) return;
@@ -3262,7 +3289,6 @@ function fitPracticalLights() {
       o.distance = room ? Math.min(o.userData.throwCm, roomReach(room, it.x, it.z, y)) : o.userData.throwCm;
       if (!room && gap < o.distance) {
         // the room outlines run down the wall centre lines
-        leaking.push({ l: o, clip: Math.max(30, gap) });
         want.push({ l: o, kind: "lamp", rank: 0, size: 0 });
       } else if (room && night && o.isPointLight && PRACTICAL_SHADOW[it.type] && !shadowRooms[room.key]) {
         shadowRooms[room.key] = true;
@@ -3278,8 +3304,6 @@ function fitPracticalLights() {
   var slots = allowed ? MAX_SHADOW_MAPS - (sun && sun.castShadow ? 1 : 0) : 0;
   var casting = new Set();
   want.slice(0, Math.max(0, slots)).forEach(function (w) { casting.add(w.l); });
-  // over budget, a lamp outside the house stops at the wall instead
-  leaking.forEach(function (k) { if (!casting.has(k.l)) k.l.distance = k.clip; });
   var lights = windowLights.slice();
   itemsRoot.traverse(function (o) { if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) lights.push(o); });
   lights.forEach(function (o) {
@@ -3287,6 +3311,7 @@ function fitPracticalLights() {
     if (cast) castSetup(o, o.userData.win ? "window" : "lamp");
     if (o.castShadow !== cast) o.castShadow = cast;
   });
+  fitLightMasks(); // whatever does not cast now stops at its room's walls
   needsRender = true;
   settle = SETTLE_FRAMES;
 }
@@ -4512,7 +4537,6 @@ export function applyEnv() {
      glass, so a sun patch vanished into it. */
   scene.environmentIntensity = on ? 0.53 + 0.21 * lowK : 0.55;
   hemi.intensity = LUX * (0.02 + 0.05 * dk); // env map now supplies most sky ambient
-  flt.intensity = LUX * 0.0;
   // gradient sky: zenith->horizon colors, shared with the path tracer via envPT
   var zen = on ? lerpC(0x5f93c8, 0xb46a4a, lowK) : new THREE.Color(0x070b14);
   var hor = on ? lerpC(0xd8e6f2, 0xf0a35c, lowK) : new THREE.Color(0x182233);
@@ -5242,14 +5266,15 @@ function build3D() {
   sun.shadow.camera.layers.enable(SHADOW_ONLY_LAYER);
   scene.add(sun);
   scene.add(sun.target);
-  flt = new THREE.DirectionalLight(0xeaf0ff, LUX * 0.26);
-  flt.position.set(-420, 300, -460);
-  scene.add(flt);
   dyn = new THREE.Group();
   scene.add(dyn);
-  // on `scene`, not `dyn`: one light for the life of the view (see fitBounceLights)
-  roomBounce = createRoomBounce(THREE, TSL);
+  // on `scene`, not `dyn`: one light for the life of the view (see fitBounceLights).
+  // Its plan map also keeps the sky and every unshadowed light out of the
+  // rooms they cannot reach (see fitLightMasks); a game grading the house
+  // with its own rig holds the masks off.
+  roomBounce = createRoomBounce(THREE, TSL, { masks: function () { return !gameRendererLock && !relightHooks.length; } });
   roomBounce.register(renderer);
+  roomBounce.confineSky(scene);
   scene.add(roomBounce.light);
   /* From here on there IS a scene, so the has3D()/ready3D guards must open:
      the rest of this function calls applyEnv() and rebuild3D(), which are two
@@ -5357,6 +5382,9 @@ function build3D() {
   // this has to do is wake it once the backend is live and report which one we
   // actually got — useful when a machine silently lands on the WebGL2 fallback.
   renderer.init().then(function () {
+    // the dusk and dawn shadow handoffs re-key every material; keep the
+    // other half of the day's shaders instead of rebuilding them each time
+    retainShaderCaches(renderer);
     // Anything that needed real GPU work during init3D was deferred to here.
     // applyEnv() rebuilds the IBL/PMREM environment, the sky and the sun from
     // current state, so re-running it is the whole catch-up.
