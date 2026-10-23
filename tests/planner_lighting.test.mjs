@@ -100,16 +100,24 @@ test("a rebuild keeps the shaders it already has", () => {
   assert.match(between("export function rebuild3D()", "function tagItemPhysicsRole"), /retireGroup\(dyn\);/,
     "the old scene is disposed after the new one has painted");
   assert.match(src, /if \(retired\.length\) disposeRetired\(\);/);
-  assert.match(src, /scene && camera && !firstCompiled\) \{/, "only the first build waits for compileAsync");
+  assert.match(src, /scene && camera && !firstCompiled\) \{/, "only the first build holds a frame");
   assert.doesNotMatch(src, /renderer\.compile\(scene, camera\)/, "never the synchronous whole-scene compile");
 });
 
-test("opening the 3D view never freezes the page on one big task", async () => {
+test("opening the 3D view shows why it is busy, and waits on nothing else", async () => {
   // the tier probe would create a throwaway WebGL context (~0.7 s blocked)
   assert.match(between("export function init3D()", "function build3D()"), /Promise\.all\(\[loadThree\(\), primeGpuTier\(\)\]\)/);
-  // new shaders are built by compileAsync before the view draws, not by one frame
-  assert.match(src, /renderer\.compileAsync\(scene, camera\)/);
+  // compileAsync builds against a render context the post-processed frame
+  // never uses: waiting for it held the view blank for its 6 s timeout and
+  // saved ~0.6 s of the first draw. The first draw now runs with
+  // "Preparing the 3D view…" painted, one frame after it goes up.
+  const first = between("scene && camera && !firstCompiled) {", "lastRebuildT = nowT;");
+  assert.doesNotMatch(first, /compileAsync\(/);
+  assert.match(first, /if \(prep\) prep\.style\.display = "block";/);
+  assert.match(first, /requestAnimationFrame\(open\);/);
   assert.match(src, /if \(compileGate\) return;/);
+  assert.match(between("renderScene();\n        if (prepUntilDrawn)", "disposeRetired();"), /prepEl\.style\.display = "none";/,
+    "it comes down after the first draw, not before");
   // library bitmaps are decoded off the main thread, not by the upload
   const pbr = (await readFile(join(root, "js/pbr_material.js"), "utf8")).replace(/\r\n/g, "\n");
   const load = pbr.slice(pbr.indexOf("function loadTexture("), pbr.indexOf("/** Shared textures for an entry"));

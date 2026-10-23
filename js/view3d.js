@@ -303,7 +303,8 @@ var shadowThrottleT = 0;  // timestamp of last shadow pass (for extLive throttle
 var regionShadowT = 0; // timestamp of the last drag-region shadow redraw
 var shadowsFromRebuild = false, rebuildShadowT = 0; // a wall drag rebuilds every frame
 var lastRebuildT = -1e9; // when the last full rebuild ran (see the compile below it)
-var firstCompiled = false, compileGate = false; // the first build compiles before it draws
+var firstCompiled = false, compileGate = false; // the first draw waits a frame for #v3dPrep to paint
+var prepUntilDrawn = false; // #v3dPrep comes down after the first draw
 var qualityPreset = "auto";
 var gameRendererLock = false;
 var drawingOverlay = null, drawingEnabled = false, drawingCanvas = null;
@@ -5992,35 +5993,28 @@ function build3D() {
            every frame. */
         var nowT = performance.now();
         if (renderer && scene && camera && !firstCompiled) {
-          /* The first build: every shader in the house is new. Drawn
-             straight away, the next frame built them all in one task —
-             1.5–3 s with the page frozen right after the 3D view opened.
-             compileAsync builds them one object at a time with the page live
-             between, and the view waits for it (a few seconds at most).
-             Only the first time: compileAsync walks EVERY object and yields
-             between them, so a later rebuild that brings a handful of new
-             shaders (the first dollhouse cut) held the view still for two
-             seconds; drawn at once it builds just those, in ~0.1–0.25 s.
-             The first build often runs before the GPU backend is up; it
-             still claims the hold, and the compile starts once the backend
-             is (the loop draws nothing before that anyway). */
+          /* The first build: every shader in the house is new, and the
+             frame that draws it builds them all in one task (~1.6 s frozen
+             on a large flat). That cannot be split from here: compileAsync
+             builds against a render context the post-processed frame never
+             uses (three keys every shader on its context, and the scene
+             pass renders nested inside the output pass), so waiting for it
+             — up to its 6 s timeout, every time — saved ~0.6 s of the
+             freeze and kept the view blank for the 6 s. So the freeze is
+             shown for what it is instead: "Preparing the 3D view…" goes up
+             now, paints on this frame, and the frame after it draws; it
+             comes down once that draw is done. */
           firstCompiled = true;
           compileGate = true;
-          // past a blink, say why the view is still empty (index.html #v3dPrep)
           var prep = document.getElementById("v3dPrep");
-          var prepT = setTimeout(function () { if (compileGate && prep) prep.style.display = "block"; }, 300);
+          if (prep) prep.style.display = "block";
           var open = function () {
+            if (!compileGate) return;
             compileGate = false; needsRender = true; settle = SETTLE_FRAMES;
-            clearTimeout(prepT);
-            if (prep) prep.style.display = "none";
+            prepUntilDrawn = !!prep;
           };
-          var compileFirst = function () {
-            return Promise.race([
-              Promise.resolve(renderer.compileAsync(scene, camera)).catch(function () {}),
-              new Promise(function (r) { setTimeout(r, 6000); }),
-            ]);
-          };
-          (renderer.initialized ? compileFirst() : Promise.resolve(renderer.init()).then(compileFirst)).then(open, open);
+          requestAnimationFrame(open); // after this loop's own next frame
+          setTimeout(open, 250); // a hidden tab runs no frames
         }
         lastRebuildT = nowT;
       } catch (err) {
@@ -6136,6 +6130,11 @@ function build3D() {
       syncSelectionOutline();
       try {
         renderScene();
+        if (prepUntilDrawn) {
+          prepUntilDrawn = false;
+          var prepEl = document.getElementById("v3dPrep");
+          if (prepEl) prepEl.style.display = "none";
+        }
         if (retired.length) disposeRetired();
       } catch (e) {
         // Never silently swallow this: a broken post-processing graph paints
