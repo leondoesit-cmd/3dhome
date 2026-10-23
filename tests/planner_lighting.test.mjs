@@ -28,7 +28,7 @@ test("no light reaches a room except through its openings", () => {
   // no fill light: a shadowless directional shone through every wall and ceiling
   assert.doesNotMatch(src, /new THREE\.DirectionalLight\(0xeaf0ff/);
   assert.doesNotMatch(src, /SKY_CASTER_LAYER/);
-  const fit = between("function fitPracticalLights()", "function tagItemPhysicsRole");
+  const fit = between("function fitPracticalLights(", "function tagItemPhysicsRole");
   assert.match(fit, /!room && gap < o\.distance/, "a lamp outside every room that reaches the house is found");
   assert.match(fit, /rank: 0/, "and it is first in line for a shadow");
   assert.match(fit, /fitLightMasks\(\);/, "whatever is left without a shadow is masked to its room");
@@ -59,9 +59,9 @@ test("the shaders read the room map the masks are written in", async () => {
 
 test("every casting light shares one budget under the 16-texture stage limit", () => {
   assert.match(src, /var MAX_SHADOW_MAPS = [1-8];/);
-  const fit = between("function fitPracticalLights()", "function tagItemPhysicsRole");
+  const fit = between("function fitPracticalLights(", "function tagItemPhysicsRole");
   assert.match(fit, /MAX_SHADOW_MAPS - \(sun && sun\.castShadow \? 1 : 0\)/, "the sun takes a slot by day");
-  assert.match(fit, /if \(!night && \(S\.dayK \|\| 0\) > 0\.02\)/, "windows hand over to the practicals at dusk");
+  assert.match(fit, /if \(!night && \(over \? over\.day : \(S\.dayK \|\| 0\) > 0\.02\)\)/, "windows hand over to the practicals at dusk");
   assert.match(fit, /!gameRendererLock/, "games never pay for the planner's shadows");
   assert.match(between("export function applyEnv()", "var relightHooks"), /sun\.castShadow = on;/,
     "a sun below the horizon casts nothing");
@@ -167,4 +167,24 @@ test("the inspector preview draws the planner scene with the planner's light mas
   assert.match(fit, /l\.userData\.maskRoomUnshadowed = lightMaskRoom\(rooms, l\.position\.x, l\.position\.z, false\);/);
   assert.match(fit, /o\.userData\.maskRoomUnshadowed = lightMaskRoom\(rooms, it\.x, it\.z, false\);/);
   assert.match(fit, /sun\.userData\.maskRoomUnshadowed = SKY_ONLY;/);
+});
+
+test("the other shadow sets are built ahead, in the scene pass's own context", () => {
+  const block = between("/* ---- shadow sets built ahead of the handoff ----", "function tagItemPhysicsRole(");
+  // every set the hour is not using, a mesh at a time, a frame between builds
+  assert.match(block, /SHADOW_SETS\.filter\(function \(s\) \{ return s\.night !== night \|\| s\.sun !== sun\.castShadow; \}\)/);
+  assert.match(block, /await compileForScenePass\(meshes\[i\], depth\);\s*await new Promise\(function \(r\) \{ requestAnimationFrame\(r\); \}\);/);
+  // the scene pass's target and MRT stay set until the build is done, and its call depth keys the context
+  const compile = between("function compileForScenePass(", "function finishPrewarm(");
+  assert.match(compile, /renderer\.setRenderTarget\(prewarmPass\.renderTarget\);\s*renderer\.setMRT\(prewarmPass\._mrt\);/);
+  assert.match(compile, /d === undefined \? depth : d/);
+  assert.match(compile, /return Promise\.resolve\(p\)\.then\(done, done\);/);
+  // a set switch with no draw since must not reuse the old lights key
+  assert.match(between("function applyShadowSet(", "function startPrewarm("), /forgetLightKeys\(renderer\);/);
+  // nothing is drawn, rebuilt or relit while a shader is being built from the lights
+  const loop = between("var live = doorsMoving || humansLive || physicsLive || extLive;", "if (needsRender || live || settle > 0) {");
+  assert.match(loop, /if \(prewarmHolds\(\)\) return;/);
+  assert.match(src, /if \(prewarmRun && \(S\.dirty3D \|\| S\.items3D\.size\)\) \{\s*prewarmRun\.stop = true;\s*if \(!finishPrewarm\(\)\) return;/);
+  assert.match(between("export function applyEnv()", "shadowsDirty = true;"), /prewarmRun\.envPending = true;\s*return;/);
+  assert.match(between("function finishPrewarm(", "function prewarmHolds("), /if \(run\.envPending\) applyEnv\(\);/);
 });

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { retainShaderCaches } from "../js/gpu.js";
+import { retainShaderCaches, forgetLightKeys } from "../js/gpu.js";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const three = (await readFile(join(root, "vendor/three/three.webgpu.js"), "utf8")).replace(/\r\n/g, "\n");
@@ -116,5 +116,50 @@ test("three still frees pipelines and programs through _releasePipeline / _relea
 
 test("the planner renderer retains its shaders once the backend is up", async () => {
   const view3d = (await readFile(join(root, "js/view3d.js"), "utf8")).replace(/\r\n/g, "\n");
-  assert.match(view3d, /renderer\.init\(\)\.then\(function \(\) \{[^]*?retainShaderCaches\(renderer\);/);
+  // room for every shadow set at once: the prewarm keeps the ones the hour is not using
+  assert.match(view3d, /renderer\.init\(\)\.then\(function \(\) \{[^]*?retainShaderCaches\(renderer, 2048\);/);
+});
+
+/* ---- the shadow-set prewarm (js/view3d.js) leans on four more internals ---- */
+const PREWARM = "three changed under js/view3d.js's shadow-set prewarm — re-verify it against this version";
+const method = (cls, head) => {
+  const c = three.indexOf("\nclass " + cls + " ");
+  assert.ok(c >= 0, PREWARM + " (class " + cls + ")");
+  const at = three.indexOf(head, c);
+  assert.ok(at >= 0, PREWARM + " (" + cls + "." + head + ")");
+  return three.slice(at, three.indexOf("\n\t}\n", at));
+};
+
+test("forgetLightKeys drops the lights key three cached for the last draw count", () => {
+  class ChainMap { constructor() { this.weakMaps = {}; } }
+  const before = new ChainMap();
+  const r = { _nodes: { callHashCache: before } };
+  assert.equal(forgetLightKeys(r), true);
+  assert.ok(r._nodes.callHashCache instanceof ChainMap);
+  assert.notEqual(r._nodes.callHashCache, before);
+  assert.equal(forgetLightKeys({}), false, "an unknown three is left alone");
+  // and three still caches it that way: per scene + lights, per renderer.info.calls
+  const key = method("NodeManager", "\tgetCacheKey( scene, lightsNode ) {");
+  assert.match(key, /this\.callHashCache\.get\( _chainKeys\$1 \)/, PREWARM);
+  assert.match(key, /cacheKeyData\.callId !== callId/, PREWARM);
+});
+
+test("a render context is keyed on its target, MRT and call depth", () => {
+  const get = method("RenderContexts", "\tget( renderTarget = null, mrt = null, callDepth = 0 ) {");
+  // scenePassDepth reads the depth back off this key
+  assert.match(get, /const renderStateKey = attachmentState \+ '-' \+ mrtState \+ '-' \+ callDepth;/, PREWARM);
+  assert.match(get, /const mrtState = \( mrt !== null \) \? mrt\.id : 'default';/, PREWARM);
+  assert.match(get, /this\._renderContexts\[ renderStateKey \]/, PREWARM);
+});
+
+test("compileAsync takes its render context before its first await, and builds in slices", () => {
+  const body = method("Renderer", "\tasync compileAsync( scene, camera, targetScene = null ) {");
+  const ctx = body.indexOf("const renderContext = this._renderContexts.get( renderTarget, this._mrt );");
+  assert.ok(ctx >= 0, PREWARM + " (its context lookup)");
+  // the only await before it is the one-off init, which a live planner renderer is past
+  assert.deepEqual(body.slice(0, ctx).match(/await [^;]+;/g), ["await this.init();"], PREWARM);
+  assert.match(body, /if \( targetScene !== scene \) \{\s*targetScene\.traverseVisible/, PREWARM + " (lights from the target scene)");
+  // the builds it starts yield between stages
+  assert.match(three, /async buildAsync\(\) \{[^]*?await yieldToMain\(\);/, PREWARM);
+  assert.match(three, /if \( useAsync \) \{\s*await nodeBuilder\.buildAsync\(\);/, PREWARM);
 });

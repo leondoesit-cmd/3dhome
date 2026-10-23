@@ -30,6 +30,8 @@ function fixture() {
     THREE: { Box3: class { union() { return this; } setFromObject() { return this; } } },
     FURN: {}, fitPracticalLights() { work.lampFits = (work.lampFits || 0) + 1; },
     markShadowRegion(box) { context.shadowRegion = box; },
+    // an edit asks for the other shadow sets' shaders again, once idle
+    schedulePrewarm() { context.prewarms = (context.prewarms || 0) + 1; },
     shadowsDirty: false, needsRender: false };
   vm.createContext(context); vm.runInContext(sourceFunctionText(source, 'applyItemOps'), context);
   return { context, item, group, work };

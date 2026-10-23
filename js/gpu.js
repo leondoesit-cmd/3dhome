@@ -209,6 +209,23 @@ export function retainShaderCaches(r, cap) {
   return true;
 }
 
+/* three caches each scene's lights + environment shader key per draw-call
+   count (Nodes.callHashCache against renderer.info.calls), so a light that
+   starts or stops casting with no draw since is keyed as it was before.
+   Forget the cached keys after changing which lights cast without drawing
+   (view3d's shadow-set prewarm). Leans on three's internals
+   (tests/shader_retain.test.mjs pins them). */
+export function forgetLightKeys(r) {
+  var nodes = r && r._nodes;
+  if (!nodes || !nodes.callHashCache || typeof nodes.callHashCache.constructor !== "function") {
+    if (!forgetLightKeys.warned) console.warn("gpu.js: three's light key cache changed; forgetLightKeys is off (re-check it against this three)");
+    forgetLightKeys.warned = true;
+    return false;
+  }
+  nodes.callHashCache = new nodes.callHashCache.constructor();
+  return true;
+}
+
 export function createRenderer(opts) {
   keepShadowNodes();
   opts = Object.assign({}, opts || {});

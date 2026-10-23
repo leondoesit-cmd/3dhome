@@ -16,7 +16,7 @@ import { createCameraSweep } from './camera_sweep.js';
 // node graph: GTAO replaces SSAO (ground-truth occlusion, far fewer artifacts)
 // and TRAA replaces FXAA (temporal, resolves edges instead of blurring them).
 import { THREE, TSL, ADDONS, loadThree, threeLoaded } from "./three_lazy.js";
-import { createRenderer, LUX, legacyIntensity, retainShaderCaches } from "./gpu.js";
+import { createRenderer, LUX, legacyIntensity, retainShaderCaches, forgetLightKeys } from "./gpu.js";
 import { primeGpuTier } from "./material_tier.js";
 import {
   S,
@@ -2535,6 +2535,7 @@ function syncUserGhost(g) {
 /* Drain S.items3D — the cheap path a drag or an inspector edit uses instead of
    S.dirty3D. Anything it cannot do piecewise escalates to a full rebuild. */
 function applyItemOps() {
+  schedulePrewarm(); // new or changed pieces: their shaders for the other shadow sets
   // nothing has been built yet — there is no cached group to update
   if (!itemsRoot) {
     S.items3D.clear();
@@ -3290,10 +3291,12 @@ function castSetup(o, kind) {
     drawnShadows.delete(sh);
   }
 }
-function fitPracticalLights() {
+/* over: { night, day } fits a shadow set other than the hour's (the
+   prewarm below); without it the set follows S.artK / S.dayK */
+function fitPracticalLights(over) {
   if (!itemsRoot) return;
   var allowed = plannerShadowsEnabled && !gameRendererLock && !!renderer && renderer.shadowMap.enabled;
-  var night = (S.artK || 0) > 0.5;
+  var night = over ? over.night : (S.artK || 0) > 0.5;
   var want = [], shadowRooms = {};
   itemsRoot.children.forEach(function (g) {
     var it = g.userData && g.userData.item;
@@ -3313,7 +3316,7 @@ function fitPracticalLights() {
       }
     });
   });
-  if (!night && (S.dayK || 0) > 0.02)
+  if (!night && (over ? over.day : (S.dayK || 0) > 0.02))
     windowLights.forEach(function (l) {
       if (l.isSpotLight) want.push({ l: l, kind: "window", rank: 2, size: l.userData.baseI });
     });
@@ -3331,6 +3334,139 @@ function fitPracticalLights() {
   fitLightMasks(); // whatever does not cast now stops at its room's walls
   needsRender = true;
   settle = SETTLE_FRAMES;
+}
+
+/* ---- shadow sets built ahead of the handoff ----
+   Which lights cast is part of every lit shader's key, and the day's and
+   the night's casters cannot share one shader (16 textures a stage). So
+   dusk (the window shadows hand over to the ceiling lamps), sunset (the sun
+   stops casting) and dawn each built their shaders the first time they
+   came, ~850 ms with the page frozen; repeats are cheap (retainShaderCaches).
+
+   So once the view has been idle a few seconds, the shaders of the other
+   sets are built ahead. The lights take each set in turn and three's
+   compileAsync builds one mesh's shaders at a time, yielding between the
+   stages of each build (~6 slices of a ~450 ms shader). Two things make
+   them the shaders the frames will ask for: the scene pass's target and MRT
+   stay set until the build is done (the output code depends on them), and
+   the render context is the one the scene pass draws in, at its call depth
+   (three keys every shader on it; compileAsync alone takes depth 0, which
+   no planner frame uses). Nothing is drawn meanwhile, so the temporary set
+   never shows. Anything that wants a frame (input, a time change, an edit)
+   ends the run after the build in flight, with the hour's own lights back.
+   The shadow maps' own depth shaders are not built this way; those are the
+   cheap part of a handoff. */
+var prewarmPass = null; // the scene pass: its target, MRT and call depth key the shaders
+var prewarmDue = 0; // when to start (performance.now), 0 for nothing to do
+var prewarmRun = null; // the run in progress
+var PREWARM_IDLE_MS = 3000;
+var SHADOW_SETS = [
+  { night: false, sun: true }, // day: the sun and the windows
+  { night: true, sun: true }, // dusk and dawn: the sun and the ceiling lamps
+  { night: true, sun: false }, // night: the ceiling lamps
+];
+function schedulePrewarm() {
+  prewarmDue = performance.now() + PREWARM_IDLE_MS;
+  if (prewarmRun) prewarmRun.stop = true;
+}
+/* the call depth the scene pass draws at, read off the context three keeps
+   for it (the post chain nests it, and the depth is in every shader key) */
+function scenePassDepth() {
+  var mrt = prewarmPass && prewarmPass._mrt, ctxs = renderer && renderer._renderContexts;
+  if (!mrt || !ctxs || !ctxs._renderContexts) return -1;
+  var tag = "-" + mrt.id + "-", keys = Object.keys(ctxs._renderContexts);
+  for (var i = 0; i < keys.length; i++) {
+    var at = keys[i].lastIndexOf(tag);
+    if (at >= 0) return Number(keys[i].slice(at + tag.length));
+  }
+  return -1;
+}
+/* one mesh per shader it can ask for: three keys a lit shader on the
+   material's settings, the geometry's attributes and the shadow flags */
+function prewarmMeshes() {
+  var out = [], seen = new Set();
+  (function walk(o) {
+    if (!o.visible) return;
+    if (o.isMesh && o.layers.test(camera.layers) && o.material && o.geometry) {
+      var g = o.geometry, key = [].concat(o.material).map(function (m) { return m.id; }).join("+") +
+        "|" + Object.keys(g.attributes).sort().join(",") + "|" + (g.index ? 1 : 0) +
+        "|" + Object.keys(g.morphAttributes || {}).length + "|" + (o.receiveShadow ? 1 : 0) + (o.castShadow ? 1 : 0) +
+        "|" + (o.isInstancedMesh || o.isSkinnedMesh || o.isBatchedMesh ? o.id : "");
+      if (!seen.has(key)) { seen.add(key); out.push(o); }
+    }
+    for (var i = 0; i < o.children.length; i++) walk(o.children[i]);
+  })(dyn);
+  return out;
+}
+function applyShadowSet(set) {
+  var nr = needsRender, st = settle; // trying a set is not a reason to draw
+  sun.castShadow = set.sun;
+  fitPracticalLights({ night: set.night, day: !set.night });
+  forgetLightKeys(renderer); // no draw since: three would key the next one on the old set
+  needsRender = nr;
+  settle = st;
+}
+function startPrewarm() {
+  prewarmDue = 0;
+  if (!prewarmPass || !prewarmPass.renderTarget || !renderer || !renderer.initialized || !sun || !itemsRoot || !usePost) return;
+  if (gameRendererLock || !plannerShadowsEnabled || !renderer.shadowMap.enabled || !renderer.compileAsync) return;
+  var depth = scenePassDepth();
+  if (depth < 1) return; // no frame drawn through the scene pass yet
+  var night = (S.artK || 0) > 0.5;
+  var sets = SHADOW_SETS.filter(function (s) { return s.night !== night || s.sun !== sun.castShadow; });
+  var meshes = prewarmMeshes();
+  if (!sets.length || !meshes.length) return;
+  var run = prewarmRun = { sets: sets, meshes: meshes, depth: depth, sun: sun.castShadow, busy: true, stop: false };
+  (async function () {
+    try {
+      for (var s = 0; s < sets.length && !run.stop; s++) {
+        applyShadowSet(sets[s]);
+        for (var i = 0; i < meshes.length && !run.stop; i++) {
+          await compileForScenePass(meshes[i], depth);
+          await new Promise(function (r) { requestAnimationFrame(r); }); // a frame between builds
+        }
+      }
+    } catch (e) {
+      // a failed warm-up only means the handoff builds on the spot
+    }
+    run.busy = false;
+  })();
+}
+/* compile one mesh's shaders as the scene pass will ask for them */
+function compileForScenePass(mesh, depth) {
+  var rt = renderer.getRenderTarget(), mrt = renderer.getMRT();
+  var ctxs = renderer._renderContexts, get = ctxs.get, p;
+  renderer.setRenderTarget(prewarmPass.renderTarget);
+  renderer.setMRT(prewarmPass._mrt);
+  ctxs.get = function (target, m, d) { return get.call(this, target, m, d === undefined ? depth : d); };
+  try {
+    p = renderer.compileAsync(mesh, camera, scene); // takes its context before its first await
+  } finally {
+    ctxs.get = get;
+  }
+  var done = function () { renderer.setRenderTarget(rt); renderer.setMRT(mrt); };
+  return Promise.resolve(p).then(done, done);
+}
+/* after the build in flight, the hour's own lights back; the next frame
+   re-keys to them */
+function finishPrewarm() {
+  var run = prewarmRun;
+  if (!run || run.busy) return false;
+  prewarmRun = null;
+  sun.castShadow = run.sun;
+  fitPracticalLights();
+  forgetLightKeys(renderer); // or the next frame's first object keys on the last set
+  if (run.envPending) applyEnv(); // the time change that came in meanwhile
+  needsRender = true;
+  return true;
+}
+/* hold the frame until a run is over: a frame now would draw the set
+   being built, and the scene pass target is in use */
+function prewarmHolds() {
+  var run = prewarmRun;
+  if (!run) return false;
+  if (needsRender || settle > 0) run.stop = true;
+  return !finishPrewarm();
 }
 
 function tagItemPhysicsRole(g, it) {
@@ -4509,6 +4645,12 @@ function prefilterSky(src) {
 
 export function applyEnv() {
   if (!ready3D) return;
+  // a shader being built reads the lights: change them once it is done
+  if (prewarmRun) {
+    prewarmRun.stop = true;
+    prewarmRun.envPending = true;
+    return;
+  }
   // the sun/lighting is about to move — the shadow map (and the frame) is stale
   shadowsDirty = true;
   needsRender = true;
@@ -5341,6 +5483,7 @@ function build3D() {
        from smearing. Matrices are the unjittered ones, as three's own
        velocity uses (see syncCameraVelocity). */
     scenePass.setMRT(TSL.mrt({ output: TSL.output }));
+    prewarmPass = scenePass;
     var colorNode = scenePass.getTextureNode("output");
     var depthNode = scenePass.getTextureNode("depth");
     velUniforms = {
@@ -5413,7 +5556,10 @@ function build3D() {
   renderer.init().then(function () {
     // the dusk and dawn shadow handoffs re-key every material; keep the
     // other half of the day's shaders instead of rebuilding them each time
-    retainShaderCaches(renderer);
+    // Room for every shadow set at once (the prewarm builds the ones the
+    // hour is not using): ~60 shaders a set on a large flat, each a state, a
+    // pipeline and its programs; the default 256 lost one set to the next.
+    retainShaderCaches(renderer, 2048);
     // Anything that needed real GPU work during init3D was deferred to here.
     // applyEnv() rebuilds the IBL/PMREM environment, the sky and the sun from
     // current state, so re-running it is the whole catch-up.
@@ -5980,10 +6126,16 @@ function build3D() {
     }
     // per-item path first: it may escalate to S.dirty3D, and a full rebuild
     // already covers everything it would have done
+    // a rebuild or an edit replaces what a shader in flight is built from
+    if (prewarmRun && (S.dirty3D || S.items3D.size)) {
+      prewarmRun.stop = true;
+      if (!finishPrewarm()) return;
+    }
     if (S.items3D.size && !S.dirty3D) applyItemOps();
     if (S.dirty3D) {
       S.dirty3D = false;
       try {
+        schedulePrewarm(); // ends a run before the scene it draws is replaced
         rebuild3D();
         applyEnv();
         /* compile() issues GPU work, so it too has to wait for the backend.
@@ -6073,8 +6225,15 @@ function build3D() {
     // Nothing can be painted until the WebGPU/WebGL2 backend has finished its
     // async init; keep the loop alive and pick up on the frame after it lands.
     if (!renderer || !renderer.initialized) return;
-    if (compileGate) return; // the first build is still compiling (see the rebuild above)
+    if (compileGate) return; // the first draw waits a frame for #v3dPrep (see the rebuild above)
     var live = doorsMoving || humansLive || physicsLive || extLive;
+    if (prewarmRun) {
+      if (live) prewarmRun.stop = true;
+      if (prewarmHolds()) return;
+    } else if (prewarmDue && time >= prewarmDue) {
+      if (needsRender || live || settle > 0) prewarmDue = time + 1000;
+      else startPrewarm();
+    }
     if (needsRender || live || settle > 0) {
       // Live animation keeps TRAA's history fed on its own; `settle` only has to
       // cover the frames after motion stops.
