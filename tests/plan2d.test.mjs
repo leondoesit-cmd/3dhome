@@ -18,6 +18,7 @@ import {
   ensurePointsVisible,
   niceScaleCm,
 } from "../js/plan_view.js";
+import { saveUnitSettings, resetAllUnitSettings } from "../js/unit_settings.js";
 
 const planSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
 const mainSource = await readFile(new URL("../js/main.js", import.meta.url), "utf8");
@@ -150,7 +151,11 @@ test("centerOn and isOnScreen agree about the canvas middle", () => {
   assert.equal(isOnScreen(10000, 80), false);
 });
 
-test("the scale bar picks a length that stays readable at extreme zoom", () => {
+test("the scale bar picks a length that stays readable at extreme zoom", (t) => {
+  // Units auto-detect from the locale and timezone (an en-US/UTC CI runner
+  // picks feet); this checks the metric ladder, so pin it.
+  saveUnitSettings({ preset: "metric_cm" });
+  t.after(resetAllUnitSettings);
   assert.equal(niceScaleCm(0), 5);
   assert.equal(niceScaleCm(NaN), 5);
   const zoomedIn = niceScaleCm(80);
