@@ -51,6 +51,10 @@ const ATTACH = arg("attach", "");
 // idle, so a short settle measures "right after an edit", a long one steady state.
 const STALL_SETTLE = Math.max(0, parseInt(arg("stall-settle", "3000"), 10) || 0);
 // first_open: how long the plan is left alone before 3D is opened
+// --plan-copies=N tiles the generated apartment N times (fresh ids, no shared
+// walls) for a big-plan run: 11 copies is ~200 walls with their openings and
+// furniture. 1 (the default) keeps reports comparable with earlier ones.
+const PLAN_COPIES = Math.max(1, parseInt(arg("plan-copies", "1"), 10) || 1);
 const FIRST_OPEN_WAIT = Math.max(0, parseInt(arg("first-open-wait", "2000"), 10) || 0);
 const BACKENDS = arg("backends", "webgpu,webgl2").split(",").filter((b) => b === "webgpu" || b === "webgl2");
 // Order matters: init builds and disposes extra renderers over the planner's
@@ -383,7 +387,13 @@ function wallDrag(mode, target = "wall") {
     await b.evaluate(`(async () => {
       const st = await import("/js/state.js"), inter = await import("/js/interaction.js"), plan2d = await import("/js/plan2d.js");
       window.__setViewMode(${JSON.stringify(mode)}); st.S.workSet = "all"; st.S.workSetPinned = true; inter.setTool("select");
-      await window.__bench.sleep(2500); plan2d.fitView(); plan2d.render2D(); return "ok";
+      await window.__bench.sleep(2500); plan2d.fitView();
+      // tiled big plan: frame the first copy (where the probe's wall and door
+      // are) at the zoom of a single apartment, so a 2 cm step is a real drag
+      const copies = ${PLAN_COPIES}, own = st.S.nodes.slice(0, st.S.nodes.length / copies);
+      if (copies > 1) plan2d.frameBounds({ minx: Math.min(...own.map((n) => n.x)), maxx: Math.max(...own.map((n) => n.x)),
+        minz: Math.min(...own.map((n) => n.z)), maxz: Math.max(...own.map((n) => n.z)) });
+      plan2d.render2D(); return "ok";
     })()`);
     return profileWhile(b, `(async () => {
       const B = window.__bench, S = (await import("/js/state.js")).S, plan2d = await import("/js/plan2d.js");
@@ -561,9 +571,22 @@ async function runBackend(backend) {
     out.scene = await b.evaluate(`(async () => {
       const g = await import("/js/generator.js"), st = await import("/js/state.js"), { executeCommand } = await import("/js/commands/executor.js");
       const r = executeCommand(g.apartmentGenerateCommand, { size: "large", replace: true, replaceInfrastructure: true, infrastructure: false, seed: 3 }, { domain: "planner", state: st.S }, { history: false });
+      const copies = ${PLAN_COPIES};
+      if (copies > 1) {
+        const S = st.S, { uid } = st, xs = S.nodes.map((n) => n.x), zs = S.nodes.map((n) => n.z);
+        const w = Math.max(...xs) - Math.min(...xs) + 300, d = Math.max(...zs) - Math.min(...zs) + 300, cols = Math.ceil(Math.sqrt(copies));
+        const base = { nodes: S.nodes.slice(), walls: S.walls.slice(), openings: S.openings.slice(), items: S.items.slice() };
+        for (let c = 1; c < copies; c++) {
+          const dx = (c % cols) * w, dz = Math.floor(c / cols) * d, off = S.nodes.length, wallId = new Map();
+          base.nodes.forEach((n) => S.nodes.push({ ...structuredClone(n), x: n.x + dx, z: n.z + dz }));
+          base.walls.forEach((wall) => { const id = uid(); wallId.set(wall.id, id); S.walls.push({ ...structuredClone(wall), id, a: wall.a + off, b: wall.b + off }); });
+          base.openings.forEach((o) => S.openings.push({ ...structuredClone(o), id: uid(), wall: wallId.get(o.wall) }));
+          base.items.forEach((it) => { if (it.supportId != null) return; S.items.push({ ...structuredClone(it), id: uid(), x: it.x + dx, z: it.z + dz }); });
+        }
+      }
       window.__setViewMode("3d"); st.S.dirty3D = true; await new Promise((res) => setTimeout(res, 4000));
       const v = await import("/js/view3d.js"); let meshes = 0; v.getMainScene().traverse((o) => { if (o.isMesh) meshes++; });
-      return { ok: r.ok, items: st.S.items.length, meshes, mainBackend: window.__bench.backend(v.getRenderer()) };
+      return { ok: r.ok, copies, walls: st.S.walls.length, items: st.S.items.length, meshes, mainBackend: window.__bench.backend(v.getRenderer()) };
     })()`);
     for (const name of SCENARIOS) {
       if (ONLY ? !ONLY.has(name) : OPT_IN.has(name)) continue;

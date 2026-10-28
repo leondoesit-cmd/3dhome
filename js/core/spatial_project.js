@@ -2,6 +2,8 @@ import { normalizeSurveyFeatures } from "../survey.js";
 const clone=(value)=>value==null?value:typeof structuredClone==="function"?structuredClone(value):JSON.parse(JSON.stringify(value));
 
 export const SPATIAL_SCHEMA_VERSION=4;
+const aliases={surveyFeatures:"surveyFeatures",nodes:"nodes",walls:"walls",wallTypes:"wallTypes",openings:"openings",items:"instances",roomMeta:"rooms",markers:"markers",slabOpenings:"slabOpenings",annotations:"annotations",wallCons:"wallCons",roomCons:"roomCons",planVars:"planVars"};
+const installedAliases=new WeakMap();
 
 /* STOREYS ARE NOT PART OF THE SPATIAL DOCUMENT. They live in
    state.workspace.floors, and each of those carries a `scene` — which is itself
@@ -21,11 +23,18 @@ export function installSpatialProject(state) {
   if (!Array.isArray(state.spatial.annotations)) state.spatial.annotations = state.annotations || [];
   spatialFeatures();
   function spatialFeatures() { if (!Array.isArray(state.spatial.surveyFeatures)) state.spatial.surveyFeatures=normalizeSurveyFeatures(state.surveyFeatures); }
-  const aliases={surveyFeatures:"surveyFeatures",nodes:"nodes",walls:"walls",wallTypes:"wallTypes",openings:"openings",items:"instances",roomMeta:"rooms",markers:"markers",slabOpenings:"slabOpenings",annotations:"annotations",wallCons:"wallCons",roomCons:"roomCons",planVars:"planVars"};
+  let bindings=installedAliases.get(state);
+  if(!bindings){bindings={};installedAliases.set(state,bindings);}
   Object.entries(aliases).forEach(([legacy,canonical])=>{
+    let binding=bindings[legacy];
+    const descriptor=Object.getOwnPropertyDescriptor(state,legacy);
+    // Check the actual descriptor: deletion/redefinition must still be repaired.
+    // Accessors resolve state.spatial dynamically, including document replacement.
+    if(binding&&descriptor?.get===binding.get&&descriptor?.set===binding.set&&descriptor.configurable&&descriptor.enumerable)return;
     const current=state[legacy];
     if (current!==undefined && state.spatial[canonical]===undefined) state.spatial[canonical]=current;
-    Object.defineProperty(state,legacy,{configurable:true,enumerable:true,get(){return state.spatial[canonical];},set(value){state.spatial[canonical]=value;state.spatial.revision=(Number(state.spatial.revision)||0)+1;}});
+    if(!binding)binding=bindings[legacy]={configurable:true,enumerable:true,get(){return state.spatial[canonical];},set(value){state.spatial[canonical]=value;state.spatial.revision=(Number(state.spatial.revision)||0)+1;}};
+    Object.defineProperty(state,legacy,binding);
   });
   return state.spatial;
 }

@@ -149,6 +149,48 @@ function findType(state, id) {
   return (state.wallTypes || []).find(type => type.id === id) || null;
 }
 
+// Catalogue validation is independent of the wall count. Retained UI references
+// can edit types/layers in place, so array identity alone is not an invalidator.
+// Snapshot own fields at the two levels normalization reads/spreads. Nested
+// metadata (e.g. framing) is retained by reference by normalizedLayer/Type and
+// needs no repair when its contents change. Do not freeze or proxy authored data.
+const repairedCatalogues = new WeakMap();
+function recordFields(object) {
+  const keys = Object.keys(object);
+  return { object, keys, values: keys.map(key => object[key]) };
+}
+function sameFields(record) {
+  const { object, keys, values } = record;
+  const current = Object.keys(object);
+  return current.length === keys.length && keys.every((key, i) =>
+    current[i] === key && Object.is(object[key], values[i]));
+}
+function rememberCatalogue(state) {
+  repairedCatalogues.set(state, {
+    catalogue: state.wallTypes,
+    types: state.wallTypes.map(type => ({
+      fields: recordFields(type), layers: type.layers,
+      layerFields: type.layers.map(recordFields),
+    })),
+    walls: state.walls, wallCount: state.walls.length,
+  });
+}
+function ensureCatalogue(state) {
+  const saved = repairedCatalogues.get(state);
+  if (saved && state.wallTypes === saved.catalogue &&
+      state.wallTypes.length === saved.types.length &&
+      state.walls === saved.walls && state.walls.length === saved.wallCount &&
+      saved.types.every((entry, i) => {
+        const type = state.wallTypes[i];
+        return type === entry.fields.object && sameFields(entry.fields) &&
+          type.layers === entry.layers && type.layers.length === entry.layerFields.length &&
+          entry.layerFields.every((fields, j) => type.layers[j] === fields.object && sameFields(fields));
+      })) return state.wallTypes;
+  // Introduction boundaries (load, remote structSet, undo/redo, add/remove)
+  // still migrate all walls before geometry reads neighbours' raw thickness.
+  return ensureWallTypes(state);
+}
+
 function canonicalDatum(value) {
   if (value && typeof value === "object") value = value.kind ?? value.id ?? value.offset;
   if (Number.isFinite(Number(value)) && value !== "" && value !== null) return Number(value);
@@ -220,18 +262,22 @@ export function ensureWallTypes(state) {
   state.wallTypes = result;
   if (!Array.isArray(state.walls)) state.walls = [];
   state.walls.forEach(wall => normalizeWallInternal(wall, state));
+  rememberCatalogue(state);
   return state.wallTypes;
 }
 
 /** Exact lookup. Unknown ids return null rather than silently changing type. */
 export function wallTypeById(state, id) {
-  ensureWallTypes(state);
+  ensureCatalogue(state);
   return findType(state, String(id)) || null;
 }
 
-/** Migrate/repair one wall in place and return it. */
+/** Repair this wall only, except at the introduction boundaries above.
+ * Unrelated in-place wall edits require an explicit ensureWallTypes, or a
+ * helper call on that wall. Callers must not use this as a whole-plan repair.
+ */
 export function normalizeWall(wall, state) {
-  ensureWallTypes(state);
+  ensureCatalogue(state);
   return normalizeWallInternal(wall, state);
 }
 

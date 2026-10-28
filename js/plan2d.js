@@ -2250,7 +2250,6 @@ function markCol(isSel, isErase, idle) {
 
 function drawWall(w) {
   if (!w || !S.nodes[w.a] || !S.nodes[w.b]) return;
-  ensureWallTypes(S);
   normalizeWall(w, S);
   var gm = wallGeom(w),
     isSel = chromeOn && S.sel && ((S.sel.kind === "wall" && S.sel.ref === w) ||
@@ -2476,7 +2475,6 @@ function drawPresentationWalls(walls) {
   if (!list.length) return;
   var th = planTheme(), dpr = canvasDpr(), mass = new Path2D();
   list.forEach(function (w) {
-    ensureWallTypes(S);
     normalizeWall(w, S);
     mass.addPath(wallPath(w));
   });

@@ -304,6 +304,7 @@ var shadowThrottleT = 0;  // timestamp of last shadow pass (for extLive throttle
 var regionShadowT = 0; // timestamp of the last drag-region shadow redraw
 var shadowsFromRebuild = false, rebuildShadowT = 0; // a wall drag rebuilds every frame
 var lastRebuildT = -1e9; // when the last full rebuild ran (see the compile below it)
+var gestureRebuildMs = 0; // what a rebuild during the current gesture cost (rebuild3D + applyEnv)
 var firstCompiled = false, compileGate = false; // the first draw waits a frame for #v3dPrep to paint
 var prepUntilDrawn = false; // #v3dPrep comes down after the first draw
 var qualityPreset = "auto";
@@ -6187,6 +6188,7 @@ function build3D() {
   var noteEditInput = function () { editInputT = performance.now(); };
   var releaseAllPointers = function () { if (editPointers.size) { editPointers.clear(); noteEditInput(); } };
   window.addEventListener("pointerdown", function (e) {
+    if (!editPointers.size) gestureRebuildMs = 0; // a new gesture: pace from its own rebuilds
     editPointers.add(e.pointerId);
     editOnPlan = !!(e.target && e.target.closest && e.target.closest("#view-2d"));
     noteEditInput();
@@ -6207,7 +6209,12 @@ function build3D() {
     if (!editPointers.size && time - editInputT >= HIDDEN_EDIT_IDLE_MS) return false;
     var el = renderer && renderer.domElement;
     if (el && el.getClientRects().length === 0) return true; // display:none up the tree
-    return editOnPlan && editPointers.size > 0 && time - lastRebuildT < VISIBLE_PLAN_DRAG_REBUILD_MS;
+    /* A slow rebuild stretches the interval: on a ~200-wall plan one takes
+       ~600 ms, and at a fixed 120 ms nearly every move paid it. Only this
+       gesture's rebuilds count, and only slow ones, so a small plan keeps
+       the 120 ms pace. */
+    var interval = gestureRebuildMs > 100 ? 3 * gestureRebuildMs : VISIBLE_PLAN_DRAG_REBUILD_MS;
+    return editOnPlan && editPointers.size > 0 && time - lastRebuildT < interval;
   };
   buildViewGizmo();
   if(pendingNavigationView){const view=pendingNavigationView;pendingNavigationView=null;restoreNavigationView(view);}
@@ -6237,8 +6244,10 @@ function build3D() {
       S.dirty3D = false;
       try {
         schedulePrewarm(); // ends a run before the scene it draws is replaced
+        var rebuildT0 = performance.now();
         rebuild3D();
         applyEnv();
+        if (editPointers.size) gestureRebuildMs = performance.now() - rebuildT0;
         /* compile() issues GPU work, so it too has to wait for the backend.
            It walks the whole scene in a render context of its own — the frame
            that follows does all of that again — so it only pays when there
