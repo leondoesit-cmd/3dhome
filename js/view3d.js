@@ -217,7 +217,6 @@ export function registerPlannerLights(r) {
 export function getMainScene() {
   return scene;
 }
-export function getMainCamera() {
 /* Ends the idle prewarm's run (see startPrewarm) and says whether one was in
    progress: until it is over the lights are on another hour's shadow set,
    which a second renderer drawing now would draw. The run stops after the
@@ -228,6 +227,7 @@ export function stopShadowSetPrewarm() {
   prewarmRun.stop = true;
   return true;
 }
+export function getMainCamera() {
   return camera;
 }
 // external modes that re-grade the whole image (js/zombies.js horror mode)
