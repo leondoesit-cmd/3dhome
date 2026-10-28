@@ -103,7 +103,66 @@ cargo run --manifest-path desktop/src-tauri/Cargo.toml
 ```
 
 **Debug builds** serve this checkout, so a reload picks up edits. **Release builds**
-serve `web/` next to the executable (bundling is the next step, below).
+serve `app.path().resource_dir()/web`. The bundle resource map
+`"../web/": "web/"` preserves the contents under that directory, so
+`desktop/web/index.html` becomes `resource_dir()/web/index.html`.
+
+## Release build
+
+Run from the repository root with real Git LFS objects fetched. The zero-dependency
+`tools/desktop_bundle.mjs` regenerates `desktop/material-manifest.json` and replaces
+the generated, ignored `desktop/web/` directory with the entries in
+`server/public_paths.json`. It skips dot entries, private/8.3 names and
+`assets/materials`, refuses symlinks and Git LFS pointers, and reports sorted file
+counts and byte sizes. Materials download on first use from the configured origin
+and must match the compiled manifest's sizes and SHA-256 hashes.
+
+Set both release endpoints **before compiling**: `MF_RELAY_URL` and
+`MF_MATERIAL_ORIGIN` are baked in through Rust's `option_env!`. The relay URL also
+allows a startup environment override; the material origin is build-time only.
+Changing either baked-in value requires rebuilding. The relay must allow the two
+desktop origins in `HOME3D_ALLOWED_ORIGINS`, and the material origin must serve the
+real LFS bytes described by the manifest.
+
+Windows Command Prompt (`cmd.exe`):
+
+```bat
+set MF_RELAY_URL=wss://modelforge-3dhome.onrender.com
+set MF_MATERIAL_ORIGIN=https://modelforge-3dhome.onrender.com
+node tools/desktop_bundle.mjs --stage-release
+cd desktop\src-tauri
+cargo build --release --offline
+```
+
+POSIX shell:
+
+```sh
+export MF_RELAY_URL=wss://modelforge-3dhome.onrender.com
+export MF_MATERIAL_ORIGIN=https://modelforge-3dhome.onrender.com
+node tools/desktop_bundle.mjs --stage-release
+cd desktop/src-tauri
+cargo build --release --offline
+```
+
+For a quick local run of the non-bundled release executable, its resource directory
+is the executable directory: `--stage-release` additionally replaces
+`desktop/src-tauri/target/release/web` with the generated bundle. Run
+`desktop/src-tauri/target/release/modelforge-desktop.exe` on Windows (omit `.exe`
+on POSIX). The flag assumes Cargo's default target directory and native target;
+custom target directories/triples need `web/` staged beside their executable.
+Tauri's build helper also copies the configured resources at build time.
+
+When `tauri-cli` is already available, use `cargo tauri build` from
+`desktop/src-tauri` after the same environment settings and bundle command, in
+place of `cargo build --release --offline`, to produce the configured NSIS
+installer on Windows under `target/release/bundle/nsis/`. Plain `cargo build`
+produces an executable, not an installer. This checkout does not install
+`tauri-cli`; other platforms need their own bundle targets and release validation.
+
+`npm run desktop:bundle` is an alias for the bundle command; append
+`-- --stage-release` to stage the local release copy too. Re-run it whenever web
+files or materials change, before compiling. A clean-machine install and an
+offline save/open/export round trip remain the release gates below.
 
 **Multiplayer** needs the relay's address. The app's own origin serves files, not
 WebSockets.
@@ -186,7 +245,7 @@ Safari's Web Inspector attaches to debug builds.
    suites, production relay connection and macOS check remain open C1 gates.
    Agent, vision and agent-bridge routes are deferred. CSP is still a hardening
    follow-up before release; this slice does not change the web app's policy.
-2. **Material cache and HTTPS implemented; packaging remains.** Generate the
+2. **Material cache, HTTPS and web resource staging implemented.** Generate the
    compiled version-1 size/SHA-256 manifest with `node tools/material_manifest.mjs`
    after fetching real LFS objects (pointers and symlinks are refused). Missing
    materials must match an exact manifest key after the scheme's existing private
@@ -249,10 +308,11 @@ Safari's Web Inspector attaches to debug builds.
    Tests use a local TCP server, including 500-path prefetch/page priority coverage
    and an explicitly run three-file real-LFS round trip.
 
-   Still to do: bundle the web files as resources under `web/`, generated from
+   The release bundle now stages web resources under `web/`, generated from
    `server/public_paths.json`, **except `assets/materials`** (installer estimate
-   ~76 MB instead of ~316 MB); deploy the real material objects and explicitly
-   configure the production origin at build time. Refresh the manifest whenever
-   the shipped materials change.
+   ~76 MB instead of ~316 MB); see Release build above. Still to do: validate the
+   installer on a clean machine, deploy the real material objects and explicitly
+   configure the production origin at build time. The bundle tool refreshes the
+   manifest whenever it runs.
 3. Add the release relay URL and desktop origins to the public relay's
    `HOME3D_ALLOWED_ORIGINS`. Add the opener plugin for external links separately.

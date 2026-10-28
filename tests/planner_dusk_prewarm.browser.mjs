@@ -2,12 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { openPage } from '../tools/browser_harness.mjs';
 
-const gpu = process.env.MF_BROWSER_GPU === '1' ? { timeout: 180000 } : { skip: 'Run with MF_BROWSER_GPU=1' };
+const gpu = process.env.MF_BROWSER_GPU === '1' ? { timeout: 300000 } : { skip: 'Run with MF_BROWSER_GPU=1' };
 
 /* The shadow-set warm-up builds the dusk and night shaders while the view is
    idle. A time change in the middle of it used to end it for good (only a
    rebuild re-armed it), so the 18:00 handoff then built ~12 lit pipelines on
-   the spot: a 4-6 s freeze. */
+   the spot: a 4-6 s freeze. Two shaders it could not reach were built at dusk
+   too: a transparent double-sided lamp shade (three compiled it at DoubleSide,
+   frames draw it as a back and a front pass; js/gpu.js compileSidesAsDrawn) and
+   the star field, hidden all day. After a finished warm-up dusk builds none. */
 test('an interrupted shadow-set warm-up resumes, so dusk does not build its shaders on the spot', gpu, async () => {
   const page = await openPage({ width: 1280, height: 900 });
   try {
@@ -45,19 +48,25 @@ test('an interrupted shadow-set warm-up resumes, so dusk does not build its shad
     });
     await page.waitUntil(() => window.__duskProbe.made.async >= window.__duskProbe.atInterrupt + 4,
       { ms: 90000, what: 'the warm-up resumed after the interruption (built ' + atInterrupt + ' before it)' });
-    await new Promise((r) => setTimeout(r, 20000)); // let it finish the sets
+    // let it finish the sets: no new pipeline for 5 s (a large flat takes ~30 s)
+    await page.eval(() => { window.__duskProbe.quiet = { n: window.__duskProbe.made.async, t: Date.now() }; return true; });
+    await page.waitUntil(() => {
+      const p = window.__duskProbe;
+      if (p.made.async !== p.quiet.n) p.quiet = { n: p.made.async, t: Date.now() };
+      return Date.now() - p.quiet.t > 5000;
+    }, { ms: 150000, what: 'the warm-up finished' });
     const result = await page.eval(async () => {
       const v = await import('/js/view3d.js'), { S } = await import('/js/state.js');
       const frame = () => new Promise(requestAnimationFrame), probe = window.__duskProbe;
       try {
         const warmed = probe.made.async;
         probe.made.sync = 0;
-        for (const h of [16, 17, 17.5, 18]) { S.hour = h; v.applyEnv(); for (let i = 0; i < 3; i++) await frame(); }
+        for (const h of [16, 17, 17.5, 18, 18.5, 19, 20]) { S.hour = h; v.applyEnv(); for (let i = 0; i < 3; i++) await frame(); }
         await v.getRenderer().backend.device.queue.onSubmittedWorkDone();
         return { warmed, builtAtDusk: probe.made.sync };
       } finally { probe.restore(); }
     });
     assert.ok(result.warmed >= 8, `the warm-up resumed after the interruption (${result.warmed} pipelines built ahead)`);
-    assert.ok(result.builtAtDusk <= 3, `dusk built ${result.builtAtDusk} pipelines on the spot`);
+    assert.equal(result.builtAtDusk, 0, `dusk and night built ${result.builtAtDusk} pipelines on the spot`);
   } finally { await page.close(); }
 });

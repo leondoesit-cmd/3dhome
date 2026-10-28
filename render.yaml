@@ -12,3 +12,8 @@ services:
       # model backups, blueprint vision) answer 404 here.
       - key: HOME3D_PUBLIC
         value: "1"
+      # The desktop app (desktop/, Tauri) serves itself from its own scheme
+      # and reaches this relay for multiplayer: WebView2 sends the first
+      # origin, macOS/Linux WebKit the second.
+      - key: HOME3D_ALLOWED_ORIGINS
+        value: "http://mf.localhost,mf://localhost"

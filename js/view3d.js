@@ -3377,6 +3377,7 @@ var prewarmPass = null; // the scene pass: its target, MRT and call depth key th
 var prewarmDue = 0; // when to start (performance.now), 0 for nothing to do
 var prewarmRun = null; // the run in progress
 var PREWARM_IDLE_MS = 3000;
+var starsWarm = false; // the star field's shader is built (see startPrewarm)
 var SHADOW_SETS = [
   { night: false, sun: true }, // day: the sun and the windows
   { night: true, sun: true }, // dusk and dawn: the sun and the ceiling lamps
@@ -3436,6 +3437,18 @@ function startPrewarm() {
   var run = prewarmRun = { sets: sets, meshes: meshes, depth: depth, sun: sun.castShadow, busy: true, stop: false };
   (async function () {
     try {
+      /* The star field is hidden all day, so the walk above never meets it
+         and the first night frame built its shader on the spot. It is unlit:
+         one build serves every shadow set. compileAsync reads visibility
+         before its first await, so it is shown for that call only (nothing is
+         drawn while a run holds the frame). */
+      if (stars && !stars.visible && !starsWarm) {
+        var starBuild;
+        stars.visible = true;
+        try { starBuild = compileForScenePass(stars, depth); } finally { stars.visible = false; }
+        await starBuild;
+        starsWarm = true;
+      }
       for (var s = 0; s < sets.length && !run.stop; s++) {
         applyShadowSet(sets[s]);
         for (var i = 0; i < meshes.length && !run.stop; i++) {

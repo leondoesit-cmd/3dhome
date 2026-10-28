@@ -23,6 +23,7 @@ bench/datasets/
 # disk copies of saved models (server/model_backup.mjs)
 .model-backups/
 # desktop shell build output (desktop/src-tauri)
+desktop/web/
 desktop/src-tauri/target/
 desktop/src-tauri/gen/
 *.mforge

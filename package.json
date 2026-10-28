@@ -7,6 +7,7 @@
   },
   "scripts": {
     "start": "node server/relay.mjs",
+    "desktop:bundle": "node tools/desktop_bundle.mjs",
     "setup:blueprint": "node tools/setup_blueprint_vision.mjs",
     "test": "node --test --test-timeout=600000 tests/*.test.mjs uikit/tests/*.test.mjs",
     "check:modules": "node tools/module_check.mjs",
