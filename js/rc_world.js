@@ -13,6 +13,7 @@ import {
   pointInPoly,
 } from "./geometry.js";
 import { FURN } from "./furniture.js";
+import { isSharedTexture } from "./pbr_material.js";
 import { buildRoad, courseQuality, roomCircuit } from "./track.js";
 import { courseFingerprint } from "./rc_driving.js";
 import { surfaceHeightAt, surfaceHeightNear, surfaceSampleAt } from "./road_surface.js";
@@ -496,6 +497,8 @@ export function customTruckBody(key) {
   var wrap = new THREE.Group();
   wrap.add(inner);
   wrap.position.y = 0.5; // ride height above axle plane
+  // its textures come from the planner's shared caches (see disposeGrp)
+  wrap.userData.sharedMaps = true;
   return wrap;
 }
 
@@ -627,6 +630,15 @@ export function swapPlayerBody(car) {
 
 export function disposeGrp(g) {
   if (!g) return;
+  // A custom body is built by the planner's own builders, whose maps come from
+  // caches shared with every planner/modeler material (sharedRepeat clones,
+  // the procedural detail maps, the texture caches): none of them is the
+  // body's to free. Disposing its materials still releases their counted
+  // shares (pbr_material.js). Everything else here owns its maps.
+  var borrowed = new Set();
+  g.traverse(function (o) {
+    if (o.userData && o.userData.sharedMaps) o.traverse(function (x) { borrowed.add(x); });
+  });
   g.traverse(function (o) {
     // A Sprite's geometry is a module-level singleton inside three — disposing
     // it takes out every sprite in the app (see kart.js disposeObj).
@@ -634,7 +646,7 @@ export function disposeGrp(g) {
     if (o.material) {
       (Array.isArray(o.material) ? o.material : [o.material]).forEach(
         function (m) {
-          if (m.map && m.map.dispose) m.map.dispose();
+          if (m.map && m.map.dispose && !borrowed.has(o) && !isSharedTexture(m.map)) m.map.dispose();
           m.dispose();
         },
       );

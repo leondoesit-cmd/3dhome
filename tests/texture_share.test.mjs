@@ -59,6 +59,58 @@ test("sharedRepeat: one texture per image and repeat, never a clone per material
     // other images keep their own lists
     const other = new THREE.Texture({ width: 4, height: 4 });
     assert.notEqual(sharedRepeat(other, 7, 7), kept);
+
+    // with owner materials, a clone that fell off the list is freed when its
+    // last owner is disposed (a renderer keeps every uploaded texture alive
+    // until it is disposed, so forgetting it alone leaked its GPU copy)
+    const img = new THREE.Texture({ width: 4, height: 4 });
+    const m1 = new THREE.MeshStandardMaterial(), m2 = new THREE.MeshStandardMaterial();
+    const c = sharedRepeat(img, 3, 3, m1);
+    assert.equal(sharedRepeat(img, 3, 3, m2), c);
+    let freed = 0;
+    c.addEventListener("dispose", () => freed++);
+    for (let i = 0; i < 60; i++) sharedRepeat(img, 100 + i, 1, new THREE.MeshStandardMaterial());
+    assert.equal(freed, 0, "off the list but still held by two materials");
+    m1.dispose();
+    assert.equal(freed, 0, "still held by one material");
+    m2.dispose();
+    assert.equal(freed, 1, "freed with its last owner");
+    // a clone whose owners are gone stays cached while on the list, and is
+    // freed when it falls off
+    const lone = new THREE.MeshStandardMaterial(), d = sharedRepeat(img, 9, 9, lone);
+    let dFreed = 0;
+    d.addEventListener("dispose", () => dFreed++);
+    lone.dispose();
+    assert.equal(dFreed, 0, "kept while it is still a recent repeat");
+    assert.equal(sharedRepeat(img, 9, 9, new THREE.MeshStandardMaterial()), d, "and reused");
+    for (let i = 0; i < 60; i++) sharedRepeat(img, 300 + i, 1, new THREE.MeshStandardMaterial());
+    assert.equal(dFreed, 0, "the reuse's owner still holds it");
+    const gone = new THREE.MeshStandardMaterial(), e = sharedRepeat(img, 11, 11, gone);
+    let eFreed = 0;
+    e.addEventListener("dispose", () => eFreed++);
+    gone.dispose();
+    for (let i = 0; i < 60; i++) sharedRepeat(img, 600 + i, 1, new THREE.MeshStandardMaterial());
+    assert.equal(eFreed, 1, "a clone nobody holds is freed as it falls off the list");
+
+    // a material clone copies the maps, and counts as their owner too: the
+    // original's disposal does not free a map its clone still draws, and the
+    // clone's disposal releases its share
+    const orig = new THREE.MeshStandardMaterial();
+    const f = sharedRepeat(img, 13, 13, orig);
+    orig.normalMap = f; // the same texture in two slots counts once
+    let fFreed = 0;
+    f.addEventListener("dispose", () => fFreed++);
+    const twin = orig.clone();
+    for (let i = 0; i < 60; i++) sharedRepeat(img, 900 + i, 1, new THREE.MeshStandardMaterial());
+    orig.dispose();
+    assert.equal(fFreed, 0, "the clone still holds it");
+    twin.dispose();
+    assert.equal(fFreed, 1, "freed with the clone, its last holder");
+
+    // everything handed out is marked shared; a private texture is not
+    const { isSharedTexture } = await import("./js/pbr_material.js");
+    assert.ok(isSharedTexture(c) && isSharedTexture(img) && isSharedTexture(base));
+    assert.ok(!isSharedTexture(new THREE.Texture()));
   `;
   const result = spawnSync(
     process.execPath,

@@ -67,7 +67,10 @@ const queue = new Map(); // item id -> {key, it, bucket, pri}
 const failed = new Set(); // keys whose model would not render: never retried
 let pixels = 0,
   scheduled = false,
-  baking = false;
+  baking = false,
+  // bumped by every texture load (invalidateTexturedSprites): a provisional
+  // bake that was in flight across one missed that invalidation
+  texGen = 0;
 
 function now() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -179,8 +182,15 @@ async function pump() {
       });
       queue.delete(bestId);
       if (cache.has(best.key)) continue;
+      const gen = texGen;
       const sp = await bake(best.it, best.bucket);
-      if (sp) {
+      if (sp && sp.prov && gen !== texGen) {
+        // a texture landed while this one was baking: its invalidation ran
+        // before the picture existed, so caching it would keep the fallback
+        // look for good. Show it as the stand-in and bake it again.
+        if (best.it.id != null) lastById.set(best.it.id, sp);
+        if (!queue.has(bestId)) queue.set(bestId, best);
+      } else if (sp) {
         store(best.key, sp);
         if (best.it.id != null) lastById.set(best.it.id, sp);
         if (persistable(best.it) && !sp.prov) persist(best.key, sp);
@@ -506,6 +516,7 @@ function hydrate() {
    stale, so they leave the cache (they stay the pieces' stand-ins in
    lastById until the new picture lands). Every other picture is still right. */
 export function invalidateTexturedSprites() {
+  texGen++;
   cache.forEach(function (sp, key) {
     if (!sp.prov) return;
     cache.delete(key);

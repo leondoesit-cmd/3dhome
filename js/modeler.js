@@ -983,7 +983,7 @@ function applyTexTo(mesh, p, wCm, hCm) {
   // callback above re-runs this once the image is decoded.
   if (!S.customTexCache[p.tex].image) return;
   // shared per repeat: every clone is its own GPU upload (see pbr_material.js)
-  mesh.material.map = sharedRepeat(S.customTexCache[p.tex], (wCm || 100) / 100, (hCm || 100) / 100);
+  mesh.material.map = sharedRepeat(S.customTexCache[p.tex], (wCm || 100) / 100, (hCm || 100) / 100, mesh.material);
   mesh.material.color.setHex(0xffffff);
   mesh.material.needsUpdate = true;
 }

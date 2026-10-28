@@ -221,6 +221,10 @@ const SCENARIO_CODE = {
     const cv = document.createElement("canvas"); cv.width = 1280; cv.height = 720;
     const r = gpu.createRenderer({ canvas: cv, antialias: true }); await gpu.ready(r); r.setSize(1280, 720, false);
     r.shadowMap.enabled = true;
+    // the planner's own light classes (room bounce and its light masks), as the
+    // main view and the inspector register them; a stock renderer compiles a
+    // simpler lighting graph than the one being measured
+    v.registerPlannerLights(r);
     const scene = v.getMainScene(), cam = v.getMainCamera(), env = scene.environment; scene.environment = null;
     let compileMs = null, firstFrameMs = null, secondFrameMs = null;
     try {
@@ -588,6 +592,15 @@ async function runBackend(backend) {
       const v = await import("/js/view3d.js"); let meshes = 0; v.getMainScene().traverse((o) => { if (o.isMesh) meshes++; });
       return { ok: r.ok, copies, walls: st.S.walls.length, items: st.S.items.length, meshes, mainBackend: window.__bench.backend(v.getRenderer()) };
     })()`);
+    // A browser without a usable adapter silently falls back to WebGL2 (as does
+    // a profile with home3d_forceWebGL=1): such a run must not land in the
+    // WebGPU column. The report excludes it and says so.
+    out.actualBackend = out.scene && out.scene.mainBackend;
+    if (out.actualBackend !== (backend === "webgpu" ? "WebGPU" : "WebGL2")) {
+      out.backendMismatch = true;
+      console.log(`  ${backend} requested but the page runs ${out.actualBackend || "no backend"}: run skipped`);
+      return out;
+    }
     for (const name of SCENARIOS) {
       if (ONLY ? !ONLY.has(name) : OPT_IN.has(name)) continue;
       const before = b.logs.length;
@@ -631,7 +644,8 @@ const METRICS = [
 ];
 
 function report(runs) {
-  const by = { webgpu: runs.filter((r) => r.backend === "webgpu"), webgl2: runs.filter((r) => r.backend === "webgl2") };
+  const valid = runs.filter((r) => !r.backendMismatch);
+  const by = { webgpu: valid.filter((r) => r.backend === "webgpu"), webgl2: valid.filter((r) => r.backend === "webgl2") };
   const rows = METRICS.map(([sc, path, label, better]) => {
     // a Night Shift run whose game never went live measured an idle page
     const src = (r) => (sc === "_prewarm" ? r.thumbPrewarm
@@ -662,6 +676,8 @@ function report(runs) {
     ...rows.map((r) => `| ${r.metric} | ${fmt(r.webgpu)} | ${fmt(r.webgl2)} | ${r.webgpuAdvantagePct == null ? "—" : (r.webgpuAdvantagePct > 0 ? "+" : "") + r.webgpuAdvantagePct.toFixed(1) + "%"} |`),
     "",
   ];
+  const mismatched = runs.filter((r) => r.backendMismatch);
+  if (mismatched.length) md.push("## Runs on the wrong backend", "", ...mismatched.map((r) => `- requested ${r.backend}, the page ran ${r.actualBackend || "no backend"}: excluded.`), "");
   const lost = runs.filter((r) => Object.values(r.scenarios).some((x) => x && x.contextLost));
   if (lost.length) md.push("## Invalid samples", "", ...lost.map((r) => `- ${r.backend}: ${Object.entries(r.scenarios).filter(([, x]) => x && x.contextLost).map(([k]) => k).join(", ")} lost its GL context (GPU process reset); excluded, shown as —.`), "");
   const errs = runs.flatMap((r) => r.errors.map((e) => `- ${r.backend} / ${e.scenario}: ${e.errors.join(" | ").slice(0, 300)}`));

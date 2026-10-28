@@ -183,15 +183,74 @@ export function pbrFailed(entry) {
    So a repeat the texture already has IS the texture, and any other repeat
    gets one clone per distinct value, remembered per image. Size-driven
    repeats (a custom finish scaled to each part) can take many values, so
-   the memory is a short most-recent list; a clone that falls off it is only
-   forgotten, never disposed, because a live material may still hold it.
+   the memory is a short most-recent list. A clone that falls off it is
+   disposed once no material holds it any more: pass the material as `owner`
+   and the clone counts it until that material is disposed. (A renderer keeps
+   every uploaded texture until it is disposed, so merely forgetting a clone
+   leaked its GPU copy.) A clone handed out without an owner is never freed.
    Callers must treat the result as shared: never change its repeat, offset
-   or rotation, and never dispose it. */
+   or rotation, and never dispose it — isSharedTexture() says which these are. */
 var REPEAT_KEEP = 48;
 var repeatClones = new WeakMap(); // base texture → Map("ru,rv" → clone), oldest first
+var sharedTextures = new WeakSet(); // everything sharedRepeat has handed out
+var cloneUsers = new WeakMap(); // clone → owner materials still holding it (or Infinity)
+var retired = new WeakSet(); // clones that fell off their recent list
 
-export function sharedRepeat(tx, ru, rv) {
-  if (!tx || (tx.repeat.x === ru && tx.repeat.y === rv)) return tx;
+/** True for a texture other materials may share (from sharedRepeat): a
+ *  material's owner must not dispose it. */
+export function isSharedTexture(t) {
+  return !!t && sharedTextures.has(t);
+}
+
+function releaseClone(c) {
+  var n = cloneUsers.get(c);
+  if (n === Infinity) return;
+  n = Math.max(0, (n || 0) - 1);
+  cloneUsers.set(c, n);
+  if (!n && retired.has(c)) c.dispose();
+}
+
+/* A material clone (material.clone()) holds its original's maps but not its
+   dispose listener, so it would not count as an owner: the clone could be
+   left drawing a texture freed with its original, or keep an upload nobody
+   ever releases. Every clone therefore adopts the counted maps it copied.
+   Material is the only class in three that defines clone(), so one hook
+   covers all of them, including clones made by code that never heard of
+   sharedRepeat (a fade warm-up, a transparency override). */
+var MAP_SLOTS = ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "bumpMap"];
+export function adoptSharedMaps(mat) {
+  if (!mat || !mat.addEventListener) return;
+  var held = [];
+  MAP_SLOTS.forEach(function (slot) {
+    var t = mat[slot],
+      n = t && cloneUsers.get(t);
+    if (typeof n !== "number" || n === Infinity || held.indexOf(t) >= 0) return;
+    held.push(t);
+    cloneUsers.set(t, n + 1);
+  });
+  if (!held.length) return;
+  mat.addEventListener("dispose", function onDispose() {
+    mat.removeEventListener("dispose", onDispose);
+    held.forEach(releaseClone);
+  });
+}
+var cloneHooked = false;
+function hookMaterialClone() {
+  if (cloneHooked || !THREE.Material) return;
+  cloneHooked = true;
+  var clone = THREE.Material.prototype.clone;
+  THREE.Material.prototype.clone = function () {
+    var copy = clone.apply(this, arguments);
+    adoptSharedMaps(copy);
+    return copy;
+  };
+}
+
+export function sharedRepeat(tx, ru, rv, owner) {
+  if (!tx) return tx;
+  hookMaterialClone();
+  sharedTextures.add(tx);
+  if (tx.repeat.x === ru && tx.repeat.y === rv) return tx;
   var byRepeat = repeatClones.get(tx);
   if (!byRepeat) repeatClones.set(tx, (byRepeat = new Map()));
   var key = ru + "," + rv,
@@ -200,9 +259,26 @@ export function sharedRepeat(tx, ru, rv) {
   else {
     c = tx.clone();
     c.repeat.set(ru, rv);
-    if (byRepeat.size >= REPEAT_KEEP) byRepeat.delete(byRepeat.keys().next().value);
+    sharedTextures.add(c);
+    cloneUsers.set(c, 0);
+    if (byRepeat.size >= REPEAT_KEEP) {
+      var oldKey = byRepeat.keys().next().value,
+        old = byRepeat.get(oldKey);
+      byRepeat.delete(oldKey);
+      retired.add(old);
+      if (cloneUsers.get(old) === 0) old.dispose();
+    }
   }
   byRepeat.set(key, c);
+  if (owner && owner.addEventListener) {
+    if (cloneUsers.get(c) !== Infinity) cloneUsers.set(c, cloneUsers.get(c) + 1);
+    owner.addEventListener("dispose", function onDispose() {
+      owner.removeEventListener("dispose", onDispose);
+      releaseClone(c);
+    });
+  } else {
+    cloneUsers.set(c, Infinity); // unknown holders: keep it alive
+  }
   return c;
 }
 
@@ -221,11 +297,11 @@ export function applyPbrMaps(mat, entry, ru, rv, o) {
   var t = pbrTextures(entry);
   if (!mat || !t) return false;
   o = o || {};
-  mat.map = repeated(t.map, ru, rv);
-  mat.normalMap = repeated(t.normalMap, ru, rv);
+  mat.map = repeated(t.map, ru, rv, mat);
+  mat.normalMap = repeated(t.normalMap, ru, rv, mat);
   var ns = o.normalScale != null ? o.normalScale : 1;
   if (mat.normalScale && mat.normalScale.set) mat.normalScale.set(ns, ns);
-  var orm = repeated(t.ormMap, ru, rv);
+  var orm = repeated(t.ormMap, ru, rv, mat); // one owner count; the three slots share it
   mat.roughnessMap = orm;
   mat.metalnessMap = orm;
   mat.aoMap = orm;

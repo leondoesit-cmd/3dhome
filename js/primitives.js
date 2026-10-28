@@ -124,7 +124,7 @@ export function applyTextureToMaterial(m, opt, width, height, depth) {
   var scale = opt.texScale || 200;
   var ru = Math.max(maxDim / scale, 0.001), rv = Math.max((Math.abs(height) || 100) / scale, 0.001);
   // shared per repeat, not cloned per part: each clone is its own GPU upload
-  m.map = sharedRepeat(S.customTexCache[texUrl], ru, rv);
+  m.map = sharedRepeat(S.customTexCache[texUrl], ru, rv, m);
   m.color.setHex(opt.texColor != null ? opt.texColor : 0xffffff);
 
   var bUrl = getTexturePresetBumpUrl(texUrl);
@@ -142,7 +142,7 @@ export function applyTextureToMaterial(m, opt, width, height, depth) {
     }
   }
   if (bUrl && S.customBumpCache[bUrl].image) { // same wait-for-bitmap rule as the map
-    m.bumpMap = sharedRepeat(S.customBumpCache[bUrl], ru, rv);
+    m.bumpMap = sharedRepeat(S.customBumpCache[bUrl], ru, rv, m);
     m.bumpScale = opt.texBump != null ? opt.texBump : 0.20;
   }
   m.needsUpdate = true;

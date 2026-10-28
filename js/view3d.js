@@ -1429,7 +1429,7 @@ function buildStraightWall(w, col, tex) {
         }
         var scale = w.texScale || 200;
         if (S.customTexCache[bandTex].image) {
-          mat.map = sharedRepeat(S.customTexCache[bandTex], 1 / scale, 1 / scale); // one upload per repeat
+          mat.map = sharedRepeat(S.customTexCache[bandTex], 1 / scale, 1 / scale, mat); // one upload per repeat
           mat.color.setHex(0xffffff);
         }
         var bUrl = getTexturePresetBumpUrl(bandTex);
@@ -1441,7 +1441,7 @@ function buildStraightWall(w, col, tex) {
             S.customBumpCache[bUrl] = btx;
           }
           if (S.customBumpCache[bUrl].image) {
-            mat.bumpMap = sharedRepeat(S.customBumpCache[bUrl], 1 / scale, 1 / scale);
+            mat.bumpMap = sharedRepeat(S.customBumpCache[bUrl], 1 / scale, 1 / scale, mat);
             mat.bumpScale = w.texBump != null ? w.texBump : 0.20;
           }
         }
@@ -4975,6 +4975,9 @@ export function setStreetViewCube(faces) {
   var cubeTex = new THREE.CubeTexture(
     ["px", "nx", "py", "ny", "pz", "nz"].map(faceImg),
   );
+  // photographs are sRGB: untagged, the node pipeline reads them as linear and
+  // its output transform lifts every mid-tone (0.5 shows as ~0.74)
+  cubeTex.colorSpace = THREE.SRGBColorSpace;
   cubeTex.needsUpdate = true;
   // Plain sphere at SV_RADIUS — no per-vertex ground projection. The camera
   // orbits a small room near the center, so parallax against a sphere this
