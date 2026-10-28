@@ -4,9 +4,10 @@ import { t, onLangChange } from "./i18n.js";
 // furniture remain visible) but owns a small renderer and an orbit-only camera.
 import { THREE, threeLoaded } from "./three_lazy.js";
 import { S } from "./state.js";
-import { createRenderer, ready, render as renderGPU } from "./gpu.js";
-import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D, init3D, registerPlannerLights } from "./view3d.js";
+import { createRenderer, forgetLightKeys, ready, render as renderGPU } from "./gpu.js";
+import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D, init3D, registerPlannerLights, stopShadowSetPrewarm } from "./view3d.js";
 import { wallById, wallGeom, wallTangentAt } from "./geometry.js";
+import { createInspectorLights } from "./inspector_lights.js";
 
 var host = null,
   canvas = null,
@@ -15,6 +16,8 @@ var host = null,
   roofBtn = null,
   renderer = null,
   plannerLights = false, // registerPlannerLights has run on this renderer
+  // stand-ins for the lights that can cast: their shadow nodes are this renderer's alone (js/inspector_lights.js)
+  ownLights = createInspectorLights(),
   camera = null,
   overlayScene = null,
   overlayRoot = null,
@@ -106,6 +109,7 @@ function ensureElements() {
     resizeObserver.observe(host);
   }
   window.addEventListener("scene3d:rebuilt", function () {
+    ownLights.invalidate();
     if (!visible) return;
     overlayDirty = true;
     fitSelection(false);
@@ -237,6 +241,13 @@ function paint() {
     width = Math.max(2, Math.round(rect.width)),
     height = Math.max(2, Math.round(rect.height));
   if (width <= 2 || height <= 2) return;
+  // the selection's own copy follows a rebuild even while the draw waits below
+  if (overlayDirty) rebuildSelectionOverlay();
+  // the main view's idle prewarm has another hour's lights casting: end it
+  // and draw once the hour's own are back (a frame or two)
+  if (stopShadowSetPrewarm()) { scheduleRender(); return; }
+  // the first build (below) is still reading the stand-in lights; it paints when done
+  if (shadersWarming) return;
   renderer.shadowMap.enabled = !!S.invisibleRoof;
   // the planner's light classes (room bounce, and the masks that stop the
   // sky and every light without a drawn shadow map at walls and ceilings);
@@ -253,6 +264,10 @@ function paint() {
   // main 3D view never changes and the rest of the local context remains.
   var occluders = previewOccluders();
   occluders.forEach(function (object) { object.visible = false; });
+  // never the main view's lights that can cast: three shares their shadow nodes
+  // between renderers (see js/inspector_lights.js); a new set of them
+  // re-keys the lights, which three would otherwise look up by draw count
+  if (ownLights.swapIn(scene, camera)) forgetLightKeys(renderer);
 
   // The main PMREM environment texture belongs to the main renderer's GPU.
   // Direct lights and the full visible scene still provide the local context;
@@ -260,7 +275,6 @@ function paint() {
   // portable across WebGPU and WebGL2 backends.
   var environment = scene.environment;
   scene.environment = null;
-  if (overlayDirty) rebuildSelectionOverlay();
   /* This renderer has a GPU device of its own, so its first paint built every
      shader it draws in one task (~0.5 s with warm caches, 2+ s cold: the first
      selection of a session froze the page). The first time, they are built
@@ -275,17 +289,13 @@ function paint() {
       } finally {
         scene.environment = environment;
         occluders.forEach(function (object) { object.visible = true; });
+        ownLights.swapOut();
       }
       shadersWarming = Promise.all(builds).catch(function () {}).then(function () {
         shadersWarm = true;
         shadersWarming = null;
         scheduleRender();
       });
-      return;
-    }
-    if (shadersWarming) {
-      scene.environment = environment;
-      occluders.forEach(function (object) { object.visible = true; });
       return;
     }
   }
@@ -296,6 +306,7 @@ function paint() {
   } finally {
     scene.environment = environment;
     occluders.forEach(function (object) { object.visible = true; });
+    ownLights.swapOut(renderer.shadowMap.enabled);
   }
 }
 

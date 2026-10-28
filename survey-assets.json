@@ -437,6 +437,7 @@
     "/js/item_orient.js",
     "/js/joint_square.js",
     "/js/kart.js",
+    "/js/inspector_lights.js",
     "/js/lava.js",
     "/js/lava_game.js",
     "/js/lava_spider.js",
