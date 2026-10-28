@@ -117,7 +117,7 @@ the baseline for the working tree before these changes.
 | three's `compileAsync` queues a transparent DoubleSide material's two passes (back faces, then front faces) with the material itself and builds them after `side` is back to DoubleSide, so every warm-up built a cull-none pipeline no frame uses and missed the two that frames do use. A table lamp's shade was the one left at 17:00 | `js/gpu.js` `compileSidesAsDrawn`: each queued pass keeps the side it was queued at; the build sees a per-material, per-side stand-in that differs only in `side` (tests/compile_sides_patch.test.mjs, with a guard on three's source) | 17:00: 1 pipeline + 1 shader module, 0.8–0.95 s. 18:00 after idle: 2 pipelines, 0.73–0.93 s | 17:00: **0 pipelines**, 0.42–0.81 s, all of it three re-creating ~3,000 buffers and ~4,400 bind groups for the new light set. 18:00: **282–305 ms**. The last on-the-spot build, the star field (hidden all day, so the warm-up's walk never met it), is now built once per page by the warm-up: **0 pipelines from 16:00 to 20:00** (`tests/planner_dusk_prewarm.browser.mjs` asserts it) |
 | Big plans (198 walls: `gpu_bench --plan-copies=11` tiles the seed-3 apartment): every per-wall helper (`normalizeWall`, `wallLayers`, …) re-normalized every wall through `ensureWallTypes`, and `js/plan2d.js` also called it once per wall drawn, so a 2D paint was O(walls²) | Codex (`js/wall_types.js`, `js/plan2d.js` two lines, `js/geometry.js`, `js/room_area.js`, `js/polygon_area.js`, `js/core/spatial_project.js`): the catalogue repair is remembered per state and redone only when the catalogue, the wall array or its length change (in-place type/layer edits included); joints, room areas and polygon booleans index what they scan. Equivalence against HEAD in `tests/wall_normalize_fast.test.mjs` | door drag 560 ms p50 / 1.4 s p95; split-view wall drag 760 ms | door drag **65 ms / 75–126 ms**; plan-view wall drag 20 ms p50, ~100 ms p95 |
 | With the 3D pane visible, a 198-wall rebuild costs ~600 ms, and the fixed 120 ms plan-drag pacing let nearly every move pay one | `js/view3d.js`: a gesture whose rebuilds take over 100 ms waits 3× their cost between them (small plans keep 120 ms) | split-view wall drag 630–760 ms p50 | **29–31 ms** p50, mean 100–123 ms; exact on release |
-| Still open on big plans: 149 lights make every lit fragment shader ~830 KB (18 walls: ~139 KB). The first drag after a build waits 2–25 s with the main thread idle while the driver compiles them | The light loop (`?lightLoop=1`) removes unshadowed lights from the shader; it stays opt-in until its over-bright dusk handoff is fixed | | |
+| On big plans 149 lights made every lit fragment shader ~830 KB (18 walls: ~139 KB). The first drag after a build waited 2–25 s with the main thread idle while the driver compiled them | `js/light_loop.js`, now on by default: unshadowed lights are drawn by one loop over a uniform array instead of per-light code (pixel-identical) | first drag 20.5–26.5 s, worst frame 15–21 s; biggest shader 830 KB | **0.48–0.49 s**, worst frame 66–72 ms; **105 KB** |
 | With the 3D pane visible, every move of a plan drag paid a full rebuild (~80 ms) inside the plan's own frame | `js/view3d.js`: a gesture on the 2D plan is followed at ~8 Hz (one rebuild per 120 ms); exact on release. A gesture in the 3D view is never throttled | wall drag, split view: 81–86 ms per move (3 rounds) | **7.1–7.4 ms** median (mean 16–19 ms) |
 | The first selection of a session froze the page: the inspector preview has its own GPU device, and its first paint built ~20 shaders synchronously (the selection overlay's studio-lit clones and the scene) | `js/inspector_preview.js`: before its first paint the preview builds them with `compileAsync` from exactly the state it will draw, then paints | one 480–561 ms task (warm caches; 2+ s cold) | **no long task**; preview up in 470 ms |
 | The OpenCascade worker recompiled 50 MB after every idle expiry or cancel | Codex (`js/cad_kernel.js`, `js/core/cad_worker_client.js`): compile once per page and hand the module to workers; idle expiry 10 min; worker BREPs stay opaque until used | 2.6–3.2 s per restart | no recompile on restart (not yet timed end to end) |
@@ -158,20 +158,28 @@ New regression tests:
     (`js/room_bounce.js`). Cold first open, 1 s after generating (salted, see
     below): **HEAD 6.8–7.4 s → 5.0–5.9 s**. Biggest lit shader 171.5 → 139.3 KB.
     Pixel-identical to HEAD by day, dusk and night.
-  - **Prototype, opt-in (`?lightLoop=1`): light loop, `js/light_loop.js`.** The
-    lights that cast no shadow are drawn by one loop over a uniform array, on both
+  - **On by default (2026-10-28): light loop, `js/light_loop.js`.** The lights
+    that cast no shadow are drawn by one loop over a uniform array, on both
     backends (three's TiledLighting is WebGPU-only and point-only, so it was not
-    used). Cold first open **2.7–2.8 s**; biggest lit shader 91.1 KB; all fragment
-    WGSL 2092 → 1122 KB; pipelines unchanged (31–33). WebGL2 first open
-    1.6–1.9 s → ~45 ms. Adding a lamp: 9.1 s → 0.8 s (lamps no longer key the
-    shaders). Dusk handoffs with no warm-up: 6.9 s → 5.4–5.9 s. Steady-state
-    frames are pixel-identical by day, dusk and night on both backends.
-    **Blocker:** right after the 13 → 17:30 handoff, the loop can leave the frame
-    uniformly over-bright (mean +7/255, app frames included) until the next light
-    or sky change. It is deterministic in one driver flow and was seen once in
-    `tests/planner_light_loop_fidelity.browser.mjs` (WebGL2). Three's path is
-    clean in the same flow. Shaders, light lists and packed data are correct on
-    the CPU, so the stale state is GPU-side. Root cause not found.
+    used). Up to 192 lights, which is 15 KB, inside WebGL2's 16 KB minimum
+    uniform block. Kill switch: `?lightLoop=0`.
+    - Seed-3 flat, cold first open: **5.84–5.86 s → 3.50–3.52 s** (same
+      session, salted; HEAD was 6.8–7.4 s). Biggest lit shader 136.8 → 88 KB.
+      Pipelines unchanged. WebGL2 first open 1.6–1.9 s → ~45 ms. Adding a lamp:
+      9.1 s → 0.8 s (lamps no longer key the shaders). Dusk handoffs with no
+      warm-up: 6.9 s → 5.4–5.9 s.
+    - 198-wall plan (`--plan-copies=11`, 149 lights), first wall drag after the
+      build, cold: whole drag **20.5–26.5 s → 0.48–0.49 s**, worst frame
+      15–21 s → 66–72 ms. Biggest lit shader **830 → 105 KB**.
+    - Pixel-identical to three's own path by day, dusk and night on WebGPU and
+      WebGL2 (`tests/planner_light_loop_fidelity.browser.mjs`, stock-vs-stock
+      control included), and on the 198-wall plan by day and night (WebGPU).
+    - The "over-bright dusk handoff" that held it back was not a rendering
+      fault. `js/ui_smarthome.js` runs the house's smart-home rules every 20 s
+      on `Math.round(S.hour)`, so at 17:30 "Sunset Lights" (hour 18) dims every
+      lamp to 60 %. A capture that raced that tick saw undimmed lamps, on either
+      path. With the rules off, every load renders the same picture. The
+      fidelity suite turns them off.
   - **Fixed on the way (`gpu.js sizeShadowMapsAtOnce`):** three sized a shadow
     map only on its first draw. A material bound before that got a placeholder
     depth texture, and the first draw destroyed it. Every dusk handoff re-created all

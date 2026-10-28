@@ -2073,15 +2073,13 @@ var spareLights = { PointLight: [], SpotLight: [] };
 var windowLights = []; // the daylight lights of the last rebuild3D
 var roomBounce = null; // the one light carrying each room's bounce, see fitBounceLights
 var lightLoop = null; // the loop drawing every light that casts no shadow, see js/light_loop.js
-/* Opt-in (?lightLoop=1 or localStorage home3d_lightLoop=1) until an open
-   fault is fixed: right after a dusk handoff the loop can leave the frame
-   uniformly over-bright until the next light or sky change (see
-   tests/planner_light_loop_fidelity.browser.mjs). Off, every light is
-   three's own per-light code. */
+/* On by default; ?lightLoop=0 or localStorage home3d_lightLoop=0 puts every
+   light back in three's own per-light code (a kill switch, and the page
+   tests/planner_light_loop_fidelity.browser.mjs compares against) */
 function lightLoopWanted() {
   var q = typeof location !== "undefined" && /[?&]lightLoop=?([01]?)/.exec(location.search);
   if (q) return q[1] !== "0";
-  try { return localStorage.getItem("home3d_lightLoop") === "1"; } catch (e) { return false; }
+  try { return localStorage.getItem("home3d_lightLoop") !== "0"; } catch (e) { return true; }
 }
 
 function takeLight(type, color, intensity, distance, decay, angle, penumbra) {

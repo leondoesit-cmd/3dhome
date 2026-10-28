@@ -23,7 +23,10 @@
    The first half is plain arithmetic for Node tests; createLightLoop builds
    the three.js part. */
 
-export var LOOP_MAX = 64; // lights the loop carries; more fall back to three's own
+/* lights the loop carries; more fall back to three's own code. 192 × 5 vec4
+   is 15 KB: inside WebGL2's smallest guaranteed uniform block (16 KB). A
+   ~200-wall plan has ~140 lights that cast no shadow. */
+export var LOOP_MAX = 192;
 export var LOOP_STRIDE = 5; // vec4s per light
 
 /* the lights the loop takes over: punctual, no shadow, nothing projected */
