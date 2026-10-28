@@ -563,6 +563,97 @@ export function rankOf(J, tolerance = 1e-9) {
   return matrixRank(J, tolerance);
 }
 
+/* Rebuild from the current exact Jacobian, rather than caching its nonzeros:
+   a distance/angle can have zero slope along an axis now and couple it on the
+   very next iteration. Each Newton system is block diagonal in these columns.
+   Rows and columns within a block retain their original accumulation order. */
+function jacobianBlocks(J) {
+  const n = J[0]?.length || 0, parent = Array.from({ length: n }, (_, i) => i);
+  const root = (column) => {
+    while (parent[column] !== column) {
+      parent[column] = parent[parent[column]];
+      column = parent[column];
+    }
+    return column;
+  };
+  const touching = J.map((row) => {
+    const columns = [];
+    for (let j = 0; j < n; j++) if (row[j] !== 0) columns.push(j);
+    for (let j = 1; j < columns.length; j++) parent[root(columns[j])] = root(columns[0]);
+    return columns;
+  });
+  const groups = new Map();
+  for (let j = 0; j < n; j++) {
+    const key = root(j);
+    if (!groups.has(key)) groups.set(key, { columns: [], rows: [] });
+    groups.get(key).columns.push(j);
+  }
+  touching.forEach((columns, i) => { if (columns.length) groups.get(root(columns[0])).rows.push(i); });
+  return [...groups.values()].filter((group) => group.rows.length);
+}
+
+function blockStep(J, residual, damping) {
+  const blocks = jacobianBlocks(J), n = J[0]?.length || 0;
+  if (blocks.length === 1 && blocks[0].columns.length === n) return gaussNewtonStep(J, residual, damping);
+  const delta = Array(n).fill(0);
+  for (const { columns, rows } of blocks) {
+    // A satisfied independent component has zero RHS and needs no factorization.
+    if (rows.every((i) => residual[i] === 0)) continue;
+    const localJ = rows.map((i) => columns.map((j) => J[i][j]));
+    const step = gaussNewtonStep(localJ, rows.map((i) => residual[i]), damping);
+    columns.forEach((column, i) => { delta[column] = step[i]; });
+  }
+  return delta;
+}
+
+function blockRank(J, tolerance) {
+  if (!(tolerance >= 0)) return rankOf(J, tolerance);
+  const blocks = jacobianBlocks(J), columns = J[0]?.length || 0;
+  if (blocks.length === 1 && blocks[0].columns.length === columns) return rankOf(J, tolerance);
+  const order = J.map(() => ({ block: null, values: [] })), columnBlocks = [];
+  for (const block of blocks) {
+    block.columns.forEach((column, local) => { columnBlocks[column] = { block, local }; });
+    for (const i of block.rows) {
+      const values = block.columns.map((j) => J[i][j]);
+      let peak = 0;
+      for (const value of values) peak = Math.max(peak, Math.abs(value));
+      if (!Number.isFinite(peak)) return rankOf(J, tolerance);
+      if (peak > 0) for (let j = 0; j < values.length; j++) values[j] /= peak;
+      order[i] = { block, values };
+    }
+  }
+  // Retain the global row permutation even though arithmetic stays local to a
+  // block. Pivot swaps in an earlier block can reorder tied rows in a later
+  // one; independently ranking the initial blocks can then disagree at the
+  // tolerance boundary. This is the original equilibrated elimination order.
+  let rank = 0;
+  for (let column = 0; column < columns && rank < order.length; column++) {
+    const entry = columnBlocks[column];
+    if (!entry) continue;
+    const { block, local } = entry;
+    let pivot = rank, peak = order[rank].block === block ? Math.abs(order[rank].values[local]) : 0;
+    for (let i = rank + 1; i < order.length; i++) {
+      if (order[i].block !== block) continue;
+      const size = Math.abs(order[i].values[local]);
+      if (size > peak) { pivot = i; peak = size; }
+    }
+    if (peak <= tolerance) continue;
+    [order[rank], order[pivot]] = [order[pivot], order[rank]];
+    const basis = order[rank].values;
+    for (let i = rank + 1; i < order.length; i++) {
+      if (order[i].block !== block) continue;
+      const values = order[i].values, f = values[local] / basis[local];
+      if (f === 0) continue;
+      for (let j = local; j < values.length; j++) {
+        values[j] -= f * basis[j];
+        if (!Number.isFinite(values[j])) return rankOf(J, tolerance);
+      }
+    }
+    rank++;
+  }
+  return rank;
+}
+
 export function solveSketch(sketch, options = {}) {
   const entities = entityMap(sketch), points = pointMap(sketch);
   for (const constraint of sketch.constraints || []) {
@@ -581,13 +672,16 @@ export function solveSketch(sketch, options = {}) {
   const vars = variables(sketch);
   const tolerance = options.tolerance || 1e-5;
   const maxIterations = options.maxIterations || 60;
+  // Keep a global reference path for comparison and numerical investigations.
+  const stepOf = options.cluster === false ? gaussNewtonStep : blockStep;
+  const rankOfRows = options.cluster === false ? rankOf : blockRank;
   const descend = () => {
     let damping = options.damping || 1e-4, steps = 0;
     let r = residuals(sketch), error = normOf(r);
     for (; steps < maxIterations && vars.length && r.length; steps++) {
       if (error < tolerance) break;
       const J = jacobian(sketch, vars);
-      const delta = gaussNewtonStep(J, r, damping), before = vars.map((v) => v.obj[v.k]);
+      const delta = stepOf(J, r, damping), before = vars.map((v) => v.obj[v.k]);
       vars.forEach((v, i) => { v.obj[v.k] = (Number(v.obj[v.k]) || 0) + delta[i]; });
       const next = residuals(sketch), nextError = normOf(next);
       if (nextError <= error) { r = next; error = nextError; damping = Math.max(1e-9, damping * 0.35); }
@@ -653,7 +747,7 @@ export function solveSketch(sketch, options = {}) {
     let polish = residuals(sketch), polishError = normOf(polish), polishDamping = 1e-9;
     for (let i = 0; i < 8 && polishError > 1e-11; i++) {
       const Jp = jacobian(sketch, vars);
-      const step = gaussNewtonStep(Jp, polish, polishDamping), keep = vars.map((v) => v.obj[v.k]);
+      const step = stepOf(Jp, polish, polishDamping), keep = vars.map((v) => v.obj[v.k]);
       vars.forEach((v, k) => { v.obj[v.k] = (Number(v.obj[v.k]) || 0) + step[k]; });
       const after = residuals(sketch), afterError = normOf(after);
       if (afterError <= polishError) { polish = after; polishError = afterError; }
@@ -669,7 +763,7 @@ export function solveSketch(sketch, options = {}) {
   final.forEach((_, i) => { if (!(tags[i] && tags[i].auxiliary)) countedRows.push(i); });
   const allRows = jacobian(sketch, vars);
   const J = countedRows.map((i) => allRows[i]);
-  const rank = rankOf(J, rankTolerance);
+  const rank = rankOfRows(J, rankTolerance);
   const conflicts = [];
   final.forEach((v, i) => {
     const c = tags[i];
@@ -691,7 +785,7 @@ export function solveSketch(sketch, options = {}) {
   if (countedRows.length > 0 && rank < countedRows.length && converged) {
     const explicitRows = [];
     countedRows.forEach((i, row) => { if (!(tags[i] && tags[i].implicit)) explicitRows.push(J[row]); });
-    redundancy = explicitRows.length - rankOf(explicitRows, rankTolerance);
+    redundancy = explicitRows.length - rankOfRows(explicitRows, rankTolerance);
     redundant = explicitRows.length > 0 && redundancy > 0;
   }
   /* Consistent redundancy among RELATIONS is not over-definition. The book's
@@ -717,7 +811,7 @@ export function solveSketch(sketch, options = {}) {
     });
     for (const [c, rows] of byConstraint) {
       const drop = new Set(rows);
-      if (rankOf(J.filter((_, row) => !drop.has(row)), rankTolerance) !== rank) continue;
+      if (rankOfRows(J.filter((_, row) => !drop.has(row)), rankTolerance) !== rank) continue;
       repeated.push(c.id);
       if (c.value != null && !c.driven) repeatedDimension = true;
     }

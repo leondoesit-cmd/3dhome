@@ -15,6 +15,23 @@ export {addGearRelation} from "./cad_gear_motion.js";
 // baseRotations so the existing Reset zero and gear-phase reset also clear it.
 const ASSEMBLY_POSES = '__assemblyPoses';
 const playbackCursors = new WeakMap();
+const playbackTrials = new WeakMap();
+// The solver writes poses, mate scalars and (during legacy migration) reference
+// records. Frames, geometry, baseline matrices and motor axes are read-only.
+// Copy those writable records, rather than traversing the saved document.
+export function copyMotionMates(mates) {
+  return (mates || []).map(mate=>({...mate,
+    ...(mate.a && typeof mate.a==='object'?{a:{...mate.a}}:{}),
+    ...(mate.b && typeof mate.b==='object'?{b:{...mate.b}}:{}),
+    ...(mate.c && typeof mate.c==='object'?{c:{...mate.c}}:{}),
+  }));
+}
+export function copyMotionStudy(study) {
+  return {...study,...(study.motors?{motors:study.motors.map(motor=>({...motor}))}:{}),
+    ...(study.baseRotations?{baseRotations:{...study.baseRotations}}:{}),
+    ...(study.beltBaselines?{beltBaselines:{...study.beltBaselines}}:{}),
+  };
+}
 const poseStamp = components => JSON.stringify((components || []).map(c => [c.id,c.transform]));
 const studyStamp = (assembly,study) => JSON.stringify([
   assembly.mates || [],assembly.topologyMates || [],study.motors || [],study.gearRelations || [],study.baseRotations || {},study.nativeDriveConfiguration,
@@ -109,12 +126,26 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
   if(!Number.isFinite(timeInSeconds))return {ok:false,issues:[{code:'invalid-motion-time'}]};
   // Solve on a copy so failed mates never publish a partially moved assembly.
   const requestedIncremental=options.incremental===true;
+  // Only the preview's privately owned document can promise a revision. Public
+  // callers retain content guards, including detection of in-place motor edits.
+  const owned=options.playbackRevision!==undefined;
   const prior=playbackCursors.get(assembly);
-  const resume=requestedIncremental && prior?.studyId===motionStudyId && prior?.study===original
+  const resume=requestedIncremental && options.continuation!==false && prior?.studyId===motionStudyId && prior?.study===original
     && original.time===prior.time && timeInSeconds>prior.time
-    && prior.pose===poseStamp(assembly.components) && prior.graph===studyStamp(assembly,original);
-  const trial={...assembly,components:(assembly.components||[]).map(c=>({...c,transform:structuredClone(c.transform||{})})),mates:structuredClone(assembly.mates||[]),topologyMates:structuredClone(assembly.topologyMates||[])};
-  const ms=structuredClone(original),driven=new Set();
+    && (owned?prior.revision===options.playbackRevision:
+      prior.pose===poseStamp(assembly.components) && prior.graph===studyStamp(assembly,original));
+  let trial=owned?playbackTrials.get(assembly):null;
+  if(!trial){trial={};if(owned)playbackTrials.set(assembly,trial);}
+  const components=trial.components;
+  Object.assign(trial,assembly);
+  trial.components=(assembly.components||[]).map((c,i)=>{
+    const target=components?.[i]?.id===c.id?components[i]:{};
+    for(const key of Object.keys(target))if(!Object.hasOwn(c,key))delete target[key];
+    return Object.assign(target,c,{transform:structuredClone(c.transform||{})});
+  });
+  trial.mates=copyMotionMates(assembly.mates);
+  trial.topologyMates=copyMotionMates(assembly.topologyMates);
+  const ms=copyMotionStudy(original),driven=new Set();
   const configuration=restoreNativeDriveConfiguration(ms,trial);
   if(configuration)return configuration;
   if(!resume)restoreStudyPose(ms,trial.components);
@@ -234,7 +265,7 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
   screwMotions.forEach(m=>{const motor=original.motors.find(item=>item.type===m.mateType&&item.mateId===m.mateId);if(motor)motor.baseTurns=m.baseTurns;});
   original.baseRotations=rotary.baseRotations;original.time=timeInSeconds;
   if(requestedIncremental)playbackCursors.set(assembly,{studyId:motionStudyId,study:original,time:timeInSeconds,
-    pose:poseStamp(assembly.components),graph:studyStamp(assembly,original)});
+    ...(owned?{revision:options.playbackRevision}:{pose:poseStamp(assembly.components),graph:studyStamp(assembly,original)})});
   else playbackCursors.delete(assembly);
   return {...result,motionSubsteps,motions:[...motion.motions,...linear.motions,...screwMotions]};
 }

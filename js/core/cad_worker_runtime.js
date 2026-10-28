@@ -13,7 +13,7 @@ import {collectNativeSections} from './native_section_query.js';
 import {nativeOperationRevision} from './native_operation_revision.js';
 import {finishCacheParameters} from './finish_cache_parameters.js';
 import {
-  serializeBrep, deserializeBrep, extractBrepTopology, hydrateSerializedBrepTopology, disposeBrep, shapeToMeshData, shapeMassProperties, shapeSolidCount, exportStep,
+  serializeBrep, deserializeBrep, extractBrepTopology, hydrateSerializedBrepTopology, disposeBrep, shapeToMeshData, shapeMassProperties, shapeSolidCount, exportStep, setCadKernelModule,
   shellBrep, filletBrep, chamferBrep, domeBrep, draftBrep, makeBrepExtrusion, brepMaterialIntersection, brepFaceLineIntersections,
 } from '../cad_kernel.js';
 
@@ -127,7 +127,8 @@ async function restoreBody(payload,ownerFeatureId) {
 
 // The worker retains exact serialized results, not mesh stand-ins. Restoring a
 // cached Shell gives every run its own handles, so releasing a run is safe.
-export function createCadWorkerExecutor({bodyStore=createNativeBodyStore()}={}) {
+export function createCadWorkerExecutor({bodyStore=createNativeBodyStore(),kernelModule}={}) {
+  if(kernelModule)setCadKernelModule(kernelModule);
   const cache=new Map();let cacheBytes=0;
   function remember(key,payload) {
     if(!key || !payload.bytes || payload.metadata.approximate || payload.metadata.invalid)return;

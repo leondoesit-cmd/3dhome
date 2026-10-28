@@ -46,6 +46,7 @@ import { FURN, lampColor, buildItem as buildFurn, elevOffset, itemVSpan } from "
 import { refreshRuntimePlacements } from "./core/runtime.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
 import { pbrEntryFor, pbrTextures, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById, sharedRepeat, textureMisses } from "./pbr_material.js";
+import { createLightLoop } from "./light_loop.js";
 import { createRoomBounce, roomIrradiance, roomInspectionFill, spotFlux, pointFlux, lightMaskRoom, SKY_ONLY, UNMASKED } from "./room_bounce.js";
 import { HumanFactory } from "./human.js";
 import { SITE, llToLocalCm } from "./site.js";
@@ -2070,6 +2071,17 @@ function placeItem(g, it) {
 var spareLights = { PointLight: [], SpotLight: [] };
 var windowLights = []; // the daylight lights of the last rebuild3D
 var roomBounce = null; // the one light carrying each room's bounce, see fitBounceLights
+var lightLoop = null; // the loop drawing every light that casts no shadow, see js/light_loop.js
+/* Opt-in (?lightLoop=1 or localStorage home3d_lightLoop=1) until an open
+   fault is fixed: right after a dusk handoff the loop can leave the frame
+   uniformly over-bright until the next light or sky change (see
+   tests/planner_light_loop_fidelity.browser.mjs). Off, every light is
+   three's own per-light code. */
+function lightLoopWanted() {
+  var q = typeof location !== "undefined" && /[?&]lightLoop=?([01]?)/.exec(location.search);
+  if (q) return q[1] !== "0";
+  try { return localStorage.getItem("home3d_lightLoop") === "1"; } catch (e) { return false; }
+}
 
 function takeLight(type, color, intensity, distance, decay, angle, penumbra) {
   var spare = spareLights[type], l;
@@ -2652,8 +2664,13 @@ export function rebuild3D() {
   dyn.add(structureRoot);
   scene.doors = [];
   var bb = contentBounds();
-  var gw = bb.w + 900,
-    gd = bb.d + 900,
+  /* The lawn grows in 10 m steps, not with every wall move: its texture repeat
+     is part of the material, so each new size was a new shader (the lit one
+     and one per shadow pass, ~200 ms of every rebuild while a wall was
+     dragged). It still reaches at least 4.5 m past the content on every side. */
+  var GROUND_STEP_CM = 1000;
+  var gw = Math.ceil((bb.w + 900) / GROUND_STEP_CM) * GROUND_STEP_CM,
+    gd = Math.ceil((bb.d + 900) / GROUND_STEP_CM) * GROUND_STEP_CM,
     gt = groundTexture();
   gt.repeat.set(gw / 160, gd / 160);
   var lawn = materialById("ground_lawn");
@@ -3429,6 +3446,7 @@ function startPrewarm() {
     } catch (e) {
       // a failed warm-up only means the handoff builds on the spot
     }
+    run.complete = !run.stop;
     run.busy = false;
   })();
 }
@@ -3457,6 +3475,11 @@ function finishPrewarm() {
   fitPracticalLights();
   forgetLightKeys(renderer); // or the next frame's first object keys on the last set
   if (run.envPending) applyEnv(); // the time change that came in meanwhile
+  /* An interrupted run starts again after the next quiet spell. Only a rebuild
+     used to re-arm it, so a single time change or orbit during the warm-up
+     left the dusk handoff to build on the spot (4–6 s frozen) until the plan
+     was next edited. Shaders it already built are cached and cost nothing. */
+  if (!run.complete) prewarmDue = performance.now() + PREWARM_IDLE_MS;
   needsRender = true;
   return true;
 }
@@ -3621,7 +3644,7 @@ function seeRest(cut) {
 function seeOutOfStep(g, cut) {
   var rest = seeRest(cut), f = g.userData.seeFade;
   if (f) return f.to !== rest;
-  var stub = g.userData.seeStub;
+  var stub = seeStubs.get(g);
   if ((cut && cutStyle() === "stub") !== !!(stub && stub.visible)) return true;
   return rest === 1 ? !g.visible : rest === 0 ? g.visible : true;
 }
@@ -3638,14 +3661,14 @@ function setSeeThrough(g, cut, instant) {
   if (standIn) standIn.visible = cut;
   // a wall coming back loses its stub at once; one going away gets it when it
   // lands (endSeeFade), so the two never stand in the same place
-  if (!cut && g.userData.seeStub) g.userData.seeStub.visible = false;
+  if (!cut && seeStubs.has(g)) seeStubs.get(g).visible = false;
   fadeWall(g, seeRest(cut), instant);
   if (!g.userData.seeFade) syncStub(g);
 }
 
 function syncStub(g) {
   var want = !!g.userData.seeThrough && cutStyle() === "stub";
-  var stub = want ? stubFor(g) : g.userData.seeStub;
+  var stub = want ? stubFor(g) : seeStubs.get(g);
   if (stub) stub.visible = want;
 }
 
@@ -3697,11 +3720,15 @@ function selectionAim() {
    cut cap. Built the first time a wall is cut, into stubRoot under
    structureRoot so the structure layer's hide and ghost reach it; it has no
    tags of its own, so picking, physics and export pass it by. */
+/* wall group -> its stub. Not userData: Object3D.copy deep-copies userData
+   through JSON, so a stub kept there was serialized whole (meshes, materials,
+   textures as PNG) by every clone of its wall, 1-2 s in the inspector preview. */
+var seeStubs = new WeakMap();
 var stubRoot = null,
   stubBuildH = 0,
   wallBuildArgs = {}; // wall id -> [colour, texture] it was built with
 function stubFor(g) {
-  if (g.userData.seeStub) return g.userData.seeStub;
+  if (seeStubs.has(g)) return seeStubs.get(g);
   var w = g.userData.wall;
   if (!stubRoot || !w) return null;
   var keepRoot = structureRoot, doorCount = scene.doors ? scene.doors.length : 0;
@@ -3724,7 +3751,7 @@ function stubFor(g) {
   // built after the structure layer was ghosted: ghost it too, as the rest are
   if (structureRoot.userData.ghostHeld) ghostSwap(stub, true);
   stubRoot.add(stub);
-  g.userData.seeStub = stub;
+  seeStubs.set(g, stub);
   return stub;
 }
 
@@ -5382,7 +5409,15 @@ function build3D() {
   // falls back to its own WebGL2 backend where it does not (WebKitGTK, older
   // Safari) — same API, same node materials, so there is only one code path to
   // maintain. See gpu.js for the backend policy and the forceWebGL test switch.
+  // looked up per call: the bounce (and its room map) is made just below
+  lightLoop = createLightLoop(THREE, TSL, {
+    on: lightLoopWanted(),
+    maskRoom: function (l, r) { return roomBounce ? roomBounce.loopMasks.maskRoom(l, r) : UNMASKED; },
+    lightOpen: function (m) { return roomBounce ? roomBounce.loopMasks.lightOpen(m) : TSL.float(1); },
+    hoist: function () { return roomBounce ? roomBounce.loopMasks.hoist() : []; },
+  });
   renderer = createRenderer({
+    lighting: lightLoop.lighting,
     canvas: document.getElementById("v3d"),
     // antialias:false is deliberate. MSAA makes the scene pass multisampled while
     // the depth/normal targets GTAO and TRAA read from are single-sampled, and the
@@ -6119,6 +6154,48 @@ function build3D() {
   }
 
   var lastTime = 0;
+  /* A hidden 3D pane (Plan view) is kept current for the next switch, but not
+     on every pointer move of a drag: each rebuild there redid and re-keyed the
+     whole house, ~180 ms a move on a large flat with nothing on screen to show
+     for it. While a gesture is in progress (a button held, or input within
+     HIDDEN_EDIT_IDLE_MS) pending rebuilds wait; the first quiet frame after it
+     runs them once, so the pane is still ready when it is opened. */
+  /* Pressed pointers by id (two fingers are two gestures' worth). A release
+     can be missed (it happened outside the window, or focus went elsewhere
+     mid-drag), so a move that reports no buttons, a blur and a hidden page
+     all forget them: a stuck press must not hold rebuilds forever. */
+  /* With the pane visible, a gesture on the 2D plan is followed at ~8 Hz rather
+     than on every pointer move: each rebuild there (~80 ms in a large flat) was
+     paid inside the plan's own frame, so the plan dragged at ~12 fps. The 3D
+     view lags a little during the drag and is exact once it ends. A gesture in
+     the 3D view itself is never throttled. */
+  var HIDDEN_EDIT_IDLE_MS = 300, VISIBLE_PLAN_DRAG_REBUILD_MS = 120;
+  var editInputT = 0, editPointers = new Set(), editOnPlan = false;
+  var noteEditInput = function () { editInputT = performance.now(); };
+  var releaseAllPointers = function () { if (editPointers.size) { editPointers.clear(); noteEditInput(); } };
+  window.addEventListener("pointerdown", function (e) {
+    editPointers.add(e.pointerId);
+    editOnPlan = !!(e.target && e.target.closest && e.target.closest("#view-2d"));
+    noteEditInput();
+  }, { capture: true, passive: true });
+  window.addEventListener("pointermove", function (e) {
+    if (!editPointers.has(e.pointerId)) return;
+    if (e.buttons === 0) editPointers.delete(e.pointerId);
+    noteEditInput();
+  }, { capture: true, passive: true });
+  ["pointerup", "pointercancel"].forEach(function (type) {
+    window.addEventListener(type, function (e) { editPointers.delete(e.pointerId); noteEditInput(); }, { capture: true, passive: true });
+  });
+  window.addEventListener("blur", releaseAllPointers);
+  document.addEventListener("visibilitychange", function () { if (document.hidden) releaseAllPointers(); });
+  window.addEventListener("keydown", noteEditInput, { capture: true, passive: true });
+  var holdHiddenRebuild = function (time) {
+    if (!(S.dirty3D || S.items3D.size)) return false;
+    if (!editPointers.size && time - editInputT >= HIDDEN_EDIT_IDLE_MS) return false;
+    var el = renderer && renderer.domElement;
+    if (el && el.getClientRects().length === 0) return true; // display:none up the tree
+    return editOnPlan && editPointers.size > 0 && time - lastRebuildT < VISIBLE_PLAN_DRAG_REBUILD_MS;
+  };
   buildViewGizmo();
   if(pendingNavigationView){const view=pendingNavigationView;pendingNavigationView=null;restoreNavigationView(view);}
   (function animate(time) {
@@ -6139,8 +6216,11 @@ function build3D() {
       prewarmRun.stop = true;
       if (!finishPrewarm()) return;
     }
-    if (S.items3D.size && !S.dirty3D) applyItemOps();
-    if (S.dirty3D) {
+    // A held rebuild that lands still ends in rebuild3D's "scene3d:rebuilt",
+    // which views mirroring this scene (the inspector preview) refresh from.
+    var heldNow = holdHiddenRebuild(time);
+    if (S.items3D.size && !S.dirty3D && !heldNow) applyItemOps();
+    if (S.dirty3D && !heldNow) {
       S.dirty3D = false;
       try {
         schedulePrewarm(); // ends a run before the scene it draws is replaced

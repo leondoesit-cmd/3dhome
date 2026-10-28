@@ -1,3 +1,5 @@
+import {copyMotionStudy,copyMotionMates} from '../cad_motion_study.js';
+
 // Snapshot poses and motion state only; component meshes and definitions stay shared.
 export function motionPreviewDuration(study) {
   if(Number.isFinite(study?.previewDurationSeconds) && study.previewDurationSeconds>0)return study.previewDurationSeconds;
@@ -20,8 +22,8 @@ export function motionPlaybackStepSeconds(study) {
 export function createMotionPlayback(assembly,studyId,options) {
   const study=assembly.motionStudies?.find(item=>item.id===studyId);
   if(!study)throw new Error('Choose a saved motion study');
-  const snapshot=()=>({poses:assembly.components.map(c=>({id:c.id,transform:structuredClone(c.transform||{})})),
-    studies:structuredClone(assembly.motionStudies),mates:structuredClone(assembly.topologyMates||[])});
+  const snapshot=()=>({poses:assembly.components.map(c=>({id:c.id,present:Object.hasOwn(c,'transform'),transform:structuredClone(c.transform)})),
+    studies:structuredClone(assembly.motionStudies),mates:structuredClone(assembly.topologyMates),hadMates:Object.hasOwn(assembly,'topologyMates')});
   const entry=snapshot();
   // Explode offsets are presentation only. Physical motion uses the assembled
   // mechanism and closing the preview restores the exact opening presentation.
@@ -36,10 +38,17 @@ export function createMotionPlayback(assembly,studyId,options) {
     if(hadExploded)assembly.exploded=exploded;else delete assembly.exploded;
   };
   const restore=data=>{
-    const poses=new Map(data.poses.map(item=>[item.id,item.transform]));
-    for(const component of assembly.components)if(poses.has(component.id))component.transform=structuredClone(poses.get(component.id));
-    assembly.motionStudies=structuredClone(data.studies);assembly.topologyMates=structuredClone(data.mates);
+    const poses=new Map(data.poses.map(item=>[item.id,item]));
+    for(const component of assembly.components)if(poses.has(component.id)){
+      const pose=poses.get(component.id);
+      if(pose.present)component.transform=structuredClone(pose.transform);else delete component.transform;
+    }
+    assembly.motionStudies=structuredClone(data.studies);
+    if(data.hadMates)assembly.topologyMates=structuredClone(data.mates);else delete assembly.topologyMates;
   };
+  const trial={...assembly,components:assembly.components.map(component=>({...component})),
+    motionStudies:structuredClone(assembly.motionStudies),topologyMates:structuredClone(assembly.topologyMates||[]),mates:structuredClone(assembly.mates||[])};
+  let publishedStudies=assembly.motionStudies,publishedMates=assembly.topologyMates,revision=0;
   let time=Math.max(0,Number(study.time)||0),duration=motionPreviewDuration(study),frame=0,last=0,running=false,closed=false,busy=false;
   let lastMessage='Ready',lastResult;
   const notify=(message,result)=>{lastMessage=message;if(result)lastResult=result;options.onState?.({time,duration,running,busy,message,result});};
@@ -50,14 +59,23 @@ export function createMotionPlayback(assembly,studyId,options) {
     const next=Number(value);if(!Number.isFinite(next) || next<0 || next>duration)return false;
     busy=true;notify('Solving saved mates');
     try {
-      const trial={...assembly,components:assembly.components.map(component=>({...component,transform:structuredClone(component.transform||{})})),
-        motionStudies:structuredClone(assembly.motionStudies),topologyMates:structuredClone(assembly.topologyMates||[])};
-      const result=await options.evaluate(trial,studyId,next,{incremental:running});
+      // The preview owns this graph until it closes. A replacement document
+      // graph invalidates the worker cursor; ordinary frames copy only poses
+      // and the small records that the evaluator can write.
+      // A failed solve may have written into the trial: resync it from the document.
+      if(assembly.motionStudies!==publishedStudies || assembly.topologyMates!==publishedMates){
+        trial.motionStudies=structuredClone(assembly.motionStudies);
+        trial.topologyMates=structuredClone(assembly.topologyMates||[]);revision++;
+      }
+      for(let i=0;i<trial.components.length;i++)trial.components[i].transform=structuredClone(assembly.components[i].transform||{});
+      const result=await options.evaluate(trial,studyId,next,{incremental:running,playbackRevision:revision,continuation:false});
       if(!valid()){cancel();return false;}
-      if(!result.ok){pause();notify('Motion stopped: '+[...(result.issues||[]),...(result.unsatisfied||[])].map(issue=>issue.code).join('; '),result);return false;}
-      restore({poses:trial.components.map(c=>({id:c.id,transform:c.transform})),studies:trial.motionStudies,mates:trial.topologyMates});
+      if(!result.ok){publishedStudies=publishedMates=undefined;pause();notify('Motion stopped: '+[...(result.issues||[]),...(result.unsatisfied||[])].map(issue=>issue.code).join('; '),result);return false;}
+      for(let i=0;i<assembly.components.length;i++)assembly.components[i].transform=structuredClone(trial.components[i].transform);
+      assembly.motionStudies=trial.motionStudies.map(copyMotionStudy);assembly.topologyMates=copyMotionMates(trial.topologyMates);
+      publishedStudies=assembly.motionStudies;publishedMates=assembly.topologyMates;
       time=next;options.onPose?.(result);notify(running?'Playing':'Paused',result);return true;
-    }catch(error){pause();notify('Motion stopped: '+String(error.message||error));return false;}
+    }catch(error){publishedStudies=publishedMates=undefined;pause();notify('Motion stopped: '+String(error.message||error));return false;}
     finally{busy=false;notify(lastMessage,lastResult);}
   };
   const cancel=()=>{if(closed)return;pause();closed=true;restorePresentation();if(!options.isCurrent || options.isCurrent()){restore(entry);options.onPose?.();}options.onClose?.();notify('Original pose restored');};

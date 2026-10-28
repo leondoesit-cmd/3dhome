@@ -13,11 +13,14 @@
 // Protocol (JSON text frames):
 //   client → server: {t:'hello', code, name, token}
 //                    {t:'join', room}
+//                    {t:'admit'|'deny', code}
 //                    {t:'watch', codes:[friendCode...]}
 //                    {t:'msg', data, to?}   to = a peer's friend code
 //   server → client: {t:'roster', users:[{code,name,room}]}
 //                    {t:'joined'|'left', room, code, name}
 //                    {t:'msg', from, data}
+//                    {t:'knock', code, name}
+//                    {t:'pending'|'admitted'|'denied', room}
 // The relay never inspects `data` — chat, poses, scene JSON and WebRTC
 // signaling all ride through it opaquely.
 //
@@ -28,13 +31,21 @@
 import { createServer } from "node:http";
 import { createServer as createSecureServer } from "node:https";
 import { createHash, timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 import { readFile, writeFile, stat } from "node:fs/promises";
 import { brotliCompress, gzip, constants as ZLIB } from "node:zlib";
 import { join, extname, normalize, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { lookupProduct } from "../js/prodsize.js";
-import { resolvePublicUrl, safeHttpGet, safeLanRequest, safeStaticFile } from "./security.mjs";
+import {
+  lanOnlyRequest,
+  localOnlyRequest,
+  resolvePublicUrl,
+  safeHttpGet,
+  safeLanRequest,
+  safeStaticFile,
+} from "./security.mjs";
 import { listModelBackups, readModelBackup, readModelBackupAttachments, validBackupKey, writeModelBackup } from "./model_backup.mjs";
 import { createBlueprintVision } from './blueprint_vision.mjs';
 
@@ -46,6 +57,32 @@ const MODEL_BACKUP_DIR = process.env.HOME3D_MODEL_BACKUP_DIR
 const IDENTITIES_FILE =
   process.env.HOME3D_IDENTITIES_FILE || join(ROOT, "server", ".relay-identities.json");
 const WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+const WS_MESSAGE_BYTES = Number(process.env.HOME3D_WS_MAX_MESSAGE_BYTES);
+const WS_MAX_MESSAGE_BYTES = Number.isSafeInteger(WS_MESSAGE_BYTES) && WS_MESSAGE_BYTES > 0
+  ? WS_MESSAGE_BYTES : 16 * 1024 * 1024;
+function envLimit(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+const WS_MAX_CLIENTS = envLimit("HOME3D_WS_MAX_CLIENTS", 400);
+const WS_MAX_CLIENTS_PER_ADDRESS = envLimit("HOME3D_WS_MAX_CLIENTS_PER_ADDRESS", 10);
+const WS_HELLO_TIMEOUT_MS = envLimit("HOME3D_WS_HELLO_TIMEOUT_MS", 10000);
+const WS_PING_INTERVAL_MS = envLimit("HOME3D_WS_PING_INTERVAL_MS", 30000);
+const WS_IDLE_TIMEOUT_MS = envLimit("HOME3D_WS_IDLE_TIMEOUT_MS", 75000);
+const WS_MAX_WRITABLE_BYTES = envLimit("HOME3D_WS_MAX_WRITABLE_BYTES", 8 * 1024 * 1024);
+// Rates are tokens per second; bursts allow normal room setup and pose updates.
+const WS_MESSAGE_RATE = envLimit("HOME3D_WS_MESSAGE_RATE", 120);
+const WS_MESSAGE_BURST = envLimit("HOME3D_WS_MESSAGE_BURST", 240);
+const WS_IDENTITY_RATE = envLimit("HOME3D_WS_IDENTITY_RATE", 1 / 3);
+const WS_IDENTITY_BURST = envLimit("HOME3D_WS_IDENTITY_BURST", 20);
+function takeToken(bucket, rate, burst) {
+  const now = performance.now();
+  bucket.tokens = Math.min(burst, bucket.tokens + (now - bucket.at) * rate / 1000);
+  bucket.at = now;
+  if (bucket.tokens < 1) return false;
+  bucket.tokens--;
+  return true;
+}
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -136,24 +173,20 @@ function staticGzip(entry) {
   return entry.gzipping;
 }
 
-// Friend codes are public handles; this separate token proves ownership of a
-// handle across reconnects and relay restarts. The file is never served by the
-// static handler (the whole /server tree is private).
+// Only legacy credentials need disk. New codes certify themselves after a redeploy.
 let identities = {};
 try {
   const saved = JSON.parse(await readFile(IDENTITIES_FILE, "utf8"));
   if (saved && typeof saved === "object" && !Array.isArray(saved)) identities = saved;
 } catch (_) {}
-let identityTimer = null;
-function saveIdentities() {
-  if (identityTimer) return;
-  identityTimer = setTimeout(async () => {
-    identityTimer = null;
-    try {
-      await writeFile(IDENTITIES_FILE, JSON.stringify(identities), { mode: 0o600 });
-    } catch (_) {}
-  }, 100);
-  identityTimer.unref?.();
+function codeFor(token) {
+  const digest = createHash("sha256").update(token, "utf8").digest();
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let bits = 0;
+  for (let i = 0; i < 5; i++) bits = bits * 256 + digest[i];
+  let code = "";
+  for (let shift = 35; shift >= 0; shift -= 5) code += alphabet[Math.floor(bits / 2 ** shift) & 31];
+  return code.slice(0, 4) + "-" + code.slice(4);
 }
 function sameToken(a, b) {
   if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
@@ -182,6 +215,39 @@ function allowedOrigin(req) {
     return false;
   }
 }
+
+// HOME3D_PUBLIC=1 (render.yaml) marks an internet-facing deployment: the
+// machine-local endpoints answer 404 there, whatever the request claims.
+// HOME3D_ALLOWED_HOSTS names extra hostnames this machine is reached by.
+const PUBLIC_MODE = process.env.HOME3D_PUBLIC === "1";
+const TRUST = {
+  publicMode: PUBLIC_MODE,
+  allowedHosts: new Set(
+    String(process.env.HOME3D_ALLOWED_HOSTS || "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  ),
+};
+const LOCAL_ROUTES = new Set(["/api/smarthome", "/api/model-backup", "/api/blueprint"]);
+// Top-level files and folders the static handler may serve; the rest of the
+// checkout (docs, tests, tools, scratch output, node_modules) stays private.
+const PUBLIC_PATHS = JSON.parse(await readFile(join(ROOT, "server", "public_paths.json"), "utf8"));
+const STATIC_ALLOW = { files: new Set(PUBLIC_PATHS.files), dirs: new Set(PUBLIC_PATHS.dirs) };
+
+// Request and socket catches isolate bad input. Cap logs so a flood cannot fill disk.
+let errorLog = { start: 0, count: 0 };
+function logServerError(context, err) {
+  const now = Date.now();
+  if (now - errorLog.start > 60000) errorLog = { start: now, count: 0 };
+  if (++errorLog.count > 20) return;
+  console.error(`[relay] ${context}:`, err && err.stack ? err.stack : err);
+}
+process.on("unhandledRejection", (reason) => logServerError("unhandled rejection", reason));
+process.on("uncaughtException", (err) => {
+  console.error("[relay] uncaught exception:", err && err.stack ? err.stack : err);
+  process.exit(1); // Render must restart a process whose state may be corrupt.
+});
 
 // ---- product-dimension lookup proxy ----------------------------------------
 // GET /api/prodsize?q=<free text>[&w=&d=&h=][&nocache=1]
@@ -303,8 +369,14 @@ function readJsonBody(req, maxBytes) {
     req.on("end", () => {
       const raw = Buffer.concat(chunks, size).toString("utf8");
       if (!raw) return resolve({});
-      try { resolve(JSON.parse(raw)); }
-      catch (err) { reject(err); }
+      let value;
+      try { value = JSON.parse(raw); }
+      catch (err) { return reject(err); }
+      // Every endpoint reads fields off the body; null or an array would throw
+      // inside the handler instead of answering 400.
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        return reject(new Error("JSON object required"));
+      resolve(value);
     });
     req.on("error", reject);
   });
@@ -314,6 +386,7 @@ function readJsonBody(req, maxBytes) {
 // Browser CORS blocks Home Assistant / Hue / Shelly on the LAN. This proxy
 // forwards only to private/loopback/.local hubs on a short port allow-list.
 async function smarthomeProxy(req, res) {
+  if (!lanOnlyRequest(req, TRUST)) return json(res, 403, { error: "the smart-home proxy is LAN-only" });
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -322,7 +395,8 @@ async function smarthomeProxy(req, res) {
     return res.end();
   }
   if (req.method !== "POST") return json(res, 405, { error: "POST only" });
-  if (req.headers.origin && !allowedOrigin(req)) return json(res, 403, { error: "origin" });
+  // Browsers always send Origin on a POST; a request without one is not the app.
+  if (!allowedOrigin(req)) return json(res, 403, { error: "origin" });
   let payload;
   try {
     payload = await readJsonBody(req, 300 * 1024);
@@ -368,9 +442,7 @@ function sameSecret(a, b) {
   return aa.length === bb.length && aa.length > 0 && timingSafeEqual(aa, bb);
 }
 function agentAuthorized(req) {
-  const remote = String(req.socket && req.socket.remoteAddress || "");
-  const loopback = remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
-  if (!AGENT_ACCESS_TOKEN) return loopback;
+  if (!AGENT_ACCESS_TOKEN) return localOnlyRequest(req, TRUST);
   return sameSecret(req.headers["x-modelforge-agent-token"], AGENT_ACCESS_TOKEN);
 }
 function agentWithinRate(req) {
@@ -509,13 +581,10 @@ async function agentChat(req, res) {
 // POST /api/model-backup  { models: [record…], attachments?: { <key>: [{ reference, payload }] } }
 //                         → { results: [{ key, written | error }] }
 // Local-only: these read and write this machine's disk, so a remote relay
-// client (multiplayer) is refused, and so is a page from another origin.
-function loopbackRequest(req) {
-  const remote = String(req.socket && req.socket.remoteAddress || "");
-  return remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
-}
+// client (multiplayer) is refused, and so is a page from another origin or a
+// rebinding domain (see localOnlyRequest).
 async function modelBackup(req, u, res) {
-  if (!loopbackRequest(req)) return json(res, 403, { error: "model backups are local-only" });
+  if (!localOnlyRequest(req, TRUST)) return json(res, 403, { error: "model backups are local-only" });
   if (req.headers.origin && !allowedOrigin(req)) return json(res, 403, { error: "origin" });
   if (req.method === "GET") {
     const key = u.searchParams.get("key");
@@ -545,9 +614,12 @@ const tlsCert = process.env.HOME3D_TLS_CERT, tlsKey = process.env.HOME3D_TLS_KEY
 if (!!tlsCert !== !!tlsKey) throw new Error("Set both HOME3D_TLS_CERT and HOME3D_TLS_KEY");
 const tlsOptions = tlsCert ? { cert: await readFile(tlsCert), key: await readFile(tlsKey) } : null;
 const blueprintVision = createBlueprintVision({root:ROOT,json,readJsonBody,allowedOrigin});
-const serve = async (req, res) => {
+const handleRequest = async (req, res) => {
   const u = new URL(req.url || "/", "http://localhost");
-  if (u.pathname === '/api/blueprint') return blueprintVision(req,res);
+  if (PUBLIC_MODE && LOCAL_ROUTES.has(u.pathname)) return json(res, 404, { error: "not available on this server" });
+  if (u.pathname === '/api/blueprint') return (process.env.HOME3D_BLUEPRINT_LAN === "1"
+    ? lanOnlyRequest(req, TRUST) : localOnlyRequest(req, TRUST))
+    ? blueprintVision(req,res) : json(res, 403, { error: "blueprint vision is machine-local unless LAN is enabled" });
   if (u.pathname === "/api/prodsize") return prodsize(u, res);
   if (u.pathname === "/api/smarthome") return smarthomeProxy(req, res);
   if (u.pathname === "/api/agent/status") return agentStatus(req, res);
@@ -556,9 +628,10 @@ const serve = async (req, res) => {
   if (u.pathname === "/api/agent-bridge/poll") return agentBridgePoll(req, res);
   if (u.pathname === "/api/agent-bridge/reply") return agentBridgeReply(req, res);
   if (u.pathname === "/api/model-backup") return modelBackup(req, u, res);
-  if (u.pathname === "/api/ping") return json(res, 200, { ok: true, api: ["prodsize", "smarthome"] });
+  if (u.pathname === "/api/ping")
+    return json(res, 200, { ok: true, api: PUBLIC_MODE ? ["prodsize"] : ["prodsize", "smarthome"] });
   try {
-    const file = await safeStaticFile(ROOT, u.pathname);
+    const file = await safeStaticFile(ROOT, u.pathname, { allow: STATIC_ALLOW });
     if (!file) throw 0;
     const st = await stat(file);
     if (!st.isFile()) throw 0;
@@ -591,7 +664,23 @@ const serve = async (req, res) => {
     res.end("not found");
   }
 };
+// Node exits on an unhandled rejection, and nothing else awaits a handler's
+// promise, so every request failure ends here as a 500.
+const serve = (req, res) => {
+  handleRequest(req, res).catch((err) => {
+    logServerError(`${req.method} ${String(req.url || "").split("?")[0]}`, err);
+    try {
+      if (!res.headersSent) json(res, 500, { error: "internal error" });
+      else res.destroy();
+    } catch (_) {}
+  });
+};
 const http = tlsOptions ? createSecureServer(tlsOptions, serve) : createServer(serve);
+// Startup failures (port in use) must end the process too.
+http.on("error", (err) => {
+  console.error("[relay] server error:", err && err.message ? err.message : err);
+  process.exit(1);
+});
 
 // ---- WebSocket framing (RFC 6455, server side) -----------------------------
 function accept(key) {
@@ -618,66 +707,168 @@ function encodeFrame(str) {
 
 // Incremental frame parser per connection; handles masked client frames,
 // 16/64-bit lengths, continuation fragments, ping and close.
-function makeParser(onMessage, onClose, sock) {
-  let buf = Buffer.alloc(0);
+function makeParser(onMessage, onClose, sock, onFrame) {
+  let chunks = [], first = 0, pendingBytes = 0;
+  // Small header peeks and one payload read avoid recopying a growing frame.
+  function peek(size) {
+    const head = chunks[first];
+    if (head.length >= size) return head.subarray(0, size);
+    const out = Buffer.allocUnsafe(size);
+    let copied = 0;
+    for (let i = first; copied < size; i++) {
+      copied += chunks[i].copy(out, copied, 0, Math.min(chunks[i].length, size - copied));
+    }
+    return out;
+  }
+  function read(size) {
+    const out = peek(size);
+    pendingBytes -= size;
+    while (size > 0) {
+      const head = chunks[first];
+      if (size < head.length) {
+        chunks[first] = head.subarray(size);
+        break;
+      }
+      size -= head.length;
+      chunks[first++] = null;
+    }
+    if (first === chunks.length) { chunks = []; first = 0; }
+    else if (first > 1024 && first > chunks.length / 2) { chunks = chunks.slice(first); first = 0; }
+    return out;
+  }
   let fragments = null; // accumulating fragmented message payloads
+  let fragmentBytes = 0;
+  // A frame or message the code cannot handle closes that one socket; it must
+  // never surface as an uncaught exception in the 'data' listener.
   return (chunk) => {
-    buf = Buffer.concat([buf, chunk]);
-    for (;;) {
-      if (buf.length < 2) return;
+    try {
+      consume(chunk);
+    } catch (err) {
+      logServerError("websocket message", err);
+      sock.destroy();
+    }
+  };
+  function consume(chunk) {
+    // A masked frame needs up to 14 header bytes beyond its payload.
+    if (pendingBytes + chunk.length > WS_MAX_MESSAGE_BYTES + 14) return sock.destroy();
+    if (chunk.length) { chunks.push(chunk); pendingBytes += chunk.length; }
+    while (!sock.destroyed) {
+      if (pendingBytes < 2) return;
+      let buf = peek(Math.min(pendingBytes, 14));
       const fin = (buf[0] & 0x80) !== 0;
       const op = buf[0] & 0x0f;
       const masked = (buf[1] & 0x80) !== 0;
       let len = buf[1] & 0x7f;
       let off = 2;
       if (len === 126) {
-        if (buf.length < 4) return;
+        if (pendingBytes < 4) return;
         len = buf.readUInt16BE(2);
         off = 4;
       } else if (len === 127) {
-        if (buf.length < 10) return;
+        if (pendingBytes < 10) return;
         len = Number(buf.readBigUInt64BE(2));
         off = 10;
       }
       if (len > 32 * 1024 * 1024) return sock.destroy(); // 32MB sanity cap
+      const dataFrame = op === 0 || op === 1 || op === 2;
+      const messageBytes = (op === 0 ? fragmentBytes : 0) + len;
+      if (dataFrame && messageBytes > WS_MAX_MESSAGE_BYTES) return sock.destroy();
       // RFC 6455 §5.5: control frames carry at most 125 bytes and are never
       // fragmented. A longer ping used to be echoed with its length truncated
       // into one byte — a malformed pong that desynchronised the stream.
       if (op >= 8 && (len > 125 || !fin)) return sock.destroy();
       const maskOff = off;
       if (masked) off += 4;
-      if (buf.length < off + len) return;
+      if (pendingBytes < off + len) return;
+      if (!onFrame()) return sock.destroy();
+      buf = read(off + len);
       let payload = buf.subarray(off, off + len);
       if (masked) {
         const mask = buf.subarray(maskOff, maskOff + 4);
         payload = Buffer.from(payload);
         for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i & 3];
       }
-      buf = buf.subarray(off + len);
       if (op === 8) return onClose();
       if (op === 9) {
         // ping → pong with same payload
         const pong = Buffer.concat([Buffer.from([0x8a, payload.length]), payload]);
-        sock.write(pong);
+        writeFrame(sock, pong);
         continue;
       }
       if (op === 10) continue; // pong
       if (op === 1 || op === 2 || op === 0) {
         if (op !== 0) fragments = [payload];
         else if (fragments) fragments.push(payload);
+        if (fragments) fragmentBytes = messageBytes;
         if (fin && fragments) {
           const full = Buffer.concat(fragments);
           fragments = null;
+          fragmentBytes = 0;
           onMessage(full.toString("utf8"));
         }
       }
     }
-  };
+  }
 }
 
 // ---- rooms / clients -------------------------------------------------------
 const clients = new Set(); // {sock, code, name, room, watch:Set}
+const identityBuckets = new Map();
 
+function remoteAddress(req) {
+  let address = req.socket.remoteAddress || "";
+  // Forwarding headers are untrusted unless deployment explicitly opts in.
+  if (process.env.HOME3D_TRUST_PROXY === "1") {
+    const hop = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+    if (isIP(hop)) address = hop;
+  }
+  if (isIP(address) === 6) address = new URL(`http://[${address}]/`).hostname.slice(1, -1);
+  const mapped = address.match(/^::ffff:([a-f0-9]+):([a-f0-9]+)$/i);
+  if (mapped) {
+    const hi = parseInt(mapped[1], 16), lo = parseInt(mapped[2], 16);
+    address = `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+  }
+  return address;
+}
+
+function allowIdentity(address) {
+  let bucket = identityBuckets.get(address);
+  if (!bucket) {
+    // A bounded limiter must fail closed rather than evict a throttled address.
+    if (identityBuckets.size >= 10000) return false;
+    bucket = { tokens: WS_IDENTITY_BURST, at: performance.now() };
+    identityBuckets.set(address, bucket);
+  }
+  return takeToken(bucket, WS_IDENTITY_RATE, WS_IDENTITY_BURST);
+}
+
+function writeFrame(sock, frame) {
+  if (sock.destroyed) return;
+  if (sock.writableLength > WS_MAX_WRITABLE_BYTES) return sock.destroy();
+  sock.write(frame);
+  if (sock.writableLength > WS_MAX_WRITABLE_BYTES) sock.destroy();
+}
+
+setInterval(() => {
+  const now = performance.now();
+  for (const [address, bucket] of identityBuckets) {
+    if (bucket.tokens + (now - bucket.at) * WS_IDENTITY_RATE / 1000 >= WS_IDENTITY_BURST)
+      identityBuckets.delete(address);
+  }
+}, 60000).unref();
+
+function mutualWatch(a, b) {
+  return a.watch.has(b.code) && b.watch.has(a.code);
+}
+function ownerFor(room) {
+  return [...clients].find((c) => c.code && room === "apt:" + c.code && !c.sock.destroyed);
+}
+function enterRoom(client, room) {
+  client.pending = null;
+  client.room = room;
+  sendObj(client, { t: "admitted", room });
+  broadcastRoom(room, { t: "joined", room, code: client.code, name: client.name }, client);
+}
 function rosterFor(viewer) {
   return {
     t: "roster",
@@ -687,14 +878,15 @@ function rosterFor(viewer) {
           c.code &&
           // two clients that have not joined a room yet are not in the SAME
           // room: null === null exposed every lobby client to every other
-          (c === viewer || (viewer.room && c.room === viewer.room) || viewer.watch.has(c.code)),
+          (c === viewer || ((!viewer.pending || c.room !== viewer.pending) &&
+            ((viewer.room && c.room === viewer.room) || mutualWatch(viewer, c)))),
       )
       .map((c) => ({ code: c.code, name: c.name || "", room: c.room || "" })),
   };
 }
 function sendObj(client, obj) {
   if (client && !client.sock.destroyed)
-    client.sock.write(encodeFrame(JSON.stringify(obj)));
+    writeFrame(client.sock, encodeFrame(JSON.stringify(obj)));
 }
 function broadcastRosters() {
   clients.forEach((c) => {
@@ -704,18 +896,34 @@ function broadcastRosters() {
 function broadcastRoom(room, obj, except) {
   const f = encodeFrame(JSON.stringify(obj));
   clients.forEach((c) => {
-    if (c.room === room && c !== except) c.sock.write(f);
+    if (c.room === room && c !== except) writeFrame(c.sock, f);
   });
 }
 function toCode(sender, code, obj) {
   const c = [...clients].find((c) => c.code === code);
-  if (c && ((sender.room && c.room === sender.room) || sender.watch.has(code) || c.watch.has(sender.code))) sendObj(c, obj);
+  if (c && ((sender.room && c.room === sender.room) || mutualWatch(sender, c))) sendObj(c, obj);
 }
 
-http.on("upgrade", (req, sock) => {
+http.on("upgrade", (req, sock, head) => {
+  try {
+    acceptSocket(req, sock, head);
+  } catch (err) {
+    logServerError("websocket upgrade", err);
+    try { sock.destroy(); } catch (_) {}
+  }
+});
+
+function acceptSocket(req, sock, head) {
+  sock.on("error", () => {}); // a reset mid-handshake is the peer's problem, not a crash
   const key = req.headers["sec-websocket-key"];
   if (!key || !allowedOrigin(req)) {
-    try { sock.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n"); } catch (_) {}
+    try { sock.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n", () => sock.destroy()); } catch (_) {}
+    return;
+  }
+  const address = remoteAddress(req);
+  if (clients.size >= WS_MAX_CLIENTS ||
+      [...clients].filter((c) => c.address === address).length >= WS_MAX_CLIENTS_PER_ADDRESS) {
+    sock.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n", () => sock.destroy());
     return;
   }
   sock.write(
@@ -724,12 +932,36 @@ http.on("upgrade", (req, sock) => {
       "Sec-WebSocket-Accept: " + accept(key) + "\r\n\r\n",
   );
   sock.setNoDelay(true);
-  const client = { sock, code: null, name: "", room: null, watch: new Set() };
+  const client = { sock, address, code: null, name: "", room: null, pending: null, watch: new Set(), admitted: new Set() };
   clients.add(client);
+  let lastSeen = performance.now();
+  const messageBucket = { tokens: WS_MESSAGE_BURST, at: lastSeen };
+  const helloTimer = setTimeout(() => { if (!client.code) drop(); }, WS_HELLO_TIMEOUT_MS);
+  helloTimer.unref();
+  let nextPing = lastSeen + WS_PING_INTERVAL_MS;
+  const heartbeat = setInterval(() => {
+    const now = performance.now();
+    if (now - lastSeen >= WS_IDLE_TIMEOUT_MS || sock.writableLength > WS_MAX_WRITABLE_BYTES) return drop();
+    if (now >= nextPing) {
+      writeFrame(sock, Buffer.from([0x89, 0]));
+      nextPing = now + WS_PING_INTERVAL_MS;
+    }
+  }, Math.min(WS_PING_INTERVAL_MS, WS_IDLE_TIMEOUT_MS, 1000));
+  heartbeat.unref();
 
   const drop = () => {
     if (!clients.has(client)) return;
     clients.delete(client);
+    clearTimeout(helloTimer);
+    clearInterval(heartbeat);
+    // Admission expires with the owner's connection, even if guests stay online.
+    if (client.code) clients.forEach((c) => {
+      if (c.room === "apt:" + client.code) {
+        c.pending = c.room;
+        c.room = null;
+        sendObj(c, { t: "pending", room: c.pending });
+      }
+    });
     if (client.room)
       broadcastRoom(client.room, {
         t: "left",
@@ -743,9 +975,7 @@ http.on("upgrade", (req, sock) => {
     } catch (_) {}
   };
 
-  sock.on(
-    "data",
-    makeParser(
+  const parse = makeParser(
       (text) => {
         let m;
         try {
@@ -753,6 +983,8 @@ http.on("upgrade", (req, sock) => {
         } catch (_) {
           return;
         }
+        // Valid JSON is not yet a message: null, arrays and bare values are ignored.
+        if (!m || typeof m !== "object" || Array.isArray(m) || typeof m.t !== "string") return;
         if (m.t === "hello") {
           const code = String(m.code || "").toUpperCase();
           const token = String(m.token || "");
@@ -761,28 +993,40 @@ http.on("upgrade", (req, sock) => {
             setTimeout(drop, 25).unref?.();
             return;
           }
-          if (identities[code] && !sameToken(identities[code], token)) {
+          if (client.code && client.code !== code) return drop(); // permissions belong to one identity
+          const legacy = Object.hasOwn(identities, code);
+          if (legacy ? !sameToken(identities[code], token) : code !== codeFor(token)) {
             sendObj(client, { t: "error", code: "identity_in_use" });
             setTimeout(drop, 25).unref?.();
             return;
           }
-          if (!identities[code]) {
-            identities[code] = token;
-            saveIdentities();
+          if (!legacy && client.code !== code && !allowIdentity(address)) {
+            sendObj(client, { t: "error", code: "identity_rate_limit" });
+            setTimeout(drop, 25).unref?.();
+            return;
           }
           client.code = code;
+          clearTimeout(helloTimer);
           client.name = String(m.name || "").slice(0, 24);
           // one connection per code: drop a stale ghost of the same identity
           clients.forEach((c) => {
             if (c !== client && c.code === client.code) {
-              try { c.sock.destroy(); } catch (_) {}
-              clients.delete(c);
+              c.drop();
             }
+          });
+          clients.forEach((c) => {
+            if (c.pending === "apt:" + client.code)
+              sendObj(client, { t: "knock", code: c.code, name: c.name });
           });
           broadcastRosters();
         } else if (m.t === "join" && client.code) {
           const nextRoom = String(m.room || "").slice(0, 32);
-          if (!/^apt:[A-Za-z0-9_-]{1,24}$/.test(nextRoom)) return;
+          if (!nextRoom.startsWith("apt:") || !validCode(nextRoom.slice(4))) return;
+          if (client.room === nextRoom) {
+            sendObj(client, { t: "admitted", room: nextRoom });
+            sendObj(client, rosterFor(client));
+            return;
+          }
           if (client.room && client.room !== nextRoom)
             broadcastRoom(client.room, {
               t: "left",
@@ -790,12 +1034,26 @@ http.on("upgrade", (req, sock) => {
               code: client.code,
               name: client.name,
             });
-          client.room = nextRoom;
-          broadcastRoom(
-            client.room,
-            { t: "joined", room: client.room, code: client.code, name: client.name },
-            client,
-          );
+          client.room = null;
+          client.pending = nextRoom;
+          const owner = ownerFor(nextRoom);
+          if (owner === client || owner?.admitted.has(client.code)) enterRoom(client, nextRoom);
+          else {
+            sendObj(client, { t: "pending", room: nextRoom });
+            sendObj(owner, { t: "knock", code: client.code, name: client.name });
+          }
+          broadcastRosters();
+        } else if ((m.t === "admit" || m.t === "deny") && client.code) {
+          const guest = [...clients].find((c) => c.code === String(m.code || "").toUpperCase());
+          const room = "apt:" + client.code;
+          if (!guest || guest.pending !== room) return;
+          if (m.t === "admit") {
+            client.admitted.add(guest.code);
+            enterRoom(guest, room);
+          } else {
+            guest.pending = null;
+            sendObj(guest, { t: "denied", room });
+          }
           broadcastRosters();
         } else if (m.t === "watch" && client.code) {
           client.watch = new Set(
@@ -804,7 +1062,7 @@ http.on("upgrade", (req, sock) => {
               .filter(validCode)
               .slice(0, 200),
           );
-          sendObj(client, rosterFor(client));
+          broadcastRosters(); // mutual visibility changes for both ends
         } else if (m.t === "msg" && client.code) {
           const out = { t: "msg", from: client.code, data: m.data };
           if (m.to) toCode(client, String(m.to).toUpperCase(), out);
@@ -813,13 +1071,24 @@ http.on("upgrade", (req, sock) => {
       },
       drop,
       sock,
-    ),
+      () => {
+        // Count control and continuation frames too, so they cannot bypass the budget.
+        lastSeen = performance.now();
+        return takeToken(messageBucket, WS_MESSAGE_RATE, WS_MESSAGE_BURST);
+      },
   );
+  client.drop = drop;
+  sock.on("data", parse);
+  sock.on("end", drop); // Upgraded sockets may otherwise keep a half-closed slot.
   sock.on("close", drop);
   sock.on("error", drop);
-});
+  if (head.length) parse(head);
+}
 
 http.listen(PORT, () => {
   console.log(`3dhome relay + app server on ${tlsOptions ? "https" : "http"}://localhost:${PORT}`);
   console.log(`Friends on your network: ${tlsOptions ? "https" : "http"}://<your-ip>:${PORT}`);
+  // Explicitly gated fault injection lets child-process tests verify restart semantics.
+  if (process.env.HOME3D_TEST_HOOKS === "1" && process.env.HOME3D_TEST_UNCAUGHT_MS)
+    setTimeout(() => { throw new Error("test uncaught exception"); }, envLimit("HOME3D_TEST_UNCAUGHT_MS", 1000));
 });

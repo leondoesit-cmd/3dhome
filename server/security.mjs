@@ -9,6 +9,11 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
+function normalizeAddress(address) {
+  const a = String(address || "").toLowerCase().split("%")[0];
+  return isIP(a) === 6 ? new URL(`http://[${a}]`).hostname.slice(1, -1) : a;
+}
+
 function ipv4Parts(address) {
   if (isIP(address) !== 4) return null;
   const p = address.split(".").map(Number);
@@ -17,7 +22,7 @@ function ipv4Parts(address) {
 
 // IPv4 buried in an IPv6 address: dotted or hex, mapped (::ffff:) or compatible (::).
 function embeddedIPv4(address) {
-  const a = String(address).toLowerCase().split("%")[0];
+  const a = normalizeAddress(address);
   const dotted = a.match(/^(?:::ffff:|::)(\d+\.\d+\.\d+\.\d+)$/);
   if (dotted) return dotted[1];
   const hex = a.match(/^(?:::ffff:|::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
@@ -27,6 +32,7 @@ function embeddedIPv4(address) {
 }
 
 export function isPublicAddress(address) {
+  address = normalizeAddress(address);
   const v4 = ipv4Parts(address) || ipv4Parts(embeddedIPv4(address) || "");
   if (v4) {
     const [a, b] = v4;
@@ -102,53 +108,67 @@ function requestPinned(target, address, options) {
     headers["Content-Length"] = String(body.length);
   }
   return new Promise((resolveRequest) => {
-    const req = request(
-      {
-        protocol: target.url.protocol,
-        hostname: address.address,
-        family: address.family,
-        port,
-        path: target.url.pathname + target.url.search,
-        method,
-        servername: target.url.hostname.replace(/^\[|\]$/g, ""),
-        headers,
-      },
-      (res) => {
-        const chunks = [];
-        let size = 0;
-        res.on("data", (chunk) => {
-          if (size >= options.maxBytes) return;
-          const room = options.maxBytes - size;
-          const piece = chunk.length > room ? chunk.subarray(0, room) : chunk;
-          chunks.push(piece);
-          size += piece.length;
-          if (size >= options.maxBytes) res.destroy();
-        });
-        res.on("end", () =>
-          resolveRequest({
-            ok: true,
-            status: res.statusCode || 0,
-            headers: res.headers,
-            body: Buffer.concat(chunks, size).toString("utf8"),
-          }),
-        );
-        // Reaching the byte cap intentionally destroys the response stream.
-        res.on("close", () => {
-          if (size >= options.maxBytes)
+    let req;
+    try {
+      req = request(
+        {
+          protocol: target.url.protocol,
+          hostname: address.address,
+          family: address.family,
+          port,
+          path: target.url.pathname + target.url.search,
+          method,
+          servername: target.url.hostname.replace(/^\[|\]$/g, ""),
+          headers,
+        },
+        (res) => {
+          const chunks = [];
+          let size = 0;
+          res.on("data", (chunk) => {
+            if (size >= options.maxBytes) return;
+            const room = options.maxBytes - size;
+            const piece = chunk.length > room ? chunk.subarray(0, room) : chunk;
+            chunks.push(piece);
+            size += piece.length;
+            if (size >= options.maxBytes) res.destroy();
+          });
+          res.on("end", () =>
             resolveRequest({
               ok: true,
               status: res.statusCode || 0,
               headers: res.headers,
               body: Buffer.concat(chunks, size).toString("utf8"),
-            });
-        });
-        res.on("error", (error) => resolveRequest({ ok: false, error }));
-      },
-    );
+            }),
+          );
+          // Reaching the byte cap intentionally destroys the response stream.
+          res.on("close", () => {
+            if (size >= options.maxBytes)
+              resolveRequest({
+                ok: true,
+                status: res.statusCode || 0,
+                headers: res.headers,
+                body: Buffer.concat(chunks, size).toString("utf8"),
+              });
+          });
+          res.on("error", (error) => resolveRequest({ ok: false, error }));
+        },
+      );
+    } catch (error) {
+      // request() throws synchronously on an invalid header (a CR/LF in a
+      // value). Report a failed request: a rejection here would escape the
+      // relay's async request handler and terminate the process.
+      resolveRequest({ ok: false, error });
+      return;
+    }
     req.setTimeout(options.timeoutMs, () => req.destroy(new Error("timeout")));
     req.on("error", (error) => resolveRequest({ ok: false, error }));
-    if (body && method !== "GET" && method !== "HEAD") req.write(body);
-    req.end();
+    try {
+      if (body && method !== "GET" && method !== "HEAD") req.write(body);
+      req.end();
+    } catch (error) {
+      req.destroy();
+      resolveRequest({ ok: false, error });
+    }
   });
 }
 
@@ -208,7 +228,15 @@ function outside(root, candidate) {
   return rel === ".." || rel.startsWith(".." + sep) || isAbsolute(rel);
 }
 
-export async function safeStaticFile(root, requestPath) {
+// The server tree and every dot-entry (.git, .local, .model-backups, the relay's
+// identity file) are private. Case-insensitive: Windows serves /Server/ as /server/.
+function privatePath(parts) {
+  return parts[0].toLowerCase() === "server" || parts.some((part) => part.startsWith("."));
+}
+
+// options.allow = { files: Set, dirs: Set } of top-level names that may be served
+// (server/public_paths.json); anything else at the root stays private.
+export async function safeStaticFile(root, requestPath, options = {}) {
   const rootReal = await realpath(root);
   let decoded;
   try {
@@ -221,9 +249,9 @@ export async function safeStaticFile(root, requestPath) {
   const lexical = resolve(rootReal, "." + (decoded.startsWith("/") ? decoded : "/" + decoded));
   if (outside(rootReal, lexical)) return null;
 
-  const relLexical = relative(rootReal, lexical);
-  const parts = relLexical.split(sep);
-  if (parts[0] === "server" || parts.some((part) => part.startsWith("."))) return null;
+  // "~<digit>" is how a Windows 8.3 short name aliases a long one (GIT~1 is .git).
+  const parts = relative(rootReal, lexical).split(sep);
+  if (privatePath(parts) || parts.some((part) => /~\d/.test(part))) return null;
 
   let fileReal;
   try {
@@ -231,35 +259,71 @@ export async function safeStaticFile(root, requestPath) {
   } catch (_) {
     return null;
   }
-  return outside(rootReal, fileReal) ? null : fileReal;
+  if (outside(rootReal, fileReal)) return null;
+  // Aliases (case, short names) only collapse to their real name here, so the
+  // private-path rule runs again on the canonical path.
+  const realParts = relative(rootReal, fileReal).split(sep);
+  if (privatePath(realParts)) return null;
+  if (options.allow) {
+    const top = realParts[0];
+    if (!(realParts.length === 1 ? options.allow.files.has(top) : options.allow.dirs.has(top))) return null;
+  }
+  return fileReal;
 }
 
 // Home hubs live on the LAN. The public-URL helper above exists to STOP the
-// product-size proxy reaching private IPs; this helper is the inverse, and it
-// still refuses link-local / metadata / multicast so it cannot be used as a
-// general SSRF trampoline. Only the smart-home endpoint should call it.
+// product-size proxy reaching private IPs. LAN access uses an explicit allow-list
+// shared by request admission and destination resolution.
 const LAN_PORTS = new Set([80, 443, 1880, 1883, 3000, 6052, 8080, 8123, 8443, 8883, 9001, 9123]);
 
+function addressBits(address) {
+  const family = isIP(address);
+  if (family === 4) {
+    let value = 0n;
+    for (const part of address.split(".")) value = (value << 8n) | BigInt(part);
+    return { family, value, width: 32 };
+  }
+  if (family !== 6) return null;
+  const [left, right] = address.split("::");
+  const start = left ? left.split(":") : [];
+  const end = right ? right.split(":") : [];
+  const parts = right === undefined ? start : [...start, ...Array(8 - start.length - end.length).fill("0"), ...end];
+  let value = 0n;
+  for (const part of parts) value = (value << 16n) | BigInt("0x" + part);
+  return { family, value, width: 128 };
+}
+
+let extraCidrText = null, extraCidrs = [];
+function lanExtraCidrs() {
+  const text = process.env.HOME3D_LAN_EXTRA_CIDRS || "";
+  if (text === extraCidrText) return extraCidrs;
+  extraCidrText = text;
+  extraCidrs = [];
+  for (const entry of text.split(",")) {
+    const parts = entry.trim().split("/");
+    if (parts.length !== 2 || !/^\d+$/.test(parts[1])) continue;
+    const network = addressBits(normalizeAddress(parts[0]));
+    const prefix = Number(parts[1]);
+    if (!network || prefix > network.width) continue;
+    const shift = BigInt(network.width - prefix);
+    extraCidrs.push({ family: network.family, shift, prefix: network.value >> shift });
+  }
+  return extraCidrs;
+}
+
 export function isLanAddress(address) {
-  if (isPublicAddress(address)) return false;
-  const v4 = ipv4Parts(address);
+  address = normalizeAddress(address);
+  if (isLoopbackAddress(address)) return true;
+  const embedded = embeddedIPv4(address);
+  const v4 = ipv4Parts(embedded || address);
   if (v4) {
     const [a, b] = v4;
-    if (a === 0 || a >= 224) return false;
-    if (a === 169 && b === 254) return false;
-    if (a === 192 && b === 0) return false;
-    return true;
-  }
-  const embedded = embeddedIPv4(address);
-  if (embedded) return isLanAddress(embedded);
-  if (isIP(address) !== 6) return false;
-  const a = address.toLowerCase().split("%")[0];
-  if (a === "::") return false;
-  if (a === "::1") return true;
-  if (a.startsWith("fc") || a.startsWith("fd")) return true;
-  if (/^fe[89ab]/.test(a)) return false;
-  if (a.startsWith("ff")) return false;
-  return false;
+    if (a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)) return true;
+  } else if (isIP(address) === 6 && /^(fc|fd)/.test(address)) return true;
+  const candidates = [addressBits(address)];
+  if (embedded) candidates.push(addressBits(embedded));
+  return lanExtraCidrs().some((cidr) => candidates.some((candidate) => candidate &&
+    candidate.family === cidr.family && (candidate.value >> cidr.shift) === cidr.prefix));
 }
 
 function lanPortOk(url) {
@@ -297,10 +361,67 @@ export function sanitizeLanHeaders(headers) {
   for (const [key, value] of Object.entries(headers)) {
     const name = String(key).toLowerCase();
     if (!LAN_HEADER_ALLOW.has(name)) continue;
-    if (typeof value !== "string") continue;
+    // CR/LF/NUL make Node's request() throw: drop the header, not the server.
+    if (typeof value !== "string" || /[\r\n\0]/.test(value)) continue;
     out[key] = value.slice(0, 800);
   }
   return out;
+}
+
+// ---- who may use the machine-local endpoints --------------------------------
+// The relay runs in two places: on the owner's machine, where a LAN smart-home
+// proxy, disk backups and a local vision model make sense, and publicly behind
+// a hosting proxy, where they must not exist. A DNS-rebinding page reaches a
+// local relay from the owner's own browser (loopback socket, Origin == Host),
+// so the Host header must also name this machine or the LAN, never a domain.
+const HOST_HEADER = /^(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::\d{1,5})?$/i;
+
+// The Host header's name, or "" when it is missing or malformed (userinfo,
+// paths and other URL syntax never pass the pattern).
+export function requestHostname(req) {
+  const match = HOST_HEADER.exec(String((req && req.headers && req.headers.host) || "").trim());
+  return match ? normalizeAddress(match[1].replace(/^\[|\]$/g, "").replace(/\.$/, "")) : "";
+}
+
+export function isLoopbackAddress(address) {
+  const a = normalizeAddress(address);
+  if (a === "::1") return true;
+  const v4 = ipv4Parts(a) || ipv4Parts(embeddedIPv4(a) || "");
+  return !!v4 && v4[0] === 127;
+}
+
+function proxied(req) {
+  return Object.keys(req.headers).some((key) => {
+    const name = key.toLowerCase();
+    return req.headers[key] != null &&
+      (name === "forwarded" || name === "x-real-ip" || name.startsWith("x-forwarded-"));
+  });
+}
+
+function loopbackHostname(name) {
+  return name === "localhost" || name.endsWith(".localhost") || isLoopbackAddress(name);
+}
+
+// This machine only: model backups and the key-holding agent endpoints.
+export function localOnlyRequest(req, { publicMode = false, allowedHosts = new Set() } = {}) {
+  if (publicMode || !req || !req.headers || proxied(req)) return false;
+  if (!isLoopbackAddress(req.socket && req.socket.remoteAddress)) return false;
+  const name = requestHostname(req);
+  return !!name && (loopbackHostname(name) || allowedHosts.has(name));
+}
+
+// This machine or its LAN: the smart-home proxy and opt-in blueprint vision, which a
+// phone opening http://<pc-ip>:8765 legitimately uses. A rebinding attacker
+// can only publish dotted public names, never .local or single-label ones.
+export function lanOnlyRequest(req, { publicMode = false, allowedHosts = new Set() } = {}) {
+  if (publicMode || !req || !req.headers || proxied(req)) return false;
+  const remote = String((req.socket && req.socket.remoteAddress) || "");
+  if (!isLoopbackAddress(remote) && !isLanAddress(remote)) return false;
+  const name = requestHostname(req);
+  if (!name) return false;
+  if (loopbackHostname(name) || allowedHosts.has(name)) return true;
+  if (isIP(name)) return isLanAddress(name);
+  return name.endsWith(".local") || !name.includes(".");
 }
 
 export async function safeLanRequest(raw, options = {}) {

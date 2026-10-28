@@ -53,7 +53,21 @@ export function numericJacobian(evaluate, x, base, options = {}) {
    numerically zero are left alone rather than blowing up: an unconstrained
    variable simply gets no step, which is the right answer for it. */
 export function solveLinear(A, b) {
-  const n = b.length, M = A.map((row, i) => row.slice().concat(b[i]));
+  return eliminateLinear(A, b, true);
+}
+
+function eliminateLinear(A, b, skipZeros) {
+  let signedZeros = false;
+  const n = b.length, M = A.map((row, i) => {
+    const copy = new Float64Array(n + 1);
+    for (let j = 0; j < n; j++) {
+      copy[j] = row[j];
+      if (Object.is(row[j], -0)) signedZeros = true;
+    }
+    copy[n] = b[i];
+    if (Object.is(b[i], -0)) signedZeros = true;
+    return copy;
+  });
   const pivots=[];
   // Row rank and variable column are independent in a singular system.
   // A skipped column must not discard a row that constrains a later variable.
@@ -62,12 +76,30 @@ export function solveLinear(A, b) {
     for(let i=row+1;i<n;i++)if(Math.abs(M[i][col])>Math.abs(M[pivot][col]))pivot=i;
     if(Math.abs(M[pivot][col])<1e-12)continue;
     [M[row],M[pivot]]=[M[pivot],M[row]];
-    const d=M[row][col];for(let j=col;j<=n;j++)M[row][j]/=d;
-    for(let i=0;i<n;i++){if(i===row)continue;const f=M[i][col];for(let j=col;j<=n;j++)M[i][j]-=f*M[row][j];}
+    const d=M[row][col];
+    if (d < 0) signedZeros = true;
+    for(let j=col;j<=n;j++) {
+      const before = M[row][j];
+      M[row][j] /= d;
+      // Finite inputs can still overflow. In that case 0 * Infinity is NaN,
+      // so skipping zero products is no longer equivalent to elimination.
+      if (skipZeros && !Number.isFinite(M[row][j])) return eliminateLinear(A, b, false);
+      if (before !== 0 && M[row][j] === 0) signedZeros = true;
+    }
+    for(let i=0;i<n;i++){
+      if(i===row)continue;
+      const f=M[i][col];
+      if(skipZeros && f===0)continue;
+      for(let j=col;j<=n;j++)M[i][j]-=f*M[row][j];
+    }
     pivots.push(col);row++;
   }
   const solution=Array(n).fill(0);
   pivots.forEach((col,row)=>{solution[col]=Number.isFinite(M[row][n])?M[row][n]:0;});
+  // Only zero answers can observe the signs of skipped zero products. Normal
+  // equations have positive pivots and +0 entries; unusual signed-zero systems
+  // use the original arithmetic when a zero answer could expose a difference.
+  if (skipZeros && signedZeros && pivots.some((col) => solution[col] === 0)) return eliminateLinear(A, b, false);
   return solution;
 }
 

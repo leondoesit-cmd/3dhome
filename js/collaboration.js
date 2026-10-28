@@ -13,11 +13,14 @@ export async function initCollaboration(onUpdate) {
   if (!listening) {
     listening = true;
     network.on("data", ({ from, data }) => {
-      if (!data || data.projectId !== S.workspace.id) return;
+      if (!data || !network.sameProject(S.workspace.id, data.projectId) ||
+          !network.acceptRemote(data.k, from, network.remoteContext())) return;
       if (data.k === "project_comment" && data.comment && !S.workspace.comments.some((c) => c.id === data.comment.id)) {
         S.workspace.comments.push(data.comment); onUpdate?.();
       } else if (data.k === "project_present" && data.scene && S.workspace.role === "viewer") {
         import("./ui.js").then((ui) => {
+          if (!network.sameProject(S.workspace.id, data.projectId) ||
+              !network.acceptRemote(data.k, from, network.remoteContext())) return;
           try {
             Promise.resolve(ui.applyData(data.scene)).catch(function (err) {
               // A malformed present payload is expected and ignorable, but a

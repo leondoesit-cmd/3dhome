@@ -33,7 +33,9 @@ var host = null,
   phi = Math.PI * 0.34,
   pointerId = null,
   pointerX = 0,
-  pointerY = 0;
+  pointerY = 0,
+  shadersWarm = false, // this renderer's first shaders were built asynchronously (see paint)
+  shadersWarming = null;
 
 var SUPPORTED = {
   item: true,
@@ -259,6 +261,34 @@ function paint() {
   var environment = scene.environment;
   scene.environment = null;
   if (overlayDirty) rebuildSelectionOverlay();
+  /* This renderer has a GPU device of its own, so its first paint built every
+     shader it draws in one task (~0.5 s with warm caches, 2+ s cold: the first
+     selection of a session froze the page). The first time, they are built
+     asynchronously from exactly this state (occluders out, no environment, the
+     overlay with its studio lights); compileAsync takes all of that before its
+     first await, so the state is put back at once and paints resume after. */
+  if (!shadersWarm) {
+    if (!shadersWarming && renderer.compileAsync) {
+      var builds;
+      try {
+        builds = [renderer.compileAsync(scene, camera), renderer.compileAsync(overlayScene, camera)];
+      } finally {
+        scene.environment = environment;
+        occluders.forEach(function (object) { object.visible = true; });
+      }
+      shadersWarming = Promise.all(builds).catch(function () {}).then(function () {
+        shadersWarm = true;
+        shadersWarming = null;
+        scheduleRender();
+      });
+      return;
+    }
+    if (shadersWarming) {
+      scene.environment = environment;
+      occluders.forEach(function (object) { object.visible = true; });
+      return;
+    }
+  }
   try {
     renderGPU(renderer, scene, camera);
     // The selection overlay has studio lights; omit it when reviewing roof shadows.
@@ -424,6 +454,15 @@ function threeHere() {
     center = new THREE.Vector3();
   }
   return true;
+}
+
+/** World bounds of the selection the preview last drew, or null (tests read
+    it to prove the overlay follows the scene it mirrors). */
+export function inspectorOverlayBounds() {
+  if (!overlayRoot || !overlayRoot.children.length) return null;
+  overlayRoot.updateMatrixWorld(true);
+  var box = new THREE.Box3().setFromObject(overlayRoot);
+  return box.isEmpty() ? null : { min: box.min.toArray(), max: box.max.toArray() };
 }
 
 export function syncInspectorPreview() {

@@ -19,8 +19,29 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm audit --omit=dev
+        continue-on-error: true
       # module + link gates: catch the missing export that silently kills the UI
       - run: npm run check
       # pure-Node tests; the *.browser.mjs suite (npm run test:browser) needs a
       # GPU Chrome and runs locally
       - run: npm test
+
+  # The Tauri desktop shell (desktop/src-tauri): its scheme handler, model
+  # backups and material cache are pure Rust tests, no webview or GPU needed.
+  # Windows, because WebView2 is the first desktop target; --locked keeps the
+  # dependency set the one that was reviewed.
+  desktop-rust:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: desktop/src-tauri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - run: cargo test --locked

@@ -7,7 +7,7 @@ ModelForge (repo `3dhome`) is a **local-first, browser-based parametric CAD / ho
 
 ### Run / test / lint (standard commands; see `package.json`)
 - Run the app: `npm start` → serves the app + relay on `http://localhost:8765` (port overridable: `node server/relay.mjs <port>`). Open that URL in a real browser.
-- Tests: `npm test` → `node --test --test-timeout=600000 tests/*.test.mjs uikit/tests/*.test.mjs` (pure-Node unit/integration tests; 11–19 min locally). The 10-minute per-test timeout turns the occasional CAD-kernel hang (`planchard_hole_wizard_lens`, `planchard_housing_shell`) into a failure instead of a stuck run.
+- Tests: `npm test` → `node --test --test-timeout=600000 tests/*.test.mjs uikit/tests/*.test.mjs` (pure-Node unit/integration tests; 11–19 min locally). The 10-minute per-test timeout turns a stuck CAD-kernel run into a failure instead of a stuck run. `planchard_housing_shell` is the genuinely slow one: its custom exact shell runs for several minutes on its own, so it can time out when parallel files starve it of CPU.
 - Gates (run both before assuming a file-split or export change worked): `npm run check`
   - `node tools/module_check.mjs` — free-identifier walk of `js/`, `server/`, and `tools/` (including `js/core` and `js/physics`). Reports names a file uses but never declares, imports, or gets from a global. Exit 0 on a clean tree.
   - `node tools/link_check.mjs` — follows the `index.html` module graph and checks that every named import exists as an export of the target. This is the silent-boot failure (`npm test` cannot load `js/main.js` because of bare `three` specifiers).
@@ -20,6 +20,12 @@ ModelForge (repo `3dhome`) is a **local-first, browser-based parametric CAD / ho
 - **Every 3D canvas runs on three's `WebGPURenderer`** (built only through `js/gpu.js` `createRenderer`): a real WebGPU backend where the browser has one, its WebGL2 fallback elsewhere (`?forceWebGL` pins the fallback for testing). Raw `ShaderMaterial`/GLSL, `PointsMaterial` and classic `WebGLRenderer` are gated out by `tests/webgpu_renderer.test.mjs`; port to node (TSL) materials instead. The AR room scan's raw WebXR WebGL layer is the one intentional exception.
 - **3D needs a real GPU.** Headless Chrome without GPU logs "GPU backend init failed / 3D backend failed to initialise" — that's an environment limitation, not an app bug. Use a real browser (computer-use) for UI/3D testing.
 - WebSocket upgrades are origin-checked; same-origin (open the served URL directly) works. To serve from another origin set `HOME3D_ALLOWED_ORIGINS`.
+- **The relay serves only the top-level paths in `server/public_paths.json`** (index.html, manifest, the survey service worker and its asset list, and `js/`, `css/`, `vendor/`, `assets/`, `uikit/`, `plans/`). A new top-level file or folder the app fetches must be added there, or `npm start` answers 404 for it. The browser-test harness has its own static server, so the browser suite will not notice. `node_modules` is never served: browser code loads vendored copies (OpenCascade's glue is `vendor/opencascade/`).
+- **Machine-local endpoints are gated per request** (`server/security.mjs`):
+  - `/api/model-backup` and the token-less agent endpoints answer only to this machine, addressed by a loopback name (`localOnlyRequest`).
+  - `/api/smarthome` and `/api/blueprint` also accept LAN peers that address the server by a private IP, a `.local` name or a single-label name (`lanOnlyRequest`).
+  - A Host that is a public domain (DNS rebinding) or any forwarding header disqualifies a request.
+  - `HOME3D_PUBLIC=1` (set in `render.yaml`) turns these routes into 404s. `HOME3D_ALLOWED_HOSTS` lists extra hostnames that count as this machine.
 
 ### Writing tests
 - **Prefer behaviour over source text.** Put the logic in a function Node can import (no bare `three` import at module level; take `THREE`/`TSL` as arguments, as `js/room_bounce.js` does) and test inputs against outputs. A regex over a source file passes while the behaviour is wrong and breaks on harmless refactors.

@@ -447,6 +447,7 @@
     "/js/layout_preferences.js",
     "/js/layout_worker.js",
     "/js/layouts.js",
+    "/js/light_loop.js",
     "/js/main.js",
     "/js/manufacturing_tables.js",
     "/js/markers.js",

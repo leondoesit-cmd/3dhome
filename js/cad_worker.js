@@ -31,19 +31,20 @@ export function cadWorkerTransferList(result) {
 }
 
 export function installCadWorkerBootstrap(scope,loadRuntime=()=>import('./core/cad_worker_runtime.js')) {
-  let queue=Promise.resolve(),executorPromise=null,ready=false;
+  let queue=Promise.resolve(),executorPromise=null,ready=false,compiledModule=null;
   const latestPreviews=new Map();
-  function executor(progress) {
+  function executor(progress,kernelModule) {
     if(!ready)progress({stage:'loading-runtime',name:'Exact CAD runtime'});
     if(!executorPromise){
       executorPromise=Promise.resolve().then(loadRuntime).then(module=>{
-        const execute=module.createCadWorkerExecutor();ready=true;return execute;
+        const execute=module.createCadWorkerExecutor({kernelModule});ready=true;return execute;
       }).catch(error=>{executorPromise=null;ready=false;throw error;});
     }
     return executorPromise;
   }
   scope.onmessage=event=>{
-    const {id,request}=event.data;
+    const {id,request,kernelModule}=event.data;
+    if(kernelModule)compiledModule=kernelModule;
     const previewKey=request.coalesceKey;
     if(previewKey)latestPreviews.set(previewKey,id);
     const progress=value=>scope.postMessage({id,progress:value});
@@ -54,7 +55,7 @@ export function installCadWorkerBootstrap(scope,loadRuntime=()=>import('./core/c
           scope.postMessage({id,error:{name:'AbortError',message:'Exact viewport preview superseded'}});return;
         }
         if(previewKey)latestPreviews.delete(previewKey);
-        const execute=await executor(progress),result=cadWorkerWireResult(await execute(request,progress));
+        const execute=await executor(progress,compiledModule),result=cadWorkerWireResult(await execute(request,progress));
         scope.postMessage({id,result},cadWorkerTransferList(result));
       }catch(error){scope.postMessage({id,error:{message:String(error.message || error),name:error.name || 'Error'}});}
     });

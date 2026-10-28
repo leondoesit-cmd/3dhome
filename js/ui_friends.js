@@ -63,7 +63,7 @@ function buildPanel() {
     '<div id="fr_banner" style="display:none" class="fr-banner"><span></span>' +
     '<button id="fr_gohome"><i class="ph ph-house"></i> ' + t("fr_goHome") + "</button></div>" +
     // list + add
-    '<div id="fr_list"></div>' +
+    '<div id="fr_knocks"></div><div id="fr_list"></div>' +
     '<button id="fr_add" style="width:100%"><i class="ph ph-user-plus"></i> ' +
     t("fr_add") + "</button>" +
     '<span class="t fr-hint">' + t("fr_share_hint") + "</span>";
@@ -114,6 +114,32 @@ function buildPanel() {
   syncWatchedFriends();
   renderList();
   syncBanner();
+  renderKnocks();
+}
+
+function renderKnocks() {
+  const box = $("fr_knocks");
+  if (!box) return;
+  box.replaceChildren();
+  Object.values(net.NET.knocks).forEach(({ code, name }) => {
+    const card = document.createElement("div");
+    card.className = "fr-card";
+    const label = document.createElement("span");
+    label.textContent = getLang() === "en"
+      ? `${name || code} (${code}) wants to visit your home.`
+      : `${name || "אורח"} (\u2068${code}\u2069) מבקש לבקר בבית שלך.`;
+    card.appendChild(label);
+    const actions = document.createElement("div");
+    actions.className = "fr-card-btns";
+    [["view", "Allow view", "אפשר צפייה"], ["edit", "Allow edit", "אפשר עריכה"], ["deny", "Deny", "דחה"]].forEach(([right, en, he]) => {
+      const button = document.createElement("button");
+      button.textContent = getLang() === "en" ? en : he;
+      button.addEventListener("click", () => net.answerKnock(code, right));
+      actions.appendChild(button);
+    });
+    card.appendChild(actions);
+    box.appendChild(card);
+  });
 }
 
 function syncStatus() {
@@ -336,6 +362,19 @@ export function initFriends() {
     renderList();
   });
   net.on("roster", renderList);
+  net.on("knocks", () => {
+    renderKnocks();
+    if (Object.keys(net.NET.knocks).length) {
+      const sec = document.querySelector(".friends-section");
+      if (sec) sec.classList.remove("collapsed");
+    }
+  });
+  net.on("pending", () => flash(getLang() === "en"
+    ? "Waiting for the owner to allow your visit."
+    : "ממתינים לאישור הביקור מבעל הבית."));
+  net.on("denied", () => flash(getLang() === "en"
+    ? "The owner declined your visit."
+    : "בעל הבית דחה את בקשת הביקור.", "error"));
   // Race/drive code is large; load it only for an actual invite or user action.
   net.on("data", (message) => {
     const k = message && message.data && message.data.k;
@@ -348,6 +387,18 @@ export function initFriends() {
         ? "Relay identity rejected. Reset the relay identity file only if this code was intentionally reclaimed."
         : "זהות המשתמש נדחתה בשרת. אפסו את קובץ הזהויות רק אם הקוד נתבע מחדש בכוונה.",
       "error",
+    );
+    syncStatus();
+  });
+  // A friend code the relay no longer knew (lost in a redeploy) was replaced by
+  // the one this browser's token certifies (js/net.js): show it and say so.
+  net.on("identity-changed", ({ to }) => {
+    const mine = $("fr_mycode");
+    if (mine) mine.textContent = to;
+    flash(
+      getLang() === "en"
+        ? `Your friend code is now ${to}. Share the new code with your friends.`
+        : `קוד החבר שלך הוא כעת ⁨${to}⁩. שתפו את הקוד החדש עם החברים.`,
     );
     syncStatus();
   });

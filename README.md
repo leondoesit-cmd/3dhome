@@ -23,7 +23,9 @@ another port.
 
 `server/relay.mjs` serves the app and adds a multiplayer WebSocket relay, a
 product-dimension lookup (`/api/prodsize`) and a LAN smart-home proxy
-(`/api/smarthome`). It has no dependencies.
+(`/api/smarthome`). It has no dependencies. When it runs on the internet, set
+`HOME3D_PUBLIC=1` (`render.yaml` does): the machine-local endpoints (smart-home
+proxy, model backups, blueprint vision) then answer 404.
 
 ## Commands
 

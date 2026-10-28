@@ -408,9 +408,55 @@ function bodyCylinders(body, tolerance) {
   return cylinders;
 }
 
-function cylindricalSeam(edge, faces, cylinders, tolerance) {
+// A matching point is origin + axis * along + radial, where along lies in
+// [from-tolerance,to+tolerance] and |radial| <= radius+tolerance. Using that
+// full radius on EACH coordinate is deliberately conservative for tilted axes.
+// Buckets and their entries retain cylinder order, including overlapping rims.
+function indexCylinders(cylinders, tolerance) {
+  const entries = cylinders.map(cylinder => {
+    const bounds = [];
+    for (const axis of ['x', 'y', 'z']) {
+      const start = cylinder.axis[axis] * (cylinder.from - tolerance);
+      const end = cylinder.axis[axis] * (cylinder.to + tolerance);
+      const radius = cylinder.radius + tolerance, origin = cylinder.origin[axis];
+      const pad = 32 * Number.EPSILON * (Math.abs(origin) + Math.abs(start) + Math.abs(end) + Math.abs(radius) + 1);
+      bounds.push(origin + Math.min(start, end) - radius - pad, origin + Math.max(start, end) + radius + pad);
+    }
+    return { cylinder, bounds };
+  });
+  // Non-finite arithmetic must not turn the broad phase into a false negative.
+  if (!entries.length || entries.some(entry => !entry.bounds.every(Number.isFinite))) return { cylinders };
+  let coordinate = 0, low = 0, high = 0, spread = -1;
+  for (let k = 0; k < 6; k += 2) {
+    let min = Infinity, max = -Infinity;
+    for (const { bounds } of entries) { min = Math.min(min, bounds[k]); max = Math.max(max, bounds[k + 1]); }
+    if (max - min > spread) { coordinate = k; low = min; high = max; spread = max - min; }
+  }
+  const cells = Math.min(256, Math.max(8, Math.ceil(Math.sqrt(entries.length)) * 4));
+  const width = (high - low) / cells;
+  if (!(width > 0) || !Number.isFinite(width)) return { cylinders };
+  const cellOf = value => Math.max(0, Math.min(cells - 1, Math.floor((value - low) / width)));
+  const buckets = Array.from({ length: cells }, () => []);
+  for (const entry of entries) {
+    const first = cellOf(entry.bounds[coordinate]), last = cellOf(entry.bounds[coordinate + 1]);
+    for (let cell = first; cell <= last; cell++) buckets[cell].push(entry);
+  }
+  return { buckets, entries, cellOf, axis: ['x', 'y', 'z'][coordinate / 2] };
+}
+
+function cylindricalSeam(edge, faces, index, tolerance) {
   const direction = unit({x:edge.b.x-edge.a.x,y:edge.b.y-edge.a.y,z:edge.b.z-edge.a.z});
-  for (const cylinder of cylinders) {
+  // A non-finite coordinate has no bucket; every bounds test below is then
+  // false, so scanning all entries in order reproduces the unindexed result.
+  const candidates = index.buckets ? index.buckets[index.cellOf(edge.a[index.axis])] || index.entries : index.cylinders;
+  for (const entry of candidates) {
+    const cylinder = index.buckets ? entry.cylinder : entry;
+    if (index.buckets) {
+      const b = entry.bounds, a = edge.a, end = edge.b;
+      if (a.x < b[0] || a.x > b[1] || end.x < b[0] || end.x > b[1] ||
+          a.y < b[2] || a.y > b[3] || end.y < b[2] || end.y > b[3] ||
+          a.z < b[4] || a.z > b[5] || end.z < b[4] || end.z > b[5]) continue;
+    }
     if (Math.abs(dot(direction,cylinder.axis)) < 1-1e-6 || faces.some(normal=>Math.abs(dot(normal,cylinder.axis))>1e-5)) continue;
     let matches = true;
     for (const point of [edge.a,edge.b]) {
@@ -485,10 +531,15 @@ function absorbCircleChords(circles, segments, tolerance) {
   for (const circle of circles) {
     if (circle.kind !== "round") continue;
     const radius = circle.radius, tol = Math.max(tolerance, radius * 0.02);
+    // Most segments belong to other rims. A padded square rejects those before
+    // the two hypots; leave the original radial test and traversal order intact.
+    const reach = radius + tol + 8 * Number.EPSILON * Math.max(1, radius, tol);
     const matched = [];
     const angularSpans = [];
     segments.forEach((segment, index) => {
       if (!keep[index]) return;
+      if (Math.abs(segment.a.u - circle.u) > reach || Math.abs(segment.a.v - circle.v) > reach ||
+          Math.abs(segment.b.u - circle.u) > reach || Math.abs(segment.b.v - circle.v) > reach) return;
       const da = Math.hypot(segment.a.u - circle.u, segment.a.v - circle.v);
       const db = Math.hypot(segment.b.u - circle.u, segment.b.v - circle.v);
       if (Math.abs(da - radius) > tol || Math.abs(db - radius) > tol) return;
@@ -596,7 +647,7 @@ export function projectSolid(bodies, view = "front", options = {}) {
   const normals = new Array(store.count);
   const normalOf = (tri) => (normals[tri] !== undefined ? normals[tri] : (normals[tri] = triangleNormal(store.points, tri)));
   const bodyList = Array.isArray(bodies) ? bodies : [bodies];
-  const cylinders = bodyList.map(body=>bodyCylinders(body,weld*2));
+  const cylinders = bodyList.map(body=>indexCylinders(bodyCylinders(body,weld*2),weld*2));
 
   for (const edge of buildEdges(store, weld)) {
     const faces = edge.tris.map(normalOf).filter(Boolean);

@@ -22,12 +22,66 @@ function cleanName(n) {
   return sanitizeDisplayName(n, 24);
 }
 
-function randCode() {
-  // short, human-shareable friend code (no confusable 0/O/1/I)
-  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let s = "";
-  for (let i = 0; i < 8; i++) s += A[Math.floor(Math.random() * A.length)];
-  return s.slice(0, 4) + "-" + s.slice(4);
+// SHA-256 stays synchronous even on LAN HTTP/file origins without Web Crypto.
+const SHA256_K = new Uint32Array([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
+function rotateRight(x, n) {
+  return (x >>> n) | (x << (32 - n));
+}
+function sha256(token) {
+  const input = new TextEncoder().encode(token);
+  const bytes = new Uint8Array(Math.ceil((input.length + 9) / 64) * 64);
+  bytes.set(input);
+  bytes[input.length] = 0x80;
+  const view = new DataView(bytes.buffer);
+  view.setUint32(bytes.length - 8, Math.floor(input.length / 0x20000000));
+  view.setUint32(bytes.length - 4, input.length * 8);
+  const hash = new Uint32Array([
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+  ]);
+  const words = new Uint32Array(64);
+  for (let offset = 0; offset < bytes.length; offset += 64) {
+    for (let i = 0; i < 16; i++) words[i] = view.getUint32(offset + i * 4);
+    for (let i = 16; i < 64; i++) {
+      const x = words[i - 15], y = words[i - 2];
+      const s0 = rotateRight(x, 7) ^ rotateRight(x, 18) ^ (x >>> 3);
+      const s1 = rotateRight(y, 17) ^ rotateRight(y, 19) ^ (y >>> 10);
+      words[i] = words[i - 16] + s0 + words[i - 7] + s1;
+    }
+    let [a, b, c, d, e, f, g, h] = hash;
+    for (let i = 0; i < 64; i++) {
+      const s1 = rotateRight(e, 6) ^ rotateRight(e, 11) ^ rotateRight(e, 25);
+      const t1 = (h + s1 + ((e & f) ^ (~e & g)) + SHA256_K[i] + words[i]) | 0;
+      const s0 = rotateRight(a, 2) ^ rotateRight(a, 13) ^ rotateRight(a, 22);
+      const t2 = (s0 + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0;
+      d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    [a, b, c, d, e, f, g, h].forEach((word, i) => { hash[i] += word; });
+  }
+  const digest = new Uint8Array(32);
+  const output = new DataView(digest.buffer);
+  hash.forEach((word, i) => output.setUint32(i * 4, word));
+  return digest;
+}
+
+export function codeFor(token) {
+  const digest = sha256(token);
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let bits = 0;
+  for (let i = 0; i < 5; i++) bits = bits * 256 + digest[i];
+  let code = "";
+  for (let shift = 35; shift >= 0; shift -= 5) code += alphabet[Math.floor(bits / 2 ** shift) & 31];
+  return code.slice(0, 4) + "-" + code.slice(4);
 }
 
 function randToken() {
@@ -47,23 +101,55 @@ export const NET = {
   room: null, // current room id (apt:<code>)
   roster: [], // [{code,name,room}] — everyone on the relay
   peers: {}, // code -> {name} for peers in MY current room
+  joined: false, // the relay has admitted this connection to NET.room
+  admissions: Object.create(null), // code -> view/edit, held only by the owner
+  knocks: Object.create(null),
 };
+
+// Transport membership and owner approval are independent of a saved UI role.
+export function remoteContext() {
+  return { code: NET.code, owner: roomOwner(), joined: NET.joined,
+    members: NET.peers, admissions: NET.admissions };
+}
+export function acceptRemote(kind, from, ctx) {
+  if (!ctx?.joined || !ctx.code || !ctx.owner || !from || from === ctx.code ||
+      !Object.hasOwn(ctx.members || {}, from)) return false;
+  const host = ctx.code === ctx.owner;
+  const right = Object.hasOwn(ctx.admissions || {}, from) ? ctx.admissions[from] : null;
+  const admitted = right === "view" || right === "edit";
+  if (["plan_sync", "plan_op", "scene", "project_present"].includes(kind))
+    return !host && from === ctx.owner;
+  if (kind === "plan_op_req") return host && right === "edit";
+  if (kind === "plan_hello" || kind === "scene_req") return host && admitted;
+  if (kind === "survey_photo_request") return host ? admitted : from === ctx.owner;
+  if (kind === "survey_photo_chunk") return host ? right === "edit" : from === ctx.owner;
+  if (["project_comment", "plan_cursor", "rtc"].includes(kind)) return host ? admitted : true;
+  return false;
+}
+export function sameProject(mine, theirs) {
+  return typeof mine === "string" && !!mine && typeof theirs === "string" && !!theirs && mine === theirs;
+}
+export function answerKnock(code, right) {
+  if (!Object.hasOwn(NET.knocks, code) || !["view", "edit", "deny"].includes(right)) return false;
+  if (!send({ t: right === "deny" ? "deny" : "admit", code })) return false;
+  if (right !== "deny") NET.admissions[code] = right;
+  delete NET.knocks[code];
+  emit("knocks");
+  return true;
+}
 
 try {
   NET.code = localStorage.getItem(LS_ID);
-  if (!NET.code) {
-    NET.code = randCode();
-    localStorage.setItem(LS_ID, NET.code);
-  }
   NET.token = localStorage.getItem(LS_TOKEN);
-  if (!NET.token) {
-    NET.token = randToken();
-    localStorage.setItem(LS_TOKEN, NET.token);
-  }
   NET.name = cleanName(localStorage.getItem(LS_NAME) || "");
-} catch (_) {
-  NET.code = NET.code || randCode();
+} catch (_) {}
+if (!NET.code || !NET.token) {
   NET.token = NET.token || randToken();
+  NET.code = codeFor(NET.token);
+  try {
+    localStorage.setItem(LS_TOKEN, NET.token);
+    localStorage.setItem(LS_ID, NET.code);
+  } catch (_) {}
 }
 
 export function myRoom() {
@@ -91,6 +177,10 @@ export function serverURL() {
     u = localStorage.getItem(LS_URL) || "";
   } catch (_) {}
   if (u) return u;
+  // The desktop shell (desktop/src-tauri) names the relay: its own origin
+  // (http://mf.localhost, mf://localhost) serves files, not WebSockets.
+  const desktop = typeof window !== "undefined" ? window.__MF_DESKTOP__ : null;
+  if (desktop) return desktop.relayUrl || "ws://localhost:8765";
   // served by the bundled relay? then the same host speaks WebSocket too
   if (location.protocol === "http:" || location.protocol === "https:")
     return (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
@@ -106,7 +196,7 @@ export function setServerURL(u) {
 // ---- tiny event bus -------------------------------------------------------
 // events: status(connected), roster, room(peers changed), chat({from,name,text}),
 //         pose({from,pose}), data({from,data}), peer-join({code,name}),
-//         peer-leave({code,name}), voice-state
+//         peer-leave({code,name}), voice-state, identity-changed({from,to})
 const subs = {};
 export function on(ev, fn) {
   (subs[ev] = subs[ev] || []).push(fn);
@@ -164,6 +254,10 @@ export function connect() {
   ws.onclose = () => {
     const was = NET.connected;
     NET.connected = false;
+    NET.joined = false;
+    NET.admissions = Object.create(null);
+    NET.knocks = Object.create(null);
+    emit("knocks");
     NET.peers = {};
     NET.roster = [];
     if (was) {
@@ -215,6 +309,7 @@ function send(obj) {
 // ---- rooms ----------------------------------------------------------------
 export function joinRoom(room) {
   NET.room = room;
+  NET.joined = false;
   NET.peers = {};
   closeAllVoice(); // per-room mesh; the new room re-establishes it
   send({ t: "join", room });
@@ -252,8 +347,41 @@ export function sendPose(pose) {
 
 function handle(m) {
   switch (m.t) {
+    case "knock":
+      NET.knocks[m.code] = { code: m.code, name: cleanName(m.name) };
+      emit("knocks");
+      break;
+    case "pending":
+    case "denied":
+      if (m.room !== (NET.room || myRoom())) break;
+      NET.joined = false;
+      NET.peers = {};
+      closeAllVoice();
+      emit("room");
+      emit(m.t, { room: m.room });
+      break;
+    case "admitted":
+      if (m.room !== (NET.room || myRoom())) break;
+      NET.joined = true;
+      emit("admitted", { room: m.room });
+      break;
     case "error":
       if (m.code === "identity_in_use" || m.code === "bad_identity") {
+        const derived = codeFor(NET.token);
+        if (NET.code !== derived) {
+          const from = NET.code;
+          NET.code = derived;
+          if (NET.room === "apt:" + from) NET.room = myRoom();
+          try {
+            localStorage.setItem(LS_TOKEN, NET.token);
+            localStorage.setItem(LS_ID, NET.code);
+          } catch (_) {}
+          emit("identity-changed", { from, to: derived });
+          // onclose retries with the derived identity. Another rejection then
+          // takes the terminal path below, so migration cannot loop.
+          if (NET.ws) NET.ws.close();
+          break;
+        }
         wantConnect = false;
         emit("server-error", m.code);
       }
@@ -266,14 +394,14 @@ function handle(m) {
       // refresh my in-room peer table from the roster (names may change)
       NET.peers = {};
       NET.roster.forEach((u) => {
-        if (u.room === (NET.room || myRoom()) && u.code !== NET.code)
+        if (NET.joined && u.room === (NET.room || myRoom()) && u.code !== NET.code)
           NET.peers[u.code] = { name: u.name };
       });
       emit("roster");
       emit("room");
       break;
     case "joined":
-      if (m.code !== NET.code) {
+      if (NET.joined && m.room === (NET.room || myRoom()) && m.code !== NET.code) {
         const name = cleanName(m.name);
         NET.peers[m.code] = { name };
         emit("peer-join", { code: m.code, name });
@@ -299,7 +427,9 @@ function handle(m) {
           emit("chat", { from: m.from, name: peerName(m.from), text });
       } else if (d.k === "pose") emit("pose", { from: m.from, pose: d.p });
       else if (d.k === "nopose") emit("pose", { from: m.from, pose: null });
-      else if (d.k === "rtc") handleRTC(m.from, d);
+      else if (d.k === "rtc") {
+        if (acceptRemote("rtc", m.from, remoteContext())) handleRTC(m.from, d);
+      }
       else emit("data", { from: m.from, data: d });
       break;
     }

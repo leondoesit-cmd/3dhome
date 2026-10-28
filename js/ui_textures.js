@@ -442,14 +442,23 @@ function createTextureCard(tex, index, isOnline) {
   card.setAttribute("aria-pressed", selectedTexture && selectedTexture.tex.id === tex.id ? "true" : "false");
   if (selectedTexture && selectedTexture.tex.id === tex.id) card.classList.add("selected");
   
-  var badgeHtml = "";
-  if (onlineCard && tex.source) {
-    badgeHtml = '<div class="tex-card-badge" style="background:' + (tex.sourceColor || '#8b5cf6') + '">' + tex.source + '</div>';
-  }
-  
   card.innerHTML =
-    '<div class="tex-preview" style="background:' + previewBackground(tex, previewUrl).replace(/"/g, "&quot;") + '">' + badgeHtml + '<span class="tex-selected-mark"><i class="ph ph-check"></i></span></div>' +
-    '<div class="tex-card-copy"><div class="tex-card-title" title="' + texName.replace(/"/g, '&quot;') + '">' + texName + '</div><div class="tex-card-meta">' + (tex.scale || 200) + ' cm</div></div>';
+    '<div class="tex-preview"><span class="tex-selected-mark"><i class="ph ph-check"></i></span></div>' +
+    '<div class="tex-card-copy"><div class="tex-card-title"></div><div class="tex-card-meta"></div></div>';
+  var preview = card.querySelector(".tex-preview");
+  preview.style.background = previewBackground(tex, previewUrl);
+  if (onlineCard && tex.source) {
+    var badge = document.createElement("div");
+    badge.className = "tex-card-badge";
+    badge.textContent = tex.source;
+    // an API colour is used only when it is a plain hex colour; the house purple otherwise
+    badge.style.background = typeof tex.sourceColor === "string" && /^#[0-9a-fA-F]{3,8}$/.test(tex.sourceColor) ? tex.sourceColor : "#8b5cf6";
+    preview.appendChild(badge);
+  }
+  var title = card.querySelector(".tex-card-title");
+  title.textContent = texName;
+  title.title = texName;
+  card.querySelector(".tex-card-meta").textContent = (tex.scale || 200) + ' cm';
   
   var fav = isFavorite(tex.id);
   var starBtn = document.createElement("button");

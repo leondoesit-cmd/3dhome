@@ -55,7 +55,9 @@ test("smart-home LAN resolver allows home hubs and refuses metadata / public SSR
   assert.equal(isLanAddress("192.168.1.42"), true);
   assert.equal(isLanAddress("10.0.0.5"), true);
   assert.equal(isLanAddress("127.0.0.1"), true);
-  assert.equal(isLanAddress("100.64.1.8"), true);
+  // carrier-grade NAT space is shared with other ISP customers: LAN only when
+  // listed in HOME3D_LAN_EXTRA_CIDRS (Tailscale users add 100.64.0.0/10)
+  assert.equal(isLanAddress("100.64.1.8"), false);
   assert.equal(isLanAddress("169.254.169.254"), false);
   assert.equal(isLanAddress("8.8.8.8"), false);
   assert.equal(isLanAddress("224.0.0.1"), false);

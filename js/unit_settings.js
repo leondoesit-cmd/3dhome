@@ -89,10 +89,15 @@ export function isLocationInUS(lat, lon, label) {
 /**
  * Detects unit system from system timezone (e.g. America/New_York vs America/Toronto vs Europe/London).
  */
+// Constructing a DateTimeFormat costs ~0.1 ms and every dimension label asks
+// for the unit system; during a plan drag that was 3–6 ms a move. The zone is
+// read once per session.
+var sessionTimeZone;
 export function detectTimezoneUnitSystem() {
   try {
     if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
-      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (sessionTimeZone === undefined) sessionTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+      var tz = sessionTimeZone;
       if (tz) {
         // Specific US timezones
         var isUSTZ = /^(?:America\/(?:New_York|Detroit|Kentucky\/\w+|Indiana\/\w+|Chicago|Menominee|North_Dakota\/\w+|Denver|Boise|Phoenix|Los_Angeles|Anchorage|Juneau|Sitka|Metlakatla|Yakutat|Nome|Adak|Puerto_Rico|St_Thomas|Virgin)|Pacific\/(?:Honolulu|Guam|Saipan))$/.test(tz);

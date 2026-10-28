@@ -186,20 +186,25 @@ test("relay: clients that have not joined a room cannot see or message each othe
   const port = await startRelay(t);
   const a = await wsClient(port), b = await wsClient(port);
   t.after(() => { a.sock.destroy(); b.sock.destroy(); });
-  send(a, { t: "hello", code: "ABCD-EFGH", name: "A", token: "a".repeat(40) });
-  send(b, { t: "hello", code: "JKLM-NPQR", name: "B", token: "b".repeat(40) });
+  // friend codes certify themselves: each is derived from its token (js/net.js)
+  const { codeFor } = await import("../js/net.js");
+  const tokenA = "a".repeat(40), tokenB = "b".repeat(40), codeA = codeFor(tokenA), codeB = codeFor(tokenB);
+  send(a, { t: "hello", code: codeA, name: "A", token: tokenA });
+  send(b, { t: "hello", code: codeB, name: "B", token: tokenB });
   await settle();
   const rosterA = messages(a).filter((m) => m.t === "roster").at(-1);
-  assert.deepEqual(rosterA.users.map((u) => u.code), ["ABCD-EFGH"]);
-  send(a, { t: "msg", to: "JKLM-NPQR", data: { k: "chat", text: "hi" } });
+  assert.deepEqual(rosterA.users.map((u) => u.code), [codeA]);
+  send(a, { t: "msg", to: codeB, data: { k: "chat", text: "hi" } });
   await settle();
   assert.equal(messages(b).filter((m) => m.t === "msg").length, 0);
-  // once they share a room they do see each other
-  send(a, { t: "join", room: "apt:ABCD-EFGH" });
-  send(b, { t: "join", room: "apt:ABCD-EFGH" });
+  // once the owner admits the visitor into the room they do see each other
+  send(a, { t: "join", room: "apt:" + codeA });
+  send(b, { t: "join", room: "apt:" + codeA });
+  await settle();
+  send(a, { t: "admit", code: codeB });
   await settle();
   const shared = messages(a).filter((m) => m.t === "roster").at(-1);
-  assert.deepEqual(shared.users.map((u) => u.code).sort(), ["ABCD-EFGH", "JKLM-NPQR"]);
+  assert.deepEqual(shared.users.map((u) => u.code).sort(), [codeA, codeB].sort());
 });
 
 test("relay: an oversized ping closes the connection instead of a malformed pong", async (t) => {

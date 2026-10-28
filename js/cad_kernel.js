@@ -23,30 +23,73 @@ import { extrusionAxisVector, UP_TO_FACE_MISSED } from "./core/extrude_extent.js
 
 let kernelPromise = null;
 let kernelLoadAttempt = 0;
+let compiledKernelModule = null, compiledKernelPromise = null, browserFactoryPromise = null, browserKernelFactory = null, kernelInstance = null;
+const opaqueBreps = new WeakMap();
 
 // The product domain uses centimetres. OpenCascade expresses its transfer
 // system unit as millimetres per application unit, so one model unit is 10 mm.
 // (It is not the more common "units per metre" convention.)
 export const CAD_WORKING_UNIT = Object.freeze({ name: "cm", millimetersPerUnit: 10 });
 
-async function compressedBrowserKernel(factory) {
+async function browserKernelBytes() {
   if(typeof DecompressionStream!=="function")throw new Error("gzip streaming unavailable");
   const url=new URL("../assets/opencascade.full.wasm.gz",import.meta.url),response=await fetch(url);
   if(!response.ok || !response.body)throw new Error("compressed CAD kernel unavailable");
-  const wasmBinary=await new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
-  return factory({wasmBinary});
+  return new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+}
+
+function browserFactory() {
+  if(!browserFactoryPromise){
+    const browserModule = new URL("../vendor/opencascade/opencascade.full.js", import.meta.url);
+    if(kernelLoadAttempt)browserModule.searchParams.set("retry",String(kernelLoadAttempt));
+    browserFactoryPromise=import(browserModule.href).then(({default:factory})=>(browserKernelFactory=factory)).catch(error=>{browserFactoryPromise=null;kernelLoadAttempt++;throw error;});
+  }
+  return browserFactoryPromise;
+}
+
+// Retain compiled code at page scope, without constructing a native heap. A
+// worker restart clones the Module; its memory and body cache remain disposable.
+export async function prepareCadKernelModule() {
+  if(!compiledKernelPromise)compiledKernelPromise=browserKernelBytes().then(bytes=>globalThis.WebAssembly.compile(bytes)).then(module=>(compiledKernelModule=module)).catch(error=>{compiledKernelPromise=null;throw error;});
+  const [module]=await Promise.all([compiledKernelPromise,browserFactory()]);
+  return module;
+}
+
+export function setCadKernelModule(module) {
+  if(module instanceof globalThis.WebAssembly.Module){compiledKernelModule=module;compiledKernelPromise=Promise.resolve(module);}
+}
+
+// Even compiled modules over 8 MB cannot be instantiated synchronously on
+// Chrome's main thread. Return the pending-hook sentinel and let Emscripten's
+// receive callback finish initialization without downloading or compiling again.
+export async function instantiateCadKernelModule(factory,module,options={}) {
+  let rejectInstantiation;
+  const failed=new Promise((_,reject)=>{rejectInstantiation=reject;});
+  const ready=factory({...options,instantiateWasm(imports,receive){
+    Promise.resolve().then(()=>globalThis.WebAssembly.instantiate(module,imports))
+      .then(instance=>receive(instance,module)).catch(rejectInstantiation);
+    return {};
+  }});
+  // The glue does not reject ready when a custom asynchronous hook fails.
+  return Promise.race([ready,failed]);
+}
+
+async function compressedBrowserKernel(factory) {
+  if(kernelInstance)return kernelInstance;
+  if(!compiledKernelModule){try{await prepareCadKernelModule();}catch(_){/* Older browsers retain the wasmBinary route. */}}
+  if(kernelInstance)return kernelInstance;
+  if(compiledKernelModule)return instantiateCadKernelModule(factory,compiledKernelModule,{onRuntimeInitialized(){kernelInstance=this;}});
+  return factory({wasmBinary:await browserKernelBytes()});
 }
 
 export function loadCadKernel() {
   if (!kernelPromise) {
-    const attempt = kernelLoadAttempt++;
-    const browserModule = new URL("../node_modules/opencascade.js/dist/opencascade.full.js", import.meta.url);
-    if (attempt) browserModule.searchParams.set("retry", String(attempt));
+    // The browser glue is vendored (the server never serves node_modules); the
+    // binary is always the gzip in assets/ — every supported engine streams it.
     kernelPromise = typeof window === "undefined" && typeof self === "undefined"
       ? import("opencascade.js/dist/node.js").then(({ default: factory }) => factory())
-      : import(browserModule.href).then(({default:factory})=>
-        compressedBrowserKernel(factory).catch(()=>factory({locateFile(path){if(path.endsWith(".wasm"))return new URL("../node_modules/opencascade.js/dist/opencascade.full.wasm",import.meta.url).href;return path;}})));
-    kernelPromise = kernelPromise.catch((error) => {
+      : browserFactory().then(compressedBrowserKernel);
+    kernelPromise = kernelPromise.then(oc=>(kernelInstance=oc)).catch((error) => {
       kernelPromise = null;
       throw error;
     });
@@ -1165,6 +1208,7 @@ export async function makeBrepCone(spec) {
 // Unit-density volume inertia about the centroid, in cm^5. Density scaling
 // belongs to the mass report; the kernel must not assume a material.
 export async function shapeSolidCount(brep) {
+  if(opaqueBreps.has(brep) && Number.isInteger(brep.nativeSolidCount))return brep.nativeSolidCount;
   if(!brep?.shape)throw new Error("Solid count requires an exact shape");
   const oc=brep.oc || await loadCadKernel();
   const explorer=new oc.TopExp_Explorer_2(brep.shape,oc.TopAbs_ShapeEnum.TopAbs_SOLID,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
@@ -1174,6 +1218,7 @@ export async function shapeSolidCount(brep) {
 }
 
 export async function shapeMassProperties(brep) {
+  if(opaqueBreps.has(brep) && brep.workerMassProperties)return structuredClone(brep.workerMassProperties);
   if (!brep?.shape) throw new Error("Mass properties require an exact solid");
   const oc = brep.oc || await loadCadKernel(), owned = [];
   try {
@@ -1247,6 +1292,7 @@ function shapeMaxTolerance(oc, shape) {
 export async function booleanBrep(operation, left, right) {
   if (!left?.shape || !right?.shape) throw new Error("Boolean operands must be BREP shapes");
   const oc = left.oc || right.oc || await loadCadKernel();
+  opaqueBreps.get(right)?.materialize();
   let shape = buildBoolean(oc, operation, left.shape, right.shape);
   const vl = Math.abs(shapeVolume(oc, left.shape)), vr = Math.abs(shapeVolume(oc, right.shape)), vs = Math.abs(shapeVolume(oc, shape));
   if (vl > 1e-9 && vr > 1e-9 && !booleanVolumePlausible(operation, vl, vr, vs)) {
@@ -3522,7 +3568,7 @@ export async function translateBrep(brep, delta = {}) {
 export async function compoundBrep(inputs=[]) {
   const valid=inputs.filter((entry)=>entry?.shape);if(!valid.length)throw new Error("Compound needs at least one shape");
   const oc=valid[0].oc || await loadCadKernel(),builder=new oc.TopoDS_Builder(),compound=new oc.TopoDS_Compound();
-  try{builder.MakeCompound(compound);valid.forEach((entry)=>builder.Add(compound,entry.shape));return {oc,shape:compound,kind:"compound"};}
+  try{builder.MakeCompound(compound);valid.forEach((entry)=>{opaqueBreps.get(entry)?.materialize();builder.Add(compound,entry.shape);});return {oc,shape:compound,kind:"compound"};}
   catch(error){compound.delete?.();throw error;}finally{builder.delete();}
 }
 
@@ -3610,6 +3656,8 @@ export async function mirrorBrep(source, params = {}) {
 }
 
 export async function serializeBrep(brep, fileName = "shape.brep") {
+  const opaque=opaqueBreps.get(brep);
+  if(opaque)return new Uint8Array(opaque.bytes);
   if (!brep?.shape) throw new Error("No BREP shape to serialize");
   const oc = brep.oc || await loadCadKernel();
   const progress = new oc.Message_ProgressRange_1(), path = kernelFilePath(fileName, "brep");
@@ -3623,7 +3671,11 @@ export async function serializeBrep(brep, fileName = "shape.brep") {
 }
 
 export async function deserializeBrep(data, fileName = "shape.brep") {
-  const oc = await loadCadKernel(), bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  return deserializeBrepWithKernel(await loadCadKernel(),data,fileName);
+}
+
+function deserializeBrepWithKernel(oc,data,fileName="shape.brep") {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   const progress = new oc.Message_ProgressRange_1(), builder = new oc.BRep_Builder();
   const shape = new oc.TopoDS_Shape(), path = kernelFilePath(fileName, "brep");
   try {
@@ -3637,6 +3689,34 @@ export async function deserializeBrep(data, fileName = "shape.brep") {
     try { oc.FS.unlink(path); } catch (_) {}
     builder.delete(); progress.delete();
   }
+}
+
+// Worker BREP stays opaque for display, persistence and measurement. Preserve
+// the truthy .shape contract for existing callers; .oc/.subshapes or a native
+// shape query materializes it only when an actual geometric operation needs it.
+// Restore must await loadCadKernel before publishing this body, so synchronous
+// legacy consumers (e.g. face offsets) only deserialize into an existing heap.
+export function deferSerializedBrep(data,metadata={},topology=[],options={}) {
+  if(!compiledKernelModule || !browserKernelFactory)return null;
+  const body={...metadata,topology},state={bytes:data instanceof Uint8Array?data:new Uint8Array(data)};
+  const materialize=()=>{
+    if(!opaqueBreps.has(body)){
+      if(!body.shape)throw new Error('The exact BREP has been disposed');
+      return body;
+    }
+    if(!kernelInstance)throw new Error('deferSerializedBrep.materialize: CAD kernel is not initialized; the worker restore path must await loadCadKernel() before returning a BREP');
+    const native=deserializeBrepWithKernel(kernelInstance,state.bytes);
+    try{hydrateSerializedBrepTopology(native,body.topology,options);}
+    catch(error){disposeBrep(native);throw error;}
+    Object.defineProperties(body,{oc:{value:native.oc,writable:true,enumerable:true,configurable:true},subshapes:{value:native.subshapes,writable:true,enumerable:true,configurable:true}});
+    body.shape=native.shape;body.topology=native.topology;opaqueBreps.delete(body);
+    return body;
+  };
+  state.materialize=materialize;
+  body.shape={IsNull:()=>materialize().shape.IsNull()};
+  Object.defineProperties(body,{oc:{get:()=>materialize().oc,enumerable:true,configurable:true},subshapes:{get:()=>materialize().subshapes,enumerable:true,configurable:true}});
+  opaqueBreps.set(body,state);
+  return body;
 }
 
 // Manufacturing exchange defaults to solids. Surface exchange is deliberate:
@@ -3743,6 +3823,11 @@ export async function importStep(data, fileName = "import.step", options = {}) {
 }
 
 export function disposeBrep(brep) {
+  if(opaqueBreps.has(brep)){
+    opaqueBreps.delete(brep);brep.shape=null;
+    Object.defineProperties(brep,{oc:{value:undefined,writable:true,enumerable:true,configurable:true},subshapes:{value:undefined,writable:true,enumerable:true,configurable:true}});
+    return;
+  }
   clearBrepTopology(brep);
   try { brep?.shape?.delete?.(); } catch (_) {}
 }

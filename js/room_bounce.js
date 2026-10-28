@@ -195,6 +195,14 @@ export function effectiveMaskRoom(maskRoom, unshadowed, shadowedHere) {
   if (maskRoom === UNMASKED && !shadowedHere && unshadowed != null) return unshadowed;
   return maskRoom == null ? UNMASKED : maskRoom;
 }
+/* the mask room a light's shader factor uses this render: its own rule,
+   with "casts" meaning it casts here (see effectiveMaskRoom). The stock
+   light nodes below and js/light_loop.js both take it from here. */
+export function lightMaskFor(light, renderer) {
+  var ud = light.userData || {};
+  var shadowedHere = !!(light.castShadow && renderer && renderer.shadowMap && renderer.shadowMap.enabled);
+  return effectiveMaskRoom(ud.maskRoom, ud.maskRoomUnshadowed, shadowedHere);
+}
 export function maskAdmits(maskRoom, room, underSky) {
   if (maskRoom === SKY_ONLY) return !!underSky;
   return maskRoom === UNMASKED || maskRoom === room;
@@ -244,19 +252,29 @@ export function createRoomBounce(THREE, TSL, opts) {
 
   // every read is the same texture, so a material binds it once; always mip
   // 0, which the environment pass would otherwise replace with its roughness
-  // level (the map has no other mips: they read as "outside every room")
+  // level (the map has no other mips: they read as "outside every room").
+  // ONE node for every light: three emits a node once per shader however
+  // often it is used, where a fresh node per light re-read the map (and
+  // redid its arithmetic) two or three times for every light in the house.
+  var planTexelNode = null, underSkyNode = null;
   function planTexel() {
-    var p = TSL.positionWorld.xz.add(TSL.normalWorld.xz.mul(NORMAL_REACH_CM));
-    return TSL.texture(map, p.sub(origin).div(span)).level(0);
+    if (!planTexelNode) {
+      var p = TSL.positionWorld.xz.add(TSL.normalWorld.xz.mul(NORMAL_REACH_CM));
+      planTexelNode = TSL.texture(map, p.sub(origin).div(span)).level(0);
+    }
+    return planTexelNode;
   }
   function masked(open) {
     return one.sub(masksOn.mul(one.sub(open)));
   }
   // 1 where the sky reaches the fragment (skyAdmits), 0 under a ceiling
   function underSky() {
-    var inRoom = TSL.step(0.5, planTexel().a);
-    var above = TSL.step(ceilTop, TSL.positionWorld.y.add(TSL.normalWorld.y.mul(NORMAL_REACH_CM)));
-    return TSL.max(one.sub(inRoom), above);
+    if (!underSkyNode) {
+      var inRoom = TSL.step(0.5, planTexel().a);
+      var above = TSL.step(ceilTop, TSL.positionWorld.y.add(TSL.normalWorld.y.mul(NORMAL_REACH_CM)));
+      underSkyNode = TSL.max(one.sub(inRoom), above);
+    }
+    return underSkyNode;
   }
   function skyOpen() {
     return masked(underSky());
@@ -277,9 +295,7 @@ export function createRoomBounce(THREE, TSL, opts) {
       }
       update(frame) {
         super.update(frame);
-        var ud = this.light.userData, r = frame && frame.renderer;
-        var shadowedHere = !!(this.light.castShadow && r && r.shadowMap && r.shadowMap.enabled);
-        this.maskRoomNode.value = effectiveMaskRoom(ud.maskRoom, ud.maskRoomUnshadowed, shadowedHere);
+        this.maskRoomNode.value = lightMaskFor(this.light, frame && frame.renderer);
       }
       setupDirect(builder) {
         var d = super.setupDirect(builder);
@@ -360,6 +376,18 @@ export function createRoomBounce(THREE, TSL, opts) {
       origin.value.set(grid.x0, grid.z0);
       span.value = grid.cell * grid.size;
       ceilTop.value = ceilingTop(shown, wallH);
+    },
+    /* what js/light_loop.js needs to mask the lights it draws exactly as
+       maskedLightNode does: the mask room this renderer would use, the
+       shader factor, and the map reads to make once before its loop */
+    loopMasks: {
+      maskRoom: lightMaskFor,
+      lightOpen: function (maskRoom) {
+        return lightOpen(maskRoom);
+      },
+      hoist: function () {
+        return [planTexel(), underSky()];
+      },
     },
     /* the rooms the map numbers, in order: a light's mask room indexes them */
     rooms: function () {

@@ -157,6 +157,87 @@ function keepShadowNodes() {
   A.__keepsShadowNode = true;
 }
 
+/* three r185 makes a shadow map's render target when a shader first uses the
+   light's shadow, but sizes and creates its GPU textures only when the map is
+   first drawn. A material bound before that draw — and with shadow redraws
+   paced one light per frame, a lamp that starts casting at dusk waits a few
+   frames — gets a placeholder depth texture, which that first draw destroys
+   and replaces. A pass still holding the placeholder then fails to submit
+   ("Destroyed texture used in a submit"), and the planner drops to a bare
+   render without AO or anti-aliasing. So the target is created at its own
+   size the moment three makes it: the first draw finds it current and
+   replaces nothing. Leans on three's internals (tests/three_shadow_patch_guard
+   pins them). classes: three's ShadowNode and PointShadowNode by default. */
+export function sizeShadowMapsAtOnce(classes) {
+  var own = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
+  (classes || [THREE.ShadowNode, THREE.PointShadowNode]).forEach(function (C) {
+    var P = C && C.prototype;
+    // own flag: PointShadowNode inherits ShadowNode's, but has its own method
+    if (!P || own(P, "__sizesAtOnce") || !own(P, "setupRenderTarget")) return;
+    var setupRenderTarget = P.setupRenderTarget;
+    P.setupRenderTarget = function (shadow, builder) {
+      var made = setupRenderTarget.call(this, shadow, builder);
+      var textures = builder && builder.renderer && builder.renderer._textures;
+      if (made && made.shadowMap && textures && typeof textures.updateRenderTarget === "function") {
+        textures.updateRenderTarget(made.shadowMap);
+      } else if (!sizeShadowMapsAtOnce.warned) {
+        console.warn("gpu.js: three's shadow render targets changed; sizeShadowMapsAtOnce is off (re-check it against this three)");
+        sizeShadowMapsAtOnce.warned = true;
+      }
+      return made;
+    };
+    P.__sizesAtOnce = true;
+  });
+}
+
+/* three r185 draws a transparent DoubleSide material in two passes: renderObject
+   sets material.side to BackSide, then FrontSide, then back to DoubleSide. In
+   compileAsync each pass is only queued (with the material itself) and built
+   after renderObject has put DoubleSide back, so the warm-up builds a cull-none
+   pipeline no frame uses, and the two a frame does use are built on the spot:
+   a table lamp's shade cost ~0.8 s when dusk handed the shadows to the ceiling
+   lamps. Each queued pass now keeps the side it was queued at: if the material
+   is no longer at that side when the queue is built, the build sees a stand-in
+   that differs from the material only in `side` (cached per material and side,
+   so repeated warm-ups add nothing). Its shader and pipeline keys are the ones
+   the real pass computes, so the frame finds them built. Leans on three's
+   internals (tests/compile_sides_patch pins them). R: three's Renderer
+   (WebGPURenderer extends it) by default. */
+var sideStandIns = new WeakMap();
+function sideStandIn(material, side) {
+  var bySide = sideStandIns.get(material);
+  if (!bySide) sideStandIns.set(material, (bySide = {}));
+  if (!bySide[side]) {
+    var standIn = Object.create(material);
+    standIn.side = side;
+    bySide[side] = standIn;
+  }
+  return bySide[side];
+}
+export function compileSidesAsDrawn(R) {
+  var P = (R || THREE.Renderer || {}).prototype;
+  if (!P || P.__compilesSidesAsDrawn) return;
+  if (typeof P._createObjectPipeline !== "function" || String(P._createObjectPipeline).indexOf("_compilationPromises.push") < 0) {
+    if (!compileSidesAsDrawn.warned) console.warn("gpu.js: three's compile queue changed; compileSidesAsDrawn is off (re-check it against this three)");
+    compileSidesAsDrawn.warned = true;
+    return;
+  }
+  var create = P._createObjectPipeline;
+  P._createObjectPipeline = function (object, material) {
+    var queue = this._compilationPromises, before = queue ? queue.length : 0;
+    var result = create.apply(this, arguments);
+    if (queue && queue.length === before + 1 && material && material.transparent === true) {
+      var item = queue[before], side = material.side;
+      Object.defineProperty(item, "material", {
+        configurable: true, enumerable: true,
+        get: function () { return material.side === side ? material : sideStandIn(material, side); },
+      });
+    }
+    return result;
+  };
+  P.__compilesSidesAsDrawn = true;
+}
+
 /* three r185 frees a shader the moment no object uses it: NodeManager.delete
    drops the node-builder state, Pipelines._releasePipeline/_releaseProgram
    the pipeline and its programs. A change that re-keys every material — a
@@ -228,9 +309,16 @@ export function forgetLightKeys(r) {
 
 export function createRenderer(opts) {
   keepShadowNodes();
+  sizeShadowMapsAtOnce();
+  compileSidesAsDrawn();
   opts = Object.assign({}, opts || {});
   opts.forceWebGL = FORCE_WEBGL;
+  // a custom lighting manager (js/light_loop.js) must be in place before
+  // init(), which hands it to the render lists
+  var lighting = opts.lighting;
+  delete opts.lighting;
   var r = new THREE.WebGPURenderer(opts);
+  if (lighting) r.lighting = lighting;
   // Kick init immediately so it overlaps with the caller's scene building.
   r._readyPromise = r.init().then(function () { return r; });
   r._readyPromise.catch(function (e) {

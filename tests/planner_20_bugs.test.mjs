@@ -279,16 +279,22 @@ test('Bug 16: shape-specific arm limits accept broad L/T arms and retain minimum
   assert.equal(shapePoints('L',{width:400,depth:300,arm:19}),null);
 });
 
-test('Bug 17: watch relationships permit replies but unrelated clients cannot deliver messages',()=>{
+// A one-sided watch used to be enough to message any friend code (and so
+// anyone could, by listing it): delivery now needs a mutual watch or a room.
+test('Bug 17: only mutual friends or room-mates can deliver direct messages',()=>{
   const client=code=>({code,watch:new Set(),room:null});
   const a=client('A'),b=client('B'),c=client('C'),messages=[];
-  a.watch.add('B');
+  const mutualWatch=loadFunction('server/relay.mjs','mutualWatch',{});
   const toCode=loadFunction('server/relay.mjs','toCode',{
-    clients:new Set([a,b,c]),sendObj:(recipient,message)=>messages.push([recipient.code,message]),
+    clients:new Set([a,b,c]),mutualWatch,sendObj:(recipient,message)=>messages.push([recipient.code,message]),
   });
+  a.watch.add('B');
+  toCode(a,'B','one-sided');toCode(b,'A','one-sided reply');
+  assert.deepEqual(messages,[],'a one-sided watch delivers nothing');
+  b.watch.add('A');
   toCode(a,'B','request');toCode(b,'A','reply');toCode(c,'A','blocked');toCode(a,'missing','blocked');
   assert.deepEqual(messages,[['B','request'],['A','reply']]);
-  a.watch.clear();a.room=b.room='shared';
+  a.watch.clear();b.watch.clear();a.room=b.room='shared';
   toCode(b,'A','room');assert.deepEqual(messages.at(-1),['A','room']);
 });
 
