@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -17,9 +16,15 @@ import { S } from '../js/state.js';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const temporary = await mkdtemp(join(tmpdir(), 'wall-normalize-'));
 const referenceURLs = new Map();
+// The baseline is the implementation before the linear-time rewrite (64aca50e^),
+// snapshotted under tests/fixtures. Reading `git show HEAD:` instead compared the
+// new code with itself as soon as the rewrite was committed (and a shallow CI
+// checkout has no older commit to read). Its relative imports still resolve to
+// the live modules beside the original file.
+const baselineDir = join(root, 'tests', 'fixtures', 'wall_normalize_baseline');
 async function reference(file, overrides = {}) {
   if (referenceURLs.has(file)) return import(referenceURLs.get(file));
-  const source = execFileSync('git', ['show', `HEAD:${file}`], { cwd: root, encoding: 'utf8', maxBuffer: 8e6 });
+  const source = await readFile(join(baselineDir, file.replace(/^js\//, '').replaceAll('/', '_')), 'utf8');
   const rewritten = source.replace(/from\s+(["'])(\.[^"']+)\1/g, (match, quote, specifier) =>
     `from ${quote}${overrides[specifier] || pathToFileURL(resolve(root, dirname(file), specifier)).href}${quote}`);
   const url = pathToFileURL(join(temporary, file.replaceAll('/', '_') + '.mjs')).href;
@@ -41,7 +46,7 @@ function project(count = 200) {
   })), nodes: [], openings: [] };
 }
 
-test('seeded edits preserve HEAD JSON and helper returns at migration/edit boundaries', () => {
+test('seeded edits preserve the baseline JSON and helper returns at migration/edit boundaries', () => {
   for (const seed of [1, 42, 991, 8675309]) {
     const rand = random(seed), pick = n => Math.floor(rand() * n);
     const a = project(8), b = copy(a);
@@ -149,13 +154,13 @@ function milliseconds(run, repeats = 5) {
   for (let i = 0; i < repeats; i++) { const start = performance.now(); run(); times.push(performance.now() - start); }
   return times.sort((a, b) => a - b)[Math.floor(repeats / 2)];
 }
-test('200-wall render-like pass is at least five times faster than HEAD', () => {
+test('200-wall render-like pass is at least five times faster than the baseline', () => {
   const a = project(), b = copy(a); old.ensureWallTypes(a); fast.ensureWallTypes(b);
   renderPass(old, a); renderPass(fast, b);
   const before = milliseconds(() => renderPass(old, a));
   const after = milliseconds(() => renderPass(fast, b));
   console.table([{ workload: '200 walls: normalizeWall + wallLayers', before_ms: +before.toFixed(3), after_ms: +after.toFixed(3), speedup: +(before / after).toFixed(2) }]);
-  assert.ok(after < before / 5, `${after.toFixed(2)} ms vs HEAD ${before.toFixed(2)} ms`);
+  assert.ok(after < before / 5, `${after.toFixed(2)} ms vs baseline ${before.toFixed(2)} ms`);
   assert.equal(json(b), json(a));
 });
 
@@ -190,7 +195,7 @@ function apartmentTiles(count = 50) {
 }
 const rectangle = (x, z, w, d) => [{ x, z }, { x: x + w, z }, { x: x + w, z: z + d }, { x, z: z + d }];
 
-test('joint calculations match HEAD after in-place opening, topology and height edits', async () => {
+test('joint calculations match the baseline after in-place opening, topology and height edits', async () => {
   const baseline = await reference('js/geometry.js');
   const saved = { nodes: S.nodes, walls: S.walls, openings: S.openings };
   const rand = random(913), pick = n => Math.floor(rand() * n);
@@ -220,7 +225,7 @@ test('joint calculations match HEAD after in-place opening, topology and height 
   } finally { Object.assign(S, saved); }
 });
 
-test('polygon sweeps match HEAD over seeded overlapping, concave and mutated polygons', async () => {
+test('polygon sweeps match the baseline over seeded overlapping, concave and mutated polygons', async () => {
   const baseline = await reference('js/polygon_area.js'), rand = random(513);
   for (let step = 0; step < 100; step++) {
     const groups = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => {
@@ -236,7 +241,7 @@ test('polygon sweeps match HEAD over seeded overlapping, concave and mutated pol
   }
 });
 
-test('room solid index matches HEAD after edits without mutating project state', async () => {
+test('room solid index matches the baseline after edits without mutating project state', async () => {
   const baseline = await reference('js/room_area.js', { './wall_types.js': referenceURLs.get('js/wall_types.js') });
   const { state, list } = apartmentTiles(4);
   const compare = () => {
@@ -278,7 +283,7 @@ test('spatial alias reuse repairs redefinitions and follows document replacement
   assert.equal(Object.getOwnPropertyDescriptor(b, 'walls').enumerable, true);
 });
 
-test('remaining Node hotspots match HEAD and print timing/profile tables', async () => {
+test('remaining Node hotspots match the baseline and print timing/profile tables', async () => {
   const beforeGeometry = await reference('js/geometry.js');
   const beforeRooms = await reference('js/room_area.js', { './wall_types.js': referenceURLs.get('js/wall_types.js') });
   const beforePolygons = await reference('js/polygon_area.js');
