@@ -44,4 +44,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: desktop/src-tauri
+      # tauri.conf.json bundles ../web, which tools/desktop_bundle.mjs generates
+      # for releases (it needs the LFS assets). The tests never read it, but the
+      # build script requires the folder to exist.
+      - run: New-Item -ItemType Directory -Force ../web | Out-Null
       - run: cargo test --locked
