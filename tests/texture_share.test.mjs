@@ -120,6 +120,62 @@ test("sharedRepeat: one texture per image and repeat, never a clone per material
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
+test("the vertical-span probe disposes the piece it builds, releasing its texture shares", () => {
+  // baseVSpan builds a piece only to measure it. Left undisposed, its
+  // materials stayed counted owners of their texture repeats, so a repeat
+  // that fell off the recent list was never freed (nor its GPU copy).
+  const three = pathToFileURL(join(root, "vendor/three/three.webgpu.js")).href;
+  const tsl = pathToFileURL(join(root, "vendor/three/three.tsl.js")).href;
+  const addons = pathToFileURL(join(root, "vendor/three/addons/")).href;
+  const loader = `data:text/javascript,export async function resolve(s,c,n){if(s==="three"||s==="three/webgpu")return{url:${JSON.stringify(three)},format:"module",shortCircuit:true};if(s==="three/tsl")return{url:${JSON.stringify(tsl)},format:"module",shortCircuit:true};if(s.startsWith("three/addons/"))return{url:${JSON.stringify(addons)}+s.slice(13),format:"module",shortCircuit:true};return n(s,c)}`;
+  const script = String.raw`
+    import assert from "node:assert/strict";
+    import { loadThree, THREE } from "./js/three_lazy.js";
+    await loadThree();
+    const { sharedRepeat } = await import("./js/pbr_material.js");
+    const { FURN } = await import("./js/furniture_models.js");
+    const { itemVSpan, clearVSpanCache } = await import("./js/furniture_api.js");
+    const img = new THREE.Texture({ width: 4, height: 4 });
+    const probeMaterials = [];
+    FURN.__probe_test = {
+      w: 50, d: 50, h: 80,
+      build(g) {
+        const m = new THREE.MeshStandardMaterial();
+        m.map = sharedRepeat(img, 2, 2, m);
+        probeMaterials.push(m);
+        g.add(new THREE.Mesh(new THREE.BoxGeometry(50, 80, 50), m));
+      },
+    };
+    const { isSharedTexture } = await import("./js/pbr_material.js");
+    let probeDisposed = 0;
+    const realDispose = THREE.Material.prototype.dispose;
+    THREE.Material.prototype.dispose = function () { if (probeMaterials.includes(this)) probeDisposed++; return realDispose.apply(this, arguments); };
+    clearVSpanCache();
+    const span = itemVSpan({ type: "__probe_test", w: 50, d: 50, h: 80 });
+    THREE.Material.prototype.dispose = realDispose;
+    assert.ok(span.hi > span.lo, "it measured the piece");
+    assert.equal(probeMaterials.length, 1);
+    assert.equal(probeDisposed, 1, "the probe's material was disposed");
+    assert.ok(isSharedTexture(probeMaterials[0].map), "the probe used the shared repeat");
+    // the probe released its share: with the one rendered owner gone, the
+    // repeat is freed as it falls off the recent list
+    const shown = new THREE.MeshStandardMaterial();
+    const c = sharedRepeat(img, 2, 2, shown);
+    let freed = 0;
+    c.addEventListener("dispose", () => freed++);
+    shown.dispose();
+    for (let i = 0; i < 60; i++) sharedRepeat(img, 100 + i, 1, new THREE.MeshStandardMaterial());
+    assert.equal(freed, 1, "freed: the probe no longer holds it");
+    delete FURN.__probe_test;
+  `;
+  const result = spawnSync(
+    process.execPath,
+    ["--experimental-loader", loader, "--input-type=module", "-e", script],
+    { cwd: root, encoding: "utf8", env: { ...process.env, NODE_NO_WARNINGS: "1" } },
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
 test("3D builders share cached textures instead of cloning them per material", () => {
   // Each of these used to take `<cache>[url].clone()` (or clone the library
   // maps) for every part it textured.

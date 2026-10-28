@@ -155,7 +155,9 @@ const PAGE_HELPERS = `(async () => {
   const wrap = (proto, record) => {
     const orig = proto.render;
     proto.render = function () {
-      if (record && this.domElement) B.last.set(this.domElement.id || "anon", { r: this, scene: arguments[0], camera: arguments[1], orig });
+      // only an outermost call: three draws shadow maps with nested render()
+      // calls on the shadow camera, which would otherwise replace the view's
+      if (record && this.domElement && B.depth === 0) B.last.set(this.domElement.id || "anon", { r: this, scene: arguments[0], camera: arguments[1], orig });
       const t0 = performance.now(); B.depth++;
       try { return orig.apply(this, arguments); }
       finally { B.depth--; if (B.depth === 0) B.cpu += performance.now() - t0; }
@@ -226,14 +228,30 @@ const SCENARIO_CODE = {
     // simpler lighting graph than the one being measured
     v.registerPlannerLights(r);
     const scene = v.getMainScene(), cam = v.getMainCamera(), env = scene.environment; scene.environment = null;
+    // three shares each light's shadow node between renderers, and the main
+    // view has switched its settled maps' updates off: drawn with the scene's
+    // own lights this renderer would sample maps it never drew (and could reset
+    // the main view's). It draws through stand-in lights, as the inspector
+    // preview does: the first frame draws their maps, warm frames reuse them.
+    const own = (await import("/js/inspector_lights.js")).createInspectorLights();
+    const swap = () => { if (own.swapIn(scene, cam)) gpu.forgetLightKeys(r); };
     let compileMs = null, firstFrameMs = null, secondFrameMs = null;
     try {
-      let t0 = performance.now(); await r.compileAsync(scene, cam); compileMs = performance.now() - t0;
-      t0 = performance.now(); r.render(scene, cam); await B.gpuDone(r); firstFrameMs = performance.now() - t0;
+      // the main view keeps rendering this scene meanwhile: its idle shadow-set
+      // prewarm is stopped (it would put another hour's lights in), and the
+      // stand-ins are taken out as soon as the compile has read the scene,
+      // as the inspector preview does, not left in it across the await
+      v.stopShadowSetPrewarm();
+      swap(); let t0 = performance.now(), compiling;
+      try { compiling = r.compileAsync(scene, cam); } finally { own.swapOut(false); }
+      await compiling;
+      compileMs = performance.now() - t0;
+      const frame = async () => { swap(); const t = performance.now(); try { r.render(scene, cam); } finally { own.swapOut(true); } await B.gpuDone(r); return performance.now() - t; };
+      firstFrameMs = await frame();
       const warm = [];
-      for (let i = 0; i < 10; i++) { t0 = performance.now(); r.render(scene, cam); await B.gpuDone(r); warm.push(performance.now() - t0); }
+      for (let i = 0; i < 10; i++) warm.push(await frame());
       secondFrameMs = B.stats(warm).p50;
-    } finally { scene.environment = env; B.release(r); }
+    } finally { own.dispose(); scene.environment = env; B.release(r); }
     return { backend: B.backend(v.getRenderer()), rendererInitMs: B.stats(inits), sceneCompileMs: +compileMs.toFixed(1),
       firstFrameMs: +firstFrameMs.toFixed(1), secondFrameMs: +secondFrameMs.toFixed(1) };
   })()`,

@@ -1,7 +1,7 @@
 // Furniture runtime API: build, vertical spans, item factory, default scene.
 import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
 import { S, uid, fin, MOUNTH, WALL_H, WALL_T } from "./state.js";
-import { setSkin } from "./primitives.js";
+import { setSkin, clearGroup } from "./primitives.js";
 import { FURN, variantOf } from "./furniture_models.js";
 import { ensureItemDefinition, rebuildItem } from "./core/project.js";
 
@@ -110,9 +110,10 @@ function baseVSpan(it) {
     }, function () {});
     return { lo: 0, hi: (it && it.h) || 0 };
   }
-  var span = null;
+  var span = null,
+    g = null;
   try {
-    var g = new THREE.Group();
+    g = new THREE.Group();
     buildItem(g, it);
     g.updateMatrixWorld(true);
     var bb = new THREE.Box3().setFromObject(g);
@@ -120,6 +121,12 @@ function baseVSpan(it) {
       span = { lo: bb.min.y, hi: bb.max.y };
   } catch (e) {
     // a builder that needs more than a bare group — fall back to floor-standing
+  } finally {
+    // The probe is one-shot, as a thumbnail build is: dispose its materials,
+    // which also releases their counted shares of the shared texture repeats
+    // (pbr_material.js) — an abandoned probe held them, and an evicted
+    // repeat's GPU copy, for good. Textures themselves stay (shared caches).
+    if (g) clearGroup(g);
   }
   if (!span) span = { lo: 0, hi: it.h };
   vSpanCache.set(key, span);

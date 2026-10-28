@@ -480,8 +480,25 @@ function surfaceMaterial(entry, o) {
   return mat;
 }
 var shadowDirtyBox = null, _lightPos = null;
-function markShadowRegion(box) {
+/* Bumped by everything that changes what casts shadows short of a full
+   rebuild (a moved or resized piece, a requested redraw). Another renderer
+   with shadow maps of its own (the inspector preview's stand-in lights)
+   compares it to know its maps are out of date. */
+var shadowRev = 0;
+export function shadowRevision() {
+  return shadowRev;
+}
+// it also says so, for a renderer whose last paint came before the change
+// (an inspector edit can land up to 300 ms after the preview repainted)
+function bumpShadowRevision() {
+  shadowRev++;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("scene3d:shadows"));
+}
+/* `requeue`: the paced redraw putting back a region it already had, not a
+   new change: it must not tell other renderers their maps went stale. */
+function markShadowRegion(box, requeue) {
   if (!box || box.isEmpty()) return;
+  if (!requeue) bumpShadowRevision();
   if (shadowDirtyBox) shadowDirtyBox.union(box);
   else shadowDirtyBox = box.clone();
   needsRender = true;
@@ -509,7 +526,7 @@ function syncShadowUpdates(now, box, hold) {
   });
 }
 export function requestRender() { needsRender = true; settle = SETTLE_FRAMES; }
-export function requestShadowUpdate() { shadowsDirty = true; needsRender = true; settle = SETTLE_FRAMES; }
+export function requestShadowUpdate() { bumpShadowRevision(); shadowsDirty = true; needsRender = true; settle = SETTLE_FRAMES; }
 
 export function setQualityPreset(preset) {
   qualityPreset = ["auto", "performance", "balanced", "quality"].indexOf(preset) >= 0 ? preset : "auto";
@@ -6402,7 +6419,7 @@ function build3D() {
          moves; the region is kept, and keeps the loop awake, until the
          redraw where the piece came to rest has landed. */
       if (shadowBox && !shadowPass && time - regionShadowT < 100) {
-        markShadowRegion(shadowBox);
+        markShadowRegion(shadowBox, true);
         shadowBox = null;
       } else if (shadowBox) regionShadowT = time;
       syncCameraVelocity();

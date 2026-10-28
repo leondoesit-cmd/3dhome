@@ -5,10 +5,12 @@ import { t, onLangChange } from "./i18n.js";
 import { THREE, threeLoaded } from "./three_lazy.js";
 import { S } from "./state.js";
 import { createRenderer, forgetLightKeys, ready, render as renderGPU } from "./gpu.js";
-import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D, init3D, registerPlannerLights, stopShadowSetPrewarm } from "./view3d.js";
+import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D, init3D, registerPlannerLights, stopShadowSetPrewarm, shadowRevision } from "./view3d.js";
 import { wallById, wallGeom, wallTangentAt } from "./geometry.js";
 import { createInspectorLights } from "./inspector_lights.js";
 
+var seenShadowRev = -1, // shadowRevision() the stand-in maps were last invalidated at
+  shadowRepaintT = 0;
 var host = null,
   canvas = null,
   stateEl = null,
@@ -116,6 +118,14 @@ function ensureElements() {
     scheduleRender();
   });
   window.addEventListener("customTextureLoaded", scheduleRender);
+  // the main view marked shadows stale (a piece moved or resized in place):
+  // with shadows on, repaint once things settle so the stand-ins redraw
+  // (paint compares shadowRevision); trailing, so a drag is one repaint
+  window.addEventListener("scene3d:shadows", function () {
+    if (!visible || !S.invisibleRoof) return;
+    clearTimeout(shadowRepaintT);
+    shadowRepaintT = setTimeout(scheduleRender, 150);
+  });
   return true;
 }
 
@@ -267,6 +277,13 @@ function paint() {
   // never the main view's lights that can cast: three shares their shadow nodes
   // between renderers (see js/inspector_lights.js); a new set of them
   // re-keys the lights, which three would otherwise look up by draw count
+  // a piece moved or resized in place is no rebuild, but the main view marks
+  // its shadows dirty (shadowRevision): the stand-ins' maps are stale too
+  var rev = shadowRevision();
+  if (rev !== seenShadowRev) {
+    seenShadowRev = rev;
+    ownLights.invalidate();
+  }
   if (ownLights.swapIn(scene, camera)) forgetLightKeys(renderer);
 
   // The main PMREM environment texture belongs to the main renderer's GPU.

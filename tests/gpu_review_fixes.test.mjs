@@ -51,3 +51,29 @@ test("the GPU benchmark compiles the planner's lights and rejects fallback runs"
   assert.match(src, /out\.backendMismatch = true;[\s\S]{0,200}return out;/);
   assert.match(src, /const valid = runs\.filter\(\(r\) => !r\.backendMismatch\);/);
 });
+
+test("the inspector's stand-in shadows follow in-place moves, not only rebuilds", () => {
+  const view = read("js/view3d.js");
+  assert.match(view, /export function shadowRevision\(\)/);
+  const mark = view.match(/function markShadowRegion\(box, requeue\) \{[\s\S]*?\n}\n/);
+  assert.ok(mark, "markShadowRegion exists");
+  assert.match(mark[0], /if \(!requeue\) bumpShadowRevision\(\);/);
+  assert.match(view, /function bumpShadowRevision\(\) \{\s*shadowRev\+\+;[\s\S]{0,120}dispatchEvent\(new Event\("scene3d:shadows"\)\)/);
+  // the paced redraw putting a region back is no new change
+  assert.match(view, /markShadowRegion\(shadowBox, true\);\s*shadowBox = null;/);
+  assert.match(view, /export function requestShadowUpdate\(\) \{ bumpShadowRevision\(\);/);
+  const insp = read("js/inspector_preview.js");
+  // a change that lands after the last paint schedules one (trailing)
+  assert.match(insp, /window\.addEventListener\("scene3d:shadows", function \(\) \{\s*if \(!visible \|\| !S\.invisibleRoof\) return;\s*clearTimeout\(shadowRepaintT\);\s*shadowRepaintT = setTimeout\(scheduleRender, 150\);/);
+  assert.match(insp, /var rev = shadowRevision\(\);\s*if \(rev !== seenShadowRev\) \{\s*seenShadowRev = rev;\s*ownLights\.invalidate\(\);\s*\}\s*if \(ownLights\.swapIn\(scene, camera\)\)/);
+});
+
+test("the benchmark's extra renderer draws through stand-in lights and records only outer renders", () => {
+  const src = read("tools/gpu_bench.mjs");
+  assert.match(src, /createInspectorLights\(\)/);
+  // out of the shared scene before the compile's await, after the prewarm stops
+  assert.match(src, /v\.stopShadowSetPrewarm\(\);\s*swap\(\);[\s\S]{0,80}try \{ compiling = r\.compileAsync\(scene, cam\); \} finally \{ own\.swapOut\(false\); \}\s*await compiling;/);
+  assert.match(src, /try \{ r\.render\(scene, cam\); \} finally \{ own\.swapOut\(true\); \}/);
+  assert.match(src, /finally \{ own\.dispose\(\);/);
+  assert.match(src, /if \(record && this\.domElement && B\.depth === 0\) B\.last\.set\(/);
+});
