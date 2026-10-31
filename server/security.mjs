@@ -95,7 +95,10 @@ export async function resolvePublicUrl(raw, lookupFn = dnsLookup) {
   return { url, addresses };
 }
 
-function requestPinned(target, address, options) {
+// Exported so deadline and abort behaviour can be tested against loopback only.
+export function requestPinned(target, address, options = {}) {
+  if (options.signal?.aborted) return Promise.resolve({ ok: false, error: options.signal.reason || new Error("aborted") });
+  const maxBytes = options.maxBytes || 2 * 1024 * 1024;
   const request = target.url.protocol === "https:" ? httpsRequest : httpRequest;
   const port = target.url.port || (target.url.protocol === "https:" ? 443 : 80);
   const hostHeader = target.url.port
@@ -108,7 +111,16 @@ function requestPinned(target, address, options) {
     headers["Content-Length"] = String(body.length);
   }
   return new Promise((resolveRequest) => {
-    let req;
+    let req, timer;
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      options.signal?.removeEventListener("abort", abort);
+      resolveRequest(value);
+    };
+    const abort = () => req.destroy(options.signal?.reason instanceof Error ? options.signal.reason : new Error("aborted"));
     try {
       req = request(
         {
@@ -125,15 +137,15 @@ function requestPinned(target, address, options) {
           const chunks = [];
           let size = 0;
           res.on("data", (chunk) => {
-            if (size >= options.maxBytes) return;
-            const room = options.maxBytes - size;
+            if (size >= maxBytes) return;
+            const room = maxBytes - size;
             const piece = chunk.length > room ? chunk.subarray(0, room) : chunk;
             chunks.push(piece);
             size += piece.length;
-            if (size >= options.maxBytes) res.destroy();
+            if (size >= maxBytes) res.destroy();
           });
           res.on("end", () =>
-            resolveRequest({
+            finish({
               ok: true,
               status: res.statusCode || 0,
               headers: res.headers,
@@ -142,38 +154,44 @@ function requestPinned(target, address, options) {
           );
           // Reaching the byte cap intentionally destroys the response stream.
           res.on("close", () => {
-            if (size >= options.maxBytes)
-              resolveRequest({
+            if (size >= maxBytes)
+              finish({
                 ok: true,
                 status: res.statusCode || 0,
                 headers: res.headers,
                 body: Buffer.concat(chunks, size).toString("utf8"),
               });
+            else finish({ ok: false, error: new Error("response closed before end") });
           });
-          res.on("error", (error) => resolveRequest({ ok: false, error }));
+          res.on("error", (error) => finish({ ok: false, error }));
         },
       );
     } catch (error) {
       // request() throws synchronously on an invalid header (a CR/LF in a
       // value). Report a failed request: a rejection here would escape the
       // relay's async request handler and terminate the process.
-      resolveRequest({ ok: false, error });
+      finish({ ok: false, error });
       return;
     }
-    req.setTimeout(options.timeoutMs, () => req.destroy(new Error("timeout")));
-    req.on("error", (error) => resolveRequest({ ok: false, error }));
+    options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) abort();
+    if (options.deadlineMs > 0) timer = setTimeout(() => req.destroy(new Error("deadline exceeded")), options.deadlineMs);
+    req.setTimeout(options.timeoutMs || 12000, () => req.destroy(new Error("timeout")));
+    req.on("error", (error) => finish({ ok: false, error }));
     try {
       if (body && method !== "GET" && method !== "HEAD") req.write(body);
       req.end();
     } catch (error) {
       req.destroy();
-      resolveRequest({ ok: false, error });
+      finish({ ok: false, error });
     }
   });
 }
 
 export async function safeHttpGet(raw, options = {}) {
   const cfg = {
+    signal: options.signal,
+    deadlineMs: options.deadlineMs,
     lookup: options.lookup || dnsLookup,
     maxBytes: options.maxBytes || 2 * 1024 * 1024,
     maxRedirects: options.maxRedirects == null ? 5 : options.maxRedirects,
@@ -182,11 +200,14 @@ export async function safeHttpGet(raw, options = {}) {
   };
   let current = raw;
   for (let redirects = 0; redirects <= cfg.maxRedirects; redirects++) {
-    const target = await resolvePublicUrl(current, cfg.lookup);
+    if (cfg.signal?.aborted) return { ok: false, error: cfg.signal.reason };
+    const target = await withAbort(resolvePublicUrl(current, cfg.lookup), cfg.signal);
+    if (cfg.signal?.aborted) return { ok: false, error: cfg.signal.reason };
     if (!target) return { ok: false, status: 400, text: "", url: String(current) };
 
     let response = null;
     for (const address of target.addresses) {
+      if (cfg.signal?.aborted) break;
       response = await requestPinned(target, address, cfg);
       if (response.ok) break;
     }
@@ -457,5 +478,112 @@ export async function safeLanRequest(raw, options = {}) {
     status: response.status,
     text: response.body,
     url: target.url.href,
+  };
+}
+
+// Resolve on cancellation even when a system DNS lookup cannot itself be stopped.
+export function withAbort(promise, signal) {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.resolve(null);
+  return new Promise((resolve, reject) => {
+    const abort = () => { signal.removeEventListener("abort", abort); resolve(null); };
+    signal.addEventListener("abort", abort, { once: true });
+    promise.then(value => { signal.removeEventListener("abort", abort); resolve(value); },
+      error => { signal.removeEventListener("abort", abort); reject(error); });
+  });
+}
+
+export function etagMatches(header, etag) {
+  if (typeof header !== "string" || typeof etag !== "string") return false;
+  const tag = etag.replace(/^W\//, "");
+  if (!/^"[\x21\x23-\x7e\x80-\xff]*"$/.test(tag)) return false;
+  if (header.trim() === "*") return true;
+  // A comma inside an opaque tag is data. Parse each complete list member so
+  // a quoted substring inside malformed input cannot accidentally match.
+  const pattern = /(?:W\/)?"[\x21\x23-\x7e\x80-\xff]*"/y;
+  let at = 0, found = false;
+  while (at < header.length) {
+    while (at < header.length && /[\t ,]/.test(header[at])) at++;
+    if (at === header.length) break;
+    pattern.lastIndex = at;
+    const match = pattern.exec(header);
+    if (!match) return false;
+    found ||= match[0].replace(/^W\//, "") === tag;
+    at = pattern.lastIndex;
+    while (at < header.length && /[\t ]/.test(header[at])) at++;
+    if (at < header.length && header[at] !== ",") return false;
+  }
+  return found;
+}
+
+export function createByteLru(maxBytes) {
+  const entries = new Map();
+  let bytes = 0;
+  function remove(key) {
+    const entry = entries.get(key);
+    if (!entry) return false;
+    bytes -= entry.bytes;
+    return entries.delete(key);
+  }
+  function evict() {
+    while (bytes > maxBytes && entries.size) remove(entries.keys().next().value);
+  }
+  return {
+    get(key) {
+      const entry = entries.get(key);
+      if (!entry) return undefined;
+      entries.delete(key);
+      entries.set(key, entry);
+      return entry.value;
+    },
+    set(key, value, cost) {
+      remove(key);
+      if (!Number.isFinite(cost) || cost < 0 || cost > maxBytes) return;
+      entries.set(key, { value, bytes: cost });
+      bytes += cost;
+      evict();
+    },
+    resize(key, cost) {
+      const entry = entries.get(key);
+      if (!entry) return;
+      if (!Number.isFinite(cost) || cost < 0 || cost > maxBytes) { remove(key); return; }
+      bytes += cost - entry.bytes;
+      entry.bytes = cost;
+      evict();
+    },
+    delete: remove,
+    get bytes() { return bytes; },
+    get size() { return entries.size; },
+  };
+}
+
+export function createRateLimiter({ rate, burst, maxKeys = 10000, now = () => performance.now() }) {
+  const buckets = new Map();
+  function refill(bucket, at) {
+    bucket.tokens = Math.min(burst, bucket.tokens + Math.max(0, at - bucket.at) * rate / 1000);
+    bucket.at = at;
+  }
+  return {
+    take(key) {
+      const at = now();
+      let bucket = buckets.get(key);
+      if (!bucket) {
+        if (buckets.size >= maxKeys) return { ok: false, retryAfterMs: 1000 / rate };
+        bucket = { tokens: burst, at };
+        buckets.set(key, bucket);
+      }
+      refill(bucket, at);
+      if (bucket.tokens < 1) return { ok: false, retryAfterMs: (1 - bucket.tokens) * 1000 / rate };
+      bucket.tokens--;
+      return { ok: true, retryAfterMs: 0 };
+    },
+    sweep() {
+      const at = now();
+      for (const [key, bucket] of buckets) {
+        refill(bucket, at);
+        if (bucket.tokens >= burst) buckets.delete(key);
+      }
+    },
+    get size() { return buckets.size; },
   };
 }

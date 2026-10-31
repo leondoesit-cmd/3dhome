@@ -29,6 +29,7 @@ export async function startRelay(t, env = {}, { identities = {} } = {}) {
       ...process.env,
       HOME3D_IDENTITIES_FILE: identitiesFile,
       HOME3D_MODEL_BACKUP_DIR: join(scratch, "backups"),
+      HOME3D_PRODSIZE_CACHE_FILE: join(scratch, "prodsize-cache.json"),
       ...env,
     },
     stdio: ["ignore", "pipe", "pipe"],

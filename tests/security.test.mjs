@@ -236,7 +236,12 @@ test("relay rejects cross-origin WebSockets and does not expose wildcard CORS", 
   });
   assert.equal(unchanged.status, 304);
   const vendor = await fetch(`http://127.0.0.1:${port}/vendor/three/three.module.js`);
-  assert.match(vendor.headers.get("cache-control") || "", /immutable/);
+  assert.equal(vendor.headers.get("cache-control"), "no-cache");
+  const vendor304 = await fetch("http://127.0.0.1:" + port + "/vendor/three/three.module.js", {
+    headers: { "if-none-match": vendor.headers.get("etag") },
+  });
+  assert.equal(vendor304.status, 304);
+  assert.equal(vendor304.headers.get("cache-control"), "no-cache");
   const font = await fetch(`http://127.0.0.1:${port}/vendor/phosphor/Phosphor.woff2`);
   assert.equal(font.status, 200);
   assert.equal(font.headers.get("content-type"), "font/woff2");

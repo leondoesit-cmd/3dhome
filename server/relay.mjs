@@ -32,13 +32,18 @@ import { createServer } from "node:http";
 import { createServer as createSecureServer } from "node:https";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
-import { readFile, writeFile, stat } from "node:fs/promises";
+import { readFile, writeFile, stat, open } from "node:fs/promises";
 import { brotliCompress, gzip, constants as ZLIB } from "node:zlib";
 import { join, extname, normalize, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
 import { lookupProduct } from "../js/prodsize.js";
 import {
+  createByteLru,
+  createRateLimiter,
+  etagMatches,
+  withAbort,
   lanOnlyRequest,
   localOnlyRequest,
   resolvePublicUrl,
@@ -69,7 +74,11 @@ const WS_MAX_CLIENTS_PER_ADDRESS = envLimit("HOME3D_WS_MAX_CLIENTS_PER_ADDRESS",
 const WS_HELLO_TIMEOUT_MS = envLimit("HOME3D_WS_HELLO_TIMEOUT_MS", 10000);
 const WS_PING_INTERVAL_MS = envLimit("HOME3D_WS_PING_INTERVAL_MS", 30000);
 const WS_IDLE_TIMEOUT_MS = envLimit("HOME3D_WS_IDLE_TIMEOUT_MS", 75000);
-const WS_MAX_WRITABLE_BYTES = envLimit("HOME3D_WS_MAX_WRITABLE_BYTES", 8 * 1024 * 1024);
+const WS_WRITABLE_FLOOR = WS_MAX_MESSAGE_BYTES + 14 + 1024 * 1024;
+const WS_WRITABLE_REQUESTED = envLimit("HOME3D_WS_MAX_WRITABLE_BYTES", WS_MAX_MESSAGE_BYTES + 8 * 1024 * 1024);
+const WS_MAX_WRITABLE_BYTES = Math.max(WS_WRITABLE_FLOOR, WS_WRITABLE_REQUESTED);
+if (WS_WRITABLE_REQUESTED < WS_WRITABLE_FLOOR)
+  console.warn("[relay] HOME3D_WS_MAX_WRITABLE_BYTES " + WS_WRITABLE_REQUESTED + " raised to " + WS_WRITABLE_FLOOR);
 // Rates are tokens per second; bursts allow normal room setup and pose updates.
 const WS_MESSAGE_RATE = envLimit("HOME3D_WS_MESSAGE_RATE", 120);
 const WS_MESSAGE_BURST = envLimit("HOME3D_WS_MESSAGE_BURST", 240);
@@ -105,7 +114,18 @@ const MIME = {
   ".map": "application/json",
   ".md": "text/markdown; charset=utf-8",
 };
-const staticCache = new Map();
+const STATIC_CACHE_FILE_BYTES = envLimit("HOME3D_STATIC_CACHE_FILE_BYTES", 8 * 1024 * 1024);
+const staticCache = createByteLru(envLimit("HOME3D_STATIC_CACHE_BYTES", 64 * 1024 * 1024));
+const staticValidators = new Map();
+const staticCost = entry => entry.body.length + (entry.br?.length || 0) + (entry.gzip?.length || 0);
+function rememberValidator(file, entry) {
+  staticValidators.delete(file);
+  staticValidators.set(file, { mtime: entry.mtime, size: entry.size, etag: entry.etag });
+  if (staticValidators.size > 20000) staticValidators.delete(staticValidators.keys().next().value);
+}
+function weakStaticTag(st) {
+  return 'W/"' + st.size.toString(16) + '-' + Math.round(st.mtimeMs * 1000).toString(16) + '"';
+}
 // One in-flight build per file. Without it, N concurrent first-requests for the
 // same uncached file all miss the cache during `await readFile` and then each
 // compress the same bytes — 196 module requests on a cold boot is exactly that
@@ -143,8 +163,10 @@ async function cachedStatic(file, st) {
   if (inflight && inflight.mtime === st.mtimeMs && inflight.size === st.size) return inflight.promise;
   const promise = buildStatic(file, st).then(
     (entry) => {
-      if (pendingStatic.get(file)?.promise === promise) pendingStatic.delete(file);
-      staticCache.set(file, entry);
+      if (pendingStatic.get(file)?.promise !== promise) return entry;
+      pendingStatic.delete(file);
+      rememberValidator(file, entry);
+      staticCache.set(file, entry, staticCost(entry));
       return entry;
     },
     (err) => {
@@ -158,12 +180,13 @@ async function cachedStatic(file, st) {
 
 // gzip for the rare client that cannot take brotli. Computed once, lazily, and
 // shared by concurrent askers through the same promise.
-function staticGzip(entry) {
+function staticGzip(file, entry) {
   if (!entry.compressible) return null;
   if (entry.gzip) return entry.gzip;
   if (!entry.gzipping) {
     entry.gzipping = gzipAsync(entry.body).then((buf) => {
       entry.gzip = buf;
+      if (staticCache.get(file) === entry) staticCache.resize(file, staticCost(entry));
       return buf;
     }, (err) => {
       entry.gzipping = null;
@@ -256,7 +279,12 @@ process.on("uncaughtException", (err) => {
 // order unlabeled "140 x 60 x 90" triples and to reject absurd matches.
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
-const CACHE_FILE = join(ROOT, "server", ".prodsize-cache.json");
+const CACHE_FILE = process.env.HOME3D_PRODSIZE_CACHE_FILE || join(ROOT, "server", ".prodsize-cache.json");
+const prodsizeLimiter = createRateLimiter({ rate: envLimit("HOME3D_PRODSIZE_RATE", 0.1), burst: envLimit("HOME3D_PRODSIZE_BURST", 6) });
+const PRODSIZE_MAX_INFLIGHT = envLimit("HOME3D_PRODSIZE_MAX_INFLIGHT", 8);
+const PRODSIZE_DEADLINE_MS = envLimit("HOME3D_PRODSIZE_DEADLINE_MS", 25000);
+let prodsizeInflight = 0;
+setInterval(() => prodsizeLimiter.sweep(), 60000).unref();
 const CACHE_TTL = 30 * 24 * 3600e3;
 const PAGE_CAP = 2 * 1024 * 1024; // stop reading a page after 2MB
 let cache = null;
@@ -294,8 +322,10 @@ function flushCache() {
   flushTimer.unref?.(); // never hold the process open just to save the cache
 }
 
-async function httpGet(url) {
+async function httpGet(url, signal) {
   return safeHttpGet(url, {
+    signal,
+    deadlineMs: 12000,
     maxBytes: PAGE_CAP,
     timeoutMs: 12000,
     headers: {
@@ -306,7 +336,7 @@ async function httpGet(url) {
   });
 }
 
-async function prodsize(u, res) {
+async function prodsize(req, u, res) {
   const q = (u.searchParams.get("q") || "").trim().slice(0, 200);
   if (!q) return json(res, 400, { error: "missing q" });
   const num = (k) => {
@@ -315,33 +345,62 @@ async function prodsize(u, res) {
   };
   const hint = { w: num("w"), d: num("d"), h: num("h") };
   const pageUrl = (u.searchParams.get("url") || "").trim();
-  // a rejected URL must say so — silently falling back to a web search would
-  // look like the pasted link simply had no dimensions on it
-  if (pageUrl && !(await resolvePublicUrl(pageUrl)))
-    return json(res, 400, { error: "bad url" });
   const lang = u.searchParams.get("lang") === "en" ? "en" : "he";
   const key = q.toLowerCase() + "|" + [hint.w, hint.d, hint.h].join(",") + "|" + pageUrl + "|" + lang;
   const c = await loadCache();
   if (!u.searchParams.get("nocache") && c[key] && Date.now() - c[key].at < CACHE_TTL)
     return json(res, 200, { ...c[key].data, cached: true });
-  let out;
-  try {
-    out = await lookupProduct(q, {
-      get: httpGet,
-      hint,
-      maxPages: 8,
-      limit: 8,
-      stagger: 700,
-      lang,
-      url: pageUrl || null,
-    });
-  } catch (e) {
-    return json(res, 502, { error: String(e && e.message ? e.message : e) });
+  const token = prodsizeLimiter.take(remoteAddress(req));
+  if (!token.ok) {
+    res.setHeader("Retry-After", String(Math.ceil(token.retryAfterMs / 1000)));
+    return json(res, 429, { error: "rate limit" });
   }
-  c[key] = { at: Date.now(), data: out };
-  cacheDirty = true;
-  flushCache();
-  json(res, 200, { ...out, cached: false });
+  if (prodsizeInflight >= PRODSIZE_MAX_INFLIGHT) {
+    res.setHeader("Retry-After", "5");
+    return json(res, 503, { error: "busy" });
+  }
+  prodsizeInflight++;
+  const controller = new AbortController();
+  let gone = res.destroyed, hardTimer;
+  const closed = () => { if (!res.writableEnded) { gone = true; controller.abort(); } };
+  res.on("close", closed);
+  if (gone) controller.abort();
+  const deadline = setTimeout(() => controller.abort(), PRODSIZE_DEADLINE_MS);
+  const hardStop = new Promise(resolveStop => {
+    hardTimer = setTimeout(() => { controller.abort(); resolveStop(null); }, PRODSIZE_DEADLINE_MS + 2000);
+  });
+  try {
+    const work = async () => {
+      if (controller.signal.aborted) return null;
+      // URL validation costs DNS work, so it consumes admission too.
+      if (pageUrl && !(await withAbort(resolvePublicUrl(pageUrl), controller.signal))) {
+        if (controller.signal.aborted) return null;
+        return { badUrl: true };
+      }
+      return { data: await lookupProduct(q, {
+        get: url => httpGet(url, controller.signal), hint, maxPages: 8, limit: 8,
+        stagger: 700, lang, url: pageUrl || null,
+      }) };
+    };
+    const result = await Promise.race([work(), hardStop]);
+    if (gone) return;
+    if (!result) return json(res, 504, { error: "deadline exceeded" });
+    if (result.badUrl) return json(res, 400, { error: "bad url" });
+    const out = result.data;
+    if (!controller.signal.aborted) {
+      c[key] = { at: Date.now(), data: out };
+      cacheDirty = true;
+      flushCache();
+    }
+    json(res, 200, { ...out, cached: false, ...(controller.signal.aborted ? { partial: true } : {}) });
+  } catch (e) {
+    if (!gone) json(res, 502, { error: String(e && e.message ? e.message : e) });
+  } finally {
+    clearTimeout(deadline);
+    clearTimeout(hardTimer);
+    res.off("close", closed);
+    prodsizeInflight--;
+  }
 }
 
 function json(res, code, obj) {
@@ -620,7 +679,7 @@ const handleRequest = async (req, res) => {
   if (u.pathname === '/api/blueprint') return (process.env.HOME3D_BLUEPRINT_LAN === "1"
     ? lanOnlyRequest(req, TRUST) : localOnlyRequest(req, TRUST))
     ? blueprintVision(req,res) : json(res, 403, { error: "blueprint vision is machine-local unless LAN is enabled" });
-  if (u.pathname === "/api/prodsize") return prodsize(u, res);
+  if (u.pathname === "/api/prodsize") return prodsize(req, u, res);
   if (u.pathname === "/api/smarthome") return smarthomeProxy(req, res);
   if (u.pathname === "/api/agent/status") return agentStatus(req, res);
   if (u.pathname === "/api/agent/chat") return agentChat(req, res);
@@ -635,10 +694,38 @@ const handleRequest = async (req, res) => {
     if (!file) throw 0;
     const st = await stat(file);
     if (!st.isFile()) throw 0;
+    const text = /\.(?:html|css|js|mjs|json|svg|txt)$/i.test(file);
+    if (!text || st.size > STATIC_CACHE_FILE_BYTES) {
+      const initialTag = weakStaticTag(st);
+      if (etagMatches(req.headers["if-none-match"], initialTag)) {
+        res.writeHead(304, { ETag: initialTag, "Cache-Control": "no-cache", ...(text ? { Vary: "Accept-Encoding" } : {}) });
+        return res.end();
+      }
+      const fh = await open(file, "r");
+      try {
+        const actual = await fh.stat();
+        const headers = { "Content-Type": MIME[extname(file).toLowerCase()] || "application/octet-stream",
+          "Content-Length": actual.size, "Cache-Control": "no-cache", ETag: weakStaticTag(actual),
+          ...(text ? { Vary: "Accept-Encoding" } : {}) };
+        if (etagMatches(req.headers["if-none-match"], headers.ETag)) {
+          res.writeHead(304, { ETag: headers.ETag, "Cache-Control": "no-cache", ...(text ? { Vary: "Accept-Encoding" } : {}) });
+          return res.end();
+        }
+        res.writeHead(200, headers);
+        if (req.method === "HEAD" || !actual.size) return res.end();
+        await pipeline(fh.createReadStream({ start: 0, end: actual.size - 1, autoClose: false }), res);
+      } finally { await fh.close(); }
+      return;
+    }
+    const validator = staticValidators.get(file);
+    if (validator && validator.mtime === st.mtimeMs && validator.size === st.size &&
+        etagMatches(req.headers["if-none-match"], validator.etag)) {
+      res.writeHead(304, { ETag: validator.etag, "Cache-Control": "no-cache", Vary: "Accept-Encoding" });
+      return res.end();
+    }
     const cached = await cachedStatic(file, st);
-    const immutable = u.pathname.startsWith("/vendor/");
-    if (req.headers["if-none-match"] === cached.etag) {
-      res.writeHead(304, { ETag: cached.etag, "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "no-cache" });
+    if (etagMatches(req.headers["if-none-match"], cached.etag)) {
+      res.writeHead(304, { ETag: cached.etag, "Cache-Control": "no-cache", Vary: "Accept-Encoding" });
       return res.end();
     }
     const accept = String(req.headers["accept-encoding"] || "");
@@ -649,17 +736,19 @@ const handleRequest = async (req, res) => {
       payload = cached.br;
     } else if (cached.compressible && /\bgzip\b/.test(accept)) {
       encoding = "gzip";
-      payload = await staticGzip(cached);
+      payload = await staticGzip(file, cached);
     }
     res.writeHead(200, {
-      "Content-Type": MIME[extname(file)] || "application/octet-stream",
-      "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
+      "Content-Type": MIME[extname(file).toLowerCase()] || "application/octet-stream",
+      "Cache-Control": "no-cache",
+      "Content-Length": payload.length,
       "ETag": cached.etag,
       "Vary": "Accept-Encoding",
       ...(encoding ? { "Content-Encoding": encoding } : {}),
     });
     res.end(payload);
   } catch (_) {
+    if (res.headersSent || res.destroyed) { res.destroy(); return; }
     res.writeHead(404);
     res.end("not found");
   }
@@ -844,9 +933,8 @@ function allowIdentity(address) {
 
 function writeFrame(sock, frame) {
   if (sock.destroyed) return;
-  if (sock.writableLength > WS_MAX_WRITABLE_BYTES) return sock.destroy();
+  if (sock.writableLength + frame.length > WS_MAX_WRITABLE_BYTES) return sock.destroy();
   sock.write(frame);
-  if (sock.writableLength > WS_MAX_WRITABLE_BYTES) sock.destroy();
 }
 
 setInterval(() => {

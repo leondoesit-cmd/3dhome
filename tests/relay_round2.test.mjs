@@ -253,7 +253,7 @@ test("per-connection token buckets refill and disconnect floods including contro
 });
 
 test("slow broadcast recipients are dropped without delaying a healthy sender", { timeout: 15000 }, async (t) => {
-  const relay = await startRelay(t, { HOME3D_WS_MAX_WRITABLE_BYTES: "32768" });
+  const relay = await startRelay(t, { HOME3D_WS_MAX_WRITABLE_BYTES: "32768", HOME3D_WS_MAX_MESSAGE_BYTES: "2621440" });
   const a = await client(t, relay), slow = await client(t, relay);
   const code = await hello(a, "a"), slowCode = await hello(slow, "b");
   for (const c of [a, slow]) {

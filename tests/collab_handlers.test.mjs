@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
 import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { createPlanFollower } from "../js/plan_sync.js";
 import { acceptRemote, sameProject } from "../js/net.js";
 
 // Browser entry points import the renderer; run their parsed declarations with controlled services.
@@ -21,6 +22,9 @@ test("plan handler gates snapshots, requests and edits before reading or mutatin
     acceptRemote, sameProject: (d) => sameProject("project", d.projectId), remoteContext: () => ctx,
     isHome: () => ctx.code === ctx.owner, sceneGetter: async () => { reads++; return {}; },
     applyIncoming: () => { writes++; return true; }, applyScene: async () => { snapshots++; return true; },
+    sendLarge: (data, to) => sent.push({ data, to }),
+    follower: createPlanFollower({ applyScene: async () => { snapshots++; return true; },
+      applyOp: () => { writes++; return true; }, sendHello() {} }),
     sendData: (data, to) => sent.push({ data, to }), projectId: () => "project", planRev: 0,
     requestSurveyPhotos: async () => {}, S: {}, paint() {}, requestResync() {},
   });
