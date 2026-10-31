@@ -1,3 +1,4 @@
+import { activeEditor } from "./pro_shell.js";
 import { openingDrawDefaults } from "./opening_draw_defaults.js";
 import { sx, sz, wx, wz, rotatePx, toBasePx, planRotRad, inputScale, inputBounds, inputIs3D, plannerInputView, setPlannerInputView, registerPlannerController } from "./planner_input.js";
 import { generatedChangePermission, captureProtectedStructure, validateProtectedStructure } from "./redesign.js";
@@ -58,6 +59,7 @@ import {
   commitHistoryTransaction,
   abortHistoryTransaction,
   captureHistorySession, restoreHistorySession,
+  armHistoryGesture, disarmHistoryGesture, prepareHistoryGesture,
 } from "./history.js";
 import { isWalk } from "./view3d.js";
 import { layerRank, layerOf, canDrag, aiCanMove, isLayerLocked, isLayerHidden } from "./layers.js";
@@ -524,6 +526,25 @@ function hitRoom(px, pz) {
       best = rs[i].key;
     }
   return best;
+}
+/* An entrance door opens into the home. The default swing ("R_IN") sweeps
+   toward one face of the wall picked by the direction it was drawn in, so
+   about half of all front doors came out opening onto the street. On a wall
+   with a room on one side only, the leaf goes toward the room; between two
+   rooms the default stands. Returns a swingDir, or null to keep the default. */
+function exteriorDoorSwing(wall, s) {
+  var g = wallGeom(wall);
+  if (!g || g.kind === "arc" || !fin(g.L) || !(g.L > 0)) return null;
+  var c = wallPointAt(wall, s), off = (Number(wall.thickness) || 10) / 2 + 20;
+  // "IN" sweeps toward local -y of the plan's door drawing: world (uz, -ux)
+  var nx = g.uz, nz = -g.ux;
+  var rooms = detectRooms();
+  function roomSide(sign) {
+    var x = c.x + nx * off * sign, z = c.z + nz * off * sign;
+    return rooms.some(function (r) { return pointInPolyR(x, z, r.pts); });
+  }
+  var inSide = roomSide(1), outSide = roomSide(-1);
+  return outSide && !inSide ? "R_OUT" : null;
 }
 function pointInPolyR(x, z, pts) {
   var inside = false,
@@ -1950,6 +1971,22 @@ export function wallPointPolar(len, angDeg) {
   });
 }
 
+/* The rectangle / slab-void tools' second corner from a typed width and depth
+   (js/cad_hud.js). Same outcome as the second click: commit, then back to
+   select. Signs pick the quadrant the rubber band was pointing into. */
+export function rectPointTyped(w, d) {
+  if (!S.rectDraft || (S.tool !== "rect" && S.tool !== "slabvoid")) return null;
+  if (!fin(w) || !fin(d) || !w || !d) return null;
+  var a = S.rectDraft;
+  var to = { x: a.x + w, z: a.z + d };
+  var made = S.tool === "rect" ? commitRectFromTo(a, to) : commitSlabFromTo(a, to);
+  if (made) setTool("select");
+  S.rectDraft = null;
+  S.previewPt = null;
+  render2D();
+  return made;
+}
+
 // smallest signed angular difference a-b, wrapped to [-π,π]
 function angDelta(a, b) {
   var d = a - b;
@@ -2308,6 +2345,20 @@ export function snapPoint(px, pz, fromIdx) {
     if (!fin(g.L) || g.L <= 0) return;
     var projected = wallProject(w, px, pz), s = projected && projected.s;
     if (s <= 1 || s >= g.L - 1) return; // ends belong to the corner snap above
+    /* GRID applies along the wall too. The raw foot of the cursor made every
+       partition started on another wall land at 3591 or 2513, so a plan drawn
+       with the grid on still needed each wall retyped. An axis-aligned wall
+       rounds its free world coordinate (the partition lines up with the grid
+       and its neighbours); any other wall rounds the distance along it. */
+    if (S.gsnap !== false && g.kind !== "arc") {
+      var sq = Math.abs(g.ux) > 0.9999 ? s + (Math.round(projected.x / SNAP_GRID) * SNAP_GRID - projected.x) / g.ux
+        : Math.abs(g.uz) > 0.9999 ? s + (Math.round(projected.z / SNAP_GRID) * SNAP_GRID - projected.z) / g.uz
+          : Math.round(s / SNAP_GRID) * SNAP_GRID;
+      if (sq > 1 && sq < g.L - 1) {
+        s = sq;
+        projected = wallPointAt(w, s);
+      }
+    }
     var opening = openingAtWallPosition(w, s, 0.05);
     offer(
       opening ? "openingBlocked" : "wall",
@@ -4316,7 +4367,12 @@ export function initInteraction() {
   }
   function modelerKeyboardOwnsInput() {
     var modeler = document.getElementById("modeler");
-    return !!(modeler && modeler.style.display !== "none");
+    if (modeler && modeler.style.display !== "none") return true;
+    /* The cabinet designer is the same kind of modal editor over the plan, and
+       its keys overlap the planner's: Delete removed a compartment AND deleted
+       the cabinet itself from the plan underneath, Ctrl+Z undid both
+       histories, R rotated the hidden item. */
+    return activeEditor() === "cab";
   }
   window.addEventListener("keydown", function (e) {
     if (modelerKeyboardOwnsInput()) return;
@@ -4375,14 +4431,20 @@ export function initInteraction() {
       }));
       return false;
     }
+    var swing = tool === "door" ? exteriorDoorSwing(wall, projected.s) : null;
     var result = executeCommand(openingPlaceCommand, {
       wallId: wall.id,
       type: tool,
       s: projected.s,
       ...openingDrawDefaults(tool),
+      ...(swing ? { swingDir: swing } : {}),
     }, agentCommandEnvironment(), {
       label: t("f_openingPlaced", { name: t(tool) }),
-      presentation: { selectCreated: true, switchToolTo: "select" },
+      /* The tool stays armed, like the point and MEP tools: a flat takes a
+         dozen openings, and dropping back to select after each one cost a
+         trip to the ribbon per window. The new one is still selected, so the
+         inspector shows it; Esc or right-click ends the tool. */
+      presentation: { selectCreated: true },
     });
     if (!result.ok || !result.created.length) {
       flash(t("opening_need_wall"));
@@ -4548,7 +4610,8 @@ export function initInteraction() {
   });
   let gestureSession = null;
   function pointerDown(e) {
-    gestureSession = captureHistorySession();
+    gestureSession = null;
+    armHistoryGesture(() => { gestureSession = captureHistorySession(); });
     setPickSlop(e.pointerType);
     /* Open a snap session for the gesture. It pins which layers may contribute
        candidates (see beginSnapSession) so a panel toggled mid-drag cannot
@@ -4691,6 +4754,7 @@ export function initInteraction() {
 
     if (S.tool === "wall") {
       if (e.button === 2) {
+        if (S.drawing) prepareHistoryGesture();
         finishDraw();
         return;
       }
@@ -4712,6 +4776,8 @@ export function initInteraction() {
          A stationary press remains the familiar first click of click-click
          placement; endAction commits only when the pointer actually travelled. */
       var wasDrawing = S.drawing;
+      // A continued first segment can change topology without another push.
+      prepareHistoryGesture();
       wallPoint(snapWallPoint(px, pz, S.drawFrom));
       if (!wasDrawing && S.drawing)
         S.wallPress = { pointerId: e.pointerId, x: ox, y: oy };
@@ -4845,6 +4911,7 @@ export function initInteraction() {
       return;
     }
     if (S.tool === "door" || S.tool === "window" || S.tool === "passage") {
+      if (e.button === 2) { setTool("select"); render2D(); return; }
       placeOpeningAt(S.tool, px, pz);
       return;
     }
@@ -6095,10 +6162,12 @@ export function initInteraction() {
   });
 
   function endAction(e) {
+    try {
     if (e?.type === "pointercancel") {
       const active = S.action;
       cancelLongPress(); stopAutoPan(); dropDragProxy(); endSnapSession();
       S.wallPress = null;
+      disarmHistoryGesture();
       if (active && active !== "pan" && gestureSession) restoreHistorySession(gestureSession);
       gestureSession = null;
       S.action = null; S.drag = null; S.dragRoom = null; S.touchContact = null;
@@ -6430,6 +6499,10 @@ export function initInteraction() {
     if (S.alignX != null || S.alignZ != null || hadGuides || hadHost) {
       S.alignX = S.alignZ = null;
       render2D();
+    }
+    } finally {
+      disarmHistoryGesture();
+      gestureSession = null;
     }
   }
   registerPlannerController({down:pointerDown, move:planMove, up:endAction, cancel:endAction, double:doubleClick});

@@ -203,14 +203,64 @@ export function blueprintBounds(ref) {
 // pull in outside resources, and nothing here ever writes one
 const RASTER_URL = /^data:image\/(png|jpeg|jpg|webp);/i;
 
+/* A DXF reference (js/dxf_import.js dxfUnderlay) carries line work instead
+   of a picture: `segs` / `dsegs` are flat [x1, z1, x2, z2, …] runs (solid /
+   dashed) and `texts` are [x, z, size, angle, str, align, baseline] rows, all
+   in the reference's own units from its top-left corner. Aligned and Fit
+   text adds an eighth element: the width it is fitted to. */
+var MAX_VECTOR_NUMBERS = 4 * 40000;
+/* Vectors already checked here, handed back as they are. Every undo and redo
+   restores the reference through normalizeBlueprintReference; copying the
+   vector there each time also threw away the Path2D built for it. A checked
+   vector is frozen, so sharing it with the undo history is safe. */
+var checkedVectors = new WeakSet();
+function normalizeVector(v) {
+  if (!v || typeof v !== "object") return null;
+  if (checkedVectors.has(v)) return v;
+  var nums = function (list) {
+    if (!Array.isArray(list)) return [];
+    var n = Math.min(list.length - (list.length % 4), MAX_VECTOR_NUMBERS);
+    var out = [];
+    for (var i = 0; i < n; i += 4) {
+      if (fin(list[i]) && fin(list[i + 1]) && fin(list[i + 2]) && fin(list[i + 3]))
+        out.push(list[i], list[i + 1], list[i + 2], list[i + 3]);
+    }
+    return out;
+  };
+  var texts = (Array.isArray(v.texts) ? v.texts : []).slice(0, 3000).filter(function (t) {
+    return Array.isArray(t) && fin(t[0]) && fin(t[1]) && fin(t[2]) && t[2] > 0 && typeof t[4] === "string";
+  }).map(function (t) {
+    var row = [t[0], t[1], t[2], fin(t[3]) ? t[3] : 0, t[4].slice(0, 200),
+      /^(left|center|right)$/.test(t[5]) ? t[5] : "left",
+      /^(alphabetic|top|middle|bottom)$/.test(t[6]) ? t[6] : "alphabetic"];
+    if (fin(t[7]) && t[7] > 0) row.push(t[7]);
+    return Object.freeze(row);
+  });
+  var out = { segs: nums(v.segs), dsegs: nums(v.dsegs), texts: texts };
+  if (!out.segs.length && !out.dsegs.length && !out.texts.length) return null;
+  Object.freeze(out.segs);
+  Object.freeze(out.dsegs);
+  Object.freeze(out.texts);
+  checkedVectors.add(Object.freeze(out));
+  return out;
+}
+
 export function normalizeBlueprintReference(value) {
   if (!value || typeof value !== "object") return null;
-  if (typeof value.dataUrl !== "string" || !RASTER_URL.test(value.dataUrl))
+  var vector = normalizeVector(value.vector);
+  if (!vector && (typeof value.dataUrl !== "string" || !RASTER_URL.test(value.dataUrl)))
     return null;
   if (!fin(value.width) || value.width <= 0 || !fin(value.height) || value.height <= 0)
     return null;
   if (!fin(value.cmPerPx) || value.cmPerPx <= 0) return null;
   var out = Object.assign({}, value);
+  if (vector) {
+    out.vector = vector;
+    delete out.dataUrl;
+    out.guidePoints = (Array.isArray(value.guidePoints) ? value.guidePoints : []).slice(0, 6000)
+      .filter(function (p) { return p && fin(p.x) && fin(p.z); })
+      .map(function (p) { return { x: p.x, z: p.z }; });
+  }
   out.opacity = fin(value.opacity) ? Math.max(0.05, Math.min(1, value.opacity)) : 0.55;
   out.rotation = fin(value.rotation) ? value.rotation : 0;
   out.originX = fin(value.originX) ? value.originX : 0;
@@ -241,12 +291,146 @@ export function blueprintRaster(ref = S.blueprintTrace) {
   return img?.complete&&img.naturalWidth ? img : null;
 }
 
+/* Built on a vector reference's first paint and kept while it is the same
+   object: the Path2D pair, and the labels largest first (then by alignment,
+   so the canvas font and alignment change once per group, not per label),
+   each with how far from its anchor it can draw — at most one em per
+   character, or its fitted width, plus room for ascent and descent. */
+let cachedVector = null;
+let cachedPaint = null;
+function vectorPaint(vector) {
+  if (cachedVector === vector && cachedPaint) return cachedPaint;
+  var build = function (segs) {
+    var path = new Path2D();
+    for (var i = 0; i + 3 < segs.length; i += 4) {
+      path.moveTo(segs[i], segs[i + 1]);
+      path.lineTo(segs[i + 2], segs[i + 3]);
+    }
+    return path;
+  };
+  var texts = vector.texts;
+  var cmp = function (a, b) { return a < b ? -1 : a > b ? 1 : 0; };
+  var order = texts.map(function (_, i) { return i; }).sort(function (p, q) {
+    var a = texts[p], b = texts[q];
+    return b[2] - a[2] || cmp(a[5], b[5]) || cmp(a[6], b[6]);
+  });
+  var reach = texts.map(function (t) {
+    var width = t[2] * t[4].length;
+    return (t[7] > 0 ? Math.min(width, t[7]) : width) + 1.5 * t[2];
+  });
+  cachedVector = vector;
+  cachedPaint = { solid: build(vector.segs), dashed: build(vector.dsegs), order: order, reach: reach };
+  return cachedPaint;
+}
+
+// one font string per text size, not one per label and repaint
+var fonts = new Map();
+function fontFor(size) {
+  var font = fonts.get(size);
+  if (!font) {
+    if (fonts.size >= 256) fonts.clear();
+    font = size + "px Inter, Helvetica, Arial, sans-serif";
+    fonts.set(size, font);
+  }
+  return font;
+}
+
+/* The canvas in the current user space: its corners through the inverse of
+   transform `m`, as a box. Null when the context can't say, and then every
+   label counts as on screen. */
+function visibleBox(ctx, m) {
+  var w = ctx.canvas && ctx.canvas.width, h = ctx.canvas && ctx.canvas.height;
+  var det = m.a * m.d - m.b * m.c;
+  if (!(w > 0) || !(h > 0) || !(Math.abs(det) > 0)) return null;
+  var box = { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity };
+  for (var i = 0; i < 4; i++) {
+    var dx = (i & 1 ? w : 0) - m.e, dy = (i & 2 ? h : 0) - m.f;
+    var x = (m.d * dx - m.c * dy) / det, z = (m.a * dy - m.b * dx) / det;
+    box.x0 = Math.min(box.x0, x); box.x1 = Math.max(box.x1, x);
+    box.z0 = Math.min(box.z0, z); box.z1 = Math.max(box.z1, z);
+  }
+  return box;
+}
+
+function currentTransform(ctx) {
+  var m = typeof ctx.getTransform === "function" ? ctx.getTransform() : null;
+  return m && fin(m.a) && fin(m.b) && fin(m.c) && fin(m.d) && fin(m.e) && fin(m.f) ? m : null;
+}
+
+/* Labels large enough to read whose reach touches the screen. A drawing
+   carries up to 1,500 of them and this runs on every model repaint: each
+   one drawn is placed with one setTransform (no save/restore), and the
+   loop stops at the first label too small to read. */
+function drawVectorTexts(ctx, texts, paint, k) {
+  var m = currentTransform(ctx);
+  var view = m && visibleBox(ctx, m);
+  var font = "", align = "", baseline = "";
+  for (var n = 0; n < paint.order.length; n++) {
+    var i = paint.order[n], t = texts[i], r = paint.reach[i];
+    if (t[2] * k < 6) break;
+    if (view && (t[0] + r < view.x0 || t[0] - r > view.x1 || t[1] + r < view.z0 || t[1] - r > view.z1)) continue;
+    var f = fontFor(t[2]);
+    if (f !== font) ctx.font = font = f;
+    if (t[5] !== align) ctx.textAlign = align = t[5];
+    if (t[6] !== baseline) ctx.textBaseline = baseline = t[6];
+    if (m) {
+      var c = Math.cos(t[3]), s = Math.sin(t[3]);
+      ctx.setTransform(m.a * c + m.c * s, m.b * c + m.d * s, m.c * c - m.a * s, m.d * c - m.b * s,
+        m.a * t[0] + m.c * t[1] + m.e, m.b * t[0] + m.d * t[1] + m.f);
+    } else {
+      ctx.save();
+      ctx.translate(t[0], t[1]);
+      if (t[3]) ctx.rotate(t[3]);
+    }
+    if (t[7] > 0) ctx.fillText(t[4], 0, 0, t[7]);
+    else ctx.fillText(t[4], 0, 0);
+    if (!m) ctx.restore();
+  }
+}
+
+/* Line work stays sharp at any zoom: hairlines one screen pixel wide, text
+   only once it is large enough to read. */
+function drawVectorUnderlay(ctx, ref, sx, sz) {
+  if (typeof Path2D !== "function") return;
+  var k = S.SC * ref.cmPerPx;
+  if (!(k > 0)) return;
+  var paint = vectorPaint(ref.vector);
+  ctx.save();
+  ctx.translate(sx(ref.originX || 0), sz(ref.originZ || 0));
+  ctx.rotate(ref.rotation || 0);
+  ctx.scale(k, k);
+  ctx.translate(-ref.width / 2, -ref.height / 2);
+  ctx.globalAlpha = fin(ref.opacity) ? ref.opacity : 0.6;
+  ctx.strokeStyle = ctx.fillStyle = "#2f3744";
+  ctx.lineWidth = 1 / k;
+  ctx.lineCap = "round";
+  ctx.setLineDash([]);
+  ctx.stroke(paint.solid);
+  if (ref.vector.dsegs.length) {
+    ctx.setLineDash([6 / k, 4 / k]);
+    ctx.stroke(paint.dashed);
+    ctx.setLineDash([]);
+  }
+  drawVectorTexts(ctx, ref.vector.texts, paint, k);
+  ctx.restore();
+}
+
+/* DXF line work is painted over the room fills (js/plan2d.js calls this after
+   them, before furniture and walls): a picture is traced before rooms exist,
+   but a DXF arrives with its rooms already recognized, and the fixtures,
+   notes and anything the recognizer left out sit inside them. */
+export function drawBlueprintLinework(ctx, sx, sz) {
+  var ref = S.blueprintTrace;
+  if (!ref || !ref.vector || ref.visible === false || !(S.SC > 0)) return;
+  drawVectorUnderlay(ctx, ref, sx, sz);
+}
+
 export function drawBlueprintUnderlay(ctx, sx, sz) {
   var ref = S.blueprintTrace;
   // this runs on every 2D repaint, i.e. every pointermove — only touch the DOM
   // when something the control bar shows has actually changed
   syncBlueprintTraceControls();
-  if (!ref || ref.visible === false || !(S.SC > 0)) return;
+  if (!ref || ref.visible === false || !(S.SC > 0) || ref.vector) return;
   var img = imageFor(ref);
   if (!img || !img.complete || !img.naturalWidth) return;
   ctx.save();
@@ -281,7 +465,7 @@ export function syncBlueprintTraceControls() {
   if (typeof document === "undefined") return;
   var cur = S.blueprintTrace;
   var sig = cur
-    ? (cur.name || "") + "|" + cur.opacity + "|" + (cur.visible !== false) + "|" + cur.cmPerPx + '|' + document.documentElement.dataset.plannerViewport
+    ? (cur.name || "") + "|" + cur.opacity + "|" + (cur.visible !== false) + "|" + cur.cmPerPx + "|" + !!cur.vector + '|' + document.documentElement.dataset.plannerViewport
     : "";
   // cheap early-out: nothing the bar renders has moved since the last repaint
   if (sig === controlsSig && document.getElementById("bp-trace-controls")) return;
@@ -315,6 +499,8 @@ export function syncBlueprintTraceControls() {
   var vis = bar.querySelector('[data-bptrace="visible"]');
   vis.title = t(ref.visible === false ? "bp_trace_show" : "bp_trace_hide");
   vis.querySelector("i").className = ref.visible === false ? "ph ph-eye-slash" : "ph ph-eye";
+  // a DXF is drawn at its own exact scale: there is nothing to calibrate
+  bar.querySelector('[data-act="importBlueprintTrace"]').style.display = ref.vector ? "none" : "";
   bar.querySelector('[data-act="importBlueprintTrace"]').title = t("bp_trace_recalibrate");
   bar.querySelector('[data-bptrace="remove"]').title = t("bp_trace_remove");
   if (controlsWired) return;

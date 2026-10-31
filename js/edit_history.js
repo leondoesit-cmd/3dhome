@@ -602,6 +602,10 @@ export function createHistory(opts) {
       return keyOf ? keyOf(live) === keyOf(n.snap) : live === n.snap;
     },
 
+    // Opaque immutable strings only; include the observe() checkpoint too.
+    retainedSnapshots: function () {
+      return [...nodes.values()].map(function (node) { return node.snap; }).concat(lastFull);
+    },
     saveSession: function () {
       sync();
       return structuredClone({nodes,known,seq,root,pos,provisional,lastKey,lastFull});

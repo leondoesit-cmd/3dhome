@@ -161,7 +161,9 @@ function wire(f, hit) {
 test('#5 divider double-click edits its left column and ignores missing columns', () => {
   const f = fixture([{ w: 40 }, { w: 60 }]);
   const prompts = [];
-  f.overrides = { prompt: (_, value) => { prompts.push(value); return '45'; } };
+  // the exact-size field is handed the current size and applies what is typed
+  f.overrides = { openSizeEdit: (what, _event, apply) => { prompts.push(what.cm); apply(45); } };
+  f.api.setColumnWidth = (ci, cm) => { f.sp().cols[ci].w = cm; };
   let target = { kind: 'colDiv', i: 1 };
   const cv = wire(f, () => target);
   cv.emit('dblclick');
@@ -252,6 +254,7 @@ test('#11 PNG export restores the selected axis before returning to 3D or split 
       ...f, document, setAxis: axis => { f.E.axis = axis; f.E.mode = '2d'; calls.push(['axis', axis]); },
       setMode: value => { f.E.mode = value; calls.push(['mode', value]); }, sizeCanvas() {}, draw() {},
       famLabel: () => '', cabSummary: () => '', frontLabel: () => '', cabPrice: () => 0,
+      displayUnit: () => 'mm', dimLen: String,
     }).exportPNG();
     assert.equal(f.E.axis, 'right');
     assert.ok(calls.some(([kind, value]) => kind === 'axis' && value === 'right'));
@@ -411,7 +414,7 @@ test('#21 native typing undo/redo stays in inputs while canvas shortcuts still w
   const f = fixture(), document = { activeElement: {} };
   f.E.open = true;
   const keydown = eventCallback('ui_cabinet', 'document', 'keydown', {
-    ...f, document, isNestOpen: () => false, isSizeDlgOpen: () => false,
+    ...f, document, isNestOpen: () => false, isSizeDlgOpen: () => false, isKeysOpen: () => false,
     undo: () => f.calls.push(['undo']), redo: () => f.calls.push(['redo']),
   });
   for (const tagName of ['INPUT', 'TEXTAREA', 'SELECT', 'CANVAS']) {
@@ -575,6 +578,8 @@ test('#30 inspector door leaf controls fall back safely before elevation layout 
     select: options => { labels.push(options); return new Node(); }, numInput: () => new Node(),
     layoutCab: () => ({ cols: [{}] }), fitCtx: () => ({ w: 50, colH: 200, d: 60 }),
     splitColumn() {}, dupColumn() {}, delColumn() {},
+    moveBtn: () => new Node(), columnsEven: () => true, evenWidths() {}, mirrorCabinet() {},
+    moveColumnBy() {}, moveSectionBy() {},
   });
   for (const view of [null, {}, { L: null }, { L: {} }, { L: { cols: [] } }, { L: { cols: [{ doorLeaves: 2 }] } }]) {
     labels.length = 0; f.E.view = view; fillInspector();

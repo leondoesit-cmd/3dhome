@@ -217,8 +217,21 @@ export function initPlanner3D() {
     if(type.startsWith('touch')?dragId!=null:e.button===0){e.preventDefault();e.stopImmediatePropagation();}
   },{capture:true,passive:false});
   canvas.addEventListener('dblclick',e=>{if(!look&&!gameActive()){send('double',e);e.preventDefault();e.stopImmediatePropagation();}},true);
-  onAfterRender(()=>{paintPlanner3D();requestRender();});
+  /* A 2D paint only has to redraw this pane's overlay canvas. Asking for a 3D
+     frame on each one kept the post-processed view from ever going idle: the
+     warning glow alone paints the HUD every 45 ms. Model edits reach the 3D
+     view through S.dirty3D / S.repaint3D on their own; what a 2D paint can
+     change unannounced is the selection (its outline and the cut it keeps), so
+     a new selection is the one thing that asks for a frame here. */
+  onAfterRender(()=>{paintPlanner3D();if(selectionChanged())requestRender();});
   setPlannerRenderHook(paintPlanner3D);
+}
+let seenSel=null,seenKind,seenRef,seenRefs,seenCount=0;
+function selectionChanged(){
+  const s=S.sel||null,refs=s?s.refs:undefined,count=refs?refs.length:0;
+  if(s===seenSel&&(!s||(s.kind===seenKind&&s.ref===seenRef&&refs===seenRefs&&count===seenCount)))return false;
+  seenSel=s;seenKind=s?s.kind:undefined;seenRef=s?s.ref:undefined;seenRefs=refs;seenCount=count;
+  return true;
 }
 export function paintPlanner3D() {
   if(!hud||!has3D()||gameActive()||!pane.clientWidth||!pane.clientHeight)return;
@@ -243,11 +256,19 @@ export function paintPlanner3D() {
   if(S.mep?.route){const r=S.mep.route;path([...r.pts,...(r.preview?[r.preview]:[])],'#faac38');}
   if(S.sel?.kind==='wall'){const g=wallGeom(S.sel.ref);if(g){path([g.a,g.b],'#f8be49');label({x:(g.a.x+g.b.x)/2,z:(g.a.z+g.b.z)/2,y:30},fmtLen(g.L));}}
   if(S.sel?.kind==='room'){const r=detectRooms().find(r=>r.key===S.sel.ref);if(r)path(r.pts,'#f8be49',true);}
-  for(const con of Number.isFinite(layerRank('annotations'))?S.wallCons||[]:[]){
+  const cons=Number.isFinite(layerRank('annotations'))?S.wallCons||[]:[];
+  // one lookup per id instead of a scan of every wall per id per constraint
+  // (first match wins, as find() did; an opening's wall matches strictly)
+  const wallByKey=new Map(),wallById=new Map(),openingByKey=new Map();
+  if(cons.length){
+    for(const w of S.walls){const k=String(w.id);if(!wallByKey.has(k))wallByKey.set(k,w);if(!wallById.has(w.id))wallById.set(w.id,w);}
+    for(const o of S.openings){const k=String(o.id);if(!openingByKey.has(k))openingByKey.set(k,o);}
+  }
+  for(const con of cons){
     if(con.off&&S.sel?.ref?.id!==con.id)continue;
     const points=[];for(const key of ['a','b','point','joint']){const p=con[key]&&typeof con[key]==='object'?anchorPos(con[key]):null;if(p)points.push(p);}
-    for(const id of [con.wall,con.ref,con.w1,con.w2,...(con.walls||[])]){const w=S.walls.find(w=>String(w.id)===String(id));if(w){const g=wallGeom(w);if(g)points.push(wallPointAt(w,g.L/2));}}
-    for(const id of [con.opening,...(con.openings||[])]){const o=S.openings.find(o=>String(o.id)===String(id)),w=o&&S.walls.find(w=>w.id===o.wall);if(w)points.push(wallPointAt(w,o.s));}
+    for(const id of [con.wall,con.ref,con.w1,con.w2,...(con.walls||[])]){const w=wallByKey.get(String(id));if(w){const g=wallGeom(w);if(g)points.push(wallPointAt(w,g.L/2));}}
+    for(const id of [con.opening,...(con.openings||[])]){const o=openingByKey.get(String(id)),w=o&&wallById.get(o.wall);if(w)points.push(wallPointAt(w,o.s));}
     if(!points.length)continue;const at={x:points.reduce((v,p)=>v+p.x,0)/points.length,y:35,z:points.reduce((v,p)=>v+p.z,0)/points.length};
     path(points,conSatisfied(con)?'#709fee':'#f17c6b');const text=con.value!=null?String(Math.round(con.value*100)/100):({parallel:'∥',perpendicular:'⊥',fixed:'●',coincident:'○',equalLength:'='})[con.type]||'↔';
     const q=project(at);if(q){label(at,text);constraintHits.push({con,x:q.x,y:q.y-5,w:Math.max(28,c.measureText(text).width+14)});}

@@ -4,12 +4,12 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 
 const main=readFileSync(new URL('../js/main.js',import.meta.url),'utf8');
-const source=main.slice(main.indexOf('function maybeInit3D() {'),main.indexOf('\nconst resizeAll ='));
+const source=main.slice(main.indexOf('function maybeInit3D('),main.indexOf('\nconst resizeAll ='));
 
 test('resize events during lazy 3D loading cannot overwrite the imported-plan overview with a second framing callback',async()=>{
   let resolveInit,ready=false,started=0,overviews=0,roomViews=0;
   const pending=new Promise(resolve=>{resolveInit=resolve;}),timers=[];
-  const scope={init3DQueued:false,blueprintOverviewPending:true,
+  const scope={window:{__home3dBooted:true},init3DQueued:false,blueprintOverviewPending:true,
     document:{getElementById:()=>({clientWidth:390,clientHeight:740})},
     has3D:()=>ready,setTimeout:callback=>timers.push(callback),setSize:()=>{},
     init3D:()=>{started++;return pending;},frameDollhouse:()=>overviews++,frameView:()=>roomViews++};
@@ -23,7 +23,7 @@ test('resize events during lazy 3D loading cannot overwrite the imported-plan ov
 
 test('a hidden 3D pane can still initialize after it becomes visible',async()=>{
   const pane={clientWidth:0,clientHeight:0},timers=[];let started=0;
-  const scope={init3DQueued:false,blueprintOverviewPending:false,document:{getElementById:()=>pane},
+  const scope={window:{__home3dBooted:true},init3DQueued:false,blueprintOverviewPending:false,document:{getElementById:()=>pane},
     has3D:()=>false,setTimeout:callback=>timers.push(callback),setSize:()=>{},frameDollhouse:()=>{},frameView:()=>{},
     init3D:()=>{started++;return Promise.resolve(true);}};
   runInNewContext(source,scope);scope.maybeInit3D();timers.shift()();
@@ -34,7 +34,7 @@ test('a hidden 3D pane can still initialize after it becomes visible',async()=>{
 
 test('a renderer failure releases the initialization guard and can be retried',async()=>{
   const timers=[],errors=[];
-  const scope={init3DQueued:false,blueprintOverviewPending:true,console:{error:(...args)=>errors.push(args)},
+  const scope={window:{__home3dBooted:true},init3DQueued:false,blueprintOverviewPending:true,console:{error:(...args)=>errors.push(args)},
     document:{getElementById:()=>({clientWidth:390,clientHeight:740})},has3D:()=>false,
     setTimeout:callback=>timers.push(callback),setSize:()=>{},frameDollhouse:()=>{},frameView:()=>{},
     init3D:()=>Promise.reject(new Error('GPU unavailable'))};

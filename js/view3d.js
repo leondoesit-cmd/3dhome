@@ -1,4 +1,7 @@
 import { buildBlueprintUnderlay3D } from './blueprint_3d.js';
+import { createPreciseBoundsCache } from './core/precise_bounds_cache.js';
+import { createSceneRegistry } from './core/scene_registry.js';
+import { createWallBuildKeys } from './core/wall_build_key.js';
 import { createPlannerDrawing } from './planner_drawing.js';
 import { updateCabinetRuntimeMesh } from './cabinet_mesh.js';
 import { switchFloorAndWait } from './floors.js';
@@ -77,6 +80,7 @@ import {
 import { holesForRoom, hitSlabOpening, openingCorners, slabOpenings } from "./slab_openings.js";
 import { roofMeshTriangles } from "./roof.js";
 import {
+  ensureWallTypes,
   normalizeWall,
   wallLayerBands,
   wallThickness,
@@ -214,9 +218,6 @@ export function registerPlannerLights(r) {
   roomBounce.register(r);
   return true;
 }
-export function getMainScene() {
-  return scene;
-}
 /* Ends the idle prewarm's run (see startPrewarm) and says whether one was in
    progress: until it is over the lights are on another hour's shadow set,
    which a second renderer drawing now would draw. The run stops after the
@@ -226,6 +227,9 @@ export function stopShadowSetPrewarm() {
   if (!prewarmRun) return false;
   prewarmRun.stop = true;
   return true;
+}
+export function getMainScene() {
+  return scene;
 }
 export function getMainCamera() {
   return camera;
@@ -2384,13 +2388,14 @@ if (typeof window !== "undefined")
 /* Split view should describe one shared model, not two unrelated pictures.
    A lightweight Box3Helper mirrors the plan/tree selection without touching
    furniture materials (many catalogue meshes deliberately share them). */
+var selectionBoundsCache = null;
 function selected3DBox() {
   if (!S.sel || !dyn) return null;
   var box = new THREE.Box3(), found = false;
   function addObject(o) {
     if (!o) return;
-    o.updateWorldMatrix(true, true);
-    box.expandByObject(o, true);
+    if (!selectionBoundsCache) selectionBoundsCache = createPreciseBoundsCache(THREE);
+    box.union(selectionBoundsCache.bounds(o));
     found = true;
   }
   if (S.sel.kind === "item") {
@@ -2402,10 +2407,9 @@ function selected3DBox() {
       addObject(c && c.g);
     });
   } else if (S.sel.kind === "walls") {
-    (S.sel.refs || []).forEach(function (wall) {
-      dyn.traverse(function (o) {
-        if (o.userData && o.userData.wall === wall) addObject(o);
-      });
+    var selectedWalls = new Set(S.sel.refs || []);
+    dyn.traverse(function (o) {
+      if (o.userData && selectedWalls.has(o.userData.wall)) addObject(o);
     });
   } else if (S.sel.kind === "wall" || S.sel.kind === "opening") {
     var field = S.sel.kind, ref = S.sel.ref;
@@ -2644,9 +2648,42 @@ function plannerCeilingMaterial(xray) {
   });
 }
 
+var reusableWalls = new Map();
+function renewWallMaterials(group) {
+  // Opaque draws sort by material id. Retaining old ids between newly built
+  // walls changes coplanar edge/depth ordering and therefore GTAO/TRAA pixels.
+  // Allocate materials in builder order, retaining the costly vertex buffers.
+  // Park originals on the retired parent until the replacements have drawn,
+  // preserving the shader cache lifetime used by the full rebuild path.
+  var retiredMaterials = new THREE.Object3D();
+  retiredMaterials.material = [];
+  group.traverse(function (object) {
+    if (!object.material) return;
+    var originals = [].concat(object.material);
+    retiredMaterials.material.push.apply(retiredMaterials.material, originals);
+    var replacements = originals.map(function (material) { return material.clone(); });
+    object.material = Array.isArray(object.material) ? replacements : replacements[0];
+  });
+  group.parent.add(retiredMaterials);
+}
+function reusableWallKey(w, color, texture, keyForWall) {
+  // Openings, framing, curved/profiled walls, live physics and textured finishes
+  // retain the established builder until their additional lifecycles are covered.
+  if (isPhysicsEnabled() || gameRendererLock || texture ||
+      normalizeWallKind(w) !== 'normal' || wallGeom(w).kind !== 'line' ||
+      normalizeWallProfile(w).length || hasHeightMismatchedJoin(w) ||
+      S.openings.some(function (o) { return String(o.wall) === String(w.id); })) return null;
+  var type = S.wallTypes.find(function (entry) { return entry.id === w.wallTypeId; });
+  var bands = w.layers && w.layers.length ? w.layers : type && type.layers;
+  if (!bands) return null;
+  if (bands.some(function (band) { return band.framing || band.role === 'glazing' || /glass/i.test(String(band.material)); })) return null;
+  return keyForWall(w, { color: color, cut: String(cutH()), xray: mepXray('walls') });
+}
 export function rebuild3D() {
   if (!ready3D) return;
   refreshRuntimePlacements(S);
+  // Normalize every arm before forming dependency keys (builders normalize too).
+  ensureWallTypes(S);
   if (!gameRendererLock) renderer.shadowMap.enabled = plannerShadowsEnabled || !!S.invisibleRoof;
   // geometry is changing — the shadow map and the frame both need a redraw
   // (paced, see rebuildShadowT in the loop)
@@ -3085,11 +3122,28 @@ export function rebuild3D() {
   });
   drawingWalls = S.walls.filter(function (w) { return !hid.walls[w.id]; });
   drawingHoverObj = null; // its meshes were just disposed
+  var nextReusableWalls = new Map();
+  var keyForWall = createWallBuildKeys(S);
   S.walls.forEach(function (w) {
     if (hid.walls[w.id]) return;
     wallBuildArgs[w.id] = [wallColorMap[w.id] != null ? wallColorMap[w.id] : S.wallColor, w.tex];
-    buildWall(w, wallBuildArgs[w.id][0], wallBuildArgs[w.id][1]);
+    var args = wallBuildArgs[w.id], key = reusableWallKey(w, args[0], args[1], keyForWall);
+    var cached = reusableWalls.get(w.id);
+    if (key && cached && cached.wall === w && cached.key === key &&
+        cached.group.parent && !cached.group.userData.seeThrough && !seeStubs.has(cached.group)) {
+      renewWallMaterials(cached.group);
+      structureRoot.add(cached.group);
+      nextReusableWalls.set(w.id, cached);
+    } else {
+      var count = structureRoot.children.length;
+      buildWall(w, args[0], args[1]);
+      // Only the single-group straight-wall builder is eligible.
+      if (key && structureRoot.children.length === count + 1) {
+        nextReusableWalls.set(w.id, { wall: w, key: key, group: structureRoot.children[count] });
+      }
+    }
   });
+  reusableWalls = nextReusableWalls;
   // the walls a dollhouse cut lowered still throw their full-height shadows
   if (isFinite(cutH())) buildShadowWalls(hid);
   // an invisible roof is still built, as a shadow caster only
@@ -6174,18 +6228,20 @@ function build3D() {
      humansLive stayed false forever. A traverse finds them wherever the item
      reconciler has parented them.
 
-     Throttled to ~30fps, and it only pays for the traverse on the frames it
-     actually animates. The sway is slow enough that half-rate is invisible,
+     Throttled to the existing ~30fps cadence. A registry follows subtree
+     attachment/removal, so the tick visits only human objects. The sway is
+     slow enough that half-rate is invisible,
      and this pass is the one thing in an otherwise idle scene that can pin
      the render loop (and the 4096² shadow map, see the gate below) at display
      rate. Frames in between reuse the last answer so `live` stays stable. */
   var humanFrameT = 0, humansPresent = false;
+  var humanRegistry = createSceneRegistry(dyn, function (object) { return !!object.userData.isHuman; });
   function updateHumans(time) {
     if (!dyn) return false;
     if (humanFrameT && time - humanFrameT < 33) return humansPresent;
     humanFrameT = time;
     var any = false;
-    dyn.traverse(function (c) {
+    humanRegistry.members.forEach(function (c) {
       if (c.userData && c.userData.isHuman) {
         HumanFactory.animateHuman(c, time);
         any = true;
@@ -6244,6 +6300,29 @@ function build3D() {
     var interval = gestureRebuildMs > 100 ? 3 * gestureRebuildMs : VISIBLE_PLAN_DRAG_REBUILD_MS;
     return editOnPlan && editPointers.size > 0 && time - lastRebuildT < interval;
   };
+  /* A hidden pane (display:none up the tree: the Plan view, or a phone that
+     stays on the plan, where main.js now brings 3D up in the background) is
+     drawn once, and then not until it is shown. That first frame is the
+     background warm-up's point: it builds the house's shaders before anyone
+     opens 3D. After it, every edit drew the hidden pane seven times over (the
+     frame and its settle frames), and people or a door easing at display
+     rate, with nothing on screen to show for it. The layout is read only
+     when there is something to draw. Showing the pane again asks for a
+     frame (and TRAA's settle) from the observer below: whatever changed
+     meanwhile, or nothing, the canvas holds a picture from before. */
+  var drewOnce = false;
+  var paneHidden = function () {
+    return drewOnce && renderer.domElement.getClientRects().length === 0;
+  };
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(function (entries) {
+      var box = entries[entries.length - 1].contentRect;
+      if (box.width > 0 && box.height > 0) {
+        needsRender = true;
+        settle = SETTLE_FRAMES;
+      }
+    }).observe(renderer.domElement);
+  }
   buildViewGizmo();
   if(pendingNavigationView){const view=pendingNavigationView;pendingNavigationView=null;restoreNavigationView(view);}
   (function animate(time) {
@@ -6365,6 +6444,13 @@ function build3D() {
     if (!renderer || !renderer.initialized) return;
     if (compileGate) return; // the first draw waits a frame for #v3dPrep (see the rebuild above)
     var live = doorsMoving || humansLive || physicsLive || extLive;
+    // nothing to draw on screen (see paneHidden); the idle shadow-set prewarm
+    // below may still run meanwhile
+    if ((needsRender || live || settle > 0) && paneHidden()) {
+      needsRender = false;
+      settle = 0;
+      live = false;
+    }
     if (prewarmRun) {
       if (live) prewarmRun.stop = true;
       if (prewarmHolds()) return;
@@ -6444,6 +6530,7 @@ function build3D() {
         usePost = false;
         try { renderer.render(scene, camera); } catch (e2) {}
       }
+      drewOnce = true;
       updateViewGizmo(); // keep the orientation triad in sync with the camera
     }
   })();

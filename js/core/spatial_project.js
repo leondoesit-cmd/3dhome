@@ -39,9 +39,11 @@ export function installSpatialProject(state) {
   return state.spatial;
 }
 
-export function exportSpatialProject(state) {
+// detached:false is for immediate serialization only; never keep or mutate it.
+export function exportSpatialProject(state, { detached = true } = {}) {
   const spatial=installSpatialProject(state);
-  return clone({schemaVersion:spatial.schemaVersion,id:spatial.id,nodes:spatial.nodes,walls:spatial.walls,wallTypes:spatial.wallTypes,openings:spatial.openings,instances:spatial.instances,rooms:spatial.rooms,markers:spatial.markers,slabOpenings:spatial.slabOpenings || [],annotations:spatial.annotations || [],surveyFeatures:normalizeSurveyFeatures(spatial.surveyFeatures),wallCons:spatial.wallCons,roomCons:spatial.roomCons,planVars:spatial.planVars,cabinetPresets:spatial.cabinetPresets || [],revision:spatial.revision});
+  const document={schemaVersion:spatial.schemaVersion,id:spatial.id,nodes:spatial.nodes,walls:spatial.walls,wallTypes:spatial.wallTypes,openings:spatial.openings,instances:spatial.instances,rooms:spatial.rooms,markers:spatial.markers,slabOpenings:spatial.slabOpenings || [],annotations:spatial.annotations || [],surveyFeatures:normalizeSurveyFeatures(spatial.surveyFeatures),wallCons:spatial.wallCons,roomCons:spatial.roomCons,planVars:spatial.planVars,cabinetPresets:spatial.cabinetPresets || [],revision:spatial.revision};
+  return detached ? clone(document) : document;
 }
 
 export function importSpatialProject(state,source={}) {
