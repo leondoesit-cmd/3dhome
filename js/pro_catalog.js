@@ -60,7 +60,7 @@ const PLAN = [
   ]],
   ["Site & scan", [
     ["Site", [T("Locate", "ph-map-pin", "act:siteLocate"), T("Pick on map", "ph-globe-hemisphere-west", "act:sitePick"), T("Footprint", "ph-polygon", "act:siteFootprint"), T("Import site", "ph-download-simple", "act:siteImport"), T("Map provider", "ph-globe", "reveal:#site_provider"), T("Site rotation", "ph-compass", "reveal:#site_rot"), T("GeoJSON", "ph-map-trifold", "act:importjson")]],
-    ["Capture", [T("Room scan", "ph-scan", "act:roomScan"), T("Blueprint trace", "ph-image", "act:importBlueprintTrace"), T("Blueprint AI", "ph-magic-wand", "act:importBlueprint"), T("Survey", "ph-clipboard-text", "click:#surveyBtn")]],
+    ["Capture", [T("Room scan", "ph-scan", "act:roomScan"), T("Blueprint trace", "ph-image", "act:importBlueprintTrace"), T("Blueprint AI", "ph-magic-wand", "act:importBlueprint"), T("Import DXF", "ph-file-arrow-down", "pro:dxfImport"), T("Survey", "ph-clipboard-text", "click:#surveyBtn")]],
   ]],
   ["Annotate", [
     ["Mark", [T("Place marker", "ph-map-pin-simple", "act:mkPlace"), T("Duplicate marker", "ph-copy", "act:mkDup"), T("Reference point", "ph-crosshair", "tool:point"), T("Dimension", "ph-ruler", "pro:dimension"), T("Note", "ph-note-pencil", "pro:note"), T("Symbols", "ph-shapes", "pro:symbols")]],
@@ -76,7 +76,7 @@ const PLAN = [
     ["Render", [T("Photo mode", "ph-camera", "act:photo", "P"), T("Video studio", "ph-video-camera", "click:#videoStudioBtn"), T("Edit in 3D", "ph-hand-grabbing", "act:edit3d"), T("Physics", "ph-atom", "act:physics"), T("Sun & sky", "ph-sun", "reveal:#envSection")]],
   ]],
   ["Output", [
-    ["File", [T("Save", "ph-floppy-disk", "act:save", "⌘S"), T("Open", "ph-folder-open", "act:load"), T("New plan", "ph-file-plus", "act:newPlan"), T("Import JSON", "ph-upload-simple", "act:importjson", "⌘O"), T("History", "ph-clock-counter-clockwise", "pro:history")]],
+    ["File", [T("Save", "ph-floppy-disk", "act:save", "⌘S"), T("Open", "ph-folder-open", "act:load"), T("New plan", "ph-file-plus", "act:newPlan"), T("Import JSON", "ph-upload-simple", "act:importjson", "⌘O"), T("Import DXF", "ph-file-arrow-down", "pro:dxfImport"), T("History", "ph-clock-counter-clockwise", "pro:history")]],
     ["Export", [T("DXF", "ph-file-dashed", "pro:dxf"), T("IFC", "ph-buildings", "pro:ifc"), T("Plan SVG", "ph-file-svg", "pro:planSvg"), T("Schedules CSV", "ph-file-csv", "pro:schedules"), T("JSON", "ph-file-code", "act:exportjson", "⌘E"), T("glTF / Blender", "ph-cube", "act:exportgltf"), T("PNG 2D", "ph-image", "act:png2d"), T("PNG 3D", "ph-image-square", "act:png3d")]],
     ["Team", [T("Workspace", "ph-users-three", "act:workspace"), T("Friends", "ph-user-plus", "act:friends"), T("AI helper", "ph-sparkle", "act:agent"), T("Walls guide", "ph-graduation-cap", "run:plannerTutorial"), T("Planning guide", "ph-list-checks", "reveal:#planningGuide")]],
   ]],
@@ -244,6 +244,7 @@ Object.assign(PRO_HE, {
   "Rebuild errors": "שגיאות בנייה", "Engineering": "הנדסה", "Sheet metal": "פח", "Stock size": "מידת גלם", "To walls": "המר לקירות",
   "Finish preview": "תצוגת גימור", "Use": "שימוש", "Save to library": "שמור לספרייה", "Model library": "ספריית מודלים", "Branch": "ענף", "Export GLB": "ייצוא GLB",
   "Run": "שורת ארונות", "Kitchen run": "שורת מטבח", "Worktop": "משטח עבודה", "Part labels": "תוויות חלקים", "Send to shop": "שלח לנגרייה",
+  "Import DXF": "ייבוא DXF",
 });
 
 /* The label in the UI language; English when a string has no Hebrew yet. */
