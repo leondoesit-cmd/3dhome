@@ -64,6 +64,8 @@ export class PdfCanvas {
       `${num(c)} ${num(s)} ${num(-s)} ${num(c)} ${num(x)} ${num(this.Y(y))} Tm (${safe}) Tj ET`);
     return this;
   }
+  // PDF has no layers; the synthetic plans name them for the DXF canvas
+  layer() { return this; }
   save() { this.ops.push("q"); return this; }
   restore() { this.ops.push("Q"); return this; }
 }

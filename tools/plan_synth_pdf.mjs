@@ -10,12 +10,16 @@
 // with door leaves + Bézier swing arcs, glazing lines, furniture, real
 // dimension chains (cm or m) and room labels with areas as text.
 //
+// synthDxf draws the same plans as DXF line work on AIA layers, for the DXF
+// import path (js/dxf_import.js).
+//
 // One PDF point is one pixel of the matching raster sheet, so ground truth
 // (planTruth) and the recognizer's frame line up exactly as in the raster
 // bench: origin at the page centre, x right, z down, centimetres.
 import { pathToFileURL } from "node:url";
 import { buildPlan, planTruth, planMeta, wallPieces, wallDir, pick, range } from "./plan_synth.mjs";
 import { PdfCanvas, writePdf } from "./pdf_write.mjs";
+import { DxfCanvas, writeDxf } from "./dxf_write.mjs";
 
 export const PDF_STYLES = ["poche", "outline", "hatch"];
 
@@ -87,6 +91,7 @@ function formatDim(cm, units) {
 }
 
 function drawWalls(pdf, plan, P, style, rng) {
+  pdf.layer("A-WALL");
   const pieces = wallPieces(plan.walls, plan.openings).map((p) => ({ ...p, quad: quadOf(p) }));
   const quads = pieces.map((p) => p.quad);
   const outline = (pen) => {
@@ -133,12 +138,13 @@ function drawOpenings(pdf, plan, P) {
     const p = (s, off) => P({ x: w.a.x + u.x * s + n.x * off, z: w.a.z + u.z * s + n.z * off });
     const s0 = o.s - o.width / 2, s1 = o.s + o.width / 2, half = w.thickness / 2;
     if (o.type === "window") {
-      pdf.stroke([40, 40, 40]).lineWidth(0.4);
+      pdf.layer("A-GLAZ").stroke([40, 40, 40]).lineWidth(0.4);
       for (const s of [s0, s1]) pdf.line(p(s, -half), p(s, half)).doStroke();
       for (const off of [-half, -half / 3, half / 3, half]) pdf.line(p(s0, off), p(s1, off)).doStroke();
     } else if (o.type === "door") {
       const hingeS = o.hingeAtStart ? s0 : s1, freeS = o.hingeAtStart ? s1 : s0;
       const face = o.swing * half;
+      pdf.layer("A-DOOR");
       const hinge = p(hingeS, face), leafEnd = p(hingeS, face + o.swing * o.width), free = p(freeS, face);
       pdf.stroke([30, 30, 30]).lineWidth(0.9).line(hinge, leafEnd).doStroke();
       const a0 = Math.atan2(leafEnd.y - hinge.y, leafEnd.x - hinge.x);
@@ -151,7 +157,7 @@ function drawOpenings(pdf, plan, P) {
 }
 
 function drawFurniture(pdf, plan, P, rng) {
-  pdf.stroke([120, 120, 120]).lineWidth(0.35);
+  pdf.layer("A-FURN").stroke([120, 120, 120]).lineWidth(0.35);
   const pad = 45;
   plan.leaves.forEach((leaf, i) => {
     if (plan.outside.has(i) || rng() < 0.3) return;
@@ -182,7 +188,7 @@ function drawDimensions(pdf, plan, P, rng, units) {
   const { W, D, xs, zs, cmPerPx } = plan;
   const size = range(rng, 6.5, 9);
   const off = 60 + size * cmPerPx * 1.6;
-  pdf.stroke([60, 60, 60]).lineWidth(0.35);
+  pdf.layer("A-ANNO-DIMS").stroke([60, 60, 60]).lineWidth(0.35);
   const chain = (fixed, coords, vertical, sign) => {
     const pt = (v, o) => (vertical ? P({ x: fixed + sign * o, z: v }) : P({ x: v, z: fixed + sign * o }));
     pdf.line(pt(coords[0], off), pt(coords[coords.length - 1], off)).doStroke();
@@ -229,6 +235,7 @@ function netArea(plan, r) {
 }
 
 function drawLabels(pdf, plan, P, rng) {
+  pdf.layer("A-AREA-IDEN");
   const size = range(rng, 7, 10);
   const sqft = rng() < 0.25;
   for (const r of plan.rooms) {
@@ -246,15 +253,17 @@ function drawLabels(pdf, plan, P, rng) {
  * Options: style (poche|outline|hatch), units (cm|m), cmPerPx, dimensions,
  * furniture, labels, border, lshape, chamfer. Returns { pdf (Buffer), truth, meta }.
  */
-export function synthPdf(seed, options = {}) {
+// One synthetic plan drawn onto `makeCanvas(plan)`: the same random draws in
+// the same order whatever the canvas, so a seed is one plan as PDF or DXF.
+function synthDrawing(seed, options, makeCanvas) {
   const pickStyle = (rng) => pick(rng, PDF_STYLES);
   const plan = buildPlan(seed, { ...options, style: options.style || "pdf" });
   const { rng, opt, cmPerPx, marginPx, width, height } = plan;
   const style = options.style || pickStyle(rng);
   const units = opt("units", pick(rng, ["cm", "m"]));
   const P = (p) => ({ x: p.x / cmPerPx + marginPx, y: p.z / cmPerPx + marginPx });
-  const pdf = new PdfCanvas(width, height);
-  if (opt("border", rng() < 0.6)) pdf.stroke([0, 0, 0]).lineWidth(0.8).polygon([
+  const pdf = makeCanvas(plan);
+  if (opt("border", rng() < 0.6)) pdf.layer("A-ANNO-TTLB").stroke([0, 0, 0]).lineWidth(0.8).polygon([
     { x: 8, y: 8 }, { x: width - 8, y: 8 }, { x: width - 8, y: height - 8 }, { x: 8, y: height - 8 },
   ]).doStroke();
   const dims = opt("dimensions", rng() < 0.85);
@@ -263,10 +272,35 @@ export function synthPdf(seed, options = {}) {
   drawWalls(pdf, plan, P, style, rng);
   drawOpenings(pdf, plan, P);
   if (opt("labels", rng() < 0.8)) drawLabels(pdf, plan, P, rng);
+  return { canvas: pdf, plan, style, units, dims };
+}
+
+export function synthPdf(seed, options = {}) {
+  const { canvas, plan, style, units, dims } = synthDrawing(seed, options, (p) => new PdfCanvas(p.width, p.height));
   return {
-    pdf: writePdf(pdf),
+    pdf: writePdf(canvas),
     truth: planTruth(plan, 0),
     meta: planMeta(plan, { style, units, dimensions: dims, kind: "pdf" }),
+  };
+}
+
+/**
+ * The same plan as an AutoCAD-style DXF on AIA layers (A-WALL, A-DOOR,
+ * A-GLAZ, A-FURN, A-ANNO-DIMS, A-AREA-IDEN, A-ANNO-TTLB). Extra options:
+ * dxfUnit (mm|cm|m|in|ft, default mm), offset (world position of the sheet
+ * origin, drawing units), writeUnits (false leaves $INSUNITS out).
+ * Returns { dxf (string), truth, meta, sheetToWorld }.
+ */
+export function synthDxf(seed, options = {}) {
+  const unit = options.dxfUnit || "mm";
+  const { canvas, plan, style, units, dims } = synthDrawing(seed, options, (p) =>
+    new DxfCanvas(p.width, p.height, { cmPerPt: p.cmPerPx, unit, offset: options.offset || { x: 0, y: 0 }, writeUnits: options.writeUnits !== false }));
+  return {
+    dxf: writeDxf(canvas),
+    truth: planTruth(plan, 0),
+    meta: planMeta(plan, { style, units, dimensions: dims, kind: "dxf" }),
+    // sheet points → drawing units, to put ground truth in the import's frame
+    sheetToWorld: (p) => canvas.W(p),
   };
 }
 
