@@ -159,13 +159,16 @@ test("a terrace of dimensioned rooms still solves in the time an edit has", () =
   ensureNodeIds();
   addFixed(nodeAnchor(0));
   for (let i = 0; i < 8; i++) addDistance(nodeAnchor(i * 2), nodeAnchor(i * 2 + 2), 400 + i);
-  const started = Date.now();
+  /* CPU time, not wall clock: npm test runs files in parallel, and a busy
+     machine stretched ~1 s of work past 8 s of wall time. The regression this
+     guards against is ~190 s of CPU, which this still catches. */
+  const started = process.cpuUsage();
   for (let k = 0; k < 10; k++) {
     S.wallCons[1].value = 400 + (k % 5) * 20; // something actually moves each time
     solveWallCons();
   }
-  const ms = Date.now() - started;
-  assert.ok(ms < 8000, "ten solves of a 46 wall plan took " + ms + "ms");
+  const used = process.cpuUsage(started), ms = Math.round((used.user + used.system) / 1000);
+  assert.ok(ms < 8000, "ten solves of a 46 wall plan took " + ms + "ms of CPU");
 });
 
 test("a corner dropped on a wall is committed once, at the end of the gesture", async () => {
