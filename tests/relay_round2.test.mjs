@@ -140,20 +140,20 @@ test("browser identity initialization preserves a saved pair and derives every n
   }
 });
 
-test("new-identity hellos are limited per first-hop address; legacy and name refreshes still work", async (t) => {
+test("new-identity hellos are limited per client address; legacy and name refreshes still work", async (t) => {
   const relay = await startRelay(t, {
     HOME3D_TRUST_PROXY: "1", HOME3D_WS_IDENTITY_BURST: "1", HOME3D_WS_IDENTITY_RATE: "0.01",
   }, { identities: { "ABCD-EFGH": tokenFor("z") } });
-  const headers = { "X-Forwarded-For": "198.51.100.1, 10.0.0.1" };
+  const headers = { "X-Forwarded-For": "10.0.0.1, 198.51.100.1" };
   const a = await client(t, relay, { headers });
   const code = await hello(a, "a");
   await hello(a, "a", code);
-  const b = await client(t, relay, { headers: { "X-Forwarded-For": "198.51.100.1, 10.0.0.2" } });
+  const b = await client(t, relay, { headers: { "X-Forwarded-For": "10.0.0.2, 198.51.100.1" } });
   send(b.socket, { t: "hello", code: await codeFor(tokenFor("b")), token: tokenFor("b") });
   await b.next((frame) => frame.value?.code === "identity_rate_limit");
   const legacy = await client(t, relay, { headers });
   await hello(legacy, "z", "ABCD-EFGH");
-  const other = await client(t, relay, { headers: { "X-Forwarded-For": "198.51.100.2, 10.0.0.1" } });
+  const other = await client(t, relay, { headers: { "X-Forwarded-For": "10.0.0.1, 198.51.100.2" } });
   await hello(other, "c");
 });
 
@@ -195,16 +195,27 @@ test("the server-wide client limit includes sockets waiting for hello and releas
 });
 
 test("per-address limits ignore spoofed forwarding headers unless proxy trust is enabled", async (t) => {
+  // A trusted proxy appends the address it saw, so the client is the
+  // rightmost entry; the leftmost is whatever the client chose to send.
   for (const trust of ["0", "1"]) {
     const relay = await startRelay(t, { HOME3D_WS_MAX_CLIENTS_PER_ADDRESS: "1", HOME3D_TRUST_PROXY: trust });
-    await client(t, relay, { headers: { "X-Forwarded-For": "198.51.100.1, 10.0.0.1" } });
+    await client(t, relay, { headers: { "X-Forwarded-For": "10.0.0.1, 198.51.100.1" } });
+    // the same client claiming a different origin in front still shares its bucket
     await assert.rejects(openSocket(relay.port, relay.origin, {
-      "X-Forwarded-For": "198.51.100.1, 10.0.0.2",
+      "X-Forwarded-For": "10.0.0.2, 198.51.100.1",
     }), /503/);
-    const different = { "X-Forwarded-For": "198.51.100.2, 10.0.0.1" };
+    const different = { "X-Forwarded-For": "10.0.0.1, 198.51.100.2" };
     if (trust === "1") await client(t, relay, { headers: different });
     else await assert.rejects(openSocket(relay.port, relay.origin, different), /503/);
   }
+});
+
+test("proxy trust counts hops from the right", async (t) => {
+  const relay = await startRelay(t, { HOME3D_WS_MAX_CLIENTS_PER_ADDRESS: "1", HOME3D_TRUST_PROXY: "2" });
+  // client, then two trusted proxies: the client is second from the right
+  await client(t, relay, { headers: { "X-Forwarded-For": "6.6.6.6, 198.51.100.7, 10.0.0.5" } });
+  await assert.rejects(openSocket(relay.port, relay.origin, { "X-Forwarded-For": "7.7.7.7, 198.51.100.7, 10.0.0.9" }), /503/);
+  await client(t, relay, { headers: { "X-Forwarded-For": "6.6.6.6, 198.51.100.8, 10.0.0.5" } });
 });
 
 test("equivalent mapped and expanded IPv6 proxy addresses share a connection limit", async (t) => {

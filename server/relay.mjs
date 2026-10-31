@@ -901,15 +901,21 @@ function makeParser(onMessage, onClose, sock, onFrame) {
 }
 
 // ---- rooms / clients -------------------------------------------------------
+const TRUSTED_PROXY_HOPS = Math.max(0, Math.min(8, parseInt(process.env.HOME3D_TRUST_PROXY || "0", 10) || 0));
 const clients = new Set(); // {sock, code, name, room, watch:Set}
 const identityBuckets = new Map();
 
 function remoteAddress(req) {
   let address = req.socket.remoteAddress || "";
   // Forwarding headers are untrusted unless deployment explicitly opts in.
-  if (process.env.HOME3D_TRUST_PROXY === "1") {
-    const hop = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
-    if (isIP(hop)) address = hop;
+  // HOME3D_TRUST_PROXY is the number of proxies in front of the relay ("1" for
+  // Render). Each proxy APPENDS the address it saw, so the client's own entry
+  // is that many from the right; anything further left is whatever the client
+  // chose to send and would let it pick its own rate-limit bucket.
+  if (TRUSTED_PROXY_HOPS > 0) {
+    const hops = String(req.headers["x-forwarded-for"] || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const hop = hops[hops.length - TRUSTED_PROXY_HOPS];
+    if (hop && isIP(hop)) address = hop;
   }
   if (isIP(address) === 6) address = new URL(`http://[${address}]/`).hostname.slice(1, -1);
   const mapped = address.match(/^::ffff:([a-f0-9]+):([a-f0-9]+)$/i);

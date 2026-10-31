@@ -7,10 +7,16 @@ services:
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
-        value: "22"
+        value: "24"
       # Internet-facing: the machine-local endpoints (LAN smart-home proxy,
       # model backups, blueprint vision) answer 404 here.
       - key: HOME3D_PUBLIC
+        value: "1"
+      # Render's proxy is the one hop in front of the relay. Without this every
+      # visitor shares the proxy's address, so per-address limits (prodsize,
+      # 10 WebSocket clients per address) become one bucket for everyone. The
+      # relay reads the entry the proxy appended, never the client's own.
+      - key: HOME3D_TRUST_PROXY
         value: "1"
       # The desktop app (desktop/, Tauri) serves itself from its own scheme
       # and reaches this relay for multiplayer: WebView2 sends the first
