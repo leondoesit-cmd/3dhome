@@ -1,7 +1,7 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import {sourceFunctionText} from "./helpers/source_function.mjs";
+import {sourceFunctionText, withSetters} from "./helpers/source_function.mjs";
 import { activeProjectDocument, createProjectBundle, importProjectBundleText } from "../js/cad_project_bundle.js";
 
 const inactivePart = { key: "part-new", name: "New model", parts: [], history: [], sketches: [] };
@@ -59,7 +59,7 @@ test("bundle import UI opens an assembly and clears its stale part document stat
   for(const name of ["closeEvalCard","abandonDocumentExactWork","markDocumentClean","reconcileModelerDraft",
     "syncHead","refreshAll","refreshLib","setMode","fitPreview","flash"])deps[name]=()=>{};
   const open=new Function(...Object.keys(deps),"let assemblyOpenBaseline;"+
-    ["documentOwnership","documentStillOwned","openImportedBundle"].map(name=>sourceFunctionText(modelerSource(),name)).join("\n")+";return async b=>{await openImportedBundle(b);return assemblyOpenBaseline;};")(...Object.values(deps));
+    withSetters(["documentOwnership","documentStillOwned","openImportedBundle"].map(name=>sourceFunctionText(modelerSource(),name)).join("\n"))+";return async b=>{await openImportedBundle(b);return assemblyOpenBaseline;};")(...Object.values(deps));
   assert.equal(await open(bundle),undefined);
   assert.deepEqual(E.sel,{});
   discard=true;

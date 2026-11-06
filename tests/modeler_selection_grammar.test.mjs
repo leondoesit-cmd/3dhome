@@ -209,8 +209,8 @@ test("highlights are sized in pixels and re-baked only when the zoom moves", () 
      refreshDecorations(): the preview rebuild also builds decorations, and
      recording it on only one of those paths left the stamp at zero — which
      reads as "nothing to compare" and stopped the re-bake ever firing. */
-  assert.match(source, /if \(perPixel > 0\) decoratedWorldPerPixel = perPixel/);
-  assert.doesNotMatch(body("refreshDecorations"), /decoratedWorldPerPixel =/);
+  assert.match(source, /if \(perPixel > 0\) (?:decoratedWorldPerPixel = |set_decoratedWorldPerPixel\()perPixel/);
+  assert.doesNotMatch(body("refreshDecorations"), /(?:decoratedWorldPerPixel =|set_decoratedWorldPerPixel\()/);
   // Zero means unknown, and must not be treated as a ratio.
   assert.match(body("decorationScaleStale"), /!\(now > 0\) \|\| !\(decoratedWorldPerPixel > 0\)\) return false/);
 });

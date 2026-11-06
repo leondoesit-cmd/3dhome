@@ -4,9 +4,8 @@
 import { KEY_TOOL } from "../modeler_commands.js";
 import { cadIcon } from "../modeler_icons.js";
 import { t } from "../modeler_strings.js";
-import {
-  CONSTRAINT_DEFS, pushUndo, root, syncUndoButtons,
-} from "../modeler.js";
+import { pushUndo, syncUndoButtons } from "../modeler/document_history.js";
+import { CONSTRAINT_DEFS, root } from "../modeler.js";
 
 function el(tag, cls, html) {
   var e = document.createElement(tag);

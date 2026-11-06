@@ -21,13 +21,17 @@ import { isolateVisibility } from "../modeler_smartmates.js";
 import { t } from "../modeler_strings.js";
 import { featuresForClosedProfile } from "../modeler_workflow.js";
 import { dynCommit, dynHasEntry } from "../modeler/dimension_entry.js";
+import { confirmDiscardDocument, currentHistoryNode, pushUndo, scheduleModelerDraft, syncDirty, syncUndoButtons } from "../modeler/document_history.js";
 import { syncViewButtons } from "../modeler/document_save.js";
 import { closedSketchProfile, drawSketch, finishPoly, flash } from "../modeler/drawing_sheet.js";
 import { btn, el, markUnavailable, namedButton } from "../modeler/editor_dom.js";
+import { openFeatureEditor } from "../modeler/editor_forms.js";
 import { activeLoftCreation, clearFeaturePreview, featureField, preselectedRevolveAxis, revolveContour } from "../modeler/feature_create.js";
 import { cancelFeatureParameterEdit, currentTreeModel, selectTreeNode } from "../modeler/feature_tree.js";
 import { finishFeatureTargets, fullRoundActive, runSelectionOperation, saveNamedSelection, showNamedSelections } from "../modeler/finish_preview.js";
 import { surfaceUVGuide } from "../modeler/inspector.js";
+import { invalidateInterference } from "../modeler/library_assembly_state.js";
+import { setMode } from "../modeler/library_io.js";
 import { activeParts, defBounds, featureTypeLabel } from "../modeler/library_store.js";
 import { runCommand, selectedSolid } from "../modeler/part_commands.js";
 import { addedConstraintIds, constraintCaption, constraintFits, refusalMessage, showSketchRefusal } from "../modeler/sketch_dimension_editor.js";
@@ -40,11 +44,8 @@ import { analyzeSketchChains } from "../sketch_profiles.js";
 import { ensureSketch, explainSketchConflict } from "../sketch_solver.js";
 import { uid } from "../state.js";
 import {
-  COMMAND_TOOLTIP, CONSTRAINT_DEFS, E, H, confirmDiscardDocument,
-  currentHistoryNode, invalidateInterference, motionPlaybackCancel,
-  openFeatureEditor, openParametricFeature, pushUndo, refreshAll,
-  refreshSelection, root, scheduleModelerDraft, setMode, syncDirty,
-  syncUndoButtons,
+  COMMAND_TOOLTIP, CONSTRAINT_DEFS, E, H, motionPlaybackCancel,
+  openParametricFeature, refreshAll, refreshSelection, root,
 } from "../modeler.js";
 
 function openQuickForm(spec) {

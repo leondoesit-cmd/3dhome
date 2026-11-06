@@ -7,6 +7,7 @@ import { cloneData } from "../modeler_part_geometry.js";
 import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t } from "../modeler_strings.js";
 import { openQuickForm } from "../modeler/command_manager.js";
+import { pushUndo, toPx } from "../modeler/document_history.js";
 import { drawSketch, flash, newSketchPoint, snappedSketchPoint } from "../modeler/drawing_sheet.js";
 import { markDrawnSelection, modelEdgeRelationTarget, resolveIntersectionEdge, resolveSketch, selCircles, selConics, selEntities, selLines, selPoints, selectedModelEdges, selectedModelVertices, sketchForView } from "../modeler/sketch_entities.js";
 import { modelLengthText, modelLengthUnit, setTool } from "../modeler/sketch_workflow.js";
@@ -21,8 +22,7 @@ import { offsetEntity } from "../sketch_trim.js";
 import { fin, uid } from "../state.js";
 import { getDomainUnit } from "../unit_settings.js";
 import {
-  CONSTRAINT_DEFS, E, H, RELATION_REFUSAL_MS, pushUndo, refreshAll, root,
-  toPx,
+  CONSTRAINT_DEFS, E, H, RELATION_REFUSAL_MS, refreshAll, root,
 } from "../modeler.js";
 
 /* A slot: two lines capped by two arcs, held together by tangency and equal

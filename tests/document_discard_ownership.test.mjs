@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { registerQuickForm } from "../js/modeler_quick_form.js";
 import { modelerSource } from "./helpers/modeler_source.mjs";
-import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { sourceFunctionText, withSetters } from "./helpers/source_function.mjs";
 
 const source = modelerSource();
 function deferred() {
@@ -41,7 +41,7 @@ function fixture() {
     "requestCloseModeler", "leavingQuickForm"];
   const api = new Function(...Object.keys(deps),
     "let assemblyOpenBaseline, partHistoryMarker, libraryOpenBaseline;\n" +
-    names.map(name => sourceFunctionText(source, name)).join("\n") +
+    withSetters(names.map(name => sourceFunctionText(source, name)).join("\n")) +
     ";return {" + names.join(",") + "};")(...Object.values(deps));
   function form(readDraft) {
     const field = { type: "text", value: "Initial" }, fields = [field];

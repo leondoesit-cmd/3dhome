@@ -25,22 +25,22 @@ import { cloneData, normalizeTransform } from "../modeler_part_geometry.js";
 import { t, tf } from "../modeler_strings.js";
 import { openQuickForm, syncCommandManager } from "../modeler/command_manager.js";
 import { componentLabel, rejectFlexibleSpringPreview, syncFlexibleSpringsAtMotionState } from "../modeler/component_mates.js";
+import { currentHistoryNode, pushUndo } from "../modeler/document_history.js";
+import { openExplodedPlayback, openImportedBundle, openMotionPlayback, showMassProperties } from "../modeler/document_io.js";
 import { flash, report } from "../modeler/drawing_sheet.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { downloadBytes, evalCardActions, openEvalCard } from "../modeler/export_measure.js";
+import { invalidateInterference } from "../modeler/library_assembly_state.js";
+import { setMode, syncHead } from "../modeler/library_io.js";
 import { updatePreview } from "../modeler/library_panel.js";
 import { activeParts, componentDef, defBounds } from "../modeler/library_store.js";
 import { syncHint } from "../modeler/sketch_entities.js";
 import { modelLengthText, modelLengthUnit, syncAssemblyWorkflow } from "../modeler/sketch_workflow.js";
+import { resolveTopologyPick } from "../modeler/topology_pick.js";
 import { fitPreview } from "../modeler/view_modes.js";
 import { fin } from "../state.js";
 import { THREE } from "../three_lazy.js";
-import {
-  E, H, currentHistoryNode, explodedPlaybackStop, invalidateInterference,
-  openExplodedPlayback, openImportedBundle, openMotionPlayback, pushUndo,
-  refreshAll, resolveTopologyPick, root, setMode, showMassProperties,
-  syncHead,
-} from "../modeler.js";
+import { E, H, explodedPlaybackStop, refreshAll, root } from "../modeler.js";
 
 /* Closing the card ends whatever was writing into it — a measurement in
    progress has no other readout, so its close button is the card's. */

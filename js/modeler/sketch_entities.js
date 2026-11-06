@@ -25,15 +25,19 @@ import { cloneData, migrateBoundaryChangingProfileCuts } from "../modeler_part_g
 import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t, tf } from "../modeler_strings.js";
 import { openQuickForm } from "../modeler/command_manager.js";
+import { activeSketchFrame, currentHistoryNode, documentDirty, planeAxis, pushUndo } from "../modeler/document_history.js";
 import { measureCoordinates } from "../modeler/document_outputs.js";
 import { sketchOpenPathReadiness, syncExtrudeButton } from "../modeler/document_save.js";
 import { drawSketch, drawingHintText, drawingSheet, flash, flashHolding, newSketchPoint, sketchProfileAnalysis, sketchRegionAnalysis, snappedSketchPoint, splineLength } from "../modeler/drawing_sheet.js";
 import { el } from "../modeler/editor_dom.js";
+import { syncExactWorkerActivity } from "../modeler/editor_forms.js";
 import { cutTargetFeatureId, resolvedRevolve } from "../modeler/feature_create.js";
 import { finishSelectionMessage } from "../modeler/finish_preview.js";
+import { setMode } from "../modeler/library_io.js";
 import { retainingExactPreview } from "../modeler/library_panel.js";
 import { activeParts, assemblyMateCount, brokenMateCount, countLabel, topologyEntriesForPart } from "../modeler/library_store.js";
 import { selectedSolid } from "../modeler/part_commands.js";
+import { exactDisplayBody, queueKernelBody, scheduleExactMesh } from "../modeler/prefs_snap.js";
 import { addedConstraintIds, appendToSketch, showSketchRefusal } from "../modeler/sketch_dimension_editor.js";
 import { chooseSketchReference, closeFeaturePanel, fitSketch, isCanonicalAuthoring, modelAreaText, modelLengthText, modelLengthUnit, referenceLabel, selectedSketchableFace, setTool } from "../modeler/sketch_workflow.js";
 import { layout3DHost } from "../modeler/view_modes.js";
@@ -52,10 +56,7 @@ import { addSketch, circleData, collapsedEntityIds, ellipseData, ensureSketch, e
 import { sampleBezier, splineControls } from "../sketch_spline.js";
 import { clamp, fin, uid } from "../state.js";
 import {
-  E, FINISH_FEATURES, H, SKETCH_ENTITY_TYPES, activeSketchFrame,
-  currentHistoryNode, documentDirty, exactDisplayBody, planeAxis, pushUndo,
-  queueKernelBody, refreshAll, root, scheduleExactMesh, setMode,
-  syncExactWorkerActivity,
+  E, FINISH_FEATURES, H, SKETCH_ENTITY_TYPES, refreshAll, root,
 } from "../modeler.js";
 
 function sketchProfilePresentation(sketch,profileInfo,regionCount) {

@@ -89,7 +89,7 @@ test("the exact run is released by every path that stops using it", () => {
 test("a save reports failure instead of announcing one that did not happen", () => {
   // The assembly store answers whether the write landed, exactly as saveLib does.
   assert.match(body("saveAssemblies"), /return !!result\.ok/);
-  assert.match(body("saveAssemblies"), /catch \(e\) \{ lastAssemblySaveConflict=false; return false; \}/);
+  assert.match(body("saveAssemblies"), /catch \(e\) \{ (?:lastAssemblySaveConflict=false|set_lastAssemblySaveConflict\(false\)); return false; \}/);
 
   // And the save path acts on that answer before it claims success.
   const save = body("saveAssemblyDocument");

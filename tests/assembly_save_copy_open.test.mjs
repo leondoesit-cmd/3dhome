@@ -2,7 +2,7 @@ import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 const source=modelerSource();
 const clone=x=>structuredClone(x);
 function fixture({form,save}={}){
@@ -11,7 +11,7 @@ function fixture({form,save}={}){
  const dependencies={E,S,confirmDiscardDocument:async()=>true,currentHistoryNode:()=>calls.history,loadAssemblies:()=>clone(library),flash:m=>calls.flashes.push(m),sheetForm:async()=>form?form({E,library,calls}):{name:'Independent FLASHLIGHT'},t:x=>x,cloneData:clone,uid:()=>99,
  saveAssemblies:async(copy,options)=>{calls.saved.push({copy:clone(copy),options});if(save)return save({copy,options,E,library,calls});library.push(clone(copy));return true;},report:(...args)=>calls.reports.push(args),lastAssemblySaveConflict:false,
  refreshLib:()=>{},tf:(x,{name})=>name,abandonDocumentExactWork:()=>calls.open++,closeEvalCard:()=>{},compactAssemblyTopologySnapshots:clone,resolvedLibraryAssembly:assembly=>assembly,nextDocumentNumericId:()=>25,invalidateInterference:()=>{},H:{clear(){return this;},seed(){}},markDocumentClean:()=>calls.clean++,reconcileModelerDraft:()=>{},syncHead:()=>{},refreshAll:()=>{},fitPreview:()=>{}};
- const keys=Object.keys(dependencies),fn=new Function(...keys,sourceFunctionText(source,'saveAssemblyCopyAndOpen')+';return saveAssemblyCopyAndOpen;')(...keys.map(k=>dependencies[k]));return {assembly,E,library,calls,fn,S};
+ const keys=Object.keys(dependencies),fn=new Function(...keys,withSetters(sourceFunctionText(source,'saveAssemblyCopyAndOpen'))+';return saveAssemblyCopyAndOpen;')(...keys.map(k=>dependencies[k]));return {assembly,E,library,calls,fn,S};
 }
 test('ordinary assembly copy uses expected-null new identity and preserves nested native/mates/drawing/history',async()=>{
  const f=fixture(),original=JSON.stringify(f.assembly);assert.equal(await f.fn(f.assembly),true);const saved=f.calls.saved[0];assert.deepEqual(saved.options,{expected:null});assert.notEqual(saved.copy.key,'original');assert.match(saved.copy.key,/^asm_/);assert.equal(saved.copy.id,saved.copy.key);

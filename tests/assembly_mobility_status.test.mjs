@@ -2,7 +2,7 @@ import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 import {assemblyMobilityReport,currentAssemblyMobility} from '../js/core/assembly_mobility_status.js';
 import {solveTopologyMates} from '../js/cad_mates.js';
 
@@ -12,7 +12,7 @@ test('assembly status explicitly shows native checked zero mobility and distingu
  const assembly=fixture(),E={docType:'assembly',assembly,componentSel:[],mateDegreesOfFreedom:0},status={innerHTML:''};
  const context={E,root:{querySelector:()=>status},currentAssemblyMobility,assemblyMateCount:a=>a.mates.length+a.topologyMates.length,brokenMateCount:()=>0,documentDirty:()=>false,t:key=>({mateDof:'degrees of freedom',mateDofOne:'degree of freedom',mateMobilityUnchecked:'Mobility not checked'})[key]||key};
  context.countLabel=(count,one,many)=>count+' '+context.t(count===1?one:many);
- const sync=new Function(...Object.keys(context),sourceFunctionText(source,'syncStatusLine')+';return syncStatusLine;')(...Object.values(context));
+ const sync=new Function(...Object.keys(context),withSetters(sourceFunctionText(source,'syncStatusLine'))+';return syncStatusLine;')(...Object.values(context));
  sync();assert.match(status.innerHTML,/Mobility not checked/);assert.doesNotMatch(status.innerHTML,/0 degrees/);
  const native=solveTopologyMates(assembly);assert.equal(native.ok,true);assert.equal(native.degreesOfFreedom,0);
  E.mateMobilityReport=assemblyMobilityReport(assembly,native,native.issues);sync();assert.match(status.innerHTML,/0 degrees of freedom/);
@@ -33,13 +33,13 @@ test('mobility snapshot rejects failed/incomplete solve, changed mate drive and 
 test('actual assembly solve records current mobility, including zero, without promoting a missing count to checked zero',()=>{
  const assembly=fixture(),E={};let result={ok:true,degreesOfFreedom:0,issues:[]};
  const context={E,mateSolveCount:0,contextPartTopology:()=>[],solveTopologyMates:()=>result,updateAssemblyContexts:()=>({issues:[]}),assemblyMobilityReport};
- const apply=new Function(...Object.keys(context),sourceFunctionText(source,'applyAssemblyMates')+';return applyAssemblyMates;')(...Object.values(context));
+ const apply=new Function(...Object.keys(context),withSetters(sourceFunctionText(source,'applyAssemblyMates'))+';return applyAssemblyMates;')(...Object.values(context));
  apply(assembly);assert.equal(currentAssemblyMobility(assembly,E.mateMobilityReport),0);
  result={ok:true,issues:[]};apply(assembly);assert.equal(currentAssemblyMobility(assembly,E.mateMobilityReport),null);
 });
 test('atomic mechanical-mate commit refreshes the mobility snapshot used by the status bar',()=>{
  const E={assembly:fixture()},context={E,assemblyMobilityReport,invalidateInterference(){},updateAssemblyContexts:()=>({issues:[]}),refreshAll(){},assemblySolveFresh:false};
- const accept=new Function(...Object.keys(context),sourceFunctionText(source,'acceptRackPinionSolve')+';return acceptRackPinionSolve;')(...Object.values(context));
+ const accept=new Function(...Object.keys(context),withSetters(sourceFunctionText(source,'acceptRackPinionSolve'))+';return acceptRackPinionSolve;')(...Object.values(context));
  accept({ok:true,degreesOfFreedom:0});assert.equal(currentAssemblyMobility(E.assembly,E.mateMobilityReport),0);
  accept({ok:false,degreesOfFreedom:0,issues:[{mate:'hinge'}]});assert.equal(currentAssemblyMobility(E.assembly,E.mateMobilityReport),null);
 });
@@ -57,7 +57,7 @@ test('actual Save of one grounded and eight unmated occurrences never publishes 
   t:key=>({mateDof:'degrees of freedom',mateDofOne:'degree of freedom',mateMobilityUnchecked:'Mobility not checked'})[key]||key};
  context.countLabel=(count,one,many)=>count+' '+context.t(count===1?one:many);
  const names=['applyAssemblyMates','saveAssemblyDocument','syncStatusLine'];
- const api=new Function(...Object.keys(context),names.map(name=>sourceFunctionText(source,name)).join('\n')+';return {'+names.join(',')+'};')(...Object.values(context));
+ const api=new Function(...Object.keys(context),withSetters(names.map(name=>sourceFunctionText(source,name)).join('\n'))+';return {'+names.join(',')+'};')(...Object.values(context));
  api.syncStatusLine();assert.match(status.innerHTML,/Mobility not checked/);
  await api.saveAssemblyDocument();api.syncStatusLine();assert.match(status.innerHTML,/Mobility not checked/);assert.doesNotMatch(status.innerHTML,/0 degrees/);
  assert.deepEqual(stored.components,before);assert.deepEqual(stored.topologyMates,[]);assert.deepEqual(stored.mates,[]);

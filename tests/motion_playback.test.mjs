@@ -7,7 +7,7 @@ import {createMotionPlaybackExecutor} from '../js/core/motion_playback_executor.
 import {createMotionStudy,addRotaryMotor,addRackPinionMotor,evaluateMotionStudy} from '../js/cad_motion_study.js';
 import {captureAssemblySolverState,restoreAssemblySolverState} from '../js/core/assembly_solver_state.js';
 import vm from 'node:vm';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 const original=JSON.parse(readFileSync(new URL('./fixtures/welder_arm_23_mate_motion.json',import.meta.url)));
 function fixture(evaluate=evaluateMotionStudy){
   const assembly=structuredClone(original);assembly.topologyMates.find(m=>m.type==='gear').reverse=false;
@@ -163,7 +163,7 @@ test('actual preview UI commits duration on Enter, Play, Reset and Keep without 
     requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},invalidateInterference:()=>{},refreshAssemblyPosePreview:()=>true,
     renderPreview:()=>{},syncDirty:()=>{},pushUndo:()=>undos++,closeFeaturePanel:()=>{},refreshAll:()=>{}};
   const source=modelerSource();
-  vm.runInNewContext('var motionPlaybackCancel=null;'+sourceFunctionText(source,'openMotionPlayback')+';openMotionPlayback("study");',context);
+  vm.runInNewContext(withSetters('var motionPlaybackCancel=null;'+sourceFunctionText(source,'openMotionPlayback'))+';openMotionPlayback("study");',context);
   assert.equal(inputs.duration.value,'10');assert.equal(playback.state.duration,10);
   inputs.duration.value='12';let prevented=false,stopped=false;
   inputs.duration.listeners.keydown({key:'Enter',preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});

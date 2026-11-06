@@ -43,6 +43,7 @@ import { t, tf } from "../modeler_strings.js";
 import { renderTreeModel } from "../modeler_tree.js";
 import { leavingQuickForm, openQuickForm, toggleIsolate } from "../modeler/command_manager.js";
 import { componentLabel, planeMateReference, refreshParts, syncDiagnosticJump } from "../modeler/component_mates.js";
+import { currentHistoryNode, partUV, patternPlacements, pushUndo, scheduleModelerDraft, toPx, toUV } from "../modeler/document_history.js";
 import { setDocumentType } from "../modeler/document_save.js";
 import { drawSketch, featureAreaAt, flash, invalidateDrawing, newSketchPoint, sampleSplinePoints, sheetForm, sketchUvPolylines, toggleFeatureArea } from "../modeler/drawing_sheet.js";
 import { btn, el } from "../modeler/editor_dom.js";
@@ -50,13 +51,17 @@ import { regenerateExactModel } from "../modeler/export_measure.js";
 import { cutTargetFeatureId, resolvedRevolve } from "../modeler/feature_create.js";
 import { applyDependencyTreeClasses, closeTreeMenu, dependencySets, openTreeMenu, setDependencyHighlight, treeCollapseState, treeDeps, updateDependencyPresentation } from "../modeler/feature_tree.js";
 import { patternMergePreviewBadge } from "../modeler/finish_preview.js";
+import { applyAssemblyMates, invalidateInterference, solveAssembly } from "../modeler/library_assembly_state.js";
+import { setMode } from "../modeler/library_io.js";
 import { buildComponentGroup, markLiveDirtyPart, partBelongsToFeature, updatePreview } from "../modeler/library_panel.js";
 import { activeParts, componentDef, componentFreedom, countLabel, freedomLabel, mateIssueLabel, mateIssuesFor, newAssembly } from "../modeler/library_store.js";
 import { clearPatternMerges, layPatternCopies, selectedPatternBody } from "../modeler/part_commands.js";
+import { exactDisplayBody, invalidatePartMeshAfterEdit, newDef, queueExactMesh, scheduleExactMesh, scheduleKernelBody } from "../modeler/prefs_snap.js";
 import { activateDrawingSketch, addedConstraintIds, clearDimensionRefusal, constraintCaption, dimensionEditorUnit, hideDimensionEditor, showDimensionRefusal, showSketchRefusal } from "../modeler/sketch_dimension_editor.js";
 import { constraintMeasure, openConvertEntities, resolveIntersectionEdge, resolveSketch, selPoints, selectedModelEdges, selectedModelVertices, sketchForView, syncHint, syncSketchDrivenParts } from "../modeler/sketch_entities.js";
 import { selectTourTrack, startTour } from "../modeler/sketch_guide.js";
 import { captureSketchCameraPose, fitSketch, isCanonicalAuthoring, modelLengthText, modelLengthUnit, orientModelToView, referencePlaneView, setCommandTab, setTab, setTool, syncModelPlane } from "../modeler/sketch_workflow.js";
+import { assemblyComponentById } from "../modeler/topology_pick.js";
 import { fitPreview } from "../modeler/view_modes.js";
 import { stampComponentRef } from "../modeler/viewport_input.js";
 import { addSmartDimension, currentMeasure } from "../sketch_dimensions.js";
@@ -68,12 +73,7 @@ import { S, fin, uid } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import {
   E, FINISH_AMOUNT_KEY, FINISH_FEATURES, H, PLANE_NAME_KEYS,
-  applyAssemblyMates, assemblyComponentById, assemblyLibraryCache,
-  currentHistoryNode, exactDisplayBody, invalidateInterference,
-  invalidatePartMeshAfterEdit, modelLibraryCache, newDef, partUV,
-  patternPlacements, pushUndo, queueExactMesh, refreshAll, refreshSelection,
-  root, scheduleExactMesh, scheduleKernelBody, scheduleModelerDraft, setMode,
-  solveAssembly, toPx, toUV,
+  assemblyLibraryCache, modelLibraryCache, refreshAll, refreshSelection, root,
 } from "../modeler.js";
 
 function positionDimensionEditor(clientX, clientY) {

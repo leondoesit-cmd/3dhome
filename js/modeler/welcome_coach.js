@@ -7,6 +7,7 @@ import { t, tf } from "../modeler_strings.js";
 import { welcomeGlyph } from "../modeler_welcome_glyphs.js";
 import { defaultSketchPlane } from "../modeler_workflow.js";
 import { diagnosticActionLabel, diagnosticMessage, runDiagnosticAction } from "../modeler/component_mates.js";
+import { documentDirty, pushUndo } from "../modeler/document_history.js";
 import { runInterferenceCheck } from "../modeler/document_outputs.js";
 import { saveCurrentDocument, sketchOpenPathReadiness } from "../modeler/document_save.js";
 import { closedSketchProfile, flash } from "../modeler/drawing_sheet.js";
@@ -19,8 +20,8 @@ import { insertAssemblyComponent } from "../modeler/tree_assembly.js";
 import { ensureSketch } from "../sketch_solver.js";
 import { stopSpeaking } from "../speech.js";
 import {
-  E, WELCOME_STARTS, documentDirty, openParametricFeature, pushUndo,
-  refreshAll, requestDocumentType, root,
+  E, WELCOME_STARTS, openParametricFeature, refreshAll, requestDocumentType,
+  root,
 } from "../modeler.js";
 
 /* ================= visual start screen =================

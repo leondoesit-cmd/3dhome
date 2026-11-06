@@ -31,23 +31,23 @@ import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t, tf } from "../modeler_strings.js";
 import { refreshParts } from "../modeler/component_mates.js";
 import { openDesignTable } from "../modeler/design_table.js";
+import { planeAxis, pushUndo, scheduleModelerDraft } from "../modeler/document_history.js";
 import { closedSketchProfile, extrusionSketchAreas, flash, sheetForm, showPickList } from "../modeler/drawing_sheet.js";
 import { el } from "../modeler/editor_dom.js";
 import { scheduleExactRestore } from "../modeler/export_measure.js";
 import { refreshModelHistoryPane } from "../modeler/feature_tree.js";
 import { authoritativeFinishTopology } from "../modeler/finish_preview.js";
+import { solveAssembly } from "../modeler/library_assembly_state.js";
 import { activeParts, addPart, featureTypeLabel, topologyEntriesForPart } from "../modeler/library_store.js";
 import { featureReferenceOptions, selectedSolid } from "../modeler/part_commands.js";
+import { addKernelBodyPart, exactDisplayBody, invalidatePartMeshAfterEdit, queueExactMesh, scheduleKernelBody } from "../modeler/prefs_snap.js";
 import { addSketchCircle, resolveSketch, selEntities, syncSketchDrivenParts } from "../modeler/sketch_entities.js";
 import { attachSketchToSelectedFace, isCanonicalAuthoring, modelLengthUnit } from "../modeler/sketch_workflow.js";
 import { analyzeSketchChains, analyzeSketchProfiles } from "../sketch_profiles.js";
 import { ensureSketch, resolveProfilePoints, sketchPoint } from "../sketch_solver.js";
 import { uid } from "../state.js";
 import {
-  E, H, addKernelBodyPart, exactDisplayBody, insertToolboxFastener,
-  invalidatePartMeshAfterEdit, lastToolboxPick, planeAxis, pushUndo,
-  queueExactMesh, refreshAll, scheduleKernelBody, scheduleModelerDraft,
-  solveAssembly,
+  E, H, insertToolboxFastener, lastToolboxPick, refreshAll,
 } from "../modeler.js";
 
 function featureField(host,field,value) {

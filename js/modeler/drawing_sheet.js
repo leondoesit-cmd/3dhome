@@ -35,19 +35,25 @@ import { t, tf } from "../modeler_strings.js";
 import { thinExtrudeAreas } from "../modeler_thin_extrude_profiles.js";
 import { openQuickForm, syncContextActions } from "../modeler/command_manager.js";
 import { dynDrawHud, pointToLineDistance } from "../modeler/dimension_entry.js";
+import { activeSketchFrame, axisOfView, currentHistoryNode, cutSkipNote, invalidateSketchProjection, partUV, pathUvCircleArc, pathUvEllipse, planeAxis, positiveArcSweep, pushUndo, sameSketchContext, scheduleModelerDraft, sketchProjection, standardPlaneFrame, strokeUvCircle, strokeUvRect, toPx } from "../modeler/document_history.js";
+import { assemblyDrawingBOMRows, assemblyDrawingBalloonTargets } from "../modeler/document_io.js";
 import { sketchOpenPathReadiness, syncTools } from "../modeler/document_save.js";
 import { btn, el, namedButton } from "../modeler/editor_dom.js";
+import { newModel } from "../modeler/editor_forms.js";
 import { regenerateExactModel } from "../modeler/export_measure.js";
 import { cutTargetFeatureId, mergeTargetBody } from "../modeler/feature_create.js";
 import { authoritativeFinishTopology } from "../modeler/finish_preview.js";
+import { syncHead } from "../modeler/library_io.js";
 import { assemblyExplodeLines, buildAssembly } from "../modeler/library_panel.js";
 import { activeParts, addPart, defBounds, renderedParts, topologyEntriesForPart } from "../modeler/library_store.js";
 import { selectedSolid } from "../modeler/part_commands.js";
+import { applyCut, invalidatePartMeshAfterEdit, queueExactMesh, scheduleExactMesh } from "../modeler/prefs_snap.js";
 import { instanceLabels, refusalHint } from "../modeler/sketch_dimension_editor.js";
 import { hitSketch, selEntities, sizeSketch, syncStatus } from "../modeler/sketch_entities.js";
 import { isCanonicalAuthoring, modelLengthUnit, setTab } from "../modeler/sketch_workflow.js";
 import { fitPreview, setPanelCollapsed } from "../modeler/view_modes.js";
 import { addOverlayPolyline } from "../modeler/viewport_decorations.js";
+import { buildPart } from "../modeler/viewport_state.js";
 import { clearGroup } from "../primitives.js";
 import { drawConstraintGlyphs, drawSketchDimensions } from "../sketch_dimensions.js";
 import { drawNameTags, relationTargets, sketchInstanceNames } from "../sketch_names.js";
@@ -62,16 +68,7 @@ import { THREE, threeLoaded } from "../three_lazy.js";
 import { getTouchPrecisionPrefs } from "../touch_precision_ui.js";
 import { directionalSegmentDistances, drawTouchPrecisionLens } from "../touch_precision.js";
 import { getDomainUnit } from "../unit_settings.js";
-import {
-  E, H, activeSketchFrame, applyCut, assemblyDrawingBOMRows,
-  assemblyDrawingBalloonTargets, axisOfView, buildPart, currentHistoryNode,
-  cutSkipNote, invalidatePartMeshAfterEdit, invalidateSketchProjection,
-  newModel, partUV, pathSketchSpline, pathUvCircleArc, pathUvEllipse,
-  planeAxis, positiveArcSweep, pushUndo, queueExactMesh, refreshAll, root,
-  sameSketchContext, scheduleExactMesh, scheduleModelerDraft,
-  sketchProjection, standardPlaneFrame, strokeUvCircle, strokeUvRect,
-  syncHead, toPx,
-} from "../modeler.js";
+import { E, H, pathSketchSpline, refreshAll, root } from "../modeler.js";
 
 /* ================= drawing sheet =================
    The drafting table lives in modeler_drawing.js; everything here is the wiring

@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {runInNewContext} from 'node:vm';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 
 const modeler = modelerSource();
 const functionsText = (...names) => names.map(name => sourceFunctionText(modeler, name)).join("\n");
@@ -68,7 +68,7 @@ test('Force Rebuild clears stale derived output before requesting current exact 
         assert.equal(timers.size,0);assert.equal(context.cancelledExactPreview,null);
         events.push(['regenerate',rebuild,options.restoreMode]);return exact;
       }};
-    runInNewContext(body+'\nthis.force=forceRebuildDocument;',context);
+    runInNewContext(withSetters(body)+'\nthis.force=forceRebuildDocument;',context);
     assert.equal(await context.force(),exact);
     assert.equal(parts[0].exactBuildToken,3);
     assert.deepEqual(events.filter(event=>event[0]==='regenerate'),[['regenerate',true,'mesh']]);

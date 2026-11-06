@@ -2,12 +2,12 @@ import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 
 let source = modelerSource();
 source = source.replace(/\r\n/g,"\n");
 const cancelledCheck=sourceFunctionText(source,'exactPreviewWasCancelled')+'\n';
-const cancel=sourceFunctionText(source,'cancelExactModelRebuild')+'\n';
+const cancel=withSetters(sourceFunctionText(source,'cancelExactModelRebuild'))+'\n';
 test('Cancel suppresses same-head automatic previews, clears timers and invalidates pending publication',()=>{
   const part={exactBuildToken:7,exactPending:true},E={def:{parts:[part]},kernelBusy:true};
   const timers=new WeakMap([[part,23]]);let node=4,resets=0,workerCancels=0,cleared=[];

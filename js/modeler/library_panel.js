@@ -10,19 +10,19 @@ import { normalizeTransform } from "../modeler_part_geometry.js";
 import { addFlexibleSpringPreview, syncSizeReadout } from "../modeler/component_mates.js";
 import { occurrenceWorldBounds } from "../modeler/document_outputs.js";
 import { drawSketch, invalidateDrawing, syncSheetPanel } from "../modeler/drawing_sheet.js";
+import { applyAssemblyMates } from "../modeler/library_assembly_state.js";
 import { activeParts, committedRenderedParts, componentDef, defBounds, livePreviewParts, renderedParts } from "../modeler/library_store.js";
 import { syncRetainedExactPreviewStatus, syncSketchOpenPathFeedback } from "../modeler/sketch_entities.js";
 import { addAssemblyContextGhosts, syncLiveDownstreamBadge } from "../modeler/tree_assembly.js";
 import { applySectionClipping, syncSectionHelper } from "../modeler/view_modes.js";
 import { addDocumentOverlays, syncViewportMeshSelection } from "../modeler/viewport_decorations.js";
 import { addInstant3dHandles } from "../modeler/viewport_input.js";
+import { buildPart } from "../modeler/viewport_state.js";
 import { clearGroup } from "../primitives.js";
 import { S } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import { getMainScene, has3D } from "../view3d.js";
-import {
-  E, applyAssemblyMates, assemblyPreviewSolved, buildPart, decoGroups,
-} from "../modeler.js";
+import { E, assemblyPreviewSolved, decoGroups } from "../modeler.js";
 
 function buildAssembly(parent, assembly = E.assembly) {
   if (!assembly) return;

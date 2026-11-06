@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 import {createDrawingController} from '../js/modeler_drawing.js';
 import {createSheetDoc,ensureSheetDoc} from '../js/cad_sheet.js';
 import {tessellateParts} from '../js/core/part_tessellate.js';
@@ -114,7 +114,7 @@ test('New and library Open reset the drawing session only after discard is accep
   };
   for(const name of ['closeEvalCard','markDocumentClean','reconcileModelerDraft','syncHead','refreshAll','setTab',
    'cancelExactModelRebuild','dismissModelerDecision','syncModelerChrome','releaseExactRun'])bindings[name]=()=>{};
-  const run=vm.runInNewContext(`(${sourceFunctionText(source,operation)})`,bindings);
+  const run=vm.runInNewContext(withSetters(`(${sourceFunctionText(source,operation)})`),bindings);
   const args=operation==='openModeler'?[null,{name:'Library drawing',parts:[],drawing:createSheetDoc({views:[]})},null]:[];
   await run(...args);
   assert.equal(r.owner,previous,operation+' rejected replacement keeps the document');

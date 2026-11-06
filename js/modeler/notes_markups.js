@@ -5,13 +5,14 @@ import { NOTE_CATEGORIES, deleteNoteFromDef } from "../modeler_notes_paint.js";
 import { t } from "../modeler_strings.js";
 import { commandSelectionPrefer } from "../modeler/command_manager.js";
 import { refreshParts } from "../modeler/component_mates.js";
+import { pushUndo, scheduleModelerDraft } from "../modeler/document_history.js";
 import { el } from "../modeler/editor_dom.js";
 import { syncHint } from "../modeler/sketch_entities.js";
+import { resolveTopologyPick } from "../modeler/topology_pick.js";
+import { drawMarkupsOverlay, noteScratch } from "../modeler/viewport_drags.js";
 import { closeNoteEditor, hitInstant3d, openNoteEditor, stampComponentRef } from "../modeler/viewport_input.js";
-import {
-  E, SVG_NS, drawMarkupsOverlay, noteScratch, pushUndo, refreshDecorations,
-  resolveTopologyPick, root, scheduleModelerDraft,
-} from "../modeler.js";
+import { refreshDecorations } from "../modeler/viewport_state.js";
+import { E, SVG_NS, root } from "../modeler.js";
 
 /* Hover feedback. Nothing here changes the model or the selection — it only
    says "this is what a click would take", which is the whole difference

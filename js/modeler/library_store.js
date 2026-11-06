@@ -22,13 +22,14 @@ import { cloneData, migrateBoundaryChangingProfileCuts, movePart, normalizeTrans
 import { t } from "../modeler_strings.js";
 import { cutTargetFeatureId } from "../modeler/feature_create.js";
 import { updatePreview } from "../modeler/library_panel.js";
+import { scheduleExactMesh } from "../modeler/prefs_snap.js";
 import { isCanonicalAuthoring } from "../modeler/sketch_workflow.js";
 import { sharedRepeat } from "../pbr_material.js";
 import { S, fin, uid } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import {
   E, LS_ASSEMBLIES, LS_MODELS, MATE_ISSUE_KEYS, assemblyLibraryCache,
-  libraryChannel, modelLibraryCache, scheduleExactMesh,
+  libraryChannel, modelLibraryCache,
 } from "../modeler.js";
 
 function featureTypeLabel(type) {

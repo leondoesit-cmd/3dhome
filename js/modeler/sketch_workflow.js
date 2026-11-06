@@ -16,15 +16,18 @@ import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t } from "../modeler_strings.js";
 import { resolveAssemblyWorkflow, resolveWorkflowStep, shouldResumeSketchSession, shouldSkipReferencePicker, sketchStartMode } from "../modeler_workflow.js";
 import { offerProfileFeatures, syncCommandManager, syncSelectionFilters } from "../modeler/command_manager.js";
+import { activeSketchFrame, documentDirty, invalidateSketchProjection, partUV, pushUndo, sameSketchContext, sketchProjection, standardPlaneFrame, toPx } from "../modeler/document_history.js";
 import { syncTools } from "../modeler/document_save.js";
 import { closedSketchProfile, drawSketch, drawingSheet, flash, syncSheetPanel } from "../modeler/drawing_sheet.js";
 import { el } from "../modeler/editor_dom.js";
 import { regenerateExactModel } from "../modeler/export_measure.js";
 import { clearFeaturePreview, cutTargetFeatureId } from "../modeler/feature_create.js";
 import { fillInspectorTab } from "../modeler/inspector.js";
+import { scheduleLibThumbs, setMode, syncHead } from "../modeler/library_io.js";
 import { updatePreview } from "../modeler/library_panel.js";
 import { activeParts, assemblyMateCount, brokenMateCount, countLabel, defBounds, featureTypeLabel, renderedParts } from "../modeler/library_store.js";
 import { syncNotesAndMarkups } from "../modeler/notes_markups.js";
+import { saveModelerPrefs } from "../modeler/prefs_snap.js";
 import { adoptSketchForView, sizeSketch, sketchPlaneCaption, syncHint, syncStatus } from "../modeler/sketch_entities.js";
 import { applyDimensionEditor, clearLiveDownstream, finishWallChain, openSelectedSmartDimension } from "../modeler/tree_assembly.js";
 import { fitPreview } from "../modeler/view_modes.js";
@@ -37,11 +40,8 @@ import {
   ASSEMBLY_TAB_LABELS, ASSEMBLY_WORKFLOW, ASSEMBLY_WORKFLOW_ACTION,
   CAMERA_ONLY_VIEWS, E, H, MODEL_PLANE_TOOLS, PART_TAB_LABELS, PART_WORKFLOW,
   SKETCH_DRAW_TOOLS, SKETCH_MAX_SCALE, SKETCH_MIN_SCALE, SKETCH_TOOLS,
-  activeSketchFrame, documentDirty, histPanel, inspectorDirty,
-  invalidateSketchProjection, modelLibraryCache, motionPlaybackCancel, partUV,
-  pushUndo, refreshAll, refreshAssemblyPosePreview, root, sameSketchContext,
-  saveModelerPrefs, scheduleLibThumbs, setMode, sketchProjection,
-  standardPlaneFrame, syncHead, toPx,
+  histPanel, inspectorDirty, modelLibraryCache, motionPlaybackCancel,
+  refreshAll, refreshAssemblyPosePreview, root,
 } from "../modeler.js";
 
 /* The plane the camera should look along for Normal To. Datum Top/Front/Right

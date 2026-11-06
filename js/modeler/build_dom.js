@@ -12,14 +12,19 @@ import { t } from "../modeler_strings.js";
 import { cancelActiveCommand, closeCommandSearch, commandCatalog, finishActiveCommand, openCommandSearch, renderCommandResults, setAssemblyMoveMode, setSelectionFilter, showViewSelector } from "../modeler/command_manager.js";
 import { focusTreeDiagnostics, refreshParts } from "../modeler/component_mates.js";
 import { onKey, releaseSelectionFilterChord, wireSketch } from "../modeler/dimension_entry.js";
+import { doRedo, doUndo, docPick, docScope, pushUndo, requestCloseModeler, syncUndoButtons } from "../modeler/document_history.js";
+import { exportDrawingSvg, printDrawingSheet } from "../modeler/document_io.js";
 import { closeEvalCard } from "../modeler/document_outputs.js";
 import { saveCurrentDocument, syncTools, syncViewButtons } from "../modeler/document_save.js";
 import { closeReport, documentPresetAction, drawSketch, drawingDocument, drawingSheet, flash } from "../modeler/drawing_sheet.js";
 import { bindDocumentTextField, btn, commandButton, commandGroup, el, kt, relationButton, tab, tabstrip, toolKeyRows } from "../modeler/editor_dom.js";
+import { newModel } from "../modeler/editor_forms.js";
+import { cancelExactModelRebuild, setMode } from "../modeler/library_io.js";
 import { renderPreview, updatePreview } from "../modeler/library_panel.js";
 import { topologyEntriesForPart } from "../modeler/library_store.js";
 import { syncNotesAndMarkups, syncNotesToolbar, syncPaintToolbar, syncViewsToolbarNotes } from "../modeler/notes_markups.js";
 import { runCommand } from "../modeler/part_commands.js";
+import { saveModelerPrefs, syncDensity } from "../modeler/prefs_snap.js";
 import { applyConstraint, cancelDimensionEditor } from "../modeler/sketch_dimension_editor.js";
 import { bindPolygonSideControl, sizeSketch, syncHint, syncStatus, watchSketchSize } from "../modeler/sketch_entities.js";
 import { closeTour, installTourDragging, prepareTourStep, seekAutomaticTour, startTour, tourSteps } from "../modeler/sketch_guide.js";
@@ -34,11 +39,8 @@ import { createHistoryPanel } from "../ui_history.js";
 import * as ribbon from "../uikit_host/ribbon.js";
 import { getDomainUnit } from "../unit_settings.js";
 import {
-  E, H, RIBBON_RELATIONS, cancelExactModelRebuild, decoGroups, doRedo, doUndo,
-  docPick, docScope, exportDrawingSvg, histPanel, newModel, printDrawingSheet,
-  pushUndo, refreshAll, requestCloseModeler, requestDocumentType, root,
-  saveModelerPrefs, setEditorRoot, setHistPanel, setMode, syncDensity,
-  syncUndoButtons,
+  E, H, RIBBON_RELATIONS, decoGroups, histPanel, refreshAll,
+  requestDocumentType, root, setEditorRoot, setHistPanel,
 } from "../modeler.js";
 import { buildEditorShellMarkup } from "./editor_markup.js";
 import {

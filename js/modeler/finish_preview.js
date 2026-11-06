@@ -31,6 +31,7 @@ import { createShellFaceThicknessEditor, createShellOpeningFaceBrowser } from ".
 import { t, tf } from "../modeler_strings.js";
 import { thinExtrudeChainKey } from "../modeler_thin_extrude_profiles.js";
 import { collectingEndFace, commandSelectionPrefer, openQuickForm, syncContextActions } from "../modeler/command_manager.js";
+import { patternPlacements, pushUndo } from "../modeler/document_history.js";
 import { closedSketchProfile, drawSketch, flash, sheetPrompt, showPickList, sketchFeatureAreas } from "../modeler/drawing_sheet.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { clearFeaturePreview, cutTargetFeatureId, extrudePreviewParts, featureField, selectedFeatureIds, selectedRevolve, selectedSketchIds, selectedThreadStart } from "../modeler/feature_create.js";
@@ -38,6 +39,7 @@ import { cancelFeatureParameterEdit, dependencyReferenceId, syncLiveFeatureEdit 
 import { refreshChangedPart, refreshLivePreview, renderPreview } from "../modeler/library_panel.js";
 import { activeParts, featureTypeLabel, savedExactTopologyForPart, topologyEntriesForPart } from "../modeler/library_store.js";
 import { selectedSolid } from "../modeler/part_commands.js";
+import { exactDisplayBody } from "../modeler/prefs_snap.js";
 import { selEntities } from "../modeler/sketch_entities.js";
 import { isCanonicalAuthoring, modelLengthText, modelLengthUnit } from "../modeler/sketch_workflow.js";
 import { clearLiveDownstream } from "../modeler/tree_assembly.js";
@@ -48,8 +50,8 @@ import { ensureSketch } from "../sketch_solver.js";
 import { fin, uid } from "../state.js";
 import {
   E, FINISH_AMOUNT_KEY, FINISH_FEATURES, H, PATTERN_IDENTITY_PLACEMENT,
-  PATTERN_MERGE_PREVIEW_DELAY, REPEATABLE_AMOUNT, exactDisplayBody,
-  patternPlacements, pushUndo, refreshAll, refreshSelection, root,
+  PATTERN_MERGE_PREVIEW_DELAY, REPEATABLE_AMOUNT, refreshAll,
+  refreshSelection, root,
 } from "../modeler.js";
 
 function finishCommandActive() {

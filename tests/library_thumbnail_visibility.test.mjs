@@ -2,7 +2,7 @@ import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 const source=modelerSource();
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(){
@@ -12,7 +12,7 @@ function fixture(){
   let releaseCache;
   const cache=new Promise(resolve=>releaseCache=resolve);
   const bindings={E:{get open(){return state.open;}},document:{get hidden(){return state.hidden;}},root:{querySelector:()=>host},FURN:{part:{}},hasThumb:()=>{state.fingerprints++;return false;},modelThumb:()=>{state.renders++;return 'data:image/png;test';},thumbAsync:()=>{state.renders++;return Promise.resolve('data:image/png;test');},el:node,setTimeout:fn=>{state.tasks.push(fn);return state.tasks.length;},loadThumbCache:()=>{state.cacheReads++;return cache;}};
-  const api=new Function(...Object.keys(bindings),'var libThumbQueue=[],libThumbTimer=0;'+['libraryThumbnailsVisible','scheduleLibThumbs','libThumb','fillLibThumbs'].map(name=>sourceFunctionText(source,name)).join('\n')+';return {libThumb,scheduleLibThumbs,pending:()=>libThumbQueue.length};')(...Object.values(bindings));
+  const api=new Function(...Object.keys(bindings),'var libThumbQueue=[],libThumbTimer=0;'+withSetters(['libraryThumbnailsVisible','scheduleLibThumbs','libThumb','fillLibThumbs'].map(name=>sourceFunctionText(source,name)).join('\n'))+';return {libThumb,scheduleLibThumbs,pending:()=>libThumbQueue.length};')(...Object.values(bindings));
   return {state,api,releaseCache};
 }
 test('hidden library cards defer definition fingerprint and native thumbnail rendering until activated',async()=>{

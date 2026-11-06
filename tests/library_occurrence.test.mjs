@@ -111,7 +111,7 @@ test("a keyed cycle terminates and keeps the old occurrence even with a warm res
 
 test("an explicit parent Save keeps later edits dirty while advancing only its stored baseline", async()=>{
   const { modelerSource } = await import("./helpers/modeler_source.mjs");
-  const { sourceFunctionText } = await import("./helpers/source_function.mjs");
+  const { sourceFunctionText, withSetters } = await import("./helpers/source_function.mjs");
   const document={key:"race-owner",name:"Original",components:[insert(panel(10))],mates:[]};
   await putModelLibraryRecord(panel(20));
   await putAssemblyLibraryRecord(document);
@@ -129,8 +129,8 @@ test("an explicit parent Save keeps later edits dirty while advancing only its s
       return (await putAssemblyLibraryRecord(record,options)).ok;
     }};
   const source=modelerSource();
-  const save=new Function(...Object.keys(context),sourceFunctionText(source,"applyTrackedUpdates")+
-    sourceFunctionText(source,"saveAssemblyDocument")+";return async()=>{await saveAssemblyDocument();return assemblyOpenBaseline;}")(...Object.values(context));
+  const save=new Function(...Object.keys(context),withSetters(sourceFunctionText(source,"applyTrackedUpdates")+
+    sourceFunctionText(source,"saveAssemblyDocument")+";return async()=>{await saveAssemblyDocument();return assemblyOpenBaseline;}"))(...Object.values(context));
   const baseline=await save();
   const stored=(await loadAssemblyLibrary()).find(record=>record.key===document.key);
   assert.deepEqual(stored,baseline);
@@ -142,7 +142,7 @@ test("an explicit parent Save keeps later edits dirty while advancing only its s
 
 test("library notifications defer a dirty assembly and update a clean assembly in place", async()=>{
   const { modelerSource }=await import("./helpers/modeler_source.mjs");
-  const { sourceFunctionText }=await import("./helpers/source_function.mjs");
+  const { sourceFunctionText, withSetters }=await import("./helpers/source_function.mjs");
   const original=panel(40), component=insert(original);
   await putModelLibraryRecord(panel(60));
   const E={open:true,docType:"assembly",assembly:{key:"open-parent",components:[component]},sel:component};
@@ -153,8 +153,8 @@ test("library notifications defer a dirty assembly and update a clean assembly i
     document:{activeElement:{matches:()=>staged}},motionPlaybackCancel:null,documentSaveTasks:new WeakMap(),assemblySaveSession:doc=>doc,
     resolvedLibraryAssembly,redrawTrackedUpdates:()=>redraws++};
   const source=modelerSource();
-  const refresh=new Function(...Object.keys(context),sourceFunctionText(source,"applyTrackedUpdates")+
-    sourceFunctionText(source,"refreshLibraryFromOtherTab")+";return refreshLibraryFromOtherTab;")(...Object.values(context));
+  const refresh=new Function(...Object.keys(context),withSetters(sourceFunctionText(source,"applyTrackedUpdates")+
+    sourceFunctionText(source,"refreshLibraryFromOtherTab")+";return refreshLibraryFromOtherTab;"))(...Object.values(context));
   await refresh();dirty=false;staged=true;await refresh();
   assert.equal(component.def.parts[0].x1,40);
   staged=false;await refresh();await refresh();
@@ -271,7 +271,7 @@ test("an older invalid-pattern snapshot recovers only when the saved fingerprint
 
 async function pendingAssemblySave(original,options={}){
   const { modelerSource }=await import("./helpers/modeler_source.mjs");
-  const { sourceFunctionText }=await import("./helpers/source_function.mjs");
+  const { sourceFunctionText, withSetters, documentHistoryText }=await import("./helpers/source_function.mjs");
   const { createHistory }=await import("../js/edit_history.js");
   await putAssemblyLibraryRecord(original);
   const E={open:true,docType:"assembly",assembly:structuredClone(original),def:{name:"Part"}};
@@ -310,17 +310,17 @@ async function pendingAssemblySave(original,options={}){
       const result=await putAssemblyLibraryRecord(record,options);
       return result.ok;
     }};
-  const source=modelerSource(),historyCode=source.slice(source.indexOf("const H = createHistory({"),source.indexOf("/* ---- what is inside a document"));
-  const api=new Function(...Object.keys(context),sourceFunctionText(source,"snapDoc")+historyCode+
+  const source=modelerSource(),historyCode=documentHistoryText(source);
+  const api=new Function(...Object.keys(context),withSetters(sourceFunctionText(source,"snapDoc")+historyCode+
     "var libraryOpenBaseline=null,draftRevision=0,draftSaveTimer=0,modelerDraftCache,modelerDraftOwnerId='tab',draftFailureReported=false;"+
     "function pushUndo(label,tag,scope){H.push(label,tag,scope);scheduleModelerDraft();}function scheduleModelerDraft(){flushModelerDraft();}"+
     ["saveAssemblyDocument","saveModel","saveCurrentDocument","currentHistoryNode","markDocumentClean","documentDirty","confirmDiscardDocument","requestCloseModeler","newModel","openModeler","beginContextPart","finishContextPart",
       "flushModelerDraft","restoreModelerDraft","reconcileModelerDraft"].map(name=>{
         const fn=sourceFunctionText(source,name);
         // The planner properties pane needs a GPU. Exercise the actual Part write with a headless repaint.
-        return name==="saveModel" ? fn.replace('import("./ui_props.js")','Promise.resolve({fillProps(){}})') : fn;
+        return name==="saveModel" ? fn.replace('import("../ui_props.js")','Promise.resolve({fillProps(){}})') : fn;
       }).join("\n")+
-    ";return {history:H,saveCurrentDocument,markDocumentClean,documentDirty,confirmDiscardDocument,requestCloseModeler,newModel,openModeler,beginContextPart,finishContextPart,flushModelerDraft,restoreModelerDraft,reconcileModelerDraft,residentDirtyState,baseline:()=>assemblyOpenBaseline,partBaseline:()=>libraryOpenBaseline};")(...Object.values(context));
+    ";return {history:H,saveCurrentDocument,markDocumentClean,documentDirty,confirmDiscardDocument,requestCloseModeler,newModel,openModeler,beginContextPart,finishContextPart,flushModelerDraft,restoreModelerDraft,reconcileModelerDraft,residentDirtyState,baseline:()=>assemblyOpenBaseline,partBaseline:()=>libraryOpenBaseline};"))(...Object.values(context));
   api.history.seed();api.markDocumentClean();
   return {api,E,button,finishWrite:(writable=true)=>finishWrite(writable),counts:()=>({drafts,discards,writes}),draft:()=>draft,
     prompts:()=>prompts,reports:()=>reports};

@@ -16,10 +16,15 @@ import { t } from "../modeler_strings.js";
 import { thinExtrudeSketchReadiness } from "../modeler_thin_extrude_profiles.js";
 import { syncCommandManager, syncContextActions } from "../modeler/command_manager.js";
 import { rejectFlexibleSpringPreview } from "../modeler/component_mates.js";
+import { assemblySaveSession, documentDirty, markDocumentClean, syncDirty, syncDraftStatus } from "../modeler/document_history.js";
+import { saveModel } from "../modeler/document_io.js";
 import { closeEvalCard } from "../modeler/document_outputs.js";
 import { drawingDocument, flash, report, sketchProfileAnalysis, sketchRegionAnalysis } from "../modeler/drawing_sheet.js";
+import { saveAssemblyDocument } from "../modeler/editor_forms.js";
 import { abandonDocumentExactWork } from "../modeler/export_measure.js";
 import { cutTargetFeatureId } from "../modeler/feature_create.js";
+import { applyAssemblyMates, invalidateInterference, saveLib } from "../modeler/library_assembly_state.js";
+import { refreshLib, setMode, syncHead } from "../modeler/library_io.js";
 import { activeParts, componentDef, loadLib, newAssembly, normalizeDef } from "../modeler/library_store.js";
 import { syncNotesToolbar, syncPaintToolbar } from "../modeler/notes_markups.js";
 import { selEntities, syncHint, syncStatus } from "../modeler/sketch_entities.js";
@@ -33,11 +38,8 @@ import { ensureSketch } from "../sketch_solver.js";
 import { S, uid } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import {
-  E, applyAssemblyMates, assemblySaveSession, documentDirty,
-  documentSaveTasks, invalidateInterference, markDocumentClean,
-  motionPlaybackCancel, partHistoryMarker, refreshAll, refreshLib, root,
-  saveAssemblyDocument, saveLib, saveModel, setMode, syncDirty,
-  syncDraftStatus, syncHead,
+  E, documentSaveTasks, motionPlaybackCancel, partHistoryMarker, refreshAll,
+  root,
 } from "../modeler.js";
 
 function setDocumentType(type) {

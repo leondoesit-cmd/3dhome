@@ -33,23 +33,24 @@ import { cloneData, partBounds } from "../modeler_part_geometry.js";
 import { t } from "../modeler_strings.js";
 import { openQuickForm, syncCommandManager } from "../modeler/command_manager.js";
 import { refreshParts, rejectFlexibleSpringPreview } from "../modeler/component_mates.js";
+import { currentHistoryNode, pushUndo } from "../modeler/document_history.js";
+import { exportThreeMfDocument, forceRebuildDocument } from "../modeler/document_io.js";
 import { assemblyPrintRequests, exportAssemblyPrintDocument, standardsGate } from "../modeler/document_outputs.js";
 import { drawSketch, flash, invalidateDrawing, report, syncSheetPanel } from "../modeler/drawing_sheet.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { publishExactBodies } from "../modeler/feature_create.js";
 import { modelParameterOverrides } from "../modeler/inspector.js";
+import { emitPartMerges, emitPartPatternTurn } from "../modeler/library_io.js";
 import { refreshChangedPartPreviews } from "../modeler/library_panel.js";
 import { activeParts, componentDef, topologyEntriesForPart } from "../modeler/library_store.js";
 import { selectedSolid } from "../modeler/part_commands.js";
+import { invalidatePartMeshAfterEdit, scheduleExactMesh } from "../modeler/prefs_snap.js";
 import { syncSketchDrivenParts, syncStatus } from "../modeler/sketch_entities.js";
 import { isCanonicalAuthoring, syncAuthoringWorkflow } from "../modeler/sketch_workflow.js";
 import { fin, uid } from "../state.js";
 import {
-  BODY_OPERATIONS, E, FINISH_AMOUNT_KEY, THREE_POINT_KEYS, currentHistoryNode,
-  emitPartMerges, emitPartPatternTurn, exactBuildTimers, exactRebuildQueue,
-  exactSaveCache, exportThreeMfDocument, forceRebuildDocument,
-  invalidatePartMeshAfterEdit, pendingCutController, pushUndo, refreshAll,
-  root, scheduleExactMesh,
+  BODY_OPERATIONS, E, FINISH_AMOUNT_KEY, THREE_POINT_KEYS, exactBuildTimers,
+  exactRebuildQueue, exactSaveCache, pendingCutController, refreshAll, root,
 } from "../modeler.js";
 
 function rebuildFeatureTreeFromDocument(target) {

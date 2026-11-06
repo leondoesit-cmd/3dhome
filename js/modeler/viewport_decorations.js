@@ -20,6 +20,7 @@ import { syncViewportSelectionMaterial } from "../core/viewport_selection.js";
 import { FURN, PRICE, clearVSpanCache } from "../furniture.js";
 import { buildExactMesh, circleDescriptorsMatch, edgePoints, edgesGeometricallyMatch, exactOverlayEntries, faceHighlightMesh, geometryToMeshData, hexNum, overlayEntryCache, smoothTessellationNormals } from "../modeler_mesh_geometry.js";
 import { cloneData, movePart, partBounds, partNeedsExactMesh } from "../modeler_part_geometry.js";
+import { standardPlaneFrame } from "../modeler/document_history.js";
 import { rebuildFeatureTreeFromDocument } from "../modeler/export_measure.js";
 import { dependencyRole } from "../modeler/feature_tree.js";
 import { finishCommandActive } from "../modeler/finish_preview.js";
@@ -27,6 +28,7 @@ import { activeParts, defBounds, normalizeDef, savedExactTopologyForPart, topolo
 import { selectedSolid } from "../modeler/part_commands.js";
 import { applySectionClipping } from "../modeler/view_modes.js";
 import { addInstant3dHandles } from "../modeler/viewport_input.js";
+import { buildPart, refreshDecorations } from "../modeler/viewport_state.js";
 import { cabinetDefinitionFromItem } from "../parametric_cabinet.js";
 import { clearGroup } from "../primitives.js";
 import { sanitizeDisplayName, validCustomModelKey } from "../safe.js";
@@ -35,8 +37,7 @@ import { ensureSketch, ensureSketchDoc } from "../sketch_solver.js";
 import { S, fin } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import {
-  E, buildPart, decoGroups, decoratedWorldPerPixel, refreshDecorations,
-  standardPlaneFrame, viewportPartByMesh,
+  E, decoGroups, decoratedWorldPerPixel, viewportPartByMesh,
 } from "../modeler.js";
 
 /* Two components cut from the same library model carry identical persistent

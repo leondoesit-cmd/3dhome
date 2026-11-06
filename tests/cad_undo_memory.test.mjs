@@ -2,6 +2,7 @@ import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { documentHistoryText, withSetters } from './helpers/source_function.mjs';
 import { createHistory } from '../js/edit_history.js';
 import { createHistorySnapshotCodec } from '../js/core/history_value_pool.js';
 
@@ -65,16 +66,13 @@ test('history snapshot codec stores unchanged derived caches once and decodes in
 
 test('CAD Undo pools vanity hinge caches across placement edits and restores them on Undo', () => {
   const source = modelerSource();
-  const start = source.indexOf('const historySnapshots = ');
-  const end = source.indexOf('/* ---- what is inside a document', start);
-  assert.ok(start > 0 && end > start);
   const E = {mode:'model', docType:'assembly', def:{name:'Part', parts:[]}, assembly:vanity()};
   const noop = () => {};
   const context = {E, createHistory, createHistorySnapshotCodec, scanDoc:() => [], docSubtree:() => [], flash:noop,
     syncUndoButtons:noop, syncHead:noop, invalidateDrawing:noop, invalidateInterference:noop, resolveSketch:noop,
     closeEvalCard:noop, refreshAll:noop, syncSheetPanel:noop};
   vm.createContext(context);
-  vm.runInContext(source.slice(start, end) + '\nthis.history=H;this.codec=historySnapshots;', context);
+  vm.runInContext(withSetters(documentHistoryText(source, { snapshots: true })) +'\nthis.history=H;this.codec=historySnapshots;', context);
   const {history, codec} = context;
   const full = JSON.stringify({d:E.def, a:E.assembly}).length;
   const original = structuredClone(E.assembly);

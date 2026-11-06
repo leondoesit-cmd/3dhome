@@ -8,7 +8,7 @@ import {defaultTopologyMateAlignment} from '../js/cad_mate_reference_choices.js'
 import {solveTopologyMates} from '../js/cad_mates.js';
 import {assemblyMobilityReport} from '../js/core/assembly_mobility_status.js';
 import {bindMateNumericCommit} from '../js/modeler_mate_numeric_commit.js';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 test('mate removal exposes its type and occurrence detail to accessibility and keeps callback intact',()=>{
   const source=modelerSource();
   const start=source.indexOf('function mateRow('),end=source.indexOf('\n}',start)+2;
@@ -43,7 +43,7 @@ function numericInspector(mate){
       if(!coupled)return{ok:false};
       beforeCommit();mate.coupledMotion=coupled;return{ok:true};
     }};
-  vm.runInNewContext(source.slice(start,screwEnd)+source.slice(limitStart,limitEnd),context);
+  vm.runInNewContext(withSetters(source.slice(start,screwEnd)+source.slice(limitStart,limitEnd)),context);
   return {mate,E:context.E,nodes,undos,messages,get solveFresh(){return context.assemblySolveFresh;},get solves(){return solves;},get refreshes(){return refreshes;},
     input:label=>nodes.find(node=>node.tag==='input'&&node.attributes['aria-label']===label)};
 }
@@ -101,7 +101,7 @@ test('native Screw creation captures the actual guided vice home instead of matc
     mateHolderById:id=>assembly.components.find(component=>component.id===id),pushUndo:()=>undos++,t:key=>key,flash:()=>{},
     uid:()=> 'new-native-screw',solveAssembly:()=>{solved=solveTopologyMates(assembly);},refreshAll:()=>{}};
   const source=modelerSource();
-  vm.runInNewContext(sourceFunctionText(source,'addTopologyMate')+';addTopologyMate("screw");',environment);
+  vm.runInNewContext(withSetters(sourceFunctionText(source,'addTopologyMate'))+';addTopologyMate("screw");',environment);
   assert.equal(undos,1);assert.equal(solved.ok,true,JSON.stringify(solved));
   const created=assembly.topologyMates.at(-1);assert.equal(created.coupledMotion,true);
   assert.ok(Math.abs(created.coupledAxial0)<1e-5);

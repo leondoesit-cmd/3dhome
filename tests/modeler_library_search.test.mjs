@@ -1,7 +1,7 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 import {appendSavedLibrarySearch,savedLibraryNameMatches} from '../js/modeler_library_search.js';
 import {compactAssemblyTopologySnapshots} from '../js/core/project_topology_budget.js';
 
@@ -46,7 +46,7 @@ test('native library cards filter, preserve separate queries, and keep guarded o
  for(const name of ['documentPresetAction','newModel','publishAssemblyModel','libraryTransferButtons','appendLegacyDraftRecovery',
   'appendDiskBackupNote','abandonDocumentExactWork','closeEvalCard','invalidateInterference','markDocumentClean',
   'reconcileModelerDraft','syncHead','refreshAll','fitPreview'])bindings[name]=()=>{};
- const refresh=Function(...Object.keys(bindings),sourceFunctionText(modelerSource(),'refreshLib')+';return refreshLib;')(...Object.values(bindings));
+ const refresh=Function(...Object.keys(bindings),withSetters(sourceFunctionText(modelerSource(),'refreshLib'))+';return refreshLib;')(...Object.values(bindings));
  const cards=()=>host.children.filter(node=>node.className?.split(' ').includes('md-card'));
  const input=()=>host.children[0].children.find(node=>node.tagName==='input');
  const filter=query=>{input().value=query;input().listeners.input();};

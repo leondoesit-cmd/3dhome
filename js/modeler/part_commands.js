@@ -26,6 +26,8 @@ import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t, tf } from "../modeler_strings.js";
 import { closeCommandSearch, commandUnavailableReason, openQuickForm, syncCommandManager, toggleIsolate } from "../modeler/command_manager.js";
 import { addTopologyMate, openFormSubassembly, openMateBeltForm, openMateGearForm, openMatePropertyManager, openMateRackPinionForm, openMateRotationLimitForm, rejectFlexibleSpringPreview } from "../modeler/component_mates.js";
+import { patternCurveSketch, patternPlacements, planeAxis, pushUndo, resolvePatternCurvePath } from "../modeler/document_history.js";
+import { exportDrawingSvg, importStepDocument, showAssemblyBOM, showAssemblyDrawingSettings, showMassProperties } from "../modeler/document_io.js";
 import { beginMeasure, createDefaultExplodedView, createDefaultMotionStudy, exportBundleDocument, importBundleDocument, openExplodeStepForm, runInterferenceCheck, runStandardsAudit } from "../modeler/document_outputs.js";
 import { drawingSheet, flash, newSketchPoint, showPickList } from "../modeler/drawing_sheet.js";
 import { el } from "../modeler/editor_dom.js";
@@ -33,7 +35,9 @@ import { addReferenceGeometry, downloadBytes, exportIgesDocument, exportStepDocu
 import { cutTargetFeatureId, documentHelixRecords, selectedSketchIds, showConfigurations } from "../modeler/feature_create.js";
 import { exactFinishPreviewBody, exactFinishPreviewPart, finishFeatureTargets } from "../modeler/finish_preview.js";
 import { fillSketchPane } from "../modeler/inspector.js";
+import { setMode, syncHead } from "../modeler/library_io.js";
 import { activeParts, addPart } from "../modeler/library_store.js";
+import { invalidatePartMeshAfterEdit, queueExactMesh } from "../modeler/prefs_snap.js";
 import { mirrorSelection, patternCircularSelection, patternSelection, toggleDynamicMirror } from "../modeler/sketch_dimension_editor.js";
 import { isSketchObject, openCenterRectangle, openCenterSlot, openConvertEntities, openDimensionedCircle, openDimensionedPolygon, openFaceBoundary, openSketchFillet, resolveSketch, selEntities, sketchForView } from "../modeler/sketch_entities.js";
 import { insertISO4017Screw } from "../modeler/sketch_guide.js";
@@ -49,12 +53,9 @@ import { toggleConstruction } from "../sketch_trim.js";
 import { S, uid } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import {
-  E, H, PATTERN_IDENTITY_PLACEMENT, exportDrawingSvg, importStepDocument,
-  insertToolboxFastener, invalidatePartMeshAfterEdit, openFitCheckForm,
-  openParametricFeature, openRackGearForm, openSketchRepairs,
-  patternCurveSketch, patternPlacements, planeAxis, pushUndo, queueExactMesh,
-  refreshAll, requestDocumentType, resolvePatternCurvePath, root, setMode,
-  showAssemblyBOM, showAssemblyDrawingSettings, showMassProperties, syncHead,
+  E, H, PATTERN_IDENTITY_PLACEMENT, insertToolboxFastener, openFitCheckForm,
+  openParametricFeature, openRackGearForm, openSketchRepairs, refreshAll,
+  requestDocumentType, root,
 } from "../modeler.js";
 
 function runCommand(id) {

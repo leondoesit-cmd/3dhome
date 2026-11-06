@@ -20,14 +20,17 @@ import { cloneData, partNeedsExactMesh } from "../modeler_part_geometry.js";
 import { t, tf } from "../modeler_strings.js";
 import { renderTreeModel } from "../modeler_tree.js";
 import { parametricRollbackBar, refreshParts, rollbackBar, runDiagnosticAction } from "../modeler/component_mates.js";
+import { currentHistoryNode, pushUndo, scheduleModelerDraft } from "../modeler/document_history.js";
 import { flash } from "../modeler/drawing_sheet.js";
 import { btn, el, namedButton } from "../modeler/editor_dom.js";
+import { openFeatureEditor } from "../modeler/editor_forms.js";
 import { openOffsetPlaneForm } from "../modeler/export_measure.js";
 import { activeLoftCreation, cutTargetFeatureId } from "../modeler/feature_create.js";
 import { patternMergePreviewBadge } from "../modeler/finish_preview.js";
 import { modelParameterOverrides } from "../modeler/inspector.js";
 import { markLiveDirtyPart, refreshLivePreview } from "../modeler/library_panel.js";
 import { featureTypeLabel, livePreviewParts } from "../modeler/library_store.js";
+import { queueExactMesh, scheduleExactMesh } from "../modeler/prefs_snap.js";
 import { resolveSketch } from "../modeler/sketch_entities.js";
 import { chooseSketchReference, closeFeaturePanel, isCanonicalAuthoring, modelLengthText, modelLengthUnit, orientModelToView, referencePlaneView, syncModelPlane } from "../modeler/sketch_workflow.js";
 import { clearLiveDownstream, downstreamFeaturesOf, editSketchFromHistory, featureRebuildNeedsKernel, liveDownstreamIsLive, liveFeatureEditBadge, partsForFeature, syncLiveDownstreamBadge, syncProjectionFromFeature } from "../modeler/tree_assembly.js";
@@ -35,9 +38,7 @@ import { consumedSketchIds, refreshViewportSelection } from "../modeler/viewport
 import { ensureSketch, ensureSketchDoc, removeSketch, solveSketch } from "../sketch_solver.js";
 import { uid } from "../state.js";
 import {
-  E, H, PATTERN_MERGE_PREVIEW_DELAY, currentHistoryNode, openFeatureEditor,
-  pushUndo, queueExactMesh, refreshAll, root, scheduleExactMesh,
-  scheduleModelerDraft,
+  E, H, PATTERN_MERGE_PREVIEW_DELAY, refreshAll, root,
 } from "../modeler.js";
 
 function runLiveDownstream(features,token) {

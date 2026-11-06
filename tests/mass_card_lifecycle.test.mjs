@@ -1,5 +1,5 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
-import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { sourceFunctionText, withSetters } from "./helpers/source_function.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {runInNewContext} from 'node:vm';
@@ -9,7 +9,7 @@ function deferred(){let resolve;const promise=new Promise(done=>{resolve=done;})
 const result=y=>({volumeCm3:2,massKg:.0146,density:7.3,accuracy:'exact',centerOfMass:{x:4.223753,y,z:0},bodies:[]});
 function fixture(){
   const source=modelerSource();
-  const massCard=['var massDisplayUnits = "si";','var massCoordinateSystemId = "";',...['massEvaluationChanged','syncMassPropertiesEvaluation','showMassProperties'].map(name=>sourceFunctionText(source,name))].join('\n');
+  const massCard=withSetters(['var massDisplayUnits = "si";','var massCoordinateSystemId = "";',...['massEvaluationChanged','syncMassPropertiesEvaluation','showMassProperties'].map(name=>sourceFunctionText(source,name))].join('\n'));
   let node=1;const E={def:{parts:[{id:'rib-body'}]},docType:'part',evalCard:null},jobs=[],painted=[],historyCalls=[];
   const body={isConnected:true,rows:[],children:[],appendChild(item){this.children.push(item);},set textContent(value){this.rows=[];this.children=[];this.text=value;}};
   const context={E,Map,Math,Number,H:{push(...args){historyCalls.push(args);}},scheduleModelerDraft(){},currentHistoryNode:()=>node,

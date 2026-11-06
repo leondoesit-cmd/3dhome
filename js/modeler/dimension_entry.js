@@ -15,6 +15,7 @@ import { cloneData } from "../modeler_part_geometry.js";
 import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t } from "../modeler_strings.js";
 import { applyMouseGesture, closeChromeOverlays, closeCommandSearch, commandCatalog, dismissProfileOffer, openCommandSearch, openSketchPointCoordinates, selectionFilterAvailable, setSelectionFilter, showContextMenu, showShortcutBar, showViewSelector, syncContextActions } from "../modeler/command_manager.js";
+import { activeSketchFrame, cutSkipNote, doRedo, doUndo, invalidateSketchProjection, moveInView, partEditableInSketch, pushUndo, scheduleModelerDraft, sketchProjection, toPx, toUV, worldToSketchPx } from "../modeler/document_history.js";
 import { closeEvalCard } from "../modeler/document_outputs.js";
 import { saveCurrentDocument, syncTools } from "../modeler/document_save.js";
 import { regenerateExactModel } from "../modeler/export_measure.js";
@@ -22,13 +23,17 @@ import { cutTargetFeatureId } from "../modeler/feature_create.js";
 import { copySketchToClipboard, pasteReferenceTarget, pasteSketchOntoReference, readClipboardSketch, removeTreeNode, treeSelectedSketch } from "../modeler/feature_tree.js";
 import { cornerRoundForm, segmentLengthForm, selectAllTopology } from "../modeler/finish_preview.js";
 import { fillInspector } from "../modeler/inspector.js";
+import { solveAssembly } from "../modeler/library_assembly_state.js";
+import { setMode } from "../modeler/library_io.js";
 import { updatePreview } from "../modeler/library_panel.js";
 import { addPart } from "../modeler/library_store.js";
 import { runCommand } from "../modeler/part_commands.js";
+import { applyCut, snapPt, snapV } from "../modeler/prefs_snap.js";
 import { addSketchArc, addSketchPolygon, addSketchSlot, constraintCaption, openModelEdgeOffsetForm, openSketchOffsetForm, placeDimensionAtPointer, placedDimensionAt, placedDimensionHit, showSketchRefusal } from "../modeler/sketch_dimension_editor.js";
 import { addSketchCircle, addSketchEllipse, addSketchRectangle, applySketchFilletFromSelection, dropSketchModelPicks, hitSketch, isSketchObject, liveSketchFilletValues, markDrawnSelection, resolveSketch, selEntities, selFilletCurves, selPoints, selectSketch, sketchFilletSelectionReady, sketchVisibleModelEdges, syncHint, syncStatus } from "../modeler/sketch_entities.js";
 import { closeTour } from "../modeler/sketch_guide.js";
 import { cancelFacePick, cancelReferenceSelection, finishModelPlane, fitSketch, isCanonicalAuthoring, modelLengthUnit, orientModelToView, setCommandTab, setTool, setView } from "../modeler/sketch_workflow.js";
+import { resolveTopologyPick } from "../modeler/topology_pick.js";
 import { applyDimensionEditor, dimensionTarget, editPlacedDimension, finishBoxSelect, finishDimensionDrag, finishWallChain, makeWallSegment, setEntityDimension, smartDimension } from "../modeler/tree_assembly.js";
 import { fitPreview, setModelDisplay } from "../modeler/view_modes.js";
 import { closeNoteEditor, hidePickCycle } from "../modeler/viewport_input.js";
@@ -45,13 +50,9 @@ import { dispatchPrecisionCommit, dispatchPrecisionDown, dispatchPrecisionMove, 
 import { beginTouchPrecision, modelerPrecisionTrialAllowed, modelerTouchPrecisionKind, touchPrecisionPoint, updateTouchPrecision } from "../touch_precision.js";
 import { getDomainUnit } from "../unit_settings.js";
 import {
-  E, H, SKETCH_MAX_SCALE, SKETCH_MIN_SCALE, activeSketchFrame, applyCut,
-  closeReport, cutSkipNote, doRedo, doUndo, drawSketch, drawingSheet,
-  finishPoly, flash, hitPart, invalidateSketchProjection,
-  modelerTouchDistances, moveInView, newSketchPoint, openParametricFeature,
-  partEditableInSketch, pushUndo, refreshAll, reportOpen, resolveTopologyPick,
-  root, scheduleModelerDraft, setMode, sketchProjection, snapPt, snapV,
-  solveAssembly, toPx, toUV, worldToSketchPx,
+  E, H, SKETCH_MAX_SCALE, SKETCH_MIN_SCALE, closeReport, drawSketch,
+  drawingSheet, finishPoly, flash, hitPart, modelerTouchDistances,
+  newSketchPoint, openParametricFeature, refreshAll, reportOpen, root,
 } from "../modeler.js";
 
 /* ================= typed dimension entry while drawing =================

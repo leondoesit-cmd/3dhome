@@ -2,7 +2,7 @@ import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 import {lengthFromDocument,lengthToDocument,formatDocumentLength,documentLengthUnit} from '../js/core/document_length_units.js';
 import {normalizePose} from '../js/cad_mate_model.js';
 import {solveTopologyMates} from '../js/cad_mates.js';
@@ -13,7 +13,7 @@ function all(node){return [node,...node.children.flatMap(all)];}
 function fixture(unit,grounded=false){
   const tr={x:4.5,y:0,z:0,rx:0,ry:0,rz:0},component={id:'moving',name:'Spring',modelKey:'saved-part',grounded,transform:tr},E={sel:component,assembly:{components:[component],topologyMates:[]},mateFreedom:[],mateDegreesOfFreedom:6},host=node('host');let undos=0,refreshes=0,fullRefreshes=0;
   const inspector=new Function('E','root','el','t','fin','modelLengthUnit','lengthToDocument','lengthFromDocument','normalizeTransform','assemblyBomProperties','isSubassembly','btn','pushUndo','solveAssembly','refreshAll','fitPreview','cloneData','applyDrivenAssemblyPlacement','flash','refreshParts','invalidateDrawing','syncDirty',
-    'var propGen=0;function fillLibraryLinkStatus(){}'+sourceFunctionText(source,'numRow')+sourceFunctionText(source,'numLengthRow')+sourceFunctionText(source,'assemblyTransformInspector')+';return assemblyTransformInspector;')
+    'var propGen=0;function fillLibraryLinkStatus(){}'+withSetters(sourceFunctionText(source,'numRow')+sourceFunctionText(source,'numLengthRow')+sourceFunctionText(source,'assemblyTransformInspector'))+';return assemblyTransformInspector;')
     (E,{querySelector:()=>host},node,key=>key,Number.isFinite,()=>unit,lengthToDocument,lengthFromDocument,c=>normalizePose(c.transform),()=>{},()=>false,(text,fn)=>Object.assign(node('button','',text),{onclick:fn}),()=>undos++,opts=>solveTopologyMates(E.assembly,opts),()=>{refreshes++;fullRefreshes++;host.children=[];inspector();},()=>{},structuredClone,applyDrivenAssemblyPlacement,()=>{},()=>refreshes++,()=>{},()=>{});
   inspector();
   const field=label=>all(host).filter(n=>n.tag==='label').find(n=>n.children[0]?.textContent===label)?.children.find(n=>n.tag==='input');
@@ -59,10 +59,10 @@ for(const unit of ['mm','cm','in'])test('selected component size summary uses as
  const component={name:'Drill guide base',def:{context:{units:{length:'cm'}},parts:[{id:'base'}]}};
  const E={docType:'assembly',assembly:{context:{units:{length:unit}}},sel:component},host=node('host');
  const bounds={x0:-7,x1:7,y0:0,y1:4.6,z0:-7,z1:7},before=JSON.stringify(component);
- const modelLengthUnit= new Function('E','documentLengthUnit',sourceFunctionText(source,'modelLengthUnit')+';return modelLengthUnit;')(E,documentLengthUnit);
- const modelLengthText=new Function('modelLengthUnit','formatDocumentLength',sourceFunctionText(source,'modelLengthText')+';return modelLengthText;')(modelLengthUnit,formatDocumentLength);
+ const modelLengthUnit= new Function('E','documentLengthUnit',withSetters(sourceFunctionText(source,'modelLengthUnit'))+';return modelLengthUnit;')(E,documentLengthUnit);
+ const modelLengthText=new Function('modelLengthUnit','formatDocumentLength',withSetters(sourceFunctionText(source,'modelLengthText'))+';return modelLengthText;')(modelLengthUnit,formatDocumentLength);
  const bindings={E,root:{querySelector:()=>host},el:node,t:x=>x,isSubassembly:()=>false,btn:text=>node('button','',text),componentDef:c=>c.def,activeParts:d=>d.parts,defBounds:()=>bounds,springSource:()=>{throw Error('not spring');},modelLengthText,modelLengthUnit};
- new Function(...Object.keys(bindings),sourceFunctionText(source,'assemblyFlagsInspector')+';assemblyFlagsInspector();')(...Object.values(bindings));
+ new Function(...Object.keys(bindings),withSetters(sourceFunctionText(source,'assemblyFlagsInspector'))+';assemblyFlagsInspector();')(...Object.values(bindings));
  const expected=[14,4.6,14].map(x=>formatDocumentLength(x,unit,6)).join('×');
  assert.ok(all(host).some(n=>n.textContent==='1 partCount · '+expected+' '+unit));
  assert.equal(JSON.stringify(component),before);

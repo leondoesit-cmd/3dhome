@@ -6,22 +6,22 @@ import { sketchGeometryBounds } from "../core/sketch_view_fit.js";
 import { fmtLen } from "../display_units.js";
 import { createEditorView } from "../editor_view.js";
 import { applyMouseGesture, previewMouseGesture } from "../modeler/command_manager.js";
+import { activeSketchFrame, invalidateSketchProjection, sameSketchContext, standardPlaneFrame } from "../modeler/document_history.js";
 import { syncViewButtons } from "../modeler/document_save.js";
 import { drawSketch } from "../modeler/drawing_sheet.js";
 import { growSelectionFromDoubleClick } from "../modeler/finish_preview.js";
+import { setMode } from "../modeler/library_io.js";
 import { drawInRoom, renderPreview, updatePreview } from "../modeler/library_panel.js";
 import { assemblyBounds, defBounds, renderedParts } from "../modeler/library_store.js";
 import { hoverAssemblyTopology, syncNotesAndMarkups } from "../modeler/notes_markups.js";
 import { sizeSketch, syncHint } from "../modeler/sketch_entities.js";
 import { refreshDecorationScale } from "../modeler/viewport_decorations.js";
 import { beginInstant3dDrag, hitInstant3d, instant3dAuthoringState, pickAssemblyComponent, showSelectThrough, syncInstant3dValue } from "../modeler/viewport_input.js";
+import { refreshDecorations } from "../modeler/viewport_state.js";
 import { ensureSketch, ensureSketchDoc } from "../sketch_solver.js";
 import { THREE, loadThree, threeLoaded } from "../three_lazy.js";
 import { getRigLights } from "../view3d.js";
-import {
-  E, activeSketchFrame, invalidateSketchProjection, refreshDecorations, root,
-  sameSketchContext, setMode, standardPlaneFrame, swapView,
-} from "../modeler.js";
+import { E, root, swapView } from "../modeler.js";
 
 function initPreview() {
   /* three is late-bound (js/three_lazy.js), and openModeler() must stay

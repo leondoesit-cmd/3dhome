@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {applyExplodedProgress,assemblyHasExplodedOffsets} from '../js/cad_exploded_view.js';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 
 test('playback completes earlier steps before later steps and reset preserves poses',()=>{
   const component={id:'a',transform:{x:3,y:4,z:5}},other={id:'b',transform:{x:1}};
@@ -31,7 +31,7 @@ test('playback chooser restores named saved views and their durations while pres
  const duration={value:'14',addEventListener(){}},chooser={value:'seven',addEventListener(event,fn){change=fn;}},actions={children:[],appendChild(x){this.children.push(x);}},host={isConnected:true,hidden:false,querySelector:()=>actions,appendChild(){}};
  const E={docType:'assembly',assembly,quickAction:'explodeplay'};
  const bindings={E,applyExplodedProgress,assemblyHasExplodedOffsets,t:key=>key,syncExplodeCommandState:()=>{},normalizeTransform:c=>c.transform,root:{querySelector:()=>host},openQuickForm:x=>{spec=x;return {duration,view:chooser};},el:()=>({}),btn:(label,callback)=>({label,callback}),requestAnimationFrame:callback=>{frame=callback;return 1;},cancelAnimationFrame:()=>frame=null,refreshAll:()=>refreshes++,fitPreview:()=>{},closeFeaturePanel:()=>{},pushUndo:()=>undos++,syncHead:()=>{}};
- new Function(...Object.keys(bindings),'let explodedPlaybackStop=null;'+sourceFunctionText(source,'openExplodedPlayback')+';openExplodedPlayback();')(...Object.values(bindings));
+ new Function(...Object.keys(bindings),'let explodedPlaybackStop=null;'+withSetters(sourceFunctionText(source,'openExplodedPlayback'))+';openExplodedPlayback();')(...Object.values(bindings));
  assert.equal(assembly.activeExplodedView,'seven');assert.equal(spec.fields[0].label,'Exploded view');assert.deepEqual(spec.fields[0].choices,[{value:'seven',label:'Book groups'},{value:'detail',label:'Detail view'}]);
  actions.children.find(x=>x.label==='Play').callback();assert.ok(frame);
  chooser.value='detail';change();assert.equal(frame,null);assert.equal(assembly.activeExplodedView,'detail');assert.equal(duration.value,'6');assert.deepEqual(assembly.components[1].explodedOffset,{x:0,y:5,z:0});assert.equal(undos,1);assert.equal(refreshes,1);
@@ -50,7 +50,7 @@ test('sequential progress follows nested occurrence paths and clamps endpoints',
 
 test('playback moves existing GPU groups without rebuilding geometry; Stop and Reset cancel frames',()=>{
   const source=modelerSource();
-  const playback=['let explodedPlaybackStop = null;',...['createEmptyExplodedView','openExplodedPlayback'].map(name=>sourceFunctionText(source,name))].join('\n');
+  const playback=withSetters(['let explodedPlaybackStop = null;',...['createEmptyExplodedView','openExplodedPlayback'].map(name=>sourceFunctionText(source,name))].join('\n'));
   const component={id:'a',transform:{x:3,y:4,z:5}},assembly={components:[component],activeExplodedView:'v',explodedViews:[{id:'v',steps:[{components:['a'],direction:{x:10,y:0,z:0}}]}]};
   const mesh={_cadExplodeComponent:component,userData:{},position:{set(...values){this.values=values;}}};
   const interference={userData:{cadInterference:0},visible:true};

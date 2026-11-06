@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { modelerSource } from "./helpers/modeler_source.mjs";
-import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { sourceFunctionText, withSetters } from "./helpers/source_function.mjs";
 
 const source = modelerSource();
 
 // Runs the named modeler functions against the given stand-ins and returns them.
 function load(names, deps, prelude = "") {
-  const body = prelude + names.map(name => sourceFunctionText(source, name)).join("\n") +
+  const body = prelude + withSetters(names.map(name => sourceFunctionText(source, name)).join("\n")) +
     ";return {" + names.join(",") + "};";
   return new Function(...Object.keys(deps), body)(...Object.values(deps));
 }
