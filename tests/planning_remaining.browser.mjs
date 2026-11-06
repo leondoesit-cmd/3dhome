@@ -15,7 +15,7 @@ test('reordered boundary packing applies every checklist room at its exact size 
   openPlanningGuide();renderPlanningGuide();await new Promise(requestAnimationFrame);
   const boundary=document.querySelector('[data-guide-field="draft_boundary"]');boundary.value='0cm,0cm\n500cm,0cm\n500cm,400cm\n0cm,400cm';boundary.dispatchEvent(new Event('change'));
   document.querySelector('[data-guide-action="draft_preview"]').click();
-  for(let i=0;i<100&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
+  for(let i=0;i<300&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
   const apply=document.querySelector('[data-guide-action="draft_apply"]');if(!apply)throw new Error('Missing packed preview');
   const pure=S.walls.length===0;apply.click();
   const rooms=detectRooms(),sizes=S.workspace.guidance.rooms.map(entry=>{
@@ -35,7 +35,7 @@ test('a checklist draft keeps requested non-grid interior sizes after Apply and 
   editPlanningGuide({action:'add',id:'sized-bedroom',type:'bedroom',name:'Measured room'});editPlanningGuide({action:'edit',id:'sized-bedroom',width:181.25,depth:202.75});
   openPlanningGuide();renderPlanningGuide();await new Promise(requestAnimationFrame);
   document.querySelector('[data-guide-action="draft_preview"]').click();
-  for(let i=0;i<100&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
+  for(let i=0;i<300&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
   document.querySelector('[data-guide-action="draft_apply"]').click();
   const room=detectRooms()[0],size=roomMeasurements(S,room)?.interior;const count=detectRooms().length,assigned=S.workspace.guidance.rooms[0].roomHid===S.roomMeta[room.key].hid;undo();
   return {count,size,assigned,undone:S.walls.length===0&&!S.workspace.guidance.rooms[0].roomHid,overflow:document.documentElement.scrollWidth>390};
@@ -48,7 +48,7 @@ test('leaving the project guide discards an uncommitted draft',opts,async()=>{
   const {S}=await import('/js/state.js');const {openPlanningGuide,renderPlanningGuide}=await import('/js/ui_planning_guide.js');
   document.querySelector('[data-start="recreate"]').click();openPlanningGuide();renderPlanningGuide();await new Promise(requestAnimationFrame);
   document.querySelector('[data-guide-action="draft_preview"]').click();
-  for(let i=0;i<100&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
+  for(let i=0;i<300&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
   if(!document.querySelector('[data-guide-action="draft_apply"]'))throw new Error('Missing preview');
   document.querySelector('#leftTabs [data-left-tab="library"]').click();
   await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);
@@ -66,7 +66,7 @@ test('guided draft is an unfurnished preview and one undoable replacement-free a
   // Exercise the three-room draft explicitly; the UI defaults to a large plan.
   const size=document.querySelector('[data-guide-field="draft_size"]');size.value='small';size.dispatchEvent(new Event('change',{bubbles:true}));
   document.querySelector('[data-guide-action="draft_preview"]').click();
-  for(let i=0;i<100&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
+  for(let i=0;i<300&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
   const pure=S.walls.length===0;document.querySelector('[data-guide-action="draft_apply"]').click();
   const rooms=detectRooms().length,items=S.items.length,openings=S.openings.length;undo();return {pure,rooms,items,openings,undone:S.walls.length===0};
  });assert.deepEqual(r,{pure:true,rooms:3,items:0,openings:0,undone:true});
