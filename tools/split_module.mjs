@@ -3,7 +3,7 @@
 // js/modeler/*.js without anyone retyping code.
 //
 //   node tools/split_module.mjs --from js/modeler.js --to js/modeler/area.js \
-//        (--names a,b,c | --lines 5000-5999[,7000-7100]) [--purpose "text"] [--dry]
+//        (--names a,b,c | --lines 5000-5999[,7000-7100]) [--purpose "text"] [--setters] [--dry]
 //
 // It moves top-level function declarations (with their leading comment lines)
 // byte-for-byte, then writes the glue the existing splits (dimension_entry.js,
@@ -22,6 +22,15 @@
 // at its top level would throw at runtime and no static gate sees it, so the tool
 // aborts and writes nothing. A final static check (free names, imports resolve to
 // real exports, no duplicate exports) runs on every output before it is written.
+//
+// --setters: the simple assignments are rewritten instead of refused. In the moved text only,
+// `X = e` becomes `set_X(e)`, `X op= e` becomes `set_X(X op (e))`, `X ||= e` becomes
+// `(X || (set_X(e)))` (likewise && and ??), and a statement-level or for-update `X++`/`X--`
+// becomes `set_X(X + 1)`/`set_X(X - 1)`. The source gains one `function set_X(value) { return X = value; }`
+// per binding right after X's declaration (an identical earlier one is reused), exported in the
+// "// for <new file>" list. Destructuring, for-in/of targets, const/import/class/function
+// bindings, an update whose value is used and direct eval are still refused. The source's own
+// code is never rewritten, and a local that shadows X is never touched.
 //
 // Run `npm run check` afterwards, and list the new file in survey-assets.json.
 import fs from "node:fs";
@@ -326,6 +335,140 @@ function chunkFor(src, stmt, prevEnd, comments) {
   return { chunkStart: ls, textEnd: lineEnd, text, removeEnd: nl < 0 ? src.length : nl + 1 };
 }
 
+// ---- --setters: rewrite assignments to source bindings into setter calls ---------
+function walkParents(node, parent, visit) {
+  if (!node || typeof node.type !== "string") return;
+  visit(node, parent);
+  for (const key of Object.keys(node)) {
+    if (key === "loc") continue;
+    const v = node[key];
+    if (Array.isArray(v)) {
+      for (const c of v) if (c && typeof c.type === "string") walkParents(c, node, visit);
+    } else if (v && typeof v.type === "string") walkParents(v, node, visit);
+  }
+}
+
+const COMPOUND_OPS = new Set(["+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^="]);
+const LOGICAL_OPS = new Set(["&&=", "||=", "??="]);
+const NOT_REASSIGNABLE = { import: "an imported binding", const: "a const", class: "a class", function: "a function declaration" };
+
+// Where the operator sits after `left`: {restStart} is the first character after the
+// operator and its trailing blanks. null when anything but blanks lies between
+// (a comment, a closing parenthesis), which this tool will not rewrite.
+function operatorSpan(src, left, op) {
+  let i = left.end;
+  while (i < src.length && /\s/.test(src[i])) i++;
+  if (!src.startsWith(op, i)) return null;
+  i += op.length;
+  while (i < src.length && /\s/.test(src[i])) i++;
+  return { restStart: i };
+}
+
+// Plan the rewrite of every `X = e`, `X op= e`, `X++`... in the moved functions whose X is a
+// top-level var/let of the source. Fills s.setterEdits (offsets in the source text) and returns
+// the setters the source must gain, the sites rewritten and the assignments it cannot rewrite.
+function planSetters({ selected, src0, ast, freeStarts, decls, from }) {
+  const offenders = [];
+  const bindings = new Map(); // binding -> {fn, param, reuse, stmt}
+  let siteCount = 0;
+
+  // names the setters must not collide with: every identifier the source mentions
+  const used = new Set(decls.keys());
+  walkNodes(ast, (n) => { if (n.type === "Identifier") used.add(n.name); });
+  const topFns = new Map(); // name -> normalised text, to reuse a setter an earlier split generated
+  for (const stmt of ast.body) {
+    const info = functionOf(stmt);
+    if (info) topFns.set(info.fn.id.name, src0.slice(info.fn.start, info.fn.end).replace(/\s+/g, " "));
+  }
+  const declStmt = new Map(); // binding -> top-level statement that declares it
+  for (const stmt of ast.body) for (const name of topLevelDecls({ body: [stmt] }).keys()) if (!declStmt.has(name)) declStmt.set(name, stmt);
+
+  const setterFor = (name) => {
+    if (bindings.has(name)) return bindings.get(name);
+    const param = name === "value" ? "next" : "value";
+    for (let n = 0; ; n++) {
+      const fn = n === 0 ? `set_${name}` : `set_${name}_${n}`;
+      const shape = `function ${fn}(${param}) { return ${name} = ${param}; }`;
+      if (used.has(fn) && topFns.get(fn) !== shape) continue;
+      const b = { fn, param, reuse: used.has(fn), stmt: declStmt.get(name) };
+      used.add(fn);
+      bindings.set(name, b);
+      return b;
+    }
+  };
+
+  for (const s of selected) {
+    const fname = s.fn.id.name;
+    s.setterEdits = [];
+    const refuse = (id, why) =>
+      offenders.push(`${fname} assigns ${id.name} (top-level ${decls.get(id.name)} of ${from}) at line ${id.loc.start.line} - ${why}`);
+    const bound = (id) => freeStarts.has(id.start) && decls.has(id.name);
+    const rewritable = (id) => {
+      const kind = decls.get(id.name);
+      if (kind === "var" || kind === "let") return true;
+      refuse(id, `${NOT_REASSIGNABLE[kind] ?? kind} cannot get a setter`);
+      return false;
+    };
+    const edit = (start, end, text) => s.setterEdits.push({ start, end, text });
+
+    walkParents(s.stmt, null, (n, parent) => {
+      if (n.type === "AssignmentExpression") {
+        if (n.left.type !== "Identifier") {
+          patternIds(n.left).filter(bound).forEach((id) => refuse(id, "destructuring target"));
+          return;
+        }
+        if (!bound(n.left) || !rewritable(n.left)) return;
+        const name = n.left.name, op = n.operator;
+        const span = operatorSpan(src0, n.left, op);
+        if (!span || n.left.start !== n.start) return refuse(n.left, "unusual formatting (comment or parentheses around the target); edit by hand");
+        const setter = setterFor(name).fn;
+        siteCount++;
+        if (op === "=") {
+          edit(n.start, span.restStart, `${setter}(`);
+          edit(n.end, n.end, ")");
+        } else if (COMPOUND_OPS.has(op)) {
+          edit(n.start, n.start, `${setter}(`);
+          edit(n.left.end, span.restStart, ` ${op.slice(0, -1)} (`);
+          edit(n.end, n.end, "))");
+        } else if (LOGICAL_OPS.has(op)) {
+          // a leading "(" could glue itself to a statement above that has no semicolon
+          const wrap = parent && parent.type === "ExpressionStatement" ? false : true;
+          if (wrap) edit(n.start, n.start, "(");
+          edit(n.left.end, span.restStart, ` ${op.slice(0, -1)} (${setter}(`);
+          edit(n.end, n.end, wrap ? ")))" : "))");
+        }
+      } else if (n.type === "UpdateExpression") {
+        const arg = n.argument;
+        if (arg.type !== "Identifier" || !bound(arg) || !rewritable(arg)) return;
+        const unused = parent && ((parent.type === "ExpressionStatement" && parent.expression === n) || (parent.type === "ForStatement" && parent.update === n));
+        if (!unused) return refuse(arg, `${n.operator} whose value is used`);
+        siteCount++;
+        edit(n.start, n.end, `${setterFor(arg.name).fn}(${arg.name} ${n.operator === "++" ? "+" : "-"} 1)`);
+      } else if ((n.type === "ForInStatement" || n.type === "ForOfStatement") && n.left.type !== "VariableDeclaration") {
+        patternIds(n.left).filter(bound).forEach((id) => refuse(id, "for-in/of target"));
+      }
+    });
+  }
+
+  // each setter goes right after the statement that declares its binding
+  const inserts = [];
+  const byStmt = new Map();
+  for (const [name, b] of bindings) {
+    if (b.reuse) continue;
+    if (!byStmt.has(b.stmt)) byStmt.set(b.stmt, []);
+    byStmt.get(b.stmt).push({ name, text: `function ${b.fn}(${b.param}) { return ${name} = ${b.param}; }` });
+  }
+  for (const [stmt, list] of byStmt) {
+    const body = list.sort((a, b) => byCodepoint(a.name, b.name)).map((x) => x.text).join("\n");
+    const nl = src0.indexOf("\n", stmt.end);
+    const lineEnd = nl < 0 ? src0.length : nl;
+    if (/^[ \t]*(\/\/.*)?$/.test(src0.slice(stmt.end, lineEnd)))
+      inserts.push({ pos: nl < 0 ? src0.length : nl + 1, text: (nl < 0 ? "\n" : "") + body + "\n" });
+    else inserts.push({ pos: stmt.end, text: "\n" + body + "\n" });
+  }
+  return { offenders, bindings, siteCount, inserts };
+}
+
 // ---- main ------------------------------------------------------------------
 export function splitModule(opts) {
   const o = { dry: false, purpose: null, repoRoot: REPO_ROOT, ...opts };
@@ -388,6 +531,13 @@ function run(o, result) {
   if (!selected.length) throw new Abort("no top-level function declarations selected");
   const movedNames = new Set(selected.map((s) => s.fn.id.name));
 
+  // ---- free names of the moved code, and (with --setters) the assignments to rewrite
+  const movedStmts = selected.map((s) => s.stmt);
+  let free = freeOccurrences(movedStmts);
+  const freeStarts = new Set();
+  for (const occ of free.values()) occ.forEach((n) => freeStarts.add(n.start));
+  const setterPlan = o.setters ? planSetters({ selected, src0, ast, freeStarts, decls, from: o.from }) : null;
+
   // Relative string paths inside the moved code - import("./x.js"), new URL("./x",
   // import.meta.url), new URL(...) - resolve against the file they live in, so
   // they are rewritten for the new file's directory like the static imports.
@@ -417,19 +567,18 @@ function run(o, result) {
       if (next === value) return;
       edits.push({ start: lit.start - s.chunk.chunkStart, end: lit.end - s.chunk.chunkStart, text: q + next + q });
     });
-    if (edits.length) { s.chunk.text = applyEdits(s.chunk.text, edits); rewrittenPaths += edits.length; }
+    const pathEdits = edits.length;
+    if (setterPlan) for (const e of s.setterEdits) edits.push({ ...e, start: e.start - s.chunk.chunkStart, end: e.end - s.chunk.chunkStart });
+    if (edits.length) { s.chunk.text = applyEdits(s.chunk.text, edits); rewrittenPaths += pathEdits; }
   }
 
-  // ---- free names of the moved code, and the safety guard
-  const movedStmts = selected.map((s) => s.stmt);
-  const free = freeOccurrences(movedStmts);
-  const freeStarts = new Set();
-  for (const occ of free.values()) occ.forEach((n) => freeStarts.add(n.start));
-  const offenders = [];
-  for (const s of selected)
-    for (const id of assignedIdentifiers(s.stmt))
-      if (freeStarts.has(id.start) && decls.has(id.name))
-        offenders.push(`${s.fn.id.name} assigns ${id.name} (top-level ${decls.get(id.name)} of ${o.from}) at line ${id.loc.start.line}`);
+  // ---- the safety guard
+  const offenders = setterPlan ? [...setterPlan.offenders] : [];
+  if (!setterPlan)
+    for (const s of selected)
+      for (const id of assignedIdentifiers(s.stmt))
+        if (freeStarts.has(id.start) && decls.has(id.name))
+          offenders.push(`${s.fn.id.name} assigns ${id.name} (top-level ${decls.get(id.name)} of ${o.from}) at line ${id.loc.start.line}`);
   // A direct eval sees the module's bindings, which a moved function no longer shares.
   for (const s of selected)
     walkNodes(s.stmt, (n) => {
@@ -441,7 +590,16 @@ function run(o, result) {
       "GUARD: moved code would break at runtime. An imported binding is read-only, so assigning a",
       "top-level binding of the source throws, and a direct eval cannot see them. Offenders:",
       ...offenders.map((m) => "  " + m),
+      ...(setterPlan ? [`(--setters would have rewritten ${setterPlan.siteCount} other site(s) across ${setterPlan.bindings.size} binding(s); ${selected.length} functions selected)`] : []),
     ]);
+
+  // The rewritten text no longer assigns, and may no longer read, some bindings, and now
+  // calls the setters: recompute what it needs from the source.
+  const setterNames = setterPlan ? [...setterPlan.bindings.values()].map((b) => b.fn) : [];
+  if (setterPlan && setterPlan.siteCount) {
+    setterNames.forEach((n) => decls.set(n, "function"));
+    free = freeOccurrences(parse(selected.map((s) => s.chunk.text).join("\n\n"), "the rewritten moved code").ast.body);
+  }
 
   const srcImports = new Map(); // local -> {decl, spec}
   for (const stmt of ast.body)
@@ -467,6 +625,7 @@ function run(o, result) {
   // ---- remove from the source, and clean the export lists in the same pass
   // (acorn rejects a list naming a function that is gone, so no re-parse in between)
   const cuts = selected.map((s) => ({ s: s.chunk.chunkStart, e: s.chunk.removeEnd, collapse: true }));
+  if (setterPlan) for (const ins of setterPlan.inserts) cuts.push({ s: ins.pos, e: ins.pos, text: ins.text });
   const removedFromLists = new Set();
   const plainExported = new Set(); // moved names a plain export list keeps exporting
   let emptyLists = 0;
@@ -639,6 +798,10 @@ function run(o, result) {
   lines.push(`split_module: ${srcRel} -> ${newRel}${o.dry ? "  [dry run, nothing written]" : ""}`);
   lines.push(`moved: ${selected.length} functions, ${movedLines} lines (${reexported.length} of them "export function", re-exported from the source)`);
   lines.push(`  ${list(selected.map((s) => s.fn.id.name))}`);
+  if (setterPlan) {
+    const b = [...setterPlan.bindings].map(([name, x]) => (x.fn === `set_${name}` ? name : `${name} via ${x.fn}${x.reuse ? ", existing" : ""}`));
+    lines.push(`setters: ${setterPlan.bindings.size} bindings (${b.join(", ")}), ${setterPlan.siteCount} sites rewritten`);
+  }
   if (rewrittenPaths) lines.push(`relative paths rewritten inside moved code: ${rewrittenPaths}`);
   lines.push(`imports in ${newBase}: ${importLines.length} statements; ${[...copiedImports.values()].reduce((n, g) => n + g.named.size + (g.def ? 1 : 0) + (g.ns ? 1 : 0), 0)} names copied from the source's imports`);
   lines.push(`from the source (${path.basename(srcAbs)}): ${selfSpecs.length} names (${newlyExported.length} newly exported for it, ${alreadyExported.length} already exported)`);
@@ -647,10 +810,13 @@ function run(o, result) {
   lines.push(`siblings edited: ${siblings.length}${siblings.map((s) => `\n  ${s.rel}: ${s.moved.length} name(s) now import from ${newBase}`).join("")}`);
   lines.push(`source export lists: ${removedFromLists.size} moved names removed, ${emptyLists} emptied lists deleted`);
   lines.push(`left behind in the ranges: ${leftBehind.length}${leftBehind.length ? "\n" + leftBehind.slice(0, 12).map((l) => "  " + l).join("\n") + (leftBehind.length > 12 ? `\n  ... (+${leftBehind.length - 12} more)` : "") : ""}`);
-  lines.push("guard: pass (no moved code assigns a source top-level binding; outputs parse, resolve, link)");
+  lines.push(setterPlan && setterPlan.siteCount
+    ? "guard: pass (assignments to source top-level bindings go through setters; outputs parse, resolve, link)"
+    : "guard: pass (no moved code assigns a source top-level binding; outputs parse, resolve, link)");
   lines.push(`add ${newRel} to survey-assets.json, then run npm run check`);
   result.report = lines.join("\n");
   result.moved = selected.map((s) => s.fn.id.name);
+  if (setterPlan) result.setters = { bindings: Object.fromEntries([...setterPlan.bindings].map(([n, b]) => [n, b.fn])), sites: setterPlan.siteCount };
   result.leftBehind = leftBehind;
   result.files = [srcAbs, newAbs, ...siblings.map((s) => s.file)];
 
@@ -766,6 +932,7 @@ function parseArgs(argv) {
       case "--lines": o.lines = val(); break;
       case "--purpose": o.purpose = val(); break;
       case "--dry": o.dry = true; break;
+      case "--setters": o.setters = true; break;
       case "--help": case "-h": o.help = true; break;
       default: throw new Abort(`unknown argument ${a}`);
     }
@@ -784,7 +951,7 @@ function isMainModule() {
 }
 
 if (isMainModule()) {
-  const usage = 'usage: node tools/split_module.mjs --from <file> --to <newfile> (--names a,b,c | --lines 5000-5999[,7000-7100]) [--purpose "text"] [--dry]';
+  const usage = 'usage: node tools/split_module.mjs --from <file> --to <newfile> (--names a,b,c | --lines 5000-5999[,7000-7100]) [--purpose "text"] [--setters] [--dry]';
   let opts;
   try {
     opts = parseArgs(process.argv.slice(2));

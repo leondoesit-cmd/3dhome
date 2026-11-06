@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import * as acorn from "../vendor/acorn/acorn.mjs";
 import { checkFiles } from "../tools/module_check.mjs";
 import { splitModule } from "../tools/split_module.mjs";
@@ -369,4 +369,394 @@ test("plain Worker/SharedWorker strings resolve against the page and are left al
     assert.ok(moved.includes('new Worker("./w.js")') && moved.includes('new SharedWorker("./w.js")'));
     assert.ok(!r.report.includes("relative paths rewritten"), r.report);
   } finally { ws.done(); }
+});
+
+// ---- --setters --------------------------------------------------------------
+// These tests write a small real ES-module project to a temp dir, run the split, then import
+// the generated files and call the moved functions: ES imports are read-only, so only running
+// them proves the rewritten assignments reach the source's bindings.
+const SETTER_SRC = `import { sib } from "./modeler/sibling.js";
+
+export let counter = 0;
+export let flag = null;
+let opt;
+var shared = 1;
+let evals = 0;
+const FIXED = 3;
+class Box {}
+function fixedFn() {}
+function set_shared() {
+  return "mine";
+}
+
+function next(v) {
+  evals++;
+  return v;
+}
+
+// plain value read back by the tests
+export function snapshot() {
+  return { counter, flag, opt, shared, evals };
+}
+
+export function reset() {
+  counter = 0; flag = null; opt = undefined; shared = 1; evals = 0;
+}
+
+export function viaSource() {
+  return [assignRet(), mineStill()];
+}
+
+// the source calls every movable function, so each one is imported back and the new file exports it
+export const everything = () => [assignChain, allCompound, logicalOr, logicalAnd, nullish, updates, shadowed, reader];
+
+function mineStill() {
+  counter++;
+  return counter + set_shared();
+}
+
+/* returns the assigned value */
+function assignRet() {
+  return counter = 5;
+}
+
+function assignChain() {
+  let y;
+  y = (counter += 2);
+  let a, b;
+  a = b = counter = 7;
+  return [y, a, b];
+}
+
+function allCompound() {
+  counter = 1;
+  counter += 2;
+  counter *= 4;
+  counter -= 2;
+  counter /= 5;
+  counter **= 3;
+  counter %= 5;
+  counter <<= 2;
+  counter >>= 1;
+  counter >>>= 1;
+  counter &= 2;
+  counter |= 5;
+  counter ^= 2;
+  return counter;
+}
+
+function logicalOr(v) {
+  const r = (flag ||= next(v));
+  return r;
+}
+
+function logicalAnd(v) {
+  flag &&= next(v);
+  return flag;
+}
+
+function nullish(v) {
+  return opt ??= next(v);
+}
+
+function updates() {
+  counter = 10;
+  counter++;
+  ++counter;
+  counter--;
+  --counter;
+  counter++
+  for (; shared < 4; shared++) {}
+  for (let k = 0; k < 2; k++) {}
+  return counter;
+}
+
+function shadowed() {
+  let counter = 100;
+  counter += 1;
+  counter++;
+  const f = (shared) => { shared = 9; return shared; };
+  return [counter, f(1)];
+}
+
+function reader() {
+  return counter + shared;
+}
+
+function updateUsed() {
+  const k = counter++;
+  return k;
+}
+
+function updateReturned() {
+  return ++counter;
+}
+
+function destructure(o) {
+  ({ counter } = o);
+}
+
+function destructureArr(a) {
+  [flag] = a;
+}
+
+function forOf(list) {
+  for (counter of list) {}
+}
+
+function forIn(o) {
+  for (flag in o) {}
+}
+
+function toConst() {
+  FIXED = 4;
+}
+
+function toImport() {
+  sib = 1;
+}
+
+function toClass() {
+  Box = null;
+}
+
+function toFunction() {
+  fixedFn = null;
+}
+
+function evalCall() {
+  eval("counter++");
+}
+`;
+const SIBLING_SRC = `export function sib() {\n  return 1;\n}\n`;
+
+function setterProject(srcText = SETTER_SRC) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "split-setters-"));
+  const p = (rel) => path.join(dir, ...rel.split("/"));
+  fs.mkdirSync(p("js/modeler"), { recursive: true });
+  fs.writeFileSync(p("package.json"), '{"type":"module"}\n');
+  fs.writeFileSync(p("js/modeler.js"), srcText);
+  fs.writeFileSync(p("js/modeler/sibling.js"), SIBLING_SRC);
+  return {
+    dir, p,
+    read: (rel) => fs.readFileSync(p(rel), "utf8"),
+    split: (extra) => splitModule({ from: p("js/modeler.js"), to: p("js/modeler/area.js"), repoRoot: dir, setters: true, ...extra }),
+    load: (rel) => import(pathToFileURL(p(rel)).href),
+    done: () => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 }),
+  };
+}
+
+const MOVABLE = "assignRet,assignChain,allCompound,logicalOr,logicalAnd,nullish,updates,shadowed,reader";
+
+test("--setters: every rewrite form updates the source binding and keeps its value", async () => {
+  const pr = setterProject();
+  try {
+    const r = pr.split({ names: MOVABLE });
+    assert.equal(r.ok, true, r.report);
+    const src = await pr.load("js/modeler.js");
+    const area = await pr.load("js/modeler/area.js");
+    src.reset();
+
+    assert.equal(area.assignRet(), 5, "`return X = 5` still returns 5");
+    assert.equal(src.snapshot().counter, 5, "and the source binding changed");
+
+    assert.deepEqual(area.assignChain(), [7, 7, 7], "y = (X += 2) gets the new value; a = b = X = 7 chains");
+    assert.equal(src.snapshot().counter, 7);
+
+    assert.equal(area.allCompound(), 5, "all twelve compound operators");
+    assert.equal(src.snapshot().counter, 5);
+
+    assert.equal(area.updates(), 11, "statement-level ++/-- and a for-update clause");
+    assert.equal(src.snapshot().counter, 11);
+    assert.equal(src.snapshot().shared, 4, "for (; ...; shared++) ran through the setter");
+
+    assert.equal(area.reader(), 15, "reads still see the live import");
+  } finally { pr.done(); }
+});
+
+test("--setters: ||=, &&= and ??= keep their short-circuit and their value", async () => {
+  const pr = setterProject();
+  try {
+    assert.equal(pr.split({ names: MOVABLE }).ok, true);
+    const src = await pr.load("js/modeler.js");
+    const area = await pr.load("js/modeler/area.js");
+    src.reset();
+
+    assert.equal(area.logicalAnd("x"), null, "&&= on a falsy flag does nothing");
+    assert.equal(src.snapshot().evals, 0, "and the right side is not evaluated");
+
+    assert.equal(area.logicalOr("a"), "a", "||= on a falsy flag assigns and yields the value");
+    assert.deepEqual([src.snapshot().flag, src.snapshot().evals], ["a", 1]);
+    assert.equal(area.logicalOr("b"), "a", "||= on a truthy flag short-circuits");
+    assert.deepEqual([src.snapshot().flag, src.snapshot().evals], ["a", 1], "the setter is not reached");
+
+    assert.equal(area.logicalAnd("c"), "c", "&&= on a truthy flag assigns");
+    assert.deepEqual([src.snapshot().flag, src.snapshot().evals], ["c", 2]);
+
+    assert.equal(area.nullish(0), 0, "??= on undefined assigns even a falsy value");
+    assert.equal(area.nullish(9), 0, "??= on 0 short-circuits (0 is not nullish)");
+    assert.deepEqual([src.snapshot().opt, src.snapshot().evals], [0, 3]);
+  } finally { pr.done(); }
+});
+
+test("--setters: a local that shadows the binding is untouched, the source's own code is never rewritten", async () => {
+  const pr = setterProject();
+  try {
+    const r = pr.split({ names: MOVABLE });
+    assert.equal(r.ok, true, r.report);
+    const area = pr.read("js/modeler/area.js");
+    const shadow = area.slice(area.indexOf("function shadowed"), area.indexOf("function reader"));
+    assert.ok(shadow.includes("counter += 1;") && shadow.includes("counter++;") && shadow.includes("shared = 9;"), shadow);
+    assert.ok(!shadow.includes("set_"), "no setter call in the function that only touches locals");
+    const src = pr.read("js/modeler.js");
+    assert.ok(src.includes("  counter++;\n  return counter + set_shared();"), "mineStill keeps its own counter++");
+    assert.ok(src.includes("counter = 0; flag = null;"), "reset() is unchanged");
+    const area2 = await pr.load("js/modeler/area.js");
+    const s = await pr.load("js/modeler.js");
+    s.reset();
+    assert.deepEqual(area2.shadowed(), [102, 9]);
+    assert.equal(s.snapshot().counter, 0, "the source counter never moved");
+    assert.equal(s.snapshot().shared, 1);
+  } finally { pr.done(); }
+});
+
+test("--setters: one setter per binding after its declaration, a free name, exported for the new file", () => {
+  const pr = setterProject();
+  try {
+    const r = pr.split({ names: MOVABLE });
+    assert.equal(r.ok, true, r.report);
+    assert.deepEqual(r.setters.bindings, { counter: "set_counter", flag: "set_flag", opt: "set_opt", shared: "set_shared_1" });
+    assert.ok(/setters: 4 bindings \(counter, flag, opt, shared via set_shared_1\), \d+ sites rewritten/.test(r.report), r.report);
+    assert.ok(r.report.includes(`${r.setters.sites} sites rewritten`));
+    const src = pr.read("js/modeler.js");
+    assert.ok(src.includes("export let counter = 0;\nfunction set_counter(value) { return counter = value; }\n"), src.slice(0, 400));
+    assert.ok(src.includes("export let flag = null;\nfunction set_flag(value) { return flag = value; }\n"));
+    assert.ok(src.includes("let opt;\nfunction set_opt(value) { return opt = value; }\n"));
+    assert.ok(src.includes("var shared = 1;\nfunction set_shared_1(value) { return shared = value; }\n"), "set_shared is taken, so the suffix");
+    assert.equal(src.split("function set_counter(").length, 2, "exactly one");
+    assert.ok(src.includes('return "mine"'), "the pre-existing set_shared is untouched");
+    // exported through the list headed for the new file, so modelerSource() strips it as before
+    assert.ok(src.includes("// for js/modeler/area.js (live bindings: it sees every reassignment)"));
+    const list = exportLists(src).find((l) => l.includes("set_counter"));
+    assert.ok(list && ["set_counter", "set_flag", "set_opt", "set_shared_1"].every((n) => list.includes(n)), JSON.stringify(exportLists(src)));
+    // the new file imports them
+    const area = pr.read("js/modeler/area.js");
+    const fromSrc = importsOf(area)["../modeler.js"];
+    for (const n of ["set_counter", "set_flag", "set_opt", "set_shared_1", "next", "counter", "shared"]) assert.ok(fromSrc.includes(n), `${n} imported: ${fromSrc}`);
+    assert.ok(area.includes("set_counter(5)") && area.includes("set_counter(counter + (2))"), "the rewritten text");
+    assert.ok(area.includes("(flag || (set_flag(next(v))))"), "||= inside an expression is parenthesised");
+    assert.ok(area.includes("  flag && (set_flag(next(v)));"), "&&= as a statement needs no outer parentheses");
+    assert.equal(checkFiles(["js/modeler.js", "js/modeler/area.js", "js/modeler/sibling.js"].map(pr.p), pr.dir).total, 0);
+  } finally { pr.done(); }
+});
+
+test("--setters: code that needs no rewrite stays byte-for-byte, comments stay", () => {
+  const pr = setterProject();
+  try {
+    const before = pr.read("js/modeler.js");
+    const reader = before.slice(before.indexOf("function reader"), before.indexOf("function updateUsed")).trimEnd();
+    const shadow = before.slice(before.indexOf("function shadowed"), before.indexOf("function reader")).trimEnd();
+    assert.equal(pr.split({ names: MOVABLE }).ok, true);
+    const area = pr.read("js/modeler/area.js");
+    assert.ok(area.includes(reader) && area.includes(shadow), "functions with nothing to rewrite are copied exactly");
+    assert.ok(area.includes("/* returns the assigned value */\nfunction assignRet() {\n  return set_counter(5);\n}"), "leading comment kept, body rewritten in place");
+  } finally { pr.done(); }
+});
+
+test("--setters: a value-using update, destructuring, for-in/of, const, import, class and function targets stay refused", () => {
+  const cases = {
+    updateUsed: /updateUsed assigns counter .* - \+\+ whose value is used/,
+    updateReturned: /updateReturned assigns counter .* - \+\+ whose value is used/,
+    destructure: /destructure assigns counter .* - destructuring target/,
+    destructureArr: /destructureArr assigns flag .* - destructuring target/,
+    forOf: /forOf assigns counter .* - for-in\/of target/,
+    forIn: /forIn assigns flag .* - for-in\/of target/,
+    toConst: /toConst assigns FIXED .* - a const/,
+    toImport: /toImport assigns sib .* - an imported binding/,
+    toClass: /toClass assigns Box .* - a class/,
+    toFunction: /toFunction assigns fixedFn .* - a function declaration/,
+  };
+  for (const [name, re] of Object.entries(cases)) {
+    const pr = setterProject();
+    try {
+      const before = pr.read("js/modeler.js");
+      const r = pr.split({ names: `assignRet,${name}` });
+      assert.equal(r.ok, false, name);
+      assert.ok(re.test(r.errors.join("\n")), `${name}: ${r.errors.join("\n")}`);
+      assert.equal(pr.read("js/modeler.js"), before, "nothing written");
+      assert.equal(fs.existsSync(pr.p("js/modeler/area.js")), false);
+    } finally { pr.done(); }
+  }
+});
+
+test("--setters: a direct eval is still refused", () => {
+  const pr = setterProject();
+  try {
+    const r = pr.split({ names: "assignRet,evalCall" });
+    assert.equal(r.ok, false);
+    assert.ok(r.errors.join("\n").includes("evalCall calls eval"), r.errors.join("\n"));
+  } finally { pr.done(); }
+});
+
+test("without --setters the guard is unchanged: assigning a source binding aborts", () => {
+  const pr = setterProject();
+  try {
+    const r = pr.split({ names: "assignRet", setters: false });
+    assert.equal(r.ok, false);
+    assert.ok(/assignRet assigns counter \(top-level let of /.test(r.errors.join("\n")), r.errors.join("\n"));
+    assert.ok(!("setters" in r));
+  } finally { pr.done(); }
+});
+
+test("--setters --dry reports and writes nothing; a split that needs no setter reports zero", () => {
+  const pr = setterProject();
+  try {
+    const before = pr.read("js/modeler.js");
+    const dry = pr.split({ names: "assignRet,shadowed", dry: true });
+    assert.equal(dry.ok, true, dry.report);
+    assert.ok(/setters: 1 bindings \(counter\), 1 sites rewritten/.test(dry.report), dry.report);
+    assert.equal(pr.read("js/modeler.js"), before);
+    assert.equal(fs.existsSync(pr.p("js/modeler/area.js")), false);
+    const none = pr.split({ names: "reader", dry: true });
+    assert.ok(/setters: 0 bindings \(\), 0 sites rewritten/.test(none.report), none.report);
+  } finally { pr.done(); }
+});
+
+test("--setters: a second split reuses the setter the first one generated", async () => {
+  const pr = setterProject();
+  try {
+    assert.equal(pr.split({ names: "assignRet" }).ok, true);
+    const r2 = pr.split({ names: "allCompound", to: pr.p("js/modeler/area2.js") });
+    assert.equal(r2.ok, true, r2.report);
+    assert.deepEqual(r2.setters.bindings, { counter: "set_counter" });
+    const src = pr.read("js/modeler.js");
+    assert.equal(src.split("function set_counter(").length, 2, "still exactly one setter");
+    assert.equal(exportLists(src).filter((l) => l.includes("set_counter")).length, 1, "and exported once");
+    const s = await pr.load("js/modeler.js");
+    const a2 = await pr.load("js/modeler/area2.js");
+    s.reset();
+    assert.equal(a2.allCompound(), 5);
+    assert.equal(s.snapshot().counter, 5);
+  } finally { pr.done(); }
+});
+
+test("--setters: a binding named `value` gets a setter whose parameter does not shadow it", async () => {
+  const pr = setterProject(`export let value = 1;\nexport function get() {\n  return value;\n}\nfunction put(n) {\n  value = n;\n}\nexport function viaSource() {\n  put(3);\n}\n`);
+  try {
+    const r = pr.split({ names: "put" });
+    assert.equal(r.ok, true, r.report);
+    assert.ok(pr.read("js/modeler.js").includes("function set_value(next) { return value = next; }"));
+    const s = await pr.load("js/modeler.js");
+    s.viaSource();
+    assert.equal(s.get(), 3);
+  } finally { pr.done(); }
+});
+
+test("CLI: --setters is accepted", () => {
+  const pr = setterProject();
+  try {
+    const run = spawnSync(process.execPath, [TOOL, "--from", pr.p("js/modeler.js"), "--to", pr.p("js/modeler/area.js"), "--names", "assignRet", "--setters", "--dry"], { encoding: "utf8" });
+    assert.equal(run.status, 0, run.stderr);
+    assert.ok(run.stdout.includes("setters: 1 bindings (counter), 1 sites rewritten"), run.stdout);
+  } finally { pr.done(); }
 });
