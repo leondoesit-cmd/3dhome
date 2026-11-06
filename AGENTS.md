@@ -31,3 +31,20 @@ ModelForge (repo `3dhome`) is a **local-first, browser-based parametric CAD / ho
 - **Prefer behaviour over source text.** Put the logic in a function Node can import (no bare `three` import at module level; take `THREE`/`TSL` as arguments, as `js/room_bounce.js` does) and test inputs against outputs. A regex over a source file passes while the behaviour is wrong and breaks on harmless refactors.
 - Regexes over source are for wiring Node cannot run (a GPU-only call, an event hook). Match code, never the wording of a comment (`tools/comment_assertions.mjs` flags assertions only a comment satisfies).
 - Tests that need `js/modeler.js` source read it through `tests/helpers/modeler_source.mjs` (`modelerSource()`), which includes the modules split out under `js/modeler/`.
+
+### Working cheaply (agents)
+Token use matters on this repo; these habits keep it down.
+- **Never read a big file whole** (`js/modeler.js`, `css/styles.css`, `js/view3d.js`, `js/interaction.js`, `js/i18n/*.js`, `js/modeler_strings.js`). Find the region first with `node tools/outline.mjs <file> [--grep word]` (top-level declarations or CSS sections with line numbers) or Grep `-n`, then Read with `offset`/`limit` (≤200 lines).
+- **Search scope**: the root `.ignore` keeps vendored code, harness output and data blobs out of Grep/Glob. Read such a file by path when you really need it.
+- **Tests during work**: `npm run test:changed` (the tests that name a changed file; `-- --list` to preview) or `npm run test:quiet -- tests/x.test.mjs`. Both print only failures and a summary. Run the full suite (`npm run test:quiet`, ~17 min) only at the end, in the background.
+- **Route work to the cheapest capable model** (Claude Code project agents in `.claude/agents/`):
+
+  | Work | Who |
+  |---|---|
+  | "Where is X?" searches | `locator` (Haiku) |
+  | check / tests, failures only | `test-runner` (Haiku) |
+  | Specified mechanical edits: moves, renames, import fixes, test rewiring | `mechanical-editor` (Sonnet), with an explicit list of files it may edit |
+  | Code and plan reviews | Codex `gpt-6.1-sol`, `model_reasoning_effort=high`, `-s read-only` |
+  | Design, graphics/renderer/shaders, hard debugging | the main model |
+
+  Do a task of a few tool calls yourself: a subagent starts cold, so delegating it costs more than it saves. Check a subagent's or Codex's claim (diff, test run) before relying on it.

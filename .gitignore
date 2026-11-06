@@ -3,7 +3,12 @@ node_modules/
 .DS_Store
 */.DS_Store
 */*/.DS_Store
-.claude/
+# local Claude state stays out; the shared agent definitions and settings go in
+.claude/*
+!.claude/agents/
+!.claude/settings.json
+# browser-test harness leftovers
+mf-harness-*/
 *.log
 npm-debug.log*
 yarn-debug.log*
