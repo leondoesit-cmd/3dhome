@@ -92,7 +92,9 @@ test("hebrew docked modeler sheet can open (specificity vs parked off-screen)", 
 test("ui.js and main.js drive chrome from chromePosture", async () => {
   const ui = moduleSource("js/ui.js");
   const main = await readFile(new URL("../js/main.js", import.meta.url), "utf8");
-  assert.match(ui, /from "\.\/chrome_posture\.js"/);
+  // initUI (a piece of ui.js) imports it; moduleSource drops pieces' imports
+  const initUi = await readFile(new URL("../js/ui/init_ui.js", import.meta.url), "utf8");
+  assert.match(initUi, /from "\.\.\/chrome_posture\.js"/);
   assert.match(ui, /windowChromePosture\(\)/);
   assert.match(main, /from "\.\/chrome_posture\.js"/);
   assert.match(main, /windowChromePosture\(\)/);

@@ -1,12 +1,9 @@
-import { awardRunPoints } from "./zombies_rules.js";
+import "./zombies_rules.js";
 /* Night Shift world: collision, textures, VFX, horror grade, zombie AI/mesh. */
 import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import {
-  Fn, Discard, attribute, uniform, texture, uv, positionView, positionLocal,
-  positionGeometry, vec2, vec3, vec4, float, mix, sin, smoothstep, screenDPR,
-} from "three/tsl";
-import { LUX, legacyIntensity } from "./gpu.js";
+import "three/addons/utils/BufferGeometryUtils.js";
+import "three/tsl";
+import { legacyIntensity } from "./gpu.js";
 // The flashlight keeps a SOFT decay on purpose: it is the only thing the
 // player sees by, and true inverse-square would blow out a wall at arm's
 // length by the same factor it kills the far side of a room.
@@ -18,28 +15,14 @@ const FLASH_DECAY = 1.25;
 // throw instead makes the near field blow out to flat white.
 const FLASH_I = legacyIntensity(3.4, 1950, FLASH_DECAY, 0.09);
 import { S, clamp, fin } from "./state.js";
-import {
-  getMainScene,
-  getMainCamera,
-  getRenderer,
-  getDynGroup,
-  getRigLights,
-  applyEnv,
-} from "./view3d.js";
+import { getMainScene, getDynGroup } from "./view3d.js";
 import { wallGeom, hiddenSets, detectRooms, roomHidden, usedNodes } from "./geometry.js";
-import { t } from "./i18n.js";
-import {
-  Z, hooks, P_CLEAR, STEP, GRAV, rr, pick, rnd,
-} from "./zombies_state.js";
+import "./i18n.js";
+import { Z, P_CLEAR, STEP, rr, rnd } from "./zombies_state.js";
 import * as Col2D from "./col2d.js";
 import { runtimeCollisionRects, hasRuntimeRepresentation } from "./core/runtime.js";
-import {
-  tex as texLoad,
-  normalTex as texNormal,
-  registerFallback,
-  texAniso,
-} from "./zombies_tex.js";
-import { alertCritters } from "./zombies_critters.js";
+import { texAniso } from "./zombies_tex.js";
+import "./zombies_critters.js";
 import {
   clearAcidClouds, igniteZed, isNearBloodDecal, isNearGlassDebris, makeNoise,
   removeZed, screamerCall, spawnAcidCloud, stepAcidClouds, stepBurn,
@@ -49,8 +32,8 @@ import {
   animZed, damageZed, killZed, stepZed, stepZedVisuals, trySeverFromHit,
 } from "./zombies_world/zombie_damage_anim.js";
 import {
-  boneMat, boxGeo, buildZombie, bx, clearZedGeoCache, clothMat, cy, eyeMat,
-  hairMat, lipMat, ownsGeo, sp, spawnZed, sphGeo, stumpMat,
+  boneMat, buildZombie, bx, clearZedGeoCache, clothMat, cy, eyeMat, hairMat,
+  lipMat, ownsGeo, sp, spawnZed, stumpMat,
 } from "./zombies_world/zombie_build.js";
 import {
   applyHorrorGrade, buildFlashlight, buildMoonBeams, clearMoonBeams,

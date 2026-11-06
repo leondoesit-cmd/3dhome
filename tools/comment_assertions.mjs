@@ -102,6 +102,10 @@ for (const file of files) {
     owner.set(m[1], I18N);
   for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?stylesSource\(/g))
     owner.set(m[1], STYLES);
+  // a test's own path reader, `const x = read("js/y.js")` / `src("css/z.css")`:
+  // the literal names the file (moduleSource/modelerSource are mapped elsewhere)
+  for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?(\w+)\(\s*["']((?:js|css|server|tools)\/[\w\/.-]+\.(?:m?js|css))["']\s*\)/g))
+    if (!owner.has(m[1]) && m[2] !== "moduleSource" && m[2] !== "modelerSource") owner.set(m[1], m[3]);
   for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?moduleSource\(\s*(["'])([^"']+)\2\s*\)/g))
     owner.set(m[1], MODULE + m[3]);
   for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?modelerSource\(\s*\)/g))

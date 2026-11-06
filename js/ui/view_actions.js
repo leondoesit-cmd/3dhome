@@ -1,6 +1,6 @@
 /* The planner's view, panel, hint and marker actions, dispatched by runAction,
    split out of js/ui/run_action.js. It shares the editor's state through live
-   imports from ./run_action.js. */
+   imports from ../ui.js and ./ui_locals.js. */
 import { pushHistory } from "../history.js";
 import { t, toggleLang } from "../i18n.js";
 import { setTool } from "../interaction.js";
@@ -15,6 +15,12 @@ import { refreshTree } from "../ui_tree.js";
 import { addFurnItem, flash, initDrawingPanel, lavaModule, loadLavaModule, loadRCModule, loadZombieModule, rcModule, setCutaway, setEdit3D, setPlanStyle, syncWalkView, zombieModule } from "../ui.js";
 import { frameView, rebuild3D, toggleDrawing3D, toggleFreeMove, toggleWalk, toggleWalkView } from "../view3d.js";
 import { uiLocals } from "./ui_locals.js";
+
+export const RUN_PANEL_ACTIONS = new Set([
+  "toggleToolNames", "workspace", "openModeler", "uikitCustomize", "plannerTutorial", "agent",
+  "friends", "toggleLegacy", "lang", "tree", "rc", "zombies", "lava", "openTextureGallery",
+  "shortcuts",
+]);
 
 // split out of runAction()
 async function runPanelAction(act, ev) {
@@ -79,6 +85,11 @@ async function runPanelAction(act, ev) {
     uiLocals.showShortcuts();
   }
 }
+
+export const RUN_VIEW_ACTIONS = new Set([
+  "edit3d", "dollhouse", "togglePlanStyle", "drawing3d", "viewPlan", "view3d", "viewSplit",
+  "frameReset", "walk", "walkview", "freemove", "physics", "hitmode", "clearDebris", "frame",
+]);
 
 // split out of runAction()
 async function runViewAction(act, ev) {
@@ -176,6 +187,8 @@ async function runViewAction(act, ev) {
   }
 }
 
+export const RUN_HINT_ACTIONS = new Set(["hintRect", "hintDoor", "hintLibrary"]);
+
 // split out of runAction()
 async function runHintAction(act, ev) {
   if (act === "hintRect") {
@@ -186,6 +199,8 @@ async function runHintAction(act, ev) {
     if (window.__plannerChrome) window.__plannerChrome.setLeftTab("library");
   }
 }
+
+export const RUN_MARKER_ACTIONS = new Set(["mkPlace", "mkRelease", "mkDup", "mkGoItem"]);
 
 // split out of runAction()
 async function runMarkerAction(act, ev) {

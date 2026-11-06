@@ -1,66 +1,57 @@
 /* The planner's initUI: the top-level UI wiring of toolbars, panels, menus and
    their handlers, split out of js/ui.js. It shares the editor's state through
    live imports from ../ui.js. */
-import { syncBlueprintTraceControls } from "../blueprint_trace.js";
+import "../blueprint_trace.js";
 import { convertCadToWalls } from "../cad_to_walls.js";
 import { windowChromePosture } from "../chrome_posture.js";
-import { executeCommand } from "../commands/index.js";
-import { captureClear, captureLock, hangStraightRunOnFace, isLocked, setLocked, setWallReference, setWallThicknessPreservingClear, snapshotNodes } from "../constraint_engine.js";
-import { loadLocalProject, saveLocalProject } from "../core/project_store.js";
-import { applyItemDimension, rebuildProject, requestItemDimension } from "../core/project.js";
-import { defaultApartment } from "../demo_house.js";
-import { fmtLen, parseLen } from "../display_units.js";
-import { initDropdownMenus } from "../dropdown_menus.js";
-import { ceilingHeight } from "../elevation.js";
-import { deliverExport } from "../export_delivery.js";
-import { addSlabOpeningToFloor, floorAbove } from "../floors.js";
-import { FURN, clearVSpanCache } from "../furniture.js";
+import "../commands/index.js";
+import "../constraint_engine.js";
+import "../core/project_store.js";
+import { rebuildProject } from "../core/project.js";
+import "../demo_house.js";
+import "../display_units.js";
+import "../dropdown_menus.js";
+import "../elevation.js";
+import "../export_delivery.js";
+import "../floors.js";
+import { FURN } from "../furniture.js";
 import { convertGeoJsonToWalls } from "../geojson_to_walls.js";
-import { itemsInRoom, roomByKey, roomFloor, setWallEnd, wallClearLength, wallDimSide, wallGeom } from "../geometry.js";
-import { beginHistory, cancelPending, commitPending, currentHistoryId, mountHistoryPanel, pushHistory, redo, undo } from "../history.js";
-import { onLangChange, t, toggleLang } from "../i18n.js";
-import { addSpace, applyNodePairRelation, autoArrangeAll, chamferSelectedWalls, deleteSel, dupSel, filletSelectedWalls, openSegment, openWall, placeOpeningOnSelected, restoreSelectedSharpCorner, rotateRoom, setTool, startConPick, startOpeningAlignPick, togglePinSelected, updateSelectedCornerTreatment } from "../interaction.js";
-import { alignItems, distributeItems, matchRotation } from "../item_align.js";
-import { refaceItem, rotStep, setRotStep } from "../item_orient.js";
-import { saveLayers } from "../layers.js";
-import { detachMarker, duplicateMarker, markerItem, moveMarker, setMarkerSurface } from "../markers.js";
-import { loadMEP } from "../mep.js";
-import { applyCabinetDimension, requestCabinetDimension } from "../parametric_cabinet.js";
-import { getDirtyRevision, markSaved } from "../persist.js";
-import { clearDebris, isPhysicsEnabled, loadPhysics, setStrength, toggleHitMode, togglePhysics } from "../physics_facade.js";
-import { planStyle } from "../plan_style.js";
-import { broadcastPlanOp } from "../plan_sync.js";
-import { fitView, planImageCanvas, render2D, updatePlanGizmo } from "../plan2d.js";
-import { activeEditor } from "../pro_shell.js";
-import { roomMeasurements } from "../room_summary.js";
-import { stairVoidFields } from "../slab_openings.js";
-import { pushDevice } from "../smarthome_connect.js";
-import { syncSmartFromLamp } from "../smarthome.js";
-import { findSupport, rotateWith } from "../stack.js";
-import { S, fin, touchItem3D, uid } from "../state.js";
-import { normalizeSurvey } from "../survey.js";
-import { openLibraryPicker } from "../ui_libpick.js";
-import { renderPanel as refreshMEPPanel } from "../ui_mep.js";
-import { addParam, renderParams, runRoomConAction } from "../ui_params.js";
-import { resizeSelectedRoom } from "../ui_planning_guide.js";
-import { fillProps, refreshMarkerReadout, roomMetaFor, selLamp, select, syncWallEnd, syncWallSide, wallFaceMaterials, wallFlipSymmetric, wallTakeoffRows } from "../ui_props.js";
-import { exportCostCSV, refreshTree, updateCost, withoutRoomPrompts } from "../ui_tree.js";
-import { initWarnPanel, renderWarnPanel } from "../ui_warn.js";
-import { applyEnv, frameView, has3D, isWalk, rebuild3D, snapshot3D, toggleDrawing3D, toggleFreeMove, toggleWalk, toggleWalkView } from "../view3d.js";
-import { addEqualLengthSet, addEqualSpacing, addOffset, addOpeningCentre, addOpeningFromCorner, addOpeningSpacing, addWallAngle, addWallRelation, conLabelText, conUnit, flipConDirection, removeCon, repin, setConReport, setConSuppressed, setConValue, solveWallCons } from "../wall_constraints.js";
-import { normalizeWallKind, normalizeWallProfile, setWallKind } from "../wall_curves.js";
-import { activeWallPresetId, isWallDrawTool, setWallDrawFrom, setWallDrawPreset } from "../wall_draw.js";
-import { ensureWallTypes, flipWall, normalizeWall, setWallPhase, setWallType, wallLayers } from "../wall_types.js";
-import {
-  UI_COMMAND_HISTORY, addFurnItem, afterWallDim, applyData, applyRoomFloor,
-  bindLength, bindNum, compass, download, editEnd, exportWallScheduleFile,
-  flash, fmtHour, initDrawingPanel, lavaModule, loadLavaModule, loadRCModule,
-  loadZombieModule, openModal, openWallTypeEditorDialog, parseFieldLength,
-  pinDimSide, rcModule, restack, saveTextDownload, serialize, setCutaway,
-  setEdit3D, setLockStruct, setPlanStyle, showJointAngleDialog, squareJoint,
-  squareWall, squaredMsg, syncCutawayUI, syncEnvUI, syncPlanStyleUI,
-  syncRotStepUI, syncWalkView, turnItem, writeFieldLength, zombieModule,
-} from "../ui.js";
+import "../geometry.js";
+import { pushHistory } from "../history.js";
+import { onLangChange, t } from "../i18n.js";
+import "../interaction.js";
+import "../item_align.js";
+import "../item_orient.js";
+import "../layers.js";
+import "../markers.js";
+import "../mep.js";
+import "../parametric_cabinet.js";
+import "../persist.js";
+import "../physics_facade.js";
+import "../plan_style.js";
+import "../plan_sync.js";
+import { fitView, render2D } from "../plan2d.js";
+import "../pro_shell.js";
+import "../room_summary.js";
+import "../slab_openings.js";
+import "../smarthome_connect.js";
+import "../smarthome.js";
+import "../stack.js";
+import { S } from "../state.js";
+import "../survey.js";
+import "../ui_libpick.js";
+import "../ui_mep.js";
+import "../ui_params.js";
+import "../ui_planning_guide.js";
+import { roomMetaFor, select } from "../ui_props.js";
+import { refreshTree, updateCost } from "../ui_tree.js";
+import "../ui_warn.js";
+import "../view3d.js";
+import "../wall_constraints.js";
+import "../wall_curves.js";
+import "../wall_draw.js";
+import { ensureWallTypes } from "../wall_types.js";
+import { applyData, flash } from "../ui.js";
 import {
   wireItemAndRoomInputs, wireWalkTogglesAndWallInputs,
 } from "./wall_inputs.js";

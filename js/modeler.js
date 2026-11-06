@@ -1,90 +1,90 @@
-import { registerQuickForm } from "./modeler_quick_form.js";
-import { extrusionGeometry } from "./core/profile_mesh_geometry.js";
-import {SECTION_HATCH_PATTERNS,sectionHatchCaption} from "./core/section_hatch.js";
-import {componentPatternPlan,setComponentPattern,removeComponentPattern} from "./core/assembly_component_pattern.js";
-import {appendSavedLibrarySearch} from './modeler_library_search.js';
-import {sketchEntityStep,sketchEntitySwipe,selectedSketchNavigationEntity,sketchNavigationTarget} from './core/sketch_entity_navigation.js';
-import {makeDimensionTolerance,toleranceFields} from "./core/dimension_tolerance.js";
-import {dimensionEditorPosition} from './core/dimension_editor_position.js';
-import {createSpringBinding,springSource,springMotionState,springPreviewMesh,hasUnverifiedSprings,restoreSpringEndpoint} from "./core/flexible_spring.js";
+import "./modeler_quick_form.js";
+import "./core/profile_mesh_geometry.js";
+import "./core/section_hatch.js";
+import "./core/assembly_component_pattern.js";
+import './modeler_library_search.js';
+import './core/sketch_entity_navigation.js';
+import "./core/dimension_tolerance.js";
+import './core/dimension_editor_position.js';
+import "./core/flexible_spring.js";
 import {createExactSaveCache} from "./core/exact_save_cache.js";
-import {syncSaveButtonAccessibility} from './modeler_save_button.js';
-import {shortcutConflict,validShortcutBindings} from './core/command_shortcuts.js';
-import {sketchGeometryBounds} from './core/sketch_view_fit.js';
-import {reassignSketchPlane} from './core/sketch_plane_edit.js';
-import {sketchPlaneDisplay} from './core/sketch_plane_display.js';
-import {createExactPublicationDraft} from './core/exact_publication_draft.js';
-import {applyCurrentExactDiagnostics,captureExactDiagnostics} from './core/exact_diagnostics.js';
-import {temporaryAxes} from './core/temporary_axes.js';
-import { massDisplaySystem } from "./mass_display_units.js";
-import {reorderFinishFeature} from "./cad_finish_reorder.js";
-import {resolveFinishFace} from "./core/finish_face_reference.js";
-import { markDirty as markPlannerDirty } from "./persist.js";
-import {pierceSketchToHelix} from './core/sketch_pierce.js';
-import {helixFromSketch,synchronizeSketchHelices} from './core/sketch_helix.js';
-import {appendCircularEdgeOffset,coneSilhouette,detachDrivenSketchDimension,projectCircularEdge,retargetConvertedCircle,retargetSilhouetteLine} from './core/cone_silhouette.js';
-import {readProjectBundleUrl} from './core/project_bundle_url.js';
-import {dimensionTargetFromSelection} from './core/sketch_dimension_selection.js';
-import {resolveOffsetPlanes, throughVertexBinding, referencePlaneOffset} from './core/offset_planes.js';
-import {thinSketchProfile} from './core/thin_profile.js';
-import {thinExtrudeAreas,thinExtrudeChainKey,thinExtrudeSketchReadiness} from './modeler_thin_extrude_profiles.js';
-import {threadPlacementFromFace} from './core/thread_placement.js';
-import {threadPlacementFromCircularEdge} from './core/thread_circular_start.js';
-import {occurrenceDependencyId,mateDependencyId,partDependencyGraph,assemblyDependencyGraph,dependencyVisualization} from './core/dependency_visualization.js';
-import {renderDependencyPresentation} from './modeler_dependency_ui.js';
-import {captureNamedCameraPose,restoreNamedCameraPose,namedCameraViews,addNamedCameraView,removeNamedCameraView} from './core/named_camera_views.js';
-import {withRetiredGpuChildren} from './core/gpu_child_retirement.js';
-import { synchronizeExtrusionProjections, synchronizeSketchExtrusionFrames, extrusionPreviewDirection } from "./core/extrusion_projection.js";
-import { transitionExtrudeProjection } from "./core/extrude_projection_transition.js";
-import {setExtrudeFeatureOperation} from './core/extrude_operation_edit.js';
-import {createShellFaceThicknessEditor,createShellOpeningFaceBrowser} from './modeler_shell_thickness_form.js';
-import {bindMateNumericCommit} from './modeler_mate_numeric_commit.js';
-import {setTopologyMateValue} from './cad_mate_value_controls.js';
-import { deduplicateBooleanProjections } from "./core/boolean_projection.js";
-import { rebindReplacedSketchProfiles } from "./core/sketch_profile_rebind.js";
-import { forkConflictingModel } from "./core/model_save_conflict.js";
-import { threePointArc, radialArcEndpoint } from "./sketch_three_point_arc.js";
-import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
+import './modeler_save_button.js';
+import './core/command_shortcuts.js';
+import './core/sketch_view_fit.js';
+import './core/sketch_plane_edit.js';
+import './core/sketch_plane_display.js';
+import './core/exact_publication_draft.js';
+import { applyCurrentExactDiagnostics } from './core/exact_diagnostics.js';
+import './core/temporary_axes.js';
+import "./mass_display_units.js";
+import "./cad_finish_reorder.js";
+import "./core/finish_face_reference.js";
+import "./persist.js";
+import './core/sketch_pierce.js';
+import './core/sketch_helix.js';
+import './core/cone_silhouette.js';
+import './core/project_bundle_url.js';
+import './core/sketch_dimension_selection.js';
+import './core/offset_planes.js';
+import './core/thin_profile.js';
+import './modeler_thin_extrude_profiles.js';
+import './core/thread_placement.js';
+import './core/thread_circular_start.js';
+import './core/dependency_visualization.js';
+import './modeler_dependency_ui.js';
+import './core/named_camera_views.js';
+import './core/gpu_child_retirement.js';
+import "./core/extrusion_projection.js";
+import "./core/extrude_projection_transition.js";
+import './core/extrude_operation_edit.js';
+import './modeler_shell_thickness_form.js';
+import './modeler_mate_numeric_commit.js';
+import './cad_mate_value_controls.js';
+import "./core/boolean_projection.js";
+import "./core/sketch_profile_rebind.js";
+import "./core/model_save_conflict.js";
+import "./sketch_three_point_arc.js";
+import "./sketch_tangent_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
-import { addCenterRectangle } from "./sketch_center_rectangle.js";
-import { addDimensionedCircle } from "./sketch_dimensioned_circle.js";
-import { addDimensionedPolygon } from "./sketch_dimensioned_polygon.js";
-import { addCenterSlot } from "./sketch_center_slot.js";
-import { rasterTextContours } from "./sketch_text.js";
-import { filletSketchCorner } from "./sketch_fillet.js";
-import { bindIntersectionTargets, bindModelEdgeTargets, bindPierceTargets, vertexEdgeBinding } from "./sketch_intersection.js";
-import { appendConvertedEdges, exactEdgeForSegment, previewConvertedEdge } from "./core/convert_entities.js";
-import { copySketchForClipboard, pasteSketchGeometry, readSketchClipboard, writeSketchClipboard } from "./core/sketch_clipboard.js";
-import { ensureSketchOriginPoint, pickIsOrigin, sketchOriginPoint, smartDimensionOriginWins } from "./core/sketch_origin.js";
-import { offsetFaceBoundary, appendBoundarySketch } from "./cad_face_offset.js";
-import { sketchProfileSegments } from "./core/profile_curves.js";
-import { captureExactTopology, verifiedExactTopology, verifiedFinalTopology } from './core/exact_topology_cache.js';
-import { parallelStraightEdges } from "./core/edge_selection.js";
-import { modelDimensions, formatModelLength } from "./core/model_dimensions.js";
-import {documentLengthUnit,formatDocumentLength,formatDocumentScreenScale,lengthFromDocument,lengthToDocument} from './core/document_length_units.js';
-import {documentDefaults,validateDocumentDefaults,applyDocumentDefaults,captureDocumentPreset,loadDocumentPresets,saveDocumentPreset,documentFromPreset} from './core/document_presets.js';
-import {parseSketchDimensionEntry} from './core/sketch_dimension_entry.js';
+import "./sketch_center_rectangle.js";
+import "./sketch_dimensioned_circle.js";
+import "./sketch_dimensioned_polygon.js";
+import "./sketch_center_slot.js";
+import "./sketch_text.js";
+import "./sketch_fillet.js";
+import "./sketch_intersection.js";
+import "./core/convert_entities.js";
+import "./core/sketch_clipboard.js";
+import "./core/sketch_origin.js";
+import "./cad_face_offset.js";
+import "./core/profile_curves.js";
+import './core/exact_topology_cache.js';
+import "./core/edge_selection.js";
+import "./core/model_dimensions.js";
+import './core/document_length_units.js';
+import './core/document_presets.js';
+import './core/sketch_dimension_entry.js';
 import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
-import {setGearMatePhase} from "./cad_gear_motion.js";
-import {beltMateSpec,beltDiameterValue} from './cad_belt_mate.js';
-import {rackPinionMateSpec} from './cad_rack_pinion_mate.js';
-import {rotationLimitMateSpec} from './cad_rotation_limit_mate.js';
-import {addRotationLimitMate,setRotationLimitMateSettings,setRotationLimitMateDrive,setRotationLimitMateReferences} from './cad_rotation_limit_controls.js';
-import {addRackPinionMate,setRackPinionMateSettings,setRackPinionMateDrive,setRackPinionMateReferences} from './cad_rack_pinion_controls.js';
-import {addCubicSpline,splineControls,sampleBezier,bezierPoint} from "./sketch_spline.js";
-import {holeSpan} from "./core/hole_span.js";
+import "./cad_gear_motion.js";
+import './cad_belt_mate.js';
+import './cad_rack_pinion_mate.js';
+import './cad_rotation_limit_mate.js';
+import './cad_rotation_limit_controls.js';
+import './cad_rack_pinion_controls.js';
+import { splineControls } from "./sketch_spline.js";
+import "./core/hole_span.js";
 import {repairReferences,restoreSketchConstraint} from "./sketch_edit_repair.js";
-import { MANUFACTURING_TABLES, validateManufacturingTables } from "./manufacturing_tables.js";
-import { centerOfMassInSystem, evaluateMassProperties } from "./cad_mass_properties.js";
-import { evaluateAssemblyMassProperties } from "./cad_assembly_mass_properties.js";
-import { holeToolPlacements, holeCutRecords, holePreviewParts, syncHoleCutPlacement, holePositionPointIds } from "./core/hole_geometry.js";
-import { cylindricalHoleSource, cylindricalHolePlacement } from './core/cylindrical_hole_placement.js';
-import {createHoleWizardSketchPair,solveHoleWizardSketch,isHoleWizardSketch,resolveHoleWizardInputs} from './core/hole_wizard_sketches.js';
-import {editedHoleWizardSketch,holeWizardSketchPolylines} from './core/hole_wizard_sketch_edit.js';
-import { assertSketchAxisProfile, assertStandaloneRevolve, axisMeridian, isSketchAxis, isStandaloneSketchAxisRevolve, retainedSketchRevolve, revolvePreviewAxis, revolveRecipe, sketchAxisReference } from "./core/revolve_geometry.js";
-import { aabbFromBox, isUpToFace, resolveExtrudeExtent } from "./core/extrude_extent.js";
-import { toolFeatureRecipe } from "./core/tool_recipe.js";
-import { askModelerDecision, dismissModelerDecision, modelerDecisionOpen } from "./modeler_decision.js";
+import "./manufacturing_tables.js";
+import "./cad_mass_properties.js";
+import "./cad_assembly_mass_properties.js";
+import "./core/hole_geometry.js";
+import { cylindricalHoleSource } from './core/cylindrical_hole_placement.js';
+import './core/hole_wizard_sketches.js';
+import './core/hole_wizard_sketch_edit.js';
+import { retainedSketchRevolve } from "./core/revolve_geometry.js";
+import "./core/extrude_extent.js";
+import "./core/tool_recipe.js";
+import { dismissModelerDecision } from "./modeler_decision.js";
 // Custom model editor ("CAD-lite"): sketch profiles, extrude, add primitives,
 // apply materials/textures, constrain dimensions, and save reusable models.
 // Saved models register into FURN/PRICE so they behave exactly like built-ins:
@@ -98,430 +98,267 @@ import { askModelerDecision, dismissModelerDecision, modelerDecisionOpen } from 
 // Common part fields: id, kind, name, color, metal, rough, opacity, tex(dataURL)
 
 import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
-import { render as gpuRender } from "./gpu.js";
-import { S, uid, clamp, fin, hexStr } from "./state.js";
+import "./gpu.js";
+import { S, uid, fin } from "./state.js";
 import { nextDocumentNumericId } from "./core/document_ids.js";
-import {createMotionPlayback,motionPreviewDuration} from './core/motion_playback.js';
-import {createMotionPlaybackExecutor} from './core/motion_playback_executor.js';
-import {nativeSolidSummary} from './core/native_solid_summary.js';
-import { reattachFeatureSketchSupport, reattachSketchSupport, sketchSupportNeedsUpdate } from "./core/sketch_support_edit.js";
-import {holeSupportChoices,holeSupportChoiceReference} from './core/hole_support_choices.js';
-import {compactAssemblyTopologySnapshots,compactDocumentTopologySnapshots} from './core/project_topology_budget.js';
-import { FURN, PRICE, CATALOG, flabel, clearVSpanCache, buildItem } from "./furniture.js";
-import { modelThumb, thumbAsync, hasThumb, loadThumbCache } from "./thumbs.js";
-import { usedCustomModels, refreshCatalogSelect } from "./model_catalog.js";
+import './core/motion_playback.js';
+import './core/motion_playback_executor.js';
+import './core/native_solid_summary.js';
+import "./core/sketch_support_edit.js";
+import './core/hole_support_choices.js';
+import './core/project_topology_budget.js';
+import { FURN } from "./furniture.js";
+import "./thumbs.js";
+import "./model_catalog.js";
 import { reportEditorOpenState } from "./modeler_launch.js";
-import {
-  registerEditor, editorSwitchHTML, wireEditorSwitch, wireShell,
-  projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML,
-} from "./pro_shell.js";
-import { box, cyl, sph, clearGroup } from "./primitives.js";
-import { sharedRepeat } from "./pbr_material.js";
-import { syncViewportSelectionMaterial } from "./core/viewport_selection.js";
-import { getLang, onLangChange } from "./i18n.js";
+import { registerEditor } from "./pro_shell.js";
+import "./primitives.js";
+import "./pbr_material.js";
+import "./core/viewport_selection.js";
+import { getLang } from "./i18n.js";
 import * as ribbon from "./uikit_host/ribbon.js";
-import { stopSpeaking, bindSpeakButton } from "./speech.js";
-import { render2D } from "./plan2d.js";
-import { pushHistory as pushPlannerHistory } from "./history.js";
-import { convertCadToWalls } from "./cad_to_walls.js";
-import { wallDrawCommand, executeCommand } from "./commands/index.js";
+import "./speech.js";
+import "./plan2d.js";
+import "./history.js";
+import "./cad_to_walls.js";
+import "./commands/index.js";
 import { createHistory } from "./edit_history.js";
 import { createHistorySnapshotCodec } from "./core/history_value_pool.js";
-import { createHistoryPanel } from "./ui_history.js";
+import "./ui_history.js";
 import { registerEditorAgent } from "./editor_agent.js";
-import { bindThreeFingerPan, createEditorView, createViewportSwap } from "./editor_view.js";
+import "./editor_view.js";
+import "./touch_precision.js";
+import "./touch_precision_ui.js";
+import "./view3d.js";
+import "./safe.js";
 import {
-  beginTouchPrecision, directionalSegmentDistances, drawTouchPrecisionLens, modelerPrecisionTrialAllowed,
-  modelerTouchPrecisionKind, touchPrecisionPoint, updateTouchPrecision,
-} from "./touch_precision.js";
-import {
-  buildTouchPrecisionSettings,
-  dispatchPrecisionCommit, dispatchPrecisionDown, dispatchPrecisionMove, dispatchPrecisionUp, getTouchPrecisionMode, getTouchPrecisionPrefs,
-  precisionModelPoint, releaseTouchPrecisionTrial, startTouchPrecisionTrial, touchPrecisionTrialOwns,
-  updateTouchPrecisionTrial,
-} from "./touch_precision_ui.js";
-import { getMainScene, getRigLights, has3D } from "./view3d.js";
-import { validCustomModelKey, sanitizeDisplayName } from "./safe.js";
-import {
-  ensureSketch, ensureSketchDoc, sketchById, addSketch, removeSketch, pruneAbandonedSketches, planeLabel,
-  sketchPoint, sketchEntity, solveSketch, explainSketchConflict, resolveProfilePoints,
-  lineData, circleData, ellipseData, entityPoints, removeSketchEntity, refusesAsRepeat,
-  collapsedEntityIds, pruneImpliedRelations, sketchEntitySizes, translateSketchGeometry,
+  ensureSketch, ensureSketchDoc, planeLabel, solveSketch,
 } from "./sketch_solver.js";
-import { drawNameTags, relationSubjects, relationTargets, sketchInstanceNames } from "./sketch_names.js";
-import {
-  addSmartDimension, currentMeasure, distanceDimensionLayout,
-  hitSketchDimensionHit, dimensionHitYieldsToPoint, drawSketchDimensions, drawConstraintGlyphs,
-} from "./sketch_dimensions.js";
-import {
-  resolveEquations, evaluateExpression, expandUnitLiterals, dimensionUnit, collectSymbols,
-  isValidName, nameAvailable, addVariable, removeVariable,
-} from "./sketch_equations.js";
-import { trimEntity, extendEntity, offsetEntity, toggleConstruction, projectLoop } from "./sketch_trim.js";
-import { mirrorEntities, linearPatternEntities, circularPatternEntities } from "./sketch_pattern.js";
-import { addFeature, ensureFeatureTree, releaseRegeneration, resolveSketchProfile } from "./cad_feature_tree.js";
-import { regenerateInCadWorker as regenerateFeatures, finishInCadWorker, interferenceInCadWorker, assemblyStepInCadWorker, assemblyPrintInCadWorker, partStepInCadWorker, cutIntersectionInCadWorker, surfaceSectionsInCadWorker, topologyInCadWorker, cadWorkerAvailable, cancelCadWorkerWork, cadWorkerActivity, subscribeCadWorkerActivity } from './core/cad_worker_client.js';
-import { interferenceDocument } from './core/worker_interference.js';
-import { assemblyInterferenceScope } from './core/assembly_interference_scope.js';
-import { interferenceVolumeLabel } from './core/interference_volume_label.js';
-import {canonicalFeatureTopologyReferences,featureInputStage} from './core/feature_input_stage.js';
-import {setSketchOffset,sketchOffsetValue} from './core/sketch_offset.js';
-import {pointerCameraRay} from './core/editor_projection.js';
+import "./sketch_names.js";
+import "./sketch_dimensions.js";
+import { resolveEquations } from "./sketch_equations.js";
+import "./sketch_trim.js";
+import "./sketch_pattern.js";
+import "./cad_feature_tree.js";
+import './core/cad_worker_client.js';
+import './core/worker_interference.js';
+import './core/assembly_interference_scope.js';
+import './core/interference_volume_label.js';
+import './core/feature_input_stage.js';
+import './core/sketch_offset.js';
+import './core/editor_projection.js';
 import {createExactRebuildQueue} from './core/exact_rebuild_queue.js';
-import { exportBinaryStl, stlMeshOptions } from "./cad_stl.js";
-import { prepareNativePrintPositions, printSetupExtents } from "./core/print_setup.js";
-import { exportThreeMf, printMeshFromPositions } from "./cad_3mf.js";
-import { analyzePrintLayers, printLayerSvg, printLayerSourceStamp } from './core/print_layer_analysis.js';
-import {slicePrintMeshes,validateFffSettings,FFF_DEFAULTS} from './core/print_toolpaths.js';
-import {toolpathSvg,toolpathsGcode} from './core/print_toolpath_export.js';
-import { exportAmf } from "./cad_amf.js";
-import {
-  exportStep, exportIges, importStep,
-  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, boundsMayOverlap, brepConnectedGroups, chamferBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, placeBrep, placedBrepBounds, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
-  serializeBrep, transformBrep, translateBrep, unifyBrepFaces, validateBrepForExport,
-} from "./cad_kernel.js";
-import { buildDrawingScene } from "./cad_drawings.js";
-import {createNativeConfiguredDrawingCache,configuredViewId,configuredBodyAppearance} from './core/native_configured_drawing.js';
-import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
-import {ensureAssemblyDrawingDoc} from './core/assembly_drawing_settings.js';
-import {drawingViewScaleControl} from "./core/drawing_scale_control.js";
-import {decodeDrawingImage} from "./core/drawing_image.js";
-import {importDrawingProjectImage} from "./core/drawing_project_image.js";
-import {captureDrawingPreset,applyDrawingFormat,drawingFromTemplate,loadDrawingPresets,saveDrawingPreset} from './core/drawing_presets.js';
-import { DRAWING_TOOLS, createDrawingController, bindDetailTagControls, bindSectionTagControls, bindSectionPositionControls } from "./modeler_drawing.js";
-import { tessellateParts } from "./core/part_tessellate.js";
-import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
-import { addEdgeFlange, createSheetMetalPart, flatPattern, flatPatternSvg } from "./cad_sheet_metal.js";
-import { projectedHingeTool, repairSheetOwner, sheetPlate } from "./cad_sheet_hinge.js";
-import { hingeForm } from "./modeler/sheet_hinge_form.js";
-import { captureLockPose, mateFrameSupports, mateFramesSupport, mateRequirementFor, solveTopologyMates, topologyReference } from "./cad_mates.js";
-import { defaultTopologyMateAlignment, exactMateReferenceChoices, mateAlignmentForLockedOrientation, planarMateFaceChoices } from "./cad_mate_reference_choices.js";
-import {applyDrivenAssemblyPlacement} from "./core/assembly_placement.js";
-import { draftFaceChoices } from "./core/draft_face_choices.js";
-import { trackLibraryOccurrence } from "./core/library_occurrence.js";
-import { resolvedLibraryAssembly, libraryOccurrenceUpdate } from "./core/model_library_store.js";
-import { ASSEMBLY_ORIGIN_ID, boundsAtPlacement, componentTopology, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, lookupAssemblyComponent, refreshSubassemblyFromRecord, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
-import {formSubassembly} from './core/assembly_form_subassembly.js';
-import {assemblyDrawingBOM,occurrenceBOMKey} from './core/assembly_drawing_bom.js';
-import {nativeOccurrenceBalloonTarget} from './core/assembly_balloon.js';
-import {assemblyMobilityReport,currentAssemblyMobility} from './core/assembly_mobility_status.js';
-import { eulerMatrix, normalizePose, rotationOf, setRotation, validLimitMateBounds, worldFrame } from "./cad_mate_model.js";
-import { setScrewMateCoupledMotion, setScrewMateDrive, setScrewMateHandedness, setConcentricAxisDirection } from "./cad_screw_controls.js";
-import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
-import { ribSketchReady } from "./core/rib_profile.js";
-import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
-import { refreshedExtrudeProfile } from "./core/feature_profile_refresh.js";
-import { featureContourKey, selectFeatureContours } from "./core/feature_contours.js";
-import { createReferencePlane, createReferenceAxis, createReferencePoint, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
-import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath,circularHelixSweepProfile } from "./cad_helix.js";
-import { circularSweepProfile, loftSectionSourceRecord, loftSourceRecord, savedLoftSources, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
-import { defaultExplodeLayout, assemblyHasExplodedOffsets, createExplodedView, addExplodeStep, applyExplodedView, applyExplodedProgress, explodeLines, explodeTargets, explodedOccurrenceOffset } from "./cad_exploded_view.js";
-import { createMotionStudy, captureMotionStudyBaseline, addRotaryMotor, addScrewMotor, addRackPinionMotor, addLinearMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
-import { detectInterference, generateBOM } from "./cad_interference.js";
-import { createProjectBundle, exportProjectBundle, importProjectBundle, importProjectBundleText, activeProjectDocument } from "./cad_project_bundle.js";
-import { measureAngleBetweenNormals, measureDistance } from "./cad_evaluate.js";
-import { auditStandardParts, involuteGearOutline } from "./cad_standards.js";
-import { holeCallout, holeTableRow, holeWizardSolids, holeWizardThread, listHoleSizes, normalizeHoleWizard } from "./cad_hole_wizard.js";
-import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.js";
-import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, validateThreadFit, documentThreadOverlays } from "./cad_thread.js";
-import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
-import { toolboxFastener, listToolboxLibrary, toolboxFamily, lengthOptionsForSize, FASTENER_LENGTHS_MM, reducingBranchRows, PVC_D1785, searchToolbox, TOOLBOX_CATEGORY_LABELS } from "./cad_toolbox.js";
-import { assemblyToolboxDocument, hasSingleToolboxKernelRecipe } from "./cad_assembly_toolbox.js";
-import { expectedContactFor, recordExpectedContact, removeExpectedContact, contactAuditSummary } from "./core/assembly_contact_audit.js";
-import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart, drawingMaterialName, pruneSketchTargetedBodyAppearances, pruneSketchMaterialFields } from "./cad_appearances.js";
-import { appearanceGroups } from "./core/appearance_groups.js";
-import { openDesignTable } from "./modeler/design_table.js";
-import { captureConfiguration, circularSweepTableRows, ensureConfigurations, setActiveConfiguration, setCircularSweepDesignTable, updateConfiguration } from "./cad_configurations.js";
-import { restoreToolboxProjections } from "./core/toolbox_projection_restore.js";
-import { synchronizeToolboxMaterial } from "./core/toolbox_assigned_material.js";
-import {replaceComponentDefinition,setComponentConfiguration} from './core/component_configuration.js';
-import {rebindTopologyMate} from './core/topology_mate_rebind.js';
+import "./cad_stl.js";
+import "./core/print_setup.js";
+import "./cad_3mf.js";
+import './core/print_layer_analysis.js';
+import './core/print_toolpaths.js';
+import './core/print_toolpath_export.js';
+import "./cad_amf.js";
+import "./cad_kernel.js";
+import "./cad_drawings.js";
+import './core/native_configured_drawing.js';
+import "./cad_sheet.js";
+import './core/assembly_drawing_settings.js';
+import "./core/drawing_scale_control.js";
+import "./core/drawing_image.js";
+import "./core/drawing_project_image.js";
+import './core/drawing_presets.js';
+import "./modeler_drawing.js";
+import "./core/part_tessellate.js";
+import { isKernelBody } from "./core/kernel_body.js";
+import "./cad_sheet_metal.js";
+import { repairSheetOwner } from "./cad_sheet_hinge.js";
+import "./modeler/sheet_hinge_form.js";
+import "./cad_mates.js";
+import "./cad_mate_reference_choices.js";
+import "./core/assembly_placement.js";
+import "./core/draft_face_choices.js";
+import "./core/library_occurrence.js";
+import "./core/model_library_store.js";
+import "./core/assembly_structure.js";
+import './core/assembly_form_subassembly.js';
+import './core/assembly_drawing_bom.js';
+import './core/assembly_balloon.js';
+import './core/assembly_mobility_status.js';
+import "./cad_mate_model.js";
+import "./cad_screw_controls.js";
+import "./sketch_profiles.js";
+import "./core/rib_profile.js";
+import "./sketch_regions.js";
+import "./core/feature_profile_refresh.js";
+import "./core/feature_contours.js";
+import "./cad_reference_geometry.js";
+import "./cad_helix.js";
+import "./core/swept_sources.js";
+import "./cad_exploded_view.js";
+import "./cad_motion_study.js";
+import "./cad_interference.js";
+import "./cad_project_bundle.js";
+import "./cad_evaluate.js";
+import "./cad_standards.js";
+import "./cad_hole_wizard.js";
+import "./core/hole_callout.js";
+import "./cad_thread.js";
+import "./cad_knurl.js";
+import { toolboxFastener } from "./cad_toolbox.js";
+import { assemblyToolboxDocument } from "./cad_assembly_toolbox.js";
+import "./core/assembly_contact_audit.js";
+import "./cad_appearances.js";
+import "./core/appearance_groups.js";
+import "./modeler/design_table.js";
+import "./cad_configurations.js";
+import "./core/toolbox_projection_restore.js";
+import "./core/toolbox_assigned_material.js";
+import './core/component_configuration.js';
+import './core/topology_mate_rebind.js';
 import { evaluateFit, fitCallout, fitLimitSource } from "./cad_fits.js";
+import { ensureItemDefinition } from "./core/project.js";
+import { cloneDomain } from "./core/schema.js";
 import {
-  ensureItemDefinition,
-  commitDefinition,
-} from "./core/project.js";
-import { migrateDefinition, cloneDomain, createParameter } from "./core/schema.js";
-import {
-  analyzeParametricHistory, createFeatureDefinition, ensureParametricDocument,
-  recordSketchInHistory, removeHistoryNode, reorderHistoryNode, suppressHistoryNode,
-  updateFeatureDefinition, setHistoryRollback, historyEntryRolled, applyHistoryToPreviewParts,
-  reconnectLaterBodyConsumers,
+  createFeatureDefinition, ensureParametricDocument, applyHistoryToPreviewParts,
 } from "./core/parametric_document.js";
-import { compileKernelFeatureTree, FEATURE_PATTERN_SEED_TYPES } from "./core/kernel_feature_adapter.js";
-import { publishRebuildStatus, rebuildParametricDocument, withKernelFailures } from "./core/parametric_rebuild.js";
-import { displayUnit, toDisp, fromDisp, fmtLen, parseLen } from "./display_units.js";
-import { getDomainUnit } from "./unit_settings.js";
-import { featureDefaults, featureLabel, featureSpec, setFeatureLabelResolver } from "./core/feature_catalog.js";
-import { inferAuthoringMode } from "./core/authoring_mode.js";
-import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } from "./core/import_normalization.js";
-import { encodeBinaryPayload } from "./core/binary_payload.js";
-import { externalizeAttachments, collectAttachmentReferences, exportAttachmentRecords, installAttachmentRecords } from "./core/attachment_store.js";
-import { garbageCollectAttachments } from "./core/attachment_gc.js";
-import { loadModelLibrary, putModelLibraryRecord, deleteModelLibraryRecord, mergeStoredModelLibrary, loadAssemblyLibrary, putAssemblyLibraryRecord, deleteAssemblyLibraryRecord, mergeStoredAssemblyLibrary, loadModelerDraftRecord, listModelerDraftRecords, saveModelerDraftRecord, clearModelerDraftRecord, claimLegacyModelerDraftRecord, libraryBundle, parseLibraryBundle, collidingLibraryKeys, importKeptLibraryBundle } from "./core/model_library_store.js";
-import { drawingOnlyContentSummary, hasSaveableModelContent } from "./core/model_save_policy.js";
-import { sketchFitViewport } from "./core/sketch_fit_viewport.js";
-import { analyticPartTopology, contextDocumentTopology } from "./core/assembly_context.js";
-import { componentEditCopy, commitComponentEdit } from "./core/component_edit.js";
-import {nestedComponentOccurrence,createNestedComponentEdit,restoreNestedComponentEdit,nestedEditStillCurrent,commitNestedComponentEdit,assemblyWithoutNestedOccurrence} from "./core/nested_component_edit.js";
+import { FEATURE_PATTERN_SEED_TYPES } from "./core/kernel_feature_adapter.js";
+import { publishRebuildStatus, rebuildParametricDocument } from "./core/parametric_rebuild.js";
+import "./display_units.js";
+import "./unit_settings.js";
+import { featureDefaults, featureSpec, setFeatureLabelResolver } from "./core/feature_catalog.js";
+import "./core/authoring_mode.js";
+import "./core/import_normalization.js";
+import "./core/binary_payload.js";
+import "./core/attachment_store.js";
+import "./core/attachment_gc.js";
+import { saveModelerDraftRecord } from "./core/model_library_store.js";
+import "./core/model_save_policy.js";
+import "./core/sketch_fit_viewport.js";
+import "./core/assembly_context.js";
+import "./core/component_edit.js";
+import "./core/nested_component_edit.js";
 import { registerGeneratedExtrusion } from "./core/generated_extrusion.js";
-import { queueModelBackup, listDiskBackups, fetchDiskBackup, missingFromLibrary, modelBackupStatus } from "./core/model_backup_client.js";
-import { leavesInputStanding, rebuildDefinition } from "./core/rebuild.js";
-import { buildTreeModel, findTreeNode, folderMemberIds } from "./core/tree_model.js";
-import {featureBrowseNodes,featureTreeContext} from './core/feature_browse.js';
-import { renderTreeModel } from "./modeler_tree.js";
-import { analyzeLegacyMigration, convertLegacyDocument, evaluateMigration, migrationGeometrySummary, retainLegacySource, restoreLegacyDocument } from "./core/migration_check.js";
-import { applyDocumentTopologyRebindings, applyTopologyRebindings, createTopologyReference, cutWallTopology, createTopologyRegistry, resolveTopologyReference, topologyForFeature, mergeSmoothTopology, isCylinderTessellationSeam, pointWithinCylinderArc, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
+import "./core/model_backup_client.js";
+import { rebuildDefinition } from "./core/rebuild.js";
+import "./core/tree_model.js";
+import './core/feature_browse.js';
+import "./modeler_tree.js";
+import "./core/migration_check.js";
+import "./core/topology.js";
+import { vertexEntriesFrom } from "./core/topology_selection.js";
+import "./core/frame.js";
+import "./core/cut_scope.js";
+import "./core/diagnostic_help.js";
+import { circularPatternAxisFromHistory } from "./core/pattern_geometry.js";
+import { syncCabinetDefinition } from "./parametric_cabinet.js";
+import "./core/cabinet_advanced.js";
+import "./cabinet.js";
+import "./core/surface_uv.js";
+import "./core/mesh_projection.js";
+import "./modeler_commands.js";
+import "./core/custom_properties.js";
+import "./core/finish_preview_proof.js";
+import { modelerDraftKey, modelerDraftOwner, parseModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
-  edgeEndpoints, growSelection, invertSelection, selectConnected, selectLoop,
-  selectTangentChain, shrinkSelection, vertexEntriesFrom,
-} from "./core/topology_selection.js";
-import { faceFrameOrigin, frameDirection, frameFromPlane, framePoint, frameProjectPoint, realignFrame } from "./core/frame.js";
-import {
-  bodyDepthRange, cutFootprintsMayOverlap,
-  cutFootprint as cutScopeFootprint,
-  profileLoopIsSeparateHole,
-} from "./core/cut_scope.js";
-import { diagnosticHelp, groupDiagnostics, recommendedDiagnostic } from "./core/diagnostic_help.js";
-import { circularPatternAxisFromHistory, circularPatternPivot, circularPatternStepDegrees, composeRigidTransforms, curvePatternPath, curvePatternPlacements, invertRigidTransform, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform, patternRotationTransform, rigidTransformIsIdentity, rotatedPatternBounds } from "./core/pattern_geometry.js";
-import { cabinetDefinitionFromItem, finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
-import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
-import { layoutCab } from "./cabinet.js";
-import { createSurfaceSketch, supportsSurfaceUV, surfaceSketchWorldPolyline, cylinderUVDomain } from "./core/surface_uv.js";
-import { clearMeshProjectionCache, meshFeatureEdges, meshSmoothFaces, projectMeshEdges } from "./core/mesh_projection.js";
-import {
-  FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
-  bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
-} from "./modeler_commands.js";
-import { assemblyPartNumber, documentDescription, documentProperty, setDocumentDescription, setDocumentProperty, sheetTitleMeta, setSheetTitleSource } from "./core/custom_properties.js";
-import { finishPreviewProofMatches } from "./core/finish_preview_proof.js";
-import { claimLegacyModelerDraft, modelerDraftKey, modelerDraftOwner, freshModelerDraftOwner, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
-import {
-  featureField as featureFieldCore, featureReferenceValue, featureControlValue, evaluateFeatureNumber, validateFeatureInputs, readFeatureParameterForm, renderLoftSectionPicker, renderFeatureParameterForm as renderFeatureParameterFormCore,
+  validateFeatureInputs, readFeatureParameterForm, renderLoftSectionPicker,
 } from "./modeler_feature_form.js";
+import "./modeler_workflow.js";
+import "./modeler_inference.js";
 import {
-  resolveAssemblyWorkflow, defaultSketchPlane, featuresForClosedProfile,
-  resolveWorkflowStep, shouldResumeSketchSession, shouldSkipReferencePicker,
-  sketchStartMode,
-} from "./modeler_workflow.js";
-import {
-  constraintAlreadyPresent, entityStatuses, inferLineRelations, inferOrthoSnap,
-  inferTangentCircle, nextInferenceIndex, onCurveTargets, pickSnap, sketchSnapTargets, sketchStatusColor,
-} from "./modeler_inference.js";
-import {
-  boxSelectMode, boundsHitBox, confirmationCornerState, contextMenuItems,
-  contextToolbarItems, cycleOverlappingHits, featureHistoryIndex, gestureFromSwipe, selectionMenuItems,
-  selectionBreadcrumb, selectionFilterAllows, shortcutBarItems, VIEW_PRESETS,
+  confirmationCornerState, contextToolbarItems,
 } from "./modeler_chrome.js";
-import {
-  applyHandleDrag, dimensionValueFromDrag, distancePointToSegment2d, extrudeHandlePose,
-  filletGrowDirection, filletHandlePose, maxFinishAmount, patternHandlePose, instant3dDisplayValue, instant3dModelValue, instant3dValueLabel,
-} from "./modeler_instant3d.js";
-import { inferSmartMate, isolateVisibility } from "./modeler_smartmates.js";
-import { welcomeGlyph } from "./modeler_welcome_glyphs.js";
+import "./modeler_instant3d.js";
+import "./modeler_smartmates.js";
+import "./modeler_welcome_glyphs.js";
 import { cadIcon } from "./modeler_icons.js";
-import { initModelerMobile, syncModelerMobile, teardownModelerMobile, showModelerSheet, closeModelerSheet, revealModelerFeatureForm } from "./modeler_mobile.js";
-import { chooseTopologyHit, circularEdgeSweep, filterTopologyHitsByClipPlane, topologyCandidateWorldThreshold, topologyLineWorldThreshold, topologyPickPixelRadius } from "./modeler_topology_pick.js";
-import { approximateFinishPreviewShapes, chamferVertex, filletVertex, insetLoop, pointInPoly } from "./modeler_finish_preview.js";
-import {
-  NOTE_CATEGORIES,
-  CURATED_SWATCHES,
-  addNoteToDef,
-  updateNoteInDef,
-  deleteNoteFromDef,
-  translateNotes,
-  applyFacePaint,
-  applyBodyPaint,
-  sampleFaceAppearance,
-  clearFacePaint,
-  addMarkupToDef,
-  clearMarkupsFromDef,
-  translateMarkups,
-} from "./modeler_notes_paint.js";
+import { initModelerMobile, syncModelerMobile, teardownModelerMobile, closeModelerSheet, revealModelerFeatureForm } from "./modeler_mobile.js";
+import "./modeler_topology_pick.js";
+import "./modeler_finish_preview.js";
+import "./modeler_notes_paint.js";
 /* The editor's string table and its local t()/tf() live in
    js/modeler_strings.js — a flat [he, en] table, not js/i18n/*.js. */
-import { TXT, t, tf } from "./modeler_strings.js";
+import { TXT, t } from "./modeler_strings.js";
 /* Pure mesh/edge/face geometry, lifted out of this file; it never touches E. */
-import {
-  addMeshSharpEdges, analyticCurvedFace, buildExactMesh, circleDescriptorsMatch,
-  clearTopologyCache, distanceToCircularEdge, edgePoints, edgesGeometricallyMatch,
-  exactOverlayEntries, faceHighlightMesh, forEachCutLoop, geometryToMeshData,
-  hexNum, highlightIdsFor, holeAndCutEdges, holeAndCutFaces,
-  holeLoop, matchingMeshChain, meshCircleEntries, meshFaceEntries,
-  overlayEntryCache, profileAxisToWorld, profilePointToWorld, smoothFacesForMesh,
-  smoothTessellationNormals, topologyMergeCache, triangleSetForFace,
-} from "./modeler_mesh_geometry.js";
+import "./modeler_mesh_geometry.js";
 /* Pure part geometry and the exact-kernel part recipe; it never touches E. */
 import {
-  FACE_DRIVEN_OPERATIONS, boxToExt, buildLoft, buildRev,
-  cloneData, cutFootprint, cutRangeForAxis, exactBrepForPart, exactCutIntersection,
-  footprintHasPoint, footprintPoint, kernelRecipeBounds, loopCentroid,
-  migrateBoundaryChangingProfileCuts, mirrorProjectionPart, movePart, normalizeTransform,
-  partBounds, partNeedsExactMesh, partPatternRotations, partPatternTransform, partSupportsExactMesh,
-  patternMergeSource, placePatternCopy, resetClonedPartIdentity, revMaxR, rotPartY,
-  translateTopologyReferences,
+  cloneData, normalizeTransform, partBounds, partPatternRotations,
+  partSupportsExactMesh,
 } from "./modeler_part_geometry.js";
 /* Pick-to-reference and reference-to-screen geometry; it never touches E. */
 import {
-  dedupeFinishRefs, dedupeTopologyCandidates, entryScreenBounds, finishEdgeKey,
-  finishEdgeLabel, getScratchCandidateBox, nearestCircularEdge, pickPointer, pickScratch,
-  projectToScreen, promotePickedEdge, sameFinishEdge, topologyReferenceFromEntry,
-  viewportRect,
+  dedupeFinishRefs, topologyReferenceFromEntry,
 } from "./modeler_pick_geometry.js";
+import { closeTour, startTour, tourMaterial } from "./modeler/sketch_guide.js";
+import { cancel2DPointerMoveGlobal, onKey } from "./modeler/dimension_entry.js";
 import {
-  assemblyTourSteps, closeTour, dreidelTourSteps, flowerTourSteps,
-  gearTourSteps, insertISO4017Screw, installTourDragging, mobileTourSteps,
-  patternTourSteps, prepareTourStep, renderTour, renderTourMode,
-  restoreAutomaticTourOrigin, screwTourSteps, seekAutomaticTour,
-  selectTourTrack, sketchTourSteps, solidworksCubeTourSteps, startTour,
-  studBallTourSteps, tourMaterial, tourStepDone, tourSteps,
-} from "./modeler/sketch_guide.js";
-import {
-  cancel2DPointerMoveGlobal, dynCommit, dynDrawHud, dynHasEntry, onKey,
-  pointToLineDistance, releaseSelectionFilterChord, wireSketch,
-} from "./modeler/dimension_entry.js";
-import {
-  closeReport, closedSketchProfile, documentPresetAction, drawSketch,
-  drawingDocument, drawingHintText, drawingSheet, extrudeClosedSketch,
-  extrusionSketchAreas, featureAreaAt, finishPoly, fitSplitPreview, flash,
-  flashHolding, hitPart, invalidateDrawing, modelerTouchDistances,
-  newSketchPoint, prepareConfiguredDrawingExport, report, reportOpen,
-  sampleSplinePoints, sheetForm, sheetPrompt, sheetRow, sheetSelect,
-  sheetSharpSolids, showPickList, sketchFeatureAreas, sketchLinePoints,
-  sketchProfileAnalysis, sketchRegionAnalysis, sketchUvPolylines,
-  snappedSketchPoint, splineLength, syncSheetPanel, toggleFeatureArea,
+  closeReport, closedSketchProfile, drawSketch, drawingSheet,
+  extrudeClosedSketch, finishPoly, flash, hitPart, invalidateDrawing,
+  modelerTouchDistances, newSketchPoint, report, reportOpen, showPickList,
+  syncSheetPanel,
 } from "./modeler/drawing_sheet.js";
 import {
-  assemblyPrintRequests, beginMeasure, cancelInterferenceCheck, closeEvalCard,
-  createDefaultExplodedView, createDefaultMotionStudy,
-  createEmptyExplodedView, documentOwnership, documentStillOwned, evalRow,
-  exportAssemblyPrintDocument, exportBundleDocument, importBundleDocument,
-  massEvaluationChanged, measureCoordinates, measureFromPick,
-  occurrenceWorldBounds, openExplodeStepForm, runInterferenceCheck,
-  runStandardsAudit, standardsGate, syncMassPropertiesEvaluation,
+  closeEvalCard, runInterferenceCheck, syncMassPropertiesEvaluation,
 } from "./modeler/document_outputs.js";
 import {
-  abandonDocumentExactWork, addReferenceGeometry, downloadBytes,
-  evalCardActions, exactRunIsCurrent, exactRunStamp, exportIgesDocument,
-  exportStepDocument, openCoordinateSystemForm, openEvalCard,
-  openFffSlicePreview, openOffsetPlaneForm, openPrintLayerAnalysis,
-  openPrintSetupForm, openStlExportForm, rebuildFailureMessage,
-  rebuildFeatureTreeFromDocument, regenerateExactModel, releaseExactRun,
+  exactRunIsCurrent, rebuildFeatureTreeFromDocument, releaseExactRun,
   scheduleExactRestore,
 } from "./modeler/export_measure.js";
 import {
-  addExplodeLeaders, assemblyExplodeLines, buildComponentGroup, drawInRoom,
-  markLiveDirtyPart, partBelongsToFeature, refreshChangedPart,
-  refreshChangedParts, refreshLivePreview, renderPreview, retainExactPreview,
-  retainingExactPreview, updatePreview,
+  addExplodeLeaders, refreshLivePreview, renderPreview, updatePreview,
 } from "./modeler/library_panel.js";
+import { stampComponentRef } from "./modeler/viewport_input.js";
+import "./modeler/notes_markups.js";
 import {
-  addInstant3dHandles, assemblyPickedRefs, assemblySymmetricPicks,
-  beginInstant3dDrag, closeNoteEditor, componentTopologyFromHit,
-  hidePickCycle, hitInstant3d, instant3dAuthoringState, lockMateComponentPair,
-  mateFramesFit, mateReferenceFromPick, mateTypeFits, openNoteEditor,
-  pickAssemblyComponent, renderTreeAnnotations, screenDeltaAlongAxis,
-  screenDeltaToWorld, showSelectThrough, stampComponentRef,
-  syncFilletEndpoints, syncInstant3dValue, ungroundedComponentPair,
-} from "./modeler/viewport_input.js";
-import {
-  hoverAssemblyTopology, markupsSignature, syncNotesAndMarkups,
-  syncNotesToolbar, syncPaintToolbar, syncViewsToolbarNotes,
-} from "./modeler/notes_markups.js";
-import {
-  fillInspector, fillInspectorTab, fillSketchPane, modelParameterOverrides,
-  surfaceUVGuide,
+  fillInspector, fillInspectorTab, modelParameterOverrides,
 } from "./modeler/inspector.js";
 import {
-  addInspectorTopologyMate, addMate, addTopologyMate, clampMateAngle,
-  componentLabel, concentricAxisDirectionControl, diagnosticActionLabel,
-  diagnosticMessage, fillLibraryLinkStatus, finalMateTopology,
-  focusTreeDiagnostics, highlightFeatureIssueBanner, mateHolderById, mateRow,
-  openFormSubassembly, openMateAngleForm, openMateBeltForm,
-  openMateDistanceForm, openMateGearForm, openMatePropertyManager,
-  openMateRackPinionForm, openMateRotationLimitForm, parametricRollbackBar,
-  planeMateReference, refreshComponentMateReferences, refreshParts,
-  rejectFlexibleSpringPreview, rollbackBar, runDiagnosticAction,
-  syncDiagnosticJump,
+  focusTreeDiagnostics, refreshParts,
 } from "./modeler/component_mates.js";
 import {
-  applyDependencyTreeClasses, cancelFeatureParameterEdit, closeTreeMenu,
-  currentTreeModel, dependencyReferenceId, dependencyRole, dependencySets,
-  openTreeMenu, refreshModelHistoryPane, selectTreeNode,
-  setDependencyHighlight, syncLiveFeatureEdit, treeCollapseState, treeDeps,
-  updateDependencyPresentation,
+  cancelFeatureParameterEdit, refreshModelHistoryPane, syncLiveFeatureEdit,
 } from "./modeler/feature_tree.js";
 import {
-  applyDimensionEditor, clearLiveDownstream, contextPartTopology,
-  deleteDimensionEditor, editHoleWizardSketch, editSketchFromHistory,
-  emptyState, finishContextPart, finishWallChain, insertAssemblyComponent,
-  liveFeatureEditBadge, openComponentPatternForm, openSelectedSmartDimension,
-  partsForFeature, positionDimensionEditor, projectPartEdges,
-  refreshComponents, syncAssemblyContextBar, syncProjectionFromFeature,
-  topologyMateLabel,
+  finishContextPart, liveFeatureEditBadge, positionDimensionEditor,
+  syncAssemblyContextBar,
 } from "./modeler/tree_assembly.js";
+import "./modeler/sketch_dimension_editor.js";
 import {
-  addedConstraintIds, appendToSketch, applyConstraint, cancelDimensionEditor,
-  constraintCaption, constraintFits, mirrorSelection,
-  patternCircularSelection, patternSelection, refusalMessage,
-  showSketchRefusal, toggleDynamicMirror,
-} from "./modeler/sketch_dimension_editor.js";
-import {
-  addSketchCircle, adoptSketchForView, bindPolygonSideControl,
-  displayedCoreIssues, isSketchObject, modelRebuildPending,
-  openCenterRectangle, openCenterSlot, openConvertEntities,
-  openDimensionedCircle, openDimensionedPolygon, openFaceBoundary,
-  openSketchFillet, refreshConvertEntitiesHint, resolveSketch, selEntities,
-  selectSketch, sizeSketch, sketchForView, sketchPlaneCaption,
-  syncFaceSupportedSketchFrames, syncHint, syncSketchDrivenParts, syncStatus,
-  watchSketchSize,
+  refreshConvertEntitiesHint, resolveSketch, sizeSketch,
+  syncFaceSupportedSketchFrames, syncHint, syncStatus,
 } from "./modeler/sketch_entities.js";
 import {
-  closeWelcome, coachSuggestion, findVisibleEnabledCoachTarget, goTourStep,
-  openWelcome, startSketchOnDefaultPlane, syncCoach, updateTourProgress,
+  closeWelcome, coachSuggestion, findVisibleEnabledCoachTarget, openWelcome,
+  syncCoach, updateTourProgress,
 } from "./modeler/welcome_coach.js";
 import {
-  applySectionClipping, fitPreview, initPreview, layout3DHost, sectionPlane,
-  setModelDisplay, setPanelCollapsed, setSectionState, setShowModelEdges,
-  toggleSectionView,
+  fitPreview, layout3DHost, setModelDisplay, setPanelCollapsed, setSectionState,
+  setShowModelEdges,
 } from "./modeler/view_modes.js";
 import {
-  publishAssemblyModel, saveCurrentDocument, saveProgress, setDocumentType,
-  syncExtrudeButton, syncTools, syncViewButtons,
+  saveCurrentDocument, setDocumentType, syncExtrudeButton, syncTools,
 } from "./modeler/document_save.js";
 import {
   cancelActiveCommand, chromeCommandLabel, chromeSelectionInput,
-  clearMobileSelection, closeCommandSearch, collectingEndFace, commandCatalog,
-  commandSelectionPrefer, commandUnavailableReason, currentCornerInput,
-  dismissProfileOffer, featureSelectionReady, finishActiveCommand,
-  leavingQuickForm, offerProfileFeatures, openCommandSearch, openQuickForm,
-  renderCommandResults, returnToFeatureParameters, runChromeCommand,
-  selectionFilterAvailable, setAssemblyMoveMode, setMobileAddSelection,
-  setSelectionFilter, showViewSelector, syncCommandManager,
-  syncContextActions, syncExplodeCommandState, syncSelectionFilters,
-  toggleIsolate,
+  clearMobileSelection, collectingEndFace, commandSelectionPrefer,
+  currentCornerInput, dismissProfileOffer, featureSelectionReady,
+  finishActiveCommand, leavingQuickForm, openCommandSearch, openQuickForm,
+  returnToFeatureParameters, runChromeCommand, selectionFilterAvailable,
+  setMobileAddSelection, setSelectionFilter, syncContextActions,
 } from "./modeler/command_manager.js";
 import {
   addBossContourChoices, addFinishBodyTargetControl, addFinishScrubber,
   addShellFaceThicknessControls, addTerminatingFaceChoices,
-  addThinExtrudeChainChoices, adoptFinishEdgeSelection,
-  authoritativeFinishTopology, currentFinishEdges, edgeRefsForFaces,
-  exactFinishPreviewBody, exactFinishPreviewPart, finishCommandActive,
-  finishFeatureTargets, fullRoundActive, namedSelections,
+  addThinExtrudeChainChoices, adoptFinishEdgeSelection, namedSelections,
   queueNewFeaturePreview, readyShellPreviewMatches, registerFeatureForm,
   rememberFinishAmount, renderFinishEdgeList, restoreNamedSelection,
-  runSelectionOperation, setFinishEdges, syncActiveFeatureSelectionFeedback,
-  syncNewFeaturePreview, toggleFinishEdges, toggleFullRoundFace,
+  runSelectionOperation, syncActiveFeatureSelectionFeedback,
+  syncNewFeaturePreview,
 } from "./modeler/finish_preview.js";
 import {
   activeLoftCreation, clearFeaturePreview, createHelixFeature,
   createHoleFeature, createInsertFeature, createKnurlFeature,
   createMultiSketchFeature, createRevolveCutFeature, createRevolveFeature,
-  createThreadFeature, cutTargetFeatureId, documentHelixRecords, featureField,
-  preselectedRevolveAxis, publishExactBodies, resolvedRevolve,
-  retargetSweepHelix, revolveContour, selectedFeatureIds, selectedHelixRecord,
-  selectedSketchIds, setFeatureReferencesFromForm, showConfigurations,
-  showToolboxPicker,
+  createThreadFeature, cutTargetFeatureId, documentHelixRecords,
+  preselectedRevolveAxis, revolveContour, selectedFeatureIds,
+  selectedHelixRecord, selectedSketchIds, showToolboxPicker,
 } from "./modeler/feature_create.js";
 import {
   createRibFeature, quickDomePart, quickDraftPart, quickMirrorPart,
@@ -530,45 +367,28 @@ import {
   runCommand, selectedSolid,
 } from "./modeler/part_commands.js";
 import {
-  activateWorkflowStep, activeTab, beginSketchWorkflow, cadSketchSnapshot,
-  cancelFacePick, cancelReferenceSelection, chooseSketchReference,
-  closeFeaturePanel, faceSketchAttachment, finishSketchWorkflow, fitSketch,
-  isCanonicalAuthoring, modelLengthText, modelLengthUnit, orientModelToView,
-  setCommandTab, setModelLengthUnit, setSketchNormalTo, setTab, setTool,
-  setView, showReferencePicker, syncAssemblyWorkflow, syncAuthoringWorkflow,
-  syncFacePrompt, syncModelPlane, syncNormalToControls, zoomBy,
+  activeTab, cadSketchSnapshot, closeFeaturePanel, fitSketch,
+  isCanonicalAuthoring, setCommandTab, setSketchNormalTo, setTab, setView,
+  syncAuthoringWorkflow, syncFacePrompt, zoomBy,
 } from "./modeler/sketch_workflow.js";
+import { btn, el, namedButton } from "./modeler/editor_dom.js";
 import {
-  bindDocumentTextField, btn, commandButton, commandGroup, el, kt,
-  markUnavailable, namedButton, relationButton, tab, tabstrip, toolKeyRows,
-} from "./modeler/editor_dom.js";
-import {
-  addFaceAppearances, addFaceHighlights, addPartFeatureOverlays,
-  applyViewportDisplayStyle, buildExt, decorationWorldPerPixel,
-  isEntryAffectedByHover, overlayEntriesForPart, refreshViewportSelection,
-  registerCustomModel, syncViewportMeshSelection, topologyHovered,
-  topologySelected,
+  refreshViewportSelection, registerCustomModel,
 } from "./modeler/viewport_decorations.js";
 import {
-  activeParts, addPart, applyTexTo, applyTrackedUpdates, assemblyMateCount,
-  brokenMateCount, componentDef, countLabel, featureTypeLabel, loadAssemblies,
-  loadLib, mateIssuesFor, mateReboundFor, migrateDefinitionProfileCuts,
-  mirrorLibraryToDisk, newAssembly, normalizeDef, pruneAssemblyMates,
-  signalLibraryChange, topologyEntriesForPart, writeAssemblyIndex,
-  writeLibraryIndex,
+  activeParts, addPart, featureTypeLabel, loadLib, migrateDefinitionProfileCuts,
+  topologyEntriesForPart,
 } from "./modeler/library_store.js";
 import { buildDOM } from "./modeler/build_dom.js";
 import {
-  applyBoxSelection, beginPaintSelectDrag, cancelExactModelRebuild,
-  refreshLib, scheduleLibThumbs, setMode, syncHead,
+  cancelExactModelRebuild, refreshLib, scheduleLibThumbs, setMode, syncHead,
 } from "./modeler/library_io.js";
 import { pickPartsFor } from "./modeler/topology_pick.js";
 import { newModel, openFeatureEditor } from "./modeler/editor_forms.js";
 import {
   assemblySaveSession, confirmDiscardDocument, currentHistoryNode, doRedo,
-  doUndo, docSubtree, documentDirty, frameRangeForBounds, hasResidentEdits,
-  markDocumentClean, modelerDraftStorage, modelerSessionStorage, partUV,
-  planeAxis, pushUndo, reconcileModelerDraft, requestCloseModeler,
+  doUndo, docSubtree, hasResidentEdits, markDocumentClean, modelerDraftStorage,
+  modelerSessionStorage, pushUndo, reconcileModelerDraft, requestCloseModeler,
   residentDirtyState, scanDoc, setModelerBackgroundIsolation, snapDoc,
   syncDraftStatus, syncUndoButtons, toPx, tryRestoreModelerDraft,
 } from "./modeler/document_history.js";

@@ -24,7 +24,9 @@ test("each start-gallery art key has a distinct CAD silhouette", () => {
 test("the modeler start screen wires those glyphs and drops the missing cubes-three icon", async () => {
   const modeler = modelerSource();
   const commands = await readFile(new URL("../js/modeler_commands.js", import.meta.url), "utf8");
-  assert.match(modeler, /import \{ welcomeGlyph \} from "\.\/modeler_welcome_glyphs\.js"/);
+  // the piece that draws the cards imports it (modelerSource drops pieces' imports)
+  const coach = await readFile(new URL("../js/modeler/welcome_coach.js", import.meta.url), "utf8");
+  assert.match(coach, /import \{ welcomeGlyph \} from "\.\.\/modeler_welcome_glyphs\.js"/);
   assert.match(modeler, /welcomeGlyph\(card\.art\)/);
   assert.match(modeler, /art:"mates"/);
   assert.doesNotMatch(modeler, /ph-cubes-three/);

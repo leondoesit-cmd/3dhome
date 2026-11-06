@@ -1,6 +1,6 @@
 /* The planner's file/project and undo/redo actions, dispatched by runAction,
    split out of js/ui/run_action.js. It shares the editor's state through live
-   imports from ./run_action.js. */
+   imports from ../ui.js and ./ui_locals.js. */
 import { syncBlueprintTraceControls } from "../blueprint_trace.js";
 import { loadLocalProject, saveLocalProject } from "../core/project_store.js";
 import { defaultApartment } from "../demo_house.js";
@@ -21,11 +21,19 @@ import { applyData, download, exportWallScheduleFile, flash, saveTextDownload, s
 import { applyEnv, frameView, has3D, snapshot3D } from "../view3d.js";
 import { uiLocals } from "./ui_locals.js";
 
+export const RUN_HISTORY_ACTIONS = new Set(["undo", "redo"]);
+
 // split out of runAction()
 async function runHistoryAction(act, ev) {
   if (act === "undo") undo();
   else if (act === "redo") redo();
 }
+
+export const RUN_FILE_ACTIONS = new Set([
+  "exportWallSchedule", "newPlan", "photo", "reset", "save", "load", "exportjson", "importjson",
+  "importBlueprint", "importBlueprintTrace", "roomScan", "png2d", "png3d", "exportgltf",
+  "cutPlan", "exportCost", "uploadFloorTex", "uploadWallTex", "clearWallTex", "exportWallTakeoff",
+]);
 
 // split out of runAction()
 async function runFileAction(act, ev) {

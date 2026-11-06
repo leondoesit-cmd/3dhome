@@ -1,6 +1,6 @@
 /* The planner's door/window (opening) actions, dispatched by runAction, split
    out of js/ui/run_action.js. It shares the editor's state through live imports
-   from ./run_action.js. */
+   from ../ui.js. */
 import { roomFloor } from "../geometry.js";
 import { pushHistory } from "../history.js";
 import { t } from "../i18n.js";
@@ -12,6 +12,12 @@ import { refreshTree } from "../ui_tree.js";
 import { renderWarnPanel } from "../ui_warn.js";
 import { flash } from "../ui.js";
 import { addOpeningCentre, addOpeningFromCorner, addOpeningSpacing, conLabelText, solveWallCons } from "../wall_constraints.js";
+
+export const RUN_OPENING_ACTIONS = new Set([
+  "keepAutoOpen", "customAutoOpen", "closeAutoOpen", "flipSwing", "openwall", "addWallDoor",
+  "addWallWindow", "addWallPassage", "openseg", "opCentre", "opFromA", "opFromB", "opAlignX",
+  "opAlignZ", "opSpacing",
+]);
 
 // split out of runAction()
 async function runOpeningAction(act, ev) {

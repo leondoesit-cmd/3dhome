@@ -1,41 +1,32 @@
-import {shellMeridian} from './core/shell_meridian.js';
-import { shellFaceThicknesses, shellSupportingPlane } from './core/planar_shell_overrides.js';
-import { repairFilletCornerPatches } from './core/fillet_corner_repair.js';
-import {restoreProfileCurve} from './cad_profile_serialization.js';
-import {circularPatternPivot} from "./core/pattern_geometry.js";
-import { holeToolPlacements } from "./core/hole_geometry.js";
-import { cylinderAxis } from "./core/cylinder_axis.js";
-import { axisMeridian, revolveInterval, revolvePoint, assertSketchAxisProfile, assertRevolveProfileFrame } from "./core/revolve_geometry.js";
+import './core/shell_meridian.js';
+import './core/planar_shell_overrides.js';
+import './core/fillet_corner_repair.js';
+import './cad_profile_serialization.js';
+import "./core/pattern_geometry.js";
+import "./core/hole_geometry.js";
+import "./core/cylinder_axis.js";
+import "./core/revolve_geometry.js";
 // OpenCascade BREP backend. Loaded lazily because the WASM module is large;
 // ordinary sketch editing must remain instant and does not need a solid kernel.
 
+import "./core/topology.js";
+import "./core/frame.js";
+import { isSegmentProfile } from "./core/profile_curves.js";
+import "./core/rib_profile.js";
+import "./core/extrude_extent.js";
 import {
-  createTopologyRegistry,
-  resolveTopologyReference,
-  topologyDescriptorSignature,
-  fitProfileCircle,
-  planarFaceNameAgrees,
-} from "./core/topology.js";
-import { framePoint } from "./core/frame.js";
-import { isSegmentProfile, pathFrames, segmentProfilePoints } from "./core/profile_curves.js";
-import { ribDraftedLoop, ribGrowthVector, ribLoop, ribOffsets, ribWebLoop } from "./core/rib_profile.js";
-import { extrusionAxisVector, UP_TO_FACE_MISSED } from "./core/extrude_extent.js";
-import {
-  boundsMayOverlap, brepConnectedGroups, brepMaterialIntersection,
-  brepsOverlap, circularPatternBrep, compoundBrep, curvePatternBrep,
-  deferSerializedBrep, deserializeBrep, disposeBrep, exportIges, exportStep,
-  importStep, joinedWarnings, linearGridPatternBrep, linearPatternBrep,
-  mirrorBrep, serializeBrep, translateBrep, unifyBrepFaces,
-  validateBrepForExport,
+  boundsMayOverlap, brepConnectedGroups, brepMaterialIntersection, brepsOverlap,
+  circularPatternBrep, compoundBrep, curvePatternBrep, deferSerializedBrep,
+  deserializeBrep, disposeBrep, exportIges, exportStep, importStep,
+  linearGridPatternBrep, linearPatternBrep, mirrorBrep, serializeBrep,
+  translateBrep, unifyBrepFaces, validateBrepForExport,
 } from "./cad_kernel/analysis.js";
 import {
   domeBrep, draftBrep, moveBodyBrep, placeBrep, placedBrepBounds, ribBrep,
-  shapeToMeshData, shellWithPlanarThicknesses, solidPieces, splitBrep,
-  transformBrep,
+  shapeToMeshData, splitBrep, transformBrep,
 } from "./cad_kernel/body_ops.js";
 import {
-  chamferBrep, compoundShellMembers, edgeIsFinishTarget, edgeOnAnyFace,
-  finishEdgeSelection, shapeHasSolid, shapeVolume, shellBrep, thickenBrep,
+  chamferBrep, compoundShellMembers, shellBrep, thickenBrep,
 } from "./cad_kernel/finish_shell.js";
 import {
   booleanBrep, booleanVolumePlausible, filletBrep, fullRoundFilletDefinition,

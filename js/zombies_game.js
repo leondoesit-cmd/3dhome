@@ -1,94 +1,27 @@
 /* Night Shift gameplay: weapons, HUD, player, waves, input, mode toggle. */
 import * as THREE from "three";
-import { legacyIntensity } from "./gpu.js";
+import "./gpu.js";
 import { S, clamp, fin } from "./state.js";
 import {
-  has3D,
-  init3D,
-  getMainScene,
-  getMainCamera,
-  getDynGroup,
-  setExternalTick,
-  ensureBuilt,
-  isWalk,
-  toggleWalk,
-  orbitRefresh,
-  setQualityPreset,
-  setGameRendererQuality,
-  clearGameRendererQuality,
-  setGameRenderEffect,
+  has3D, init3D, getMainScene, getMainCamera, setExternalTick, ensureBuilt,
+  isWalk, toggleWalk, orbitRefresh, setQualityPreset, setGameRendererQuality,
+  clearGameRendererQuality, setGameRenderEffect,
 } from "./view3d.js";
 import { t } from "./i18n.js";
-import { awardRunPoints, encounterCap, securedCount, reachableFloor, cameraPose } from "./zombies_rules.js";
+import "./zombies_rules.js";
 import { createBodyCamera } from "./zombies_camera.js";
-import { pointInPoly, roomName } from "./geometry.js";
+import { pointInPoly } from "./geometry.js";
+import { Z, hooks, rr } from "./zombies_state.js";
 import {
-  Z, hooks, zActive, EYE, EYE_CROUCH, P_RAD, P_CLEAR, STEP, SPD_WALK, SPD_SPRINT, SPD_CROUCH,
-  ACCEL, GRAV, MAX_HP, MAX_ARMOR, Z_MAX_ALIVE, REST_LEN, RUN_WAVES, EXTRACT_LEN, rr, pick, rnd,
-} from "./zombies_state.js";
-import {
-  buildCol,
-  blockedAt,
-  buildFlashlight,
-  collideCircle,
-  moveCircle,
-  damageZed,
-  decal,
-  ensureTex,
-  enterHorror,
-  exitHorror,
-  freeSpot,
-  groundAt,
-  initFX,
-  interiorBounds,
-  liveRooms,
-  losClear,
-  makeNoise,
-  noRaycast,
-  removeZed,
-  shake,
-  sparkBurst,
-  dustBurst,
-  impactMark,
-  buildMoonBeams,
-  spawnZed,
-  stepFX,
-  stepFlashlight,
-  stepLamps,
-  stepMoonBeams,
-  stepZed,
-  stepZedVisuals,
-  setFXDensity,
-  setNightShiftQuality,
-  tracer,
-  clearZedGeoCache,
-  prewarmRigs,
-  ownsGeo,
-  igniteZed,
-  severPart,
-  spawnPart,
-  spawnFirePart,
-  boneBurst,
-  harvestPracticals,
-  applyHorrorGrade,
-  resetTexCache,
-  Z_TYPES,
-  stepAcidClouds,
-  clearAcidClouds,
-  stepWeather,
-  isNearBloodDecal,
-  isNearGlassDebris,
+  buildCol, buildFlashlight, ensureTex, enterHorror, exitHorror, initFX,
+  interiorBounds, liveRooms, noRaycast, removeZed, buildMoonBeams, spawnZed,
+  setFXDensity, setNightShiftQuality, clearZedGeoCache, prewarmRigs, ownsGeo,
+  harvestPracticals, applyHorrorGrade, resetTexCache, clearAcidClouds,
 } from "./zombies_world.js";
 import {
-  enableDestruction,
-  disableDestruction,
-  destructReady,
-  damageWorld,
-  explodeWorld,
-  stepDestruct,
-  setGameDestructionMode,
+  enableDestruction, disableDestruction, setGameDestructionMode,
 } from "./zombies_destruct.js";
-import { buildExterior, stepEnv, clearEnv, resetEnvMats } from "./zombies_env.js";
+import { buildExterior, clearEnv, resetEnvMats } from "./zombies_env.js";
 import {
   tex,
   normalTex,
@@ -97,26 +30,22 @@ import {
   setTexBudget,
   disposeTexLib,
 } from "./zombies_tex.js";
-import { dampingFactor, forEachPhysicsStep, safeDeltaSeconds } from "./physics_runtime.js";
-import { isPhysicsEnabled, moveKinematicCapsule } from "./physics_facade.js";
-import { initCritters, stepCritters, clearCritters } from "./zombies_critters.js";
+import "./physics_runtime.js";
+import "./physics_facade.js";
+import { initCritters, clearCritters } from "./zombies_critters.js";
 import {
-  bindEvents, jump, pauseGame, shove, syncResponsiveHud, tick, touchPulse,
-  unbindEvents, unlockPointer, wantsTouchControls,
+  bindEvents, pauseGame, tick, unbindEvents, unlockPointer, wantsTouchControls,
 } from "./zombies_game/input.js";
 import {
-  buyIntermission, initRadar, objectiveCount, objectiveLabel,
-  objectiveProgress, removeNavMarker, spawnFuseBox, spawnPerkStations,
-  startWave, updateInteractPrompt,
+  initRadar, removeNavMarker, spawnFuseBox, spawnPerkStations, startWave,
 } from "./zombies_game/world_spawns.js";
 import {
   audioClose, buildHud, flashScreen, hitMarker, hudDirty, hurtPlayer,
   loadBloodImgs, newPlayer, say,
 } from "./zombies_game/hud.js";
 import {
-  sndBlast, sndClick, sndDeath, sndDoor, sndFlame, sndFlesh, sndGrowl,
-  sndHammer, sndImpact, sndPerk, sndPickup, sndPower, sndReload, sndScream,
-  sndShot, sndSwipe, sndThunder, sndWhoosh,
+  sndClick, sndDeath, sndDoor, sndFlesh, sndGrowl, sndHammer, sndPerk, sndPower,
+  sndScream, sndSwipe, sndThunder,
 } from "./zombies_game/audio.js";
 import { audio, clearPickups, setWeapon } from "./zombies_game/weapons.js";
 // for js/zombies_game/input.js (live bindings: it sees every reassignment)

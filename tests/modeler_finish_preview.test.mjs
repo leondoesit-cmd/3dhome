@@ -150,9 +150,11 @@ test("nothing to work with previews nothing, and never throws", () => {
   assert.deepEqual(approximateFinishPreviewShapes({ part: { kind: "sph", r: 4 }, type: "fillet", amount: 2, targets }), []);
 });
 
-test("the 2D corner operators have exactly one implementation", () => {
+test("the 2D corner operators have exactly one implementation", async () => {
   assert.doesNotMatch(modeler, /^function (filletVertex|chamferVertex|insetLoop|pointInPoly)\(/m);
-  assert.match(modeler, /import \{[^}]*filletVertex[^}]*\} from "\.\/modeler_finish_preview\.js"/);
+  // the piece that runs the corner tools imports them (modelerSource drops pieces' imports)
+  const piece = await readFile(new URL("../js/modeler/finish_preview.js", import.meta.url), "utf8");
+  assert.match(piece, /import \{[^}]*filletVertex[^}]*\} from "\.\.\/modeler_finish_preview\.js"/);
   // the sketch corner tools still reach them through the module
   assert.match(modeler, /chamferVertex\(points, index, amount\) : filletVertex\(points, index, amount\)/);
 

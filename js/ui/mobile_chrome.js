@@ -1,6 +1,7 @@
 /* The planner's mobile drawers, foldable layout, topbar menus and action
    dispatch, lifted out of initUI, split out of js/ui/init_ui.js. It shares the
-   editor's state through live imports from ./init_ui.js. */
+   editor's state through live imports from ../state.js (and takes runAction as a
+   parameter). */
 import { initDropdownMenus } from "../dropdown_menus.js";
 import { mountHistoryPanel } from "../history.js";
 import { S } from "../state.js";

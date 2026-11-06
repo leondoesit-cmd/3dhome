@@ -1,87 +1,56 @@
 // 2D top-down floor plan: view transform + canvas rendering of rooms, walls, openings, items, overlays.
-import { S, clamp, fin, hexStr, FILL2D } from "./state.js";
+import { S } from "./state.js";
 import {
-  detectRooms,
-  roomFloor,
-  roomName,
-  roomHidden,
-  hiddenSets,
-  wallBounds,
-  wallGeom,
-  wallById,
-  contentBounds,
-  wallClearLength,
-  wallCuts,
-  wallOutline,
-  wallBandOutline,
-  wallPointAt,
-  wallTangentAt,
-  jointInfo,
-  wallDimSide,
-  pendingCuts,
-  roomsTopologyKey,
-  roomEdgeHandles,
-  roomByKey,
+  detectRooms, roomName, roomHidden, hiddenSets, wallBounds, wallGeom, wallById,
+  contentBounds, wallPointAt, roomEdgeHandles, roomByKey,
 } from "./geometry.js";
-import { ensureWallTypes, normalizeWall, wallLayerBands } from "./wall_types.js";
-import {
-  resolveWallDrawDefaults, previewCentreline, previewBandPoly, previewLayerBands,
-  previewMetrics, hatchSide, offsetGhost, touchDrawing,
-} from "./wall_draw.js";
-import { normalizeWallKind, curvedWallOutline, pointAtWall, tangentAtWall, makeArcFromThreePoints } from "./wall_curves.js";
-import { referenceFloorScene } from "./floors.js";
-import { FURN, flabel, isLamp, lampColor, fcolor, itemVSpan, knownVSpan, measureVSpanSoon, vspec } from "./furniture.js";
-import { isSmartType, devicePowered } from "./smarthome.js";
+import "./wall_types.js";
+import { offsetGhost, touchDrawing } from "./wall_draw.js";
+import { pointAtWall, makeArcFromThreePoints } from "./wall_curves.js";
+import "./floors.js";
+import { FURN, itemVSpan, vspec } from "./furniture.js";
+import "./smarthome.js";
 import { planCab } from "./cabinet.js";
 import { t } from "./i18n.js";
 import { SITE, llToLocalCm } from "./site.js";
 import { drawMEP, mepAliveCount } from "./mep.js";
-import { isElevation, drawElevation, ceilingHeight } from "./elevation.js";
-import { drawTouchPrecisionLens } from "./touch_precision.js";
-import { getTouchPrecisionPrefs } from "./touch_precision_ui.js";
-import { measure4, itemCorners } from "./measure.js";
-import { markers, markerItem, markerLabel, hitMarker, markerInfo } from "./markers.js";
+import { isElevation, drawElevation } from "./elevation.js";
+import "./touch_precision.js";
+import "./touch_precision_ui.js";
+import { itemCorners } from "./measure.js";
+import { markers } from "./markers.js";
 import { planIndex } from "./spatial_index.js";
 import { activeWarnings } from "./constraint_engine.js";
-import {
-  wallCons, anchorPos, anchorNode, conSatisfied, conCurrent,
-  openingById, openingPos,
-} from "./wall_constraints.js";
-import {
-  sx, sz, wx, wz, planRotRad, toBasePx, rotatePx, unrotatePx, niceScaleCm, fitTransform,
-} from "./plan_view.js";
+import "./wall_constraints.js";
+import { sx, sz, planRotRad, toBasePx, fitTransform } from "./plan_view.js";
 import { blueprintBounds, drawBlueprintUnderlay, drawBlueprintLinework } from "./blueprint_trace.js";
-import { openingCorners, slabOpenings } from "./slab_openings.js";
-import { openingHasSwingConflict } from "./swing_clearance.js";
-import { cursors, pruneCursors } from "./plan_sync.js";
-import { isLayerVisible, isLayerGhosted, isLayerHidden, layerRank } from "./layers.js";
-import { itemUserVis, userLayerKey } from "./user_layers.js";
+import "./slab_openings.js";
+import "./swing_clearance.js";
+import "./plan_sync.js";
+import { isLayerVisible, isLayerGhosted, isLayerHidden } from "./layers.js";
+import "./user_layers.js";
 import { roomClearArea } from "./room_area.js";
-import { fmtAreaM2, fmtLen, unitLabel } from "./display_units.js";
-import { inferDomainFromTool } from "./unit_settings.js";
-import { isPresentation, planStyle, planTheme } from "./plan_style.js";
-import { patternFill } from "./plan_patterns.js";
-import { floorImageFor, floorImageSource } from "./plan_material_fill.js";
-import { floorPaintCanvas, floorMeanColor, groundPaintCanvas } from "./primitives.js";
-import { itemSprite } from "./plan_sprites.js";
-import { spriteMode } from "./plan_sprite_key.js";
-import { roomLabelLines, roomLabelFont } from "./plan_labels.js";
+import { fmtAreaM2 } from "./display_units.js";
+import "./unit_settings.js";
+import { isPresentation } from "./plan_style.js";
+import "./plan_patterns.js";
+import "./plan_material_fill.js";
+import "./primitives.js";
+import "./plan_sprites.js";
+import "./plan_sprite_key.js";
+import "./plan_labels.js";
 import { symbolPrims, stairShape } from "./plan_symbols.js";
-import { roomMeasurements } from "./room_summary.js";
-import { TILE } from "./state.js";
-import {
-  conAngleOf, conHitTargets, conLabel, drawAngleConstraint,
-  drawConTargetHighlight, fmtDeg, label, pickCon,
-} from "./plan2d/constraints.js";
+import "./room_summary.js";
+import "./state.js";
+import { conHitTargets, label, pickCon } from "./plan2d/constraints.js";
 import {
   doorsGlyph, drawCabinetPlanSwings, drawItem, drawPresentationRoomLabels,
   drawStairsUp, drawSymbolPrims, drawWallCons, gCirc, gStroke, warnLabel,
 } from "./plan2d/items.js";
 import {
-  clipOutsideOpenings, drawCachedRooms, drawNodes, drawOpening,
-  drawPresentationWalls, drawReferenceFloor, drawSegPreview, drawSnapFlash,
-  drawWallAngleGuide, drawWallProbe, drawWarnGlow, ensureAngleGuideAnim,
-  traceWallCentre, wallBandPolygon, wallPath,
+  drawCachedRooms, drawNodes, drawOpening, drawPresentationWalls,
+  drawReferenceFloor, drawSegPreview, drawSnapFlash, drawWallAngleGuide,
+  drawWallProbe, drawWarnGlow, ensureAngleGuideAnim,
 } from "./plan2d/walls.js";
 import {
   drawAngleArc, drawFreeAnnotations, drawGhostWall, drawLen, drawMarkers,

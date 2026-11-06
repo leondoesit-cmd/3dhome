@@ -1,6 +1,7 @@
 /* The planner's selection actions (edit, duplicate, rotate, group, lock,
    align...), dispatched by runAction, split out of js/ui/run_action.js. It
-   shares the editor's state through live imports from ./run_action.js. */
+   shares the editor's state through live imports from ../ui.js and
+   ./ui_locals.js. */
 import { executeCommand } from "../commands/index.js";
 import { addSlabOpeningToFloor, floorAbove } from "../floors.js";
 import { itemsInRoom, roomByKey, roomFloor } from "../geometry.js";
@@ -21,6 +22,14 @@ import { refreshTree, updateCost, withoutRoomPrompts } from "../ui_tree.js";
 import { renderWarnPanel } from "../ui_warn.js";
 import { UI_COMMAND_HISTORY, applyRoomFloor, flash, openModal, setLockStruct, turnItem } from "../ui.js";
 import { uiLocals } from "./ui_locals.js";
+
+export const RUN_SELECTION_ACTIONS = new Set([
+  "addFloor", "lockStruct", "deleteSel", "slabFromStairs", "dupSel", "roomFloor", "prodSize",
+  "pvAdd", "rcArea", "rcMinDim", "rcRect", "alLeft", "alRight", "alCenterX", "alTop", "alBottom",
+  "alCenterZ", "alDistX", "alDistZ", "alSameRot", "groupItems", "ungroupItems", "autoGenerate",
+  "autoArrange", "addroom", "addcorr", "makeSeamless", "matchFloor", "rotL", "rotR", "rotSel90",
+  "faceAuto", "roomRotL", "roomRotR", "lockItem", "lockRoom", "lockRoomItems",
+]);
 
 // split out of runAction()
 async function runSelectionAction(act, ev) {

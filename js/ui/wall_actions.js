@@ -1,6 +1,6 @@
 /* The planner's wall modifier, wall constraint and node constraint actions,
    dispatched by runAction, split out of js/ui/run_action.js. It shares the
-   editor's state through live imports from ./run_action.js. */
+   editor's state through live imports from ../ui.js. */
 import { isLocked, setLocked } from "../constraint_engine.js";
 import { parseLen } from "../display_units.js";
 import { pushHistory } from "../history.js";
@@ -15,6 +15,13 @@ import { flash, openWallTypeEditorDialog, showJointAngleDialog, squareJoint, squ
 import { addEqualLengthSet, addEqualSpacing, addOffset, addWallAngle, addWallRelation, flipConDirection, removeCon, repin, solveWallCons } from "../wall_constraints.js";
 import { normalizeWallKind } from "../wall_curves.js";
 import { flipWall, normalizeWall } from "../wall_types.js";
+
+export const RUN_WALL_MODIFIER_ACTIONS = new Set([
+  "wallTypeEditor", "wmFillet", "wmChamfer", "wmParallel", "wmPerpendicular", "wmCollinear",
+  "wmEqualLength", "wmOffset", "wmEqualSpacing", "wmWallAngle", "wmEqualLenSet",
+  "reverseWallLayers", "copyWallStyle", "straightenWall", "restoreSharpCorner",
+  "updateCornerTreatment", "squareWall", "lockWallDim",
+]);
 
 // split out of runAction()
 async function runWallModifierAction(act, ev) {
@@ -157,6 +164,12 @@ async function runWallModifierAction(act, ev) {
   }
 }
 
+export const RUN_NODE_CONSTRAINT_ACTIONS = new Set([
+  "ndSquare", "ndSetAngle", "ndPin", "ndCoincident", "ndSymmetric", "ndSymmetricPerp",
+  "ndCompareAngle", "ndJoin", "ndDistance", "ndAlignX", "ndAlignZ", "ndDistanceX", "ndDistanceZ",
+  "ndEqualAngle",
+]);
+
 // split out of runAction()
 async function runNodeConstraintAction(act, ev) {
   if (act === "ndSquare") {
@@ -192,6 +205,12 @@ async function runNodeConstraintAction(act, ev) {
   else if (act === "ndDistanceZ") applyNodePairRelation("axisDistZ");
   else if (act === "ndEqualAngle") applyNodePairRelation("equalAngle");
 }
+
+export const RUN_WALL_CONSTRAINT_ACTIONS = new Set([
+  "conFlip", "conDelete", "conRepin", "conHorizontal", "conVertical", "conDist", "conRefDim",
+  "conAngle", "conOffset", "conParallel", "conPerpendicular", "conCollinear", "conEqualLength",
+  "conPointWall",
+]);
 
 // split out of runAction()
 async function runWallConstraintAction(act, ev) {

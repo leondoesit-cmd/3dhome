@@ -8,6 +8,8 @@ import { cleanSpeechText, stopSpeaking, isSpeaking, speak, toggleSpeak, bindSpea
 const speechCode = await readFile(new URL("../js/speech.js", import.meta.url), "utf8");
 const plannerCode = await readFile(new URL("../js/planner_tutorial.js", import.meta.url), "utf8");
 const modelerCode = modelerSource();
+// the piece that binds the read-aloud buttons (its imports are not in modelerSource)
+const sketchGuideCode = await readFile(new URL("../js/modeler/sketch_guide.js", import.meta.url), "utf8");
 const i18nCode = await readI18nSource();
 
 test("speech module provides text normalization and cleaning", () => {
@@ -68,7 +70,7 @@ test("planner guide incorporates read-aloud buttons in hub, reference modal and 
 });
 
 test("modeler incorporates read-aloud buttons in tour hub, mode selection and steps", () => {
-  assert.match(modelerCode, /import \{ stopSpeaking, bindSpeakButton \} from "\.\/speech\.js"/);
+  assert.match(sketchGuideCode, /import \{ bindSpeakButton, stopSpeaking \} from "\.\.\/speech\.js"/);
   assert.match(modelerCode, /id="mdTourSpeak"/);
   assert.match(modelerCode, /speakReadAloud/);
   assert.match(modelerCode, /speakStop/);

@@ -1,14 +1,14 @@
-import { buildBlueprintUnderlay3D } from './blueprint_3d.js';
-import { createPreciseBoundsCache } from './core/precise_bounds_cache.js';
+import './blueprint_3d.js';
+import './core/precise_bounds_cache.js';
 import { createSceneRegistry } from './core/scene_registry.js';
-import { createWallBuildKeys } from './core/wall_build_key.js';
+import './core/wall_build_key.js';
 import { createPlannerDrawing } from './planner_drawing.js';
-import { updateCabinetRuntimeMesh } from './cabinet_mesh.js';
-import { switchFloorAndWait } from './floors.js';
-import { buildSurveyGeometry } from './survey_mesh.js';
-import { moveSurveyWalker, navigationPosition, navigationFloorTransition } from './navigation_geometry.js';
-import { navigationProfile, cameraRetraction } from "./navigation_profile.js";
-import { createCameraSweep } from './camera_sweep.js';
+import './cabinet_mesh.js';
+import './floors.js';
+import './survey_mesh.js';
+import './navigation_geometry.js';
+import "./navigation_profile.js";
+import './camera_sweep.js';
 // 3D scene: renderer/camera/lights, builds walls + items, sun-by-time-of-day, orbit controls.
 // three is LATE-BOUND (js/three_lazy.js): the renderer is 3.5 MB and must not
 // sit on the synchronous boot module graph. `THREE`, `TSL` and `ADDONS` are
@@ -18,112 +18,42 @@ import { createCameraSweep } from './camera_sweep.js';
 // stack does not run on WebGPURenderer at all, so AO + AA are rebuilt as a TSL
 // node graph: GTAO replaces SSAO (ground-truth occlusion, far fewer artifacts)
 // and TRAA replaces FXAA (temporal, resolves edges instead of blurring them).
-import { THREE, TSL, ADDONS, loadThree, threeLoaded } from "./three_lazy.js";
-import { createRenderer, LUX, legacyIntensity, retainShaderCaches, forgetLightKeys } from "./gpu.js";
+import { THREE, TSL, ADDONS, loadThree } from "./three_lazy.js";
+import { createRenderer, LUX, retainShaderCaches } from "./gpu.js";
 import { primeGpuTier } from "./material_tier.js";
-import {
-  S,
-  clamp,
-  fin,
-  TILE,
-  WALL_T,
-  WALL_H,
-  FLOOR,
-  WALLC,
-  GLASS,
-  WOOD,
-  HANDLE,
-  MAT_PROPS,
-} from "./state.js";
-import {
-  box,
-  cyl,
-  sph,
-  clearGroup,
-  polyMesh,
-  floorTexture,
-  worldUVs,
-  groundTexture,
-} from "./primitives.js";
-import { FURN, lampColor, buildItem as buildFurn, elevOffset, itemVSpan } from "./furniture.js";
-import { refreshRuntimePlacements } from "./core/runtime.js";
-import { getTexturePresetBumpUrl } from "./textures.js";
-import { pbrEntryFor, pbrTextures, pbrSurfaceMaterial, legacyTextureUrl, legacyFloorKey, materialById, sharedRepeat, textureMisses } from "./pbr_material.js";
+import { S, clamp } from "./state.js";
+import { clearGroup } from "./primitives.js";
+import "./furniture.js";
+import "./core/runtime.js";
+import "./textures.js";
+import { pbrTextures, pbrSurfaceMaterial } from "./pbr_material.js";
 import { createLightLoop } from "./light_loop.js";
-import { createRoomBounce, roomIrradiance, roomInspectionFill, spotFlux, pointFlux, lightMaskRoom, SKY_ONLY, UNMASKED } from "./room_bounce.js";
+import { createRoomBounce, roomInspectionFill, UNMASKED } from "./room_bounce.js";
 import { HumanFactory } from "./human.js";
-import { SITE, llToLocalCm } from "./site.js";
+import "./site.js";
+import "./geometry.js";
+import "./slab_openings.js";
+import "./roof.js";
+import "./wall_types.js";
+import { projectToWall } from "./wall_curves.js";
 import {
-  wallGeom,
-  straightThroughAt,
-  wallJoinRole,
-  wallSolidAtNode,
-  wallSolidTop,
-  faceShiftAt,
-  wallBandOutline,
-  tJoinStep,
-  detectRooms,
-  contentBounds,
-  roomByKey,
-  roomFloor,
-  roomHidden,
-  roomName,
-  hiddenSets,
-  usedNodes,
-  nodeDegree,
-  wallById,
-  wallPointAt,
-  wallTangentAt,
-  distSeg,
-  pointInPoly,
-} from "./geometry.js";
-import { holesForRoom, hitSlabOpening, openingCorners, slabOpenings } from "./slab_openings.js";
-import { roofMeshTriangles } from "./roof.js";
-import {
-  ensureWallTypes,
-  normalizeWall,
-  wallLayerBands,
-  wallThickness,
-  wallTypeById,
-} from "./wall_types.js";
-import {
-  normalizeWallKind,
-  normalizeWallProfile,
-  wallProfileHeight,
-  projectToWall,
-  verticalSegments,
-  HALF_WALL_HEIGHT,
-} from "./wall_curves.js";
-import {
-  syncPhysicsToThree,
-  addPhysicsBody,
-  clearPhysics,
-  isPhysicsEnabled,
-  isPhysicsBusy,
-  hitObjectAtCenter,
+  syncPhysicsToThree, isPhysicsEnabled, isPhysicsBusy, hitObjectAtCenter,
   toggleSlowMo,
-  moveKinematicCapsule,
-  spawnHangingCloth,
 } from "./physics_facade.js";
 import { safeDeltaMilliseconds } from "./physics_runtime.js";
-import { resolvePhysicsRole } from "./physics/math.js";
-import { buildMEP3D } from "./mep.js";
-import { layerRank, layerOf, isLayerVisible, isLayerGhosted } from "./layers.js";
-import { wallFraming } from "./wall_framing.js";
+import "./physics/math.js";
+import "./mep.js";
+import "./layers.js";
+import "./wall_framing.js";
 import { fmtLen } from "./display_units.js";
-import { ceilingHeight } from "./elevation.js";
-import { classifyOpeningCut, clipTrianglesBelowY, topFaceTriangles, cutHeightFor, nearSideWall } from "./wall_cut.js";
-import { nearCutOn, cutStyle, STUB_HEIGHT, FADE_LEVEL } from "./wall_view.js";
-import { itemUserVis, itemUserUnpickable } from "./user_layers.js";
-import { siteLayout } from "./site_dressing.js";
-import { skyPixels, prefilterInto } from "./sky_model.js";
-import {
-  addWallFraming, buildItem, buildWall, hasHeightMismatchedJoin,
-  lightLoopWanted, placeItem, releaseItemLights, releaseLight, takeLight,
-} from "./view3d/wall_build.js";
-import {
-  cutH, cutH0, frameSpec, houseBounds, makeShadowOnly, shadowCopy,
-} from "./view3d/site_cutaway.js";
+import "./elevation.js";
+import "./wall_cut.js";
+import "./wall_view.js";
+import "./user_layers.js";
+import "./site_dressing.js";
+import "./sky_model.js";
+import { lightLoopWanted } from "./view3d/wall_build.js";
+import { frameSpec } from "./view3d/site_cutaway.js";
 import {
   applyEnv, applySite, buildViewGizmo, onRelight, setSize, setStreetViewCube,
   updateViewGizmo,
@@ -133,17 +63,15 @@ import {
   rayAtHeight, targetOf, toggleEdit3D,
 } from "./view3d/navigation_edit.js";
 import {
-  cP, cutAway, frameDollhouse, frameView, hangWindowCloth, panPixels,
-  pointerRay, settleSeeFades, stepSeeFades, upd, updateSeeThrough,
-  warmFadePipelines, zoomBy,
+  cP, cutAway, frameDollhouse, frameView, panPixels, pointerRay, stepSeeFades,
+  upd, updateSeeThrough, warmFadePipelines, zoomBy,
 } from "./view3d/see_through.js";
 import {
-  buildBounceLights, finishPrewarm, fitPracticalLights, initPhysicsForScene,
-  prewarmHolds, roomContaining, roomReach, schedulePrewarm, startPrewarm,
+  finishPrewarm, fitPracticalLights, initPhysicsForScene, prewarmHolds,
+  schedulePrewarm, startPrewarm,
 } from "./view3d/lighting.js";
 import {
-  applyItemOps, applyLayers3D, layerRoots, pickableRoots, rebuild3D,
-  selected3DBox,
+  applyItemOps, applyLayers3D, pickableRoots, rebuild3D, selected3DBox,
 } from "./view3d/items_layers.js";
 import {
   clearGameRendererQuality, isFreeMove, isWalk, moveWalk,

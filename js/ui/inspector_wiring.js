@@ -1,7 +1,7 @@
 /* The planner's wall-color and light controls, history and tool wiring, display
    controls and point inspector, lifted out of initUI, split out of
    js/ui/init_ui.js. It shares the editor's state through live imports from
-   ./init_ui.js. */
+   ../ui.js. */
 import { captureClear, captureLock } from "../constraint_engine.js";
 import { fmtLen, parseLen } from "../display_units.js";
 import { beginHistory, cancelPending, commitPending, pushHistory } from "../history.js";

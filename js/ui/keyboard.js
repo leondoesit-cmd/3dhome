@@ -1,7 +1,7 @@
 /* The planner's keyboard shortcuts: the global keydown handler, constraint
    verbs and the shortcuts sheet, lifted out of initUI, split out of
    js/ui/init_ui.js. It shares the editor's state through live imports from
-   ./init_ui.js. */
+   ../ui.js and ./ui_locals.js. */
 import { pushHistory } from "../history.js";
 import { t } from "../i18n.js";
 import { applyNodePairRelation, togglePinSelected } from "../interaction.js";

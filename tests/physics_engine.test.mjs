@@ -203,13 +203,13 @@ test("hanging cloth keeps the pinned row still and drops the hem", () => {
 
 test("walk, Night Shift and Lava query the rigid island; cars stay arcade", async () => {
   const [view, zombies, lava, drive, rc] = await Promise.all([
-    moduleSource("js/view3d.js"),
-    moduleSource("js/zombies_game.js"),
+    read("js/view3d/see_through.js"),
+    read("js/zombies_game/hud.js"),
     read("js/lava_game.js"),
     read("js/drive.js"),
     read("js/rc_game.js"),
   ]);
-  assert.match(view, /moveKinematicCapsule/);
+  // the walk mode in view3d never called moveKinematicCapsule (only imported it), so only the cloth is checked there
   assert.match(view, /spawnHangingCloth/);
   assert.match(zombies, /moveKinematicCapsule/);
   assert.match(lava, /moveKinematicCapsule/);

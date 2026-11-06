@@ -13,14 +13,10 @@
 // walls without also walling off the floor underneath it.
 import * as THREE from "three";
 import { clamp } from "./state.js";
-import { pointInPoly } from "./geometry.js";
-import { STEP_UP } from "./road_surface.js";
-import {
-  buildCollision, buildMesh, buildRoadCandidate, buildWps, repeatLift, turnAt,
-} from "./track/road_mesh.js";
-import {
-  buildRoad, courseQuality, pathFree, roomCircuit,
-} from "./track/course_plan.js";
+import "./geometry.js";
+import "./road_surface.js";
+import "./track/road_mesh.js";
+import { buildRoad, courseQuality, roomCircuit } from "./track/course_plan.js";
 import { canRide, rideSpot, seedHomeTour } from "./track/routes.js";
 export { canRide, rideSpot, seedHomeTour };
 export { buildRoad, courseQuality, roomCircuit };

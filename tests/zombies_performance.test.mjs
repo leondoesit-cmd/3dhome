@@ -84,7 +84,8 @@ test("Night Shift Fast quality skips CAD post-processing and caps pixel ratio", 
 test("Night Shift batches rigid zombie pieces and avoids idle visual uploads", async () => {
   const game = moduleSource("js/zombies_game.js");
   const world = moduleSource("js/zombies_world.js");
-  assert.match(world, /import \{ mergeGeometries \} from "three\/addons\/utils\/BufferGeometryUtils\.js"/);
+  const build = await readFile(new URL("../js/zombies_world/zombie_build.js", import.meta.url), "utf8");
+  assert.match(build, /import \{ mergeGeometries \} from "three\/addons\/utils\/BufferGeometryUtils\.js"/);
   assert.match(world, /function batchZombieRig\(rig\)/);
   assert.match(world, /batchZombieRig\(rig\)/);
   assert.match(world, /if \(partDirty\) \{/);

@@ -1,6 +1,6 @@
 /* The planner's walk-mode toggles and wall, item and room property inputs,
    lifted out of initUI, split out of js/ui/init_ui.js. It shares the editor's
-   state through live imports from ./init_ui.js. */
+   state through live imports from ../ui.js. */
 import { hangStraightRunOnFace, setWallReference, setWallThicknessPreservingClear, snapshotNodes } from "../constraint_engine.js";
 import { applyItemDimension, requestItemDimension } from "../core/project.js";
 import { parseLen } from "../display_units.js";

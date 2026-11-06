@@ -1,50 +1,23 @@
 import { activeEditor } from "./pro_shell.js";
 import { openingDrawDefaults } from "./opening_draw_defaults.js";
 import { sx, sz, wx, wz, rotatePx, toBasePx, planRotRad, inputScale, inputBounds, inputIs3D, plannerInputView, setPlannerInputView, registerPlannerController } from "./planner_input.js";
-import { generatedChangePermission, captureProtectedStructure, validateProtectedStructure } from "./redesign.js";
+import "./redesign.js";
 // Pointer/keyboard interaction: hit-testing, tools, drag/draw, and structural edit operations.
-import { S, WALL_T, WALL_H, uid, fin, clamp, SNAP_GRID, throttle, touchItem3D } from "./state.js";
+import { S, WALL_H, uid, fin, clamp, SNAP_GRID, throttle, touchItem3D } from "./state.js";
 import {
-  wallGeom,
-  wallById,
-  usedNodes,
-  detectRooms,
-  roomByKey,
-  distSeg,
-  snapAdj,
-  itemsInRoom,
-  hiddenSets,
-  pendingCuts,
-  wallCuts,
-  armAngles,
-  equalWallAngleTranslation,
-  openingAtWallPosition,
-  nearestWallLanding,
-  wallPointAt,
-  wallTangentAt,
-  wallProject,
-  wallClearLength,
-  reconcileRoomMeta,
-  roomEdgeHandles,
-  normalizeStructure,
+  wallGeom, wallById, usedNodes, detectRooms, roomByKey, distSeg, snapAdj,
+  itemsInRoom, hiddenSets, equalWallAngleTranslation, wallProject,
 } from "./geometry.js";
-import {
-  applyWallDrawDefaults, drawFaceBack, isWallDrawTool, extendToHit, throughCrossings,
-  offsetGhost, offsetSideFromCursor, joinProposal, paintWallWithDefaults,
-  reverseWallStyle, resolveWallDrawDefaults, applyDrawDirLock, resetDrawDirLock,
-} from "./wall_draw.js";
-import { makeArcFromThreePoints, normalizeWallKind } from "./wall_curves.js";
-import { canonicalPlacementItem, canonicalPlacementWall, placementBatchFitsScene, placementWallFingerprint } from "./placement_resolver.js";
-import {
-  applyCornerRestore, applyCornerTreatmentUpdate, applyWallChamfer, applyWallFillet,
-  proposeCornerRestore, proposeCornerTreatmentUpdate, proposeWallChamfer, proposeWallFillet,
-} from "./wall_fillet.js";
-import { FURN, isLamp, itemVSpan, mkItem } from "./furniture.js";
-import { holdToWall, reseatHeldItems } from "./item_align.js";
-import { applyAutoFace, markManualRot, rotStep } from "./item_orient.js";
-import { t, tTouch } from "./i18n.js";
+import { offsetSideFromCursor } from "./wall_draw.js";
+import "./wall_curves.js";
+import "./placement_resolver.js";
+import "./wall_fillet.js";
+import "./furniture.js";
+import { reseatHeldItems } from "./item_align.js";
+import { markManualRot, rotStep } from "./item_orient.js";
+import { t } from "./i18n.js";
 import { fmtLen, unitLabel } from "./display_units.js";
-import { plan, render2D, fitView, dropPoint, pickCon as flatPickCon, touchLensDistanceMap, setDragProxy, clearDragProxy } from "./plan2d.js";
+import { plan, render2D, dropPoint, pickCon as flatPickCon, touchLensDistanceMap, setDragProxy, clearDragProxy } from "./plan2d.js";
 import { select, fillProps, refreshTree, flash, setLockStruct, placeFurnAt } from "./ui.js";
 import { syncWallEnd } from "./ui_props.js";
 import {
@@ -62,12 +35,11 @@ import {
   armHistoryGesture, disarmHistoryGesture, prepareHistoryGesture,
 } from "./history.js";
 import { isWalk } from "./view3d.js";
-import { layerRank, layerOf, canDrag, aiCanMove, isLayerLocked, isLayerHidden } from "./layers.js";
-import { refLocked, itemUserUnpickable, userLayerOf } from "./user_layers.js";
+import { layerRank, canDrag, isLayerHidden } from "./layers.js";
+import { itemUserUnpickable } from "./user_layers.js";
 import { planIndex } from "./spatial_index.js";
 import {
-  ensureMEP, snapMEPPoint, routeResolve, wallPath, addNode, hitMEP, nodePos,
-  finishRoute, cancelMEP, cancelRoute, deleteMEP, detachNodesFromWalls, runCrossesOpening,
+  ensureMEP, snapMEPPoint, routeResolve, wallPath, addNode, hitMEP, cancelRoute,
 } from "./mep.js";
 import {
   isElevation as flatIsElevation, elevationHit, elevPick, elevDragTo, elevNudge,
@@ -75,83 +47,54 @@ import {
   elevOpeningGrab, elevDragOpeningTo, elevNudgeOpening,
 } from "./elevation.js";
 import {
-  findSupport,
-  attach as stackAttach,
-  detach as stackDetach,
-  hostOf,
-  carryChildren,
-  rotateWith,
-  wouldCycle,
-  topOf,
-  descendantsOf,
-  orphanChildren,
-  refreshSupport,
-  reseat as stackReseat,
+  detach as stackDetach, carryChildren, descendantsOf, refreshSupport,
 } from "./stack.js";
 import {
-  markers, addMarker, deleteMarker, hitMarker, markerItem, markerLabel,
-  moveMarker, releaseIfMoved,
+  addMarker, hitMarker, markerItem, moveMarker, releaseIfMoved,
 } from "./markers.js";
-import {
-  hitSlabOpening, openingFromRect, removeSlabOpening,
-} from "./slab_openings.js";
-import { broadcastPlanOp, itemMovePlanOp, itemMovePlanOps, sendPlanCursor } from "./plan_sync.js";
+import { hitSlabOpening } from "./slab_openings.js";
+import { broadcastPlanOp, itemMovePlanOps, sendPlanCursor } from "./plan_sync.js";
 import { syncStairVoids } from "./ui.js";
 import {
-  snapshotNodes, enforceLocks, captureLock, canWeld, hitWarning,
-  captureClear, preserveClear,
+  snapshotNodes, enforceLocks, captureLock, canWeld, hitWarning, captureClear,
 } from "./constraint_engine.js";
-import {
-  solveWallCons, pruneCons, addDistance, addJointAngle, addOffset,
-  anchorAtWallEnd, conCurrent, prepareStableAnchors, mergeAnchorNodes,
-  nodeAnchor, rehomeAnchorOwner, addAxisAlignment, addEqualAngle,
-  angleSectorAtNode, addWallRelation, addPointWallDistance, addAxisDistance,
-  addFixed, addCoincident, addSymmetric, addMidpoint, addPointOnLine,
-  addWallAngle, addEqualLengthSet, pinnedNodes, wallCons, anchorNode, removeCon,
-  addOpeningAlign, stabilizeOpeningCornerRefs, setConReport,
-} from "./wall_constraints.js";
+import { solveWallCons } from "./wall_constraints.js";
 import {
   syncWarnHighlight, setConstraintHover, renderWarnPanel,
 } from "./ui_warn.js";
-import { hudKeydown, onDrawEnded, updateCadHud, entryOpen } from "./cad_hud.js";
-import { roomPreset, rectInterior, CONNECTION_MODES } from "./room_presets.js";
+import { hudKeydown, entryOpen } from "./cad_hud.js";
+import "./room_presets.js";
 import { solveDock, corridorRect, translateRect } from "./room_dock.js";
-import { placeRoom, cutOpening, connectionForWall } from "./room_stamp.js";
-import { wallSeparates, detachRoomSeam, roomMetaKey } from "./room_graph.js";
+import "./room_stamp.js";
+import { wallSeparates, detachRoomSeam } from "./room_graph.js";
 import {
   beginTouchPrecision, planTouchPrecisionKind, touchPrecisionPoint, updateTouchPrecision,
 } from "./touch_precision.js";
 import {
-  cancelTouchPrecisionTrial, dispatchPrecisionCommit, dispatchPrecisionMove,
-  getTouchPrecisionMode, getTouchPrecisionPrefs, releaseTouchPrecisionTrial, startTouchPrecisionTrial,
+  dispatchPrecisionCommit, dispatchPrecisionMove, getTouchPrecisionMode,
+  getTouchPrecisionPrefs, releaseTouchPrecisionTrial, startTouchPrecisionTrial,
   touchPrecisionTrialOwns, updateTouchPrecisionTrial,
 } from "./touch_precision_ui.js";
-import {
-  openingPlaceCommand, wallDrawCommand, itemDuplicateCommand, roomCreateCommand, roomStampCommand,
-  executeCommand, executeCommandBatch, executePrepared, plannerCommand, prepareCommand, previewPrepared,
-} from "./commands/index.js";
+import { openingPlaceCommand, executeCommand } from "./commands/index.js";
 import {
   begin3DItemDrag, begin3DOpeningDrag, drag3DItemElev, drag3DItemTo,
   drag3DOpeningTo, end3DItemDrag, end3DOpeningDrag, opening3DPos, rotateItems,
   select3DTarget,
 } from "./interaction/view3d_edit.js";
 import {
-  addSpace, afterPlacementCommandBatch, applyNodePairRelation, auditDragProxy,
-  autoArrangeAll, beforePlacementCommandBatch, cleanupPlacementCommandBatch,
-  commitItemPlacement, deleteRoom, finalizeItemPlacement, moveItemTo,
-  normalizedRotation, openSegment, openWall, ownedNodeAnchor,
-  placeOpeningOnSelected, rotateRoom, togglePinSelected,
-  validatePlacementRelations, weldCoincidentNodes, weldNodes,
+  addSpace, applyNodePairRelation, auditDragProxy, autoArrangeAll, deleteRoom,
+  finalizeItemPlacement, moveItemTo, openSegment, openWall,
+  placeOpeningOnSelected, rotateRoom, togglePinSelected, weldCoincidentNodes,
+  weldNodes,
 } from "./interaction/layout_drag.js";
 import {
   agentCommandEnvironment, applyRemove, blockedDrag, conPickActive, deleteSel,
   dupSel, endConPick, eraseKey, executePlannerProposal, finishConPick,
-  finishRemove, getOrMakeNode, healDrawnWallEnds, materializePlannerWall,
-  pickErase, previewPlannerCommand, resolveLanding, selectAtScreen,
-  splitIntersectionWalls, splitWallAt, startConPick, startNodeConPick,
-  startOpeningAlignPick, targetLocked, wallHalfAt,
+  finishRemove, pickErase, previewPlannerCommand, resolveLanding,
+  selectAtScreen, splitIntersectionWalls, splitWallAt, startConPick,
+  startNodeConPick, startOpeningAlignPick, targetLocked, wallHalfAt,
 } from "./interaction/wall_edit.js";
-import { snapMul, snapPoint, snapWallPoint } from "./interaction/wall_snap.js";
+import { snapPoint, snapWallPoint } from "./interaction/wall_snap.js";
 import {
   adoptMergedRoomMeta, arcWallPoint, armRoomStamp, buildDragCorridor,
   chamferSelectedWalls, commitRoomStamp, commitSlabFromTo, connectFusedWalls,
