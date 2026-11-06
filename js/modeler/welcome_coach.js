@@ -8,19 +8,19 @@ import { welcomeGlyph } from "../modeler_welcome_glyphs.js";
 import { defaultSketchPlane } from "../modeler_workflow.js";
 import { diagnosticActionLabel, diagnosticMessage, runDiagnosticAction } from "../modeler/component_mates.js";
 import { runInterferenceCheck } from "../modeler/document_outputs.js";
+import { saveCurrentDocument, sketchOpenPathReadiness } from "../modeler/document_save.js";
 import { closedSketchProfile, flash } from "../modeler/drawing_sheet.js";
+import { activeParts, loadLib } from "../modeler/library_store.js";
+import { runCommand } from "../modeler/part_commands.js";
 import { displayedCoreIssues, modelRebuildPending } from "../modeler/sketch_entities.js";
 import { assemblyTourSteps, dreidelTourSteps, flowerTourSteps, gearTourSteps, mobileTourSteps, patternTourSteps, prepareTourStep, renderTour, renderTourMode, restoreAutomaticTourOrigin, screwTourSteps, seekAutomaticTour, selectTourTrack, sketchTourSteps, solidworksCubeTourSteps, startTour, studBallTourSteps, tourStepDone, tourSteps } from "../modeler/sketch_guide.js";
+import { assemblyWorkflowState, beginSketchWorkflow, chooseSketchReference, currentWorkflowStep, finishSketchWorkflow, isCanonicalAuthoring, referenceLabel, setCommandTab, setTab, setTool, showReferencePicker } from "../modeler/sketch_workflow.js";
 import { insertAssemblyComponent } from "../modeler/tree_assembly.js";
 import { ensureSketch } from "../sketch_solver.js";
 import { stopSpeaking } from "../speech.js";
 import {
-  E, WELCOME_STARTS, activeParts, assemblyWorkflowState, beginSketchWorkflow,
-  chooseSketchReference, currentWorkflowStep, documentDirty,
-  finishSketchWorkflow, isCanonicalAuthoring, loadLib, openParametricFeature,
-  pushUndo, referenceLabel, refreshAll, requestDocumentType, root, runCommand,
-  saveCurrentDocument, setCommandTab, setTab, setTool, showReferencePicker,
-  sketchOpenPathReadiness,
+  E, WELCOME_STARTS, documentDirty, openParametricFeature, pushUndo,
+  refreshAll, requestDocumentType, root,
 } from "../modeler.js";
 
 /* ================= visual start screen =================

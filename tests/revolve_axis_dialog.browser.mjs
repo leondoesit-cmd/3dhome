@@ -24,7 +24,7 @@ test("Boss preselects a profile edge, Edit accepts a centerline, and Cut retains
       const entities=[1,2,3,4].map((a,i)=>({id:i+11,type:"line",a,b:i===3?1:a+1}));
       entities.push({id:15,type:"line",a:5,b:6,construction:true},{id:16,type:"line",a:7,b:8,construction:true});
       recordSketchInHistory(doc,{id:"handle",name:"Handle profile",plane:"front",points,entities,constraints:[]});
-      doc.activeSketch="handle";openModeler(null,doc,null);
+      doc.activeSketch="handle";openModeler(null,doc,null,true);
       document.querySelector("#modeler .md-tree-sketch").click();
       document.querySelector('#mdModes [data-mode="2d"]').click();
     });
@@ -94,7 +94,7 @@ test("Boss preselects a profile edge, Edit accepts a centerline, and Cut retains
       const {openModeler}=await import("/js/modeler.js");
       const {def}=await loadModelerDraftRecord(sessionStorage.getItem("home3d_modeler_tab_id"));
       const cut=def.features.find(f=>f.type==="revolveCut");
-      openModeler(null,def,null);window.cadEditFeatureParams(cut.id,{});
+      openModeler(null,def,null,true);window.cadEditFeatureParams(cut.id,{});
       return document.querySelector(selector).value;
     },field);
     assert.equal(reopened,"axis:line:11");
@@ -117,7 +117,7 @@ test("an ordinary axis sharing a contour endpoint enables solid Boss and Cut and
         const entities=[1,2,3,4].map((a,i)=>({id:11+i,type:"line",a,b:i===3?1:a+1}));
         entities.push({id:15,type:"line",a:1,b:5});
         recordSketchInHistory(doc,{id:"handle",name:"Handle profile",plane:"front",points,entities,constraints:[]});
-        doc.activeSketch="handle";openModeler(null,doc,null);
+        doc.activeSketch="handle";openModeler(null,doc,null,true);
         document.querySelector("#modeler .md-tree-sketch").click();
         document.querySelector('#mdModes [data-mode="2d"]').click();
       },type);
@@ -158,7 +158,7 @@ test("circle crossing an oblique axis between samples blocks both creation and e
         {id:"ring",type:"circle",c:3,r:1},{id:"bad",type:"line",a:1,b:2,construction:true},
         {id:"good",type:"line",a:4,b:5,construction:true}
       ]});
-      openModeler(null,doc,null);window.__modelerRunCommand("revolvefeature");
+      openModeler(null,doc,null,true);window.__modelerRunCommand("revolvefeature");
     });
     const choose=async id=>page.eval((selector,id)=>{
       const input=document.querySelector(selector);input.value="axis:line:"+id;
@@ -202,7 +202,7 @@ function legacyTurn(copyKind){
 async function saveAndReopen(page,doc){
   await page.eval(async doc=>{
     const {openModeler}=await import("/js/modeler.js");
-    openModeler(null,doc,null);document.getElementById("mdSave").click();
+    openModeler(null,doc,null,true);document.getElementById("mdSave").click();
   },doc);
   await page.waitUntil(async()=>{
     const {loadModelLibrary}=await import("/js/core/model_library_store.js");

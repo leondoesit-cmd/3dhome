@@ -7,6 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripComments } from "./source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 
 const read = (p) => stripComments(readFileSync(new URL("../" + p, import.meta.url), "utf8"));
 
@@ -33,7 +34,7 @@ test("RC body disposal leaves textures shared with planner materials alone", () 
 });
 
 test("every sharedRepeat call names the material that holds the result", () => {
-  const sources = ["js/pbr_material.js", "js/primitives.js", "js/view3d.js", "js/modeler.js"].map(read).join("\n");
+  const sources = [...["js/pbr_material.js", "js/primitives.js", "js/view3d.js"].map(read), stripComments(modelerSource())].join("\n");
   const calls = [...sources.matchAll(/\b(?:sharedRepeat|repeated)\(([^;]*?)\);/g)].map((m) => m[1]);
   assert.ok(calls.length >= 8, "found the call sites");
   for (const args of calls) assert.equal(args.split(",").length, 4, "owner missing in: " + args);

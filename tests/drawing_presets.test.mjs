@@ -1,4 +1,5 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -49,24 +50,24 @@ test('persistent local presets cold-load independent snapshots and failed quota 
 });
 
 test('actual New model lifecycle creates independent template document and respects unsaved-document guard',async()=>{
- const start=source.indexOf('async function newModel(template) {'),end=source.indexOf('function setDocumentType(',start);assert.ok(start>=0&&end>start);
+ const code=sourceFunctionText(source,'newModel');
  const original={key:'source',parts:[{id:'native-body'}],drawing:fixture()},before=JSON.stringify(original);let allow=false,seed=0,mode;
  const context={E:{def:original,docType:'part'},confirmDiscardDocument:async()=>allow,closeEvalCard(){},reconcileModelerDraft(){},newDef:()=>({key:'new',parts:[]}),
   drawingFromTemplate,H:{clear:()=>({seed(){seed++;}})},markDocumentClean(){},syncHead(){},refreshAll(){},setTab(){},setMode:value=>mode=value};
- vm.createContext(context);vm.runInContext(source.slice(start,end),context);const template=capture(original.drawing,'drawing-template');
+ vm.createContext(context);vm.runInContext(code,context);const template=capture(original.drawing,'drawing-template');
  await context.newModel(template);assert.equal(context.E.def,original);assert.equal(seed,0);
  allow=true;await context.newModel(template);assert.notEqual(context.E.def,original);assert.equal(JSON.stringify(original),before);assert.equal(context.E.def.parts.length,0);assert.equal(context.E.def.drawing.views.length,0);assert.equal(mode,'drawing');assert.equal(seed,1);
 });
 
 test('actual format action commits one undo and preserves native model/property links; stale dialog fails closed',async()=>{
- const start=source.indexOf('async function drawingPresetAction(action) {'),end=source.indexOf('function chooseDrawingImage()',start);assert.ok(start>=0&&end>start);
+ const code=sourceFunctionText(source,'drawingPresetAction');
  const map=new Map(),storage={getItem:k=>map.get(k),setItem:(k,v)=>map.set(k,v)},preset=capture(fixture());saveDrawingPreset(storage,preset);
  const original={key:'source',parts:[{id:'native',meshData:{positions:[0,0,0]}}],features:[{id:'boss'}],customProperties:{Description:'SOURCE PART'},drawing:fixture()},cad=JSON.stringify({...original,drawing:undefined});
  const messages=[];let history=1,undos=0,finish;
  const context={E:{def:original,docType:'part'},drawingDocument:()=>context.E.def.drawing,currentHistoryNode:()=>history,
   sheetForm:async()=>({preset:'preset'}),localStorage:storage,captureDrawingPreset,applyDrawingFormat,drawingFromTemplate,loadDrawingPresets,saveDrawingPreset,
   pushUndo:()=>{undos++;history++;},drawingSheet:()=>({invalidate(){}}),refreshAll(){},flash:m=>messages.push(m),crypto:{randomUUID:()=> 'new-id'}};
- vm.createContext(context);vm.runInContext(source.slice(start,end),context);await context.drawingPresetAction('applyformat');
+ vm.createContext(context);vm.runInContext(code,context);await context.drawingPresetAction('applyformat');
  assert.equal(undos,1);assert.equal(JSON.stringify({...original,drawing:undefined}),cad);assert.deepEqual(original.drawing.dims,fixture().dims.map(d=>({...d,viewId:original.drawing.views[0].id})));
  context.sheetForm=()=>new Promise(resolve=>{finish=resolve;});const pending=context.drawingPresetAction('applyformat');history++;finish({preset:'preset'});await pending;
  assert.equal(undos,1);assert.match(messages.at(-1),/changed/);

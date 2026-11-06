@@ -22,12 +22,17 @@ import { MANUFACTURING_TABLES, validateManufacturingTables } from "../manufactur
 import { cloneData } from "../modeler_part_geometry.js";
 import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t } from "../modeler_strings.js";
+import { openQuickForm, openSketchPointCoordinates } from "../modeler/command_manager.js";
 import { addSketchOffsetControl, assemblyFlagsInspector, assemblyMateInspector, assemblyTransformInspector, highlightFeatureIssueBanner, highlightSketchIssueBanner, numLengthRow, refreshParts } from "../modeler/component_mates.js";
+import { syncTools } from "../modeler/document_save.js";
 import { flash, sketchLinePoints, sketchProfileAnalysis, sketchRegionAnalysis } from "../modeler/drawing_sheet.js";
+import { btn, el } from "../modeler/editor_dom.js";
 import { regenerateExactModel } from "../modeler/export_measure.js";
 import { renderPreview, updatePreview } from "../modeler/library_panel.js";
+import { topologyEntriesForPart } from "../modeler/library_store.js";
 import { applyConstraint, constraintCaption, constraintFits, dismissCommittedDimensionEditor, instanceLabels, refusalHint, showSketchRefusal } from "../modeler/sketch_dimension_editor.js";
 import { constraintMeasure, isSketchObject, resolveSketch, selEntities, selPoints, selectSketch, selectedModelEdges, sketchProfilePresentation, sketchSelectionSummary } from "../modeler/sketch_entities.js";
+import { activeTab, faceSketchAttachment, isCanonicalAuthoring, modelLengthText, modelLengthUnit, orientModelToView, referenceLabel, referencePlaneView, setTool, syncModelPlane } from "../modeler/sketch_workflow.js";
 import { emptyState, openSurfaceSectionIntersection, setEntityDimension, setLineConstraint } from "../modeler/tree_assembly.js";
 import { addVariable, collectSymbols, dimensionUnit, nameAvailable, removeVariable, resolveEquations } from "../sketch_equations.js";
 import { bindPierceTargets } from "../sketch_intersection.js";
@@ -36,15 +41,11 @@ import { healSketchEndpoints } from "../sketch_profiles.js";
 import { circleData, ellipseData, ensureSketch, entityPoints, explainSketchConflict, planeLabel, sketchPoint, solveSketch, translateSketchGeometry } from "../sketch_solver.js";
 import { clamp, fin, uid } from "../state.js";
 import {
-  CONSTRAINT_DEFS, DIMENSION_SYMBOLS, E, H, activeTab, btn, decoGroups, el,
-  faceSketchAttachment, fillCabinetParameters, fillOps, inspectorDirty,
-  invalidateSketchProjection, isCanonicalAuthoring, materialValidationTools,
-  modelLengthText, modelLengthUnit, numRow, openFeatureEditor,
-  openParametricFeature, openQuickForm, openSketchPointCoordinates,
-  openSketchRepairs, orientModelToView, pushUndo, referenceLabel,
-  referencePlaneView, refreshAll, refreshDecorations, refreshSelection, root,
-  saveModelerPrefs, scheduleModelerDraft, setMode, setTool, syncModelPlane,
-  syncTools, topologyEntriesForPart,
+  CONSTRAINT_DEFS, DIMENSION_SYMBOLS, E, H, decoGroups, fillCabinetParameters,
+  fillOps, inspectorDirty, invalidateSketchProjection,
+  materialValidationTools, numRow, openFeatureEditor, openParametricFeature,
+  openSketchRepairs, pushUndo, refreshAll, refreshDecorations,
+  refreshSelection, root, saveModelerPrefs, scheduleModelerDraft, setMode,
 } from "../modeler.js";
 
 function fillInspectorTab(id) {

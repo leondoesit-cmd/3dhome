@@ -37,31 +37,32 @@ import { showModelerSheet } from "../modeler_mobile.js";
 import { cloneData, normalizeTransform } from "../modeler_part_geometry.js";
 import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t } from "../modeler_strings.js";
+import { openQuickForm, syncContextActions } from "../modeler/command_manager.js";
+import { saveCurrentDocument, setDocumentType } from "../modeler/document_save.js";
 import { drawSketch, flash, invalidateDrawing, showPickList } from "../modeler/drawing_sheet.js";
+import { btn, el } from "../modeler/editor_dom.js";
 import { rebuildFailureMessage, scheduleExactRestore } from "../modeler/export_measure.js";
+import { publishExactBodies } from "../modeler/feature_create.js";
 import { renderFeatureManagerTree, renderLegacyRestore, renderMigrationOffer, treeCollapseState, treeTargetFeature, treeTargetSketch } from "../modeler/feature_tree.js";
 import { fillSketchPane } from "../modeler/inspector.js";
 import { updatePreview } from "../modeler/library_panel.js";
+import { activeParts, componentDef, componentFreedom, defBounds, loadAssemblies, loadLib, mateIssueLabel, renderedParts, topologyEntriesForPart } from "../modeler/library_store.js";
 import { displayedCoreIssues, syncSketchDrivenParts } from "../modeler/sketch_entities.js";
+import { beginSketchWorkflow, chooseSketchReference, closeFeaturePanel, isCanonicalAuthoring, modelLengthText, modelLengthUnit, referenceLabel, selectedSketchableFace, setTab } from "../modeler/sketch_workflow.js";
 import { addFeatureFilter, applyFeatureFilter, beginContextPart, contextPathLabel, editSketchFromHistory, emptyState, openComponentPatternForm, refreshComponents } from "../modeler/tree_assembly.js";
+import { fitPreview, setPanelCollapsed } from "../modeler/view_modes.js";
 import { assemblyPickedRefs, assemblySymmetricPicks, lockMateComponentPair, mateReferenceFromPick, mateTypeFits, renderTreeAnnotations, ungroundedComponentPair } from "../modeler/viewport_input.js";
 import { startSketchOnDefaultPlane } from "../modeler/welcome_coach.js";
 import { ensureSketchDoc } from "../sketch_solver.js";
 import { fin, uid } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import {
-  E, H, MATE_PALETTE, PLANE_NAME_KEYS, acceptRackPinionSolve, activeParts,
-  assemblyComponentById, assemblyMateInspectorBody, beginSketchWorkflow, btn,
-  chooseSketchReference, closeFeaturePanel, componentDef, componentFreedom,
-  configuredComponentBuilds, currentHistoryNode, defBounds, el, fitPreview,
-  invalidateInterference, invalidateSketchProjection, isCanonicalAuthoring,
-  loadAssemblies, loadLib, mateIssueLabel, mateReferenceRefreshes,
-  mateTopologyMemo, modelLengthText, modelLengthUnit, numRow,
-  openFeatureEditor, openQuickForm, publishExactBodies, pushUndo,
-  redrawTrackedUpdates, referenceLabel, refreshAll, refreshSelection,
-  renderedParts, requestDocumentType, root, saveCurrentDocument,
-  selectedSketchableFace, setDocumentType, setPanelCollapsed, setTab,
-  solveAssembly, syncContextActions, syncDirty, topologyEntriesForPart,
+  E, H, MATE_PALETTE, PLANE_NAME_KEYS, acceptRackPinionSolve,
+  assemblyComponentById, assemblyMateInspectorBody, configuredComponentBuilds,
+  currentHistoryNode, invalidateInterference, invalidateSketchProjection,
+  mateReferenceRefreshes, mateTopologyMemo, numRow, openFeatureEditor,
+  pushUndo, redrawTrackedUpdates, refreshAll, refreshSelection,
+  requestDocumentType, root, solveAssembly, syncDirty,
 } from "../modeler.js";
 
 /* Canonical documents: def.history is the tree. */

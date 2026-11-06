@@ -33,11 +33,21 @@ import { syncModelerMobile } from "../modeler_mobile.js";
 import { cloneData, partBounds, partPatternRotations } from "../modeler_part_geometry.js";
 import { t, tf } from "../modeler_strings.js";
 import { thinExtrudeAreas } from "../modeler_thin_extrude_profiles.js";
+import { openQuickForm, syncContextActions } from "../modeler/command_manager.js";
 import { dynDrawHud, pointToLineDistance } from "../modeler/dimension_entry.js";
+import { sketchOpenPathReadiness, syncTools } from "../modeler/document_save.js";
+import { btn, el, namedButton } from "../modeler/editor_dom.js";
 import { regenerateExactModel } from "../modeler/export_measure.js";
+import { cutTargetFeatureId, mergeTargetBody } from "../modeler/feature_create.js";
+import { authoritativeFinishTopology } from "../modeler/finish_preview.js";
 import { assemblyExplodeLines, buildAssembly } from "../modeler/library_panel.js";
+import { activeParts, addPart, defBounds, renderedParts, topologyEntriesForPart } from "../modeler/library_store.js";
+import { selectedSolid } from "../modeler/part_commands.js";
 import { instanceLabels, refusalHint } from "../modeler/sketch_dimension_editor.js";
 import { hitSketch, selEntities, sizeSketch, syncStatus } from "../modeler/sketch_entities.js";
+import { isCanonicalAuthoring, modelLengthUnit, setTab } from "../modeler/sketch_workflow.js";
+import { fitPreview, setPanelCollapsed } from "../modeler/view_modes.js";
+import { addOverlayPolyline } from "../modeler/viewport_decorations.js";
 import { clearGroup } from "../primitives.js";
 import { drawConstraintGlyphs, drawSketchDimensions } from "../sketch_dimensions.js";
 import { drawNameTags, relationTargets, sketchInstanceNames } from "../sketch_names.js";
@@ -53,19 +63,14 @@ import { getTouchPrecisionPrefs } from "../touch_precision_ui.js";
 import { directionalSegmentDistances, drawTouchPrecisionLens } from "../touch_precision.js";
 import { getDomainUnit } from "../unit_settings.js";
 import {
-  E, H, activeParts, activeSketchFrame, addOverlayPolyline, addPart, applyCut,
-  assemblyDrawingBOMRows, assemblyDrawingBalloonTargets,
-  authoritativeFinishTopology, axisOfView, btn, buildPart, currentHistoryNode,
-  cutSkipNote, cutTargetFeatureId, defBounds, el, fitPreview,
-  invalidatePartMeshAfterEdit, invalidateSketchProjection,
-  isCanonicalAuthoring, mergeTargetBody, modelLengthUnit, namedButton,
-  newModel, openQuickForm, partUV, pathSketchSpline, pathUvCircleArc,
-  pathUvEllipse, planeAxis, positiveArcSweep, pushUndo, queueExactMesh,
-  refreshAll, renderedParts, root, sameSketchContext, scheduleExactMesh,
-  scheduleModelerDraft, selectedSolid, setPanelCollapsed, setTab,
-  sketchOpenPathReadiness, sketchProjection, standardPlaneFrame,
-  strokeUvCircle, strokeUvRect, syncContextActions, syncHead, syncTools, toPx,
-  topologyEntriesForPart,
+  E, H, activeSketchFrame, applyCut, assemblyDrawingBOMRows,
+  assemblyDrawingBalloonTargets, axisOfView, buildPart, currentHistoryNode,
+  cutSkipNote, invalidatePartMeshAfterEdit, invalidateSketchProjection,
+  newModel, partUV, pathSketchSpline, pathUvCircleArc, pathUvEllipse,
+  planeAxis, positiveArcSweep, pushUndo, queueExactMesh, refreshAll, root,
+  sameSketchContext, scheduleExactMesh, scheduleModelerDraft,
+  sketchProjection, standardPlaneFrame, strokeUvCircle, strokeUvRect,
+  syncHead, toPx,
 } from "../modeler.js";
 
 /* ================= drawing sheet =================

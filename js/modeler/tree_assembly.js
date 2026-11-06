@@ -41,14 +41,23 @@ import { cloneData, mirrorProjectionPart, resetClonedPartIdentity } from "../mod
 import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t, tf } from "../modeler_strings.js";
 import { renderTreeModel } from "../modeler_tree.js";
+import { leavingQuickForm, openQuickForm, toggleIsolate } from "../modeler/command_manager.js";
 import { componentLabel, planeMateReference, refreshParts, syncDiagnosticJump } from "../modeler/component_mates.js";
+import { setDocumentType } from "../modeler/document_save.js";
 import { drawSketch, featureAreaAt, flash, invalidateDrawing, newSketchPoint, sampleSplinePoints, sheetForm, sketchUvPolylines, toggleFeatureArea } from "../modeler/drawing_sheet.js";
+import { btn, el } from "../modeler/editor_dom.js";
 import { regenerateExactModel } from "../modeler/export_measure.js";
+import { cutTargetFeatureId, resolvedRevolve } from "../modeler/feature_create.js";
 import { applyDependencyTreeClasses, closeTreeMenu, dependencySets, openTreeMenu, setDependencyHighlight, treeCollapseState, treeDeps, updateDependencyPresentation } from "../modeler/feature_tree.js";
+import { patternMergePreviewBadge } from "../modeler/finish_preview.js";
 import { buildComponentGroup, markLiveDirtyPart, partBelongsToFeature, updatePreview } from "../modeler/library_panel.js";
+import { activeParts, componentDef, componentFreedom, countLabel, freedomLabel, mateIssueLabel, mateIssuesFor, newAssembly } from "../modeler/library_store.js";
+import { clearPatternMerges, layPatternCopies, selectedPatternBody } from "../modeler/part_commands.js";
 import { activateDrawingSketch, addedConstraintIds, clearDimensionRefusal, constraintCaption, dimensionEditorUnit, hideDimensionEditor, showDimensionRefusal, showSketchRefusal } from "../modeler/sketch_dimension_editor.js";
 import { constraintMeasure, openConvertEntities, resolveIntersectionEdge, resolveSketch, selPoints, selectedModelEdges, selectedModelVertices, sketchForView, syncHint, syncSketchDrivenParts } from "../modeler/sketch_entities.js";
 import { selectTourTrack, startTour } from "../modeler/sketch_guide.js";
+import { captureSketchCameraPose, fitSketch, isCanonicalAuthoring, modelLengthText, modelLengthUnit, orientModelToView, referencePlaneView, setCommandTab, setTab, setTool, syncModelPlane } from "../modeler/sketch_workflow.js";
+import { fitPreview } from "../modeler/view_modes.js";
 import { stampComponentRef } from "../modeler/viewport_input.js";
 import { addSmartDimension, currentMeasure } from "../sketch_dimensions.js";
 import { dimensionUnit, nameAvailable } from "../sketch_equations.js";
@@ -58,20 +67,13 @@ import { projectLoop } from "../sketch_trim.js";
 import { S, fin, uid } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import {
-  E, FINISH_AMOUNT_KEY, FINISH_FEATURES, H, PLANE_NAME_KEYS, activeParts,
-  applyAssemblyMates, assemblyComponentById, assemblyLibraryCache, btn,
-  captureSketchCameraPose, clearPatternMerges, componentDef, componentFreedom,
-  countLabel, currentHistoryNode, cutTargetFeatureId, el, exactDisplayBody,
-  fitPreview, fitSketch, freedomLabel, invalidateInterference,
-  invalidatePartMeshAfterEdit, isCanonicalAuthoring, layPatternCopies,
-  leavingQuickForm, mateIssueLabel, mateIssuesFor, modelLengthText,
-  modelLengthUnit, modelLibraryCache, newAssembly, newDef, openQuickForm,
-  orientModelToView, partUV, patternMergePreviewBadge, patternPlacements,
-  pushUndo, queueExactMesh, referencePlaneView, refreshAll, refreshSelection,
-  resolvedRevolve, root, scheduleExactMesh, scheduleKernelBody,
-  scheduleModelerDraft, selectedPatternBody, setCommandTab, setDocumentType,
-  setMode, setTab, setTool, solveAssembly, syncModelPlane, toPx, toUV,
-  toggleIsolate,
+  E, FINISH_AMOUNT_KEY, FINISH_FEATURES, H, PLANE_NAME_KEYS,
+  applyAssemblyMates, assemblyComponentById, assemblyLibraryCache,
+  currentHistoryNode, exactDisplayBody, invalidateInterference,
+  invalidatePartMeshAfterEdit, modelLibraryCache, newDef, partUV,
+  patternPlacements, pushUndo, queueExactMesh, refreshAll, refreshSelection,
+  root, scheduleExactMesh, scheduleKernelBody, scheduleModelerDraft, setMode,
+  solveAssembly, toPx, toUV,
 } from "../modeler.js";
 
 function positionDimensionEditor(clientX, clientY) {

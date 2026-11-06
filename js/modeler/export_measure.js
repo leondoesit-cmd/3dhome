@@ -31,21 +31,25 @@ import { interferenceDocument } from "../core/worker_interference.js";
 import { clearTopologyCache, holeLoop } from "../modeler_mesh_geometry.js";
 import { cloneData, partBounds } from "../modeler_part_geometry.js";
 import { t } from "../modeler_strings.js";
+import { openQuickForm, syncCommandManager } from "../modeler/command_manager.js";
 import { refreshParts, rejectFlexibleSpringPreview } from "../modeler/component_mates.js";
 import { assemblyPrintRequests, exportAssemblyPrintDocument, standardsGate } from "../modeler/document_outputs.js";
 import { drawSketch, flash, invalidateDrawing, report, syncSheetPanel } from "../modeler/drawing_sheet.js";
+import { btn, el } from "../modeler/editor_dom.js";
+import { publishExactBodies } from "../modeler/feature_create.js";
 import { modelParameterOverrides } from "../modeler/inspector.js";
 import { refreshChangedPartPreviews } from "../modeler/library_panel.js";
+import { activeParts, componentDef, topologyEntriesForPart } from "../modeler/library_store.js";
+import { selectedSolid } from "../modeler/part_commands.js";
 import { syncSketchDrivenParts, syncStatus } from "../modeler/sketch_entities.js";
+import { isCanonicalAuthoring, syncAuthoringWorkflow } from "../modeler/sketch_workflow.js";
 import { fin, uid } from "../state.js";
 import {
-  BODY_OPERATIONS, E, FINISH_AMOUNT_KEY, THREE_POINT_KEYS, activeParts, btn,
-  componentDef, currentHistoryNode, el, emitPartMerges, emitPartPatternTurn,
-  exactBuildTimers, exactRebuildQueue, exactSaveCache, exportThreeMfDocument,
-  forceRebuildDocument, invalidatePartMeshAfterEdit, isCanonicalAuthoring,
-  openQuickForm, pendingCutController, publishExactBodies, pushUndo,
-  refreshAll, root, scheduleExactMesh, selectedSolid, syncAuthoringWorkflow,
-  syncCommandManager, topologyEntriesForPart,
+  BODY_OPERATIONS, E, FINISH_AMOUNT_KEY, THREE_POINT_KEYS, currentHistoryNode,
+  emitPartMerges, emitPartPatternTurn, exactBuildTimers, exactRebuildQueue,
+  exactSaveCache, exportThreeMfDocument, forceRebuildDocument,
+  invalidatePartMeshAfterEdit, pendingCutController, pushUndo, refreshAll,
+  root, scheduleExactMesh,
 } from "../modeler.js";
 
 function rebuildFeatureTreeFromDocument(target) {

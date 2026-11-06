@@ -3,13 +3,14 @@
 import { selectionFilterAllows } from "../modeler_chrome.js";
 import { NOTE_CATEGORIES, deleteNoteFromDef } from "../modeler_notes_paint.js";
 import { t } from "../modeler_strings.js";
+import { commandSelectionPrefer } from "../modeler/command_manager.js";
 import { refreshParts } from "../modeler/component_mates.js";
+import { el } from "../modeler/editor_dom.js";
 import { syncHint } from "../modeler/sketch_entities.js";
 import { closeNoteEditor, hitInstant3d, openNoteEditor, stampComponentRef } from "../modeler/viewport_input.js";
 import {
-  E, SVG_NS, commandSelectionPrefer, drawMarkupsOverlay, el, noteScratch,
-  pushUndo, refreshDecorations, resolveTopologyPick, root,
-  scheduleModelerDraft,
+  E, SVG_NS, drawMarkupsOverlay, noteScratch, pushUndo, refreshDecorations,
+  resolveTopologyPick, root, scheduleModelerDraft,
 } from "../modeler.js";
 
 /* Hover feedback. Nothing here changes the model or the selection — it only

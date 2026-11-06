@@ -23,20 +23,23 @@ import { interferenceDocument } from "../core/worker_interference.js";
 import { getLang } from "../i18n.js";
 import { cloneData, normalizeTransform } from "../modeler_part_geometry.js";
 import { t, tf } from "../modeler_strings.js";
+import { openQuickForm, syncCommandManager } from "../modeler/command_manager.js";
 import { componentLabel, rejectFlexibleSpringPreview, syncFlexibleSpringsAtMotionState } from "../modeler/component_mates.js";
 import { flash, report } from "../modeler/drawing_sheet.js";
+import { btn, el } from "../modeler/editor_dom.js";
 import { downloadBytes, evalCardActions, openEvalCard } from "../modeler/export_measure.js";
 import { updatePreview } from "../modeler/library_panel.js";
+import { activeParts, componentDef, defBounds } from "../modeler/library_store.js";
 import { syncHint } from "../modeler/sketch_entities.js";
+import { modelLengthText, modelLengthUnit, syncAssemblyWorkflow } from "../modeler/sketch_workflow.js";
+import { fitPreview } from "../modeler/view_modes.js";
 import { fin } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import {
-  E, H, activeParts, btn, componentDef, currentHistoryNode, defBounds, el,
-  explodedPlaybackStop, fitPreview, invalidateInterference, modelLengthText,
-  modelLengthUnit, openExplodedPlayback, openImportedBundle,
-  openMotionPlayback, openQuickForm, pushUndo, refreshAll,
-  resolveTopologyPick, root, setMode, showMassProperties,
-  syncAssemblyWorkflow, syncCommandManager, syncHead,
+  E, H, currentHistoryNode, explodedPlaybackStop, invalidateInterference,
+  openExplodedPlayback, openImportedBundle, openMotionPlayback, pushUndo,
+  refreshAll, resolveTopologyPick, root, setMode, showMassProperties,
+  syncHead,
 } from "../modeler.js";
 
 /* Closing the card ends whatever was writing into it — a measurement in

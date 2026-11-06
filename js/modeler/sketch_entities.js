@@ -24,10 +24,19 @@ import { holeLoop } from "../modeler_mesh_geometry.js";
 import { cloneData, migrateBoundaryChangingProfileCuts } from "../modeler_part_geometry.js";
 import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t, tf } from "../modeler_strings.js";
+import { openQuickForm } from "../modeler/command_manager.js";
 import { measureCoordinates } from "../modeler/document_outputs.js";
+import { sketchOpenPathReadiness, syncExtrudeButton } from "../modeler/document_save.js";
 import { drawSketch, drawingHintText, drawingSheet, flash, flashHolding, newSketchPoint, sketchProfileAnalysis, sketchRegionAnalysis, snappedSketchPoint, splineLength } from "../modeler/drawing_sheet.js";
+import { el } from "../modeler/editor_dom.js";
+import { cutTargetFeatureId, resolvedRevolve } from "../modeler/feature_create.js";
+import { finishSelectionMessage } from "../modeler/finish_preview.js";
 import { retainingExactPreview } from "../modeler/library_panel.js";
+import { activeParts, assemblyMateCount, brokenMateCount, countLabel, topologyEntriesForPart } from "../modeler/library_store.js";
+import { selectedSolid } from "../modeler/part_commands.js";
 import { addedConstraintIds, appendToSketch, showSketchRefusal } from "../modeler/sketch_dimension_editor.js";
+import { chooseSketchReference, closeFeaturePanel, fitSketch, isCanonicalAuthoring, modelAreaText, modelLengthText, modelLengthUnit, referenceLabel, selectedSketchableFace, setTool } from "../modeler/sketch_workflow.js";
+import { layout3DHost } from "../modeler/view_modes.js";
 import { startSketchOnDefaultPlane } from "../modeler/welcome_coach.js";
 import { aiStatusHTML } from "../pro_shell.js";
 import { addCenterRectangle } from "../sketch_center_rectangle.js";
@@ -43,16 +52,10 @@ import { addSketch, circleData, collapsedEntityIds, ellipseData, ensureSketch, e
 import { sampleBezier, splineControls } from "../sketch_spline.js";
 import { clamp, fin, uid } from "../state.js";
 import {
-  E, FINISH_FEATURES, H, SKETCH_ENTITY_TYPES, activeParts, activeSketchFrame,
-  assemblyMateCount, brokenMateCount, chooseSketchReference,
-  closeFeaturePanel, countLabel, currentHistoryNode, cutTargetFeatureId,
-  documentDirty, el, exactDisplayBody, finishSelectionMessage, fitSketch,
-  isCanonicalAuthoring, layout3DHost, modelAreaText, modelLengthText,
-  modelLengthUnit, openQuickForm, planeAxis, pushUndo, queueKernelBody,
-  referenceLabel, refreshAll, resolvedRevolve, root, scheduleExactMesh,
-  selectedSketchableFace, selectedSolid, setMode, setTool,
-  sketchOpenPathReadiness, syncExactWorkerActivity, syncExtrudeButton,
-  topologyEntriesForPart,
+  E, FINISH_FEATURES, H, SKETCH_ENTITY_TYPES, activeSketchFrame,
+  currentHistoryNode, documentDirty, exactDisplayBody, planeAxis, pushUndo,
+  queueKernelBody, refreshAll, root, scheduleExactMesh, setMode,
+  syncExactWorkerActivity,
 } from "../modeler.js";
 
 function sketchProfilePresentation(sketch,profileInfo,regionCount) {

@@ -1,4 +1,5 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -12,9 +13,8 @@ import {topologyReferenceFromEntry} from '../js/modeler_pick_geometry.js';
 import {applyDocumentTopologyRebindings,createTopologyRegistry,resolveFeatureTopologyReferences} from '../js/core/topology.js';
 
 const source = modelerSource();
-function fn(name, next) {
-  const start = source.indexOf('function ' + name + '(');
-  return source.slice(start, source.indexOf('\nfunction ' + next + '(', start));
+function fn(...names) {
+  return names.map(name => sourceFunctionText(source, name)).join('\n');
 }
 const custom = {threadPreset:'custom', side:'internal', mode:'cosmetic', diameterMm:8, pitchMm:4, length:1.2,
   origin:{x:-.6,y:0,z:0}, axis:{x:1,y:0,z:0}};
@@ -60,7 +60,7 @@ function command(selectedFace, document=null, sourceId='body-feature') {
     validateThreadFeature, modeledThreadSolid, pushUndo:()=>{}, isCanonicalAuthoring:()=>true,
     createFeatureDefinition:(doc,type,record)=>{if(document)createFeatureDefinition(doc,type,record);records.push({type,...record});}, cloneData:structuredClone,
     H:{discard(){}}, cosmeticThread, refreshAll:()=>{}, threadCallout:spec=>cosmeticThread(spec).callout};
-  const create = new Function(...Object.keys(bindings),fn('createThreadFeature','createKnurlFeature')+'; return createThreadFeature;')(...Object.values(bindings));
+  const create = new Function(...Object.keys(bindings),fn('createThreadFeature')+'; return createThreadFeature;')(...Object.values(bindings));
   return {create, records, messages, body};
 }
 
@@ -120,7 +120,7 @@ test('browser-authored trunnion cut-bore thread compiles and rebuilds without tr
 
 test('circular planar caps are not accepted as cylindrical thread support faces', () => {
   const E={topologySelection:[{kind:'face',descriptor:{surface:'plane',radius:.4,normal:{x:0,y:1,z:0}}}]};
-  const selected=new Function('E',fn('selectedCylindricalFace','createHelixFeature')+';return selectedCylindricalFace;')(E);
+  const selected=new Function('E',fn('selectedCylindricalFace','selectedThreadStart')+';return selectedCylindricalFace;')(E);
   assert.equal(selected(),null);
   const bore={kind:'face',descriptor:{surface:'cylinder',radius:.41,axis:{x:1,y:0,z:0}}};
   E.topologySelection.push(bore);
@@ -142,7 +142,7 @@ test('Thread preview and live selection show the cylindrical face requirement ra
   const badge={classList:{toggle(){}},textContent:''};
   const E={authoring:{}};
   const preview = new Function('E','FINISH_FEATURES','selectedThreadStart','t',
-    fn('syncNewFeaturePreview','syncPatternOverlapBadge')+';return syncNewFeaturePreview;')(
+    fn('syncNewFeaturePreview')+';return syncNewFeaturePreview;')(
       E,[],()=>null,key=>key);
   preview('thread',{params:{}},badge);
   assert.equal(badge.textContent,'threadNeed');
@@ -160,7 +160,7 @@ test('custom Thread property manager preserves editable diameter and pitch while
   });
   const bindings={E:{def:{features:[]}},renderFeatureParameterFormCore:()=>controls,el:()=>{},
     modelLengthUnit:()=> 'mm',featureReferenceOptions:()=>[],FEATURE_PATTERN_SEED_TYPES:[],t:key=>key};
-  const render=new Function(...Object.keys(bindings),fn('renderFeatureParameterForm','featureField')+';return renderFeatureParameterForm;')(...Object.values(bindings));
+  const render=new Function(...Object.keys(bindings),fn('renderFeatureParameterForm')+';return renderFeatureParameterForm;')(...Object.values(bindings));
   render({},'thread',state,()=>{});
   const byKey=key=>controls.find(control=>control.field.key===key);
   assert.equal(byKey('mode').input.value,'cosmetic');

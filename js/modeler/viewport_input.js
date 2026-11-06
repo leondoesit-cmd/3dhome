@@ -12,26 +12,24 @@ import { NOTE_CATEGORIES, addMarkupToDef, addNoteToDef, applyBodyPaint, applyFac
 import { cloneData, normalizeTransform, partBounds } from "../modeler_part_geometry.js";
 import { dedupeFinishRefs, dedupeTopologyCandidates, pickPointer, pickScratch } from "../modeler_pick_geometry.js";
 import { t, tf } from "../modeler_strings.js";
+import { chromeCommandLabel, chromeSelectionInput, closeChromeOverlays, commandSelectionPrefer, runChromeCommand, selectionFilterLabel, showContextMenu } from "../modeler/command_manager.js";
 import { componentLabel, mateHolderById, refreshParts } from "../modeler/component_mates.js";
 import { measureFromPick } from "../modeler/document_outputs.js";
 import { flash } from "../modeler/drawing_sheet.js";
+import { btn, el } from "../modeler/editor_dom.js";
 import { syncLiveFeatureEdit } from "../modeler/feature_tree.js";
+import { activeFilletParams, currentFinishEdges, edgeRefsForFaces, filletReferenceEndpoints, finishCommandActive, fullRoundActive, queueNewFeaturePreview, syncNewFeaturePreview, toggleFinishEdges, toggleFullRoundFace } from "../modeler/finish_preview.js";
 import { retainingExactPreview, updatePreview } from "../modeler/library_panel.js";
+import { featureTypeLabel } from "../modeler/library_store.js";
 import { syncNotesAndMarkups, syncPaintToolbar } from "../modeler/notes_markups.js";
+import { selectedSolid } from "../modeler/part_commands.js";
+import { activeTab, chooseSketchReference, facePickFromViewport, modelLengthUnit, setTab } from "../modeler/sketch_workflow.js";
 import { THREE } from "../three_lazy.js";
 import {
-  E, activeFilletParams, activeTab, assemblyComponentById,
-  beginAssemblyComponentDrag, beginBoxSelectDrag, beginSmartMateDrag, btn,
-  chooseSketchReference, chromeCommandLabel, chromeSelectionInput,
-  closeChromeOverlays, commandSelectionPrefer, currentFinishEdges,
-  edgeRefsForFaces, el, facePickFromViewport, featureTypeLabel,
-  filletReferenceEndpoints, finishCommandActive, fullRoundActive,
-  instantScratch, modelLengthUnit, pickOwnerChain, pushUndo,
-  queueNewFeaturePreview, rawTopologyPickCandidate, refreshAll,
-  refreshSelection, resolveTopologyPick, root, runChromeCommand,
-  scheduleModelerDraft, selectedSolid, selectionFilterLabel, setMode, setTab,
-  showContextMenu, syncNewFeaturePreview, toggleFinishEdges,
-  toggleFullRoundFace,
+  E, assemblyComponentById, beginAssemblyComponentDrag, beginBoxSelectDrag,
+  beginSmartMateDrag, instantScratch, pickOwnerChain, pushUndo,
+  rawTopologyPickCandidate, refreshAll, refreshSelection, resolveTopologyPick,
+  root, scheduleModelerDraft, setMode,
 } from "../modeler.js";
 
 function openNoteEditor(note) {
