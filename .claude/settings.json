@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git ls-files:*)",
+      "Bash(node tools/outline.mjs:*)",
+      "Bash(node tools/test_changed.mjs:*)",
+      "Bash(npm run check:*)",
+      "Bash(npm run test:quiet:*)",
+      "Bash(npm run test:changed:*)",
+      "Bash(node --test:*)",
+      "PowerShell(git status:*)",
+      "PowerShell(git diff:*)",
+      "PowerShell(git log:*)",
+      "PowerShell(git show:*)",
+      "PowerShell(git ls-files:*)",
+      "PowerShell(node tools/outline.mjs:*)",
+      "PowerShell(node tools/test_changed.mjs:*)",
+      "PowerShell(npm run check:*)",
+      "PowerShell(npm run test:quiet:*)",
+      "PowerShell(npm run test:changed:*)",
+      "PowerShell(node --test:*)"
+    ]
+  }
+}
