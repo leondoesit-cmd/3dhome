@@ -45,7 +45,7 @@ Token use matters on this repo; these habits keep it down.
   | "Where is X?" searches | `locator` (Haiku) |
   | check / tests, failures only | `test-runner` (Haiku) |
   | Specified mechanical edits: moves, renames, import fixes, test rewiring | `mechanical-editor` (Sonnet), with an explicit list of files it may edit |
-  | Code and plan reviews | Codex `gpt-6.1-sol`, `model_reasoning_effort=high`, `-s read-only` |
+  | Code and plan reviews | the main model (Codex `gpt-6.1-sol`, `model_reasoning_effort=high`, `-s read-only` when the user asks for it) |
   | Design, graphics/renderer/shaders, hard debugging | the main model |
 
   Do a task of a few tool calls yourself: a subagent starts cold, so delegating it costs more than it saves. Check a subagent's or Codex's claim (diff, test run) before relying on it.

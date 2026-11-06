@@ -514,6 +514,7 @@
     "/js/modeler/tree_assembly.js",
     "/js/modeler/viewport_input.js",
     "/js/modeler/welcome_coach.js",
+    "/js/modeler/build_dom.js",
     "/js/modeler/command_manager.js",
     "/js/modeler/document_save.js",
     "/js/modeler/editor_dom.js",

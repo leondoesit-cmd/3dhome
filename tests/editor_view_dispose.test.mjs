@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import * as three from '../vendor/three/three.webgpu.js';
 import { THREE } from '../js/three_lazy.js';
 import { modelerSource } from './helpers/modeler_source.mjs';
+import { sourceFunctionText } from './helpers/source_function.mjs';
 
 test('CAD DOM teardown removes only its own view resize listener on every reopen', async t => {
   const rendererStub = `
@@ -34,7 +35,7 @@ test('CAD DOM teardown removes only its own view resize listener on every reopen
   const noop = () => {};
   const context = {E:{}, window:target, onKey:noop, ribbon:{detach:noop},
     root:null, teardownModelerMobile:noop, setModelerBackgroundIsolation:noop};
-  const destroy = vm.runInNewContext(source.slice(source.indexOf('function destroyDOM()'), source.indexOf('function buildDOM()')) + '\ndestroyDOM', context);
+  const destroy = vm.runInNewContext(sourceFunctionText(source, 'destroyDOM') + '\ndestroyDOM', context);
   for (let cycle = 0; cycle < 20; cycle++) {
     let width = 200;
     const canvas = new EventTarget();
