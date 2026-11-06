@@ -11,7 +11,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as acorn from "../vendor/acorn/acorn.mjs";
-import { extractBlock, outlineFunction } from "../tools/extract_block.mjs";
+import { extractBlock, extractBlockText, outlineFunction } from "../tools/extract_block.mjs";
 
 const TOOL = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "tools", "extract_block.mjs");
 let counter = 0;
@@ -974,7 +974,7 @@ export function run(n) {
   assert.equal(r.ok, true, r.report);
   assert.deepEqual(r.box.names, ["out", "helper"]);
   const out = ws.read();
-  assert.match(out, /export function run\(n\) \{\n  runLocals\.helper = helper;\n  runLocals\.out = \[\];\n  runLocals\.out\.push\(runLocals\.helper\(n\)\);/);
+  assert.match(out, /export function run\(n\) \{\n  runLocals\.helper = helper;\n  runLocals\.out = \[\];\n  runLocals\.out\.push\(\(0, runLocals\.helper\)\(n\)\);/);
   assert.match(out, /function helper\(x\) \{ return x \+ factor; \}/);
   assert.match(r.report, /1 function assignments added/);
   for (const arg of [1, 6]) {
@@ -1175,3 +1175,90 @@ export function run(n) {
   assert.notEqual(both.status, 0);
   assert.match(both.stderr, /give one of them/);
 }));
+
+// ---- review fixes: receivers of boxed calls, ASI, eval in pure lifts, text API ---------------
+test("--box: a boxed function called bare, as a tag, optionally or with new keeps the behaviour of a strict function", () => withFixture(`
+export function run() {
+  const log = [];
+  function who() { return this === undefined ? "undef" : "holder"; }
+  const tag = function (s) { return this === undefined ? "undef" : "obj"; };
+  var opt = function () { return this === undefined ? "undef" : "obj"; };
+  function Ctor() { this.v = 7; }
+  log.push(who());
+  log.push(tag\`x\`);
+  log.push(opt?.());
+  log.push(opt());
+  log.push(new Ctor().v);
+  log.push(typeof who);
+  return log;
+}
+`, async (ws) => {
+  const r = extractBlock({ file: ws.t, fn: "run", box: "who,tag,opt,Ctor", holderScope: "module" });
+  assert.equal(r.ok, true, r.report);
+  const out = ws.read();
+  assert.match(out, /\(0, runLocals\.who\)\(\)/);
+  assert.match(out, /\(0, runLocals\.tag\)`x`/);
+  assert.match(out, /\(0, runLocals\.opt\)\?\.\(\)/);
+  assert.match(out, /new runLocals\.Ctor\(\)\.v/);
+  assert.deepEqual(await sameBehaviour(ws, []), ["undef", "undef", "undef", "undef", 7, "function"]);
+}));
+
+test("--box: a called boxed reference at the start of a statement does not glue to a previous line without a semicolon", () => withFixture(`
+export function run() {
+  const log = []
+  var f = (x) => { log.push(x) }
+  f(1)
+  f(2)
+  if (log.length) f(3)
+  f(4)
+  return log
+}
+`, async (ws) => {
+  const r = extractBlock({ file: ws.t, fn: "run", box: "f", holderScope: "module" });
+  assert.equal(r.ok, true, r.report);
+  const out = ws.read();
+  assert.match(out, /\n  ;\(0, runLocals\.f\)\(2\)/, "after a statement with no semicolon");
+  assert.match(out, /if \(log\.length\) \(0, runLocals\.f\)\(3\)/, "an if body needs no guard");
+  assert.deepEqual(await sameBehaviour(ws, []), [1, 2, 3, 4]);
+}));
+
+test("a block of pure function declarations that calls eval (even in a nested function) is refused", async () => {
+  await refused(`
+const x = 1;
+export function run(a) {
+  const log = [early(a)];
+  function early(y) { const x = 2; return (() => eval("x"))() + y; }
+  return log;
+}
+`, "function early", "function early", /line 4: the block calls eval\(\.\.\.\) directly/, { name: undefined });
+  await refused(`
+export function run(a) {
+  const log = [];
+  function inner() { return eval("1"); }
+  log.push(inner());
+  return log;
+}
+`, "function inner", "function inner", /the block calls eval/);
+});
+
+test("extractBlockText takes and returns text, never touching a file", async () => {
+  const text = `export function run(a) {
+  let log = [];
+  log.push(a + 1);
+  log.push(a + 2);
+  return log;
+}
+`;
+  const r = extractBlockText({ text, fn: "run", lines: "3-4", name: "lifted" });
+  assert.equal(r.ok, true, r.report);
+  assert.equal(r.written, false);
+  assert.deepEqual(r.params, ["log", "a"]);
+  assert.match(r.text, /lifted\(log, a\);/);
+  assert.match(r.text, /function lifted\(log, a\) \{/);
+  const bad = extractBlockText({ text, fn: "run", lines: "90-91", name: "lifted" });
+  assert.equal(bad.ok, false);
+  assert.equal(bad.text, text, "a refusal returns the input unchanged");
+  const boxed = extractBlockText({ text, fn: "run", box: "log" });
+  assert.equal(boxed.ok, true, boxed.report);
+  assert.match(boxed.text, /runLocals\.log\.push/);
+});

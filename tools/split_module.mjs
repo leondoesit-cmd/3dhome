@@ -26,11 +26,23 @@
 // --setters: the simple assignments are rewritten instead of refused. In the moved text only,
 // `X = e` becomes `set_X(e)`, `X op= e` becomes `set_X(X op (e))`, `X ||= e` becomes
 // `(X || (set_X(e)))` (likewise && and ??), and a statement-level or for-update `X++`/`X--`
-// becomes `set_X(X + 1)`/`set_X(X - 1)`. The source gains one `function set_X(value) { return X = value; }`
-// per binding right after X's declaration (an identical earlier one is reused), exported in the
-// "// for <new file>" list. Destructuring, for-in/of targets, const/import/class/function
-// bindings, an update whose value is used and direct eval are still refused. The source's own
+// becomes `inc_X()`/`dec_X()` (also a prefix `++X`/`--X` whose value is used: `y = inc_X()`). The source
+// gains right after X's declaration one `function set_X(value) { return X = value; }` and, where used,
+// `function inc_X() { return ++X; }` / `function dec_X() { return --X; }` (native ++/-- keeps strings and
+// BigInts right; an identical earlier helper is reused), exported in the "// for <new file>" list.
+// A helper name that an enclosing scope of a call site binds (a local `set_X`) is skipped for that
+// site: the next suffix (`set_X_1`) is used. Destructuring, for-in/of targets, const/import/class/function
+// bindings, a postfix `X++` whose value is used and direct eval are still refused. The source's own
 // code is never rewritten, and a local that shadows X is never touched.
+//
+// Computed module paths: `import(a + b)`, `new URL(expr, import.meta.url)` in moved code resolve against
+// the file they live in. A literal or an expression-free template is rewritten; a computed one that
+// may be relative (starts with "./" or "../", or starts with something unknowable) is refused when
+// the new file is in another directory. "three/" + x, absolute URLs and literals are fine.
+//
+// API: splitModule({ from, to, names | lines, setters, dry, purpose }) works on files;
+// splitModuleText({ sourceText, sourcePath, targetPath, names | lines, setters, siblings }) takes
+// and returns text (result.texts = { target, source, siblings }), touching no file.
 //
 // Run `npm run check` afterwards, and list the new file in survey-assets.json.
 import fs from "node:fs";
@@ -69,6 +81,26 @@ function parse(src, file) {
     throw new Abort(`${file}: parse error - ${e.message}`);
   }
 }
+
+// Could a computed module path (import(expr), new URL(expr, import.meta.url)) be relative? A literal
+// start tells ("./x/" + name is, "three/" + name is not); anything else, an identifier, a call, a
+// template that starts with an expression, is unknowable and counts as possibly relative.
+function mayBeRelative(expr) {
+  switch (expr.type) {
+    case "Literal": return typeof expr.value === "string" && expr.value.startsWith(".");
+    case "TemplateLiteral": {
+      const head = expr.quasis[0].value.cooked;
+      return head ? head.startsWith(".") : expr.expressions.length > 0;
+    }
+    case "BinaryExpression":
+      if (expr.operator !== "+") return true;
+      return mayBeRelative(expr.left) || (isEmptyString(expr.left) && mayBeRelative(expr.right));
+    case "ConditionalExpression": return mayBeRelative(expr.consequent) || mayBeRelative(expr.alternate);
+    case "LogicalExpression": return mayBeRelative(expr.left) || mayBeRelative(expr.right);
+    default: return true;
+  }
+}
+const isEmptyString = (n) => (n.type === "Literal" && n.value === "") || (n.type === "TemplateLiteral" && !n.expressions.length && !n.quasis[0].value.cooked);
 
 function walkNodes(node, visit) {
   if (!node || typeof node.type !== "string") return;
@@ -336,21 +368,80 @@ function chunkFor(src, stmt, prevEnd, comments) {
 }
 
 // ---- --setters: rewrite assignments to source bindings into setter calls ---------
-function walkParents(node, parent, visit) {
+function walkScoped(node, parent, stack, visit) {
   if (!node || typeof node.type !== "string") return;
-  visit(node, parent);
+  visit(node, parent, stack); // stack: the ancestors of node, outermost first
+  stack.push(node);
   for (const key of Object.keys(node)) {
     if (key === "loc") continue;
     const v = node[key];
     if (Array.isArray(v)) {
-      for (const c of v) if (c && typeof c.type === "string") walkParents(c, node, visit);
-    } else if (v && typeof v.type === "string") walkParents(v, node, visit);
+      for (const c of v) if (c && typeof c.type === "string") walkScoped(c, node, stack, visit);
+    } else if (v && typeof v.type === "string") walkScoped(v, node, stack, visit);
   }
+  stack.pop();
+}
+
+// Names a scope node binds directly (what a call written inside it could resolve to instead of
+// a module-level name): params and `var`s of a function, let/const/class/function of a block,
+// for-head and catch bindings.
+function scopeBindings(node) {
+  const names = new Set();
+  const add = (p) => patternIds(p).forEach((id) => names.add(id.name));
+  const lexical = (stmts) => {
+    for (const st of stmts) {
+      if (st.type === "VariableDeclaration" && st.kind !== "var") st.declarations.forEach((d) => add(d.id));
+      else if ((st.type === "FunctionDeclaration" || st.type === "ClassDeclaration") && st.id) names.add(st.id.name);
+    }
+  };
+  const vars = (n) => { // var declarations of this function level, not of nested functions
+    if (!n || typeof n.type !== "string") return;
+    if (n.type === "FunctionDeclaration" || n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression" || n.type === "ClassDeclaration" || n.type === "ClassExpression") return;
+    if (n.type === "VariableDeclaration" && n.kind === "var") n.declarations.forEach((d) => add(d.id));
+    for (const key of Object.keys(n)) {
+      if (key === "loc") continue;
+      const v = n[key];
+      if (Array.isArray(v)) v.forEach(vars);
+      else if (v && typeof v.type === "string") vars(v);
+    }
+  };
+  switch (node.type) {
+    case "FunctionDeclaration":
+    case "FunctionExpression":
+    case "ArrowFunctionExpression":
+      node.params.forEach(add);
+      if (node.type === "FunctionExpression" && node.id) names.add(node.id.name);
+      if (node.type !== "ArrowFunctionExpression") names.add("arguments");
+      vars(node.body);
+      break;
+    case "BlockStatement": lexical(node.body); break;
+    case "StaticBlock": lexical(node.body); node.body.forEach(vars); break;
+    case "SwitchStatement": node.cases.forEach((c) => lexical(c.consequent)); break;
+    case "ForStatement":
+      if (node.init && node.init.type === "VariableDeclaration" && node.init.kind !== "var") node.init.declarations.forEach((d) => add(d.id));
+      break;
+    case "ForInStatement":
+    case "ForOfStatement":
+      if (node.left.type === "VariableDeclaration" && node.left.kind !== "var") node.left.declarations.forEach((d) => add(d.id));
+      break;
+    case "CatchClause": if (node.param) add(node.param); break;
+    case "ClassExpression": if (node.id) names.add(node.id.name); break;
+    default: break;
+  }
+  return names;
 }
 
 const COMPOUND_OPS = new Set(["+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^="]);
 const LOGICAL_OPS = new Set(["&&=", "||=", "??="]);
 const NOT_REASSIGNABLE = { import: "an imported binding", const: "a const", class: "a class", function: "a function declaration" };
+
+// The helpers the source gains next to a binding's declaration, in the order they are written.
+const HELPER_KINDS = ["set", "inc", "dec"];
+const helperText = (kind, fn, name) => {
+  const param = name === "value" ? "next" : "value";
+  if (kind === "set") return `function ${fn}(${param}) { return ${name} = ${param}; }`;
+  return `function ${fn}() { return ${kind === "inc" ? "++" : "--"}${name}; }`;
+};
 
 // Where the operator sits after `left`: {restStart} is the first character after the
 // operator and its trailing blanks. null when anything but blanks lies between
@@ -364,18 +455,20 @@ function operatorSpan(src, left, op) {
   return { restStart: i };
 }
 
-// Plan the rewrite of every `X = e`, `X op= e`, `X++`... in the moved functions whose X is a
+// Plan the rewrite of every `X = e`, `X op= e`, `++X`, `X++`... in the moved functions whose X is a
 // top-level var/let of the source. Fills s.setterEdits (offsets in the source text) and returns
-// the setters the source must gain, the sites rewritten and the assignments it cannot rewrite.
+// the helpers the source must gain, the sites rewritten and the assignments it cannot rewrite.
 function planSetters({ selected, src0, ast, freeStarts, decls, from }) {
   const offenders = [];
-  const bindings = new Map(); // binding -> {fn, param, reuse, stmt}
+  const helpers = new Map(); // helper function name -> {fn, kind, name, text, reuse, stmt}
+  const bindings = new Map(); // binding -> [helper, ...] in order of first use
   let siteCount = 0;
 
-  // names the setters must not collide with: every identifier the source mentions
+  // names the helpers must not collide with: every identifier the source mentions
   const used = new Set(decls.keys());
   walkNodes(ast, (n) => { if (n.type === "Identifier") used.add(n.name); });
-  const topFns = new Map(); // name -> normalised text, to reuse a setter an earlier split generated
+  const movedNames = new Set(selected.map((s) => s.fn.id.name));
+  const topFns = new Map(); // name -> normalised text, to reuse a helper an earlier split generated
   for (const stmt of ast.body) {
     const info = functionOf(stmt);
     if (info) topFns.set(info.fn.id.name, src0.slice(info.fn.start, info.fn.end).replace(/\s+/g, " "));
@@ -383,18 +476,37 @@ function planSetters({ selected, src0, ast, freeStarts, decls, from }) {
   const declStmt = new Map(); // binding -> top-level statement that declares it
   for (const stmt of ast.body) for (const name of topLevelDecls({ body: [stmt] }).keys()) if (!declStmt.has(name)) declStmt.set(name, stmt);
 
-  const setterFor = (name) => {
-    if (bindings.has(name)) return bindings.get(name);
-    const param = name === "value" ? "next" : "value";
+  // The helper of `kind` for binding `name`, callable at a site where the names in `blocked`
+  // are bound by an enclosing scope (a local `set_x` would swallow the call), so a candidate
+  // named like one of them is skipped and the next suffix tried.
+  const helperFor = (kind, name, blocked) => {
     for (let n = 0; ; n++) {
-      const fn = n === 0 ? `set_${name}` : `set_${name}_${n}`;
-      const shape = `function ${fn}(${param}) { return ${name} = ${param}; }`;
-      if (used.has(fn) && topFns.get(fn) !== shape) continue;
-      const b = { fn, param, reuse: used.has(fn), stmt: declStmt.get(name) };
+      const fn = n === 0 ? `${kind}_${name}` : `${kind}_${name}_${n}`;
+      if (blocked.has(fn) || movedNames.has(fn)) continue;
+      const mine = helpers.get(fn);
+      if (mine) {
+        if (mine.kind === kind && mine.name === name) return mine;
+        continue;
+      }
+      const text = helperText(kind, fn, name);
+      if (used.has(fn) && topFns.get(fn) !== text) continue;
+      const h = { fn, kind, name, text, reuse: used.has(fn), stmt: declStmt.get(name) };
       used.add(fn);
-      bindings.set(name, b);
-      return b;
+      helpers.set(fn, h);
+      if (!bindings.has(name)) bindings.set(name, []);
+      bindings.get(name).push(h);
+      return h;
     }
+  };
+
+  const scopeCache = new Map();
+  const blockedAt = (stack) => {
+    const out = new Set();
+    for (const node of stack) {
+      if (!scopeCache.has(node)) scopeCache.set(node, scopeBindings(node));
+      scopeCache.get(node).forEach((x) => out.add(x));
+    }
+    return out;
   };
 
   for (const s of selected) {
@@ -411,7 +523,7 @@ function planSetters({ selected, src0, ast, freeStarts, decls, from }) {
     };
     const edit = (start, end, text) => s.setterEdits.push({ start, end, text });
 
-    walkParents(s.stmt, null, (n, parent) => {
+    walkScoped(s.stmt, null, [], (n, parent, stack) => {
       if (n.type === "AssignmentExpression") {
         if (n.left.type !== "Identifier") {
           patternIds(n.left).filter(bound).forEach((id) => refuse(id, "destructuring target"));
@@ -421,7 +533,7 @@ function planSetters({ selected, src0, ast, freeStarts, decls, from }) {
         const name = n.left.name, op = n.operator;
         const span = operatorSpan(src0, n.left, op);
         if (!span || n.left.start !== n.start) return refuse(n.left, "unusual formatting (comment or parentheses around the target); edit by hand");
-        const setter = setterFor(name).fn;
+        const setter = helperFor("set", name, blockedAt(stack)).fn;
         siteCount++;
         if (op === "=") {
           edit(n.start, span.restStart, `${setter}(`);
@@ -440,36 +552,53 @@ function planSetters({ selected, src0, ast, freeStarts, decls, from }) {
       } else if (n.type === "UpdateExpression") {
         const arg = n.argument;
         if (arg.type !== "Identifier" || !bound(arg) || !rewritable(arg)) return;
+        // x++ / x-- whose value nobody reads, or ++x / --x anywhere, is exactly `inc_x()` / `dec_x()`:
+        // the helper holds the native ++/--, so strings and BigInts behave as before.
         const unused = parent && ((parent.type === "ExpressionStatement" && parent.expression === n) || (parent.type === "ForStatement" && parent.update === n));
-        if (!unused) return refuse(arg, `${n.operator} whose value is used`);
+        if (!n.prefix && !unused) return refuse(arg, `${n.operator} whose value is used (postfix; write ${n.operator}${arg.name} or move it to a statement)`);
         siteCount++;
-        edit(n.start, n.end, `${setterFor(arg.name).fn}(${arg.name} ${n.operator === "++" ? "+" : "-"} 1)`);
+        edit(n.start, n.end, `${helperFor(n.operator === "++" ? "inc" : "dec", arg.name, blockedAt(stack)).fn}()`);
       } else if ((n.type === "ForInStatement" || n.type === "ForOfStatement") && n.left.type !== "VariableDeclaration") {
         patternIds(n.left).filter(bound).forEach((id) => refuse(id, "for-in/of target"));
       }
     });
   }
 
-  // each setter goes right after the statement that declares its binding
+  // each helper goes right after the statement that declares its binding
   const inserts = [];
   const byStmt = new Map();
-  for (const [name, b] of bindings) {
-    if (b.reuse) continue;
-    if (!byStmt.has(b.stmt)) byStmt.set(b.stmt, []);
-    byStmt.get(b.stmt).push({ name, text: `function ${b.fn}(${b.param}) { return ${name} = ${b.param}; }` });
+  for (const h of helpers.values()) {
+    if (h.reuse) continue;
+    if (!byStmt.has(h.stmt)) byStmt.set(h.stmt, []);
+    byStmt.get(h.stmt).push(h);
   }
   for (const [stmt, list] of byStmt) {
-    const body = list.sort((a, b) => byCodepoint(a.name, b.name)).map((x) => x.text).join("\n");
+    const body = list
+      .sort((a, b) => byCodepoint(a.name, b.name) || HELPER_KINDS.indexOf(a.kind) - HELPER_KINDS.indexOf(b.kind) || byCodepoint(a.fn, b.fn))
+      .map((x) => x.text).join("\n");
     const nl = src0.indexOf("\n", stmt.end);
     const lineEnd = nl < 0 ? src0.length : nl;
     if (/^[ \t]*(\/\/.*)?$/.test(src0.slice(stmt.end, lineEnd)))
       inserts.push({ pos: nl < 0 ? src0.length : nl + 1, text: (nl < 0 ? "\n" : "") + body + "\n" });
     else inserts.push({ pos: stmt.end, text: "\n" + body + "\n" });
   }
-  return { offenders, bindings, siteCount, inserts };
+  return { offenders, bindings, helpers: [...helpers.values()], siteCount, inserts };
 }
 
 // ---- main ------------------------------------------------------------------
+// Text in, text out: nothing on disk is read or written.
+//   splitModuleText({ sourceText, sourcePath, targetPath, names | lines, setters, purpose,
+//                     siblings: [{ path, text }] })
+// `siblings` are the files next to the target that may import a moved name from the source.
+// Returns { ok, errors, report, moved, setters, leftBehind, texts } where texts is
+// { target, source, siblings: [{ path, text }] } (the new text of every file the split changes;
+// the paths are the given ones, resolved). splitModule() runs on this and then writes the files.
+export function splitModuleText(opts) {
+  const { sourceText, sourcePath, targetPath, siblings = [], ...rest } = opts;
+  if (typeof sourceText !== "string") throw new TypeError("splitModuleText needs { sourceText }");
+  return splitModule({ ...rest, from: sourcePath, to: targetPath, sourceText, siblingTexts: siblings, textMode: true, dry: true });
+}
+
 export function splitModule(opts) {
   const o = { dry: false, purpose: null, repoRoot: REPO_ROOT, ...opts };
   const result = { ok: false, written: false, errors: [], report: "", moved: [], files: [] };
@@ -486,9 +615,10 @@ export function splitModule(opts) {
 
 function run(o, result) {
   if (!o.from || !o.to) throw new Abort("need --from and --to");
+  const textMode = !!o.textMode;
   const srcAbs = path.resolve(o.from), newAbs = path.resolve(o.to);
-  if (!fs.existsSync(srcAbs)) throw new Abort(`${o.from} does not exist`);
-  if (fs.existsSync(newAbs)) throw new Abort(`${o.to} already exists; this tool only creates new files`);
+  if (!textMode && !fs.existsSync(srcAbs)) throw new Abort(`${o.from} does not exist`);
+  if (!textMode && fs.existsSync(newAbs)) throw new Abort(`${o.to} already exists; this tool only creates new files`);
   if (samePath(srcAbs, newAbs)) throw new Abort("--from and --to are the same file");
   const names = parseNames(o.names), ranges = parseLineRanges(o.lines);
   if (!names.length && !ranges.length) throw new Abort("need --names or --lines");
@@ -501,7 +631,7 @@ function run(o, result) {
   const newBase = path.basename(newAbs);
 
   // ---- parse the source, pick the functions
-  const src0 = norm(fs.readFileSync(srcAbs, "utf8"));
+  const src0 = norm(textMode ? o.sourceText : fs.readFileSync(srcAbs, "utf8"));
   const { ast, comments } = parse(src0, o.from);
   const decls = topLevelDecls(ast);
   const wanted = new Set(names);
@@ -542,6 +672,7 @@ function run(o, result) {
   // import.meta.url), new URL(...) - resolve against the file they live in, so
   // they are rewritten for the new file's directory like the static imports.
   let rewrittenPaths = 0;
+  const relocates = !samePath(path.dirname(newAbs), areaRoot); // same directory: relative paths keep their base
   const isImportMetaUrl = (n) => n && n.type === "MemberExpression" && !n.computed && n.object.type === "MetaProperty" && n.property.name === "url";
   for (const s of selected) {
     const edits = [];
@@ -553,11 +684,14 @@ function run(o, result) {
       else if (n.type === "NewExpression" && n.callee.type === "Identifier" && n.callee.name === "URL" && n.arguments[0] && isImportMetaUrl(n.arguments[1])) lit = n.arguments[0];
       if (!lit) return;
       let value, q;
+      if (lit.type !== "Literal" && lit.type !== "TemplateLiteral" && relocates && mayBeRelative(lit))
+        throw new Abort(`${s.fn.id.name} (line ${lit.loc.start.line}): ${n.type === "ImportExpression" ? "import(...)" : "new URL(..., import.meta.url)"} with a computed path that may be relative cannot be relocated to ${o.to}; move it by hand or make the path a literal`);
       if (lit.type === "Literal" && typeof lit.value === "string") { value = lit.value; q = src0[lit.start]; }
       else if (lit.type === "TemplateLiteral") {
         value = lit.quasis[0].value.cooked;
         q = "`";
         if (lit.expressions.length) {
+          if (relocates && !value) throw new Abort(`${s.fn.id.name} (line ${lit.loc.start.line}): a module path that starts with a template expression may be relative and cannot be relocated; move it by hand`);
           if (isRelative(value)) throw new Abort(`${s.fn.id.name} (line ${lit.loc.start.line}): a relative module path built from a template with expressions cannot be relocated; move it by hand`);
           return;
         }
@@ -595,7 +729,7 @@ function run(o, result) {
 
   // The rewritten text no longer assigns, and may no longer read, some bindings, and now
   // calls the setters: recompute what it needs from the source.
-  const setterNames = setterPlan ? [...setterPlan.bindings.values()].map((b) => b.fn) : [];
+  const setterNames = setterPlan ? setterPlan.helpers.map((h) => h.fn) : [];
   if (setterPlan && setterPlan.siteCount) {
     setterNames.forEach((n) => decls.set(n, "function"));
     free = freeOccurrences(parse(selected.map((s) => s.chunk.text).join("\n\n"), "the rewritten moved code").ast.body);
@@ -672,11 +806,15 @@ function run(o, result) {
   const newDir = path.dirname(newAbs);
   const siblings = [];
   const siblingMovedNames = new Set();
-  const siblingFiles = fs.existsSync(newDir)
-    ? fs.readdirSync(newDir).filter((f) => f.endsWith(".js")).map((f) => path.join(newDir, f)).filter((f) => !samePath(f, srcAbs) && !samePath(f, newAbs)).sort()
-    : [];
-  for (const file of siblingFiles) {
-    const text = norm(fs.readFileSync(file, "utf8"));
+  const siblingFiles = (textMode
+    ? o.siblingTexts.map((x) => ({ file: path.resolve(x.path), text: x.text }))
+    : fs.existsSync(newDir)
+      ? fs.readdirSync(newDir).filter((f) => f.endsWith(".js")).map((f) => path.join(newDir, f)).map((file) => ({ file, text: null }))
+      : [])
+    .filter((x) => !samePath(x.file, srcAbs) && !samePath(x.file, newAbs))
+    .sort((a, b) => byCodepoint(a.file, b.file));
+  for (const { file, text: given } of siblingFiles) {
+    const text = norm(given ?? fs.readFileSync(file, "utf8"));
     let parsed;
     try { parsed = parse(text, file); } catch (e) { continue; }
     const fromSrc = parsed.ast.body.filter((s) => s.type === "ImportDeclaration" && isRelative(s.source.value) && samePath(path.resolve(path.dirname(file), s.source.value), srcAbs));
@@ -799,7 +937,8 @@ function run(o, result) {
   lines.push(`moved: ${selected.length} functions, ${movedLines} lines (${reexported.length} of them "export function", re-exported from the source)`);
   lines.push(`  ${list(selected.map((s) => s.fn.id.name))}`);
   if (setterPlan) {
-    const b = [...setterPlan.bindings].map(([name, x]) => (x.fn === `set_${name}` ? name : `${name} via ${x.fn}${x.reuse ? ", existing" : ""}`));
+    const b = [...setterPlan.bindings].map(([name, hs]) =>
+      (hs.every((h) => h.fn === `${h.kind}_${name}` && !h.reuse) ? name : `${name} via ${hs.map((h) => h.fn + (h.reuse ? " (existing)" : "")).join(", ")}`));
     lines.push(`setters: ${setterPlan.bindings.size} bindings (${b.join(", ")}), ${setterPlan.siteCount} sites rewritten`);
   }
   if (rewrittenPaths) lines.push(`relative paths rewritten inside moved code: ${rewrittenPaths}`);
@@ -816,11 +955,18 @@ function run(o, result) {
   lines.push(`add ${newRel} to survey-assets.json, then run npm run check`);
   result.report = lines.join("\n");
   result.moved = selected.map((s) => s.fn.id.name);
-  if (setterPlan) result.setters = { bindings: Object.fromEntries([...setterPlan.bindings].map(([n, b]) => [n, b.fn])), sites: setterPlan.siteCount };
+  if (setterPlan)
+    result.setters = {
+      // binding -> its setter (its first helper when only ++/-- touch it)
+      bindings: Object.fromEntries([...setterPlan.bindings].map(([n, hs]) => [n, (hs.find((h) => h.kind === "set") || hs[0]).fn])),
+      helpers: setterPlan.helpers.map((h) => h.fn),
+      sites: setterPlan.siteCount,
+    };
   result.leftBehind = leftBehind;
   result.files = [srcAbs, newAbs, ...siblings.map((s) => s.file)];
+  result.texts = { target: newText, source: C, siblings: siblings.map((s) => ({ path: s.file, text: s.after })) };
 
-  if (o.dry) return;
+  if (o.dry || textMode) return;
   const originals = [];
   const plan = [
     { file: newAbs, text: newText, was: null },

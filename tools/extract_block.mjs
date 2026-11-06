@@ -18,12 +18,20 @@
 // `const { a, b } = NEWNAME(p1, p2);` when later code uses names the block declares).
 // Params are the names the block reads that live in NAME's own scope, in order of first use.
 //
+// API: extractBlock({ file, fn, lines, name, box, holder, holderScope, boxFor, dry }) edits the file;
+// extractBlockText({ text, fn, ... }) takes and returns the module text instead (result.text).
+//
+// A boxed reference that is a callee (`f()`, `f?.()`, f`x`) is written `(0, HOLDER.f)(...)` so the
+// call keeps its undefined `this`; at the start of a statement after one without a semicolon it
+// gets a leading `;`. `new f()` becomes `new HOLDER.f()`.
+//
 // Refused (nothing written, every reason listed with its line): a param assigned anywhere
 // in NAME (the copy would diverge from the outer binding), a returned name assigned after
 // the block or inside a closure of the block, a block-declared name used before the block,
 // a param declared after the block (temporal dead zone / lost initialiser), and a block with
 // return / yield / await in a non-async NAME / arguments / this / new.target / super at its
-// own function level, a break or continue aimed outside it, or direct eval.
+// own function level, a break or continue aimed outside it, or direct eval (also inside a nested
+// function, and also in a block of pure function declarations).
 //
 // --box a,b,c [--holder NAME]  (with --fn; runs BEFORE any lift, same run)
 //   node tools/extract_block.mjs --file F --fn NAME --box a,b,c [--holder H] [--dry]
@@ -689,6 +697,57 @@ function shorthandStarts(node, set = new Set()) {
   return set;
 }
 
+// Where a rewritten reference may not become a plain `HOLDER.x`: as the callee of a call or the tag of a
+// tagged template, `HOLDER.f()` would make `this` the holder (a strict function sees undefined), so the
+// reference is rendered `(0, HOLDER.f)`. A statement that starts with that parenthesis glues itself
+// to a previous statement left without a semicolon, so it also gets a leading `;` then.
+//   callee: Set of identifier starts used as callee / tag (`f()`, `f?.()`, f`x`; not `new f()`)
+//   guard(start): true when the expression statement starting at `start` needs the leading `;`
+function callSiteInfo(root, src) {
+  const callee = new Set();
+  const prevOf = new Map(); // ExpressionStatement start -> the statement before it in its list
+  const visit = (node) => {
+    if (!node || typeof node.type !== "string") return;
+    if (node.type === "CallExpression" && node.callee.type === "Identifier") callee.add(node.callee.start);
+    else if (node.type === "TaggedTemplateExpression" && node.tag.type === "Identifier") callee.add(node.tag.start);
+    for (const key of Object.keys(node)) {
+      if (key === "type" || key === "start" || key === "end" || key === "loc" || key === "range") continue;
+      const v = node[key];
+      if (Array.isArray(v)) {
+        v.forEach((c, i) => {
+          if (!c || typeof c.type !== "string") return;
+          if (c.type === "ExpressionStatement") prevOf.set(c.start, v[i - 1] || null);
+          visit(c);
+        });
+      } else if (v && typeof v.type === "string") visit(v);
+    }
+  };
+  visit(root);
+  const endsInBlock = new Set(["FunctionDeclaration", "ClassDeclaration", "BlockStatement", "TryStatement", "SwitchStatement", "EmptyStatement"]);
+  const guard = (start) => {
+    const prev = prevOf.get(start);
+    return !!prev && src[prev.end - 1] !== ";" && !endsInBlock.has(prev.type);
+  };
+  return { callee, guard };
+}
+
+// direct `eval(...)` calls anywhere inside the statements (a lifted copy sees other bindings)
+function directEvals(stmts) {
+  const out = [];
+  const visit = (n) => {
+    if (!n || typeof n.type !== "string") return;
+    if (n.type === "CallExpression" && n.callee.type === "Identifier" && n.callee.name === "eval") out.push(n);
+    for (const key of Object.keys(n)) {
+      if (key === "type" || key === "start" || key === "end" || key === "loc" || key === "range") continue;
+      const v = n[key];
+      if (Array.isArray(v)) v.forEach(visit);
+      else if (v && typeof v.type === "string") visit(v);
+    }
+  };
+  stmts.forEach(visit);
+  return out;
+}
+
 function normaliseBox(box) {
   if (!box) return [];
   const list = Array.isArray(box) ? box : String(box).split(",");
@@ -799,12 +858,16 @@ function boxLocals(src, ast, comments, fnName, names, holderOpt, file, opts = {}
 
   // leaf edits: every reference to a boxed binding
   const shorthand = shorthandStarts(fn);
+  const sites = callSiteInfo(fn, src);
   const leaf = [];
   const seenAt = new Set();
   for (const r of refs) {
     if (r.scope !== nameScope || !boxSet.has(r.name) || seenAt.has(r.id.start)) continue;
     seenAt.add(r.id.start);
-    leaf.push({ start: r.id.start, end: r.id.end, text: shorthand.has(r.id.start) ? `${r.name}: ${holder}.${r.name}` : `${holder}.${r.name}` });
+    const viaHolder = `${holder}.${r.name}`;
+    const text = shorthand.has(r.id.start) ? `${r.name}: ${viaHolder}`
+      : sites.callee.has(r.id.start) ? `${sites.guard(r.id.start) ? ";" : ""}(0, ${viaHolder})` : viaHolder;
+    leaf.push({ start: r.id.start, end: r.id.end, text });
     perName.get(r.name).refs++;
   }
   leaf.sort((a, b) => a.start - b.start);
@@ -1008,6 +1071,17 @@ function lineOffset(text, L) {
 }
 
 // ---- --lines A-B --name NEWNAME ----------------------------------------------------------
+// Text in, text out (no file is read or written): extractBlockText({ text, fn, lines, name, box,
+// holderScope, boxFor, holder }) -> { ok, errors, report, text, params, returned, ... }. `text` is the
+// new module text (result.text; the input when ok is false). The CLI and extractBlock() run on this.
+export function extractBlockText(opts) {
+  const text = opts.text;
+  if (typeof text !== "string") throw new TypeError("extractBlockText needs { text }");
+  const r = extractBlock({ ...opts, file: opts.file ?? "(text)", dry: true });
+  if (r.text === undefined) r.text = text;
+  return r;
+}
+
 export function extractBlock(opts) {
   const o = { dry: false, ...opts };
   const result = { ok: false, written: false, errors: [], report: "" };
@@ -1023,7 +1097,9 @@ export function extractBlock(opts) {
 }
 
 function run(o, result) {
-  if (!o.file || !o.fn) throw new Abort("need --file and --fn");
+  const fromText = typeof o.text === "string";
+  if ((!o.file && !fromText) || !o.fn) throw new Abort(fromText ? "need text and fn" : "need --file and --fn");
+  const file = o.file || "(text)";
   const scope = o.holderScope || "function";
   if (scope !== "function" && scope !== "module") throw new Abort(`--holder-scope must be function or module, not ${scope}`);
   if (o.boxFor && scope !== "module") throw new Abort("--box-for needs --holder-scope module");
@@ -1034,10 +1110,17 @@ function run(o, result) {
   if (!lineSpec && o.name) throw new Abort("--name needs --lines or --box-for");
   if ((o.holder || o.holderScope) && !boxNames.length && !o.boxFor) throw new Abort("--holder and --holder-scope need --box or --box-for");
   if (o.name && !/^[A-Za-z_$][\w$]*$/.test(o.name)) throw new Abort(`${o.name} is not a valid function name`);
-  if (!fs.existsSync(o.file)) throw new Abort(`${o.file} does not exist`);
-  const origSrc = norm(fs.readFileSync(o.file, "utf8"));
+  if (!fromText && !fs.existsSync(o.file)) throw new Abort(`${o.file} does not exist`);
+  const origSrc = norm(fromText ? o.text : fs.readFileSync(o.file, "utf8"));
   let src = origSrc;
-  let { ast, comments } = parse(src, o.file);
+  let { ast, comments } = parse(src, file);
+  // the new text is always in result.text; only a file run that is not --dry writes it
+  const finish = (text) => {
+    result.text = text;
+    if (o.dry || fromText) return;
+    writeVerified(o.file, text);
+    result.written = true;
+  };
 
   // ---- --box / --box-for first
   let box = null;
@@ -1050,13 +1133,11 @@ function run(o, result) {
     boxOpts = { scope, block: plan.block };
   }
   if (names.length || o.boxFor) {
-    box = boxLocals(src, ast, comments, o.fn, names, o.holder, o.file, boxOpts);
+    box = boxLocals(src, ast, comments, o.fn, names, o.holder, file, boxOpts);
     result.box = box.info;
     if (!lineSpec) {
-      result.report = [`extract_block: ${o.file}  ${o.fn}() --box${o.dry ? "  [dry run, nothing written]" : ""}`, ...box.lines].join("\n");
-      if (o.dry) return;
-      writeVerified(o.file, box.text);
-      result.written = true;
+      result.report = [`extract_block: ${file}  ${o.fn}() --box${o.dry ? "  [dry run, nothing written]" : ""}`, ...box.lines].join("\n");
+      finish(box.text);
       return;
     }
     src = box.text;
@@ -1072,6 +1153,11 @@ function run(o, result) {
     B = lineAt(b) - 1;
   }
   const { topStmt, fn, blockStmts, first, last, lead, trail, bs, be } = selectBlock(src, ast, comments, o.fn, A, B);
+
+  // A lifted copy no longer shares NAME's scope, so a direct eval in it (in a nested function
+  // too, and in a block of pure function declarations as much as in any other) sees other bindings.
+  const evals = directEvals(blockStmts);
+  if (evals.length) throw new Abort(evals.map((n) => `line ${n.loc.start.line}: the block calls eval(...) directly`));
 
   // ---- analysis
   const { refs, nameScope } = resolveRefs(fn);
@@ -1090,12 +1176,12 @@ function run(o, result) {
     sc.names.forEach((_, n) => taken.add(n));
     if (s.type === "ImportDeclaration") s.specifiers.forEach((sp) => taken.add(sp.local.name));
   }
-  const beforeFree = freeNameSet(src, o.file);
+  const beforeFree = freeNameSet(src, file);
 
   const chunkStart = lead.chunkStart, textEnd = trail.textEnd;
   const blockText = src.slice(chunkStart, textEnd);
   const lineNo = (off) => src.slice(0, off).split("\n").length;
-  const reportHead = [`extract_block: ${o.file}  ${o.fn}() -> ${o.name || "(pure functions)"}${o.dry ? "  [dry run, nothing written]" : ""}`,
+  const reportHead = [`extract_block: ${file}  ${o.fn}() -> ${o.name || "(pure functions)"}${o.dry ? "  [dry run, nothing written]" : ""}`,
     ...(box ? box.lines : [])];
 
   // ---- pure function declarations: lifted as plain top-level functions
@@ -1136,9 +1222,7 @@ function run(o, result) {
         `block lines moved: ${movedLines} (source lines ${lineNo(chunkStart)}-${lineNo(textEnd)})`,
         `${o.fn}: ${before} -> ${now} lines`,
       ].join("\n");
-      if (o.dry) return;
-      writeVerified(o.file, out);
-      result.written = true;
+      finish(out);
       return;
     }
     if (!o.name)
@@ -1259,9 +1343,7 @@ function run(o, result) {
     `block lines moved: ${movedLines} (source lines ${lineNo(chunkStart)}-${lineNo(textEnd)})${isAsync ? ", async" : ""}`,
     `${o.fn}: ${before} -> ${now} lines`,
   ].join("\n");
-  if (o.dry) return;
-  writeVerified(o.file, out);
-  result.written = true;
+  finish(out);
 }
 
 // ---- CLI --------------------------------------------------------------------------------

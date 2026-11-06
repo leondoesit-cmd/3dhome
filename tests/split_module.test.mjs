@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as acorn from "../vendor/acorn/acorn.mjs";
 import { checkFiles } from "../tools/module_check.mjs";
-import { splitModule } from "../tools/split_module.mjs";
+import { splitModule, splitModuleText } from "../tools/split_module.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE = path.join(HERE, "fixtures_split");
@@ -483,13 +483,19 @@ function reader() {
   return counter + shared;
 }
 
+function sharedSetter() {
+  shared = 8;
+  return shared;
+}
+
 function updateUsed() {
   const k = counter++;
   return k;
 }
 
-function updateReturned() {
-  return ++counter;
+function prefixUsed() {
+  const k = ++counter;
+  return [k, --counter];
 }
 
 function destructure(o) {
@@ -625,24 +631,26 @@ test("--setters: one setter per binding after its declaration, a free name, expo
   try {
     const r = pr.split({ names: MOVABLE });
     assert.equal(r.ok, true, r.report);
-    assert.deepEqual(r.setters.bindings, { counter: "set_counter", flag: "set_flag", opt: "set_opt", shared: "set_shared_1" });
-    assert.ok(/setters: 4 bindings \(counter, flag, opt, shared via set_shared_1\), \d+ sites rewritten/.test(r.report), r.report);
+    assert.deepEqual(r.setters.bindings, { counter: "set_counter", flag: "set_flag", opt: "set_opt", shared: "inc_shared" });
+    assert.ok(/setters: 4 bindings \(counter, flag, opt, shared\), \d+ sites rewritten/.test(r.report), r.report);
+    assert.deepEqual([...r.setters.helpers].sort(), ["dec_counter", "inc_counter", "inc_shared", "set_counter", "set_flag", "set_opt"]);
     assert.ok(r.report.includes(`${r.setters.sites} sites rewritten`));
     const src = pr.read("js/modeler.js");
     assert.ok(src.includes("export let counter = 0;\nfunction set_counter(value) { return counter = value; }\n"), src.slice(0, 400));
     assert.ok(src.includes("export let flag = null;\nfunction set_flag(value) { return flag = value; }\n"));
     assert.ok(src.includes("let opt;\nfunction set_opt(value) { return opt = value; }\n"));
-    assert.ok(src.includes("var shared = 1;\nfunction set_shared_1(value) { return shared = value; }\n"), "set_shared is taken, so the suffix");
+    assert.ok(src.includes("var shared = 1;\nfunction inc_shared() { return ++shared; }\n"), src.slice(0, 700));
+    assert.ok(src.includes("function inc_counter() { return ++counter; }\nfunction dec_counter() { return --counter; }\n"), "native ++/-- helpers next to the setter");
     assert.equal(src.split("function set_counter(").length, 2, "exactly one");
     assert.ok(src.includes('return "mine"'), "the pre-existing set_shared is untouched");
     // exported through the list headed for the new file, so modelerSource() strips it as before
     assert.ok(src.includes("// for js/modeler/area.js (live bindings: it sees every reassignment)"));
     const list = exportLists(src).find((l) => l.includes("set_counter"));
-    assert.ok(list && ["set_counter", "set_flag", "set_opt", "set_shared_1"].every((n) => list.includes(n)), JSON.stringify(exportLists(src)));
+    assert.ok(list && ["set_counter", "inc_counter", "dec_counter", "set_flag", "set_opt", "inc_shared"].every((n) => list.includes(n)), JSON.stringify(exportLists(src)));
     // the new file imports them
     const area = pr.read("js/modeler/area.js");
     const fromSrc = importsOf(area)["../modeler.js"];
-    for (const n of ["set_counter", "set_flag", "set_opt", "set_shared_1", "next", "counter", "shared"]) assert.ok(fromSrc.includes(n), `${n} imported: ${fromSrc}`);
+    for (const n of ["set_counter", "inc_counter", "dec_counter", "set_flag", "set_opt", "inc_shared", "next", "counter", "shared"]) assert.ok(fromSrc.includes(n), `${n} imported: ${fromSrc}`);
     assert.ok(area.includes("set_counter(5)") && area.includes("set_counter(counter + (2))"), "the rewritten text");
     assert.ok(area.includes("(flag || (set_flag(next(v))))"), "||= inside an expression is parenthesised");
     assert.ok(area.includes("  flag && (set_flag(next(v)));"), "&&= as a statement needs no outer parentheses");
@@ -654,7 +662,7 @@ test("--setters: code that needs no rewrite stays byte-for-byte, comments stay",
   const pr = setterProject();
   try {
     const before = pr.read("js/modeler.js");
-    const reader = before.slice(before.indexOf("function reader"), before.indexOf("function updateUsed")).trimEnd();
+    const reader = before.slice(before.indexOf("function reader"), before.indexOf("function sharedSetter")).trimEnd();
     const shadow = before.slice(before.indexOf("function shadowed"), before.indexOf("function reader")).trimEnd();
     assert.equal(pr.split({ names: MOVABLE }).ok, true);
     const area = pr.read("js/modeler/area.js");
@@ -663,10 +671,9 @@ test("--setters: code that needs no rewrite stays byte-for-byte, comments stay",
   } finally { pr.done(); }
 });
 
-test("--setters: a value-using update, destructuring, for-in/of, const, import, class and function targets stay refused", () => {
+test("--setters: a postfix update whose value is used, destructuring, for-in/of, const, import, class and function targets stay refused", () => {
   const cases = {
-    updateUsed: /updateUsed assigns counter .* - \+\+ whose value is used/,
-    updateReturned: /updateReturned assigns counter .* - \+\+ whose value is used/,
+    updateUsed: /updateUsed assigns counter .* - \+\+ whose value is used \(postfix/,
     destructure: /destructure assigns counter .* - destructuring target/,
     destructureArr: /destructureArr assigns flag .* - destructuring target/,
     forOf: /forOf assigns counter .* - for-in\/of target/,
@@ -759,4 +766,280 @@ test("CLI: --setters is accepted", () => {
     assert.equal(run.status, 0, run.stderr);
     assert.ok(run.stdout.includes("setters: 1 bindings (counter), 1 sites rewritten"), run.stdout);
   } finally { pr.done(); }
+});
+
+// ---- review fixes: shadowed helpers, native ++/--, computed relative paths, text API -----------
+// Run a scenario against the project before the split (its own instance of the source, via a
+// query string) and again after, and compare what they return.
+async function beforeAndAfter(pr, scenario, splitExtra) {
+  const before = await scenario(await import(pathToFileURL(pr.p("js/modeler.js")).href + "?before"));
+  const r = pr.split(splitExtra);
+  assert.equal(r.ok, true, r.report);
+  // plain URL: the new file imports "../modeler.js" without a query, and must share that instance
+  const after = await scenario(await pr.load("js/modeler.js"));
+  assert.deepEqual(after, before);
+  return { before, after, r };
+}
+
+test("--setters: a reused setter that a local in the moved function shadows gets a fresh name for that site only", async () => {
+  const pr = setterProject(`export let counter = 0;
+function set_counter(value) { return counter = value; }
+export function get() { return counter; }
+export function viaSource() { set_counter(1); return counter; }
+
+export function shadowedParam(set_counter) {
+  counter = 5;
+  return set_counter(2);
+}
+
+export function shadowedLocal() {
+  const set_counter = (v) => "local" + v;
+  counter = 6;
+  return set_counter(1);
+}
+
+export function shadowedInner() {
+  return [1].map((x) => { function set_counter(v) { return "inner" + v; } counter = 8; return set_counter(x); });
+}
+
+export function plain() {
+  counter = 7;
+  return counter;
+}
+
+export function siblingBlock() {
+  { let set_counter = 0; }
+  counter = 9;
+  return counter;
+}
+`);
+  try {
+    const { before, r } = await beforeAndAfter(pr, (m) => {
+      const out = {};
+      out.shadowedParam = m.shadowedParam((v) => "param" + v);
+      out.afterParam = m.get();
+      out.shadowedLocal = m.shadowedLocal();
+      out.afterLocal = m.get();
+      out.shadowedInner = m.shadowedInner();
+      out.afterInner = m.get();
+      out.plain = m.plain();
+      out.siblingBlock = m.siblingBlock();
+      m.viaSource();
+      out.viaSource = m.get();
+      return out;
+    }, { names: "shadowedParam,shadowedLocal,shadowedInner,plain,siblingBlock" });
+    assert.deepEqual(before, { shadowedParam: "param2", afterParam: 5, shadowedLocal: "local1", afterLocal: 6, shadowedInner: ["inner1"], afterInner: 8, plain: 7, siblingBlock: 9, viaSource: 1 });
+    const area = pr.read("js/modeler/area.js");
+    const fn = (name) => area.slice(area.indexOf("function " + name), area.indexOf("\n}", area.indexOf("function " + name)));
+    assert.ok(fn("shadowedParam").includes("set_counter_1(5)"), fn("shadowedParam"));
+    assert.ok(fn("shadowedLocal").includes("set_counter_1(6)"));
+    assert.ok(fn("shadowedInner").includes("set_counter_1(8)"));
+    assert.ok(fn("plain").includes("set_counter(7)"), "the existing setter is still reused where nothing shadows it");
+    assert.ok(fn("siblingBlock").includes("set_counter(9)"), "a local in a sibling block does not shadow the site");
+    const src = pr.read("js/modeler.js");
+    assert.equal(src.split("function set_counter(").length, 2, "the existing setter stays");
+    assert.equal(src.split("function set_counter_1(").length, 2, "one fresh setter for all three shadowed sites");
+    assert.deepEqual([...r.setters.helpers].sort(), ["set_counter", "set_counter_1"]);
+  } finally { pr.done(); }
+});
+
+test("--setters: x++ / ++x / x-- call native helpers, so strings and BigInts behave as before", async () => {
+  const pr = setterProject(`export let s = "1";
+export let big = 10n;
+export let n = 1;
+let t = "5";
+export function snap() { return [s, big, n, t, typeof s, typeof big, typeof t]; }
+
+export function incAll() {
+  s++;
+  ++s;
+  big++;
+  n--;
+  --t;
+}
+
+export function prefixUsed() {
+  const a = ++n;
+  const b = --big;
+  const c = ++t;
+  return [a, b, c, n, big, t];
+}
+
+export function inFor() {
+  let c = 0;
+  for (n = 0; n < 3; n++) c += 1;
+  return [c, n];
+}
+
+export function postfixUsed() {
+  return n++;
+}
+`);
+  try {
+    const { before } = await beforeAndAfter(pr, (m) => {
+      m.incAll();
+      const afterInc = m.snap();
+      const used = m.prefixUsed();
+      const loop = m.inFor();
+      return { afterInc, used, loop, end: m.snap() };
+    }, { names: "incAll,prefixUsed,inFor" });
+    assert.deepEqual(before.afterInc, [3, 11n, 0, 4, "number", "bigint", "number"], "native semantics: the string \"1\" becomes the number 3, not \"111\"");
+    assert.deepEqual(before.used, [1, 10n, 5, 1, 10n, 5]);
+    const area = pr.read("js/modeler/area.js");
+    assert.ok(area.includes("inc_s();") && area.includes("inc_big();") && area.includes("dec_n();") && area.includes("dec_t();"), "statement-level updates");
+    assert.ok(area.includes("const a = inc_n();") && area.includes("const b = dec_big();"), "prefix updates whose value is used");
+    assert.ok(area.includes("for (set_n(0); n < 3; inc_n())"), area);
+    const src = pr.read("js/modeler.js");
+    assert.ok(src.includes("function inc_s() { return ++s; }"), src.slice(0, 600));
+    assert.ok(!/set_s\(/.test(area), "no s + 1 style rewrite remains");
+    const refused = pr.split({ names: "postfixUsed", to: pr.p("js/modeler/area2.js") });
+    assert.equal(refused.ok, false);
+    assert.match(refused.errors.join("\n"), /postfixUsed assigns n .* - \+\+ whose value is used \(postfix/);
+  } finally { pr.done(); }
+});
+
+test("--setters: identical inc/dec helpers from an earlier split are reused, a different function of that name is not", async () => {
+  const pr = setterProject(`export let n = 1;
+function inc_n() { return ++n; }
+function dec_n() { return n - 1; }
+export function get() { return n; }
+export function viaSource() { inc_n(); return n; }
+export function up() { n++; }
+export function down() { n--; }
+`);
+  try {
+    const r = pr.split({ names: "up,down" });
+    assert.equal(r.ok, true, r.report);
+    assert.deepEqual([...r.setters.helpers].sort(), ["dec_n_1", "inc_n"]);
+    const src = pr.read("js/modeler.js");
+    assert.equal(src.split("function inc_n(").length, 2, "reused, not duplicated");
+    assert.ok(src.includes("function dec_n_1() { return --n; }"), "dec_n does something else, so the suffix");
+    const area = await pr.load("js/modeler/area.js");
+    const s = await pr.load("js/modeler.js");
+    area.up(); area.up(); area.down();
+    assert.equal(s.get(), 2);
+  } finally { pr.done(); }
+});
+
+function pathProject(src) {
+  const pr = setterProject(src);
+  fs.mkdirSync(pr.p("js/parts"), { recursive: true });
+  fs.writeFileSync(pr.p("js/parts/a.js"), "export default \"a\";\n");
+  return pr;
+}
+
+const PATH_SRC = `export async function loadByName(name) {
+  return (await import("./parts/" + name + ".js")).default;
+}
+
+export async function loadIdent(spec) {
+  return import(spec);
+}
+
+export async function loadTemplate(name) {
+  return import(\`\${name}\`);
+}
+
+export async function loadFromBase(base, name) {
+  return import(\`\${base}/\${name}.js\`);
+}
+
+export function urlOf(name) {
+  return new URL("./parts/" + name, import.meta.url).href;
+}
+
+export async function loadLiteral() {
+  return (await import("./parts/a.js")).default;
+}
+
+export async function loadBare() {
+  return (await import("node:path")).sep.length;
+}
+
+export async function loadBarePrefix(x) {
+  return typeof (await import("node:" + x));
+}
+
+export function urlLiteral() {
+  return new URL("./parts/a.js", import.meta.url).href.endsWith("/js/parts/a.js");
+}
+
+export async function loadTemplateBare(x) {
+  return typeof (await import(\`node:\${x}\`));
+}
+`;
+
+test("a computed module path that may be relative is refused when the code changes directory; literals and bare specifiers move", async () => {
+  const pr = pathProject(PATH_SRC);
+  try {
+    const before = pr.read("js/modeler.js");
+    const cases = {
+      loadByName: /loadByName \(line 2\): import\(\.\.\.\) with a computed path that may be relative cannot be relocated/,
+      loadIdent: /loadIdent \(line 6\): import\(\.\.\.\) with a computed path/,
+      loadTemplate: /loadTemplate \(line 10\): a module path that starts with a template expression/,
+      loadFromBase: /loadFromBase \(line 14\): a module path that starts with a template expression/,
+      urlOf: /urlOf \(line 18\): new URL\(\.\.\., import\.meta\.url\) with a computed path/,
+    };
+    for (const [name, re] of Object.entries(cases)) {
+      const r = pr.split({ names: name, setters: false });
+      assert.equal(r.ok, false, name);
+      assert.match(r.errors.join("\n"), re, name);
+      assert.equal(pr.read("js/modeler.js"), before, "nothing written");
+      assert.equal(fs.existsSync(pr.p("js/modeler/area.js")), false);
+    }
+    const ok = pr.split({ names: "loadLiteral,loadBare,loadBarePrefix,urlLiteral,loadTemplateBare", setters: false });
+    assert.equal(ok.ok, true, ok.report);
+    assert.ok(pr.read("js/modeler/area.js").includes('import("../parts/a.js")'), "the literal is rewritten");
+    const area = await pr.load("js/modeler/area.js");
+    assert.equal(await area.loadLiteral(), "a");
+    assert.equal(await area.loadBare(), 1);
+    assert.equal(await area.loadBarePrefix("path"), "object");
+    assert.equal(await area.loadTemplateBare("path"), "object");
+    assert.equal(area.urlLiteral(), true);
+  } finally { pr.done(); }
+});
+
+test("a computed relative path is fine when the new file stays in the same directory", async () => {
+  const pr = pathProject(PATH_SRC);
+  try {
+    const r = pr.split({ names: "loadByName,urlOf", setters: false, to: pr.p("js/area.js") });
+    assert.equal(r.ok, true, r.report);
+    const area = await pr.load("js/area.js");
+    assert.equal(await area.loadByName("a"), "a");
+    assert.ok(area.urlOf("a").endsWith("/js/parts/a"));
+  } finally { pr.done(); }
+});
+
+test("splitModuleText returns the new texts of every file and touches no disk", () => {
+  const ws = workspace();
+  try {
+    const disk = ws.snapshot();
+    const sibNames = ["sibling.js", "sibling2.js"];
+    const text = splitModuleText({
+      sourceText: ws.read("js/modeler.js"),
+      sourcePath: ws.p("js/modeler.js"),
+      targetPath: ws.p("js/modeler/area.js"),
+      names: NAMES,
+      purpose: "The fixture area",
+      repoRoot: ws.dir,
+      siblings: sibNames.map((n) => ({ path: ws.p("js/modeler/" + n), text: ws.read("js/modeler/" + n) })),
+    });
+    assert.equal(text.ok, true, text.report);
+    assert.equal(text.written, false);
+    assert.equal(fs.existsSync(ws.p("js/modeler/area.js")), false);
+    assert.deepEqual(ws.snapshot(), disk, "no file changed");
+    assert.deepEqual(text.moved.sort(), ["helper", "quiet", "scale", "tint"]);
+    // the same split on disk produces exactly these texts
+    const real = splitModule(ws.opts({ names: NAMES, purpose: "The fixture area" }));
+    assert.equal(real.ok, true, real.report);
+    assert.equal(text.texts.target, ws.read("js/modeler/area.js"));
+    assert.equal(text.texts.source, ws.read("js/modeler.js"));
+    const bySib = Object.fromEntries(text.texts.siblings.map((x) => [path.basename(x.path), x.text]));
+    for (const n of sibNames) assert.equal(bySib[n], ws.read("js/modeler/" + n), n);
+    // and a refusal is reported the same way, with no texts
+    const bad = splitModuleText({ sourceText: "export function f() {}\n", sourcePath: ws.p("js/x.js"), targetPath: ws.p("js/y.js"), names: "missing", repoRoot: ws.dir });
+    assert.equal(bad.ok, false);
+    assert.match(bad.errors.join("\n"), /missing is not declared/);
+    assert.equal(bad.texts, undefined);
+  } finally { ws.done(); }
 });
