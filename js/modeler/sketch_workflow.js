@@ -18,7 +18,9 @@ import { resolveAssemblyWorkflow, resolveWorkflowStep, shouldResumeSketchSession
 import { offerProfileFeatures, syncCommandManager, syncSelectionFilters } from "../modeler/command_manager.js";
 import { activeSketchFrame, documentDirty, invalidateSketchProjection, partUV, pushUndo, sameSketchContext, sketchProjection, standardPlaneFrame, toPx } from "../modeler/document_history.js";
 import { syncTools } from "../modeler/document_save.js";
-import { closedSketchProfile, drawSketch, drawingSheet, flash, syncSheetPanel } from "../modeler/drawing_sheet.js";
+import { closedSketchProfile } from "./drawing_sheet_profiles.js";
+import { drawSketch, drawingSheet, syncSheetPanel } from "./drawing_sheet_render.js";
+import { flash } from "./drawing_sheet_touch.js";
 import { el } from "../modeler/editor_dom.js";
 import { regenerateExactModel } from "../modeler/export_measure.js";
 import { clearFeaturePreview, cutTargetFeatureId } from "../modeler/feature_create.js";

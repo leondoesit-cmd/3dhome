@@ -16,7 +16,6 @@ import "../modeler/document_history.js";
 import "../modeler/document_io.js";
 import "../modeler/document_outputs.js";
 import "../modeler/document_save.js";
-import { drawSketch } from "../modeler/drawing_sheet.js";
 import { el } from "../modeler/editor_dom.js";
 import "../modeler/editor_forms.js";
 import "../modeler/library_io.js";
@@ -39,6 +38,7 @@ import "../ui_history.js";
 import "../uikit_host/ribbon.js";
 import "../unit_settings.js";
 import { E, root, setEditorRoot } from "../modeler.js";
+import { drawSketch } from "./drawing_sheet_render.js";
 import { buildEditorShellMarkup } from "./editor_markup.js";
 import {
   wireGuidancePropsAndPanels, wireRibbonToolsAndPanes,

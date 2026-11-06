@@ -78,6 +78,9 @@ import {
   setGameRendererQuality, toggleFreeMove, toggleWalk, toggleWalkView,
   walkLook, walkViewMode,
 } from "./view3d/walk_mode.js";
+import { wireRenderLoopAndGestures } from "./view3d/render_loop.js";
+import { setupSkyAndWalkControls } from "./view3d/sky_walk.js";
+import { setupRendererAndShadows } from "./view3d/renderer_setup.js";
 export { clearGameRendererQuality, isFreeMove, isWalk, setGameRendererQuality, toggleFreeMove, toggleWalk, toggleWalkView, walkViewMode };
 export { applyLayers3D, rebuild3D };
 export { initPhysicsForScene };
@@ -147,6 +150,33 @@ export {
   set_walkView, set_yaw, touchMove, tpDist, walkControls, walkFloorPending,
   walkPos, walkView, yaw,
 };
+// for js/view3d/render_loop.js (live bindings: it sees every reassignment)
+export {
+  compileGate, dec_settle, disposeRetired, firstCompiled, gestureRebuildMs,
+  lastRebuildT, pendingNavigationView, prepUntilDrawn, prewarmDue,
+  rebuildShadowT, regionShadowT, renderErrLogged, renderScene, retired,
+  set_compileGate, set_firstCompiled, set_gestureRebuildMs, set_lastRebuildT,
+  set_pendingNavigationView, set_prepUntilDrawn, set_rebuildShadowT,
+  set_regionShadowT, set_renderErrLogged, set_shadowDirtyBox,
+  set_shadowThrottleT, shadowDirtyBox, shadowThrottleT, shadowsDirty,
+  shadowsFromRebuild, syncCameraVelocity, syncSelectionOutline,
+  syncShadowUpdates, tgtTween, view3dLocals, viewTween,
+};
+// for js/view3d/sky_walk.js (live bindings: it sees every reassignment)
+export {
+  applyPlannerQuality, drawingEnabled, drawingHoverAt, drawingHoverObj,
+  drawingHoverXY, drawingPrefs, envDeferred, navFocus, navHover,
+  pendingOrbitCamera, set_DEFr, set_navFocus, set_navHover, set_navKeys,
+  set_pendingOrbitCamera, set_skyCanvas, set_skyDome, set_skyTex, set_stars,
+  set_tgt, set_walkControls,
+};
+// for js/view3d/renderer_setup.js (live bindings: it sees every reassignment)
+export {
+  aoPass, lightLoop, post, set_aoPass, set_camera, set_dyn, set_envSrcCanvas,
+  set_envSrcTex, set_hemi, set_lightLoop, set_pmrem, set_post,
+  set_prewarmPass, set_ready3D, set_renderer, set_roomBounce, set_scene,
+  set_sun, set_traaPass, set_velUniforms, traaPass, velUniforms,
+};
 
 /* "Is there a live 3D scene?" — a QUESTION now, not a load-time constant.
    It used to be `typeof THREE !== "undefined"`, i.e. always true, evaluated the
@@ -156,9 +186,12 @@ export {
    scene, and every guard below reads it — so a call that arrives before the
    renderer exists no-ops exactly as it did on a machine without WebGL. */
 var ready3D = false;
+function set_ready3D(value) { return ready3D = value; }
 let plannerRenderHook = null;
 let pendingOrbitCamera = null;
+function set_pendingOrbitCamera(value) { return pendingOrbitCamera = value; }
 let pendingNavigationView = null;
+function set_pendingNavigationView(value) { return pendingNavigationView = value; }
 export function setPlannerRenderHook(fn) { plannerRenderHook = fn; }
 export function plannerPlanePoint3D(cx,cy,origin,normal) {
   if(!ready3D||!camera||extTick)return null;
@@ -222,6 +255,13 @@ export function has3D() {
 var init3DPromise = null;
 
 var scene, renderer, camera, dyn, sun, hemi, stars, selectionOutline;
+function set_camera(value) { return camera = value; }
+function set_dyn(value) { return dyn = value; }
+function set_hemi(value) { return hemi = value; }
+function set_renderer(value) { return renderer = value; }
+function set_scene(value) { return scene = value; }
+function set_sun(value) { return sun = value; }
+function set_stars(value) { return stars = value; }
 // real-world site overlay (js/site.js): aerial ground group + street-view skybox.
 // Both live on `scene` (not `dyn`) so they survive rebuild3D's dyn.clear().
 var siteGroup = null, // holds the aerial ground plane, rotated by groundRot
@@ -230,6 +270,7 @@ var siteGroup = null, // holds the aerial ground plane, rotated by groundRot
   svBox = null, // world-anchored street-view pano dome (see setStreetViewCube)
   skyDome = null, // gradient sky dome ref (hidden when street view is on)
   groundPlaneRef = null;
+function set_skyDome(value) { return skyDome = value; }
 function set_groundPlaneRef(value) { return groundPlaneRef = value; }
 function set_siteAerialMesh(value) { return siteAerialMesh = value; }
 function set_siteAerialTex(value) { return siteAerialTex = value; }
@@ -333,6 +374,9 @@ export function orbitRefresh() {
 }
 
 var post, aoPass, traaPass, usePost = false; // AO/AA post-processing node graph
+function set_aoPass(value) { return aoPass = value; }
+function set_post(value) { return post = value; }
+function set_traaPass(value) { return traaPass = value; }
 function set_usePost(value) { return usePost = value; }
 // TRAA is temporal: one painted frame is not enough for it to converge, and the
 // on-demand loop below would otherwise stop after a single paint and leave the
@@ -340,8 +384,10 @@ function set_usePost(value) { return usePost = value; }
 // extra "settle" frames so the temporal history fills in, then go idle again.
 var SETTLE_FRAMES = 6;
 var settle = 0;
+function dec_settle() { return --settle; }
 function set_settle(value) { return settle = value; }
 var renderErrLogged = false;
+function set_renderErrLogged(value) { return renderErrLogged = value; }
 // set when updateEnvMap had to skip because the GPU backend was not up yet
 var envDeferred = false;
 function set_envDeferred(value) { return envDeferred = value; }
@@ -355,13 +401,21 @@ function set_needsRender(value) { return needsRender = value; }
 var shadowsDirty = true; // rebuild the sun shadow map next paint (geometry/sun changed)
 function set_shadowsDirty(value) { return shadowsDirty = value; }
 var shadowThrottleT = 0;  // timestamp of last shadow pass (for extLive throttle)
+function set_shadowThrottleT(value) { return shadowThrottleT = value; }
 var regionShadowT = 0; // timestamp of the last drag-region shadow redraw
+function set_regionShadowT(value) { return regionShadowT = value; }
 var shadowsFromRebuild = false, rebuildShadowT = 0; // a wall drag rebuilds every frame
+function set_rebuildShadowT(value) { return rebuildShadowT = value; }
 function set_shadowsFromRebuild(value) { return shadowsFromRebuild = value; }
 var lastRebuildT = -1e9; // when the last full rebuild ran (see the compile below it)
+function set_lastRebuildT(value) { return lastRebuildT = value; }
 var gestureRebuildMs = 0; // what a rebuild during the current gesture cost (rebuild3D + applyEnv)
+function set_gestureRebuildMs(value) { return gestureRebuildMs = value; }
 var firstCompiled = false, compileGate = false; // the first draw waits a frame for #v3dPrep to paint
+function set_compileGate(value) { return compileGate = value; }
+function set_firstCompiled(value) { return firstCompiled = value; }
 var prepUntilDrawn = false; // #v3dPrep comes down after the first draw
+function set_prepUntilDrawn(value) { return prepUntilDrawn = value; }
 var qualityPreset = "auto";
 var gameRendererLock = false;
 function set_gameRendererLock(value) { return gameRendererLock = value; }
@@ -528,6 +582,7 @@ function surfaceMaterial(entry, o) {
   return mat;
 }
 var shadowDirtyBox = null, _lightPos = null;
+function set_shadowDirtyBox(value) { return shadowDirtyBox = value; }
 /* Bumped by everything that changes what casts shadows short of a full
    rebuild (a moved or resized piece, a requested redraw). Another renderer
    with shadow maps of its own (the inspector preview's stand-in lights)
@@ -622,11 +677,16 @@ function applyPlannerQuality() {
 var skyCanvas,
   skyTex,
   envPT = null; // gradient sky dome + env snapshot for the path tracer
+function set_skyCanvas(value) { return skyCanvas = value; }
+function set_skyTex(value) { return skyTex = value; }
 function set_envPT(value) { return envPT = value; }
 var pmrem, // PMREMGenerator for image-based lighting
   envSrcCanvas, // equirect gradient painted for IBL
   envSrcTex,
   envRT = null; // current prefiltered environment render target
+function set_envSrcCanvas(value) { return envSrcCanvas = value; }
+function set_envSrcTex(value) { return envSrcTex = value; }
+function set_pmrem(value) { return pmrem = value; }
 function set_envRT(value) { return envRT = value; }
 var tgt,
   radius,
@@ -635,6 +695,8 @@ var tgt,
   DEFr,
   userMoved = false,
   framedInterior = false; // compact Frame uses the same near-wall cutaway as CAD edit
+function set_DEFr(value) { return DEFr = value; }
+function set_tgt(value) { return tgt = value; }
 function set_phi(value) { return phi = value; }
 function set_theta(value) { return theta = value; }
 function set_radius(value) { return radius = value; }
@@ -656,6 +718,7 @@ var walk = false,
   touchMove = { x: 0, z: 0 },
   walkControls = null,
   avatar = null;
+function set_walkControls(value) { return walkControls = value; }
 function set_avatar(value) { return avatar = value; }
 function set_freeMove(value) { return freeMove = value; }
 function set_keys(value) { return keys = value; }
@@ -721,7 +784,9 @@ var spareLights = { PointLight: [], SpotLight: [] };
 var windowLights = []; // the daylight lights of the last rebuild3D
 function set_windowLights(value) { return windowLights = value; }
 var roomBounce = null; // the one light carrying each room's bounce, see fitBounceLights
+function set_roomBounce(value) { return roomBounce = value; }
 var lightLoop = null; // the loop drawing every light that casts no shadow, see js/light_loop.js
+function set_lightLoop(value) { return lightLoop = value; }
 
 /* ---- furniture cache -------------------------------------------------------
    Furniture is the bulk of a rebuild (~139 of 179 ms on a 37-piece flat), and
@@ -817,6 +882,7 @@ function set_selectionBoundsCache(value) { return selectionBoundsCache = value; 
    painted frame's unjittered view-projection. Called outside render(), where
    TRAA has already taken its sub-pixel jitter back off the projection. */
 var velUniforms = null;
+function set_velUniforms(value) { return velUniforms = value; }
 function syncCameraVelocity() {
   if (!velUniforms) return;
   camera.updateMatrixWorld();
@@ -939,6 +1005,7 @@ var MAX_SHADOW_MAPS = 8;
    The shadow maps' own depth shaders are not built this way; those are the
    cheap part of a handoff. */
 var prewarmPass = null; // the scene pass: its target, MRT and call depth key the shaders
+function set_prewarmPass(value) { return prewarmPass = value; }
 var prewarmDue = 0; // when to start (performance.now), 0 for nothing to do
 function set_prewarmDue(value) { return prewarmDue = value; }
 var prewarmRun = null; // the run in progress
@@ -1025,6 +1092,9 @@ var navRight = null,
   navHover = false, // pointer is over the 3D canvas
   navFocus = false, // the 3D canvas was clicked into (WASD gate)
   tgtTween = null; // eased target move (double-click focus)
+function set_navFocus(value) { return navFocus = value; }
+function set_navHover(value) { return navHover = value; }
+function set_navKeys(value) { return navKeys = value; }
 function set_navFwd(value) { return navFwd = value; }
 function set_navRay(value) { return navRay = value; }
 function set_navRight(value) { return navRight = value; }
@@ -1481,562 +1551,15 @@ export function init3D() {
   return init3DPromise;
 }
 
+const view3dLocals = {
+  el: undefined, lx: undefined, ly: undefined, tm: undefined, ld: undefined, cx0: undefined,
+  cy0: undefined, tapT: undefined, tapX: undefined, tapY: undefined, d2: undefined, cen: undefined,
+};
+
 function build3D() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xeef0f3);
-  // WebGPURenderer drives a WebGPU backend where the browser has it and silently
-  // falls back to its own WebGL2 backend where it does not (WebKitGTK, older
-  // Safari) — same API, same node materials, so there is only one code path to
-  // maintain. See gpu.js for the backend policy and the forceWebGL test switch.
-  // looked up per call: the bounce (and its room map) is made just below
-  lightLoop = createLightLoop(THREE, TSL, {
-    on: lightLoopWanted(),
-    maskRoom: function (l, r) { return roomBounce ? roomBounce.loopMasks.maskRoom(l, r) : UNMASKED; },
-    lightOpen: function (m) { return roomBounce ? roomBounce.loopMasks.lightOpen(m) : TSL.float(1); },
-    hoist: function () { return roomBounce ? roomBounce.loopMasks.hoist() : []; },
-  });
-  renderer = createRenderer({
-    lighting: lightLoop.lighting,
-    canvas: document.getElementById("v3d"),
-    // antialias:false is deliberate. MSAA makes the scene pass multisampled while
-    // the depth/normal targets GTAO and TRAA read from are single-sampled, and the
-    // per-frame depth copy then fails with a sample-count validation error. TRAA
-    // is the antialiasing here — it resolves edges temporally instead, which also
-    // beats MSAA on the alpha-tested foliage and thin trim in these scenes.
-    antialias: false,
-
-  });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.shadowMap.enabled = true;
-  // PCF, not PCFSoft: in r185 PCFSoftShadowFilter is a fixed 3×3-texel gather
-  // that never reads shadow.radius, so every penumbra this rig sets (the sun
-  // widening at dusk, the night practicals) came out as the same hard edge.
-  // PCFShadowFilter samples a Vogel disk scaled by shadow.radius, rotated per
-  // pixel — the penumbra the radius asks for. Point lights use their own
-  // filter, which reads radius either way.
-  renderer.shadowMap.type = THREE.PCFShadowMap;
-  // Shadows are camera-independent, so there's no reason to re-render the (4K)
-  // shadow map every frame while the user just orbits. They update on demand —
-  // only when geometry or the sun actually moved (see shadowsDirty) — per light,
-  // through syncShadowUpdates: WebGPURenderer has no renderer-wide switch.
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
-  // Image-based lighting: prefilter the gradient sky into an environment map so
-  // every PBR material gets sky-directional ambient + real reflections (kills the flat look).
-  pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
-  envSrcCanvas = document.createElement("canvas");
-  envSrcCanvas.width = 128;
-  envSrcCanvas.height = 64;
-  envSrcTex = new THREE.CanvasTexture(envSrcCanvas);
-  envSrcTex.mapping = THREE.EquirectangularReflectionMapping;
-  // near=10 (not 1): with far=12000 a near of 1 wastes almost all depth
-  // precision, z-fighting the 1mm wall-joint overlaps into dashed seams.
-  camera = new THREE.PerspectiveCamera(45, 1, 10, 50000);
-  hemi = new THREE.HemisphereLight(0xffffff, 0x9c8d6f, LUX * 0.6);
-  scene.add(hemi);
-  sun = new THREE.DirectionalLight(0xfff3df, LUX * 0.95);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(4096, 4096);
-  sun.shadow.camera.near = 1;
-  sun.shadow.bias = -0.0005;
-  // scene units are centimeters; normalBias must be large enough to clear a
-  // shadow texel (~1cm) or walls self-shadow into zigzag acne along edges —
-  // the proud baseboard/door-frame trim (0.8–1.3cm) needs extra clearance.
-  sun.shadow.normalBias = 3.5;
-  sun.shadow.radius = 6; // penumbra width; needs PCFSoftShadowMap to have any effect
-  // the sun also sees what the view hides (see shadowRoot); a mask beyond
-  // layer 0 stops the shadow camera inheriting the view camera's layers
-  sun.shadow.camera.layers.enable(SHADOW_ONLY_LAYER);
-  scene.add(sun);
-  scene.add(sun.target);
-  dyn = new THREE.Group();
-  scene.add(dyn);
-  // on `scene`, not `dyn`: one light for the life of the view (see fitBounceLights).
-  // Its plan map also keeps the sky and every unshadowed light out of the
-  // rooms they cannot reach (see fitLightMasks); a game grading the house
-  // with its own rig holds the masks off.
-  roomBounce = createRoomBounce(THREE, TSL, {
-    masks: function () { return !gameRendererLock && !relightHooks.length; },
-    inspection: function () {
-      return roomInspectionFill({
-        walk, showCeiling: S.showCeiling, covered: !!S.roof && !S.invisibleRoof,
-        daylight: S.dayK, physicalMode: gameRendererLock || relightHooks.length > 0,
-      });
-    },
-  });
-  roomBounce.register(renderer);
-  roomBounce.confineSky(scene);
-  scene.add(roomBounce.light);
-  /* From here on there IS a scene, so the has3D()/ready3D guards must open:
-     the rest of this function calls applyEnv() and rebuild3D(), which are two
-     of them. Everything they need (scene, renderer, camera, dyn) exists. */
-  ready3D = true;
-
-  // Post-processing: AO gives the contact/corner darkening that makes interiors
-  // read as real instead of "floating"; TRAA cleans the edges the raster pass
-  // leaves behind. Built as a TSL node graph rather than a pass chain — the
-  // scene pass writes colour, normal and velocity into one MRT so AO and AA can
-  // share it instead of each re-rendering the scene.
-  try {
-    post = new THREE.RenderPipeline(renderer);
-    // samples:0 pins the scene pass to single-sampled. PassNode otherwise
-    // inherits renderer.samples, and a multisampled colour target with the
-    // single-sampled depth GTAO/TRAA read produces a per-frame WebGPU
-    // sample-count validation error on the depth copy.
-    var scenePass = TSL.pass(scene, camera, { samples: 0 });
-    // three's velocity node keeps the previous CAMERA view matrix in the
-    // per-object uniform group, so every camera move dirtied every object's
-    // uniform buffer: one upload per mesh per frame, which on the WebGPU
-    // backend (a queue.writeBuffer each) was the bulk of an orbit frame. The
-    // value is per camera, like the previous projection beside it, so it
-    // belongs to the render group: uploaded once per pass, and a static mesh's
-    // own buffer stays untouched while the view moves.
-    if (TSL.velocity.previousCameraViewMatrix && TSL.renderGroup)
-      TSL.velocity.previousCameraViewMatrix.setGroup(TSL.renderGroup);
-    /* No per-object velocity in the MRT. With a velocity target bound, three
-       refreshes EVERY object's uniforms on every frame (needsVelocity), even
-       a static wall, even inside a recorded bundle: ~7 ms of an orbit frame
-       on the ~830 meshes of a furnished flat (half the frame). TRAA gets a camera-motion
-       velocity instead, rebuilt from depth and last frame's camera — exact
-       for everything that stands still, which in a planner is everything but
-       the piece being dragged, and TRAA's variance clipping keeps that one
-       from smearing. Matrices are the unjittered ones, as three's own
-       velocity uses (see syncCameraVelocity). */
-    scenePass.setMRT(TSL.mrt({ output: TSL.output }));
-    prewarmPass = scenePass;
-    var colorNode = scenePass.getTextureNode("output");
-    var depthNode = scenePass.getTextureNode("depth");
-    velUniforms = {
-      curViewProj: TSL.uniform(new THREE.Matrix4()),
-      prevViewProj: TSL.uniform(new THREE.Matrix4()),
-      projInv: TSL.uniform(new THREE.Matrix4()),
-      world: TSL.uniform(new THREE.Matrix4()),
-      primed: false,
-    };
-    var cameraVelocity = TSL.Fn(function () {
-      var uvN = TSL.uv();
-      var depth = depthNode.load(uvN.mul(depthNode.size())).r;
-      var view = TSL.getViewPosition(uvN, depth, velUniforms.projInv);
-      var world = velUniforms.world.mul(TSL.vec4(view, 1));
-      var cur = velUniforms.curViewProj.mul(world), prev = velUniforms.prevViewProj.mul(world);
-      return TSL.vec4(cur.xy.div(cur.w).sub(prev.xy.div(prev.w)), 0, 1);
-    })();
-    var velocityNode = TSL.convertToTexture(cameraVelocity);
-
-    /* Normals from depth, not from a normal target: the walls are flat-shaded
-       and re-cut by the dollhouse, and their vertex normals disagreed with the
-       depth GTAO marches through — every wall seen from above read as ~40%
-       occluded (dark grey) on open, flat plaster. Depth is the truth GTAO
-       measures against anyway, and dropping the normal target saves a
-       full-screen write per frame. */
-    aoPass = ADDONS.ao(depthNode, null, camera);
-    // GTAO's radius is in WORLD units, unlike the old SSAO kernelRadius which was
-    // in its own screen-ish space. Scene units are centimetres (room ~400–600cm),
-    // so contact occlusion wants tens of cm, not the 0.25 metre-scale default.
-    aoPass.radius.value = 18;
-    aoPass.distanceExponent.value = 1.2;
-    aoPass.thickness.value = 12;
-    aoPass.distanceFallOff.value = 1;
-    aoPass.scale.value = 1.1; // slightly over 1: interiors read better with firm contact shadows
-    aoPass.samples.value = 16;
-
-    // AO multiplies the beauty pass, then TRAA resolves the result.
-    // GTAO renders into a single-channel RedFormat target, so the occlusion has
-    // to be broadcast to rgb before multiplying — multiplying the vec4 directly
-    // zeroes green and blue and the whole view comes out red.
-    var lit = colorNode.mul(TSL.vec4(TSL.vec3(aoPass.getTextureNode().r), 1));
-    traaPass = ADDONS.traa(lit, depthNode, velocityNode, camera);
-    // ?post=raw|ao|traa (or localStorage home3d_post) bisects the graph when the
-    // image comes out wrong — "raw" is the bare scene pass, "ao" adds GTAO.
-    var stage = (/[?&]post=(\w+)/.exec(location.search) || [])[1] ||
-      (function () { try { return localStorage.getItem("home3d_post"); } catch (e) { return null; } })() ||
-      "traa";
-    // "vel" shows TRAA's camera velocity (|ndc offset| × 20) for checking reprojection,
-    // "aoonly" the ambient occlusion alone
-    post.outputNode = stage === "raw" ? colorNode : stage === "ao" ? lit
-      : stage === "vel" ? TSL.vec4(velocityNode.sample(TSL.uv()).xy.abs().mul(20), 0, 1)
-      : stage === "aoonly" ? TSL.vec4(TSL.vec3(aoPass.getTextureNode().r), 1) : traaPass;
-    usePost = true;
-  } catch (e) {
-    console.warn("post-processing unavailable, falling back to direct render:", e);
-    post = null;
-    usePost = false;
-  }
-  setQualityPreset((S.workspace && S.workspace.quality) || "auto");
-  window.addEventListener("mf-posture", function () {
-    if (!plannerCompact()) framedInterior = false;
-    if (renderer && !gameRendererLock) applyPlannerQuality();
-    upd();
-  });
-
-  // The backend comes up asynchronously (adapter/device request on WebGPU). The
-  // animate loop already skips frames until renderer.initialized flips, so all
-  // this has to do is wake it once the backend is live and report which one we
-  // actually got — useful when a machine silently lands on the WebGL2 fallback.
-  renderer.init().then(function () {
-    // the dusk and dawn shadow handoffs re-key every material; keep the
-    // other half of the day's shaders instead of rebuilding them each time
-    // Room for every shadow set at once (the prewarm builds the ones the
-    // hour is not using): ~60 shaders a set on a large flat, each a state, a
-    // pipeline and its programs; the default 256 lost one set to the next.
-    retainShaderCaches(renderer, 2048);
-    // Anything that needed real GPU work during init3D was deferred to here.
-    // applyEnv() rebuilds the IBL/PMREM environment, the sky and the sun from
-    // current state, so re-running it is the whole catch-up.
-    if (envDeferred) {
-      envDeferred = false;
-      try { applyEnv(); } catch (e) { console.error("deferred applyEnv failed:", e); }
-    }
-    needsRender = true;
-    settle = SETTLE_FRAMES;
-    var backend = renderer.backend && renderer.backend.isWebGPUBackend ? "WebGPU" : "WebGL2";
-    if (window.console && console.info) console.info("3D backend: " + backend + " (three r" + THREE.REVISION + ")");
-    window.dispatchEvent(new CustomEvent("renderBackendReady", { detail: { backend: backend } }));
-  }).catch(function (e) {
-    console.error("3D backend failed to initialise:", e);
-  });
-
-  // star dome, shown only at night (deterministic layout)
-  (function () {
-    var pos = [],
-      R = 6800;
-    for (var i = 0; i < 420; i++) {
-      var az = (i * 2.399963) % (Math.PI * 2),
-        el = 0.06 + (((i * 97) % 100) / 100) * 1.35;
-      pos.push(
-        R * Math.cos(el) * Math.cos(az),
-        R * Math.sin(el),
-        R * Math.cos(el) * Math.sin(az),
-      );
-    }
-    // Instanced billboard quads, not THREE.Points: WebGPU only draws 1px point
-    // primitives, so a 2.5px Points star field shrank to specks. A
-    // PointsNodeMaterial on a MESH runs three's sprite expansion instead, with
-    // the same size / sizeAttenuation meaning PointsMaterial had.
-    var quad = new THREE.PlaneGeometry(1, 1);
-    var sg = new THREE.InstancedBufferGeometry();
-    sg.setIndex(quad.index.clone());
-    sg.setAttribute("position", quad.attributes.position.clone());
-    sg.setAttribute("iPos", new THREE.InstancedBufferAttribute(new Float32Array(pos), 3));
-    sg.instanceCount = pos.length / 3;
-    quad.dispose();
-    var starMat = new THREE.PointsNodeMaterial({
-      color: 0xcfdcf2,
-      size: 2.5,
-      sizeAttenuation: false,
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-      fog: false,
-    });
-    starMat.positionNode = TSL.attribute("iPos");
-    stars = new THREE.Mesh(sg, starMat);
-    // the quad's own bounds are 1cm at the origin; the dome is 68m out, so
-    // neither culling nor a scene raycast may use them
-    stars.frustumCulled = false;
-    stars.raycast = function () {};
-    stars.visible = false;
-    stars.renderOrder = -1;
-    scene.add(stars);
-  })();
-
-  // gradient sky dome (repainted by applyEnv); stars render in front of it
-  skyCanvas = document.createElement("canvas");
-  skyCanvas.width = 4;
-  skyCanvas.height = 256;
-  skyTex = new THREE.CanvasTexture(skyCanvas);
-  skyDome = new THREE.Mesh(
-    new THREE.SphereGeometry(9000, 24, 12),
-    new THREE.MeshBasicMaterial({
-      map: skyTex,
-      side: THREE.BackSide,
-      fog: false,
-      depthWrite: false,
-    }),
-  );
-  skyDome.renderOrder = -2;
-  scene.add(skyDome);
-
-  tgt = new THREE.Vector3(200, 70, 150);
-  if(pendingOrbitCamera){const saved=pendingOrbitCamera;pendingOrbitCamera=null;setOrbitCamera(saved);}
-  radius = 620;
-  theta = 0.92;
-  phi = 0.95;
-  DEFr = 620;
-
-  var el = renderer.domElement,
-    down = false,
-    dragPan = false, // this drag pans instead of orbiting
-    lx = 0,
-    ly = 0;
-  /* Touch-only walkthrough movement. Looking remains on the canvas; the
-     left-hand pad supplies forward/back/strafe without stealing that gesture. */
-  walkControls = document.createElement("div");
-  walkControls.className = "walk-touch-controls";
-  walkControls.hidden = true;
-  walkControls.innerHTML = '<div class="walk-stick"><span></span></div>';
-  el.parentNode.appendChild(walkControls);
-  var walkStick = walkControls.firstElementChild,
-    walkKnob = walkStick.firstElementChild,
-    stickPointer = null;
-  function updateStick(e) {
-    var r = walkStick.getBoundingClientRect(),
-      radius = r.width * 0.32,
-      dx = e.clientX - (r.left + r.width / 2),
-      dy = e.clientY - (r.top + r.height / 2),
-      len = Math.hypot(dx, dy) || 1,
-      scale = Math.min(1, radius / len);
-    dx *= scale; dy *= scale;
-    walkKnob.style.transform = "translate(" + dx + "px," + dy + "px)";
-    touchMove.x = dx / radius;
-    touchMove.z = dy / radius;
-  }
-  function releaseStick(e) {
-    if (stickPointer !== e.pointerId) return;
-    stickPointer = null;
-    touchMove.x = touchMove.z = 0;
-    walkKnob.style.transform = "";
-  }
-  walkStick.addEventListener("pointerdown", function (e) {
-    stickPointer = e.pointerId;
-    walkStick.setPointerCapture(e.pointerId);
-    updateStick(e);
-    e.preventDefault();
-  });
-  walkStick.addEventListener("pointermove", function (e) {
-    if (stickPointer === e.pointerId) updateStick(e);
-  });
-  walkStick.addEventListener("pointerup", releaseStick);
-  walkStick.addEventListener("pointercancel", releaseStick);
-  el.addEventListener("mouseenter", function () {
-    navHover = true;
-  });
-  el.addEventListener("pointermove", function (e) {
-    if (!drawingEnabled || !drawingPrefs.hover) return;
-    // no hover sketch while orbiting, panning or dragging a piece
-    drawingHoverAt(down || editDrag || e.buttons ? null : e.clientX, e.clientY);
-  });
-  el.addEventListener("mouseleave", function () {
-    if (drawingHoverObj || drawingHoverXY) drawingHoverAt(null);
-    navHover = false;
-    if (!navFocus) navKeys = {};
-  });
-  // clicking into the 3D view "engages" it: that is the gate for the WASD keys,
-  // which are shared with global shortcuts (W = walk mode) elsewhere in the app
-  window.addEventListener(
-    "mousedown",
-    function (e) {
-      var on = e.target === el;
-      if (navFocus && !on) navKeys = {};
-      navFocus = on;
-    },
-    true,
-  );
-  window.addEventListener("blur", function () {
-    navKeys = {};
-  });
-  el.addEventListener("mousedown", function (e) {
-    // edit mode gets first refusal on a plain left press: it only claims the
-    // drag when a piece is actually under the cursor, so empty space and
-    // right/middle/Shift still orbit and pan as usual
-    if (editDown(e)) {
-      down = false;
-      dragPan = false;
-      return;
-    }
-    down = true;
-    userMoved = true;
-    // middle button, right button or Shift+left = pan; plain left = orbit
-    dragPan = !walk && (e.button === 1 || e.shiftKey);
-    if (e.button === 1) e.preventDefault(); // no autoscroll cursor
-    lx = e.clientX;
-    ly = e.clientY;
-  });
-  // right-drag pans, so suppress the browser menu over the canvas
-  el.addEventListener("contextmenu", function (e) {
-    e.preventDefault();
-  });
-  el.addEventListener("dblclick", function (e) {
-    if (walk || extTick) return;
-    userMoved = true;
-    focusAt(e.clientX, e.clientY);
-  });
-  window.addEventListener("mouseup", function () {
-    editUp();
-    down = false;
-    dragPan = false;
-  });
-  window.addEventListener("mousemove", function (e) {
-    if (editDrag) {
-      editMove(e);
-      return;
-    }
-    if (!down) return;
-    if (walk) {
-      yaw -= (e.clientX - lx) * 0.005;
-      pitch = Math.max(-1.3, Math.min(1.3, pitch - (e.clientY - ly) * 0.005));
-      lx = e.clientX;
-      ly = e.clientY;
-      walkLook();
-      return;
-    }
-    var dx = e.clientX - lx,
-      dy = e.clientY - ly;
-    lx = e.clientX;
-    ly = e.clientY;
-    // Shift counts mid-drag too, so you can start orbiting and slide over
-    if (dragPan || e.shiftKey) {
-      panPixels(dx, dy);
-      return;
-    }
-    theta -= dx * 0.005;
-    phi -= dy * 0.005;
-    cP();
-    upd();
-  });
-  // map a physical key (layout-independent, so it works with a Hebrew/other
-  // keyboard layout too) to a movement direction
-  function moveDir(e) {
-    switch (e.code) {
-      case "KeyW":
-      case "ArrowUp":
-        return "fwd";
-      case "KeyS":
-      case "ArrowDown":
-        return "back";
-      case "KeyD":
-      case "ArrowRight":
-        return "right";
-      case "KeyA":
-      case "ArrowLeft":
-        return "left";
-    }
-    return null;
-  }
-  window.addEventListener("keydown", function (e) {
-    const focused=document.activeElement;
-    if (!walk || document.documentElement.dataset.plannerViewport==='plan' || focused?.matches('input,textarea,select,[contenteditable="true"]') || document.querySelector('#cad-entry:not([hidden]) input:focus')) return;
-    var d = moveDir(e);
-    if (d) {
-      keys[d] = true;
-      e.preventDefault();
-    } else if (e.code === "KeyV") {
-      var m = toggleWalkView();
-      window.dispatchEvent(new CustomEvent("walkview", { detail: m }));
-      e.preventDefault();
-    } else if (e.code === "KeyG" || e.code === "Keyע") {
-      if (isPhysicsEnabled()) {
-        hitObjectAtCenter(camera, scene);
-      }
-      e.preventDefault();
-    } else if (e.code === "KeyT" || e.code === "Keyא") {
-      if (isPhysicsEnabled()) {
-        const slowMo = toggleSlowMo();
-        // ui.js owns flash(); view3d can't import it (ui.js imports us), so
-        // this rides the same CustomEvent bridge as walkview/freemove above
-        window.dispatchEvent(new CustomEvent("slowmo", { detail: slowMo }));
-      }
-      e.preventDefault();
-    } else if (e.code === "KeyF") {
-      var toggledDoor = false;
-      if (scene && scene.doors && scene.doors.length > 0) {
-        var minD = Infinity;
-        var nearestDoor = null;
-        scene.doors.forEach(function(d) {
-          var pos = new THREE.Vector3();
-          d.getWorldPosition(pos);
-          var dist = Math.hypot(pos.x - walkPos.x, pos.z - walkPos.z);
-          if (dist < 150 && dist < minD) {
-            minD = dist;
-            nearestDoor = d;
-          }
-        });
-        if (nearestDoor) {
-          window.dispatchEvent(new CustomEvent('planner-door-toggle',{detail:{opening:nearestDoor.userData.opening,open:!nearestDoor.userData.open}}));
-          nearestDoor.userData.open = !nearestDoor.userData.open;
-          toggledDoor = true;
-        }
-      }
-      if (!toggledDoor) {
-        var fm = toggleFreeMove();
-        window.dispatchEvent(new CustomEvent("freemove", { detail: fm }));
-      }
-      e.preventDefault();
-    } else if (e.code === "Escape") toggleWalk(false);
-  });
-  window.addEventListener("keyup", function (e) {
-    var d = moveDir(e);
-    if (d) keys[d] = false;
-  });
-  el.addEventListener(
-    "wheel",
-    function (e) {
-      e.preventDefault();
-      userMoved = true;
-      if (walk) {
-        // in third-person, the wheel pulls the camera in/out; ignore in first-person
-        if (walkView === "tpv") {
-          tpDist = clamp(tpDist * (1 + e.deltaY * 0.0012), 90, 900);
-          walkLook();
-        }
-        return;
-      }
-      // Ctrl/⌘+wheel is the pinch-zoom gesture on trackpads; treat it as zoom
-      // too (never as a page zoom), and zoom toward the cursor either way.
-      zoomBy(1 + e.deltaY * 0.0012, e.clientX, e.clientY);
-    },
-    { passive: false },
-  );
-  // ---- keyboard navigation (orbit mode) ----
-  // Capture phase + stopPropagation: the same keys drive plan-editing shortcuts
-  // in ui.js / interaction.js, and while you are navigating the 3D view they
-  // must not also nudge the selection or switch tools.
-  function navGate(e, code) {
-    if (walk || extTick || !camera) return false;
-    if (e.ctrlKey || e.metaKey || e.altKey) return false;
-    var ae = document.activeElement;
-    if (ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName)) return false;
-    if (ae && ae.isContentEditable) return false;
-    if (!navHover && !navFocus) return false;
-    // WASD only once the view has been clicked into — a bare W over the canvas
-    // still means "walk mode" for anyone used to that shortcut
-    if (/^Key[WASD]$/.test(e.code)) return navFocus;
-    return true;
-  }
-  window.addEventListener(
-    "keydown",
-    function (e) {
-      var c = navCode(e);
-      if (!c || !navGate(e, c)) return;
-      navKeys[c] = true;
-      navKeys.fast = e.shiftKey;
-      userMoved = true;
-      needsRender = true;
-      e.preventDefault();
-      e.stopPropagation();
-    },
-    true,
-  );
-  window.addEventListener(
-    "keyup",
-    function (e) {
-      var c = navCode(e);
-      if (!c) return;
-      if (navKeys[c]) e.stopPropagation();
-      navKeys[c] = false;
-      navKeys.fast = e.shiftKey;
-    },
-    true,
-  );
-  var tm = 0,
-    ld = 0,
-    cx0 = 0, // last two-finger centroid (drives touch panning)
-    cy0 = 0,
-    tapT = 0, // last single-tap time+position, for double-tap focus
-    tapX = 0,
-    tapY = 0;
+  view3dLocals.d2 = d2;
+  view3dLocals.cen = cen;
+  setupRendererAndShadows();
   function d2(e) {
     var a = e.touches[0],
       b = e.touches[1];
@@ -2047,14 +1570,14 @@ function build3D() {
       b = e.touches[1];
     return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
   }
-  el.addEventListener(
+  view3dLocals.el.addEventListener(
     "touchstart",
     function (e) {
       userMoved = true;
       if (e.touches.length === 1) {
-        tm = 1;
-        lx = e.touches[0].clientX;
-        ly = e.touches[0].clientY;
+        view3dLocals.tm = 1;
+        view3dLocals.lx = e.touches[0].clientX;
+        view3dLocals.ly = e.touches[0].clientY;
         /* Edit mode gets first refusal on a single finger, exactly as it does
            on a left press: with no piece under the finger editDown declines
            and the touch orbits as before. editDown reads button/altKey/shiftKey,
@@ -2063,459 +1586,27 @@ function build3D() {
         if (
           legacyTouchEdit &&
           editDown({
-            clientX: lx,
-            clientY: ly,
+            clientX: view3dLocals.lx,
+            clientY: view3dLocals.ly,
             button: 0,
             shiftKey: false,
             altKey: false,
           })
         ) {
-          tm = 3; // dragging a piece: neither orbit nor pinch until it is let go
+          view3dLocals.tm = 3; // dragging a piece: neither orbit nor pinch until it is let go
           e.preventDefault();
         }
       } else if (e.touches.length >= 2) {
-        tm = 2;
-        ld = d2(e);
-        var c = cen(e);
-        cx0 = c.x;
-        cy0 = c.y;
+        view3dLocals.tm = 2;
+        view3dLocals.ld = (0, view3dLocals.d2)(e);
+        var c = (0, view3dLocals.cen)(e);
+        view3dLocals.cx0 = c.x;
+        view3dLocals.cy0 = c.y;
       }
     },
     { passive: false },
   );
-  el.addEventListener(
-    "touchmove",
-    function (e) {
-      e.preventDefault();
-      if (tm === 3) {
-        if (e.touches.length === 1) editMove(e.touches[0]);
-        return;
-      }
-      if (tm === 1 && e.touches.length === 1) {
-        if (walk) {
-          yaw -= (e.touches[0].clientX - lx) * 0.006;
-          pitch = Math.max(-1.3, Math.min(1.3, pitch - (e.touches[0].clientY - ly) * 0.006));
-          lx = e.touches[0].clientX;
-          ly = e.touches[0].clientY;
-          walkLook();
-        } else {
-          theta -= (e.touches[0].clientX - lx) * 0.006;
-          phi -= (e.touches[0].clientY - ly) * 0.006;
-          lx = e.touches[0].clientX;
-          ly = e.touches[0].clientY;
-          cP();
-          upd();
-        }
-      } else if (tm === 2 && e.touches.length >= 2) {
-        var d = d2(e),
-          f = ld / Math.max(d, 1),
-          c = cen(e),
-          mx = c.x - cx0,
-          my = c.y - cy0;
-        ld = d;
-        cx0 = c.x;
-        cy0 = c.y;
-        if (walk) {
-          if (walkView === "tpv") {
-            tpDist = clamp(tpDist * f, 90, 900);
-            walkLook();
-          }
-        } else {
-          // two fingers do both at once: spread/squeeze zooms, sliding pans
-          if (Math.abs(1 - f) > 0.002) zoomBy(f, c.x, c.y);
-          if (Math.hypot(mx, my) > 0.5) panPixels(mx, my);
-        }
-      }
-    },
-    { passive: false },
-  );
-  el.addEventListener("touchend", function (e) {
-    if (tm === 3) {
-      if (e.touches.length === 0) {
-        editUp();
-        tm = 0;
-      }
-      return; // a piece drag is never also a double-tap
-    }
-    if (e.touches.length === 0) {
-      // double-tap (one finger, same spot, under 320ms) focuses that point
-      if (tm === 1 && !walk) {
-        var now = performance.now();
-        if (now - tapT < 320 && Math.hypot(lx - tapX, ly - tapY) < 30) {
-          focusAt(lx, ly);
-          tapT = 0;
-        } else {
-          tapT = now;
-          tapX = lx;
-          tapY = ly;
-        }
-      }
-      tm = 0;
-    } else if (e.touches.length === 1) {
-      tm = 1;
-      lx = e.touches[0].clientX;
-      ly = e.touches[0].clientY;
-    }
-  });
-
-  el.addEventListener("touchcancel", function () {
-    if (tm === 3) editUp();
-    tm = 0;
-  });
-
-  upd();
-  applyEnv();
-  
-  // returns true while any door is still easing toward its target (so the loop
-  // keeps painting until it settles, then goes idle)
-  function updateDoors() {
-    if (!scene || !scene.doors) return false;
-    var moving = false;
-    scene.doors.forEach(function(d) {
-      if (!d.userData) return;
-      if (d.userData.type === "swing") {
-        var targetRot = d.userData.open ? d.userData.maxOpen : 0;
-        var delta = targetRot - d.rotation.y;
-        if (Math.abs(delta) > 1e-4) {
-          d.rotation.y += delta * 0.1;
-          moving = true;
-        } else d.rotation.y = targetRot;
-      } else if (d.userData.type === "double") {
-        (d.userData.leaves || []).forEach(function(leaf) {
-          var leafTarget = d.userData.open ? leaf.userData.maxOpen : 0;
-          var leafDelta = leafTarget - leaf.rotation.y;
-          if (Math.abs(leafDelta) > 1e-4) {
-            leaf.rotation.y += leafDelta * 0.1;
-            moving = true;
-          } else leaf.rotation.y = leafTarget;
-        });
-      } else if (d.userData.type === "slide") {
-        var maxSlide = d.userData.width * 0.9;
-        var targetX = d.userData.open ? d.userData.slideDir * maxSlide : 0;
-        var dx = targetX - d.position.x;
-        if (Math.abs(dx) > 1e-3) {
-          d.position.x += dx * 0.1;
-          moving = true;
-        } else d.position.x = targetX;
-      }
-    });
-    return moving;
-  }
-
-  /* returns true if any human is present (they animate continuously, so their
-     presence keeps the render loop live)
-
-     People are FURNITURE, so their groups hang under itemsRoot, not directly
-     off dyn — dyn.children only ever held itemsRoot itself. This pass used to
-     scan dyn.children, matched nobody, and so people stood frozen while
-     humansLive stayed false forever. A traverse finds them wherever the item
-     reconciler has parented them.
-
-     Throttled to the existing ~30fps cadence. A registry follows subtree
-     attachment/removal, so the tick visits only human objects. The sway is
-     slow enough that half-rate is invisible,
-     and this pass is the one thing in an otherwise idle scene that can pin
-     the render loop (and the 4096² shadow map, see the gate below) at display
-     rate. Frames in between reuse the last answer so `live` stays stable. */
-  var humanFrameT = 0, humansPresent = false;
-  var humanRegistry = createSceneRegistry(dyn, function (object) { return !!object.userData.isHuman; });
-  function updateHumans(time) {
-    if (!dyn) return false;
-    if (humanFrameT && time - humanFrameT < 33) return humansPresent;
-    humanFrameT = time;
-    var any = false;
-    humanRegistry.members.forEach(function (c) {
-      if (c.userData && c.userData.isHuman) {
-        HumanFactory.animateHuman(c, time);
-        any = true;
-      }
-    });
-    humansPresent = any;
-    return any;
-  }
-
-  var lastTime = 0;
-  /* A hidden 3D pane (Plan view) is kept current for the next switch, but not
-     on every pointer move of a drag: each rebuild there redid and re-keyed the
-     whole house, ~180 ms a move on a large flat with nothing on screen to show
-     for it. While a gesture is in progress (a button held, or input within
-     HIDDEN_EDIT_IDLE_MS) pending rebuilds wait; the first quiet frame after it
-     runs them once, so the pane is still ready when it is opened. */
-  /* Pressed pointers by id (two fingers are two gestures' worth). A release
-     can be missed (it happened outside the window, or focus went elsewhere
-     mid-drag), so a move that reports no buttons, a blur and a hidden page
-     all forget them: a stuck press must not hold rebuilds forever. */
-  /* With the pane visible, a gesture on the 2D plan is followed at ~8 Hz rather
-     than on every pointer move: each rebuild there (~80 ms in a large flat) was
-     paid inside the plan's own frame, so the plan dragged at ~12 fps. The 3D
-     view lags a little during the drag and is exact once it ends. A gesture in
-     the 3D view itself is never throttled. */
-  var HIDDEN_EDIT_IDLE_MS = 300, VISIBLE_PLAN_DRAG_REBUILD_MS = 120;
-  var editInputT = 0, editPointers = new Set(), editOnPlan = false;
-  var noteEditInput = function () { editInputT = performance.now(); };
-  var releaseAllPointers = function () { if (editPointers.size) { editPointers.clear(); noteEditInput(); } };
-  window.addEventListener("pointerdown", function (e) {
-    if (!editPointers.size) gestureRebuildMs = 0; // a new gesture: pace from its own rebuilds
-    editPointers.add(e.pointerId);
-    editOnPlan = !!(e.target && e.target.closest && e.target.closest("#view-2d"));
-    noteEditInput();
-  }, { capture: true, passive: true });
-  window.addEventListener("pointermove", function (e) {
-    if (!editPointers.has(e.pointerId)) return;
-    if (e.buttons === 0) editPointers.delete(e.pointerId);
-    noteEditInput();
-  }, { capture: true, passive: true });
-  ["pointerup", "pointercancel"].forEach(function (type) {
-    window.addEventListener(type, function (e) { editPointers.delete(e.pointerId); noteEditInput(); }, { capture: true, passive: true });
-  });
-  window.addEventListener("blur", releaseAllPointers);
-  document.addEventListener("visibilitychange", function () { if (document.hidden) releaseAllPointers(); });
-  window.addEventListener("keydown", noteEditInput, { capture: true, passive: true });
-  var holdHiddenRebuild = function (time) {
-    if (!(S.dirty3D || S.items3D.size)) return false;
-    if (!editPointers.size && time - editInputT >= HIDDEN_EDIT_IDLE_MS) return false;
-    var el = renderer && renderer.domElement;
-    if (el && el.getClientRects().length === 0) return true; // display:none up the tree
-    /* A slow rebuild stretches the interval: on a ~200-wall plan one takes
-       ~600 ms, and at a fixed 120 ms nearly every move paid it. Only this
-       gesture's rebuilds count, and only slow ones, so a small plan keeps
-       the 120 ms pace. */
-    var interval = gestureRebuildMs > 100 ? 3 * gestureRebuildMs : VISIBLE_PLAN_DRAG_REBUILD_MS;
-    return editOnPlan && editPointers.size > 0 && time - lastRebuildT < interval;
-  };
-  /* A hidden pane (display:none up the tree: the Plan view, or a phone that
-     stays on the plan, where main.js now brings 3D up in the background) is
-     drawn once, and then not until it is shown. That first frame is the
-     background warm-up's point: it builds the house's shaders before anyone
-     opens 3D. After it, every edit drew the hidden pane seven times over (the
-     frame and its settle frames), and people or a door easing at display
-     rate, with nothing on screen to show for it. The layout is read only
-     when there is something to draw. Showing the pane again asks for a
-     frame (and TRAA's settle) from the observer below: whatever changed
-     meanwhile, or nothing, the canvas holds a picture from before. */
-  var drewOnce = false;
-  var paneHidden = function () {
-    return drewOnce && renderer.domElement.getClientRects().length === 0;
-  };
-  if (typeof ResizeObserver === "function") {
-    new ResizeObserver(function (entries) {
-      var box = entries[entries.length - 1].contentRect;
-      if (box.width > 0 && box.height > 0) {
-        needsRender = true;
-        settle = SETTLE_FRAMES;
-      }
-    }).observe(renderer.domElement);
-  }
-  buildViewGizmo();
-  if(pendingNavigationView){const view=pendingNavigationView;pendingNavigationView=null;restoreNavigationView(view);}
-  (function animate(time) {
-    time = time || performance.now();
-    var delta = safeDeltaMilliseconds(lastTime ? time - lastTime : 16, 16);
-    lastTime = time;
-    requestAnimationFrame(animate);
-    if (S.repaint3D) {
-      // lightweight path: something visual changed (texture load, overlay
-      // param) but the model didn't — repaint without rebuilding the scene
-      S.repaint3D = false;
-      needsRender = true;
-    }
-    // per-item path first: it may escalate to S.dirty3D, and a full rebuild
-    // already covers everything it would have done
-    // a rebuild or an edit replaces what a shader in flight is built from
-    if (prewarmRun && (S.dirty3D || S.items3D.size)) {
-      prewarmRun.stop = true;
-      if (!finishPrewarm()) return;
-    }
-    // A held rebuild that lands still ends in rebuild3D's "scene3d:rebuilt",
-    // which views mirroring this scene (the inspector preview) refresh from.
-    var heldNow = holdHiddenRebuild(time);
-    if (S.items3D.size && !S.dirty3D && !heldNow) applyItemOps();
-    if (S.dirty3D && !heldNow) {
-      S.dirty3D = false;
-      try {
-        schedulePrewarm(); // ends a run before the scene it draws is replaced
-        var rebuildT0 = performance.now();
-        rebuild3D();
-        applyEnv();
-        if (editPointers.size) gestureRebuildMs = performance.now() - rebuildT0;
-        /* compile() issues GPU work, so it too has to wait for the backend.
-           It walks the whole scene in a render context of its own — the frame
-           that follows does all of that again — so it only pays when there
-           is time before the next rebuild: during a drag it was ~17 ms of
-           every frame. */
-        var nowT = performance.now();
-        if (renderer && scene && camera && !firstCompiled) {
-          /* The first build: every shader in the house is new, and the
-             frame that draws it builds them all in one task (~1.6 s frozen
-             on a large flat). That cannot be split from here: compileAsync
-             builds against a render context the post-processed frame never
-             uses (three keys every shader on its context, and the scene
-             pass renders nested inside the output pass), so waiting for it
-             — up to its 6 s timeout, every time — saved ~0.6 s of the
-             freeze and kept the view blank for the 6 s. So the freeze is
-             shown for what it is instead: "Preparing the 3D view…" goes up
-             now, paints on this frame, and the frame after it draws; it
-             comes down once that draw is done. */
-          firstCompiled = true;
-          compileGate = true;
-          var prep = document.getElementById("v3dPrep");
-          if (prep) prep.style.display = "block";
-          var open = function () {
-            if (!compileGate) return;
-            compileGate = false; needsRender = true; settle = SETTLE_FRAMES;
-            prepUntilDrawn = !!prep;
-          };
-          requestAnimationFrame(open); // after this loop's own next frame
-          setTimeout(open, 250); // a hidden tab runs no frames
-        }
-        lastRebuildT = nowT;
-      } catch (err) {
-        if (window.console && console.error)
-          console.error("rebuild3D failed:", err);
-      }
-    }
-    // CAD view-gizmo camera tween (eased snap to a standard view)
-    if (viewTween) {
-      viewTween.t += delta;
-      var vk = Math.min(1, viewTween.t / viewTween.dur);
-      var ve = vk < 0.5 ? 2 * vk * vk : 1 - Math.pow(-2 * vk + 2, 2) / 2;
-      theta = viewTween.th0 + (viewTween.th1 - viewTween.th0) * ve;
-      phi = viewTween.ph0 + (viewTween.ph1 - viewTween.ph0) * ve;
-      cP();
-      upd();
-      if (vk >= 1) viewTween = null;
-    }
-    // eased target move (double-click / double-tap focus)
-    if (tgtTween) {
-      var tt = tgtTween;
-      tt.t += delta;
-      var tk = Math.min(1, tt.t / tt.dur),
-        te = 1 - Math.pow(1 - tk, 3);
-      tgt.set(
-        tt.x0 + (tt.x1 - tt.x0) * te,
-        tt.y0 + (tt.y1 - tt.y0) * te,
-        tt.z0 + (tt.z1 - tt.z0) * te,
-      );
-      radius = tt.r0 + (tt.r1 - tt.r0) * te;
-      upd();
-      if (tk >= 1) tgtTween = null;
-    }
-    // held navigation keys (pan / rise / zoom) — needs a live frame while down
-    if (!walk) navTick(delta);
-    syncPhysicsToThree(delta);
-    if (walk) moveWalk(delta / 1000);
-    var extLive = false;
-    if (extTick) {
-      try {
-        extLive = !!extTick(delta, time);
-      } catch (err) {
-        if (window.console && console.error)
-          console.error("external tick failed:", err);
-      }
-    }
-    // Collect live animations. Each of these mutates the scene, so any of them
-    // being active means we must paint this frame (and the next).
-    var doorsMoving = updateDoors();
-    if (seeFading.size) {
-      stepSeeFades(delta);
-      needsRender = true;
-    }
-    var humansLive = updateHumans(time);
-    var physicsLive = isPhysicsBusy();
-    // Nothing can be painted until the WebGPU/WebGL2 backend has finished its
-    // async init; keep the loop alive and pick up on the frame after it lands.
-    if (!renderer || !renderer.initialized) return;
-    if (compileGate) return; // the first draw waits a frame for #v3dPrep (see the rebuild above)
-    var live = doorsMoving || humansLive || physicsLive || extLive;
-    // nothing to draw on screen (see paneHidden); the idle shadow-set prewarm
-    // below may still run meanwhile
-    if ((needsRender || live || settle > 0) && paneHidden()) {
-      needsRender = false;
-      settle = 0;
-      live = false;
-    }
-    if (prewarmRun) {
-      if (live) prewarmRun.stop = true;
-      if (prewarmHolds()) return;
-    } else if (prewarmDue && time >= prewarmDue) {
-      if (needsRender || live || settle > 0) prewarmDue = time + 1000;
-      else startPrewarm();
-    }
-    if (needsRender || live || settle > 0) {
-      // Live animation keeps TRAA's history fed on its own; `settle` only has to
-      // cover the frames after motion stops.
-      if (needsRender || live) settle = SETTLE_FRAMES;
-      else settle--;
-      needsRender = false;
-      // Refresh the sun shadow map only when geometry/light actually changed.
-      // Physics and human motion move shadow-casters too, so keep it live then.
-      // extLive (Night Shift tick) is true every frame but the indoor scene is
-      // mostly static — throttle shadow passes to ~5 Hz to avoid hammering the
-      // GPU with a 4096² depth re-render 60 times a second.
-      var shadowPass = false, shadowBox = shadowDirtyBox, shadowHold = false;
-      shadowDirtyBox = null;
-      if (extLive) {
-        // The external modes' own lights (Night Shift's flashlight) move with
-        // the player every frame; their shadows stay live, see syncShadowUpdates.
-        shadowPass = true;
-      } else if (shadowsDirty && shadowsFromRebuild && !physicsLive && !doorsMoving &&
-          time - rebuildShadowT < 100) {
-        shadowHold = true;
-        /* Rebuild after rebuild (a wall or opening being dragged): every map
-           redrawn on each one was a third of the frame. They follow at
-           ~10 Hz; the dirt is kept, so the frame after the last rebuild still
-           gets its full redraw. */
-        needsRender = true;
-      } else if (shadowsDirty || physicsLive || doorsMoving) {
-        shadowPass = true;
-        if (shadowsFromRebuild) rebuildShadowT = time;
-        shadowsDirty = false;
-        shadowsFromRebuild = false;
-        shadowThrottleT = time;
-      } else if (humansLive) {
-        // People move slowly and are small in frame, so re-rendering a 4096²
-        // depth map for their sway on every frame is the most expensive thing
-        // in an otherwise static room. Cap it at ~5 Hz. Geometry and physics
-        // keep the immediate path above.
-        if (!shadowThrottleT || time - shadowThrottleT > 200) {
-          shadowPass = true;
-          shadowThrottleT = time;
-        }
-      }
-      /* A drag moves its piece every pointer event, and redrawing the maps
-         that reach it (the sun's 4096², a room's six-face cube, the windows)
-         on each one was most of a drag frame. They follow at ~10 Hz while it
-         moves; the region is kept, and keeps the loop awake, until the
-         redraw where the piece came to rest has landed. */
-      if (shadowBox && !shadowPass && time - regionShadowT < 100) {
-        markShadowRegion(shadowBox, true);
-        shadowBox = null;
-      } else if (shadowBox) regionShadowT = time;
-      syncCameraVelocity();
-      syncShadowUpdates(shadowPass, shadowBox, shadowHold);
-      syncSelectionOutline();
-      try {
-        renderScene();
-        if (prepUntilDrawn) {
-          prepUntilDrawn = false;
-          var prepEl = document.getElementById("v3dPrep");
-          if (prepEl) prepEl.style.display = "none";
-        }
-        if (retired.length) disposeRetired();
-      } catch (e) {
-        // Never silently swallow this: a broken post-processing graph paints
-        // pure black and an empty catch makes it look like nothing ran at all.
-        // Log once, then drop to a direct render so the view stays usable.
-        if (!renderErrLogged) {
-          renderErrLogged = true;
-          if (window.console && console.error) console.error("renderScene failed, falling back to direct render:", e);
-        }
-        usePost = false;
-        try { renderer.render(scene, camera); } catch (e2) {}
-      }
-      drewOnce = true;
-      updateViewGizmo(); // keep the orientation triad in sync with the camera
-    }
-  })();
+  wireRenderLoopAndGestures();
   return true;
 }
+

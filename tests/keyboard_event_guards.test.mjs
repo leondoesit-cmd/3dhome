@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 const source = (name) => readFileSync(new URL("../js/" + name, import.meta.url), "utf8");
 
 test("planner ignores keydown-like events without a key before shortcut handling", () => {
-  const planner = sourceFunctionText(moduleSource("js/interaction.js"), "initInteraction");
+  const planner = sourceFunctionText(moduleSource("js/interaction.js"), "wirePlanListeners");
   const handler = planner.slice(planner.lastIndexOf('window.addEventListener("keydown", function (e) {'));
   const guard = handler.indexOf('if (typeof e.key !== "string" || !e.key) return;');
   assert.ok(guard >= 0, "malformed keyboard events are ignored");

@@ -26,7 +26,8 @@ import { openQuickForm, openSketchPointCoordinates } from "../modeler/command_ma
 import { addSketchOffsetControl, assemblyFlagsInspector, assemblyMateInspector, assemblyTransformInspector, highlightFeatureIssueBanner, highlightSketchIssueBanner, numLengthRow, refreshParts } from "../modeler/component_mates.js";
 import { invalidateSketchProjection, pushUndo, scheduleModelerDraft } from "../modeler/document_history.js";
 import { syncTools } from "../modeler/document_save.js";
-import { flash, sketchLinePoints, sketchProfileAnalysis, sketchRegionAnalysis } from "../modeler/drawing_sheet.js";
+import { sketchLinePoints, sketchProfileAnalysis, sketchRegionAnalysis } from "./drawing_sheet_profiles.js";
+import { flash } from "./drawing_sheet_touch.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { fillCabinetParameters, fillOps, numRow, openFeatureEditor } from "../modeler/editor_forms.js";
 import { regenerateExactModel } from "../modeler/export_measure.js";

@@ -16,7 +16,7 @@ import { chromeCommandLabel, chromeSelectionInput, closeChromeOverlays, commandS
 import { componentLabel, mateHolderById, refreshParts } from "../modeler/component_mates.js";
 import { pushUndo, scheduleModelerDraft } from "../modeler/document_history.js";
 import { measureFromPick } from "../modeler/document_outputs.js";
-import { flash } from "../modeler/drawing_sheet.js";
+import { flash } from "./drawing_sheet_touch.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { syncLiveFeatureEdit } from "../modeler/feature_tree.js";
 import { activeFilletParams, currentFinishEdges, edgeRefsForFaces, filletReferenceEndpoints, finishCommandActive, fullRoundActive, queueNewFeaturePreview, syncNewFeaturePreview, toggleFinishEdges, toggleFullRoundFace } from "../modeler/finish_preview.js";

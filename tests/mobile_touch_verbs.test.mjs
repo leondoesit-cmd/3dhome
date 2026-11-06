@@ -103,12 +103,12 @@ test("View is a switcher on tap and a menu on hold", () => {
 });
 
 test("two fingers undo and three redo through one detector", () => {
-  assert.match(interaction, /if \(twoTap\) \{[\s\S]*?twoTap\.n = Math\.max\(twoTap\.n, ids\.length\);\s*return;/);
-  assert.match(interaction, /var fingers = twoTap\.n;[\s\S]*?if \(fingers >= 3\) redo\(\);\s*else undo\(\);/);
+  assert.match(interaction, /if \((?:interactionLocals\.)?twoTap\) \{[\s\S]*?(?:interactionLocals\.)?twoTap\.n = Math\.max\((?:interactionLocals\.)?twoTap\.n, ids\.length\);\s*return;/);
+  assert.match(interaction, /var fingers = (?:interactionLocals\.)?twoTap\.n;[\s\S]*?if \(fingers >= 3\) redo\(\);\s*else undo\(\);/);
 });
 
 test("double-click acts on what it landed on, not on the standing selection", () => {
-  const block = sourceFunctionText(interaction, 'initInteraction').slice(sourceFunctionText(interaction, 'initInteraction').indexOf('function doubleClick('));
+  const block = sourceFunctionText(interaction, 'doubleClick');
   assert.match(block, /var op = hitOpening\(px, pz\);[\s\S]*?flipSwing/);
   assert.match(block, /var it = hitItem\(px, pz\);[\s\S]*?rotSel90/);
   assert.match(block, /if \(S\.tool && S\.tool !== "select"\) return;/);
@@ -184,7 +184,7 @@ test("every route to a floor goes through one setter that drops the custom image
 });
 
 test("the plan's biggest target is double-tapped last", () => {
-  const block = sourceFunctionText(interaction, 'initInteraction').slice(sourceFunctionText(interaction, 'initInteraction').indexOf('function doubleClick('));
+  const block = sourceFunctionText(interaction, 'doubleClick');
   const opening = block.indexOf("hitOpening");
   const item = block.indexOf("hitItem");
   const room = block.indexOf("hitRoom");

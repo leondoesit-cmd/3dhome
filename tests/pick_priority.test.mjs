@@ -33,7 +33,7 @@ const markerSource = stripComments(
   await readFile(new URL("../js/markers.js", import.meta.url), "utf8"),
 );
 const mepSource = stripComments(
-  await readFile(new URL("../js/mep.js", import.meta.url), "utf8"),
+  moduleSource("js/mep.js"),
 );
 const slabSource = stripComments(
   await readFile(new URL("../js/slab_openings.js", import.meta.url), "utf8"),

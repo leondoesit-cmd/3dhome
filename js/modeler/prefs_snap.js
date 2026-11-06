@@ -17,7 +17,7 @@ import { boxToExt, cloneData, cutFootprint, cutRangeForAxis, exactBrepForPart, e
 import { t, tf } from "../modeler_strings.js";
 import { refreshParts } from "../modeler/component_mates.js";
 import { currentHistoryNode, frameRangeForBounds, partUV, planeAxis } from "../modeler/document_history.js";
-import { flash } from "../modeler/drawing_sheet.js";
+import { flash } from "./drawing_sheet_touch.js";
 import { cutTargetFeatureId } from "../modeler/feature_create.js";
 import { refreshChangedPart, renderPreview } from "../modeler/library_panel.js";
 import { addPart, featureTypeLabel } from "../modeler/library_store.js";

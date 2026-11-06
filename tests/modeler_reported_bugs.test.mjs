@@ -1,4 +1,5 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -212,7 +213,7 @@ test('mobile drawers use a clean label for state, accessible name and targeted r
 import {createHistory} from '../js/edit_history.js';
 import {solveSketch} from '../js/sketch_solver.js';
 import {buildCommandCatalog, KEY_TOOL} from '../js/modeler_commands.js';
-const drawingSource = read('modeler_drawing.js');
+const drawingSource = moduleSource('js/modeler_drawing.js');
 const noop = () => {};
 function evaluate(text, bindings) {
   return new Function(...Object.keys(bindings), 'return (' + text + ')')(...Object.values(bindings));

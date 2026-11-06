@@ -180,8 +180,8 @@ test("a corner dropped on a wall is committed once, at the end of the gesture", 
      closed. The live drag now only remembers the host. */
   const { readFile } = await import("node:fs/promises");
   const src = moduleSource("js/interaction.js");
-  // the pointermove handler lives in initInteraction; armDragProxy has a look-alike above it
-  const inits = sourceFunctionText(src, "initInteraction");
+  // the pointermove handler lives in wirePlanMove; armDragProxy has a look-alike elsewhere
+  const inits = sourceFunctionText(src, "wirePlanMove");
   const move = inits.slice(inits.indexOf('if (S.action === "node" && S.nodeDrag) {'));
   const live = move.slice(0, move.indexOf('S.action === "wall" && S.wallDrag'));
   assert.doesNotMatch(live, /splitWallAt\(p\.wall/, "the live drag no longer splits");

@@ -45,7 +45,10 @@ import { leavingQuickForm, openQuickForm, toggleIsolate } from "../modeler/comma
 import { componentLabel, planeMateReference, refreshParts, syncDiagnosticJump } from "../modeler/component_mates.js";
 import { currentHistoryNode, partUV, patternPlacements, pushUndo, scheduleModelerDraft, toPx, toUV } from "../modeler/document_history.js";
 import { setDocumentType } from "../modeler/document_save.js";
-import { drawSketch, featureAreaAt, flash, invalidateDrawing, newSketchPoint, sampleSplinePoints, sheetForm, sketchUvPolylines, toggleFeatureArea } from "../modeler/drawing_sheet.js";
+import { sheetForm } from "./drawing_sheet_forms.js";
+import { featureAreaAt, newSketchPoint, toggleFeatureArea } from "./drawing_sheet_profiles.js";
+import { drawSketch, invalidateDrawing, sampleSplinePoints, sketchUvPolylines } from "./drawing_sheet_render.js";
+import { flash } from "./drawing_sheet_touch.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { regenerateExactModel } from "../modeler/export_measure.js";
 import { cutTargetFeatureId, resolvedRevolve } from "../modeler/feature_create.js";

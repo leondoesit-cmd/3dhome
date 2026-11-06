@@ -9,7 +9,7 @@ import { render as gpuRender } from "../gpu.js";
 import { normalizeTransform } from "../modeler_part_geometry.js";
 import { addFlexibleSpringPreview, syncSizeReadout } from "../modeler/component_mates.js";
 import { occurrenceWorldBounds } from "../modeler/document_outputs.js";
-import { drawSketch, invalidateDrawing, syncSheetPanel } from "../modeler/drawing_sheet.js";
+import { drawSketch, invalidateDrawing, syncSheetPanel } from "./drawing_sheet_render.js";
 import { applyAssemblyMates } from "../modeler/library_assembly_state.js";
 import { activeParts, committedRenderedParts, componentDef, defBounds, livePreviewParts, renderedParts } from "../modeler/library_store.js";
 import { syncRetainedExactPreviewStatus, syncSketchOpenPathFeedback } from "../modeler/sketch_entities.js";

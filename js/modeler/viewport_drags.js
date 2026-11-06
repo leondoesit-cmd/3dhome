@@ -9,7 +9,7 @@ import { viewportRect } from "../modeler_pick_geometry.js";
 import { t } from "../modeler_strings.js";
 import { commandSelectionPrefer } from "../modeler/command_manager.js";
 import { pushUndo } from "../modeler/document_history.js";
-import { flash } from "../modeler/drawing_sheet.js";
+import { flash } from "./drawing_sheet_touch.js";
 import { solveAssembly } from "../modeler/library_assembly_state.js";
 import { applyBoxSelection, beginPaintSelectDrag } from "../modeler/library_io.js";
 import { activeParts } from "../modeler/library_store.js";

@@ -24,7 +24,7 @@ test("the first real canvas size repairs an invalid boot zoom", async () => {
 
 test("desktop plan navigation supports middle and Space drag panning", async () => {
   const src = moduleSource("js/interaction.js");
-  assert.match(src, /e\.button === 1 \|\| \(spacePan && e\.button === 0\)/);
+  assert.match(src, /e\.button === 1 \|\| \((?:interactionLocals\.)?spacePan && e\.button === 0\)/);
   assert.match(src, /e\.code !== "Space"/);
   assert.match(src, /plan\.classList\.add\("is-panning"\)/);
 });
@@ -46,7 +46,7 @@ test("catalog dragging shows a scaled footprint before drop", async () => {
 });
 
 test("selection is mirrored into 3D without rebuilding shared materials", async () => {
-  const [props, view] = await Promise.all([read("js/ui_props.js"), moduleSource("js/view3d.js")]);
+  const [props, view] = await Promise.all([moduleSource("js/ui_props.js"), moduleSource("js/view3d.js")]);
   assert.match(props, /S\.repaint3D = true/);
   assert.match(view, /new THREE\.Box3Helper/);
   assert.match(view, /syncSelectionOutline\(\)/);
@@ -60,7 +60,7 @@ test("tree navigation frames rooms and items on double click", async () => {
 });
 
 test("confirmed localization and selected-hover contrast regressions stay fixed", async () => {
-  const [props, css] = await Promise.all([read("js/ui_props.js"), stylesSource()]);
+  const [props, css] = await Promise.all([moduleSource("js/ui_props.js"), stylesSource()]);
   assert.match(props, /roomTitle\.textContent = roomName\(r\.key\) \|\| t\("room"\)/);
   assert.match(css, /\.trRoom\.sel:hover,[\s\S]*background: linear-gradient\(135deg, var\(--accent\), var\(--accent-hover\)\)/);
 });

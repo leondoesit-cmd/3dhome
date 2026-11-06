@@ -33,7 +33,10 @@ import { commandSelectionPrefer, dismissProfileOffer, syncSelectionFilters } fro
 import { confirmDiscardDocument, currentHistoryNode, discardModelerDraft, markDocumentClean, modelerDraftStorage, pushUndo, reconcileModelerDraft, restoreModelerDraft, scheduleModelerDraft } from "../modeler/document_history.js";
 import { closeEvalCard } from "../modeler/document_outputs.js";
 import { publishAssemblyModel, syncTools } from "../modeler/document_save.js";
-import { documentPresetAction, drawSketch, drawingDocument, drawingSheet, fitSplitPreview, flash, invalidateDrawing, report, sheetForm, syncSheetPanel } from "../modeler/drawing_sheet.js";
+import { sheetForm } from "./drawing_sheet_forms.js";
+import { drawSketch, drawingDocument, drawingSheet, fitSplitPreview, invalidateDrawing, syncSheetPanel } from "./drawing_sheet_render.js";
+import { flash, report } from "./drawing_sheet_touch.js";
+import { documentPresetAction } from "../modeler/drawing_sheet.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { newModel } from "../modeler/editor_forms.js";
 import { abandonDocumentExactWork, downloadBytes } from "../modeler/export_measure.js";

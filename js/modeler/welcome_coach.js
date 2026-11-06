@@ -10,7 +10,8 @@ import { diagnosticActionLabel, diagnosticMessage, runDiagnosticAction } from ".
 import { documentDirty, pushUndo } from "../modeler/document_history.js";
 import { runInterferenceCheck } from "../modeler/document_outputs.js";
 import { saveCurrentDocument, sketchOpenPathReadiness } from "../modeler/document_save.js";
-import { closedSketchProfile, flash } from "../modeler/drawing_sheet.js";
+import { closedSketchProfile } from "./drawing_sheet_profiles.js";
+import { flash } from "./drawing_sheet_touch.js";
 import { activeParts, loadLib } from "../modeler/library_store.js";
 import { runCommand } from "../modeler/part_commands.js";
 import { displayedCoreIssues, modelRebuildPending } from "../modeler/sketch_entities.js";

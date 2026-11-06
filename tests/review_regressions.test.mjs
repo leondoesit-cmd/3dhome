@@ -1,11 +1,12 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sourceFunctionText } from './helpers/source_function.mjs';
 import * as THREE from '../vendor/three/three.core.js';
 import { KEY_TOOL, KEY_VIEW } from '../js/modeler_commands.js';
-const source = name => name === 'modeler' ? modelerSource() : readFileSync(new URL('../js/' + name + '.js', import.meta.url), 'utf8');
+const source = name => name === 'modeler' ? modelerSource() : moduleSource('js/' + name + '.js');
 function extract(file, name, bindings = {}) {
   const text = sourceFunctionText(source(file), name);
   return Function(...Object.keys(bindings), 'return (' + text + ')')(...Object.values(bindings));

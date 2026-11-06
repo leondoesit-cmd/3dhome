@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-const props = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf8");
+const props = moduleSource("js/ui_props.js");
 const ui = moduleSource("js/ui.js");
 const i18n = await readI18nSource();
 

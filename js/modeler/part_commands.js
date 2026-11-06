@@ -29,7 +29,9 @@ import { addTopologyMate, openFormSubassembly, openMateBeltForm, openMateGearFor
 import { patternCurveSketch, patternPlacements, planeAxis, pushUndo, resolvePatternCurvePath } from "../modeler/document_history.js";
 import { exportDrawingSvg, importStepDocument, showAssemblyBOM, showAssemblyDrawingSettings, showMassProperties } from "../modeler/document_io.js";
 import { beginMeasure, createDefaultExplodedView, createDefaultMotionStudy, exportBundleDocument, importBundleDocument, openExplodeStepForm, runInterferenceCheck, runStandardsAudit } from "../modeler/document_outputs.js";
-import { drawingSheet, flash, newSketchPoint, showPickList } from "../modeler/drawing_sheet.js";
+import { newSketchPoint } from "./drawing_sheet_profiles.js";
+import { drawingSheet } from "./drawing_sheet_render.js";
+import { flash, showPickList } from "./drawing_sheet_touch.js";
 import { el } from "../modeler/editor_dom.js";
 import { addReferenceGeometry, downloadBytes, exportIgesDocument, exportStepDocument, openCoordinateSystemForm, openFffSlicePreview, openOffsetPlaneForm, openPrintLayerAnalysis, openPrintSetupForm, openStlExportForm, regenerateExactModel } from "../modeler/export_measure.js";
 import { cutTargetFeatureId, documentHelixRecords, selectedSketchIds, showConfigurations } from "../modeler/feature_create.js";

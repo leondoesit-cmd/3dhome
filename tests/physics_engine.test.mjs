@@ -79,7 +79,7 @@ test("all real-time physics modes use the shared guarded clock", async () => {
   const [view, drive, rc, zombies, lava] = await Promise.all([
     moduleSource("js/view3d.js"),
     read("js/drive.js"),
-    read("js/rc_game.js"),
+    moduleSource("js/rc_game.js"),
     moduleSource("js/zombies_game.js"),
     read("js/lava_game.js"),
   ]);
@@ -207,7 +207,7 @@ test("walk, Night Shift and Lava query the rigid island; cars stay arcade", asyn
     read("js/zombies_game/hud.js"),
     read("js/lava_game.js"),
     read("js/drive.js"),
-    read("js/rc_game.js"),
+    moduleSource("js/rc_game.js"),
   ]);
   // the walk mode in view3d never called moveKinematicCapsule (only imported it), so only the cloth is checked there
   assert.match(view, /spawnHangingCloth/);

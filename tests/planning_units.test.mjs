@@ -24,7 +24,7 @@ test('architectural length entry accepts feet-inches and metric suffixes',()=>{
 });
 test('HUD and inspector follow the project display unit, including a mid-entry switch', async () => {
  const hud = await readFile(new URL('../js/cad_hud.js', import.meta.url), 'utf8');
- const props = await readFile(new URL('../js/ui_props.js', import.meta.url), 'utf8');
+ const props = moduleSource("js/ui_props.js");
  const ui = moduleSource("js/ui.js");
  assert.match(hud, /window\.addEventListener\("planner-units", applyLangLabels\)/);
  assert.match(hud, /inLen\.value = hudFmt\(shown, \{ suffix: false \}\)/);

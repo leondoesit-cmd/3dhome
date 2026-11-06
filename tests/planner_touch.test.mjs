@@ -49,6 +49,6 @@ test("the 3D pane only blocks touch while it owns the gesture", async () => {
 
 test("on the plan, touch drags only an already-selected room", async () => {
   const src = moduleSource("js/interaction.js");
-  assert.match(src, /var priorSel = e\.pointerType === "touch" \? preTouchSel : S\.sel;/);
+  assert.match(src, /var priorSel = e\.pointerType === "touch" \? (?:interactionLocals\.)?preTouchSel : S\.sel;/);
   assert.match(src, /if \(e\.pointerType === "touch" && !wasSelected && !inputIs3D\(\)\) \{\s*S\.action = "pan";/);
 });

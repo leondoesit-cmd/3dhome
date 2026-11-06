@@ -51,7 +51,10 @@ import { refreshParts, rejectFlexibleSpringPreview } from "../modeler/component_
 import { assemblySaveSession, confirmDiscardDocument, currentHistoryNode, markDocumentClean, pushUndo, reconcileModelerDraft, scheduleModelerDraft, syncDirty } from "../modeler/document_history.js";
 import { closeEvalCard, createEmptyExplodedView, documentOwnership, documentStillOwned, evalRow, massEvaluationChanged, occurrenceWorldBounds, standardsGate, syncMassPropertiesEvaluation } from "../modeler/document_outputs.js";
 import { saveCurrentDocument, saveProgress, setDocumentType } from "../modeler/document_save.js";
-import { drawingSheet, flash, prepareConfiguredDrawingExport, report, sheetForm, sheetRow, sheetSelect } from "../modeler/drawing_sheet.js";
+import { sheetForm, sheetRow, sheetSelect } from "./drawing_sheet_forms.js";
+import { drawingSheet } from "./drawing_sheet_render.js";
+import { flash, report } from "./drawing_sheet_touch.js";
+import { prepareConfiguredDrawingExport } from "../modeler/drawing_sheet.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { abandonDocumentExactWork, downloadBytes, evalCardActions, exactRunIsCurrent, exactRunStamp, openEvalCard, rebuildFailureMessage, rebuildFeatureTreeFromDocument, regenerateExactModel, releaseExactRun } from "../modeler/export_measure.js";
 import { cutTargetFeatureId, publishExactBodies } from "../modeler/feature_create.js";

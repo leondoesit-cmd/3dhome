@@ -84,7 +84,7 @@ test("orbit frames skip per-object uniform refreshes", () => {
   // uniforms on every frame; TRAA reprojects from depth + camera instead
   assert.match(src, /scenePass\.setMRT\(TSL\.mrt\(\{ output: TSL\.output \}\)\);/);
   assert.doesNotMatch(src, /velocity: TSL\.velocity/);
-  assert.match(src, /traaPass = ADDONS\.traa\(lit, depthNode, velocityNode, camera\);/);
+  assert.match(src, /(?:traaPass = |set_traaPass\()ADDONS\.traa\(lit, depthNode, velocityNode, camera\)\)?;/);
   const loop = between("var live = doorsMoving", "updateViewGizmo();");
   assert.match(loop, /syncCameraVelocity\(\);/, "the camera history advances once per painted frame");
 });
@@ -115,7 +115,7 @@ test("opening the 3D view shows why it is busy, and waits on nothing else", asyn
   // never uses: waiting for it held the view blank for its 6 s timeout and
   // saved ~0.6 s of the first draw. The first draw now runs with
   // "Preparing the 3D view…" painted, one frame after it goes up.
-  const first = between("scene && camera && !firstCompiled) {", "lastRebuildT = nowT;");
+  const first = between("scene && camera && !firstCompiled) {", "set_lastRebuildT(nowT);");
   assert.doesNotMatch(first, /compileAsync\(/);
   assert.match(first, /if \(prep\) prep\.style\.display = "block";/);
   assert.match(first, /requestAnimationFrame\(open\);/);
@@ -152,7 +152,7 @@ test("each lit room fills itself with the light that enters it", () => {
 });
 
 test("ambient occlusion reads normals from depth, not a normal target", () => {
-  assert.match(src, /aoPass = ADDONS\.ao\(depthNode, null, camera\);/);
+  assert.match(src, /(?:aoPass = |set_aoPass\()ADDONS\.ao\(depthNode, null, camera\)\)?;/);
   assert.match(src, /scenePass\.setMRT\(TSL\.mrt\(\{ output: TSL\.output \}\)\);/);
 });
 

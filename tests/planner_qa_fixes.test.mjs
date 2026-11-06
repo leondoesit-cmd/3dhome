@@ -13,7 +13,7 @@ import { captureLock, syncLocks } from "../js/constraint_engine.js";
 
 const css = stylesSource();
 const i18n = await readI18nSource();
-const uiProps = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf8");
+const uiProps = moduleSource("js/ui_props.js");
 const ui = moduleSource("js/ui.js");
 const uiTree = await readFile(new URL("../js/ui_tree.js", import.meta.url), "utf8");
 

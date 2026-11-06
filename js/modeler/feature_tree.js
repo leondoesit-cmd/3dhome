@@ -21,7 +21,7 @@ import { t, tf } from "../modeler_strings.js";
 import { renderTreeModel } from "../modeler_tree.js";
 import { parametricRollbackBar, refreshParts, rollbackBar, runDiagnosticAction } from "../modeler/component_mates.js";
 import { currentHistoryNode, pushUndo, scheduleModelerDraft } from "../modeler/document_history.js";
-import { flash } from "../modeler/drawing_sheet.js";
+import { flash } from "./drawing_sheet_touch.js";
 import { btn, el, namedButton } from "../modeler/editor_dom.js";
 import { openFeatureEditor } from "../modeler/editor_forms.js";
 import { openOffsetPlaneForm } from "../modeler/export_measure.js";

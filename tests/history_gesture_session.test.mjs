@@ -1,5 +1,6 @@
 import test from 'node:test';
 import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -40,12 +41,13 @@ const plain = value => JSON.parse(JSON.stringify(value));
 test('actual pointerDown arms without snapshots and pointercancel restores the first mutation', () => {
   const r = rig(), noop = () => {};
   const interaction = moduleSource("js/interaction.js");
-  const down = interaction.slice(interaction.indexOf('  let gestureSession = null;'), interaction.indexOf('  plan.addEventListener("pointerdown", function(e)'));
-  const end = interaction.slice(interaction.indexOf('  function endAction(e) {'), interaction.indexOf('  registerPlannerController({down:pointerDown'));
-  Object.assign(r.context, { plan: { classList: { add: noop } }, spacePan: false, setPickSlop: noop,
+  const down = sourceFunctionText(interaction, 'pointerDown');
+  const end = sourceFunctionText(interaction, 'endAction');
+  const interactionLocals = { gestureSession: null, spacePan: false, cancelLongPress: noop, stopAutoPan: noop };
+  Object.assign(r.context, { plan: { classList: { add: noop } }, interactionLocals, setPickSlop: noop,
     beginSnapSession: noop, inputBounds: () => ({ left: 0, top: 0 }), isElevation: () => true,
     elevationHit: () => ({ kind: 'marker', ref: { id: 10 } }), select: value => { r.S.sel = value; },
-    canDrag: () => true, cancelLongPress: noop, stopAutoPan: noop, dropDragProxy: noop, endSnapSession: noop });
+    canDrag: () => true, dropDragProxy: noop, endSnapSession: noop });
   vm.runInContext(down + end, r.context);
   r.H.seed(); r.reset();
   const event = { button: 1, clientX: 0, clientY: 0, preventDefault: noop };

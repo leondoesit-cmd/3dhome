@@ -12,7 +12,7 @@ import { buildCommandCatalog } from "../js/modeler_commands.js";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const cabinetSrc = ["ui_cabinet.js", "ui_cabinet_view.js", "ui_cabinet_inspect.js"].map((f) => readFileSync(new URL("../js/" + f, import.meta.url), "utf8")).join("\n");
 const mepUi = readFileSync(new URL("../js/ui_mep.js", import.meta.url), "utf8");
-const mepCore = readFileSync(new URL("../js/mep.js", import.meta.url), "utf8");
+const mepCore = moduleSource("js/mep.js");
 const modelerSrc = modelerSource();
 const ribbonIds = new Set([...modelerSrc.matchAll(/commandButton\("([a-z0-9]+)"/g)].map((m) => m[1]));
 const relationIds = (modelerSrc.match(/var RIBBON_RELATIONS = \[([^\]]*)\]/) || ["", ""])[1].match(/[a-z]+/g) || [];

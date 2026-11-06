@@ -2437,3 +2437,115 @@ function openRackGearForm(){
 function materialValidationTools(){
   return createMaterialValidationUI({definition:()=>E.def,language:getLang,root:()=>root,uid:uid,form:openQuickForm,report:report,undo:pushUndo,flash:flash});
 }
+
+// The public surface modeler.js had before it was split: other modules,
+// another tab's dynamic import() and tests still reach these names here.
+export {
+  applyMouseGesture, closeChromeOverlays, closeCommandSearch, commandCatalog,
+  dismissProfileOffer, openCommandSearch, openQuickForm,
+  openSketchPointCoordinates, selectionFilterAvailable, setMobileAddSelection,
+  setSelectionFilter, showContextMenu, showShortcutBar, showViewSelector,
+  syncContextActions,
+} from "./modeler/command_manager.js";
+export {
+  activeSketchFrame, axisOfView, currentHistoryNode, cutSkipNote, doRedo,
+  doUndo, invalidateSketchProjection, moveInView, partEditableInSketch,
+  partUV, pathUvCircleArc, pathUvEllipse, planeAxis, positiveArcSweep,
+  pushUndo, sameSketchContext, scheduleModelerDraft, sketchProjection,
+  standardPlaneFrame, strokeUvCircle, strokeUvRect, toPx, toUV,
+  worldToSketchPx,
+} from "./modeler/document_history.js";
+export {
+  assemblyDrawingBOMRows, assemblyDrawingBalloonTargets,
+} from "./modeler/document_io.js";
+export {
+  closeEvalCard,
+} from "./modeler/document_outputs.js";
+export {
+  saveCurrentDocument, setDocumentType, sketchOpenPathReadiness, syncTools,
+} from "./modeler/document_save.js";
+export {
+  btn, el, namedButton,
+} from "./modeler/editor_dom.js";
+export {
+  newModel, saveAssemblyDocument,
+} from "./modeler/editor_forms.js";
+export {
+  regenerateExactModel,
+} from "./modeler/export_measure.js";
+export {
+  cutTargetFeatureId, mergeTargetBody,
+} from "./modeler/feature_create.js";
+export {
+  copySketchToClipboard, pasteReferenceTarget, pasteSketchOntoReference,
+  readClipboardSketch, removeTreeNode, treeSelectedSketch,
+} from "./modeler/feature_tree.js";
+export {
+  authoritativeFinishTopology, cornerRoundForm, segmentLengthForm,
+  selectAllTopology,
+} from "./modeler/finish_preview.js";
+export {
+  fillInspector,
+} from "./modeler/inspector.js";
+export {
+  invalidateInterference, saveAssemblies, solveAssembly,
+} from "./modeler/library_assembly_state.js";
+export {
+  setMode, syncHead,
+} from "./modeler/library_io.js";
+export {
+  assemblyExplodeLines, buildAssembly, updatePreview,
+} from "./modeler/library_panel.js";
+export {
+  addPart, defBounds, loadAssemblies, newAssembly, renderedParts,
+  topologyEntriesForPart,
+} from "./modeler/library_store.js";
+export {
+  runCommand, selectedSolid,
+} from "./modeler/part_commands.js";
+export {
+  applyCut, invalidatePartMeshAfterEdit, newDef, queueExactMesh,
+  scheduleExactMesh, snapPt, snapV,
+} from "./modeler/prefs_snap.js";
+export {
+  addSketchArc, addSketchPolygon, addSketchSlot, constraintCaption,
+  instanceLabels, openModelEdgeOffsetForm, openSketchOffsetForm,
+  placeDimensionAtPointer, placedDimensionAt, placedDimensionHit, refusalHint,
+  showSketchRefusal,
+} from "./modeler/sketch_dimension_editor.js";
+export {
+  addSketchCircle, addSketchEllipse, addSketchRectangle,
+  applySketchFilletFromSelection, displayedCoreIssues, dropSketchModelPicks,
+  hitSketch, isSketchObject, liveSketchFilletValues, markDrawnSelection,
+  resolveSketch, selEntities, selFilletCurves, selLines, selPoints,
+  selectSketch, sizeSketch, sketchFilletSelectionReady, sketchForView,
+  sketchVisibleModelEdges, syncHint, syncStatus,
+} from "./modeler/sketch_entities.js";
+export {
+  cancelFacePick, cancelReferenceSelection, closeFeaturePanel,
+  finishModelPlane, fitSketch, isCanonicalAuthoring, modelLengthUnit,
+  orientModelToView, setCommandTab, setTab, setTool, setView,
+} from "./modeler/sketch_workflow.js";
+export {
+  resolveTopologyPick,
+} from "./modeler/topology_pick.js";
+export {
+  applyDimensionEditor, dimensionTarget, editPlacedDimension, finishBoxSelect,
+  finishDimensionDrag, finishWallChain, makeWallSegment, setEntityDimension,
+  smartDimension,
+} from "./modeler/tree_assembly.js";
+export {
+  fitPreview, setModelDisplay, setPanelCollapsed,
+} from "./modeler/view_modes.js";
+export {
+  addOverlayPolyline,
+} from "./modeler/viewport_decorations.js";
+export {
+  closeNoteEditor, hidePickCycle,
+} from "./modeler/viewport_input.js";
+export {
+  buildPart,
+} from "./modeler/viewport_state.js";
+export {
+  closeWelcome, syncCoach, updateTourProgress, welcomeGuideCards,
+} from "./modeler/welcome_coach.js";

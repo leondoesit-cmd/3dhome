@@ -15,9 +15,12 @@ export async function servePlannerPerformance() {
       const file=resolve(root,'.'+path);
       if(!file.startsWith(root.endsWith(sep)?root:root+sep)){res.writeHead(403).end();return;}
       let data=await readFile(file);
-      if(path==='/js/view3d.js')data=Buffer.from(data.toString()
+      // The prewarm delay and the render-loop hold patch whichever of view3d.js
+      // and its js/view3d/ pieces holds them; the capture hook goes on view3d.js.
+      if(path==='/js/view3d.js'||path.startsWith('/js/view3d/'))data=Buffer.from(data.toString()
         .replace('var PREWARM_IDLE_MS = 3000;', 'var PREWARM_IDLE_MS = 1e12;')
-        .replace('requestAnimationFrame(animate);','requestAnimationFrame(animate); if (window.__perfHold) return;')+`
+        .replace('requestAnimationFrame(animate);','requestAnimationFrame(animate); if (window.__perfHold) return;'));
+      if(path==='/js/view3d.js')data=Buffer.from(data.toString()+`
 export async function __perfCapture() {
   window.__perfHold=true;
   try {

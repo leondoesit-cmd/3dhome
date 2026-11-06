@@ -7,7 +7,7 @@ import { createProjector, createSheetDoc } from '../js/cad_sheet.js';
 import { tessellateParts } from '../js/core/part_tessellate.js';
 import { bossPlate } from './helpers/boss_plate.mjs';
 
-const source = readFileSync(new URL('../js/modeler/drawing_sheet.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../js/modeler/drawing_sheet_render.js', import.meta.url), 'utf8');
 const factory = source.slice(source.indexOf('function drawingSheet()'), source.indexOf('function invalidateDrawing()'));
 const box = depth => tessellateParts([{kind:'box', x0:0, x1:2, y0:0, y1:3, z0:0, z1:depth}]);
 

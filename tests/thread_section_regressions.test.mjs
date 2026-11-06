@@ -13,7 +13,7 @@ const commands = await readFile(new URL("../js/modeler_commands.js", import.meta
 
 test("planner shortcuts do not mutate the plan behind the modeler", () => {
   assert.match(interaction, /function modelerKeyboardOwnsInput\(\) \{[\s\S]{0,160}?getElementById\("modeler"\)[\s\S]{0,160}?style\.display !== "none"/);
-  const guarded = interaction.match(/if \(modelerKeyboardOwnsInput\(\)\) return;/g) || [];
+  const guarded = interaction.match(/if \((?:\(0, interactionLocals\.)?modelerKeyboardOwnsInput\)?\(\)\) return;/g) || [];
   assert.equal(guarded.length, 2, "both planner keyboard handlers defer to the modal modeler");
 });
 

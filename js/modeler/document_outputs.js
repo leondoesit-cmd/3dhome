@@ -27,7 +27,7 @@ import { openQuickForm, syncCommandManager } from "../modeler/command_manager.js
 import { componentLabel, rejectFlexibleSpringPreview, syncFlexibleSpringsAtMotionState } from "../modeler/component_mates.js";
 import { currentHistoryNode, pushUndo } from "../modeler/document_history.js";
 import { openExplodedPlayback, openImportedBundle, openMotionPlayback, showMassProperties } from "../modeler/document_io.js";
-import { flash, report } from "../modeler/drawing_sheet.js";
+import { flash, report } from "./drawing_sheet_touch.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { downloadBytes, evalCardActions, openEvalCard } from "../modeler/export_measure.js";
 import { invalidateInterference } from "../modeler/library_assembly_state.js";

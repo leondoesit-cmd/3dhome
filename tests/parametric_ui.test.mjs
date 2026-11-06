@@ -1,4 +1,5 @@
 import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -22,7 +23,7 @@ const commandSource = await readFile(new URL("../js/modeler_commands.js", import
 const formSource = await readFile(new URL("../js/modeler_feature_form.js", import.meta.url), "utf8");
 const draftSource = await readFile(new URL("../js/modeler_draft.js", import.meta.url), "utf8");
 const workflowSource = await readFile(new URL("../js/modeler_workflow.js", import.meta.url), "utf8");
-const drawingSource = await readFile(new URL("../js/modeler_drawing.js", import.meta.url), "utf8");
+const drawingSource = moduleSource("js/modeler_drawing.js");
 const source = [modelerSource, stringsSource, meshGeometrySource, partGeometrySource, pickGeometrySource, commandSource, formSource, draftSource, workflowSource, drawingSource].join("\n");
 const editorViewSource = await readFile(new URL("../js/editor_view.js", import.meta.url), "utf8");
 const featureCatalogSource = await readFile(new URL("../js/core/feature_catalog.js", import.meta.url), "utf8");

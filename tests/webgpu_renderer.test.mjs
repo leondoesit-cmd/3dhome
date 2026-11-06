@@ -100,10 +100,10 @@ test('ported node materials expose the uniforms their game loops drive', () => {
   const rcWorld = read('js/rc_world.js');
   assert.match(rcWorld, /MeshBasicNodeMaterial/);
   assert.match(rcWorld, /waterUniforms/);
-  assert.match(read('js/rc_game.js'), /waterUniforms\.uTime\.value/);
+  assert.match(moduleSource('js/rc_game.js'), /waterUniforms\.uTime\.value/);
   const view3d = moduleSource("js/view3d.js");
   assert.match(view3d, /TSL\.cubeTexture\(cubeTex/);
-  assert.match(view3d, /stars = new THREE\.Mesh\(sg, starMat\)/);
+  assert.match(view3d, /(?:stars = |set_stars\()new THREE\.Mesh\(sg, starMat\)/);
   const zombies = moduleSource("js/zombies_world.js");
   assert.match(zombies, /var motes = new THREE\.Mesh\(mg, moteMat\)/);
   assert.match(zombies, /Z\.motes\.geo\.instanceCount = Z\.motes\.activeN/);

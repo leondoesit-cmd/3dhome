@@ -14,7 +14,7 @@ const readRC = async () =>
       read("js/rc.js"),
       read("js/rc_state.js"),
       read("js/rc_world.js"),
-      read("js/rc_game.js"),
+      moduleSource("js/rc_game.js"),
     ])
   ).join("\n");
 // drive.js and rc_editor.js are split the same way — scan the whole module set.

@@ -36,7 +36,8 @@ import { refreshParts, rejectFlexibleSpringPreview } from "../modeler/component_
 import { currentHistoryNode, pushUndo } from "../modeler/document_history.js";
 import { exportThreeMfDocument, forceRebuildDocument } from "../modeler/document_io.js";
 import { assemblyPrintRequests, exportAssemblyPrintDocument, standardsGate } from "../modeler/document_outputs.js";
-import { drawSketch, flash, invalidateDrawing, report, syncSheetPanel } from "../modeler/drawing_sheet.js";
+import { drawSketch, invalidateDrawing, syncSheetPanel } from "./drawing_sheet_render.js";
+import { flash, report } from "./drawing_sheet_touch.js";
 import { btn, el } from "../modeler/editor_dom.js";
 import { publishExactBodies } from "../modeler/feature_create.js";
 import { modelParameterOverrides } from "../modeler/inspector.js";

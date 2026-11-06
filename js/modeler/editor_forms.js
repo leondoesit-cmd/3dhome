@@ -45,7 +45,8 @@ import { openQuickForm, syncCommandManager } from "../modeler/command_manager.js
 import { addInspectorTopologyMate, addMate, clampMateAngle, componentLabel, concentricAxisDirectionControl, finalMateTopology, highlightFeatureIssueBanner, mateHolderById, mateRow, openMateAngleForm, openMateBeltForm, openMateDistanceForm, openMateGearForm, openMateRackPinionForm, openMateRotationLimitForm, refreshComponentMateReferences, refreshParts, rejectFlexibleSpringPreview } from "../modeler/component_mates.js";
 import { assemblySaveSession, confirmDiscardDocument, currentHistoryNode, markDocumentClean, pushUndo, reconcileModelerDraft, syncDirty } from "../modeler/document_history.js";
 import { closeEvalCard } from "../modeler/document_outputs.js";
-import { closedSketchProfile, flash, report } from "../modeler/drawing_sheet.js";
+import { closedSketchProfile } from "./drawing_sheet_profiles.js";
+import { flash, report } from "./drawing_sheet_touch.js";
 import { btn, el, markUnavailable, namedButton } from "../modeler/editor_dom.js";
 import { downloadBytes, scheduleExactRestore } from "../modeler/export_measure.js";
 import { clearFeaturePreview, cutTargetFeatureId, featureField, resolvedRevolve, retargetSweepHelix, setFeatureReferencesFromForm } from "../modeler/feature_create.js";
