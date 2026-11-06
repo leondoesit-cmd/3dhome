@@ -4,9 +4,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
 import { runInNewContext } from "node:vm";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import {defaultTopologyMateAlignment} from '../js/cad_mate_reference_choices.js';
 
 const modeler = modelerSource();
+const functionsText = (...names) => stripComments(names.map((name) => sourceFunctionText(modeler, name)).join("\n"));
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
 /* The editor's [he, en] table lives in js/modeler_strings.js. */
@@ -131,8 +133,8 @@ test("a new feature only claims sketch geometry no earlier feature owns", () => 
    reading the number you had just asked it for. */
 test("mass properties and the BOM are non-modal cards, not #mdReport", () => {
   const code = stripComments(modeler);
-  const mass = code.slice(code.indexOf("function showMassProperties("), code.indexOf("function beginMeasure("));
-  const bom = code.slice(code.indexOf("function showAssemblyBOM("), code.indexOf("function importStepDocument("));
+  const mass = functionsText("showMassProperties");
+  const bom = functionsText("showAssemblyBOM");
   [mass, bom].forEach((block) => assert.doesNotMatch(block, /\breport\(/));
   assert.match(mass, /openEvalCard\("mass"/);
   assert.match(bom, /openEvalCard\("bom"/);
@@ -155,7 +157,7 @@ test("a flashed message survives the refresh that follows it", () => {
   // a caller may hold a long sentence longer; the default is still FLASH_MS
   assert.match(code, /var hold = holdMs \|\| FLASH_MS;[\s\S]{0,120}E\.flashUntil = Date\.now\(\) \+ hold/);
   assert.match(code, /function flashHolding\(\) \{\s*return !!\(E\.flashUntil && Date\.now\(\) < E\.flashUntil\);/);
-  const hint = code.slice(code.indexOf("function syncHint("));
+  const hint = functionsText("syncHint");
   // the guard must run before syncHint writes any text into #mdHint
   const guard = hint.search(/if \(flashHolding\(\)\) return;/);
   assert.ok(guard > 0, "syncHint yields to a held flash");
@@ -188,7 +190,7 @@ test("Angle is a mate the palette offers and the ribbon's PropertyManager can bu
   assert.match(styles, /\.md-mate-value/);
   // Exercise the actual creation/clamp functions without loading the WebGL
   // editor. Adding planar distances must not change the angle's degree range.
-  const source=code.slice(code.indexOf('function addTopologyMate('),code.indexOf('function openMateAngleForm('));
+  const source=functionsText('addTopologyMate','clampMateAngle','openFormSubassembly','addInspectorTopologyMate');
   const a={componentId:'anchor',frame:{surface:'plane',origin:{x:0,y:0,z:0},normal:{x:0,y:0,z:1}}};
   const b={componentId:'moving',frame:{surface:'plane',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}}};
   const environment={E:{assembly:{topologyMates:[]}},fin:Number.isFinite,defaultTopologyMateAlignment,

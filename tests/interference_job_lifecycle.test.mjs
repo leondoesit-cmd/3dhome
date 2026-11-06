@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 import {detectInterference} from '../js/cad_interference.js';
 import {assemblyInterferenceScope} from '../js/core/assembly_interference_scope.js';
 import {contactAuditSummary,expectedContactFor} from '../js/core/assembly_contact_audit.js';
@@ -12,9 +13,7 @@ import {rotationOf} from '../js/cad_mate_model.js';
 function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};}
 function fixture(exact,detect){
   const source=modelerSource();
-  const start=source.indexOf('function cancelInterferenceCheck() {');
-  const end=source.indexOf('\n/* A general-arrangement sheet:',start);
-  assert.ok(start>=0 && end>start);
+  const interferenceCheck=['cancelInterferenceCheck','runInterferenceCheck','renderAssemblyInterferenceReport'].map(name=>sourceFunctionText(source,name)).join('\n');
   const reports=[],released=[],messages=[],card={children:[],appendChild(item){this.children.push(item);}};
   const E={docType:'assembly',assembly:{},interferenceRevision:0,interferenceChecked:false,evalCard:null};
   const context={E,AbortController,Map,rejectFlexibleSpringPreview:()=>false,assemblyInterferenceScope,contactAuditSummary,expectedContactFor,hasSingleToolboxKernelRecipe,rotationOf,
@@ -24,7 +23,7 @@ function fixture(exact,detect){
     openEvalCard:owner=>{E.evalCard=owner;return card;},evalCardActions:()=>card,closeEvalCard:()=>{E.evalCard=null;},
     exactInterferenceBrep:exact,detectInterference:detect,disposeBrep:body=>released.push(body),
     flash:text=>messages.push(text),report:(...args)=>reports.push(args),syncAssemblyWorkflow:()=>{},updatePreview:()=>{},tf:()=>'',componentLabel:id=>id};
-  runInNewContext(source.slice(start,end)+'\nthis.run=runInterferenceCheck;this.cancel=cancelInterferenceCheck;',context);
+  runInNewContext(interferenceCheck+'\nthis.run=runInterferenceCheck;this.cancel=cancelInterferenceCheck;',context);
   return {context,E,reports,released,messages,card,progressText:()=>card.children.find(item=>item.textContent?.startsWith('interferenceStage'))};
 }
 

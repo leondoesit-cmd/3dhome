@@ -118,7 +118,7 @@ test('motion preview assembles nested explode offsets and restores presentation 
 
 test('browser playback frame callbacks avoid an illegal options receiver and close without rebuilding or solving',()=>{
   const source=modelerSource();
-  const body=source.slice(source.indexOf('function openMotionPlayback('),source.indexOf('function createDefaultMotionStudy('));
+  const body=sourceFunctionText(source,'openMotionPlayback');
   const callbacks=body.match(/requestFrame:(callback=>requestAnimationFrame\(callback\)),cancelFrame:(id=>cancelAnimationFrame\(id\))/);
   assert.ok(callbacks,'Platform animation APIs must be wrapped, not called as options methods');
   let requested=false,cancelled=false;

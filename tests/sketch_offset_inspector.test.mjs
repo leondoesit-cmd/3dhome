@@ -3,14 +3,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 import {setSketchOffset,sketchOffsetValue} from '../js/core/sketch_offset.js';
 import {synchronizeSketchExtrusionFrames} from '../js/core/extrusion_projection.js';
 
 function node(){return {children:[],listeners:{},appendChild(child){this.children.push(child);},setAttribute(){},addEventListener(type,action){(this.listeners[type] ||= []).push(action);},dispatchEvent(event){for(const action of this.listeners[event.type] || [])action(event);return true;}};}
 function fixture(){
   const source=modelerSource();
-  const start=source.indexOf('var propGen = 0;'),end=source.indexOf('\n/* The inspector was one long column:',start);
-  assert.ok(start>=0 && end>start);
+  const offsetControl=['var propGen = 0;',...['numRow','numLengthRow','addSketchOffsetControl'].map(name=>sourceFunctionText(source,name))].join('\n');
   const sketch={id:'new-right-sketch',plane:'side',referenceId:'plane:right',frameSpace:'local',offset:0,frame:{origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0},xAxis:{x:0,y:0,z:1},yAxis:{x:0,y:1,z:0}}};
   const E={def:{activeSketch:sketch.id,sketches:[sketch],references:[{id:'plane:right',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}}],features:[],history:[{kind:'sketch',targetId:sketch.id}]}};
   const undo=[],refresh=[],scheduled=[],host=node();
@@ -18,7 +18,7 @@ function fixture(){
     modelLengthUnit:()=> 'mm',lengthToDocument:(cm)=>cm*10,lengthFromDocument:(mm)=>mm/10,
     pushUndo:(...args)=>undo.push(args),refreshAll:()=>refresh.push(true),invalidateSketchProjection:()=>{},syncSketchDrivenParts:()=>{},
     isCanonicalAuthoring:()=>true,scheduleExactRestore:()=>scheduled.push(true),btn:(label,action)=>({label,action})};
-  runInNewContext(source.slice(start,end)+'\nthis.add=addSketchOffsetControl;',context);
+  runInNewContext(offsetControl+'\nthis.add=addSketchOffsetControl;',context);
   const input=context.add(host,sketch.id);
   return {context,E,sketch,undo,refresh,scheduled,host,input};
 }

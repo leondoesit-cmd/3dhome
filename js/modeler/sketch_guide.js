@@ -7,18 +7,18 @@ import { closeModelerSheet, showModelerSheet } from "../modeler_mobile.js";
 import { cloneData, normalizeTransform } from "../modeler_part_geometry.js";
 import { TXT, t } from "../modeler_strings.js";
 import { welcomeGlyph } from "../modeler_welcome_glyphs.js";
+import { addSketchCircle, addSketchRectangle, displayedCoreIssues, resolveSketch, selLines, sketchForView } from "../modeler/sketch_entities.js";
+import { closeWelcome, syncCoach, updateTourProgress, welcomeGuideCards } from "../modeler/welcome_coach.js";
 import { addSketch, ensureSketch, ensureSketchDoc, sketchPoint, solveSketch } from "../sketch_solver.js";
 import { bindSpeakButton, stopSpeaking } from "../speech.js";
 import { uid } from "../state.js";
 import {
-  E, H, activeParts, addPart, addSketchCircle, addSketchRectangle,
-  closeFeaturePanel, closeWelcome, closedSketchProfile, displayedCoreIssues,
+  E, H, activeParts, addPart, closeFeaturePanel, closedSketchProfile,
   fitPreview, fitSketch, flash, invalidateInterference, isCanonicalAuthoring,
   loadAssemblies, newAssembly, newDef, newSketchPoint, openParametricFeature,
-  pushUndo, refreshAll, resolveSketch, root, saveAssemblies,
-  saveAssemblyDocument, selLines, selectedSolid, setCommandTab,
-  setDocumentType, setMobileAddSelection, setMode, setTab, setTool, setView,
-  sketchForView, syncCoach, updateTourProgress, welcomeGuideCards,
+  pushUndo, refreshAll, root, saveAssemblies, saveAssemblyDocument,
+  selectedSolid, setCommandTab, setDocumentType, setMobileAddSelection,
+  setMode, setTab, setTool, setView,
 } from "../modeler.js";
 
 /* ================= interactive sketch guide =================

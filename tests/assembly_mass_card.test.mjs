@@ -3,11 +3,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 
 test('assembly Mass Properties opens native aggregate values and invalidates when the assembly changes',async()=>{
   const source=modelerSource();
-  const start=source.indexOf('var massDisplayUnits = "si";'),end=source.indexOf('\n/* ---- Measure ----',start);
-  assert.ok(start>=0&&end>start);
+  const massCard=['var massDisplayUnits = "si";','var massCoordinateSystemId = "";',...['massEvaluationChanged','syncMassPropertiesEvaluation','showMassProperties'].map(name=>sourceFunctionText(source,name))].join('\n');
   let history=1,calls=0;
   const E={docType:'assembly',def:{parts:[]},assembly:{key:'assembly',components:[{id:'one'}]},evalCard:null};
   const body={isConnected:true,rows:[],children:[],appendChild(item){this.children.push(item);},set textContent(value){this.rows=[];this.children=[];this.text=value;}};
@@ -24,7 +24,7 @@ test('assembly Mass Properties opens native aggregate values and invalidates whe
     evaluateAssemblyMassProperties:async snapshot=>{calls++;assert.equal(snapshot.components.length,1);return mass;},
     evaluateMassProperties:()=>{throw new Error('assembly must not measure the inactive part document');},
   };
-  runInNewContext(source.slice(start,end)+'\nthis.show=showMassProperties;this.sync=syncMassPropertiesEvaluation;',context);
+  runInNewContext(massCard+'\nthis.show=showMassProperties;this.sync=syncMassPropertiesEvaluation;',context);
   await context.show();
   assert.equal(calls,1);
   assert.ok(body.rows.some(row=>row.label==='massMass'&&row.value.includes('.0314')));

@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createExactSaveCache} from '../js/core/exact_save_cache.js';
 import fs from 'node:fs';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 
 function fixture(){
   const document={parts:[{id:'body',density:7.85,color:'#aaa'}],sketches:[{id:'profile',plane:'top',points:[{id:'p',x:1,y:2}],entities:[],constraints:[]}],references:[{id:'plane:top',type:'plane',normal:{x:0,y:1,z:0}}],parameters:{depth:{value:2}}};
@@ -58,8 +59,7 @@ function viewportFixture(afterPublish=()=>{}) {
     exactRunStamp:()=> 'current-proof',exactSaveCache:cache,syncAuthoringWorkflow:noop,
     rebuildFailureMessage:()=> 'failed',console:{error:noop}};
   const source=modelerSource();
-  const start=source.indexOf('async function regenerateExactModelNow('),end=source.indexOf('\n/* An assembly is exported',start);
-  const rebuild=new Function(...Object.keys(bindings),source.slice(start,end)+';return regenerateExactModelNow;')(...Object.values(bindings));
+  const rebuild=new Function(...Object.keys(bindings),sourceFunctionText(source,'regenerateExactModelNow')+';return regenerateExactModelNow;')(...Object.values(bindings));
   return {...proof,E,cache,rebuild};
 }
 

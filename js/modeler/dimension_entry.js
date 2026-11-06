@@ -14,7 +14,17 @@ import { edgePoints } from "../modeler_mesh_geometry.js";
 import { cloneData } from "../modeler_part_geometry.js";
 import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t } from "../modeler_strings.js";
+import { closeEvalCard } from "../modeler/document_outputs.js";
+import { regenerateExactModel } from "../modeler/export_measure.js";
+import { copySketchToClipboard, pasteReferenceTarget, pasteSketchOntoReference, readClipboardSketch, removeTreeNode, treeSelectedSketch } from "../modeler/feature_tree.js";
+import { fillInspector } from "../modeler/inspector.js";
+import { updatePreview } from "../modeler/library_panel.js";
+import { addSketchArc, addSketchPolygon, addSketchSlot, constraintCaption, openModelEdgeOffsetForm, openSketchOffsetForm, placeDimensionAtPointer, placedDimensionAt, placedDimensionHit, showSketchRefusal } from "../modeler/sketch_dimension_editor.js";
+import { addSketchCircle, addSketchEllipse, addSketchRectangle, applySketchFilletFromSelection, dropSketchModelPicks, hitSketch, isSketchObject, liveSketchFilletValues, markDrawnSelection, resolveSketch, selEntities, selFilletCurves, selPoints, selectSketch, sketchFilletSelectionReady, sketchVisibleModelEdges, syncHint, syncStatus } from "../modeler/sketch_entities.js";
 import { closeTour } from "../modeler/sketch_guide.js";
+import { applyDimensionEditor, dimensionTarget, editPlacedDimension, finishBoxSelect, finishDimensionDrag, finishWallChain, makeWallSegment, setEntityDimension, smartDimension } from "../modeler/tree_assembly.js";
+import { closeNoteEditor, hidePickCycle } from "../modeler/viewport_input.js";
+import { closeWelcome } from "../modeler/welcome_coach.js";
 import { addSmartDimension, dimensionHitYieldsToPoint } from "../sketch_dimensions.js";
 import { pickSketchModelTopology } from "../sketch_intersection.js";
 import { ensureSketch, explainSketchConflict, lineData, removeSketchEntity, sketchEntity, sketchPoint } from "../sketch_solver.js";
@@ -28,34 +38,20 @@ import { beginTouchPrecision, modelerPrecisionTrialAllowed, modelerTouchPrecisio
 import { getDomainUnit } from "../unit_settings.js";
 import {
   E, H, SKETCH_MAX_SCALE, SKETCH_MIN_SCALE, activeSketchFrame, addPart,
-  addSketchArc, addSketchCircle, addSketchEllipse, addSketchPolygon,
-  addSketchRectangle, addSketchSlot, applyCut, applyDimensionEditor,
-  applyMouseGesture, applySketchFilletFromSelection, cancelFacePick,
-  cancelReferenceSelection, closeChromeOverlays, closeCommandSearch,
-  closeEvalCard, closeNoteEditor, closeReport, closeWelcome, commandCatalog,
-  constraintCaption, copySketchToClipboard, cornerRoundForm, cutSkipNote,
-  cutTargetFeatureId, dimensionTarget, dismissProfileOffer, doRedo, doUndo,
-  drawSketch, drawingSheet, dropSketchModelPicks, editPlacedDimension,
-  fillInspector, finishBoxSelect, finishDimensionDrag, finishModelPlane,
-  finishPoly, finishWallChain, fitPreview, fitSketch, flash, hidePickCycle,
-  hitPart, hitSketch, invalidateSketchProjection, isCanonicalAuthoring,
-  isSketchObject, liveSketchFilletValues, makeWallSegment, markDrawnSelection,
-  modelLengthUnit, modelerTouchDistances, moveInView, newSketchPoint,
-  openCommandSearch, openModelEdgeOffsetForm, openParametricFeature,
-  openSketchOffsetForm, openSketchPointCoordinates, orientModelToView,
-  partEditableInSketch, pasteReferenceTarget, pasteSketchOntoReference,
-  placeDimensionAtPointer, placedDimensionAt, placedDimensionHit, pushUndo,
-  readClipboardSketch, refreshAll, regenerateExactModel, removeTreeNode,
-  reportOpen, resolveSketch, resolveTopologyPick, root, runCommand,
-  saveCurrentDocument, scheduleModelerDraft, segmentLengthForm, selEntities,
-  selFilletCurves, selPoints, selectAllTopology, selectSketch,
-  selectionFilterAvailable, setCommandTab, setEntityDimension, setMode,
+  applyCut, applyMouseGesture, cancelFacePick, cancelReferenceSelection,
+  closeChromeOverlays, closeCommandSearch, closeReport, commandCatalog,
+  cornerRoundForm, cutSkipNote, cutTargetFeatureId, dismissProfileOffer,
+  doRedo, doUndo, drawSketch, drawingSheet, finishModelPlane, finishPoly,
+  fitPreview, fitSketch, flash, hitPart, invalidateSketchProjection,
+  isCanonicalAuthoring, modelLengthUnit, modelerTouchDistances, moveInView,
+  newSketchPoint, openCommandSearch, openParametricFeature,
+  openSketchPointCoordinates, orientModelToView, partEditableInSketch,
+  pushUndo, refreshAll, reportOpen, resolveTopologyPick, root, runCommand,
+  saveCurrentDocument, scheduleModelerDraft, segmentLengthForm,
+  selectAllTopology, selectionFilterAvailable, setCommandTab, setMode,
   setModelDisplay, setSelectionFilter, setTool, setView, showContextMenu,
-  showShortcutBar, showSketchRefusal, showViewSelector,
-  sketchFilletSelectionReady, sketchProjection, sketchVisibleModelEdges,
-  smartDimension, snapPt, snapV, solveAssembly, syncContextActions, syncHint,
-  syncStatus, syncTools, toPx, toUV, treeSelectedSketch, updatePreview,
-  worldToSketchPx,
+  showShortcutBar, showViewSelector, sketchProjection, snapPt, snapV,
+  solveAssembly, syncContextActions, syncTools, toPx, toUV, worldToSketchPx,
 } from "../modeler.js";
 
 /* ================= typed dimension entry while drawing =================

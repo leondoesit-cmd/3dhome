@@ -9,8 +9,7 @@ function deferred(){let resolve;const promise=new Promise(done=>{resolve=done;})
 const result=y=>({volumeCm3:2,massKg:.0146,density:7.3,accuracy:'exact',centerOfMass:{x:4.223753,y,z:0},bodies:[]});
 function fixture(){
   const source=modelerSource();
-  const start=source.indexOf('var massDisplayUnits = "si";'),end=source.indexOf('\n/* ---- Measure ----',start);
-  assert.ok(start>=0 && end>start);
+  const massCard=['var massDisplayUnits = "si";','var massCoordinateSystemId = "";',...['massEvaluationChanged','syncMassPropertiesEvaluation','showMassProperties'].map(name=>sourceFunctionText(source,name))].join('\n');
   let node=1;const E={def:{parts:[{id:'rib-body'}]},docType:'part',evalCard:null},jobs=[],painted=[],historyCalls=[];
   const body={isConnected:true,rows:[],children:[],appendChild(item){this.children.push(item);},set textContent(value){this.rows=[];this.children=[];this.text=value;}};
   const context={E,Map,Math,Number,H:{push(...args){historyCalls.push(args);}},scheduleModelerDraft(){},currentHistoryNode:()=>node,
@@ -20,7 +19,7 @@ function fixture(){
     massDisplaySystem:()=>({mass:1,volume:1,density:1,length:1,massUnit:'kg',volumeUnit:'cm3',densityUnit:'g/cm3',lengthUnit:'cm'}),
     evalRow:(_body,label,value)=>{body.rows.push({label,value});painted.push({label,value});},
     evaluateMassProperties:snapshot=>{const pending=deferred();jobs.push({...pending,snapshot});return pending.promise;}};
-  runInNewContext(source.slice(start,end)+'\nthis.show=showMassProperties;this.sync=syncMassPropertiesEvaluation;',context);
+  runInNewContext(massCard+'\nthis.show=showMassProperties;this.sync=syncMassPropertiesEvaluation;',context);
   runInNewContext(sourceFunctionText(source,'pushUndo')+'\nthis.push=pushUndo;',context);
   return {context,E,body,jobs,painted,historyCalls,setNode:value=>{node=value;}};
 }

@@ -35,14 +35,15 @@ test('opening a different model hides its predecessor evaluation before replacin
 });
 
 test('blank, bundle and document-type replacements also invalidate old evaluation output',()=>{
-  for(const signature of ['async function newModel(template) {','async function openImportedBundle(bundle) {','function setDocumentType(type) {','function restoreModelerDraft(draft) {']) {
-    const start=source.indexOf(signature);
-    assert.ok(start>=0);
-    const beforeReplacement=source.slice(start,source.indexOf('E.def =',start));
-    assert.match(beforeReplacement,/closeEvalCard\(\)/,signature);
+  for(const name of ['newModel','openImportedBundle','setDocumentType','restoreModelerDraft']) {
+    const text=sourceFunctionText(source,name);
+    const replacement=text.search(/E\.(def|docType|assembly)\s*=[^=]/);
+    assert.ok(replacement>=0,name);
+    const beforeReplacement=text.slice(0,replacement);
+    assert.match(beforeReplacement,/closeEvalCard\(\)/,name);
   }
-  const start=source.indexOf('async function showMassProperties() {');
-  const massSource=source.slice(start,source.indexOf('function paintMass()',start));
+  const showMass=sourceFunctionText(source,'showMassProperties');
+  const massSource=showMass.slice(0,showMass.indexOf('function paintMass()'));
   const guardStart=massSource.indexOf('if(E.evalCard!=="mass"');
   assert.ok(guardStart>=0,'the actual asynchronous completion guard exists');
   const guard=massSource.slice(guardStart);
@@ -51,10 +52,7 @@ test('blank, bundle and document-type replacements also invalidate old evaluatio
   const context={E:{def:current,evalCard:'mass',massEvaluation:evaluation},evaluation,body:{isConnected:true},painted:false,
     currentHistoryNode:()=>currentNode,syncMassPropertiesEvaluation:()=>{recalculations++;}};
   vm.createContext(context);
-  const helperStart=source.indexOf('function massEvaluationChanged(evaluation) {');
-  const helperEnd=source.indexOf('\nfunction syncMassPropertiesEvaluation()',helperStart);
-  assert.ok(helperStart>=0 && helperEnd>helperStart);
-  vm.runInContext(source.slice(helperStart,helperEnd),context);
+  vm.runInContext(sourceFunctionText(source,'massEvaluationChanged'),context);
   vm.runInContext('function acceptResult(){'+guard+'painted=true;}',context);
   vm.runInContext('acceptResult()',context);
   assert.equal(context.painted,true);

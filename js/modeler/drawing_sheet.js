@@ -34,6 +34,10 @@ import { cloneData, partBounds, partPatternRotations } from "../modeler_part_geo
 import { t, tf } from "../modeler_strings.js";
 import { thinExtrudeAreas } from "../modeler_thin_extrude_profiles.js";
 import { dynDrawHud, pointToLineDistance } from "../modeler/dimension_entry.js";
+import { regenerateExactModel } from "../modeler/export_measure.js";
+import { assemblyExplodeLines, buildAssembly } from "../modeler/library_panel.js";
+import { instanceLabels, refusalHint } from "../modeler/sketch_dimension_editor.js";
+import { hitSketch, selEntities, sizeSketch, syncStatus } from "../modeler/sketch_entities.js";
 import { clearGroup } from "../primitives.js";
 import { drawConstraintGlyphs, drawSketchDimensions } from "../sketch_dimensions.js";
 import { drawNameTags, relationTargets, sketchInstanceNames } from "../sketch_names.js";
@@ -50,19 +54,17 @@ import { directionalSegmentDistances, drawTouchPrecisionLens } from "../touch_pr
 import { getDomainUnit } from "../unit_settings.js";
 import {
   E, H, activeParts, activeSketchFrame, addOverlayPolyline, addPart, applyCut,
-  assemblyDrawingBOMRows, assemblyDrawingBalloonTargets, assemblyExplodeLines,
-  authoritativeFinishTopology, axisOfView, btn, buildAssembly, buildPart,
-  currentHistoryNode, cutSkipNote, cutTargetFeatureId, defBounds, el,
-  fitPreview, hitSketch, instanceLabels, invalidatePartMeshAfterEdit,
-  invalidateSketchProjection, isCanonicalAuthoring, mergeTargetBody,
-  modelLengthUnit, namedButton, newModel, openQuickForm, partUV,
-  pathSketchSpline, pathUvCircleArc, pathUvEllipse, planeAxis,
-  positiveArcSweep, pushUndo, queueExactMesh, refreshAll, refusalHint,
-  regenerateExactModel, renderedParts, root, sameSketchContext,
-  scheduleExactMesh, scheduleModelerDraft, selEntities, selectedSolid,
-  setPanelCollapsed, setTab, sizeSketch, sketchOpenPathReadiness,
-  sketchProjection, standardPlaneFrame, strokeUvCircle, strokeUvRect,
-  syncContextActions, syncHead, syncStatus, syncTools, toPx,
+  assemblyDrawingBOMRows, assemblyDrawingBalloonTargets,
+  authoritativeFinishTopology, axisOfView, btn, buildPart, currentHistoryNode,
+  cutSkipNote, cutTargetFeatureId, defBounds, el, fitPreview,
+  invalidatePartMeshAfterEdit, invalidateSketchProjection,
+  isCanonicalAuthoring, mergeTargetBody, modelLengthUnit, namedButton,
+  newModel, openQuickForm, partUV, pathSketchSpline, pathUvCircleArc,
+  pathUvEllipse, planeAxis, positiveArcSweep, pushUndo, queueExactMesh,
+  refreshAll, renderedParts, root, sameSketchContext, scheduleExactMesh,
+  scheduleModelerDraft, selectedSolid, setPanelCollapsed, setTab,
+  sketchOpenPathReadiness, sketchProjection, standardPlaneFrame,
+  strokeUvCircle, strokeUvRect, syncContextActions, syncHead, syncTools, toPx,
   topologyEntriesForPart,
 } from "../modeler.js";
 

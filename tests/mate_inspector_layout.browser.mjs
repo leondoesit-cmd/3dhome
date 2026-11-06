@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {modelerSource} from './helpers/modeler_source.mjs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
 
-const chrome=await findChrome(),source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const chrome=await findChrome(),source=modelerSource();
 test('long component names and Screw/directed-hinge controls fit narrow Mates inspectors',chrome?{timeout:120000}:{skip:'Chrome unavailable'},async()=>{
  const page=await openPage({width:2560,height:1296,mobile:false,touch:false});
  try{

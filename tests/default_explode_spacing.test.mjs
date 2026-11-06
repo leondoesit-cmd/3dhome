@@ -31,13 +31,12 @@ test('new empty assembly still creates its first default exploded view safely',(
 });
 test('default explode UI uses placed bounds and reopens saved custom steps without changing them',()=>{
   const source=modelerSource();
-  const start=source.indexOf('function createDefaultExplodedView()'),end=source.indexOf('let explodedPlaybackStop',start);
   const assembly={components:Array.from({length:8},(_,i)=>({id:i}))};
   let boundsCalls=0,applied;
   const context={E:{docType:'assembly',assembly},assemblyHasExplodedOffsets,defaultExplodeLayout,createExplodedView,addExplodeStep,
     explodeTargets:a=>a.components.map(component=>({component})),flattenAssembly,occurrenceWorldBounds:(c,placement)=>{assert.ok(placement.origin);boundsCalls++;return {x0:-2.5,x1:2.5,z0:-1,z1:1};},
     applyExplodedView:(a,id)=>{applied=id;},pushUndo:()=>{},t:s=>s,refreshAll:()=>{},fitPreview:()=>{},flash:()=>{},openExplodedPlayback:()=>{}};
-  vm.runInNewContext(source.slice(start,end)+'\ncreateDefaultExplodedView();',context);
+  vm.runInNewContext(sourceFunctionText(source,'createDefaultExplodedView')+'\ncreateDefaultExplodedView();',context);
   assert.equal(boundsCalls,8);assert.ok(Math.abs(assembly.explodedViews[0].steps.at(-1).direction.x-5.6)<1e-8);
   assert.ok(Math.abs(assembly.explodedViews[0].steps.at(-1).direction.z-5.2)<1e-8);
   const saved=assembly.explodedViews[0];saved.steps[0].direction.x=2.25;const before=structuredClone(saved);

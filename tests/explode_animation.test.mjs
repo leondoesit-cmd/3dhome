@@ -50,7 +50,7 @@ test('sequential progress follows nested occurrence paths and clamps endpoints',
 
 test('playback moves existing GPU groups without rebuilding geometry; Stop and Reset cancel frames',()=>{
   const source=modelerSource();
-  const start=source.indexOf('let explodedPlaybackStop = null;'),end=source.indexOf('\n/* One explode step',start);
+  const playback=['let explodedPlaybackStop = null;',...['createEmptyExplodedView','openExplodedPlayback'].map(name=>sourceFunctionText(source,name))].join('\n');
   const component={id:'a',transform:{x:3,y:4,z:5}},assembly={components:[component],activeExplodedView:'v',explodedViews:[{id:'v',steps:[{components:['a'],direction:{x:10,y:0,z:0}}]}]};
   const mesh={_cadExplodeComponent:component,userData:{},position:{set(...values){this.values=values;}}};
   const interference={userData:{cadInterference:0},visible:true};
@@ -59,7 +59,7 @@ test('playback moves existing GPU groups without rebuilding geometry; Stop and R
   const actions={children:[],appendChild(item){this.children.push(item);}},duration={value:'1',addEventListener(event,callback){if(event==='change')durationChanged=callback;}};
   const host={isConnected:true,hidden:false,querySelector:()=>actions,appendChild(){}};
   let pending,refreshes=0,cancellations=0,undoCount=0;
-  const run=new Function('E','applyExplodedProgress','normalizeTransform','root','openQuickForm','el','btn','requestAnimationFrame','cancelAnimationFrame','refreshAll','closeFeaturePanel','pushUndo','syncHead','t','assemblyHasExplodedOffsets','syncExplodeCommandState',source.slice(start,end)+';return openExplodedPlayback;');
+  const run=new Function('E','applyExplodedProgress','normalizeTransform','root','openQuickForm','el','btn','requestAnimationFrame','cancelAnimationFrame','refreshAll','closeFeaturePanel','pushUndo','syncHead','t','assemblyHasExplodedOffsets','syncExplodeCommandState',playback+';return openExplodedPlayback;');
   const open=run(E,applyExplodedProgress,c=>c.transform,{querySelector:()=>host},()=>({duration}),()=>({}),(_label,cb)=>({cb}),cb=>{pending=cb;return 1;},()=>{pending=null;cancellations++;},()=>refreshes++,()=>{},()=>{undoCount++;},()=>{},key=>key,assemblyHasExplodedOffsets,()=>{});
   open();actions.children[0].cb();pending(100);pending(600);
   assert.deepEqual(mesh.position.values,[8,4,5]);
