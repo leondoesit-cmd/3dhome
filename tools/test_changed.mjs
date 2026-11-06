@@ -292,6 +292,10 @@ function main() {
     if (/^index\./.test(needle)) needle = path.posix.join(path.posix.basename(path.posix.dirname(file)), needle);
     needles.push(needle);
     if (isEditorSource(file)) needles.push(MODELER_HELPER);
+    // a split piece js/<name>/x.js is read through moduleSource("js/<name>.js"),
+    // so the tests that name its parent module cover it too
+    const parent = /^(js\/[\w-]+)\/[\w.-]+\.js$/.exec(file);
+    if (parent && fs.existsSync(path.join(ROOT, parent[1] + ".js"))) needles.push(parent[1] + ".js");
   }
 
   let editor = null;
