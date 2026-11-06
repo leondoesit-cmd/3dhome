@@ -385,3 +385,71 @@ test("a changed tests/helpers module selects every test whose recursive helper s
   assert.deepEqual(pick("tests/helpers/module_source.mjs"), ["tests/ms.test.mjs"]);
   assert.deepEqual(pick("tests/helpers/unused.mjs"), []);
 });
+
+// ---- a function's span ends where its statement ends ------------------------
+
+const BETWEEN = [
+  "function alpha() {", // 1
+  "  return 1;", // 2
+  "}", // 3
+  "registry.add(alpha);", // 4
+  "",
+  "class Box {", // 6
+  "  m() { return 1; }", // 7
+  "}", // 8
+  "Box.defaults = {};", // 9
+  "export const table = {", // 10
+  "  k: 1,", // 11
+  "};", // 12
+  "init();", // 13
+  "function beta() {", // 14
+  "  return 2;", // 15
+  "}", // 16
+  "",
+].join("\n");
+const planBetween = (diff, text = BETWEEN) => planEditorChanges([{ file: "js/modeler.js" }], fakeIo({ oldText: text, newText: text, diff }));
+
+test("planEditorChanges: a top-level statement after a function is not blamed on that function", () => {
+  // `registry.add(alpha);` follows alpha's closing brace: it belongs to no declaration, so the fallback applies
+  const stmt = planBetween("@@ -4 +4 @@\n");
+  assert.match(stmt.fallback, /js\/modeler\.js:4 is outside any declaration/);
+  assert.deepEqual([...stmt.names], []);
+  // the same for a class, and for a statement after an exported variable
+  assert.match(planBetween("@@ -9 +9 @@\n").fallback, /:9 is outside any declaration/);
+  assert.match(planBetween("@@ -13 +13 @@\n").fallback, /:13 is outside any declaration/);
+  // lines inside the spans still select exactly their declaration
+  for (const [diff, name] of [["@@ -2 +2 @@\n", "alpha"], ["@@ -7 +7 @@\n", "Box"], ["@@ -11 +11 @@\n", "table"], ["@@ -15 +15 @@\n", "beta"], ["@@ -14 +14 @@\n", "beta"], ["@@ -3 +3 @@\n", "alpha"]]) {
+    const p = planBetween(diff);
+    assert.deepEqual([...p.names], [name], diff);
+    assert.equal(p.fallback, null, diff);
+  }
+});
+
+test("planEditorChanges: the old side is judged against the old text's spans", () => {
+  const newText = BETWEEN.replace("registry.add(alpha);\n", "");
+  // removing line 4: the old side's range sits in no declaration; the new side has nothing to map
+  const p = planEditorChanges([{ file: "js/modeler.js" }], fakeIo({ oldText: BETWEEN, newText, diff: "@@ -4 +3,0 @@\n-registry.add(alpha);\n" }));
+  assert.match(p.fallback, /:4 \(old side\) is outside any declaration/);
+});
+
+test("planEditorChanges: column-0 text inside a template literal is not a declaration", () => {
+  const text = [
+    "function alpha() {", // 1
+    "  return `", // 2
+    "function fake() {", // 3
+    "const nope = 1;", // 4
+    "`;", // 5
+    "}", // 6
+    "function beta() { return 2; }", // 7
+    "",
+  ].join("\n");
+  const p = planBetween("@@ -4 +4 @@\n", text);
+  assert.deepEqual([...p.names], ["alpha"]);
+  assert.equal(p.fallback, null);
+});
+
+test("planEditorChanges: text that does not parse falls back and says so", () => {
+  const broken = "function alpha() {\n  return 1;\n";
+  const p = planBetween("@@ -2 +2 @@\n", broken);
+  assert.match(p.fallback, /js\/modeler\.js: cannot parse to find declaration ends/);
+});

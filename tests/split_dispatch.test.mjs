@@ -489,3 +489,207 @@ test("CLI: --analyze prints the summary, --groups --dry exits 0, a refusal exits
   const usage = spawnSync(process.execPath, [TOOL, "--file", ws.t], { encoding: "utf8" });
   assert.equal(usage.status, 2);
 }));
+
+// ---- review fixes ------------------------------------------------------------------------------
+test("a generated function or Set name that the dispatcher's own scope already has is refused", () => {
+  return Promise.all([
+    // the parameter `runA` would intercept the call runA(act, runA)
+    withFixture(`
+export const log = [];
+export function run(act, runA) {
+  if (act === "a") log.push("a", typeof runA);
+}
+`, async (ws) => refused(ws, split(ws, { runA: ["a"] }), "runA")),
+    // a local of that name would shadow the Set
+    withFixture(`
+export const log = [];
+export function run(act) {
+  const RUN_A_ACTIONS = new Set();
+  if (act === "a") log.push("a");
+}
+`, async (ws) => refused(ws, split(ws, { runA: ["a"] }), "RUN_A_ACTIONS")),
+    // a hoisted var in a block of the dispatcher
+    withFixture(`
+export const log = [];
+export function run(act) {
+  if (act === "zz") { var runA = 1; log.push(runA); }
+  if (act === "a") log.push("a");
+}
+`, async (ws) => refused(ws, split(ws, { runA: ["a"] }), "runA")),
+    // a module-level var declared inside a block is a module binding too
+    withFixture(`
+export const log = [];
+if (true) { var runA = 1; }
+export function run(act) {
+  if (act === "a") log.push("a", runA);
+}
+`, async (ws) => refused(ws, split(ws, { runA: ["a"] }), "runA already exists")),
+  ]);
+});
+
+test("a parameter written by a pre-chain closure is refused (the domain function would read a stale copy); nested writes count", () => {
+  return Promise.all([
+    withFixture(`
+export const log = [];
+export function run(act, ev) {
+  function change() { act = "b"; }
+  if (act === "a") { change(); log.push(act); }
+  else if (act === "b") log.push("b");
+}
+`, async (ws) => {
+      refused(ws, split(ws, { g: ["a", "b"] }), "assigns the parameter act");
+      // the behaviour the refusal protects: the original logs "b" after calling change()
+      const a = await ws.load(ws.orig);
+      a.run("a");
+      assert.deepEqual(a.log, ["b"]);
+    }),
+    withFixture(`
+export const log = [];
+export function run(act, ev) {
+  const bump = () => { ev++; };
+  if (act === "a") { bump(); log.push(ev); }
+}
+`, async (ws) => refused(ws, split(ws, { g: ["a"] }), "assigns the parameter ev")),
+    withFixture(`
+export const log = [];
+export function run(act, ev) {
+  for (ev of [1, 2]) log.push(ev);
+  if (act === "a") log.push("a");
+}
+`, async (ws) => refused(ws, split(ws, { g: ["a"] }), "assigns the parameter ev")),
+  ]);
+});
+
+test("a class's computed key with `this` is branch-level (refused, or kept with --allow-this); method bodies and field initialisers are not", () => {
+  const COMPUTED = `
+export const log = [];
+export function run(act) {
+  if (act === "a") {
+    class C { [this.k]() { return "m"; } }
+    log.push(new C().x());
+  }
+  else if (act === "b") log.push("b");
+}
+`;
+  const FIELD = COMPUTED.replace(`[this.k]() { return "m"; }`, `[this.k] = 5;`).replace("new C().x()", "new C().x");
+  const OWN = `
+export const log = [];
+export function run(act) {
+  if (act === "a") { class D { m() { return this; } f = this; static s = 1; } log.push(typeof new D().m(), typeof new D().f, D.s); }
+  else if (act === "b") log.push("b");
+}
+`;
+  return Promise.all([
+    withFixture(COMPUTED, async (ws) => {
+      assert.equal(analyzeDispatch({ file: "x.mjs", src: ws.text, fn: "run" }).thisUses.length, 1);
+      refused(ws, split(ws, { g: ["a", "b"] }), "branch-level `this`");
+      const r = split(ws, { g: ["a", "b"] }, { allowThis: true });
+      assert.equal(r.ok, true, r.report);
+      const a = await ws.load(ws.orig), b = await ws.load(ws.t);
+      for (const act of ["a", "b"]) {
+        a.log.length = 0; b.log.length = 0;
+        a.run.call({ k: "x" }, act); b.run.call({ k: "x" }, act);
+        assert.deepEqual(b.log, a.log, act);
+      }
+    }),
+    withFixture(FIELD, async (ws) => refused(ws, split(ws, { g: ["a", "b"] }), "branch-level `this`")),
+    withFixture(OWN, async (ws) => {
+      const r = split(ws, { g: ["a", "b"] });
+      assert.equal(r.ok, true, r.report);
+      await sameBehaviour(ws, ["a", "b"]);
+    }),
+  ]);
+});
+
+test("`act && act === \"\"` is not a plain name test: the empty name can fall through, so a final else is refused", () => withFixture(`
+export const log = [];
+export function run(act) {
+  if (act && act === "") log.push("never");
+  else log.push("default", JSON.stringify(act));
+}
+`, async (ws) => {
+  const a = analyzeDispatch({ file: "x.mjs", src: ws.text, fn: "run" });
+  assert.equal(a.literal, 0);
+  assert.equal(a.guarded, 1);
+  // as a plain name "" went through the Set, the branch failed, and the else (kept in run) was skipped
+  refused(ws, split(ws, { g: [""] }), "final else");
+  const o = await ws.load(ws.orig);
+  o.run("");
+  assert.deepEqual(o.log, ["default", "\"\""]);
+}));
+
+test("a plain `act === \"\"` is still a literal; a guarded empty name keeps later branches reachable inside its group", () => withFixture(`
+export const log = [];
+export function run(act) {
+  if (act && act === "") log.push("never");
+  else if (act === "") log.push("empty");
+  else if (act === "a") log.push("a");
+}
+`, async (ws) => {
+  const a = analyzeDispatch({ file: "x.mjs", src: ws.text, fn: "run" });
+  assert.deepEqual([a.literal, a.guarded], [2, 1]);
+  const r = split(ws, { g1: ["", "a"] });
+  assert.equal(r.ok, true, r.report);
+  await sameBehaviour(ws, ["", "a", "b", undefined, null, 0]);
+}));
+
+test("Sets move to the top of the module (after the imports) when a statement above the dispatcher calls it", () => withFixture(`
+import { join } from "node:path";
+export const log = [];
+export const early = run("a");
+// the dispatcher
+export function run(act, ev) {
+  if (act === "a") { log.push("a"); return join("x", "y"); }
+  else if (act === "b") log.push("b");
+}
+`, async (ws) => {
+  const r = split(ws, { g1: ["a"], g2: ["b"] });
+  assert.equal(r.ok, true, r.report);
+  assert.match(r.report, /top of the module/);
+  const text = ws.read();
+  assert.ok(text.indexOf("const G1_ACTIONS") < text.indexOf("run(\"a\")"), "Sets precede the top-level call");
+  assert.ok(text.indexOf("import { join }") < text.indexOf("const G1_ACTIONS"), "after the imports");
+  const a = await ws.load(ws.orig), b = await ws.load(ws.t); // the split module must not throw in the dead zone at load
+  assert.equal(b.early, a.early);
+  assert.deepEqual(b.log, a.log);
+  await sameBehaviour(ws, ["a", "b", "c"]);
+}));
+
+test("Sets stay right above the dispatcher when only declarations precede it; with no imports they go first", () => {
+  return Promise.all([
+    withFixture(`
+export const log = [];
+const TABLE = { a: 1 };
+function helper() { return TABLE; }
+// doc comment
+export function run(act) {
+  if (act === "a") log.push(helper().a);
+}
+`, async (ws) => {
+      const r = split(ws, { g: ["a"] });
+      assert.equal(r.ok, true, r.report);
+      assert.doesNotMatch(r.report, /top of the module/);
+      const text = ws.read();
+      assert.ok(text.indexOf("const G_ACTIONS") > text.indexOf("function helper"));
+      assert.ok(text.indexOf("const G_ACTIONS") < text.indexOf("// doc comment"));
+      await sameBehaviour(ws, ["a", "b"]);
+    }),
+    withFixture(`
+// header
+
+export const log = [];
+log.push("init");
+export const early = run("a");
+export function run(act) {
+  if (act === "a") log.push("a");
+}
+`, async (ws) => {
+      const r = split(ws, { g: ["a"] });
+      assert.equal(r.ok, true, r.report);
+      const text = ws.read();
+      assert.ok(text.indexOf("// header") < text.indexOf("const G_ACTIONS") && text.indexOf("const G_ACTIONS") < text.indexOf("export const log"));
+      const a = await ws.load(ws.orig), b = await ws.load(ws.t);
+      assert.deepEqual(b.log, a.log);
+    }),
+  ]);
+});

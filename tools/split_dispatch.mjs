@@ -34,6 +34,8 @@
 //   }
 //   // split out of NAME()
 //   async function runFileAction(act, ev) { if (act === "undo") {...} else if (act === "redo") ... }
+// The Sets sit right above NAME, or after the imports at the top of the module when a statement above
+// NAME runs code (a top-level call could reach NAME while the Sets are still in their dead zone).
 // Domain functions are placed right after NAME (tools/split_module.mjs can move them later). Branch
 // text is verbatim, in its original relative order inside the group. Domain functions take NAME's
 // parameters; pre-chain `const`/function/class locals that branches reference are passed as extra
@@ -50,9 +52,11 @@
 // identifier parameters, the chain not the last statement of NAME, a kept branch that could shadow a
 // dispatched name (see above), a final else after guarded branches, an action in no group / two groups / no
 // branch, a `||` branch whose names are in different groups, branch-level `arguments` or `this`
-// (--allow-this keeps the receiver with `.call(this, ...)`), `new.target`, direct eval, a branch
-// that assigns a parameter, a branch using a `let`/`var` local of NAME declared before the chain
-// or a `var` declared by another branch, a name that already exists in the module, and a result
+// (--allow-this keeps the receiver with `.call(this, ...)`; a class's computed keys count, its method
+// bodies do not), `new.target`, direct eval, a parameter assigned anywhere in NAME (a pre-chain closure
+// too: the domain functions get copies), a branch using a `let`/`var` local of NAME declared before the chain
+// or a `var` declared by another branch, a generated name that already exists in the module or in NAME's own scope (a parameter, local or
+// hoisted var of that name would intercept the dispatch line), and a result
 // that re-parses with a new free identifier or whose branches differ from the original.
 // The file is written LF with read-back verification.
 import fs from "fs";
@@ -124,13 +128,20 @@ function isRefPosition(node, parent) {
 // other functions and class bodies have their own this/arguments/new.target.
 function scanOwnLevel(node) {
   const found = { this: [], arguments: [], newTarget: [] };
-  walk(node, (n, parent) => {
-    if (n.type === "FunctionDeclaration" || n.type === "FunctionExpression" || n.type === "ClassBody") return false;
+  const visit = (n, parent) => {
+    if (n.type === "FunctionDeclaration" || n.type === "FunctionExpression") return false;
+    if (n.type === "ClassBody") {
+      // method bodies and field initialisers have their own this, but a computed key (`[this.k]() {}`,
+      // `[this.k] = 1`) is evaluated in the enclosing scope
+      for (const member of n.body) if (member.computed && member.key) walk(member.key, visit, member);
+      return false;
+    }
     if (n.type === "ThisExpression") found.this.push(n);
     else if (n.type === "Identifier" && n.name === "arguments" && isRefPosition(n, parent)) found.arguments.push(n);
     else if (n.type === "MetaProperty" && n.meta.name === "new") found.newTarget.push(n);
     return true;
-  });
+  };
+  walk(node, visit);
   return found;
 }
 
@@ -227,6 +238,11 @@ function moduleDeclared(ast) {
     if (d.type === "VariableDeclaration") d.declarations.forEach((x) => patternIds(x.id).forEach((id) => names.add(id.name)));
     else if ((d.type === "FunctionDeclaration" || d.type === "ClassDeclaration") && d.id) names.add(d.id.name);
     else if (d.type === "ImportDeclaration") d.specifiers.forEach((sp) => names.add(sp.local.name));
+    else walk(d, (n) => { // a `var` nested in a top-level block / loop is a module binding too
+      if (n.type === "FunctionDeclaration" || n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression" || n.type === "ClassBody") return false;
+      if (n.type === "VariableDeclaration" && n.kind === "var") n.declarations.forEach((x) => patternIds(x.id).forEach((id) => names.add(id.name)));
+      return true;
+    });
   }
   return names;
 }
@@ -321,7 +337,9 @@ function classifyTest(test, act) {
     let names = nameSets[0];
     for (const s of nameSets.slice(1)) names = names.filter((n) => s.includes(n));
     names = [...new Set(names.filter((n) => prefixes.every((p) => n.startsWith(p))))];
-    if (names.length) return { kind: guards ? "guarded" : "literal", names, prefixes: [] };
+    // `act && act === ""` can never be true, so "" is not a plain name test: it may fall through
+    const neverEmpty = lead.some((i) => i.k === "truthy") && names.includes("");
+    if (names.length) return { kind: guards || neverEmpty ? "guarded" : "literal", names, prefixes: [] };
     return { kind: "other", names: [], prefixes: [] };
   }
   if (prefixes.length) return { kind: "prefix", names: [], prefixes };
@@ -595,6 +613,9 @@ function run(opts, file, src, result) {
   for (const [name, info] of locals) if (info.kind === "var" && info.branch >= 0 && isDispatch(branches[info.branch])) branchVarNames.add(name);
   const paramSet = new Set(params);
 
+  // a parameter written anywhere (a branch, a pre-chain closure, a kept branch) cannot be passed by value
+  for (const id of assignedIds(fn.body)) if (paramSet.has(id.name)) refuse(id.loc.start.line, `${opts.fn} assigns the parameter ${id.name} (the domain functions get their own copy, so a write here is not seen by them)`);
+
   for (const i of dispatched) {
     const b = branches[i], g = branchGroup[i];
     const text = src.slice(b.ifNode.start, b.end);
@@ -604,7 +625,6 @@ function run(opts, file, src, result) {
     if (!opts.allowThis) for (const n of [...own.this, ...body.this]) refuse(n.loc.start.line, "branch-level `this` (pass --allow-this to keep the receiver with .call(this, ...))");
     const ev = hasDirectEval(b.test) || hasDirectEval(b.conseq);
     if (ev) refuse(ev.loc.start.line, "direct eval in a branch (it could reach the function's locals)");
-    for (const id of [...assignedIds(b.test), ...assignedIds(b.conseq)]) if (paramSet.has(id.name)) refuse(id.loc.start.line, `branch assigns the parameter ${id.name} (the domain function would get its own copy)`);
     for (const [name, line] of freeNames(text, params)) {
       const info = locals.get(name);
       if (!info || info.kind === "param") continue;
@@ -631,6 +651,11 @@ function run(opts, file, src, result) {
   }
   const stmtFree = moduleFreeNames(src, file, new Set());
   for (const nm of taken) if (stmtFree.has(nm)) refuse(0, `${nm} is already used as a free name in the module`);
+  // the dispatch lines sit in NAME's own scope: a parameter, local or hoisted var of that name would intercept them
+  for (const nm of taken) {
+    const l = locals.get(nm);
+    if (l) refuse(l.line, `${nm} is a generated name but ${opts.fn} already has a ${l.kind} called ${nm}, which would shadow it in the dispatch line`);
+  }
 
   // ---- gap comments between branches
   const isAsync = !!fn.async;
@@ -714,18 +739,42 @@ function run(opts, file, src, result) {
   const newChain = [...dispatch.map((d, k) => (k ? chainIndent : "") + d), ...(keptText ? [keptText] : [])].join("\n");
 
   // ---- the sets, before NAME (and before the comment lines directly above it)
-  let setPos = stmt.start;
-  for (;;) {
-    const c = comments.find((cm) => cm.end <= setPos && /^[ \t]*\n?[ \t]*$/.test(src.slice(cm.end, setPos)) && src.slice(cm.end, setPos).split("\n").length <= 2
-      && /^[ \t]*$/.test(src.slice(lineStart(src, cm.start), cm.start)));
-    if (!c) break;
-    setPos = lineStart(src, c.start);
+  // start of a statement, moved up over the comment lines directly above it
+  const attachedStart = (pos) => {
+    for (;;) {
+      const c = comments.find((cm) => cm.end <= pos && /^[ \t]*\n?[ \t]*$/.test(src.slice(cm.end, pos)) && src.slice(cm.end, pos).split("\n").length <= 2
+        && /^[ \t]*$/.test(src.slice(lineStart(src, cm.start), cm.start)));
+      if (!c) break;
+      pos = lineStart(src, c.start);
+    }
+    return lineStart(src, pos);
+  };
+  // `const` Sets are in their temporal dead zone until their line runs: if a top-level statement above
+  // NAME runs code (a call, `new`, ...: it could reach NAME), the Sets go to the top of the module instead
+  const runsCode = (s) => {
+    let hit = false;
+    walk(s, (n) => {
+      if (n.type === "FunctionDeclaration" || n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression") return false;
+      if (["CallExpression", "NewExpression", "TaggedTemplateExpression", "ImportExpression", "AwaitExpression"].includes(n.type)) hit = true;
+      return !hit;
+    });
+    return hit;
+  };
+  const above = ast.body.filter((s) => s.end <= stmt.start);
+  const toTop = above.some(runsCode);
+  let setPos = attachedStart(stmt.start), setPrefix = "", setSuffix = "";
+  if (toTop) {
+    const lastImport = above.filter((s) => s.type === "ImportDeclaration").pop();
+    if (lastImport) {
+      setPos = lineEnd(src, lastImport.end);
+      setPrefix = "\n";
+      if (setPos < src.length && src[setPos] !== "\n") setSuffix = "\n";
+    } else setPos = attachedStart(ast.body[0].start);
   }
-  setPos = lineStart(src, setPos);
-  const setBlock = order.map((g) => {
+  const setBlock = setPrefix + order.map((g) => {
     const names = [...new Set(members.get(g).flatMap((i) => branches[i].names))].map((n) => JSON.stringify(n));
     return wrapList(names, stmtIndent, `${stmtIndent}const ${consts.get(g)} = new Set([`, "]);").join("\n");
-  }).join("\n") + "\n";
+  }).join("\n") + "\n" + setSuffix;
 
   const afterStmt = lineEnd(src, stmt.end);
   const domainBlock = "\n" + domains.map((d) => d.text).join("\n\n") + "\n";
@@ -745,6 +794,7 @@ function run(opts, file, src, result) {
     `${file}: ${opts.fn} ${before} -> ${now} lines, ${branches.length} branches -> ${order.length} groups` +
       `${keptIdx.length ? `, ${keptIdx.length} kept in place` : ""}${chain.elseNode ? ", final else kept" : ""}${usedDecl.size ? `, ${usedDecl.size} $names assumption(s)` : ""}`,
     ...result.groups.map((g) => `  ${g.name}(${g.params.join(", ")})  ${g.set}  ${g.actions} actions, ${g.branches} branches`),
+    ...(toTop ? [`the Set constants are at the top of the module (a statement above ${opts.fn} runs code, so they must exist before it)`] : []),
     ...(seenExtra.size ? [`extra parameters passed from ${opts.fn}: ${[...seenExtra.keys()].join(", ")}`] : []),
     ...[...usedDecl].map((k) => `assumed (from $names): ${normText(k).slice(0, 70)} is only true for ${declaredNames[k].length} listed name(s)`),
   ].join("\n");

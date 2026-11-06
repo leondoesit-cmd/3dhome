@@ -38,7 +38,11 @@
 // Computed module paths: `import(a + b)`, `new URL(expr, import.meta.url)` in moved code resolve against
 // the file they live in. A literal or an expression-free template is rewritten; a computed one that
 // may be relative (starts with "./" or "../", or starts with something unknowable) is refused when
-// the new file is in another directory. "three/" + x, absolute URLs and literals are fine.
+// the new file is in another directory. "three/" + x, absolute URLs and literals are fine. For
+// `new URL(x, import.meta.url)` a string without a leading dot is relative too ("assets/x.bin" is
+// rebased like "./assets/x.bin", "assets/" + name is refused); only a scheme ("https:", "data:"),
+// a leading "/" and a bare "#" / "?" are not module-relative. An import() specifier without "./" is a
+// package name, not a path.
 //
 // API: splitModule({ from, to, names | lines, setters, dry, purpose }) works on files;
 // splitModuleText({ sourceText, sourcePath, targetPath, names | lines, setters, siblings }) takes
@@ -67,6 +71,8 @@ const samePath = (a, b) => {
 };
 const byCodepoint = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const isRelative = (spec) => spec.startsWith(".");
+// URL strings resolve against the base: relative unless absolute (scheme), root-relative or a bare ?query / #fragment
+const isRelativeUrl = (v) => v !== "" && !/^[a-z][a-z0-9+.-]*:/i.test(v) && !/^[/#?]/.test(v);
 const norm = (text) => text.replace(/\r\n/g, "\n");
 
 function parse(src, file) {
@@ -85,18 +91,21 @@ function parse(src, file) {
 // Could a computed module path (import(expr), new URL(expr, import.meta.url)) be relative? A literal
 // start tells ("./x/" + name is, "three/" + name is not); anything else, an identifier, a call, a
 // template that starts with an expression, is unknowable and counts as possibly relative.
-function mayBeRelative(expr) {
+// `rel` says whether a string is relative: an import() specifier only when it starts with "." (a bare
+// "three" is a package), a `new URL(x, import.meta.url)` string unless it has a scheme or starts with
+// "/", "#" or "?" ("assets/x.bin" is relative to the module).
+function mayBeRelative(expr, rel = isRelative) {
   switch (expr.type) {
-    case "Literal": return typeof expr.value === "string" && expr.value.startsWith(".");
+    case "Literal": return typeof expr.value === "string" && rel(expr.value);
     case "TemplateLiteral": {
       const head = expr.quasis[0].value.cooked;
-      return head ? head.startsWith(".") : expr.expressions.length > 0;
+      return head ? rel(head) : expr.expressions.length > 0;
     }
     case "BinaryExpression":
       if (expr.operator !== "+") return true;
-      return mayBeRelative(expr.left) || (isEmptyString(expr.left) && mayBeRelative(expr.right));
-    case "ConditionalExpression": return mayBeRelative(expr.consequent) || mayBeRelative(expr.alternate);
-    case "LogicalExpression": return mayBeRelative(expr.left) || mayBeRelative(expr.right);
+      return mayBeRelative(expr.left, rel) || (isEmptyString(expr.left) && mayBeRelative(expr.right, rel));
+    case "ConditionalExpression": return mayBeRelative(expr.consequent, rel) || mayBeRelative(expr.alternate, rel);
+    case "LogicalExpression": return mayBeRelative(expr.left, rel) || mayBeRelative(expr.right, rel);
     default: return true;
   }
 }
@@ -683,8 +692,9 @@ function run(o, result) {
       if (n.type === "ImportExpression") lit = n.source;
       else if (n.type === "NewExpression" && n.callee.type === "Identifier" && n.callee.name === "URL" && n.arguments[0] && isImportMetaUrl(n.arguments[1])) lit = n.arguments[0];
       if (!lit) return;
+      const rel = n.type === "ImportExpression" ? isRelative : isRelativeUrl;
       let value, q;
-      if (lit.type !== "Literal" && lit.type !== "TemplateLiteral" && relocates && mayBeRelative(lit))
+      if (lit.type !== "Literal" && lit.type !== "TemplateLiteral" && relocates && mayBeRelative(lit, rel))
         throw new Abort(`${s.fn.id.name} (line ${lit.loc.start.line}): ${n.type === "ImportExpression" ? "import(...)" : "new URL(..., import.meta.url)"} with a computed path that may be relative cannot be relocated to ${o.to}; move it by hand or make the path a literal`);
       if (lit.type === "Literal" && typeof lit.value === "string") { value = lit.value; q = src0[lit.start]; }
       else if (lit.type === "TemplateLiteral") {
@@ -692,11 +702,12 @@ function run(o, result) {
         q = "`";
         if (lit.expressions.length) {
           if (relocates && !value) throw new Abort(`${s.fn.id.name} (line ${lit.loc.start.line}): a module path that starts with a template expression may be relative and cannot be relocated; move it by hand`);
-          if (isRelative(value)) throw new Abort(`${s.fn.id.name} (line ${lit.loc.start.line}): a relative module path built from a template with expressions cannot be relocated; move it by hand`);
+          if (rel(value)) throw new Abort(`${s.fn.id.name} (line ${lit.loc.start.line}): a relative module path built from a template with expressions cannot be relocated; move it by hand`);
           return;
         }
       } else return;
-      if (!isRelative(value)) return;
+      if (!rel(value)) return;
+      if (!relocates && !isRelative(value)) return; // "assets/x.bin" keeps its base while the directory does
       const next = importPath(newAbs, path.resolve(areaRoot, value), areaRoot);
       if (next === value) return;
       edits.push({ start: lit.start - s.chunk.chunkStart, end: lit.end - s.chunk.chunkStart, text: q + next + q });

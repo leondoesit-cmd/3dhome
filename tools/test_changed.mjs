@@ -33,6 +33,7 @@ import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { outlineText } from "./outline.mjs";
+import * as acorn from "../vendor/acorn/acorn.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TEST_DIRS = ["tests", "uikit/tests"];
@@ -113,29 +114,25 @@ export function commentLines(lines) {
   return out;
 }
 
-const isVariable =(d) => d.kind === "const" || d.kind === "let" || d.kind === "var";
-
-// Last line of a variable declaration's own statement: its first line when that
-// ends the statement, else the closing line (column 0 "}", "]" or ")") of its initializer.
-function variableEnd(lines, decl, nextLine) {
-  const first = (lines[decl.line - 1] ?? "").trimEnd();
-  const limit = nextLine - 1;
-  if (first.endsWith(";")) return decl.line;
-  for (let n = decl.line + 1; n <= limit; n++) {
-    if (/^[}\])]/.test(lines[n - 1] ?? "")) return n;
-  }
-  return limit;
+// start line -> end line of every top-level statement (an `export` wrapper counts as its
+// statement), from a real parse. Throws when the text does not parse.
+function statementEnds(text) {
+  const ast = acorn.parse(text, { ecmaVersion: "latest", sourceType: "module", locations: true, allowHashBang: true });
+  const ends = new Map();
+  for (const st of ast.body) if (!ends.has(st.loc.start.line)) ends.set(st.loc.start.line, st.loc.end.line);
+  return ends;
 }
 
-// Names of the top-level declarations whose span overlaps a range. A declaration
-// spans from its own line to the line before the next declaration (the last one to EOF).
-// Without \`text\` that is all there is: a pure deletion (count 0) at line c touches
-// the declaration containing c.
-// With \`text\` (the file those ranges refer to) the check is per changed line:
-// blank lines, import statements and export lists are skipped, a pure deletion
-// is skipped (the old side's ranges carry it), and a line after a top-level
-// variable's own statement belongs to no declaration, so the variable's name
-// (often short, like \`root\`) is not used unless the variable itself changed.
+// Names of the top-level declarations whose span overlaps a range. Without `text` a
+// declaration spans from its own line to the line before the next declaration (the last
+// one to EOF): a pure deletion (count 0) at line c touches the declaration containing c.
+// With `text` (the file those ranges refer to; it is parsed) a declaration spans exactly
+// its own statement, and the check is per changed line: blank lines, comments, import
+// statements and export lists are skipped, a pure deletion is skipped (the old side's
+// ranges carry it), and a line after a declaration's statement (a top-level statement
+// between two functions, say) belongs to no declaration, so the preceding name is not
+// blamed for it. Outline rows that start no statement (column-0 text inside a template
+// literal) are dropped. Throws when `text` does not parse.
 export function changedDeclarations(outline, ranges, text) {
   return changedDeclarationsDetailed(outline, ranges, text).names;
 }
@@ -158,24 +155,25 @@ export function changedDeclarationsDetailed(outline, ranges, text) {
     }
     return { names: [...names], unmapped };
   }
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const normalized = text.replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
   const ignore = ignorableLines(text);
   const comments = commentLines(lines);
-  const ends = decls.map((d, i) => (isVariable(d)
-    ? variableEnd(lines, d, i + 1 < decls.length ? decls[i + 1].line : lines.length + 1)
-    : Infinity));
+  const stmtEnd = statementEnds(normalized);
+  const real = decls.filter((d) => stmtEnd.has(d.line));
+  const ends = real.map((d) => stmtEnd.get(d.line));
   for (const { start, count } of ranges) {
     for (let n = Math.max(start, 1); n < start + count; n++) {
       const line = (lines[n - 1] ?? "").trim();
       if (ignore.has(n) || comments.has(n) || !line) continue;
       let lo = 0;
-      let hi = decls.length - 1;
+      let hi = real.length - 1;
       let idx = -1;
       while (lo <= hi) {
         const mid = (lo + hi) >> 1;
-        if (decls[mid].line <= n) { idx = mid; lo = mid + 1; } else hi = mid - 1;
+        if (real[mid].line <= n) { idx = mid; lo = mid + 1; } else hi = mid - 1;
       }
-      if (idx >= 0 && n <= ends[idx]) names.add(decls[idx].name);
+      if (idx >= 0 && n <= ends[idx]) names.add(real[idx].name);
       else unmapped.push(n);
     }
   }
@@ -218,7 +216,13 @@ export function planEditorChanges(files, io, { maxDeclarations = MAX_DECLARATION
     const nr = newRanges(hunks);
     const or = oldRanges(hunks);
     const side = (label, ol, ranges, text) => {
-      const r = changedDeclarationsDetailed(ol, ranges, text);
+      let r;
+      try {
+        r = changedDeclarationsDetailed(ol, ranges, text);
+      } catch (err) {
+        fallback ||= `${file}${label}: cannot parse to find declaration ends (${err?.message ?? err})`;
+        return;
+      }
       add(r.names);
       if (r.unmapped.length) fallback ||= `${file}:${r.unmapped[0]}${label} is outside any declaration`;
     };

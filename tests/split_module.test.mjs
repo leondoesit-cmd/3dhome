@@ -1043,3 +1043,84 @@ test("splitModuleText returns the new texts of every file and touches no disk", 
     assert.equal(bad.texts, undefined);
   } finally { ws.done(); }
 });
+
+// ---- new URL(x, import.meta.url) with a path that has no leading dot -----------------------------
+const URL_SRC = `export function bareUrl() {
+  return new URL("parts/a.js", import.meta.url).href.endsWith("/js/parts/a.js");
+}
+
+export function bareTemplate() {
+  return new URL(\`parts/a.js\`, import.meta.url).href.endsWith("/js/parts/a.js");
+}
+
+export function nonRelative() {
+  return [new URL("https://example.com/x.js", import.meta.url).href, new URL("/root.js", import.meta.url).pathname, new URL("data:text/plain,hi", import.meta.url).protocol, new URL("#frag", import.meta.url).hash].join("|");
+}
+
+export function computedBare(name) {
+  return new URL("parts/" + name, import.meta.url).href;
+}
+
+export function templateBare(name) {
+  return new URL(\`parts/\${name}\`, import.meta.url).href;
+}
+
+export function computedAbsolute(name) {
+  return new URL("https://example.com/" + name, import.meta.url).href;
+}
+
+export async function subpathImport() {
+  return typeof (await import("fs/promises")).readFile;
+}
+
+export async function bareImportPrefix(x) {
+  return typeof (await import("node:" + x));
+}
+`;
+
+test("new URL(\"parts/a.js\", import.meta.url) is module-relative and is rebased like \"./parts/a.js\"; scheme, root and fragment URLs and bare import() specifiers are left alone", async () => {
+  const pr = pathProject(URL_SRC);
+  try {
+    const r = pr.split({ names: "bareUrl,bareTemplate,nonRelative,computedAbsolute,subpathImport,bareImportPrefix", setters: false });
+    assert.equal(r.ok, true, r.report);
+    const moved = pr.read("js/modeler/area.js");
+    assert.ok(moved.includes('new URL("../parts/a.js", import.meta.url)'), "string literal rebased");
+    assert.ok(moved.includes("new URL(`../parts/a.js`, import.meta.url)"), "template literal rebased");
+    assert.ok(moved.includes('new URL("https://example.com/x.js", import.meta.url)'), "absolute URL untouched");
+    assert.ok(moved.includes('new URL("/root.js", import.meta.url)') && moved.includes('new URL("#frag", import.meta.url)'));
+    assert.ok(moved.includes('import("fs/promises")'), "an import() specifier without ./ is a package, not a path");
+    assert.ok(moved.includes('new URL("https://example.com/" + name, import.meta.url)'), "a computed absolute URL is fine");
+    const area = await pr.load("js/modeler/area.js");
+    assert.equal(area.bareUrl(), true);
+    assert.equal(area.bareTemplate(), true);
+    // root-relative means the origin's root, whatever the module directory (Windows file URLs add "/C:")
+    assert.match(area.nonRelative(), /^https:\/\/example\.com\/x\.js\|(\/[A-Za-z]:)?\/root\.js\|data:\|#frag$/);
+    assert.equal(await area.subpathImport(), "function");
+    assert.equal(await area.bareImportPrefix("path"), "object");
+  } finally { pr.done(); }
+});
+
+test("a computed new URL(\"parts/\" + name, import.meta.url) is refused when the code changes directory, and moves unchanged within one", async () => {
+  const pr = pathProject(URL_SRC);
+  try {
+    const before = pr.read("js/modeler.js");
+    for (const [name, re] of Object.entries({
+      computedBare: /computedBare \(line 14\): new URL\(\.\.\., import\.meta\.url\) with a computed path/,
+      templateBare: /templateBare \(line 18\): a relative module path built from a template with expressions/,
+    })) {
+      const r = pr.split({ names: name, setters: false });
+      assert.equal(r.ok, false, name);
+      assert.match(r.errors.join("\n"), re, name);
+      assert.equal(pr.read("js/modeler.js"), before, "nothing written");
+      assert.equal(fs.existsSync(pr.p("js/modeler/area.js")), false);
+    }
+    // the same directory keeps the base, so nothing is rewritten and it behaves the same
+    const same = pr.split({ names: "bareUrl,computedBare", setters: false, to: pr.p("js/area.js") });
+    assert.equal(same.ok, true, same.report);
+    const moved = pr.read("js/area.js");
+    assert.ok(moved.includes('new URL("parts/a.js", import.meta.url)') && moved.includes('new URL("parts/" + name, import.meta.url)'));
+    const area = await pr.load("js/area.js");
+    assert.equal(area.bareUrl(), true);
+    assert.ok(area.computedBare("a.js").endsWith("/js/parts/a.js"));
+  } finally { pr.done(); }
+});
