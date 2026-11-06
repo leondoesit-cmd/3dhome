@@ -96,7 +96,7 @@ test("a save reports failure instead of announcing one that did not happen", () 
   assert.match(save, /if \(!await saveAssemblies\(saved,\{expected:assemblyOpenBaseline\}\)\) \{[\s\S]*?return;/);
   // The success tail must come after the guard, never before it.
   assert.ok(save.indexOf("if (!await saveAssemblies(saved,{expected:assemblyOpenBaseline}))") < callAt(save, "markDocumentClean"));
-  assert.ok(save.indexOf("if (!await saveAssemblies(saved,{expected:assemblyOpenBaseline}))") < callAt(save, "discardModelerDraft"));
+  assert.ok(save.indexOf("if (!await saveAssemblies(saved,{expected:assemblyOpenBaseline}))") < callAt(save, "reconcileModelerDraft"));
 
   // The crash-recovery draft is just as silent when storage refuses it.
   assert.match(draftSource, /export function writeModelerDraft[\s\S]*?return false;/);
@@ -112,7 +112,7 @@ test("an asynchronous save commits editor state only to the document it started 
   const guard = save.indexOf("if (E.def !== savingDoc");
   assert.ok(guard >= 0, "the guard must exist");
   assert.ok(guard < callAt(save, "markDocumentClean"), "the guard must precede markDocumentClean");
-  assert.ok(guard < callAt(save, "discardModelerDraft"), "the guard must precede discardModelerDraft");
+  assert.ok(guard < save.lastIndexOf("reconcileModelerDraft()"), "refresh recovery after the Part write");
   // The source item rebinding belongs to the saved document, not the open one.
   assert.match(save, /savingItem\.definitionId = def\.id/);
   assert.doesNotMatch(save, /E\.srcItem\.definitionId = def\.id/);
@@ -120,13 +120,12 @@ test("an asynchronous save commits editor state only to the document it started 
 
 test("every path that replaces the open document asks about unsaved work first", () => {
   // One choke point, so there is a single place to answer the question.
-  assert.match(body("confirmDiscardDocument"), /if \(!documentDirty\(\)\) return true/);
+  assert.match(body("confirmDiscardDocument"), /!hasResidentEdits\(\)/);
   assert.match(body("confirmDiscardDocument"), /await askModelerDecision\(root/);
 
   // New, Close and both library panes all route through it.
   assert.match(body("newModel"), /confirmDiscardDocument\("unsavedNew"\)/);
-  // A confirmed discard takes the draft with it, wherever it was confirmed.
-  assert.match(body("newModel"), /confirmDiscardDocument\("unsavedNew"\)[\s\S]{0,400}?discardModelerDraft\(\)/);
+  assert.match(body("newModel"), /markDocumentClean\(\);\s*reconcileModelerDraft\(\)/);
   assert.match(body("requestCloseModeler"), /confirmDiscardDocument\("unsavedClose"\)/);
   const lib = body("refreshLib");
   assert.equal((lib.match(/confirmDiscardDocument\("unsavedOpen"\)/g) || []).length, 3,
@@ -141,7 +140,7 @@ test("every path that replaces the open document asks about unsaved work first",
   // The superseded draft goes, but only when a document was really replaced —
   // a draft from a previous session is what the no-argument open exists for.
   assert.match(body("openModeler", source.slice(source.indexOf("export function openModeler"))),
-    /replacingOpenDocument && \(editKey \|\| def \|\| srcItem\)/);
+    /if \(replacingOpenDocument\) reconcileModelerDraft\(\)/);
 });
 
 test("renaming or repricing a model makes it dirty like any other edit", () => {

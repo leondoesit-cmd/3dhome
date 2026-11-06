@@ -15,7 +15,7 @@ function fixture(){
   const script=sourceFunctionText(source,'modelLengthUnit')+sourceFunctionText(source,'setModelLengthUnit')+sourceFunctionText(source,'syncHead');
   const actions=new Function('E','root','documentLengthUnit','documentDescription','pushUndo','refreshAll','t','fin','flabel',script+';return {read:modelLengthUnit,set:setModelLengthUnit,sync:syncHead};')
     (E,root,documentLengthUnit,()=>'',()=>undo++,()=>refresh++,key=>key,Number.isFinite,null);
-  const save=new Function('E','root','setDocumentDescription','newAssembly','applyAssemblyMates','cloneData','saveAssemblies','assemblyOpenBaseline','report','t','lastAssemblySaveConflict','refreshLib','flash','markDocumentClean','discardModelerDraft','updateTourProgress','function rejectFlexibleSpringPreview(){return false;}'+sourceFunctionText(source,'saveAssemblyDocument')+';return saveAssemblyDocument;')
+  const save=new Function('E','root','setDocumentDescription','newAssembly','applyAssemblyMates','cloneData','saveAssemblies','assemblyOpenBaseline','report','t','lastAssemblySaveConflict','refreshLib','flash','markDocumentClean','reconcileModelerDraft','updateTourProgress','const H={generation:1,editRevision:()=>1}, assemblySaveSession=doc=>doc, currentHistoryNode=()=>1, applyTrackedUpdates=()=>false, rejectFlexibleSpringPreview=()=>false;'+sourceFunctionText(source,'saveAssemblyDocument')+';return saveAssemblyDocument;')
     (E,{querySelector:key=>key==='#mdName'?{value:'SHOCK'}:{value:''}},()=>{},()=>E.assembly,()=>{},structuredClone,async record=>{saved=record;return true;},null,()=>{},key=>key,false,()=>{},()=>{},()=>{},()=>{},()=>{});
   return {E,unit,actions,save,get saved(){return saved;},get undo(){return undo;},get refresh(){return refresh;}};
 }

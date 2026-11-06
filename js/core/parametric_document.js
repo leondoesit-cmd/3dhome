@@ -3,6 +3,7 @@ import {planFinishRemoval} from "./finish_removal.js";
 import { cloneDomain, createDefinition, domainId, mainReferences, migrateDefinition } from "./schema.js";
 import { featureDefaults, featureSpec, validateFeatureDefinition } from "./feature_catalog.js";
 import {sketchDependencies} from './dependency_graph.js';
+import {restoreLocalCircleOffsets} from './cone_silhouette.js';
 
 export const PARAMETRIC_DOCUMENT_VERSION = 1;
 
@@ -15,6 +16,7 @@ function historyEntry(kind, target, options = {}) {
     targetId: target.id,
     name: options.name || target.name || (kind === "sketch" ? "Sketch" : target.type || "Feature"),
     suppressed: !!(options.suppressed ?? target.suppressed),
+    ...(options.autoSuppressedBy ? {autoSuppressedBy: options.autoSuppressedBy} : {}),
     status: options.status || "pending",
   };
 }
@@ -134,6 +136,7 @@ export function ensureParametricDocument(source, options = {}) {
     if (["extrude", "extrudeCut"].includes(feature.type) && feature.params?.endCondition == null) feature.params.endCondition = "blind";
   }
   discardIncidentalToolboxSketches(document);
+  document.sketches.forEach(restoreLocalCircleOffsets);
   normalizeHistory(document);
   return document;
 }
@@ -311,6 +314,14 @@ export function suppressHistoryNode(document, historyId, suppressed = true, opti
   delete entry.autoSuppressedBy; // an explicit toggle is the user's own choice
   const cascaded = [];
   if (options.cascade !== false) {
+    // When two roots share a dependent, releasing the first transfers
+    // ownership to a remaining root. Keep explicit child toggles intact.
+    const remaining = suppressed ? null : suppressionOwners(document, document.history
+      .filter(node => node.suppressed && !node.autoSuppressedBy).map(node => node.targetId));
+    if (remaining?.has(entry.targetId)) {
+      writeSuppression(document, entry, true);
+      entry.autoSuppressedBy = remaining.get(entry.targetId);
+    }
     historyDependents(document, historyId).forEach((child) => {
       if (suppressed) {
         if (child.suppressed) return; // already off, and not ours to own
@@ -318,6 +329,10 @@ export function suppressHistoryNode(document, historyId, suppressed = true, opti
         child.autoSuppressedBy = entry.targetId;
         cascaded.push(child);
       } else if (child.autoSuppressedBy === entry.targetId) {
+        if (remaining.has(child.targetId)) {
+          child.autoSuppressedBy = remaining.get(child.targetId);
+          return;
+        }
         writeSuppression(document, child, false);
         delete child.autoSuppressedBy;
         cascaded.push(child);
@@ -354,6 +369,17 @@ export function dependentTargetIds(document, targetIds) {
     frontier = next;
   }
   return out;
+}
+
+export function suppressionOwners(document, targetIds) {
+  const roots = new Set(targetIds);
+  const owners = new Map();
+  for (const root of roots) {
+    for (const child of dependentTargetIds(document, [root])) {
+      if (!roots.has(child) && !owners.has(child)) owners.set(child, root);
+    }
+  }
+  return owners;
 }
 
 /* The same cone as history entries, in the order the document builds them, so

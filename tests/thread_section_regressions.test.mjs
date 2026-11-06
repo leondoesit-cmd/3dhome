@@ -58,7 +58,7 @@ test('Force Rebuild clears stale derived output before requesting current exact 
       activeParts:doc=>doc.parts,isCanonicalAuthoring:()=>canonical,isKernelBody:part=>!!part.kernel,
       t:key=>key,flash:message=>events.push(['flash',message]),clearTimeout:value=>events.push(['clearTimer',value]),
       syncSketchDrivenParts:()=>events.push(['resolveSources']),clearTopologyCache:part=>events.push(['clearTopology',part.id]),
-      refreshChangedPart:part=>events.push(['refreshPart',part.id]),releaseExactRun:()=>events.push(['release']),refreshAll:()=>events.push(['refresh']),
+      refreshChangedParts:parts=>events.push(['refreshParts',parts.map(part=>part.id)]),releaseExactRun:()=>events.push(['release']),refreshAll:()=>events.push(['refresh']),
       regenerateExactModel:async(rebuild,options)=>{
         assert.equal(E.coreRun,null);assert.equal(context.coreRunFresh,false);
         assert.equal(parts[0].meshData,undefined);assert.equal(parts[1].meshData,undefined);assert.equal(parts[1].bounds,undefined);

@@ -193,11 +193,23 @@ export function collectSymbols(def) {
    order, and write the results back onto the nodes. A cycle or a bad expression
    leaves the last good value in place and is reported — a document that stops
    rebuilding because of one typo in one field is not a usable document. */
-export function resolveEquations(def) {
+export function resolveEquations(def, suppressedSketchIds) {
   const symbols = collectSymbols(def);
   const cache = new Map();
   const visiting = new Set();
   const errors = [];
+
+  // Keep every named dimension available to valueOf. A suppressed equation
+  // can still be a dependency of an active expression. Report the failure at
+  // each active consumer, even if its input has a last good numeric value.
+  function reportError(node, name, sketch, error) {
+    if (sketch && (suppressedSketchIds?.has(sketch.id) ?? sketch.suppressed)) {
+      node.exprError = null;
+      return;
+    }
+    node.exprError = String(error.message || error);
+    errors.push({name, sketchId:sketch?.id, message:node.exprError});
+  }
 
   function nodeExpression(entry) {
     return entry.kind === "variable" ? entry.node.expr : entry.node.expr;
@@ -233,8 +245,7 @@ export function resolveEquations(def) {
       entry.node.value = value;
       entry.node.exprError = null;
     } catch (error) {
-      entry.node.exprError = String(error.message || error);
-      errors.push({ name, message: entry.node.exprError });
+      reportError(entry.node, name, entry.sketch, error);
     }
   });
 
@@ -247,8 +258,7 @@ export function resolveEquations(def) {
         c.value = evaluateExpression(expandUnitLiterals(c.expr, dimensionUnit(c)), (ref) => valueOf(ref, 0));
         c.exprError = null;
       } catch (error) {
-        c.exprError = String(error.message || error);
-        errors.push({ name: c.id, message: c.exprError });
+        reportError(c, c.id, sketch, error);
       }
     });
   });

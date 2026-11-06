@@ -1,5 +1,6 @@
 import {sketchProfileSegments,segmentProfilePoints} from './profile_curves.js';
 import {sketchWorldPoint} from './swept_sources.js';
+import {axisMeridian} from './revolve_geometry.js';
 
 // A revolve's "outward" side is away from its axis, regardless of which end
 // of an open chain the user drew first. The generic offset below is oriented
@@ -9,7 +10,11 @@ export function revolveThinProfile(sketch, entityIds, thickness, mode='mid-plane
   const chain=sketchProfileSegments(sketch,entityIds,1e-6,{open:true});
   const first=chain?.[0];
   if(!first || !['line','arc'].includes(first.type))return thinSketchProfile(sketch,entityIds,thickness,mode);
-  const radial=q=>{const p=sketchWorldPoint(sketch,q.u,q.v);return axis==='x'?Math.hypot(p.y,p.z):axis==='z'?Math.hypot(p.x,p.y):Math.hypot(p.x,p.z);};
+  const radial=q=>{
+    if (typeof axis==='object') return Math.abs(axisMeridian(axis,q).u);
+    const p=sketchWorldPoint(sketch,q.u,q.v);
+    return axis==='x'?Math.hypot(p.y,p.z):axis==='z'?Math.hypot(p.x,p.y):Math.hypot(p.x,p.z);
+  };
   const width=Number(thickness);
   let plus,minus;
   if(first.type==='arc'){

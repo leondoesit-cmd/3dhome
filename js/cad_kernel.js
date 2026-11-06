@@ -5,7 +5,7 @@ import {restoreProfileCurve} from './cad_profile_serialization.js';
 import {circularPatternPivot} from "./core/pattern_geometry.js";
 import { holeToolPlacements } from "./core/hole_geometry.js";
 import { cylinderAxis } from "./core/cylinder_axis.js";
-import { revolveInterval, revolvePoint, assertRevolveProfileFrame } from "./core/revolve_geometry.js";
+import { axisMeridian, revolveInterval, revolvePoint, assertSketchAxisProfile, assertRevolveProfileFrame } from "./core/revolve_geometry.js";
 // OpenCascade BREP backend. Loaded lazily because the WASM module is large;
 // ordinary sketch editing must remain instant and does not need a solid kernel.
 
@@ -290,6 +290,14 @@ function edgeDescriptor(oc, edge) {
       const circle = adaptor.Circle(), location = circle.Location(), axis = circle.Axis(), direction = axis.Direction();
       try { descriptor.origin = pointOf(location); descriptor.axis = vectorOf(direction); descriptor.radius = circle.Radius(); descriptor.arcMidpoint = pointOf(p); }
       finally { direction.delete(); axis.delete(); location.delete(); circle.delete(); }
+    } else if (curve === "ellipse") {
+      /* Convert Entities rebuilds an elliptical edge as a sketch ellipse, which
+         needs the curve itself: centre, plane normal, major direction and both
+         radii. `origin`/`axis` stay the centre of mass and mid tangent, so the
+         descriptor signature (and every stored reference) is unchanged. */
+      const ellipse = adaptor.Ellipse(), location = ellipse.Location(), axis = ellipse.Axis(), normal = axis.Direction(), xAxis = ellipse.XAxis(), major = xAxis.Direction();
+      try { descriptor.ellipse = { center: pointOf(location), normal: vectorOf(normal), majorAxis: vectorOf(major), majorRadius: ellipse.MajorRadius(), minorRadius: ellipse.MinorRadius(), first, last }; }
+      finally { major.delete(); xAxis.delete(); normal.delete(); axis.delete(); location.delete(); ellipse.delete(); }
     }
     return descriptor;
   } finally { p.delete(); tangent.delete(); adaptor.delete(); props.delete(); }
@@ -481,9 +489,24 @@ export function hydrateSerializedBrepTopology(brep,expected,options={}){
       if(names.has(item.persistentId) || ordinals.has(ordinal) || item.transportOrdinal<0 || item.transportOrdinal>=groups.get(item.kind).length)return true;
       names.add(item.persistentId);ordinals.add(ordinal);return false;
     }))throw new Error('Serialized BREP topology does not match its transport map');
+    const topology = structuredClone(expected), subshapes = new Map();
+    for (const item of topology) {
+      const shape = groups.get(item.kind)[item.transportOrdinal], d = item.descriptor;
+      if (item.kind === "edge" && d?.curve === "ellipse") {
+        const e = d.ellipse;
+        if (!(e?.center && e.normal && e.majorAxis && e.majorRadius > 0 && e.minorRadius > 0)) {
+          // Old records still name this exact edge by ordinal. Recover only its
+          // missing geometry, before replacing any of the body's current handles.
+          const ellipse = edgeDescriptor(oc, shape).ellipse;
+          if (!ellipse) throw new Error("Cached ellipse does not match its native edge");
+          d.ellipse = ellipse;
+        }
+      }
+      subshapes.set(item.persistentId, {kind: item.kind, shape, descriptor: structuredClone(d)});
+    }
     clearBrepTopology(brep);
-    brep.topology=structuredClone(expected);
-    brep.subshapes=new Map(expected.map(item=>[item.persistentId,{kind:item.kind,shape:groups.get(item.kind)[item.transportOrdinal],descriptor:structuredClone(item.descriptor)}]));
+    brep.topology=topology;
+    brep.subshapes=subshapes;
     return {topology:brep.topology,subshapes:brep.subshapes};
   }catch(error){collected.forEach(shape=>shape.delete());throw error;}
 }
@@ -552,7 +575,13 @@ function wireFromSegments(oc, owned, segments, place, normal) {
       // gp_Elips insists the major radius is the larger one; a "tall" ellipse
       // is the same curve turned a quarter turn, not an error.
       const major = Math.max(rx, ry), minor = Math.min(rx, ry);
-      const axes = new oc.gp_Ax2_2(at(segment.center), dir, planeDirection(segment.center, rx >= ry ? rot : rot + Math.PI / 2)); owned.push(axes);
+      let normalDir = dir, majorDir;
+      if (segment.normal && segment.majorAxis) {
+        const n = segment.normal, a = segment.majorAxis;
+        normalDir = new oc.gp_Dir_4(n.x, n.y, n.z); owned.push(normalDir);
+        majorDir = new oc.gp_Dir_4(a.x, a.y, a.z); owned.push(majorDir);
+      } else majorDir = planeDirection(segment.center, rx >= ry ? rot : rot + Math.PI / 2);
+      const axes = new oc.gp_Ax2_2(at(segment.center), normalDir, majorDir); owned.push(axes);
       const ellipse = new oc.gp_Elips_2(axes, Math.max(1e-6, major), Math.max(1e-7, minor)); owned.push(ellipse);
       maker = new oc.BRepBuilderAPI_MakeEdge_12(ellipse);
     } else if(segment.type === "bezier" && segment.controls?.length===4){
@@ -972,12 +1001,14 @@ export async function makeBrepRevolve(spec) {
   try {
     const points = spec.points || spec.pts;
     if (!Array.isArray(points) || points.length < 3) throw new Error("Revolve requires a closed profile");
-    if (spec.radialProfile || spec.profileFrame) assertRevolveProfileFrame(points, spec);
+    const meridian=q=>spec.sketchAxisCoordinates?axisMeridian(spec.axisBasis,q):q;
+    if (spec.axisBasis) assertSketchAxisProfile(spec);
+    else if (spec.radialProfile || spec.profileFrame) assertRevolveProfileFrame(points, spec);
     const loop = spec.segments ? { points, segments: spec.segments } : points;
     const interval=revolveInterval(spec);
     const axisName=spec.axis || "y", radial=!!spec.radialProfile;
     const coordinateSpec={...spec,x:0,y:0,z:0};
-    const place=spec.profileFrame?q=>{
+    const place=spec.axisBasis?q=>revolvePoint(coordinateSpec,meridian(q),interval.start):spec.profileFrame?q=>{
       const p=framePoint(spec.profileFrame,q.u,q.v,0),c=Math.cos(interval.start),s=Math.sin(interval.start);
       if(axisName==='x')return {x:p.x,y:p.y*c-p.z*s,z:p.y*s+p.z*c};
       if(axisName==='z')return {x:p.x*c-p.y*s,y:p.x*s+p.y*c,z:p.z};
@@ -989,10 +1020,12 @@ export async function makeBrepRevolve(spec) {
     const wire=profileWire(oc,owned,loop,place,normal);
     const face=new oc.BRepBuilderAPI_MakeFace_15(wire,true);owned.push(face);
     const sign=spec.profileFrame?1:radial?(axisName==="y"?1:-1):spec.direction==="reverse"?-1:1;
-    const origin=new oc.gp_Pnt_3(0,0,0),direction=new oc.gp_Dir_4(axisName==="x"?sign:0,axisName==="y"?sign:0,axisName==="z"?sign:0);owned.push(origin,direction);
+    const o=spec.axisBasis?.origin || {x:0,y:0,z:0};
+    const dir=spec.axisBasis?.axial || {x:axisName==="x"?sign:0,y:axisName==="y"?sign:0,z:axisName==="z"?sign:0};
+    const origin=new oc.gp_Pnt_3(o.x,o.y,o.z),direction=new oc.gp_Dir_4(dir.x,dir.y,dir.z);owned.push(origin,direction);
     const axis=new oc.gp_Ax1_2(origin,direction);owned.push(axis);
     const maker=new oc.BRepPrimAPI_MakeRevol_1(face.Face(),axis,interval.span,true);owned.push(maker);
-    if(radial && (spec.x || spec.y || spec.z)){
+    if((radial || spec.axisBasis || spec.profileFrame) && (spec.x || spec.y || spec.z)){
       const shift=new oc.gp_Trsf_1(),vector=new oc.gp_Vec_4(spec.x||0,spec.y||0,spec.z||0);owned.push(shift,vector);shift.SetTranslation_1(vector);
       const moved=new oc.BRepBuilderAPI_Transform_2(maker.Shape(),shift,true);owned.push(moved);
       return {oc,shape:moved.Shape(),kind:"solid"};
@@ -1287,6 +1320,14 @@ function buildBoolean(oc, operation, leftShape, rightShape) {
 function shapeMaxTolerance(oc, shape) {
   const analysis = new oc.ShapeAnalysis_ShapeTolerance();
   try { return analysis.Tolerance(shape, 1, oc.TopAbs_ShapeEnum.TopAbs_SHAPE); } finally { analysis.delete(); }
+}
+
+const DEFAULT_EXPORT_TOLERANCE_CM = .001;
+
+function exceedsExportTolerance(actual, limit) {
+  // Allow the same small OCCT rounding error in Shell diagnostics and export.
+  const roundingAllowance = Math.max(4 * Math.max(Number.MIN_VALUE, 2 ** (Math.floor(Math.log2(limit)) - 52)), limit * 1e-8);
+  return !Number.isFinite(actual) || actual - limit > roundingAllowance;
 }
 
 export async function booleanBrep(operation, left, right) {
@@ -1752,8 +1793,17 @@ export async function chamferBrep(brep, distance, options = {}) {
 export async function shellBrep(brep, thickness, options = {}) {
   if (!brep?.shape) throw new Error("Shell needs a BREP shape");
   const overrides = shellFaceThicknesses(options.faceThicknesses, thickness, options.direction);
+  const oc = brep.oc || await loadCadKernel(), types = oc.TopAbs_ShapeEnum;
+  if (options.direction !== "outside" && [types.TopAbs_COMPOUND, types.TopAbs_COMPSOLID].includes(brep.shape.ShapeType())) {
+    // Stop at solids, so only geometry outside them can disqualify the compound.
+    for (const type of [types.TopAbs_SHELL, types.TopAbs_FACE, types.TopAbs_WIRE, types.TopAbs_EDGE, types.TopAbs_VERTEX]) {
+      const loose = new oc.TopExp_Explorer_2(brep.shape, type, types.TopAbs_SOLID);
+      try { if (loose.More()) throw new Error("Shell needs closed solid members; the body contains geometry outside a solid"); }
+      finally { loose.delete(); }
+    }
+    if (await shapeSolidCount(brep) > 1) return shellSolidMembers(brep, thickness, options, overrides);
+  }
   if (overrides.length) return shellWithPlanarThicknesses(brep, thickness, options, overrides);
-  const oc = brep.oc || await loadCadKernel();
   const faceIds = options.facePersistentIds || options.faces || [];
   const selected = selectedBrepSubshapes(brep, "face", faceIds);
   if (!selected.length) throw new Error("Shell needs at least one resolved face to remove");
@@ -1832,6 +1882,71 @@ export async function shellBrep(brep, thickness, options = {}) {
   } finally {
     closingFaces.delete(); progress.delete(); maker.delete();
   }
+}
+
+// A merged history feature can contain several native solids. In particular a
+// countertop and a bowl sharing only the elliptical rim cannot fuse into one
+// manifold solid. Offset each selected face's owner and carry its siblings
+// through verbatim, including when their faces lie in the same plane.
+async function shellSolidMembers(brep, thickness, options, overrides) {
+  const oc = brep.oc, openings = options.facePersistentIds || options.faces || [];
+  if (!openings.length) throw new Error("Shell needs at least one resolved face to remove");
+  const pieces = solidPieces(oc, brep.shape), replacements = [];
+  try {
+    const owners = new Map();
+    const ids = new Set([...openings, ...overrides.map(row => row.facePersistentId)]);
+    const faces = [...ids].map(id => [id, resolveBrepSubshape(brep, id, "face")]);
+    for (const piece of pieces) {
+      const explorer = new oc.TopExp_Explorer_2(piece.shape, oc.TopAbs_ShapeEnum.TopAbs_FACE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+      try {
+        for (; explorer.More(); explorer.Next()) {
+          const face = explorer.Current();
+          try {
+            for (const [id, selected] of faces) {
+              if (!selected?.IsSame(face)) continue;
+              if (owners.has(id) && owners.get(id) !== piece) throw new Error("Shell face belongs to several native solids");
+              owners.set(id, piece);
+            }
+          } finally { face.delete(); }
+        }
+      } finally { explorer.delete(); }
+    }
+    if (owners.size !== ids.size) throw new Error("Shell face could not be resolved on a native solid");
+    const members = [];
+    for (const piece of pieces) {
+      const selected = openings.filter(id => owners.get(id) === piece);
+      const walls = overrides.filter(row => owners.get(row.facePersistentId) === piece);
+      if (!selected.length) {
+        if (walls.length) throw new Error("Shell wall thickness requires an opening on the same native solid");
+        members.push({oc, shape:piece.shape});
+        continue;
+      }
+      const member = {oc, shape:piece.shape, subshapes:brep.subshapes};
+      const replacement = await shellBrep(member, thickness, {...options, facePersistentIds:selected, faceThicknesses:walls});
+      replacements.push(replacement);
+      members.push(replacement);
+    }
+    // The input warning belongs to the whole compound. Extracting a solid
+    // cannot tell us which member introduced it.
+    return await compoundShellMembers(members, brep.approximate, brep.invalid);
+  } finally {
+    replacements.forEach(disposeBrep);
+    pieces.forEach(piece => piece.shape.delete());
+  }
+}
+
+export async function compoundShellMembers(members, upstreamApproximation, upstreamInvalid) {
+  const result = await compoundBrep(members);
+  result.operation = "shell";
+  if (upstreamInvalid) result.invalid = joinedWarnings([upstreamInvalid, result.invalid]);
+  if (upstreamApproximation) result.approximate = joinedWarnings([upstreamApproximation, result.approximate]);
+  // Extracted sibling solids carry native tolerances but no per-member warning.
+  const nativeTolerance = shapeMaxTolerance(result.oc, result.shape);
+  const reportedTolerance = members.reduce((max, body) => Math.max(max, body.looseTolerance ?? 0), 0);
+  const looseTolerance = exceedsExportTolerance(nativeTolerance, DEFAULT_EXPORT_TOLERANCE_CM)
+    ? Math.max(nativeTolerance, reportedTolerance) : reportedTolerance;
+  if (looseTolerance > 0) result.looseTolerance = looseTolerance;
+  return result;
 }
 
 // OpenCascade's surface offset can fail on a recessed conical shell. For an
@@ -3565,10 +3680,23 @@ export async function translateBrep(brep, delta = {}) {
   } });
 }
 
+function joinedWarnings(warnings) {
+  return [...new Set(warnings.filter(Boolean))].join(" ");
+}
+
 export async function compoundBrep(inputs=[]) {
   const valid=inputs.filter((entry)=>entry?.shape);if(!valid.length)throw new Error("Compound needs at least one shape");
   const oc=valid[0].oc || await loadCadKernel(),builder=new oc.TopoDS_Builder(),compound=new oc.TopoDS_Compound();
-  try{builder.MakeCompound(compound);valid.forEach((entry)=>{opaqueBreps.get(entry)?.materialize();builder.Add(compound,entry.shape);});return {oc,shape:compound,kind:"compound"};}
+  try {
+    builder.MakeCompound(compound);
+    valid.forEach((entry)=>{opaqueBreps.get(entry)?.materialize();builder.Add(compound,entry.shape);});
+    const result = {oc,shape:compound,kind:"compound"};
+    for (const flag of ["invalid","approximate"]) {
+      const warning = joinedWarnings(valid.map(entry=>entry[flag]));
+      if (warning) result[flag] = warning;
+    }
+    return result;
+  }
   catch(error){compound.delete?.();throw error;}finally{builder.delete();}
 }
 
@@ -3724,7 +3852,7 @@ export function deferSerializedBrep(data,metadata={},topology=[],options={}) {
 export async function validateBrepForExport(brep, options = {}) {
   if (!brep?.shape || brep.shape.IsNull()) throw new Error("Export requires a nonempty BREP shape");
   const oc = brep.oc || await loadCadKernel();
-  const maximumTolerance = Number(options.maxToleranceCm ?? 0.001);
+  const maximumTolerance = Number(options.maxToleranceCm ?? DEFAULT_EXPORT_TOLERANCE_CM);
   if (!Number.isFinite(maximumTolerance) || maximumTolerance <= 0) throw new Error("Export tolerance must be positive and finite");
   const analyzer = new oc.BRepCheck_Analyzer(brep.shape, true, false);
   const tolerance = new oc.ShapeAnalysis_ShapeTolerance();
@@ -3732,14 +3860,7 @@ export async function validateBrepForExport(brep, options = {}) {
   try {
     if (!analyzer.IsValid_2()) throw new Error("Export blocked: invalid BREP topology or geometry; repair the body first");
     const actualTolerance = tolerance.Tolerance(brep.shape, 1, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
-    // OCCT can promote a requested edge tolerance to a vertex by two double
-    // ULPs (e.g. .001 -> .0010000000000000005). Accept only rounding at the
-    // nominal limit; this does not add a geometric tolerance allowance.
-    // Rebuilt bodies (a thin extruded cover on the LENS) carry .001 cm plus about
-    // 1e-12 of accumulated round-off, a few thousand ULPs. A relative 1e-8 of the
-    // limit (1e-11 cm) accepts that noise and nothing geometric.
-    const roundingAllowance = Math.max(4 * Math.max(Number.MIN_VALUE, 2 ** (Math.floor(Math.log2(maximumTolerance)) - 52)), maximumTolerance * 1e-8);
-    if (!Number.isFinite(actualTolerance) || actualTolerance - maximumTolerance > roundingAllowance) throw new Error("Export blocked: body tolerance exceeds " + maximumTolerance + " cm (actual " + actualTolerance + " cm)");
+    if (exceedsExportTolerance(actualTolerance, maximumTolerance)) throw new Error("Export blocked: body tolerance exceeds " + maximumTolerance + " cm (actual " + actualTolerance + " cm)");
     pieces.push(...solidPieces(oc, brep.shape));
     if (!pieces.length && !options.allowSurfaces) throw new Error("Export blocked: no closed solid; use surface exchange for an intentional sheet body");
     for (const piece of pieces) {

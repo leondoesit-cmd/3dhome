@@ -14,7 +14,14 @@ export function toolFeatureRecipe(merge, bodyBounds) {
      recipe is the body itself, because the copy is a copy of the whole body —
      holes, 3D cuts and finish operations included — and not of a profile. */
   if (merge.kind === "placed") return { type:"placedBody", params:{ part:clone(merge.part), placements:clone(merge.placements || []) } };
-  if (merge.kind === "revolve") return { type:"revolve", params:{ ...(merge.radialProfile?{radialProfile:true,symmetric:!!merge.symmetric,x:Number(merge.x)||0,y:Number(merge.y)||0,z:Number(merge.z)||0}:{}), axis:merge.axis || "y", angle:Number(merge.angle)||360, direction:merge.direction, points:clone(merge.loop || []) } };
+  if (merge.kind === "revolve") return { type:"revolve", params:{
+    ...(merge.radialProfile?{radialProfile:true}:{}), symmetric:!!merge.symmetric,
+    x:Number(merge.x)||0,y:Number(merge.y)||0,z:Number(merge.z)||0,
+    ...(merge.profileFrame?{profileFrame:clone(merge.profileFrame)}:{}),
+    ...(merge.axisBasis?{axisBasis:clone(merge.axisBasis),sketchAxisCoordinates:true}:{}),
+    ...(merge.segments?{segments:clone(merge.segments)}:{}),
+    axis:merge.axis || "y", angle:Number(merge.angle)||360, direction:merge.direction, points:clone(merge.loop || [])
+  } };
   if (merge.kind === "sweep") return { type:"sweep", params:{ profile:clone(merge.profile || []), path:clone(merge.path || []), ...(merge.pathSegments?{pathSegments:clone(merge.pathSegments)}:{}), ...(merge.profileSegments?{profileSegments:clone(merge.profileSegments)}:{}), ...(merge.sketchSources?{sketchSources:clone(merge.sketchSources)}:{}), orientation:merge.orientation, twistAngle:merge.twistAngle, scale:merge.scale, solid:true } };
   if (merge.kind === "loft") return { type:"loft", params:{ sections:clone(merge.sections || []), ...(merge.sketchSources?{sketchSources:clone(merge.sketchSources)}:{}), ...(merge.sectionSegments?{sectionSegments:clone(merge.sectionSegments)}:{}), solid:merge.solid !== false, ruled:!!merge.ruled, matchProfiles:merge.matchProfiles !== false, continuity:merge.continuity, tolerance:merge.tolerance } };
   if (merge.kind) return null;
@@ -34,6 +41,8 @@ export function translateToolRecord(tool, dx, dy, dz) {
     return tool;
   }
   if(tool.frame?.origin){
+    // Old in-memory hinge arrays may share their sketch or a sibling's frame.
+    if (tool.sheetHinge) tool.frame = structuredClone(tool.frame);
     tool.frame.origin.x+=dx;tool.frame.origin.y+=dy;tool.frame.origin.z+=dz;
   } else if(!tool.kind && ["x","y","z"].includes(tool.axis)) {
     const du=tool.axis==="x"?dz:dx, dv=tool.axis==="y"?dz:dy, dw=tool.axis==="x"?dx:tool.axis==="y"?dy:dz;
@@ -53,7 +62,7 @@ export function translateToolRecord(tool, dx, dy, dz) {
     const points=tool.kind==="sweep"?(tool.profile || []).concat(tool.path || []):(tool.sections || []).flat();
     for(const segments of [tool.pathSegments,tool.profileSegments,...(tool.sectionSegments || [])])for(const segment of segments||[]){for(const key of ["from","to","mid","center"])if(segment[key])points.push(segment[key]);points.push(...(segment.controls||[]),...(segment.points||[]));}
     new Set(points).forEach(point=>{point.x+=dx;point.y+=dy;point.z+=dz;});
-  } else if(tool.kind==='revolve' && tool.radialProfile){
+  } else if(tool.kind==='revolve' && (tool.radialProfile || tool.axisBasis || tool.profileFrame)){
     tool.x=(Number(tool.x)||0)+dx;tool.y=(Number(tool.y)||0)+dy;tool.z=(Number(tool.z)||0)+dz;
   }
   // Placed bodies are translated in their host's frame by movePart.

@@ -2,6 +2,27 @@
 <html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8" />
+    <!--
+      three r185, WebGPU build. three.webgpu.js re-exports all of core on top of
+      WebGPURenderer + the node/TSL system, so every `import * as THREE from
+      "three"` in js/ keeps working unchanged and there is exactly ONE copy of the
+      core classes. Every 3D canvas in the app, the CAD editor included, runs on
+      it; the AR room scan's raw WebXR layer is the one WebGL exception.
+      WebGPURenderer picks a WebGPU backend where available and falls back to its
+      own WebGL2 backend otherwise — append ?forceWebGL to the URL to pin the
+      fallback path. r128 is kept at vendor/three-r128 for rollback.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/three.webgpu.js",
+          "three/webgpu": "./vendor/three/three.webgpu.js",
+          "three/tsl": "./vendor/three/three.tsl.js",
+          "three/addons/": "./vendor/three/addons/",
+          "cannon-es": "./vendor/cannon-es.js"
+        }
+      }
+    </script>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
@@ -74,6 +95,12 @@
           iconTheme = oldIconThemes[iconTheme] || iconTheme;
           if (["lucide", "material", "mdi", "tabler", "huge", "cyber", "duotone", "retro", "brutalist", "sketch"].indexOf(iconTheme) < 0) iconTheme = "lucide";
           document.documentElement.setAttribute("data-icon-theme", iconTheme);
+          // Icon artwork is awaited during module evaluation. Fetch the chosen
+          // theme now so that wait overlaps discovery of the boot graph.
+          var iconPreload = document.createElement("link");
+          iconPreload.rel = "modulepreload";
+          iconPreload.href = "js/icon_themes/" + iconTheme + ".js";
+          document.head.appendChild(iconPreload);
           var ui = localStorage.getItem("home3d_ui");
           document.documentElement.setAttribute("data-ui", ui === "legacy" ? "legacy" : "modern");
         } catch (e) {}
@@ -102,6 +129,8 @@
           var el = e && e.target && e.target !== window ? e.target : null;
           if (el && el.tagName) {
             var tag = el.tagName.toUpperCase();
+            // A fetch hint is optional; the real import owns error/fallback handling.
+            if (tag === "LINK" && el.rel === "modulepreload") return;
             if (tag === "SCRIPT" || tag === "LINK") fatal(fileHint);
             return;
           }
@@ -115,6 +144,20 @@
         });
       })();
     </script>
+    <!-- The active locale is awaited by the boot graph; fetch it alongside that graph. -->
+    <script>
+      (function () {
+        var lang = "en";
+        try { if (localStorage.getItem("home3d_lang") === "he") lang = "he"; } catch (_) {}
+        var link = document.createElement("link");
+        link.rel = "modulepreload";
+        link.href = "js/i18n/" + lang + ".js";
+        document.head.appendChild(link);
+      })();
+    </script>
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/planner_tutorial.js"></script>
+    <script type="module" src="js/planner_chrome.js"></script>
     <!-- EVERY dependency is vendored under /vendor and served from this origin.
          Nothing here may point at a CDN: the app has to boot with the network
          unplugged. Inter/Rubik (subset woff2), Phosphor fallback icons, Leaflet, three,
@@ -2330,29 +2373,7 @@
     <!-- Physics Crosshair -->
     <div id="crosshair" style="display: none; position: fixed; top: 50%; left: 50%; width: 10px; height: 10px; background-color: rgba(255, 255, 255, 0.8); border: 2px solid rgba(0,0,0,0.5); border-radius: 50%; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none;"></div>
 
-    <!--
-      three r185, WebGPU build. three.webgpu.js re-exports all of core on top of
-      WebGPURenderer + the node/TSL system, so every `import * as THREE from
-      "three"` in js/ keeps working unchanged and there is exactly ONE copy of the
-      core classes. Every 3D canvas in the app, the CAD editor included, runs on
-      it; the AR room scan's raw WebXR layer is the one WebGL exception.
-      WebGPURenderer picks a WebGPU backend where available and falls back to its
-      own WebGL2 backend otherwise — append ?forceWebGL to the URL to pin the
-      fallback path. r128 is kept at vendor/three-r128 for rollback.
-    -->
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "./vendor/three/three.webgpu.js",
-          "three/webgpu": "./vendor/three/three.webgpu.js",
-          "three/tsl": "./vendor/three/three.tsl.js",
-          "three/addons/": "./vendor/three/addons/",
-          "cannon-es": "./vendor/cannon-es.js"
-        }
-      }
-    </script>
-    <script type="module" src="js/main.js"></script>
-    <script type="module" src="js/planner_tutorial.js"></script>
-    <script type="module" src="js/planner_chrome.js"></script>
+
+
   </body>
 </html>

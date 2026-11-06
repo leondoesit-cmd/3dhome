@@ -133,6 +133,11 @@ test("3D command overflow remains reachable and navigation clears the compass", 
       document.getElementById('view3dBtn').click();
     });
     await page.waitUntil(() => !!document.querySelector('#view-3d .view-gizmo:not(.plan-gizmo)'), {what:'the initialized 3D compass'});
+    if (process.env.MF_BROWSER_GPU === '1') await page.eval(async () => {
+      await (await import('/js/gpu.js')).ready((await import('/js/view3d.js')).getRenderer());
+      await (await import('/js/pbr_material.js')).pbrLoading();
+      await document.fonts.ready;
+    });
     const initial = await page.eval(async () => {
       await new Promise(requestAnimationFrame);
       await new Promise(requestAnimationFrame);

@@ -1,4 +1,5 @@
 import {evaluateMotionStudy} from './cad_motion_study.js';
+import {captureAssemblySolverState,restoreAssemblySolverState} from './core/assembly_solver_state.js';
 let assembly=null,revision=0;
 // Snapshot only records the evaluator publishes. Nested frames, axes and saved
 // pose matrices remain immutable; identity prunes them from the response diff.
@@ -25,8 +26,7 @@ self.onmessage=event=>{
   try {
     if(message.type==='initialize'){assembly=message.assembly;self.postMessage({id:message.id,ok:true});return;}
     if(!assembly)throw new Error('Motion worker is not initialized');
-    const poses=new Map(message.poses.map(item=>[item.id,item.transform]));
-    for(const component of assembly.components)if(poses.has(component.id))component.transform=poses.get(component.id);
+    restoreAssemblySolverState(assembly,{poses:message.poses,documents:message.documents});
     // Generic executor callers may edit in place. Owned previews send the graph
     // once per revision, then only poses; their worker graph is private.
     if(message.studies){
@@ -43,7 +43,7 @@ self.onmessage=event=>{
     const result=evaluateMotionStudy(assembly,message.studyId,message.time,{incremental:!!message.incremental,
       ...(message.owned?{playbackRevision:revision}:{}),
     });
-    self.postMessage({id:message.id,result,poses:assembly.components.map(c=>({id:c.id,transform:c.transform})),
+    self.postMessage({id:message.id,result,...captureAssemblySolverState(assembly,false),
       ...(message.owned?{changes:changesBetween(before,motionState())}:{studies:assembly.motionStudies,mates:assembly.topologyMates})});
   }catch(error){self.postMessage({id:message.id,error:String(error.message||error)});}
 };

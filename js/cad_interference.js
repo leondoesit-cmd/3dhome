@@ -222,7 +222,8 @@ function partMass(part) {
       const a=points[j],b=points[i],cross=a.u*b.v-b.u*a.v;
       secondMoment+=cross*(a.u*a.u+a.u*b.u+b.u*b.u)/12;
     }
-    const radius=secondMoment/firstMoment,height=loopProductMoment(points)/firstMoment;
+    const side=part.axisBasis && part.pts.some(p=>p.u < -1e-9)?-1:1;
+    const radius=side*secondMoment/firstMoment,height=loopProductMoment(points)/firstMoment;
     return {volume,...revolvePlacement(part,radius*(Math.cos(start)-Math.cos(end))/span,height,radius*(Math.sin(end)-Math.sin(start))/span)};
   }
   if (part.kind === "loft" && Array.isArray(part.pts0) && Array.isArray(part.pts1)) {

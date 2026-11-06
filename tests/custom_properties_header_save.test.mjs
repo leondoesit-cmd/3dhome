@@ -14,7 +14,7 @@ function fixture(docType='assembly'){
   const root=node('root');root.querySelector=id=>fields[id] || null;
   const syncHead=new Function('E','root','documentDescription','modelLengthUnit','t','fin','flabel',sourceFunctionText(source,'syncHead')+';return syncHead;')(E,root,documentDescription,()=> 'cm',key=>key,Number.isFinite,null);
   let saved;
-  const save=new Function('E','root','setDocumentDescription','newAssembly','applyAssemblyMates','cloneData','saveAssemblies','assemblyOpenBaseline','report','t','lastAssemblySaveConflict','refreshLib','flash','markDocumentClean','discardModelerDraft','updateTourProgress','function rejectFlexibleSpringPreview(){return false;}'+sourceFunctionText(source,'saveAssemblyDocument')+';return saveAssemblyDocument;')
+  const save=new Function('E','root','setDocumentDescription','newAssembly','applyAssemblyMates','cloneData','saveAssemblies','assemblyOpenBaseline','report','t','lastAssemblySaveConflict','refreshLib','flash','markDocumentClean','reconcileModelerDraft','updateTourProgress','const H={generation:1,editRevision:()=>1}, assemblySaveSession=doc=>doc, currentHistoryNode=()=>1, applyTrackedUpdates=()=>false, rejectFlexibleSpringPreview=()=>false;'+sourceFunctionText(source,'saveAssemblyDocument')+';return saveAssemblyDocument;')
     (E,root,setDocumentDescription,()=>doc,()=>{},value=>JSON.parse(JSON.stringify(value)),async value=>{saved=value;return true;},null,()=>{},key=>key,false,()=>{},()=>{},()=>{},()=>{},()=>{});
   return {doc,E,root,syncHead,save,get saved(){return saved;}};
 }

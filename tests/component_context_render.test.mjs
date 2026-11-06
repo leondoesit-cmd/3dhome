@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import {Group as NativeGroup,Vector3} from '../vendor/three/three.module.js';
 import {nestedComponentOccurrence,assemblyWithoutNestedOccurrence} from '../js/core/nested_component_edit.js';
 import {explodedOccurrenceOffset} from '../js/cad_exploded_view.js';
+import {createHistorySnapshotCodec} from '../js/core/history_value_pool.js';
 
 const source=modelerSource();
 function fn(name,next){return source.slice(source.indexOf('function '+name+'('),source.indexOf('\nfunction '+next+'(',source.indexOf('function '+name+'(')));}
@@ -19,7 +20,7 @@ test('local component Undo snapshots exclude unchanged parent native geometry wh
   const E={def:{features:[{id:'rib',params:{thickness:.19}}]},contextEdit:{componentId:12}};
   Object.defineProperty(E,'assembly',{get(){throw new Error('local component history must not traverse parent native geometry');},configurable:true});
   const declaration=source.slice(source.indexOf('function snapDoc()'),source.indexOf('\nconst H =',source.indexOf('function snapDoc()')));
-  const snap=new Function('E',declaration+';return snapDoc;')(E);
+  const snap=new Function('E','historySnapshots',declaration+';return snapDoc;')(E,createHistorySnapshotCodec(["meshData","exactTopologyCache"]));
   assert.deepEqual(JSON.parse(snap()),{d:E.def,contextComponentId:12});
   Object.defineProperty(E,'assembly',{value:{components:[{id:12,def:{features:[{id:'old'}]}}]},configurable:true});
   E.contextEdit=null;
@@ -32,7 +33,7 @@ test('restoring local component Undo retains parent assembly identity and restor
   const start=source.indexOf('const H = createHistory('),end=source.indexOf('\n/* ---- what is inside a document',start);
   const noop=()=>{};
   let restoredName;
-  const restore=new Function('E','createHistory','closeEvalCard','invalidateDrawing','invalidateInterference','resolveSketch','refreshAll','syncSheetPanel','scanDoc','docSubtree','syncUndoButtons','syncHead','function snapDoc(){return null;}'+source.slice(start,end)+';return H.set;')(E,options=>options,noop,noop,noop,noop,noop,noop,noop,noop,noop,()=>{restoredName=E.def.name;});
+  const restore=new Function('E','createHistory','closeEvalCard','invalidateDrawing','invalidateInterference','resolveSketch','refreshAll','syncSheetPanel','scanDoc','docSubtree','syncUndoButtons','syncHead','historySnapshots','function snapDoc(){return null;}'+source.slice(start,end)+';return H.set;')(E,options=>options,noop,noop,noop,noop,noop,noop,noop,noop,noop,()=>{restoredName=E.def.name;},createHistorySnapshotCodec(["meshData","exactTopologyCache"]));
   restore(JSON.stringify({d:{name:'Original component',features:[{id:'prior-rib',params:{draftAngle:1}}]},contextComponentId:12}));
   assert.equal(restoredName,'Original component');
   assert.equal(E.assembly,parent);

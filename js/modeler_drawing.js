@@ -53,8 +53,8 @@ export function bindSectionPositionControls(input,button,sheet,viewId,unit,redra
 import {
   LINE_STYLES, SHEET_SIZES, STANDARD_SCALES,
   addViewToSheet, availableViewDirs, buildSheetScene, createProjector, defaultViewLabel,
-  dimensionText, edgeAngleRefs, measureDim, nextSectionTag, removeViewFromSheet, canRemoveViewFromSheet, resolveDimAnchor,
-  scaleLabel, scaleValue, sceneToSvg, sheetDimIssues, sheetPaper, topologyAnchors, topologyCrossings,
+  dimensionText, edgeAngleRefs, effectiveViewSource, hasHostDimensionReference, measureDim, nextSectionTag, projectedDimensionBinding, normalizeViewSource, removeViewFromSheet, canRemoveViewFromSheet, resolveDimAnchor,
+  scaleLabel, scaleValue, sceneToSvg, sheetDimIssues, sheetPaper, topologyAnchors, topologyCrossings, viewSourceOwner,
 } from "./cad_sheet.js";
 import { isOrthoView, projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 import { planModelItems } from "./core/model_items.js";
@@ -138,17 +138,31 @@ export function createDrawingController(host) {
   /* Projections are expensive and the sheet is repainted on every pointer move,
      so they are cached until the model itself rebuilds — the token is the
      editor's promise that the triangles have not changed underneath us. */
-  function projectionFor(view) {
+  let drawingDoc = null;
+  function useDocument(doc) {
+    if (doc !== drawingDoc) {
+      invalidate();
+      drawingDoc = doc;
+    }
+  }
+  function projectionFor(view, doc = host.doc()) {
+    useDocument(doc);
     const token = host.bodiesToken();
     if (token !== projectionToken || !projector) {
       projectionToken = token;
       const bodies = host.bodies() || [];
-      projector = createProjector(host.doc(), bodies, { bodiesForView: host.bodiesForView ? view => host.bodiesForView(view, bodies) : undefined,topology:host.topology });
+      projector = createProjector(doc, bodies, { bodiesForView: host.bodiesForView ? view => host.bodiesForView(view, bodies) : undefined,topology:host.topology,sourceToken:host.viewSourceToken,
+        isExplodedView:host.isExplodedView });
     }
     return projector(view);
   }
 
-  function invalidate() { projector = null; projectionToken = -1; state.scene = null; }
+  function invalidateLayout() { state.scene = null; }
+  function invalidate() {
+    projector = drawingDoc = null;
+    projectionToken = -1;
+    invalidateLayout();
+  }
 
   /* ---- the scene --------------------------------------------------------- */
 
@@ -173,7 +187,7 @@ export function createDrawingController(host) {
       host.bodiesToken(), host.model?.()?.name, host.model?.()?.customProperties, host.bom?.(), host.componentBalloons?.(), host.explodeLines?.(), state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
       for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
-        view.parent, view.hatchPattern, view.scaleMode, view.hidden, view.displayStyle, view.centers, view.labelled, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName]) hash = fold(hash, value);
+        view.parent, view.hatchPattern, view.scaleMode, view.hidden, view.displayStyle, view.centers, view.labelled, view.exploded, view.section,view.alignedSection, view.detail, view.cropSketch,view.brokenOut,view.breakView,view.auxiliary,view.alternatePosition, view.configurationId, view.configurationName, view.assemblyState, view.source, host.viewSourceToken?.(view)]) hash = fold(hash, value);
     }
     for (const dim of doc.dims || []) {
       if(dim.coneAngle) {
@@ -181,7 +195,7 @@ export function createDrawingController(host) {
         hash=fold(hash,[source?.id,source?.suppressed,source?.params?.draftAngle]);
       }
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
-        dim.text, dim.precision, dim.tolerance, dim.toleranceOverride, dim.coneAngle, modelItemTolerance(host.model?.(),dim.modelItem), dim.reference, dim.auto]) hash = fold(hash, value);
+        dim.text, dim.precision, dim.tolerance, dim.toleranceOverride, dim.coneAngle, modelItemTolerance(host.model?.(),dim.modelItem), dim.reference, dim.auto, dim.sourceBinding]) hash = fold(hash, value);
       for (const ref of dim.refs || []) {
         for (const value of [ref.u, ref.v, ref.pid, ref.pid2, ref.kind, ref.at]) hash = fold(hash, value);
       }
@@ -196,18 +210,23 @@ export function createDrawingController(host) {
 
   function scene() {
     const doc = host.doc();
+    useDocument(doc);
     const key = sceneKey(doc);
     if (state.scene && state.sceneKey === key) return state.scene;
     state.scene = buildSheetScene(doc, {
-      projection: projectionFor,
+      projection: view => projectionFor(view, doc),
       model: host.model?.(),
       topology: host.topology ? host.topology() : null,
+      foreignSource: host.viewSourceForeign,
+      sourceIssue: host.viewSourceIssue,
       callouts: host.callouts ? host.callouts() : null,
       meta: host.meta ? host.meta() : null,
       properties: host.model?.()?.customProperties || {},
       bom: host.bom ? host.bom() : null,
       componentBalloons:host.componentBalloons?.(),
       explodeLines:host.explodeLines?.(),
+      explodeLinesForView:host.explodeLinesForView,
+      componentBalloonsForView:host.componentBalloonsForView,
     }, { selectedDim: state.selection?.kind === "dim" ? state.selection.id : null });
     state.sceneKey = key;
     return state.scene;
@@ -537,7 +556,7 @@ export function createDrawingController(host) {
        two. A crossing of lines nobody named is therefore not offered — see
        topologyCrossings. Its identity travels on the snap point itself, because
        unlike every other snap it cannot be recovered by looking up one id. */
-    const index = scene().topologyIndex, basis = projection?.basis;
+    const index = host.canUseTopologyForView?.(place.view) === false ? null : scene().topologyIndex, basis = projection?.basis;
     if (index && basis && !projection?.nonlinearProjection) {
       for (const cross of topologyCrossings(index, basis)) {
         points.push({ u: cross.u, v: cross.v, kind: "cross", pid: cross.pid, pid2: cross.pid2, at: cross.at });
@@ -682,6 +701,13 @@ export function createDrawingController(host) {
      whoever owns the gesture. */
   function pushDim(dim) {
     const doc = host.doc();
+    const view = doc.views.find(entry => entry.id === dim.viewId);
+    const source = effectiveViewSource(doc, view);
+    if (source || (doc.assemblyLayout && !hasHostDimensionReference(dim))) {
+      // Without a persistent topology ID, only a matching projected snap can
+      // vouch for the measurement after the live assembly or its view moves.
+      dim.sourceBinding = projectedDimensionBinding(dim, source, projectionFor(view));
+    }
     doc.dims.push(Object.assign({ id: "d" + Math.random().toString(36).slice(2, 9) }, dim));
     const placed = doc.dims[doc.dims.length - 1];
     state.selection = { kind: "dim", id: placed.id };
@@ -799,13 +825,15 @@ export function createDrawingController(host) {
       if(state.tool==='insertimage')editPaperImage(null,sheetPoint);
       else if(state.tool==='insertprojectimage')editPaperImage(null,sheetPoint,true);
       else if(!hit)host.flash('Click an inserted drawing image');
-      else if(state.tool==='removeimage') {host.pushUndo('Remove drawing image');const doc=host.doc();doc.images=doc.images.filter(i=>i.id!==hit.id);invalidate();host.markDirty();host.refresh();}
+      else if(state.tool==='removeimage') {host.pushUndo('Remove drawing image');const doc=host.doc();doc.images=doc.images.filter(i=>i.id!==hit.id);invalidateLayout();host.markDirty();host.refresh();}
       else editPaperImage(hit,sheetPoint);
       return true;
     }
-    if(['dim','diam','angle','baseline','chain','auxiliary'].includes(state.tool) && event.button===0
-      && scene().views.some(place=>host.canUseTopologyForView?.(place.view)===false&&pointNearBox(sheetPoint,place.box,6))) {
-      host.flash('Named configuration views support native geometry only; associative tools require per-view topology');return true;
+    const geometryOnly=['dim','diam','angle','baseline','chain','auxiliary'].includes(state.tool) && event.button===0
+      && scene().views.find(place=>host.canUseTopologyForView?.(place.view)===false
+        && (!host.viewSourceForeign?.(place.view) || state.tool==='auxiliary') && pointNearBox(sheetPoint,place.box,6));
+    if(geometryOnly) {
+      host.flash(host.topologyRefusal?.(geometryOnly.view) || 'Named configuration views support native geometry only; associative tools require per-view topology');return true;
     }
     if(state.tool==='alignedsection' && event.button===0 && !event.altKey && !event.spaceKey) {
       const doc=host.doc(),built=scene(),draft=state.draft;
@@ -1044,7 +1072,7 @@ export function createDrawingController(host) {
     const built=scene();let best=null;
     for(const place of built.views) {
       if(!pointNearBox(sheetPoint,place.box,6))continue;
-      if(place.projection?.nonlinearProjection)continue;
+      if(place.projection?.nonlinearProjection || host.canUseTopologyForView?.(place.view)===false)continue;
       for(const [pid,entry] of built.topologyIndex || []) {
         if(entry.kind!=="edge" || entry.descriptor?.curve!=="line")continue;
         const refs=["a","b"].map(at=>({pid,kind:"edge",at,...resolveDimAnchor({pid,kind:"edge",at},built.topologyIndex,place.projection?.basis)}));
@@ -1068,7 +1096,7 @@ export function createDrawingController(host) {
       const basis=place.projection?.basis;
       // A mesh can fit a complete circle to a visible semicircular notch.
       // Prefer the exact trimmed edge so its callout is a bound radius.
-      if (basis && built.topologyIndex && !place.projection?.nonlinearProjection) {
+      if (basis && built.topologyIndex && !place.projection?.nonlinearProjection && host.canUseTopologyForView?.(place.view)!==false) {
         const project=(p)=>({u:p.x*basis.right.x+p.y*basis.right.y+p.z*basis.right.z,v:p.x*basis.up.x+p.y*basis.up.y+p.z*basis.up.z});
         const turn=(a)=>(a+Math.PI*4)%(Math.PI*2);
         for(const [pid,entry] of built.topologyIndex) {
@@ -1416,7 +1444,7 @@ export function createDrawingController(host) {
       if(!Number.isFinite(dx)||!Number.isFinite(dy)||Math.abs(dx)>1000||Math.abs(dy)>1000){host.flash('Balloon offsets must be finite paper millimetres');return;}
       if(note.dx===dx&&note.dy===dy&&note.autoBalloon===auto)return;
       host.pushUndo('Edit component balloon');const live=host.doc().notes.find(n=>n.id===id);
-      if(!live)return;Object.assign(live,{dx,dy,autoBalloon:auto});invalidate();host.markDirty();return;
+      if(!live)return;Object.assign(live,{dx,dy,autoBalloon:auto});invalidateLayout();host.markDirty();return;
     }
     const answer = host.promptFields
       ? await host.promptFields(host.t("drawNoteTitle"), [{key:"text",label:"Note text",type:"textarea",value:note.text || ""}])
@@ -1436,7 +1464,7 @@ export function createDrawingController(host) {
       const primitive=validateDrawingPrimitive({id:'p'+Math.random().toString(36).slice(2,9),type:draft.type,points:draft.points,style:'outline'},sheetPaper(host.doc()));
       host.pushUndo('Add drawing annotation');
       (host.doc().primitives ||= []).push(primitive);state.selection={kind:'primitive',id:primitive.id};state.draft=null;
-      invalidate();host.markDirty();return true;
+      invalidateLayout();host.markDirty();return true;
     } catch(error) {host.flash(error.message);return false;}
   }
   async function editPrimitive(id) {
@@ -1470,7 +1498,7 @@ export function createDrawingController(host) {
       // the current annotation, rather than the detached pre-history object.
       const live=host.doc().primitives.find(p=>p.id===id);
       if(!live || host.model?.()!==owner)throw new Error('Drawing changed while editing annotation; retry');
-      Object.assign(live,next);invalidate();host.markDirty();
+      Object.assign(live,next);invalidateLayout();host.markDirty();
     } catch(error){host.flash(error.message);}
   }
 
@@ -1500,29 +1528,36 @@ export function createDrawingController(host) {
       const live=host.doc();live.primitives=live.primitives.filter(entry=>entry.id!==selection.id);
     }
     state.selection = null;
-    invalidate();
+    if (selection.kind === "view") invalidate();
+    else invalidateLayout();
     host.markDirty();
     return true;
   }
 
   function autoComponentBalloons() {
-    const doc=host.doc(),built=scene(),targets=host.componentBalloons?.() || [];
+    const doc=host.doc(),built=scene();
     const selected=state.selection?.kind==='view'?built.views.find(v=>v.id===state.selection.id):null;
-    const place=selected || built.views.find(v=>v.view.dir==='iso') || built.views[0];
+    const eligible=built.views.filter(v=>!host.viewSourceForeign?.(v.view));
+    const place=selected || eligible.find(v=>v.view.dir==='iso') || eligible[0];
+    if(place && host.viewSourceForeign?.(place.view)){host.flash('Select a view of this assembly for component balloons');return 0;}
     if(!place||place.view.section||place.view.detail||place.view.auxiliary||place.view.alignedSection||place.view.breakView||place.view.brokenOut||place.view.cropSketch) {host.flash('Select an ordinary assembly view for component balloons');return 0;}
+    const targets = host.componentBalloonsForView?.(place.view) ?? host.componentBalloons?.() ?? [];
     if(!targets.length||targets.some(t=>!t.point||![t.point.x,t.point.y,t.point.z].every(Number.isFinite)||t.item===undefined)){host.flash('Component balloons need current native mesh geometry for every visible BOM occurrence');return 0;}
     const existing=new Set((doc.notes||[]).filter(n=>n.componentBalloon&&n.leader?.viewId===place.id).map(n=>JSON.stringify(n.componentBalloon.path)));
     const planned=targets.filter(t=>!existing.has(JSON.stringify(t.path))).map(target=>resolveComponentBalloon({id:'b'+Math.random().toString(36).slice(2,9),balloon:true,autoBalloon:true,text:String(target.item),componentBalloon:{path:target.path.slice()},leader:{viewId:place.id}},targets,place.projection?.basis).note);
     if(!planned.length)return 0;
     host.pushUndo('Auto component balloons');
     const live=host.doc();if(!live.views.some(v=>v.id===place.id))return 0;
-    live.notes.push(...planned);state.selection=null;invalidate();host.markDirty();host.refresh();return planned.length;
+    live.notes.push(...planned);state.selection=null;invalidateLayout();host.markDirty();host.refresh();return planned.length;
   }
 
   function addView(dir) {
     host.pushUndo(host.t("opAddView"));
     const doc = host.doc();
-    const view = addViewToSheet(doc, dir, { label: defaultViewLabel(dir) });
+    /* Like a SOLIDWORKS projected view, a new view draws the model the
+       primary view draws; the panel's Model source changes it afterwards. */
+    const primary = doc.views.find((entry) => entry.primary);
+    const view = addViewToSheet(doc, dir, { label: defaultViewLabel(dir), source: primary?.source || null, assemblyState: primary?.assemblyState });
     state.selection = { kind: "view", id: view.id };
     invalidate();
     host.markDirty();
@@ -1606,7 +1641,7 @@ export function createDrawingController(host) {
       });
     });
     state.selection = { kind: "note", id: doc.notes[doc.notes.length - 1].id };
-    invalidate();
+    invalidateLayout();
     host.markDirty();
     if (unbound) host.flash(host.t("drawCalloutUnbound"));
     return pending.length;
@@ -1619,7 +1654,7 @@ export function createDrawingController(host) {
       const live = host.doc();
       live.dims.push(...planned.map(dim => ({ ...dim, id:"d" + Math.random().toString(36).slice(2, 9) })));
       state.selection = { kind:"dim", id:live.dims[live.dims.length - 1].id };
-      invalidate();
+      invalidateLayout();
       host.markDirty();
     }
     const callouts = addHoleCallouts({ quiet:true, undoStarted:planned.length>0 });
@@ -1703,6 +1738,22 @@ export function createDrawingController(host) {
     } else if (key === "viewSectionAt" && state.selection?.kind === "view") {
       const view=doc.views.find(entry=>entry.id===state.selection.id);
       if(view?.section)view.section.at=Number(value);
+    } else if (key === "viewAssemblyState" && state.selection?.kind === "view") {
+      const view = doc.views.find(entry => entry.id === state.selection.id);
+      if (view && viewSourceOwner(doc,view) === view && (view.assemblyState || null) !== (value || null)) {
+        // Witness legacy coordinate picks against the old geometry, including
+        // dimensions on sections and details that inherit this owner's pose.
+        for (const dim of doc.dims) {
+          if (dim.sourceBinding || dim.auto === 'extent' || hasHostDimensionReference(dim)) continue;
+          const target = doc.views.find(entry => entry.id === dim.viewId);
+          if (viewSourceOwner(doc,target)?.id === view.id) {
+            dim.sourceBinding = projectedDimensionBinding(dim,effectiveViewSource(doc,target),projectionFor(target));
+          }
+        }
+        state.draft = null;
+        doc.views.find(entry => entry.id === view.id).assemblyState = value || null;
+      }
+      invalidate();
     } else if (key === "viewDisplayStyle" && state.selection?.kind === "view") {
       const view=doc.views.find(entry=>entry.id===state.selection.id);
       if(view)view.displayStyle=["shaded","shadedEdges"].includes(value)?value:"edges";
@@ -1719,8 +1770,37 @@ export function createDrawingController(host) {
       const view = doc.views.find((entry) => entry.id === state.selection.id);
       if (view) view.configurationId = value === "active" ? null : value;
       invalidate();
+    } else if (key === "viewSource" && state.selection?.kind === "view") {
+      const view = doc.views.find((entry) => entry.id === state.selection.id);
+      if (view && viewSourceOwner(doc, view) === view) {
+        const previous = effectiveViewSource(doc, view);
+        const next = normalizeViewSource(value);
+        if (previous?.kind !== next?.kind || previous?.key !== next?.key) {
+          // Old coordinate-only dimensions on this source (including sections)
+          // cannot acquire the new model's identity by switching the picker.
+          for (const dim of doc.dims) {
+            const target = doc.views.find(entry => entry.id === dim.viewId);
+            if (previous && viewSourceOwner(doc,target) === view && !dim.sourceBinding && !hasHostDimensionReference(dim) && dim.auto !== "extent") {
+              dim.sourceBinding = { source: previous, anchors: [] };
+            }
+          }
+          state.draft = null;
+          view.assemblyState = null;
+          const group = view.breakView?.group;
+          if (group) for (const member of doc.views) if (member.breakView?.group?.id === group.id) member.breakView = null;
+          view.breakView = null;
+          view.alternatePosition = null;
+        }
+        view.source = next;
+        // A configuration names one of THIS document's configurations.
+        if (view.source) { view.configurationId = null; view.configurationName = null; }
+      }
+      invalidate();
     }
-    state.scene = null;
+    // Derived views can depend on a parent's cut, hatch or effective scale.
+    const breakScaleChanged = (key === "scale" || key === "viewScale") && doc.views.some(view => view.breakView);
+    if (breakScaleChanged || ["viewSectionAt", "viewHatchPattern", "viewExcludeRibs", "viewDisplayStyle"].includes(key)) invalidate();
+    else invalidateLayout();
     if (key === "size" || key === "orientation") fit();
     host.markDirty();
   }
@@ -1807,6 +1887,7 @@ export function createDrawingController(host) {
 
   async function commitAlternatePosition(place) {
     const doc=host.doc(),view=doc.views.find(v=>v.id===place.id),token=host.bodiesToken(),fingerprint=JSON.stringify(doc.views);
+    const sourceToken = host.viewSourceToken?.(view);
     try {
       if(!canAlternatePosition(view)||host.isExplodedView?.(view))throw new Error('Alternate Position needs an ordinary non-exploded edge view');
       if(!host.promptFields)throw new Error('Alternate Position needs the drawing parameter form');
@@ -1819,8 +1900,8 @@ export function createDrawingController(host) {
       for(const [group,label,factor] of [['translation','Translation',10],['rotation','World rotation',1],['pivot','World pivot',10]])for(const axis of ['x','y','z'])fields.push({key:group+axis,label:label+' '+axis.toUpperCase()+(group==='rotation'?' (degrees)':' (mm)'),type:'number',value:(old?.[group]?.[axis]||0)*factor,step:.1});
       const answer=await host.promptFields('Alternate Position — associative phantom overlay',fields,'Illustrative rigid study pose of current geometry, not a solved mate configuration. Rotation applies about the world pivot in X, then Y, then Z order. Base geometry, dimensions and mates stay unchanged.');
       if(!answer)return;
-      if(host.doc()!==doc||host.bodiesToken()!==token||JSON.stringify(doc.views)!==fingerprint)throw new Error('Drawing or source changed while choosing Alternate Position; retry');
-      const modifier={version:1,label:String(answer.label||'').trim(),scope:answer.body==='__all'?'all':'selected',bodyIds:answer.body==='__all'?bodies.map(b=>String(b.id)):[String(answer.body)],sourceConfigurationId:view.configurationId||null};
+      if(host.doc()!==doc||host.bodiesToken()!==token||host.viewSourceToken?.(view)!==sourceToken||JSON.stringify(doc.views)!==fingerprint)throw new Error('Drawing or source changed while choosing Alternate Position; retry');
+      const modifier={version:1,...(view.source ? {source:view.source} : {}),label:String(answer.label||'').trim(),scope:answer.body==='__all'?'all':'selected',bodyIds:answer.body==='__all'?bodies.map(b=>String(b.id)):[String(answer.body)],sourceConfigurationId:view.configurationId||null};
       for(const [group,factor] of [['translation',10],['rotation',1],['pivot',10]])modifier[group]=Object.fromEntries(['x','y','z'].map(axis=>[axis,Number(answer[group+axis])/factor]));
       alternatePositionBodies(bodies,{...view,alternatePosition:modifier});
       host.pushUndo('Alternate Position');
@@ -1831,6 +1912,7 @@ export function createDrawingController(host) {
 
   async function commitBreak(place) {
     const doc=host.doc(),view=doc.views.find(v=>v.id===place.id),token=host.bodiesToken(),fingerprint=JSON.stringify(doc.views);
+    const sourceToken = host.viewSourceToken?.(view);
     try {
       if(!canBreakView(view,doc) || host.isExplodedView?.(view))throw new Error('Break needs an ordinary orthographic edge view');
       if(!host.promptFields)throw new Error('Break needs the drawing parameter form');
@@ -1843,7 +1925,7 @@ export function createDrawingController(host) {
         {key:'style',label:'Break line style',type:'select',value:old?.style || 'zigzag',choices:[{value:'zigzag',label:'Zigzag'},{value:'wave',label:'Wavy'}]},
       ],`Original coordinate bounds: horizontal ${bounds.u0*10} to ${bounds.u1*10} mm; vertical ${bounds.v0*10} to ${bounds.v1*10} mm. Keep both boundaries inside the chosen axis bounds. In a Front principal cluster, matching projected views share the physical Break; end-on views stay full size.`);
       if(!answer)return;
-      if(host.doc()!==doc || host.bodiesToken()!==token || JSON.stringify(doc.views)!==fingerprint)throw new Error('Drawing changed while choosing Break; retry');
+      if(host.doc()!==doc || host.bodiesToken()!==token || host.viewSourceToken?.(view)!==sourceToken || JSON.stringify(doc.views)!==fingerprint)throw new Error('Drawing changed while choosing Break; retry');
       const modifier={version:1,axis:answer.axis,from:Number(answer.from)/10,to:Number(answer.to)/10,gapMm:Number(answer.gapMm),style:answer.style};
       const projections=new Map(scene().views.filter(p=>p.projection).map(p=>[p.id,{...p.projection,bounds:p.projection.sourceBounds||projectionBounds(p.projection)}]));
       const plan=alignedBreakPlan(doc,view,modifier,projections,place.k,place.scale);
@@ -1879,7 +1961,7 @@ export function createDrawingController(host) {
       host.pushUndo(existing?'Edit drawing image':'Insert drawing image');
       const live=host.doc();live.images=live.images||[];
       const index=live.images.findIndex(i=>i.id===image.id);if(index<0)live.images.push(image);else live.images[index]=image;
-      invalidate();host.markDirty();host.flash('Drawing image saved on paper');host.refresh();
+      invalidateLayout();host.markDirty();host.flash('Drawing image saved on paper');host.refresh();
     } catch(error){host.flash(error.message);host.refresh();}
   }
 
@@ -1955,7 +2037,7 @@ export function createDrawingController(host) {
   }
 
   return {
-    state, render, fit, invalidate, setTool, scene, svg, status,
+    state, render, fit, invalidate, invalidateLayout, setTool, scene, svg, status,
     getTool: () => state.tool,
     selection: () => state.selection,
     select: (value) => { state.selection = value; state.scene = null; host.refresh(); },

@@ -1,3 +1,5 @@
+import { getEventListeners } from 'node:events';
+import * as three from '../vendor/three/three.webgpu.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -120,4 +122,49 @@ test('every js file is scanned (sanity)', () => {
   const files = jsFiles('js');
   assert.ok(files.includes('js/view3d.js'));
   assert.ok(files.some((f) => f.startsWith('js/core/')), relative(root, join(root, 'js/core')));
+});
+
+test('failed vendored GL initialization releases its context and listener before rejecting ready', async () => {
+  const gpu = loadGpu(three, {search:'?forceWebGL'});
+  for (const supplied of [false,true]) {
+    const canvas = new EventTarget();
+    Object.assign(canvas,{width:200,height:120,style:{},setAttribute(){}});
+    let losses=0, capabilityReads=0;
+    const gl = {
+      getExtension(name) { return name === 'WEBGL_lose_context' ? {loseContext(){losses++;}} : null; },
+      getSupportedExtensions(){return ['WEBGL_lose_context'];},
+      getParameter(){capabilityReads++; throw Error('injected GL capability failure');},
+    };
+    canvas.getContext=()=>gl;
+    const unrelated=()=>{};
+    canvas.addEventListener('webglcontextlost',unrelated);
+    const renderer=gpu.createRenderer({canvas,...(supplied ? {context:gl} : {})});
+    assert.equal(getEventListeners(canvas,'webglcontextlost').length,2);
+    await assert.rejects(gpu.ready(renderer),/injected GL capability failure/);
+    assert.ok(capabilityReads>0);
+    assert.equal(renderer.initialized,false);
+    assert.deepEqual(getEventListeners(canvas,'webglcontextlost'),[unrelated]);
+    assert.equal(losses,supplied ? 0 : 1);
+    await assert.rejects(gpu.ready(renderer),/injected GL capability failure/);
+    assert.equal(losses,supplied ? 0 : 1);
+  }
+});
+
+test('a fallback releases the failed primary backend and only releases the fallback on failure', async()=>{
+  for(const failFallback of [false,true]){
+    let primaryDisposals=0, fallbackDisposals=0;
+    class Renderer {
+      constructor(){this.backend={isWebGPUBackend:true,device:{},dispose(){primaryDisposals++;}};}
+      async init(){
+        this.backend={isWebGPUBackend:true,device:{},dispose(){fallbackDisposals++;}};
+        if(failFallback)throw Error('fallback failed');
+      }
+    }
+    const gpu=loadGpu({WebGPURenderer:Renderer},{search:''});
+    const renderer=gpu.createRenderer({});
+    if(failFallback)await assert.rejects(gpu.ready(renderer),/fallback failed/);
+    else await gpu.ready(renderer);
+    assert.equal(primaryDisposals,1);
+    assert.equal(fallbackDisposals,Number(failFallback));
+  }
 });

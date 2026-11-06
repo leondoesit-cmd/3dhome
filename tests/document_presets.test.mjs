@@ -46,7 +46,7 @@ test('fresh template-based blank can be saved and reopened without dummy CAD, wh
 test('actual newModel uses fresh factory for each kind, respects discard and preserves source document',async()=>{
   for(const type of ['part','assembly']){
     const original={key:'source',parts:[{id:'body'}],components:[{id:'occ'}],mates:[{id:'mate'}]},before=JSON.stringify(original);let allow=false;
-    const c={E:{docType:type,def:original,assembly:original},confirmDiscardDocument:async()=>allow,closeEvalCard(){},discardModelerDraft(){},documentFromPreset,newDef:blank,newAssembly:()=>({key:'asm_new',name:'New',components:[],mates:[]}),H:{clear:()=>({seed(){}})},markDocumentClean(){},syncHead(){},refreshLib(){},refreshAll(){},setTab(){},invalidateInterference(){}};
+    const c={E:{docType:type,def:original,assembly:original},confirmDiscardDocument:async()=>allow,closeEvalCard(){},reconcileModelerDraft(){},documentFromPreset,newDef:blank,newAssembly:()=>({key:'asm_new',name:'New',components:[],mates:[]}),H:{clear:()=>({seed(){}})},markDocumentClean(){},syncHead(){},refreshLib(){},refreshAll(){},setTab(){},invalidateInterference(){}};
     vm.createContext(c);vm.runInContext(sourceFunctionText(source,'newModel'),c);const p=preset(type==='part'?'part-template':'assembly-template','in');await c.newModel(p);assert.equal(c.E[type==='part'?'def':'assembly'],original);
     allow=true;await c.newModel(p);const next=c.E[type==='part'?'def':'assembly'];assert.notEqual(next,original);assert.equal(JSON.stringify(original),before);assert.equal(next.context.units.length,'in');assert.equal((next.parts||next.components).length,0);
   }

@@ -1,8 +1,9 @@
 /* The CAD editor's drawing-sheet wiring, split out of js/modeler.js. It
    shares the editor's state through live imports from ../modeler.js. */
 import { drawingMaterialName } from "../cad_appearances.js";
-import { assemblyHasExplodedOffsets } from "../cad_exploded_view.js";
-import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel } from "../cad_sheet.js";
+import { assemblyHasExplodedOffsets, drawingAssemblyPose } from "../cad_exploded_view.js";
+import { assemblySourceBodies, partSourceBodies, placeDrawingBody } from "../cad_configured_drawing.js";
+import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, effectiveViewSource, ensureSheetDoc, scaleLabel, viewSourceOwner } from "../cad_sheet.js";
 import { ensureAssemblyDrawingDoc } from "../core/assembly_drawing_settings.js";
 import { setSheetTitleSource, sheetTitleMeta } from "../core/custom_properties.js";
 import { lengthToDocument } from "../core/document_length_units.js";
@@ -13,6 +14,7 @@ import { importDrawingProjectImage } from "../core/drawing_project_image.js";
 import { drawingViewScaleControl } from "../core/drawing_scale_control.js";
 import { aabbFromBox, isUpToFace, resolveExtrudeExtent } from "../core/extrude_extent.js";
 import { featureDefaults } from "../core/feature_catalog.js";
+import { listLibrarySources, modelLibraryRevision, readLibrarySource } from "../core/model_library_store.js";
 import { selectFeatureContours } from "../core/feature_contours.js";
 import { canonicalFeatureTopologyReferences } from "../core/feature_input_stage.js";
 import { framePoint } from "../core/frame.js";
@@ -124,6 +126,122 @@ function configuredDrawingBodies(view,bodies) {
 function configuredTopologyAllowed(view) {
   return E.docType!=='part'||!configuredViewId(E.def,view);
 }
+
+// Per-view sources store only a library reference. Several views of the same
+// model share its tessellation until the loaded library changes.
+let sourceRevision = -1;
+const sourceEntries = new Map();
+function drawingHostIs(source) {
+  const owner = E.docType === 'assembly' ? E.assembly : E.def;
+  return E.docType === source.kind && owner?.key === source.key;
+}
+function resolveDrawingViewSource(view) {
+  const owner = E.docType === 'assembly' ? E.assembly : E.def;
+  const source = effectiveViewSource(owner?.drawing, view);
+  if (!source || drawingHostIs(source)) return { status: 'host' };
+  const revision = modelLibraryRevision();
+  if (sourceRevision !== revision) {
+    sourceEntries.clear();
+    sourceRevision = revision;
+  }
+  const id = source.kind + ':' + source.key;
+  if (!sourceEntries.has(id)) {
+    const record = readLibrarySource(source);
+    const name = record?.name || source.name || source.key;
+    sourceEntries.set(id, { status: record ? 'ready' : 'missing', source, record, name, bodies: record ? null : [] });
+  }
+  return sourceEntries.get(id);
+}
+function drawingSourceBodies(resolved){
+  if(!resolved.bodies){
+    try{
+      resolved.bodies=resolved.source.kind==='part'?savedPartDrawingBodies(resolved.record)
+        :assemblySourceBodies(resolved.record,{bodiesOf:savedPartDrawingBodies});
+    }catch(error){resolved.bodies=[];resolved.error=String(error&&error.message||error);}
+  }
+  return resolved.bodies;
+}
+function assemblyForDrawingSource(resolved) {
+  return resolved.status === 'host' ? (E.docType === 'assembly' ? E.assembly : null)
+    : resolved.source.kind === 'assembly' ? resolved.record : null;
+}
+
+// Cache the copied occurrence tree and triangles once per model revision and
+// saved presentation. Several projections can then share one set of bodies.
+const assemblyPoses = new WeakMap();
+function explicitDrawingPose(view, resolved = resolveDrawingViewSource(view)) {
+  if (!view) return null;
+  const doc = (E.docType === 'assembly' ? E.assembly : E.def)?.drawing;
+  const state = viewSourceOwner(doc, view)?.assemblyState;
+  const assembly = state && assemblyForDrawingSource(resolved);
+  if (!assembly) return null;
+  let cache = assemblyPoses.get(assembly);
+  if (!cache || cache.token !== E.sheetToken || cache.revision !== modelLibraryRevision()) {
+    cache = {token:E.sheetToken, revision:modelLibraryRevision(), states:new Map()};
+    assemblyPoses.set(assembly, cache);
+  }
+  if (!cache.states.has(state)) cache.states.set(state, {assembly:drawingAssemblyPose(assembly,state)});
+  return cache.states.get(state);
+}
+
+function drawingViewBodies(view,bodies){
+  var resolved=resolveDrawingViewSource(view);
+  const pose = explicitDrawingPose(view, resolved);
+  if (pose) {
+    if (!pose.assembly) return [];
+    if (!pose.bodies) {
+      try {
+        if (resolved.status === 'host') pose.bodies = drawingBodies(pose.assembly);
+        else {
+          pose.lines = [];
+          pose.bodies = assemblySourceBodies(pose.assembly, {bodiesOf:savedPartDrawingBodies, includeOffsets:true, lines:pose.lines});
+        }
+      } catch (error) { pose.error = error.message; pose.bodies = []; }
+    }
+    return pose.bodies;
+  }
+  return resolved.status==='host'?configuredDrawingBodies(view,bodies):drawingSourceBodies(resolved);
+}
+function savedPartDrawingBodies(def) {
+  return partSourceBodies(def, activeParts(def), savedPartMeshBodies);
+}
+function savedPartMeshBodies(part) {
+  const group = new THREE.Group(), meshes = [];
+  sheetSharpSolids = true;
+  try {
+    buildPart(group, part, 'solid');
+    group.updateMatrixWorld(true);
+    group.traverse(mesh => {
+      if (!mesh.isMesh || mesh.userData.cadOverlay || mesh.userData.cadInterference != null) return;
+      const positions = meshWorldTriangles(mesh);
+      if (positions.length) meshes.push({ id: mesh.userData.cadPart || mesh.uuid, positions });
+    });
+    return meshes;
+  } finally {
+    sheetSharpSolids = false;
+    clearGroup(group);
+  }
+}
+function drawingViewSourceToken(view){
+  var resolved=resolveDrawingViewSource(view);
+  return resolved.status==='host'?'':resolved.source.kind+':'+resolved.source.key+'#'+resolved.status+'#'+sourceRevision;
+}
+function drawingViewSourceIssue(view){
+  var resolved=resolveDrawingViewSource(view);
+  const pose = explicitDrawingPose(view, resolved);
+  if (pose && !pose.assembly) return 'Saved exploded view is missing';
+  if (pose) return pose.error || (pose.bodies?.length ? null : "Assembly view has no visible geometry");
+  if(resolved.status==='missing')return 'Source model not in library: '+resolved.name;
+  if(resolved.status==='ready'&&!drawingSourceBodies(resolved).length)return resolved.error?'Source model failed: '+resolved.error:'Source model has no visible bodies: '+resolved.name;
+  return null;
+}
+function drawingTopologyAllowed(view){
+  return configuredTopologyAllowed(view)&&resolveDrawingViewSource(view).status==='host';
+}
+function drawingSourceChoices(){
+  return listLibrarySources().filter(source => !drawingHostIs(source))
+    .sort((a, b) => a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'part' ? -1 : 1);
+}
 async function prepareConfiguredDrawingExport() {
   if(E.docType!=='part'||!E.def?.drawing)return;
   var owner=nativeDrawingOwner(),history=currentHistoryNode(),views=owner.drawing.views;
@@ -133,7 +251,7 @@ async function prepareConfiguredDrawingExport() {
   var key=JSON.stringify(views),assertCurrent=function(){if(E.def!==owner||currentHistoryNode()!==history||JSON.stringify(owner.drawing.views)!==key)throw new Error('Drawing changed while preparing native configurations; retry export');};
   await configuredNativeCache.prepare(owner,views,{assertCurrent});assertCurrent();drawingSheet().invalidate();
 }
-function drawingBodies() {
+function drawingBodies(assembly = E.assembly) {
   var parts = renderedParts(E.def);
   /* Most part drawings need only the body's triangle soup. Rebuilding an
      entire Three scene here also creates edge-pick and appearance overlays,
@@ -152,29 +270,29 @@ function drawingBodies() {
   var group = new THREE.Group(), bodies = [];
   sheetSharpSolids = true;
   try {
-    if (E.docType === "assembly" && E.assembly) buildAssembly(group);
+    if (E.docType === "assembly" && assembly) buildAssembly(group, assembly);
     else renderedParts(E.def).forEach(function (part) { buildPart(group, part, "solid"); });
     group.updateMatrixWorld(true);
     group.traverse(function (object) {
       if (!object.isMesh || object.userData.cadOverlay || object.userData.cadInterference != null) return;
       var positions = meshWorldTriangles(object);
       if (positions.length >= 9) {
-        var occurrencePath=[],ancestor=object;
-        while(ancestor){var occurrenceId=ancestor.userData?.cadComponent??ancestor.userData?.cadSubComponent;if(occurrenceId!=null)occurrencePath.unshift(String(occurrenceId));ancestor=ancestor.parent;}
+        var occurrencePath=[],ancestor=object,component=null;
+        while(ancestor){
+          component ||= ancestor._cadExplodeComponent;
+          var occurrenceId=ancestor.userData?.cadComponent??ancestor.userData?.cadSubComponent;
+          if(occurrenceId!=null)occurrencePath.unshift(String(occurrenceId));
+          ancestor=ancestor.parent;
+        }
         var partId=object.userData.cadPart || object.uuid;
         var body = { id: occurrencePath.length?occurrencePath.join('/')+':'+partId:partId, positions: positions };
-        var part = renderedParts(E.def).find(function(candidate){return candidate.id===object.userData.cadPart;});
-        var exactBounds = part && part.meshData && part.meshData.exactBounds;
-        var matrix = object.matrixWorld.elements;
-        // An axis-aligned (including quarter-turn) transform preserves exact
-        // AABB extrema. General rotations need directional kernel bounds.
-        var aligned = [0,1,2].every(function(row){return [0,1,2].filter(function(col){return Math.abs(matrix[col*4+row])>1e-9;}).length===1;});
-        if (exactBounds && aligned && E.docType !== "assembly") {
-          body.exactBounds={min:{x:Infinity,y:Infinity,z:Infinity},max:{x:-Infinity,y:-Infinity,z:-Infinity}};
-          [0,1].forEach(function(x){[0,1].forEach(function(y){[0,1].forEach(function(z){
-            var corner=new THREE.Vector3(x?exactBounds.max.x:exactBounds.min.x,y?exactBounds.max.y:exactBounds.min.y,z?exactBounds.max.z:exactBounds.min.z).applyMatrix4(object.matrixWorld);
-            ["x","y","z"].forEach(function(axis){body.exactBounds.min[axis]=Math.min(body.exactBounds.min[axis],corner[axis]);body.exactBounds.max[axis]=Math.max(body.exactBounds.max[axis],corner[axis]);});
-          });});});
+        const def = component ? component.def || readLibrarySource({kind:'part',key:component.modelKey}) : E.def;
+        const mesh = def?.parts?.find(p => p.id === object.userData.cadPart && !p.exactPending)?.meshData;
+        if (mesh?.exactBounds || mesh?.sectionRibs || mesh?.sectionRibIssue) {
+          const m = object.matrixWorld.elements;
+          const matrix = [m[0],m[4],m[8],m[1],m[5],m[9],m[2],m[6],m[10]];
+          body = placeDrawingBody({ id:body.id, exactBounds:mesh.exactBounds, sectionRibs:mesh.sectionRibs,
+            sectionRibIssue:mesh.sectionRibIssue }, matrix, {x:m[12],y:m[13],z:m[14]}, positions);
         }
         bodies.push(body);
       }
@@ -349,13 +467,37 @@ function sheetRow(host, label, control) {
 function sheetSelect(options, value, onChange) {
   var select = el("select", "");
   options.forEach(function (option) {
-    var node = el("option", "", option.label);
+    var node = el("option", "");
+    node.textContent = option.label;
     node.value = option.value;
     select.appendChild(node);
   });
   select.value = value;
   select.addEventListener("change", function () { onChange(select.value); });
   return select;
+}
+
+function sheetViewSourceRow(host, doc, view, sheet) {
+  const owner = viewSourceOwner(doc, view);
+  const source = effectiveViewSource(doc, view);
+  const choices = drawingSourceChoices();
+  const keyOf = (entry) => entry.kind + ':' + entry.key;
+  const current = source && !drawingHostIs(source) ? keyOf(source) : '';
+  const model = E.docType === 'assembly' ? E.assembly : E.def;
+  const options = [{ value: '', label: 'This ' + E.docType + ' · ' + model.name }];
+  for (const entry of choices) {
+    options.push({ value: keyOf(entry), label: (entry.kind === 'part' ? 'Part' : 'Assembly') + ' · ' + entry.name });
+  }
+  if (current && !choices.some((entry) => keyOf(entry) === current)) {
+    options.push({ value: current, label: 'Missing · ' + (source.name || source.key) });
+  }
+  const select = sheetSelect(options, current, (value) => {
+    sheet.setSheetOption('viewSource', choices.find((entry) => keyOf(entry) === value) || null);
+    drawSketch();
+  });
+  select.id = 'mdSheetViewSource';
+  select.disabled = owner?.id !== view.id;
+  sheetRow(host, select.disabled ? 'Model source (from parent)' : 'Model source', select);
 }
 
 function sheetToggle(host, label, checked, onChange) {
@@ -447,7 +589,7 @@ function buildSheetPanel(host) {
     setup.appendChild(btn('Auto component balloons',function(){sheet.autoComponentBalloons();drawSketch();},'md-sheet-btn'));
     sheetRow(setup,t('drawingBOMScope'),sheetSelect([{value:'partsOnly',label:t('drawingBOMPartsOnly')},{value:'indented',label:t('drawingBOMIndented')}],E.assembly.drawingSettings?.bomScope==='indented'?'indented':'partsOnly',function(value){
       pushUndo(t('opSheetSetup'));E.assembly.drawingSettings ||= {};E.assembly.drawingSettings.bomScope=value==='indented'?'indented':'partsOnly';
-      sheet.invalidate();drawSketch();syncHead();
+      sheet.invalidateLayout();drawSketch();syncHead();
     })).id='mdSheetBOMScope';
   }
   sheetRow(setup,t("sheetDraftingStandard"),sheetSelect([{value:"custom",label:t("sheetCustomStandard")},{value:"ANSI",label:"ANSI · inch / third angle"},{value:"ISO",label:"ISO · mm / first angle"}],doc.draftingStandard||"custom",function(value){
@@ -482,6 +624,17 @@ function buildSheetPanel(host) {
       scaleLabel(sheet.scene().views.find(function (placed) { return placed.id === view.id; })?.scale || view.scale || sheet.scene().scale) + "</small>", function () {
       sheet.select({ kind: "view", id: view.id });
     }, "md-sheet-view-name");
+    var sourceState=resolveDrawingViewSource(view);
+    if(sourceState.status!=='host'){
+      /* Which model a view draws is visible in the list, not only once the
+         view is selected: a sheet mixing two models must read as one. */
+      var sourceTag=el('small','md-sheet-view-source');
+      sourceTag.textContent=sourceState.name+(sourceState.status==='missing'?' (missing)':'');
+      sourceTag.title=(sourceState.source.kind==='assembly'?'Assembly: ':'Part: ')+sourceTag.textContent;
+      sourceTag.setAttribute('data-view-source',sourceState.source.kind+':'+sourceState.source.key);
+      sourceTag.style.cssText='max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'+(sourceState.status==='missing'?';color:var(--danger)':'');
+      name.insertBefore(sourceTag,name.lastChild);
+    }
     row.appendChild(name);
     var nativeState=configuredDrawingStatus(view);
     if(nativeState)row.appendChild(el('small','md-sheet-view-native-status',nativeState.status==='ready'?'Native configuration ready · geometry only':nativeState.status==='error'?'Native configuration failed · '+nativeState.reason:nativeState.status==='unsupported'?nativeState.reason:'Native configuration rebuilding'));
@@ -540,7 +693,25 @@ function buildSheetPanel(host) {
       sheet.duplicateSelectedView();
       drawSketch();
     }, "md-sheet-btn"));
-    if((E.def.configurations||[]).length>1){
+    sheetViewSourceRow(views,doc,selectedView,sheet);
+    const resolved = resolveDrawingViewSource(selectedView);
+    const assembly = assemblyForDrawingSource(resolved);
+    if (assembly) {
+      const owner = viewSourceOwner(doc, selectedView);
+      const choices = [{value:'', label:resolved.status === 'host' ? 'Follow assembly' : 'Source default (assembled)'},
+        {value:'assembled', label:'Assembled'},
+        ...(assembly.explodedViews || []).map(v => ({value:v.id, label:v.name || v.id}))];
+      if (owner?.assemblyState && !choices.some(choice => choice.value === owner.assemblyState))
+        choices.push({value:owner.assemblyState,label:'Missing exploded view'});
+      const select = sheetSelect(choices, owner?.assemblyState || '', value => {
+        sheet.setSheetOption('viewAssemblyState',value);
+        drawSketch();
+      });
+      select.id = 'mdSheetAssemblyState';
+      select.disabled = owner?.id !== selectedView.id;
+      sheetRow(views,select.disabled ? 'Assembly state (from parent)' : 'Assembly state',select);
+    }
+    if(E.docType==='part'&&(E.def.configurations||[]).length>1&&resolveDrawingViewSource(selectedView).status==='host'){
       sheetRow(views,"Configuration",sheetSelect([{value:"active",label:"Active model"}].concat(E.def.configurations.map(function(cfg){
         return {value:cfg.id,label:cfg.name};
       })),selectedView.configurationId||"active",function(value){
@@ -656,8 +827,8 @@ function syncSheetPanel() {
   var doc = drawingDocument(), sheet = drawingSheet();
   var selection = sheet.selection();
   var signature = doc.views.map(function (view) {
-    return view.id + ":" + view.label + ":" + JSON.stringify(view.section) + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.hatchPattern + ":" + view.displayStyle + ":" + (view.configurationId||"")+":"+JSON.stringify(configuredDrawingStatus(view)&&{status:configuredDrawingStatus(view).status,reason:configuredDrawingStatus(view).reason});
-  }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "") + "#" + JSON.stringify(doc.title.sources || {});
+    return view.id + ":" + view.label + ":" + JSON.stringify(view.section) + ":" + drawingViewScaleControl(view.scale).value + ":" + (view.scaleMode||'auto') + ":" + view.hidden + ":" + view.hatchPattern + ":" + view.displayStyle + ":" + (view.assemblyState || "") + ":" + drawingViewSourceToken(view) + ":" + (view.configurationId||"")+":"+JSON.stringify(configuredDrawingStatus(view)&&{status:configuredDrawingStatus(view).status,reason:configuredDrawingStatus(view).reason});
+  }).join(",") + "#" + JSON.stringify(E.assembly?.explodedViews?.map(v => [v.id,v.name])) + "#" + modelLibraryRevision() + "#" + (selection && selection.kind === "view" ? selection.id : "") + "#" + JSON.stringify(doc.title.sources || {});
   if (host.getAttribute("data-signature") !== signature) {
     buildSheetPanel(host);
     host.setAttribute("data-signature", signature);
@@ -746,10 +917,21 @@ function drawingSheet() {
       },
       doc: drawingDocument,
       model: function () { return E.docType==='assembly'?E.assembly:E.def; },
-      isExplodedView: function () {return E.docType==='assembly' && !!E.assembly && assemblyHasExplodedOffsets(E.assembly);},
+      isExplodedView: function (view) {
+        const pose = explicitDrawingPose(view);
+        if (pose) return assemblyHasExplodedOffsets(pose.assembly);
+        return resolveDrawingViewSource(view).status==='host' && E.docType==='assembly' && assemblyHasExplodedOffsets(E.assembly);
+      },
       bodies: drawingBodies,
-      bodiesForView: configuredDrawingBodies,
-      canUseTopologyForView: configuredTopologyAllowed,
+      bodiesForView: drawingViewBodies,
+      canUseTopologyForView: drawingTopologyAllowed,
+      viewSourceToken: drawingViewSourceToken,
+      viewSourceForeign: function (view) { return resolveDrawingViewSource(view).status !== 'host'; },
+      viewSourceIssue: drawingViewSourceIssue,
+      topologyRefusal: function (view) {
+        var resolved = resolveDrawingViewSource(view);
+        return resolved.status === 'host' ? null : 'Auxiliary views need a named edge. Select one in the drawing for ' + resolved.name + '.';
+      },
       topology: function(){return E.docType==='part'&&E.def?.drawing?.views.some(function(v){return configuredViewId(E.def,v);})?null:drawingTopology();},
       /* The live spelling of every hole, re-read on each build so a callout
          cannot outlive the parameters it was placed from. */
@@ -769,6 +951,14 @@ function drawingSheet() {
         });
       },
       componentBalloons:function(){return E.docType==='assembly'?assemblyDrawingBalloonTargets():[];},
+      componentBalloonsForView(view) {
+        const pose = explicitDrawingPose(view);
+        if (pose) return assemblyDrawingBalloonTargets(pose.assembly);
+      },
+      explodeLinesForView(view) {
+        const pose = explicitDrawingPose(view);
+        if (pose) return pose.assembly ? (pose.lines ??= assemblyExplodeLines(pose.assembly)) : [];
+      },
       explodeLines:function(){return E.docType==='assembly'?assemblyExplodeLines():[];},
       pushUndo: pushUndo,
       /* The drag triad: the step is opened on pointerdown while the sheet is
@@ -778,7 +968,7 @@ function drawingSheet() {
       beginUndo: function (label) { H.begin(label || ""); },
       commitUndo: function (label) { if (H.commit(label)) scheduleModelerDraft(); },
       cancelUndo: function () { H.cancel(); },
-      markDirty: function () { E.sheet.invalidate(); drawSketch(); syncSheetPanel(); syncStatus(); },
+      markDirty: function () { E.sheet.invalidateLayout(); drawSketch(); syncSheetPanel(); syncStatus(); },
       flash: flash,
       t: t,
       prompt: sheetPrompt,
@@ -1623,6 +1813,13 @@ function hitPart(uv, pointerType) {
    block the event loop — the WebGPU viewport freezes mid-frame behind them —
    and look nothing like the rest of the editor. Same dialog chrome as the
    reference picker; Esc and the backdrop dismiss it. */
+var reportOpener = null;
+function openReport(host, focusTarget) {
+  if (host.hidden) reportOpener = document.activeElement;
+  host.hidden = false;
+  (focusTarget || host.querySelector("[data-report-close]"))?.focus();
+}
+
 function report(kicker, title, body) {
   var host = root && root.querySelector("#mdReport");
   if (!host) { flash(title); return; }
@@ -1634,7 +1831,7 @@ function report(kicker, title, body) {
   var pick = root.querySelector("#mdPickList");
   if (pick) { pick.hidden = true; pick.innerHTML = ""; }
   if (pre) { pre.hidden = false; pre.textContent = Array.isArray(body) ? body.join("\n") : String(body || ""); }
-  host.hidden = false;
+  openReport(host);
 }
 
 function showPickList(kicker, title, items, onPick, extra) {
@@ -1703,13 +1900,21 @@ function showPickList(kicker, title, items, onPick, extra) {
     }
   }
   paintItems(search && extra.searchable ? search.value : "");
-  host.hidden = false;
-  if (search && extra.searchable) search.focus();
+  openReport(host, extra.searchable ? search : null);
 }
 
 function closeReport() {
   var host = root && root.querySelector("#mdReport");
-  if (host) host.hidden = true;
+  if (!host || host.hidden) return;
+  host.hidden = true;
+  var opener = reportOpener;
+  reportOpener = null;
+  for (const target of [opener, root.querySelector("button.ps-title"), root.querySelector("#mdClose")]) {
+    if (!root.contains(target) || target.matches(":disabled, [aria-disabled=true]") ||
+        target.closest("[inert]") || !target.checkVisibility({ visibilityProperty: true, opacityProperty: true })) continue;
+    target.focus();
+    if (document.activeElement === target) return;
+  }
 }
 
 function reportOpen() {

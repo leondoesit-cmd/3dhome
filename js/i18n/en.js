@@ -42,6 +42,7 @@ export default {
 
   centerRectangle: "Center rectangle",
   faceBoundary: "Copy face boundary",
+  convertEntities: "Convert Entities",
   tool_sspline: "Cubic spline",
   sketchRepair: "Repair sketch relationships",
   fitCheck: "Fit check",

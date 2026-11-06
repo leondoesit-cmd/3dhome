@@ -1,7 +1,10 @@
+import { loftGeometry, loftXYZ } from "./core/profile_mesh_geometry.js";
+export { loftXYZ };
 import { cylinderAxis } from "./core/cylinder_axis.js";
 import { holeSpan } from "./core/hole_span.js";
 import { revolveBounds, revolveRecipe } from "./core/revolve_geometry.js";
 import { tessellatePart } from "./core/part_tessellate.js";
+import { projectedHingeTool } from "./cad_sheet_hinge.js";
 import { toolFeatureRecipe, toolRangeForAxis, translateToolRecord } from "./core/tool_recipe.js";
 import { cylinderBounds } from "./core/cylinder_axis.js";
 /* Part geometry for the model editor: bounds, moves, pattern placement and the
@@ -16,7 +19,7 @@ import { uid, fin } from "./state.js";
 import { normalizePose } from "./cad_mate_model.js";
 import { isKernelBody, kernelBodyBounds, buildKernelBrep, offsetKernelBody } from "./core/kernel_body.js";
 import { framePoint } from "./core/frame.js";
-import { applyRigidMatrix, circularPatternPivot, invertRigidTransform, patternRotationTransform, rotatedPatternBounds } from "./core/pattern_geometry.js";
+import { applyRigidMatrix, circularPatternPivot, invertRigidTransform, partPatternRotations, patternRotationTransform, rotatedPatternBounds } from "./core/pattern_geometry.js";
 import { cutFootprint as cutScopeFootprint, profileLoopIsSeparateHole } from "./core/cut_scope.js";
 import { createTopologyRegistry, resolveFinishTargetIds, topologyForFeature } from "./core/topology.js";
 import { clearMeshProjectionCache } from "./core/mesh_projection.js";
@@ -236,10 +239,20 @@ export function translateTopologyReferences(value,dx,dy,dz) {
   else Object.keys(value).forEach(function(key){translateTopologyReferences(value[key],dx,dy,dz);});
 }
 
-export function movePart(p, dx, dy, dz) {
+function shiftRevolveOrigin(part,dx,dy,dz) {
+  const {origin}=part.axisBasis;
+  part.axisBasis={...part.axisBasis,origin:{x:origin.x+dx,y:origin.y+dy,z:origin.z+dz}};
+}
+
+export function movePart(p, dx, dy, dz, movingSketches=false) {
   if (p.kind === "box") { p.x0 += dx; p.x1 += dx; p.y0 += dy; p.y1 += dy; p.z0 += dz; p.z1 += dz; }
   else if (p.kind === "cyl" || p.kind === "sph") { p.x += dx; p.y += dy; p.z += dz; }
-  else if (p.kind === "rev") {
+  else if (p.kind === "rev" && p.axisBasis) {
+    // Normalization also moves the driving sketch. Its rebuilt world origin
+    // will include the shift, whereas a standalone body move needs an offset.
+    if(movingSketches && p.sketchDriven)shiftRevolveOrigin(p,dx,dy,dz);
+    else { p.x=(p.x || 0)+dx; p.y=(p.y || 0)+dy; p.z=(p.z || 0)+dz; }
+  } else if (p.kind === "rev") {
     p.x += dx; p.z += dz;
     p.pts.forEach(function (q) { q.v += dy; }); // profile v is absolute height
   }
@@ -276,7 +289,8 @@ export function movePart(p, dx, dy, dz) {
     p.from += dw; p.to += dw;
   }
   (p.cuts3d || []).concat(p.merges3d || []).forEach(function (cut) {
-    translateToolRecord(cut,dx,dy,dz);
+    if(movingSketches && cut.axisBasis)shiftRevolveOrigin(cut,dx,dy,dz);
+    else translateToolRecord(cut,dx,dy,dz);
   });
   /* A fused pattern instance is placed by a rigid transform, not by a loop in
      the host's profile plane, so it travels in the shift. The shift is carried
@@ -519,7 +533,7 @@ export async function exactBrepForPart(p) {
         continue;
       }
       if(step.kind==="merge"){
-        var addition=await toolSolidBrep(record,b),fused;
+        var addition=await toolSolidBrep(record.hingeSpec ? projectedHingeTool(p,record) : record,b),fused;
         try{fused = await booleanBrep("union", solid, addition);}
         finally{disposeBrep(addition);}
         disposeBrep(solid);solid=fused;
@@ -676,33 +690,9 @@ export function buildRev(parent, p) {
   return me;
 }
 
-// map sketch-plane (u,v) + axis coordinate w into model xyz, per extrude axis convention
-export function loftXYZ(axis, u, v, w) {
-  if (axis === "y") return [u, w, v];
-  if (axis === "z") return [u, v, w];
-  return [w, v, u];
-}
-
 export function buildLoft(parent, p) {
-  var n = (p.pts0 || []).length;
-  if (n < 3 || !p.pts1 || p.pts1.length !== n) return null;
-  var pos = [], idx = [], i;
-  for (i = 0; i < n; i++) pos.push.apply(pos, loftXYZ(p.axis, p.pts0[i].u, p.pts0[i].v, p.from));
-  for (i = 0; i < n; i++) pos.push.apply(pos, loftXYZ(p.axis, p.pts1[i].u, p.pts1[i].v, p.to));
-  for (i = 0; i < n; i++) { // side walls
-    var a = i, b = (i + 1) % n;
-    idx.push(a, b, n + b, a, n + b, n + a);
-  }
-  try { // end caps
-    [p.pts0, p.pts1].forEach(function (ring, ri) {
-      var tris = THREE.ShapeUtils.triangulateShape(ring.map(function (q) { return new THREE.Vector2(q.u, q.v); }), []);
-      tris.forEach(function (tr) { idx.push(ri * n + tr[0], ri * n + tr[1], ri * n + tr[2]); });
-    });
-  } catch (e) {}
-  var g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setIndex(idx);
-  g.computeVertexNormals();
+  const g = loftGeometry(p);
+  if (!g) return null;
   var me = new THREE.Mesh(g, stdMat(p));
   me.castShadow = true;
   me.receiveShadow = true;
@@ -710,11 +700,7 @@ export function buildLoft(parent, p) {
   return me;
 }
 
-export function partPatternRotations(p) {
-  var rotations=Array.isArray(p && p.patternRotations) ? p.patternRotations.slice() : [];
-  if(p && p.patternRotation)rotations.push(p.patternRotation);
-  return rotations.filter(function(rotation){return rotation && ["x","y","z"].includes(rotation.axis) && Number.isFinite(Number(rotation.angle));}).map(function(rotation){return {axis:rotation.axis,angle:Number(rotation.angle),pivot:rotation.pivot ? {x:Number(rotation.pivot.x)||0,y:Number(rotation.pivot.y)||0,z:Number(rotation.pivot.z)||0}:undefined};});
-}
+export { partPatternRotations };
 
 /* The same turn as ONE rigid transform: what buildPart nests as groups around
    the whole rendered body, and what the exact tree's `transformBody` row applies
@@ -743,6 +729,7 @@ export function rotPartY(p, ang) { return rotatePatternPart(p,"y",ang); }
    rotations go on after movePart rather than before it. */
 export function placePatternCopy(copy, params, placement, circularStep) {
   if(!copy || !placement)return copy;
+  if(copy.axisBasis)delete copy.sketchDriven; // The pattern owns the placed projection.
   if(params && params.mode==="circular")return rotatePatternPart(copy,params.axis,circularStep*placement.circularIndex,params.radialDistance,params.pivot??params.origin);
   movePart(copy,placement.x,placement.y,placement.z);
   if((placement.rotations || []).length){
@@ -757,6 +744,9 @@ export function placePatternCopy(copy, params, placement, circularStep) {
 function reflectProjectionMesh(part,axis) {
   var data=part.meshData, component={x:0,y:1,z:2}[axis];
   if(!data)return;
+  // Live preview clones share these buffers with the seed until reflection
+  // changes normals and triangle winding.
+  for(const key of ["normals","indices",...(data.indices?[]:["colors"])])if(data[key])data[key]=data[key].slice();
   if(data.exactBounds && data.exactBounds.min && data.exactBounds.max){var oldMin=data.exactBounds.min[axis];data.exactBounds.min[axis]=-data.exactBounds.max[axis];data.exactBounds.max[axis]=-oldMin;}
   [data.positions,data.normals].forEach(function(values){
     if(!values)return;
@@ -819,6 +809,19 @@ export function mirrorProjectionPart(q,planeId) {
     return q;
   }
   if(q.meshData)reflectProjectionMesh(q,mirrorAxis);
+  if(q.kind==="rev" && q.axisBasis){
+    const basis=q.axisBasis;
+    const reflect=v=>({...v,[mirrorAxis]:-v[mirrorAxis]});
+    const tangent=reflect(basis.tangent);
+    // A reflection reverses rotation sense. Keep the sketch coordinates and
+    // analytic wire intact and sweep the reflected meridian the opposite way.
+    q.axisBasis={...basis,origin:reflect(basis.origin),axial:reflect(basis.axial),
+      radial:reflect(basis.radial),tangent:{x:-tangent.x,y:-tangent.y,z:-tangent.z}};
+    q[mirrorAxis]=-(q[mirrorAxis] || 0);
+    q.direction=q.direction==="reverse"?"forward":"reverse";
+    delete q.sketchDriven;
+    return q;
+  }
   if(q.kind==="cyl"){
     const axis=cylinderAxis(q.axis);
     q[mirrorAxis]=-Number(q[mirrorAxis] || 0);

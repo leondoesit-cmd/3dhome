@@ -1,3 +1,4 @@
+import {trialPoseMapper,publishTrialPoses} from './core/assembly_context.js';
 // Motion Study Timeline & Motor Simulation for Assemblies.
 
 import {solveAssemblyMates} from "./cad_mate_solver.js";
@@ -138,10 +139,11 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
   if(!trial){trial={};if(owned)playbackTrials.set(assembly,trial);}
   const components=trial.components;
   Object.assign(trial,assembly);
+  const copyPose=trialPoseMapper(assembly);
   trial.components=(assembly.components||[]).map((c,i)=>{
     const target=components?.[i]?.id===c.id?components[i]:{};
     for(const key of Object.keys(target))if(!Object.hasOwn(c,key))delete target[key];
-    return Object.assign(target,c,{transform:structuredClone(c.transform||{})});
+    return Object.assign(target,copyPose(c));
   });
   trial.mates=copyMotionMates(assembly.mates);
   trial.topologyMates=copyMotionMates(assembly.topologyMates);
@@ -243,7 +245,7 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds, opti
     result=solveAssemblyMates(trial,{fixedComponentIds:[...driven]});
   }
   if(!result.ok)return result;
-  trial.components.forEach((c,i)=>{assembly.components[i].transform=c.transform;});
+  publishTrialPoses(assembly,trial);
   for(const mate of trial.topologyMates.filter(m=>m.type==='belt')){
     const target=assembly.topologyMates.find(m=>m.id===mate.id);
     for(const key of ['rollA0','rollB0','beltTurnA','beltLastRollA'])target[key]=mate[key];

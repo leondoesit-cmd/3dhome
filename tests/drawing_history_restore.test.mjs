@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createHistory } from '../js/edit_history.js';
+import { createHistorySnapshotCodec } from '../js/core/history_value_pool.js';
 import { createDrawingController } from '../js/modeler_drawing.js';
 import { createSheetDoc } from '../js/cad_sheet.js';
 import { tessellateParts } from '../js/core/part_tessellate.js';
@@ -29,7 +30,7 @@ test('actual model-history Undo/Redo rebuilds the cached drawing without enterin
   });
   E.sheet=controller;
   let paints=0,panels=0,projected='';
-  const context={E,createHistory,snapDoc:()=>JSON.stringify({d:E.def,a:E.assembly}),
+  const context={E,createHistory,historySnapshots:createHistorySnapshotCodec(["meshData","exactTopologyCache"]),snapDoc:()=>JSON.stringify({d:E.def,a:E.assembly}),
     scanDoc:()=>[],docSubtree:()=>[],syncUndoButtons(){},syncHead(){},invalidateInterference(){},resolveSketch(){},closeEvalCard(){},
     refreshAll(){paints++;projected=controller.svg();},syncSheetPanel(){panels++;}};
   vm.createContext(context);
@@ -58,7 +59,7 @@ test('actual history Undo/Redo hides stale exact mass before replacing the docum
   const end=source.indexOf('/* ---- what is inside a document',start);
   const card={hidden:false};
   const E={mode:'model',docType:'part',evalCard:'mass',def:{depth:8},assembly:null};
-  const context={E,root:{querySelector:()=>card},createHistory,
+  const context={E,root:{querySelector:()=>card},createHistory,historySnapshots:createHistorySnapshotCodec(["meshData","exactTopologyCache"]),
     snapDoc:()=>JSON.stringify({d:E.def,a:E.assembly}),scanDoc:()=>[],docSubtree:()=>[],
     syncUndoButtons(){},syncHead(){},invalidateDrawing(){},invalidateInterference(){},resolveSketch(){},
     endMeasure(){throw Error('mass restore must not stop a measurement');},

@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import {createMotionPlayback,motionPreviewDuration,motionPlaybackStepSeconds} from '../js/core/motion_playback.js';
 import {createMotionPlaybackExecutor} from '../js/core/motion_playback_executor.js';
 import {createMotionStudy,addRotaryMotor,addRackPinionMotor,evaluateMotionStudy} from '../js/cad_motion_study.js';
+import {captureAssemblySolverState,restoreAssemblySolverState} from '../js/core/assembly_solver_state.js';
 import vm from 'node:vm';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 const original=JSON.parse(readFileSync(new URL('./fixtures/welder_arm_23_mate_motion.json',import.meta.url)));
@@ -81,10 +82,11 @@ test('replacing the active document during a solve disposes playback and rejects
 });
 test('dedicated worker initializes definitions once and later requests carry only poses and mate/study state',async()=>{
   const f=fixture(),messages=[];let worker;
-  const source=readFileSync(new URL('../js/motion_playback_worker.js',import.meta.url),'utf8').replace(/^import[^\n]*\n/,'');
+  const source=readFileSync(new URL('../js/motion_playback_worker.js',import.meta.url),'utf8').replace(/^import[^\n]*\n/gm,'');
   const executor=createMotionPlaybackExecutor(f.assembly,{createWorker:()=>{
     const scope={postMessage:message=>queueMicrotask(()=>worker.onmessage({data:structuredClone(message)}))};
-    new Function('self','evaluateMotionStudy',source)(scope,evaluateMotionStudy);
+    new Function('self','evaluateMotionStudy','captureAssemblySolverState','restoreAssemblySolverState',source)(
+      scope,evaluateMotionStudy,captureAssemblySolverState,restoreAssemblySolverState);
     worker={postMessage:message=>{messages.push(message);queueMicrotask(()=>scope.onmessage({data:structuredClone(message)}));},terminate(){this.terminated=true;}};return worker;
   }});
   assert.equal((await executor.evaluate(f.assembly,f.study.id,.25,{incremental:true})).ok,true);

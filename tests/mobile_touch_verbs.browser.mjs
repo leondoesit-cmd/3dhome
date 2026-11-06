@@ -289,6 +289,20 @@ test("double-tapping a room floor opens a picker of real swatches", opts, async 
       const modal = document.querySelector(".bp-overlay .floor-pick-body");
       const tiles = modal ? [...modal.querySelectorAll("[data-floor]")] : [];
       const swatch = tiles[0] && tiles[0].querySelector("img");
+      // GPU tiers use the baked material thumbnail; lower tiers paint a PNG.
+      // In both cases verify the intended image and actual decoded detail.
+      const { materialLibraryEnabled } = await import('./js/material_tier.js');
+      const { materialById, materialThumbUrl } = await import('./js/material_library.js');
+      const { floorSwatch } = await import('./js/primitives.js');
+      const floorId = tiles[0]?.dataset.floor;
+      const expectedSwatch = materialLibraryEnabled() && materialById('floor_' + floorId)
+        ? materialThumbUrl('floor_' + floorId) : floorSwatch(floorId, 128);
+      if (swatch) await swatch.decode();
+      const pixels = document.createElement('canvas'); pixels.width = pixels.height = 32;
+      const ctx = pixels.getContext('2d');
+      if (swatch) ctx.drawImage(swatch, 0, 0, 32, 32);
+      const rgba = ctx.getImageData(0, 0, 32, 32).data, colors = new Set();
+      for (let i = 0; i < rgba.length; i += 4) if (rgba[i + 3]) colors.add(`${rgba[i]},${rgba[i + 1]},${rgba[i + 2]}`);
       const options = [...document.querySelectorAll("#r_floor option")].map((o) => o.value);
       const key = S.sel && S.sel.ref;
       // Measured while the picker is still up: the click below closes it.
@@ -302,8 +316,8 @@ test("double-tapping a room floor opens a picker of real swatches", opts, async 
         groups: modal ? [...modal.querySelectorAll(".floor-pick-sec")].map((h) => h.textContent) : [],
         marked: modal ? [...modal.querySelectorAll(".floor-tile.on")].map((t) => t.dataset.floor) : null,
         planDefault: S.floorTex,
-        // A swatch is a real painted PNG, not a placeholder box.
-        swatchPainted: !!swatch && swatch.src.startsWith("data:image/png") && swatch.src.length > 400,
+        swatchPainted: !!swatch && swatch.src === new URL(expectedSwatch, location.href).href
+          && swatch.naturalWidth >= 32 && swatch.naturalHeight >= 32 && colors.size > 8,
         tileWidth,
         floor: (S.roomMeta[key] || {}).floor,
         closed: !document.querySelector(".bp-overlay .floor-pick-body"),

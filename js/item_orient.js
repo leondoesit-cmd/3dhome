@@ -150,6 +150,13 @@ function rotFacing(dx, dz) {
 /* The nearest wall's outward normal, at the point of it the piece is beside.
    Returns the angle that puts the piece's back on that wall, or null. */
 export function backToWallRot(it, x, z, reach) {
+  var fit = backToWallFit(it, x, z, reach);
+  return fit ? fit.rot : null;
+}
+
+/* backToWallRot's wall, with where the piece's centre goes for its back to
+   sit on that wall's face: { rot, x, z } or null. */
+export function backToWallFit(it, x, z, reach) {
   var best = null,
     bestGap = reach == null ? WALL_REACH : reach,
     depth = num(it && it.d) / 2;
@@ -173,10 +180,31 @@ export function backToWallRot(it, x, z, reach) {
     var gap = Math.abs(Math.abs(hit.distance) - num(w.thickness) / 2 - depth);
     if (gap < bestGap) {
       bestGap = gap;
-      best = rotFacing(nx, nz);
+      var off = num(w.thickness) / 2 + depth;
+      best = { rot: rotFacing(nx, nz), x: hit.x + nx * off, z: hit.z + nz * off };
     }
   });
   return best;
+}
+
+/* Where a piece dropped near a wall stands: back on the wall's face. Facing
+   alone left it centred on the click, so a bed's headboard went 30 cm into the
+   wall and a desk floated a hand's width off it; the drag's flush snap only
+   engages from 9 cm, which a click almost never is. Only for rule 4 — a piece
+   on a host, beside its run or at a table was placed by those — and only when
+   the piece faces that wall. Returns { x, z } or null. */
+export function flushToWall(it, x, z, ctx) {
+  if (!it || it.locked || it.rotUser || !autoFaceOn() || S.orientHold) return null;
+  var mode = orientMode(it.type);
+  if (mode === "free") return null;
+  if (ctx && ctx.host && ctx.host !== it) return null;
+  if (mode === "run" && runNeighbour(it, x, z)) return null;
+  if (mode === "seat" && seatTarget(it, x, z)) return null;
+  var fit = backToWallFit(it, x, z, mode === "hung" ? HUNG_REACH : WALL_REACH);
+  if (!fit || fit.rot == null) return null;
+  var turn = norm(fit.rot - norm(num(it.rot)));
+  if (turn > 0.5 && turn < 359.5) return null;
+  return { x: fit.x, z: fit.z };
 }
 
 /* The neighbouring piece of the same run, if the drop lands BESIDE one — read

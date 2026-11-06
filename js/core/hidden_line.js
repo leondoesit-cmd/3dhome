@@ -581,9 +581,10 @@ export function sectionBodies(bodies, plane) {
   const offset = dot(normal, origin);
   const list = Array.isArray(bodies) ? bodies : [bodies];
   const kept = [], cuts = [];
-  for (const body of list) {
+  for (const [bodyIndex, body] of list.entries()) {
     const positions = body?.positions;
     if (!positions?.length) continue;
+    const firstCut = cuts.length;
     const out = [];
     const count = Math.floor(positions.length / 9);
     for (let tri = 0; tri < count; tri++) {
@@ -614,6 +615,9 @@ export function sectionBodies(bodies, plane) {
       }
       if (crossings.length === 2) cuts.push({ a: crossings[0], b: crossings[1] });
       for (let k = 2; k < inside.length; k++) pushTriangle(out, [inside[0], inside[k - 1], inside[k]]);
+    }
+    if (list.length > 1) {
+      for (let i = firstCut; i < cuts.length; i++) cuts[i].bodyIndex = bodyIndex;
     }
     if (out.length) kept.push({ positions: out, id: body.id, sectioned: true });
   }
@@ -729,6 +733,7 @@ export function projectSolid(bodies, view = "front", options = {}) {
   // curved outline chords onto nearby lines at paper/pen-scale tolerance.
   const merged = consolidateSegments(inkVisible, inkHidden, Math.max(1e-8, store.span * 1e-7), 1e-9);
   const cuts = (options.cuts || []).map((cut) => ({
+    ...(cut.bodyIndex === undefined ? {} : {bodyIndex:cut.bodyIndex}),
     a: { u: dot(cut.a, basis.right), v: dot(cut.a, basis.up) },
     b: { u: dot(cut.b, basis.right), v: dot(cut.b, basis.up) },
   }));

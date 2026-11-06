@@ -14,6 +14,9 @@ export const OPENING_PLACE_CODES = Object.freeze([
   "HOST_WALL_LOCKED",
 ]);
 
+// a door's hinge side and the wall face its leaf sweeps toward
+export const DOOR_SWINGS = Object.freeze(["R_IN", "L_IN", "R_OUT", "L_OUT"]);
+
 export const OPENING_DEFAULTS = Object.freeze({
   door: Object.freeze({ width: 90, height: 205, sill: 0 }),
   window: Object.freeze({ width: 120, height: 120, sill: 90 }),
@@ -87,6 +90,8 @@ export function prepareOpeningPlace(params, env) {
   var s = Number(params.s);
   if (!finite(width) || width <= 0 || !finite(height) || height <= 0 ||
       !finite(sill) || sill < 0 || !finite(s)) return fail("INVALID_OPENING_VALUE");
+  var swingDir = params.swingDir == null ? null : String(params.swingDir);
+  if (swingDir != null && (type !== "door" || DOOR_SWINGS.indexOf(swingDir) < 0)) return fail("INVALID_OPENING_VALUE");
 
   const margin=Math.max(1,Number(wall.thickness||10)/2);
   if(width+2*margin>geometry.L+1e-6||sill+height>Number(wall.height||270)+1e-6)return fail("OPENING_OUT_OF_BOUNDS");
@@ -105,6 +110,7 @@ export function prepareOpeningPlace(params, env) {
         width: width,
         height: height,
         sill: sill,
+        ...(swingDir ? { swingDir: swingDir } : {}),
       },
     },
   };
@@ -145,6 +151,7 @@ export function applyOpeningPlace(plan, env) {
     height: params.height,
     sill: params.sill,
   };
+  if (params.swingDir) opening.swingDir = params.swingDir;
   state.openings.push(opening);
   return {
     ok: true,

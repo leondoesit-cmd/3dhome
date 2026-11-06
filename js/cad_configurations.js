@@ -1,4 +1,5 @@
-import { dependentTargetIds } from "./core/parametric_document.js";
+import { suppressionOwners } from "./core/parametric_document.js";
+import { restoreLocalCircleOffsets } from "./core/cone_silhouette.js";
 import { circularSweepProfile } from "./core/swept_sources.js";
 import { partAppearanceKeys, restoreToolboxProjections } from "./core/toolbox_projection_restore.js";
 import { toolboxFastener } from "./cad_toolbox.js";
@@ -8,12 +9,22 @@ const appearanceKeys = partAppearanceKeys;
 const componentKeys = ["transform", "grounded", "suppressed", "visible", "configurationId", "parameterOverrides", "explodedOffset"];
 const assemblyDocument = document => Array.isArray(document.components) ? document : document.assembly;
 
+function automaticSuppression(document) {
+  return new Set((document.history || []).filter(e => e.autoSuppressedBy).map(e => e.targetId));
+}
+
+function capturedFeatureRoots(document) {
+  const automatic = automaticSuppression(document);
+  return (document.features || []).filter(f => f.suppressed && !automatic.has(f.id)).map(f => f.id);
+}
+
 // Store authored values only. Native meshes and topology caches belong to the
 // rebuilt document, never to a configuration snapshot.
 export function configurationModelValues(document) {
   const assembly = assemblyDocument(document);
+  const automatic = automaticSuppression(document);
   return {
-    sketches: (document.sketches || []).map(sketch => copy(sketch)),
+    sketches: (document.sketches || []).map(sketch => copy(automatic.has(sketch.id) ? {...sketch, suppressed:false} : sketch)),
     featureParameters: (document.features || []).map(feature => ({ id: feature.id, params: copy(feature.params || {}) })),
     appearances: (document.parts || []).map((part, index) => ({ id: part.id, ...(part.toolboxFeatureId ? { toolboxFeatureId: part.toolboxFeatureId, toolboxProjectionIndex: part.toolboxProjectionIndex ?? document.parts.slice(0, index).filter(previous => previous.toolboxFeatureId === part.toolboxFeatureId).length } : {}), values: Object.fromEntries(appearanceKeys.filter(key => part[key] !== undefined).map(key => [key, copy(part[key])])) })),
     customProperties: copy(document.customProperties || {}),
@@ -36,7 +47,7 @@ export function updateConfiguration(document, configurationId, options = {}) {
     cfg.modelValues = configurationModelValues(document);
     cfg.explodedViewId = assemblyDocument(document)?.activeExplodedView || null;
     cfg.parameterOverrides = { ...(document.parameterOverrides || {}) };
-    cfg.suppressedFeatureIds = (document.features || []).filter(feature => feature.suppressed).map(feature => feature.id);
+    cfg.suppressedFeatureIds = capturedFeatureRoots(document);
   }
   return cfg;
 }
@@ -66,7 +77,7 @@ export function ensureConfigurations(document) {
       id: "cfg_default",
       name: "Default",
       parameterOverrides: { ...(document.parameterOverrides || {}) },
-      suppressedFeatureIds: (document.features || []).filter((feature) => feature.suppressed).map((feature) => feature.id),
+      suppressedFeatureIds: capturedFeatureRoots(document),
       explodedViewId: assemblyDocument(document)?.activeExplodedView || null,
       modelValues: configurationModelValues(document),
     }));
@@ -97,6 +108,7 @@ export function applyConfiguration(document, configuration) {
     const values = cfg.modelValues;
     const sketches = new Map((values.sketches || []).map(sketch => [sketch.id, sketch]));
     document.sketches = (document.sketches || []).map(sketch => sketches.has(sketch.id) ? copy(sketches.get(sketch.id)) : sketch);
+    document.sketches.forEach(restoreLocalCircleOffsets);
     const parameters = new Map((values.featureParameters || []).map(feature => [feature.id, feature.params]));
     (document.features || []).forEach(feature => { if (parameters.has(feature.id)) feature.params = copy(parameters.get(feature.id)); });
     const savedAppearances = values.appearances || [];
@@ -140,31 +152,35 @@ export function applyConfiguration(document, configuration) {
       delete assembly.diagnostics;
     }
   }
-  /* A configuration names the steps it removes; what those steps feed goes with
-     them, the same cascade the tree's own suppress applies. Listing only the
-     parent left its children building on a step this configuration does not
-     have. No tag is needed here: every switch recomputes the whole set. */
-  const suppressed = new Set(cfg.suppressedFeatureIds || []);
-  dependentTargetIds(document, [...suppressed]).forEach((id) => suppressed.add(id));
-  (document.features || []).forEach((feature) => {
-    feature.suppressed = suppressed.has(feature.id);
-  });
-  /* A canonical document is suppressed through its HISTORY: the compiled tree,
-     the preview parts the viewport draws and the tree row all read the entry,
-     not the feature. Writing only the feature made a configuration switch a
-     change nothing could see — the boss the configuration removes stayed on
-     screen, and a step suppressed in the tree stayed hidden after switching
-     back to a configuration that does not suppress it. */
-  (document.history || []).forEach((entry) => {
-    if (!entry || entry.kind !== "feature") return;
-    entry.suppressed = suppressed.has(entry.targetId);
-  });
+  // Old override-only rows inherit independent live sketch toggles. A row
+  // with a saved sketch uses its own suppression flag.
+  const automatic = automaticSuppression(document);
+  const savedSketches = new Set((cfg.modelValues?.sketches || []).map(s => s.id));
+  const sketchRoots = (document.sketches || []).filter(s => s.suppressed &&
+    (savedSketches.has(s.id) || !automatic.has(s.id))).map(s => s.id);
+  applyConfigurationSuppression(document, [...(cfg.suppressedFeatureIds || []), ...sketchRoots]);
   const assembly = assemblyDocument(document);
   if (assembly) assembly.activeExplodedView = cfg.explodedViewId || null;
   if (document.designTable?.kind === "circular-sweep" && cfg.designTableValues) {
     applyCircularSweepRow(document, cfg.designTableValues);
   }
   return document;
+}
+
+export function applyConfigurationSuppression(document, targetIds) {
+  const roots = new Set(targetIds || []);
+  const owners = suppressionOwners(document, roots);
+  const suppressed = new Set([...roots, ...owners.keys()]);
+  for (const target of [...(document.features || []), ...(document.sketches || [])]) {
+    target.suppressed = suppressed.has(target.id);
+  }
+  for (const entry of document.history || []) {
+    if (!entry || !["feature", "sketch"].includes(entry.kind)) continue;
+    entry.suppressed = suppressed.has(entry.targetId);
+    delete entry.cascaded;
+    if (owners.has(entry.targetId)) entry.autoSuppressedBy = owners.get(entry.targetId);
+    else delete entry.autoSuppressedBy;
+  }
 }
 
 /* The book's O-RING design table drives two *model dimensions*: the path
@@ -259,7 +275,7 @@ export function captureConfiguration(document, options = {}) {
     ...options,
     name,
     parameterOverrides: { ...(document.parameterOverrides || options.parameterOverrides || {}) },
-    suppressedFeatureIds: (document.features || []).filter((feature) => feature.suppressed).map((feature) => feature.id),
+    suppressedFeatureIds: capturedFeatureRoots(document),
     explodedViewId: assemblyDocument(document)?.activeExplodedView || options.explodedViewId || null,
     modelValues: configurationModelValues(document),
   });

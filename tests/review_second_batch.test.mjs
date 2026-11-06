@@ -3,6 +3,8 @@ import { toolFeatureRecipe, translateToolRecord } from "../js/core/tool_recipe.j
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import {sourceFunctionText} from './helpers/source_function.mjs';
+import {parseModelerDraft,serializeModelerDraft,modelerDraftKey,readModelerDraft,writeModelerDraft} from '../js/modeler_draft.js';
 import { inferSmartMate } from '../js/modeler_smartmates.js';
 import { sampleSketchPath } from '../js/core/swept_sources.js';
 import { createMotionStudy,addRotaryMotor,evaluateMotionStudy } from '../js/cad_motion_study.js';
@@ -12,8 +14,8 @@ import { makeBrepPrimitive,disposeBrep } from '../js/cad_kernel.js';
 import { regenerateFeatures,releaseRegeneration,addFeature } from '../js/cad_feature_tree.js';
 const source=file=>file==='modeler'?modelerSource():readFileSync(new URL('../js/'+file+'.js',import.meta.url),'utf8');
 function extract(file,name,bindings={}){
- const text=source(file).match(new RegExp('(?:export )?function '+name+'\\([^]*?\\r?\\n\\}\\r?\\n'))[0];
- return Function(...Object.keys(bindings),'return ('+text.replace(/^export /,'')+')')(...Object.values(bindings));
+ const text=sourceFunctionText(source(file),name);
+ return Function(...Object.keys(bindings),'return ('+text+')')(...Object.values(bindings));
 }
 test('SmartMate does not offer concentric for a plane and a straight edge',()=>{
  const face={componentId:'a',kind:'face',frame:{surface:'plane',origin:{x:0,y:0,z:0},normal:{x:0,y:1,z:0}}};
@@ -38,16 +40,30 @@ test('clockwise full circles do not duplicate the seed',()=>{
  assert.equal(step(-360,4),-Math.PI/2);assert.equal(step(360,4),Math.PI/2);
  assert.equal(step(-180,4),-Math.PI/3);
 });
-test('assembly autosave reaches the writer without a part definition',()=>{
- let saved;
- const E={open:true,docType:'assembly',def:null,assembly:{name:'assembly',components:[]}};
- const flush=extract('modeler','flushModelerDraft',{
-   E,draftSaveTimer:0,draftRevision:0,modelerDraftOwnerId:'tab-a',libraryOpenBaseline:null,assemblyOpenBaseline:null,draftFailureReported:false,modelerDraftStorage:()=>({}),
-   parseModelerDraft:d=>d,serializeModelerDraft:p=>p,MODELER_DRAFT_KEY:'k',
-   saveModelerDraftRecord:d=>{saved=d;return {then(){return {catch(){}};}};},
-   writeModelerDraft:()=>false,syncDraftStatus:()=>{},
- });
- flush();assert.equal(saved.assembly,E.assembly);
+test('assembly autosave persists a recoverable draft without a part definition, including storage fallback',async()=>{
+ for(const failIndexedDB of [false,true]){
+  const E={open:true,docType:'assembly',def:null,assembly:{key:'assembly',name:'Edited assembly',components:[]}};
+  const baseline={...structuredClone(E.assembly),name:'Saved assembly'},values=new Map(),statuses=[];
+  const storage={setItem:(key,value)=>values.set(key,value),getItem:key=>values.get(key)};
+  let saved,owner;
+  const residentDirtyState=extract('modeler','residentDirtyState',{
+   E,H:{editRevision:()=>1},partHistoryMarker:{savedEdit:0},assemblySaveSession:()=>({savedEdit:0}),
+  });
+  const flush=extract('modeler','flushModelerDraft',{
+   E,draftSaveTimer:0,draftRevision:0,modelerDraftCache:null,modelerDraftOwnerId:'tab-a',libraryOpenBaseline:null,assemblyOpenBaseline:baseline,draftFailureReported:false,
+   residentDirtyState,parseModelerDraft,serializeModelerDraft,modelerDraftKey,localStorage:storage,modelerDraftStorage:()=>storage,
+   saveModelerDraftRecord:async(d,id)=>{if(failIndexedDB)throw Error('IndexedDB unavailable');saved=d;owner=id;},
+   writeModelerDraft,syncDraftStatus:key=>statuses.push(key),flash:()=>assert.fail('successful fallback must not report a failed save'),
+  });
+  flush();await new Promise(resolve=>setImmediate(resolve));
+  const recovered=failIndexedDB?readModelerDraft(storage,'tab-a'):saved;
+  assert.deepEqual(recovered.assembly,E.assembly);assert.equal(recovered.def,null);
+  assert.deepEqual(recovered.dirty,{part:false,assembly:true});
+  assert.deepEqual(JSON.parse(recovered.assemblyBaselineJson),baseline);
+  assert.deepEqual(statuses,['draftSaved']);
+  if(!failIndexedDB){assert.equal(owner,'tab-a');assert.equal(JSON.parse(values.get(modelerDraftKey(owner))).indexedDB,true);}
+  E.assembly.name='Later edit';assert.equal(recovered.assembly.name,'Edited assembly','persisted payload is a snapshot');
+ }
 });
 test('axis cuts follow framed and primitive hosts in all three dimensions',()=>{
  const move=extract('modeler_part_geometry','movePart',{isKernelBody:()=>false,fin:Number.isFinite,translateToolRecord});

@@ -1,19 +1,30 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { featureDefaults, featureSpec, validateFeatureDefinition } from "../js/core/feature_catalog.js";
-import { createFeatureDefinition, createSketchDefinition, ensureParametricDocument } from "../js/core/parametric_document.js";
+import { createFeatureDefinition, createSketchDefinition, ensureParametricDocument, recordSketchInHistory } from "../js/core/parametric_document.js";
 import { compileKernelFeatureTree } from "../js/core/kernel_feature_adapter.js";
-import { regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
-import { loadCadKernel } from "../js/cad_kernel.js";
+import { regenerateFeatures, releaseRegeneration, resolveSketchProfile } from "../js/cad_feature_tree.js";
+import { booleanBrep, disposeBrep, loadCadKernel, shapeMassProperties } from "../js/cad_kernel.js";
+import { axisMeridian, assertSketchAxisProfile, isSketchAxis, revolvePreviewAxis, sketchAxisReference } from "../js/core/revolve_geometry.js";
+import { sketchWorldPoint } from "../js/core/swept_sources.js";
+import { partSupportsExactMesh, toolSolidBrep } from "../js/modeler_part_geometry.js";
 import { FEATURE_COMMAND, buildCommandCatalog } from "../js/modeler_commands.js";
 
 const volume = async (brep) => {
   const oc = await loadCadKernel(), props = new oc.GProp_GProps_1();
   try { oc.BRepGProp.VolumeProperties_1(brep.shape, props, false, false, false); return props.Mass(); }
   finally { props.delete(); }
+};
+
+const assertVectorNear = (actual, expected, label) => {
+  for (const key of ["x", "y", "z"]) {
+    assert.ok(Math.abs(actual?.[key] - expected[key]) < 1e-6,
+      `${label}.${key}: measured ${actual?.[key]}, expected ${expected[key]}`);
+  }
 };
 
 const documentWithBlock = () => {
@@ -154,12 +165,88 @@ test("the editor records each cut as a tool on the body, built by the additive m
   assert.match(modeler, /commandButton\("revolvecutfeature", t\("opRevolveCut"\)\)/);
   assert.match(modeler, /commandButton\("sweepcutfeature", t\("opSweepCut"\)\)/);
   // one cutter builder, and it calls the same two makers the bodies use
-  const cutter = modeler.slice(modeler.indexOf("async function toolSolidBrep"), modeler.indexOf("var exactBuildTimers"));
   assert.match(partGeometry, /recipe\.type==="revolve"\)return makeBrepRevolve\(recipe\.params\)/);
   assert.match(partGeometry, /recipe\.type==="sweep"\)return makeBrepSweep\(recipe\.params\)/);
-  assert.match(modeler, /cuts3d\.push\(\{kind:"revolve"/);
   assert.match(modeler, /cuts3d\.push\(\{kind:"sweep"/);
 });
+
+for (const axisReference of ["axis:y", sketchAxisReference("centerline")]) {
+  test("the editor records a resolved revolve cutter for " + axisReference, async () => {
+    const { doc, profile, block } = documentWithBlock();
+    profile.plane = "front";
+    profile.referenceId = "plane:front";
+    profile.points = [[1,0],[5,0],[5,20],[1,20],[0,0],[0,20]].map(([x,y],i) => ({id:"p"+i,x,y,fixed:true}));
+    profile.entities = [0,1,2,3].map(i => ({id:"edge"+i,type:"line",a:"p"+i,b:"p"+((i+1)%4)}));
+    const profileEntityIds = profile.entities.map(entity => entity.id);
+    profile.entities.push({id:"centerline",type:"line",a:"p4",b:"p5",construction:true});
+    const target = {id:"body",kind:"box",featureId:block.id}, E = {def:doc}, queued = [];
+    const dependencies = {
+      E, featureDefaults, createFeatureDefinition, recordSketchInHistory, resolveSketchProfile,
+      axisMeridian, assertSketchAxisProfile, isSketchAxis, revolvePreviewAxis, sketchWorldPoint,
+      partSupportsExactMesh, ensureSketch:() => profile, revolveContour:() => ({entityIds:profileEntityIds}),
+      cutTargetBody:() => target, cutTargetFeatureId:() => block.id,
+      pushUndo() {}, t:key => key, flash:message => assert.fail(message), H:{discard() {}},
+      invalidatePartMeshAfterEdit() {}, queueExactMesh:part => queued.push(part), refreshAll() {},
+    };
+    const functions = ["resolvedRevolve", "selectedRevolve", "createRevolveCutFeature"];
+    const createCut = new Function(...Object.keys(dependencies),
+      functions.map(name => sourceFunctionText(modeler, name)).join("\n") + "\nreturn createRevolveCutFeature;"
+    )(...Object.values(dependencies));
+
+    assert.equal(createCut({axisReference,angle:90,direction:"reverse",symmetric:true}), true);
+    const feature = doc.features.find(item => item.type === "revolveCut");
+    assert.deepEqual(feature.inputs, [block.id]);
+    assert.deepEqual(feature.references.references, [axisReference]);
+    assert.deepEqual(feature.params.profileEntityIds, profileEntityIds);
+    assert.equal(target.cuts3d.length, 1);
+    const cutter = target.cuts3d[0];
+    assert.equal(cutter.kind, "revolve");
+    assert.equal(cutter.featureId, feature.id);
+    assert.equal(cutter.angle, 90);
+    assert.equal(cutter.direction, "reverse");
+    assert.equal(cutter.symmetric, true);
+    assert.equal(cutter.axis, isSketchAxis(axisReference) ? axisReference : "y");
+    const frame = isSketchAxis(axisReference) ? cutter.axisBasis : cutter.profileFrame;
+    const expectedFrame = isSketchAxis(axisReference) ? {
+      origin:{x:0,y:0,z:0}, axial:{x:0,y:1,z:0}, radial:{x:-1,y:0,z:0}, tangent:{x:0,y:0,z:1},
+    } : {
+      origin:{x:0,y:0,z:0}, xAxis:{x:1,y:0,z:0}, yAxis:{x:0,y:1,z:0}, normal:{x:0,y:0,z:1},
+    };
+    for (const [key, expected] of Object.entries(expectedFrame)) {
+      assertVectorNear(frame?.[key], expected, "recorded frame " + key);
+    }
+    if (isSketchAxis(axisReference)) {
+      assert.deepEqual([frame.u,frame.v,frame.du,frame.dv], [0,0,0,1], "the centerline starts at the sketch origin and points up");
+    }
+    assert.equal(E.sel, target);
+    assert.deepEqual(queued, [target]);
+
+    const expectedToolVolume = Math.PI * (25 - 1) * 20 / 4;
+    const tool = await toolSolidBrep(cutter);
+    try {
+      assert.ok(Math.abs(await volume(tool) - expectedToolVolume) < 1e-6, "the recorded tool builds the requested annular sector");
+      const { run } = await buildCompiled(doc);
+      try {
+        assert.deepEqual(run.issues, []);
+        assert.ok(Math.abs(await volume(run.finalShape) - (8000 - expectedToolVolume)) < 1e-6, "exact history removes the requested annular sector");
+        const historyTool = run.results.get(feature.id + ":tool");
+        assert.ok(historyTool, "exact history rebuilds a cutter from the driving sketch");
+        // The symmetric quarter turn occupies +X, with equal extent on either side of Z=0.
+        for (const [label, solid] of [["recorded cutter", tool], ["history cutter", historyTool]]) {
+          const properties = await shapeMassProperties(solid);
+          assertVectorNear(properties.centerOfMass, {x:62*Math.SQRT2/(9*Math.PI),y:10,z:0}, label + " centroid");
+          assertVectorNear(properties.bounds.min, {x:Math.SQRT1_2,y:0,z:-5*Math.SQRT1_2}, label + " minimum");
+          assertVectorNear(properties.bounds.max, {x:5,y:20,z:5*Math.SQRT1_2}, label + " maximum");
+        }
+        const common = await booleanBrep("intersect", tool, historyTool);
+        try {
+          assert.ok(Math.abs(await volume(common) - expectedToolVolume) < 1e-6,
+            "the recorded cutter occupies the same spatial region as the exact history cutter");
+        } finally { disposeBrep(common); }
+      } finally { releaseRegeneration(run); }
+    } finally { disposeBrep(tool); }
+  });
+}
 
 test("every subtractive-twin string exists in both languages", () => {
   ["opRevolveCut", "opSweepCut", "cutNeedExactBody", "fcFeatRevolveCut", "fcFeatSweepCut"].forEach((key) => {

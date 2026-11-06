@@ -21,7 +21,9 @@ test('last sketch driving field can scroll fully above the inspector clipping ed
     const p=pane.getBoundingClientRect(),f=field.getBoundingClientRect(),last=document.querySelector('.md-cons-row:last-child').getBoundingClientRect();
     return {paneBottom:p.bottom,fieldBottom:f.bottom,fieldTop:f.top,lastBottom:last.bottom,scrollTop:pane.scrollTop,maximum:pane.scrollHeight-pane.clientHeight,hit:document.elementFromPoint(f.left+f.width/2,f.top+f.height/2)===field};
    },width);
-   assert.ok(result.fieldTop>=0&&result.fieldBottom<=result.paneBottom-1,JSON.stringify({width,...result}));assert.ok(result.hit,JSON.stringify({width,...result}));assert.ok(result.lastBottom<=result.paneBottom,JSON.stringify({width,...result}));
+   // Fractional device scaling can differ by ~0.00003 CSS px at a shared edge.
+   // Keep the field's full 1px clearance and hit test; allow only numeric roundoff for the row boundary.
+   assert.ok(result.fieldTop>=0&&result.fieldBottom<=result.paneBottom-1,JSON.stringify({width,...result}));assert.ok(result.hit,JSON.stringify({width,...result}));assert.ok(result.lastBottom<=result.paneBottom+1e-4,JSON.stringify({width,...result}));
   }
  }finally{await page.close();}
 });

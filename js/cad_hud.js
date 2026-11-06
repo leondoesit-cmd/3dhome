@@ -12,7 +12,7 @@
    their key bindings, so a new aid is one entry, not four edits. */
 import { S, fin } from "./state.js";
 import { plan, wx, wz, render2D, segBearing, onAfterRender } from "./plan2d.js";
-import { wallPointPolar } from "./interaction.js";
+import { wallPointPolar, rectPointTyped } from "./interaction.js";
 import { wallClearLength, pendingCuts, roomName } from "./geometry.js";
 import { flabel } from "./furniture_meta.js";
 import { t, tTouch } from "./i18n.js";
@@ -472,7 +472,7 @@ export function updateCadHud() {
   } else if (S.tool === "wall") {
     main = tTouch("hint_tool_wall");
   } else if (S.tool === "rect") {
-    main = tTouch("hint_tool_rect");
+    main = tTouch(S.rectDraft ? "hint_tool_rect_next" : "hint_tool_rect");
   } else if (S.tool === "roomstamp") {
     /* The armed preset and what the ghost is about to do to the plan are the
        two things the pointer cannot tell you on its own. */
@@ -652,12 +652,34 @@ export function openEntry(seed) {
     inOff.setSelectionRange(0, inOff.value.length);
     return true;
   }
+  var labs = entry.querySelectorAll(".cad-e-lab");
+  var unitLabel = t("guide_unit_" + hudUnit());
+  if (rectDrafting()) {
+    /* Rectangle: width, then depth, in the same two boxes. Depth seeds from
+       the rubber band so Enter after the width keeps what the mouse shows. */
+    var rd = S.rectDraft, rp = S.previewPt || rd;
+    entry.hidden = false;
+    inLen.parentElement.hidden = false;
+    inAng.parentElement.hidden = false;
+    if (labOff) labOff.hidden = true;
+    labs[0].textContent = t("cad_width") + " (" + unitLabel + ")";
+    labs[1].textContent = t("cad_depth") + " (" + unitLabel + ")";
+    rectSign = { x: rp.x < rd.x ? -1 : 1, z: rp.z < rd.z ? -1 : 1 };
+    var depth = Math.abs(rp.z - rd.z);
+    inLen.value = seed || "";
+    inAng.value = depth > 0 ? hudFmt(depth, { suffix: false }) : "";
+    positionEntry();
+    inLen.focus();
+    inLen.setSelectionRange(inLen.value.length, inLen.value.length);
+    return true;
+  }
   if (!S.drawing || S.drawFrom == null) return false;
   var a = S.nodes[S.drawFrom];
   if (!a) return false;
   entry.hidden = false;
   inLen.parentElement.hidden = false;
   inAng.parentElement.hidden = false;
+  labs[0].textContent = t("cad_len") + " (" + unitLabel + ")";
   var metrics = S.previewPt ? previewMetrics(S.drawFrom, S.previewPt) : null;
   if (labOff) labOff.hidden = !(metrics && metrics.parallel);
   var angLab = inAng.previousElementSibling;
@@ -685,6 +707,20 @@ export function openEntry(seed) {
   inLen.focus();
   inLen.setSelectionRange(inLen.value.length, inLen.value.length);
   return true;
+}
+
+// the first corner of a rectangle / slab void is down and the second is not
+function rectDrafting() {
+  return (S.tool === "rect" || S.tool === "slabvoid") && !!S.rectDraft;
+}
+var rectSign = { x: 1, z: 1 };
+
+// the typed width/depth as a signed offset from the first corner, or null
+function rectFromEntry() {
+  var w = hudLength(inLen.value), d = hudLength(inAng.value);
+  if (!fin(w) || w <= 0) return null;
+  if (!fin(d) || d <= 0) return null;
+  return { w: rectSign.x * w, d: rectSign.z * d };
 }
 
 export function closeEntry() {
@@ -726,6 +762,14 @@ function frameDrawPreview() {
 }
 
 function previewFromEntry() {
+  if (rectDrafting()) {
+    var rv = rectFromEntry();
+    if (!rv) return;
+    S.previewPt = { x: S.rectDraft.x + rv.w, z: S.rectDraft.z + rv.d };
+    ensurePointsVisible([S.rectDraft, S.previewPt], 56);
+    render2D();
+    return;
+  }
   if (S.tool === "walloffset") {
     var off = hudLength(inOff.value);
     if (fin(off) && off > 0) {
@@ -759,6 +803,13 @@ function entryKey(e) {
       }
       closeEntry();
       render2D();
+      return;
+    }
+    if (rectDrafting()) {
+      var rv = rectFromEntry();
+      if (!rv) return;
+      closeEntry();
+      rectPointTyped(rv.w, rv.d);
       return;
     }
     previewFromEntry();
@@ -797,7 +848,7 @@ function entryKey(e) {
 export function hudKeydown(e) {
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
   if (entryOpen()) return false; // the inputs handle their own keys
-  if (!(S.tool === "wall" && S.drawing) && S.tool !== "walloffset") return false;
+  if (!(S.tool === "wall" && S.drawing) && S.tool !== "walloffset" && !rectDrafting()) return false;
   if (/^[0-9]$/.test(e.key) || e.key === ".") {
     e.preventDefault();
     return openEntry(e.key);

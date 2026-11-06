@@ -719,7 +719,10 @@ function placeBed(type, room, preferredSides) {
     let rot = side === "north" ? 0 : side === "east" ? 90 : side === "south" ? 180 : 270;
     let bed = makeCatalogItem(type, rot);
     if (!bed) return null;
-    Object.assign(bed, wallCandidate(bed, bounds, side, frac, 0));
+    // Slide between finished side walls so the end candidates fit a narrow
+    // room. Keep the headboard axis on centre lines for wallCandidate's inset.
+    let along = side === "north" || side === "south" ? { ...bounds, x0: fb.x0, x1: fb.x1 } : { ...bounds, z0: fb.z0, z1: fb.z1 };
+    Object.assign(bed, wallCandidate(bed, along, side, frac, 0));
     let b = aabbOf(bed);
     let gaps = side === "north" || side === "south" ? [b.x0 - fb.x0, fb.x1 - b.x1] : [b.z0 - fb.z0, fb.z1 - b.z1];
     let minGap = Math.min(...gaps), maxGap = Math.max(...gaps);

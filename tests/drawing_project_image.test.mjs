@@ -1,3 +1,4 @@
+import {registerQuickForm} from '../js/modeler_quick_form.js';
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -81,7 +82,7 @@ test('actual URL and XYWH QuickForm close lifecycle inserts native image without
     const source=modelerSource();
     const element=()=>({children:[],hidden:false,value:'',classList:{add(){},remove(){},contains:()=>false},appendChild(n){this.children.push(n);},setAttribute(){},focus(){},select(){}});
     const panel=element(),buttons=[],fields=[],def={name:'Native source',drawing:createSheetDoc({views:[]})},messages=[];let token=1,controller,previews=0;
-    const context={E:{authoring:{},docType:'part',mode:'drawing',def},root:{querySelector:()=>panel,classList:{add(){},remove(){}}},motionPlaybackCancel:null,
+    const context={registerQuickForm,E:{authoring:{},docType:'part',mode:'drawing',def},root:{querySelector:()=>panel,classList:{add(){},remove(){}}},motionPlaybackCancel:null,
       el:element,featureField:(body,field,value)=>{const input={value,focus(){},select(){}};fields.push({field,input});return input;},
       t:x=>x,namedButton:x=>x,btn:(label,callback,cls)=>{const b=element();b.callback=callback;b.cls=cls;buttons.push(b);return b;},
       requestAnimationFrame:fn=>fn(),syncCommandManager(){},document:{body:element()},validateFeatureInputs:()=>true,

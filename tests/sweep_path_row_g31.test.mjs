@@ -1,7 +1,6 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import { FEATURE_CATALOG } from "../js/core/feature_catalog.js";
 import { featureField, readFeatureParameterForm } from "../js/modeler_feature_form.js";
@@ -31,7 +30,7 @@ test("the Path row lists the helices by name and the second-sketch path, and rea
   const options = [{ value: "", label: "Second selected sketch" }, { value: "helix_1", label: "ThreadPath" }];
   const input = featureField(host, field, "helix_1", { el, referenceOptions: (type) => (type === "helix-reference" ? options : []) });
   assert.equal(input.tag, "select");
-  assert.deepEqual(input.children.map((o) => [o.value, o.innerHTML, o.selected]), [["", "Second selected sketch", false], ["helix_1", "ThreadPath", true]]);
+  assert.deepEqual(input.children.map((o) => [o.value, o.textContent, o.selected]), [["", "Second selected sketch", false], ["helix_1", "ThreadPath", true]]);
   input.value = "";
   const read = readFeatureParameterForm([{ field, input }], { helixId: "helix_1" });
   assert.equal(read.params.helixId, "", "an explicit sketch path is kept, not replaced by the only helix");

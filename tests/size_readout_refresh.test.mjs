@@ -17,5 +17,5 @@ test('the part size readout has one writer (the other is the assembly component 
 });
 
 test('it is refreshed where an exact mesh lands or fails', () => {
-  assert.match(body('refreshChangedPart'), /if \(part && E\.def\) syncSizeReadout\(\);\s*if \(!part \|\| !E\.pv\) return;/);
+  assert.match(body('refreshChangedPartPreviews'), /if \(E\.def\) syncSizeReadout\(\);\s*if \(!E\.pv\) return;/);
 });

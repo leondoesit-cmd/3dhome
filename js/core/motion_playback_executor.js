@@ -1,3 +1,5 @@
+import {captureAssemblySolverState,restoreAssemblySolverState} from './assembly_solver_state.js';
+
 export function createMotionPlaybackExecutor(assembly,{createWorker=()=>new Worker(new URL('../motion_playback_worker.js',import.meta.url),{type:'module'})}={}) {
   const worker=createWorker(),pending=new Map();let sequence=0,disposed=false;
   const request=message=>new Promise((resolve,reject)=>{
@@ -19,13 +21,12 @@ export function createMotionPlaybackExecutor(assembly,{createWorker=()=>new Work
       const sync=!owned || sentTarget!==target || sentRevision!==options.playbackRevision;
       const message=await request({type:'evaluate',studyId,time,incremental:!!options.incremental,owned,
         revision:options.playbackRevision,
-        poses:target.components.map(c=>({id:c.id,transform:c.transform})),
+        ...captureAssemblySolverState(target,false),
         ...(sync?{studies:target.motionStudies,mates:target.topologyMates||[]}:{}),
       });
       if(disposed)throw new Error('Motion preview closed');
       if(message.result?.ok){
-        const poses=new Map(message.poses.map(item=>[item.id,item.transform]));
-        for(const component of target.components)if(poses.has(component.id))component.transform=poses.get(component.id);
+        restoreAssemblySolverState(target,message);
         if(message.changes){
           for(const {path,value,remove} of message.changes){
             let record=target;for(const key of path.slice(0,-1))record=record[key];

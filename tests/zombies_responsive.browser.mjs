@@ -86,6 +86,13 @@ test("Night Shift HUD lays out without collisions on every posture", async (t) =
       await page.setLang(lang);
       for (const posture of POSTURES) {
         await page.resize(posture.w, posture.h, { mobile: true, touch: true });
+        await page.waitUntil(() => {
+          const hud=document.getElementById('zHud'),w=Math.round(window.visualViewport.width),h=Math.round(window.visualViewport.height);
+          return hud.classList.contains('z-narrow')===(w<=360)
+            && hud.classList.contains('z-phone')===(w<600)
+            && hud.classList.contains('z-short')===(h<=520)
+            && hud.style.getPropertyValue('--z-visual-height')===h+'px';
+        },{what:'game HUD has processed viewport resize'});
         await page.eval(() => new Promise((r) => setTimeout(r, 320)));
         const m = await page.eval(MEASURE);
         const where = `${posture.name} (${posture.w}x${posture.h}, ${lang})`;

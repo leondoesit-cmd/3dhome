@@ -263,7 +263,9 @@ test("object snapping stays reachable while a phone draw tool is active", () => 
 test("touch instructions use explicit translation variants", () => {
   assert.match(i18n, /export function tTouch\(/);
   assert.match(i18n, /hint_tool_rect_touch:\s*"Tap the first corner/);
-  assert.match(chrome, /tTouch\("hint_tool_rect"\)/);
+  // first corner, then the opposite one: both hints have touch wording
+  assert.match(i18n, /hint_tool_rect_next_touch:\s*"Tap the opposite corner/);
+  assert.match(chrome, /tTouch\(S\.rectDraft \? "hint_tool_rect_next" : "hint_tool_rect"\)/);
   assert.match(cadHud, /tTouch\("hint_tool_slabvoid"\)/);
   assert.match(cadHud, /S\.placeType[\s\S]*?tTouch\("hint_tool_place"\)/);
   assert.match(cadHud, /S\.tool === "door"[\s\S]*?tTouch\("hint_tool_opening"\)/);

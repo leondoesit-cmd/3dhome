@@ -2722,7 +2722,9 @@ button.trDel:focus-visible {
   transition: opacity 0.45s ease, transform 0.45s ease;
 }
 body.used-3d #view-3d > .hint,
-body.used-2d #view-2d > .hint {
+body.used-2d #view-2d > .hint,
+/* an active tool's own hint (#plan-hint) takes the same strip */
+#view-2d:has(> #plan-hint:not([hidden])) > .hint {
   opacity: 0;
   transform: translateX(-50%) translateY(8px);
 }
@@ -4709,8 +4711,8 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 }
 
 #modeler .md-reference-picker[hidden] { display: none; }
-#modeler .md-reference-picker { position: absolute; inset: 0; z-index: 190; display: grid; place-items: center; padding: 20px; background: rgba(9,16,29,.48); backdrop-filter: blur(6px); }
-#modeler .md-reference-picker > section { width: min(560px,100%); padding: 18px; border: 1px solid color-mix(in srgb,var(--accent) 42%,var(--border-color)); border-radius: 16px; background: var(--bg-panel); box-shadow: 0 24px 70px rgba(0,0,0,.35); }
+#modeler .md-reference-picker { position: absolute; inset: 0; z-index: 190; display: grid; grid-template: minmax(0,1fr) / minmax(0,1fr); place-items: center; padding: 20px; background: rgba(9,16,29,.48); backdrop-filter: blur(6px); }
+#modeler .md-reference-picker > section { width: min(560px,100%); max-block-size: 100%; box-sizing: border-box; overflow: auto; overflow-wrap: anywhere; padding: 18px; border: 1px solid color-mix(in srgb,var(--accent) 42%,var(--border-color)); border-radius: 16px; background: var(--bg-panel); box-shadow: 0 24px 70px rgba(0,0,0,.35); }
 #modeler .md-reference-picker header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 #modeler .md-reference-picker header small { color: var(--accent); font-size: max(9px, var(--fs-floor, 0px)); font-weight: 800; letter-spacing: .1em; }
 #modeler .md-reference-picker h3 { margin: 4px 0 0; font-size: 19px; color: var(--text-main); }
@@ -4723,12 +4725,23 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-pick-toolbar[hidden] { display: none; }
 #modeler .md-pick-toolbar #mdPickBack { flex: 0 0 auto; min-height: 40px; padding: 0 12px; border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg); color: var(--text-main); cursor: pointer; }
 #modeler .md-pick-toolbar #mdPickSearch { flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 0 12px; border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg); color: var(--text-main); }
-#modeler .md-reference-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+#modeler .md-reference-options { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%, 185px),1fr)); gap: 8px; }
 #modeler .md-reference-option { display: flex; align-items: center; gap: 11px; min-height: 58px; padding: 10px; border: 1px solid var(--btn-border); border-radius: 10px; background: var(--btn-bg); color: var(--text-main); text-align: start; cursor: pointer; }
 #modeler .md-reference-option:hover,#modeler .md-reference-option.selected { border-color: var(--accent); background: color-mix(in srgb,var(--accent) 9%,var(--btn-bg)); }
 #modeler .md-reference-option > i { color: var(--accent); font-size: 22px; }
 #modeler .md-reference-option span,#modeler .md-reference-option b,#modeler .md-reference-option small { display: block; min-width: 0; }
-#modeler .md-reference-option b { font-size: 12px; }
+#modeler .md-reference-option b { font-size: 12px; white-space: normal; }
+#modeler .md-contact-row {
+  display: grid; grid-template-columns: minmax(0,1fr); gap: 6px;
+  padding-block: 12px; border-block-start: 1px solid var(--border-color);
+}
+#modeler .md-contact-row strong { font-size: max(12px, var(--fs-floor, 0px)); }
+#modeler .md-contact-row input, #modeler .md-contact-row button {
+  min-inline-size: 0; max-inline-size: 100%; min-block-size: 40px; padding: 6px 10px;
+  border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg); color: var(--text-main);
+}
+#modeler .md-contact-row button { justify-self: start; white-space: normal; cursor: pointer; }
+#modeler .md-report :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #modeler .md-reference-option small { margin-top: 3px; color: var(--text-muted); font: max(9.5px, var(--fs-floor, 0px))/1.2 ui-monospace,monospace; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- interactive guide --------------------------------------------------
@@ -6562,6 +6575,10 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
   background: linear-gradient(to top, var(--bg-panel), transparent);
   font-variant-numeric: tabular-nums;
 }
+body:not(.compact-nav) #modeler .md-mid > .md-status {
+  flex-wrap: nowrap; white-space: nowrap; overflow-x: auto; scrollbar-width: thin;
+  pointer-events: auto;
+}
 #modeler .md-status b { color: var(--text-main); font-weight: 600; }
 #modeler .md-status i { font-size: 12px; vertical-align: -1px; }
 #modeler .md-status > .md-exact-activity,
@@ -6805,6 +6822,17 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
   background: var(--bg-panel); border: 1px solid var(--border-color); color: var(--text-main);
 }
 #modeler .md-context-toggle input { accent-color: var(--accent); margin: 0; }
+#modeler .md-context-toggle { min-height: 32px; box-sizing: border-box; }
+#modeler .md-context-toggle:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+#modeler .md-rail-row > .md-context-toggle {
+  position: static; flex: none; margin-inline-start: auto;
+}
+/* Leave Help its end lane even when the command bar and status stack. */
+#modeler.md-is3d .md-rail-row:has(.md-context-toggle) { padding-inline-end: 36px; }
+#modeler .md-rail-row:has(.md-context-toggle) .md-sel-filters {
+  flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: thin;
+}
+#modeler .md-rail-row .md-sel-filters button { flex: none; }
 /* live readout for the Instant3D drag arrow, positioned by modeler.js on every
    frame the preview draws (see syncInstant3dValue) */
 #modeler .md-instant3d-value {
@@ -9999,7 +10027,10 @@ body.fold-stack #view-resizer {
 #cabdes:not(.cb-compact) .cb-right > .cb-grp .cb-icons { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 #cabdes:not(.cb-compact) .cb-right > .cb-grp .cb-icons button { min-height: 42px; padding: 5px; justify-content: center; }
 #cabdes:not(.cb-compact) .cb-right > .cb-grp .cb-icon-label { display: none; }
-#cabdes:not(.cb-compact) .cb-right .cb-fill { flex: 1 0 240px; min-height: 240px; overflow: visible; }
+/* basis auto, not 240px: the column scrolls as a whole, so the pane must be as
+   tall as what is in it — at a fixed basis its content spilled out of the box
+   and the production strip (sticky, after it) sat over the middle of it */
+#cabdes:not(.cb-compact) .cb-right .cb-fill { flex: 1 0 auto; min-height: 240px; overflow: visible; }
 #cabdes:not(.cb-compact) .cb-right .cb-pane.on { overflow: visible; flex: none; }
 #cabdes .cb-scope-note { max-width: 150px; font-size: max(10px, var(--fs-floor, 0px)); color: var(--text-muted); }
 #cabdes.cb-compact .cb-scope-note { max-width: none; }
@@ -10321,6 +10352,27 @@ body.fold-stack #view-resizer {
   background: rgba(15, 23, 42, 0.45);
 }
 #cabdes .cb-size-dlg[hidden] { display: none; }
+#cabdes .cb-keys-card { width: min(520px, calc(100% - 32px)); background: linear-gradient(var(--bg-panel), var(--bg-panel)), var(--bg-app); }
+#cabdes .cb-keys-card h3 { display: flex; align-items: center; gap: 8px; }
+#cabdes .cb-keys { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 14px; margin: 0; align-items: center; }
+#cabdes .cb-keys dt { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; color: var(--text-muted); font-size: 12px; }
+#cabdes .cb-keys dd { margin: 0; font-size: max(0.85rem, var(--fs-floor, 0px)); color: var(--text-main); }
+#cabdes .cb-keys kbd {
+  min-width: 22px; padding: 2px 6px; border-radius: 5px; text-align: center;
+  font: 600 12px/1.4 Inter, Rubik, sans-serif; color: var(--text-main);
+  background: var(--btn-bg); border: 1px solid var(--btn-border); box-shadow: inset 0 -1px 0 var(--btn-border);
+}
+#cabdes .cb-btnrow .cb-move { flex: 0 0 auto; padding-inline: 8px; }
+#cabdes .cb-btnrow button:disabled { opacity: 0.45; cursor: default; }
+/* the double-click size editor that replaced window.prompt() */
+#cabdes .cb-size-edit {
+  position: absolute; z-index: 30; display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: 10px; background: var(--bg-panel);
+  border: 1px solid var(--accent); box-shadow: var(--shadow-md);
+}
+#cabdes .cb-size-edit span { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+#cabdes .cb-size-edit input { width: 92px; height: 28px; font: 600 13px Inter, Rubik, sans-serif; }
+#cabdes .cb-size-edit input.cb-bad { border-color: var(--danger, #e05252); }
 #cabdes .cb-size-dlg-card {
   width: min(440px, calc(100% - 32px)); max-height: min(80vh, 560px); overflow: auto;
   padding: 18px; border-radius: 14px; background: var(--bg-panel);
@@ -11949,10 +12001,10 @@ body.fold-span #zHud #zIntermission {
   flex: 1; min-width: 0; max-width: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
   padding: 0; border-bottom: none;
 }
+/* The renderer writes an inline pixel size. Keep its display box fitted
+   during pane resizes, including while a redraw is pending. */
+#modeler .md-3dhost #mdPrev { min-height: 100%; max-height: 100%; min-width: 100%; }
 #modeler.md-is3d .md-3dhost #mdPrev { width: 100%; height: 100%; max-width: 100%; border-radius: 0; background: transparent; }
-/* the context-room toggle rides along with the preview into the big view, where
-   the top corner belongs to the mode switch */
-#modeler.md-is3d .md-3dhost .md-context-toggle { top: auto; bottom: 12px; inset-inline-end: 12px; }
 
 /* ---- parametric sketcher: definition state, constraint palette, rule list ----
    The status colours are the sketcher's whole feedback loop: blue while the
@@ -12856,6 +12908,9 @@ html:not([data-ui="legacy"]) #left-sidebar[data-left="tree"] > [data-left-pane="
   width: 100%;
   margin-top: 8px;
 }
+/* steps already done are hidden by js/ui_props.js syncNextSteps() */
+.empty-next[hidden],
+.empty-next button[hidden] { display: none; }
 .empty-next > .t {
   font-size: max(11px, var(--fs-floor, 0px));
   text-transform: uppercase;
@@ -12967,7 +13022,9 @@ html[data-ui="legacy"] #wallProps details.insp-more { display: contents; }
 .start-screen {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  /* Over the ribbon (90), which otherwise hid the card's heading on a
+     900px-tall window; under the top bar (100) so File stays reachable. */
+  z-index: 95;
   display: flex;
   align-items: center;
   justify-content: center;

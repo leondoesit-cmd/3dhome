@@ -42,6 +42,7 @@ export default {
 
   centerRectangle: "מלבן מרכזי",
   faceBoundary: "העתקת גבול פאה",
+  convertEntities: "המרת ישויות",
   tool_sspline: "ספליין קובי",
   sketchRepair: "תיקון קשרי סקיצה",
   fitCheck: "בדיקת התאמה ISO",

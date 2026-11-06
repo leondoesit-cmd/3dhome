@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 const src = modelerSource().replace(/\r\n/g, '\n');
 
 test('a Ctrl/Cmd-click miss in a canonical sketch keeps the sketch selection', () => {
-  const start = src.indexOf('var modelVertex = pickScreen ?');
+  const start = src.indexOf('var modelEdge = pickSketchModelTopology(');
   assert.ok(start > 0, 'select-tool canonical sketch branch found');
   const branch = src.slice(start, src.indexOf('E.ssel = [];\n    if (p && !p.sketch && partEditableInSketch(p))', start));
   assert.match(branch, /if \(!\(e\.ctrlKey \|\| e\.metaKey \|\| E\.mobileAddSelection\)\) \{\s*E\.ssel = \[\];\s*E\.sel = null;\s*(?:dropSketchModelPicks\(\);\s*)?\}/);

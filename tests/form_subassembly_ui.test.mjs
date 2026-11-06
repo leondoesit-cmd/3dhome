@@ -83,7 +83,7 @@ test('group occurrence metadata commits preserve retained placement UI, geometry
  const geometry=JSON.stringify(component.asm),snapshots=[],host={children:[],appendChild(child){this.children.push(child);}};
  const node=()=>({children:[],events:{},appendChild(child){this.children.push(child);},setAttribute(){},addEventListener(key,fn){this.events[key]=fn;}});
  let invalidations=0,dirty=0;
- const E={mode:'3d',sheetToken:42,sheet:{invalidate(){invalidations++;}}};
+ const E={mode:'3d',sheetToken:42,sheet:{invalidateLayout(){invalidations++;}}};
  const context={E,el:()=>node(),documentDescription,assemblyPartNumber,setDocumentProperty,pushUndo:()=>snapshots.push(structuredClone(component.customProperties||{})),syncDirty:()=>dirty++,
   drawSketch(){throw Error('3D metadata must not redraw');},refreshSelection(){throw Error('Metadata must not run whole UI/inspector refresh');},refreshAll(){throw Error('Metadata must not rebuild');},updatePreview(){throw Error('Metadata must not rebuild meshes');}};
  const render=new Function(...Object.keys(context),sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')(...Object.values(context));

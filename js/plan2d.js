@@ -50,7 +50,7 @@ import {
 import {
   sx, sz, wx, wz, planRotRad, toBasePx, rotatePx, unrotatePx, niceScaleCm, fitTransform,
 } from "./plan_view.js";
-import { blueprintBounds, drawBlueprintUnderlay } from "./blueprint_trace.js";
+import { blueprintBounds, drawBlueprintUnderlay, drawBlueprintLinework } from "./blueprint_trace.js";
 import { openingCorners, slabOpenings } from "./slab_openings.js";
 import { openingHasSwingConflict } from "./swing_clearance.js";
 import { cursors, pruneCursors } from "./plan_sync.js";
@@ -58,6 +58,7 @@ import { isLayerVisible, isLayerGhosted, isLayerHidden, layerRank } from "./laye
 import { itemUserVis, userLayerKey } from "./user_layers.js";
 import { roomClearArea } from "./room_area.js";
 import { fmtAreaM2, fmtLen, unitLabel } from "./display_units.js";
+import { inferDomainFromTool } from "./unit_settings.js";
 import { isPresentation, planStyle, planTheme } from "./plan_style.js";
 import { patternFill } from "./plan_patterns.js";
 import { floorImageFor, floorImageSource } from "./plan_material_fill.js";
@@ -730,6 +731,8 @@ function renderModel() {
     roomPass = drawCachedRooms();
     drawSlabOpenings();
   });
+  // an imported DXF's line work: over the room fills, under furniture and walls
+  band("underlay", function () { drawBlueprintLinework(pc, sx, sz); });
   if (!roomPass) {
     var onlyRooms = detectRooms();
     roomPass = { rooms: onlyRooms, hid: hiddenSets(onlyRooms) };
@@ -1062,7 +1065,7 @@ function renderHUD() {
       pc.arc(sx(S.arcDraft.through.x), sz(S.arcDraft.through.z), 4, 0, Math.PI * 2); pc.fill(); pc.restore();
     }
     if (draftArc && !touchDrawing()) label(S.previewPt.x, S.previewPt.z - 12 / S.SC,
-      planLen(draftArc.L) + "  R" + Math.round(draftArc.radius), "#3f6b78");
+      drawLen(draftArc.L) + "  R" + Math.round(draftArc.radius), "#3f6b78");
   }
   if (S.tool === "rect" || S.tool === "slabvoid") {
     if (S.rectDraft && S.previewPt) {
@@ -1078,7 +1081,7 @@ function renderHUD() {
       label(
         (rx0 + rx1) / 2,
         (rz0 + rz1) / 2,
-        planSize(rx1 - rx0, rz1 - rz0),
+        drawSize(rx1 - rx0, rz1 - rz0),
         S.tool === "slabvoid" ? "#c45c4a" : "#3f6b78",
       );
     }
@@ -1162,7 +1165,7 @@ function renderHUD() {
         });
         var th = Number(S.wallDrag.wall.thickness) || 10;
         label((bx0 + bx1) / 2, (bz0 + bz1) / 2,
-          planSize(bx1 - bx0 - th, bz1 - bz0 - th),
+          drawSize(bx1 - bx0 - th, bz1 - bz0 - th),
           "#e0813a");
       }
     }
@@ -1234,7 +1237,7 @@ function renderHUD() {
       }
       label((rr.x0 + rr.x1) / 2, (rr.z0 + rr.z1) / 2,
         rmG.blocked ? (rmG.blockedReason ? t("rp_failed_short", { reason: rmG.blockedReason }) : t("rp_overlapShort"))
-          : planSize(rmG.size.w, rmG.size.d) + modeSuffix, rmCol);
+          : drawSize(rmG.size.w, rmG.size.d) + modeSuffix, rmCol);
     }
   }
   /* The span about to be bitten out of a wall, drawn over the wall itself in
@@ -1354,6 +1357,19 @@ function planSize(w, d) {
   return planLen(w, { suffix: false }) + " × " + planLen(d);
 }
 
+/* The live readouts of whatever is being drawn speak the drawing tool's unit
+   domain (Settings → Units: "rooms" for walls and rectangles), the same one
+   the typed length/size entry in js/cad_hud.js reads. On "plan" they said
+   8000 mm while the entry box took metres, so typing what the label showed
+   built a room a thousand times too big. */
+function drawLen(cm, options) {
+  return fmtLen(cm, Object.assign({ domain: inferDomainFromTool(S.tool) }, options || {}));
+}
+
+function drawSize(w, d) {
+  return drawLen(w, { suffix: false }) + " × " + drawLen(d);
+}
+
 function fillPoly(pts, fill, stroke) {
   if (!pts || pts.length < 3) return;
   pc.beginPath();
@@ -1428,7 +1444,7 @@ function drawPreviewDims(from, preview) {
      midpoint copy would sit under the hand AND collide with the parallel and
      close-loop labels below. */
   if (!touchDrawing())
-    label((from.x + preview.x) / 2, (from.z + preview.z) / 2, planLen(d) + "  " + angTxt, "#3f6b78");
+    label((from.x + preview.x) / 2, (from.z + preview.z) / 2, drawLen(d) + "  " + angTxt, "#3f6b78");
   if (metrics.parallel) {
     var par = metrics.parallel, mx = (from.x + preview.x) / 2, mz = (from.z + preview.z) / 2;
     var ox = mx - par.nx * par.dist, oz = mz - par.nz * par.dist;
@@ -1443,7 +1459,7 @@ function drawPreviewDims(from, preview) {
     pc.setLineDash([]);
     pc.restore();
     if (!touchDrawing())
-      label((mx + ox) / 2, (mz + oz) / 2, planLen(par.abs), "#e0813a");
+      label((mx + ox) / 2, (mz + oz) / 2, drawLen(par.abs), "#e0813a");
   }
   if (metrics.close && metrics.close.dist > 8) {
     pc.save();
@@ -1458,7 +1474,7 @@ function drawPreviewDims(from, preview) {
     pc.restore();
     if (!touchDrawing())
       label((preview.x + metrics.close.x) / 2, (preview.z + metrics.close.z) / 2,
-        planLen(metrics.close.dist), "#6b8a92");
+        drawLen(metrics.close.dist), "#6b8a92");
   }
 }
 
@@ -1565,7 +1581,7 @@ function touchDrawReadout() {
       (S.interiorDims !== false ? pendingCuts(S.drawFrom, S.previewPt) : 0));
     var turnDeg = Math.round((m.turn * 180) / Math.PI);
     return {
-      main: planLen(len),
+      main: drawLen(len),
       sub: m.hasPrev
         ? (turnDeg > 0 ? "+" : "") + turnDeg + "\u00b0"
         : "\u2220" + Math.round((m.absAng * 180) / Math.PI) + "\u00b0",
@@ -1574,12 +1590,12 @@ function touchDrawReadout() {
   if (S.tool === "arcwall" && S.arcDraft && (S.nodes[S.arcDraft.startNode] || S.arcDraft.startPoint) && S.previewPt) {
     var a0 = S.nodes[S.arcDraft.startNode] || S.arcDraft.startPoint;
     var arc = S.arcDraft.through ? makeArcFromThreePoints(a0, S.arcDraft.through, S.previewPt) : null;
-    if (arc) return { main: planLen(arc.L), sub: "R" + Math.round(arc.radius) };
-    return { main: planLen(Math.hypot(S.previewPt.x - a0.x, S.previewPt.z - a0.z)), sub: "" };
+    if (arc) return { main: drawLen(arc.L), sub: "R" + Math.round(arc.radius) };
+    return { main: drawLen(Math.hypot(S.previewPt.x - a0.x, S.previewPt.z - a0.z)), sub: "" };
   }
   if ((S.tool === "rect" || S.tool === "slabvoid") && S.rectDraft && S.previewPt) {
     return {
-      main: planSize(Math.abs(S.previewPt.x - S.rectDraft.x), Math.abs(S.previewPt.z - S.rectDraft.z)),
+      main: drawSize(Math.abs(S.previewPt.x - S.rectDraft.x), Math.abs(S.previewPt.z - S.rectDraft.z)),
       sub: "",
     };
   }

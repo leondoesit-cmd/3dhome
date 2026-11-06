@@ -276,7 +276,15 @@ test("Planner Properties is a clipped-free page deck across common phone and Fol
         props.disabled = false;
         props.click();
       });
-      await page.eval(() => new Promise((resolve) => setTimeout(resolve, 420)));
+      await page.eval(async () => {
+        // Measure the open sheet, not an intermediate compositor frame. A
+        // fixed delay can expire before the transition paints under GPU load.
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        const panel = document.getElementById("right-inspector");
+        await Promise.all(panel.getAnimations().map((animation) => animation.finished));
+        await new Promise(requestAnimationFrame);
+      });
 
       const layout = await page.eval(() => {
         const panel = document.getElementById("right-inspector");

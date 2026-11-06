@@ -2,7 +2,7 @@
    and length field goes through here so a US sheet in feet does not require
    mental conversion on the HUD, the inspector, the project guide, or the plan. */
 import { S } from "./state.js";
-import { t, setDisplayUnitVars, applyStatic, onLangChange } from "./i18n.js";
+import { t, setDisplayUnitVars, setStaticUnitVars, applyStatic, onLangChange } from "./i18n.js";
 import { planningDisplayUnit } from "./planning_guide.js";
 import { parseLength, formatLength, formatArea, parseArea, toDisplayLength, fromDisplayLength, PLANNING_UNITS } from "./planning_units.js";
 import { getDomainUnit, getDomainDigits, inferDomainFromElementId, loadUnitSettings } from "./unit_settings.js";
@@ -116,6 +116,17 @@ export function writeLen(el, cm, options) {
     feetInches: withDisplayOptions(opts).feetInches,
   });
 }
+
+/* A static label's {u} is the global unit. A field that reads in another
+   domain kept it anyway: Interior width (rooms, m under Pro Standard) printed
+   "(cm)" over "3.7". A label naming an input takes that input's domain. */
+setStaticUnitVars(function (el) {
+  var label = el.parentElement;
+  if (!label || label.tagName !== "LABEL") return null;
+  var input = label.querySelector("input[id]");
+  var dom = input && inferDomainFromElementId(input.id);
+  return dom ? { u: unitLabel(dom) } : null;
+});
 
 export function syncDisplayUnitLabels() {
   setDisplayUnitVars({ u: unitLabel(), au: areaUnitLabel() });

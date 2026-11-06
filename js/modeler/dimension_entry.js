@@ -16,7 +16,7 @@ import { topologyReferenceFromEntry } from "../modeler_pick_geometry.js";
 import { t } from "../modeler_strings.js";
 import { closeTour } from "../modeler/sketch_guide.js";
 import { addSmartDimension, dimensionHitYieldsToPoint } from "../sketch_dimensions.js";
-import { hitProjectedModelEdge, hitProjectedModelVertex, hitScreenModelEdge, hitScreenModelVertex } from "../sketch_intersection.js";
+import { pickSketchModelTopology } from "../sketch_intersection.js";
 import { ensureSketch, explainSketchConflict, lineData, removeSketchEntity, sketchEntity, sketchPoint } from "../sketch_solver.js";
 import { addCubicSpline } from "../sketch_spline.js";
 import { entityOutgoingTangent, tangentArc } from "../sketch_tangent_arc.js";
@@ -794,12 +794,10 @@ function wireSketch() {
          the edge is drawn. The flat sheet has no camera, so it keeps the plane hit. */
       var pickProjection = sketchProjection(), screenTolerance = e.pointerType === "touch" ? 14 : 8;
       var pickScreen = pickProjection ? function (world) { return worldToSketchPx(pickProjection, world); } : null;
-      var modelVertex = pickScreen ? hitScreenModelVertex(downPoint, visibleModelEdges, screenTolerance, pickScreen)
-        : hitProjectedModelVertex(ensureSketch(E.def), { x: uv.u, y: uv.v }, visibleModelEdges, pickTolerance);
-      var modelEdge = modelVertex || (pickScreen ? hitScreenModelEdge(downPoint, visibleModelEdges, screenTolerance, pickScreen, edgePoints)
-        : hitProjectedModelEdge(ensureSketch(E.def), { x: uv.u, y: uv.v }, visibleModelEdges, pickTolerance));
+      var modelEdge = pickSketchModelTopology(ensureSketch(E.def), pickScreen ? downPoint : { x: uv.u, y: uv.v },
+        visibleModelEdges, pickScreen ? screenTolerance : pickTolerance, pickScreen, edgePoints);
       if (modelEdge) {
-        var reference = modelVertex ? cloneData(modelVertex) : topologyReferenceFromEntry(modelEdge) || cloneData(modelEdge);
+        var reference = modelEdge.kind === "vertex" ? cloneData(modelEdge) : topologyReferenceFromEntry(modelEdge) || cloneData(modelEdge);
         var additive = e.ctrlKey || e.metaKey || E.mobileAddSelection || selPoints().length > 0;
         if (!additive) E.topologySelection = [];
         var already = (E.topologySelection || []).findIndex(function (item) { return item.persistentId === reference.persistentId; });
@@ -1346,6 +1344,21 @@ function onKey(e) {
   if (!e || typeof e.key !== "string" || !e.key) return;
   if(E.cutPending){e.preventDefault();return;}
   if (!E.open || modelerDecisionOpen()) return;
+  if (reportOpen()) {
+    if (e.key === "Escape") { e.preventDefault(); closeReport(); }
+    if (e.key === "Tab") {
+      const dialog = root.querySelector("#mdReport [role=dialog]");
+      const stops = Array.from(dialog.querySelectorAll("button, input, select, textarea, a[href], [tabindex]"))
+        .filter(node => node.tabIndex >= 0 && !node.matches(":disabled") && node.checkVisibility({visibilityProperty:true}));
+      const first = stops[0], last = stops[stops.length - 1];
+      const active = document.activeElement;
+      if (!dialog.contains(active) || active === (e.shiftKey ? first : last)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first)?.focus();
+      }
+    }
+    return;
+  }
   var commandSearch = root && root.querySelector("#mdCommandSearch");
   var focusedField = document.activeElement;
   var editingField = focusedField && (focusedField.tagName === "INPUT" || focusedField.tagName === "TEXTAREA" || focusedField.isContentEditable);
@@ -1447,7 +1460,6 @@ function onKey(e) {
     if (E.overlays && (E.overlays.shortcut || E.overlays.views || E.overlays.menu || E.overlays.gesture)) {
       e.preventDefault(); closeChromeOverlays(); return;
     }
-    if (reportOpen()) { e.preventDefault(); closeReport(); return; }
     if (E.facePick) { e.preventDefault(); cancelFacePick(false); return; }
     var referencePicker = root && root.querySelector("#mdReferencePicker");
     if (referencePicker && !referencePicker.hidden) { e.preventDefault(); cancelReferenceSelection(); return; }

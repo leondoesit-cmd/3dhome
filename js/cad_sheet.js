@@ -8,7 +8,8 @@ import {drawingPrimitiveItems} from './core/drawing_primitives.js';
 import { canCropView, cropDrawingProjection, clipCropEdges } from './core/drawing_crop.js';
 import { projectBrokenOutView } from './core/drawing_broken_out.js';
 import {resolveAuxiliaryBasis} from './core/drawing_auxiliary.js';
-import {canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges,validateAlignedBreak} from './core/drawing_break.js';
+import { derivedParentId, normalizeViewSource, effectiveViewSource, viewSourceOwner, sameDrawingSource } from "./core/drawing_view_source.js";
+import {breakSourceViews,canBreakView,breakProjection,breakBoundaryItems,clipBreakEdges,validateAlignedBreak} from './core/drawing_break.js';
 import {alternatePositionProjection,alternatePositionItems} from './core/drawing_alternate_position.js';
 import {projectAlignedSection,alignedSectionMarkerItems} from './core/drawing_aligned_section.js';
 import {drawingImageItem} from './core/drawing_image.js';
@@ -168,6 +169,8 @@ export function createView(dir, options = {}) {
     ...(options.scaleMode==='sheet'?{scaleMode:'sheet'}:{}),
     configurationId: options.configurationId || null,      // null = active model configuration
     configurationName: options.configurationName || null,
+    assemblyState: typeof options.assemblyState === "string" ? options.assemblyState : null,
+    source: normalizeViewSource(options.source),           // null = the document that owns the sheet
     primary: !!options.primary,
     parent: options.parent || null,
     hidden: options.hidden !== undefined ? !!options.hidden : null,
@@ -186,6 +189,14 @@ export function createView(dir, options = {}) {
   };
 }
 
+export { normalizeViewSource, effectiveViewSource, viewSourceOwner } from "./core/drawing_view_source.js";
+
+// Persistent topology IDs and model items belong to the sheet's owner.
+export function hasHostDimensionReference(dim) {
+  return !!(dim?.coneAngle || dim?.modelItem || dim?.edgeRefs?.some(ref => ref?.pid)
+    || dim?.refs?.some(ref => ref?.pid || ref?.pid2));
+}
+
 /* Migrate whatever the document already carries into a sheet we can draw, so
    opening an older model never lands on a blank page. */
 export function ensureSheetDoc(def, options = {}) {
@@ -199,12 +210,19 @@ export function ensureSheetDoc(def, options = {}) {
   doc.views = doc.views.filter(Boolean).map((view) => Object.assign(createView(view.dir, view), view));
   doc.views.forEach(view => {
     view.hatchPattern = normalizeSectionHatch(view.hatchPattern);
+    view.source = normalizeViewSource(view.source);
+    view.assemblyState = typeof view.assemblyState === "string" ? view.assemblyState || null : null;
     view.configurationName = view.configurationId
       ? (def.configurations || []).find(cfg => cfg.id === view.configurationId)?.name || null
       : null;
   });
   if (doc.views.length && !doc.views.some((view) => view.primary)) doc.views[0].primary = true;
   doc.dims = Array.isArray(doc.dims) ? doc.dims : [];
+  // Earlier source switches marked host topology picks as unverified foreign
+  // coordinates. The original persistent IDs still identify the host geometry.
+  for (const dim of doc.dims) {
+    if (dim?.sourceBinding?.anchors?.length === 0 && hasHostDimensionReference(dim)) delete dim.sourceBinding;
+  }
   doc.notes = Array.isArray(doc.notes) ? doc.notes : [];
   doc.primitives = Array.isArray(doc.primitives) ? doc.primitives : [];
   doc.images = Array.isArray(doc.images) ? doc.images : [];
@@ -665,12 +683,51 @@ export function createProjector(doc, bodies, options = {}) {
   };
   const project = (view) => {
     if (!view) return null;
-    const key = view.id + "#" + [sectionPatternOf(view), view.dir, view.displayStyle, view.configurationId || "", JSON.stringify(view.section || 0), JSON.stringify(view.alignedSection || 0),view.alignedSection?JSON.stringify(doc.views.find(v=>v.id===view.alignedSection.from)||null):'', JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),JSON.stringify(view.alternatePosition || 0),view.scale,doc.scale,view.breakView?.group?JSON.stringify(doc.views):''].join("|");
-    if (cache.has(key)) return cache.get(key);
+    /* A view drawn from another saved model reprojects when that model is
+       saved again, which the editor's own rebuild token cannot see. */
+    if (!viewSourceOwner(doc, view)) {
+      const parentError = "Derived view parent missing or cyclic";
+      return { visible: [], hidden: [], bounds: null, parentError, ...(view.alignedSection ? { alignedSectionError: parentError } : {}) };
+    }
+    const source = effectiveViewSource(doc, view);
+    const sectionParent = view.section && doc.views.find(entry => entry.id === derivedParentId(view));
+    const sourceKey = source ? source.kind + ':' + source.key : '';
+    // A Detail can ask for the same parent in a different display style.
+    // Keep those variants together, and drop all of them on a source revision.
+    const revision = options.sourceToken?.(view);
+    let entry = cache.get(view.id);
+    if (!entry || entry.revision !== revision || entry.sourceKey !== sourceKey) {
+      entry = {revision, sourceKey, variants:new Map()};
+      cache.set(view.id, entry);
+    }
+    const style = ['shaded','shadedEdges'].includes(view.displayStyle) ? view.displayStyle : 'edges';
+    const slot = style + (view.alternatePosition ? ':alternate' : '');
+    // Cluster validation is cheap. Its outcome, the effective scale and the
+    // Break modifier determine the projection; positions on paper do not.
+    let breakError = '';
+    if (view.breakView) {
+      try {
+        if(!canBreakView(view,doc) || (!view.scale && doc.scale==='fit'))throw new Error('Break needs an ordinary orthographic view and a fixed view scale');
+        if(breakSourceViews(doc,view).length>1 && !view.breakView.group)throw new Error('This Break predates the projected cluster; reapply it on the principal view');
+        validateAlignedBreak(view,doc);
+      } catch (error) { breakError = error.message; }
+    }
+    const key = view.id + "#" + [sectionPatternOf(view), viewSourceOwner(doc, view)?.assemblyState, sectionParent?.id, sectionParent?.dir, view.dir, view.displayStyle, view.configurationId || "", sourceKey, revision, JSON.stringify(view.section || 0), JSON.stringify(view.alignedSection || 0),view.alignedSection?JSON.stringify(doc.views.find(v=>v.id===view.alignedSection.from)||null):'', JSON.stringify(view.detail || 0), JSON.stringify(view.cropSketch || 0),JSON.stringify(view.brokenOut || 0),JSON.stringify(view.breakView || 0),JSON.stringify(view.auxiliary || 0),JSON.stringify(view.alternatePosition || 0),view.breakView ? paperPerModel(view.scale || doc.scale) : '',breakError].join("|");
+    const cached = entry.variants.get(slot);
+    if (cached?.key === key) return cached.projection;
     // Malformed saved parent graphs must not recurse forever or show unrelated geometry.
     if (resolving.has(view.id)) return null;
     resolving.add(view.id);
-    const viewBodies = options.bodiesForView ? options.bodiesForView(view) || bodies : bodies;
+    try {
+      const projection = buildProjection(view, source, sectionParent, breakError);
+      entry.variants.set(slot, {key, projection});
+      return projection;
+    } finally {
+      resolving.delete(view.id);
+    }
+  };
+  function buildProjection(view, source, sectionParent, breakError) {
+    const viewBodies = options.bodiesForView?.(view) ?? (source ? [] : bodies);
     const viewOptions={...options,shaded:["shaded","shadedEdges"].includes(view.displayStyle)};
     let projection = null;
     if(view.alignedSection) {
@@ -678,14 +735,18 @@ export function createProjector(doc, bodies, options = {}) {
       catch(error) {projection={visible:[],hidden:[],circles:[],bounds:null,alignedSectionError:error.message};}
     }
     else if(view.auxiliary) {
-      try {projection=projectSolid(viewBodies,resolveAuxiliaryBasis(view,doc,createTopologyIndex(typeof options.topology==='function'?options.topology(view):options.topology)),viewOptions);}
+      try {
+        const topology = typeof options.topology === 'function' ? options.topology(view) : options.topology;
+        const basis = resolveAuxiliaryBasis(view, doc, createTopologyIndex(source ? [] : topology));
+        projection = projectSolid(viewBodies, basis, viewOptions);
+      }
       catch {projection=null;}
     }
     else if(view.brokenOut) {
       try { projection=projectBrokenOutView(viewBodies,view,viewOptions); }
       catch { projection=null; }
     }
-    else if (view.section) projection = projectSection(doc, view, viewBodies, viewOptions);
+    else if (view.section) projection = projectSection(sectionParent, view, viewBodies, viewOptions);
     else if (view.detail) {
       const parent = (doc.views || []).find((entry) => entry.id === view.detail.from);
       const base = parent ? project({...parent,displayStyle:view.displayStyle,alternatePosition:null}) : null;
@@ -699,26 +760,24 @@ export function createProjector(doc, bodies, options = {}) {
     }
     if(view.breakView && projection) {
       try {
-        if(!canBreakView(view,doc) || (!view.scale && doc.scale==='fit'))throw new Error('Break needs an ordinary orthographic view and a fixed view scale');
-        if(doc.views.length>1 && !view.breakView.group)throw new Error('This Break predates the projected cluster; reapply it on the principal view');
-        validateAlignedBreak(view,doc);
+        if (breakError) throw new Error(breakError);
         projection=breakProjection({...projection,bounds:projectionBounds(projection)},view.breakView,paperPerModel(view.scale || doc.scale));
       } catch(error) {projection={visible:[],hidden:[],circles:[],bounds:null,breakError:error.message};}
     }
     if(view.alternatePosition && projection) {
-      try {projection=alternatePositionProjection(projection,viewBodies,view);}
+      try {
+        if (options.isExplodedView?.(view)) throw new Error('Alternate Position requires an assembled view');
+        projection=alternatePositionProjection(projection,viewBodies,view);
+      }
       catch(error){projection={...projection,alternatePositionError:error.message};}
     }
-    cache.set(key, projection);
-    resolving.delete(view.id);
     return projection;
-  };
+  }
   return project;
 }
 
-function projectSection(doc, view, bodies, options) {
-  const parent = (doc.views || []).find((entry) => entry.id === view.section.from) || doc.views[0];
-  const basis = viewBasis(parent ? parent.dir : "front");
+function projectSection(parent, view, bodies, options) {
+  const basis = viewBasis(parent.dir);
   const along = view.section.axis === "vertical" ? basis.right : basis.up;
   const sight = view.section.flip ? { x: -along.x, y: -along.y, z: -along.z } : along;
   const at = num(view.section.at);
@@ -1090,6 +1149,73 @@ export function edgeAngleRefs(points) {
   return [far(a,b),vertex,far(c,d)];
 }
 
+// Foreign views have projected geometry but no host topology. Retain a small
+// witness of each picked edge/circle. Only an unchanged geometric snap on the
+// same model can justify the stored measurement after a rebuild or reopen.
+// Live mesh positions can pass through Float32 while standalone projection uses
+// doubles. Allow one float's relative precision and a small absolute floor (cm).
+const nearProjected = (a,b) => Number.isFinite(a) && Number.isFinite(b)
+  && Math.abs(a-b) <= Math.max(1e-7, Math.max(Math.abs(a),Math.abs(b)) * 2**-23);
+
+export function projectedDimensionBinding(dim, source, projection) {
+  const near = nearProjected;
+  // A two-edge angle may have a virtual vertex outside both picked segments.
+  // For a host assembly, verify the four picked endpoints themselves.
+  const refs = !source && dim.type === 'angle' && dim.edgeRefs?.length === 4 ? dim.edgeRefs : dim.refs;
+  const anchors = (refs || []).map(ref => {
+    const matches = [];
+    const at = (u, v) => near(ref.u, u) && near(ref.v, v);
+    for (const { a, b } of [...(projection?.visible || []), ...(projection?.hidden || [])]) {
+      if (!dim.radius && (at(a.u,a.v) || at(b.u,b.v) || at((a.u+b.u)/2,(a.v+b.v)/2))) {
+        matches.push(JSON.stringify([[a.u,a.v],[b.u,b.v]].sort()));
+      }
+    }
+    for (const c of projection?.circles || []) {
+      if (dim.radius && !near(c.radius,dim.radius)) continue;
+      if (at(c.u,c.v) || at(c.u+c.radius,c.v) || at(c.u-c.radius,c.v) || at(c.u,c.v+c.radius) || at(c.u,c.v-c.radius)) {
+        matches.push(JSON.stringify([c.u,c.v,c.radius]));
+      }
+    }
+    return matches.sort();
+  });
+  return { source, anchors };
+}
+
+// Stored witnesses are JSON strings. Compare segments in either direction,
+// and match the incident geometry as a multiset (including duplicates).
+function sameProjectedWitness(left,right) {
+  if (left === right) return true;
+  try {
+    const a = JSON.parse(left), b = JSON.parse(right);
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    if (a.length === 3) return a.every((n,i) => nearProjected(n,b[i]));
+    const point = (p,q) => Array.isArray(p) && Array.isArray(q) && p.length === 2 && q.length === 2
+      && nearProjected(p[0],q[0]) && nearProjected(p[1],q[1]);
+    return a.length === 2 && ((point(a[0],b[0]) && point(a[1],b[1])) || (point(a[0],b[1]) && point(a[1],b[0])));
+  } catch { return false; }
+}
+
+function sameWitnessSet(current,saved) {
+  if (!current.length || !Array.isArray(saved) || saved.length !== current.length) return false;
+  if (current.every((entry,i) => entry === saved[i])) return true;
+  const remaining = saved.slice();
+  return current.every(entry => {
+    const index = remaining.findIndex(old => sameProjectedWitness(entry,old));
+    if (index < 0) return false;
+    remaining.splice(index,1);
+    return true;
+  });
+}
+
+// A null source identifies the sheet owner, including its assembly poses.
+function sameProjectedBinding(dim, source, projection) {
+  const saved = dim.sourceBinding;
+  if (!saved || !sameDrawingSource(saved.source, source) || !projection?.bounds) return false;
+  const { anchors } = projectedDimensionBinding(dim, source, projection);
+  return anchors.length > 0 && saved.anchors?.length === anchors.length
+    && anchors.every((matches,i) => sameWitnessSet(matches,saved.anchors[i]));
+}
+
 export function resolveDim(dim, index, basis, projection, model) {
   const result = { dim, dangling: false, missing: [] };
   if (!dim) return result;
@@ -1382,7 +1508,7 @@ export function explodeLeaderItems(place, leaders) {
     if (!valid(leader.from) || !valid(leader.to)) continue;
     const from=place.toSheet(projectToView(leader.from,basis));
     const to=place.toSheet(projectToView(leader.to,basis));
-    if (Math.hypot(to.x-from.x,to.y-from.y)<1e-7) continue;
+    if (!from || !to || Math.hypot(to.x-from.x,to.y-from.y)<1e-7) continue;
     items.push(line(from.x,from.y,to.x,to.y,"center",{
       viewId:place.id,explodeLeader:true,componentId:leader.id,
     }));
@@ -1399,7 +1525,14 @@ export function buildSheetScene(doc, provider, options = {}) {
      must not look the same to a bound dimension. */
   const rawTopology = typeof provider?.topology === "function" ? provider.topology() : provider?.topology;
   const topologyIndex = rawTopology ? createTopologyIndex(rawTopology) : null;
+  /* The topology offered is the owning document's. A view drawn from another
+     saved model has none of those faces, so a reference bound there is
+     reported missing (and comes back if the view returns to this document)
+     instead of snapping onto unrelated geometry. */
+  const foreignIndex = new Map();
   const projections = new Map();
+  const lacksHostGeometry = view => projections.get(view.id)?.parentError || provider?.foreignSource?.(view);
+  const indexFor = view => lacksHostGeometry(view) ? foreignIndex : topologyIndex;
   const extents = new Map();
   for (const view of doc.views) {
     const projection = provider?.projection ? provider.projection(view) : null;
@@ -1422,6 +1555,7 @@ export function buildSheetScene(doc, provider, options = {}) {
       : { w: 10, h: 10, bounds: null });
   }
   const layout = layoutViews(doc, extents);
+  const explodedView = doc.views.find(view => /^iso/.test(view.dir || "") && projections.get(view.id) && !viewSourceOwner(doc,view)?.assemblyState && !lacksHostGeometry(view));
   const placements = [], labels = [];
 
   if (options.paper !== false) {
@@ -1455,6 +1589,11 @@ export function buildSheetScene(doc, provider, options = {}) {
       },
     };
     placements.push(record);
+    const sourceIssue = projection?.parentError || provider?.sourceIssue?.(view);
+    if (sourceIssue && !projection?.alignedSectionError) {
+      diagnostics.push({ code: "view-source-unavailable", severity: "error", viewId: view.id, message: sourceIssue });
+      items.push(text(record.box.x, record.box.y - 3, sourceIssue, { size: 2.5, viewId: view.id }));
+    }
     if(projection?.alignedSectionError) {
       diagnostics.push({code:'invalid-aligned-section',severity:'error',viewId:view.id,message:projection.alignedSectionError});
       items.push(text(record.box.x,record.box.y-3,'Aligned Section unavailable',{size:2.5,viewId:view.id}));
@@ -1467,10 +1606,10 @@ export function buildSheetScene(doc, provider, options = {}) {
       }
       continue;
     }
-    if(view.auxiliary && topologyIndex) {
+    if(view.auxiliary && indexFor(view)) {
       const parent=placements.find(p=>p.id===view.auxiliary.from);
       if(parent) {
-        const refs=['a','b'].map(at=>resolveDimAnchor({pid:view.auxiliary.edgeReference.pid,kind:'edge',at},topologyIndex,parent.projection?.basis));
+        const refs=['a','b'].map(at=>resolveDimAnchor({pid:view.auxiliary.edgeReference.pid,kind:'edge',at},indexFor(view),parent.projection?.basis));
         if(refs.every(Boolean)) {
           const centre=parent.toSheet({u:(refs[0].u+refs[1].u)/2,v:(refs[0].v+refs[1].v)/2});
           const forward=projection.basis.forward,pb=parent.projection.basis;
@@ -1507,10 +1646,19 @@ export function buildSheetScene(doc, provider, options = {}) {
     if ((projection.cropSourceCuts || projection.cuts)?.length) {
       // This weld joins numerical copies of a shared mesh vertex, not nearby
       // geometric details. A display-scale tolerance can collapse small bores.
-      const boundary = analyzeSectionBoundaries(projection.cropSourceCuts || projection.cuts, Math.max(1e-7, (extent.w + extent.h) * 1e-7));
-      diagnostics.push(...boundary.issues.map(issue => ({...issue,viewId:view.id})));
-      if (!boundary.ok) items.push(text(record.box.x, record.box.y - 3, "Section boundary needs repair — hatching omitted", {size:2.5,anchor:"start",viewId:view.id}));
-      const loops = boundary.loops.map((loop) => loop.map((point) => toSheet(point)));
+      // Seated components can share cut edges. Only edges of the same body
+      // belong to one manifold check and one even-odd material region.
+      const cutsByBody = new Map();
+      for (const cut of projection.cropSourceCuts || projection.cuts) {
+        if (!cutsByBody.has(cut.bodyIndex)) cutsByBody.set(cut.bodyIndex, []);
+        cutsByBody.get(cut.bodyIndex).push(cut);
+      }
+      const tolerance = Math.max(1e-7, (extent.w + extent.h) * 1e-7);
+      const boundaries = Array.from(cutsByBody.values(), cuts => analyzeSectionBoundaries(cuts, tolerance));
+      for (const boundary of boundaries) diagnostics.push(...boundary.issues.map(issue => ({...issue,viewId:view.id})));
+      const valid = boundaries.every(boundary => boundary.ok);
+      if (!valid) items.push(text(record.box.x, record.box.y - 3, "Section boundary needs repair — hatching omitted", {size:2.5,anchor:"start",viewId:view.id}));
+      const regions = valid ? boundaries.map(boundary => boundary.loops.map(loop => loop.map(toSheet))) : [];
       const cropBoundary=(projection.sectionClipBoundary || projection.cropBoundary)?.map(p=>{const s=toSheet(p);return {u:s.x,v:s.y};});
       const emitClipped=(a,b,style)=>{
         let edges=[{a:{u:a.x,v:a.y},b:{u:b.x,v:b.y}}];
@@ -1523,11 +1671,11 @@ export function buildSheetScene(doc, provider, options = {}) {
         diagnostics.push({code:'rib-hatch-exclusion-unavailable',severity:'warning',viewId:view.id,message});
         items.push(text(record.box.x,record.box.y-6,message,{size:2.5,anchor:'start',viewId:view.id}));
       }
-      for (const segment of sectionHatchSegments(loops,projection.sectionHatchPattern || view.hatchPattern,hatchLoops)) {
+      for (const loops of regions) for (const segment of sectionHatchSegments(loops,projection.sectionHatchPattern || view.hatchPattern,hatchLoops)) {
         for(const kept of excludeRibHatch(segment,ribMasks))emitClipped({x:kept.x1,y:kept.y1},{x:kept.x2,y:kept.y2},"hatch");
       }
       for(const mask of ribMasks)for(const loop of mask)for(let i=0;i<loop.length;i++)emitClipped(loop[i],loop[(i+1)%loop.length],"section");
-      for (const loop of loops) {
+      for (const loops of regions) for (const loop of loops) {
         for (let i = 0; i < loop.length; i++) {
           const a = loop[i], b = loop[(i + 1) % loop.length];
           emitClipped(a,b,"section");
@@ -1536,12 +1684,12 @@ export function buildSheetScene(doc, provider, options = {}) {
     }
     for (const segment of drawEdges ? projection.visible || [] : []) {
       const a = toSheet(segment.a), b = toSheet(segment.b);
-      items.push((!projection.breakMap && !projection.nonlinearProjection && exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "outline", view.id)) || line(a.x, a.y, b.x, b.y, projection.nonlinearProjection?'section':'outline', { viewId: view.id }));
+      items.push((!projection.breakMap && !projection.nonlinearProjection && exactArcStroke(segment, indexFor(view), projection.basis, toSheet, k, "outline", view.id)) || line(a.x, a.y, b.x, b.y, projection.nonlinearProjection?'section':'outline', { viewId: view.id }));
     }
     if (showHidden) {
       for (const segment of projection.hidden || []) {
         const a = toSheet(segment.a), b = toSheet(segment.b);
-        items.push((!projection.breakMap && exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "hidden", view.id)) || line(a.x, a.y, b.x, b.y, "hidden", { viewId: view.id }));
+        items.push((!projection.breakMap && exactArcStroke(segment, indexFor(view), projection.basis, toSheet, k, "hidden", view.id)) || line(a.x, a.y, b.x, b.y, "hidden", { viewId: view.id }));
       }
     }
     const appendCenterItems=marks=>{
@@ -1585,10 +1733,12 @@ export function buildSheetScene(doc, provider, options = {}) {
     items.push(...breakBoundaryItems(record));
     items.push(...alternatePositionItems(record));
     if(projection.alternatePositionError)items.push(text(record.box.x,record.box.y-3,'Alternate Position unavailable: '+projection.alternatePositionError,{size:2.5,viewId:view.id}));
-    const explodedView = doc.views.find(item => /^iso/.test(item.dir || ""));
-    const explodeLeaders = (provider?.explodeLines || []).filter(leader =>
-      leader.viewId ? leader.viewId === view.id : view.id === explodedView?.id);
-    items.push(...explodeLeaderItems(record,explodeLeaders));
+    {
+      const explicit = viewSourceOwner(doc,view)?.id === view.id ? provider?.explodeLinesForView?.(view) : undefined;
+      const explodeLeaders = explicit ?? (lacksHostGeometry(view) ? [] : (provider?.explodeLines || []).filter(leader =>
+        leader.viewId ? leader.viewId === view.id : view.id === explodedView?.id));
+      items.push(...explodeLeaderItems(record,explodeLeaders));
+    }
     /* A detail is bounded by the bubble it was called out with — the reader has
        to see that the geometry stops because the callout does. */
     if (projection.crop) {
@@ -1612,7 +1762,7 @@ export function buildSheetScene(doc, provider, options = {}) {
      told where the cut was taken, not just shown the result. */
   for (const view of doc.views) {
     if(view.alignedSection && !placements.find(p=>p.id===view.id)?.projection?.alignedSectionError)items.push(...alignedSectionMarkerItems(view,placements));
-    if (view.section && view.parent) items.push(...sectionMarker(view, placements, doc));
+    if (view.section && !projections.get(view.id)?.parentError) items.push(...sectionMarker({ ...view, parent: derivedParentId(view) }, placements, doc));
     if (view.detail && (view.parent || view.detail.from)) items.push(...detailMarker({...view,parent:view.parent || view.detail.from}, placements));
   }
 
@@ -1625,7 +1775,13 @@ export function buildSheetScene(doc, provider, options = {}) {
       diagnostics.push({code:'aligned-section-reference-unavailable',severity:'error',viewId:place.id,dimId:dim.id});continue;
     }
     const basis = place.projection?.basis || viewBasis(place.view.dir);
-    const resolved = resolveDim(dim, topologyIndex, basis, place.projection, provider?.model);
+    const resolved = resolveDim(dim, indexFor(place.view), basis, place.projection, provider?.model);
+    const source = effectiveViewSource(doc, place.view);
+    if (place.projection?.parentError || (dim.auto !== "extent" && (source || dim.sourceBinding)
+        && !sameProjectedBinding(dim, source, place.projection))) {
+      resolved.dangling = true;
+      resolved.missing.push("view-source");
+    }
     resolved.dim = resolveDimensionTolerance(resolved.dim, provider?.model, doc);
     dims.set(dim.id, resolved);
     if(place.projection?.breakMap && (resolved.dim.refs || []).some(p=>!place.toSheet(p))) {
@@ -1640,9 +1796,10 @@ export function buildSheetScene(doc, provider, options = {}) {
   }
   const notes = new Map();
   const automaticBalloonPositions = new Map();
+  const balloonsFor = (place) => place && lacksHostGeometry(place.view) ? [] : provider?.componentBalloonsForView?.(place?.view) ?? provider?.componentBalloons;
   for (const place of placements) {
     const targets = (doc.notes || []).filter(note => note.balloon && note.autoBalloon && note.leader?.viewId === place.id)
-      .map(note=>resolveComponentBalloon(note,provider?.componentBalloons,place.projection?.basis)).filter(r=>!r.dangling)
+      .map(note=>resolveComponentBalloon(note,balloonsFor(place),place.projection?.basis)).filter(r=>!r.dangling)
       .map(({note}) => ({ id: note.id, text:note.text, point: place.toSheet(note.leader) })).filter(target=>target.point);
     if (!targets.length) continue;
     const title = titleBlockBox(doc);
@@ -1659,9 +1816,10 @@ export function buildSheetScene(doc, provider, options = {}) {
       diagnostics.push({code:'aligned-section-reference-unavailable',severity:'error',viewId:place.id,noteId:note.id});continue;
     }
     const basis = place ? (place.projection?.basis || viewBasis(place.view.dir)) : null;
-    const bound=resolveComponentBalloon(note,provider?.componentBalloons,basis);
+    const bound=resolveComponentBalloon(note,balloonsFor(place),basis);
     if(bound.dangling){notes.set(note.id,{note,dangling:true,missing:['component-occurrence']});diagnostics.push({code:'missing-component-balloon',severity:'error',noteId:note.id,viewId:place?.id});continue;}
-    const resolved = resolveNote(bound.note, provider?.callouts, topologyIndex, basis, doc, provider?.properties);
+    const foreign = place && lacksHostGeometry(place.view);
+    const resolved = resolveNote(bound.note, foreign ? foreignIndex : provider?.callouts, place ? indexFor(place.view) : topologyIndex, basis, doc, foreign ? null : provider?.properties);
     if(place?.projection?.breakMap && !place.toSheet(resolved.note.leader)) {
       notes.set(note.id,resolved);diagnostics.push({code:'break-hidden-note-anchor',viewId:place.id,noteId:note.id});continue;
     }

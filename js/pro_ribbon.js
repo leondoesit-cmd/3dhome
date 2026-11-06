@@ -9,7 +9,7 @@
 import { PRO_CATALOG, PRO_EDITORS, parseBinding, proTools, proLabel, matchTools } from "./pro_catalog.js";
 import { pushRecent } from "./compact_head.js";
 import { getLang, onLangChange } from "./i18n.js";
-import { askAgent } from "./ui_agent.js";
+import { askAgent } from "./agent_launch.js";
 import { PRO_ACTIONS } from "./pro_actions.js";
 import { addToolSearchEntries } from "./tool_search.js";
 import { openCabinetForSelection, isCabinetOpen } from "./ui_cabinet.js";

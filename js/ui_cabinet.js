@@ -29,6 +29,7 @@ import { api, E, T, el, btn, sp, ico, grp, formatCm, formatCmInput, AXES, isEn }
 import {
   sizeCanvas, setMode, setAxis, syncHint, syncViewPreferences, draw, wireCanvas,
   setTool, exportPNG, initPreview, updatePreview, renderPreview, queueRuntimePreview, cancelRuntimePreview,
+  closeSizeEdit,
 } from "./ui_cabinet_view.js";
 import "./ui_cabinet_agent.js"; // registers the designer's AI adapter
 import { initCabinetMobile, disposeCabinetMobile, refreshCabinetMobile, showCabinetPropertiesMobile } from "./ui_cabinet_mobile.js";
@@ -40,13 +41,15 @@ import {
   fillHits, applySearch, fillFamilies, fillPresets, startBlank, fillInspector,
   splitSection, delSection, splitColumn, dupColumn, delColumn, fillLook, fillTechnical,
   fillChecks, saveUserPreset, fillMine, fillHardware, fillBOM, exportBOM,
+  moveColumnBy, moveSectionBy,
 } from "./ui_cabinet_inspect.js";
+import { neighbourSelection } from "./cabinet_layout_ops.js";
 
 var cabinetListeners = null;
 function destroyDOM() {
   cancelRuntimePreview();
   if (cabinetListeners) cabinetListeners.abort();
-  if (E.pv && E.pv.rr) E.pv.rr.dispose();
+  E.pv?.dispose();
   E.pv = null;
   E.swapView = null; // it closes over elements that are about to be removed
   E.cv = null;
@@ -154,7 +157,8 @@ function buildDOM() {
     '"><i class="ph ph-magnet"></i> <span>' + T("snapOn") + "</span></button>" +
     // likewise a preference, and one that only the projected views answer to
     '<button id="cbHid" class="on" title="' + T("hidTip") +
-    '"><i class="ph ph-square-split-horizontal"></i> <span>' + T("hidOn") + "</span></button></div>" +
+    '"><i class="ph ph-square-split-horizontal"></i> <span>' + T("hidOn") + "</span></button>" +
+    '<button id="cbKeys" aria-keyshortcuts="?" title="' + T("keysTip") + '"><i class="ph ph-keyboard"></i> <span>' + T("keysTitle") + "</span></button></div>" +
     "</div>" +
     '<canvas id="cbCanvas"></canvas><div id="cb3dHost" class="cb-3dhost"></div>' +
     '<div class="cb-hint">' + T("hint") + "</div>" + commandBarHTML("cab") + "</div>" +
@@ -196,6 +200,12 @@ function buildDOM() {
     '<div id="cbSizeDlgIssues"></div>' +
     '<div id="cbSizeDlgChoices"></div>' +
     '<button type="button" id="cbSizeDlgKeep"></button>' +
+    "</div></div>" +
+    '<div id="cbKeysDlg" class="cb-size-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="cbKeysTitle">' +
+    '<div class="cb-size-dlg-card cb-keys-card">' +
+    '<h3 id="cbKeysTitle"><i class="ph ph-keyboard"></i> ' + T("keysTitle") + "</h3>" +
+    '<dl class="cb-keys">' + keysHTML() + "</dl>" +
+    '<button type="button" id="cbKeysClose" class="cb-wide">' + T("close") + "</button>" +
     "</div></div>";
   document.body.appendChild(E.host);
   // the status bar belongs under the body, not inside its three columns
@@ -245,6 +255,11 @@ function buildDOM() {
     });
   });
   E.host.querySelector("#cbSizeDlgKeep").addEventListener("click", dismissSizeDlg);
+  E.host.querySelector("#cbKeys").addEventListener("click", function () { showKeys(true); });
+  E.host.querySelector("#cbKeysClose").addEventListener("click", function () { showKeys(false); });
+  E.host.querySelector("#cbKeysDlg").addEventListener("click", function (e) {
+    if (e.target === this) showKeys(false); // a click on the backdrop
+  });
   E.host.querySelector("#cbOpen").addEventListener("input", function () {
     var val = +this.value / 100;
     E.it.runtimeState = E.it.runtimeState || {};
@@ -357,6 +372,15 @@ function buildDOM() {
       e.stopImmediatePropagation();
       return;
     }
+    if (isKeysOpen()) {
+      if (e.key === "Escape" || e.key === "?") {
+        e.preventDefault();
+        showKeys(false);
+      }
+      if (e.key === "Tab") e.preventDefault(); // one control: keep focus on it
+      e.stopImmediatePropagation();
+      return;
+    }
     var typing = /input|textarea|select/i.test((document.activeElement || {}).tagName || "");
     // a drawing tool owns Escape first — it exits the tool, not the designer
     if (e.key === "Escape" && E.tool) return setTool(null);
@@ -369,6 +393,10 @@ function buildDOM() {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
       e.preventDefault();
       return redo();
+    }
+    if (e.key === "?") {
+      e.preventDefault();
+      return showKeys(true);
     }
     if (e.key === "/") {
       e.preventDefault();
@@ -402,18 +430,19 @@ function buildDOM() {
       e.preventDefault();
       if (E.sel.sec != null) delSection();
       else delColumn();
-    } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-      // walk the columns; in a mirrored (RTL) reading the arrows still follow
-      // the drawing, which is always left-to-right
-      var d = e.key === "ArrowRight" ? 1 : -1;
-      E.sel = { col: clamp((E.sel.col || 0) + d, 0, sp().cols.length - 1), sec: 0 };
-      draw();
-      fillInspector();
-    } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      var c = sp().cols[E.sel.col];
-      if (!c) return;
-      var j = (E.sel.sec == null ? 0 : E.sel.sec) + (e.key === "ArrowUp" ? 1 : -1);
-      E.sel = { col: E.sel.col, sec: clamp(j, 0, c.secs.length - 1) };
+    } else if (/^Arrow(Left|Right|Up|Down)$/.test(e.key) && e.altKey) {
+      // Alt+arrow moves the selected thing itself; the arrows follow the
+      // drawing, which reads left-to-right in either language
+      e.preventDefault();
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") moveColumnBy(e.key === "ArrowRight" ? 1 : -1);
+      else moveSectionBy(e.key === "ArrowUp" ? 1 : -1);
+    } else if (/^Arrow(Left|Right|Up|Down)$/.test(e.key)) {
+      // walk the drawing: a column stays a column, and a compartment lands on
+      // the one at the same height next door rather than on the bottom one
+      e.preventDefault();
+      var next = neighbourSelection(layoutCab(E.it), E.sel, e.key);
+      if (!next) return;
+      E.sel = next;
       draw();
       fillInspector();
     }
@@ -449,6 +478,49 @@ function setLevel(level) {
     setTab("technical", false);
   } else setTab("insp", false);
   showCabinetPropertiesMobile();
+}
+
+/* ---- the keyboard shortcuts sheet ("?") ----
+   Every shortcut the designer answers to, in one place, because none of the
+   arrow and Alt+arrow moves are visible anywhere else. */
+var KEYS = [
+  [["←", "→", "↑", "↓"], "keysSel"],
+  [["Alt", "+", "←", "→", "↑", "↓"], "keysMove"],
+  [["Delete"], "keysDel"],
+  [["Ctrl", "+", "C"], ["Ctrl", "+", "V"], "keysCopy"],
+  [["Ctrl", "+", "Z"], ["Ctrl", "+", "Y"], "keysUndo"],
+  [["V"], ["H"], ["X"], "keysTools"],
+  [["Shift"], "keysShift"],
+  [["2"], ["3"], "keysView"],
+  [["/"], "keysSearch"],
+  [["Esc"], "keysExit"],
+  [["?"], "keysHelp"],
+];
+function keysHTML() {
+  return KEYS.map(function (rowDef) {
+    var label = rowDef[rowDef.length - 1],
+      combos = rowDef.slice(0, -1).map(function (combo) {
+        return combo.map(function (k) { return k === "+" ? "+" : "<kbd>" + k + "</kbd>"; }).join("");
+      });
+    return "<dt>" + combos.join(" ") + "</dt><dd>" + T(label) + "</dd>";
+  }).join("") + '<dt><i class="ph ph-cursor-click"></i></dt><dd>' + T("keysDbl") + "</dd>";
+}
+function isKeysOpen() {
+  var d = E.host && E.host.querySelector("#cbKeysDlg");
+  return !!d && !d.hidden;
+}
+function showKeys(on) {
+  var d = E.host && E.host.querySelector("#cbKeysDlg");
+  if (!d) return;
+  if (on) {
+    E.keysReturn = document.activeElement;
+    d.hidden = false;
+    d.querySelector("#cbKeysClose").focus();
+  } else {
+    d.hidden = true;
+    if (E.keysReturn && E.keysReturn.isConnected && E.keysReturn.focus) E.keysReturn.focus();
+    E.keysReturn = null;
+  }
 }
 
 function isSizeDlgOpen() {
@@ -657,6 +729,8 @@ export function closeCabinet() {
   if (!E.open) return;
   cancelRuntimePreview();
   dismissSizeDlg();
+  closeSizeEdit(); // a figure half-typed on the drawing is abandoned, not applied
+  if (isKeysOpen()) showKeys(false);
   disposeCabinetMobile();
   E.open = false;
   E.host.style.display = "none";

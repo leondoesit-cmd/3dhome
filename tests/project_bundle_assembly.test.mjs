@@ -1,7 +1,7 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import {sourceFunctionText} from "./helpers/source_function.mjs";
 import { activeProjectDocument, createProjectBundle, importProjectBundleText } from "../js/cad_project_bundle.js";
 
 const inactivePart = { key: "part-new", name: "New model", parts: [], history: [], sketches: [] };
@@ -49,13 +49,25 @@ test("an older export with an empty inactive part recovers its sole assembly", (
 });
 
 test("bundle import UI opens an assembly and clears its stale part document state", async () => {
-  const source = modelerSource();
-  const start = source.indexOf("function importBundleDocument()");
-  const end = source.indexOf("\nfunction createDefaultExplodedView", start);
-  const handler = source.slice(start, end);
-  assert.match(handler, /activeProjectDocument\(bundle\)/);
-  assert.match(handler, /E\.assembly=cloneData\(active\.assembly\)/);
-  assert.match(handler, /assemblyOpenBaseline=cloneData\(active\.assembly\)/);
-  assert.match(handler, /setDocumentType\("assembly"\)/);
-  assert.match(handler, /confirmDiscardDocument\("unsavedOpen"\)/);
+  const bundle = await createProjectBundle(inactivePart,[],[],{activeAssembly:savedAssembly});
+  const E={srcItem:{},sel:{},ssel:[1],topologySelection:[1],componentSel:[1]};
+  let discard=false;
+  const fresh={...savedAssembly,components:[{id:"updated"}]};
+  const deps={E,activeProjectDocument,cloneData:structuredClone,confirmDiscardDocument:async()=>discard,
+    resolvedLibraryAssembly:()=>fresh,compactAssemblyTopologySnapshots:a=>a,saveAssemblies:async()=>true,
+    setDocumentType:type=>{E.docType=type;},H:{generation:1,editRevision:()=>0,clear:()=>({seed(){}})},currentHistoryNode:()=>0,t:key=>key};
+  for(const name of ["closeEvalCard","abandonDocumentExactWork","markDocumentClean","reconcileModelerDraft",
+    "syncHead","refreshAll","refreshLib","setMode","fitPreview","flash"])deps[name]=()=>{};
+  const open=new Function(...Object.keys(deps),"let assemblyOpenBaseline;"+
+    ["documentOwnership","documentStillOwned","openImportedBundle"].map(name=>sourceFunctionText(modelerSource(),name)).join("\n")+";return async b=>{await openImportedBundle(b);return assemblyOpenBaseline;};")(...Object.values(deps));
+  assert.equal(await open(bundle),undefined);
+  assert.deepEqual(E.sel,{});
+  discard=true;
+  const baseline=await open(bundle);
+  assert.deepEqual(baseline,bundle.assemblies[0]);
+  assert.deepEqual(E.assembly,fresh);
+  assert.notEqual(E.assembly,fresh);
+  assert.equal(E.docType,"assembly");
+  assert.equal(E.sel,null);
+  assert.deepEqual(E.componentSel,[]);
 });

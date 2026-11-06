@@ -73,7 +73,7 @@ async function openDesktopEditor(page) {
   await page.waitUntil(() => {
     const el = document.getElementById("modeler");
     return !!el && getComputedStyle(el).display !== "none";
-  }, { what: "the model editor to open" });
+  }, { ms: 45000, what: "the model editor to open" });
   await page.waitUntil(() => {
     const welcome = document.getElementById("mdWelcome");
     const welcomeOpen = welcome && !welcome.hidden && getComputedStyle(welcome).display !== "none";
@@ -86,6 +86,90 @@ async function openDesktopEditor(page) {
 }
 
 /* ---- Test Suite --------------------------------------------------------- */
+
+async function clickRoomPoint(page, { x, y }) {
+  for (const type of ["mousePressed", "mouseReleased"]) {
+    await page.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
+  }
+}
+
+for (const [width, lang] of [[1440, "en"], [940, "he"]]) {
+  test(`room context stays reachable above the editor footer at ${width}px (${lang})`, opts, async () => {
+    const page = await ctx({ width, height: 800, lang });
+    const state = await page.eval(() => {
+      const box = document.querySelector("#mdContextBtn");
+      const label = box.labels[0];
+      const r = label.getBoundingClientRect();
+      const rect = selector => document.querySelector(selector).getBoundingClientRect();
+      const mid = rect("#modeler .md-mid");
+      const peers = ["#mdHintHelp", "#mdStatus", "#mdSelFilters", "#mdBreadcrumb", "#modeler .md-mid > .ps-cmdbar"];
+      const hits = peers.filter(selector => {
+        const p = rect(selector);
+        return p.width && p.height && p.left < r.right && p.right > r.left && p.top < r.bottom && p.bottom > r.top;
+      });
+      const points = [r.left + 3, r.right - 3].flatMap(x => [r.top + 3, r.bottom - 3].map(y => ({x, y})));
+      return { hits, checked: box.checked, point: points[3], height: r.height,
+        inside: r.left >= mid.left && r.right <= mid.right && r.top >= mid.top && r.bottom <= mid.bottom,
+        reachable: points.every(p => label.contains(document.elementFromPoint(p.x, p.y))) };
+    });
+    assert.deepEqual(state.hits, []);
+    assert.ok(state.inside && state.reachable && state.height >= 32, JSON.stringify(state));
+    await clickRoomPoint(page, state.point);
+    assert.equal(await page.eval(() => document.querySelector("#mdContextBtn").checked), !state.checked);
+    assert.equal(await page.eval(() => document.activeElement.id), "mdContextBtn");
+    for (const type of ["keyDown", "keyUp"]) {
+      await page.send("Input.dispatchKeyEvent", { type, key: " ", code: "Space", windowsVirtualKeyCode: 32 });
+    }
+    assert.equal(await page.eval(() => document.querySelector("#mdContextBtn").checked), state.checked);
+    await page.resize(width - 80, 720, { mobile: false, touch: false });
+    await page.waitUntil(() => {
+      const canvas = document.querySelector("#mdPrev").getBoundingClientRect();
+      const host = document.querySelector("#md3dHost").getBoundingClientRect();
+      const footer = document.querySelector("#modeler .md-mid > .ps-cmdbar").getBoundingClientRect();
+      return host.height > 0 && Math.abs(canvas.top - host.top) <= 1 &&
+        Math.abs(canvas.bottom - host.bottom) <= 1 && canvas.bottom <= footer.top + 1;
+    }, { what: "the resized preview to fit above the command bar" });
+    for (const mode of ["drawing", "split", "3d"]) {
+      await page.eval(`() => document.querySelector('#mdModes [data-mode="${mode}"]').click()`);
+      assert.equal(await page.eval(() => !!document.querySelector(".md-prev-wrap #mdContextBtn")), mode === "drawing", mode);
+    }
+  });
+}
+
+test("room context toggles from the compact View sheet", opts, async () => {
+  const page = await openPage({ width: 390, height: 844, touch: true, mobile: true });
+  try {
+    await openDesktopEditor(page);
+    assert.equal(await page.eval(() => document.querySelector("#mdContextBtn").getClientRects().length), 0);
+    await page.eval(() => document.querySelector("#modeler .ps-head-view").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true })));
+    // Larger system fonts can push Display onto the next page of the View sheet.
+    await page.eval(() => new Promise(resolve => requestAnimationFrame(resolve)));
+    await page.eval(() => {
+      const sheet = document.querySelector("#md-sheet");
+      const button = sheet.querySelector('button[aria-label="In the room"]');
+      const pages = [...sheet.querySelectorAll(".mobile-menu-page")];
+      const index = pages.indexOf(button.closest(".mobile-menu-page"));
+      if (index >= 0) sheet.querySelectorAll(".mobile-page-dot")[index].click();
+    });
+    await page.waitUntil(() => {
+      const button = document.querySelector('#md-sheet button[aria-label="In the room"]');
+      const r = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+    }, { what: "room context to receive pointer input in the View sheet" });
+    const point = await page.eval(() => {
+      const r = document.querySelector('#md-sheet button[aria-label="In the room"]').getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
+    });
+    assert.ok(point.w >= 44 && point.h >= 44, JSON.stringify(point));
+    for (const checked of [true, false]) {
+      await clickRoomPoint(page, point);
+      assert.equal(await page.eval(() => document.querySelector("#mdContextBtn").checked), checked);
+      assert.equal(await page.eval(() => document.querySelector('#md-sheet button[aria-label="In the room"]').getAttribute("aria-pressed")), String(checked));
+    }
+  } finally {
+    await page.close();
+  }
+});
 
 test("desktop model editor boots cleanly and exposes window.cadPreviewView", opts, async () => {
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
@@ -1377,7 +1461,7 @@ test("desktop model editor: Tree toggle does not cover view or zoom controls", o
 test("desktop model editor: room context and viewport help do not overlap", opts, async () => {
   const page = await ctx({ width: 1024, height: 768, lang: "en" });
   const hit = await page.eval(() => {
-    const room = document.querySelector(".md-3dhost .md-context-toggle").getBoundingClientRect();
+    const room = document.querySelector("#mdContextBtn").labels[0].getBoundingClientRect();
     const help = document.getElementById("mdHintHelp").getBoundingClientRect();
     const overlap = room.left < help.right - 1 && room.right > help.left + 1
       && room.top < help.bottom - 1 && room.bottom > help.top + 1;

@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import {parse} from '../vendor/acorn/acorn.mjs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {holeSpan} from '../js/core/hole_span.js';
+import {holeLoop} from '../js/core/profile_mesh_geometry.js';
 import {tessellatePart} from '../js/core/part_tessellate.js';
 import {circleData, ellipseData, lineData, entityPoints, sketchPoint} from '../js/sketch_solver.js';
 import {splineControls, bezierPoint} from '../js/sketch_spline.js';
@@ -44,7 +45,6 @@ function listener(text, object, event, contains = '') {
     && text.slice(n.start,n.end).includes(contains));
   return text.slice(node.arguments[1].start,node.arguments[1].end);
 }
-const holeLoop = load(mesh, 'holeLoop');
 const mirror = load(geometry, 'mirrorProjectionPart', {
   isKernelBody:()=>false, holeLoop,
   mirrorExtrusionSpan:load(geometry, 'mirrorExtrusionSpan'),
@@ -250,10 +250,14 @@ for (const action of ['finishSection','finishDetail','editNote','deleteDim','del
     const place={id:'v',view:stale.views[0],scale:'1:1',k:1,box:{x:0,y:0},
       toModel:p=>({u:p.x,v:p.y}),toSheet:p=>({x:p.u,y:p.v}),projection:{bounds:{u0:0,u1:10,v0:0,v1:20}}};
     const built={views:[place],primaryId:'v'};
-    const host={doc:()=>h.E.def,t:k=>k,markDirty:noop,flash:noop,
+    state.scene=built;
+    const layoutOnly=['deleteDim','deleteNote','addHoleCallouts','refreshHoleCallouts','insertModelItems'].includes(action);
+    let dirty=0,geometryInvalidations=0;
+    const host={doc:()=>h.E.def,t:k=>k,markDirty:()=>{dirty++;if(layoutOnly)assert.equal(state.scene,null);},flash:noop,
       pushUndo:label=>{h.bindings.pushUndo(label);h.E.def=structuredClone(h.E.def);},
       promptFields:async()=>({text:'new'}),holeCallouts:()=>[{id:'h',text:'bore'}]};
-    const b={host,state,scene:()=>built,invalidate:noop,nextSectionTag:()=> 'A',
+    const b={host,state,scene:()=>built,invalidate:()=>geometryInvalidations++,
+      invalidateLayout:load(drawingSource,'invalidateLayout',{state}),nextSectionTag:()=> 'A',
       viewBasis:()=>({right:{x:1,y:0,z:0},up:{x:0,y:1,z:0}}),viewForSight:()=> 'right',pickDetailScale:()=> '2:1',
       defaultViewLabel:d=>d,projectionBounds:p=>p.bounds,
       holeLeaderForViews:()=>null,holeTopologyAnchor:()=>null,
@@ -266,9 +270,14 @@ for (const action of ['finishSection','finishDetail','editNote','deleteDim','del
     else if(action==='finishDetail')run({viewId:'v',centre:{x:0,y:0}},{x:10,y:0});
     else if(action==='editNote')await run('n');
     else run(action==='addView'?'right':undefined);
-    assert.equal(h.pushes,1);
+    assert.equal(h.pushes,1);assert.equal(dirty,1);
+    if(layoutOnly)assert.equal(geometryInvalidations,0,'annotation edits retain cached model projections');
     assert.deepEqual(stale,before,'history normalization detached all old records');
     const after=structuredClone(h.E.def);assert.notDeepEqual(after,before);
+    if(action==='deleteDim'){assert.deepEqual(after.dims,[]);assert.deepEqual(after.notes,before.notes);assert.equal(state.selection,null);}
+    if(action==='deleteNote'){assert.deepEqual(after.notes,[]);assert.deepEqual(after.dims,before.dims);assert.equal(state.selection,null);}
+    if(action==='addHoleCallouts'){assert.equal(after.notes.length,2);assert.equal(after.notes[1].feature,'h');assert.equal(after.notes[1].leader,null);}
+    if(action==='insertModelItems'){assert.equal(after.dims.length,2);assert.equal(after.dims[1].viewId,'v');assert.equal(after.dims[1].type,'horizontal');}
     if(action==='duplicateSelectedView')assert.equal(after.dims.length,2);
     if(action==='refreshHoleCallouts'){assert.equal(after.notes.length,2);assert.equal(after.notes[1].leader,null);}
     assertUndoRedo(h,before,after);
@@ -517,22 +526,25 @@ const featureFormSource=sourceFunctionText(source,'openParametricFeature');
 const domeApplyNode=findNode(featureFormSource,n=>n.type==='CallExpression'
   && n.callee?.name==='btn' && featureFormSource.slice(n.start,n.end).includes('quickDomePart(params)'));
 const domeApplyText=featureFormSource.slice(domeApplyNode.arguments[1].start,domeApplyNode.arguments[1].end);
-for(const outcome of ['success','failure','reject']) {
+for(const outcome of ['success','failure','reject','replaced']) {
   test(`batch 3 #1: dome ${outcome} waits for completion before updating the form`,async()=>{
     let resolve,reject,closed=0,previews=0;const messages=[];
     const pending=new Promise((yes,no)=>{resolve=yes;reject=no;});
     const E={authoring:{featureType:'dome'}},state={params:{height:5},references:{}};
-    const run=evaluate(domeApplyText,{E,state,type:'dome',host:{},shellEditor:null,controls:[],liveBadge:{},coreRunFresh:false,
+    let current=true;
+    const run=evaluate(domeApplyText,{E,state,scope:{form:{isCurrent:()=>current}},type:'dome',host:{},shellEditor:null,controls:[],liveBadge:{},coreRunFresh:false,
       FINISH_FEATURES:['dome'],validateFeatureInputs:()=>true,featureSelectionReady:()=>true,isCanonicalAuthoring:()=>false,
       readFeatureParameterForm:()=>({params:state.params,references:{}}),clearFeaturePreview:noop,quickDomePart:()=>pending,
       cloneData:structuredClone,rememberFinishAmount:noop,closeFeaturePanel:()=>closed++,setMode:noop,setTab:noop,
       syncAuthoringWorkflow:noop,syncNewFeaturePreview:()=>previews++,refreshAll:noop,flash:s=>messages.push(s)});
     const done=run();await Promise.resolve();
     assert.equal(closed,0);assert.equal(previews,0);assert.equal(E.lastOperation,undefined);
-    if(outcome==='reject')reject(new Error('Dome failed'));else resolve(outcome==='success');
+    if(outcome==='replaced'){current=false;E.authoring.featureType='helix';resolve(true);}
+    else if(outcome==='reject')reject(new Error('Dome failed'));else resolve(outcome==='success');
     await done;
     assert.equal(closed,outcome==='success'?1:0);assert.equal(previews,outcome==='failure'?1:0);
-    assert.equal(E.authoring.featureType,outcome==='success'?null:'dome');
+    assert.equal(E.authoring.featureType,outcome==='success'?null:outcome==='replaced'?'helix':'dome');
+    if(outcome==='replaced')assert.equal(E.lastOperation,undefined);
     if(outcome==='reject')assert.deepEqual(messages,['Dome failed']);
     if(outcome==='success')assert.deepEqual(E.lastOperation,{type:'dome',params:{}});
   });
@@ -558,7 +570,7 @@ test('batch 3 #3: switching either document type enters 3D and frames the previe
     const E={docType:type==='part'?'assembly':'part',assembly:{}};let frames=0;
     const run=load(source,'setDocumentType',{E,abandonDocumentExactWork:noop,closeEvalCard:noop,invalidateInterference:noop,
       root:{classList:{toggle:noop},querySelectorAll:()=>[]},syncInspectorTabLabels:noop,activeTab:()=> 'parts',
-      setMode:mode=>{E.mode=mode;},setCommandTab:noop,setTab:noop,syncHead:noop,refreshLib:noop,refreshAll:noop,
+      setMode:mode=>{E.mode=mode;},setCommandTab:noop,setTab:noop,syncHead:noop,syncDirty:noop,refreshLib:noop,refreshAll:noop,
       fitPreview:()=>{assert.equal(E.mode,'3d');frames++;},fitSketch:()=>assert.fail('hidden sketch must not be fitted')});
     run(type);assert.equal(E.docType,type);assert.equal(frames,1);run(type);assert.equal(frames,1);
   }
@@ -678,6 +690,7 @@ function keyboardHarness(def,canonical=true) {
     handleSelectionFilterChord:()=>false,dynKey:()=>false,KEY_VIEW:{},KEY_TOOL:{},isSketchObject:()=>false,isCanonicalAuthoring:()=>canonical,
     cutTargetFeatureId:p=>p.derivedFeatureId,verifiedExactTopology:()=>null,compileKernelFeatureTree:()=>({features:[]}),
     H:h.H,removeHistoryNode,syncSketchAfterRemoval:noop,markLiveDirtyPart:noop,partNeedsExactMesh:()=>false};
+  b.reportOpen=load(source,'reportOpen',b);
   b.removeTreeNode=load(source,'removeTreeNode',b);
   return {h,b,run:load(source,'onKey',b)};
 }
@@ -714,17 +727,22 @@ test('batch 3 #10: drawingDocument returns null without an owner and creates dra
 });
 
 test('batch 3 #11: primitives initialize on the live legacy drawing, support edit and undo/redo',async()=>{
-  const before={views:[]},h=historyHarness(structuredClone(before)),state={},stale=h.E.def;
+  const before={views:[]},h=historyHarness(structuredClone(before)),state={scene:{}},stale=h.E.def;
+  let dirty=0;
   const host={doc:()=>h.E.def,pushUndo:label=>{h.bindings.pushUndo(label);h.E.def=structuredClone(h.E.def);},
-    flash:s=>assert.fail(s),markDirty:noop,promptFields:async()=>({x0:2,y0:3,x1:12,y1:13,style:'hidden'})};
-  const b={host,state,invalidate:noop,validateDrawingPrimitive,sheetPaper:()=>({w:200,h:200})};
+    flash:s=>assert.fail(s),markDirty:()=>{dirty++;assert.equal(state.scene,null);},promptFields:async()=>({x0:2,y0:3,x1:12,y1:13,style:'hidden'})};
+  const b={host,state,invalidateLayout:load(drawingSource,'invalidateLayout',{state}),validateDrawingPrimitive,sheetPaper:()=>({w:200,h:200})};
   await load(drawingSource,'editPrimitive',b)('missing');assert.equal(h.pushes,0);
   assert.equal(load(drawingSource,'commitPrimitive',b)({type:'line',points:[{x:1,y:1},{x:10,y:10}]}),true);
   assert.deepEqual(stale,before);assert.equal(h.pushes,1);
   const after=structuredClone(h.E.def);assert.equal(after.primitives.length,1);assertUndoRedo(h,before,after);
+  assert.equal(dirty,1);assert.deepEqual(state.selection,{kind:'primitive',id:after.primitives[0].id});
+  state.scene={};
+  const staleEdit=h.E.def;
   await load(drawingSource,'editPrimitive',b)(after.primitives[0].id);
   assert.equal(h.pushes,2);assert.deepEqual(h.E.def.primitives[0].points,[{x:2,y:3},{x:12,y:13}]);
-  assert.equal(h.E.def.primitives[0].style,'hidden');h.H.undo();assert.deepEqual(h.E.def,after);
+  assert.equal(h.E.def.primitives[0].style,'hidden');assert.equal(dirty,2);assert.deepEqual(staleEdit,after);
+  assertUndoRedo(h,after,structuredClone(h.E.def));
 });
 
 test('batch 3 #12: unclaimed entities tolerate missing documents and ignore nullish claims from all sources',()=>{
@@ -793,23 +811,32 @@ test('batch 3 #16: cylinder bounds have one authoritative branch and support til
   }
 });
 
-test('batch 3 #17: 2/3/7 mode shortcuts are defined once and retain field/modifier/dynamic-entry guards',()=>{
-  const text=sourceFunctionText(source,'onKey'),ast=parse(text,{ecmaVersion:'latest'}),counts={2:0,3:0,7:0};
-  function visit(node) {
-    if(!node || typeof node!=='object')return;
-    if(node.type==='BinaryExpression' && node.operator==='===' && node.left?.object?.name==='e'
-      && node.left?.property?.name==='key' && Object.hasOwn(counts,node.right?.value))counts[node.right.value]++;
-    for(const value of Object.values(node)){if(Array.isArray(value))value.forEach(visit);else if(value&&typeof value==='object')visit(value);}
-  }
-  visit(ast);assert.deepEqual(counts,{2:1,3:1,7:1});
+test('batch 3 #17: 2/3/7 mode shortcuts switch once and retain field/modifier/dynamic-entry guards',()=>{
   for(const [key,mode] of [['2','2d'],['3','3d'],['7','drawing']]) {
     const f=keyboardHarness({parts:[]},false),modes=[];f.b.setMode=m=>modes.push(m);
     const run=load(source,'onKey',f.b);run({key});assert.deepEqual(modes,[mode]);
-    run({key,ctrlKey:true});run({key,metaKey:true});run({key,altKey:true});
-    f.b.document.activeElement={tagName:'INPUT'};run({key});assert.deepEqual(modes,[mode]);
+    for(const modifier of ['ctrlKey','metaKey','altKey']){run({key,[modifier]:true});assert.deepEqual(modes,[mode]);}
+    for(const field of [{tagName:'INPUT'},{tagName:'TEXTAREA'},Object.create({isContentEditable:true})]) {
+      f.b.document.activeElement=field;run({key});assert.deepEqual(modes,[mode]);
+    }
     f.b.document.activeElement=null;
     load(source,'onKey',{...f.b,dynKey:()=>true})({key});assert.deepEqual(modes,[mode]);
   }
+});
+
+test('batch 3 #17: an open report owns Delete and mode keys until Escape closes it',()=>{
+  const before={parts:[{id:'body',kind:'box',featureId:'f'}],features:[{id:'f',type:'extrude'}],
+    history:[{id:'history:feature:f',kind:'feature',targetId:'f'}]};
+  const f=keyboardHarness(before),report={hidden:false},modes=[];
+  let prevented=0,closed=0;
+  f.b.root.querySelector=selector=>selector==='#mdReport'?report:null;
+  f.b.setMode=mode=>modes.push(mode);
+  f.b.closeReport=()=>{closed++;report.hidden=true;};
+  const run=load(source,'onKey',f.b);
+  for(const key of ['Delete','Backspace','2','3','7'])run({key,preventDefault:()=>prevented++});
+  assert.deepEqual(f.h.E.def,before);assert.equal(f.h.pushes,0);assert.deepEqual(modes,[]);assert.equal(prevented,0);
+  run({key:'Escape',preventDefault:()=>prevented++});assert.equal(closed,1);assert.equal(prevented,1);
+  run({key:'2'});assert.deepEqual(modes,['2d']);assert.equal(f.h.pushes,0);
 });
 
 test('batch 3 #18: moving incomplete lofts tolerates each missing profile and moves remaining coordinates on every axis',()=>{
@@ -1021,13 +1048,18 @@ test('batch 4 #11: configurations require the active owner and retain loaded par
   for(const docType of ['part','assembly'])for(const missing of [null,undefined]) {
     load(source,'showConfigurations',{E:{docType,def:docType==='part'?missing:{},assembly:missing}})();
   }
-  for(const docType of ['part','assembly']) {
-    const doc={},menus=[];
-    load(source,'showConfigurations',{E:{docType,def:docType==='part'?doc:{},assembly:doc},ensureConfigurations,
-      circularSweepTableRows:()=>null,t:k=>k,showPickList:(_title,_hint,items)=>menus.push(items)})();
+  for(const docType of ['part','assembly'])for(const canonical of [false,true])for(const circular of [false,true]) {
+    const doc={...(canonical?{metadata:{authoringSystem:'parametric-v1'}}:{}),...(circular?{designTable:{kind:'circular-sweep'}}:{})},menus=[];
+    const inactive={},E={docType,def:docType==='part'?doc:inactive,assembly:docType==='assembly'?doc:inactive};
+    load(source,'showConfigurations',{E,ensureConfigurations,isCanonicalAuthoring:load(source,'isCanonicalAuthoring',{E}),
+      circularSweepTableRows:d=>{assert.equal(d,doc);return circular?[{name:'Small'}]:null;},
+      t:k=>k,showPickList:(_title,_hint,items)=>menus.push(items)})();
     assert.ok(doc.configurations.length);assert.equal(menus.length,1);
     assert.ok(menus[0].some(item=>item.id===doc.activeConfiguration));
     assert.ok(menus[0].some(item=>item.id==='__new__'));
+    assert.equal(menus[0].some(item=>item.id==='__design_table__'),docType==='part'&&canonical&&!circular);
+    assert.equal(menus[0].some(item=>item.id==='__sweep_table__'),circular);
+    assert.deepEqual(inactive,{},'configuration initialization targets the active owner');
   }
 });
 
@@ -1395,11 +1427,11 @@ test('batch 5 #19: hole callouts initialize notes on the document reacquired aft
   for(const replaceOnUndo of [false,true])for(const oldNote of [false,true]) {
     const first={...(oldNote?{notes:[{id:'old',feature:'hole',leader:{viewId:'v'}}]}:{})};
     let doc=first,undos=0,dirty=0;
-    const state={},host={doc:()=>doc,t:k=>k,holeCallouts:()=>[{id:'hole',text:'Bore'}],
-      pushUndo:()=>{undos++;if(replaceOnUndo)doc={};},markDirty:()=>dirty++,flash:noop};
+    const state={scene:{}},host={doc:()=>doc,t:k=>k,holeCallouts:()=>[{id:'hole',text:'Bore'}],
+      pushUndo:()=>{undos++;if(replaceOnUndo)doc={};},markDirty:()=>{dirty++;assert.equal(state.scene,null);},flash:noop};
     const place={id:'v',view:{},box:{x:20,y:30},toSheet:p=>({x:p.u||0,y:p.v||0})},before=structuredClone(first);
     const count=load(drawingSource,'addHoleCallouts',{host,state,scene:()=>({views:[place],primaryId:'v'}),
-      holeLeaderForViews:()=>null,holeTopologyAnchor:()=>null,invalidate:noop})();
+      holeLeaderForViews:()=>null,holeTopologyAnchor:()=>null,invalidateLayout:load(drawingSource,'invalidateLayout',{state})})();
     assert.equal(count,1);assert.equal(undos,1);assert.equal(dirty,1);assert.equal(doc.notes.length,1);
     assert.equal(doc.notes[0].feature,'hole');assert.equal(doc.notes[0].leader,null);
     assert.deepEqual(state.selection,{kind:'note',id:doc.notes[0].id});

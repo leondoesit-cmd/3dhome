@@ -13,7 +13,7 @@ function all(node){return [node,...node.children.flatMap(all)];}
 function fixture(unit,grounded=false){
   const tr={x:4.5,y:0,z:0,rx:0,ry:0,rz:0},component={id:'moving',name:'Spring',modelKey:'saved-part',grounded,transform:tr},E={sel:component,assembly:{components:[component],topologyMates:[]},mateFreedom:[],mateDegreesOfFreedom:6},host=node('host');let undos=0,refreshes=0,fullRefreshes=0;
   const inspector=new Function('E','root','el','t','fin','modelLengthUnit','lengthToDocument','lengthFromDocument','normalizeTransform','assemblyBomProperties','isSubassembly','btn','pushUndo','solveAssembly','refreshAll','fitPreview','cloneData','applyDrivenAssemblyPlacement','flash','refreshParts','invalidateDrawing','syncDirty',
-    'var propGen=0;'+sourceFunctionText(source,'numRow')+sourceFunctionText(source,'numLengthRow')+sourceFunctionText(source,'assemblyTransformInspector')+';return assemblyTransformInspector;')
+    'var propGen=0;function fillLibraryLinkStatus(){}'+sourceFunctionText(source,'numRow')+sourceFunctionText(source,'numLengthRow')+sourceFunctionText(source,'assemblyTransformInspector')+';return assemblyTransformInspector;')
     (E,{querySelector:()=>host},node,key=>key,Number.isFinite,()=>unit,lengthToDocument,lengthFromDocument,c=>normalizePose(c.transform),()=>{},()=>false,(text,fn)=>Object.assign(node('button','',text),{onclick:fn}),()=>undos++,opts=>solveTopologyMates(E.assembly,opts),()=>{refreshes++;fullRefreshes++;host.children=[];inspector();},()=>{},structuredClone,applyDrivenAssemblyPlacement,()=>{},()=>refreshes++,()=>{},()=>{});
   inspector();
   const field=label=>all(host).filter(n=>n.tag==='label').find(n=>n.children[0]?.textContent===label)?.children.find(n=>n.tag==='input');

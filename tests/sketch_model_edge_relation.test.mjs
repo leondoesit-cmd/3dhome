@@ -154,12 +154,13 @@ test("a rebuild whose model edge is gone fails with a message and does not keep 
 const modeler = modelerSource();
 
 test("the sketcher picks corners and edges, and Coincident, Midpoint and Convert take them", () => {
-  assert.match(modeler, /var modelVertex = pickScreen \? hitScreenModelVertex\([\s\S]{0,260}hitProjectedModelVertex\(ensureSketch\(E\.def\)[\s\S]{0,200}var modelEdge = modelVertex \|\| \(pickScreen \? hitScreenModelEdge\([\s\S]{0,200}hitProjectedModelEdge\(/, "a corner beats its edge when picking, in screen space over a camera and on the plane otherwise");
+  assert.match(modeler, /var modelEdge = pickSketchModelTopology\(ensureSketch\(E\.def\), pickScreen \? downPoint/, "the canvas picks topology in the sketch view");
   assert.match(modeler, /case "coincident": return points\.length === 2 \|\| \(points\.length === 1 && !ents\.length && \(selectedModelEdges\(\)\.length === 1 \|\| \(selectedModelVertices\(\)\.length === 1/, "Coincident fits a point and a model corner");
   assert.match(modeler, /case "midpoint": return points\.length === 1 && \(lines\.length === 1 \|\| \(!ents\.length && selectedModelEdges\(\)\.length === 1\)\)/, "Midpoint fits a point and a model edge");
   assert.match(modeler, /edge: midEdge\.edge, at: "mid"/, "and records the middle of the edge");
-  assert.match(modeler, /type: "onModelEdge", point: a, edge: ref, at: "start"[\s\S]{0,140}type: "onModelEdge", point: b, edge: cloneData\(ref\), at: "end"/, "Convert Entities pins both ends to the edge");
-  assert.match(modeler, /selectedModelEdges\(\)\.some\(function\(edge\)\{return edge\.descriptor\?\.curve==="line";\}\)\)\{convertModelEdgesToSketch\(\);return;\}/, "the Convert command takes straight model edges");
+  // what Convert Entities appends is tested as behaviour in convert_entities.test.mjs
+  assert.match(modeler, /appendConvertedEdges\(target, source, \{ construction: construction, makeId: uid, referenceOf: topologyReferenceFromEntry, resolveEdge: resolveIntersectionEdge \}\)/, "Convert Entities stores topology references");
+  assert.match(modeler, /selectedModelEdges\(\)\.length\)\{convertModelEdgesToSketch\(\);return;\}/, "Copy face boundary hands picked model edges to Convert Entities");
 });
 
 /* --- picking only what is really a line --- */
@@ -208,7 +209,6 @@ test("a perspective sketch canvas is picked where the model is drawn, not where 
   assert.equal(hitScreenModelEdge({ x: onRail.x, y: onRail.y + 2 }, [corner, rail], 8, toScreen, (d) => d.endpoints).persistentId, "rail");
   const bspline = { kind: "edge", persistentId: "b", ownerFeatureId: "body", descriptor: { curve: "bspline", endpoints: [{ x: 0, y: 0, z: 0 }, { x: 0, y: 5, z: -5 }] } };
   assert.equal(hitScreenModelEdge(toScreen({ x: 0, y: 2.5, z: -2.5 }), [bspline], 8, toScreen, (d) => d.endpoints), null, "a curve's chord is not pickable");
-  assert.match(modeler, /var modelVertex = pickScreen \? hitScreenModelVertex\(downPoint/, "the sketcher picks in screen space when the sketch is drawn through a camera");
 });
 
 test("an arc midpoint follows the curve, not the chord", () => {

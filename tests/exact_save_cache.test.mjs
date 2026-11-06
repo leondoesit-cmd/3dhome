@@ -1,3 +1,4 @@
+import {createExactPublicationDraft} from '../js/core/exact_publication_draft.js';
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -47,13 +48,13 @@ function viewportFixture(afterPublish=()=>{}) {
   const proof=fixture(),E={docType:'part',def:proof.document,massEditRevision:0,exactRestoring:false};
   proof.run.finalShape=proof.run.results.get('solid');
   const cache=createExactSaveCache(),noop=()=>{};
-  const bindings={E,activeParts:()=>[proof.document.parts[0]],flash:noop,t:key=>key,syncCommandManager:noop,syncStatus:noop,
+  const bindings={createExactPublicationDraft,refreshChangedPartPreviews:noop,E,activeParts:()=>[proof.document.parts[0]],flash:noop,t:key=>key,syncCommandManager:noop,syncStatus:noop,
     currentHistoryNode:()=>1,releaseExactRun:noop,isCanonicalAuthoring:()=>true,
     compileKernelFeatureTree:()=>proof.compiled,modelParameterOverrides:()=>({}),rebuildParametricDocument:()=>({ok:true}),
     publishRebuildStatus:noop,regenerateFeatures:async()=>proof.run,releaseRegeneration:noop,captureExactDiagnostics:noop,
     synchronizeExtrusionProjections:()=>[],invalidatePartMeshAfterEdit:noop,captureExactTopology:()=>({}),
     withKernelFailures:validation=>validation,publishExactBodies:async()=>{afterPublish(E,proof);return [];},
-    exactBuildTimers:new Map(),clearTopologyCache:noop,refreshChangedPart:noop,refreshParts:noop,
+    exactBuildTimers:new Map(),clearTopologyCache:noop,refreshChangedParts:noop,refreshParts:noop,invalidateDrawing:noop,
     exactRunStamp:()=> 'current-proof',exactSaveCache:cache,syncAuthoringWorkflow:noop,
     rebuildFailureMessage:()=> 'failed',console:{error:noop}};
   const source=modelerSource();

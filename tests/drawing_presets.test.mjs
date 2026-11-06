@@ -51,7 +51,7 @@ test('persistent local presets cold-load independent snapshots and failed quota 
 test('actual New model lifecycle creates independent template document and respects unsaved-document guard',async()=>{
  const start=source.indexOf('async function newModel(template) {'),end=source.indexOf('function setDocumentType(',start);assert.ok(start>=0&&end>start);
  const original={key:'source',parts:[{id:'native-body'}],drawing:fixture()},before=JSON.stringify(original);let allow=false,seed=0,mode;
- const context={E:{def:original,docType:'part'},confirmDiscardDocument:async()=>allow,closeEvalCard(){},discardModelerDraft(){},newDef:()=>({key:'new',parts:[]}),
+ const context={E:{def:original,docType:'part'},confirmDiscardDocument:async()=>allow,closeEvalCard(){},reconcileModelerDraft(){},newDef:()=>({key:'new',parts:[]}),
   drawingFromTemplate,H:{clear:()=>({seed(){seed++;}})},markDocumentClean(){},syncHead(){},refreshAll(){},setTab(){},setMode:value=>mode=value};
  vm.createContext(context);vm.runInContext(source.slice(start,end),context);const template=capture(original.drawing,'drawing-template');
  await context.newModel(template);assert.equal(context.E.def,original);assert.equal(seed,0);

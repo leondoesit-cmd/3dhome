@@ -51,6 +51,16 @@ test("modeler drafts round-trip a part definition", () => {
   assert.equal(readModelerDraft(storage), null);
 });
 
+test("re-serializing a recovery record preserves its optimistic baselines and parked Part", () => {
+  const payload={docType:"part",def:{name:"Working component"},previousDef:{name:"Parked Part"},assembly:{key:"parent"},
+    dirty:{part:true,assembly:false},libraryBaseline:{key:"part",name:"Stored"},assemblyBaseline:{key:"parent",components:[]}};
+  const first=parseModelerDraft(serializeModelerDraft(payload));
+  const second=parseModelerDraft(serializeModelerDraft(first));
+  assert.equal(second.libraryBaselineJson,first.libraryBaselineJson);
+  assert.equal(second.assemblyBaselineJson,first.assemblyBaselineJson);
+  assert.deepEqual(second.previousDef,payload.previousDef);assert.deepEqual(second.dirty,payload.dirty);
+});
+
 test("modeler drafts reject stale or incomplete payloads", () => {
   assert.equal(parseModelerDraft(""), null);
   assert.equal(parseModelerDraft("{not json"), null);

@@ -9,7 +9,6 @@ import { render2D, fitView } from "./plan2d.js";
 import { flash, openModal } from "./ui.js";
 import { buildIconSettingsPane, initIconSettings } from "./icon_settings.js";
 import { buildTouchPrecisionSettings } from "./touch_precision_ui.js";
-import { buildAgentSettingsPane } from "./ui_agent.js";
 import { buildUnitSettingsPane } from "./unit_settings.js";
 import { updateCost } from "./ui_tree.js";
 import { applySite, setStreetViewCube } from "./view3d.js";
@@ -285,7 +284,7 @@ export function openSettings(initialPane) {
   var agentPane = el("section", "settings-pane settings-agent-pane");
   agentPane.setAttribute("role", "tabpanel");
   agentPane.hidden = true;
-  agentPane.appendChild(buildAgentSettingsPane());
+  var agentSettingsLoading = null;
   panes.appendChild(generalPane);
   panes.appendChild(unitsPane);
   panes.appendChild(agentPane);
@@ -298,6 +297,11 @@ export function openSettings(initialPane) {
     var showIcons = which === "icons";
     var showTouch = which === "touch";
     var showAgent = which === "agent";
+    if (showAgent && !agentSettingsLoading) {
+      agentSettingsLoading = import('./ui_agent.js').then(function (module) {
+        agentPane.appendChild(module.buildAgentSettingsPane());
+      }).catch(function (error) { agentSettingsLoading = null; console.error('Agent settings failed to load', error); });
+    }
     var showUnits = which === "units";
     generalPane.hidden = showIcons || showTouch || showAgent || showUnits;
     unitsPane.hidden = !showUnits;

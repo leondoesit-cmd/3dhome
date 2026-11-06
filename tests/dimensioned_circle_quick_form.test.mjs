@@ -1,3 +1,4 @@
+import {registerQuickForm} from '../js/modeler_quick_form.js';
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,7 +18,7 @@ function node(tag,cls='',text=''){
 }
 function fixture(){
  const host=node('div'),sketch={points:[],entities:[],constraints:[]},E={authoring:{phase:'sketch'},def:{},ssel:[]},frames=[],buttons=[];let serial=0;
- const context={E,root:{querySelector:()=>host},motionPlaybackCancel:null,modelLengthUnit:()=> 'mm',featureField:(host,field,value)=>featureField(host,field,value,{el:node,units:{length:'mm'}}),featureControlValue,validateFeatureInputs,el:node,
+ const context={registerQuickForm,E,root:{querySelector:()=>host},motionPlaybackCancel:null,modelLengthUnit:()=> 'mm',featureField:(host,field,value)=>featureField(host,field,value,{el:node,units:{length:'mm'}}),featureControlValue,validateFeatureInputs,el:node,
   t:key=>key,namedButton:button=>button,btn:(label,callback,cls)=>{const button=node('button',cls,label);button.click=callback;buttons.push(button);return button;},requestAnimationFrame:callback=>frames.push(callback),syncCommandManager(){},document:{body:{classList:{contains:()=>false}}},closeFeaturePanel(){},refreshAll(){},fin:Number.isFinite,flash(){},setTool(){},
   appendToSketch:(name,apply)=>apply(sketch),addDimensionedCircle,uid:()=>++serial,markDrawnSelection:made=>E.ssel=made};
  const load=name=>new Function(...Object.keys(context),sourceFunctionText(source,name)+';return '+name+';')(...Object.values(context));

@@ -30,6 +30,7 @@
 // finite-difference step size.
 
 import { analyzeSketchProfiles } from "./sketch_profiles.js";
+import { convertedPins } from "./sketch_intersection.js";
 import { removeHistoryNode } from "./core/parametric_document.js";
 import { featureDependencies, sketchDependencies } from "./core/dependency_graph.js";
 import { gaussNewtonStep, normOf, rankOf as matrixRank } from "./core/least_squares.js";
@@ -236,6 +237,8 @@ function residualTerms(sketch, tags, index) {
     owner = main;
   };
 
+  const pinnedTargets = new Map();
+  let recognizedPins;
   for (const c of sketch.constraints || []) {
     if (c.suppressed || c.driven) continue;
     owner = c;
@@ -332,7 +335,26 @@ function residualTerms(sketch, tags, index) {
         const p = pt(c.point);
         /* Pinned to a place on the edge (a vertex, its midpoint, or where an
            edge square to this plane pierces it): a bound point, like pierce. */
-        if (p && c.px != null && c.py != null) { push(sub(p.x, Number(c.px)), sub(p.y, Number(c.py))); break; }
+        if (p && c.px != null && c.py != null) {
+          // Adjacent converted edges each keep their reference, but their
+          // shared vertex needs just one pair of equations. If the upstream
+          // ends separate, both targets participate in the conflict.
+          const converted = c.convert || (recognizedPins ??= convertedPins(sketch)).has(c);
+          const prior = converted && pinnedTargets.get(c.point);
+          if (!prior || Math.hypot(c.px - prior.px, c.py - prior.py) > EPS) {
+            push(sub(p.x, Number(c.px)), sub(p.y, Number(c.py)));
+            if (converted) pinnedTargets.set(c.point, c);
+          }
+          /* Convert Entities of a circle or an ellipse: the centre pin also
+             carries the edge's size, bound from the rebuilt edge. An
+             ellipse's tilt is the same curve every half turn. */
+          if (c.radius != null) { const o = circ(c.entity); if (o) push(sub(o.radius, Number(c.radius))); }
+          if (c.rx != null) {
+            const e = ell(c.entity);
+            if (e) push(sub(e.rx, Number(c.rx)), sub(e.ry, Number(c.ry)), mul(scale(wrapTurn(scale(sub(e.rot, Number(c.rot)), 2)), 0.5), atLeast(scale(add(e.rx, e.ry), 0.5), 1)));
+          }
+          break;
+        }
         if (!p || c.ax == null || c.bx == null) break;
         const dx = Number(c.bx) - Number(c.ax), dy = Number(c.by) - Number(c.ay), length = Math.hypot(dx, dy);
         if (length > EPS) push(across(p.x, p.y, { a: { x: Number(c.ax), y: Number(c.ay) }, dx, dy, length }));

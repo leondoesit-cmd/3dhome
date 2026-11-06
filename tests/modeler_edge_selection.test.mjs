@@ -1,3 +1,5 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { tessellateParts } from "../js/core/part_tessellate.js";
 import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -73,9 +75,14 @@ test("finish edge browser refreshes on body and topology changes and labels docu
   assert.match(modelerSource, /function finishEdgeDescription\(reference\)[\s\S]{0,280}modelLengthText\(d\.radius,8\)/);
 });
 
-test("ordinary part drawings use exact triangle data without constructing a GPU scene", () => {
-  assert.match(modelerSource, /function drawingBodies\(\)[\s\S]{0,800}E\.docType === "part"[\s\S]{0,350}tessellateParts\(parts\)/);
-  assert.match(modelerSource, /direct\.length === parts\.length/);
+test("ordinary part drawings use exact triangle data without constructing a GPU scene", async () => {
+  const module = await readFile(new URL("../js/modeler/drawing_sheet.js",import.meta.url),"utf8");
+  const drawingBodies = new Function("E","renderedParts","partPatternRotations","tessellateParts",
+    sourceFunctionText(module,"drawingBodies")+";return drawingBodies;");
+  const positions=[0,0,0,1,0,0,0,1,0];
+  const parts=[{id:"triangle",meshData:{positions}}];
+  const run=drawingBodies({docType:"part",def:{parts}},def=>def.parts,()=>[],tessellateParts);
+  assert.deepEqual(Array.from(run()[0].positions),positions);
 });
 
 test("saved rim-breaking holes migrate before the editor exposes topology", () => {

@@ -307,6 +307,26 @@ export function forgetLightKeys(r) {
   return true;
 }
 
+// Three's renderer.dispose() skips uninitialized renderers. An init failure
+// can nevertheless leave an owned device, GL context or canvas listener.
+function releaseFailedBackend(backend) {
+  if (!backend) return;
+  try {
+    if (backend.isWebGLBackend) {
+      if (backend._onContextLost) backend.renderer.domElement.removeEventListener('webglcontextlost', backend._onContextLost);
+      try {
+        backend.textureUtils?.dispose();
+      } finally {
+        if (backend.parameters.context === undefined) backend.gl?.getExtension('WEBGL_lose_context')?.loseContext();
+      }
+    } else if (backend.isWebGPUBackend && backend.device) {
+      backend.dispose(); // Three destroys the device only when it owns it.
+    }
+  } catch (error) {
+    console.warn('Failed to release partially initialized GPU backend:', error);
+  }
+}
+
 export function createRenderer(opts) {
   keepShadowNodes();
   sizeShadowMapsAtOnce();
@@ -320,7 +340,15 @@ export function createRenderer(opts) {
   var r = new THREE.WebGPURenderer(opts);
   if (lighting) r.lighting = lighting;
   // Kick init immediately so it overlaps with the caller's scene building.
-  r._readyPromise = r.init().then(function () { return r; });
+  const initialBackend = r.backend;
+  r._readyPromise = r.init().then(function () {
+    if (r.backend !== initialBackend) releaseFailedBackend(initialBackend);
+    return r;
+  }, function (error) {
+    if (r.backend !== initialBackend) releaseFailedBackend(initialBackend);
+    releaseFailedBackend(r.backend);
+    throw error;
+  });
   r._readyPromise.catch(function (e) {
     if (window.console && console.error) console.error("GPU backend init failed:", e);
   });

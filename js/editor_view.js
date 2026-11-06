@@ -113,9 +113,16 @@ export function createEditorView(opts) {
   var cv = opts.canvas;
   if (!cv) return null;
 
-  var view = null;
+  var view = null, disposed = false, backendReady = false;
   try {
     var rr = createRenderer({ canvas: cv, antialias: true, alpha: true });
+    // Three can only dispose an initialized backend. Let pending init finish
+    // before releasing a view that closed (or failed setup) in the meantime.
+    gpuReady(rr).then(function () {
+      backendReady = true;
+      if (disposed) rr.dispose();
+      else view.render();
+    }, function () { /* createRenderer reports backend initialization errors. */ });
     /* alpha:true alone no longer clears transparent — WebGPURenderer defaults
        to an opaque clear, so the preview came out on a black slab instead of
        the panel behind it. Ask for a fully transparent clear explicitly. */
@@ -226,10 +233,6 @@ export function createEditorView(opts) {
       maxEl = opts.maxEl != null ? opts.maxEl : 1.4,
       minDist = opts.minDist != null ? opts.minDist : 50,
       maxDist = opts.maxDist != null ? opts.maxDist : 2500;
-
-    /* The backend is async, so the very first paint is a no-op and the panel
-       would sit blank until the user's next edit. Repaint on ready. */
-    gpuReady(rr).then(function () { view.render(); });
 
     var drag = null;
     var threeFinger = bindThreeFingerPan(cv, function (dx, dy) {
@@ -386,7 +389,6 @@ export function createEditorView(opts) {
     }
     var lastW = 0, lastH = 0, settling = 0, sizeDirty = true;
     view.invalidateSize = function () { sizeDirty = true; };
-    if (typeof window !== "undefined") window.addEventListener("resize", function () { sizeDirty = true; });
     view.resize = function (force) {
       if (!force && !sizeDirty) return false;
       var box = cv.parentElement;
@@ -483,7 +485,7 @@ export function createEditorView(opts) {
     };
 
     view.render = function () {
-      if (opts.active && !opts.active()) return;
+      if (disposed || (opts.active && !opts.active())) return;
       view.resize();
       // an editor with a second destination for the same parts (the modeler's
       // context room) takes over here and draws it its own way
@@ -644,7 +646,16 @@ export function createEditorView(opts) {
       view.dist=clamp(fit.distance/(view.big?bigZoom():1),minDist,maxDist);
       const origin=view.fixedFrame.origin;view.target.set(fit.center.x-origin.x,fit.center.y-origin.y,fit.center.z-origin.z);
     };
+    view.dispose = function () {
+      if (disposed) return;
+      disposed = true;
+      window.removeEventListener("resize", view.invalidateSize);
+      cancelLongPress();
+      if (backendReady) rr.dispose();
+    };
+    window.addEventListener("resize", view.invalidateSize);
   } catch (e) {
+    disposed = true;
     // no WebGL at all — the editors treat a null view as "no preview" and
     // carry on in 2D rather than failing to open
     return null;

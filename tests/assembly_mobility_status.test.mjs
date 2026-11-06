@@ -32,7 +32,7 @@ test('mobility snapshot rejects failed/incomplete solve, changed mate drive and 
 });
 test('actual assembly solve records current mobility, including zero, without promoting a missing count to checked zero',()=>{
  const assembly=fixture(),E={};let result={ok:true,degreesOfFreedom:0,issues:[]};
- const context={E,mateSolveCount:0,solveTopologyMates:()=>result,updateAssemblyContexts:()=>({issues:[]}),assemblyMobilityReport};
+ const context={E,mateSolveCount:0,contextPartTopology:()=>[],solveTopologyMates:()=>result,updateAssemblyContexts:()=>({issues:[]}),assemblyMobilityReport};
  const apply=new Function(...Object.keys(context),sourceFunctionText(source,'applyAssemblyMates')+';return applyAssemblyMates;')(...Object.values(context));
  apply(assembly);assert.equal(currentAssemblyMobility(assembly,E.mateMobilityReport),0);
  result={ok:true,issues:[]};apply(assembly);assert.equal(currentAssemblyMobility(assembly,E.mateMobilityReport),null);
@@ -50,9 +50,9 @@ test('actual Save of one grounded and eight unmated occurrences never publishes 
  const native=solveTopologyMates(assembly);assert.equal(native.ok,true);assert.equal(native.degreesOfFreedom,0);assert.deepEqual(native.clusters,[],'native result only sums mate-connected clusters');
  const before=structuredClone(assembly.components);
  const context={E,root:{querySelector:selector=>selector==='#mdName'?{value:assembly.name}:selector==='#mdDescription'?{value:''}:status},
-  mateSolveCount:0,solveTopologyMates,updateAssemblyContexts:()=>({issues:[]}),assemblyMobilityReport,currentAssemblyMobility,
-  rejectFlexibleSpringPreview:()=>false,setDocumentDescription(){},cloneData:structuredClone,saveAssemblies:async saved=>{stored=saved;return true;},assemblyOpenBaseline:null,
-  refreshLib(){},flash(){},markDocumentClean(){},discardModelerDraft(){},updateTourProgress(){},
+  mateSolveCount:0,contextPartTopology:()=>[],solveTopologyMates,updateAssemblyContexts:()=>({issues:[]}),assemblyMobilityReport,currentAssemblyMobility,
+  H:{generation:1,editRevision:()=>1},currentHistoryNode:()=>1,assemblySaveSession:doc=>doc,applyTrackedUpdates:()=>false,rejectFlexibleSpringPreview:()=>false,setDocumentDescription(){},cloneData:structuredClone,saveAssemblies:async saved=>{stored=saved;return true;},assemblyOpenBaseline:null,
+  refreshLib(){},flash(){},markDocumentClean(){},reconcileModelerDraft(){},updateTourProgress(){},
   assemblyMateCount:a=>a.mates.length+a.topologyMates.length,brokenMateCount:()=>0,documentDirty:()=>false,
   t:key=>({mateDof:'degrees of freedom',mateDofOne:'degree of freedom',mateMobilityUnchecked:'Mobility not checked'})[key]||key};
  context.countLabel=(count,one,many)=>count+' '+context.t(count===1?one:many);

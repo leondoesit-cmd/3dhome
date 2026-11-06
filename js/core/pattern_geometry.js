@@ -245,6 +245,17 @@ export function invertRigidTransform(transform) {
   return { matrix, translation:{ x:-back.x, y:-back.y, z:-back.z } };
 }
 
+// Saved bodies may carry both the current rotation list and an older single turn.
+export function partPatternRotations(part) {
+  const rotations = Array.isArray(part?.patternRotations) ? [...part.patternRotations] : [];
+  if (part?.patternRotation) rotations.push(part.patternRotation);
+  return rotations.filter(r => r && ["x","y","z"].includes(r.axis) && Number.isFinite(Number(r.angle)))
+    .map(({axis, angle, pivot}) => ({
+      axis, angle: Number(angle),
+      pivot: pivot ? {x:Number(pivot.x)||0, y:Number(pivot.y)||0, z:Number(pivot.z)||0} : undefined,
+    }));
+}
+
 /* The editor's list of axis turns as ONE rigid transform.
  *
  * A part carries its pattern turns as `patternRotations`, and buildPart nests

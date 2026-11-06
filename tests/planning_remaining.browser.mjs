@@ -63,6 +63,8 @@ test('guided draft is an unfurnished preview and one undoable replacement-free a
   const {S}=await import('/js/state.js');const {detectRooms}=await import('/js/geometry.js');const {undo}=await import('/js/history.js');
   const {openPlanningGuide,renderPlanningGuide}=await import('/js/ui_planning_guide.js');
   document.querySelector('[data-start="recreate"]').click();openPlanningGuide();renderPlanningGuide();await new Promise(requestAnimationFrame);
+  // Exercise the three-room draft explicitly; the UI defaults to a large plan.
+  const size=document.querySelector('[data-guide-field="draft_size"]');size.value='small';size.dispatchEvent(new Event('change',{bubbles:true}));
   document.querySelector('[data-guide-action="draft_preview"]').click();
   for(let i=0;i<100&&!document.querySelector('[data-guide-action="draft_apply"]');i++)await new Promise(r=>setTimeout(r,30));
   const pure=S.walls.length===0;document.querySelector('[data-guide-action="draft_apply"]').click();

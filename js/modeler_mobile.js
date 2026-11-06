@@ -936,9 +936,14 @@ function buildViewSheet() {
     }),
   );
   g3.appendChild(gridBtn(icon("modelEdges"), t("modelEdges"), st.edges, api.toggleEdges));
-  g3.appendChild(
-    gridBtn('<i class="ph ph-house-line"></i>', t("contextRoom"), st.contextRoom, api.toggleContextRoom),
-  );
+  var roomButton = gridBtn('<i class="ph ph-house-line"></i>', t("contextRoom"), st.contextRoom, function () {
+    api.toggleContextRoom();
+    var checked = api.state().contextRoom;
+    roomButton.classList.toggle("on", checked);
+    roomButton.setAttribute("aria-pressed", String(checked));
+  });
+  roomButton.setAttribute("aria-pressed", String(st.contextRoom));
+  g3.appendChild(roomButton);
 
   if (!short) section(t("selFilter"));
   var g4 = grid("m-grid-5 m-icon-grid");

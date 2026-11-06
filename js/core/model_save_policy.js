@@ -1,6 +1,6 @@
 import { validateDrawingPrimitive } from "./drawing_primitives.js";
 import {drawingImageItem} from './drawing_image.js';
-import {sheetPaper,SHEET_SIZES,UNIT_FACTORS} from '../cad_sheet.js';
+import {effectiveViewSource,sheetPaper,SHEET_SIZES,UNIT_FACTORS} from '../cad_sheet.js';
 import {hasDocumentPresetDefaults} from './document_presets.js';
 
 // A reusable format/template is authored paper even before its first note.
@@ -26,6 +26,11 @@ const savedImages=definition=>(Array.isArray(definition?.drawing?.images)?defini
   try {drawingImageItem(image,sheetPaper(definition.drawing));return true;}catch{return false;}
 });
 
+function hasReferencedView(definition) {
+  const drawing = definition?.drawing;
+  return Array.isArray(drawing?.views) && drawing.views.some(view => effectiveViewSource(drawing, view));
+}
+
 export function drawingOnlyContentSummary(definition) {
   if (!definition || (definition.parts || []).length || (definition.features || []).length) return null;
   const sketches=Array.isArray(definition.sketches) ? definition.sketches : [];
@@ -36,7 +41,7 @@ export function drawingOnlyContentSummary(definition) {
   const annotations=(Array.isArray(definition.drawing?.primitives) ? definition.drawing.primitives : []).filter(primitive => {
     try { validateDrawingPrimitive(primitive); return true; } catch { return false; }
   }).length+savedImages(definition).length;
-  return notes || annotations || hasNativePresetSheet(definition) ? {annotations,notes} : null;
+  return notes || annotations || hasNativePresetSheet(definition) || hasReferencedView(definition) ? {annotations,notes} : null;
 }
 // A new editor document gets an implicit, empty working sketch. That is not
 // authored work. A recorded sketch history row is, even before its first line
@@ -45,7 +50,7 @@ export function hasSaveableModelContent(definition) {
   if (!definition || typeof definition !== "object") return false;
   if(hasDocumentPresetDefaults(definition))return true;
   if (Array.isArray(definition.parts) && definition.parts.length) return true;
-  if(hasNativePresetSheet(definition))return true;
+  if(hasNativePresetSheet(definition) || hasReferencedView(definition))return true;
   if(savedImages(definition).length)return true;
   if (Array.isArray(definition.drawing?.notes) && definition.drawing.notes.some(note => String(note?.text || '').trim())) return true;
   if (Array.isArray(definition.drawing?.primitives) && definition.drawing.primitives.some(primitive => {

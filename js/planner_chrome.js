@@ -22,7 +22,7 @@ import { emptyScene, FURN } from "./furniture.js";
 import { rebuildProject } from "./core/project.js";
 import { setTool } from "./interaction.js";
 import { resetLayers, saveLayers } from "./layers.js";
-import { render2D, fitView, wx, wz, dropPoint } from "./plan2d.js";
+import { render2D, fitView, wx, wz, dropPoint, onAfterRender } from "./plan2d.js";
 import { loadMEP } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
 import { withoutRoomPrompts } from "./ui_tree.js";
@@ -259,7 +259,7 @@ function updateToolHint() {
   var msg = "";
   if (S.placeType) msg = tTouch("hint_tool_place");
   else if (S.tool === "wall") msg = tTouch("hint_tool_wall");
-  else if (S.tool === "rect") msg = tTouch("hint_tool_rect");
+  else if (S.tool === "rect") msg = tTouch(S.rectDraft ? "hint_tool_rect_next" : "hint_tool_rect");
   else if (S.tool === "walloffset") msg = tTouch("hint_tool_offset");
   else if (S.tool === "wallbreak") msg = tTouch("hint_tool_break");
   else if (S.tool === "wallbite") msg = tTouch("hint_tool_wallbite");
@@ -269,8 +269,9 @@ function updateToolHint() {
   else if (S.tool === "erase") msg = tTouch("hint_tool_erase");
   else if (S.tool === "door" || S.tool === "window" || S.tool === "passage")
     msg = tTouch("hint_tool_opening");
-  el.textContent = msg;
-  el.hidden = !msg || currentUi() === "legacy";
+  if (el.textContent !== msg) el.textContent = msg;
+  var hide = !msg || currentUi() === "legacy";
+  if (el.hidden !== hide) el.hidden = hide;
 }
 
 function refreshAfterScene() {
@@ -318,6 +319,10 @@ function applyStart(kind) {
   if (fresh) S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {} };
   if (fresh) {
     resetLayers();
+    /* A drawing start arms the rectangle tool below; starting on its layer
+       spares a "Now editing Structure · Stay on Furniture" toast about a
+       plan that has no furniture yet. */
+    if (intention && intention !== "explore") S.workSet = "structure";
     saveLayers();
     window.dispatchEvent(new CustomEvent("layers:changed"));
   }
@@ -569,6 +574,8 @@ function initPlannerChrome() {
   });
   window.addEventListener("planner-tool", updateToolHint);
   window.addEventListener("planner-place", updateToolHint);
+  // the rectangle hint changes with its first corner, which fires no tool event
+  onAfterRender(updateToolHint);
   var cc = $("center-canvas");
   if (cc && window.MutationObserver) {
     new MutationObserver(syncViewPills).observe(cc, { attributes: true, attributeFilter: ["class"] });

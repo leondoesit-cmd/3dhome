@@ -760,6 +760,19 @@ export const CAD_ICONS = {
   },
 
   // Convert / Project Entities: 3D model edge projecting down onto sketch plane
+  // Convert Entities: two picked model edges of a box face become sketch lines
+  convertentities: function () {
+    return (
+      // the model face's outline, faint
+      p("M3 6 L13 6 L13 16 L3 16 Z", 0.08, 1) +
+      // the two picked edges, converted into sketch geometry
+      colorPath("M3 6 L13 6 L13 16", "none", "#17834f", 2) +
+      '<circle cx="13" cy="6" r="1.6" fill="#2684c7" stroke="currentColor" stroke-width="0.9"/>' +
+      // the arrow into the sketch
+      colorPath("M15 3 L18 3 L18 6 M18 3 L14.5 6.5", "none", "#2684c7", 1.3)
+    );
+  },
+
   project: function () {
     return (
       // 3D model edge in space

@@ -87,7 +87,8 @@ export function buildCommandCatalog(ctx) {
   var assemblyDoc = function () { return E.docType === "assembly"; };
   var solids = function () { return !!(E.def && activeParts(E.def).length); };
   var closed = function () { return !!closedSketchProfile(); };
-  var revolvable = function () { return closed() || !!ctx.openSketchChain?.(); };
+  var hasProfile = function () { return closed() || !!ctx.openSketchChain?.(); };
+  var revolvable = function () { return hasProfile() || !!ctx.selectedAxisProfile?.(); };
   var needPart = function () { return t("cmdNeedPartDoc"); };
   var needSketch = function () { return partDoc() ? t("cmdNeedClosedSketch") : t("cmdNeedPartDoc"); };
   var needSolid = function () { return partDoc() ? t("cmdNeedSolid") : t("cmdNeedPartDoc"); };
@@ -109,6 +110,7 @@ export function buildCommandCatalog(ctx) {
     { id:"dimensionedcircle", icon:"ph-circle", label:"Dimensioned circle", group:t("cmdSketch"), terms:"precise circle center centre diameter dimension fully defined", available:partDoc, reason:needPart },
     { id:"dimensionedpolygon", icon:"ph-hexagon", label:"Dimensioned polygon", group:t("cmdSketch"), terms:"precise hexagon polygon center centre circumscribed diameter rotation fully defined", available:partDoc, reason:needPart },
     { id:"faceboundary", icon:"ph-copy-simple", label:t("faceBoundary"), group:t("cmdSketch"), terms:"convert entities offset face boundary copy inset", available:function(){return partDoc() && solids();}, reason:needSolid },
+    { id:"convertentities", icon:"convertentities", label:t("convertEntities"), group:t("cmdSketch"), terms:"convert entities edges use edge project selected model edge line arc circle ellipse", available:function(){return partDoc() && solids();}, reason:needSolid },
     { id:"scirc", icon:"ph-circle-dashed", label:t("tool_scirc"), group:t("cmdSketch"), shortcut:"G", terms:"circle", available:function(){ return partDoc(); }, reason:needPart },
     { id:"sarc", icon:"sarc", label:t("centerpointArc"), group:t("cmdSketch"), shortcut:"A", terms:"centerpoint centre center start end arc", available:function(){ return partDoc(); }, reason:needPart },
     { id:"arc3point", icon:"arc3point", label:t("arcThreePoint"), group:t("cmdSketch"), terms:"three point arc", available:function(){ return partDoc(); }, reason:needPart },
@@ -125,7 +127,7 @@ export function buildCommandCatalog(ctx) {
     { id:"mirror", icon:"ph-flip-horizontal", label:t("sketchMirror"), group:t("cmdSketch"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"pattern", icon:"ph-dots-nine", label:t("sketchPattern"), group:t("cmdSketch"), terms:"linear array", available:function(){ return partDoc(); }, reason:needPart },
     { id:"circpattern", icon:"ph-circles-three", label:t("sketchCircPattern"), group:t("cmdSketch"), terms:"circular polar array bolt circle", available:function(){ return partDoc(); }, reason:needPart },
-    { id:"project", icon:"ph-projector-screen", label:t("projectEdges"), group:t("cmdSketch"), available:function(){ return partDoc(); }, reason:needPart },
+    { id:"project", icon:"ph-projector-screen", label:t("projectEdges"), group:t("cmdSketch"), terms:"project silhouette outline construction selected edges", available:function(){ return partDoc(); }, reason:needPart },
     { id:"directbox", icon:"ph-cube", label:t("tool_rect"), group:t("grpDirect"), shortcut:"B", terms:"box rectangle primitive direct", available:directOk, reason:needDirect },
     { id:"directcyl", icon:"ph-cylinder", label:t("tool_circle"), group:t("grpDirect"), shortcut:"C", terms:"cylinder circle primitive direct", available:directOk, reason:needDirect },
     { id:"directcone", icon:"ph-triangle", label:"Cone", group:t("grpDirect"), terms:"cone frustum tapered primitive", available:partDoc, reason:needPart },
@@ -147,8 +149,8 @@ export function buildCommandCatalog(ctx) {
     { id:"newsketch", icon:"ph-pencil-line", label:t("createSketch"), group:t("cmdFeatures"), terms:"reference plane face profile", available:function(){ return partDoc(); }, reason:needPart },
     { id:"dynamicmirror", icon:"ph-flip-horizontal", label:"Dynamic mirror", group:t("cmdSketch"), terms:"live symmetric line centerline", available:function(){return partDoc() && E.authoring?.phase==="sketch";}, reason:needPart },
     { id:"finishsketch", icon:"ph-check", label:t("finishSketch"), group:t("cmdSketch"), terms:"exit plane done finish", available:function(){ return partDoc() && E.authoring && E.authoring.phase==="sketch"; }, reason:function(){ return t("cmdNeedOpenSketch"); } },
-    { id:"extrude", icon:"ph-cube", label:t("opExtrude"), group:t("cmdFeatures"), available:function(){ return partDoc() && revolvable(); }, reason:function(){ return revolvable() ? needPart() : needSketch(); } },
-    { id:"extrudecut", icon:"ph-scissors", label:t("extrudeCut"), group:t("cmdFeatures"), available:function(){return partDoc()&&revolvable()&&solids();}, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
+    { id:"extrude", icon:"ph-cube", label:t("opExtrude"), group:t("cmdFeatures"), available:function(){ return partDoc() && hasProfile(); }, reason:function(){ return hasProfile() ? needPart() : needSketch(); } },
+    { id:"extrudecut", icon:"ph-scissors", label:t("extrudeCut"), group:t("cmdFeatures"), available:function(){return partDoc()&&hasProfile()&&solids();}, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
     { id:"revolvefeature", icon:"ph-arrow-counter-clockwise", label:t("opRevolve"), group:t("cmdFeatures"), shortcut:"R", available:function(){ return partDoc() && revolvable(); }, reason:needSketch },
     { id:"revolvecutfeature", icon:"revolvecutfeature", label:t("opRevolveCut"), group:t("cmdFeatures"), terms:"revolve cut lathe groove subtract", available:function(){ return partDoc() && revolvable() && solids(); }, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
     { id:"sweepfeature", icon:"ph-path", label:t("opSweep"), group:t("cmdFeatures"), available:function(){ return partDoc() && sketchCount() >= 1; }, reason:needSketches },

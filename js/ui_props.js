@@ -165,6 +165,26 @@ var panels = {
 function showPanel(name) {
   for (var k in panels)
     if (panels[k]) panels[k].classList.toggle("on", k === name);
+  if (name === "empty") syncNextSteps();
+}
+
+/* The empty inspector's "Next step" list kept offering "Draw a room" over a
+   finished, furnished flat. Each step goes once it is done; so does the list. */
+function syncNextSteps() {
+  var box = panels.empty && panels.empty.querySelector(".empty-next");
+  if (!box) return;
+  var done = {
+    hintRect: (S.walls || []).length > 0,
+    hintDoor: (S.openings || []).length > 0,
+    hintLibrary: (S.items || []).length > 0,
+  };
+  var left = 0;
+  box.querySelectorAll("button[data-act]").forEach(function (b) {
+    var hide = !!done[b.dataset.act];
+    b.hidden = hide;
+    if (!hide) left++;
+  });
+  box.hidden = !left;
 }
 
 /* The wall definition controls are generated from the project catalogue.  A

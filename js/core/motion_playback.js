@@ -1,4 +1,5 @@
 import {copyMotionStudy,copyMotionMates} from '../cad_motion_study.js';
+import {captureAssemblySolverState,restoreAssemblySolverState,cloneAssemblySolverState} from './assembly_solver_state.js';
 
 // Snapshot poses and motion state only; component meshes and definitions stay shared.
 export function motionPreviewDuration(study) {
@@ -22,8 +23,7 @@ export function motionPlaybackStepSeconds(study) {
 export function createMotionPlayback(assembly,studyId,options) {
   const study=assembly.motionStudies?.find(item=>item.id===studyId);
   if(!study)throw new Error('Choose a saved motion study');
-  const snapshot=()=>({poses:assembly.components.map(c=>({id:c.id,present:Object.hasOwn(c,'transform'),transform:structuredClone(c.transform)})),
-    studies:structuredClone(assembly.motionStudies),mates:structuredClone(assembly.topologyMates),hadMates:Object.hasOwn(assembly,'topologyMates')});
+  const snapshot=()=>({solver:captureAssemblySolverState(assembly),studies:structuredClone(assembly.motionStudies)});
   const entry=snapshot();
   // Explode offsets are presentation only. Physical motion uses the assembled
   // mechanism and closing the preview restores the exact opening presentation.
@@ -38,16 +38,11 @@ export function createMotionPlayback(assembly,studyId,options) {
     if(hadExploded)assembly.exploded=exploded;else delete assembly.exploded;
   };
   const restore=data=>{
-    const poses=new Map(data.poses.map(item=>[item.id,item]));
-    for(const component of assembly.components)if(poses.has(component.id)){
-      const pose=poses.get(component.id);
-      if(pose.present)component.transform=structuredClone(pose.transform);else delete component.transform;
-    }
+    restoreAssemblySolverState(assembly,data.solver);
     assembly.motionStudies=structuredClone(data.studies);
-    if(data.hadMates)assembly.topologyMates=structuredClone(data.mates);else delete assembly.topologyMates;
   };
-  const trial={...assembly,components:assembly.components.map(component=>({...component})),
-    motionStudies:structuredClone(assembly.motionStudies),topologyMates:structuredClone(assembly.topologyMates||[]),mates:structuredClone(assembly.mates||[])};
+  const trial={...cloneAssemblySolverState(assembly),
+    motionStudies:structuredClone(assembly.motionStudies),topologyMates:structuredClone(assembly.topologyMates||[])};
   let publishedStudies=assembly.motionStudies,publishedMates=assembly.topologyMates,revision=0;
   let time=Math.max(0,Number(study.time)||0),duration=motionPreviewDuration(study),frame=0,last=0,running=false,closed=false,busy=false;
   let lastMessage='Ready',lastResult;
@@ -67,11 +62,13 @@ export function createMotionPlayback(assembly,studyId,options) {
         trial.motionStudies=structuredClone(assembly.motionStudies);
         trial.topologyMates=structuredClone(assembly.topologyMates||[]);revision++;
       }
-      for(let i=0;i<trial.components.length;i++)trial.components[i].transform=structuredClone(assembly.components[i].transform||{});
+      const fresh=cloneAssemblySolverState(assembly);
+      trial.components=fresh.components;
+      if(Object.hasOwn(fresh,'mates'))trial.mates=fresh.mates;else delete trial.mates;
       const result=await options.evaluate(trial,studyId,next,{incremental:running,playbackRevision:revision,continuation:false});
       if(!valid()){cancel();return false;}
       if(!result.ok){publishedStudies=publishedMates=undefined;pause();notify('Motion stopped: '+[...(result.issues||[]),...(result.unsatisfied||[])].map(issue=>issue.code).join('; '),result);return false;}
-      for(let i=0;i<assembly.components.length;i++)assembly.components[i].transform=structuredClone(trial.components[i].transform);
+      restoreAssemblySolverState(assembly,captureAssemblySolverState(trial));
       assembly.motionStudies=trial.motionStudies.map(copyMotionStudy);assembly.topologyMates=copyMotionMates(trial.topologyMates);
       publishedStudies=assembly.motionStudies;publishedMates=assembly.topologyMates;
       time=next;options.onPose?.(result);notify(running?'Playing':'Paused',result);return true;

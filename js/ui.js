@@ -8,6 +8,7 @@ import { newDocumentKey, normalizeBaselines, normalizeRedesign, mergeBaselineArc
 import { normalizePlanningGuide } from "./planning_guide.js";
 import { displayUnit, fmtLen, writeLen, parseLen, unitLabel, fmtAreaM2, syncDisplayUnitLabels } from "./display_units.js";
 import { inferDomainFromElementId } from "./unit_settings.js";
+import { activeEditor } from "./pro_shell.js";
 // UI controller: property panels, control wiring, ownership tree, save/load.
 import { S, uid, fin, hexStr, touchItem3D } from "./state.js";
 import {
@@ -51,7 +52,7 @@ import {
 import { initWarnPanel, renderWarnPanel } from "./ui_warn.js";
 import { alignItems, distributeItems, matchRotation } from "./item_align.js";
 import {
-  applyAutoFace, markManualRot, refaceItem, rotStep, setRotStep,
+  applyAutoFace, flushToWall, markManualRot, refaceItem, rotStep, setRotStep,
 } from "./item_orient.js";
 import { renderParams, addParam, renderRoomCons, runRoomConAction } from "./ui_params.js";
 import {
@@ -70,7 +71,6 @@ import {
   toggleEdit3D,
   toggleDrawing3D,
   setDrawingOptions,
-  frameDollhouse,
 } from "./view3d.js";
 import { normalizeCutaway } from "./wall_cut.js";
 import { loadPhysics, togglePhysics, isPhysicsEnabled, clearDebris, setStrength, toggleHitMode } from "./physics_facade.js";
@@ -834,9 +834,10 @@ export function quietly(fn) {
 
 /* `action` ({ label, run }) adds one button to the toast — an immediate way to
    take back what the message announces — and keeps it up a little longer so
-   there is time to reach for it. */
+   there is time to reach for it. Returns a function that takes the toast down
+   early, for a prompt that the user has just answered. */
 export function flash(msg, kind, action) {
-  if (quiet) return;
+  if (quiet) return function () {};
   if (!toastRoot) {
     toastRoot = document.createElement("div");
     toastRoot.id = "toast-root";
@@ -844,6 +845,11 @@ export function flash(msg, kind, action) {
     document.body.appendChild(toastRoot);
   }
   while (toastRoot.children.length >= 3) toastRoot.firstChild.remove();
+  /* The stylesheet's top clears only the top bar; under the ribbon a toast
+     covered the very tools it was talking about. */
+  var ribbon = document.getElementById("pro-ribbon");
+  var ribbonBottom = ribbon && ribbon.offsetParent ? ribbon.getBoundingClientRect().bottom : 0;
+  toastRoot.style.top = ribbonBottom > 64 ? Math.round(ribbonBottom + 8) + "px" : "";
   var el = document.createElement("div");
   el.className = "toast" + (kind === "error" ? " toast-error" : kind === "success" ? " toast-success" : "");
   var ic =
@@ -879,6 +885,7 @@ export function flash(msg, kind, action) {
     el.classList.add("on");
   });
   setTimeout(dismiss, action ? 4500 : 2400);
+  return dismiss;
 }
 
 // Minimal shared modal on the .bp-overlay/.bp-modal theme classes.
@@ -1069,6 +1076,7 @@ export function isLegacyUI() {
   return document.documentElement.getAttribute("data-ui") === "legacy";
 }
 
+var armToastDismiss = null; // the open "Click the plan to place X" toast
 export function placeFurnAt(type, x, z) {
   var result = executeCommand(itemPlaceCommand, { type: type, x: x, z: z }, {
     domain: "planner",
@@ -1079,7 +1087,13 @@ export function placeFurnAt(type, x, z) {
     services: {
       createItem: mkItem,
       applyAutoFace: function (it, px, pz) {
-        applyAutoFace(it, px, pz, { host: findSupport(it, px, pz) });
+        var ctx = { host: findSupport(it, px, pz) };
+        applyAutoFace(it, px, pz, ctx);
+        var flush = flushToWall(it, px, pz, ctx);
+        if (flush) {
+          it.x = Math.round(flush.x * 10) / 10;
+          it.z = Math.round(flush.z * 10) / 10;
+        }
       },
     },
   }, { label: t("f_itemPlaced") });
@@ -1091,6 +1105,8 @@ export function placeFurnAt(type, x, z) {
   var it = S.items.find(function (item) { return item.id === madeId; });
   if (!it) return;
   S.placeType = null;
+  // "Click the plan to place X" has been answered
+  if (armToastDismiss) { armToastDismiss(); armToastDismiss = null; }
   window.dispatchEvent(new CustomEvent("planner-place"));
   select({ kind: "item", ref: it });
   S.dirty3D = true;
@@ -1131,7 +1147,7 @@ export function addFurnItem(type) {
     var planEl = document.getElementById("plan");
     if (planEl) planEl.style.cursor = "crosshair";
     window.dispatchEvent(new CustomEvent("planner-place"));
-    flash(t("furn_place_armed", { name: flabel(type) }));
+    armToastDismiss = flash(t("furn_place_armed", { name: flabel(type) }));
     return;
   }
   var p = dropPoint(); // never NaN, even with the plan pane hidden
@@ -3255,8 +3271,6 @@ export function initUI() {
     else if (act === "dollhouse") {
       var cutOn = !(S.cutaway && S.cutaway.on);
       setCutaway({ on: cutOn });
-      if (cutOn) frameDollhouse();
-      else frameView();
     } else if (act === "togglePlanStyle") {
       setPlanStyle(planStyle() === "presentation" ? "technical" : "presentation");
     } else if (act === "drawing3d") {
@@ -4498,6 +4512,13 @@ export function initUI() {
     if (isWalk()) return; // walk/drive modes own the keyboard
     if (lavaModule && lavaModule.lavaActive()) return;
     var mod = e.ctrlKey || e.metaKey;
+    /* The cabinet designer covers the plan and has its own keys (arrows,
+       Delete, Ctrl+C/V, V/H/X, "?" for its own sheet). The plan's accelerators
+       must not act on the hidden plan behind it — W walked off into the plan,
+       F reframed it, Ctrl+D/A/G duplicated, selected and grouped plan items,
+       and "?" opened the planner's sheet over the designer's. Saving, opening
+       and exporting the project still go through. */
+    if (activeEditor() === "cab" && !(mod && !e.altKey && !e.shiftKey && /^[soe]$/i.test(e.key))) return;
     /* Constraint verbs: Ctrl/Cmd+Shift+letter, acting on whatever is selected.
        Authoring a relation used to mean selecting, then finding the right
        button in the inspector, then clicking the target — fine once, tiring

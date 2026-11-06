@@ -12,7 +12,7 @@ function extract(file, name, bindings = {}) {
 }
 function keyboard(E, extra = {}) {
   return extract('modeler', 'onKey', {
-    E, root:null, document:{activeElement:null}, modelerDecisionOpen:()=>false,
+    E, root:null, document:{activeElement:null}, modelerDecisionOpen:()=>false, reportOpen:()=>false,
     handleSelectionFilterChord:()=>false, dynKey:()=>false, dynHasEntry:()=>false,
     KEY_TOOL, KEY_VIEW, isSketchObject:()=>false, isCanonicalAuthoring:()=>false, ...extra,
   });
@@ -42,6 +42,22 @@ test('Delete still removes a selected document body', () => {
 test('B selects Box while P selects Paint', () => {
   const tools=[]; const key=keyboard(editor(),{setTool:t=>tools.push(t)});
   key({key:'b'}); key({key:'p'}); assert.deepEqual(tools,['rect','paint']);
+});
+test('an open report blocks the Box shortcut until Escape closes it', () => {
+  const tools = [];
+  let open = true, prevented = false;
+  const key = keyboard(editor(), {
+    reportOpen: () => open,
+    closeReport: () => { open = false; },
+    setTool: tool => tools.push(tool),
+  });
+  key({key:'b'});
+  assert.deepEqual(tools, []);
+  key({key:'Escape', preventDefault:() => { prevented = true; }});
+  assert.equal(prevented, true);
+  assert.equal(open, false);
+  key({key:'b'});
+  assert.deepEqual(tools, ['rect']);
 });
 test('drawing letter shortcuts ignore modifiers', () => {
   const selected=[];
@@ -99,6 +115,16 @@ test('exact meshes smooth supplied facet normals while preserving sharp corners'
   assert.notDeepEqual(mesh.geometry.attributes.normal.array,raw.attributes.normal.array);
   const box=new THREE.BoxGeometry().toNonIndexed(); box.computeVertexNormals(); const before=box.attributes.normal.array.slice();
   smooth(box); assert.ok(box.attributes.normal.array.every((n,i)=>Math.abs(n-before[i])<1e-6));
+});
+
+test('the exact mesh renders the same indexed triangles used by host drawings', () => {
+  const build=extract('modeler_mesh_geometry','buildExactMesh',{
+    THREE,smoothTessellationNormals:g=>g,fin:Number.isFinite,hexNum:()=>0xffffff,
+  });
+  const meshData={positions:[0,0,0,11.43,0,0,11.43,2,0,0,2,0],indices:[0,1,2,0,2,3]};
+  const {geometry}=build(new THREE.Group(),{meshData});
+  assert.deepEqual(Array.from(geometry.index.array),meshData.indices);
+  assert.equal(geometry.attributes.position.getX(1),Math.fround(11.43));
 });
 
 const partBoundsForTest=extract('modeler_part_geometry','basePartBounds',{isKernelBody:()=>false,framePoint});

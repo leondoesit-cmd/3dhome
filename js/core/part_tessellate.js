@@ -263,7 +263,8 @@ function revolveTriangles(part, steps = 48) {
   if(polygonArea(profile)<0)profile.reverse();
   const {start,span,end}=revolveInterval(part),out=[];
   const at=(p,a)=>revolvePoint(part,p,a);
-  const triangle=(a,b,c)=>part.axis==="x"||part.axis==="z"?pushTriangle(out,a,c,b):pushTriangle(out,a,b,c);
+  const flip=part.axisBasis ? profile.some(p=>p.u < -1e-9) : part.axis==="x"||part.axis==="z";
+  const triangle=(a,b,c)=>flip?pushTriangle(out,a,c,b):pushTriangle(out,a,b,c);
   for(let step=0;step<steps;step++){
     const a0=start+span*step/steps,a1=start+span*(step+1)/steps;
     for(let i=0;i<profile.length;i++){

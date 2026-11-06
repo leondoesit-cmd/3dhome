@@ -69,7 +69,9 @@ test('assembled cache prefixes equal full canonical serialization of every reach
   const options={parameterOverrides:{depth:4}};
   const keys=cadWorkerGeometryKeys(document,document.features,options);
   for(const [index,feature] of document.features.entries()) {
-    const features=document.features.slice(0,index+1).map(({id,type,params,inputs,references,suppressed})=>({id,type,params,inputs,references,suppressed}));
+    const features=document.features.slice(0,index+1).map(({id,type,params,inputs,references,suppressed})=>({
+      id,type,params,inputs,references,suppressed,kernelRevision:nativeOperationRevisions[type],
+    }));
     const expected=stableStringify({features,sketches:[stock],references:document.references,referenceGeometry:document.referenceGeometry,
       localFrame:document.localFrame,attachments:document.attachments,parameters:document.parameters,variables:document.variables,parameterOverrides:options.parameterOverrides});
     assert.equal(keys.get(feature.id),expected);
@@ -97,7 +99,8 @@ test('prefix construction serializes each feature payload once without changing 
 test('native operation revisions invalidate changed algorithms only from their feature onward',()=>{
  const features=[{id:'shell',type:'shell',params:{}},{id:'blend',type:'fillet',inputs:['shell'],params:{radius:.6}},{id:'web',type:'rib',inputs:['blend'],params:{draftAngle:1}}];
  const keys=cadWorkerGeometryKeys({},features);
- assert.equal(keys.get('shell').includes('kernelRevision'),false);
+ assert.equal(JSON.parse(keys.get('shell')).features.at(-1).kernelRevision,nativeOperationRevisions.shell);
+ assert.ok(keys.get('blend').includes(nativeOperationRevisions.shell));
  assert.ok(keys.get('blend').includes('supported-corner-repair-3'));
  assert.ok(keys.get('web').includes('supported-corner-repair-3'));
  // a rib algorithm bump (parallel-draft-1 -> parallel-section-delta-2) expires its own key

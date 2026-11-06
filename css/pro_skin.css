@@ -788,13 +788,14 @@ body.pro-skin .pr-editor-ribbon .pr-glabel { height: 16px; margin-top: 2px; line
 body.pro-skin .pr-editor-ribbon .pr-every-ed { display: none !important; }
 /* the bar's ground is a band of its own (not the status line's box), so the
    bar and the status line sit side by side without one covering the other */
+body.pro-skin:not(.compact-nav) #modeler:is(.md-is3d,.md-split):not(.md-model-sketching) .md-3dhost { bottom: 46px; }
 body.pro-skin #modeler .md-mid::after {
   content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 46px; z-index: 59; pointer-events: none;
   background: var(--pro-surface); border-top: 1px solid var(--border-color); box-sizing: border-box;
 }
 body.pro-skin:not(.compact-nav) #modeler.md-isdrawing { --md-drawing-feedback-footer: 46px; }
 body.pro-skin #modeler .md-mid > .md-status {
-  height: 46px; box-sizing: border-box; flex-wrap: nowrap; overflow: hidden; z-index: 60;
+  height: 46px; box-sizing: border-box; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; z-index: 60;
   inset-inline-start: calc(min(500px, 46%) + 16px); padding: 0 14px 0 4px; background: transparent;
 }
 body.pro-skin #modeler .md-mid > .ps-cmdbar {
@@ -854,6 +855,7 @@ body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSa
 body.pro-skin #modeler .md-mid { container-type: inline-size; container-name: mdmid; }
 @container mdmid (max-width: 760px) {
   body.pro-skin:not(.compact-nav) #modeler.md-isdrawing :is(#mdCanvas, #mdRailBottom) { --md-drawing-feedback-footer: 72px; }
+  body.pro-skin:not(.compact-nav) #modeler:is(.md-is3d,.md-split):not(.md-model-sketching) .md-3dhost { bottom: 72px; }
   body.pro-skin #modeler .md-mid::after { height: 72px; }
   body.pro-skin #modeler .md-mid > .md-status { inset-inline-start: 0; height: 30px; padding: 0 12px; }
   body.pro-skin #modeler .md-mid > .ps-cmdbar { bottom: 31px; width: calc(100% - 16px); }
@@ -1168,7 +1170,7 @@ body.pro-skin #cabdes .cb-context-bar > .cb-preview-group { order: -1; }
 body.pro-skin #cabdes .cb-size-group .cb-scope-note select { width: auto !important; min-width: 118px; padding-inline: 8px 24px; }
 /* one line at a desktop width: the scope's caption becomes the select's own
    tooltip, the four preview stops show their marks only (each keeps its title) */
-body.pro-skin #cabdes .cb-context-bar .cb-scope-note { font-size: 0 !important; gap: 0; }
+body.pro-skin #cabdes .cb-context-bar .cb-scope-note { font-size: 0 !important; gap: 0; max-width: none; }
 body.pro-skin #cabdes .cb-context-bar .cb-scope-note select { font-size: 12px; }
 body.pro-skin #cabdes .cb-context-bar .cb-chip-stage {
   display: inline-block; width: 30px; padding: 0 0 0 7px !important; overflow: hidden; white-space: nowrap; text-align: start; font-size: 13px !important; line-height: 26px;

@@ -101,6 +101,7 @@ export const RIBBON_BUTTONS = {
     { id: "srect", textKey: "tool_srect", fallback: "Rectangle", icon: "srect" },
     { id: "centerrectangle", textKey: "centerRectangle", fallback: "Center rectangle", icon: "centerrectangle" },
     { id: "faceboundary", textKey: "faceBoundary", fallback: "Copy face boundary", icon: "faceboundary" },
+    { id: "convertentities", textKey: "convertEntities", fallback: "Convert Entities", icon: "convertentities" },
     { id: "scirc", textKey: "tool_scirc", fallback: "Circle", icon: "scirc" },
     { id: "dimensionedcircle", textKey: "dimensionedCircle", fallback: "Dimensioned circle", icon: "scirc" },
     { id: "sarc", textKey: "tool_sarc", fallback: "Arc", icon: "sarc" },

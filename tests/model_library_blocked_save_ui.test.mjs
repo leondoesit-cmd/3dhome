@@ -9,7 +9,7 @@ test('actual Save handler releases busy/pending state after rejected storage and
  const handler=source.slice(source.indexOf('function saveCurrentDocument()'),source.indexOf('function syncViewButtons()'));
  const doc={},messages=[],statuses=[],attributes=new Map(),button={dataset:{},removeAttribute:key=>attributes.delete(key)};
  let attempts=0;
- const ctx={E:{docType:'part',def:doc},motionPlaybackCancel:null,documentSaveTasks:new WeakMap(),
+ const ctx={E:{docType:'part',def:doc},motionPlaybackCancel:null,documentSaveTasks:new WeakMap(),partHistoryMarker:{},
    saveProgress:key=>{attributes.set('aria-busy','true');button.dataset.savePhase=key;},
    saveModel:()=>{attempts++;return Promise.reject(new Error('Model library upgrade is blocked by another open tab'));},
    root:{querySelector:()=>button},report:(_,__,message)=>messages.push(message),t:key=>key,

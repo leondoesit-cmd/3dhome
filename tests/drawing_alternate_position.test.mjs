@@ -1,3 +1,4 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -74,7 +75,9 @@ test('normalized actual controller applies/edits/removes only presentation metad
 });
 
 test('actual assembly drawing mesh identities distinguish repeated nested occurrences and match standalone export',()=>{
-  const source=modelerSource(),start=source.indexOf('function drawingBodies()'),end=source.indexOf('\nfunction ',start+1),code=source.slice(start,end);
+  const source=modelerSource();
+  const module=fs.readFileSync(new URL('../js/modeler/drawing_sheet.js',import.meta.url),'utf8');
+  const code=sourceFunctionText(module,'drawingBodies');
   const root={userData:{}},top={userData:{cadComponent:10},parent:root},nested={userData:{cadSubComponent:20},parent:top};
   const mesh=path=>({isMesh:true,userData:{cadPart:'arm'},parent:path,matrixWorld:{elements:[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]}});
   const objects=[mesh(nested),mesh({userData:{cadComponent:11},parent:root})];

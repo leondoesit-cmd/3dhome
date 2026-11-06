@@ -110,6 +110,14 @@ dialog.pro-dialog {
   box-shadow: 0 24px 60px rgba(16, 21, 34, 0.24), 0 0 0 1px var(--border-color);
 }
 dialog.pro-dialog::backdrop { background: rgba(16, 21, 34, 0.32); }
+#mdDesignTable { width: fit-content; max-width: 94vw; }
+#mdDesignTable .md-table-scroll { overflow: auto; max-height: 52vh; }
+#mdDesignTable table { border-collapse: separate; border-spacing: 0; font-size: 13px; }
+#mdDesignTable :is(td, th) { text-align: start; padding: 5px 8px; border-bottom: 1px solid var(--border-color); }
+#mdDesignTable th { position: sticky; background: var(--pro-surface, var(--bg-panel)); }
+#mdDesignTable thead th { top: 0; z-index: 1; }
+#mdDesignTable tbody th { inset-inline-start: 0; }
+#mdDesignTable input { width: 10em; }
 dialog.pro-dialog h2 { margin: 0 0 8px; font-size: 17px; font-weight: 700; }
 dialog.pro-dialog label { font-size: 13px; color: var(--text-muted); }
 dialog.pro-dialog :is(input:not([type="checkbox"]):not([type="radio"]), select) {

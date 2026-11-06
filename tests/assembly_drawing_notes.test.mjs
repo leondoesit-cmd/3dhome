@@ -66,7 +66,7 @@ test('assembly drawing settings focus and persist multiline notes through the ac
 test('component BOM fields update occurrence properties without touching the source geometry',()=>{
   const component={modelKey:'disc',def:{customProperties:{Description:'Old long source description'},parts:[{kind:'box'}]}},host=element('host');
   const original=JSON.stringify(component.def);let undo=0,refresh=0;
-  const E={mode:'3d',sheetToken:7,sheet:{invalidate(){refresh++;}}};let dirty=0;
+  const E={mode:'3d',sheetToken:7,sheet:{invalidateLayout(){refresh++;}}};let dirty=0;
   const fn=new Function('el','documentDescription','assemblyPartNumber','pushUndo','setDocumentProperty','E','syncDirty','drawSketch','refreshSelection',sourceFunctionText(source,'assemblyBomProperties')+';return assemblyBomProperties;')(el,documentDescription,assemblyPartNumber,()=>undo++,setDocumentProperty,E,()=>dirty++,()=>{throw Error('Metadata must not redraw geometry in3D');},()=>{throw Error('Metadata must not rebuild the inspector');});
   fn(host,component);
   const inputs=host.children.flatMap(row=>row.children).filter(child=>child.tag==='input');

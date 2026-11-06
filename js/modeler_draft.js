@@ -41,12 +41,16 @@ export function serializeModelerDraft(payload, now) {
     docType: payload.docType === "assembly" ? "assembly" : "part",
     def: payload.def || null,
     assembly: payload.assembly || null,
+    // During component editing def is the working occurrence. The parked
+    // standalone Part must also survive a crash or a reload.
+    previousDef: payload.previousDef || null,
+    dirty: payload.dirty,
     // Keep the exact record that this edit started from. On crash restore the
     // save must compare against that record, not against the edited draft.
     // A JSON string keeps its topology cache intact while the authored def's
     // regenerable cache is omitted by the replacer below.
-    libraryBaselineJson: payload.libraryBaseline ? JSON.stringify(payload.libraryBaseline) : null,
-    assemblyBaselineJson: payload.assemblyBaseline ? JSON.stringify(payload.assemblyBaseline) : null,
+    libraryBaselineJson: payload.libraryBaseline ? JSON.stringify(payload.libraryBaseline) : payload.libraryBaselineJson || null,
+    assemblyBaselineJson: payload.assemblyBaseline ? JSON.stringify(payload.assemblyBaseline) : payload.assemblyBaselineJson || null,
   }, function(key,value) {
     // This verified cache is derived from the authored history, and can dwarf
     // the editable document. Reopening regenerates it before exact operations.

@@ -1,28 +1,37 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {sourceFunctionText} from './helpers/source_function.mjs';
 
 const source=modelerSource();
-const close=source.slice(source.indexOf('function closeEvalCard() {'),source.indexOf('function evalRow('));
 
-test('opening a different model hides its predecessor evaluation before replacing the definition',()=>{
+test('opening a different model hides its predecessor evaluation before replacing the definition',async()=>{
   let ended=0;
-  const card={hidden:false}, E={evalCard:'mass'};
-  const context={E,motionPlaybackCancel:null,root:{querySelector:()=>card},endMeasure(){ended++;},cancelExactModelRebuild(){},dismissModelerDecision(){}};
-  vm.createContext(context); vm.runInContext(close,context);
-  const start=source.indexOf('export function openModeler(editKey, def, srcItem) {');
-  const stop=source.indexOf('// Whether this call REPLACES',start);
-  const prefix=source.slice(start,stop).replace('export function','function')+'\n}';
-  vm.runInContext(prefix,context);
-  vm.runInContext('openModeler()',context);
-  assert.equal(card.hidden,true);
-  assert.equal(E.evalCard,null);
-  assert.equal(ended,0);
+  const card={hidden:false},previous={},E={open:true,lang:'en',evalCard:'mass'};
+  let accepted=false,replacements=0;
+  // Stop at the actual assignment: the rest of Open boots the GPU viewport.
+  const replacing=Error('replacing document');
+  Object.defineProperty(E,'def',{get:()=>previous,set(){
+    assert.equal(card.hidden,true,'the old result is hidden before replacement');
+    assert.equal(E.evalCard,null);replacements++;throw replacing;
+  }});
+  const root={style:{},classList:{remove(){}},querySelector:()=>card,querySelectorAll:()=>[]};
+  const context={E,root,motionPlaybackCancel:null,endMeasure(){ended++;},
+    hasResidentEdits:()=>true,confirmDiscardDocument:async()=>accepted,
+    inspectorDirty:{},partHistoryMarker:{},modelerReturnFocus:null,document:{activeElement:null,body:{}},
+    getLang:()=> 'en',setTimeout(){},FURN:{},S:{idc:1},nextDocumentNumericId:()=>1,ensureParametricDocument:doc=>doc,
+    cancelExactModelRebuild(){},dismissModelerDecision(){},syncModelerChrome(){},releaseExactRun(){}};
+  vm.createContext(context);
+  vm.runInContext(sourceFunctionText(source,'closeEvalCard')+'\n'+sourceFunctionText(source,'openModeler'),context);
+  await context.openModeler(null,{},null);
+  assert.equal(card.hidden,false,'declining Open keeps the current result visible');assert.equal(replacements,0);
+  accepted=true;
+  await assert.rejects(context.openModeler(null,{},null),error=>error===replacing);
+  assert.equal(replacements,1);assert.equal(ended,0);
   E.evalCard='measure';card.hidden=false;
-  vm.runInContext('openModeler()',context);
-  assert.equal(ended,1,'active measurement cannot keep writing into the new document');
+  await assert.rejects(context.openModeler(null,{},null),error=>error===replacing);
+  assert.equal(replacements,2);assert.equal(ended,1,'active measurement cannot keep writing into the new document');
 });
 
 test('blank, bundle and document-type replacements also invalidate old evaluation output',()=>{

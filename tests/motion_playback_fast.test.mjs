@@ -392,6 +392,7 @@ import {createMotionPlayback} from '../js/core/motion_playback.js';
 import {createMotionPlaybackExecutor} from '../js/core/motion_playback_executor.js';
 import {evaluateMotionStudy} from '../js/cad_motion_study.js';
 import {Worker} from 'node:worker_threads';
+import {captureAssemblySolverState,restoreAssemblySolverState} from '../js/core/assembly_solver_state.js';
 
 const paths=['../js/cad_motion_study.js','../js/core/motion_playback.js','../js/core/motion_playback_executor.js','../js/motion_playback_worker.js'];
 const oldSources=[oldSource0,oldSource1,oldSource2,oldSource3];
@@ -410,7 +411,7 @@ async function implementation(old){
   const evaluator=await moduleSource(sources[0],paths[0],true);
   const controller=await moduleSource(sources[1],paths[1]);
   const executor=await moduleSource(sources[2],paths[2]);
-  return {evaluate:evaluator.evaluateMotionStudy,create:controller.createMotionPlayback,executor:executor.createMotionPlaybackExecutor,worker:sources[3].replace(/^import[^\n]*\n/,'')};
+  return {evaluate:evaluator.evaluateMotionStudy,create:controller.createMotionPlayback,executor:executor.createMotionPlaybackExecutor,worker:sources[3].replace(/^import[^\n]*\n/gm,'')};
 }
 function fixtures(){
   const welder=JSON.parse(readFileSync(new URL('./fixtures/welder_arm_23_mate_motion.json',import.meta.url)));
@@ -433,16 +434,52 @@ function mockExecutor(impl,assembly,messages=[]){
   let worker;
   return impl.executor(assembly,{createWorker:()=>{
     const scope={postMessage:message=>queueMicrotask(()=>worker.onmessage({data:structuredClone(message)}))};
-    new Function('self','evaluateMotionStudy',impl.worker)(scope,impl.evaluate);
+    new Function('self','evaluateMotionStudy','captureAssemblySolverState','restoreAssemblySolverState',impl.worker)(
+      scope,impl.evaluate,captureAssemblySolverState,restoreAssemblySolverState);
     worker={postMessage:message=>{messages.push(message);queueMicrotask(()=>scope.onmessage({data:structuredClone(message)}));},terminate(){}};
     return worker;
   }});
 }
-function instrument(){
+function cpuMilliseconds(start){
+  const {user,system}=process.threadCpuUsage(start);
+  return (user+system)/1000;
+}
+function instrument(copies){
   const clone=globalThis.structuredClone,stringify=JSON.stringify;
-  globalThis.structuredClone=(...args)=>{const start=performance.now();try{return clone(...args);}finally{if(!metric.inSolver)metric.clone+=performance.now()-start;}};
-  JSON.stringify=(...args)=>{const start=performance.now();try{return stringify(...args);}finally{if(!metric.inSolver)metric.json+=performance.now()-start;}};
+  const wrap=(copy,key)=>(...args)=>{
+    const start=performance.now();
+    try{return copy(...args);}finally{if(!metric.inSolver){
+      metric[key]+=performance.now()-start;
+      // Freeze the actual inputs before subsequent frames mutate them. Recording
+      // is outside the copy profile and is subtracted from the frame totals.
+      const recordCpu=process.threadCpuUsage(),recordWall=performance.now();
+      copies.push({copy,args:clone(args)});
+      metric.recordWall+=performance.now()-recordWall;metric.recordCpu+=cpuMilliseconds(recordCpu);
+    }}
+  };
+  globalThis.structuredClone=wrap(clone,'clone');
+  JSON.stringify=wrap(stringify,'json');
   return ()=>{globalThis.structuredClone=clone;JSON.stringify=stringify;};
+}
+function replayCopies(copies){for(const {copy,args} of copies)copy(...args);}
+function copyCpuSample(result){
+  const start=process.threadCpuUsage();let repeats=0,elapsed;
+  // Windows CPU counters advance in ~16 ms ticks. Time whole recorded frame
+  // sequences for at least 250 ms of CPU, never individual sub-ms copy calls.
+  do{replayCopies(result.copies);repeats++;elapsed=cpuMilliseconds(start);}while(elapsed<250);
+  return elapsed/(repeats*result.frames.length);
+}
+function compareCopyCpu(baseline,optimized){
+  const samples={before:[],after:[]};
+  replayCopies(baseline.copies);replayCopies(optimized.copies);
+  // Alternate order and take medians to reduce warmup, GC and clock-tick noise.
+  for(let round=0;round<5;round++){
+    const pair=[['before',baseline],['after',optimized]];
+    if(round%2)pair.reverse();
+    for(const [name,result] of pair)samples[name].push(copyCpuSample(result));
+  }
+  const median=values=>[...values].sort((a,b)=>a-b)[2];
+  return {before:median(samples.before),after:median(samples.after),samples};
 }
 async function run(impl,fixture,workerPath=true){
   const assembly=structuredClone(fixture.assembly),study=assembly.motionStudies.at(-1),messages=[];
@@ -451,13 +488,14 @@ async function run(impl,fixture,workerPath=true){
   await new Promise(resolve=>setImmediate(resolve));
   const playback=impl.create(assembly,study.id,{evaluate:executor?executor.evaluate:impl.evaluate,requestFrame:()=>1,cancelFrame(){}});
   playback.setDuration(fixture.end);await playback.play();
-  const frames=[],times=[],totals={total:0,solver:0,clone:0,json:0,other:0};
+  const frames=[],times=[],copies=[],totals={total:0,cpu:0,solver:0,clone:0,json:0,other:0};
   const step=motionPlaybackStepSeconds(study);
   for(let time=0;;time=Math.min(fixture.end,time+step)){
-    Object.assign(metric,{solver:0,clone:0,json:0});
-    const undo=instrument(),start=performance.now();let ok;
+    Object.assign(metric,{solver:0,clone:0,json:0,recordWall:0,recordCpu:0});
+    const undo=instrument(copies),start=performance.now(),startCpu=process.threadCpuUsage();let ok;
     try{ok=await playback.seek(time);}finally{undo();}
-    const total=performance.now()-start;
+    const total=performance.now()-start-metric.recordWall;
+    totals.cpu+=cpuMilliseconds(startCpu)-metric.recordCpu;
     assert.equal(ok,true,`${fixture.name} at ${time}`);
     totals.total+=total;for(const key of ['solver','clone','json'])totals[key]+=metric[key];
     frames.push(structuredClone({poses:assembly.components.map(c=>c.transform),studies:assembly.motionStudies,mates:assembly.topologyMates}));times.push(time);
@@ -466,7 +504,7 @@ async function run(impl,fixture,workerPath=true){
   totals.other=totals.total-totals.solver-totals.clone-totals.json;
   for(const key of Object.keys(totals))totals[key]/=frames.length;
   playback.cancel();executor?.dispose();
-  return {frames,times,totals,messages};
+  return {frames,times,totals,messages,copies};
 }
 test('all playback frames match the frozen implementation exactly; report per-frame profile',async t=>{
   const before=await implementation(true),after=await implementation(false);
@@ -476,8 +514,10 @@ test('all playback frames match the frozen implementation exactly; report per-fr
     assert.deepEqual(optimized.times,baseline.times);
     assert.equal(optimized.messages.filter(message=>message.studies).length,1,'owned worker receives immutable graph once');
     for(const [name,result] of [['before',baseline],['after',optimized]])t.diagnostic(`${fixture.name} ${name}: ${result.frames.length} frames; ms/frame ${JSON.stringify(result.totals)}`);
-    assert.ok(optimized.totals.total<baseline.totals.total*2+2,'loose regression guard allows JIT and host scheduling noise');
-    assert.ok(optimized.totals.clone+optimized.totals.json<(baseline.totals.clone+baseline.totals.json)*.8+.5,'copy cost falls with generous timing slack');
+    assert.ok(optimized.totals.cpu<baseline.totals.cpu*2+2,`${fixture.name}: total CPU cost stays within the regression guard`);
+    const copyCpu=compareCopyCpu(baseline,optimized);
+    t.diagnostic(`${fixture.name} copy CPU ms/frame (median of 5 batches >=250 ms CPU): ${JSON.stringify(copyCpu)}`);
+    assert.ok(copyCpu.after<copyCpu.before*.8+.5,`${fixture.name}: copy cost falls with generous timing slack; CPU ${copyCpu.after} < ${copyCpu.before*.8+.5} ms/frame`);
   }
 });
 
