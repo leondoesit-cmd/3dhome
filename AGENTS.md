@@ -8,10 +8,20 @@ ModelForge (repo `3dhome`) is a **local-first, browser-based parametric CAD / ho
 ### Run / test / lint (standard commands; see `package.json`)
 - Run the app: `npm start` → serves the app + relay on `http://localhost:8765` (port overridable: `node server/relay.mjs <port>`). Open that URL in a real browser.
 - Tests: `npm test` → `node --test --test-timeout=600000 tests/*.test.mjs uikit/tests/*.test.mjs` (pure-Node unit/integration tests; 11–19 min locally). The 10-minute per-test timeout turns a stuck CAD-kernel run into a failure instead of a stuck run. `planchard_housing_shell` is the genuinely slow one: its custom exact shell runs for several minutes on its own, so it can time out when parallel files starve it of CPU.
-- Gates (run all three before assuming a file-split or export change worked): `npm run check`
+- Gates (run all four before assuming a change worked; CI runs them too): `npm run check`
   - `node tools/module_check.mjs` — free-identifier walk of `js/`, `server/`, and `tools/` (including `js/core` and `js/physics`). Reports names a file uses but never declares, imports, or gets from a global. Exit 0 on a clean tree.
   - `node tools/link_check.mjs` — follows the `index.html` module graph and checks that every named import exists as an export of the target. This is the silent-boot failure (`npm test` cannot load `js/main.js` because of bare `three` specifiers).
   - `node tools/comment_assertions.mjs` — re-tests every source-text regex assertion against the module with its comments blanked, so an assertion cannot pass on a comment alone (mark a line `prose-ok` when pinning the comment is the point).
+  - `node tools/size_check.mjs` — no source file over 1,500 lines, no function over 300; the older ones listed in `tools/size_baseline.json` are frozen at their size (small slack) and may only shrink. See "Keeping the structure".
+
+### Keeping the structure (every agent, every model)
+The code was cut into small pieces so an agent can read only what it needs. Keep it that way:
+- **Size limits are a gate, not a suggestion.** `npm run check` fails on a file over 1,500 lines or a function over 300, and on any growth of a frozen one. When you hit it, split; never raise a limit or add an entry to `tools/size_baseline.json`. After shrinking something, run `node tools/size_check.mjs --ratchet` so the freeze follows it down.
+- **New code goes where its area already lives**: the right `js/<name>/<area>.js` piece (each piece's header says what it holds; AGENTS.md "Where things live" is the map), or a new small piece next to them. Do not grow the core files (`js/modeler.js`, `js/view3d.js`, `js/interaction.js`, `js/ui/init_ui.js`, `js/plan2d.js`) with feature code, do not re-merge pieces, and do not start a new multi-thousand-line module.
+- **A new planner action** is a branch in its domain handler in `js/ui/*_actions.js` plus its name in that file's Set (`tests/action_routing.test.mjs`). A new stylesheet rule goes into the matching `css/styles_NN_*.css` area.
+- **Split with the codemods, never by retyping** (they keep code verbatim and refuse unsafe moves): `tools/split_module.mjs` (move functions to a piece, `--setters` for module state), `tools/extract_block.mjs` (cut a giant function), `tools/split_dispatch.mjs` (split an if/else dispatcher), `tools/prune_imports.mjs` (drop unused imports). Add new files to `survey-assets.json`.
+- **Do not shrink a module's public surface by accident**: `tests/export_surface.test.mjs` fails when a split module stops exporting a name; remove one only on purpose, with `tests/export_surface.json` in the same change.
+- **Tests read split sources by name** (`moduleSource`, `modelerSource`, `stylesSource`, `sourceFunctionText`; never slice to the next function).
 - Full local CI: `npm run ci` → check + test + `test:browser` (the browser suite needs a local Chrome, and a GPU for 3D). GitHub Actions (`.github/workflows/ci.yml`) runs `npm run check` and `npm test`'s file set only, on Node 24, without LFS; `planchard_housing_shell` runs there as its own job with a 45-minute timeout, since on a shared 2-core runner it cannot finish in 10. Node 24+ is required (`engines`): the vendored pdf.js uses `Promise.try`.
 
 ### Non-obvious gotchas

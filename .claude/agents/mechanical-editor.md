@@ -20,6 +20,9 @@ Rules:
   Read with `offset`/`limit`. Never read a file over ~1,500 lines whole.
 - Match the surrounding code's style and comment density; LF line endings.
 - A new file under `js/` must be listed in `survey-assets.json`.
+- Keep the structure (AGENTS.md "Keeping the structure"): `npm run check` fails on a file
+  over 1,500 lines, a function over 300, or growth of a frozen one. Never raise a limit or
+  edit `tools/size_baseline.json` upward; split instead, and say so in your report.
 - Never move code by retyping it: use the codemods (`tools/split_module.mjs`,
   `tools/extract_block.mjs`, `tools/split_dispatch.mjs`, `tools/prune_imports.mjs`; see
   AGENTS.md "Working cheaply"). They keep code verbatim and refuse unsafe moves.
