@@ -46,8 +46,12 @@ test("the CAD editor is not on the boot graph", async () => {
 });
 
 test("three.js is not statically imported outside game modules", async () => {
-  const files = (await readdir(new URL("../js", import.meta.url)))
-    .filter((f) => f.endsWith(".js") && !GAME.test(f) && f !== "three_lazy.js");
+  // recursive: split modules keep their pieces in js/<name>/; a game module's
+  // pieces are game code too, so GAME tests the first path segment. js/physics/
+  // is reached only through physics_facade.js's dynamic import("./physics.js").
+  const files = (await readdir(new URL("../js", import.meta.url), { recursive: true }))
+    .map((f) => f.replaceAll("\\", "/"))
+    .filter((f) => f.endsWith(".js") && !GAME.test(f.split("/")[0]) && !f.startsWith("physics/") && f !== "three_lazy.js");
   const offenders = [];
   for (const f of files) {
     const src = await read("js/" + f);
