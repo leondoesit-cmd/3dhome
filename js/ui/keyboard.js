@@ -15,136 +15,136 @@ import { flash, lavaModule, openModal } from "../ui.js";
 import { isWalk } from "../view3d.js";
 import { addWallRelation, solveWallCons } from "../wall_constraints.js";
 import { runAction } from "./run_action.js";
-import { uiLocals } from "./init_ui.js";
+import { uiLocals } from "./ui_locals.js";
 
 // lifted out of initUI()
-  function showShortcuts() {
-    if (uiLocals.shortcutsModal) {
-      uiLocals.shortcutsModal.close();
-      uiLocals.shortcutsModal = null;
-      return;
-    }
-    var SECTIONS = [
-      ["keys_sec_general", [
-        ["Ctrl+S", "k_save"],
-        ["Ctrl+O", "k_import"],
-        ["Ctrl+E", "k_export"],
-        ["?", "k_help"],
-      ]],
-      ["keys_sec_edit", [
-        ["Ctrl+Z", "k_undo"],
-        ["Ctrl+Y", "k_redo"],
-        ["Ctrl+D", "k_dup"],
-        ["Ctrl+A", "k_selall"],
-        ["Ctrl+G", "k_group"],
-        ["Ctrl+Shift+G", "k_ungroup"],
-        ["Del", "k_del"],
-        ["R", "k_rot"],
-        ["← ↑ → ↓", "k_nudge"],
-        ["Esc", "k_esc"],
-      ]],
-      ["keys_sec_tools", [["1 2 3 4 5", "k_tools"]]],
-      ["keys_sec_draft", [
-        ["0…9", "k_typedim"],
-        ["Tab", "k_typetab"],
-        ["Enter", "k_typeok"],
-        ["F3", "k_osnap"],
-        ["F8", "k_ortho"],
-        ["F9", "k_gridsnap"],
-      ]],
-      ["keys_sec_view", [
-        ["F", "k_frame"],
-        ["W", "k_walk"],
-        ["P", "k_photo"],
-        ["C", "k_rc"],
-      ]],
-      ["keys_sec_nav3d", [
-        ["Drag", "k_orbit"],
-        ["Shift+Drag / MMB / RMB", "k_pan"],
-        ["← ↑ → ↓ / WASD", "k_navmove"],
-        ["Q E", "k_navheight"],
-        ["+ −", "k_navzoom"],
-        ["Wheel", "k_navwheel"],
-        ["Double-click", "k_navfocus"],
-      ]],
-      ["keys_sec_con", [
-        ["Ctrl+Shift+P", "k_conParallel"],
-        ["Ctrl+Shift+O", "k_conPerp"],
-        ["Ctrl+Shift+C", "k_conCollinear"],
-        ["Ctrl+Shift+E", "k_conEqual"],
-        ["Ctrl+Shift+F", "k_conPin"],
-        ["Ctrl+Shift+J", "k_conJoin"],
-        ["Ctrl+Shift+M", "k_conSym"],
-        ["Alt+drag", "k_conOverride"],
-        ["Tab", "k_snapCycle"],
-        ["Shift+E/M/I/R/F", "k_snapOnly"],
-      ]],
-      ["keys_sec_walk", [
-        ["WASD", "k_move"],
-        ["V", "k_walkview"],
-        ["G", "k_hit"],
-      ]],
-      ["keys_sec_uikit", [
-        ["Ctrl+Alt+E", "k_uikit_toggle"],
-        ["Ctrl+Alt+U", "k_uikit_reset"],
-        ["Tab", "k_uikit_select"],
-        ["← ↑ → ↓", "k_uikit_move"],
-        ["Alt+Arrow", "k_uikit_moveout"],
-        ["Ctrl+G", "k_uikit_group"],
-        ["Ctrl+Shift+G", "k_uikit_ungroup"],
-        ["Del", "k_uikit_hide"],
-        ["Esc", "k_uikit_exit"],
-      ]],
-    ];
-    var m = openModal(t("keys_title"));
-    uiLocals.shortcutsModal = m;
-    m.onClose(function () {
-      uiLocals.shortcutsModal = null;
-    });
-    var wrap = document.createElement("div");
-    wrap.className = "keys-grid";
-    SECTIONS.forEach(function (sec) {
-      var h = document.createElement("div");
-      h.className = "keys-sec";
-      h.textContent = t(sec[0]);
-      wrap.appendChild(h);
-      sec[1].forEach(function (row) {
-        var r = document.createElement("div");
-        r.className = "keys-row";
-        var k = document.createElement("span");
-        k.className = "keys-combo";
-        // split on spaces so each key gets its own <kbd> cap
-        row[0].split(" ").forEach(function (part) {
-          var kb = document.createElement("kbd");
-          kb.textContent = uiLocals.macCap(part);
-          k.appendChild(kb);
-        });
-        var d = document.createElement("span");
-        d.className = "keys-desc";
-        d.textContent = t(row[1]);
-        r.appendChild(k);
-        r.appendChild(d);
-        wrap.appendChild(r);
-      });
-    });
-    m.body.appendChild(wrap);
-    var hint = document.createElement("div");
-    hint.className = "t keys-hint";
-    hint.textContent = t("keys_hint");
-    m.body.appendChild(hint);
-    var closeBtn = document.createElement("button");
-    closeBtn.className = "btn-accent";
-    closeBtn.textContent = t("keys_close");
-    closeBtn.addEventListener("click", function () {
-      m.close();
-      uiLocals.shortcutsModal = null;
-    });
-    m.actions.appendChild(closeBtn);
-    m.overlay.addEventListener("click", function (e) {
-      if (e.target === m.overlay) uiLocals.shortcutsModal = null;
-    });
-    closeBtn.focus();
+function showShortcuts() {
+  if (uiLocals.shortcutsModal) {
+    uiLocals.shortcutsModal.close();
+    uiLocals.shortcutsModal = null;
+    return;
   }
+  var SECTIONS = [
+    ["keys_sec_general", [
+      ["Ctrl+S", "k_save"],
+      ["Ctrl+O", "k_import"],
+      ["Ctrl+E", "k_export"],
+      ["?", "k_help"],
+    ]],
+    ["keys_sec_edit", [
+      ["Ctrl+Z", "k_undo"],
+      ["Ctrl+Y", "k_redo"],
+      ["Ctrl+D", "k_dup"],
+      ["Ctrl+A", "k_selall"],
+      ["Ctrl+G", "k_group"],
+      ["Ctrl+Shift+G", "k_ungroup"],
+      ["Del", "k_del"],
+      ["R", "k_rot"],
+      ["← ↑ → ↓", "k_nudge"],
+      ["Esc", "k_esc"],
+    ]],
+    ["keys_sec_tools", [["1 2 3 4 5", "k_tools"]]],
+    ["keys_sec_draft", [
+      ["0…9", "k_typedim"],
+      ["Tab", "k_typetab"],
+      ["Enter", "k_typeok"],
+      ["F3", "k_osnap"],
+      ["F8", "k_ortho"],
+      ["F9", "k_gridsnap"],
+    ]],
+    ["keys_sec_view", [
+      ["F", "k_frame"],
+      ["W", "k_walk"],
+      ["P", "k_photo"],
+      ["C", "k_rc"],
+    ]],
+    ["keys_sec_nav3d", [
+      ["Drag", "k_orbit"],
+      ["Shift+Drag / MMB / RMB", "k_pan"],
+      ["← ↑ → ↓ / WASD", "k_navmove"],
+      ["Q E", "k_navheight"],
+      ["+ −", "k_navzoom"],
+      ["Wheel", "k_navwheel"],
+      ["Double-click", "k_navfocus"],
+    ]],
+    ["keys_sec_con", [
+      ["Ctrl+Shift+P", "k_conParallel"],
+      ["Ctrl+Shift+O", "k_conPerp"],
+      ["Ctrl+Shift+C", "k_conCollinear"],
+      ["Ctrl+Shift+E", "k_conEqual"],
+      ["Ctrl+Shift+F", "k_conPin"],
+      ["Ctrl+Shift+J", "k_conJoin"],
+      ["Ctrl+Shift+M", "k_conSym"],
+      ["Alt+drag", "k_conOverride"],
+      ["Tab", "k_snapCycle"],
+      ["Shift+E/M/I/R/F", "k_snapOnly"],
+    ]],
+    ["keys_sec_walk", [
+      ["WASD", "k_move"],
+      ["V", "k_walkview"],
+      ["G", "k_hit"],
+    ]],
+    ["keys_sec_uikit", [
+      ["Ctrl+Alt+E", "k_uikit_toggle"],
+      ["Ctrl+Alt+U", "k_uikit_reset"],
+      ["Tab", "k_uikit_select"],
+      ["← ↑ → ↓", "k_uikit_move"],
+      ["Alt+Arrow", "k_uikit_moveout"],
+      ["Ctrl+G", "k_uikit_group"],
+      ["Ctrl+Shift+G", "k_uikit_ungroup"],
+      ["Del", "k_uikit_hide"],
+      ["Esc", "k_uikit_exit"],
+    ]],
+  ];
+  var m = openModal(t("keys_title"));
+  uiLocals.shortcutsModal = m;
+  m.onClose(function () {
+    uiLocals.shortcutsModal = null;
+  });
+  var wrap = document.createElement("div");
+  wrap.className = "keys-grid";
+  SECTIONS.forEach(function (sec) {
+    var h = document.createElement("div");
+    h.className = "keys-sec";
+    h.textContent = t(sec[0]);
+    wrap.appendChild(h);
+    sec[1].forEach(function (row) {
+      var r = document.createElement("div");
+      r.className = "keys-row";
+      var k = document.createElement("span");
+      k.className = "keys-combo";
+      // split on spaces so each key gets its own <kbd> cap
+      row[0].split(" ").forEach(function (part) {
+        var kb = document.createElement("kbd");
+        kb.textContent = uiLocals.macCap(part);
+        k.appendChild(kb);
+      });
+      var d = document.createElement("span");
+      d.className = "keys-desc";
+      d.textContent = t(row[1]);
+      r.appendChild(k);
+      r.appendChild(d);
+      wrap.appendChild(r);
+    });
+  });
+  m.body.appendChild(wrap);
+  var hint = document.createElement("div");
+  hint.className = "t keys-hint";
+  hint.textContent = t("keys_hint");
+  m.body.appendChild(hint);
+  var closeBtn = document.createElement("button");
+  closeBtn.className = "btn-accent";
+  closeBtn.textContent = t("keys_close");
+  closeBtn.addEventListener("click", function () {
+    m.close();
+    uiLocals.shortcutsModal = null;
+  });
+  m.actions.appendChild(closeBtn);
+  m.overlay.addEventListener("click", function (e) {
+    if (e.target === m.overlay) uiLocals.shortcutsModal = null;
+  });
+  closeBtn.focus();
+}
 
 // lifted out of initUI()
 function wireKeyboardShortcuts() {

@@ -77,9 +77,13 @@ test("a hinged door offers Flip swing and a sliding one does not", () => {
 test("the quarter turn ignores the 15/45/90 step control the phone cannot see", () => {
   assert.match(ui, /act === "rotSel90"/);
   assert.match(ui, /turnItem\(it, \(\(\(it\.rot \|\| 0\) \+ 90\) % 360 \+ 360\) % 360\)/);
-  const actions = sourceFunctionText(ui, "runAction");
+  // the rotSel90 branch alone; runAction dispatches it to runSelectionAction
+  const actions = sourceFunctionText(ui, "runSelectionAction");
+  const rotStart = actions.indexOf('act === "rotSel90"');
+  assert.ok(rotStart >= 0, "the rotSel90 branch is in runSelectionAction");
+  const rotEnd = actions.indexOf('act === "', rotStart + 1);
   assert.doesNotMatch(
-    actions.slice(actions.indexOf('act === "rotSel90"'), actions.indexOf('act === "flipSwing"')),
+    actions.slice(rotStart, rotEnd < 0 ? undefined : rotEnd),
     /rotStep\(\)/,
     "the one-tap rotate must not obey a step the user cannot see while pressing it",
   );

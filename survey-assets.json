@@ -763,6 +763,7 @@
     "/js/tutor/runtime.js",
     "/js/ui.js",
     "/js/ui/init_ui.js",
+    "/js/ui/ui_locals.js",
     "/js/ui/run_action.js",
     "/js/ui/keyboard.js",
     "/js/ui/wall_inputs.js",

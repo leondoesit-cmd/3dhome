@@ -106,7 +106,9 @@ test("flipping a symmetric assembly is refused rather than accepted as a no-op",
   assert.match(props, /btn\.disabled = symmetric/);
   assert.ok(panel.includes('id="w_reverseHint"'), "the panel says why it is disabled");
   // the action guards too — the button is not the only way to reach it
-  const actions = sourceFunctionText(ui, "runAction");
+  // runAction dispatches reverseWallLayers to runWallModifierAction
+  const actions = sourceFunctionText(ui, "runWallModifierAction");
+  assert.ok(actions.includes('act === "reverseWallLayers"'), "the branch is in runWallModifierAction");
   const guard = actions.slice(actions.indexOf('act === "reverseWallLayers"'));
   const bail = guard.indexOf("wallFlipSymmetric");
   assert.ok(bail !== -1 && bail < guard.indexOf("flipWall("), "refuse before flipping");

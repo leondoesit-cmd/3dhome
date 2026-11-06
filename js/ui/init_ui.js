@@ -72,13 +72,7 @@ import {
 } from "./mobile_chrome.js";
 import { runAction } from "./run_action.js";
 import { showShortcuts, wireKeyboardShortcuts } from "./keyboard.js";
-// for js/ui/run_action.js (live bindings: it sees every reassignment)
-export { uiLocals };
-
-const uiLocals = {
-  currentTexTarget: undefined, toggleToolNames: undefined, showShortcuts: undefined,
-  AL_ACTS: undefined, selectAllItems: undefined, shortcutsModal: undefined, macCap: undefined,
-};
+import { uiLocals } from "./ui_locals.js";
 
 export function initUI() {
   uiLocals.macCap = macCap;
