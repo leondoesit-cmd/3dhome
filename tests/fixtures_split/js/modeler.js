@@ -52,3 +52,25 @@ async function lazy() {
   const data = new URL("./assets/data.json", import.meta.url);
   return gallery(job, data, import("three"));
 }
+
+export { listed };
+
+function listed() {
+  return 1;
+}
+
+function evalUser() {
+  eval("counter++");
+}
+
+async function tpl() {
+  return import(`./state.js`);
+}
+
+function tplDyn(n) {
+  return import(`./mod_${n}.js`);
+}
+
+function plainWorkers() {
+  return [new Worker("./w.js"), new SharedWorker("./w.js")];
+}

@@ -389,23 +389,32 @@ function run(o, result) {
   const movedNames = new Set(selected.map((s) => s.fn.id.name));
 
   // Relative string paths inside the moved code - import("./x.js"), new URL("./x",
-  // import.meta.url), new Worker(...) - resolve against the file they live in, so
+  // import.meta.url), new URL(...) - resolve against the file they live in, so
   // they are rewritten for the new file's directory like the static imports.
   let rewrittenPaths = 0;
   const isImportMetaUrl = (n) => n && n.type === "MemberExpression" && !n.computed && n.object.type === "MetaProperty" && n.property.name === "url";
   for (const s of selected) {
     const edits = [];
     walkNodes(s.stmt, (n) => {
+      // Only import() and new URL(x, import.meta.url) resolve against the module. A plain
+      // string given to new Worker()/SharedWorker() resolves against the page, so it stays.
       let lit = null;
-      if (n.type === "ImportExpression" && n.source.type === "Literal") lit = n.source;
-      else if (n.type === "NewExpression" && n.callee.type === "Identifier" && n.arguments[0] && n.arguments[0].type === "Literal") {
-        if (n.callee.name === "URL" && isImportMetaUrl(n.arguments[1])) lit = n.arguments[0];
-        else if (n.callee.name === "Worker" || n.callee.name === "SharedWorker") lit = n.arguments[0];
-      }
-      if (!lit || typeof lit.value !== "string" || !isRelative(lit.value)) return;
-      const q = src0[lit.start];
-      const next = importPath(newAbs, path.resolve(areaRoot, lit.value), areaRoot);
-      if (next === lit.value) return;
+      if (n.type === "ImportExpression") lit = n.source;
+      else if (n.type === "NewExpression" && n.callee.type === "Identifier" && n.callee.name === "URL" && n.arguments[0] && isImportMetaUrl(n.arguments[1])) lit = n.arguments[0];
+      if (!lit) return;
+      let value, q;
+      if (lit.type === "Literal" && typeof lit.value === "string") { value = lit.value; q = src0[lit.start]; }
+      else if (lit.type === "TemplateLiteral") {
+        value = lit.quasis[0].value.cooked;
+        q = "`";
+        if (lit.expressions.length) {
+          if (isRelative(value)) throw new Abort(`${s.fn.id.name} (line ${lit.loc.start.line}): a relative module path built from a template with expressions cannot be relocated; move it by hand`);
+          return;
+        }
+      } else return;
+      if (!isRelative(value)) return;
+      const next = importPath(newAbs, path.resolve(areaRoot, value), areaRoot);
+      if (next === value) return;
       edits.push({ start: lit.start - s.chunk.chunkStart, end: lit.end - s.chunk.chunkStart, text: q + next + q });
     });
     if (edits.length) { s.chunk.text = applyEdits(s.chunk.text, edits); rewrittenPaths += edits.length; }
@@ -421,10 +430,16 @@ function run(o, result) {
     for (const id of assignedIdentifiers(s.stmt))
       if (freeStarts.has(id.start) && decls.has(id.name))
         offenders.push(`${s.fn.id.name} assigns ${id.name} (top-level ${decls.get(id.name)} of ${o.from}) at line ${id.loc.start.line}`);
+  // A direct eval sees the module's bindings, which a moved function no longer shares.
+  for (const s of selected)
+    walkNodes(s.stmt, (n) => {
+      if (n.type === "CallExpression" && n.callee.type === "Identifier" && n.callee.name === "eval" && freeStarts.has(n.callee.start))
+        offenders.push(`${s.fn.id.name} calls eval(...) directly at line ${n.loc.start.line}; it can reach the source's bindings, so keep it in place`);
+    });
   if (offenders.length)
     throw new Abort([
-      "GUARD: moved code assigns a binding declared at the top level of the source;",
-      "an imported binding is read-only, so this would throw at runtime. Offenders:",
+      "GUARD: moved code would break at runtime. An imported binding is read-only, so assigning a",
+      "top-level binding of the source throws, and a direct eval cannot see them. Offenders:",
       ...offenders.map((m) => "  " + m),
     ]);
 
@@ -453,9 +468,16 @@ function run(o, result) {
   // (acorn rejects a list naming a function that is gone, so no re-parse in between)
   const cuts = selected.map((s) => ({ s: s.chunk.chunkStart, e: s.chunk.removeEnd, collapse: true }));
   const removedFromLists = new Set();
+  const plainExported = new Set(); // moved names a plain export list keeps exporting
   let emptyLists = 0;
   for (const decl of ast.body) {
     if (decl.type !== "ExportNamedDeclaration" || decl.declaration || decl.source) continue;
+    // A plain `export { f };` (no "// for js/modeler/..." header) is the source's own
+    // public API: it stays, and f is imported back so the export still resolves.
+    if (!headerCommentOf(decl, comments, src0)) {
+      decl.specifiers.forEach((sp) => movedNames.has(sp.local.name) && plainExported.add(sp.local.name));
+      continue;
+    }
     const exportedName = (sp) => sp.exported.name ?? sp.exported.value;
     const aliased = decl.specifiers.filter((sp) => movedNames.has(sp.local.name) && exportedName(sp) !== sp.local.name);
     if (aliased.length) throw new Abort(`export list line ${decl.loc.start.line} exports moved ${aliased[0].local.name} under another name; edit by hand`);
@@ -472,11 +494,12 @@ function run(o, result) {
     }
   }
   const B = removeRanges(src0, cuts);
-  const pb = parse(B, o.from);
+  // acorn rejects an export list naming a function that is gone, so parse with a stub for each
+  const pb = parse(B + [...plainExported].map((n) => `\nfunction ${n}() {}`).join(""), o.from);
 
   // ---- what the remaining source still needs back
   const freeB = freeOccurrences(pb.ast.body);
-  const backNames = [...movedNames].filter((n) => freeB.has(n)).sort(byCodepoint);
+  const backNames = [...movedNames].filter((n) => freeB.has(n) || plainExported.has(n)).sort(byCodepoint);
   const freeBStarts = new Set();
   for (const occ of freeB.values()) occ.forEach((n) => freeBStarts.add(n.start));
   const remainingOffenders = assignedIdentifiers({ type: "Program", body: pb.ast.body })

@@ -25,7 +25,7 @@ function workspace() {
     dir, p, read,
     opts: (extra) => ({ from: p("js/modeler.js"), to: p("js/modeler/area.js"), repoRoot: dir, ...extra }),
     snapshot: () => Object.fromEntries(["js/modeler.js", "js/modeler/sibling.js", "js/modeler/sibling2.js"].map((f) => [f, read(f)])),
-    done: () => fs.rmSync(dir, { recursive: true, force: true }),
+    done: () => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 }),
   };
 }
 
@@ -317,5 +317,56 @@ test("relative paths inside moved code follow it to the new directory", () => {
     assert.ok(moved.includes('import("three")'), "a bare specifier is left alone");
     assert.ok(r.report.includes("relative paths rewritten inside moved code: 3"), r.report);
     assert.equal(checkFiles(["js/modeler.js", "js/modeler/area.js"].map(ws.p), ws.dir).total, 0);
+  } finally { ws.done(); }
+});
+
+test("a function the source exports through a plain export list stays exported", () => {
+  const ws = workspace();
+  try {
+    const r = splitModule(ws.opts({ names: "listed" }));
+    assert.equal(r.ok, true, r.report);
+    const src = ws.read("js/modeler.js");
+    assert.ok(exportLists(src).some((l) => l.length === 1 && l[0] === "listed"), "the plain list is untouched");
+    assert.ok(importsOf(src)["./modeler/area.js"].includes("listed"), "listed is imported back so the export resolves");
+    const moved = ws.read("js/modeler/area.js");
+    assert.deepEqual(exportLists(moved), [["listed"]], "and the new file exports it");
+    assert.equal(checkFiles(["js/modeler.js", "js/modeler/area.js"].map(ws.p), ws.dir).total, 0);
+  } finally { ws.done(); }
+});
+
+test("GUARD: a direct eval call keeps the function in place", () => {
+  const ws = workspace();
+  try {
+    const before = ws.snapshot();
+    const r = splitModule(ws.opts({ names: "scale,evalUser" }));
+    assert.equal(r.ok, false);
+    assert.ok(r.errors.join("\n").includes("evalUser calls eval"), r.errors.join("\n"));
+    assert.deepEqual(ws.snapshot(), before);
+    assert.equal(fs.existsSync(ws.p("js/modeler/area.js")), false);
+  } finally { ws.done(); }
+});
+
+test("template-literal module paths: plain ones are rewritten, ones with expressions abort", () => {
+  const ws = workspace();
+  try {
+    const before = ws.snapshot();
+    const bad = splitModule(ws.opts({ names: "tplDyn" }));
+    assert.equal(bad.ok, false);
+    assert.ok(bad.errors.join("\n").includes("template"), bad.errors.join("\n"));
+    assert.deepEqual(ws.snapshot(), before);
+    const r = splitModule(ws.opts({ names: "tpl" }));
+    assert.equal(r.ok, true, r.report);
+    assert.ok(ws.read("js/modeler/area.js").includes("import(`../state.js`)"));
+  } finally { ws.done(); }
+});
+
+test("plain Worker/SharedWorker strings resolve against the page and are left alone", () => {
+  const ws = workspace();
+  try {
+    const r = splitModule(ws.opts({ names: "plainWorkers" }));
+    assert.equal(r.ok, true, r.report);
+    const moved = ws.read("js/modeler/area.js");
+    assert.ok(moved.includes('new Worker("./w.js")') && moved.includes('new SharedWorker("./w.js")'));
+    assert.ok(!r.report.includes("relative paths rewritten"), r.report);
   } finally { ws.done(); }
 });

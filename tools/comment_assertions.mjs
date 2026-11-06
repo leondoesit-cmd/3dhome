@@ -32,12 +32,19 @@ const raw = new Map(), code = new Map();
    read it would silently drop out of this check. */
 const I18N = "js/i18n.js + js/i18n/*.js";
 const I18N_PARTS = ["js/i18n.js", "js/i18n/he.js", "js/i18n/en.js"];
+/* stylesSource() (tests/helpers/styles_source.mjs) is the planner stylesheet,
+   split into css/styles_NN_*.css, joined in index.html link order. */
+const STYLES = "css/styles_*.css";
 
 async function source(rel) {
   if (!raw.has(rel)) {
     if (rel === I18N) {
       const parts = await Promise.all(I18N_PARTS.map((p) => source(p)));
       raw.set(rel, parts.every(Boolean) ? parts.join("\n") : null);
+    } else if (rel === STYLES) {
+      const { stylesFiles } = await import("../tests/helpers/styles_source.mjs");
+      const parts = await Promise.all(stylesFiles().map((p) => source(p)));
+      raw.set(rel, parts.length && parts.every((p) => p != null) ? parts.join("") : null);
     } else {
       try { raw.set(rel, await readFile(ROOT + rel, "utf8")); } catch { raw.set(rel, null); }
     }
@@ -83,6 +90,8 @@ for (const file of files) {
     owner.set(m[1], m[2]);
   for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?readI18nSource\(/g))
     owner.set(m[1], I18N);
+  for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?stylesSource\(/g))
+    owner.set(m[1], STYLES);
   // a slice of a known source is still that source's text
   for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(\w+)\s*\.slice\(/g))
     if (owner.has(m[2])) owner.set(m[1], owner.get(m[2]));
