@@ -259,8 +259,18 @@ function main() {
   }
 
   const textCache = new Map();
+  const read = (file) => {
+    try { return fs.readFileSync(path.join(ROOT, file), "utf8"); } catch { return ""; }
+  };
+  // a test's text plus the tests/helpers/ modules it imports: a test that
+  // reaches js/track.js only through helpers/rc_track.mjs still names it
   const textOf = (file) => {
-    if (!textCache.has(file)) textCache.set(file, fs.readFileSync(path.join(ROOT, file), "utf8"));
+    if (!textCache.has(file)) {
+      const own = read(file);
+      const helpers = [...own.matchAll(/from\s+["']\.\/(helpers\/[\w.-]+\.mjs)["']/g)]
+        .map((m) => read(path.posix.join(path.posix.dirname(file), m[1])));
+      textCache.set(file, [own, ...helpers].join("\n"));
+    }
     return textCache.get(file);
   };
 
