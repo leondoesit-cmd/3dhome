@@ -17,7 +17,7 @@ test("plan framing refuses a zero-size viewport and recovers at a real size", ()
 });
 
 test("the first real canvas size repairs an invalid boot zoom", async () => {
-  const src = await read("js/plan2d.js");
+  const src = moduleSource("js/plan2d.js");
   assert.match(src, /if \(!fittingView && \(!\(S\.SC > 0\) \|\| !isFinite\(S\.SC\)\)\) fitView\(\)/);
   assert.match(src, /if \(!\(S\.CW > 0\) \|\| !\(S\.CH > 0\)\) return false/);
 });
@@ -67,7 +67,7 @@ test("confirmed localization and selected-hover contrast regressions stay fixed"
 
 test("wall options compact after drawing starts and cost actions remain sticky", async () => {
   const [interaction, ui, css, html] = await Promise.all([
-    moduleSource("js/interaction.js"), read("js/ui.js"), stylesSource(), read("index.html"),
+    moduleSource("js/interaction.js"), moduleSource("js/ui.js"), stylesSource(), read("index.html"),
   ]);
   assert.match(interaction, /CustomEvent\("planner-draw-start"\)/);
   assert.match(ui, /pal\.classList\.add\("auto-collapsed"\)/);

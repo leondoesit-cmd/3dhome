@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -206,7 +207,7 @@ test("backToWallRot ignores a wall the piece sits well past the end of", () => {
 /* The wiring: the rules above are worth nothing if the flag is dropped on save
    or the buttons are missing from the panel. */
 test("the hand-set flag survives a save and the panel offers 90°", async () => {
-  const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+  const ui = moduleSource("js/ui.js");
   assert.match(ui, /rotUser: it\.rotUser \? 1 : undefined/, "serializer whitelist");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   ["rotStep15", "rotStep45", "rotStep90", "faceAuto", "face-toggle"].forEach((hook) => {

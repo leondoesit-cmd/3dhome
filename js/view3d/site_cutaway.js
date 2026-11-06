@@ -7,12 +7,13 @@ import { box } from "../primitives.js";
 import { GLASS, HANDLE, MAT_PROPS, S, WALLC, WOOD, clamp } from "../state.js";
 import { getTexturePresetBumpUrl } from "../textures.js";
 import { THREE } from "../three_lazy.js";
+import { mepXray } from "../view3d/walk_mode.js";
 import { addWallFraming } from "../view3d/wall_build.js";
 import { classifyOpeningCut, clipTrianglesBelowY, cutHeightFor, topFaceTriangles } from "../wall_cut.js";
 import { normalizeWall, wallLayerBands, wallThickness } from "../wall_types.js";
 import {
-  CAP_COLORS, SHADOW_ONLY_LAYER, buildingShadowWalls, isSharedSurface,
-  mepXray, scene, structureRoot, stubBuildH, surfaceMaterial, walk,
+  CAP_COLORS, SHADOW_ONLY_LAYER, buildingShadowWalls, isSharedSurface, scene,
+  structureRoot, stubBuildH, surfaceMaterial, walk,
 } from "../view3d.js";
 
 function houseBounds() {

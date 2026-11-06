@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
@@ -389,7 +390,7 @@ test("miniature RC supports touch and analog gamepad driving", async () => {
 
 test("miniature RC samples the exact continuous rendered road surface", async () => {
   const [rc, track, helperSource] = await Promise.all([
-    readRC(), read("js/track.js"), read("js/road_surface.js"),
+    readRC(), moduleSource("js/track.js"), read("js/road_surface.js"),
   ]);
   const helper = await import(`data:text/javascript,${encodeURIComponent(helperSource)}`);
   const triA = {
@@ -453,7 +454,7 @@ test("miniature RC samples the exact continuous rendered road surface", async ()
 // measure the deck a truck would actually drive on.
 async function buildTestRoad(customAnchors) {
   const root = new URL("../", import.meta.url);
-  const src = (await read("js/track.js"))
+  const src = moduleSource("js/track.js")
     .replace('from "three"', `from "${new URL("vendor/three/three.module.js", root).href}"`)
     .replace('from "./state.js"', `from "${new URL("js/state.js", root).href}"`)
     .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`)
@@ -500,7 +501,7 @@ async function buildTestRoad(customAnchors) {
 // in the walls, round what it cannot climb, up a ramp onto what it can.
 async function buildHomeRoad(extra, customAnchors, extraEnv) {
   const root = new URL("../", import.meta.url);
-  const src = (await read("js/track.js"))
+  const src = moduleSource("js/track.js")
     .replace('from "three"', `from "${new URL("vendor/three/three.module.js", root).href}"`)
     .replace('from "./state.js"', `from "${new URL("js/state.js", root).href}"`)
     .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`)
@@ -771,7 +772,7 @@ test("the generated RC circuit holds a driveable radius and lays two lanes, not 
 });
 
 test("RC track safety keeps obstacle checks stable and respects the jump switch", async () => {
-  const [rc, track] = await Promise.all([readRC(), read("js/track.js")]);
+  const [rc, track] = await Promise.all([readRC(), moduleSource("js/track.js")]);
   // Checking one furniture item must not replace the requested flyover height
   // with a boolean for every item that follows it.
   assert.match(track, /highBlocked = r\.y0 < \(high \|\| 0\) \+ 7/);
@@ -931,7 +932,7 @@ test("the live RC track editor defers rebuilds and edits from both views", async
   assert.match(ed, /id="rcEdKey"/);
   assert.match(ed, /function noteUserEdit\(/);
   assert.match(ed, /if \(a\.surf === "road" \|\| a\.surf === "home"\) out\.surf = a\.surf/);
-  const trackSrc = await read("js/track.js");
+  const trackSrc = moduleSource("js/track.js");
   assert.match(trackSrc, /env\.followAnchors/);
   assert.match(trackSrc, /function applyUserSurf\(/);
   assert.match(trackSrc, /if \(attract === false\) return/);
@@ -1014,7 +1015,7 @@ test("the RC pass-by tool edits intent and keeps rule and points together", asyn
   assert.match(ed, /import \{ canRide, rideSpot \} from "\.\/track\.js"/);
   // ...and track.js exports exactly that, rather than the editor keeping its own
   // copy of the rule (which would drift the first time RIDE_MAX moved).
-  const track = await read("js/track.js");
+  const track = moduleSource("js/track.js");
   assert.match(track, /export function canRide\(r, tops\)/);
   assert.match(track, /export function rideSpot\(r, tops\)/);
 
@@ -1324,7 +1325,7 @@ test("a wedged truck is told about the rescue key", async () => {
 
 test("RC mode has a top-level keyboard shortcut like walk and photo", async () => {
   const [ui, html, i18n] = await Promise.all([
-    read("js/ui.js"), read("index.html"), readI18nSource(),
+    moduleSource("js/ui.js"), read("index.html"), readI18nSource(),
   ]);
   assert.match(ui, /e\.key === "c" \|\| e\.key === "C"[\s\S]*?runAction\("rc"\)/);
   assert.match(ui, /\["C", "k_rc"\]/);
@@ -1342,7 +1343,7 @@ test("waypoint checks survive an empty or rebuilt track", async () => {
 
 test("one step-height constant drives physics, road builder and editor", async () => {
   const [surface, track, rc, edState] = await Promise.all([
-    read("js/road_surface.js"), read("js/track.js"), readRC(), read("js/rc_editor_state.js"),
+    read("js/road_surface.js"), moduleSource("js/track.js"), readRC(), read("js/rc_editor_state.js"),
   ]);
   assert.match(surface, /export const STEP_UP = 2\.2;/);
   assert.match(track, /import \{ STEP_UP \} from "\.\/road_surface\.js";/);

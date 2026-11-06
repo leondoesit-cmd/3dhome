@@ -1,9 +1,10 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
+const game = moduleSource("js/zombies_game.js");
 const css = stylesSource();
 
 test("touch actions have seven distinct grid placements and readable labels", () => {

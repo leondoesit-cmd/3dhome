@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
@@ -14,7 +15,7 @@ import {
 } from "../js/dim_knob.js";
 
 const ui = await readFile(new URL("../js/ui_dim_knob.js", import.meta.url), "utf8");
-const props = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const props = moduleSource("js/ui.js");
 const main = await readFile(new URL("../js/main.js", import.meta.url), "utf8");
 const css = stylesSource();
 const i18n = await readI18nSource();

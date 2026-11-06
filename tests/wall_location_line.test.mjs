@@ -229,7 +229,7 @@ test("a centreline dimension and a curved wall cannot be hung on a face", () => 
 });
 
 test("the location line survives a save and a wall split", async () => {
-  const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+  const ui = moduleSource("js/ui.js");
   assert.match(ui, /loc: w\.loc === "face" \|\| w\.loc === "center" \? w\.loc : undefined/,
     "applyData's wall whitelist carries it");
   const interaction = moduleSource("js/interaction.js");

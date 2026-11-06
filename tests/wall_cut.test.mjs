@@ -69,7 +69,7 @@ test("cutaway: wired into the wall builder, saved with the scene, strings in bot
   assert.match(v, /H = Math\.min\(Hfull, cutH\(\)\)/);
   assert.match(v, /mesh\.userData\.role = "wallCap"/);
   assert.match(v, /clipBelow\(group, Hc\);\r?\n\s+addWallCaps\(group, Hc\);/);
-  const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+  const ui = moduleSource("js/ui.js");
   assert.match(ui, /\n\s+cutaway: S\.cutaway,/);
   assert.match(ui, /S\.cutaway = normalizeCutaway\(d\.cutaway\);/);
   for (const k of ["cutaway", "cutaway_t", "cutaway_height", "cutaway_cap_white", "cutaway_cap_dark", "view_dollhouse"]) {

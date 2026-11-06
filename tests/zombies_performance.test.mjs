@@ -50,8 +50,8 @@ test("collision scratch state is reset between hot-loop probes", () => {
 });
 
 test("Night Shift computes articulated poses once after physics substeps", async () => {
-  const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
-  const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
+  const game = moduleSource("js/zombies_game.js");
+  const world = moduleSource("js/zombies_world.js");
   assert.match(game, /stepZed\(Z\.zeds\[i\], stepDt, true\)/);
   assert.match(game, /for \(var zi = Z\.zeds\.length - 1; zi >= 0; zi--\) stepZedVisuals\(Z\.zeds\[zi\], dt\)/);
   assert.match(world, /Col2D\.buildSpatialIndex\(col, 180\)/);
@@ -60,10 +60,10 @@ test("Night Shift computes articulated poses once after physics substeps", async
 
 test("Night Shift Fast quality skips CAD post-processing and caps pixel ratio", async () => {
   const view = moduleSource("js/view3d.js");
-  const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
+  const game = moduleSource("js/zombies_game.js");
   const physics = await readFile(new URL("../js/physics.js", import.meta.url), "utf8");
   const facade = await readFile(new URL("../js/physics_facade.js", import.meta.url), "utf8");
-  const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
+  const world = moduleSource("js/zombies_world.js");
   assert.match(view, /export function setGameRendererQuality\(quality\)/);
   assert.match(view, /usePost = false/);
   assert.match(view, /var ratio = quality >= 2 \? 1\.25 : 1/);
@@ -82,8 +82,8 @@ test("Night Shift Fast quality skips CAD post-processing and caps pixel ratio", 
 });
 
 test("Night Shift batches rigid zombie pieces and avoids idle visual uploads", async () => {
-  const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
-  const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
+  const game = moduleSource("js/zombies_game.js");
+  const world = moduleSource("js/zombies_world.js");
   assert.match(world, /import \{ mergeGeometries \} from "three\/addons\/utils\/BufferGeometryUtils\.js"/);
   assert.match(world, /function batchZombieRig\(rig\)/);
   assert.match(world, /batchZombieRig\(rig\)/);

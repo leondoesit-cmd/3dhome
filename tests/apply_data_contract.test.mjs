@@ -12,12 +12,13 @@
  * (2) is the one that bites hardest: markSaved()/markDirty() on a scene that
  * never loaded tells someone their work is safe when it is not.
  */
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const read = (p) => readFile(new URL("../" + p, import.meta.url), "utf8");
-const ui = await read("js/ui.js");
+const ui = moduleSource("js/ui.js");
 const persist = await read("js/persist.js");
 const workspace = await read("js/workspace.js");
 const planSync = await read("js/plan_sync.js");

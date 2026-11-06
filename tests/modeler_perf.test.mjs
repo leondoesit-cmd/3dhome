@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -337,7 +338,7 @@ test("parametric_rebuild avoids deep cloning snapshot and features", async () =>
 });
 
 test("cad_kernel shapeToMeshData batches node transformation into Float64Array", async () => {
-  const kernelSource = await readFile(new URL("../js/cad_kernel.js", import.meta.url), "utf8");
+  const kernelSource = moduleSource("js/cad_kernel.js");
   assert.match(kernelSource, /const nbNodes\s*=\s*triangulation\.NbNodes\(\);/);
   assert.match(kernelSource, /const nodes\s*=\s*new Float64Array\(nbNodes \* 3\);/);
   assert.match(kernelSource, /for\s*\(let n = 1;\s*n <= nbNodes;\s*n\+\+\)\s*\{/);
@@ -401,7 +402,7 @@ test("inspectorDirty replaces lastInspectorSignature with no force parameter", (
 });
 
 test("shapeToMeshData generates Float32Array normals, colors, and subshapeMap", async () => {
-  const kernelSource = await readFile(new URL("../js/cad_kernel.js", import.meta.url), "utf8");
+  const kernelSource = moduleSource("js/cad_kernel.js");
   assert.match(kernelSource, /const normals\s*=\s*new Float32Array\(positions\.length\);/);
   assert.match(kernelSource, /const colors\s*=\s*new Float32Array\(positions\.length\);/);
   assert.match(kernelSource, /const subshapeMap\s*=\s*Object\.create\(null\);/);

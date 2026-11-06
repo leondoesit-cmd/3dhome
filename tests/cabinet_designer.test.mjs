@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -10,7 +11,7 @@ const inspect = await readFile(new URL("../js/ui_cabinet_inspect.js", import.met
 const ctx = await readFile(new URL("../js/ui_cabinet_ctx.js", import.meta.url), "utf8");
 const ui = [chrome, view, inspect, ctx].join("\n");
 const adapter = await readFile(new URL("../js/parametric_cabinet.js", import.meta.url), "utf8");
-const planner = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const planner = moduleSource("js/ui.js");
 const i18n = await readI18nSource();
 const presets = await readFile(new URL("../js/cabinet_presets.js", import.meta.url), "utf8");
 const engine = await readFile(new URL("../js/cabinet.js", import.meta.url), "utf8");

@@ -104,7 +104,7 @@ test('ported node materials expose the uniforms their game loops drive', () => {
   const view3d = moduleSource("js/view3d.js");
   assert.match(view3d, /TSL\.cubeTexture\(cubeTex/);
   assert.match(view3d, /stars = new THREE\.Mesh\(sg, starMat\)/);
-  const zombies = read('js/zombies_world.js');
+  const zombies = moduleSource("js/zombies_world.js");
   assert.match(zombies, /var motes = new THREE\.Mesh\(mg, moteMat\)/);
   assert.match(zombies, /Z\.motes\.geo\.instanceCount = Z\.motes\.activeN/);
 });

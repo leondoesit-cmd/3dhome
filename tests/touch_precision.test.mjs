@@ -122,7 +122,7 @@ test("legacy lifted-coordinate code is absent", async () => {
 
 test("both canvases render the shared lens and modeler clears it on cancel", async () => {
   const [plan, modeler] = await Promise.all([
-    readFile(new URL("../js/plan2d.js", import.meta.url), "utf8"),
+    moduleSource("js/plan2d.js"),
     modelerSource(),
   ]);
   assert.match(plan, /drawTouchPrecisionLens\(pc, plan, tc,/);

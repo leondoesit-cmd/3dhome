@@ -16,13 +16,14 @@
  * These assertions are the only thing standing between that and a quiet
  * reversal, so they are deliberately about SHAPE, not behaviour.
  */
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 
 const read = (p) => readFile(new URL("../" + p, import.meta.url), "utf8");
 const main = await read("js/main.js");
-const ui = await read("js/ui.js");
+const ui = moduleSource("js/ui.js");
 const relay = await read("server/relay.mjs");
 const i18n = await read("js/i18n.js");
 const iconIndex = await read("js/icon_theme_assets.js");

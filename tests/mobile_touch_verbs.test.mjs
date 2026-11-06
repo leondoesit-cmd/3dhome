@@ -10,7 +10,7 @@ const read = (name) => readFile(new URL("../" + name, import.meta.url), "utf8");
 const [shell, interaction, ui, i18n, pick, primitives, html, css] = await Promise.all([
   read("js/mobile_shell.js"),
   moduleSource("js/interaction.js"),
-  read("js/ui.js"),
+  moduleSource("js/ui.js"),
   readI18nSource(),
   read("js/ui_floorpick.js"),
   read("js/primitives.js"),
@@ -77,8 +77,9 @@ test("a hinged door offers Flip swing and a sliding one does not", () => {
 test("the quarter turn ignores the 15/45/90 step control the phone cannot see", () => {
   assert.match(ui, /act === "rotSel90"/);
   assert.match(ui, /turnItem\(it, \(\(\(it\.rot \|\| 0\) \+ 90\) % 360 \+ 360\) % 360\)/);
+  const actions = sourceFunctionText(ui, "runAction");
   assert.doesNotMatch(
-    ui.slice(ui.indexOf('act === "rotSel90"'), ui.indexOf('act === "flipSwing"')),
+    actions.slice(actions.indexOf('act === "rotSel90"'), actions.indexOf('act === "flipSwing"')),
     /rotStep\(\)/,
     "the one-tap rotate must not obey a step the user cannot see while pressing it",
   );

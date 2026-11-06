@@ -139,7 +139,7 @@ const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const css = stylesSource();
 const game = await readFile(new URL("../js/lava_game.js", import.meta.url), "utf8");
 const world = await readFile(new URL("../js/lava_world.js", import.meta.url), "utf8");
-const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const ui = moduleSource("js/ui.js");
 const view3d = moduleSource("js/view3d.js");
 const i18n = await readI18nSource();
 

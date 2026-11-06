@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -5,7 +6,7 @@ import { createHistory } from "../js/edit_history.js";
 
 test("plan undo cancels a continued-wall gesture before rendering restored nodes", async () => {
   const historySource = await readFile(new URL("../js/history.js", import.meta.url), "utf8");
-  const planSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
+  const planSource = moduleSource("js/plan2d.js");
   const stateSource = await readFile(new URL("../js/state.js", import.meta.url), "utf8");
 
   /* The list itself now lives in state.js, shared with the floor switch, which

@@ -80,7 +80,7 @@ test("all real-time physics modes use the shared guarded clock", async () => {
     moduleSource("js/view3d.js"),
     read("js/drive.js"),
     read("js/rc_game.js"),
-    read("js/zombies_game.js"),
+    moduleSource("js/zombies_game.js"),
     read("js/lava_game.js"),
   ]);
   assert.match(view, /safeDeltaMilliseconds/);
@@ -204,7 +204,7 @@ test("hanging cloth keeps the pinned row still and drops the hem", () => {
 test("walk, Night Shift and Lava query the rigid island; cars stay arcade", async () => {
   const [view, zombies, lava, drive, rc] = await Promise.all([
     moduleSource("js/view3d.js"),
-    read("js/zombies_game.js"),
+    moduleSource("js/zombies_game.js"),
     read("js/lava_game.js"),
     read("js/drive.js"),
     read("js/rc_game.js"),

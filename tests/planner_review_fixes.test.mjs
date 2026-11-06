@@ -61,7 +61,7 @@ test('planner chrome exposes paired doors and visible overflow affordances',asyn
   const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
   const css=stylesSource();
   const chrome=await readFile(new URL('../js/planner_chrome.js',import.meta.url),'utf8');
-  const ui=await readFile(new URL('../js/ui.js',import.meta.url),'utf8');
+  const ui=moduleSource('js/ui.js');
   const view3d=moduleSource("js/view3d.js");
   assert.match(html,/option value="double"/);
   assert.match(html,/id="o_leaf_a"/);

@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
@@ -5,8 +6,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
 
-const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
-const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
+const game = moduleSource("js/zombies_game.js");
+const world = moduleSource("js/zombies_world.js");
 const tex = await readFile(new URL("../js/zombies_tex.js", import.meta.url), "utf8");
 const destruct = await readFile(new URL("../js/zombies_destruct.js", import.meta.url), "utf8");
 const physicsDamage = await readFile(new URL("../js/physics/damage.js", import.meta.url), "utf8");

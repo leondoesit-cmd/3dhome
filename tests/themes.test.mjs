@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
@@ -6,7 +7,7 @@ import { readFile } from "node:fs/promises";
 
 const css = stylesSource();
 const i18n = await readI18nSource();
-const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const ui = moduleSource("js/ui.js");
 
 // "classic" shares the light block (the legacy light palette)
 const THEMES = ["light", "classic", "soft", "mid", "dark", "chrome"];

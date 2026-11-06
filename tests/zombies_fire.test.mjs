@@ -1,10 +1,11 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
 
-const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
-const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
+const world = moduleSource("js/zombies_world.js");
+const game = moduleSource("js/zombies_game.js");
 
 test("Night Shift renders fire through a dedicated additive particle pool", () => {
   assert.match(world, /Z\.fireParts\s*=\s*\{/);

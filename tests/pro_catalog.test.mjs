@@ -17,7 +17,7 @@ const modelerSrc = modelerSource();
 const ribbonIds = new Set([...modelerSrc.matchAll(/commandButton\("([a-z0-9]+)"/g)].map((m) => m[1]));
 const relationIds = (modelerSrc.match(/var RIBBON_RELATIONS = \[([^\]]*)\]/) || ["", ""])[1].match(/[a-z]+/g) || [];
 const nestSrc = readFileSync(new URL("../js/ui_nest.js", import.meta.url), "utf8") + readFileSync(new URL("../js/ui_cabinet_production.js", import.meta.url), "utf8");
-const uiSrc = readFileSync(new URL("../js/ui.js", import.meta.url), "utf8");
+const uiSrc = moduleSource("js/ui.js");
 const gapsDoc = readFileSync(new URL("../docs/PRO_TOOL_GAPS.md", import.meta.url), "utf8");
 const jsIds = (id) => html.includes('id="' + id + '"') || [..."ui_survey.js ui_mep.js planner_3d.js".split(" ")].some((f) => { const src = readFileSync(new URL("../js/" + f, import.meta.url), "utf8"); return src.includes("id='" + id + "'") || src.includes('id="' + id + '"') || src.includes(".id = '" + id + "'") || src.includes('.id = "' + id + '"'); });
 const constraintIds = [...(modelerSrc.match(/CONSTRAINT_DEFS = \[([\s\S]*?)\];/) || ["", ""])[1].matchAll(/id: "([a-z]+)"/g)].map((m) => m[1]);

@@ -533,6 +533,6 @@ test("sampled 3D walls mitre with the same outline the plan uses", async () => {
   const src = moduleSource("js/view3d.js");
   assert.match(src, /wallBandOutline/, "half / pony / railing walls take their end cuts from the mitred band");
   assert.match(src, /hasHeightMismatchedJoin/, "a full wall meeting a half wall is split at the cap");
-  const plan = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
+  const plan = moduleSource("js/plan2d.js");
   assert.match(plan, /wallBandOutline/, "plan layer fills use the same mitred band");
 });

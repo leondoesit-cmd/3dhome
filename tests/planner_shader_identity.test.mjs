@@ -34,7 +34,7 @@ test("lights go back to the pool when their build is thrown away", () => {
   const drop = fnBody(view3d, "dropItem");
   assert.ok(drop.indexOf("releaseItemLights(c.g)") >= 0 && drop.indexOf("releaseItemLights(c.g)") < drop.indexOf("disposeSubtree(c.g)"),
     "a dropped lamp hands its light back before the group is disposed");
-  assert.match(view3d, /windowLights\.forEach\(releaseLight\);[^\n]*\n\s*windowLights = \[\];\n\s*S\.openings\.forEach/,
+  assert.match(view3d, /windowLights\.forEach\(releaseLight\);[^\n]*\n\s*(?:windowLights = \[\]|set_windowLights\(\[\]\));\n\s*S\.openings\.forEach/,
     "window daylight returns its lights before the windows are lit again");
   assert.match(view3d, /takeLight\("SpotLight", 0xcfe2f2[^\n]*\n[^\n]*takeLight\("PointLight", 0xcfe2f2[^\n]*\n\s*windowLights\.push\(pl\);/);
   assert.match(fnBody(view3d, "releaseLight"), /drawnShadows\.delete\(l\.shadow\);/, "a reused caster redraws its shadow");

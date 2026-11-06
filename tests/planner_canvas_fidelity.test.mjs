@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../js/plan2d.js', import.meta.url), 'utf8');
+const source = moduleSource("js/plan2d.js");
 function canvas() {
   let width = 0, height = 0, allocations = 0;
   const transforms = [];
@@ -22,7 +22,7 @@ test('same-size 2D resizes preserve backing storage and changing DPR resizes bot
   const plan = canvas(), planHud = canvas();
   const ctx = vm.createContext({ plan, planHud, mc: plan.getContext(), hc: planHud.getContext(),
     S: { CW: 400, CH: 300, OX: 10, OY: 20, SC: 1 }, window: { devicePixelRatio: 2 }, fittingView: false });
-  vm.runInContext(source.slice(source.indexOf('export function sizeCanvas()'), source.indexOf('export function fitView()')).replace('export ', ''), ctx);
+  vm.runInContext(sourceFunctionText(source, 'sizeCanvas'), ctx);
   ctx.sizeCanvas();
   assert.equal(plan.width, 800);
   assert.equal(planHud.height, 600);
@@ -45,11 +45,12 @@ test('room cache paints at backing resolution, blits at CSS size and reuses unch
   const ctx = vm.createContext({
     S: { CW: 400, CH: 300, OX: 0, OY: 0, SC: 1 }, plan: { width: 800, height: 600 },
     detectRooms: () => [], hiddenSets: () => { hiddenQueries++; return {}; }, roomsTopologyKey: () => 'room',
-    roomLayer: { key: '', canvas: null }, document: { createElement: () => cache },
+    roomLayer: { key: '', canvas: null }, set_roomLayer(value) { return ctx.roomLayer = value; },
+    document: { createElement: () => cache },
     paintRooms: () => { paints++; }, pc: { drawImage: (...args) => draws.push(args) },
     planStyle: () => 'technical', userLayerKey: () => '',
   });
-  vm.runInContext(source.slice(source.indexOf('function drawCachedRooms()'), source.indexOf('function drawReferenceFloor()')), ctx);
+  vm.runInContext(sourceFunctionText(source, 'drawCachedRooms'), ctx);
   ctx.drawCachedRooms();
   assert.equal(cache.width, 800);
   assert.equal(cache.height, 600);
@@ -68,11 +69,12 @@ test('3D resize reuses render targets unless dimensions or pixel ratio change', 
   const view = moduleSource("js/view3d.js");
   let allocations = 0, projections = 0, ratio = 2;
   const ctx = vm.createContext({ ready3D: true, needsRender: false, settle: 0, SETTLE_FRAMES: 6,
+    set_needsRender(value) { return ctx.needsRender = value; }, set_settle(value) { return ctx.settle = value; },
     renderer: { getPixelRatio: () => ratio, setSize: () => allocations++ },
     camera: { updateProjectionMatrix: () => projections++ },
   });
   const lastView = view.indexOf('var lastViewWidth =');
-  vm.runInContext(view.slice(lastView, view.indexOf('\n', lastView) + 1) + sourceFunctionText(view, 'setSize'), ctx);
+  vm.runInContext(view.slice(lastView, view.indexOf('\n', lastView) + 1) + ['set_lastViewWidth', 'set_lastViewHeight', 'set_lastViewRatio', 'setSize'].map((name) => sourceFunctionText(view, name)).join('\n'), ctx);
   ctx.setSize(400, 300);
   ctx.settle = 0;
   ctx.setSize(400, 300);

@@ -14,7 +14,7 @@ import { stripComments } from "./source.mjs";
 import { sourceFunctionText } from "./helpers/source_function.mjs";
 
 const view3d = stripComments(moduleSource("js/view3d.js"));
-const zombiesGame = stripComments(await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8"));
+const zombiesGame = stripComments(moduleSource("js/zombies_game.js"));
 const lavaWorld = stripComments(await readFile(new URL("../js/lava_world.js", import.meta.url), "utf8"));
 const damage = stripComments(await readFile(new URL("../js/physics/damage.js", import.meta.url), "utf8"));
 
@@ -99,8 +99,8 @@ test("MEP is built into its own root, not into dyn", () => {
 
 test("structure geometry goes to structureRoot and the ground stays out of it", () => {
   const build = fn("rebuild3D");
-  assert.match(build, /structureRoot = new THREE\.Group\(\)/);
-  assert.match(build, /mepRoot = new THREE\.Group\(\)/);
+  assert.match(build, /(?:structureRoot = |set_structureRoot\()new THREE\.Group\(\)/);
+  assert.match(build, /(?:mepRoot = |set_mepRoot\()new THREE\.Group\(\)/);
   // ground plane and daylight are not layer-governed: hiding the structure
   // layer must not take the floor or the sunlight with it
   assert.match(build, /dyn\.add\(gp\)/);

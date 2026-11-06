@@ -25,7 +25,7 @@ const i18n = await readI18nSource();
 const interaction = moduleSource("js/interaction.js");
 const openingCommand = await readFile(new URL("../js/commands/opening_place.js", import.meta.url), "utf8");
 const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
-const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const ui = moduleSource("js/ui.js");
 const view3d = moduleSource("js/view3d.js");
 const uiRooms = await readFile(new URL("../js/ui_rooms.js", import.meta.url), "utf8");
 
@@ -207,10 +207,10 @@ test("phone planner chrome keeps readable nav labels and hides the 2D view cube"
   });
   assert.match(view3d, /compact \? 1\.05 : 0\.95/);
   assert.match(view3d, /clamp\(ceilingHeight\(\) \* 0\.78, 180, 230\)/);
-  assert.match(view3d, /framedInterior = compact/);
+  assert.match(view3d, /(?:framedInterior = |set_framedInterior\()compact/);
   // the phone's framed interior cuts the near walls whatever the Walls switch says
   assert.match(view3d, /\(\(!!S\.edit3D && nearCutOn\(\)\) \|\| framedInterior\)/);
-  assert.match(view3d, /if \(changed\) needsRender = true/);
+  assert.match(view3d, /if \(changed\) (?:needsRender = true|set_needsRender\(true\))/);
   assert.match(view3d, /compact && effective === "performance"\) effective = "balanced"/);
 });
 

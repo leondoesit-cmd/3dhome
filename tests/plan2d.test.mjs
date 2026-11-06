@@ -1,3 +1,4 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import { stylesSource } from "./helpers/styles_source.mjs";
 import { moduleSource } from "./helpers/module_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
@@ -22,7 +23,7 @@ import {
 } from "../js/plan_view.js";
 import { saveUnitSettings, resetAllUnitSettings } from "../js/unit_settings.js";
 
-const planSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
+const planSource = moduleSource("js/plan2d.js");
 const mainSource = await readFile(new URL("../js/main.js", import.meta.url), "utf8");
 const elevSource = await readFile(new URL("../js/elevation.js", import.meta.url), "utf8");
 const interactionSource = moduleSource("js/interaction.js");
@@ -43,7 +44,7 @@ function resetView() {
 }
 
 test("a hidden pane does not wipe the live canvas size", () => {
-  const sizing = stripComments(planSource).slice(planSource.indexOf("export function sizeCanvas"));
+  const sizing = stripComments(sourceFunctionText(planSource, "sizeCanvas"));
   assert.match(sizing, /if \(!\(W > 0\) \|\| !\(H > 0\)\) return/);
   // the guard is only worth anything ahead of the write it protects
   assert.ok(sizing.indexOf("(H > 0)) return") < sizing.indexOf("S.CW = W"),
@@ -57,13 +58,12 @@ test("render2D refuses to grid-loop when the view transform is unusable", () => 
 });
 
 test("site underlay is clipped in screen space before the plan rotation", () => {
-  const drawing = stripComments(planSource).slice(planSource.indexOf("export function render2D"));
+  // render2D() only schedules a paint; the clip and the rotation both live in renderModel()
+  const drawing = stripComments(sourceFunctionText(planSource, "renderModel"));
   assert.ok(drawing.indexOf("pc.clip()") < drawing.indexOf("pushPlan()"),
     "the clip is taken in screen space, before the plan rotation");
-  const underlay = planSource.slice(
-    planSource.indexOf("function drawSiteUnderlay"),
-    planSource.indexOf("export function render2D"),
-  );
+  const underlay = ["drawSiteUnderlay", "render2DNow", "schedulePaint"]
+    .map((name) => sourceFunctionText(planSource, name)).join("\n");
   assert.doesNotMatch(underlay, /pc\.clip\(\)/);
 });
 

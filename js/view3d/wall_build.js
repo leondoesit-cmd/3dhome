@@ -7,13 +7,14 @@ import { tJoinStep, wallBandOutline, wallGeom, wallPointAt, wallSolidAtNode, wal
 import { legacyIntensity } from "../gpu.js";
 import { GLASS, MAT_PROPS, S, WALLC, WOOD, clamp, fin } from "../state.js";
 import { THREE } from "../three_lazy.js";
+import { tagItemPhysicsRole } from "../view3d/lighting.js";
 import { addWallCaps, buildStraightWall, clipBelow, cutH, frameSpec, localBox } from "../view3d/site_cutaway.js";
+import { mepXray } from "../view3d/walk_mode.js";
 import { HALF_WALL_HEIGHT, normalizeWallKind, normalizeWallProfile, verticalSegments, wallProfileHeight } from "../wall_curves.js";
 import { wallFraming } from "../wall_framing.js";
 import { normalizeWall, wallLayerBands, wallThickness, wallTypeById } from "../wall_types.js";
 import {
-  drawnShadows, itemsRoot, mepXray, scene, spareLights, structureRoot,
-  tagItemPhysicsRole,
+  drawnShadows, itemsRoot, scene, spareLights, structureRoot,
 } from "../view3d.js";
 
 /* Curves and vertically-special walls cannot be represented by the old single

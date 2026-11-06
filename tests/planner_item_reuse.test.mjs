@@ -33,7 +33,8 @@ function fixture() {
     markShadowRegion(box) { context.shadowRegion = box; },
     // an edit asks for the other shadow sets' shaders again, once idle
     schedulePrewarm() { context.prewarms = (context.prewarms || 0) + 1; },
-    shadowsDirty: false, needsRender: false };
+    shadowsDirty: false, needsRender: false,
+    set_needsRender(value) { return context.needsRender = value; } };
   vm.createContext(context); vm.runInContext(sourceFunctionText(source, 'applyItemOps'), context);
   return { context, item, group, work };
 }

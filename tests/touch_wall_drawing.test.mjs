@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const interactionSource = moduleSource("js/interaction.js");
-const plan2dSource = (await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8")).replace(/\r\n/g,"\n");
+const plan2dSource = (moduleSource("js/plan2d.js")).replace(/\r\n/g,"\n");
 const css = stylesSource();
 
 test("planner: touchContact and drawTouchGuide are wired in interaction.js and plan2d.js", () => {

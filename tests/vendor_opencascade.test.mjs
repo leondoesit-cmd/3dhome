@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -25,7 +26,7 @@ test("the vendored OpenCascade glue is the installed npm build", async (t) => {
 });
 
 test("the browser kernel loads the vendored glue and the streamed gzip binary", async () => {
-  const source = await readFile(new URL("js/cad_kernel.js", root), "utf8");
+  const source = moduleSource("js/cad_kernel.js");
   assert.match(source, /new URL\("\.\.\/vendor\/opencascade\/opencascade\.full\.js", import\.meta\.url\)/);
   assert.doesNotMatch(source, /\.\.\/node_modules\//, "nothing in the browser path may point into node_modules");
 });

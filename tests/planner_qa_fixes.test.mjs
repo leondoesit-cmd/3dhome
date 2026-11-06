@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 /* Regressions found in a QA pass over the new planner surfaces: the wall-draw
@@ -13,7 +14,7 @@ import { captureLock, syncLocks } from "../js/constraint_engine.js";
 const css = stylesSource();
 const i18n = await readI18nSource();
 const uiProps = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf8");
-const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const ui = moduleSource("js/ui.js");
 const uiTree = await readFile(new URL("../js/ui_tree.js", import.meta.url), "utf8");
 
 function oneWall() {
