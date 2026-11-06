@@ -93,9 +93,16 @@ test("tiny cache caps preserve compressed content and validators across eviction
     const conditional = await bytes(relay.port, "/js/" + file, "GET", { "If-None-Match": etags.get(file) });
     assert.equal(conditional.status, 304);
   }
-  const body = await readFile(new URL("../js/ui.js", import.meta.url));
+  // the largest top-level module, whatever splits have left: it must exceed the per-file cap
+  let largest = null;
+  for (const file of await readdir(new URL("../js/", import.meta.url))) {
+    if (!file.endsWith(".js")) continue;
+    const size = (await readFile(new URL("../js/" + file, import.meta.url))).length;
+    if (!largest || size > largest.size) largest = { file, size };
+  }
+  const body = await readFile(new URL("../js/" + largest.file, import.meta.url));
   assert.ok(body.length > 102400);
-  const large = await bytes(relay.port, "/js/ui.js", "GET", { "Accept-Encoding": "br,gzip" });
+  const large = await bytes(relay.port, "/js/" + largest.file, "GET", { "Accept-Encoding": "br,gzip" });
   assert.equal(large.headers["content-encoding"], undefined); assert.match(large.headers.etag, /^W\//);
   assert.deepEqual(large.body, body); assert.equal(Number(large.headers["content-length"]), body.length);
 });
