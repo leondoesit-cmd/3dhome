@@ -5,6 +5,7 @@
 // every lit material, and often recompile all ~16 big planner programs, at
 // 1-3 s apiece on the WebGL2 fallback.
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -12,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 // A core.autocrlf checkout has CRLF on disk; the patterns below match LF.
-const view3d = readFileSync(join(root, "js/view3d.js"), "utf8").replace(/\r\n/g, "\n");
+const view3d = moduleSource("js/view3d.js");
 const pbr = readFileSync(join(root, "js/pbr_material.js"), "utf8").replace(/\r\n/g, "\n");
 
 function fnBody(src, name) {

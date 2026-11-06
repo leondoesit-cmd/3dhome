@@ -267,7 +267,7 @@ function removeRanges(src, ranges) {
 
 function headerCommentOf(decl, comments, text) {
   for (const c of comments)
-    if (c.type === "Line" && /^ for js\/modeler\//.test(c.value) && text.slice(c.end, decl.start) === "\n") return c;
+    if (c.type === "Line" && /^ for js\/[\w$-]+\//.test(c.value) && text.slice(c.end, decl.start) === "\n") return c;
   return null;
 }
 

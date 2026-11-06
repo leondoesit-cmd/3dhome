@@ -1,4 +1,5 @@
 import { getEventListeners } from 'node:events';
+import { moduleSource } from "./helpers/module_source.mjs";
 import * as three from '../vendor/three/three.webgpu.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -100,7 +101,7 @@ test('ported node materials expose the uniforms their game loops drive', () => {
   assert.match(rcWorld, /MeshBasicNodeMaterial/);
   assert.match(rcWorld, /waterUniforms/);
   assert.match(read('js/rc_game.js'), /waterUniforms\.uTime\.value/);
-  const view3d = read('js/view3d.js');
+  const view3d = moduleSource("js/view3d.js");
   assert.match(view3d, /TSL\.cubeTexture\(cubeTex/);
   assert.match(view3d, /stars = new THREE\.Mesh\(sg, starMat\)/);
   const zombies = read('js/zombies_world.js');
@@ -109,7 +110,7 @@ test('ported node materials expose the uniforms their game loops drive', () => {
 });
 
 test('planner orbit frames stay free of shadow passes and per-mesh uploads', () => {
-  const view3d = read('js/view3d.js');
+  const view3d = moduleSource("js/view3d.js");
   // on-demand shadows are driven per light, every painted frame
   assert.match(view3d, /function syncShadowUpdates\(now, box, hold\)/);
   assert.match(view3d, /sh\.autoUpdate = draw;/);

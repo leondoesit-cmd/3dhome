@@ -2,6 +2,7 @@
 // until `cap` newer ones have been released, so the planner's dusk and dawn
 // shadow handoffs stop rebuilding every material each time.
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -115,7 +116,7 @@ test("three still frees pipelines and programs through _releasePipeline / _relea
 });
 
 test("the planner renderer retains its shaders once the backend is up", async () => {
-  const view3d = (await readFile(join(root, "js/view3d.js"), "utf8")).replace(/\r\n/g, "\n");
+  const view3d = moduleSource("js/view3d.js");
   // room for every shadow set at once: the prewarm keeps the ones the hour is not using
   assert.match(view3d, /renderer\.init\(\)\.then\(function \(\) \{[^]*?retainShaderCaches\(renderer, 2048\);/);
 });

@@ -1,10 +1,11 @@
 import test from 'node:test';
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { sourceFunctionText } from './helpers/source_function.mjs';
 
-const source = readFileSync(new URL('../js/view3d.js', import.meta.url), 'utf8');
+const source = moduleSource("js/view3d.js");
 test('item signatures retain canonical definition dependencies and nested geometry at full precision', () => {
   const definition = { revision: 1, features: [{ x: 1, z: 2 }] };
   const item = { id: 'cab', definitionId: 'def', x: 4, z: 5, rot: 8, custom: { x: 2, z: 3 } };

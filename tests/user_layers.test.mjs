@@ -1,4 +1,5 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { S } from "../js/state.js";
@@ -103,7 +104,7 @@ test("walls switch: three positions, three looks, Down is the dollhouse cut", ()
 });
 
 test("the 3D view honours the switch, the stub and the kept wall", async () => {
-  const src = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  const src = moduleSource("js/view3d.js");
   assert.match(src, /\(\(!!S\.edit3D && nearCutOn\(\)\) \|\| framedInterior\)/);
   assert.match(src, /if \(stubBuildH\) return stubBuildH;/);
   assert.match(src, /structureRoot\.add\(stubRoot\)/);

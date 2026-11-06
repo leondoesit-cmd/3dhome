@@ -1,4 +1,5 @@
 import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
@@ -21,11 +22,11 @@ const cadHud = await readFile(new URL("../js/cad_hud.js", import.meta.url), "utf
 const pages = await readFile(new URL("../js/mobile_pages.js", import.meta.url), "utf8");
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const i18n = await readI18nSource();
-const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const interaction = moduleSource("js/interaction.js");
 const openingCommand = await readFile(new URL("../js/commands/opening_place.js", import.meta.url), "utf8");
 const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
-const view3d = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+const view3d = moduleSource("js/view3d.js");
 const uiRooms = await readFile(new URL("../js/ui_rooms.js", import.meta.url), "utf8");
 
 test("mobile shells reserve only one 48px nav and one 44px context row", () => {

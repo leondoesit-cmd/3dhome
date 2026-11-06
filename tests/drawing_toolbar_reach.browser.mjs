@@ -1,3 +1,4 @@
+import {modelerSource} from './helpers/modeler_source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {stylesFiles} from './helpers/styles_source.mjs';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
 
 const chrome=await findChrome();
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const toolbar=source.slice(source.indexOf("'<div class=\"md-drawing-tools\""),source.indexOf("'<aside class=\"md-sheet-panel\""));
 const buttons=[...toolbar.matchAll(/<button\b([^>]*)>/g)].map(match=>({
   id:/\bid="([^"]+)"/.exec(match[1])?.[1]||'',

@@ -2,6 +2,7 @@
 // a planner action or tool in index.html, a panel id, a model-editor command
 // from the real catalog, a cabinet-designer control, and a real Phosphor icon.
 import { modelerSource } from "./helpers/modeler_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -104,7 +105,7 @@ test("all pro tool gaps are implemented", () => {
    letters and the Ctrl combinations), or the hint teaches the wrong thing —
    W for Wall used to start Walk. */
 test("every planner key hint is the key that really runs that tool", () => {
-  const interaction = readFileSync(new URL("../js/interaction.js", import.meta.url), "utf8");
+  const interaction = moduleSource("js/interaction.js");
   const real = new Map();
   for (const m of interaction.matchAll(/e\.key === "(\d)"\) setTool\("([a-z]+)"\)/g)) real.set(m[1], "tool:" + m[2]);
   real.set("E", "tool:erase");

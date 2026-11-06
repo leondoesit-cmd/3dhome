@@ -1,4 +1,5 @@
 import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -7,7 +8,7 @@ import { readFile } from "node:fs/promises";
 const tutorial = await readFile(new URL("../js/planner_tutorial.js", import.meta.url), "utf8");
 const videoStudioCode = await readFile(new URL("../js/video_studio.js", import.meta.url), "utf8");
 const videoPresetsCode = await readFile(new URL("../js/video_presets.js", import.meta.url), "utf8");
-const view3dCode = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+const view3dCode = moduleSource("js/view3d.js");
 const i18n = await readI18nSource();
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const css = stylesSource();

@@ -7,6 +7,7 @@
 // sharedRepeat() hands out one texture per image and repeat; these tests pin
 // that contract and keep the 3D builders from going back to cloning.
 import { modelerSource } from "./helpers/modeler_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -183,7 +184,7 @@ test("3D builders share cached textures instead of cloning them per material", (
     "js/pbr_material.js": readFileSync(join(root, "js/pbr_material.js"), "utf8"),
     "js/primitives.js": readFileSync(join(root, "js/primitives.js"), "utf8"),
     "js/modeler.js": modelerSource(),
-    "js/view3d.js": readFileSync(join(root, "js/view3d.js"), "utf8"),
+    "js/view3d.js": moduleSource("js/view3d.js"),
   };
   for (const [file, src] of Object.entries(sources)) {
     assert.doesNotMatch(src, /custom(?:Tex|Bump)Cache\[[^\]]+\]\.clone\(\)/, file + " clones a cached texture per material");

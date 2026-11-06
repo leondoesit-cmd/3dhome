@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -38,7 +39,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 
 test('actual pointerDown arms without snapshots and pointercancel restores the first mutation', () => {
   const r = rig(), noop = () => {};
-  const interaction = readFileSync(new URL('../js/interaction.js', import.meta.url), 'utf8');
+  const interaction = moduleSource("js/interaction.js");
   const down = interaction.slice(interaction.indexOf('  let gestureSession = null;'), interaction.indexOf('  plan.addEventListener("pointerdown", function(e)'));
   const end = interaction.slice(interaction.indexOf('  function endAction(e) {'), interaction.indexOf('  registerPlannerController({down:pointerDown'));
   Object.assign(r.context, { plan: { classList: { add: noop } }, spacePan: false, setPickSlop: noop,

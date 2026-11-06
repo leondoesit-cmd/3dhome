@@ -1,10 +1,11 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
 
 const planSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
-const interactionSource = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const interactionSource = moduleSource("js/interaction.js");
 const measureSource = await readFile(new URL("../js/measure.js", import.meta.url), "utf8");
 const cadHudSource = await readFile(new URL("../js/cad_hud.js", import.meta.url), "utf8");
 

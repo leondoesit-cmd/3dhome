@@ -1,4 +1,5 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -7,7 +8,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 
 const modeler = modelerSource();
 const functionsText = (...names) => names.map(name => sourceFunctionText(modeler, name)).join("\n");
-const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const interaction = moduleSource("js/interaction.js");
 const commands = await readFile(new URL("../js/modeler_commands.js", import.meta.url), "utf8");
 
 test("planner shortcuts do not mutate the plan behind the modeler", () => {

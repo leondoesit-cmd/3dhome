@@ -1,4 +1,5 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildSpatialIndex, collideCircle } from "../js/col2d.js";
@@ -58,7 +59,7 @@ test("Night Shift computes articulated poses once after physics substeps", async
 });
 
 test("Night Shift Fast quality skips CAD post-processing and caps pixel ratio", async () => {
-  const view = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  const view = moduleSource("js/view3d.js");
   const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
   const physics = await readFile(new URL("../js/physics.js", import.meta.url), "utf8");
   const facade = await readFile(new URL("../js/physics_facade.js", import.meta.url), "utf8");

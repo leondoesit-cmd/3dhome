@@ -1,4 +1,5 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { S } from "../js/state.js";
@@ -498,7 +499,7 @@ test("a 90° branch hung against an interior-face through-run has no gap", () =>
 });
 
 test("3D T-branch ends use the through-run's near face, not half its thickness", async () => {
-  const src = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  const src = moduleSource("js/view3d.js");
   assert.match(src, /wallJoinRole\(w, nodeId\) === "branch"/,
     "a T-branch is cut with the join role, not the L-corner fallback");
   assert.match(src, /faceShiftAt\(nodeId, bx, bz/,
@@ -529,7 +530,7 @@ test("a centreline T of mixed thickness also follows the step", () => {
 });
 
 test("sampled 3D walls mitre with the same outline the plan uses", async () => {
-  const src = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  const src = moduleSource("js/view3d.js");
   assert.match(src, /wallBandOutline/, "half / pony / railing walls take their end cuts from the mitred band");
   assert.match(src, /hasHeightMismatchedJoin/, "a full wall meeting a half wall is split at the cap");
   const plan = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");

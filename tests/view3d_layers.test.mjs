@@ -7,28 +7,25 @@
  * quote the very calls these tests forbid.
  */
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 
-const view3d = stripComments(await readFile(new URL("../js/view3d.js", import.meta.url), "utf8"));
+const view3d = stripComments(moduleSource("js/view3d.js"));
 const zombiesGame = stripComments(await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8"));
 const lavaWorld = stripComments(await readFile(new URL("../js/lava_world.js", import.meta.url), "utf8"));
 const damage = stripComments(await readFile(new URL("../js/physics/damage.js", import.meta.url), "utf8"));
 
-function slice(source, start, end) {
-  const a = source.indexOf(start);
-  assert.ok(a >= 0, `missing marker: ${start}`);
-  const b = source.indexOf(end, a + start.length);
-  assert.ok(b > a, `missing end marker: ${end}`);
-  return source.slice(a, b);
-}
+// the top-level functions by name, so a split of view3d.js into several files cannot move one out of a slice
+const fn = (...names) => names.map((name) => sourceFunctionText(view3d, name)).join("\n");
 
 test("the planner raycasts no longer test the whole dyn subtree", () => {
   // the bug: a TV standing against a wall lost every pick to the wall's
   // triangles, because both planner rays walked walls, floors and ceilings too
   assert.doesNotMatch(view3d, /intersectObjects\(\s*\[\s*dyn\s*\]/);
-  const pick = slice(view3d, "function pickEditTarget(", "function pxScaleAt(");
+  const pick = fn("pickEditTarget");
   assert.match(pick, /pickableRoots\(rank\)/);
   assert.match(pick, /for \(var rank = 0; rank <= 1; rank\+\+\)/);
   // depth order decides within a rank, so each rank is its own sorted raycast
@@ -38,7 +35,7 @@ test("the planner raycasts no longer test the whole dyn subtree", () => {
 });
 
 test("a rank-1 hit answers the pick but never starts an edit drag", () => {
-  const down = slice(view3d, "function editDown(", "function editMove(");
+  const down = fn("editDown");
   assert.match(down, /if \(hit\.rank !== 0\)/);
   assert.match(down, /layers:blocked-drag/);
   /* Slice the branch itself rather than counting characters from the `if`.
@@ -64,7 +61,7 @@ test("a rank-1 hit answers the pick but never starts an edit drag", () => {
 });
 
 test("pickableRoots excludes rank-Infinity rather than trusting root.visible", async () => {
-  const roots = slice(view3d, "function pickableRoots(", "var GHOST_OPACITY");
+  const roots = fn("pickableRoots");
   assert.match(roots, /layerRank\(e\.id\) === rank/);
   /* The exclusion has to be the root LIST, not root.visible: three's raycast
      walks straight through an invisible object into its children. That is a
@@ -79,7 +76,7 @@ test("pickableRoots excludes rank-Infinity rather than trusting root.visible", a
 });
 
 test("focusAt keeps rank 1 — it frames the view, it does not select", () => {
-  const focus = slice(view3d, "function focusAt(", "function targetOf(");
+  const focus = fn("focusAt");
   assert.match(focus, /pickableRoots\(0\), pickableRoots\(1\)/);
   // the ground plane and the window lights hang outside all three roots and
   // still have to be framable, so they are added back by hand
@@ -87,7 +84,7 @@ test("focusAt keeps rank 1 — it frames the view, it does not select", () => {
 });
 
 test("targetOf skips unreachable items and locked openings", () => {
-  const target = slice(view3d, "function targetOf(", "function pickEditTarget(");
+  const target = fn("targetOf");
   // ...and a piece on a faded or hidden user layer (js/user_layers.js)
   assert.match(target, /layerRank\("furniture"\) === Infinity \|\| itemUserUnpickable\(o\.userData\.item\)\s*\?\s*null/);
   assert.match(target, /layerRank\("structure"\) === Infinity \|\| o\.userData\.opening\.locked/);
@@ -101,7 +98,7 @@ test("MEP is built into its own root, not into dyn", () => {
 });
 
 test("structure geometry goes to structureRoot and the ground stays out of it", () => {
-  const build = slice(view3d, "export function rebuild3D()", "function tagItemPhysicsRole(");
+  const build = fn("rebuild3D");
   assert.match(build, /structureRoot = new THREE\.Group\(\)/);
   assert.match(build, /mepRoot = new THREE\.Group\(\)/);
   // ground plane and daylight are not layer-governed: hiding the structure
@@ -118,17 +115,17 @@ test("the plan's matrixAutoUpdate freeze was cut and stays cut", () => {
 });
 
 test("the two direct dyn.children walks were flattened over the new roots", () => {
-  const phys = slice(view3d, "export function initPhysicsForScene()", "function hangWindowCloth(");
+  const phys = fn("initPhysicsForScene");
   assert.match(phys, /c !== itemsRoot && c !== structureRoot && c !== mepRoot/);
   assert.match(phys, /\.concat\(structureRoot \? structureRoot\.children : \[\]\)/);
   assert.match(phys, /\.concat\(mepRoot \? mepRoot\.children : \[\]\)/);
-  const see = slice(view3d, "function updateSeeThrough(", "function setSeeThrough(");
+  const see = fn("updateSeeThrough", "seeRest", "seeOutOfStep");
   assert.match(see, /structureRoot\.children\.forEach/);
   assert.doesNotMatch(see, /dyn\.children/);
 });
 
 test("ghosting clones the material and hands the original back", () => {
-  const ghost = slice(view3d, "function ghostSwap(", "function ghostRoot(");
+  const ghost = fn("ghostSwap");
   // floor materials are shared per texture and catalogue meshes share theirs:
   // mutating in place would ghost unrelated geometry permanently
   assert.match(ghost, /o\.userData\.ghostBase = o\.material/);
@@ -139,22 +136,22 @@ test("ghosting clones the material and hands the original back", () => {
   assert.match(ghost, /delete o\.userData\.ghostBase/);
   assert.match(view3d, /var GHOST_OPACITY = 0\.35/);
   // and every path that disposes ghosted geometry restores it first
-  const drop = slice(view3d, "function dropItem(", "function buildAndCache(");
+  const drop = fn("dropItem");
   assert.match(drop, /ghostSwap\(c\.g, false\);[\s\S]{0,60}itemsRoot\.remove\(c\.g\)/);
-  const ops = slice(view3d, "function applyItemOps()", "export function rebuild3D()");
+  const ops = fn("applyItemOps", "plannerCeilingMaterial", "renewWallMaterials", "reusableWallKey");
   assert.match(ops, /if \(isLayerGhosted\("furniture"\)\) ghostSwap\(itemsRoot, true\)/);
 });
 
 test("the ghost flag keeps applyLayers3D off the hot path", () => {
   // applyLayers3D runs per piecewise item update; an unconditional traverse of
   // the whole model there would spend what the root split just saved
-  const wrap = slice(view3d, "function ghostRoot(root, on)", "export function applyLayers3D()");
+  const wrap = fn("ghostRoot");
   assert.match(wrap, /if \(!!root\.userData\.ghostHeld === on\) return;/);
   assert.match(wrap, /root\.userData\.ghostHeld = on;/);
 });
 
 test("rebuild3D un-ghosts before it disposes, or the originals leak", () => {
-  const build = slice(view3d, "export function rebuild3D()", "scene.doors = []");
+  const build = fn("rebuild3D").split("scene.doors = []")[0];
   const unghost = build.indexOf("ghostRoot(structureRoot, false)");
   // the old scene is retired (detached now, disposed after the next paint)
   const clear = build.indexOf("retireGroup(dyn)");
@@ -162,10 +159,10 @@ test("rebuild3D un-ghosts before it disposes, or the originals leak", () => {
 });
 
 test("root visibility is driven by the layer table and re-applied per rebuild", () => {
-  const apply = slice(view3d, "export function applyLayers3D()", "if (typeof window");
+  const apply = fn("applyLayers3D");
   assert.match(apply, /isLayerVisible\(e\.id\) \|\| isLayerGhosted\(e\.id\)/);
   assert.match(apply, /ghostRoot\(e\.root, isLayerGhosted\(e\.id\)\)/);
-  const build = slice(view3d, "export function rebuild3D()", "function tagItemPhysicsRole(");
+  const build = fn("rebuild3D");
   assert.match(build, /applyLayers3D\(\)/);
 });
 

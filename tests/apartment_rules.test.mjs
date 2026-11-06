@@ -2,6 +2,8 @@
 // must come out with zero rule errors, and the audit must actually catch the
 // mistakes it claims to — a checker that never fires proves nothing.
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -125,10 +127,10 @@ test("the audit catches broken plans", () => {
 
 test("the 3D view keeps lamps in their own room and lets daylight in through the glass", async () => {
   const { readFile } = await import("node:fs/promises");
-  const src = await readFile(join(root, "js/view3d.js"), "utf8");
-  const rebuild = src.slice(src.indexOf("export function rebuild3D()"), src.indexOf("function tagItemPhysicsRole"));
+  const src = moduleSource("js/view3d.js");
+  const rebuild = sourceFunctionText(src, "rebuild3D");
   assert.match(rebuild, /syncItems\(hid\);\s*fitPracticalLights\(\);/, "practical ranges are fitted after every rebuild");
-  const env = src.slice(src.indexOf("export function applyEnv()"), src.indexOf("var relightHooks"));
+  const env = sourceFunctionText(src, "applyEnv");
   assert.match(env, /fitPracticalLights\(\)/, "a change of hour re-fits practical shadows");
   assert.match(env, /scene\.environmentIntensity =/, "the sky map is fill, balanced under the sun");
   assert.match(rebuild, /takeLight\("SpotLight", 0xcfe2f2/, "window daylight is aimed into its room");

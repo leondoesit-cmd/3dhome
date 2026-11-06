@@ -1,11 +1,13 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const source = (name) => readFileSync(new URL("../js/" + name, import.meta.url), "utf8");
 
 test("planner ignores keydown-like events without a key before shortcut handling", () => {
-  const planner = source("interaction.js");
+  const planner = sourceFunctionText(moduleSource("js/interaction.js"), "initInteraction");
   const handler = planner.slice(planner.lastIndexOf('window.addEventListener("keydown", function (e) {'));
   const guard = handler.indexOf('if (typeof e.key !== "string" || !e.key) return;');
   assert.ok(guard >= 0, "malformed keyboard events are ignored");

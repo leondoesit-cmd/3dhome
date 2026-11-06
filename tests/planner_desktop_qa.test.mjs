@@ -1,4 +1,5 @@
 import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -22,7 +23,7 @@ test("the first real canvas size repairs an invalid boot zoom", async () => {
 });
 
 test("desktop plan navigation supports middle and Space drag panning", async () => {
-  const src = await read("js/interaction.js");
+  const src = moduleSource("js/interaction.js");
   assert.match(src, /e\.button === 1 \|\| \(spacePan && e\.button === 0\)/);
   assert.match(src, /e\.code !== "Space"/);
   assert.match(src, /plan\.classList\.add\("is-panning"\)/);
@@ -45,7 +46,7 @@ test("catalog dragging shows a scaled footprint before drop", async () => {
 });
 
 test("selection is mirrored into 3D without rebuilding shared materials", async () => {
-  const [props, view] = await Promise.all([read("js/ui_props.js"), read("js/view3d.js")]);
+  const [props, view] = await Promise.all([read("js/ui_props.js"), moduleSource("js/view3d.js")]);
   assert.match(props, /S\.repaint3D = true/);
   assert.match(view, /new THREE\.Box3Helper/);
   assert.match(view, /syncSelectionOutline\(\)/);
@@ -66,7 +67,7 @@ test("confirmed localization and selected-hover contrast regressions stay fixed"
 
 test("wall options compact after drawing starts and cost actions remain sticky", async () => {
   const [interaction, ui, css, html] = await Promise.all([
-    read("js/interaction.js"), read("js/ui.js"), stylesSource(), read("index.html"),
+    moduleSource("js/interaction.js"), read("js/ui.js"), stylesSource(), read("index.html"),
   ]);
   assert.match(interaction, /CustomEvent\("planner-draw-start"\)/);
   assert.match(ui, /pal\.classList\.add\("auto-collapsed"\)/);

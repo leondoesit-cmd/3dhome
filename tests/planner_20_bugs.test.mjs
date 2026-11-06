@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {parse} from '../vendor/acorn/acorn.mjs';
+import {moduleSource as moduleText} from './helpers/module_source.mjs';
 import {S} from '../js/state.js';
 import {refLocked} from '../js/user_layers.js';
 import {prepareItemDuplicate,applyItemDuplicate} from '../js/commands/item_duplicate.js';
@@ -27,7 +28,7 @@ import {detectRooms} from '../js/geometry.js';
 const modules=new Map();
 function moduleSource(file){
   if(!modules.has(file)){
-    const source=readFileSync(new URL('../'+file,import.meta.url),'utf8');
+    const source=file==='js/interaction.js'||file==='js/view3d.js'?moduleText(file):readFileSync(new URL('../'+file,import.meta.url),'utf8');
     modules.set(file,{source,ast:parse(source,{ecmaVersion:'latest',sourceType:'module'})});
   }
   return modules.get(file);

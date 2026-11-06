@@ -1,6 +1,7 @@
 /* The 3D pane's touch ownership rule (js/planner_touch.js): which fingers
    edit and which navigate, and what counts as a tap. */
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { touchClaims3D, isTouchTap } from "../js/planner_touch.js";
@@ -42,12 +43,12 @@ test("the 3D pane only blocks touch while it owns the gesture", async () => {
   assert.match(src, /touchIds\.size>1[\s\S]*?send\('cancel',e\)/);
   // and the older edit-mode drag never grabs a finger left to navigation
   assert.match(src, /setLegacyTouchEdit\(false\)/);
-  const view = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  const view = moduleSource("js/view3d.js");
   assert.match(view, /legacyTouchEdit &&\s*editDown\(/);
 });
 
 test("on the plan, touch drags only an already-selected room", async () => {
-  const src = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+  const src = moduleSource("js/interaction.js");
   assert.match(src, /var priorSel = e\.pointerType === "touch" \? preTouchSel : S\.sel;/);
   assert.match(src, /if \(e\.pointerType === "touch" && !wasSelected && !inputIs3D\(\)\) \{\s*S\.action = "pan";/);
 });

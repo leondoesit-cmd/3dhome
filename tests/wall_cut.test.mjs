@@ -1,4 +1,6 @@
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
@@ -63,7 +65,7 @@ test("cut height: off, walking and games see full walls", () => {
 });
 
 test("cutaway: wired into the wall builder, saved with the scene, strings in both locales", async () => {
-  const v = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  const v = moduleSource("js/view3d.js");
   assert.match(v, /H = Math\.min\(Hfull, cutH\(\)\)/);
   assert.match(v, /mesh\.userData\.role = "wallCap"/);
   assert.match(v, /clipBelow\(group, Hc\);\r?\n\s+addWallCaps\(group, Hc\);/);
@@ -114,10 +116,10 @@ test("near side: thresholds have hysteresis so a resting camera never flickers",
 });
 
 test("near side: view3d fades walls through the shared rule and keeps cut walls unpickable", async () => {
-  const src = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
-  const see = src.slice(src.indexOf("function updateSeeThrough("), src.indexOf("/* The presentation cutaway camera"));
+  const src = moduleSource("js/view3d.js");
+  const see = ["updateSeeThrough", "seeMaterials"].map((name) => sourceFunctionText(src, name)).join("\n");
   assert.match(see, /nearSideWall\(/);
-  assert.doesNotMatch(see, /sAt > -60/, "the centre-ray span test is gone");
+  assert.doesNotMatch(src, /sAt > -60/, "the centre-ray span test is gone");
   // fades work on clones and hand the originals back, like the layer ghost
   assert.match(see, /o\.userData\.seeBase = o\.material/);
   assert.match(see, /o\.material = o\.userData\.seeBase/);
@@ -125,6 +127,6 @@ test("near side: view3d fades walls through the shared rule and keeps cut walls 
   assert.match(src, /updateSeeThrough\(true\)/);
   assert.match(src, /settleSeeFades\(\);[^\n]*\n\s*ghostRoot\(structureRoot, false\)/);
   // a hidden wall's doors and windows no longer answer the 3D pick
-  const pick = src.slice(src.indexOf("function pickEditTarget("), src.indexOf("function pxScaleAt("));
+  const pick = sourceFunctionText(src, "pickEditTarget");
   assert.match(pick, /cutAway\(h\.object\)/);
 });

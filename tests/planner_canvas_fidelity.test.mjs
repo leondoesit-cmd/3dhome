@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -63,13 +65,14 @@ test('room cache paints at backing resolution, blits at CSS size and reuses unch
 });
 
 test('3D resize reuses render targets unless dimensions or pixel ratio change', () => {
-  const view = readFileSync(new URL('../js/view3d.js', import.meta.url), 'utf8');
+  const view = moduleSource("js/view3d.js");
   let allocations = 0, projections = 0, ratio = 2;
   const ctx = vm.createContext({ ready3D: true, needsRender: false, settle: 0, SETTLE_FRAMES: 6,
     renderer: { getPixelRatio: () => ratio, setSize: () => allocations++ },
     camera: { updateProjectionMatrix: () => projections++ },
   });
-  vm.runInContext(view.slice(view.indexOf('var lastViewWidth ='), view.indexOf('// One render tick:')).replace('export ', ''), ctx);
+  const lastView = view.indexOf('var lastViewWidth =');
+  vm.runInContext(view.slice(lastView, view.indexOf('\n', lastView) + 1) + sourceFunctionText(view, 'setSize'), ctx);
   ctx.setSize(400, 300);
   ctx.settle = 0;
   ctx.setSize(400, 300);

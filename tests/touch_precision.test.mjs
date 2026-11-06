@@ -1,4 +1,5 @@
 import { modelerSource } from "./helpers/modeler_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -110,7 +111,7 @@ test("legacy lifted-coordinate code is absent", async () => {
   const [precision, walls, interaction, modeler] = await Promise.all([
     readFile(new URL("../js/touch_precision.js", import.meta.url), "utf8"),
     readFile(new URL("../js/wall_draw.js", import.meta.url), "utf8"),
-    readFile(new URL("../js/interaction.js", import.meta.url), "utf8"),
+    moduleSource("js/interaction.js"),
     modelerSource(),
   ]);
   assert.doesNotMatch(precision, /return "lift"|adaptiveTouchVector|TOUCH_PRECISION_MIN_PX/);

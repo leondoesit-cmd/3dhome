@@ -1,9 +1,10 @@
 import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const interactionSource = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const interactionSource = moduleSource("js/interaction.js");
 const plan2dSource = (await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8")).replace(/\r\n/g,"\n");
 const css = stylesSource();
 

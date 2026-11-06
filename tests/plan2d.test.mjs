@@ -1,4 +1,5 @@
 import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -24,7 +25,7 @@ import { saveUnitSettings, resetAllUnitSettings } from "../js/unit_settings.js";
 const planSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
 const mainSource = await readFile(new URL("../js/main.js", import.meta.url), "utf8");
 const elevSource = await readFile(new URL("../js/elevation.js", import.meta.url), "utf8");
-const interactionSource = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const interactionSource = moduleSource("js/interaction.js");
 const cssSource = stylesSource();
 const i18nSource = await readI18nSource();
 
