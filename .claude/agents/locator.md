@@ -11,12 +11,15 @@ files and never run commands that change files or git state.
 How to search cheaply:
 - Grep with `-n` and a `glob`/`type` filter first. Search hits in `vendor/`, data blobs
   and harness output are excluded by the repo's `.ignore`.
-- For a big file (`js/modeler.js`, `js/view3d.js`, `js/interaction.js`,
-  `js/i18n/*.js`) run `node tools/outline.mjs <file> --grep <word>` to see its
-  declarations or CSS sections with line numbers. Never Read such a file whole: Read
-  with `offset`/`limit` of at most 80 lines around a hit.
-- The CAD editor is `js/modeler.js` plus the pieces split out into `js/modeler/*.js`;
-  check both. Strings live in `js/i18n/en.js` and `js/modeler_strings.js`.
+- For any file over ~1,500 lines (`js/i18n/*.js`, `js/modeler_strings.js`,
+  `js/rc_game.js`, `js/cabinet.js`, ...) run `node tools/outline.mjs <file> --grep <word>`
+  to see its declarations or CSS sections with line numbers. Never Read such a file
+  whole: Read with `offset`/`limit` of at most 80 lines around a hit.
+- Split modules keep their core in `js/<name>.js` and the moved areas in
+  `js/<name>/*.js` (modeler, view3d, interaction, plan2d, cad_kernel, ui, zombies_world,
+  zombies_game, track); check both. The stylesheet is `css/styles_NN_*.css`. Planner
+  actions: grep `act === "name"` in `js/ui/*_actions.js`. Strings live in
+  `js/i18n/en.js` and `js/modeler_strings.js`. AGENTS.md "Where things live" is the map.
 - Tests are `tests/*.test.mjs` (Node) and `tests/*.browser.mjs` (Chrome).
 
 Report format (the whole reply under ~25 lines):

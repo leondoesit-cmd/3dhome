@@ -53,7 +53,7 @@ Token use matters on this repo; these habits keep it down.
   | "Where is X?" searches | `locator` (Haiku) |
   | check / tests, failures only | `test-runner` (Haiku) |
   | Specified mechanical edits: moves, renames, import fixes, test rewiring | `mechanical-editor` (Sonnet), with an explicit list of files it may edit |
-  | Code and plan reviews | the main model (Codex `gpt-6.1-sol`, `model_reasoning_effort=high`, `-s read-only` when the user asks for it) |
+  | Code and plan reviews, improvement suggestions | Codex Astra 6 (`codex.exe exec -m gpt-6-astra -c model_reasoning_effort=high -s read-only`); the main model checks each finding before acting |
   | Design, graphics/renderer/shaders, hard debugging | the main model |
 
   Do a task of a few tool calls yourself: a subagent starts cold, so delegating it costs more than it saves. Check a subagent's or Codex's claim (diff, test run) before relying on it.

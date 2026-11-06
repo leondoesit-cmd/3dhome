@@ -17,14 +17,15 @@ Rules:
 - Windows writes can fail or leave a stale tail when another process holds the file.
   After writing a file, read back its size or last lines; retry a failed write.
 - Big files: use `node tools/outline.mjs <file>` and Grep `-n` to find regions, and
-  Read with `offset`/`limit`. Never read `js/modeler.js` whole.
+  Read with `offset`/`limit`. Never read a file over ~1,500 lines whole.
 - Match the surrounding code's style and comment density; LF line endings.
 - A new file under `js/` must be listed in `survey-assets.json`.
-- Moving code out of `js/modeler.js` follows the existing split: the new
-  `js/modeler/<area>.js` imports what it needs, `modeler.js` imports from it, and any
-  names the piece needs back from `modeler.js` go through an `export { ... };` list
-  headed by a `// for js/modeler/<area>.js` comment. Tests read the editor's source
-  through `tests/helpers/modeler_source.mjs` (`modelerSource()`).
+- Never move code by retyping it: use the codemods (`tools/split_module.mjs`,
+  `tools/extract_block.mjs`, `tools/split_dispatch.mjs`, `tools/prune_imports.mjs`; see
+  AGENTS.md "Working cheaply"). They keep code verbatim and refuse unsafe moves.
+- Tests read split sources through `tests/helpers/` (`moduleSource("js/x.js")`,
+  `modelerSource()`, `stylesSource()`, `sourceFunctionText()`, `withSetters()`); never
+  slice source text from one function to the one that happens to follow it.
 
 When done, run `npm run check` and the tests the brief names (or
 `npm run test:changed`), using the quiet reporter. Report in under ~25 lines:
