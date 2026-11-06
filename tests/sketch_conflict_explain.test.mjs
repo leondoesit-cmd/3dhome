@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -181,6 +182,6 @@ test('a refusal from the toolbar holds the hint long enough to read, and lets it
   assert.match(src, /showSketchRefusal\(sketch, names\.join\(", "\), added\.map\(function \(c\) \{ return c\.id; \}\), why\)/);
   assert.match(src, /flash\(refusalMessage\(sketch, subject, keepIds, why\), RELATION_REFUSAL_MS\)/);
   assert.match(src, /hint\.classList\.toggle\("wrap", !!holdMs\)/);
-  const css = readFileSync(new URL('../css/styles.css', import.meta.url), 'utf8');
+  const css = stylesSource();
   assert.match(css, /#modeler \.md-hint\.flash\.wrap \{ white-space: normal;/);
 });

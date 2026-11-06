@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -6,7 +7,7 @@ import { stripComments } from "./source.mjs";
 
 const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
 const i18n = await readI18nSource();
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const css = stylesSource();
 
 test("pause sheet labels jump on Space and shove on X", () => {
   assert.match(game, /kbd: "SPACE", key: "z_control_jump"/);

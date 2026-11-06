@@ -17,7 +17,7 @@ Rules:
 - Windows writes can fail or leave a stale tail when another process holds the file.
   After writing a file, read back its size or last lines; retry a failed write.
 - Big files: use `node tools/outline.mjs <file>` and Grep `-n` to find regions, and
-  Read with `offset`/`limit`. Never read `js/modeler.js` or `css/styles.css` whole.
+  Read with `offset`/`limit`. Never read `js/modeler.js` whole.
 - Match the surrounding code's style and comment density; LF line endings.
 - A new file under `js/` must be listed in `survey-assets.json`.
 - Moving code out of `js/modeler.js` follows the existing split: the new

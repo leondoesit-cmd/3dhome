@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -74,7 +75,7 @@ test('Smart Dimension opening and refusal focus the field without scrolling the 
  load('showDimensionRefusal',{root,refusalMessage:()=> 'Conflicting relation',flash(){},refreshAll(){}})({sketch:{},constraint},'24',{ids:[]});
  assert.equal(root.scrollTop,0);assert.equal(focusOptions.length,2);
  assert.ok(focusOptions.every(options=>options.preventScroll===true));
- const css=readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+ const css=stylesSource();
  const compactRoot=css.slice(css.indexOf('body.compact-nav #modeler {'),css.indexOf('\n}',css.indexOf('body.compact-nav #modeler {')));
  assert.match(compactRoot,/overflow:\s*clip;/,'phone editor is not a programmatically scrollable viewport');
  assert.match(css,/body\.compact-nav #md-sheet #mdLeftPanel\s*\{\s*overflow-y:\s*auto;/,'borrowed panel remains scrollable');

@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -28,7 +29,7 @@ test("desktop plan navigation supports middle and Space drag panning", async () 
 });
 
 test("desktop split supports side-by-side, persistence, and divider reset", async () => {
-  const [main, css, html] = await Promise.all([read("js/main.js"), read("css/styles.css"), read("index.html")]);
+  const [main, css, html] = await Promise.all([read("js/main.js"), stylesSource(), read("index.html")]);
   assert.match(main, /SPLIT_DIR_KEY = "home3d_splitdir"/);
   assert.match(main, /resizer\.addEventListener\("dblclick", function \(\) \{ setSplit\(50, true\); \}\)/);
   assert.match(css, /body\.split-side:not\(\.compact-nav\) #center-canvas/);
@@ -37,7 +38,7 @@ test("desktop split supports side-by-side, persistence, and divider reset", asyn
 });
 
 test("catalog dragging shows a scaled footprint before drop", async () => {
-  const [src, css] = await Promise.all([read("js/planner_chrome.js"), read("css/styles.css")]);
+  const [src, css] = await Promise.all([read("js/planner_chrome.js"), stylesSource()]);
   assert.match(src, /className = "furn-drop-ghost"/);
   assert.match(src, /Number\(f\.w \|\| 40\) \* S\.SC/);
   assert.match(css, /\.furn-drop-ghost/);
@@ -58,14 +59,14 @@ test("tree navigation frames rooms and items on double click", async () => {
 });
 
 test("confirmed localization and selected-hover contrast regressions stay fixed", async () => {
-  const [props, css] = await Promise.all([read("js/ui_props.js"), read("css/styles.css")]);
+  const [props, css] = await Promise.all([read("js/ui_props.js"), stylesSource()]);
   assert.match(props, /roomTitle\.textContent = roomName\(r\.key\) \|\| t\("room"\)/);
   assert.match(css, /\.trRoom\.sel:hover,[\s\S]*background: linear-gradient\(135deg, var\(--accent\), var\(--accent-hover\)\)/);
 });
 
 test("wall options compact after drawing starts and cost actions remain sticky", async () => {
   const [interaction, ui, css, html] = await Promise.all([
-    read("js/interaction.js"), read("js/ui.js"), read("css/styles.css"), read("index.html"),
+    read("js/interaction.js"), read("js/ui.js"), stylesSource(), read("index.html"),
   ]);
   assert.match(interaction, /CustomEvent\("planner-draw-start"\)/);
   assert.match(ui, /pal\.classList\.add\("auto-collapsed"\)/);

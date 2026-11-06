@@ -1,0 +1,632 @@
+/* ============ cabinet designer (ui_cabinet.js) ============ */
+#cabdes {
+  position: fixed; inset: 0; z-index: 305;
+  display: none; flex-direction: column;
+  background: var(--overlay);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  color: var(--text-main); font-family: "Inter", "Rubik", sans-serif;
+}
+
+#cabdes .cb-head {
+  display: flex; flex-direction: column;
+  padding: 0; background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color); box-shadow: var(--shadow-sm); z-index: 20;
+}
+/* logo · editor switcher (js/pro_shell.js) · levels · actions */
+#cabdes .cb-head-main { min-height: 58px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto minmax(max-content, 1fr); align-items: center; gap: 20px; padding: 0 18px; }
+#cabdes .cb-logo { display: flex; align-items: center; gap: 8px; font-size: 1rem; color: var(--accent); font-weight: 600; min-width: 0; }
+#cabdes .cb-sub { color: var(--text-muted); font-size: max(0.78rem, var(--fs-floor, 0px)); font-weight: 500; margin-inline-start: 10px; }
+#cabdes .cb-session {
+  display: inline-flex; align-items: center; margin-inline-start: 2px; padding: 3px 7px;
+  border: 1px solid var(--btn-border); border-radius: 999px; color: var(--text-muted);
+  font-size: max(0.67rem, var(--fs-floor, 0px)); font-weight: 600; white-space: nowrap;
+}
+#cabdes .cb-session.is-modified { border-color: #d08a2c; background: color-mix(in srgb, #d08a2c 12%, transparent); color: #b46e12; }
+#cabdes .cb-context-bar { min-height: 62px; display: flex; align-items: center; justify-content: center; gap: 18px; padding: 8px 18px; background: color-mix(in srgb, var(--bg-panel) 84%, var(--bg-canvas-2d)); border-top: 1px solid var(--separator); }
+#cabdes .cb-control-group { display: flex; align-items: center; gap: 12px; }
+#cabdes .cb-group-title { color: var(--text-muted); font-size: max(0.68rem, var(--fs-floor, 0px)); font-weight: 700; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
+#cabdes .cb-context-sep { width: 1px; align-self: stretch; background: var(--separator); }
+#cabdes .cb-dims { display: flex; align-items: center; gap: 8px; }
+#cabdes .cb-dims label { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; font-size: max(0.68rem, var(--fs-floor, 0px)); font-weight: 600; color: var(--text-muted); }
+#cabdes .cb-number { display: flex; align-items: center; min-width: 106px; height: 34px; padding: 0 9px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); transition: border-color .15s, box-shadow .15s; }
+#cabdes .cb-number:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+#cabdes .cb-number input { width: 70px; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text-main); font-weight: 600; }
+#cabdes .cb-number em { margin-inline-start: auto; color: var(--text-muted); font-size: max(.66rem, var(--fs-floor, 0px)); font-style: normal; }
+#cabdes .cb-preview-controls { display: flex; align-items: center; gap: 10px; }
+#cabdes .cb-slider-wrap { display: flex; flex-direction: column; gap: 3px; font-size: max(0.78rem, var(--fs-floor, 0px)); color: var(--text-muted); min-width: 310px; }
+#cabdes .cb-slider-hdr { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; color: var(--text-main); font-size: max(0.75rem, var(--fs-floor, 0px)); }
+#cabdes .cb-slider-wrap input[type="range"] { width: 170px; accent-color: var(--accent); cursor: pointer; height: 5px; }
+#cabdes .cb-stage-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 2px; border-radius: 8px; background: var(--input-bg); border: 1px solid var(--input-border); }
+#cabdes .cb-chip-stage { padding: 4px 7px; font-size: max(0.68rem, var(--fs-floor, 0px)); border-radius: 6px; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; transition: 0.15s ease; transition-property: var(--ease-paint); white-space: nowrap; }
+#cabdes .cb-chip-stage:hover { background: var(--btn-bg-hover); color: var(--text-main); }
+#cabdes .cb-chip-stage.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+#cabdes .cb-actions { display: flex; align-items: center; justify-self: end; gap: 8px; }
+#cabdes .cb-history-actions { display: flex; padding: 2px; border: 1px solid var(--btn-border); border-radius: 9px; background: var(--input-bg); }
+#cabdes .cb-history-actions button { border: 0; background: transparent; padding: 6px 8px; }
+#cabdes .cb-actions button, #cabdes .cb-wide {
+  padding: 8px 12px; border-radius: 8px; background: var(--btn-bg); border: 1px solid var(--btn-border);
+  color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500;
+}
+#cabdes .cb-actions button:hover { background: var(--btn-bg-hover); }
+#cabdes .cb-actions .btn-accent { min-width: 84px; justify-content: center; }
+#cabdes .cb-cb { display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg); color: var(--text-main); font-size: max(.75rem, var(--fs-floor, 0px)); font-weight: 600; white-space: nowrap; }
+#cabdes .cb-cb span { display: inline-flex; align-items: center; gap: 5px; }
+
+#cabdes .cb-body { flex: 1; display: flex; overflow: hidden; padding: 14px; gap: 14px; }
+#cabdes .cb-panel {
+  width: 292px; flex: none; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-panel); border: 1px solid var(--border-color);
+  border-radius: 16px; box-shadow: var(--shadow-md);
+}
+#cabdes .cb-right { width: 360px; overflow: hidden; }
+/* one pane is shown at a time now, so the panel itself does not scroll — the
+   active pane does, and the icon bars stay put above it */
+#cabdes .cb-right .cb-fill { flex: 1; min-height: 0; overflow: hidden; }
+/* Keep the selected properties reachable on short laptop windows. */
+#cabdes:not(.cb-compact) .cb-right { overflow-y: auto; }
+#cabdes:not(.cb-compact) .cb-right > .cb-prev-wrap { flex: none; height: clamp(96px, 18vh, 170px); overflow: hidden; }
+
+#cabdes:not(.cb-compact) .cb-right > .cb-grp { flex: none; padding: 5px; margin-top: 5px; }
+#cabdes:not(.cb-compact) .cb-right > .cb-grp .cb-icons { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#cabdes:not(.cb-compact) .cb-right > .cb-grp .cb-icons button { min-height: 42px; padding: 5px; justify-content: center; }
+#cabdes:not(.cb-compact) .cb-right > .cb-grp .cb-icon-label { display: none; }
+/* basis auto, not 240px: the column scrolls as a whole, so the pane must be as
+   tall as what is in it — at a fixed basis its content spilled out of the box
+   and the production strip (sticky, after it) sat over the middle of it */
+#cabdes:not(.cb-compact) .cb-right .cb-fill { flex: 1 0 auto; min-height: 240px; overflow: visible; }
+#cabdes:not(.cb-compact) .cb-right .cb-pane.on { overflow: visible; flex: none; }
+#cabdes .cb-scope-note { max-width: 150px; font-size: max(10px, var(--fs-floor, 0px)); color: var(--text-muted); }
+#cabdes.cb-compact .cb-scope-note { max-width: none; }
+#cabdes button.cb-preset { width: 100%; text-align: start; color: inherit; font: inherit; }
+#cabdes button.cb-check { width: 100%; text-align: start; cursor: pointer; }
+#cabdes .cb-mid {
+  flex: 1; position: relative; border-radius: 16px; overflow: hidden;
+  background-color: var(--bg-canvas-2d);
+  background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+  background-size: 28px 28px; border: 1px solid var(--border-color);
+}
+#cabdes #cbCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+/* the partition tools float over the elevation, the way a draw toolbar does */
+#cabdes .cb-tools {
+  /* centred over the drawing area, which starts after the view picker's gutter
+     — centring on the pane itself puts it under the picker on a narrow screen */
+  position: absolute; top: 10px; left: 128px; right: 10px; z-index: 2;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 6px; border-radius: 12px;
+  width: min(360px, calc(100% - 138px)); max-width: 100%; margin: 0 auto;
+  background: var(--bg-panel); border: 1px solid var(--border-color);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+#cabdes .cb-tools button {
+  display: flex; align-items: center; justify-content: flex-start; gap: 6px; padding: 8px 11px; font-size: 12px; min-width: 0;
+  border-radius: 9px; background: transparent; border: 1px solid transparent;
+  color: var(--text-main); cursor: pointer; white-space: nowrap;
+}
+#cabdes .cb-tools button:hover { background: var(--btn-bg-hover); }
+#cabdes .cb-tools button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+#cabdes .cb-tools button:disabled { opacity: 0.45; cursor: default; }
+/* the size toggle is a preference, not one of the mutually exclusive tools */
+#cabdes #cbSnap.on { background: var(--btn-bg); border-color: var(--btn-border); color: var(--text-main); font-weight: 600; }
+#cabdes #cbSnap:not(.on) { color: var(--text-muted); }
+#cabdes #cbSnap:not(.on) span { text-decoration: line-through; }
+#cabdes.cb-is3d .cb-vdraw { display: none; }
+
+/* view picker: 2D / 3D and, in 2D, which direction the drawing looks from */
+#cabdes .cb-views {
+  /* below the partition tools, which are centred across the top */
+  /* always on the left, mirrored or not: the drawing itself never mirrors, and
+     the projected views reserve a gutter on this side for their dimensions */
+  position: absolute; top: 58px; left: 10px; z-index: 2;
+  display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+}
+#cabdes .cb-vgroup {
+  display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 12px;
+  background: var(--bg-panel); border: 1px solid var(--border-color);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+#cabdes .cb-vgroup > button {
+  display: flex; align-items: center; gap: 5px; padding: 5px 8px; font-size: max(11px, var(--fs-floor, 0px));
+  border-radius: 8px; background: transparent; border: 1px solid transparent;
+  color: var(--text-main); cursor: pointer; white-space: nowrap; text-align: start;
+}
+#cabdes .cb-vgroup > button:hover { background: var(--btn-bg-hover); }
+#cabdes .cb-vgroup > button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+#cabdes .cb-vgroup > button[data-mode] { justify-content: center; font-weight: 700; }
+#cabdes .cb-v45 { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--separator); }
+#cabdes .cb-v45 button {
+  padding: 3px 0; font-size: 13px; line-height: 1; border-radius: 7px; cursor: pointer;
+  background: transparent; border: 1px solid transparent; color: var(--text-muted);
+}
+#cabdes .cb-v45 button:hover { background: var(--btn-bg-hover); }
+#cabdes .cb-v45 button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+/* the 3D view borrows the preview's canvas rather than a second WebGL context */
+#cabdes .cb-3dhost { position: absolute; inset: 0; display: none; }
+#cabdes.cb-is3d .cb-3dhost { display: flex; }
+#cabdes.cb-is3d #cbCanvas { display: none; }
+#cabdes.cb-is3d .cb-tools, #cabdes.cb-is3d .cb-vaxes { display: none; }
+#cabdes .cb-3dhost .cb-prev-wrap {
+  flex: 1; min-width: 0; padding: 6px; border-bottom: none;
+  align-items: center; justify-content: center;
+}
+#cabdes .cb-3dhost .cb-prev-wrap canvas { cursor: grab; }
+#cabdes .cb-hint {
+  position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; padding: 8px 16px; border-radius: 20px; white-space: nowrap;
+  background: var(--hud-bg); color: var(--hud-fg); pointer-events: none;
+}
+#cabdes .cb-sec { padding: 10px 12px; border-bottom: 1px solid var(--separator); display: flex; flex-direction: column; gap: 8px; }
+#cabdes .cb-sec:last-child { border-bottom: none; }
+#cabdes .cb-fill { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+#cabdes h4 { margin: 0; font-size: max(0.78rem, var(--fs-floor, 0px)); text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.07em; font-weight: 700; }
+#cabdes h5.cb-h5 { margin: 10px 0 2px; font-size: max(0.78rem, var(--fs-floor, 0px)); text-transform: uppercase; color: var(--accent); letter-spacing: 0.05em; }
+#cabdes .cb-note { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+
+/* --- search --- */
+#cabdes .cb-search {
+  display: flex; align-items: center; gap: 6px; margin: 8px 10px 2px; padding: 6px 9px;
+  border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+#cabdes .cb-search i { color: var(--text-muted); font-size: 14px; flex: none; }
+#cabdes .cb-search input {
+  flex: 1; min-width: 0; border: none; background: none; outline: none;
+  color: var(--text-main); font-size: 12px; padding: 0;
+}
+#cabdes .cb-search button {
+  flex: none; border: none; background: none; color: var(--text-muted);
+  cursor: pointer; padding: 0 2px; font-size: 12px;
+}
+#cabdes .cb-hits { display: flex; flex-direction: column; gap: 4px; }
+#cabdes .cb-hits:empty { display: none; }
+#cabdes .cb-hit {
+  display: flex; align-items: center; gap: 6px; padding: 6px 9px; font-size: max(11.5px, var(--fs-floor, 0px));
+  border-radius: 9px; cursor: pointer; text-align: start;
+  background: var(--btn-bg); border: 1px dashed var(--accent); color: var(--text-main);
+}
+#cabdes .cb-hit:disabled { opacity: 0.45; cursor: default; border-style: solid; border-color: var(--btn-border); }
+
+/* --- icon groups: four to a row, one content pane below them --- */
+#cabdes .cb-grp { margin: 8px 10px 0; padding: 9px; border: 1px solid var(--separator); border-radius: 11px; background: color-mix(in srgb, var(--bg-panel) 82%, var(--input-bg)); overflow: visible; }
+#cabdes .cb-grp h5 {
+  margin: 0 0 7px; font-size: max(0.72rem, var(--fs-floor, 0px)); font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--text-muted); display: flex; align-items: center; gap: 6px;
+}
+#cabdes .cb-hprice { margin-inline-start: auto; color: var(--accent); font-size: max(0.72rem, var(--fs-floor, 0px)); letter-spacing: 0; }
+#cabdes .cb-icons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+/* a pair that belongs together but is still two separate things */
+#cabdes .cb-icons.cb-pair button:nth-child(2) { margin-inline-start: 6px; }
+#cabdes .cb-icons button {
+  position: relative; display: flex; align-items: center; justify-content: flex-start; gap: 7px;
+  min-height: 46px; height: auto; padding: 7px 9px; border-radius: 10px; cursor: pointer;
+  background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--text-main);
+}
+#cabdes .cb-icons button i { flex: none; font-size: 20px; color: var(--accent); }
+#cabdes .cb-icons button.on i { color: currentColor; }
+#cabdes .cb-icon-label { min-width: 0; overflow: hidden; font-size: max(11.5px, var(--fs-floor, 0px)); font-weight: 600; line-height: 1.15; text-align: start; text-overflow: ellipsis; }
+#cabdes .cb-icons button:hover { background: var(--btn-bg-hover); border-color: var(--accent); }
+#cabdes .cb-icons button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+#cabdes button:focus-visible, #cabdes input:focus-visible, #cabdes select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px;
+}
+/* an action that is merely "in force" (the design is blank) is not the same as
+   the pane you are looking at, so it is outlined rather than filled */
+#cabdes .cb-icons button[data-act].on {
+  background: var(--btn-bg); color: var(--accent);
+  border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset;
+}
+#cabdes .cb-icons button.cb-alert { border-color: #d9534f; box-shadow: 0 0 0 1px #d9534f inset; }
+#cabdes .cb-icons .cb-badge { position: absolute; top: -5px; inset-inline-end: -4px; }
+/* the icon is the whole label, so hovering has to say what it is */
+#cabdes [data-tip]:hover::after, #cabdes [data-tip]:focus-visible::after {
+  content: attr(data-tip); position: absolute; top: calc(100% + 6px); inset-inline-start: 0;
+  z-index: 9; padding: 5px 8px; border-radius: 7px; white-space: nowrap; pointer-events: none;
+  font-size: max(11px, var(--fs-floor, 0px)); font-weight: 500; letter-spacing: 0; text-transform: none;
+  background: var(--hud-bg); color: var(--hud-fg);
+}
+/* the last two in a row would run off the panel, so they hang the other way */
+#cabdes .cb-icons button:nth-child(n + 3)[data-tip]:hover::after { inset-inline-start: auto; inset-inline-end: 0; }
+#cabdes .cb-tabs { display: flex; flex-direction: column; min-height: 0; }
+#cabdes .cb-pane { display: none; padding: 10px 12px; gap: 8px; flex-direction: column; }
+#cabdes .cb-pane.on { display: flex; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+#cabdes .cb-more {
+  align-self: flex-start; padding: 4px 9px; font-size: max(11px, var(--fs-floor, 0px)); border-radius: 8px;
+  background: none; border: 1px dashed var(--btn-border); color: var(--text-muted); cursor: pointer;
+}
+#cabdes .cb-more:hover { color: var(--text-main); border-color: var(--accent); }
+
+#cabdes .cb-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+/* the type chips are icons: fourteen names took five rows of the panel */
+#cabdes #cbFams { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+#cabdes .cb-chip-ico { flex-direction: column; justify-content: center; gap: 3px; min-height: 52px; padding: 6px 4px; }
+#cabdes .cb-chip-ico i { font-size: 16px; }
+#cabdes .cb-chip-name {
+  min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: max(10px, var(--fs-floor, 0px)); font-weight: 600; line-height: 1.15; color: inherit;
+}
+#cabdes .cb-chip {
+  display: flex; align-items: center; gap: 5px; padding: 7px 8px; font-size: max(10.5px, var(--fs-floor, 0px));
+  border-radius: 9px; background: var(--btn-bg); border: 1px solid var(--btn-border);
+  color: var(--text-main); cursor: pointer; text-align: start; line-height: 1.2;
+  min-width: 0; overflow: hidden;
+}
+#cabdes .cb-chip i { flex: none; font-size: 13px; }
+#cabdes .cb-chip span { min-width: 0; overflow-wrap: anywhere; }
+#cabdes .cb-type span { min-width: 0; overflow-wrap: anywhere; }
+#cabdes .cb-chip:hover { background: var(--btn-bg-hover); }
+#cabdes .cb-chip.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+#cabdes .cb-presets { display: flex; flex-direction: column; gap: 8px; }
+#cabdes .cb-preset {
+  padding: 9px 11px; border-radius: 11px; cursor: pointer;
+  background: var(--btn-bg); border: 1px solid var(--btn-border);
+}
+#cabdes .cb-preset:hover { background: var(--btn-bg-hover); }
+#cabdes .cb-preset.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+/* the blank card is an action, not one more plan — dashed, like an empty slot */
+#cabdes .cb-preset-blank { border-style: dashed; border-color: var(--accent); }
+#cabdes .cb-preset-blank .cb-p-top { color: var(--accent); }
+#cabdes .cb-p-top { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+#cabdes .cb-p-note { font-size: max(10.5px, var(--fs-floor, 0px)); color: var(--text-muted); margin-top: 3px; line-height: 1.35; }
+#cabdes .cb-p-fam { font-size: max(10px, var(--fs-floor, 0px)); color: var(--accent); margin-top: 3px; opacity: 0.85; }
+
+#cabdes .cb-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-muted); }
+#cabdes .cb-row input, #cabdes .cb-row select {
+  width: 128px; padding: 5px 7px; border-radius: 7px; font-size: 12px;
+  background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-main);
+}
+#cabdes .cb-cb { display: flex; align-items: center; gap: 5px; font-size: max(11.5px, var(--fs-floor, 0px)); color: var(--text-main); cursor: pointer; }
+#cabdes .cb-btnrow { display: flex; gap: 6px; margin-top: 6px; }
+#cabdes .cb-btnrow.cb-wrap { flex-wrap: wrap; }
+#cabdes .cb-btnrow button {
+  flex: 1; padding: 7px 6px; font-size: max(11px, var(--fs-floor, 0px)); border-radius: 8px; cursor: pointer;
+  background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--text-main);
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+#cabdes .cb-btnrow button:hover { background: var(--btn-bg-hover); }
+#cabdes .cb-btnrow .btn-danger { color: #e05252; }
+
+#cabdes .cb-typegrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
+#cabdes .cb-type {
+  display: flex; align-items: center; gap: 4px; padding: 6px 7px; font-size: max(10.5px, var(--fs-floor, 0px));
+  border-radius: 8px; cursor: pointer; text-align: start; line-height: 1.15;
+  background: var(--btn-bg); border: 1px solid var(--btn-border);
+  border-inline-start-width: 4px; color: var(--text-main);
+}
+#cabdes .cb-type.on { border-color: var(--accent); font-weight: 600; }
+#cabdes .cb-type:hover { background: var(--btn-bg-hover); }
+
+#cabdes .cb-prev-wrap { position: relative; padding: 8px; }
+#cabdes #cbPrev { width: 100%; border-radius: 10px; cursor: grab; touch-action: none; background: transparent; }
+
+#cabdes .cb-bom { width: 100%; border-collapse: collapse; font-size: max(11px, var(--fs-floor, 0px)); }
+#cabdes .cb-bom th { text-align: start; color: var(--text-muted); font-weight: 600; padding-bottom: 3px; }
+#cabdes .cb-bom td { padding: 2px 0; border-bottom: 1px solid var(--separator); }
+#cabdes .cb-bom td:last-child { text-align: end; width: 34px; color: var(--text-muted); }
+#cabdes .cb-bom .cb-dim { color: var(--text-muted); font-size: max(10px, var(--fs-floor, 0px)); }
+#cabdes .cb-bom-head td { color: var(--accent); font-weight: 700; padding-top: 7px; text-transform: uppercase; font-size: max(10px, var(--fs-floor, 0px)); }
+#cabdes .cb-total { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; }
+#cabdes .cb-total b { color: var(--accent); font-size: 15px; }
+#cabdes .cb-wide { width: 100%; justify-content: center; margin-top: 6px; font-size: max(11.5px, var(--fs-floor, 0px)); }
+
+/* Shared legibility floor for the application's dense design surfaces. Small
+   metadata may stay compact, but commands and editable values must not. */
+#cabdes .cb-row,
+#cabdes .cb-row input,
+#cabdes .cb-row select,
+#cabdes .cb-btnrow button,
+#cabdes .cb-chip,
+#cabdes .cb-type,
+#cabdes .cb-cb { font-size: 12px; }
+#cabdes .cb-chip i,
+#cabdes .cb-type i { font-size: 15px; }
+#modeler .md-pane,
+#modeler .md-pane button,
+#modeler .md-pane input,
+#modeler .md-pane select { font-size: 12px; }
+#modeler .md-strip > button { min-height: 32px; }
+
+@media (max-width: 1100px) {
+  #cabdes .cb-head-main { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; padding-block: 8px; }
+  #cabdes .cb-head-main .cb-levels { grid-column: 1 / -1; grid-row: 2; }
+  #cabdes .cb-context-bar { flex-wrap: wrap; gap: 10px 16px; }
+  #cabdes .cb-context-sep { display: none; }
+  #cabdes .cb-body { flex-direction: column; overflow-y: auto; }
+  #cabdes .cb-panel { width: auto; max-height: 40vh; }
+  #cabdes .cb-mid { min-height: 45vh; }
+}
+
+@media (max-width: 700px) {
+  #cabdes .cb-head-main { display: flex; flex-wrap: wrap; padding: 8px 10px; }
+  #cabdes .cb-logo { width: 100%; }
+  #cabdes .cb-head-main .cb-levels { order: 3; width: 100%; overflow-x: auto; justify-content: stretch; }
+  #cabdes .cb-levels button { flex: 1; padding-inline: 8px; white-space: nowrap; }
+  #cabdes .cb-actions { margin-inline-start: auto; }
+  #cabdes .cb-context-bar { align-items: stretch; padding: 8px 10px; }
+  #cabdes .cb-control-group { width: 100%; align-items: flex-start; flex-direction: column; gap: 5px; }
+  #cabdes .cb-dims { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  #cabdes .cb-number { min-width: 0; width: 100%; }
+  #cabdes .cb-number input { width: 100%; min-width: 0; }
+  #cabdes .cb-preview-controls { width: 100%; align-items: flex-end; }
+  #cabdes .cb-slider-wrap { min-width: 0; flex: 1; }
+  #cabdes .cb-slider-wrap input[type="range"] { width: 100%; }
+  #cabdes .cb-actions button { min-height: 38px; }
+  #cabdes #cbRevert { font-size: 0; }
+  #cabdes #cbRevert i { font-size: 1rem; }
+  #cabdes .cb-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #cabdes .cb-session { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* --- cabinet designer: finishes, checks, saved presets --- */
+#cabdes .cb-swatches { display: flex; flex-wrap: wrap; gap: 5px; }
+#cabdes .cb-sw {
+  width: 22px; height: 22px; border-radius: 6px; cursor: pointer; padding: 0;
+  border: 1px solid var(--btn-border); box-shadow: inset 0 -4px 6px rgba(0,0,0,.10);
+}
+#cabdes .cb-sw.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+#cabdes .cb-sw-auto {
+  background: repeating-linear-gradient(45deg, var(--btn-bg) 0 4px, var(--btn-bg-hover) 4px 8px);
+}
+#cabdes .cb-badge {
+  display: none; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  font-size: max(10px, var(--fs-floor, 0px)); line-height: 16px; text-align: center; color: var(--on-warn); background: var(--warn);
+}
+#cabdes .cb-badge.on { display: inline-block; }
+#cabdes .cb-check {
+  font-size: max(11px, var(--fs-floor, 0px)); line-height: 1.35; padding: 5px 8px; border-radius: 7px; cursor: pointer;
+  border-inline-start: 3px solid transparent; background: var(--btn-bg); margin-bottom: 4px;
+}
+#cabdes .cb-check:hover { background: var(--btn-bg-hover); }
+#cabdes .cb-err { border-inline-start-color: var(--danger); }
+#cabdes .cb-warn { border-inline-start-color: var(--warn); }
+#cabdes .cb-info { border-inline-start-color: var(--accent); }
+#cabdes .cb-ok { color: var(--success); }
+#cabdes .cb-mine { position: relative; padding-inline-end: 26px; }
+#cabdes .cb-mine-del {
+  position: absolute; inset-block-start: 6px; inset-inline-end: 6px;
+  width: 20px; height: 20px; padding: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; border: none; color: var(--text-muted); font-size: 12px;
+}
+#cabdes .cb-mine-del:hover { color: var(--danger); background: var(--danger-soft); }
+#cabdes .cb-actions button:disabled { opacity: 0.55; cursor: default; }
+
+#cabdes .cb-size-dlg {
+  position: absolute; inset: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+}
+#cabdes .cb-size-dlg[hidden] { display: none; }
+#cabdes .cb-keys-card { width: min(520px, calc(100% - 32px)); background: linear-gradient(var(--bg-panel), var(--bg-panel)), var(--bg-app); }
+#cabdes .cb-keys-card h3 { display: flex; align-items: center; gap: 8px; }
+#cabdes .cb-keys { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 14px; margin: 0; align-items: center; }
+#cabdes .cb-keys dt { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; color: var(--text-muted); font-size: 12px; }
+#cabdes .cb-keys dd { margin: 0; font-size: max(0.85rem, var(--fs-floor, 0px)); color: var(--text-main); }
+#cabdes .cb-keys kbd {
+  min-width: 22px; padding: 2px 6px; border-radius: 5px; text-align: center;
+  font: 600 12px/1.4 Inter, Rubik, sans-serif; color: var(--text-main);
+  background: var(--btn-bg); border: 1px solid var(--btn-border); box-shadow: inset 0 -1px 0 var(--btn-border);
+}
+#cabdes .cb-btnrow .cb-move { flex: 0 0 auto; padding-inline: 8px; }
+#cabdes .cb-btnrow button:disabled { opacity: 0.45; cursor: default; }
+/* the double-click size editor that replaced window.prompt() */
+#cabdes .cb-size-edit {
+  position: absolute; z-index: 30; display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: 10px; background: var(--bg-panel);
+  border: 1px solid var(--accent); box-shadow: var(--shadow-md);
+}
+#cabdes .cb-size-edit span { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+#cabdes .cb-size-edit input { width: 92px; height: 28px; font: 600 13px Inter, Rubik, sans-serif; }
+#cabdes .cb-size-edit input.cb-bad { border-color: var(--danger, #e05252); }
+#cabdes .cb-size-dlg-card {
+  width: min(440px, calc(100% - 32px)); max-height: min(80vh, 560px); overflow: auto;
+  padding: 18px; border-radius: 14px; background: var(--bg-panel);
+  border: 1px solid var(--border-color); box-shadow: var(--shadow-md);
+  display: flex; flex-direction: column; gap: 10px;
+}
+#cabdes .cb-size-dlg-card h3 { margin: 0; font-size: 1rem; }
+#cabdes .cb-size-dlg-card p { margin: 0; color: var(--text-muted); font-size: max(0.85rem, var(--fs-floor, 0px)); line-height: 1.45; }
+#cabdes .cb-size-choice {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  width: 100%; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--text-main);
+  text-align: start;
+}
+#cabdes .cb-size-choice:hover { background: var(--btn-bg-hover); }
+#cabdes .cb-size-choice.btn-accent { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+#cabdes .cb-size-choice small { opacity: 0.75; font-size: max(0.75rem, var(--fs-floor, 0px)); }
+#cabdes #cbSizeDlgKeep {
+  align-self: flex-start; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--text-main);
+}
+
+/* ============ cut plan & quote (ui_nest.js) ============ */
+#nestplan {
+  position: fixed; inset: 0; z-index: 306;
+  display: none; flex-direction: column;
+  background: var(--overlay);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  color: var(--text-main); font-family: "Inter", "Rubik", sans-serif;
+}
+
+#nestplan .nz-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 10px 20px; background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color); box-shadow: var(--shadow-sm); z-index: 20;
+}
+#nestplan .nz-logo { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; color: var(--accent); font-weight: 600; }
+#nestplan .nz-sub { color: var(--text-muted); font-size: max(0.78rem, var(--fs-floor, 0px)); font-weight: 500; margin-inline-start: 10px; }
+#nestplan .nz-scope { display: flex; gap: 6px; flex-wrap: wrap; }
+#nestplan .nz-chip {
+  padding: 7px 13px; font-size: 12px; border-radius: 999px; cursor: pointer;
+  background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--text-main);
+}
+#nestplan .nz-chip:hover { background: var(--btn-bg-hover); }
+#nestplan .nz-chip.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+#nestplan .nz-actions button, #nestplan .nz-wide {
+  padding: 8px 12px; border-radius: 8px; background: var(--btn-bg); border: 1px solid var(--btn-border);
+  color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500;
+}
+#nestplan .nz-actions button:hover, #nestplan .nz-wide:hover { background: var(--btn-bg-hover); }
+#nestplan .nz-wide { width: 100%; justify-content: center; margin-top: 6px; font-size: max(11.5px, var(--fs-floor, 0px)); }
+
+#nestplan .nz-body { flex: 1; display: flex; overflow: hidden; padding: 14px; gap: 14px; }
+#nestplan .nz-panel {
+  width: 280px; flex: none; display: flex; flex-direction: column; overflow-y: auto;
+  background: var(--bg-panel); border: 1px solid var(--border-color);
+  border-radius: 16px; box-shadow: var(--shadow-md);
+}
+#nestplan .nz-right { width: 340px; }
+#nestplan .nz-mid {
+  flex: 1; overflow-y: auto; padding: 16px; border-radius: 16px;
+  background-color: var(--bg-canvas-2d); border: 1px solid var(--border-color);
+}
+#nestplan .nz-sec { padding: 10px 12px; border-bottom: 1px solid var(--separator); display: flex; flex-direction: column; gap: 8px; }
+#nestplan .nz-sec:last-child { border-bottom: none; }
+#nestplan h4 { margin: 0; font-size: max(0.7rem, var(--fs-floor, 0px)); text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.08em; font-weight: 700; }
+#nestplan h5.nz-h5 { margin: 10px 0 2px; font-size: max(0.72rem, var(--fs-floor, 0px)); text-transform: uppercase; color: var(--accent); letter-spacing: 0.06em; }
+#nestplan .nz-note { font-size: max(11px, var(--fs-floor, 0px)); color: var(--text-muted); line-height: 1.45; }
+#nestplan .nz-meta { font-size: max(10.5px, var(--fs-floor, 0px)); color: var(--text-muted); margin: -2px 0 4px; }
+
+#nestplan .nz-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-muted); }
+#nestplan .nz-row > span { min-width: 0; overflow-wrap: anywhere; }
+#nestplan .nz-row input, #nestplan .nz-row select {
+  width: 132px; flex: none; padding: 5px 7px; border-radius: 7px; font-size: 12px;
+  background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-main);
+}
+#nestplan .nz-price input { width: 84px; text-align: end; }
+#nestplan .nz-price.on input { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+#nestplan .nz-cb { display: flex; align-items: center; gap: 6px; font-size: max(11.5px, var(--fs-floor, 0px)); color: var(--text-main); cursor: pointer; }
+#nestplan .nz-badge {
+  display: none; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  font-size: max(10px, var(--fs-floor, 0px)); line-height: 16px; text-align: center; color: var(--on-accent); background: var(--accent);
+}
+#nestplan .nz-badge.on { display: inline-block; }
+
+/* --- the nesting drawings --- */
+#nestplan .nz-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 16px; }
+#nestplan .nz-stat {
+  padding: 9px 12px; border-radius: 12px; background: var(--bg-panel);
+  border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 2px;
+}
+#nestplan .nz-stat b { font-size: 15px; color: var(--text-main); }
+#nestplan .nz-stat span { font-size: max(10px, var(--fs-floor, 0px)); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+#nestplan .nz-group { margin-bottom: 22px; }
+#nestplan .nz-gtitle { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+#nestplan .nz-gtitle b { font-size: 13px; }
+#nestplan .nz-gtitle span { font-size: max(11px, var(--fs-floor, 0px)); color: var(--text-muted); }
+#nestplan .nz-sheet {
+  display: inline-flex; flex-direction: column; gap: 5px; vertical-align: top;
+  width: 250px; margin: 0 12px 14px 0; padding: 8px;
+  background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px;
+}
+#nestplan .nz-shead { display: flex; justify-content: space-between; font-size: max(11px, var(--fs-floor, 0px)); color: var(--text-muted); }
+#nestplan .nz-eff { font-weight: 700; color: var(--text-main); }
+#nestplan .nz-bar { height: 4px; border-radius: 2px; background: var(--btn-bg); overflow: hidden; }
+#nestplan .nz-barfill { height: 4px; border-radius: 2px; }
+#nestplan .nz-cv { display: block; border-radius: 4px; }
+#nestplan .nz-offcut { font-size: max(10px, var(--fs-floor, 0px)); color: #4f9a63; line-height: 1.35; }
+#nestplan .nz-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; height: 100%; color: var(--text-muted); text-align: center; padding: 30px;
+}
+#nestplan .nz-empty i { font-size: 34px; opacity: 0.5; }
+#nestplan .nz-empty b { color: var(--text-main); font-size: 14px; }
+#nestplan .nz-empty span { font-size: max(11.5px, var(--fs-floor, 0px)); max-width: 320px; line-height: 1.5; }
+
+/* --- the quote --- */
+#nestplan .nz-qrow { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; padding: 2px 0; }
+#nestplan .nz-qname { color: var(--text-main); min-width: 0; overflow-wrap: anywhere; }
+#nestplan .nz-qval { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#nestplan .nz-sub { font-size: max(11px, var(--fs-floor, 0px)); opacity: 0.75; padding-inline-start: 10px; }
+#nestplan .nz-head-row { margin-top: 7px; border-top: 1px solid var(--separator); padding-top: 6px; font-weight: 600; }
+#nestplan .nz-head-row .nz-qval { color: var(--text-main); font-weight: 600; }
+#nestplan .nz-total { margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 8px; font-weight: 700; }
+#nestplan .nz-total .nz-qval { color: var(--accent); font-size: 15px; font-weight: 700; }
+#nestplan .nz-cmp { display: flex; gap: 10px; margin-top: 10px; }
+#nestplan .nz-cmp > div {
+  flex: 1; padding: 7px 9px; border-radius: 10px; background: var(--btn-bg);
+  display: flex; flex-direction: column; gap: 2px;
+}
+#nestplan .nz-cmp span { font-size: max(9.5px, var(--fs-floor, 0px)); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+#nestplan .nz-cmp b { font-size: 13px; }
+#nestplan .nz-up { color: #d9534f; }
+#nestplan .nz-down { color: #4f9a63; }
+
+#nestplan .nz-sup { padding: 7px 9px; border-radius: 10px; background: var(--btn-bg); margin-bottom: 6px; }
+#nestplan .nz-sup-top { display: flex; justify-content: space-between; font-size: 12px; }
+#nestplan .nz-sup-meta { font-size: max(10.5px, var(--fs-floor, 0px)); color: var(--text-muted); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+#nestplan .nz-sup-meta a { color: var(--accent); text-decoration: none; }
+#nestplan .nz-sup-what { font-size: max(10px, var(--fs-floor, 0px)); color: var(--text-muted); margin-top: 3px; opacity: 0.8; }
+#nestplan .nz-warn {
+  font-size: max(11px, var(--fs-floor, 0px)); line-height: 1.35; padding: 5px 8px; border-radius: 7px;
+  border-inline-start: 3px solid #d9534f; background: var(--btn-bg); margin-bottom: 4px;
+}
+
+@media (max-width: 1100px) {
+  #nestplan .nz-body { flex-direction: column; overflow-y: auto; }
+  #nestplan .nz-panel { width: auto; max-height: 40vh; }
+  #nestplan .nz-mid { min-height: 50vh; }
+}
+
+/* Numbers with a Latin unit ("9.62 m²") must not have the unit flipped to the
+   front by bidi when the UI is Hebrew — isolate them as LTR runs. */
+#nestplan .nz-stat b,
+#nestplan .nz-cmp b,
+#nestplan .nz-offcut { direction: ltr; unicode-bidi: isolate; }
+
+/* An option the cabinet's dimensions cannot hold: still visible (so you can see
+   what exists and why it is out of reach) but plainly not available. */
+#cabdes .cb-type.cb-off,
+#cabdes .cb-btnrow button.cb-off {
+  opacity: 0.38;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+#cabdes .cb-type.cb-off:hover,
+#cabdes .cb-btnrow button.cb-off:hover { background: var(--btn-bg); }
+#cabdes .cb-type.cb-off.on { opacity: 0.75; text-decoration: none; }
+#cabdes select option:disabled { color: var(--text-muted); }
+/* Possible, but not what this kind of unit is normally given. */
+#cabdes .cb-type.cb-dim { opacity: 0.55; }
+#cabdes .cb-type.cb-dim.on { opacity: 1; }
+#nestplan .nz-flash {
+  position: absolute; inset-block-start: 62px; inset-inline-start: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  padding: 8px 16px; border-radius: 20px; font-size: 12px; white-space: nowrap;
+  background: var(--accent); color: var(--on-accent); box-shadow: var(--shadow-md);
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 30;
+}
+#nestplan .nz-flash.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+#nestplan .nz-rack-row { font-size: max(11px, var(--fs-floor, 0px)); }
+#nestplan .nz-x {
+  width: 20px; height: 20px; padding: 0; flex: none; border-radius: 6px; cursor: pointer;
+  background: transparent; border: none; color: var(--text-muted); font-size: max(11px, var(--fs-floor, 0px));
+}
+#nestplan .nz-x:hover { color: #d9534f; background: var(--btn-bg-hover); }
+#nestplan .nz-stockline { font-size: max(11px, var(--fs-floor, 0px)); color: #4f9a63; font-weight: 600; }
+
+/* ---- TEXTURE GALLERY MODAL ---- */
+
+/* Keyframes */
+@keyframes texFadeSlideIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes texShimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes texProgressPulse {
+  0%,100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+@keyframes texSpinnerRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes texModalSlideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Backdrop */

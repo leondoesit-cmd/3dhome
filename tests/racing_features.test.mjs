@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -149,7 +150,7 @@ test("online drives share one coordinate frame and clean up peers", async () => 
 });
 
 test("multiplayer standings ride the pose packet already being sent", async () => {
-  const [drive, css] = await Promise.all([readDrive(), read("css/styles.css")]);
+  const [drive, css] = await Promise.all([readDrive(), stylesSource()]);
   assert.match(drive, /export function boardTick/);
   // progress fields on the same 11 Hz car packet — no extra traffic
   assert.match(drive, /p: D\.ses\.cpIndex \|\| 0/);
@@ -163,7 +164,7 @@ test("multiplayer standings ride the pose packet already being sent", async () =
 
 test("the drive camera has four rigs and a director that cuts between shots", async () => {
   const [drive, css, i18n] = await Promise.all([
-    readDrive(), read("css/styles.css"), readI18nSource(),
+    readDrive(), stylesSource(), readI18nSource(),
   ]);
   assert.match(drive, /export const CAM_MODES = \["chase", "hood", "bumper", "cinema"\]/);
   assert.match(drive, /e\.code === "KeyC"/);
@@ -250,7 +251,7 @@ test("traffic drives the streamed network instead of parking on it", async () =>
 
 test("drive mode is playable without a keyboard", async () => {
   const [drive, css, i18n] = await Promise.all([
-    readDrive(), read("css/styles.css"), readI18nSource(),
+    readDrive(), stylesSource(), readI18nSource(),
   ]);
   // analog axes sit alongside the boolean keys, never replacing them
   assert.match(drive, /axis: \{ steer: 0, throttle: 0, brake: 0 \}/);
@@ -378,7 +379,7 @@ test("a retired environment map waits for the frames that used it", async () => 
 });
 
 test("miniature RC supports touch and analog gamepad driving", async () => {
-  const [rc, css] = await Promise.all([readRC(), read("css/styles.css")]);
+  const [rc, css] = await Promise.all([readRC(), stylesSource()]);
   assert.match(rc, /navigator\.getGamepads/);
   assert.match(rc, /data-hold="fwd"/);
   assert.match(rc, /input\.steerAxis/);
@@ -1200,7 +1201,7 @@ test("RC audio has continuous scrub and rumble voices plus a per-truck garage", 
 test("RC race craft drafts, passes, looks back and shows live rival gaps", async () => {
   const [rc, css, i18n] = await Promise.all([
     readRC(),
-    read("css/styles.css"),
+    stylesSource(),
     readI18nSource(),
   ]);
   // Sitting in a rival's wake is extra top speed, not just a visual.

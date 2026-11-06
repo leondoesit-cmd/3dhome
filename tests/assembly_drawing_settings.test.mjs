@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,7 +44,7 @@ test('actual Assembly drawing dialog offers ordinary native entry after applying
 });
 
 test('assembly visibility rules hide sketch controls while permitting the native Drawing canvas and mode tabs',()=>{
- const css=readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+ const css=stylesSource();
  const assemblyRule=css.slice(css.indexOf('/* Nothing in an assembly is sketched'),css.indexOf('/* the history list scrolls itself'));
  assert.match(assemblyRule,/#modeler\.md-assembly:not\(\.md-isdrawing\) #mdCanvas,/);
  assert.match(assemblyRule,/#modeler\.md-assembly:not\(\.md-isdrawing\) \.md-hint,/);

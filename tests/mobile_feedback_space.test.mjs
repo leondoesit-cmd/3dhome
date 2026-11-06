@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,7 +18,7 @@ test('hidden shelves do not leave stale reserve, and wrapped instructions grow t
   assert.deepEqual(mobileFeedbackSpace(pane,110,[]),{footer:0,gutter:126});
 });
 test('measured hint positioning and paired theme contrast apply to Model and Sketch as well as Drawing', () => {
-  const css = readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+  const css = stylesSource();
   assert.match(css,/body\.compact-nav #modeler \.md-mid > #mdHint\s*\{[^}]*bottom:\s*calc\(var\(--md-mobile-feedback-footer, 0px\) \+ 4px\);[^}]*background:\s*var\(--bg-panel\); color:\s*var\(--text-main\)/);
   const src = readFileSync(new URL('../js/modeler_mobile.js',import.meta.url),'utf8');
   assert.match(src,/function sync\(force\)\s*\{[^}]*adoptHint\(\)/);

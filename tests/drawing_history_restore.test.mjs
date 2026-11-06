@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +11,7 @@ import { createSheetDoc } from '../js/cad_sheet.js';
 import { tessellateParts } from '../js/core/part_tessellate.js';
 
 test('Drawing mode keeps enabled Undo/Redo controls clickable',()=>{
-  const css=readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+  const css=stylesSource();
   const selector=css.match(/#modeler\.md-isdrawing \.md-head-actions button([^\{]+)\{\s*pointer-events:\s*none/)[1];
   assert.match(selector,/:not\(#mdUndo\)/,'Undo must be exempt from Drawing header pointer suppression');
   assert.match(selector,/:not\(#mdRedo\)/,'Redo must be exempt from Drawing header pointer suppression');

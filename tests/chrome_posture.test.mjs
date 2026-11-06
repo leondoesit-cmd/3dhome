@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -82,7 +83,7 @@ for (const c of CASES) {
 }
 
 test("hebrew docked modeler sheet can open (specificity vs parked off-screen)", async () => {
-  const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  const css = stylesSource();
   assert.match(css, /html\[lang="he"\] body\.dock-rail #md-sheet\.on/);
   assert.match(css, /body\.dock-rail #cabdes\.cb-compact \.cb-panel/);
 });

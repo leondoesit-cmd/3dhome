@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -15,7 +16,7 @@ const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", im
 const modelerStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 /* Pure mesh/edge/face geometry, split out of js/modeler.js. */
 const meshGeometry = await readFile(new URL("../js/modeler_mesh_geometry.js", import.meta.url), "utf8");
-const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const styles = stylesSource();
 const harness = await readFile(new URL("../tools/browser_harness.mjs", import.meta.url), "utf8");
 
 test("desktop Model Editor exposes section, dependency, and interference visuals", () => {

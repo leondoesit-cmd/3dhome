@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -9,7 +10,7 @@ const videoPresetsCode = await readFile(new URL("../js/video_presets.js", import
 const view3dCode = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
 const i18n = await readI18nSource();
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const css = stylesSource();
 
 test("VideoStudio class and export methods are defined in js/video_studio.js", () => {
   assert.match(videoStudioCode, /export class VideoStudio/);

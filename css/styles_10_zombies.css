@@ -1,0 +1,717 @@
+/* ===========================================================================
+   NIGHT SHIFT — zombie survival HUD (js/zombies.js)
+   Everything here sits over the 3D canvas and is pointer-transparent except
+   the death panel. Deliberately LTR + monospaced-ish: it's a game overlay,
+   not app chrome, so it must not flip with the app's RTL direction.
+   =========================================================================== */
+#zHud {
+  position: absolute; inset: 0; display: none; pointer-events: none;
+  z-index: 40; direction: ltr; overflow: hidden;
+  font-family: "Segoe UI", system-ui, sans-serif; color: #e9e2dc;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+  --gap: 6px; --z-red: 0;
+}
+#zHud.on { display: block; }
+body.zombies-on #v3d { cursor: none; }
+/* editor chrome has no business floating over a horror game */
+body.zombies-on #view-3d .hint,
+body.zombies-on #view-3d .lbl,
+body.zombies-on #view-3d .view-max-btn,
+body.zombies-on #view-3d .view-edit-btn,
+body.zombies-on #view-3d .view-gizmo,
+body.zombies-on #edit3dBtn,
+body.zombies-on #floor-tabs,
+body.zombies-on #crosshair { display: none !important; }
+/* Night Shift is a full-screen mode; the planner returns untouched on exit. */
+body.zombies-on #topbar,
+body.zombies-on #left-sidebar,
+body.zombies-on #right-inspector { display: none !important; }
+body.zombies-on #workspace,
+body.zombies-on #center-canvas,
+body.zombies-on #view-3d { width: 100vw; height: 100vh; flex: 1 1 auto; }
+body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
+
+/* --- film grain: a tiny canvas tiled over everything ---------------------- */
+#zGrain {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  image-rendering: pixelated; opacity: 0.42; mix-blend-mode: overlay;
+  transform: scale(1.02);
+}
+#zHud.z-lite #zGrain,
+#zHud.z-lite #zChrom { display: none; }
+/* --- vignette: darkens the edges, goes red as you bleed out --------------- */
+#zVig {
+  position: absolute; inset: 0; opacity: 0.55;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.5) 72%, rgba(0,0,0,0.94) 100%),
+    radial-gradient(ellipse at 50% 50%, rgba(120,0,0,0) 28%,
+      rgba(140,4,10,calc(var(--z-red) * 0.55)) 70%, rgba(90,0,4,calc(var(--z-red) * 0.88)) 100%);
+  transition: opacity 0.12s linear;
+}
+/* --- chromatic aberration fringe (hurt / adrenaline / slow-mo) ------------ */
+#zChrom {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255,40,40,0.12), transparent 18%, transparent 82%, rgba(40,120,255,0.12));
+  mix-blend-mode: screen;
+  transition: opacity 0.08s linear;
+}
+#zHud.adrenaline #zChrom { opacity: 0.28 !important; }
+#zHud.aiming #zCross i { background: rgba(255, 230, 200, 0.95); box-shadow: 0 0 6px rgba(255,180,80,0.5); }
+/* --- blood on the "lens": stamped blobs that run down and dry ------------- */
+/* Visor blood is a real canvas now (js/zombies_game.js bloodSplat/wipeVisor):
+   the fx_blood_*.png splatters are drawn into it and persist until V wipes
+   them. It must never eat pointer events — the game owns the mouse. */
+#zBlood {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; opacity: 0; transition: opacity 0.18s ease-out;
+  /* screen-space grime sits slightly warm and soft against the render */
+  filter: saturate(1.15) contrast(1.05) drop-shadow(0 0 3px rgba(40,0,4,0.55));
+}
+#zBlood.on { opacity: 1; }
+#zFlashCol {
+  position: absolute; inset: 0; opacity: 0; mix-blend-mode: screen;
+  transition: opacity 0.14s ease-out;
+}
+
+/* --- crosshair: four ticks whose gap tracks weapon bloom ------------------ */
+#zCross {
+  position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+}
+#zCross i {
+  position: absolute; background: rgba(240, 236, 230, 0.9); display: block;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+}
+#zCross i:nth-child(1) { width: 2px; height: 9px; left: -1px; top: calc(-1 * (var(--gap) + 9px)); }
+#zCross i:nth-child(2) { width: 2px; height: 9px; left: -1px; top: var(--gap); }
+#zCross i:nth-child(3) { height: 2px; width: 9px; top: -1px; left: calc(-1 * (var(--gap) + 9px)); }
+#zCross i:nth-child(4) { height: 2px; width: 9px; top: -1px; left: var(--gap); }
+#zCross b { position: absolute; width: 2px; height: 2px; left: -1px; top: -1px;
+  background: rgba(255, 90, 60, 0.9); border-radius: 50%; }
+#zHud.melee #zCross i { background: rgba(255, 170, 120, 0.85); }
+#zHitMark {
+  position: absolute; left: 50%; top: 50%; width: 26px; height: 26px;
+  margin: -13px 0 0 -13px; opacity: 0;
+  background:
+    linear-gradient(45deg, transparent 44%, #fff 44%, #fff 56%, transparent 56%),
+    linear-gradient(-45deg, transparent 44%, #fff 44%, #fff 56%, transparent 56%);
+  -webkit-mask: radial-gradient(circle, transparent 22%, #000 24%);
+  mask: radial-gradient(circle, transparent 22%, #000 24%);
+}
+#zHitMark.on { animation: zhit 0.2s ease-out; }
+#zHitMark.head { filter: drop-shadow(0 0 4px #ff2b12); }
+#zHitMark.head::after {
+  content: ""; position: absolute; inset: -6px; border: 2px solid #ff3a18;
+  border-radius: 50%; animation: zhit 0.3s ease-out;
+}
+#zHitMark.kill { filter: drop-shadow(0 0 6px #ffd35a); transform: rotate(45deg); }
+#zHitMark.kill::after {
+  content: ""; position: absolute; inset: -5px; border: 2px solid #ffd35a;
+  transform: rotate(45deg); animation: zhit 0.28s ease-out;
+}
+#zCross.assist b { background: #53e7ff; box-shadow: 0 0 9px #53e7ff; }
+@keyframes zhit {
+  0% { opacity: 1; transform: scale(0.55); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+
+/* --- directional damage: the red chevron points toward the attacker ------- */
+#zDamage {
+  position: absolute; left: 50%; top: 50%; width: min(360px, 46vw); height: min(360px, 46vw);
+  transform: translate(-50%, -50%); opacity: 0;
+}
+#zDamage i {
+  position: absolute; top: -3px; left: 50%; width: 54px; height: 18px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(255,45,30,.95), rgba(190,8,5,0));
+  clip-path: polygon(50% 0, 100% 100%, 50% 55%, 0 100%);
+  filter: drop-shadow(0 0 9px rgba(255,20,10,.8));
+}
+#zDamage.on { animation: zdamage .72s ease-out; }
+@keyframes zdamage {
+  0% { opacity: 1; }
+  45% { opacity: .9; }
+  100% { opacity: 0; }
+}
+
+/* --- top strip ----------------------------------------------------------- */
+#zTop {
+  position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  display: flex; gap: 18px; align-items: baseline;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #b9aca2;
+}
+#zWave { color: #d8452c; }
+#zKills { color: #cbbfae; font-variant-numeric: tabular-nums; }
+#zScore { color: #e8c14a; font-variant-numeric: tabular-nums; }
+#zCombo {
+  position: absolute; top: 42px; left: 50%; transform: translateX(-50%) scale(0.9);
+  font-size: 18px; font-weight: 900; letter-spacing: 0.18em; color: #ff6a3a;
+  opacity: 0; text-shadow: 0 0 18px rgba(255, 60, 20, 0.7);
+  transition: opacity 0.12s, transform 0.12s;
+}
+#zCombo.on { opacity: 1; transform: translateX(-50%) scale(1); animation: zpulse 0.7s ease-in-out infinite; }
+
+/* --- mission and proximity readouts -------------------------------------- */
+#zMission {
+  position: absolute; left: max(20px, env(safe-area-inset-left)); top: max(20px, env(safe-area-inset-top)); width: min(250px, 32vw);
+  padding: 11px 12px 10px; border-left: 2px solid #d8452c;
+  background: linear-gradient(90deg, rgba(10,8,8,.72), rgba(10,8,8,.12));
+  backdrop-filter: blur(4px);
+}
+#zMission > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#zMissionLabel {
+  color: #d9cec5; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 800; letter-spacing: .15em;
+  text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#zMissionCount { color: #fff1e5; font-size: max(11px, var(--fs-floor, 0px)); white-space: nowrap; font-variant-numeric: tabular-nums; }
+#zMission > b {
+  display: block; height: 2px; margin-top: 8px; overflow: hidden;
+  background: rgba(255,255,255,.12);
+}
+#zMission > b i {
+  display: block; width: 0; height: 100%; background: #d8452c;
+  box-shadow: 0 0 9px rgba(216,69,44,.85); transition: width .22s ease-out;
+}
+#zThreat {
+  position: absolute; left: max(20px, env(safe-area-inset-left)); top: calc(max(20px, env(safe-area-inset-top)) + 56px); display: flex; align-items: center; gap: 7px;
+  color: #877f78; font-size: max(9px, var(--fs-floor, 0px)); font-weight: 750; letter-spacing: .14em; text-transform: uppercase;
+  transition: color .15s;
+}
+#zThreat i { width: 6px; height: 6px; border-radius: 50%; background: #59645e; box-shadow: 0 0 7px currentColor; }
+#zThreat.near { color: #e8ad45; }
+#zThreat.near i { background: #e8ad45; animation: zpulse 1s ease-in-out infinite; }
+#zThreat.danger { color: #ff4934; }
+#zThreat.danger i { background: #ff4934; animation: zpulse .42s ease-in-out infinite; }
+
+/* --- centre message ------------------------------------------------------ */
+#zMsg {
+  position: absolute; top: 30%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.86);
+  font-size: clamp(20px, 4.2vw, 46px); font-weight: 800; letter-spacing: 0.06em;
+  color: #f2e9e2; opacity: 0; text-align: center; white-space: pre-line;
+  text-shadow: 0 0 26px rgba(190, 20, 10, 0.75), 0 3px 16px #000;
+  transition: opacity 0.18s, transform 0.18s;
+}
+#zMsg.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+/* One compact tactical decision between waves. It stays inside the HUD rather
+   than pausing the game, so the player can keep moving and fortifying. */
+#zIntermission {
+  display: none; position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%);
+  width: min(600px, calc(100vw - 28px)); padding: 10px; pointer-events: auto;
+  background: rgba(7, 10, 12, .86); border: 1px solid rgba(83, 231, 255, .3);
+  border-radius: 6px; box-shadow: 0 14px 40px rgba(0,0,0,.45); backdrop-filter: blur(8px);
+}
+#zIntermission.on { display: block; animation: zpause-in .2s ease-out; }
+#zIntermission > span {
+  display: block; margin-bottom: 8px; color: #9cc9d3; text-align: center;
+  font-size: max(9px, var(--fs-floor, 0px)); font-weight: 800; letter-spacing: .15em; text-transform: uppercase;
+}
+#zIntermission > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+#zIntermission button {
+  min-width: 0; padding: 10px 6px; cursor: pointer; border: 1px solid rgba(255,255,255,.14);
+  border-radius: 4px; background: rgba(255,255,255,.045); color: #f0e8e0;
+  font-size: max(10px, var(--fs-floor, 0px)); font-weight: 750; letter-spacing: .04em;
+}
+#zIntermission button:hover:not(:disabled) { border-color: #53e7ff; background: rgba(83,231,255,.1); }
+#zIntermission button:disabled { opacity: 0.45; cursor: default; }
+
+/* --- bottom vitals ------------------------------------------------------- */
+#zBottom {
+  position: absolute; left: 0; right: 0; bottom: 16px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 22px; gap: 20px;
+}
+#zVitals { display: flex; flex-direction: column; gap: 5px; width: min(260px, 36vw); }
+#zHpBar, #zArmorBar, #zStamBar, #zBattBar {
+  height: 9px; background: rgba(10, 8, 8, 0.66); border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 2px; overflow: hidden;
+}
+#zArmorBar { height: 5px; }
+#zStamBar { height: 5px; }
+#zBattBar { height: 5px; flex: 1; }
+#zHpBar i, #zArmorBar i, #zStamBar i, #zBattBar i {
+  display: block; height: 100%; width: 100%; transition: width 0.14s linear;
+  background: #c8202a;
+}
+#zHpBar i { box-shadow: 0 0 12px rgba(220, 30, 30, 0.55); }
+#zArmorBar i { background: linear-gradient(90deg, #3a8ec8, #7ec8ff); box-shadow: 0 0 8px rgba(90,180,255,0.4); }
+#zStamBar i { background: #4a90c8; }
+#zDistractBar {
+  height: 4px; background: rgba(10, 8, 8, 0.66); border: 1px solid rgba(255, 120, 160, 0.2);
+  border-radius: 2px; overflow: hidden; opacity: 0.2; transition: opacity 0.15s;
+}
+#zDistractBar i {
+  display: block; height: 100%; width: 0%; transition: width 0.1s linear;
+  background: linear-gradient(90deg, #ff6699, #ff3366, #ff99cc);
+  box-shadow: 0 0 10px rgba(255, 80, 140, 0.65);
+}
+#zBattBar i { background: #e8c14a; }
+#zHud.adrenaline #zStamBar i { background: #ff66aa; box-shadow: 0 0 10px rgba(255,100,170,0.5); }
+/* pink haze when staring too long */
+#zDistractFx {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(255,80,140,0.22) 0%, transparent 55%),
+    radial-gradient(ellipse at 30% 40%, rgba(255,120,180,0.12) 0%, transparent 40%),
+    radial-gradient(ellipse at 70% 45%, rgba(255,100,160,0.12) 0%, transparent 40%);
+  mix-blend-mode: screen;
+  transition: opacity 0.1s linear;
+}
+#zHud.distracted #zCross i { background: rgba(255, 150, 180, 0.95); }
+#zHud.distracted #zCross b { background: rgba(255, 80, 140, 0.95); box-shadow: 0 0 8px #ff4488; }
+#zVig {
+  --z-pink: 0;
+}
+#zHud.distracted #zVig {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.5) 72%, rgba(0,0,0,0.94) 100%),
+    radial-gradient(ellipse at 50% 55%, rgba(255,60,120,0) 25%,
+      rgba(255,40,100,calc(var(--z-pink) * 0.35)) 70%, rgba(120,0,40,calc(var(--z-pink) * 0.5)) 100%),
+    radial-gradient(ellipse at 50% 50%, rgba(120,0,0,0) 28%,
+      rgba(140,4,10,calc(var(--z-red) * 0.55)) 70%, rgba(90,0,4,calc(var(--z-red) * 0.88)) 100%);
+}
+#zBatt { display: flex; align-items: center; gap: 6px; font-size: max(11px, var(--fs-floor, 0px)); }
+#zAmmo {
+  display: flex; align-items: baseline; gap: 10px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+#zWName { font-size: 13px; color: #b9aca2; letter-spacing: 0.08em; }
+#zAmmoN { font-size: 30px; color: #efe6dd; }
+#zAmmoN.low { color: #ff4433; animation: zpulse 0.9s ease-in-out infinite; }
+#zFrags {
+  font-size: 14px; color: #ffb27a; letter-spacing: 0.06em;
+  padding: 2px 8px; border: 1px solid rgba(255, 140, 58, 0.35); border-radius: 3px;
+  background: rgba(60, 28, 10, 0.42);
+}
+#zFrags.low { color: #6a5a50; border-color: rgba(255, 255, 255, 0.12); background: rgba(20, 18, 16, 0.4); }
+@keyframes zpulse { 50% { opacity: 0.45; } }
+
+/* --- weapon wheel -------------------------------------------------------- */
+#zWheel {
+  position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 5px; font-size: 12px;
+}
+#zWheel span {
+  background: rgba(12, 10, 10, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px; padding: 3px 8px; color: #8d8378; letter-spacing: 0.06em;
+}
+#zWheel span.on {
+  color: #ffddc2; border-color: rgba(216, 69, 44, 0.8);
+  background: rgba(70, 14, 10, 0.7); box-shadow: 0 0 14px rgba(216, 69, 44, 0.3);
+}
+
+#zHint {
+  position: absolute; left: 50%; bottom: 68px; transform: translateX(-50%);
+  font-size: max(11px, var(--fs-floor, 0px)); color: rgba(210, 198, 188, 0.5); letter-spacing: 0.06em;
+  white-space: nowrap; max-width: 94vw; overflow: hidden; text-overflow: ellipsis;
+  transition: opacity 1.1s ease;
+}
+#zHint.fade { opacity: 0; }
+
+#zPauseBtn {
+  display: none; position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right)); z-index: 36;
+  width: 44px; height: 44px; pointer-events: auto; touch-action: none; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.18); border-radius: 10px;
+  background: rgba(12,10,10,.62); color: #efe6dd; font: 800 13px/1 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: .12em; backdrop-filter: blur(8px);
+}
+
+#zTouch {
+  display: none; position: absolute; inset: 0; pointer-events: none; z-index: 34;
+}
+.z-touch-stick {
+  position: absolute;
+  left: max(22px, env(safe-area-inset-left));
+  bottom: max(22px, env(safe-area-inset-bottom));
+  width: 118px; height: 118px;
+  pointer-events: auto; touch-action: none;
+  border-radius: 50%; border: 1px solid rgba(255,255,255,.16);
+  background: rgba(10,8,8,.38); backdrop-filter: blur(6px);
+}
+.z-touch-stick i {
+  position: absolute; left: 50%; top: 50%; width: 46px; height: 46px;
+  margin: -23px 0 0 -23px; border-radius: 50%;
+  background: rgba(232, 196, 170, .78); box-shadow: 0 0 16px rgba(0,0,0,.45);
+  pointer-events: none;
+}
+.z-touch-stick.pressed { background: rgba(70, 18, 12, .45); }
+.z-touch-actions {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom)); display: grid;
+  grid-template-columns: 52px 52px 72px; grid-template-rows: 52px 52px 72px; gap: 8px;
+  pointer-events: auto; touch-action: none;
+}
+.z-touch-actions button {
+  width: 52px; height: 52px; border: 1px solid rgba(255,255,255,.2); border-radius: 16px;
+  background: rgba(18, 14, 12, .72); color: #f3e7dc; font-size: 16px; font-weight: 800;
+  box-shadow: 0 6px 18px rgba(0,0,0,.4); backdrop-filter: blur(8px);
+  -webkit-user-select: none; user-select: none;
+}
+.z-touch-actions button b { display: block; font: 850 16px/1 system-ui, sans-serif; }
+.z-touch-actions button small {
+  display: block; margin-top: 4px; overflow: hidden; color: rgba(245,235,226,.68);
+  font: 700 max(7px, var(--fs-floor, 0px))/1 system-ui, sans-serif; letter-spacing: .035em;
+  text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap;
+}
+.z-touch-actions button.pressed, .z-touch-actions button:active {
+  transform: scale(.94); background: rgba(140, 36, 24, .82);
+}
+.z-touch-actions .z-touch-fire {
+  width: 72px; height: 72px; border-radius: 50%; font-size: 22px;
+  background: rgba(185, 48, 32, .82); border-color: rgba(255, 180, 140, .45);
+  grid-column: 3; grid-row: 3;
+}
+.z-touch-actions .z-touch-fire b { color: #fff; font-size: 23px; }
+.z-touch-actions [data-act="reload"] { grid-column: 1; grid-row: 1; }
+.z-touch-actions [data-act="flash"] { grid-column: 2; grid-row: 1; }
+.z-touch-actions [data-act="shove"] { grid-column: 1; grid-row: 2; }
+.z-touch-actions [data-act="jump"] { grid-column: 2; grid-row: 2; }
+.z-touch-actions [data-act="weapon"] { grid-column: 1; grid-row: 3; align-self: end; }
+.z-touch-actions [data-act="interact"] { grid-column: 2; grid-row: 3; align-self: end; opacity: .42; }
+.z-touch-actions [data-act="interact"].available {
+  opacity: 1; border-color: rgba(255,205,95,.82); background: rgba(128,76,16,.82);
+  animation: zpulse 1.1s ease-in-out infinite;
+}
+
+/* --- ready / pause screen ------------------------------------------------ */
+#zPause {
+  position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  pointer-events: auto; background:
+    radial-gradient(circle at 50% 44%, rgba(78,18,12,.18), transparent 34%),
+    linear-gradient(115deg, rgba(2,3,3,.96), rgba(10,8,8,.85));
+  backdrop-filter: blur(5px);
+}
+#zPause.on { display: flex; animation: zpause-in .28s ease-out; }
+.z-pause-card { width: min(560px, calc(100vw - 44px)); max-height: calc(100vh - 36px); overflow: auto; text-align: center; }
+.z-pause-card .z-eyebrow {
+  display: block; color: #d8452c; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 850; letter-spacing: .28em;
+  text-transform: uppercase;
+}
+.z-pause-card h2 {
+  margin: 10px 0 8px; color: #f4ebe4; font-size: clamp(38px, 7vw, 72px); line-height: .95;
+  font-weight: 900; letter-spacing: -.035em; text-transform: uppercase;
+  text-shadow: 0 0 42px rgba(160,24,12,.4);
+}
+.z-pause-card > p { max-width: 430px; margin: 0 auto; color: #a79d94; font-size: 14px; line-height: 1.6; }
+.z-controls {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 28px 0 24px;
+}
+.z-controls span {
+  min-width: 0; padding: 11px 5px 9px; border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.025);
+}
+.z-controls kbd {
+  display: block; margin: 0 auto 7px; color: #f3e7dc; font: 800 max(11px, var(--fs-floor, 0px))/1 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: .08em; border: 0; box-shadow: none; background: none;
+}
+.z-controls small {
+  display: block; color: #77706a; font-size: max(9px, var(--fs-floor, 0px)); letter-spacing: .08em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.z-game-settings {
+  margin: -7px 0 20px; padding: 13px 15px 10px; text-align: left;
+  border: 1px solid rgba(255,255,255,.075); background: rgba(0,0,0,.2);
+}
+.z-game-settings h3 {
+  margin: 0 0 9px; color: #8e8580; font-size: max(9px, var(--fs-floor, 0px)); font-weight: 850;
+  letter-spacing: .2em; text-transform: uppercase;
+}
+.z-game-settings h3 + h3, .z-game-settings label + h3 { margin-top: 12px; }
+.z-game-settings label { display: grid; grid-template-columns: 165px 1fr; align-items: center; gap: 14px; min-height: 30px; }
+.z-game-settings label.z-check {
+  grid-template-columns: auto 1fr; justify-items: start; gap: 10px;
+  color: #c5bbb3; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 650; letter-spacing: .04em;
+}
+.z-game-settings label.z-check input { width: 16px; height: 16px; accent-color: #d8452c; }
+.z-game-settings label > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.z-game-settings label b { color: #c5bbb3; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 650; letter-spacing: .04em; }
+.z-game-settings output { color: #e0553d; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 850; white-space: nowrap; }
+.z-game-settings input[type="range"] {
+  width: 100%; height: 3px; margin: 0; appearance: none; border: 0; border-radius: 4px;
+  background: linear-gradient(90deg, #8d2419, #d8452c); cursor: pointer;
+}
+.z-game-settings input[type="range"]::-webkit-slider-thumb {
+  appearance: none; width: 14px; height: 14px; border: 2px solid #f1ddd3; border-radius: 50%;
+  background: #d8452c; box-shadow: 0 0 9px rgba(216,69,44,.5);
+}
+.z-game-settings input[type="range"]::-moz-range-thumb {
+  width: 11px; height: 11px; border: 2px solid #f1ddd3; border-radius: 50%;
+  background: #d8452c; box-shadow: 0 0 9px rgba(216,69,44,.5);
+}
+#zPause button {
+  min-width: 188px; padding: 12px 22px; border: 1px solid #8e291c; border-radius: 2px;
+  background: #b93020; color: #fff5ec; cursor: pointer; font-size: 12px; font-weight: 850;
+  letter-spacing: .12em; text-transform: uppercase; transition: background .15s, transform .15s;
+}
+#zPause button:hover { background: #d8452c; transform: translateY(-1px); }
+#zPause #zExit {
+  display: block; min-width: 0; margin: 12px auto 0; padding: 7px 12px; border: 0;
+  background: transparent; color: #786f68; font-size: max(10px, var(--fs-floor, 0px));
+}
+#zPause #zExit:hover { color: #c5b9af; background: transparent; transform: none; }
+#zHud.paused #zCross, #zHud.paused #zWheel, #zHud.paused #zHint,
+#zHud.paused #zMission, #zHud.paused #zThreat, #zHud.paused #zBottom,
+#zHud.paused #zTouch, #zHud.paused #zPauseBtn, #zHud.paused #zRadarWrap,
+#zHud.paused #zBossBar, #zHud.paused #zInteractPrompt, #zHud.paused #zIntermission { opacity: 0; pointer-events: none; }
+#zHud:has(#zDead.on) #zTouch,
+#zHud:has(#zDead.on) #zPauseBtn,
+#zHud:has(#zVictory.on) #zTouch,
+#zHud:has(#zVictory.on) #zPauseBtn { display: none !important; }
+@keyframes zpause-in { from { opacity: 0; transform: scale(1.015); } to { opacity: 1; transform: scale(1); } }
+
+/* --- Boss Health Bar ----------------------------------------------------- */
+#zBossBar {
+  position: absolute; top: 56px; left: 50%; transform: translateX(-50%);
+  display: none; flex-direction: column; gap: 4px; width: min(440px, 86vw);
+  background: rgba(14, 6, 8, 0.78); border: 1px solid rgba(255, 30, 60, 0.45);
+  border-radius: 4px; padding: 6px 10px; backdrop-filter: blur(6px);
+  box-shadow: 0 0 20px rgba(255, 0, 40, 0.25); z-index: 25;
+}
+#zBossBar.on { display: flex; }
+.z-boss-hdr { display: flex; justify-content: space-between; font-size: max(11px, var(--fs-floor, 0px)); letter-spacing: 0.1em; text-transform: uppercase; }
+#zBossName { color: #ff3355; font-weight: 900; }
+#zBossHpText { color: #f5d5cc; font-weight: 700; }
+.z-boss-track { width: 100%; height: 8px; background: rgba(30, 10, 15, 0.85); border-radius: 2px; overflow: hidden; }
+#zBossFill { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff2244, #ffaa00); transition: width 0.15s ease-out; }
+
+/* --- Contextual Interact Prompt ------------------------------------------ */
+#zInteractPrompt {
+  position: absolute; top: 62%; left: 50%; transform: translate(-50%, -50%);
+  display: none; padding: 6px 14px; border-radius: 18px;
+  background: rgba(15, 12, 10, 0.85); border: 1px solid rgba(255, 200, 120, 0.55);
+  color: #fff2db; font: 700 12px/1.2 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0.08em; text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  box-shadow: 0 0 16px rgba(255, 160, 40, 0.35); backdrop-filter: blur(5px);
+  pointer-events: none; z-index: 28;
+}
+#zInteractPrompt.on { display: block; animation: zpulse 1.2s ease-in-out infinite; }
+
+/* --- Perk Badges --------------------------------------------------------- */
+#zPerkBadges {
+  position: absolute; left: 24px; bottom: 84px; display: flex; gap: 6px; z-index: 26;
+}
+.z-perk-badge {
+  display: none; width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(18, 16, 14, 0.7);
+  place-items: center; font-size: 14px; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+.z-perk-badge.on { display: grid; animation: zpop-in 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+#zPerkSpeed.on { border-color: #22d060; box-shadow: 0 0 10px rgba(34, 208, 96, 0.4); }
+#zPerkJugg.on { border-color: #d02230; box-shadow: 0 0 10px rgba(208, 34, 48, 0.4); }
+#zPerkDamage.on { border-color: #e0a010; box-shadow: 0 0 10px rgba(224, 160, 16, 0.4); }
+@keyframes zpop-in { from { transform: scale(0); } to { transform: scale(1); } }
+
+/* --- Tactical Minimap Radar ---------------------------------------------- */
+#zRadarWrap {
+  position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(18px, env(safe-area-inset-right)); width: 110px; height: 110px;
+  border-radius: 50%; overflow: hidden; z-index: 22; pointer-events: none;
+  border: 1px solid rgba(60, 160, 200, 0.35); box-shadow: 0 0 18px rgba(0, 0, 0, 0.6);
+  background: rgba(8, 12, 16, 0.55); backdrop-filter: blur(4px);
+}
+#zRadar { display: block; width: 100%; height: 100%; }
+
+/* --- death panel --------------------------------------------------------- */
+#zDead, #zVictory {
+  position: absolute; inset: 0; display: none; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; pointer-events: auto;
+  background: radial-gradient(ellipse at center, rgba(50, 0, 0, 0.55), rgba(0, 0, 0, 0.93));
+  animation: zfade 1.1s ease-out;
+}
+#zDead.on, #zVictory.on { display: flex; }
+#zDead h2, #zVictory h2 {
+  margin: 0; font-size: clamp(38px, 9vw, 96px); font-weight: 900; letter-spacing: 0.12em;
+  color: #9c1109; text-shadow: 0 0 46px rgba(190, 12, 6, 0.75);
+}
+#zVictory { background: radial-gradient(ellipse at center, rgba(0, 70, 58, .48), rgba(0, 0, 0, .94)); }
+#zVictory h2 { color: #5dff9a; text-shadow: 0 0 46px rgba(42, 220, 135, .55); }
+#zDead p, #zVictory p { margin: 0; font-size: 14px; color: #b3a79c; letter-spacing: 0.06em; }
+#zDead button, #zVictory button {
+  margin-top: 8px; padding: 10px 26px; font-size: 14px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+  background: #1a1513; color: #e8ddd3; border: 1px solid #5c2018; border-radius: 3px;
+}
+#zDead button:hover, #zVictory button:hover { background: #341311; border-color: #9c1109; }
+#zDead #zDeadExit, #zVictory #zVictoryExit {
+  margin-top: 0; padding: 6px 12px; border: 0; background: transparent;
+  color: #786f68; font-size: max(11px, var(--fs-floor, 0px)); letter-spacing: .1em;
+}
+#zDead #zDeadExit:hover, #zVictory #zVictoryExit:hover { color: #c5b9af; background: transparent; border: 0; }
+@keyframes zfade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 720px) {
+  #zWheel { display: none; }
+  #zHint { display: none; }
+  #zAmmoN { font-size: 22px; }
+  #zMission {
+    width: min(220px, 58vw);
+    left: max(12px, env(safe-area-inset-left));
+    top: max(12px, env(safe-area-inset-top));
+  }
+  #zThreat { left: max(12px, env(safe-area-inset-left)); top: calc(max(12px, env(safe-area-inset-top)) + 56px); }
+  #zRadarWrap { top: max(16px, env(safe-area-inset-top)); right: max(18px, env(safe-area-inset-right)); }
+  /* Mission and radar own the top corners on a phone; move run stats below
+     them instead of printing Wave/score through the objective card. */
+  #zTop { top: 136px; }
+  #zCombo { top: 164px; }
+  #zBossBar { top: 170px; }
+  .z-controls { grid-template-columns: repeat(2, 1fr); }
+  .z-game-settings label { grid-template-columns: 125px 1fr; }
+}
+
+#zHud.z-touch #zTouch { display: block; }
+#zHud.z-touch #zPauseBtn { display: grid; place-items: center; }
+#zHud.z-touch #zHint, #zHud.z-touch #zWheel { display: none; }
+#zHud.z-touch #zBottom { bottom: calc(212px + env(safe-area-inset-bottom)); }
+#zHud.z-touch #zIntermission { bottom: calc(230px + env(safe-area-inset-bottom)); }
+#zHud.z-touch #zPerkBadges { bottom: calc(220px + env(safe-area-inset-bottom)); }
+#zHud.z-touch #zInteractPrompt { top: 55%; max-width: min(76vw, 520px); text-align: center; }
+
+@media (pointer: coarse) {
+  #zTouch { display: block; }
+  #zPauseBtn { display: grid; place-items: center; }
+  #zHint { display: none; }
+  #zWheel { display: none; }
+  #zBottom { bottom: calc(212px + env(safe-area-inset-bottom)); }
+  #zIntermission { bottom: calc(230px + env(safe-area-inset-bottom)); }
+}
+
+@media (pointer: coarse) and (max-width: 520px) {
+  .z-touch-stick {
+    left: max(12px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom));
+    width: 102px; height: 102px;
+  }
+  .z-touch-actions {
+    right: max(10px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom));
+    gap: 6px; grid-template-columns: 46px 46px 64px; grid-template-rows: 46px 46px 64px;
+  }
+  .z-touch-actions button { width: 46px; height: 46px; border-radius: 14px; font-size: 14px; }
+  .z-touch-actions .z-touch-fire { width: 64px; height: 64px; }
+  #zBottom { bottom: calc(188px + env(safe-area-inset-bottom)); padding: 0 14px; }
+  #zIntermission { bottom: calc(205px + env(safe-area-inset-bottom)); }
+  #zIntermission > span { display: none; }
+  #zIntermission button { padding: 8px 3px; font-size: max(9px, var(--fs-floor, 0px)); }
+}
+
+/* JS posture classes cover hybrid devices whose active pointer changes when a
+   keyboard is attached, and let a foldable update immediately after rotation. */
+#zHud.z-touch.z-phone .z-touch-stick {
+  left: max(12px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom));
+  width: 102px; height: 102px;
+}
+#zHud.z-touch.z-phone .z-touch-actions {
+  right: max(10px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom));
+  gap: 6px; grid-template-columns: 46px 46px 64px; grid-template-rows: 46px 46px 64px;
+}
+#zHud.z-touch.z-phone .z-touch-actions button { width: 46px; height: 46px; border-radius: 14px; }
+#zHud.z-touch.z-phone .z-touch-actions .z-touch-fire { width: 64px; height: 64px; }
+#zHud.z-touch.z-phone #zBottom { bottom: calc(188px + env(safe-area-inset-bottom)); padding-inline: 14px; }
+#zHud.z-touch.z-phone #zIntermission { bottom: calc(205px + env(safe-area-inset-bottom)); }
+
+/* Folded cover screens can be only 280–360 CSS pixels wide. Both thumb zones
+   remain disjoint, while the mission and radar keep a real gutter. */
+#zHud.z-narrow #zMission { box-sizing: border-box; width: calc(100vw - 110px); max-width: 210px; }
+#zHud.z-narrow #zRadarWrap { width: 82px; height: 82px; right: max(8px, env(safe-area-inset-right)); }
+#zHud.z-narrow #zTop { top: 108px; gap: 10px; font-size: max(10px, var(--fs-floor, 0px)); }
+#zHud.z-narrow #zCombo { top: 132px; }
+#zHud.z-narrow #zBossBar { top: 146px; width: calc(100vw - 20px); }
+#zHud.z-narrow #zMissionLabel { font-size: max(8px, var(--fs-floor, 0px)); letter-spacing: .09em; }
+#zHud.z-narrow #zMissionCount { font-size: max(9px, var(--fs-floor, 0px)); }
+#zHud.z-narrow #zThreat { top: calc(max(12px, env(safe-area-inset-top)) + 52px); font-size: max(8px, var(--fs-floor, 0px)); }
+#zHud.z-touch.z-narrow .z-touch-stick {
+  left: max(6px, env(safe-area-inset-left)); bottom: max(7px, env(safe-area-inset-bottom));
+  width: 84px; height: 84px;
+}
+#zHud.z-touch.z-narrow .z-touch-stick i { width: 36px; height: 36px; margin: -18px 0 0 -18px; }
+#zHud.z-touch.z-narrow .z-touch-actions {
+  right: max(6px, env(safe-area-inset-right)); bottom: max(6px, env(safe-area-inset-bottom));
+  gap: 4px; grid-template-columns: 40px 40px 56px; grid-template-rows: 40px 40px 56px;
+}
+#zHud.z-touch.z-narrow .z-touch-actions button { width: 40px; height: 40px; border-radius: 12px; padding: 2px; }
+#zHud.z-touch.z-narrow .z-touch-actions .z-touch-fire { width: 56px; height: 56px; }
+#zHud.z-touch.z-narrow .z-touch-actions button b { font-size: 14px; }
+#zHud.z-touch.z-narrow .z-touch-actions button small { margin-top: 2px; font-size: max(6px, var(--fs-floor, 0px)); }
+#zHud.z-touch.z-narrow #zBottom { bottom: calc(158px + env(safe-area-inset-bottom)); padding-inline: 8px; gap: 8px; }
+#zHud.z-touch.z-narrow #zIntermission { bottom: calc(174px + env(safe-area-inset-bottom)); padding: 7px; }
+#zHud.z-touch.z-narrow #zIntermission > span { display: none; }
+#zHud.z-touch.z-narrow #zIntermission button { padding: 7px 2px; font-size: max(8px, var(--fs-floor, 0px)); }
+#zHud.z-touch.z-narrow #zPerkBadges { left: max(8px, env(safe-area-inset-left)); bottom: calc(164px + env(safe-area-inset-bottom)); }
+
+/* Tablets and unfolded Fold screens use their extra reach envelope for larger,
+   labelled targets instead of merely stretching the phone layout. */
+#zHud.z-touch.z-tablet .z-touch-stick { width: 136px; height: 136px; left: max(30px, env(safe-area-inset-left)); }
+#zHud.z-touch.z-tablet .z-touch-actions {
+  right: max(26px, env(safe-area-inset-right)); gap: 10px;
+  grid-template-columns: 58px 58px 80px; grid-template-rows: 58px 58px 80px;
+}
+#zHud.z-touch.z-tablet .z-touch-actions button { width: 58px; height: 58px; }
+#zHud.z-touch.z-tablet .z-touch-actions .z-touch-fire { width: 80px; height: 80px; }
+#zHud.z-touch.z-tablet #zBottom { bottom: calc(230px + env(safe-area-inset-bottom)); }
+#zHud.z-touch.z-tablet #zIntermission { bottom: calc(250px + env(safe-area-inset-bottom)); }
+#zHud.z-touch.z-tablet #zPerkBadges { bottom: calc(236px + env(safe-area-inset-bottom)); }
+
+/* Short landscape phones/foldables trade the tall 3-row cluster for two rows.
+   Every action remains present and the centre stays available for aiming. */
+#zHud.z-touch.z-landscape.z-short .z-touch-stick {
+  width: 88px; height: 88px; left: max(8px, env(safe-area-inset-left)); bottom: max(7px, env(safe-area-inset-bottom));
+}
+#zHud.z-touch.z-landscape.z-short .z-touch-actions {
+  right: max(8px, env(safe-area-inset-right)); bottom: max(7px, env(safe-area-inset-bottom));
+  gap: 5px; grid-template-columns: 40px 40px 40px 58px; grid-template-rows: 40px 58px;
+}
+#zHud.z-touch.z-landscape.z-short .z-touch-actions button { width: 40px; height: 40px; border-radius: 11px; }
+#zHud.z-touch.z-landscape.z-short .z-touch-actions .z-touch-fire { width: 58px; height: 58px; grid-column: 4; grid-row: 2; }
+#zHud.z-touch.z-landscape.z-short .z-touch-actions [data-act="reload"] { grid-column: 1; grid-row: 1; }
+#zHud.z-touch.z-landscape.z-short .z-touch-actions [data-act="flash"] { grid-column: 2; grid-row: 1; }
+#zHud.z-touch.z-landscape.z-short .z-touch-actions [data-act="shove"] { grid-column: 3; grid-row: 1; }
+#zHud.z-touch.z-landscape.z-short .z-touch-actions [data-act="jump"] { grid-column: 4; grid-row: 1; }
+#zHud.z-touch.z-landscape.z-short .z-touch-actions [data-act="weapon"] { grid-column: 1; grid-row: 2; }
+#zHud.z-touch.z-landscape.z-short .z-touch-actions [data-act="interact"] { grid-column: 2; grid-row: 2; }
+#zHud.z-touch.z-landscape.z-short #zBottom { bottom: calc(108px + env(safe-area-inset-bottom)); }
+#zHud.z-touch.z-landscape.z-short #zIntermission { bottom: calc(116px + env(safe-area-inset-bottom)); width: min(520px, 48vw); }
+#zHud.z-touch.z-landscape.z-short #zPerkBadges { bottom: calc(114px + env(safe-area-inset-bottom)); }
+#zHud.z-landscape.z-short #zTop { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }
+#zHud.z-landscape.z-short #zCombo { top: calc(max(10px, env(safe-area-inset-top)) + 76px); }
+#zHud.z-landscape.z-short #zBossBar { top: calc(max(10px, env(safe-area-inset-top)) + 92px); }
+#zHud.z-landscape.z-short #zMission { width: min(245px, 34vw); }
+#zHud.z-landscape.z-short #zRadarWrap { width: 82px; height: 82px; }
+
+/* A spanning fold has a physical centre crease. Keep the only interactive
+   mid-screen panel wholly on one segment instead of centring it on the hinge. */
+body.fold-span #zHud #zIntermission {
+  left: auto; right: max(18px, env(safe-area-inset-right));
+  width: min(44vw, 520px); transform: none;
+}
+
+@media (max-height: 520px) and (min-width: 600px) {
+  .z-pause-card {
+    width: min(860px, calc(100vw - 32px)); max-height: calc(var(--z-visual-height, 100vh) - 20px);
+    display: grid; grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.2fr);
+    grid-template-rows: auto auto auto 1fr auto auto; column-gap: 22px; text-align: left;
+  }
+  .z-pause-card .z-eyebrow { grid-column: 1; grid-row: 1; }
+  .z-pause-card h2 { grid-column: 1; grid-row: 2; margin-top: 7px; }
+  .z-pause-card > p { grid-column: 1; grid-row: 3; margin: 0; font-size: 12px; }
+  .z-pause-card .z-controls { grid-column: 1; grid-row: 4; align-self: start; grid-template-columns: repeat(2, 1fr); margin: 12px 0; }
+  .z-pause-card .z-game-settings { grid-column: 2; grid-row: 1 / 7; margin: 0; align-self: center; }
+  .z-pause-card > #zResume { grid-column: 1; grid-row: 5; justify-self: start; }
+  .z-pause-card > #zExit { grid-column: 1; grid-row: 6; justify-self: start; margin: 5px 0 0; }
+}
+
+@media (max-height: 690px) {
+  .z-pause-card h2 { font-size: clamp(32px, 6vw, 54px); }
+  .z-pause-card > p { line-height: 1.35; }
+  .z-controls { margin: 17px 0 14px; }
+  .z-controls span { padding-block: 8px 6px; }
+  .z-game-settings { margin-bottom: 12px; padding-block: 8px; }
+  .z-game-settings label { min-height: 25px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #zHud *, #zHud *::before, #zHud *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+

@@ -34,7 +34,7 @@ ModelForge (repo `3dhome`) is a **local-first, browser-based parametric CAD / ho
 
 ### Working cheaply (agents)
 Token use matters on this repo; these habits keep it down.
-- **Never read a big file whole** (`js/modeler.js`, `css/styles.css`, `js/view3d.js`, `js/interaction.js`, `js/i18n/*.js`, `js/modeler_strings.js`). Find the region first with `node tools/outline.mjs <file> [--grep word]` (top-level declarations or CSS sections with line numbers) or Grep `-n`, then Read with `offset`/`limit` (≤200 lines).
+- **Never read a big file whole** (`js/modeler.js`, `js/view3d.js`, `js/interaction.js`, `js/i18n/*.js`, `js/modeler_strings.js`). Find the region first with `node tools/outline.mjs <file> [--grep word]` (top-level declarations or CSS sections with line numbers) or Grep `-n`, then Read with `offset`/`limit` (≤200 lines).
 - **Search scope**: the root `.ignore` keeps vendored code, harness output and data blobs out of Grep/Glob. Read such a file by path when you really need it.
 - **Tests during work**: `npm run test:changed` (the tests that name a changed file; `-- --list` to preview) or `npm run test:quiet -- tests/x.test.mjs`. Both print only failures and a summary. Run the full suite (`npm run test:quiet`, ~17 min) only at the end, in the background.
 - **Route work to the cheapest capable model** (Claude Code project agents in `.claude/agents/`):

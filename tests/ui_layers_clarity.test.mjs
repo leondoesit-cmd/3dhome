@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -5,7 +6,7 @@ import en from "../js/i18n/en.js";
 import he from "../js/i18n/he.js";
 
 const src = await readFile(new URL("../js/ui_layers.js", import.meta.url), "utf8");
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const css = stylesSource();
 
 test("the eye is a plain show/hide switch; Faded lives in the layer menu", () => {
   assert.doesNotMatch(src, /VIS_NEXT/, "no three-state click cycle");

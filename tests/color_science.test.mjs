@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -157,7 +158,7 @@ test("color vision deficiency (CVD) simulation maintains luminosity structure", 
 });
 
 test("CSS theme system tokens meet WCAG 2.1 AA contrast requirements across all 4 themes", () => {
-  const cssContent = fs.readFileSync(path.resolve(process.cwd(), "css/styles.css"), "utf8");
+  const cssContent = stylesSource();
 
   function extractThemeTokens(themeName) {
     const pattern = themeName === "light"

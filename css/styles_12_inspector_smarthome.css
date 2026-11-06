@@ -1,0 +1,820 @@
+/* ==========================================================================
+   Wall inspector chrome — header, metric chips, tabs, segmented controls,
+   swatches, take-off. The panel used to be one long stack of accordions; the
+   five panes below are the same controls, grouped by the question they answer
+   ("how big", "what is it made of", "what's cut into it", "what holds it in
+   place", "what does it cost"). Everything here is presentation only: the ids
+   the JS drives are unchanged.
+   ========================================================================== */
+
+.wi-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.wi-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.wi-id {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.wi-phase {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.wi-phase[hidden] {
+  display: none;
+}
+.wi-phase.ph-new {
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  border-color: color-mix(in srgb, var(--success) 42%, transparent);
+  color: var(--success);
+}
+.wi-phase.ph-existing {
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+  border-color: color-mix(in srgb, var(--text-muted) 34%, transparent);
+  color: var(--text-muted);
+}
+.wi-phase.ph-demolition {
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 42%, transparent);
+  color: var(--danger);
+}
+.wi-acts {
+  display: flex;
+  gap: 4px;
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  align-items: center;
+}
+.wi-act {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+/* a verb that cannot do anything to this wall says so rather than accepting
+   the click — see wallFlipSymmetric */
+#wallProps button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+#wallProps button:disabled:hover {
+  background: var(--btn-bg);
+  border-color: var(--btn-border);
+}
+.wi-act.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.wi-act.active i {
+  color: inherit;
+}
+.wi-act-danger:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.wi-act-danger:hover i {
+  color: inherit;
+}
+.wi-mini {
+  margin-inline-start: auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+}
+.wi-mini i {
+  font-size: 13px;
+}
+
+/* the four numbers a wall is usually asked for */
+.wi-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+.wi-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 6px;
+  border: 1px solid var(--btn-border);
+  border-radius: 9px;
+  background: var(--btn-bg);
+  min-width: 0;
+}
+.wi-chip-v {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wi-chip-k {
+  font-size: max(9.5px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wi-chip-sub {
+  font-size: max(9.5px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* tab strip */
+.wi-tabs {
+  --wi-tab-radius: 11px;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--btn-border) 78%, var(--text-muted) 22%);
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 100% at 50% -35%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 62%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--btn-bg) 92%, white 8%) 0%,
+      color-mix(in srgb, var(--btn-bg) 96%, black 4%) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 9%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 13%, transparent),
+    0 8px 24px color-mix(in srgb, black 10%, transparent);
+}
+.wi-tabs > button {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 30px auto;
+  place-items: center;
+  gap: 4px;
+  min-height: 61px;
+  padding: 7px 3px 6px;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--btn-border) 42%, transparent);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 44%, transparent),
+      color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 14%, transparent));
+  box-shadow: none;
+  border-radius: var(--wi-tab-radius);
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 580;
+  letter-spacing: .01em;
+  color: var(--text-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform .18s cubic-bezier(.2, .8, .2, 1),
+    border-color .18s ease,
+    background .18s ease,
+    color .18s ease,
+    box-shadow .18s ease;
+}
+.wi-tabs > button::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(80% 48% at 50% 0%, color-mix(in srgb, white 9%, transparent), transparent 78%),
+    linear-gradient(110deg, transparent 18%, color-mix(in srgb, white 5%, transparent) 48%, transparent 78%);
+  opacity: .45;
+  transition: opacity .18s ease;
+}
+.wi-tabs > button::after {
+  content: "";
+  position: absolute;
+  inset-inline: 24%;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--accent) 70%, transparent);
+  opacity: 0;
+  transform: scaleX(.25);
+  transition: opacity .18s ease, transform .22s cubic-bezier(.2, .9, .2, 1);
+}
+.wi-tabs > button i {
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border: 1px solid color-mix(in srgb, var(--btn-border) 68%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 65%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
+    0 2px 5px color-mix(in srgb, black 8%, transparent);
+  font-size: 16px;
+  color: inherit;
+  transition: transform .2s cubic-bezier(.2, .8, .2, 1), background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+/* Five fixed columns in a narrow inspector left only "Constraints" a few
+   pixels short, so one tab of five read "Constrai…". Let the label wrap
+   instead of clipping — the tabs are already a two-line icon+text column. */
+.wi-tabs > button span {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.12;
+  text-align: center;
+}
+.wi-tabs > button:hover {
+  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--text-muted) 38%, var(--btn-border));
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--btn-bg-hover) 82%, white 3%),
+      color-mix(in srgb, var(--btn-bg-hover) 96%, black 4%));
+  box-shadow: 0 5px 13px color-mix(in srgb, black 9%, transparent);
+  transform: translateY(-1px);
+}
+.wi-tabs > button:hover::before {
+  opacity: .9;
+}
+.wi-tabs > button:hover i {
+  transform: translateY(-1px) scale(1.04);
+}
+.wi-tabs > button:active {
+  transform: translateY(0) scale(.98);
+  transition-duration: .06s;
+}
+.wi-tabs > button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 82%, white 18%);
+  outline-offset: 2px;
+  z-index: 2;
+}
+.wi-tabs > button.active {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--btn-border));
+  background:
+    radial-gradient(110% 80% at 50% -20%, color-mix(in srgb, var(--accent) 23%, transparent), transparent 67%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 86%, var(--accent) 14%),
+      color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 96%, var(--accent) 4%));
+  color: var(--text-main);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 13%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent),
+    0 6px 16px color-mix(in srgb, var(--accent) 13%, transparent),
+    0 2px 5px color-mix(in srgb, black 12%, transparent);
+  font-weight: 700;
+}
+.wi-tabs > button.active::before {
+  opacity: 1;
+}
+.wi-tabs > button.active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+.wi-tabs > button.active i {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent) 25%, var(--panel-bg, var(--bg-panel))),
+      color-mix(in srgb, var(--accent) 11%, var(--panel-bg, var(--bg-panel))));
+  color: color-mix(in srgb, var(--accent) 88%, white 12%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 15%, transparent),
+    0 4px 10px color-mix(in srgb, var(--accent) 19%, transparent);
+}
+.wi-tab-badge {
+  position: absolute;
+  z-index: 3;
+  top: 4px;
+  inset-inline-end: 4px;
+  min-width: 16px;
+  padding: 0 4px;
+  border: 2px solid color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 88%, transparent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: max(9px, var(--fs-floor, 0px));
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.wi-tab-badge.bad {
+  background: var(--danger);
+}
+.wi-tab-badge[hidden] {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wi-tabs > button,
+  .wi-tabs > button::after,
+  .wi-tabs > button i {
+    transition: none;
+  }
+}
+.wi-pane {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+.wi-pane.active {
+  display: flex;
+}
+
+/* the dimension lock, as a switch rather than a button that says a state */
+.wi-lock {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+.wi-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 9px;
+  font-size: max(11.5px, var(--fs-floor, 0px));
+  font-weight: 600;
+  text-align: start;
+}
+.wi-switch-track {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 19px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 30%, transparent);
+  transition: background .16s ease;
+}
+.wi-switch-knob {
+  position: absolute;
+  top: 2px;
+  inset-inline-start: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .16s ease;
+}
+.wi-switch-knob i {
+  font-size: max(9px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+}
+.wi-switch[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.wi-switch[aria-pressed="true"] .wi-switch-track {
+  background: var(--accent);
+}
+.wi-switch[aria-pressed="true"] .wi-switch-knob {
+  transform: translateX(15px);
+}
+.wi-switch[aria-pressed="true"] .wi-switch-knob i {
+  color: var(--accent);
+}
+#w_lockState {
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* segmented rows that carry a caption need the caption on its own line */
+.seg-row-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.seg-row-stack > .t {
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+}
+.seg button i {
+  font-size: 13px;
+}
+
+/* cross-section: hover a layer, click a face to move the datum */
+.w-sec-layer {
+  cursor: pointer;
+}
+.w-sec-layer.hot {
+  stroke: var(--accent);
+  stroke-width: 0.9;
+}
+.w-sec-dim {
+  cursor: pointer;
+  fill: transparent;
+}
+.w-sec-dim-line {
+  stroke: var(--text-muted);
+  stroke-width: 0.5;
+  stroke-dasharray: 1.4 1.4;
+  opacity: 0;
+  transition: opacity .12s ease;
+  pointer-events: none;
+}
+.w-sec-dim:hover + .w-sec-dim-line {
+  opacity: 0.9;
+}
+.w-sec-readout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 17px;
+  padding: 0 2px;
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+}
+.w-sec-readout .sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--btn-border);
+  flex: none;
+}
+.w-sec-readout b {
+  color: var(--text-main);
+  font-weight: 600;
+}
+.w-sec-readout .num {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* elevation: the selected opening carries its own dimension tags */
+.w-elev-tag {
+  font-size: var(--elev-tag-fs, 7.5px);
+  text-anchor: middle;
+  fill: var(--accent);
+  font-weight: 700;
+}
+.w-elev-tick {
+  stroke: var(--accent);
+  stroke-width: var(--elev-sw, 0.7);
+  stroke-dasharray: 2 1.6;
+}
+.w-open-hit.sel rect {
+  stroke: var(--accent);
+  stroke-width: 2.6;
+}
+
+/* quick-add buttons carry how many of that kind the wall already has */
+.w-open-add button {
+  position: relative;
+}
+.wi-count {
+  min-width: 14px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: max(9.5px, var(--fs-floor, 0px));
+  font-weight: 700;
+  line-height: 14px;
+}
+.wi-count[hidden] {
+  display: none;
+}
+
+/* opening cards */
+.w-open-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 1px 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--btn-border);
+  border-radius: 9px;
+  background: var(--btn-bg);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.w-open-card:hover {
+  background: var(--btn-bg-hover);
+}
+.w-open-card.sel {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.w-open-card > .ico {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: var(--input-bg);
+  border: 1px solid var(--btn-border);
+}
+.w-open-card > .ico i {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.w-open-card .nm {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: max(11.5px, var(--fs-floor, 0px));
+  font-weight: 600;
+  color: var(--text-main);
+}
+.w-open-card .sub {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: max(10px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.w-open-card .tools {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: flex;
+  gap: 3px;
+}
+.w-open-card .tools button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+}
+.w-open-card .tools button i {
+  font-size: 12px;
+}
+.w-open-card .tools .del:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.w-open-card .tools .del:hover i {
+  color: inherit;
+}
+
+/* finishes */
+.wi-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 6px;
+}
+.wi-sw {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px;
+  border: 1px solid var(--btn-border);
+  border-radius: 9px;
+  background: var(--btn-bg);
+  min-width: 0;
+}
+.wi-sw-chip {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 7px;
+  border: 1px solid var(--btn-border);
+  background-size: cover;
+  background-position: center;
+}
+.wi-sw-txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.wi-sw-txt b {
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wi-sw-txt span {
+  font-size: max(9.5px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* buttons in this panel are display:flex, which beats the hidden attribute */
+#wallProps [hidden] {
+  display: none !important;
+}
+
+/* per-wall take-off */
+.wi-takeoff {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wi-to-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  font-size: max(11px, var(--fs-floor, 0px));
+}
+.wi-to-row:nth-child(odd) {
+  background: color-mix(in srgb, var(--text-muted) 7%, transparent);
+}
+.wi-to-row .k {
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wi-to-row .s {
+  color: var(--text-muted);
+  font-size: max(9.5px, var(--fs-floor, 0px));
+}
+.wi-to-row .v {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.wi-to-empty {
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+}
+
+@media (max-width: 520px) {
+  .wi-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---- smart home --------------------------------------------------------- */
+.sh-section #smartHomePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 2px 12px;
+}
+.sh-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--separator);
+  background: color-mix(in srgb, var(--btn-bg) 80%, transparent);
+}
+.sh-status.ok { border-color: rgba(21,128,61,0.35); background: rgba(21,128,61,0.10); }
+.sh-status-title { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 0.88em; }
+.sh-status-title i { color: var(--accent); }
+.sh-status.ok .sh-status-title i { color: #15803d; }
+.sh-status-meta, .sh-host { font-size: max(0.72em, var(--fs-floor, 0px)); color: var(--text-muted); }
+.sh-error { font-size: max(0.75em, var(--fs-floor, 0px)); color: #b45309; }
+.sh-connect { border: 1px solid var(--separator); border-radius: 10px; padding: 8px 10px; }
+.sh-connect summary { cursor: pointer; font-weight: 700; font-size: max(0.8em, var(--fs-floor, 0px)); }
+.sh-field { display: flex; flex-direction: column; gap: 3px; margin-top: 7px; font-size: max(0.75em, var(--fs-floor, 0px)); }
+.sh-field input, .sh-field select, .sh-proto { width: 100%; }
+.sh-hint { font-size: max(0.68em, var(--fs-floor, 0px)); color: var(--text-muted); line-height: 1.35; margin-top: 6px; }
+.sh-btn-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sh-btn-row button { font-size: max(0.75em, var(--fs-floor, 0px)); }
+.sh-block { display: flex; flex-direction: column; gap: 6px; }
+.sh-sub { font-size: max(0.7em, var(--fs-floor, 0px)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.sh-scenes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sh-scene {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 4px; font-size: max(0.72em, var(--fs-floor, 0px)); font-weight: 650;
+  border: 1px solid var(--btn-border); border-radius: 9px; background: var(--btn-bg);
+}
+.sh-scene:hover { background: var(--btn-bg-hover); }
+.sh-scene i { font-size: 1.15em; color: var(--accent); }
+.sh-voice { display: flex; gap: 5px; }
+.sh-voice input { flex: 1; min-width: 0; }
+.sh-voice button { flex: none; padding: 6px 8px; }
+.sh-room { font-size: max(0.72em, var(--fs-floor, 0px)); font-weight: 700; margin-top: 6px; color: var(--text-muted); }
+.sh-dev {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px; border: 1px solid var(--separator); border-radius: 10px;
+  background: color-mix(in srgb, var(--btn-bg) 70%, transparent);
+}
+.sh-dev.on { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+.sh-dev-top { display: flex; align-items: center; gap: 6px; }
+.sh-dev-name {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  background: transparent; border: 0; box-shadow: none; padding: 0;
+  font-weight: 650; font-size: max(0.82em, var(--fs-floor, 0px)); text-align: start;
+}
+.sh-dev-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-power {
+  width: 32px; height: 32px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center;
+}
+.sh-power.on { background: color-mix(in srgb, var(--accent) 22%, var(--btn-bg)); color: var(--accent); }
+.sh-ctrl { display: flex; align-items: center; gap: 6px; }
+.sh-ctrl input[type="range"] { flex: 1; }
+.sh-ctrl input[type="color"] { width: 32px; height: 22px; padding: 0; border: 0; background: transparent; }
+.sh-ctrl input[type="number"], .sh-ctrl select { min-width: 0; font-size: max(0.75em, var(--fs-floor, 0px)); }
+.sh-unit { font-size: max(0.72em, var(--fs-floor, 0px)); color: var(--text-muted); }
+.sh-bind, .sh-bound-tag { font-size: max(0.68em, var(--fs-floor, 0px)); color: var(--text-muted); }
+.sh-bound-tag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-auto { display: flex; align-items: center; gap: 7px; font-size: max(0.78em, var(--fs-floor, 0px)); cursor: pointer; }
+.sh-empty { font-size: max(0.75em, var(--fs-floor, 0px)); color: var(--text-muted); line-height: 1.4; }
+.sh-item {
+  flex-direction: column; gap: 6px; width: 100%;
+  padding-top: 8px; border-top: 1px solid var(--separator);
+}
+.sh-item-head { display: flex; align-items: center; gap: 6px; font-size: max(0.78em, var(--fs-floor, 0px)); font-weight: 700; }
+.sh-dev-embed { border: 0; padding: 0; background: transparent; box-shadow: none; }
+.sh-status-pill { font-size: max(0.68em, var(--fs-floor, 0px)); color: var(--text-muted); background: var(--btn-bg); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--separator); }
+.sh-status-pill.alert { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); font-weight: 600; }
+
+.sh-energy-box { background: color-mix(in srgb, var(--btn-bg) 60%, transparent); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--separator); }
+.sh-energy-head { display: flex; align-items: center; justify-content: space-between; }
+.sh-watts-val { font-weight: 800; font-size: 0.92em; color: var(--warn); }
+.sh-energy-bar { height: 7px; width: 100%; border-radius: 4px; overflow: hidden; display: flex; background: rgba(120,120,120,0.15); margin: 3px 0; }
+.sh-energy-bar > div { height: 100%; transition: width 0.3s ease; }
+.sh-energy-meta { font-size: max(0.7em, var(--fs-floor, 0px)); color: var(--text-muted); }
+
+.sh-filters { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.sh-filters::-webkit-scrollbar { display: none; }
+.sh-chip { font-size: max(0.7em, var(--fs-floor, 0px)); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--separator); background: var(--btn-bg); white-space: nowrap; cursor: pointer; }
+.sh-chip.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+.sh-head-row { display: flex; align-items: center; justify-content: space-between; }
+.sh-link-btn { background: transparent; border: 0; color: var(--accent); font-size: max(0.72em, var(--fs-floor, 0px)); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 4px; }
+.sh-link-btn:hover { text-decoration: underline; }
+
+.sh-scene-wrap { position: relative; display: flex; width: 100%; }
+.sh-scene-wrap .sh-scene { flex: 1; }
+.sh-del-icon { position: absolute; top: 3px; inset-inline-end: 3px; background: transparent; border: 0; color: var(--text-muted); opacity: 0.6; padding: 3px; cursor: pointer; border-radius: 4px; font-size: 0.85em; }
+.sh-del-icon:hover { opacity: 1; color: var(--danger); background: var(--danger-soft); }
+
+.sh-room-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.sh-room-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 0; border-bottom: 1px solid color-mix(in srgb, var(--separator) 50%, transparent); }
+.sh-room-name { font-size: max(0.76em, var(--fs-floor, 0px)); font-weight: 700; color: var(--text-muted); flex: 1; }
+.sh-room-env { display: flex; align-items: center; gap: 6px; font-size: max(0.68em, var(--fs-floor, 0px)); color: var(--text-muted); }
+.sh-room-env .sh-env-alert { color: var(--success); }
+.sh-room-env .sh-env-watts { color: var(--warn); font-weight: 600; }
+.sh-room-actions { display: flex; gap: 4px; }
+.sh-mini-btn { font-size: max(0.68em, var(--fs-floor, 0px)); padding: 2px 6px; border-radius: 5px; border: 1px solid var(--separator); background: var(--btn-bg); cursor: pointer; }
+.sh-mini-btn:hover { background: var(--btn-bg-hover); }
+.sh-mini-btn.active { background: color-mix(in srgb, var(--accent) 25%, var(--btn-bg)); border-color: var(--accent); color: var(--accent); }
+
+.sh-sensor-row, .sh-vac-row { display: flex; align-items: center; gap: 6px; }
+.sh-lock-btn { display: flex; align-items: center; gap: 6px; font-size: max(0.74em, var(--fs-floor, 0px)); font-weight: 600; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--separator); cursor: pointer; }
+.sh-lock-btn.locked { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, transparent); }
+.sh-lock-btn.unlocked { background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+
+.sh-auto-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.sh-auto-row .sh-auto { flex: 1; }
+

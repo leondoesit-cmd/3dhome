@@ -3,11 +3,12 @@
 // reporting the size it was leaving until the ease ended, and forever in a
 // page that is not painting, so the ribbon and dock fitting, which measure
 // right after such a change, read stale widths.
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const css = (await readFile(new URL("../css/styles.css", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
+const css = (stylesSource()).replace(/\r\n/g, "\n");
 
 /* The body of a top-level rule whose selector is exactly `selector`. */
 function block(selector) {

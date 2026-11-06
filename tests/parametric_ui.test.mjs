@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -25,7 +26,7 @@ const drawingSource = await readFile(new URL("../js/modeler_drawing.js", import.
 const source = [modelerSource, stringsSource, meshGeometrySource, partGeometrySource, pickGeometrySource, commandSource, formSource, draftSource, workflowSource, drawingSource].join("\n");
 const editorViewSource = await readFile(new URL("../js/editor_view.js", import.meta.url), "utf8");
 const featureCatalogSource = await readFile(new URL("../js/core/feature_catalog.js", import.meta.url), "utf8");
-const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const styles = stylesSource();
 function loadModelerFunction(name, bindings = {}) {
   return new Function(...Object.keys(bindings), `return (${sourceFunctionText(modelerSource, name)});`)(...Object.values(bindings));
 }

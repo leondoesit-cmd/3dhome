@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,7 +22,7 @@ test('every native Drawing command stays reachable through purpose groups and bo
   }
 });
 test('More keeps the actual name/status on their own row and aligns Description with Price',()=>{
-  const css=readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+  const css=stylesSource();
   assert.match(css,/\.md-sheet-fields \.md-head-inputs\s*\{ display:grid !important;[^}]*align-items:start/);
   assert.match(css,/\.md-field:has\(#mdName\)\s*\{ grid-column:1 \/ -1/);
   assert.match(css,/#mdDraftStatus\s*\{ display:block;[^}]*white-space:normal/);

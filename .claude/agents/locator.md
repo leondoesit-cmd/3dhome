@@ -11,7 +11,7 @@ files and never run commands that change files or git state.
 How to search cheaply:
 - Grep with `-n` and a `glob`/`type` filter first. Search hits in `vendor/`, data blobs
   and harness output are excluded by the repo's `.ignore`.
-- For a big file (`js/modeler.js`, `css/styles.css`, `js/view3d.js`, `js/interaction.js`,
+- For a big file (`js/modeler.js`, `js/view3d.js`, `js/interaction.js`,
   `js/i18n/*.js`) run `node tools/outline.mjs <file> --grep <word>` to see its
   declarations or CSS sections with line numbers. Never Read such a file whole: Read
   with `offset`/`limit` of at most 80 lines around a hit.

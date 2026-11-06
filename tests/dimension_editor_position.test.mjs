@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -22,12 +23,12 @@ test('hidden controls with zero rectangles and unrelated overlays do not move a 
   assert.equal(p.y,550);
 });
 test('mini editor nested grids let tolerance fields shrink within the border box', () => {
-  const css = readFileSync(new URL('../css/styles.css', import.meta.url),'utf8');
+  const css = stylesSource();
   assert.match(css, /\.md-dimension-editor label\s*\{[^}]*min-width:\s*0;[^}]*grid-template-columns:\s*minmax\(0,1fr\)/);
   assert.match(css, /\.md-dimension-editor select\s*\{[^}]*width:\s*100%;[^}]*box-sizing:\s*border-box/);
   assert.match(css, /\.md-dimension-editor label > span\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere/);
 });
 test('closed mobile sheets remove descendant controls from rendering and hit testing', () => {
-  const css = readFileSync(new URL('../css/styles.css', import.meta.url),'utf8');
+  const css = stylesSource();
   assert.match(css, /#md-sheet\[aria-hidden="true"\]\s*\{[^}]*display:\s*none;[^}]*pointer-events:\s*none/);
 });

@@ -1,0 +1,2111 @@
+/* ==========================================================================
+   Model editor — phone / foldable shell
+   (markup + behaviour: js/modeler_mobile.js)
+
+   Same two rows as the planner's shell, scoped to body.compact-nav so the
+   desktop editor is untouched. The rules below do three things: give the
+   viewport the whole screen back, retire the six header rows and eight
+   floating stacks into the two rows and their sheets, and let a sheet HOST
+   the real panel that was borrowed out of the desktop layout.
+   ========================================================================== */
+
+body.compact-nav #modeler {
+  /* The bottom rows sit above the editor, not inside it. */
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
+  /* The sheet parks itself at translateY(100%), i.e. just below this box —
+     without clipping it reads through the glass of the row beneath. */
+  /* Unlike hidden, clip also prevents focus/scrollIntoView from scrolling
+     the entire editor and carrying its fixed-height header out of view.
+     Borrowed sheets and inspectors retain their own scroll containers. */
+  overflow: clip;
+}
+/* The planner's own two rows are still mounted on <body> underneath. They are
+   for a document that is not on screen, and the panel backgrounds are glass —
+   left up, they read through as ghost OSNAP/GRID chips behind these ones. */
+body.md-open #m-ctx,
+body.md-open #mobile-nav,
+body.md-open #m-sheet {
+  display: none !important;
+}
+
+/* ---- the head shrinks to a title and an exit ------------------------------ */
+
+body.compact-nav #modeler {
+  /* the one place the phone header's height is written down */
+  --md-head-block: 44px;
+}
+body.compact-nav #modeler .md-head {
+  box-sizing: border-box;
+  height: var(--md-head-block);
+  min-height: var(--md-head-block);
+  /* Logical, not left/right: the Hebrew locale mirrors this strip, and "the
+     exit is at the leading edge" has to mirror with it. */
+  padding-block: 0;
+  padding-inline: 4px;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+/* Exit at the leading edge, Undo/Redo at the trailing one, the title between.
+   .md-head-actions is a desktop grouping — on the phone only three of its
+   children survive and they belong at opposite ends of the strip, so the
+   wrapper stops being a box (display: contents) and its children become items
+   of .md-head itself. `order` is a flex order, so it follows the writing
+   direction: -1 is the leading edge in Hebrew too. */
+body.compact-nav #modeler .md-head-actions {
+  display: contents;
+}
+body.compact-nav #modeler .md-head-actions #mdClose { order: -1; }
+body.compact-nav #modeler .md-head-logo { order: 0; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+body.compact-nav #modeler .md-head-actions #mdUndo { order: 1; }
+body.compact-nav #modeler .md-head-actions #mdRedo { order: 2; }
+/* Undo and Redo used to own a full-width line of #md-ctx, which cost the
+   modelling verbs a whole row of a 812px screen for two buttons that are not
+   modelling verbs. They are the editor's own pair, kept rather than copied. */
+body.compact-nav #modeler .md-head-actions #mdUndo,
+body.compact-nav #modeler .md-head-actions #mdRedo {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  flex: 0 0 auto;
+  justify-content: center;
+  font-size: 0;
+}
+body.compact-nav #modeler .md-head-actions #mdUndo i,
+body.compact-nav #modeler .md-head-actions #mdRedo i {
+  font-size: 19px;
+}
+/* Name and price are set once and held a full-width row for it; the doc-mode
+   toggle, Guide and Save are a tap away in More. Close stays: a full-screen
+   editor must always show its way out. Undo/Redo stay too — they used to cost
+   #md-ctx a whole line of its own. */
+/* :not(.md-borrowed) throughout — the sheet lives INSIDE #modeler, so a panel
+   it is holding still matches these selectors and would be hidden in the very
+   place it was brought to be shown. */
+body.compact-nav #modeler .md-head-inputs:not(.md-borrowed),
+body.compact-nav #modeler .md-docmodes,
+body.compact-nav #modeler .md-head-actions > button:not(#mdClose):not(#mdUndo):not(#mdRedo),
+body.compact-nav #modeler .md-head-actions > .md-separator,
+body.compact-nav #modeler .md-sub,
+/* The workflow crumb truncated four of its five steps to "Sketch Cr…"; the
+   coach it summarised is now the primary action in the contextual row. */
+body.compact-nav #modeler .md-workflow,
+body.compact-nav #modeler .md-coach,
+/* The ribbon becomes the Commands sheet; the status line and the empty-start
+   chip were two more things floating over a 394px viewport. */
+body.compact-nav #modeler .md-commandmanager:not(.md-borrowed),
+body.compact-nav #modeler .md-status,
+body.compact-nav #modeler .md-empty-start,
+body.compact-nav #modeler .md-breadcrumb,
+/* The "Closed profile — build what?" card offers Extrude / Extrude cut /
+   Revolve / Hole — the very verbs #md-ctx now docks above the bottom nav. On a
+   phone it is therefore the same four choices twice, and the copy that floats
+   over the model the user is deciding about. The docked row wins: it is always
+   in the same place and it does not cover anything. Desktop keeps the card,
+   where it sits beside the sketch's accept button rather than on top of it. */
+body.compact-nav #modeler .md-profile-offer,
+/* Three stacks of viewport controls → the View sheet. */
+body.compact-nav #modeler .md-modes,
+body.compact-nav #modeler .md-views,
+body.compact-nav #modeler .md-sel-filters,
+/* Accept/cancel are the first two buttons of the contextual row while a
+   command is being defined — a corner of the viewport is the one place a
+   thumb cannot reach without covering the preview it is judging. */
+body.compact-nav #modeler .md-context-actions,
+body.compact-nav #modeler .md-context-toolbar,
+/* The 3D preview is swapped INTO the viewport, and its "in the room" checkbox
+   rides along as one more control floating over the model. It is a display
+   option, so it moved to the View sheet with the other display options. */
+body.compact-nav #modeler .md-context-toggle,
+body.compact-nav #modeler .md-resizer {
+  display: none !important;
+}
+body.compact-nav #modeler .md-assembly-move-mode {
+  top: 60px; left: 50%; inset-inline-end: auto; transform: translateX(-50%);
+}
+body.compact-nav #modeler .md-assembly-move-mode > span { display: none; }
+body.compact-nav #modeler .md-assembly-move-mode button {
+  min-width: 44px; height: 44px; padding: 0 8px; font-size: 12px;
+}
+body.compact-nav #modeler .md-assembly-move-mode button b { display: none; }
+body.compact-nav #modeler .md-head-logo b {
+  font-size: 0.95rem;
+}
+body.compact-nav #modeler .md-head-actions #mdClose {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+}
+/* The label is a bare text node next to the icon, so it cannot be hidden by
+   selector — zero the button's font and give the icon its size back. */
+body.compact-nav #modeler .md-head-actions #mdClose {
+  font-size: 0;
+  gap: 0;
+}
+body.compact-nav #modeler .md-head-actions #mdClose i {
+  font-size: 20px;
+}
+
+/* ---- the viewport gets the screen ---------------------------------------- */
+
+/* The ≤900px rule turned the editor into a scrolling document: the tree landed
+   at y=817 and the inspector at y=1170 on an 812px screen. Here the body is an
+   app again — one pane, no page scroll — because both panels are sheets now. */
+body.compact-nav #modeler .md-body {
+  flex-direction: row;
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+}
+body.compact-nav #modeler .md-mid {
+  order: 0;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+}
+body.compact-nav #modeler.md-is3d:not(.md-model-sketching) .md-3dhost {
+  bottom: 0;
+}
+body.compact-nav #modeler .md-panel:not(.md-borrowed) {
+  display: none;
+}
+/* Unfolded foldable / tablet: Tree is a persistent column, Commands stays a
+   sheet. Same idea as the planner's Add column. */
+body.dock-rail.compact-nav #modeler.md-tree-on .md-left:not(.md-borrowed) {
+  display: flex;
+  width: clamp(220px, 32vw, 280px);
+  max-width: 42vw;
+  flex: 0 0 auto;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  border-radius: 0;
+  border: none;
+  border-inline-end: 1px solid var(--border-color);
+  box-shadow: none;
+}
+/* The unfolded dock is narrower than a phone sheet. Stack field labels so
+   readable numeric inputs and selected options do not shrink to 92px. */
+body.dock-rail.compact-nav #modeler .md-left:not(.md-borrowed) .md-quick-field:not(.type-boolean) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+/* The live tool/selection guidance, as a slim strip at the TOP — out of the
+   thumb arc, and the only text left over the model. */
+body.compact-nav #modeler .md-hint {
+  position: absolute;
+  inset-inline: 0;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: auto;
+  transform: none; /* the desktop rule centres it with translateX(-50%) */
+  max-width: none;
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 0;
+  font-size: max(11px, var(--fs-floor, 0px));
+  /* two lines rather than "…long-press for ..." — the sentence is the point */
+  white-space: normal;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  pointer-events: none;
+}
+body.compact-nav #modeler .md-hint.md-hint-dismissable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+body.compact-nav #modeler .md-hint:empty {
+  display: none;
+}
+
+/* ---- contextual row + nav ------------------------------------------------ */
+
+#md-ctx,
+#md-nav {
+  display: none;
+}
+/* While the model editor's chrome is mounted, the bar's block size is whatever
+   its wrapped rows measure — js/modeler_mobile.js writes --md-ctx-h after every
+   render and on every resize. Feeding it through --m-ctx-block (rather than
+   overwriting --m-ctx-reserve directly) keeps the existing reserve rules in
+   charge of WHETHER the row is reserved: short landscape still overlays it,
+   and #modeler, #md-selection-bar, the sheets and the status banner all follow
+   the real height without knowing anything new. */
+body.compact-nav.md-open {
+  /* --md-ctx-base is the ONE row floor and is what the bar itself is sized
+     against; --m-ctx-block is what everyone else reserves. Sizing the bar
+     against the measured value instead would latch: a bar that had grown to
+     three rows would keep a three-row min-height on a screen that needs one. */
+  --md-ctx-base: 44px;
+  --m-ctx-block: var(--md-ctx-h, var(--md-ctx-base));
+}
+
+/* The row WRAPS; it does not scroll. A sideways scroller hid Sweep and Loft
+   past the right edge of a 375px phone, and a verb you cannot see is a verb
+   that does not exist — the Commands sheet was the only way to reach it. So
+   the actions flow into a second (and, when six verbs meet a 320px screen, a
+   third) row, each button stacked icon-over-label like the bottom nav beneath
+   it. The bar's height is therefore variable, and --md-ctx-h (measured in
+   js/modeler_mobile.js) feeds --m-ctx-block so everything that reserves space
+   against this bar grows with it. */
+body.compact-nav #md-ctx {
+  display: flex;
+  flex-wrap: wrap;
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(var(--mobile-nav-block) + var(--kb, 0px));
+  z-index: 302; /* over #modeler (300) */
+  box-sizing: border-box;
+  min-height: var(--md-ctx-base, 44px);
+  height: auto;
+  align-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  overflow: hidden;
+  scrollbar-width: none;
+}
+body.compact-nav #md-ctx::-webkit-scrollbar {
+  display: none;
+}
+/* No .mctx-undo here any more. Undo and Redo are not modelling verbs — they
+   act on whatever just happened — and a full-width line of their own cost the
+   verbs a whole row of the screen. They live at the trailing edge of the
+   editor's own .md-head strip now; this row holds modelling verbs only. */
+#md-ctx .mctx-btn.mctx-icon-only,
+#m-ctx .mctx-btn.mctx-icon-only {
+  /* Dropping the label buys the row width; it must not also cost the target.
+     44px square is the floor these two share with every other control here. */
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  justify-content: center;
+}
+/* Nothing selected, nothing to suggest: the planner's row has no actions to
+   hold, so it collapses to the Undo/Redo pair instead of leaving a divider
+   pointing at an empty stretch of bar. */
+#m-ctx.mctx-empty .mctx-undo {
+  border-inline-end: none;
+  padding-inline-end: 0;
+}
+#md-ctx.mctx-empty,
+#m-ctx.mctx-empty {
+  justify-content: flex-start;
+}
+#md-ctx .mctx-btn {
+  /* Stacked like an #md-nav slot: glyph on top, short label under it. Side by
+     side, six verbs needed 650px of a 375px row. Stacked and allowed to share
+     the width evenly they fit three or four to a row and wrap. */
+  /* One fixed width, never grown. Sharing the row's spare width made the last,
+     half-empty row hand two verbs 104px each while the four above them sat at
+     65 — so the rows stopped reading as one grid. A fixed basis is the only
+     thing that keeps every verb identical no matter which row it lands on.
+     56px is what lets all six sit on one 375px row beside a 4px gap. */
+  flex: 0 0 56px;
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
+  min-height: 44px; /* match Undo/Redo — a 38px verb is the one a thumb misses */
+  padding: 3px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font-size: max(9.5px, var(--fs-floor, 0px));
+  font-weight: 600;
+  line-height: 1.1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#md-ctx .mctx-btn span {
+  /* Wrap, do not ellipsise. At a fixed 56px "Revolve Cut" does not fit on one
+     line, and "Revolve C…" names nothing — two short lines do. */
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  min-width: 0;
+  max-width: 100%;
+}
+/* Undo/Redo keep their square: they carry no label, so a column layout would
+   only add padding around the same glyph. */
+#md-ctx .mctx-btn.mctx-icon-only {
+  flex-direction: row;
+}
+/* Stacked glyphs are read at a glance above their word, so they can give back
+   a couple of pixels to the label and to the row count. */
+#md-ctx .mctx-btn:not(.mctx-icon-only) svg {
+  width: 17px;
+  height: 17px;
+}
+#md-ctx .mctx-btn:not(.mctx-icon-only) i {
+  font-size: 17px;
+  line-height: 1;
+}
+#md-ctx .mctx-btn.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+#md-ctx .mctx-btn.primary {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#md-selection-bar { display: none; }
+body.compact-nav #md-selection-bar:not([hidden]) {
+  display: flex;
+  position: fixed;
+  z-index: 303;
+  inset-inline: 8px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 8px);
+  box-sizing: border-box;
+  min-height: 44px;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+  box-shadow: 0 6px 24px rgba(0,0,0,.22);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+/* A sheet covers the viewport, so there is nothing left on screen to pick —
+   and this bar is fixed at z-index 303, above the sheet (80), landing squarely
+   on its sticky action row. That put an invisible button over Apply/Cancel on
+   every parametric sketch form: the taps registered on the bar and the form
+   simply never applied. Stand down while a sheet is up; the sheet carries its
+   own actions, and the bar comes back the moment the sheet closes. */
+body.compact-nav.m-sheet-open #md-selection-bar:not([hidden]) { display: none; }
+/* Same bargain for the gesture hint: it describes orbiting and pinching the
+   model, and a sheet is covering the model. Leaving it up only put a sentence
+   across the top of whatever panel the sheet had opened. */
+body.compact-nav.m-sheet-open #modeler .md-hint { display: none; }
+body.compact-nav #md-selection-bar::-webkit-scrollbar {
+  display: none;
+}
+#md-selection-bar > strong {
+  flex: 1 1 auto;
+  min-width: 46px;
+  padding-inline: 5px;
+  font-size: max(10px, var(--fs-floor, 0px));
+  line-height: 1.15;
+}
+#md-selection-bar .mctx-btn {
+  display: flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 600;
+}
+#md-selection-bar .mctx-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+#md-selection-bar .mctx-btn.danger { color: var(--danger); }
+#md-selection-bar .mctx-btn.mctx-icon-only { width: 44px; min-width: 44px; padding: 0; }
+#md-selection-bar .mctx-btn span { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.compact-nav #modeler .md-tour-layer,
+body.compact-nav .planner-tour-layer {
+  z-index: 350;
+  pointer-events: none;
+}
+/* Collapsed: the step's identity and its actions, nothing else — enough to
+   keep your place while the canvas or a sheet does the talking. */
+#modeler .md-tour-card.md-tour-min > p,
+#modeler .md-tour-card.md-tour-min .md-tour-demo,
+#modeler .md-tour-card.md-tour-min .md-tour-tip,
+#modeler .md-tour-card.md-tour-min .md-tour-slider,
+#modeler .md-tour-card.md-tour-min .md-tour-tracks,
+#modeler .md-tour-card.md-tour-min .md-tour-status { display: none; }
+#modeler .md-tour-card.md-tour-min { max-height: none; }
+
+/* The track hub on a phone: a full-height sheet, not a card floating over the
+   canvas with a nested scroller and clipped descriptions. */
+body.compact-nav #modeler .md-tour-card.md-tour-hub {
+  top: 8px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + 8px);
+  max-height: none;
+  overflow-y: auto;
+}
+body.compact-nav #modeler .md-tour-tracks button { align-items: flex-start; }
+body.compact-nav #modeler .md-tour-more {
+  margin-top: 8px;
+}
+body.compact-nav #modeler .md-tour-more summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-main);
+  list-style: none;
+}
+body.compact-nav #modeler .md-tour-more summary::-webkit-details-marker { display: none; }
+body.compact-nav #modeler .md-tour-more-note {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: max(11px, var(--fs-floor, 0px));
+  line-height: 1.45;
+}
+body.compact-nav #modeler .md-command-search {
+  align-items: stretch;
+  padding: 12px 12px calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + 12px);
+}
+body.compact-nav #modeler .md-command-search-card {
+  max-height: 100%;
+}
+@media (max-height: 500px) {
+  body.compact-nav #md-sheet.on {
+    max-height: calc(100% - 12px);
+  }
+}
+/* min-width:0 alone is not enough: the flex text column needs to be allowed to
+   wrap, or long descriptions push the row wider than the card. */
+#modeler .md-tour-tracks small { overflow-wrap: anywhere; white-space: normal; }
+#modeler .md-tour-tracks span { min-width: 0; flex: 1 1 auto; }
+
+/* A sheet is opened BY the guide ("tap Commands, then pick Rectangle"), so the
+   card must not be the thing covering it. Above the sheet, top-anchored. */
+body.compact-nav.m-sheet-open #modeler .md-tour-card {
+  top: calc(var(--md-head-block, 44px) + 8px);
+  bottom: auto;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+body.compact-nav #modeler .md-tour-card,
+body.compact-nav .planner-tour-card {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 8px);
+  top: auto;
+  transform: none;
+  width: auto;
+  max-width: none;
+  max-height: calc(52vh - var(--mobile-nav-block));
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0,0,0,.35);
+  pointer-events: auto;
+}
+body.compact-nav #modeler .md-tour-card { border-color: color-mix(in srgb,var(--accent) 62%,var(--border-color)); }
+body.compact-nav #modeler .md-tour-card > p,
+body.compact-nav #modeler .md-tour-tip { color: color-mix(in srgb,var(--text-main) 78%,var(--bg-panel)); }
+body.compact-nav #modeler .md-tour-actions .md-tour-restart { width: 36px; min-width: 36px; padding-inline: 0; }
+body.compact-nav #modeler .md-tour-actions .md-tour-restart span { display: none; }
+body.compact-nav #modeler .md-command kbd,
+body.compact-nav #modeler .md-command-search-btn kbd,
+body.compact-nav #modeler .md-command-result kbd { display: none !important; }
+body.compact-nav #md-nav {
+  display: flex;
+  position: fixed;
+  inset-inline: 0;
+  bottom: var(--kb, 0px);
+  z-index: 302;
+  box-sizing: border-box;
+  height: var(--mobile-nav-block);
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px max(6px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+}
+body.compact-nav #md-nav button {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 132px;
+  margin-inline: auto;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 600;
+  cursor: pointer;
+}
+body.compact-nav #md-nav button i {
+  font-size: 18px;
+}
+body.compact-nav #md-nav button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+body.compact-nav #md-nav .mnav-primary i {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 17px;
+}
+/* The View slot carries the document-mode glyph, so it says which mode you are
+   in without costing a tap to find out. */
+body.compact-nav #md-nav .md-nav-glyph svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+/* The editor's own icons are inline SVG, not a font. */
+#md-ctx .mctx-btn svg,
+#md-sheet .m-grid-btn svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+#md-sheet .m-grid-btn {
+  /* 44px is the floor, not a starting point: five labelled sections have to
+     clear the fold without one of them becoming a target a thumb misses. */
+  min-height: 44px;
+  padding: 5px 4px;
+  border-radius: 10px;
+  font-size: max(11px, var(--fs-floor, 0px));
+  gap: 3px;
+}
+#md-sheet .m-grid-btn svg {
+  width: 22px;
+  height: 22px;
+}
+#md-sheet .m-grid-5 .m-grid-btn {
+  font-size: max(10px, var(--fs-floor, 0px));
+  padding: 6px 2px;
+}
+@media (max-width: 360px) {
+  #md-sheet .m-grid-5,
+  .m-grid-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #md-sheet .m-grid-4,
+  .m-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+#md-sheet .m-grid-1 .m-grid-btn {
+  min-height: 44px;
+  flex-direction: row;
+  gap: 8px;
+}
+#md-sheet .m-grid {
+  gap: 6px;
+}
+#md-sheet .m-sheet-sec {
+  margin: 5px 0 3px;
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+#md-sheet .m-sheet-sec:first-child {
+  margin-top: 0;
+}
+/* The sheet already pads itself below the fold; the body repeating it is what
+   put the last section one pixel under the cap in both languages. */
+#md-sheet #md-sheet-body {
+  padding-bottom: 4px;
+}
+/* Hosted panels own the available height; an empty generated body must not
+   take half of it through the shared flex rule. */
+#md-sheet #md-sheet-body:empty { display: none; }
+
+/* ---- the editor's sheet -------------------------------------------------- */
+
+#md-sheet {
+  display: none;
+}
+/* Absolute inside #modeler — see ensureSheet() in js/modeler_mobile.js for why
+   it is mounted there. #modeler already ends above the two rows, so bottom: 0
+   parks it exactly on them. */
+#md-sheet-backdrop {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 79;
+  background: rgba(0, 0, 0, 0.32);
+}
+#md-sheet-backdrop.on {
+  display: block;
+}
+body.compact-nav #md-sheet {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 80;
+  box-sizing: border-box;
+  max-height: 56%;
+  padding-bottom: 6px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
+  transform: translateY(100%);
+  transition: transform 0.22s ease, max-height 0.22s ease;
+  /* A closed sheet is off-screen but was still hit-testable and still read as a
+     live dialog. Nothing below the fold should be either. */
+  visibility: hidden;
+  pointer-events: none;
+}
+body.compact-nav #md-sheet.on {
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+}
+/* A closed dialog must not expose descendants whose own visibility overrides
+   inheritance (including the sheet's sticky header buttons). */
+body.compact-nav #md-sheet[aria-hidden="true"] { display: none; pointer-events: none; }
+/* the last tool row must not read as clipped by the contextual bar */
+body.compact-nav #md-sheet .md-sheet-host { padding-bottom: 10px; }
+body.compact-nav #md-sheet.tall {
+  height: calc(100% - 48px) !important;
+  max-height: calc(100% - 48px);
+}
+/* Unfolded foldable / landscape tablet: the extra room is WIDTH, so the sheet
+   stands beside the model instead of lying across it — the panel keeps its
+   full height and the viewport keeps most of the screen. */
+body.dock-rail #md-sheet {
+  inset-inline: auto 0;
+  top: 0;
+  bottom: 0;
+  width: min(360px, 42vw);
+  height: auto !important;
+  max-height: none;
+  border-radius: 0;
+  border-top: none;
+  border-inline-start: 1px solid var(--border-color);
+  transform: translateX(100%);
+}
+html[dir="rtl"] body.dock-rail #md-sheet,
+html[lang="he"] body.dock-rail #md-sheet {
+  transform: translateX(-100%);
+}
+html[dir="rtl"] body.dock-rail #md-sheet.on,
+html[lang="he"] body.dock-rail #md-sheet.on {
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+}
+body.dock-rail #md-sheet.on {
+  transform: none;
+}
+body.dock-rail #md-sheet .m-sheet-grip {
+  display: none;
+}
+/* The borrowed panel: it arrives with the desktop panel's own chrome, which is
+   right — its tab strip IS how you get between tree/library/settings. What it
+   must give up is the fixed width and the height it had as a column. */
+.md-sheet-host {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 12px;
+  overflow: hidden;
+}
+/* A hosted panel scrolls, so the sheet needs a HEIGHT, not just a ceiling —
+   sized by content it collapses to the two rows of the ribbon that happen to
+   fit. The built sheets (View, More) keep sizing themselves. */
+body.compact-nav #md-sheet:not(.tall):has(.md-sheet-host > *) {
+  height: 56%;
+}
+body.compact-nav #md-sheet.tall:has(.md-sheet-host > *) {
+  height: calc(100% - 48px) !important;
+}
+.md-sheet-host:empty {
+  display: none;
+}
+#modeler .md-panel.md-borrowed,
+#modeler .md-commandmanager.md-borrowed {
+  display: flex;
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+#modeler .md-commandmanager.md-borrowed {
+  flex-direction: column;
+  /* The sheet is the width budget. Without min-width:0 down the whole chain
+     the grid below sizes against max-content, resolves five 97px tracks in a
+     375px sheet, and overflow-x:hidden then CLIPS the commands that fall off
+     the end — Hole wizard among them — with no way to scroll to them. */
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+/* When a feature form is active in the borrowed tree panel, focus on the form */
+#modeler .md-left.md-borrowed:has(#mdQuickSettings:not([hidden])) .md-tabstrip,
+#modeler .md-left.md-borrowed:has(#mdQuickSettings:not([hidden])) .md-tabs,
+#modeler .md-left.md-borrowed:has(#mdQuickSettings:not([hidden])) .md-strip-meta {
+  display: none !important;
+}
+/* ---- phone density: the feature form spends its height on the task --------
+   Measured on a 375x812 phone, Fillet's form was 532px tall and 93 of those
+   went to chrome that said nothing the sheet had not already said: a title row
+   repeating the sheet header directly above it, a badge announcing that live
+   preview — which has never not worked — is available, and a selection prompt
+   in its own padded card sitting on top of the collector that repeats it. What
+   the form is FOR, the edge collector and the parameters, started below that.
+   Desktop keeps all of it: there the panel is a tall column with room to
+   spare, and there is no sheet header for the title to duplicate. */
+
+/* The nominal state of the live badge is "ready", and a state that is almost
+   always true does not earn a permanent row. The badge still appears the
+   moment it has something only it can say — the kernel refusing a radius, a
+   selection that cannot be filleted — which is the message that actually
+   changes what the user does next. It is hidden, not removed: the element,
+   its text and its data-preview-state attribute stay in the DOM, so anything
+   reading the badge (cadFinishPreviewSnapshot included) sees what it always
+   saw. */
+body.compact-nav #modeler .md-feature-live { display: none; }
+body.compact-nav #modeler .md-feature-live[data-preview-state="error"],
+body.compact-nav #modeler .md-feature-live[data-preview-state="approximate"] { display: flex; }
+
+/* The sheet header names the feature already, in larger type and in a bar that
+   cannot scroll away, so the form's own title is a second copy of it. Only the
+   BORROWED panel is under that header — on an unfolded tablet the tree is a
+   docked column with no sheet above it, and there the title row is the form's
+   only heading and stays. modeler_mobile.js keeps the header in step with
+   whatever form is on screen. */
+body.compact-nav #modeler .md-left.md-borrowed .md-feature-form-title { display: none; }
+
+/* A prompt sitting immediately above a collector is that collector's caption,
+   not a card of its own. Joined to it — shared corner, no gap-sized band of
+   background between two tinted boxes — it reads as one control and costs a
+   line instead of a row. A prompt with nothing under it (a pattern's "3
+   features selected") keeps the card: there is nothing for it to belong to. */
+body.compact-nav #modeler .md-feature-selection-note:has(+ .md-finish-edges) {
+  padding: 4px 8px 5px;
+  border-radius: 8px 8px 0 0;
+  box-shadow: none;
+  line-height: 1.3;
+}
+body.compact-nav #modeler .md-feature-selection-note:has(+ .md-finish-edges) + .md-finish-edges {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
+/* What is left is air, and the air was sized for a desktop column. Every gap
+   below surrounds labels, cards and static text; nothing here touches a tap
+   target. The inputs and selects keep the 44px minimum they are given further
+   up, the command tiles keep their 46px, and the buttons inside the form keep
+   the 44px the borrowed-panel rule gives them. */
+body.compact-nav #modeler .md-quick-settings { gap: 5px; }
+body.compact-nav #modeler .md-feature-group-body { gap: 4px; padding: 2px 7px 7px; }
+body.compact-nav #modeler .md-feature-scrubber { gap: 4px; padding: 6px 8px; }
+body.compact-nav #modeler .md-finish-edges { gap: 5px; padding: 7px; }
+/* Four edge rows before the list starts scrolling instead of five and a half.
+   The list is a scroller either way; the question is only how much of the form
+   below it a long selection is allowed to push off the screen. */
+body.compact-nav #modeler .md-finish-edges-list { max-height: 116px; }
+/* The ribbon in the sheet: same reasoning, one screen of commands instead of
+   two thirds of one. The tiles themselves do not move. */
+body.compact-nav #modeler .md-commandmanager.md-borrowed .md-command-group { margin-bottom: 6px; }
+body.compact-nav #modeler .md-commandmanager.md-borrowed .md-command-items { gap: 5px; }
+/* ---- reach: a sheet's own tabs belong under the thumb --------------------
+   The sheet now runs nearly the full height, which put its tab strip — the
+   most-tapped control it owns — at roughly y=93 on an 812px phone: the far
+   top corner, the one place a thumb cannot go without regripping. The nav the
+   thumb already rests on is at ~760. On compact screens the strip moves to the
+   bottom of its panel and reads as a bar; the panel's content keeps the space
+   above it. Desktop is untouched — there the strip stays on top, where a
+   pointer costs nothing to travel. */
+body.compact-nav #md-sheet .md-panel.md-borrowed,
+body.compact-nav #md-sheet .md-commandmanager.md-borrowed { flex-direction: column; }
+body.compact-nav #md-sheet .md-panel.md-borrowed > .md-strip,
+body.compact-nav #md-sheet .md-commandmanager.md-borrowed > .md-command-tabs {
+  order: 9;
+  flex: none;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-color);
+  border-bottom: none;
+  background: var(--bg-panel);
+}
+#modeler .md-left.md-borrowed #mdQuickTools {
+  box-sizing: border-box;
+  width: 100%;
+  flex: 1 1 auto;
+}
+/* In the sheet the ribbon is a labelled grid, not a two-row rail that scrolls
+   sideways past the commands nobody found. */
+#modeler .md-commandmanager.md-borrowed .md-command-panes {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+/* The desktop pane lays its groups out in a ROW and pans sideways. Stack them:
+   a sheet scrolls down, and every group heading stays where the eye expects. */
+#modeler .md-commandmanager.md-borrowed .md-command-pane {
+  flex-direction: column;
+  align-items: stretch;
+  padding-inline: 0;
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0; /* desktop uses max-content, which is what made it pan */
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group-label {
+  order: -1; /* the heading belongs above the commands it names */
+  text-align: start;
+  margin-bottom: 4px;
+  font-size: max(10px, var(--fs-floor, 0px));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 1;
+}
+/* The secondary groups are drawers: their heading is the handle, so it gets a
+   real 44px target and a chevron that says which way it goes. */
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"] > .md-command-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"] > .md-command-group-label::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin-inline-end: 4px;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.15s ease;
+  opacity: 0.65;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"].md-group-open > .md-command-group-label {
+  margin-bottom: 4px;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"].md-group-open > .md-command-group-label::after {
+  transform: rotate(225deg) translate(-2px, -2px);
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"]:not(.md-group-open) > .md-command-items {
+  display: none;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"] + .md-command-group[data-cmdgroup="secondary"] {
+  margin-top: -6px;
+  border-top: 1px solid var(--border-color);
+}
+/* Primary commands highlighted and ordered upfront */
+#modeler .md-commandmanager.md-borrowed .md-command.primary {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  order: -1;
+}
+#modeler .md-commandmanager.md-borrowed .md-command.primary svg,
+#modeler .md-commandmanager.md-borrowed .md-command.primary i {
+  color: var(--accent);
+}
+/* The desktop grid is two fixed 23px rows flowing sideways in a 48px box —
+   the shape that made the ribbon a rail. Flow down instead, and let a button
+   be as tall as its own words. */
+#modeler .md-commandmanager.md-borrowed .md-command-items {
+  display: grid;
+  grid-auto-flow: row;
+  grid-template-rows: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  height: auto;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+@media (min-width: 360px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-items {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 480px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-items {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+#modeler .md-commandmanager.md-borrowed .md-command > svg,
+#modeler .md-commandmanager.md-borrowed .md-command > i {
+  flex: 0 0 auto; /* wrapping labels were squeezing the glyph into the text */
+}
+#modeler .md-commandmanager.md-borrowed .md-command {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  min-height: 46px;
+  padding: 6px 8px;
+  border-color: var(--btn-border);
+  background: var(--btn-bg);
+  white-space: normal;
+  line-height: 1.2;
+  text-align: start;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-tabs {
+  align-items: stretch;
+  min-height: 44px;
+  height: auto;
+  padding-top: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-tabs::-webkit-scrollbar {
+  display: none;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-tabs > [data-cmdtab] {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+/* Four destinations fit without a hidden horizontal continuation even on a
+   280px Fold cover display.  The command list below remains the only scroller. */
+@media (max-width: 360px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-tabs {
+    gap: 1px;
+    padding-inline: 4px;
+    overflow-x: hidden;
+  }
+  #modeler .md-commandmanager.md-borrowed .md-command-tabs > [data-cmdtab] {
+    flex: 1 1 25%;
+    min-width: 0;
+    padding-inline: 2px;
+    font-size: max(10px, var(--fs-floor, 0px));
+  }
+}
+@media (max-width: 320px) {
+  body.compact-nav #md-nav button {
+    font-size: max(8px, var(--fs-floor, 0px));
+    letter-spacing: -0.025em;
+  }
+}
+#modeler .md-left.md-borrowed .md-strip > button,
+#modeler .md-right.md-borrowed .md-strip > button {
+  min-height: 44px;
+  padding-inline: 10px;
+}
+#modeler .md-right.md-borrowed button.md-wide,
+#modeler .md-left.md-borrowed #mdQuickSettings button {
+  min-height: 44px;
+}
+/* The ribbon's own search button is a wide pill living INSIDE the tab row: on
+   a phone it shoulders the four tabs off the edge, and setSheetSearch() has
+   already put a search control in the sheet header. One search per sheet. */
+#modeler .md-commandmanager.md-borrowed .md-command-search-btn {
+  display: none;
+}
+#modeler #md-sheet .md-sheet-search {
+  margin-inline-start: auto;
+}
+/* The right panel's preview canvas is a duplicate of the viewport behind the
+   sheet; the sheet is there for the property tabs. */
+#modeler .md-right.md-borrowed .md-prev-wrap {
+  display: none;
+}
+/* The viewport's own popup menu is placed at the pointer by JS, which on a
+   375px screen puts half of it past the edge — and under the finger that
+   summoned it. Dock it to the bottom of the viewport instead. */
+body.compact-nav #modeler .md-context-menu {
+  position: absolute;
+  inset-inline: 8px !important;
+  left: 8px !important;
+  right: 8px !important;
+  top: auto !important;
+  bottom: 8px !important;
+  flex-wrap: wrap;
+  justify-content: center;
+  transform: none !important;
+}
+body.compact-nav #modeler .md-context-menu button {
+  flex: 1 1 auto;
+  min-height: 46px;
+}
+body.compact-nav #modeler .md-context-menu .md-context-title {
+  flex: 1 0 100%;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  font-size: max(11px, var(--fs-floor, 0px));
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+#md-nav [data-mdnav="view"] small {
+  display: block;
+  max-width: 58px;
+  margin-top: -2px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: max(8px, var(--fs-floor, 0px));
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#md-nav .md-nav-badge {
+  position: absolute;
+  top: 3px;
+  inset-inline-end: 8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--warn);
+  color: var(--on-warn);
+  font-size: max(10px, var(--fs-floor, 0px));
+  line-height: 16px;
+}
+#md-nav .md-nav-badge.error { background: var(--danger); color: var(--on-danger); }
+#md-nav button { position: relative; }
+#modeler #md-sheet .md-sheet-expand { margin-inline-start: auto; }
+#modeler #md-sheet.tall .md-sheet-expand i { transform: rotate(180deg); }
+#modeler .md-commandmanager.md-borrowed .md-group-summary {
+  margin-inline-start: auto;
+  margin-inline-end: 20px;
+  color: var(--text-muted);
+  font-size: max(9px, var(--fs-floor, 0px));
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body.compact-nav #modeler .md-mobile-status {
+  position: absolute;
+  z-index: 18;
+  inset-inline: 8px;
+  /* below the hint strip, whatever height the hint happens to be — it wraps to
+     two lines now, and a hardcoded 74px put the banner through it */
+  top: calc(var(--md-head-block, 44px) + var(--md-hint-h, 26px) + 4px);
+  padding: 6px 10px;
+  border: 1px solid rgba(201,129,22,.55);
+  border-radius: 8px;
+  background: rgba(58,42,18,.94);
+  color: #ffd894;
+  font-size: max(11px, var(--fs-floor, 0px));
+  pointer-events: auto;
+  cursor: pointer;
+}
+body.compact-nav #modeler .md-mobile-status.error {
+  border-color: rgba(208,52,44,.65);
+  background: rgba(64,25,25,.95);
+  color: #ffb7b2;
+}
+body.dock-rail.compact-nav #modeler.md-tree-on .md-mobile-status {
+  inset-inline-start: calc(clamp(220px, 32vw, 280px) + 8px);
+}
+.md-sheet-fields {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+.md-sheet-fields .md-head-inputs {
+  display: flex !important;
+  flex: 1 1 auto;
+  gap: 10px;
+}
+body.compact-nav #modeler #md-sheet .md-sheet-fields .md-head-inputs { display:grid !important; grid-template-columns:minmax(0,1fr) 96px; align-items:start; width:100%; }
+body.compact-nav #modeler #md-sheet .md-sheet-fields .md-field:has(#mdName) { grid-column:1 / -1; }
+body.compact-nav #modeler #md-sheet .md-sheet-fields .md-field { align-self:start; min-width:0; }
+body.compact-nav #modeler #md-sheet .md-sheet-fields .md-field input { width:100%; max-width:none; box-sizing:border-box; }
+body.compact-nav #modeler #md-sheet .md-sheet-fields #mdDraftStatus { display:block; width:100%; white-space:normal; overflow-wrap:anywhere; }
+body.compact-nav #modeler #md-sheet .md-more-actions { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+
+/* ==========================================================================
+   Cabinet designer — compact (phone / foldable) chrome
+   (markup + behaviour: js/ui_cabinet_mobile.js)
+
+   Everything is scoped to #cabdes.cb-compact, which js/ui_cabinet_mobile.js
+   sets from body.compact-nav — the desktop three-column designer is untouched.
+   Same two rows as the planner's shell so the two editors feel like one tool:
+   a contextual row with Undo/Redo pinned, and five fixed nav slots. What used
+   to sit in the header (levels, the size/preview context bar) and in the two
+   side panels is now one tap away in a sheet, and the elevation gets the
+   screen it is the reason for.
+   ========================================================================== */
+
+#cabdes.cb-compact {
+  --cbm-nav: calc(56px + env(safe-area-inset-bottom));
+  --cbm-ctx: 48px;
+  --cbm-ctx-reserve: var(--cbm-ctx);
+}
+
+/* ---- header: title, session, Done — nothing else ------------------------- */
+
+#cabdes.cb-compact .cb-head-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  padding: max(6px, env(safe-area-inset-top)) 10px 6px;
+}
+#cabdes.cb-compact .cb-logo {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  font-size: 0.9rem;
+  gap: 6px;
+}
+#cabdes.cb-compact .cb-logo b,
+#cabdes.cb-compact .cb-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The summary line ("3 columns · 3 doors · …") is a status, not a title: it
+   was taking the middle of the header and pushing the session chip off-screen. */
+#cabdes.cb-compact .cb-sub {
+  display: none;
+}
+#cabdes.cb-compact .cb-actions {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  gap: 6px;
+}
+/* Undo/Redo are pinned in the contextual row; Revert lives in the More sheet.
+   Done is the only header action that has to be one tap from anywhere. */
+#cabdes.cb-compact .cb-history-actions,
+#cabdes.cb-compact #cbRevert {
+  display: none;
+}
+#cabdes.cb-compact #cbClose {
+  min-height: 44px;
+  padding-inline: 14px;
+}
+#cabdes.cb-compact .cb-session {
+  max-width: 92px;
+  flex: 0 0 auto;
+}
+
+/* ---- the borrowed chrome, and the body ----------------------------------- */
+
+/* The level switcher and the size/preview bar are MOVED here by the module and
+   shown inside the More sheet. Parked, they must take no space and catch no
+   taps — but they must stay in the document, because they are the real ones. */
+#cabdes.cb-compact .cb-m-park {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* Roomy compact: W/D/H (and the rest of the context bar) sit above the
+   elevation instead of living only inside More. */
+#cabdes.cb-compact .cb-m-sizebar {
+  flex: none;
+  z-index: 12;
+  background: color-mix(in srgb, var(--bg-panel) 84%, var(--bg-canvas-2d));
+  border-bottom: 1px solid var(--separator);
+}
+#cabdes.cb-compact .cb-m-sizebar[hidden] {
+  display: none;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sizebar .cb-context-bar {
+  min-height: 0;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px 14px;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sizebar .cb-group-title {
+  display: none;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sizebar .cb-dims {
+  display: flex;
+  gap: 8px;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sizebar .cb-number {
+  min-width: 72px;
+}
+#cabdes.cb-compact .cbm-body .cb-m-more {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#cabdes.cb-compact .cbm-body .cb-context-bar,
+#cabdes.cb-compact .cbm-body .cb-levels {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+#cabdes.cb-compact .cbm-body .cb-context-bar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+#cabdes.cb-compact .cbm-body .cb-control-group {
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+#cabdes.cb-compact .cbm-body .cb-dims {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+#cabdes.cb-compact .cbm-body .cb-number {
+  box-sizing: border-box; /* content-box + 9px padding overflowed the grid cell */
+  min-width: 0;
+  width: 100%;
+  height: 44px;
+}
+#cabdes.cb-compact .cbm-body .cb-number input {
+  width: 100%;
+  min-width: 0;
+  font-size: 16px; /* anything smaller and iOS zooms the page on focus */
+}
+#cabdes.cb-compact .cbm-body .cb-preview-controls {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+#cabdes.cb-compact .cbm-body .cb-slider-wrap {
+  min-width: 0;
+  width: 100%;
+}
+#cabdes.cb-compact .cbm-body .cb-slider-wrap input[type="range"] {
+  width: 100%;
+  height: 22px;
+}
+#cabdes.cb-compact .cbm-body .cb-stage-chips {
+  grid-template-columns: repeat(2, 1fr);
+}
+#cabdes.cb-compact .cbm-body .cb-chip-stage {
+  min-height: 40px;
+}
+#cabdes.cb-compact .cbm-body .cb-levels {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+#cabdes.cb-compact .cbm-body .cb-levels button {
+  justify-content: flex-start;
+  min-height: 46px;
+}
+#cabdes.cb-compact .cbm-body .cb-context-sep {
+  display: none;
+}
+
+/* The elevation is the product: it gets the whole body, and the two rows are
+   reserved for below it rather than laid over it. */
+#cabdes.cb-compact .cb-body {
+  flex-direction: column;
+  overflow: hidden;
+  padding: 8px;
+  margin-bottom: calc(var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px));
+}
+#cabdes.cb-compact .cb-mid {
+  flex: 1;
+  min-height: 0;
+}
+/* The tool and view rails floated over a canvas that is now the whole screen —
+   and on 375px they landed on top of each other. Both are sheets now. */
+#cabdes.cb-compact .cb-tools,
+#cabdes.cb-compact .cb-views {
+  display: none !important;
+}
+/* Out of the thumb arc: the hint sat where the contextual row now is. */
+#cabdes.cb-compact .cb-hint {
+  bottom: auto;
+  top: 8px;
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- side panels as bottom sheets ---------------------------------------- */
+
+/* Same nodes, same wiring, different shape — .cb-right in particular has to
+   stay put, because setMode() swaps the 3D preview into it by query. */
+#cabdes.cb-compact .cb-panel {
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px));
+  z-index: 24;
+  width: auto;
+  max-width: none;
+  height: 54dvh;
+  max-height: 54dvh;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  border-radius: 18px 18px 0 0;
+  transform: translateY(calc(100% + var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px)));
+}
+/* The slide is only added on the frame AFTER the compact class lands. Without
+   that the panels animate from their desktop position on the way in — the
+   designer opens with a panel visibly sliding off the screen. */
+#cabdes.cb-compact.cb-m-ready .cb-panel,
+#cabdes.cb-compact.cb-m-ready .cb-m-sheet {
+  transition: transform 0.22s ease, max-height 0.22s ease;
+}
+#cabdes.cb-compact.cb-show-left .cb-left,
+#cabdes.cb-compact.cb-show-right .cb-right {
+  transform: none;
+}
+#cabdes.cb-compact .cb-panel::before {
+  content: "";
+  display: block;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 4px;
+  margin: 8px auto 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+}
+#cabdes.cb-compact .cb-right .cb-fill {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* Inspector tabs stay at the top of Properties instead of scrolling away
+   inside the 54dvh sheet. Nest/PNG already live on More. */
+#cabdes.cb-compact .cb-right > .cb-grp {
+  flex: 0 0 auto;
+  padding: 4px 10px 6px;
+  margin: 0;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--separator);
+}
+#cabdes.cb-compact .cb-right > .cb-grp h5 {
+  display: none;
+}
+#cabdes.cb-compact .cb-right > .cb-grp .cb-icons {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  grid-template-columns: none;
+  gap: 6px;
+  scrollbar-width: none;
+}
+#cabdes.cb-compact .cb-right > .cb-grp .cb-icons button {
+  flex: 0 0 auto;
+  min-width: 72px;
+  min-height: 52px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 8px;
+}
+#cabdes.cb-compact .cb-right > .cb-grp .cb-icons button[data-act] {
+  display: none;
+}
+#cabdes.cb-compact .cb-icon-label {
+  font-size: max(10px, var(--fs-floor, 0px));
+}
+/* The small 3D preview above the inspector tabs is a luxury at this width. */
+#cabdes.cb-compact:not(.cb-is3d) .cb-right .cb-prev-wrap {
+  display: none;
+}
+
+/* Unfolded foldable / tablet: Design and Properties become columns beside
+   the elevation instead of covering it. Same cb-show-* state as the sheets. */
+body.dock-rail #cabdes.cb-compact .cb-body {
+  flex-direction: row;
+  align-items: stretch;
+}
+body.dock-rail #cabdes.cb-compact .cb-panel {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  width: clamp(260px, 32vw, 320px);
+  height: auto;
+  max-height: none;
+  transform: none;
+  border-radius: 0;
+  border-top: none;
+  display: none;
+  box-shadow: none;
+}
+body.dock-rail #cabdes.cb-compact.cb-show-left .cb-left,
+body.dock-rail #cabdes.cb-compact.cb-show-right .cb-right {
+  display: flex;
+}
+body.dock-rail #cabdes.cb-compact .cb-left {
+  border-inline-end: 1px solid var(--border-color);
+}
+body.dock-rail #cabdes.cb-compact .cb-right {
+  border-inline-start: 1px solid var(--border-color);
+}
+body.dock-rail #cabdes.cb-compact .cb-panel::before,
+body.dock-rail #cabdes.cb-compact .cb-m-backdrop {
+  display: none !important;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sheet {
+  inset-inline: auto 12px;
+  width: min(420px, 48vw);
+  max-height: 70%;
+  border-radius: 18px;
+  bottom: calc(var(--cbm-nav) + var(--cbm-ctx-reserve) + 8px);
+  transform: translateY(calc(100% + var(--cbm-nav) + var(--cbm-ctx-reserve)));
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sheet.on {
+  transform: none;
+}
+body.dock-rail #cabdes.cb-compact:not(.cb-is3d) .cb-right .cb-prev-wrap {
+  display: block;
+}
+
+#cabdes.cb-compact .cbm-view-pad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  max-width: 280px;
+  margin: 4px auto 0;
+}
+#cabdes.cb-compact .cbm-view-pad .cbm-grid-btn {
+  min-height: 52px;
+}
+#cabdes.cb-compact .cbm-iso {
+  margin: 12px 2px 0;
+}
+#cabdes.cb-compact .cbm-iso summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-main);
+  list-style: none;
+}
+#cabdes.cb-compact .cbm-iso summary::-webkit-details-marker { display: none; }
+#cabdes.cb-compact .cbm-iso[open] summary { margin-bottom: 8px; }
+#cabdes.cb-compact .cbm-iso > .cbm-grid-btn {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+/* ---- contextual row ------------------------------------------------------ */
+
+#cabdes.cb-compact .cb-m-ctx {
+  position: absolute;
+  inset-inline: 0;
+  bottom: var(--cbm-nav);
+  z-index: 26;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  height: var(--cbm-ctx);
+  padding: 4px 8px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  overflow: hidden; /* never scrolls: a row that hides commands is the bug */
+}
+#cabdes .cbm-undo {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding-inline-end: 6px;
+  border-inline-end: 1px solid var(--border-color);
+}
+#cabdes .cbm-undo .cbm-btn {
+  width: 44px;
+  min-width: 44px;
+  flex: 0 0 auto;
+}
+#cabdes .cbm-undo .cbm-btn span {
+  display: none;
+}
+#cabdes .cbm-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#cabdes .cbm-btn i {
+  font-size: 1.15rem;
+  flex: 0 0 auto;
+}
+#cabdes .cbm-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#cabdes .cbm-btn:disabled {
+  opacity: 0.45;
+}
+#cabdes .cbm-btn.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#cabdes .cbm-btn.danger {
+  color: var(--danger);
+}
+#cabdes .cbm-chip {
+  font-size: max(11px, var(--fs-floor, 0px));
+}
+
+/* ---- five-slot nav ------------------------------------------------------- */
+
+#cabdes.cb-compact .cb-m-nav {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 26;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: var(--cbm-nav);
+  padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+  background: var(--bg-topbar);
+  border-top: 1px solid var(--border-color);
+}
+#cabdes .cb-m-nav button {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 132px;
+  margin-inline: auto;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 600;
+  cursor: pointer;
+}
+#cabdes .cb-m-nav button i {
+  font-size: 18px;
+}
+#cabdes .cb-m-nav button span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#cabdes .cb-m-nav button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+#cabdes .cb-m-nav button.armed i {
+  color: var(--accent);
+}
+#cabdes .cb-m-nav button:disabled {
+  opacity: 0.45;
+}
+/* Design is where a cabinet comes from — the one slot that reads as a button. */
+#cabdes .cb-m-nav .cbm-primary i {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 17px;
+}
+
+/* ---- sheets -------------------------------------------------------------- */
+
+#cabdes .cb-m-backdrop {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 22;
+  background: rgba(0, 0, 0, 0.35);
+}
+#cabdes.cb-compact .cb-m-backdrop.on {
+  display: block;
+}
+#cabdes .cb-m-sheet {
+  display: none;
+}
+#cabdes.cb-compact .cb-m-sheet {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px));
+  z-index: 24;
+  box-sizing: border-box;
+  max-height: 50dvh;
+  padding-bottom: 6px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
+  transform: translateY(calc(100% + var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px)));
+}
+#cabdes.cb-compact .cb-m-sheet.on {
+  transform: none;
+}
+#cabdes.cb-compact .cb-m-sheet.tall {
+  max-height: 78dvh;
+}
+#cabdes .cbm-grip {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 4px;
+  margin: 8px auto 2px;
+  border-radius: 2px;
+  background: var(--border-color);
+}
+#cabdes .cbm-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 14px 8px;
+}
+#cabdes .cbm-head h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  text-transform: none;
+  letter-spacing: 0;
+}
+#cabdes .cbm-x {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+}
+#cabdes .cbm-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 12px 8px;
+}
+#cabdes .cbm-sec {
+  margin: 12px 2px 6px;
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+#cabdes .cbm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  gap: 8px;
+}
+#cabdes .cbm-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+#cabdes .cbm-grid-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 66px;
+  padding: 8px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 13px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+}
+#cabdes .cbm-grid-btn i {
+  font-size: 1.4rem;
+}
+#cabdes .cbm-grid-btn span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+#cabdes .cbm-grid-btn.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#cabdes .cbm-grid-btn:disabled {
+  opacity: 0.45;
+}
+#cabdes .cbm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#cabdes .cbm-list-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: start;
+  cursor: pointer;
+}
+#cabdes .cbm-list-btn i {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+}
+#cabdes .cbm-list-btn.danger,
+#cabdes .cbm-list-btn.danger i {
+  color: var(--danger);
+}
+
+/* Landscape safe-area insets for notch/Dynamic Island devices */
+@media (orientation: landscape) {
+  #modeler {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .start-screen {
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+  }
+}
+
+/* Prevent accidental text selection on touch UI chrome */
+@media (pointer: coarse) {
+  button,
+  [role="tab"],
+  #topbar *,
+  #mobile-nav *,
+  #m-ctx *,
+  #md-nav *,
+  #md-ctx *,
+  .cb-m-nav *,
+  .cb-m-ctx * {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* ---- mobile LiDAR / AR room scan -------------------------------------- */
+.roomscan-capability[hidden],
+.roomscan-help[hidden],
+.roomscan-choices[hidden],
+.roomscan-note[hidden],
+.roomscan-preview-wrap[hidden],
+.roomscan-cal[hidden] { display: none !important; }
+.roomscan-modal { width: 620px; gap: 14px; }
+.roomscan-head { display: flex; align-items: flex-start; gap: 13px; }
+.roomscan-head h3 { margin-bottom: 5px; }
+.roomscan-head p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.roomscan-head-icon {
+  flex: 0 0 46px; height: 46px; display: grid; place-items: center;
+  border-radius: 13px; background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent); font-size: 25px;
+}
+.roomscan-capability {
+  display: flex; align-items: center; gap: 8px; padding: 9px 11px;
+  border-radius: 9px; border: 1px solid var(--border-color);
+  color: var(--text-muted); background: var(--input-bg); font-size: 12px;
+}
+.roomscan-capability.pending i { animation: spin .9s linear infinite; }
+.roomscan-capability.ready { color: var(--success); border-color: color-mix(in srgb, var(--success) 34%, var(--border-color)); }
+.roomscan-capability.limited { color: var(--text-muted); }
+.roomscan-help {
+  width: fit-content; display: inline-flex; align-items: center; gap: 6px; padding: 0;
+  border: 0; background: transparent; color: var(--accent); font-family: inherit;
+  font-size: 12px; font-weight: 600; line-height: 1.3;
+  cursor: pointer;
+}
+.roomscan-help i { font-size: 16px; }
+.roomscan-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.roomscan-choice {
+  min-width: 0; min-height: 112px; padding: 15px; display: grid;
+  grid-template-columns: 42px minmax(0, 1fr); align-items: start; gap: 11px;
+  border: 1.5px solid var(--border-color); border-radius: 12px;
+  background: var(--btn-bg); color: var(--text-main); text-align: start; cursor: pointer;
+  white-space: normal; overflow: hidden;
+}
+.roomscan-choice:hover:not(:disabled) {
+  border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--btn-bg));
+}
+.roomscan-choice:disabled { opacity: .48; cursor: not-allowed; }
+.roomscan-choice > i {
+  width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-size: 22px;
+}
+.roomscan-choice span { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
+.roomscan-choice strong { font-size: 13.5px; }
+.roomscan-choice small { color: var(--text-muted); font-size: max(11.5px, var(--fs-floor, 0px)); line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }
+.roomscan-note {
+  display: flex; gap: 8px; align-items: flex-start; padding: 10px 11px; border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--input-bg)); color: var(--text-muted);
+  font-size: max(11.5px, var(--fs-floor, 0px)); line-height: 1.45;
+}
+.roomscan-note i { color: var(--accent); font-size: 16px; margin-top: 1px; }
+.roomscan-tutorial {
+  display: flex; flex-direction: column; gap: 13px; padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border-color));
+  border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, var(--input-bg));
+}
+.roomscan-tutorial[hidden] { display: none; }
+.roomscan-tutorial-head { display: flex; align-items: center; gap: 11px; }
+.roomscan-tutorial-head > i {
+  flex: 0 0 40px; width: 40px; height: 40px; display: grid; place-items: center;
+  border-radius: 10px; background: var(--accent); color: #fff; font-size: 21px;
+}
+.roomscan-tutorial-head div { display: flex; flex-direction: column; gap: 3px; }
+.roomscan-tutorial-head strong { font-size: 14px; color: var(--text-main); }
+.roomscan-tutorial-head small { color: var(--text-muted); font-size: max(11.5px, var(--fs-floor, 0px)); line-height: 1.4; }
+.roomscan-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.roomscan-steps li { display: grid; grid-template-columns: 25px 1fr; align-items: start; gap: 8px; }
+.roomscan-steps li > span {
+  width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 15%, var(--btn-bg)); color: var(--accent);
+  font-size: max(11px, var(--fs-floor, 0px)); font-weight: 800;
+}
+.roomscan-steps li div { display: flex; flex-direction: column; gap: 3px; }
+.roomscan-steps strong { font-size: 12px; color: var(--text-main); }
+.roomscan-steps small { color: var(--text-muted); font-size: max(10.5px, var(--fs-floor, 0px)); line-height: 1.42; }
+.roomscan-tutorial-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.roomscan-tutorial-actions button {
+  min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--border-color); border-radius: 8px; padding: 7px 12px;
+  background: var(--btn-bg); color: var(--text-main); font: inherit;
+}
+.roomscan-tutorial-actions button:disabled { opacity: .45; }
+.roomscan-status { min-height: 18px; color: var(--text-muted); font-size: 12px; }
+.roomscan-preview-wrap {
+  overflow: hidden; border: 1px solid var(--border-color); border-radius: 11px;
+  background: var(--input-bg); padding: 10px;
+}
+.roomscan-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 1px 4px 8px; font-size: 12px; }
+.roomscan-summary strong { color: var(--text-main); }
+.roomscan-summary span { color: var(--text-muted); }
+.roomscan-summary .roomscan-area { color: var(--text-main); font-weight: 600; font-variant-numeric: tabular-nums; }
+.roomscan-cal {
+  display: flex; flex-direction: column; gap: 8px; margin: 8px 4px 0;
+}
+.roomscan-cal label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.roomscan-cal input[type="number"] {
+  width: 100%; border: 1px solid var(--border-color); border-radius: 8px;
+  padding: 8px 10px; font: inherit;
+}
+.roomscan-cal small { color: var(--text-muted); font-size: max(11.5px, var(--fs-floor, 0px)); line-height: 1.45; }
+.roomscan-cal fieldset { border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 10px; }
+.roomscan-cal legend { font-size: max(11.5px, var(--fs-floor, 0px)); color: var(--text-muted); padding: 0 4px; }
+.roomscan-mode { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 4px 0; }
+.roomscan-actions { margin-top: 0; }
+
+.roomscan-ar-stage { position: fixed; inset: 0; z-index: 10002; color: #fff; font-family: Inter, sans-serif; }
+.roomscan-xr-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.roomscan-ar-top {
+  position: absolute; top: max(18px, env(safe-area-inset-top)); left: 16px; right: 16px;
+  display: flex; justify-content: space-between; align-items: center; padding: 10px 13px;
+  border-radius: 12px; background: rgba(10,12,18,.62); backdrop-filter: blur(12px);
+}
+.roomscan-ar-top > div { display: flex; flex-direction: column; gap: 2px; }
+.roomscan-ar-top b { font-size: 14px; }
+.roomscan-ar-top span { font-size: 12px; color: rgba(255,255,255,.75); }
+.roomscan-ar-top button {
+  width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.28);
+  border-radius: 50%; background: rgba(255,255,255,.08); color: #fff; font-size: 18px;
+}
+.roomscan-reticle {
+  position: absolute; left: 50%; top: 50%; width: 46px; height: 46px;
+  display: grid; place-items: center; transform: translate(-50%, -50%);
+  border: 2px solid rgba(255,255,255,.65); border-radius: 50%; color: #fff; font-size: 22px;
+  transition: border-color .12s, background .12s, transform .12s;
+}
+.roomscan-reticle.locked { border-color: #4ade80; background: rgba(34,197,94,.2); transform: translate(-50%, -50%) scale(.88); }
+.roomscan-ar-hint {
+  position: absolute; left: 50%; bottom: calc(112px + env(safe-area-inset-bottom));
+  transform: translateX(-50%); width: min(330px, calc(100% - 40px)); text-align: center;
+  padding: 8px 12px; border-radius: 999px; background: rgba(10,12,18,.62); font-size: max(11.5px, var(--fs-floor, 0px));
+}
+/* The map is the only view of the room shape while the phone is pressed
+   against a wall, so it sits clear of the reticle and the action row. */
+.roomscan-ar-map {
+  position: absolute; right: 16px; width: 118px; height: 118px;
+  top: calc(max(18px, env(safe-area-inset-top)) + 72px);
+  border: 1px solid rgba(255,255,255,.24); border-radius: 12px;
+  background: rgba(10,12,18,.58); backdrop-filter: blur(10px);
+}
+.roomscan-ar-live {
+  position: absolute; left: 50%; top: calc(50% + 38px); transform: translateX(-50%);
+  padding: 5px 11px; border-radius: 999px; background: rgba(10,12,18,.7);
+  font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.roomscan-ar-live[hidden] { display: none; }
+/* Sits under every control (they are later siblings) but over the camera, so
+   a tap anywhere that is not a button commits the corner. */
+.roomscan-ar-tap { position: absolute; inset: 0; }
+/* Everything that only reports state has to let taps through to the layer
+   below it. The reticle is the worst offender: it sits dead centre, exactly
+   where a one-handed user aims and taps, so it swallowed the very gesture the
+   tap layer exists to catch. Buttons, the coach card and the top bar keep
+   their own hits by not appearing here. */
+.roomscan-ar-map,
+.roomscan-reticle,
+.roomscan-ar-live,
+.roomscan-ar-angle,
+.roomscan-ar-hint { pointer-events: none; }
+.roomscan-ar-angle {
+  position: absolute; left: 50%; top: calc(50% + 68px); transform: translateX(-50%);
+  padding: 4px 10px; border-radius: 999px; background: rgba(10,12,18,.7);
+  font-size: max(11px, var(--fs-floor, 0px)); font-variant-numeric: tabular-nums; letter-spacing: .02em; white-space: nowrap;
+}
+.roomscan-ar-angle[hidden] { display: none; }
+.roomscan-ar-angle.square { background: var(--success); color: var(--on-success); font-weight: 700; }
+.roomscan-reticle.offfloor { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 18%, transparent); }
+.roomscan-ar-actions .roomscan-capture.closing { background: var(--success); color: var(--on-success); }
+.roomscan-warnings { display: grid; gap: 6px; margin: 9px 2px 0; }
+.roomscan-warnings[hidden] { display: none; }
+.roomscan-warnings div {
+  display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--warn) 34%, var(--border-color));
+  border-radius: 9px; background: color-mix(in srgb, var(--warn) 8%, transparent);
+  font-size: max(11.5px, var(--fs-floor, 0px)); line-height: 1.45; color: var(--text-main);
+}
+.roomscan-warnings i { flex: none; margin-top: 1px; font-size: 14px; color: var(--warn); }
+.roomscan-square { margin-top: 2px; }
+
+.roomscan-ar-coach {
+  position: absolute; z-index: 2; left: 20px; right: 20px; top: 50%; transform: translateY(-50%);
+  padding: 17px; border: 1px solid rgba(255,255,255,.26); border-radius: 15px;
+  background: rgba(10,12,18,.9); box-shadow: 0 18px 55px rgba(0,0,0,.36); backdrop-filter: blur(16px);
+}
+.roomscan-ar-coach[hidden] { display: none; }
+.roomscan-ar-coach strong { font-size: 14px; }
+.roomscan-ar-coach ol { margin: 10px 0 14px; padding-inline-start: 22px; font-size: 12px; line-height: 1.55; color: rgba(255,255,255,.82); }
+.roomscan-ar-coach button {
+  width: 100%; min-height: 40px; border: 0; border-radius: 9px; background: var(--accent);
+  color: var(--on-accent); font-family: inherit; font-size: 12px; font-weight: 700; line-height: 1;
+}
+.roomscan-ar-actions {
+  position: absolute; left: 16px; right: 16px; bottom: max(18px, env(safe-area-inset-bottom));
+  display: grid; grid-template-columns: 48px 48px minmax(0, 1fr) 48px; gap: 9px; align-items: center;
+}
+.roomscan-ar-actions button {
+  height: 48px; border: 1px solid rgba(255,255,255,.32); border-radius: 50%;
+  background: rgba(10,12,18,.7); color: #fff; font-size: 20px; backdrop-filter: blur(12px);
+}
+.roomscan-ar-actions button:disabled { opacity: 0.45; }
+.roomscan-ar-actions .roomscan-capture {
+  border-radius: 999px; display: flex; justify-content: center; align-items: center; gap: 8px;
+  background: var(--accent); color: var(--on-accent); border-color: rgba(255,255,255,.6); font-size: 13px; font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .roomscan-overlay { align-items: flex-end; }
+  .roomscan-modal {
+    width: 100%; max-width: 100%; max-height: 94dvh; border-radius: 18px 18px 0 0;
+    padding: 17px max(16px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  .roomscan-choices { grid-template-columns: 1fr; }
+  .roomscan-choice { min-height: 92px; }
+  .roomscan-steps { grid-template-columns: 1fr; }
+  .roomscan-summary { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .roomscan-modal .bp-btnrow,
+  .roomscan-modal .bp-actions,
+  .roomscan-modal .roomscan-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+  .roomscan-modal .bp-btnrow button,
+  .roomscan-modal .bp-actions button,
+  .roomscan-modal .roomscan-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-height: 620px) {
+  .roomscan-ar-map { width: 88px; height: 88px; }
+}
+
+/* Keep these desktop overrides after the compact/foldable posture rules. */
+#modeler .md-workflow small { font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-part small { font-size: max(10.5px, var(--fs-floor, 0px)); line-height: 1.25; }
+@media (min-width: 901px) and (max-width: 1199px) {
+  body:not(.compact-nav) #modeler .md-body { padding: 10px; gap: 10px; }
+  body:not(.compact-nav) #modeler .md-left { width: 224px; }
+  body:not(.compact-nav) #modeler .md-right { width: 260px; }
+  body:not(.compact-nav) #modeler .md-command { max-width: 142px; }
+  body:not(.compact-nav) #modeler .md-head-actions .md-guide-launch span { display: none; }
+  body:not(.compact-nav) #modeler .md-head { gap: 10px; padding: 8px 12px; }
+}
+

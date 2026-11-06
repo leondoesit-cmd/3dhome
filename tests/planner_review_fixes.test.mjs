@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -57,7 +58,7 @@ test('an opening corner dimension survives its host wall being split',()=>{
 
 test('planner chrome exposes paired doors and visible overflow affordances',async()=>{
   const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
-  const css=await readFile(new URL('../css/styles.css',import.meta.url),'utf8');
+  const css=stylesSource();
   const chrome=await readFile(new URL('../js/planner_chrome.js',import.meta.url),'utf8');
   const ui=await readFile(new URL('../js/ui.js',import.meta.url),'utf8');
   const view3d=await readFile(new URL('../js/view3d.js',import.meta.url),'utf8');

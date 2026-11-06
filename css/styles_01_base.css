@@ -1,0 +1,1525 @@
+:root,
+[data-theme="light"],
+[data-theme="classic"] {
+  /* LIGHT (and "Classic light", which keeps exactly these in the Round-6
+     layout, where "light" is the mockup palette — css/pro_skin.css) — daylight drafting. Crisp elevation, indigo tools, readable chrome. */
+  --bg-app: #edf0f5;
+  --bg-panel: rgba(255, 255, 255, 0.94);
+  --bg-topbar: rgba(255, 255, 255, 0.96);
+  --bg-canvas-2d: #d6dee8;
+  --bg-canvas-3d: #1b1f27;
+  --border-color: rgba(100, 116, 139, 0.28);
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --accent: #4338ca;
+  --accent-hover: #3730a3;
+  --btn-bg: #f8fafc;
+  --btn-bg-hover: #e2e8f0;
+  --btn-border: #cbd5e1;
+  --input-bg: #ffffff;
+  --input-border: #94a3b8;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 10px 28px rgba(15, 23, 42, 0.12);
+  --separator: rgba(100, 116, 139, 0.24);
+  --glass-blur: blur(20px);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.12);
+  --accent-soft: rgba(67, 56, 202, 0.12);
+  --accent-glow: rgba(67, 56, 202, 0.32);
+  --accent-alpha: rgba(67, 56, 202, 0.12);
+  --on-accent: #ffffff;
+  --warn: #9a3412;
+  --success: #047857;
+  --overlay: rgba(237, 240, 245, 0.75);
+  --hud-bg: rgba(255, 255, 255, 0.90);
+  --hud-fg: #0f172a;
+  --scrollbar: rgba(100, 116, 139, 0.45);
+  --scrollbar-hover: rgba(71, 85, 105, 0.7);
+  --preview-from: #f1f5f9;
+  --preview-to: #cbd5e1;
+  --app-glow-a: rgba(67, 56, 202, 0.08);
+  --app-glow-b: rgba(14, 165, 233, 0.07);
+  --panel-bg: var(--bg-panel);
+  --panel: var(--bg-panel);
+  --text: var(--text-main);
+  --text-dim: var(--text-muted);
+  --text-bright: var(--text-main);
+  --on-warn: #ffffff;
+  --on-success: #ffffff;
+  --on-danger: #ffffff;
+  --color-scheme: light;
+  --mobile-nav-block: 0px;
+  --mobile-topbar-block: 56px;
+  --m-ctx-reserve: 0px;
+  --kb: 0px;
+}
+
+/* ---- desktop Model Editor QA refinements ------------------------------ */
+body:not(.compact-nav) #modeler.md-left-collapsed .md-left,
+body:not(.compact-nav) #modeler.md-right-collapsed .md-right { display: none; }
+body:not(.compact-nav) #modeler .md-panel-toggle {
+  position: absolute; z-index: 72; top: 12px; display: inline-flex; align-items: center;
+  justify-content: center; gap: 0; width: 34px; min-width: 34px; min-height: 30px; padding: 5px;
+  border: 1px solid var(--btn-border); border-radius: 8px;
+  background: color-mix(in srgb,var(--bg-panel) 92%,transparent); color: var(--text-muted);
+  box-shadow: var(--shadow-sm); backdrop-filter: blur(8px); cursor: pointer;
+}
+body:not(.compact-nav) #modeler .md-panel-toggle-right { inset-inline-end: 12px; }
+body:not(.compact-nav) #modeler .md-panel-toggle-right span { display: none; }
+/* One start-edge rail: Tree, then the view cube, then zoom, then Solid /
+   Transparent / Edges as a column. A max-width squeeze on the cube made
+   Edges paint on top of Transparent. */
+body:not(.compact-nav) #modeler .md-panel-toggle-left {
+  inset-inline-start: var(--md-hud-start, 12px);
+  width: var(--md-hud-col, 120px); min-width: 0; padding: 5px 7px; gap: 5px;
+  justify-content: flex-start;
+}
+@media (max-width: 1150px) {
+  body:not(.compact-nav) #modeler .md-panel-toggle-left {
+    width: 34px; min-width: 34px; padding: 5px; justify-content: center;
+  }
+  body:not(.compact-nav) #modeler .md-panel-toggle-left span {
+    display: none;
+  }
+}
+body:not(.compact-nav) #modeler .md-views {
+  top: 52px; inset-inline-start: var(--md-hud-start, 12px); z-index: 8;
+  width: var(--md-hud-col, 120px); max-width: none;
+  /* The stack is a fixed list of buttons and the viewport is not a fixed
+     height: on a short window it grew straight through the selection row and
+     the status line below it. Scroll the stack rather than let it print over
+     them — the reserve is the selection row plus the status line. */
+  max-height: calc(100% - 132px); overflow-y: auto; overscroll-behavior: contain;
+}
+/* Selection tools sit centered under Model/Sketch/Drawing, sized to content. */
+body:not(.compact-nav) #modeler .md-context-toolbar {
+  display: flex;
+  top: 52px; left: 50%; right: auto; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 24px);
+  justify-content: center; flex-wrap: wrap; z-index: 42;
+}
+/* Accept/Cancel in the confirmation corner shared that same top-end slot with
+   the inspector toggle. */
+body:not(.compact-nav) #modeler .md-panel-toggle:hover,
+body:not(.compact-nav) #modeler .md-panel-toggle[aria-pressed="false"] { color: var(--accent); border-color: var(--accent); }
+body.compact-nav #modeler .md-panel-toggle { display: none; }
+
+#modeler .md-section-controls {
+  width: 260px; max-width: 100%;
+  display: grid; gap: 9px; padding: 10px; border: 1px solid color-mix(in srgb,var(--accent) 38%,var(--border-color));
+  border-radius: 11px; background: color-mix(in srgb,var(--bg-panel) 95%,transparent);
+  color: var(--text-main); box-shadow: var(--shadow-md); backdrop-filter: blur(10px);
+}
+#modeler .md-section-controls[hidden] { display: none; }
+#modeler .md-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#modeler .md-section-head button { width: 28px; height: 28px; padding: 0; }
+#modeler .md-section-axis { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
+#modeler .md-section-axis button.on,#modeler #mdSectionFlip.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb,var(--accent) 12%,var(--btn-bg)); }
+#modeler .md-section-controls label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 7px; font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-section-controls output { min-width: 48px; text-align: end; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+#modeler #mdSectionFlip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; }
+
+/* The non-modal evaluate card: measure, mass properties, BOM. Same floating
+   chrome as the section controls above, and for the same reason — the viewport
+   underneath it stays live, so you can orbit the model while reading what it
+   just told you about itself. */
+/* Viewport chrome shelves. Every overlay used to pin itself to a corner with
+   its own top/bottom/inset, which works right up to the moment two of them are
+   open together — and then the newer one simply covers the older one, silently,
+   with no layout rule anywhere that could have said so. A rail is a flex line
+   the overlays are children of: whatever is open stacks, whatever is [hidden]
+   collapses, and none of them has to know the heights of the others. */
+#modeler .md-rail { position: absolute; display: flex; pointer-events: none; }
+#modeler .md-rail > * { pointer-events: auto; }
+/* Read-only text keeps its transparency to the orbit gesture underneath. */
+#modeler .md-rail > .md-hint,
+#modeler .md-rail > .md-breadcrumb { pointer-events: none; }
+#modeler .md-rail-end {
+  z-index: 76; top: 52px; inset-inline-end: 12px;
+  /* Shrink to the widest thing actually open, and stop short of the top-centre
+     lane the contextual toolbar sits in — a full-width eval card reached it. */
+  width: max-content; max-width: min(320px, calc(50% - 44px));
+  flex-direction: column; align-items: flex-end; gap: 8px;
+}
+/* The half-width cap above keeps a wide card clear of the top-centre lane the
+   floating context toolbar sits in. On a phone that toolbar is disabled and the
+   gesture hint has moved to .md-mid, so there is no lane left to protect — and
+   the cap resolved to calc(50% - 44px) = 143px on a 375px screen. The eval card
+   asks for 320px, so its content overflowed its own box and carried the Close
+   button out past the viewport: mass properties could be opened and then not
+   shut. Give the rail the width it actually has. */
+body.compact-nav #modeler .md-rail-end {
+  top: 8px;
+  inset-inline-end: 8px;
+  max-width: calc(100% - 16px);
+}
+/* Above the selection row, which is itself above the status line. */
+#modeler .md-rail-bottom {
+  z-index: 60; bottom: 64px; left: 50%; transform: translateX(-50%);
+  /* Symmetric so the rail stays centred: the round Help button owns the end
+     lane, and a wide profile offer used to run its corner into it. */
+  width: max-content; max-width: calc(100% - 96px);
+  flex-direction: column; align-items: center; gap: 8px;
+  /* Two centred stacks share the middle of the viewport: this one growing up
+     from the bottom, the contextual toolbar growing down from the top. Giving
+     each a little under half the height is what stops them meeting on a short
+     window — they used to simply pass through each other. */
+  max-height: calc(50% - 66px); overflow-y: auto; overscroll-behavior: contain;
+}
+#modeler .md-rail-row {
+  z-index: 9; bottom: 34px; inset-inline: 12px;
+  align-items: flex-end; justify-content: space-between; gap: 12px;
+}
+#modeler .md-eval-card {
+  box-sizing: border-box; min-width: 0;
+  width: 320px; max-width: 100%; max-height: min(60vh,520px); overflow: auto;
+  display: grid; gap: 8px; padding: 10px; border: 1px solid color-mix(in srgb,var(--accent) 38%,var(--border-color));
+  border-radius: 11px; background: color-mix(in srgb,var(--bg-panel) 95%,transparent);
+  color: var(--text-main); box-shadow: var(--shadow-md); backdrop-filter: blur(10px);
+}
+#modeler .md-eval-card[hidden] { display: none; }
+#modeler .md-eval-head { display: flex; align-items: baseline; gap: 8px; }
+#modeler .md-eval-head small { color: var(--text-muted); font-size: max(10px, var(--fs-floor, 0px)); letter-spacing: .08em; text-transform: uppercase; }
+#modeler .md-eval-head b { flex: 1; font-size: 13px; }
+#modeler .md-eval-head button { width: 28px; height: 28px; padding: 0; flex: none; }
+#modeler .md-eval-body { display: grid; min-width: 0; gap: 5px; font-size: max(11.5px, var(--fs-floor, 0px)); }
+#modeler .md-eval-row { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr); align-items: baseline; gap: 10px; padding: 5px 7px; border-radius: 7px; background: var(--input-bg); }
+#modeler .md-eval-row > span { min-width: 0; color: var(--text-muted); overflow-wrap: anywhere; }
+#modeler .md-eval-row > b { min-width: 0; font-variant-numeric: tabular-nums; text-align: end; overflow-wrap: anywhere; }
+#modeler .md-eval-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#modeler .md-eval-actions[hidden] { display: none; }
+#modeler .md-eval-actions button { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-eval-actions button.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb,var(--accent) 12%,var(--btn-bg)); }
+#modeler table.md-bom { width: 100%; border-collapse: collapse; font-size: max(11.5px, var(--fs-floor, 0px)); }
+#modeler table.md-bom th { padding: 4px 6px; border-bottom: 1px solid var(--separator); color: var(--text-muted); font-weight: 600; text-align: start; }
+#modeler table.md-bom td { padding: 4px 6px; border-bottom: 1px solid color-mix(in srgb,var(--separator) 55%,transparent); text-align: start; }
+#modeler table.md-bom .md-bom-item,#modeler table.md-bom .md-bom-qty { font-variant-numeric: tabular-nums; width: 1%; white-space: nowrap; }
+/* Numbered mates keep their value editable in the mate list. */
+#modeler .md-mate-value { display: inline-flex; align-items: center; gap: 3px; flex: none; }
+#modeler .md-mate-value input { width: 54px; min-height: 26px; padding: 2px 5px; font-size: max(11px, var(--fs-floor, 0px)); text-align: end; font-variant-numeric: tabular-nums; }
+#modeler .md-mate-value b { color: var(--text-muted); font-size: max(11px, var(--fs-floor, 0px)); }
+
+#modeler .md-parametric-node { position: relative; }
+#modeler .md-parametric-node > .nm { min-width: 0; padding-inline-end: 6px; }
+#modeler .md-history-actions {
+  position: absolute; z-index: 3; inset-inline-end: 4px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; gap: 1px; padding-inline-start: 22px;
+  background: linear-gradient(to right,transparent,var(--bg-panel) 20px);
+  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .12s ease;
+}
+#modeler .md-parametric-node:hover .md-history-actions,
+#modeler .md-parametric-node:focus-within .md-history-actions,
+#modeler .md-tree-row:hover .md-history-actions,
+#modeler .md-tree-row:focus-within .md-history-actions,
+#modeler .md-tree-row.on .md-history-actions { opacity: 1; visibility: visible; pointer-events: auto; }
+#modeler .md-history-actions .md-part-x { flex: none; }
+html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to left,transparent,var(--bg-panel) 20px); }
+#modeler .md-parametric-node.md-dependency-focus,
+#modeler .md-tree-row.md-dependency-focus { box-shadow: inset 3px 0 var(--warn); background: color-mix(in srgb,var(--warn) 13%,var(--btn-bg)); }
+#modeler .md-parametric-node.md-dependency-upstream,
+#modeler .md-tree-row.md-dependency-upstream { box-shadow: inset 3px 0 #38bdf8; background: color-mix(in srgb,#38bdf8 11%,var(--btn-bg)); }
+#modeler .md-parametric-node.md-dependency-downstream,
+#modeler .md-tree-row.md-dependency-downstream { box-shadow: inset 3px 0 #c084fc; background: color-mix(in srgb,#c084fc 11%,var(--btn-bg)); }
+#modeler .md-parametric-node.md-dependency-dim,
+#modeler .md-tree-row.md-dependency-dim { opacity: .42; }
+#modeler .md-dependency-panel { margin: 4px 0 8px; padding: 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--btn-bg); }
+#modeler .md-dependency-controls { display: flex; flex-wrap: wrap; gap: 5px 12px; font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-dependency-controls label { display: flex; align-items: center; gap: 4px; }
+#modeler .md-dependency-callouts { position: fixed; z-index: 65; box-sizing: border-box; max-height: 180px; overflow: auto; overflow-wrap: anywhere; padding: 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--btn-bg); pointer-events: none; font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-dependency-callouts:empty { display: none; }
+#modeler .md-dependency-reference { margin-top: 5px; }
+#modeler .md-dependency-reference small { display: block; color: var(--text-muted); }
+#modeler .md-tree-mount { position: relative; }
+#modeler .md-dependency-arrows { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+#modeler .md-dependency-arrows path { fill: none; stroke: #c084fc; stroke-width: 1.5; }
+#modeler .md-dependency-arrows path.parent { stroke: #38bdf8; }
+#modeler .md-tree-row.md-dependency-anchor { opacity: 1; outline: 1px dashed #38bdf8; outline-offset: -1px; }
+
+#modeler .md-workflow small { font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-part small { font-size: max(10.5px, var(--fs-floor, 0px)); line-height: 1.25; }
+#modeler .md-feature-keyfacts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin: 8px 0; }
+#modeler .md-feature-keyfacts > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 7px 8px; border: 1px solid var(--separator); border-radius: 7px; background: var(--input-bg); }
+#modeler .md-feature-keyfacts small { color: var(--text-muted); text-transform: capitalize; }
+#modeler .md-feature-advanced { margin: 8px 0; }
+#modeler .md-feature-advanced > summary { min-height: 32px; padding: 7px 8px; border: 1px solid var(--separator); border-radius: 7px; color: var(--text-muted); cursor: pointer; }
+
+@media (min-width: 901px) and (max-width: 1199px) {
+  #modeler .md-body { padding: 10px; gap: 10px; }
+  #modeler .md-left { width: 224px; }
+  #modeler .md-right { width: 260px; }
+  #modeler .md-command { max-width: 142px; }
+  /* Name + price + Guide + Save to library do not fit 1024px in one row;
+     drop the Guide caption (the icon and data-tip remain) so Close stays fully on screen. */
+  #modeler .md-head-actions .md-guide-launch span { display: none; }
+  #modeler .md-head { gap: 10px; padding: 8px 12px; }
+}
+
+[data-theme="dark"] {
+  /* DARK — night lab. Deep foundation, lifted clinical slate, readable chrome. */
+  --bg-app: #090b10;
+  --bg-panel: rgba(19, 23, 33, 0.94);
+  --bg-topbar: rgba(19, 23, 33, 0.96);
+  --bg-canvas-2d: #0e1219;
+  --bg-canvas-3d: #050608;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
+  --btn-bg: rgba(255, 255, 255, 0.07);
+  --btn-bg-hover: rgba(255, 255, 255, 0.13);
+  --btn-border: rgba(255, 255, 255, 0.14);
+  --input-bg: rgba(0, 0, 0, 0.50);
+  --input-border: rgba(255, 255, 255, 0.18);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --separator: rgba(255, 255, 255, 0.10);
+  --glass-blur: blur(24px);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.18);
+  --accent-soft: rgba(56, 189, 248, 0.18);
+  --accent-glow: rgba(56, 189, 248, 0.34);
+  --accent-alpha: rgba(56, 189, 248, 0.18);
+  --on-accent: #031320;
+  --warn: #fbbf24;
+  --success: #34d399;
+  --overlay: rgba(6, 8, 12, 0.70);
+  --hud-bg: rgba(10, 13, 18, 0.85);
+  --hud-fg: #f1f5f9;
+  --scrollbar: rgba(100, 116, 139, 0.55);
+  --scrollbar-hover: rgba(148, 163, 184, 0.8);
+  --preview-from: #242a36;
+  --preview-to: #0d1016;
+  --app-glow-a: rgba(56, 189, 248, 0.10);
+  --app-glow-b: rgba(255, 255, 255, 0.03);
+  --panel-bg: var(--bg-panel);
+  --panel: var(--bg-panel);
+  --text: var(--text-main);
+  --text-dim: var(--text-muted);
+  --text-bright: var(--text-main);
+  --on-warn: #031320;
+  --on-success: #031320;
+  --on-danger: #031320;
+  --color-scheme: dark;
+}
+
+[data-theme="soft"] {
+  /* SOFT — linen workshop. Warm oatmeal paper, complementary forest teal tools. */
+  --bg-app: #e4dcd2;
+  --bg-panel: rgba(248, 244, 237, 0.95);
+  --bg-topbar: rgba(250, 246, 240, 0.97);
+  --bg-canvas-2d: #d5cbbf;
+  --bg-canvas-3d: #25211c;
+  --border-color: rgba(78, 62, 49, 0.26);
+  --text-main: #231a14;
+  --text-muted: #57473a;
+  --accent: #1a5353;
+  --accent-hover: #133f3f;
+  --btn-bg: rgba(224, 233, 228, 0.90);
+  --btn-bg-hover: rgba(202, 222, 216, 0.95);
+  --btn-border: rgba(26, 83, 83, 0.36);
+  --input-bg: rgba(255, 252, 247, 0.96);
+  --input-border: rgba(78, 62, 49, 0.36);
+  --shadow-sm: 0 2px 6px rgba(50, 36, 25, 0.10);
+  --shadow-md: 0 10px 28px rgba(50, 36, 25, 0.16);
+  --separator: rgba(78, 62, 49, 0.18);
+  --glass-blur: blur(20px);
+  --danger: #991b1b;
+  --danger-soft: rgba(153, 27, 27, 0.14);
+  --accent-soft: rgba(26, 83, 83, 0.15);
+  --accent-glow: rgba(26, 83, 83, 0.30);
+  --accent-alpha: rgba(26, 83, 83, 0.14);
+  --on-accent: #ffffff;
+  --warn: #9a3412;
+  --success: #166534;
+  --overlay: rgba(244, 239, 232, 0.82);
+  --hud-bg: rgba(248, 244, 237, 0.90);
+  --hud-fg: #231a14;
+  --scrollbar: rgba(110, 92, 78, 0.40);
+  --scrollbar-hover: rgba(78, 62, 49, 0.65);
+  --preview-from: #ede5da;
+  --preview-to: #c7bba9;
+  --app-glow-a: rgba(255, 228, 196, 0.28);
+  --app-glow-b: rgba(26, 83, 83, 0.08);
+  --panel-bg: var(--bg-panel);
+  --panel: var(--bg-panel);
+  --text: var(--text-main);
+  --text-dim: var(--text-muted);
+  --text-bright: var(--text-main);
+  --on-warn: #ffffff;
+  --on-success: #ffffff;
+  --on-danger: #ffffff;
+  --color-scheme: light;
+}
+
+[data-theme="mid"] {
+  /* MID — dusk studio. Lifted blue-slate, teal tools, distinct from night. */
+  --bg-app: #1d222b;
+  --bg-panel: rgba(42, 50, 64, 0.94);
+  --bg-topbar: rgba(42, 50, 64, 0.96);
+  --bg-canvas-2d: #242a35;
+  --bg-canvas-3d: #12161f;
+  --border-color: rgba(190, 208, 230, 0.18);
+  --text-main: #f0f4f8;
+  --text-muted: #9bb0c6;
+  --accent: #5eead4;
+  --accent-hover: #2dd4bf;
+  --btn-bg: rgba(255, 255, 255, 0.08);
+  --btn-bg-hover: rgba(255, 255, 255, 0.14);
+  --btn-border: rgba(255, 255, 255, 0.14);
+  --input-bg: rgba(12, 17, 26, 0.48);
+  --input-border: rgba(255, 255, 255, 0.18);
+  --shadow-sm: 0 4px 10px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.40);
+  --separator: rgba(255, 255, 255, 0.12);
+  --glass-blur: blur(20px);
+  --danger: #fb7185;
+  --danger-soft: rgba(251, 113, 133, 0.18);
+  --accent-soft: rgba(45, 212, 191, 0.18);
+  --accent-glow: rgba(45, 212, 191, 0.35);
+  --accent-alpha: rgba(45, 212, 191, 0.15);
+  --on-accent: #042f2e;
+  --warn: #f59e0b;
+  --success: #34d399;
+  --overlay: rgba(16, 20, 28, 0.65);
+  --hud-bg: rgba(18, 23, 33, 0.85);
+  --hud-fg: #f0f4f8;
+  --scrollbar: rgba(100, 116, 139, 0.55);
+  --scrollbar-hover: rgba(148, 163, 184, 0.75);
+  --preview-from: #363e4e;
+  --preview-to: #181d26;
+  --app-glow-a: rgba(45, 212, 191, 0.10);
+  --app-glow-b: rgba(255, 255, 255, 0.04);
+  --panel-bg: var(--bg-panel);
+  --panel: var(--bg-panel);
+  --text: var(--text-main);
+  --text-dim: var(--text-muted);
+  --text-bright: var(--text-main);
+  --on-warn: #042f2e;
+  --on-success: #042f2e;
+  --on-danger: #042f2e;
+  --color-scheme: dark;
+}
+
+[data-theme="chrome"] {
+  /* CHROME — Chromium dark mode. Authentic charcoal surfaces, elevated toolbar slate, Google Blue tools. */
+  --bg-app: #202124;
+  --bg-panel: rgba(41, 42, 45, 0.94);
+  --bg-topbar: rgba(41, 42, 45, 0.96);
+  --bg-canvas-2d: #202124;
+  --bg-canvas-3d: #17181b;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --text-main: #e8eaed;
+  --text-muted: #a8abb0;
+  --accent: #93bbf9;
+  --accent-hover: #aecbfa;
+  --btn-bg: rgba(255, 255, 255, 0.06);
+  --btn-bg-hover: rgba(255, 255, 255, 0.12);
+  --btn-border: rgba(255, 255, 255, 0.14);
+  --input-bg: rgba(32, 33, 36, 0.65);
+  --input-border: rgba(255, 255, 255, 0.18);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.50);
+  --separator: rgba(255, 255, 255, 0.12);
+  --glass-blur: blur(20px);
+  --danger: #f28b82;
+  --danger-soft: rgba(242, 139, 130, 0.18);
+  --accent-soft: rgba(147, 187, 249, 0.16);
+  --accent-glow: rgba(147, 187, 249, 0.32);
+  --accent-alpha: rgba(147, 187, 249, 0.10);
+  --on-accent: #041e49;
+  --warn: #fdd663;
+  --success: #81c995;
+  --overlay: rgba(32, 33, 36, 0.75);
+  --hud-bg: rgba(32, 33, 36, 0.88);
+  --hud-fg: #e8eaed;
+  --scrollbar: rgba(168, 171, 176, 0.40);
+  --scrollbar-hover: rgba(168, 171, 176, 0.65);
+  --preview-from: #3c4043;
+  --preview-to: #202124;
+  --app-glow-a: rgba(147, 187, 249, 0.08);
+  --app-glow-b: rgba(255, 255, 255, 0.03);
+  --panel-bg: var(--bg-panel);
+  --panel: var(--bg-panel);
+  --text: var(--text-main);
+  --text-dim: var(--text-muted);
+  --text-bright: var(--text-main);
+  --on-warn: #202124;
+  --on-success: #042612;
+  --on-danger: #370b0e;
+  --color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Inter", "Rubik", sans-serif;
+  background: var(--bg-app);
+  color: var(--text-main);
+  overflow: hidden;
+  font-size: 14px;
+  color-scheme: var(--color-scheme);
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-main);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  max-width: 100vw;
+  overflow: hidden;
+  position: relative;
+  background:
+    radial-gradient(circle at top right, var(--app-glow-a), transparent 50%),
+    radial-gradient(circle at bottom left, var(--app-glow-b), transparent 50%),
+    var(--bg-app);
+}
+
+/* Glassmorphism panels */
+#topbar,
+#left-sidebar,
+#right-inspector {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition: background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease;
+}
+
+#topbar {
+  display: grid;
+  /* The start and end command groups are not symmetrical. Equal outer tracks
+     made the wider start group paint underneath the centred search field on
+     wide desktops (the supplied 1800 CSS-pixel viewport missed by 5px).
+     Give both command groups their real width and let the middle own only the
+     space that is actually left between them. */
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  height: 60px;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 clamp(8px, 1.2vw, 20px);
+  box-shadow: var(--shadow-sm);
+  /* Floating planner chrome uses z-index:11 inside the workspace. The top bar
+     owns menus and the command-search popover, so its stacking context must
+     stay above the workspace or Layers can paint over search results. */
+  z-index: 100;
+  gap: clamp(6px, 1vw, 16px);
+}
+
+.tb-start {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 0.8vw, 12px);
+  justify-content: flex-start;
+  min-width: 0;
+}
+.tb-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+.plan-save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-size: max(11px, var(--fs-floor, 0px));
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.plan-save-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.plan-save-status.is-dirty { color: var(--accent); }
+@media (max-width: 1100px) {
+  .plan-save-status { font-size: max(10px, var(--fs-floor, 0px)); gap: 4px; }
+}
+.tb-end {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 0.8vw, 12px);
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/* Brand mark (topbar start) */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+  user-select: none;
+  -webkit-user-select: none;
+  white-space: nowrap;
+}
+.brand i {
+  font-size: 1.5rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Primary entry point for the parametric model editor. It deliberately reads
+   as a CAD command rather than a generic navigation tab: the shortcut is
+   visible and the accent colour makes it easy to find in a dense toolbar. */
+.modeler-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--btn-border));
+  border-radius: 8px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.modeler-launch i { font-size: 17px; }
+.modeler-launch:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.modeler-launch kbd {
+  padding: 1px 5px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font: 600 max(10px, var(--fs-floor, 0px))/1 inherit;
+  opacity: .72;
+}
+@media (max-width: 1050px) {
+  .modeler-launch span, .modeler-launch kbd { display: none; }
+  .modeler-launch { padding: 0 9px; }
+}
+
+#workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+#left-sidebar,
+#right-inspector {
+  width: 300px;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  z-index: 5;
+  box-shadow: var(--shadow-md);
+}
+#right-inspector {
+  border-right: none;
+  border-left: 1px solid var(--border-color);
+  width: 320px;
+}
+
+.panel-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--separator);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.panel-section.flex-fill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.panel-section h3 {
+  margin: 0;
+  font-size: max(0.8rem, var(--fs-floor, 0px));
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 2px 0;
+  transition: color 0.18s ease;
+}
+.panel-section h3:hover {
+  color: var(--text-main);
+}
+.panel-section h3::after {
+  content: "▾";
+  font-size: 0.95rem;
+  line-height: 1;
+  color: var(--text-muted);
+  transition: transform 0.25s ease, color 0.18s ease;
+  flex-shrink: 0;
+}
+.panel-section h3:hover::after {
+  color: var(--accent);
+}
+.panel-section.collapsed h3::after {
+  transform: rotate(-90deg);
+}
+.panel-section.collapsed > *:not(h3) {
+  display: none !important;
+}
+.panel-section.collapsed {
+  flex: 0 0 auto !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+}
+
+/* dot pattern for canvas */
+#center-canvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: var(--bg-canvas-2d);
+  background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+  background-size: 20px 20px;
+  position: relative;
+  transition: background-color 0.22s ease;
+}
+
+#view-3d {
+  flex: 1;
+  position: relative;
+  background: var(--bg-canvas-3d);
+  min-height: 0;
+  box-shadow: inset 0 -4px 12px rgba(0, 0, 0, 0.3);
+}
+
+#view-resizer {
+  height: 6px;
+  background: var(--border-color);
+  cursor: row-resize;
+  z-index: 10;
+  transition: background 0.2s;
+}
+#view-resizer:hover {
+  background: var(--accent);
+}
+
+/* Desktop users can spend horizontal room instead of halving the already
+   shallow plan. Compact/tablet posture has its own split-row rules below. */
+body.split-side:not(.compact-nav) #center-canvas {
+  flex-direction: row;
+}
+body.split-side:not(.compact-nav) #view-3d,
+body.split-side:not(.compact-nav) #view-2d {
+  min-width: 0;
+  min-height: 0;
+}
+body.split-side:not(.compact-nav) #view-resizer {
+  width: 6px;
+  height: auto;
+  cursor: col-resize;
+}
+body.split-side:not(.compact-nav) #view-2d {
+  border-top: 0;
+  border-inline-start: 1px solid var(--border-color);
+}
+
+#view-2d {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.grp {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.separator {
+  width: 1px;
+  height: 24px;
+  background: var(--separator);
+  margin: 0 8px;
+}
+
+/* What a control may ease: paint, never size or place. A `transition: all`
+   eased width, height and padding too, so anything that measured a control
+   right after it changed size read the size it was leaving (and, in a page
+   that is not painting, kept reading it). Rules that ease use their own
+   duration with this list: `transition: <time> <easing>;
+   transition-property: var(--ease-paint);`. tests/button_transitions.test.mjs
+   keeps `transition: all` out of css/. */
+:root {
+  --ease-paint: background-color, color, border-color, box-shadow, opacity, transform, filter, outline-color;
+}
+
+/* Button & Tool Styles */
+button {
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  color: var(--text-main);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  /* Paint only, never size. `all` eased every button's height, width and
+     padding, so whatever measured a button right after a size change (the
+     ribbon and dock fitting, a layout switch, a test) read the size it was
+     leaving, and in a page that is not painting the ease never ran at all. */
+  transition-property: background-color, color, border-color, box-shadow, opacity, transform, filter, outline-color;
+  transition-duration: 0.2s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+
+button i {
+  font-size: 1.2rem;
+  color: inherit;
+  opacity: 0.8;
+  transition: color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+button:hover {
+  background: var(--btn-bg-hover);
+  border-color: var(--accent);
+  color: var(--text-main);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+button:hover i {
+  opacity: 1;
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+button.active,
+.tool.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: var(--on-accent);
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+button.active i,
+button.active .md-cad-icon,
+button.btn-accent i,
+button.btn-accent .md-cad-icon,
+.tool.active i,
+.tool.active .md-cad-icon {
+  color: var(--on-accent);
+}
+
+/* The warm pastel theme uses cool complementary controls and iconography. */
+[data-theme="soft"] button:not(.active):not(.on):not(.btn-accent):not(.primary-action):not(.btn-danger):not(.menu-danger) i,
+[data-theme="soft"] button:not(.active):not(.on):not(.btn-accent):not(.primary-action):not(.btn-danger):not(.menu-danger) .md-cad-icon,
+[data-theme="soft"] .tool:not(.active):not(.on) i,
+[data-theme="soft"] .tool:not(.active):not(.on) .md-cad-icon {
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* Topbar Buttons Ghost Style */
+#topbar .tb-start button,
+#topbar .tb-end button {
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 8px;
+  border-radius: 8px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+#topbar .tb-start button:hover,
+#topbar .tb-end button:hover {
+  background: var(--btn-bg-hover);
+  color: var(--text-main);
+}
+#topbar .tb-end button.primary-action {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: var(--on-accent);
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+#topbar .tb-end button.primary-action i {
+  color: var(--on-accent);
+}
+#topbar .tb-end button.primary-action:hover {
+  box-shadow: 0 4px 14px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+/* Pill Group for Center Tools */
+.tb-pill {
+  display: flex;
+  align-items: center;
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 2px;
+  box-shadow: var(--shadow-sm);
+}
+.tb-pill button {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+.tb-pill button:hover {
+  background: var(--btn-bg-hover) !important;
+  color: var(--text-main);
+}
+.tb-pill button.active {
+  background: var(--accent-alpha) !important;
+  color: var(--accent) !important;
+}
+.tb-pill button.active i {
+  color: var(--accent) !important;
+}
+.split-orientation-btn {
+  box-sizing: border-box;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding: 8px 10px;
+}
+.split-orientation-btn[hidden] { display: none !important; }
+
+#topbar .separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border-color);
+  margin: 0 8px;
+}
+
+/* Floating drawing-tool toolbar (over the 2D plan). The wall palette docks
+   beside it in the same cluster so it cannot overlap the tools, including RTL. */
+/* Centred on the 2D pane, but never taller than it. In Split view the pane is
+   less than half the window and the full tool column does not fit: centring
+   alone pushed the first tools up over the 3D viewport and the last two (lock,
+   delete) off the bottom of the window entirely. Bounding the height to the
+   pane and letting the column scroll keeps every tool reachable at any split. */
+#plan-tools {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 14px;
+  transform: translateY(-50%);
+  z-index: 11;
+  display: flex;
+  flex-direction: row;
+  /* a DEFINITE height, not max-height: the children bound themselves with
+     `max-height: 100%`, and a percentage cannot resolve against a parent that
+     is only max-constrained. Centring moves to the children, so a toolbar that
+     fits still sits mid-pane and one that does not fills the pane and scrolls. */
+  align-items: center;
+  gap: 8px;
+  height: calc(100% - 20px);
+  pointer-events: none;
+}
+#plan-toolbar {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+  border-radius: 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+#plan-toolbar::-webkit-scrollbar { width: 6px; height: 6px; }
+#plan-toolbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 55%, transparent);
+}
+
+/* ---- dockable panels (js/plan_tools_dock.js) -----------------------------
+   #plan-tools stops being a cluster and becomes the dock LAYER: eight zones
+   over the plan, four on the edges and four in the corners, each holding any
+   number of panels. A zone is flush against its edge(s) — no shadow, no outer
+   margin, and no border or radius on a side that touches the pane — and it,
+   not the panels inside it, draws the border and the rounded corners that are
+   left. That is what makes two panels dropped together read as one piece of
+   the frame rather than two cards that happen to touch.
+   The module writes the boxes; every shape change is one of these attributes.
+   The phone rail below 1024px is a different layout entirely, and the module
+   dismantles all of this rather than fight it. */
+#plan-tools.pt-dock {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  transform: none;
+  display: block;
+  gap: 0;
+  pointer-events: none;
+}
+.pt-zone {
+  /* Pure layout: the zone places its panels and caps how much room they may
+     take. It paints nothing — see decorate() in js/plan_tools_dock.js for why
+     the card belongs to the panel.
+
+     Panels keep their content size so a short layer list does not paint an
+     empty card all the way down beside the drawing tools. */
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.pt-zone > * { pointer-events: auto; }
+.pt-zone[hidden] { display: none; }
+/* Tiling. Order 0 is always the panel against the flush edge, so a zone flush
+   right or flush bottom lays its panels out backwards. */
+.pt-zone[data-flow="row"] { flex-direction: row; }
+.pt-zone[data-flow="row"][data-rev="1"] { flex-direction: row-reverse; }
+.pt-zone[data-flow="column"] { flex-direction: column; }
+.pt-zone[data-flow="column"][data-rev="1"] { flex-direction: column-reverse; }
+.pt-zone[data-flow="row"][data-zone^="bottom"] { align-items: flex-end; }
+.pt-zone[data-flow="column"][data-zone$="right"] { align-items: flex-end; }
+
+/* One dockable panel = its grip plus the panel element. The wrapper is what
+   the dock moves, what carries the card, and what the axis runs along. */
+.pt-panel {
+  display: flex;
+  /* nearly rigid: the panel marked data-give absorbs the squeeze first, and
+     these still give a little rather than push a neighbour off the pane */
+  flex: 0 0.05 auto;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+/* display:flex would otherwise beat the UA's [hidden] rule, and the wall
+   palette — which comes and goes with the tool — would leave its grip behind
+   as a sliver wedged between two panels that are supposed to be flush. */
+.pt-panel[hidden] { display: none; }
+.pt-zone > .pt-panel[data-give] { flex: 0 1 auto; }
+.pt-zone > .pt-panel.pt-sized {
+  flex: 0 0 auto;
+}
+.pt-panel[data-axis="v"] { flex-direction: column; }
+.pt-panel[data-axis="h"] {
+  flex-direction: row;
+  align-items: center;
+  min-height: 46px;
+  box-sizing: border-box;
+}
+/* Flush against the pane: that side has no border and no radius, so the panel
+   runs into the frame instead of floating in front of it. */
+.pt-panel[data-flush~="left"] {
+  border-left-width: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.pt-panel[data-flush~="right"] {
+  border-right-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.pt-panel[data-flush~="top"] {
+  border-top-width: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.pt-panel[data-flush~="bottom"] {
+  border-bottom-width: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* Against a neighbour: square corners on both, and exactly one hairline
+   between them — the panel further from the flush edge keeps its border and
+   the nearer one drops the side it would double up on. */
+.pt-panel[data-join~="left"] {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.pt-panel[data-join~="top"] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.pt-panel[data-join~="right"] {
+  border-right-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.pt-panel[data-join~="bottom"] {
+  border-bottom-width: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* The panel inside gives up its card — the wrapper is the card now. */
+#plan-tools.pt-dock .pt-inner {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  /* WRAP, DO NOT SCROLL. A docked panel is part of the frame, and a scrollbar
+     inside the frame hides commands behind a gesture nobody makes on a
+     toolbar. Given the zone's room in pixels (--pt-w/--pt-h, written by cap()
+     in js/plan_tools_dock.js, because a percentage cannot resolve against a
+     max-height), a tool column that will not fit the pane becomes two columns
+     and a tool row becomes two rows — everything stays reachable, and the zone
+     grows across instead of clipping along. */
+  flex-wrap: wrap;
+  align-content: flex-start;
+  overflow: visible;
+  max-width: var(--pt-w, none);
+  max-height: var(--pt-h, none);
+}
+/* Stretched to a neighbour's height, a column of square tool buttons centres
+   in the width it was given rather than smearing across it. */
+#plan-tools.pt-dock #plan-toolbar[data-axis="v"] { align-items: center; }
+#plan-tools.pt-dock #plan-toolbar[data-axis="h"] { align-items: center; justify-content: flex-start; }
+/* A separator only separates along the flow; wrapped onto its own line it is a
+   stray hairline, and at the fold it is a hairline in the wrong direction. */
+#plan-tools.pt-dock #plan-toolbar .tb-sep { align-self: center; }
+/* Laid along a horizontal edge, the tool column becomes a tool row and the
+   chips drop to icons — five names side by side would be wider than the plan.
+   Keyed on the panel, not the zone, so a panel in mid-air can preview the
+   shape it is about to take. */
+#plan-toolbar[data-axis="h"] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px 0 2px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+#plan-toolbar[data-axis="h"] .tool {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+#plan-toolbar[data-axis="h"] .tool i {
+  font-size: 1.15rem;
+}
+#plan-toolbar[data-axis="h"] .tool kbd {
+  position: absolute;
+  bottom: 2px;
+  inset-inline-end: 2px;
+  font-size: max(8px, var(--fs-floor, 0px));
+  padding: 1px 2.5px;
+  line-height: 1;
+  border-radius: 3px;
+}
+#plan-toolbar[data-axis="h"] .tb-sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--border-color);
+  align-self: center;
+}
+#plan-toolbar[data-axis="h"] .tool-delete {
+  margin-inline-end: 2px;
+}
+#layer-chips[data-axis="h"] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  width: auto;
+  gap: 4px;
+  padding: 0 6px 0 2px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+#layer-chips[data-axis="h"] .lchip {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 1px;
+  padding: 2px 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface, #000) 4%, transparent);
+  border: 1px solid var(--border-color);
+  box-sizing: border-box;
+  transition: 0.15s ease; transition-property: var(--ease-paint);
+}
+#layer-chips[data-axis="h"] .lchip:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border-color));
+  background: color-mix(in srgb, var(--bg-surface, #000) 7%, transparent);
+}
+#layer-chips[data-axis="h"] .lchip.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 1px 4px var(--accent-glow);
+}
+#layer-chips[data-axis="h"] .lchip > button {
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+#layer-chips[data-axis="h"] .lchip > button:hover {
+  background: var(--btn-bg-hover);
+  color: var(--text-main);
+}
+#layer-chips[data-axis="h"] .lchip .lchip-name {
+  width: 24px;
+  height: 22px;
+  padding-inline: 0;
+  justify-content: center;
+}
+#layer-chips[data-axis="h"] .lchip.on .lchip-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+#layer-chips[data-axis="h"] .lchip .lchip-name i {
+  font-size: 14px;
+}
+#layer-chips[data-axis="h"] .lchip .lchip-t { display: none; }
+#layer-chips[data-axis="h"] .lchip:not(.on):not(:hover) .lchip-more {
+  display: none;
+}
+
+/* ---- a plan pane too narrow for its own chrome ---------------------------
+   Split view can leave the plan 120px wide on a 1600px monitor, and every one
+   of these panels was sized for a window rather than for the pane it lives in:
+   the layer panel is 198px by design, so it painted over the 3D view and the
+   inspector beside it. js/plan_tools_dock.js measures #view-2d and sets
+   .plan-narrow / .plan-tiny; the rules below are what those mean.
+
+   Order of sacrifice, worst case last: labels, then the wall palette, then the
+   dock itself (the module hands the panels back to the phone rail). What never
+   happens at any width is chrome painting outside the pane — a tool column
+   over the 3D view is worse than one you have to scroll. */
+#view-2d > #plan-tools { max-width: calc(100% - 16px); max-height: 100%; }
+#view-2d.plan-tiny > #plan-tools { max-width: calc(100% - 12px); }
+.pt-zone { overflow: visible; }
+#view-2d.plan-narrow .layer-chips { width: auto; }
+#view-2d.plan-narrow .lchip .lchip-t { display: none; }
+#view-2d.plan-narrow .lchip .lchip-name {
+  flex: 0 0 auto;
+  width: 26px;
+  padding-inline: 0;
+  justify-content: center;
+}
+#view-2d.plan-narrow #plan-wall-palette { max-width: 100%; }
+/* The gesture hint and the tool hint are both elective prose. In a strip this
+   narrow they wrap into a column and cover the drawing they describe. */
+#view-2d.plan-narrow > .hint,
+#view-2d.plan-narrow #plan-hint { display: none; }
+/* Keep layers reachable even at the smallest pane width by collapsing the
+   panel to a permanent icon rail beside the scrollable tool strip. */
+#view-2d.plan-tiny #plan-wall-palette,
+#view-2d.plan-tiny .layer-chips {
+  display: flex;
+  width: 44px;
+  padding: 4px;
+}
+#view-2d.plan-tiny .layer-chips .lchip-name { width: 34px; padding: 0; justify-content: center; }
+#view-2d.plan-tiny .layer-chips .lchip-t,
+#view-2d.plan-tiny .layer-chips .lchip-eye,
+#view-2d.plan-tiny .layer-chips .lchip-lock,
+#view-2d.plan-tiny .layer-chips .lchip-more { display: none; }
+#view-2d.plan-tiny #plan-tools:not(.pt-dock) { gap: 4px; inset-inline-start: 6px; }
+/* The status strip keeps the two things a drafter reads while drawing — where
+   the cursor is and which aids are on. The target selector and the tuning
+   button are settings, and settings can wait for a wider pane. */
+#cad-status { overflow: hidden; }
+#view-2d.plan-narrow #cad-status { gap: 8px; padding: 0 6px; }
+#view-2d.plan-narrow #cad-status .cad-main,
+#view-2d.plan-narrow #cad-status .cad-target,
+#view-2d.plan-narrow #cad-status .cad-tune-btn { display: none; }
+#view-2d.plan-narrow #cad-status .cad-coord { min-width: 0; }
+
+/* The handle. One per panel, and the only child of the pair that is never a
+   command — dragging it moves that panel alone. */
+.pt-grip {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: grab;
+  /* the pointer stream has to reach the drag, not the browser's pan/scroll */
+  touch-action: none;
+}
+.pt-panel[data-axis="v"] > .pt-grip { height: 16px; }
+.pt-panel[data-axis="h"] > .pt-grip {
+  width: 14px;
+  height: 100%;
+  font-size: 13px;
+  opacity: 1;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.pt-grip:hover { background: var(--btn-bg-hover); color: var(--text-main); opacity: 1; }
+.pt-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#plan-tools.pt-dragging .pt-grip { cursor: grabbing; }
+
+/* In the air it is a card again — it is not part of any frame yet — and the
+   dashed box is where it will land, at which end of which group. Slightly
+   translucent, and lifted: the slot underneath is the answer to the question
+   the drag is asking, so it must not be the thing being hidden. */
+/* Dropped in open plan rather than against an edge: no zone owns it, so the
+   panel draws the whole card itself. This is the resting state of the drag —
+   what you saw under the cursor is what stays. */
+.pt-panel.pt-free {
+  position: absolute;
+  z-index: 3;
+  pointer-events: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-panel);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.pt-panel.pt-sized {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.pt-panel.pt-sized > .pt-inner {
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  flex: 1 1 auto;
+}
+/* Overlay chrome was absolutely positioned on the pane; once wrapped the
+   wrapper owns the box, so the inner element has to become a normal child. */
+.pt-panel.pt-free > .pt-inner,
+.pt-panel.pt-overlay > .pt-inner {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: none !important;
+  margin: 0;
+  max-width: 100% !important;
+  overflow: auto;
+  box-shadow: none;
+}
+.pt-panel[data-panel="gizmo"] > .pt-grip,
+.pt-panel[data-panel="max"] > .pt-grip {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 18px;
+  height: 18px;
+  z-index: 2;
+  border-radius: 6px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-sm);
+}
+.pt-rh {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  pointer-events: auto;
+  touch-action: none;
+  display: none;
+}
+.pt-dock .pt-panel .pt-rh { display: block; }
+.pt-rh-n, .pt-rh-s { left: 10px; right: 10px; height: 8px; }
+.pt-rh-e, .pt-rh-w { top: 10px; bottom: 10px; width: 8px; }
+.pt-rh-n { top: -4px; }
+.pt-rh-s { bottom: -4px; }
+.pt-rh-e { right: -4px; }
+.pt-rh-w { left: -4px; }
+.pt-rh-n, .pt-rh-s { cursor: ns-resize; }
+.pt-rh-e, .pt-rh-w { cursor: ew-resize; }
+.pt-rh-ne, .pt-rh-nw, .pt-rh-se, .pt-rh-sw {
+  width: 10px;
+  height: 10px;
+}
+.pt-rh-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.pt-rh-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.pt-rh-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.pt-rh-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.pt-panel.pt-floating {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  opacity: 0.82;
+  transform: scale(0.98);
+}
+.pt-drop {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  border: 2px dashed var(--accent);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  /* It moves between slots rather than teleporting: the eye follows a box that
+     slides, and "beside" versus "under" is exactly the distinction the
+     animation makes legible. */
+  transition: left 0.12s ease, top 0.12s ease, width 0.12s ease, height 0.12s ease;
+}
+.pt-drop[hidden] { display: none; }
+
+/* The two controls that were in the top-trailing corner first move down when a
+   panel claims it (js/plan_tools_dock.js sets the lift on #view-2d only, so
+   the 3D pane's own gizmo and button never move). */
+#view-2d .view-max-btn { top: calc(12px + var(--plan-corner-lift, 0px)); }
+#view-2d .plan-gizmo { top: calc(54px + var(--plan-corner-lift, 0px)); }
+/* separators included: anything that shrinks turns the column into slivers */
+#plan-toolbar > * { flex: 0 0 auto; }
+#plan-toolbar .tool {
+  position: relative;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+#plan-toolbar .tool:hover {
+  background: var(--btn-bg-hover);
+  transform: none;
+  color: var(--text-main);
+}
+#plan-toolbar .tool i {
+  font-size: 1.3rem;
+}
+#plan-toolbar .tool kbd {
+  position: absolute;
+  bottom: 3px;
+  inset-inline-end: 4px;
+  font-family: inherit;
+  font-size: max(9px, var(--fs-floor, 0px));
+  font-weight: 600;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: var(--btn-bg-hover);
+  pointer-events: none;
+}
+#plan-toolbar .tool:disabled,
+#plan-toolbar .tool.elev-blocked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+#plan-toolbar .tool:disabled:hover,
+#plan-toolbar .tool.elev-blocked:hover {
+  background: transparent;
+  color: var(--text-muted);
+  transform: none;
+}
+#plan-toolbar .tool.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: var(--on-accent);
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+#plan-toolbar .tool.active kbd {
+  background: color-mix(in srgb, var(--on-accent) 22%, transparent);
+  color: var(--on-accent);
+}
+#plan-toolbar .tool-erase,
+#plan-toolbar .tool-delete { color: var(--danger); }
+#plan-toolbar .tool-erase.active,
+#plan-toolbar .tool-delete.active { color: var(--on-accent); }
+html[data-tool="erase"] #plan { cursor: crosshair; }
+#plan-toolbar .tool-erase:hover,
+#plan-toolbar .tool-delete:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--btn-border));
+}
+#plan-toolbar .tool-erase.active:hover {
+  color: var(--on-accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  border-color: transparent;
+}
+

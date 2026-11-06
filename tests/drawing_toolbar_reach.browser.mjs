@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {stylesFiles} from './helpers/styles_source.mjs';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
 
 const chrome=await findChrome();
@@ -14,14 +15,14 @@ const buttons=[...toolbar.matchAll(/<button\b([^>]*)>/g)].map(match=>({
 test('all drawing rail commands scroll into a clickable canvas area above status chrome',chrome?{timeout:120000}:{skip:'Chrome unavailable'},async()=>{
   const page=await openPage({width:1280,height:820,mobile:false,touch:false});
   try{
-    await page.eval(async buttons=>{
+    await page.eval(async (buttons,sheets)=>{
       document.body.innerHTML='<div id="modeler" class="md-isdrawing" style="display:block;position:relative;width:700px;height:500px"><div id="mdDrawingTools" class="md-drawing-tools"></div><div id="status" style="position:absolute;bottom:0;height:44px;width:100%;z-index:9">Status chrome</div></div>';
-      if(!document.querySelector('link[href*="styles.css"]')){
-        const css=document.createElement('link');css.rel='stylesheet';css.href='/css/styles.css';document.head.append(css);await new Promise(resolve=>css.onload=resolve);
+      if(!document.querySelector('link[href*="styles_01_"]')){
+        await Promise.all(sheets.map(href=>{const css=document.createElement('link');css.rel='stylesheet';css.href='/'+href;document.head.append(css);return new Promise(resolve=>css.onload=resolve);}));
       }
       const rail=document.querySelector('#mdDrawingTools');
       for(const spec of buttons){const button=document.createElement('button');button.type='button';button.id=spec.id;button.textContent=spec.tool||spec.id;button.addEventListener('click',()=>button.dataset.clicked='yes');rail.appendChild(button);}
-    },buttons);
+    },buttons,stylesFiles());
     for(const height of [280,500,900]){
       const result=await page.eval(async height=>{
         const host=document.querySelector('#modeler'),rail=document.querySelector('#mdDrawingTools');host.style.height=height+'px';

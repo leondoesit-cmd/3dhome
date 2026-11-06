@@ -1,0 +1,1838 @@
+/* ---- Tool titles / labels toggle (#toolNamesToggle / .show-titles) ---- */
+#plan-toolbar .tool .tool-name {
+  display: none;
+}
+#plan-toolbar .tool-names-toggle {
+  color: var(--text-muted);
+}
+#plan-toolbar .tool-names-toggle:hover {
+  color: var(--text-main);
+  background: var(--btn-bg-hover);
+}
+#plan-toolbar .tool-names-toggle.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: 0 1px 4px var(--accent-glow);
+}
+
+/* When titles are enabled (vertical mode / default) */
+#plan-toolbar.show-titles {
+  width: 124px;
+  min-width: 124px;
+}
+#plan-toolbar.show-titles .tool {
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 8px;
+  gap: 6px;
+  border-radius: 7px;
+}
+#plan-toolbar.show-titles .tool i {
+  flex: 0 0 18px;
+  font-size: 1.1rem;
+  display: grid;
+  place-items: center;
+}
+#plan-toolbar.show-titles .tool .tool-name {
+  display: inline-block;
+  flex: 1 1 auto;
+  font-size: max(11.5px, var(--fs-floor, 0px));
+  font-weight: 500;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: inherit;
+  line-height: 1.2;
+}
+#plan-toolbar.show-titles .tool kbd {
+  position: static;
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+  font-size: max(8px, var(--fs-floor, 0px));
+  padding: 1px 3px;
+  line-height: 1;
+}
+#plan-toolbar.show-titles .tb-sep {
+  width: calc(100% - 12px);
+  height: 1px;
+  margin: 3px auto;
+  background: var(--border-color);
+  align-self: stretch;
+}
+
+/* Horizontal mode with titles enabled: single sleek row, no blank-line wrapping */
+#plan-toolbar.show-titles[data-axis="h"] {
+  width: auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+}
+#plan-toolbar.show-titles[data-axis="h"] .tool {
+  width: auto;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 5px;
+  gap: 4px;
+  border-radius: 6px;
+  flex: 0 0 auto;
+}
+#plan-toolbar.show-titles[data-axis="h"] .tool i {
+  font-size: 1.05rem;
+}
+#plan-toolbar.show-titles[data-axis="h"] .tool .tool-name {
+  display: inline-block;
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1;
+}
+#plan-toolbar.show-titles[data-axis="h"] .tool kbd {
+  position: static;
+  margin-inline-start: 1px;
+  font-size: max(7.5px, var(--fs-floor, 0px));
+  padding: 1px 2px;
+  line-height: 1;
+}
+#plan-toolbar.show-titles[data-axis="h"] .tool-names-toggle .tool-name {
+  /* The list glyph plus accessible label is sufficient in a horizontal
+     ribbon. Keeping the literal “Names” caption made this one settings button
+     wrap onto a lonely second row at common desktop widths. */
+  display: none;
+}
+#plan-toolbar.show-titles[data-axis="h"] .tool-names-toggle {
+  /* This is a ribbon preference, not another drawing command. A quiet divider
+     and a flat button keep it from reading as a floating card laid over the
+     destructive Delete action. */
+  width: 32px;
+  margin-inline-start: 5px;
+  border-inline-start: 1px solid var(--border-color);
+  border-radius: 5px;
+  box-shadow: none;
+  /* The preference lives after the independently scrolling command strip. */
+  position: static;
+  background: var(--bg-panel);
+}
+#plan-toolbar.show-titles[data-axis="h"] .tool-names-toggle.active {
+  box-shadow: none;
+}
+#plan-toolbar.show-titles[data-axis="h"] .tb-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  align-self: center;
+}
+
+/* Pane width no longer overrides the user's labels preference.  A narrow 2D
+   pane gets a horizontally scrollable ribbon (see the dock rules below), but
+   `show-titles` still means exactly what it says and its toggle remains
+   visible. */
+#view-2d #plan-toolbar.show-titles[data-axis="h"] .tool .tool-name {
+  display: inline-block;
+}
+#view-2d #plan-toolbar[data-axis="h"] .tool-names-toggle {
+  display: flex;
+  position: static;
+  margin-inline-start: 5px;
+  border-inline-start: 1px solid var(--border-color);
+  background: var(--bg-panel);
+  box-shadow: none;
+}
+#plan-toolbar .tool-scroll {
+  position: static;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  flex: 0 0 25px;
+  width: 25px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  cursor: pointer;
+  box-shadow: none;
+}
+#plan-toolbar .tool-scroll[hidden] { display: none !important; }
+#plan-toolbar .tool-scroll:disabled { opacity: .42; cursor: default; }
+#plan-toolbar .tool-scroll:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+#view-3d #plan-toolbar .tool-scroll { display: none !important; }
+
+#plan-wall-palette {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 196px;
+  padding: 8px;
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-radius: 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+#plan-wall-palette[hidden] { display: none !important; }
+
+/* Room-preset palette — same card as the wall palette beside it, so the two
+   dock together without a seam. The chips are two-line (name over clear size)
+   because the size is what people actually choose between: "bedroom" is four
+   different rooms depending on whether it is 3.0 or 4.2 metres. */
+#plan-room-palette {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 208px;
+  padding: 8px;
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-radius: 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+#plan-room-palette[hidden] { display: none !important; }
+#plan-room-palette.auto-collapsed {
+  width: 42px;
+  padding: 5px;
+  overflow: hidden;
+}
+#plan-room-palette.auto-collapsed .wd-head {
+  justify-content: center;
+  padding: 0;
+}
+#plan-room-palette.auto-collapsed .wd-head .wd-title,
+#plan-room-palette.auto-collapsed > :not(.wd-head) {
+  display: none;
+}
+#plan-room-palette button { box-shadow: none; transform: none; }
+#plan-room-palette button:hover,
+#plan-room-palette button:active { transform: none; box-shadow: none; }
+.rp-tabs { display: flex; flex-wrap: wrap; gap: 3px; }
+.rp-tab {
+  flex: 1 1 auto;
+  padding: 3px 6px;
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 600;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.rp-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.rp-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: start;
+}
+.rp-chip:hover { border-color: var(--accent); }
+.rp-chip.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.rp-name { font-size: max(10.5px, var(--fs-floor, 0px)); font-weight: 600; line-height: 1.15; }
+.rp-size { font-size: max(9px, var(--fs-floor, 0px)); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.rp-fields { display: flex; gap: 5px; }
+.rp-field { flex: 1 1 0; display: flex; align-items: center; gap: 4px; font-size: max(9.5px, var(--fs-floor, 0px)); color: var(--text-muted); }
+.rp-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 4px;
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-panel);
+  color: var(--text-main);
+}
+.rp-turn {
+  padding: 4px 6px;
+  font-size: max(10px, var(--fs-floor, 0px));
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+}
+.rp-conn-sec {
+  margin-top: 6px;
+}
+.rp-conn-seg {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-canvas, rgba(0, 0, 0, 0.06));
+  padding: 2px;
+  border-radius: 7px;
+}
+.rp-conn-btn {
+  flex: 1 1 0;
+  padding: 3px 2px;
+  font-size: max(9.5px, var(--fs-floor, 0px));
+  font-weight: 500;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+}
+.rp-conn-btn:hover {
+  color: var(--text-main);
+}
+.rp-conn-btn.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.rp-open-note {
+  margin-top: 4px;
+  font-size: max(9px, var(--fs-floor, 0px));
+  color: var(--warn);
+  line-height: 1.25;
+}
+.wd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 2px 4px;
+}
+.wd-title {
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-main);
+}
+.wd-collapse {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.wd-collapse:hover {
+  background: var(--btn-bg-hover);
+  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-color));
+}
+.wd-collapse i {
+  font-size: 13px;
+}
+#plan-wall-palette.auto-collapsed {
+  width: 42px;
+  padding: 5px;
+  overflow: hidden;
+}
+#plan-wall-palette.auto-collapsed .wd-head {
+  justify-content: center;
+  padding: 0;
+}
+#plan-wall-palette.auto-collapsed .wd-head .wd-title {
+  display: none;
+}
+#plan-wall-palette.auto-collapsed .wd-sec {
+  display: none;
+}
+/* The HUD canvas sits exactly over the model canvas. inset:0 on the same
+   positioned #view-2d gives it the identical client box, which is what
+   sizeCanvas() measures for both; pointer-events:none keeps every pointer
+   gesture on #plan, so no listener in js/interaction.js has to change. */
+#plan-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+#plan.space-pan { cursor: grab !important; }
+#plan.is-panning { cursor: grabbing !important; }
+.furn-drop-ghost {
+  position: absolute;
+  z-index: 18;
+  pointer-events: none;
+  box-sizing: border-box;
+  min-width: 16px;
+  min-height: 16px;
+  border: 2px solid var(--accent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--on-accent) 45%, transparent), 0 8px 24px var(--accent-glow);
+  transform: translate(-50%, -50%);
+}
+#plan-wall-palette button {
+  box-shadow: none;
+  transform: none;
+}
+#plan-wall-palette button:hover,
+#plan-wall-palette button:active {
+  transform: none;
+  box-shadow: none;
+}
+.wd-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.wd-lab {
+  font-size: max(9.5px, var(--fs-floor, 0px));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-inline: 2px;
+}
+.wd-row {
+  display: flex;
+  gap: 2px;
+}
+.wd-types,
+.wd-edit {
+  display: grid;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid var(--border-color);
+  background: var(--btn-bg);
+  box-sizing: border-box;
+}
+.wd-types {
+  grid-template-columns: repeat(7, 1fr);
+}
+.wd-edit {
+  grid-template-columns: repeat(5, 1fr);
+}
+.wd-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.wd-btn:hover { background: var(--btn-bg-hover); color: var(--text-main); }
+.wd-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: var(--on-accent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.wd-btn.active i { color: var(--on-accent); }
+.wd-btn i { font-size: 1rem; opacity: 1; }
+.wd-loc {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  direction: ltr;
+  gap: 2px;
+  padding: 3px;
+  overflow: visible;
+  border-radius: 9px;
+  border: 1px solid var(--border-color);
+  background: var(--btn-bg);
+  box-sizing: border-box;
+}
+.wd-loc-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+.wd-loc-btn:hover { background: var(--btn-bg-hover); }
+/* Every other button in the plan toolbar meets the 44px touch target; these
+   were 24×30 even on a phone, where the `title` tooltip carrying their only
+   label does not exist either. Grow them wherever the pointer is coarse — and
+   keep this AFTER the base .wd-btn/.wd-loc-btn heights so it actually wins. */
+@media (pointer: coarse) {
+  .wd-btn,
+  .wd-loc-btn {
+    height: auto;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .wd-types,
+  .wd-edit,
+  .wd-loc {
+    grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  }
+}
+.wd-loc-btn.active {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-panel));
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.wd-loc-icon {
+  display: block;
+  width: 24px;
+  height: 14px;
+  margin: 0 auto;
+  position: relative;
+  border-radius: 2px;
+  box-sizing: border-box;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-muted) 32%, transparent);
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--text-muted) 10%, transparent) 0 20%,
+      color-mix(in srgb, var(--text-muted) 20%, transparent) 20% 80%,
+      color-mix(in srgb, var(--text-muted) 10%, transparent) 80% 100%);
+}
+.wd-loc-btn.active .wd-loc-icon {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 12%, transparent) 0 20%,
+      color-mix(in srgb, var(--accent) 24%, transparent) 20% 80%,
+      color-mix(in srgb, var(--accent) 12%, transparent) 80% 100%);
+}
+.wd-loc-icon::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text-muted) 55%, transparent);
+  transition: background 0.12s ease, width 0.12s ease;
+}
+.wd-loc-btn:hover .wd-loc-icon::after {
+  background: color-mix(in srgb, var(--accent) 70%, var(--text-muted));
+}
+.wd-loc-btn.active .wd-loc-icon::after {
+  width: 2.5px;
+  margin-left: -1.25px;
+  background: var(--accent);
+  box-shadow: 0 0 4px var(--accent-glow, rgba(0, 0, 0, 0.15));
+}
+.wd-loc-btn[data-wall-from="exterior"] .wd-loc-icon::after {
+  left: 0%;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: 0;
+  border-radius: 2px 0 0 2px;
+}
+.wd-loc-btn[data-wall-from="main-exterior"] .wd-loc-icon::after {
+  left: 20%;
+}
+.wd-loc-btn[data-wall-from="center"] .wd-loc-icon::after {
+  left: 50%;
+  border-left: 2px dashed color-mix(in srgb, var(--text-muted) 65%, transparent);
+  background: transparent;
+  width: 0;
+}
+.wd-loc-btn[data-wall-from="center"]:hover .wd-loc-icon::after {
+  border-left-color: color-mix(in srgb, var(--accent) 75%, var(--text-muted));
+}
+.wd-loc-btn.active[data-wall-from="center"] .wd-loc-icon::after {
+  border-left: 2px solid var(--accent);
+  background: transparent;
+  width: 0;
+}
+.wd-loc-btn[data-wall-from="main-interior"] .wd-loc-icon::after {
+  left: 80%;
+}
+.wd-loc-btn[data-wall-from="interior"] .wd-loc-icon::after {
+  left: auto;
+  right: 0%;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: 0;
+  border-radius: 0 2px 2px 0;
+}
+.wd-loc-btn::before {
+  content: attr(aria-label);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--bg-panel);
+  background: color-mix(in srgb, var(--text-main) 92%, #000);
+  border: 1px solid color-mix(in srgb, var(--text-main) 20%, transparent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.wd-loc-btn[data-wall-from="exterior"]::before {
+  left: 0;
+  transform: none;
+}
+.wd-loc-btn[data-wall-from="interior"]::before {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+.wd-loc-btn:hover::before,
+.wd-loc-btn:focus-visible::before {
+  opacity: 1;
+}
+
+/* Build Grid */
+.build-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.furn-ui {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.furn-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.furn-cat {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  color: var(--text-main);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: 0.2s; transition-property: var(--ease-paint);
+  font-size: max(11px, var(--fs-floor, 0px));
+}
+.furn-cat:hover {
+  background: var(--btn-hover);
+}
+.furn-cat.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.furn-cat i {
+  font-size: 16px;
+}
+.lib-empty {
+  padding: 12px 4px;
+  font-style: italic;
+  text-align: center;
+}
+.furn-subcats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+.furn-subcat {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: max(11px, var(--fs-floor, 0px));
+  transition: 0.2s; transition-property: var(--ease-paint);
+}
+.furn-subcat:hover {
+  color: var(--text-main);
+}
+.furn-subcat.active {
+  background: var(--btn-bg);
+  border-color: var(--btn-border);
+  color: var(--text-main);
+  font-weight: 500;
+}
+.furn-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+/* Frameless tiles: the rendered model IS the icon, and a box around every one
+   of them turned the grid into a wall of borders. Hover lifts the model and
+   tints the label instead of drawing a frame. */
+.furn-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  padding: 6px 2px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  gap: 4px;
+  text-align: center;
+}
+.furn-item:hover {
+  transform: translateY(-2px);
+}
+.furn-item:hover span {
+  color: var(--accent);
+}
+/* the model picture (and the placeholder that reserves its space) */
+.furn-thumb {
+  width: 100%;
+  height: 48px;
+  object-fit: contain;
+  display: block;
+  transition: filter 0.15s ease;
+}
+.furn-item:hover .furn-thumb {
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.18));
+}
+/* category / subcategory glyph — same footprint as a model picture */
+.furn-nav-icon {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.furn-item i {
+  font-size: 30px;
+  color: var(--accent);
+}
+.furn-item span {
+  font-size: max(10px, var(--fs-floor, 0px));
+  line-height: 1.15;
+  color: var(--text-main);
+  transition: color 0.15s ease;
+}
+
+input[type="text"],
+input[type="search"],
+textarea {
+  unicode-bidi: plaintext;
+}
+
+input[type="text"],
+input[type="search"],
+input[type="number"],
+select,
+textarea {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-main);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: 0.2s ease; transition-property: var(--ease-paint);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--bg-panel);
+}
+
+/* Range Inputs Styled */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  margin-top: -6px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.1s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+input[type="color"] {
+  border: none;
+  background: none;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+label span:first-child {
+  flex: 1;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Right Inspector Props */
+.props {
+  display: none;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 16px;
+  align-items: stretch;
+}
+.props.on {
+  display: flex;
+  animation: slideInProps 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Live selection preview in the property inspector. Its height is tied to the
+   viewport, not to the amount of form content, so opening Properties always
+   reserves exactly the requested quarter-screen view. */
+.inspector-preview {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  flex: 0 0 25vh;
+  width: 100%;
+  height: 25vh;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-color));
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 58%),
+    color-mix(in srgb, var(--bg-app) 84%, var(--bg-panel));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  touch-action: none;
+  cursor: grab;
+  isolation: isolate;
+}
+.inspector-preview[hidden] { display: none !important; }
+.inspector-preview.dragging { cursor: grabbing; }
+.inspector-preview canvas { width: 100%; height: 100%; }
+.inspector-preview-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 18px;
+  color: var(--text-muted);
+  font-size: max(11px, var(--fs-floor, 0px));
+  text-align: center;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg-app) 70%, transparent);
+  transition: opacity .18s ease;
+}
+.inspector-preview-state.ready { opacity: 0; }
+.inspector-preview-state i { color: var(--accent); font-size: 25px; }
+.inspector-preview-hint {
+  position: absolute;
+  inset-inline-start: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+  border-radius: 999px;
+  color: rgba(255,255,255,.94);
+  background: rgba(15,18,24,.68);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  font-size: max(10px, var(--fs-floor, 0px));
+  line-height: 1;
+  pointer-events: none;
+}
+.inspector-preview-reset {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border-color: rgba(255,255,255,.24);
+  color: rgba(255,255,255,.94);
+  background: rgba(15,18,24,.68);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  cursor: pointer;
+}
+.inspector-preview-roof {inset-inline-end:auto;inset-inline-start:8px;width:auto;padding:0 8px;font-size:max(11px, var(--fs-floor, 0px));}
+.inspector-preview-roof[aria-pressed="true"] {outline:2px solid #26b99a;}
+.inspector-preview-reset:hover { background: rgba(15,138,106,.88); }
+@keyframes slideInProps {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#selname,
+#selname2,
+#selname3,
+#selname4 {
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+}
+.insp-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+.insp-head #selname {
+  margin-bottom: 0;
+}
+.insp-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+/* Tree improvements */
+#tree {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--input-bg);
+  padding: 10px;
+  margin-top: 10px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+.trRoom {
+  font-weight: 600;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--btn-bg);
+  cursor: pointer;
+  border: 1px solid var(--btn-border);
+  transition: 0.2s ease; transition-property: var(--ease-paint);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.trRoomName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trMeta {
+  font-weight: 500;
+  font-size: max(0.82em, var(--fs-floor, 0px));
+  opacity: 0.7;
+  white-space: nowrap;
+}
+.trRename {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: var(--input-bg);
+  color: var(--text-main);
+}
+.trDel {
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0.85em;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.trItem:hover .trDel,
+.trRoom:hover .trDel {
+  opacity: 0.6;
+}
+/* room visibility toggle: only shows on hover unless the room IS hidden,
+   in which case it stays lit as the reminder + the way back */
+.trEye {
+  opacity: 0;
+  cursor: pointer;
+  font-size: 1em;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.trRoom:hover .trEye {
+  opacity: 0.7;
+}
+.trEye:hover {
+  opacity: 1;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.trEye.on {
+  opacity: 0.9;
+}
+.trRoom.sel .trEye,
+.trRoom.sel .trDel {
+  color: color-mix(in srgb, var(--on-accent) 85%, transparent);
+}
+/* a hidden room and its contents read as absent-but-present */
+.trRoom.hid .trRoomName,
+.trRoom.hid .trMeta,
+.trItem.hid {
+  opacity: 0.45;
+}
+.trRoom.hid .trRoomName {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.trDel:hover {
+  opacity: 1;
+  color: var(--on-accent);
+  background: var(--danger);
+}
+.trItem.sel .trDel {
+  color: color-mix(in srgb, var(--on-accent) 85%, transparent);
+}
+.trRoom.sel,
+.trItem.sel {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: var(--on-accent);
+  border-color: transparent;
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.trItem {
+  margin-left: 20px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  transition: 0.2s ease; transition-property: var(--ease-paint);
+}
+.trItem:hover,
+.trRoom:hover {
+  background: var(--btn-bg-hover);
+  transform: translateX(2px);
+}
+.trItem:focus-within .trDel,
+.trRoom:focus-within .trDel,
+.trDel:focus-visible {
+  opacity: 0.9;
+}
+button.trName,
+button.trDel {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}
+button.trName {
+  text-align: start;
+  padding: 0;
+  cursor: pointer;
+  min-width: 0;
+}
+button.trName:focus-visible,
+button.trDel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trItem, .trRoom { transition: none; }
+  .trItem:hover, .trRoom:hover { transform: none; }
+}
+.trItem.sel {
+  color: var(--on-accent);
+}
+.trRoom.sel:hover,
+.trItem.sel:hover {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: var(--on-accent);
+  transform: translateX(0);
+}
+.trLk {
+  margin-right: 8px;
+}
+
+/* Overlays & Hints */
+.lbl {
+  position: absolute;
+  top: 12px;
+  inset-inline-start: 12px;
+  background: var(--hud-bg);
+  color: var(--hud-fg);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+/* First-run hint. It used to pulse in the middle of the viewport forever,
+   covering the model it was explaining; now it fades out for good once the
+   view has actually been used (body.used-3d / .used-2d, set in js/ui.js). */
+.hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(90%, 520px);
+  text-align: center;
+  background: var(--hud-bg);
+  color: var(--hud-fg);
+  padding: 8px 16px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-md);
+  opacity: 0.92;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+body.used-3d #view-3d > .hint,
+body.used-2d #view-2d > .hint,
+/* an active tool's own hint (#plan-hint) takes the same strip */
+#view-2d:has(> #plan-hint:not([hidden])) > .hint {
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
+}
+/* the 2D hint sits above the CAD status bar, not on top of it */
+#view-2d > .hint {
+  bottom: 44px;
+}
+/* the 3D hint sits above the floating planner navigation toolbar */
+#view-3d > .hint {
+  bottom: 84px;
+}
+@media (max-width: 600px) {
+  #view-3d > .hint {
+    bottom: 110px;
+  }
+}
+
+/* ---- CAD status bar (js/cad_hud.js) ----------------------------------
+   A drafting tool has to answer "where is the cursor / what am I about to
+   draw / which snap just moved my point" without being asked. One slim strip
+   along the bottom edge, tabular numerals so the digits don't jitter. */
+#cad-status {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 11;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+  font-size: max(11.5px, var(--fs-floor, 0px));
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  color: var(--text-main);
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  user-select: none;
+}
+#cad-status .cad-coord {
+  min-width: 148px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+#cad-status .cad-main {
+  font-weight: 600;
+  white-space: nowrap;
+}
+#cad-status .cad-main > * { display: inline; }
+#cad-status .cad-main #cadDetail:not(:empty)::before { content: " · "; }
+#cad-status .cad-selection-props {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-main);
+  background: var(--input-bg);
+}
+#cad-status .cad-snap {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+#cad-status .cad-snap:empty {
+  display: none;
+}
+#cad-status .cad-snap.on {
+  color: var(--on-accent);
+  background: var(--danger);
+}
+#cad-status .cad-toggles {
+  margin-inline-start: auto;
+  display: flex;
+  gap: 5px;
+}
+.cad-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.cad-target select {
+  height: 22px;
+  max-width: 135px;
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font: inherit;
+}
+.cad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 700;
+  font-size: max(11px, var(--fs-floor, 0px));
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1); transition-property: var(--ease-paint);
+}
+.cad-chip .t {
+  color: var(--text-main) !important;
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.cad-chip kbd {
+  font: inherit;
+  font-size: max(9.5px, var(--fs-floor, 0px));
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+}
+.cad-chip:hover {
+  background: var(--btn-bg-hover);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cad-chip:hover .t {
+  color: var(--accent) !important;
+}
+.cad-chip.on {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--on-accent) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.cad-chip.on .t {
+  color: var(--on-accent) !important;
+}
+.cad-chip.on kbd {
+  background: rgba(255, 255, 255, 0.28) !important;
+  color: var(--on-accent) !important;
+}
+
+/* ---- typed length/angle entry ---- */
+#cad-entry {
+  position: absolute;
+  z-index: 13;
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  max-width: min(420px, calc(100% - 16px));
+}
+#cad-entry[hidden] {
+  display: none;
+}
+#cad-entry label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  font-weight: 600;
+  color: var(--text-muted);
+}
+#cad-entry label[hidden] {
+  display: none;
+}
+#cad-entry input {
+  width: 82px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+#cad-entry input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+#cad-entry .cad-e-hint {
+  padding-bottom: 6px;
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ---- explicit wall dimensions (wall_constraints.js) ---- */
+.con-block {
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+.con-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.con-head .ph {
+  color: var(--accent);
+  font-size: 14px;
+}
+#wallProps summary .ph {
+  color: var(--accent);
+  font-size: 14px;
+  margin-inline-end: 6px;
+  vertical-align: -2px;
+}
+.con-badge {
+  min-width: 17px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: var(--on-danger);
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 700;
+  text-align: center;
+}
+.con-badge[hidden] {
+  display: none;
+}
+.con-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.con-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  font-size: max(11.5px, var(--fs-floor, 0px));
+  padding: 3px;
+  border-radius: 6px;
+  transition: background .12s ease, box-shadow .12s ease;
+}
+.con-row.hot {
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.con-row .con-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.con-row .con-val {
+  width: 62px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+.con-row .con-unit {
+  color: var(--text-muted);
+  font-size: max(10.5px, var(--fs-floor, 0px));
+}
+.con-row .con-err {
+  color: var(--danger);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.con-row.con-bad .con-name {
+  color: var(--danger);
+}
+.con-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--btn-border);
+  border-radius: 5px;
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.con-btn:hover {
+  background: var(--btn-bg-hover);
+}
+.con-btn.con-del:hover {
+  color: var(--danger);
+}
+.con-add {
+  display: flex;
+  gap: 5px;
+  margin-top: 7px;
+}
+.con-add.con-add-wrap {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.con-add.con-add-wrap button {
+  width: 100%;
+  min-width: 0;
+  flex: none;
+  white-space: normal;
+}
+.con-row.con-off { opacity: .52; }
+.con-face-select { width: 54px; height: 24px; font-size: max(10px, var(--fs-floor, 0px)); }
+.con-add button {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  font-size: max(11px, var(--fs-floor, 0px));
+}
+.con-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+.con-hint:empty {
+  display: none;
+}
+
+/* ---- snap tuning popover (cad_hud.js) ---- */
+.cad-tune-btn.tuned {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cad-tune-btn .t:empty {
+  display: none;
+}
+#cad-tune {
+  position: absolute;
+  z-index: 14;
+  inset-inline-end: 10px;
+  bottom: 40px;
+  width: 236px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  font-size: max(11.5px, var(--fs-floor, 0px));
+  color: var(--text-main);
+}
+#cad-tune[hidden] {
+  display: none;
+}
+.cad-tune-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cad-tune-t {
+  font-weight: 700;
+}
+.cad-tune-x {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cad-tune-str {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cad-tune-str .cad-tune-lab {
+  color: var(--text-muted);
+}
+.cad-tune-str input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+.cad-tune-str b {
+  min-width: 34px;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.cad-tune-hint {
+  margin: 4px 0 8px;
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+.cad-tune-kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.cad-tune-k {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+.cad-tune-k input {
+  accent-color: var(--accent);
+}
+.cad-tune-reset {
+  width: 100%;
+  margin-top: 10px;
+  height: 26px;
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.cad-tune-reset:hover {
+  background: var(--btn-bg-hover);
+}
+
+/* ---- per-view maximize control ---- */
+.view-max-btn {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 12px;
+  z-index: 12;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--hud-fg);
+  font-size: 16px;
+  background: var(--hud-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.view-max-btn:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+/* presentation/technical plan style: the maximize chip's twin, one slot inboard */
+.plan-style-btn {
+  position: absolute;
+  top: calc(12px + var(--plan-corner-lift, 0px));
+  inset-inline-end: 52px;
+  z-index: 12;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--hud-fg);
+  font-size: 16px;
+  background: var(--hud-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.plan-style-btn:hover,
+.plan-style-btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+#view-2d.rc-editor-map-on > .plan-style-btn { visibility: hidden; pointer-events: none; }
+.plan-style-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.plan-style-lbl {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--text-muted, inherit);
+}
+/* 3D edit-mode toggle: same chip as the maximize button, one slot inboard */
+.view-edit-btn {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 50px;
+  z-index: 12;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--hud-fg);
+  font-size: 16px;
+  background: var(--hud-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.view-edit-btn:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.view-edit-btn.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+/* dollhouse cutaway: a labelled pill under the edit/maximize chips */
+.view-dollhouse-btn {
+  top: 52px;
+  inset-inline-end: 12px;
+  width: auto;
+  padding: 0 9px;
+  gap: 6px;
+  font-size: 12px;
+}
+.view-dollhouse-btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+body.zombies-on #view-3d .view-dollhouse-btn,
+body.lava-on #view-3d .view-dollhouse-btn,
+body.rc-playing #view-3d .view-dollhouse-btn { display: none; }
+.cutaway-opts { display: grid; gap: 6px; margin: 2px 0 6px; padding-inline-start: 22px; }
+.cutaway-opts[hidden] { display: none; }
+.cutaway-opts .slider-row output { min-width: 56px; text-align: end; font-size: max(11px, var(--fs-floor, 0px)); }
+.view-drawing-btn {
+  inset-inline-end: 88px;
+  width: auto;
+  max-width: calc(100% - 170px);
+  padding: 0 9px;
+  gap: 6px;
+  font-size: 12px;
+}
+.view-drawing-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-drawing-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.planner-drawing-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+.planner-drawing-overlay[hidden] { display: none; }
+/* Drawing overlay settings: a compact card in the free corner above the view
+   gizmo — the top edge is claimed by the plan chrome and the floor tabs. */
+.drawing3d-panel {
+  position: absolute;
+  bottom: 136px;
+  inset-inline-end: 12px;
+  z-index: 13;
+  width: 236px;
+  max-width: calc(100% - 24px);
+  box-sizing: border-box;
+  padding: 8px 10px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--hud-bg);
+  color: var(--hud-fg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+}
+.drawing3d-panel[hidden] { display: none; }
+.d3p-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; cursor: pointer; }
+.d3p-row input[type="range"] { grid-column: 1; width: 100%; margin: 0; accent-color: var(--accent); }
+.d3p-row output { grid-column: 2; min-width: 34px; text-align: end; font-variant-numeric: tabular-nums; opacity: 0.8; }
+.d3p-label { grid-column: 1 / -1; font-weight: 600; }
+.d3p-switch .d3p-label { grid-column: 1; }
+.d3p-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.d3p-track { grid-column: 2; position: relative; width: 30px; height: 17px; border-radius: 9px; background: var(--border-color); transition: background 0.2s; }
+.d3p-track::after { content: ""; position: absolute; top: 2px; inset-inline-start: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: transform 0.2s; }
+.d3p-switch input:checked + .d3p-track { background: var(--accent); }
+.d3p-switch input:checked + .d3p-track::after { transform: translateX(13px); }
+[dir="rtl"] .d3p-switch input:checked + .d3p-track::after { transform: translateX(-13px); }
+.d3p-switch input:focus-visible + .d3p-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drawing3d-panel.hover-off .d3p-row:last-child { opacity: 0.45; }
+/* divider between the drawing tools and the lock toggle under them */
+#plan-toolbar .tb-sep {
+  height: 1px;
+  margin: 2px 4px;
+  background: var(--border-color);
+}
+/* the lock reads as a state, not as the active drawing tool */
+#plan-toolbar .tool#lockStructBtn.active {
+  background: var(--warn);
+  color: var(--on-warn);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--warn) 40%, transparent);
+}
+#plan-toolbar .tool#lockStructBtn.active i {
+  color: var(--on-warn);
+}
+/* When one view is maximized, hide the other view + the resizer */
+#center-canvas.max-view-3d #view-2d,
+#center-canvas.max-view-3d #view-resizer,
+#center-canvas.max-view-2d #view-3d,
+#center-canvas.max-view-2d #view-resizer {
+  display: none !important;
+}
+#center-canvas.max-view-3d #view-3d,
+#center-canvas.max-view-2d #view-2d {
+  flex: 1 1 auto !important;
+}
+

@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -6,7 +7,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 
 const modeler=modelerSource();
 const tree=fs.readFileSync(new URL('../js/modeler_tree.js',import.meta.url),'utf8');
-const css=fs.readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+const css=stylesSource();
 const rowClasses=new Function(sourceFunctionText(tree,'rowClasses')+';return rowClasses;')();
 function matchingDeclarations(classes){
   return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([,selectors])=>selectors.split(',').some(selector=>{

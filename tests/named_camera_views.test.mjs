@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -59,7 +60,7 @@ test('real naming form rejects changed owner, history and invalid name before Un
 });
 test('ordinary menu exposes capture, current-record recall and delete for both document types',()=>{
  const menu=sourceFunctionText(src,'showViewSelector');assert.match(menu,/Save current view…/);assert.match(menu,/restoreNamedCameraPose/);assert.match(menu,/removeNamedCameraView/);assert.match(menu,/namedCameraViews\(owner\)\.find/);assert.match(src,/md-vgroup md-projection[^\n]+id="mdNamedViews"/);
- const css=fs.readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');assert.match(css,/md-vgroup:not\(\.md-projection\)/);
+ const css=stylesSource();assert.match(css,/md-vgroup:not\(\.md-projection\)/);
 });
 test('real menu recalls current stored record, deletes normalized live document and preserves stale owner',()=>{
  const node=()=>({children:[],appendChild(child){this.children.push(child);},addEventListener(type,fn){this.click=fn;},set innerHTML(value){this.children=[];}}),host=node();

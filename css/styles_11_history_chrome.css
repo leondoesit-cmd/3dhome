@@ -1,0 +1,1230 @@
+/* ================= history panel (shared: plan + modeler + cabinet) =========
+   The edit tree, oldest first. The rail down the start edge is the branch you
+   are on; the filled dot is where the model currently stands, hollow dots
+   after it are steps rolled past and still reachable, and an indented run is
+   a branch that was left behind rather than destroyed.
+   Each row also carries chips naming the objects that step touched — clicking
+   one selects that object, which is what re-scopes the panel to it. */
+.hist-panel { display: flex; flex-direction: column; min-height: 0; }
+.hist-head {
+  font-size: max(10px, var(--fs-floor, 0px)); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-muted); padding: 0 2px 6px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 6px;
+}
+.hist-note { font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--accent); }
+.hist-note.solo { margin-inline-start: auto; align-self: center; font-size: max(10px, var(--fs-floor, 0px)); }
+.hist-panel.rolled .hist-head { color: var(--accent); text-transform: none; letter-spacing: 0; font-weight: 600; }
+/* scope switch: the whole document, or the selected object and its children */
+.hist-scope { display: flex; gap: 4px; padding: 0 2px 6px; flex-shrink: 0; }
+.hist-tab {
+  flex: 0 1 auto; min-width: 0; padding: 3px 8px; border-radius: 999px; cursor: pointer;
+  font-size: max(10px, var(--fs-floor, 0px)); line-height: 1.5; border: 1px solid var(--separator);
+  background: none; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hist-tab-sel { flex: 1 1 auto; }
+.hist-tab:hover:not(:disabled) { background: var(--btn-bg-hover); }
+/* the active filter is a solid chip, not a tint: which of the two the panel is
+   showing has to be readable at a glance from across the sidebar */
+.hist-tab.on { border-color: var(--accent); color: var(--on-accent); background: var(--accent); font-weight: 600; }
+.hist-tab:disabled { opacity: 0.45; cursor: default; }
+.hist-list { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; padding-inline-start: 2px; }
+.hist-empty { font-size: max(11px, var(--fs-floor, 0px)); color: var(--text-muted); padding: 4px 2px; }
+.hist-step {
+  /* justify-content is explicit: the app's base button style centres its
+     content, which pushed the dot of a short label off the timeline rail */
+  display: flex; align-items: flex-start; justify-content: flex-start; gap: 9px; width: 100%;
+  padding: 5px 8px; border: 1px solid transparent; border-radius: 6px;
+  background: none; cursor: pointer; font-size: max(11px, var(--fs-floor, 0px)); color: var(--text-main);
+  text-align: start; position: relative;
+  /* --d is the branch depth; every branch is inset one notch from its parent */
+  padding-inline-start: calc(8px + var(--d, 0) * 11px);
+}
+.hist-step:hover { background: var(--btn-bg-hover); }
+.hist-step.current {
+  background: color-mix(in srgb, var(--accent) 12%, var(--btn-bg));
+  border-color: var(--accent); color: var(--text-main); font-weight: 700;
+  box-shadow: inset 3px 0 var(--accent);
+}
+.hist-step.ahead { opacity: 0.5; }
+.hist-step.other { opacity: 0.55; font-style: italic; }
+.hist-step.dim { opacity: 0.4; }
+.hist-step.ahead .hist-name { text-decoration: line-through; text-decoration-thickness: 1px; }
+/* the rail: a line joining every dot on the same branch */
+.hist-step::before {
+  content: ""; position: absolute; inset-inline-start: calc(12px + var(--d, 0) * 11px);
+  top: 0; bottom: 0; width: 1px; background: var(--separator);
+}
+.hist-step:first-child::before { top: 12px; }
+.hist-step:last-child::before { bottom: calc(100% - 12px); }
+.hist-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; position: relative;
+  margin-top: 3px;
+  border: 1px solid var(--text-muted); background: var(--panel-bg, var(--btn-bg));
+}
+.hist-step.current .hist-dot { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.hist-step.fork .hist-dot { border-color: var(--accent); border-width: 2px; }
+.hist-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.hist-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-fork { flex-shrink: 0; font-size: max(11px, var(--fs-floor, 0px)); color: var(--accent); opacity: 0.8; }
+/* what the step touched */
+.hist-chips { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.hist-target-details { display: flex; flex-wrap: wrap; gap: 3px; }
+.hist-target-summary {
+  display: inline-flex; align-items: center; min-height: 22px; padding: 2px 7px;
+  border: 1px solid var(--separator); border-radius: 5px; background: var(--btn-bg);
+  color: var(--text-muted); font-size: max(9.5px, var(--fs-floor, 0px)); font-weight: 650; cursor: pointer;
+}
+.hist-target-summary::after { content: "\2304"; margin-inline-start: 5px; font-size: max(9px, var(--fs-floor, 0px)); }
+.hist-target-summary[aria-expanded="true"]::after { content: "\2303"; }
+.hist-target-summary:hover { border-color: var(--accent); color: var(--accent); }
+.hist-chip {
+  display: inline-flex; align-items: center; gap: 2px; max-width: 100%;
+  padding: 1px 5px; border-radius: 4px; border: 1px solid var(--separator);
+  background: var(--btn-bg); color: var(--text-muted);
+  font-size: max(9.5px, var(--fs-floor, 0px)); line-height: 1.5; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hist-chip:hover:not(:disabled) { color: var(--text-main); border-color: var(--accent); }
+.hist-chip i { font-style: normal; opacity: 0.75; font-weight: 700; }
+.hist-chip.add { color: #4f9d69; border-color: color-mix(in srgb, #4f9d69 40%, var(--separator)); }
+.hist-chip.del { color: #c0665c; border-color: color-mix(in srgb, #c0665c 40%, var(--separator)); }
+.hist-chip.more { cursor: default; }
+/* a run of steps the scope filter folded away */
+.hist-gap {
+  align-self: flex-start; padding: 2px 8px; border: 0; background: none; cursor: pointer;
+  font-size: max(10px, var(--fs-floor, 0px)); color: var(--text-muted); letter-spacing: 0.06em;
+}
+.hist-gap:hover { color: var(--accent); }
+/* in the plan's sidebar the tree above it is the one that gets the free space,
+   so the history scrolls inside a fixed window instead of growing forever */
+.hist-section .hist-list { max-height: 260px; }
+
+/* ---- modeler: sketch / model in the same middle pane -----------------------
+   Mirror of the cabinet designer's arrangement. The 3D host is empty until the
+   preview wrap is moved into it; see editor_view.js. */
+#modeler .md-3dhost { position: absolute; inset: 0; display: none; }
+#modeler.md-is3d .md-3dhost { display: flex; }
+#modeler.md-is3d:not(.md-model-sketching) .md-3dhost { bottom: 28px; }
+#modeler.md-is3d:not(.md-model-sketching) #mdCanvas { display: none; }
+#modeler.md-is3d.md-model-sketching #mdCanvas { display: block; }
+#modeler.md-is3d .md-3dhost .md-prev-wrap {
+  flex: 1; min-width: 0; max-width: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  padding: 0; border-bottom: none;
+}
+/* The renderer writes an inline pixel size. Keep its display box fitted
+   during pane resizes, including while a redraw is pending. */
+#modeler .md-3dhost #mdPrev { min-height: 100%; max-height: 100%; min-width: 100%; }
+#modeler.md-is3d .md-3dhost #mdPrev { width: 100%; height: 100%; max-width: 100%; border-radius: 0; background: transparent; }
+
+/* ---- parametric sketcher: definition state, constraint palette, rule list ----
+   The status colours are the sketcher's whole feedback loop: blue while the
+   sketch still has freedom, green once it is pinned down, red when two rules
+   disagree. They are used identically on the tab badge, the pane header and the
+   status bar so the three never tell different stories. */
+#modeler .md-dof {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 9px; margin-bottom: 8px; border-radius: 8px;
+  font-size: max(11px, var(--fs-floor, 0px)); font-weight: 600; border: 1px solid transparent;
+}
+#modeler .md-dof i { font-size: 14px; }
+#modeler .md-dof-under-constrained { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); color: var(--accent); }
+#modeler .md-dof-fully-constrained { background: color-mix(in srgb, var(--success) 14%, transparent); border-color: color-mix(in srgb, var(--success) 40%, transparent); color: var(--success); }
+#modeler .md-dof-over-constrained { background: color-mix(in srgb, var(--warn) 14%, transparent); border-color: color-mix(in srgb, var(--warn) 45%, transparent); color: var(--warn); }
+#modeler .md-dof-conflicting { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 45%, transparent); color: var(--danger); }
+
+#modeler .md-sketch-metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
+}
+#modeler .md-sketch-metrics > span {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 6px 3px; border: 1px solid var(--btn-border); border-radius: 7px;
+  background: var(--btn-bg);
+}
+#modeler .md-sketch-metrics b { color: var(--text-main); font-size: 12px; font-variant-numeric: tabular-nums; }
+#modeler .md-sketch-metrics small { max-width: 100%; color: var(--text-muted); font-size: max(8.5px, var(--fs-floor, 0px)); overflow: hidden; text-overflow: ellipsis; }
+#modeler .md-sketch-geometry { min-width: 0; padding: 8px; border: 1px solid var(--btn-border); border-radius: 7px; }
+#modeler .md-sketch-geometry summary { cursor: pointer; font-weight: 600; }
+#modeler .md-sketch-geometry .md-geometry-pick { display: block; height: auto; min-height: 30px; margin-top: 4px; text-align: start; white-space: normal; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+#modeler .md-sketch-geometry .md-geometry-pick[aria-pressed="true"] { border-color: var(--accent); background: var(--btn-bg-hover); }
+
+#modeler .md-profile-state {
+  display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  border: 1px solid var(--btn-border); border-radius: 9px; background: var(--btn-bg);
+}
+#modeler .md-profile-head { display: flex; align-items: center; gap: 6px; font-size: max(11px, var(--fs-floor, 0px)); }
+#modeler .md-profile-head i { font-size: 15px; }
+#modeler .md-profile-ready,
+#modeler .md-profile-multiple { border-color: color-mix(in srgb, var(--success) 40%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
+#modeler .md-profile-ready .md-profile-head,
+#modeler .md-profile-multiple .md-profile-head { color: var(--success); }
+#modeler .md-profile-open,
+#modeler .md-profile-branched { border-color: color-mix(in srgb, var(--danger) 40%, transparent); background: var(--danger-soft); }
+#modeler .md-profile-open .md-profile-head,
+#modeler .md-profile-branched .md-profile-head { color: var(--danger); }
+#modeler .md-profile-partial { border-color: color-mix(in srgb, var(--warn) 42%, transparent); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+#modeler .md-profile-partial .md-profile-head { color: var(--warn); }
+#modeler .md-profile-stats { display: flex; flex-wrap: wrap; gap: 4px; }
+#modeler .md-profile-stats span {
+  padding: 2px 5px; border-radius: 4px; background: color-mix(in srgb, var(--bg-panel) 75%, transparent);
+  color: var(--text-muted); font-size: max(9px, var(--fs-floor, 0px));
+}
+#modeler .md-profile-heal {
+  display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 27px;
+  border: 1px solid var(--btn-border); border-radius: 6px; background: var(--bg-panel);
+  color: var(--text-main); font-size: max(10px, var(--fs-floor, 0px)); cursor: pointer;
+}
+#modeler .md-profile-heal:hover { border-color: var(--accent); color: var(--accent); }
+#modeler .md-selection-info {
+  display: flex; align-items: center; gap: 7px; padding: 7px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--btn-border));
+  border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, var(--btn-bg));
+  color: var(--text-main); font-size: max(10.5px, var(--fs-floor, 0px));
+}
+#modeler .md-selection-info > i { color: var(--accent); font-size: 15px; }
+#modeler .md-selection-info > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modeler .md-selection-info kbd {
+  padding: 2px 4px; border: 1px solid var(--btn-border); border-bottom-width: 2px;
+  border-radius: 4px; color: var(--text-muted); font-size: max(8px, var(--fs-floor, 0px));
+}
+
+#modeler .md-badge-under-constrained { background: var(--accent); color: var(--on-accent); display: block; }
+#modeler .md-badge-fully-constrained { background: var(--success); color: var(--on-success); display: block; }
+#modeler .md-badge-over-constrained { background: var(--warn); color: var(--on-warn); display: block; }
+#modeler .md-badge-conflicting { background: var(--danger); color: var(--on-danger); display: block; }
+
+#modeler .md-st-dof { font-weight: 600; }
+#modeler .md-st-rebuild {
+  margin: 0; padding: 0; border: 0; background: none; font: inherit; font-weight: 600;
+  color: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+#modeler .md-status .md-dof-fully-constrained { color: var(--success); }
+#modeler .md-status .md-dof-conflicting,
+#modeler .md-status .md-dof-over-constrained { color: var(--danger); }
+
+/* a constraint you cannot apply is shown, not hidden — knowing the tool exists
+   and what it wants selected is half of learning the sketcher */
+#modeler .md-cons-pal button:disabled { opacity: 0.45; cursor: not-allowed; }
+#modeler .md-cons-pal button:disabled:hover { background: var(--btn-bg); border-color: var(--btn-border); }
+
+#modeler .md-cons-list { display: flex; flex-direction: column; gap: 4px; }
+#modeler .md-cons-row {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 6px; border-radius: 7px; background: var(--btn-bg);
+  border: 1px solid var(--btn-border); font-size: max(11px, var(--fs-floor, 0px));
+}
+#modeler .md-cons-row .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modeler .md-cons-row input {
+  width: 62px; flex: none; padding: 3px 5px; font-size: max(11px, var(--fs-floor, 0px));
+  border-radius: 5px; border: 1px solid var(--btn-border);
+  background: var(--bg-panel); color: var(--text-main);
+}
+#modeler .md-cons-row.bad { border-color: var(--danger); background: var(--danger-soft); }
+#modeler .md-cons-row.off { opacity: 0.5; }
+#modeler .md-mini {
+  flex: none; width: 24px; height: 24px; padding: 0; display: flex;
+  align-items: center; justify-content: center; border-radius: 6px;
+  background: transparent; border: 1px solid transparent; color: var(--text-muted); cursor: pointer;
+}
+#modeler .md-mini:hover { background: var(--btn-bg-hover); border-color: var(--btn-border); color: var(--text-main); }
+#modeler .md-mini.on { background: rgba(113,128,150,.14); border-color: rgba(113,128,150,.4); color: #718096; }
+#modeler .md-mini.btn-danger:hover { color: var(--danger); border-color: var(--danger); }
+
+/* ---- feature history tree ----
+   The three states a step can be in have to be legible at a glance, because
+   they are the difference between "my change did nothing" and "my change is
+   below the rollback bar": suppressed is struck through, rolled-back is faded,
+   and the bar itself is a hard line across the list. */
+#modeler .md-tree { display: flex; flex-direction: column; gap: 3px; }
+#modeler .md-tree-row { position: relative; }
+#modeler .md-tree-operation {
+  margin-left: 24px;
+  width: calc(100% - 24px);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  font-size: max(11px, var(--fs-floor, 0px));
+}
+#modeler .md-grip {
+  flex: none; cursor: grab; opacity: 0.35; font-size: 13px; margin-inline-end: 1px;
+  touch-action: none;
+}
+#modeler .md-tree-row:hover .md-grip { opacity: 0.8; }
+#modeler .md-grip:active { cursor: grabbing; }
+#modeler .md-tree-row.md-dragging { opacity: 0.45; }
+#modeler .md-tree-row.md-drop { box-shadow: inset 0 2px 0 var(--accent); }
+#modeler .md-suppressed .nm { text-decoration: line-through; opacity: 0.55; }
+#modeler .md-suppressed .sw { opacity: 0.3; }
+#modeler .md-rolled { opacity: 0.4; }
+#modeler .md-rolled .nm { font-style: italic; }
+
+#modeler .md-rollbar {
+  display: flex; align-items: center; gap: 6px; margin: 3px 0;
+  min-height: 15px; cursor: ns-resize; user-select: none;
+}
+#modeler .md-rollbar span {
+  flex: 1; height: 2px; border-radius: 2px; background: var(--accent);
+}
+#modeler .md-rollbar:hover span { height: 4px; }
+#modeler .md-rollbar b {
+  flex: none; font-size: max(8px, var(--fs-floor, 0px)); font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--accent);
+}
+#modeler .md-feature-title { margin: 8px 0 4px; }
+#modeler .md-tree-create-sketch {
+  width: 100%; min-height: 28px; margin: 5px 0 3px; padding: 5px 8px;
+  display: flex; align-items: center; justify-content: flex-start; gap: 6px;
+  border-radius: 7px; background: transparent; border: 1px dashed var(--accent);
+  color: var(--accent); cursor: pointer; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 650;
+}
+#modeler .md-tree-create-sketch span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modeler .md-tree-create-sketch:hover { background: color-mix(in srgb,var(--accent) 9%,transparent); }
+#modeler .md-empty-brief { padding: 14px 12px 8px; }
+#modeler .md-tree-create-sketch.md-tree-start {
+  min-height: 36px; margin-top: 4px; border-style: solid;
+  background: var(--accent); color: var(--on-accent); font-size: 12px;
+}
+#modeler .md-tree-create-sketch.md-tree-start:hover {
+  background: var(--accent-hover, var(--accent));
+}
+#modeler .md-tree-create-sketch.md-tree-start i { color: inherit; }
+#modeler .md-part.md-feature.error { border-color: var(--danger); color: var(--danger); }
+#modeler .md-feature-error { color: var(--danger); padding: 8px; border: 1px solid var(--danger); border-radius: 6px; white-space: normal; }
+#modeler .md-feature-hint { padding: 8px; font-size: 12px; white-space: normal; line-height: 1.5; }
+#modeler .md-diagnostics {
+  display: grid; gap: 6px; margin: 0 0 4px; padding: 0;
+}
+#modeler .md-diagnostics-title {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 2px 0 0;
+}
+#modeler .md-diagnostics-counts {
+  color: inherit; font-size: max(9.5px, var(--fs-floor, 0px)); font-weight: 750; letter-spacing: 0.02em; text-transform: uppercase;
+}
+#modeler .md-diagnostics-hint {
+  margin: 0; color: var(--text-muted); font-size: max(10.5px, var(--fs-floor, 0px)); line-height: 1.35;
+}
+/* Warnings with no rebuild failure cost one line until the user asks for them.
+   A failed rebuild keeps the open <section> above — the whole point is that the
+   two stop looking alike. Laid out as a block, not the grid the section uses:
+   a collapsed <details> must not reserve the grid's row gaps. */
+#modeler details.md-diagnostics-advisory { display: block; }
+#modeler details.md-diagnostics-advisory > summary {
+  cursor: pointer; list-style: none;
+}
+#modeler details.md-diagnostics-advisory > summary::-webkit-details-marker { display: none; }
+#modeler details.md-diagnostics-advisory[open] > * + * { margin-top: 6px; }
+#modeler .md-part.md-core-diagnostic {
+  align-items: flex-start; cursor: default; gap: 8px; padding: 7px 9px;
+}
+#modeler .md-part.md-core-diagnostic.md-diagnostic-primary {
+  padding: 8px 9px; box-shadow: inset 0 0 0 1px color-mix(in srgb,currentColor 35%,transparent);
+}
+#modeler .md-part.md-core-diagnostic > i { margin-top: 1px; flex: none; }
+#modeler .md-part.md-core-diagnostic .nm {
+  display: grid; gap: 5px; min-width: 0; white-space: normal; overflow: visible; text-overflow: unset; line-height: 1.3;
+}
+#modeler .md-diagnostic-headline {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; min-width: 0;
+}
+#modeler .md-diagnostic-message { min-width: 0; overflow-wrap: anywhere; font-weight: 650; }
+#modeler .md-diagnostic-start {
+  flex: none; padding: 1px 6px; border-radius: 999px; font-style: normal;
+  font-size: max(8.5px, var(--fs-floor, 0px)); font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  background: color-mix(in srgb,currentColor 14%,transparent);
+}
+#modeler .md-diagnostic-help { min-width: 0; color: inherit; }
+#modeler .md-diagnostic-help > summary {
+  width: fit-content; max-width: 100%; padding: 3px 6px; border-radius: 6px; cursor: pointer;
+  list-style: none; color: inherit; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 700;
+  background: color-mix(in srgb,currentColor 7%,transparent);
+}
+#modeler .md-diagnostic-help > summary::-webkit-details-marker { display: none; }
+#modeler .md-diagnostic-help > summary i { display: inline-block; transition: transform .15s ease; }
+#modeler .md-diagnostic-help[open] > summary i { transform: rotate(90deg); }
+#modeler .md-diagnostic-explanation,
+#modeler .md-diagnostic-fix,
+#modeler .md-diagnostic-next {
+  color: var(--text-main); font-size: max(11px, var(--fs-floor, 0px)); line-height: 1.35; white-space: normal; overflow-wrap: anywhere;
+}
+#modeler .md-diagnostic-help[open] .md-diagnostic-explanation,
+#modeler .md-diagnostic-help[open] .md-diagnostic-fix { display: block; }
+#modeler .md-diagnostic-explanation { margin-top: 2px; opacity: .82; }
+#modeler .md-diagnostic-next { opacity: .9; }
+#modeler .md-diagnostic-fix {
+  margin-top: 2px; padding: 6px 7px; border-radius: 7px; background: color-mix(in srgb,currentColor 8%,transparent);
+}
+#modeler .md-diagnostic-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+#modeler .md-diagnostic-actions button {
+  min-height: 23px; padding: 3px 6px; display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--btn-border); border-radius: 6px; background: var(--btn-bg);
+  color: var(--text-main); font-size: max(8.5px, var(--fs-floor, 0px)); cursor: pointer;
+}
+#modeler .md-diagnostic-actions button.btn-accent {
+  border-color: var(--accent); background: var(--accent); color: var(--on-accent);
+}
+#modeler .md-diagnostic-actions button:hover { background: var(--btn-bg-hover); border-color: var(--accent); }
+#modeler .md-diagnostic-actions button.btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+#modeler .md-tree-issue-focus { animation: md-tree-issue-pulse 1.6s ease-out; }
+@keyframes md-tree-issue-pulse {
+  0%,35% { box-shadow: inset 0 0 0 2px #c98116; background: color-mix(in srgb,#c98116 18%,var(--btn-bg)); }
+  100% { box-shadow: none; }
+}
+#modeler .md-part.md-core-diagnostic.error { border-color: var(--danger); color: var(--danger); }
+#modeler .md-part.md-core-diagnostic.warning { border-color: var(--warn); color: var(--warn); }
+#modeler .md-issue-banner {
+  display: grid; gap: 3px; margin: 0 0 8px; padding: 7px 8px; border-radius: 8px;
+  border: 1px solid var(--warn); background: color-mix(in srgb,var(--warn) 12%,transparent);
+  color: var(--text-main); font-size: max(11px, var(--fs-floor, 0px)); line-height: 1.35;
+}
+#modeler .md-issue-banner.error { border-color: var(--danger); background: color-mix(in srgb,var(--danger) 12%,transparent); }
+#modeler .md-issue-banner b { font-size: max(11.5px, var(--fs-floor, 0px)); }
+#modeler .md-issue-banner small { opacity: .88; }
+#modeler .md-field-issue,
+#modeler .md-quick-field.md-field-issue {
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+  border-radius: 8px;
+}
+
+/* ---- sketch documents: one per plane ---- */
+#modeler .md-sketch-row .nm { flex: 1; min-width: 0; }
+#modeler .md-plane-tag {
+  flex: none; font-size: max(9.5px, var(--fs-floor, 0px)); font-weight: 700; letter-spacing: 0.03em;
+  padding: 1px 5px; border-radius: 5px;
+  background: var(--btn-bg-hover); color: var(--text-muted);
+}
+#modeler .md-sketch-row.on .md-plane-tag { background: var(--accent); color: var(--on-accent); }
+/* the plane picker is wider than a number field, so its row stacks instead of
+   letting the control slide over its own label */
+#modeler .md-row-wide:has(select) { flex-direction: column; align-items: stretch; gap: 4px; }
+#modeler .md-row-wide select {
+  width: 100%; padding: 6px 7px; border-radius: 7px;
+  border: 1px solid var(--input-border); background: var(--input-bg);
+  color: var(--text-main); font-size: max(11.5px, var(--fs-floor, 0px));
+}
+
+/* a solid whose sketch profile no longer resolves keeps its last good shape,
+   and says so rather than vanishing */
+#modeler .md-tree-row.error { border-color: var(--danger); }
+#modeler .md-tree-row.error .nm { color: var(--danger); }
+
+/* ---- named dimensions & equations ----
+   A dimension row is name + value, and the value field takes an expression as
+   readily as a number, so the two fields have to read as one control. */
+#modeler .md-cons-row .md-dim-name {
+  flex: none; width: 62px; padding: 3px 5px; font-size: max(10.5px, var(--fs-floor, 0px));
+  border-radius: 5px; border: 1px solid var(--btn-border);
+  background: var(--bg-panel); color: var(--text-muted); text-align: start;
+}
+#modeler .md-cons-row .md-dim-name:focus { color: var(--text-main); border-color: var(--accent); }
+#modeler .md-cons-row .md-dim-value {
+  flex: 1; min-width: 54px; width: auto; padding: 3px 5px; font-size: max(11px, var(--fs-floor, 0px));
+  border-radius: 5px; border: 1px solid var(--btn-border);
+  background: var(--bg-panel); color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+#modeler .md-cons-row .md-dim-value:focus { border-color: var(--accent); }
+#modeler .md-cons-row .md-dim-value:disabled { opacity: .62; cursor: default; border-style: dashed; }
+/* The sketch inspector also fits the standard 280px sidebar. Offset is one
+   setting, and a dimension's subject/readout need their own line above edits. */
+#modeler #mdSketch .md-prop-grid { grid-template-columns: minmax(0, 1fr); }
+#modeler #mdSketch .md-prop-grid .md-grid-cell { min-width: 0; }
+#modeler #mdSketch .md-prop-grid .md-grid-cell .t { max-width: none; white-space: normal; text-align: start; }
+#modeler #mdSketch .md-prop-grid .md-wide { white-space: normal; }
+#modeler #mdSketch .md-cons-row:has(.md-dim-value) {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) repeat(3, 24px);
+  align-items: center; gap: 4px;
+}
+#modeler #mdSketch .md-cons-row:has(.md-dim-value) .n {
+  grid-row: 1; grid-column: 1 / 4; white-space: normal; overflow-wrap: anywhere;
+}
+#modeler #mdSketch .md-cons-row .md-var-val { grid-row: 1; grid-column: 4 / -1; min-width: 0; overflow-wrap: anywhere; }
+#modeler #mdSketch .md-cons-row .md-dim-name { grid-row: 2; grid-column: 1; }
+#modeler #mdSketch .md-cons-row .md-dim-value { grid-row: 2; grid-column: 2; }
+#modeler #mdSketch .md-cons-row .md-dim-name,
+#modeler #mdSketch .md-cons-row .md-dim-value { min-width: 0; width: 100%; box-sizing: border-box; }
+#modeler #mdSketch .md-cons-row:has(.md-dim-value) .md-mini { grid-row: 2; min-width: 0; width: 24px; box-sizing: border-box; }
+#modeler #mdSketch .md-cons-pal button { white-space: normal; overflow-wrap: anywhere; }
+#modeler .md-var-val {
+  flex: none; min-width: 34px; text-align: end; font-size: max(10.5px, var(--fs-floor, 0px));
+  color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+
+/* Compact desktop command bar. The edit timeline now lives beside undo/redo,
+   where it is available without consuming permanent sidebar height. */
+@media (min-width: 1025px) {
+  #topbar {
+    height: 48px;
+    padding-inline: 14px;
+    gap: 10px;
+  }
+  #topbar .tb-start,
+  #topbar .tb-end { gap: 7px; }
+  #topbar .tb-start button,
+  #topbar .tb-end button { padding: 6px; border-radius: 7px; }
+  #topbar .tb-end button.primary-action { padding: 6px 12px; }
+  #topbar .tb-pill { padding: 2px; border-radius: 9px; }
+  #topbar .tb-pill button { padding: 6px 9px; }
+  #topbar .separator { height: 20px; margin-inline: 5px; }
+  #topbar .brand i { font-size: 1.3rem; }
+}
+
+.history-dropdown {
+  width: min(380px, calc(100vw - 16px));
+  max-height: min(520px, calc(100vh - 72px));
+  padding: 12px;
+  overflow: hidden;
+}
+.history-dropdown #planHist,
+.history-dropdown .hist-panel { min-height: 0; height: 100%; }
+.history-dropdown .hist-list { max-height: min(390px, calc(100vh - 190px)); }
+/* Canonical parametric workflows ------------------------------------------------ */
+.parametric-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: start;
+}
+.parametric-choice small,
+.parametric-proposal-issue { opacity: .72; }
+.cb-levels {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--btn-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+}
+.cb-levels button {
+  min-height: 44px;
+  padding-inline: 14px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.cb-levels button.on {
+  color: var(--text-main);
+  background: var(--bg-panel);
+  box-shadow: 0 1px 4px rgb(15 23 42 / .12);
+}
+.cb-level-technical .cb-tools { opacity: .55; }
+.cb-production-convention {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-block: 10px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent, #2167d5) 32%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent, #2167d5) 7%, transparent);
+}
+.cb-production-convention-copy { display: grid; gap: 3px; min-width: 0; }
+.cb-production-convention-copy span { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.cb-production-convention .cb-more { min-height: 34px; white-space: nowrap; }
+.cb-technical-price {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent, #2167d5) 9%, transparent);
+  font-weight: 700;
+}
+.wall-definition-block,
+.wall-special-options,
+.wall-size-block {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.wall-size-row {
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+}
+.wall-size-row .btn-icon {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 6px;
+  margin-bottom: 0;
+}
+#wallProps {
+  gap: 10px;
+}
+#wallProps > .con-block {
+  margin: 0;
+}
+#wallProps details.insp-more {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+#wallProps .insp-more > summary {
+  list-style: none;
+}
+#wallProps .insp-more > summary::-webkit-details-marker {
+  display: none;
+}
+#wallProps .insp-more > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-inline-end: 6px;
+  color: var(--text-muted);
+  transition: transform 0.12s ease;
+}
+#wallProps .insp-more[open] > summary::before {
+  transform: rotate(90deg);
+}
+#wallProps .insp-hint {
+  margin: -2px 0 6px;
+  font-size: max(11px, var(--fs-floor, 0px));
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+.w-open-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.w-open-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--btn-border);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  text-align: start;
+  font-size: 12px;
+}
+.w-open-row:hover {
+  background: var(--btn-bg-hover);
+}
+.w-open-row i {
+  color: var(--text-muted);
+}
+.w-open-name {
+  font-weight: 600;
+}
+.w-open-dims {
+  margin-inline-start: auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: max(11px, var(--fs-floor, 0px));
+}
+
+/* Wall inspector diagrams: assembly cross-section + openings elevation */
+.w-diagram {
+  border: 1px solid var(--btn-border);
+  border-radius: 10px;
+  background: var(--btn-bg);
+  padding: 6px;
+}
+.w-diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+#w_section svg {
+  max-height: 96px;
+}
+#w_elev svg {
+  max-height: 150px;
+}
+.w-diagram text {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  fill: var(--text-muted);
+  user-select: none;
+  pointer-events: none;
+}
+.w-sec-layer {
+  stroke: var(--btn-border);
+  stroke-width: 0.3;
+}
+.w-sec-main {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 0.9;
+}
+.w-sec-center {
+  stroke: var(--text-muted);
+  stroke-width: 0.5;
+  stroke-dasharray: 2 1.6;
+  opacity: 0.7;
+}
+line.w-sec-datum {
+  stroke: var(--accent);
+  stroke-width: 0.9;
+}
+path.w-sec-datum {
+  fill: var(--accent);
+}
+.w-sec-hatch-line {
+  stroke: rgba(88, 78, 58, 0.6);
+  stroke-width: 0.7;
+}
+.w-sec-num {
+  font-size: max(4.2px, var(--fs-floor, 0px));
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: #2a2f3a;
+}
+.w-sec-total {
+  font-size: max(5px, var(--fs-floor, 0px));
+  text-anchor: middle;
+}
+.w-elev-solid {
+  fill: color-mix(in srgb, var(--text-muted) 52%, var(--btn-bg));
+  stroke: color-mix(in srgb, var(--text-muted) 80%, var(--bg-app));
+  stroke-width: 0.8;
+}
+.w-elev-upper {
+  fill: color-mix(in srgb, var(--text-muted) 38%, var(--btn-bg));
+}
+.w-elev-base {
+  fill: color-mix(in srgb, var(--text-muted) 66%, var(--btn-bg));
+}
+.w-elev-rail {
+  stroke: var(--text-muted);
+  stroke-width: 1.4;
+}
+.w-elev-railtop {
+  stroke: var(--text-muted);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.w-elev-split {
+  stroke: var(--bg-app);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.w-elev-ground {
+  stroke: var(--text-muted);
+  stroke-width: 1.2;
+}
+.w-elev-divider {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.4;
+  stroke-dasharray: 6 4;
+  opacity: 0.6;
+}
+.w-elev-dim {
+  font-size: var(--elev-fs, 9px);
+  text-anchor: middle;
+}
+.w-open-hit {
+  cursor: pointer;
+}
+.w-open-hit rect {
+  stroke-width: 1.6;
+}
+.w-open-hit:hover rect {
+  stroke-width: 2.6;
+}
+.w-open-d rect {
+  fill: rgba(214, 158, 56, 0.55);
+  stroke: #b37c1e;
+}
+.w-open-d line {
+  stroke: #b37c1e;
+  stroke-width: 1.4;
+}
+.w-open-w rect {
+  fill: rgba(140, 190, 220, 0.55);
+  stroke: #5d8fa8;
+}
+.w-open-w line {
+  stroke: #5d8fa8;
+  stroke-width: 1.4;
+}
+.w-open-p rect {
+  fill: rgba(0, 0, 0, 0.28);
+  stroke: var(--text-muted);
+  stroke-dasharray: 5 3;
+}
+.w-open-hit.sel rect {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.w-open-hit.sel line {
+  stroke: var(--accent);
+}
+.wall-seg-cut {
+  margin-top: 6px;
+  padding-top: 4px;
+}
+.wall-seg-cut > summary {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 0;
+}
+.wall-special-options {
+  padding-top: 4px;
+  border-top: 1px solid var(--separator);
+}
+#w_pony_options[hidden],
+#w_square_btn[hidden],
+#w_corner_editor[hidden],
+#w_openEmpty[hidden] {
+  display: none !important;
+}
+#w_shape_options > summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.wall-phase-demolish {
+  opacity: .68;
+  text-decoration: line-through;
+}
+.wall-type-layer-editor { display: grid; gap: 7px; max-height: 310px; overflow: auto; }
+.wall-type-layer-row { display: grid; grid-template-columns: minmax(120px,1fr) 72px 42px 28px 32px; gap: 6px; align-items: center; }
+.wall-type-layer-row input { min-width: 0; }
+.wall-type-layer-row input[type="color"] { width: 38px; padding: 2px; }
+.wall-type-layer-row input[type="radio"] { width: 18px; }
+
+/* ---- Planner chrome (modern default, classic via More → Classic layout) ---- */
+html:not([data-ui="legacy"]) .legacy-chrome {
+  display: none !important;
+}
+html[data-ui="legacy"] .modern-chrome,
+html[data-ui="legacy"] #viewModePill,
+html[data-ui="legacy"] #leftTabs,
+html[data-ui="legacy"] .empty-next,
+html[data-ui="legacy"] #costChip,
+html[data-ui="legacy"] #floor-tabs,
+html[data-ui="legacy"] #plan-hint {
+  display: none !important;
+}
+html[data-ui="legacy"] #topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html[data-ui="legacy"] #topbar .tb-start { flex: 0 1 auto; min-width: 0; }
+html[data-ui="legacy"] #topbar .tb-center { flex: 0 1 auto; min-width: 0; gap: 8px; }
+html[data-ui="legacy"] #topbar .tb-end { flex: 0 0 auto; min-width: 0; gap: 6px; }
+@media (max-width: 1400px) {
+  html[data-ui="legacy"] #topbar .tb-end #texGalleryBtn span,
+  html[data-ui="legacy"] #topbar .tb-end #autoGenerateBtn span {
+    display: none;
+  }
+}
+
+.tb-center { gap: 8px; }
+#viewModePill span {
+  font-size: 12px;
+  font-weight: 600;
+}
+@media (max-width: 1200px) {
+  #viewModePill span { display: none; }
+}
+
+.left-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  padding: 10px 10px 4px;
+  flex: 0 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+.left-tabs button {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  min-height: 52px;
+  padding: 7px 3px 6px;
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.16s ease, background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.left-tabs button:hover {
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--btn-bg-hover) 80%, transparent);
+  border-color: color-mix(in srgb, var(--btn-border) 60%, transparent);
+}
+.left-tabs button:active {
+  transform: scale(0.97);
+}
+.left-tabs button > i {
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: inherit;
+  transition: transform 0.18s ease;
+}
+.left-tabs button:hover > i {
+  transform: translateY(-1px);
+}
+.left-tabs button > span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: visible;
+  line-height: 1.15;
+  color: inherit;
+}
+.left-tabs button.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--btn-border));
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 700;
+  transform: none;
+}
+.left-tabs button.active > i {
+  color: var(--accent);
+  transform: none;
+}
+html:not([data-ui="legacy"]) #left-sidebar > .panel-section { display: none; }
+html:not([data-ui="legacy"]) #left-sidebar[data-left="project"] > [data-left-pane="project"],
+html:not([data-ui="legacy"]) #left-sidebar[data-left="library"] > [data-left-pane="library"],
+html:not([data-ui="legacy"]) #left-sidebar[data-left="home"] > [data-left-pane="home"],
+html:not([data-ui="legacy"]) #left-sidebar[data-left="structure"] > [data-left-pane="structure"],
+html:not([data-ui="legacy"]) #left-sidebar[data-left="tree"] > [data-left-pane="tree"] {
+  display: flex;
+}
+
+#floor-tabs {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 88px;
+  z-index: 12;
+  height: 32px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+  background: var(--hud-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  max-width: calc(100% - 220px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+#floor-tabs::-webkit-scrollbar {
+  display: none;
+}
+#floor-tabs[hidden] {
+  display: none !important;
+}
+#floor-tabs button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--hud-fg);
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+#floor-tabs button:hover {
+  background: var(--btn-bg-hover);
+  color: var(--text-main);
+}
+#floor-tabs button.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  transform: none;
+}
+#floor-tabs .floor-add {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  margin-inline-start: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--hud-fg);
+}
+#floor-tabs .floor-add:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.plan-hint {
+  position: absolute;
+  left: 50%;
+  /* --plan-hint-lift is set by js/plan_tools_dock.js and is 0 for every dock
+     but the bottom one, where the tool cluster occupies this exact strip. */
+  bottom: calc(38px + var(--plan-hint-lift, 0px));
+  transform: translateX(-50%);
+  z-index: 12;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: calc(100% - 120px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plan-hint[hidden] { display: none !important; }
+
+.empty-next {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+/* steps already done are hidden by js/ui_props.js syncNextSteps() */
+.empty-next[hidden],
+.empty-next button[hidden] { display: none; }
+.empty-next > .t {
+  font-size: max(11px, var(--fs-floor, 0px));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: start;
+  width: 100%;
+  padding-inline-start: 2px;
+}
+.empty-next button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: start;
+  gap: 12px;
+  padding: 10px 14px;
+  min-height: 52px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--btn-border));
+  background: color-mix(in srgb, var(--accent-soft) 30%, var(--btn-bg));
+  color: var(--text-main);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: normal;
+  line-height: 1.35;
+  word-break: break-word;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1); transition-property: var(--ease-paint);
+}
+.empty-next button:hover {
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--btn-bg));
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.empty-next button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+.empty-next button i {
+  font-size: 1.35rem;
+  color: var(--accent);
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: 1;
+  transition: transform 0.2s ease;
+}
+.empty-next button:hover i {
+  transform: scale(1.12);
+}
+.empty-next button span {
+  flex: 1;
+  min-width: 0;
+  text-align: start;
+}
+.cost-chip {
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0;
+  text-transform: none;
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: auto;
+  margin-inline-end: 6px;
+}
+.insp-more { width: 100%; }
+.insp-more > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+html[data-ui="legacy"] .insp-more > summary { display: none; }
+html[data-ui="legacy"] .insp-more { display: contents; }
+html[data-ui="legacy"] #wallProps details.insp-more { display: contents; }
+
+.furn-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-size: 12px;
+}
+.furn-crumbs button {
+  padding: 4px 8px;
+  font-size: 12px;
+  box-shadow: none;
+}
+.furn-place-banner {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.start-screen {
+  position: fixed;
+  inset: 0;
+  /* Over the ribbon (90), which otherwise hid the card's heading on a
+     900px-tall window; under the top bar (100) so File stays reachable. */
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg-app) 55%, rgba(15, 23, 42, 0.45));
+  backdrop-filter: blur(10px);
+}
+.start-screen[hidden] { display: none !important; }
+.start-card {
+  width: min(640px, 100%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  padding: 28px 24px 18px;
+}
+.start-card h2 { margin: 0 0 8px; font-size: 1.35rem; }
+.start-card p {
+  margin: 0 0 18px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.start-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.start-actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  text-align: start;
+  height: auto;
+  box-shadow: none;
+  border-radius: 12px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  white-space: normal;
+  line-height: 1.35;
+  word-break: break-word;
+  transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1); transition-property: var(--ease-paint);
+}
+.start-actions button:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--btn-bg));
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+.start-actions button i {
+  font-size: 1.4rem;
+  color: var(--accent);
+  opacity: 1;
+}
+.start-actions strong {
+  font-size: 14px;
+  white-space: normal;
+}
+.start-actions span {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: normal;
+}
+.start-skip {
+  margin-top: 12px;
+  width: 100%;
+  background: transparent;
+  box-shadow: none;
+}
+@media (max-width: 640px) {
+  .start-actions { grid-template-columns: 1fr; }
+}
+
+html:not([data-ui="legacy"]) #cad-status .cad-target,
+html:not([data-ui="legacy"]) #cadTuneBtn {
+  display: none;
+}
+html:not([data-ui="legacy"])[data-tool="wall"] #cad-status .cad-target,
+html:not([data-ui="legacy"])[data-tool="rect"] #cad-status .cad-target,
+html:not([data-ui="legacy"])[data-tool="arcwall"] #cad-status .cad-target,
+html:not([data-ui="legacy"])[data-tool="walloffset"] #cad-status .cad-target,
+html:not([data-ui="legacy"])[data-tool="wall"] #cadTuneBtn,
+html:not([data-ui="legacy"])[data-tool="rect"] #cadTuneBtn,
+html:not([data-ui="legacy"])[data-tool="arcwall"] #cadTuneBtn,
+html:not([data-ui="legacy"])[data-tool="walloffset"] #cadTuneBtn {
+  display: inline-flex;
+}
+
+#legacyUiBtn.active-legacy { color: var(--accent); }
+

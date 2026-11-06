@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -234,7 +235,7 @@ test("curved walls stay armed so the next arc continues from the last end", () =
 });
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const css = stylesSource();
 
 test("wall palette docks beside the plan toolbar instead of overlapping it", () => {
   assert.match(html, /id="plan-tools"/);

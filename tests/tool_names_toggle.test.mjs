@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -11,7 +12,7 @@ test("tool titles toggle: HTML, i18n, and CSS rules exist and match", async () =
   const indexHtml = fs.readFileSync(path.join(rootDir, "index.html"), "utf8");
   const enJs = fs.readFileSync(path.join(rootDir, "js", "i18n", "en.js"), "utf8");
   const heJs = fs.readFileSync(path.join(rootDir, "js", "i18n", "he.js"), "utf8");
-  const stylesCss = fs.readFileSync(path.join(rootDir, "css", "styles.css"), "utf8");
+  const stylesCss = stylesSource();
 
   assert.ok(indexHtml.includes("id=\"toolNamesToggle\""), "toolNamesToggle must exist in index.html");
   assert.ok(indexHtml.includes("data-act=\"toggleToolNames\""), "toolNamesToggle must have data-act='toggleToolNames'");

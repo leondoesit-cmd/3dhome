@@ -1,10 +1,11 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { sourceFunctionText } from './helpers/source_function.mjs';
 
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const css = stylesSource();
 const mdMobile = await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8");
 const md = modelerSource();
 /* The editor's [he, en] table, split out of js/modeler.js. */

@@ -1,3 +1,4 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -12,7 +13,7 @@ const [shell, interaction, ui, i18n, pick, primitives, html, css] = await Promis
   read("js/ui_floorpick.js"),
   read("js/primitives.js"),
   read("index.html"),
-  read("css/styles.css"),
+  stylesSource(),
 ]);
 
 /* The i18n table is one object literal per language, so the block between

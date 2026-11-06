@@ -1,0 +1,437 @@
+/* =========================================================================
+   Mobile layer — phones and Samsung Galaxy Fold (cover screen + unfolded)
+   ========================================================================= */
+
+/* Drawer backdrop: hidden on desktop */
+#drawer-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 49;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+@media (max-width: 1024px) {
+  /* Backdrop behind the slide-in drawers; tap anywhere to close */
+  body.show-left #drawer-backdrop,
+  body.show-right #drawer-backdrop {
+    display: block;
+    opacity: 1;
+  }
+}
+
+/* ---- Bottom navigation ----
+   Driven by body.compact-nav (set in js/ui.js), not by width alone: a tablet is
+   as wide as a small laptop but has no hover and no mouse, so it needs the same
+   one-tap pane switcher a phone does. Width-only rules stay in the media
+   queries below, where they belong. */
+#mobile-nav {
+  display: none;
+}
+body.compact-nav #mobile-nav {
+  display: flex;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Stay above the modal sheet backdrop so another destination switches in
+     one tap instead of spending the first tap merely dismissing the sheet. */
+  z-index: 64;
+  height: calc(58px + env(safe-area-inset-bottom));
+  padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+  gap: 4px;
+  background: var(--bg-topbar);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-top: 1px solid var(--border-color);
+}
+body.compact-nav #mobile-nav button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 2px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 600;
+  min-height: 48px;
+}
+body.compact-nav #mobile-nav button i {
+  font-size: 20px;
+}
+body.compact-nav #mobile-nav button.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+body.compact-nav #mobile-nav {
+  border-top: 1px solid var(--mobile-glass-border, var(--border-color));
+}
+body.compact-nav #mobile-nav button:active {
+  background: var(--btn-bg-hover);
+}
+
+/* Make room for the nav; drawers stop above it */
+body.compact-nav #workspace {
+  margin-bottom: calc(58px + env(safe-area-inset-bottom));
+}
+body.compact-nav #left-sidebar,
+body.compact-nav #right-inspector {
+  bottom: calc(58px + env(safe-area-inset-bottom));
+}
+
+/* Bottom nav replaces the topbar hamburger toggles */
+body.compact-nav .mobile-toggle {
+  display: none !important;
+}
+
+/* ---- Touch ergonomics — any coarse pointer, phone or tablet ----
+   Split from the width rules on purpose: a 1024px tablet has exactly the same
+   fingertip as a 390px phone, and hover-only affordances are unreachable on
+   both. The width arm keeps a narrow desktop window honest (and is what
+   emulated viewports, which report a fine pointer, actually match). */
+@media (pointer: coarse), (max-width: 768px) {
+  #plan-toolbar .tool {
+    width: 46px;
+    height: 46px;
+  }
+  .view-max-btn {
+    width: 42px;
+    height: 42px;
+  }
+  .hint {
+    display: none;
+  }
+  #topbar button {
+    min-width: 42px;
+    min-height: 42px;
+  }
+  /* 16px inputs stop mobile browsers from auto-zooming on focus */
+  input[type="text"],
+  input[type="number"],
+  input[type="search"],
+  select {
+    font-size: 16px;
+    min-height: 40px;
+  }
+  /* The contextual menu is reached by a long press here (js/interaction.js),
+     so its rows have to be thumb-sized rather than cursor-sized. */
+  #ctx-menu {
+    min-width: 208px;
+  }
+  #ctx-menu button,
+  .dropdown-menu button {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  /* Nothing that only appears on hover can be reached without a cursor. */
+  .row-actions,
+  .tree-row .tree-act {
+    opacity: 1 !important;
+  }
+  /* The canvases own every gesture on them: without this the browser claims
+     one-finger drags for scrolling and two-finger ones for page zoom, and the
+     plan pans a frame behind the finger (or not at all). */
+  #plan,
+  #view-3d canvas {
+    touch-action: none;
+  }
+  body {
+    overscroll-behavior: none; /* no pull-to-refresh mid-drag */
+  }
+}
+
+/* ---- Phones & Fold7 cover screen ---- */
+@media (max-width: 768px) {
+  #app {
+    /* dvh: track the browser chrome collapsing on scroll/keyboards */
+    height: 100dvh;
+  }
+
+  /* Phone: the coordinate readout is the first thing to go — on a touch
+     device there is no hovering cursor to report. The aid chips stay, since
+     they are the only way to reach ortho without a function-key row. */
+  #cad-status {
+    height: 34px;
+    gap: 8px;
+    font-size: max(11px, var(--fs-floor, 0px));
+    /* 375px cannot hold the whole bar. Rather than let the trailing chips fall
+       off the edge, the bar pans — the aids stay reachable, just one flick
+       away. flex-shrink:0 on the contents is what makes it pan instead of
+       squashing the chips into unreadable slivers. */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  #cad-status::-webkit-scrollbar {
+    display: none;
+  }
+  #cad-status > * {
+    flex: 0 0 auto;
+  }
+  #cad-status .cad-coord {
+    display: none;
+  }
+  .cad-chip {
+    height: 26px;
+    padding: 0 9px;
+  }
+  .cad-chip kbd {
+    display: none;
+  }
+  #cad-entry {
+    inset-inline: 8px;
+    inset-inline-start: 8px !important;
+    bottom: 44px !important;
+    flex-wrap: wrap;
+  }
+  #cad-entry .cad-e-hint {
+    display: none;
+  }
+  #topbar button {
+    min-width: 42px;
+    min-height: 42px;
+  }
+  /* 16px inputs stop mobile browsers from auto-zooming on focus */
+  input[type="text"],
+  input[type="number"],
+  input[type="search"],
+  select {
+    font-size: 16px;
+    min-height: 40px;
+  }
+}
+
+/* ---- Fold7 unfolded (near-square ~800x740 CSS px): give panes more grid ----
+   Between phone and desktop the drawers already slide in (1024px rules);
+   widen them a bit so the library grid breathes on the big inner screen. */
+@media (min-width: 700px) and (max-width: 1024px) {
+  body.show-left #left-sidebar,
+  body.show-right #right-inspector {
+    width: 340px;
+  }
+}
+
+/* ---- Spanning across the hinge (body.fold-span, set in js/ui.js) ----
+   Put 2D and 3D on opposite halves so the fold crease lands on the seam
+   between them instead of through the middle of one view. */
+body.fold-span #center-canvas {
+  flex-direction: row;
+  column-gap: max(
+    0px,
+    calc(
+      env(viewport-segment-left 1 0, 0px) - env(viewport-segment-width 0 0, 0px) -
+        env(viewport-segment-left 0 0, 0px)
+    )
+  );
+}
+body.fold-span #view-3d,
+body.fold-span #view-2d {
+  flex: 1 1 50% !important;
+  height: auto;
+  min-width: 0; /* see body.split-row: the canvas would set the minimum size */
+}
+body.fold-span #view-resizer {
+  display: none;
+}
+body.fold-span #view-2d {
+  border-top: none;
+  border-inline-start: 1px solid var(--border-color);
+}
+/* Spanning a HORIZONTAL crease (the half-open, laptop-like posture): the panes
+   are already stacked, so the only job is to pin the split at the hinge —
+   an even 50/50 — and take away the draggable resizer that would move the
+   seam off it. */
+body.fold-stack #center-canvas {
+  flex-direction: column;
+  row-gap: max(
+    0px,
+    calc(
+      env(viewport-segment-top 0 1, 0px) - env(viewport-segment-height 0 0, 0px) -
+        env(viewport-segment-top 0 0, 0px)
+    )
+  );
+}
+body.fold-stack #view-3d,
+body.fold-stack #view-2d {
+  flex: 1 1 50% !important;
+  width: auto;
+}
+body.fold-stack #view-resizer {
+  display: none;
+}
+
+/* =========================================================================
+   Menus & keyboard shortcuts
+   ========================================================================= */
+
+/* Shortcut hint inside a menu item — pushed to the trailing edge */
+.menu-kbd {
+  margin-inline-start: auto;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: max(10px, var(--fs-floor, 0px));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  background: var(--btn-bg-hover);
+  border: 1px solid var(--btn-border);
+  white-space: nowrap;
+}
+.dropdown-menu button {
+  gap: 10px;
+}
+.uikit-menu-check {
+  display: none !important;
+  margin-inline-start: auto;
+  color: var(--accent);
+  font-weight: 800;
+}
+[data-act="uikitCustomize"][aria-checked="true"] .uikit-menu-check {
+  display: inline !important;
+}
+[data-act="uikitCustomize"][aria-checked="true"] .menu-kbd {
+  margin-inline-start: 0;
+}
+/* Keyboard focus has to be as visible as hover — menus are now arrow-navigable */
+.dropdown-menu button:focus-visible {
+  outline: none;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.dropdown-menu button:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.dropdown-menu button:disabled .menu-kbd {
+  opacity: 0.6;
+}
+
+/* ---- shortcuts cheat sheet ---- */
+.keys-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  align-items: center;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-inline-end: 4px;
+}
+.keys-sec {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  font-size: max(0.72rem, var(--fs-floor, 0px));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.keys-sec:first-child {
+  margin-top: 0;
+}
+.keys-row {
+  display: contents;
+}
+.keys-combo {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+.keys-combo kbd {
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: max(11px, var(--fs-floor, 0px));
+  font-weight: 600;
+  color: var(--text-main);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  box-shadow: 0 1px 0 var(--btn-border);
+}
+.keys-desc {
+  font-size: max(0.85rem, var(--fs-floor, 0px));
+  color: var(--text-main);
+}
+.keys-hint {
+  margin-top: 12px;
+  text-align: center;
+  opacity: 0.75;
+}
+
+/* ---- phones: dropdowns become bottom sheets, within thumb reach ---- */
+@media (max-width: 768px) {
+  .dropdown-menu.open {
+    position: fixed;
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    bottom: var(--mobile-nav-block, calc(64px + env(safe-area-inset-bottom)));
+    /* left/right:0 already stretches it — a width:100% on top of the padding
+       would overflow the viewport horizontally. */
+    width: auto;
+    box-sizing: border-box;
+    min-width: 0;
+    max-height: 70vh;
+    overflow-y: auto;
+    border-radius: 18px 18px 0 0;
+    border-bottom: none;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    animation: sheetUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* grab handle, so the sheet reads as a sheet */
+  .dropdown-menu.open::before {
+    content: "";
+    display: block;
+    width: 38px;
+    height: 4px;
+    margin: 2px auto 8px;
+    border-radius: 3px;
+    background: var(--btn-border);
+  }
+  .dropdown-menu button {
+    min-height: 50px;
+    font-size: 15px;
+  }
+  /* physical-keyboard hints are noise on a touch device */
+  .menu-kbd {
+    display: none;
+  }
+  #shortcutsBtn {
+    display: none;
+  }
+  .keys-grid {
+    max-height: 55vh;
+  }
+}
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Last-resort failure banner (js/persist.js). Deliberately styled with literal
+   values and no CSS variables: it has to render even when the failure happened
+   before the theme tokens were applied. */
+#fatal-banner {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 9999;
+  padding: 12px 16px;
+  background: #b3261e;
+  color: #fff;
+  font: 500 14px/1.4 system-ui, sans-serif;
+  text-align: center;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.3);
+}
+

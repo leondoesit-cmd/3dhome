@@ -8,6 +8,7 @@
    branch, assigning a sketch entity to the slot that holds the selected solid.
    js/modeler.js cannot be imported under Node (bare `three` specifiers), so
    these are read off the source in the style of the other modeler suites. */
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -25,7 +26,7 @@ const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", im
 const strings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 /* Pick-to-reference and reference-to-screen geometry, split out of js/modeler.js. */
 const pickGeometry = await readFile(new URL("../js/modeler_pick_geometry.js", import.meta.url), "utf8");
-const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const styles = stylesSource();
 
 function body(name, from) {
   const text = from || source;
