@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import { sourceFunctionText } from "./helpers/source_function.mjs";
 import { createPlanFollower } from "../js/plan_sync.js";
 import { acceptRemote, sameProject } from "../js/net.js";
+import { cleanRemoteComment } from "../js/collaboration.js";
 
 // Browser entry points import the renderer; run their parsed declarations with controlled services.
 async function load(file, name, services) {
@@ -79,17 +80,22 @@ test("collaboration handler ignores unadmitted comments and missing project IDs"
   const callbacks = {}, state = { workspace: { id: "project", comments: [], role: "viewer" } };
   const init = await load("collaboration.js", "initCollaboration", {
     network: { on: (event, fn) => { callbacks[event] = fn; }, connect() {}, sameProject, acceptRemote, remoteContext: () => host },
-    listening: false, S: state,
+    listening: false, S: state, cleanRemoteComment,
   });
   await init();
-  const comment = { id: "one", text: "comment" };
+  const comment = { id: "one", text: "comment", at: 5 };
   callbacks.data({ from: "stranger", data: { k: "project_comment", projectId: "project", comment } });
   callbacks.data({ from: "viewer", data: { k: "project_comment", comment } });
   callbacks.data({ from: "viewer", data: { k: "project_present", projectId: "project", scene: {} } });
   assert.equal(state.workspace.comments.length, 0);
   callbacks.data({ from: "viewer", data: { k: "project_comment", projectId: "project", comment } });
   callbacks.data({ from: "viewer", data: { k: "project_comment", projectId: "project", comment } });
-  assert.deepEqual(state.workspace.comments, [comment]);
+  assert.deepEqual(state.workspace.comments, [{ id: "one", text: "comment", author: "", at: 5, target: { kind: "project", id: null }, resolved: false }]);
+  // a peer's comment without a target or text is dropped, not stored to break the review panel
+  callbacks.data({ from: "viewer", data: { k: "project_comment", projectId: "project", comment: { id: "two" } } });
+  callbacks.data({ from: "viewer", data: { k: "project_comment", projectId: "project", comment: { id: "three", text: "x", target: 7 } } });
+  assert.equal(state.workspace.comments.length, 2);
+  assert.deepEqual(state.workspace.comments[1].target, { kind: "project", id: null });
 });
 
 test("approval cards expose all three actions and isolate friend codes in Hebrew", async () => {

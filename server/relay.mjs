@@ -120,8 +120,21 @@ const staticValidators = new Map();
 const staticCost = entry => entry.body.length + (entry.br?.length || 0) + (entry.gzip?.length || 0);
 function rememberValidator(file, entry) {
   staticValidators.delete(file);
-  staticValidators.set(file, { mtime: entry.mtime, size: entry.size, etag: entry.etag });
+  staticValidators.set(file, { mtime: entry.mtime, size: entry.size, etag: entry.etag, compressible: entry.compressible });
   if (staticValidators.size > 20000) staticValidators.delete(staticValidators.keys().next().value);
+}
+/* Which content-coding a request gets, and that representation's own strong
+   tag: RFC 9110 gives each coding of a resource a different strong validator,
+   and one tag for the br, gzip and identity bodies let a 304 confirm a
+   representation the client never received. */
+function staticEncoding(entry, req) {
+  const accept = String(req.headers["accept-encoding"] || "");
+  if (entry.compressible && /\bbr\b/.test(accept)) return "br";
+  if (entry.compressible && /\bgzip\b/.test(accept)) return "gzip";
+  return "";
+}
+function codedTag(etag, encoding) {
+  return encoding ? etag.slice(0, -1) + "-" + encoding + '"' : etag;
 }
 function weakStaticTag(st) {
   return 'W/"' + st.size.toString(16) + '-' + Math.round(st.mtimeMs * 1000).toString(16) + '"';
@@ -415,17 +428,25 @@ function json(res, code, obj) {
 function readJsonBody(req, maxBytes) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    let size = 0;
+    let size = 0, tooLarge = false;
     req.on("data", (chunk) => {
+      if (tooLarge) return;
       size += chunk.length;
       if (size > maxBytes) {
-        req.destroy();
+        /* Stop buffering and answer; the rest of the body is drained and
+           dropped. Destroying the request here reset the connection before
+           the handler's 400 could reach the client. */
+        tooLarge = true;
+        chunks.length = 0;
         reject(new Error("too large"));
+        // a body that never ends is cut off once the answer has had time to leave
+        setTimeout(() => { if (!req.complete) req.destroy(); }, 2000).unref();
         return;
       }
       chunks.push(chunk);
     });
     req.on("end", () => {
+      if (tooLarge) return;
       const raw = Buffer.concat(chunks, size).toString("utf8");
       if (!raw) return resolve({});
       let value;
@@ -504,8 +525,16 @@ function agentAuthorized(req) {
   if (!AGENT_ACCESS_TOKEN) return localOnlyRequest(req, TRUST);
   return sameSecret(req.headers["x-modelforge-agent-token"], AGENT_ACCESS_TOKEN);
 }
+/* Keyed like every other limiter (remoteAddress honours HOME3D_TRUST_PROXY):
+   the raw socket address is the proxy's, which put every user of a hosted
+   relay in one 30-a-minute bucket. Expired windows are swept so the map
+   cannot grow without bound. */
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of agentRate) if (now - entry.started >= 60000) agentRate.delete(key);
+}, 60000).unref();
 function agentWithinRate(req) {
-  const now = Date.now(), key = String(req.socket && req.socket.remoteAddress || "unknown");
+  const now = Date.now(), key = remoteAddress(req) || "unknown";
   const prior = agentRate.get(key), entry = !prior || now - prior.started >= 60000
     ? { started: now, count: 0 } : prior;
   entry.count++;
@@ -718,31 +747,25 @@ const handleRequest = async (req, res) => {
       return;
     }
     const validator = staticValidators.get(file);
-    if (validator && validator.mtime === st.mtimeMs && validator.size === st.size &&
-        etagMatches(req.headers["if-none-match"], validator.etag)) {
-      res.writeHead(304, { ETag: validator.etag, "Cache-Control": "no-cache", Vary: "Accept-Encoding" });
-      return res.end();
+    if (validator && validator.mtime === st.mtimeMs && validator.size === st.size) {
+      const known = codedTag(validator.etag, staticEncoding(validator, req));
+      if (etagMatches(req.headers["if-none-match"], known)) {
+        res.writeHead(304, { ETag: known, "Cache-Control": "no-cache", Vary: "Accept-Encoding" });
+        return res.end();
+      }
     }
     const cached = await cachedStatic(file, st);
-    if (etagMatches(req.headers["if-none-match"], cached.etag)) {
-      res.writeHead(304, { ETag: cached.etag, "Cache-Control": "no-cache", Vary: "Accept-Encoding" });
+    const encoding = staticEncoding(cached, req), tag = codedTag(cached.etag, encoding);
+    if (etagMatches(req.headers["if-none-match"], tag)) {
+      res.writeHead(304, { ETag: tag, "Cache-Control": "no-cache", Vary: "Accept-Encoding" });
       return res.end();
     }
-    const accept = String(req.headers["accept-encoding"] || "");
-    let encoding = "";
-    let payload = cached.body;
-    if (cached.br && /\bbr\b/.test(accept)) {
-      encoding = "br";
-      payload = cached.br;
-    } else if (cached.compressible && /\bgzip\b/.test(accept)) {
-      encoding = "gzip";
-      payload = await staticGzip(file, cached);
-    }
+    const payload = encoding === "br" ? cached.br : encoding === "gzip" ? await staticGzip(file, cached) : cached.body;
     res.writeHead(200, {
       "Content-Type": MIME[extname(file).toLowerCase()] || "application/octet-stream",
       "Cache-Control": "no-cache",
       "Content-Length": payload.length,
-      "ETag": cached.etag,
+      "ETag": tag,
       "Vary": "Accept-Encoding",
       ...(encoding ? { "Content-Encoding": encoding } : {}),
     });
@@ -837,16 +860,25 @@ function makeParser(onMessage, onClose, sock, onFrame) {
       sock.destroy();
     }
   };
+  /* The cap bounds what is LEFT after every complete frame has been taken:
+     one partial frame (a masked frame needs up to 14 header bytes beyond its
+     payload). Checked before draining, a near-max message whose tail shared a
+     TCP chunk with the next frame's start disconnected a legitimate client.
+     A single socket chunk is small, so buffering it first costs little. */
   function consume(chunk) {
-    // A masked frame needs up to 14 header bytes beyond its payload.
-    if (pendingBytes + chunk.length > WS_MAX_MESSAGE_BYTES + 14) return sock.destroy();
     if (chunk.length) { chunks.push(chunk); pendingBytes += chunk.length; }
+    drain();
+    if (!sock.destroyed && pendingBytes > WS_MAX_MESSAGE_BYTES + 14) sock.destroy();
+  }
+  function drain() {
     while (!sock.destroyed) {
       if (pendingBytes < 2) return;
       let buf = peek(Math.min(pendingBytes, 14));
       const fin = (buf[0] & 0x80) !== 0;
       const op = buf[0] & 0x0f;
       const masked = (buf[1] & 0x80) !== 0;
+      // RFC 6455 §5.1: a client MUST mask every frame; the server closes on one that is not
+      if (!masked) return sock.destroy();
       let len = buf[1] & 0x7f;
       let off = 2;
       if (len === 126) {

@@ -4,7 +4,7 @@
 import { ceilingHeight } from "../elevation.js";
 import { contentBounds, roomByKey, wallById, wallGeom } from "../geometry.js";
 import { spawnHangingCloth } from "../physics_facade.js";
-import { S, clamp } from "../state.js";
+import { S, clamp, fin } from "../state.js";
 import { THREE } from "../three_lazy.js";
 import { ghostSwap } from "../view3d/items_layers.js";
 import { cutH, makeShadowOnly, shadowCopy } from "../view3d/site_cutaway.js";
@@ -37,7 +37,7 @@ function hangWindowCloth(container) {
   var thick = (w.thickness || 12) / 2 + 4;
   spawnHangingCloth(container, {
     x: gm.a.x + gm.ux * s + nx * thick,
-    y: (o.sill || 90) + (o.height || 120) - 4,
+    y: (fin(o.sill) ? o.sill : 90) + (o.height || 120) - 4, // a floor-level window has sill 0
     z: gm.a.z + gm.uz * s + nz * thick,
     width: Math.min(o.width || 80, 90) - 8,
     height: Math.max(70, (o.height || 120) - 10),

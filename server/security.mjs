@@ -31,11 +31,32 @@ function embeddedIPv4(address) {
   return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
 }
 
+/* IPv4 carried inside an IPv6 address by a translator or tunnel: NAT64
+   (64:ff9b::/96 and the local-use 64:ff9b:1::/48), IPv4-translated
+   (::ffff:0:a.b.c.d) and 6to4 (2002:aabb:ccdd::). A destination like
+   64:ff9b::7f00:1 reaches 127.0.0.1 through a gateway that does not drop it,
+   so the public test judges the IPv4 inside. Only the public test uses this:
+   the LAN allow-list keeps its plain mapped / compatible forms. */
+function tunnelledIPv4(address) {
+  const bits = addressBits(address);
+  if (!bits || bits.family !== 6) return null;
+  const v = bits.value;
+  let four = null;
+  // The local-use 64:ff9b:1::/48 may use any RFC 6052 prefix length, which
+  // places the IPv4 differently: it is judged as a whole (not public) instead.
+  if (v >> 80n === 0x0064ff9b0001n) return "0.0.0.0";
+  if (v >> 32n === 0x0064ff9b0000000000000000n || v >> 32n === 0xffff0000n)
+    four = v & 0xffffffffn;
+  else if (v >> 112n === 0x2002n) four = (v >> 80n) & 0xffffffffn;
+  if (four == null) return null;
+  return [24n, 16n, 8n, 0n].map((shift) => String((four >> shift) & 255n)).join(".");
+}
+
 export function isPublicAddress(address) {
   address = normalizeAddress(address);
-  const v4 = ipv4Parts(address) || ipv4Parts(embeddedIPv4(address) || "");
+  const v4 = ipv4Parts(address) || ipv4Parts(embeddedIPv4(address) || tunnelledIPv4(address) || "");
   if (v4) {
-    const [a, b] = v4;
+    const [a, b, c] = v4;
     return !(
       a === 0 ||
       a === 10 ||
@@ -43,7 +64,9 @@ export function isPublicAddress(address) {
       (a === 100 && b >= 64 && b <= 127) ||
       (a === 169 && b === 254) ||
       (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 0) ||
+      // 192.0.0.0/24 (IETF) and 192.0.2.0/24 (TEST-NET-1) only: the rest of
+      // 192.0.0.0/16 is ordinary public space (IANA's 192.0.32.0/20)
+      (a === 192 && b === 0 && (c === 0 || c === 2)) ||
       (a === 192 && b === 168) ||
       (a === 198 && (b === 18 || b === 19)) ||
       a >= 224

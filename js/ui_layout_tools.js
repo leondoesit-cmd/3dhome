@@ -16,6 +16,7 @@ import {renderAgentPreview,clearAgentPreview} from './agent_preview.js';
 import {onAfterRender} from './plan2d.js';
 import {roomTypeOf} from './room_types.js';
 import {LAYOUT_TYPES,LAYOUT_ACCESS,defaultRequiredItems} from './layout_preferences.js';
+import {toDisp,fromDisp} from './display_units.js';
 let worker=null,revision=0,pending=null,result=null,selectedOption=0,lastRoom=null;
 const required=new Map(),optional=new Map(),preferences=new Map();
 const fingerprint=()=>JSON.stringify([currentHistoryId(),S.workspace?.activeFloor,S.workspace?.documentKey,S.workspace?.role,S.workspace?.guidance,S.nodes,S.walls,S.wallTypes,S.openings,S.items,S.slabOpenings,S.roomMeta,S.workspace?.redesign]);
@@ -100,8 +101,9 @@ export function layoutToolsSection(room,helpers){
  optionalSelect.addEventListener('change',()=>{optional.set(room.key,[...optionalSelect.selectedOptions].map(o=>o.value));cancelLayoutAnalysis();save();});node.append(field('layout_optional',optionalSelect));
  const accessSection=section('layout-access','layout_access_title');
  for(const [type,defaultDepth]of Object.entries(LAYOUT_ACCESS)){
-  const input=el('input');input.type='number';input.min='0';input.max='200';input.step='any';input.value=preferences.get(room.key)?.[type]??defaultDepth;
-  input.addEventListener('change',()=>{if(input.reportValidity()){preferences.set(room.key,{...(preferences.get(room.key)||{}),[type]:Number(input.value)});cancelLayoutAnalysis();save();}});
+  // shown in the display unit its label names ({u}); preferences stay in cm (0-200)
+  const input=el('input');input.type='number';input.min='0';input.max=String(Number(toDisp(200).toFixed(4)));input.step='any';input.value=Number(toDisp(preferences.get(room.key)?.[type]??defaultDepth).toFixed(4));
+  input.addEventListener('change',()=>{if(input.reportValidity()){preferences.set(room.key,{...(preferences.get(room.key)||{}),[type]:fromDisp(Number(input.value))});cancelLayoutAnalysis();save();}});
   const row=field('layout_access',input);row.firstChild.textContent=t('layout_access').replace('{type}',flabel(type));input.dataset.guideField='layout_access_'+type;accessSection.append(row);
  }
  node.append(accessSection);

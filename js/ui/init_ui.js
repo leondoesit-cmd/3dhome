@@ -294,14 +294,19 @@ export function initUI() {
       try {
         var d = JSON.parse(rd.result);
         pushHistory();
-        var geo = (d && (d.type === "FeatureCollection" || Array.isArray(d.features) || d.type === "Feature")) ? d : null;
+        /* A bare geometry is GeoJSON too (the converter takes it); routed to
+           applyData it read as an empty project and cleared the plan. */
+        var geo = (d && (d.type === "FeatureCollection" || Array.isArray(d.features) || d.type === "Feature" ||
+          ["Polygon", "MultiPolygon", "LineString", "GeometryCollection"].indexOf(d.type) >= 0)) ? d : null;
         var cad = d.cadEntities || d.cad || ((d.lines || d.arcs) ? d : null);
         if (geo) {
           var convertedGeo = convertGeoJsonToWalls(geo, { height: 300, firstId: S.idc });
+          if (!convertedGeo.walls.length) { flash(t("f_badFile"), "error"); return; }
           S.nodes = convertedGeo.nodes; S.walls = convertedGeo.walls; S.openings = convertedGeo.openings;
           S.items = []; S.markers = []; S.annotations = []; S.roomMeta = convertedGeo.roomMeta || {}; S.idc = convertedGeo.nextId || S.walls.length + 1;
           ensureWallTypes(S); rebuildProject(S, FURN); S.sel = null; S.dirty3D = true;
           render2D(); fitView(); refreshTree(); updateCost();
+          flash(t("f_imported"), "success");
         } else if (cad && (Array.isArray(cad.lines) || Array.isArray(cad.arcs))) {
           var converted = convertCadToWalls(cad, {
             wallTypeByLayer: d.wallTypeByLayer || cad.wallTypeByLayer || {},

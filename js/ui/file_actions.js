@@ -20,6 +20,8 @@ import { exportCostCSV, refreshTree, withoutRoomPrompts } from "../ui_tree.js";
 import { applyData, download, exportWallScheduleFile, flash, saveTextDownload, serialize, syncEnvUI } from "../ui.js";
 import { applyEnv, frameView, has3D, snapshot3D } from "../view3d.js";
 import { uiLocals } from "./ui_locals.js";
+import { csvCell } from "../wall_schedule.js";
+import { today as sheetDate } from "../sheet_print.js";
 
 export const RUN_HISTORY_ACTIONS = new Set(["undo", "redo"]);
 
@@ -178,7 +180,7 @@ async function runFileAction(act, ev) {
       ctx.fillStyle = "#20242a";
       ctx.font = (12 * dpr) + "px Inter, Helvetica, Arial, sans-serif";
       ctx.fillText("A-01", bw * 0.85, by + bh * 0.72);
-      ctx.fillText(new Date().toISOString().slice(0, 10), bw * 0.69, by + bh * 0.72);
+      ctx.fillText(sheetDate(), bw * 0.69, by + bh * 0.72);
       // A screen-resolution raster has no physical size, so it has no scale.
       // Stamping "1:20" on it invites someone to measure off the print.
       ctx.fillText("NTS", bw * 0.47, by + bh * 0.72);
@@ -233,7 +235,7 @@ async function runFileAction(act, ev) {
     var toCsv = [['"Wall"', '"Item"', '"Detail"', '"Quantity"'].join(",")];
     wallTakeoffRows(toWall).forEach(function (r) {
       toCsv.push([toWall.id, r.k, r.s || "", r.v]
-        .map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","));
+        .map(csvCell).join(","));
     });
     saveTextDownload("wall-" + toWall.id + "-takeoff.csv", toCsv.join("\r\n"));
     flash(t("f_downloaded"), "success");

@@ -13,6 +13,9 @@ import {withoutRoomPrompts} from './ui_tree.js';
 import {cancelLayoutAnalysis} from './ui_layout_tools.js';
 import {resolveWallDrawDefaults} from './wall_draw.js';
 import {watchPlanningActivity,planningVersion} from './planning_activity.js';
+import {toDisp,fromDisp} from './display_units.js';
+// fields and vertices are shown in the display unit their labels name ({u}); drafts and commands stay in cm
+const shown=cm=>Number(toDisp(cm).toFixed(4));
 let draft={type:'L',x:0,z:0,width:400,depth:400,arm:150,roomType:'living',name:''},preview=null;
 const env=()=>({state:S,services:{detectRooms,captureLock},history:{begin:beginHistoryTransaction,commit:commitHistoryTransaction,abort:abortHistoryTransaction,current:currentHistoryId}});
 const stamp=planningVersion;
@@ -21,11 +24,11 @@ export function shapeToolsSection(helpers){
  const {section,field,el,button,choices}=helpers,node=section('room-shape','shape_title');
  node.append(field('shape_kind',choices(['L','T','U','custom'].map(id=>[id,'shape_'+id]),draft.type,value=>{draft.type=value;preview=null;clearAgentPreview();})));
  for(const key of ['x','z','width','depth','arm']){
-  const input=el('input');input.type='number';input.step='any';input.value=draft[key];
-  input.addEventListener('change',()=>{draft[key]=Number(input.value);preview=null;clearAgentPreview();});node.append(field('shape_'+key,input));
+  const input=el('input');input.type='number';input.step='any';input.value=shown(draft[key]);
+  input.addEventListener('change',()=>{draft[key]=fromDisp(Number(input.value));preview=null;clearAgentPreview();});node.append(field('shape_'+key,input));
  }
- const points=el('textarea');points.rows=3;points.placeholder='0,0\n400,0\n400,300\n0,300';points.value=(draft.points||[]).map(p=>p.x+','+p.z).join('\n');
- points.addEventListener('change',()=>{draft.points=points.value.trim().split(/\n+/).map(line=>{const [x,z]=line.split(',').map(Number);return {x,z};});preview=null;clearAgentPreview();});node.append(field('shape_points',points));
+ const points=el('textarea');points.rows=3;points.placeholder='0,0\n400,0\n400,300\n0,300';points.value=(draft.points||[]).map(p=>shown(p.x)+','+shown(p.z)).join('\n');
+ points.addEventListener('change',()=>{draft.points=points.value.trim().split(/\n+/).map(line=>{const [x,z]=line.split(',').map(v=>fromDisp(Number(v)));return {x,z};});preview=null;clearAgentPreview();});node.append(field('shape_points',points));
  node.append(el('p',t('shape_hint'),'guide-note'));
  node.append(button('shape_preview',()=>{
   cancelLayoutAnalysis();const defaults=resolveWallDrawDefaults();
@@ -51,10 +54,10 @@ export function authoredShapeSection(room,helpers){
  const {section,field,el,button}=helpers,node=section('authored-shape','shape_edit_title'),inputs={};
  node.append(el('p',t('shape_'+shape.type)));
  for(const key of ['width','depth','arm']){
-  const input=el('input');input.type='number';input.step='any';input.value=shape.parameters[key];inputs[key]=input;node.append(field('shape_'+key,input));
+  const input=el('input');input.type='number';input.step='any';input.value=shown(shape.parameters[key]);inputs[key]=input;node.append(field('shape_'+key,input));
  }
  node.append(button('shape_apply_params',()=>{
-  const result=executeCommand(roomShapeEditCommand,{roomKey:room.key,...Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,Number(input.value)]))},env(),{label:t('shape_apply_params'),postValidate:()=>detectRooms().some(r=>r.key===room.key)?{ok:true}:{ok:false,reason:'NO_ROOM'}});
+  const result=executeCommand(roomShapeEditCommand,{roomKey:room.key,...Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,fromDisp(Number(input.value))]))},env(),{label:t('shape_apply_params'),postValidate:()=>detectRooms().some(r=>r.key===room.key)?{ok:true}:{ok:false,reason:'NO_ROOM'}});
   if(!result.ok){flash(t('shape_edit_refused'),'error');return;}
   reconcileRoomMeta();withoutRoomPrompts(refreshTree);S.dirty3D=true;render2D();
  }));return node;

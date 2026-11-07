@@ -90,8 +90,12 @@ test("tiny cache caps preserve compressed content and validators across eviction
     etags.set(file, response.headers.etag);
   }
   for (const { file } of files) {
-    const conditional = await bytes(relay.port, "/js/" + file, "GET", { "If-None-Match": etags.get(file) });
+    const conditional = await bytes(relay.port, "/js/" + file, "GET", { "Accept-Encoding": "br", "If-None-Match": etags.get(file) });
     assert.equal(conditional.status, 304);
+    // the br tag does not validate the identity body: each coding has its own strong tag
+    const plain = await bytes(relay.port, "/js/" + file, "GET", { "If-None-Match": etags.get(file) });
+    assert.equal(plain.status, 200);
+    assert.notEqual(plain.headers.etag, etags.get(file));
   }
   // the largest top-level module, whatever splits have left: it must exceed the per-file cap
   let largest = null;

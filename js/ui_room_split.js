@@ -10,15 +10,17 @@ import {refreshTree,flash} from './ui.js';
 import {withoutRoomPrompts} from './ui_tree.js';
 import {render2D} from './plan2d.js';
 import {watchPlanningSection,planningVersion} from './planning_activity.js';
+import {toDisp,fromDisp} from './display_units.js';
 const env=()=>({state:S,services:{detectRooms,captureLock},history:{begin:beginHistoryTransaction,commit:commitHistoryTransaction,abort:abortHistoryTransaction,current:currentHistoryId}});
 export function roomSplitSection(room,helpers){
  const {section,el,field,button,choices}=helpers,node=section('room-split','split_title');let axis='x',preview=null,version=null;
  watchPlanningSection('split',node,()=>preview?{stamp:version,current:planningVersion()}:null,()=>{preview=null;clearAgentPreview();});
  node.append(field('split_axis',choices([['x','shape_width'],['z','shape_depth']],axis,value=>{axis=value;preview=null;clearAgentPreview();})));
- const distance=el('input');distance.type='number';distance.min='20';distance.step='any';distance.value=100;
+ // shown in the display unit its label names ({u}); the command takes cm
+ const distance=el('input');distance.type='number';distance.min='0';distance.step='any';distance.value=Number(toDisp(100).toFixed(4));
  distance.addEventListener('change',()=>{preview=null;clearAgentPreview();});node.append(field('split_distance',distance),el('p',t('split_hint'),'guide-note'));
  node.append(button('split_preview',()=>{
-  const result=prepareCommand(roomSplitCommand,{roomKey:room.key,axis,offset:Number(distance.value)},env());
+  const result=prepareCommand(roomSplitCommand,{roomKey:room.key,axis,offset:fromDisp(Number(distance.value))},env());
   if(!result.ok){flash(t('split_refused'),'error');return;}
   preview=result;version=planningVersion();renderAgentPreview({kind:'wall',from:result.plan.params.from,to:result.plan.params.to});
  }));

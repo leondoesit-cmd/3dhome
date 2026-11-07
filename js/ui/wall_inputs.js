@@ -490,6 +490,7 @@ function wireItemAndRoomInputs(runAction) {
     if (S.sel.kind === "opening") {
       S.sel.ref.sill = Math.max(0, Math.min(300, v));
       syncPaired(S.sel.ref);
+      return S.sel.ref.sill; // the field shows the clamped value, as o_w / o_h do
     }
   });
   /* Frame / mullion profile. Each field writes one optional property on the
@@ -547,7 +548,7 @@ function wireItemAndRoomInputs(runAction) {
   });
   bindLength("o_m_b", function(v) {
     if (S.sel.kind === "opening") {
-      S.sel.ref.sill = Math.max(0, v);
+      S.sel.ref.sill = Math.max(0, Math.min(300, v)); // same range as the sill field
       syncPaired(S.sel.ref);
       S.dirty3D = true;
       render2D();

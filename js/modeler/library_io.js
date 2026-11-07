@@ -166,8 +166,17 @@ function beginSmartMateDrag(event, view) {
   var movingRef = stampComponentRef(from.reference, movingComponent, from) || componentTopologyFromHit(movingComponent, (from.hits || [])[0]);
   E.componentSel = [movingComponent];
   E.sel = movingComponent;
+  /* A cancelled pointer (a touch gesture taken by the OS) ends the drag with
+     no mate. Without this the pointerup listener stayed armed and the next
+     release anywhere mated whatever happened to be under it. */
+  function cancel() {
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", cancel);
+    refreshAll();
+  }
   function up(ev) {
     window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", cancel);
     var onto = pick(ev);
     var targetComponent = onto.component;
     var targetRef = null;
@@ -202,6 +211,7 @@ function beginSmartMateDrag(event, view) {
     refreshAll();
   }
   window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", cancel);
   flash(t("smartMateHint"));
   return true;
 }

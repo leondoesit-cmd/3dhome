@@ -223,6 +223,9 @@ export function orphanChildren(hosts) {
       out.push(o);
     }
   });
+  // what stood on an orphan comes down with it: a tray on a box on a deleted
+  // table kept the box's old top as its height and floated above the floor
+  out.forEach(function (o) { reseat(o); });
   return out;
 }
 
@@ -238,6 +241,7 @@ export function refreshSupport(it) {
   }
   if (!inFootprint(it.x, it.z, h)) {
     detach(it);
+    reseat(it); // its own children (carried along with it) come down too
     return true;
   }
   it.elev = topOf(h);

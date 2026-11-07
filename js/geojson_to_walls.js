@@ -56,10 +56,26 @@ export function convertGeoJsonToWalls(geojson, options = {}) {
     return { nodes: [], walls: [], openings: [], roomMeta: {} };
   }
 
-  const isGeo = !["m","meter","cm","mm","ft","in"].includes(options.unit) && Math.abs(minX) <= 180 && Math.abs(maxX) <= 180 && Math.abs(minY) <= 90 && Math.abs(maxY) <= 90;
+  /* Without an explicit unit the SIZE decides, never where the coordinates
+     start. Lon/lat only when they are in range and span a building or a site
+     (0.05° is ~5 km): a local plan in metres, 0-12 by 0-3, passed the bare
+     range test and imported 1,335 km wide. Anything else is local, in the
+     metric unit that makes it home-sized (3-100 m across), as dxfUnits guesses. */
+  const UNITS = {m:100,meter:100,cm:1,mm:.1,ft:30.48,in:2.54};
+  const explicitUnit = Object.hasOwn(UNITS, options.unit);
+  const span = Math.max(maxX - minX, maxY - minY);
+  const isGeo = !explicitUnit && span > 0 && span <= 0.05 &&
+    Math.abs(minX) <= 180 && Math.abs(maxX) <= 180 && Math.abs(minY) <= 90 && Math.abs(maxY) <= 90;
   const midLat = (minY + maxY) / 2;
 
-  const localScale = ({m:100,meter:100,cm:1,mm:.1,ft:30.48,in:2.54})[options.unit] ?? 1;
+  let localScale = explicitUnit ? UNITS[options.unit] : 1;
+  if (!explicitUnit && span > 0) {
+    let best = Infinity;
+    for (const scale of [UNITS.mm, UNITS.cm, UNITS.m]) {
+      const score = Math.abs(Math.log(span * scale / 1500));
+      if (score < best) { best = score; localScale = scale; }
+    }
+  }
   const cmPerLng = isGeo ? Math.cos((midLat * Math.PI) / 180) * 111319.5 * 100 : localScale;
   const cmPerLat = isGeo ? 111132.9 * 100 : localScale;
 
@@ -76,9 +92,10 @@ export function convertGeoJsonToWalls(geojson, options = {}) {
     for (let i = 0; i < ring.length - 1; i++) {
       const p0 = ring[i], p1 = ring[i + 1];
       const x1 = (p0[0] - minX) * cmPerLng;
-      const z1 = isGeo ? -(p0[1] - maxY) * cmPerLat : (p0[1] - minY) * cmPerLat;
+      // GeoJSON's y (latitude or northing) points up; the plan's z points down
+      const z1 = (maxY - p0[1]) * cmPerLat;
       const x2 = (p1[0] - minX) * cmPerLng;
-      const z2 = isGeo ? -(p1[1] - maxY) * cmPerLat : (p1[1] - minY) * cmPerLat;
+      const z2 = (maxY - p1[1]) * cmPerLat;
 
       if (Math.hypot(x2 - x1, z2 - z1) > 1e-6) {
         lines.push({
@@ -119,7 +136,7 @@ export function convertGeoJsonToWalls(geojson, options = {}) {
   };
   for(const {ring,props} of rawPolys){
     if(!props.name||ring.length<4||ring[0][0]!==ring.at(-1)[0]||ring[0][1]!==ring.at(-1)[1])continue;
-    const points=ring.map(p=>({x:(p[0]-minX)*cmPerLng,z:isGeo?-(p[1]-maxY)*cmPerLat:(p[1]-minY)*cmPerLat}));
+    const points=ring.map(p=>({x:(p[0]-minX)*cmPerLng,z:(maxY-p[1])*cmPerLat}));
     const ids=converted.walls.filter(w=>points.slice(1).some((b,i)=>on(converted.nodes[w.a],points[i],b)&&on(converted.nodes[w.b],points[i],b))).map(w=>w.id);
     if(ids.length>=3)roomMeta[ids.sort((a,b)=>a-b).join(',')]={name:props.name,...(props.color!=null?{color:props.color}:{})};
   }

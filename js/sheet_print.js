@@ -34,9 +34,12 @@ function esc(value) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 }
 
-function today() {
-  try { return new Date().toISOString().slice(0, 10); }
-  catch (e) { return ""; }
+/* The calendar date where the sheet is printed. toISOString() is UTC, which
+   stamped yesterday's date on a sheet printed in Israel after midnight. */
+export function today(d) {
+  d = d || new Date();
+  var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
 }
 
 /* Smallest sheet, then largest drawing, that fits the plan plus margins and

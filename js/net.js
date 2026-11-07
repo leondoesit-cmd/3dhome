@@ -367,7 +367,11 @@ export function connect() {
     return;
   }
   NET.ws = ws;
+  /* A socket replaced while it was still closing (connect() right after a
+     close) keeps its handlers: its late close must not reset the live
+     connection's state, nor its last messages reach the new session. */
   ws.onopen = () => {
+    if (NET.ws !== ws) return;
     retryMs = 1000;
     NET.connected = true;
     send({ t: "hello", code: NET.code, name: NET.name, token: NET.token });
@@ -377,6 +381,7 @@ export function connect() {
     emit("status", true);
   };
   ws.onclose = () => {
+    if (NET.ws !== ws) return;
     const was = NET.connected;
     NET.connected = false;
     NET.joined = false;
@@ -396,6 +401,7 @@ export function connect() {
   };
   ws.onerror = () => {}; // onclose follows and handles it
   ws.onmessage = (ev) => {
+    if (NET.ws !== ws) return;
     let m;
     try {
       m = JSON.parse(ev.data);

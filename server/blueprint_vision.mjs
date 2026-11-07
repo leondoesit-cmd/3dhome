@@ -197,12 +197,16 @@ export function createBlueprintVision({root,json,readJsonBody,allowedOrigin,fetc
     }
     if(req.method!=='POST')return json(res,405,{error:'POST only'});
     if(busy)return json(res,429,{error:'The local vision engine is analyzing another image. Retry when it finishes.'});
-    let payload;
-    try{payload=await readJsonBody(req,5*1024*1024);}catch(error){return json(res,400,{error:error.message});}
-    if(!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(payload?.image||'') || !Number.isInteger(payload.width) || !Number.isInteger(payload.height)
-      ||payload.width<32||payload.height<32||payload.width*payload.height>4000000)
-      return json(res,400,{error:'Choose a readable JPG, PNG or WebP floor-plan image.'});
+    // Claimed before the body is awaited: two posts arriving together both
+    // passed the check above and ran at once against the single-slot runtime.
     busy=true;
+    let payload;
+    try{payload=await readJsonBody(req,5*1024*1024);}catch(error){busy=false;return json(res,400,{error:error.message});}
+    if(!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(payload?.image||'') || !Number.isInteger(payload.width) || !Number.isInteger(payload.height)
+      ||payload.width<32||payload.height<32||payload.width*payload.height>4000000){
+      busy=false;
+      return json(res,400,{error:'Choose a readable JPG, PNG or WebP floor-plan image.'});
+    }
     const controller=new AbortController();
     const startedAt=Date.now();
     const timeout=setTimeout(()=>controller.abort(),600000);
