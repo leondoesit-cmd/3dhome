@@ -888,7 +888,7 @@ function drawScale() {
        the inner status row. Reserving a hard-coded 30px drew the scale card
        underneath the wrapper. Measure the live bottom obstruction and leave
        an 8px visual gutter above it. */
-    y0 = S.CH - bottomReservedPx() - 21,
+    y0 = S.CH - bottomReservedPx(x0 - 6, x0 + w + 6) - 21,
     seg = 4,
     sw = w / seg;
   pc.save();
@@ -909,15 +909,29 @@ function drawScale() {
   pc.restore();
 }
 
-function bottomReservedPx() {
+/* How far up from the plan's bottom edge the scale card must sit to clear
+   whatever floats over that corner: the CAD strip, and the touch layouts'
+   tool dock, which on a tablet or an unfolded fold floats 10px above the
+   edge and hid the card entirely. Only obstructions under the card's own
+   x range [fromX, toX] (plan pixels) count; with no range, any of them does
+   (fitView frames the plan above them). */
+function bottomReservedPx(fromX, toX) {
   if (typeof document === "undefined" || !plan) return 0;
-  var el = document.getElementById("cad-status");
-  if (!el || el.hidden || !el.offsetParent) return 0;
-  var host = el.closest && el.closest('.pt-panel[data-panel="cad"]');
-  if (!host) host = el;
-  var pr = plan.getBoundingClientRect(), er = host.getBoundingClientRect();
-  if (!er.height || er.top >= pr.bottom || er.bottom < pr.bottom - 10) return 0;
-  return Math.max(0, Math.min(pr.height, pr.bottom - er.top));
+  var pr = plan.getBoundingClientRect();
+  var reserve = 0;
+  var cad = document.getElementById("cad-status");
+  var hosts = [];
+  if (cad && !cad.hidden && cad.offsetParent) hosts.push((cad.closest && cad.closest('.pt-panel[data-panel="cad"]')) || cad);
+  var dock = document.querySelector(".ps-dock");
+  // fixed on a phone held sideways, so offsetParent is null even when shown
+  if (dock && dock.getClientRects().length && getComputedStyle(dock).visibility !== "hidden") hosts.push(dock);
+  for (var i = 0; i < hosts.length; i++) {
+    var er = hosts[i].getBoundingClientRect();
+    if (!er.height || er.top >= pr.bottom || er.bottom < pr.bottom - 24) continue;
+    if (fromX != null && (er.right <= pr.left + fromX || er.left >= pr.left + toX)) continue;
+    reserve = Math.max(reserve, Math.min(pr.height, pr.bottom - er.top));
+  }
+  return reserve;
 }
 function drawRank(it) {
   return isLamp(it) ? 3 : it.type === "rug" ? 0 : it.type === "island" ? 1 : 2;
@@ -1098,6 +1112,7 @@ function drawWall(w) {
 }
 
 export {
+  bottomReservedPx,
   drawAngleArc, drawFreeAnnotations, drawGhostWall, drawLen, drawMarkers,
   drawMeasureOverlay, drawOverallDims, drawPlanCursors, drawPreviewDims,
   drawRank, drawScale, drawSize, drawSlabOpenings, drawSnapMark,

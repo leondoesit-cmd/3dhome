@@ -630,3 +630,25 @@
 }
 
 /* Backdrop */
+/* The left panel's two-up cards are ~120px wide (~95px on a 1024px window):
+   one-line labels cut "Blank — start from scratch" to "Blank — st…" and
+   "Cabinet type" to "Cabi…". Let them wrap; the cards grow to fit. */
+body #cabdes:not(.cb-compact) .cb-left .cb-icons button > span {
+  white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.2; text-align: start; min-width: 0;
+}
+/* Below ~1280px the panel is too narrow for icon and words side by side
+   ("Cabine/t type"): stack them, centred, so whole words fit. */
+@media (max-width: 1279px) {
+  body #cabdes:not(.cb-compact) .cb-left .cb-icons button { flex-direction: column; justify-content: center; gap: 4px; padding: 8px 6px; }
+  body #cabdes:not(.cb-compact) .cb-left .cb-icons.cb-pair button:nth-child(2) { margin-inline-start: 0; }
+  body #cabdes:not(.cb-compact) .cb-left .cb-icons button > span { text-align: center; font-size: 12px; }
+}
+/* The view list floats over the drawing's start-side gutter. Below ~1280px
+   the labelled list (~150px) is wider than that gutter and covered the
+   height dimension; icons alone (the labels stay as tooltips) fit it. */
+@media (max-width: 1279px) {
+  #cabdes:not(.cb-compact) :is(.cb-vaxes, .cb-vdraw) > button { font-size: 0; gap: 0; justify-content: center; padding: 6px; }
+  #cabdes:not(.cb-compact) :is(.cb-vaxes, .cb-vdraw) > button > span { display: none; }
+  #cabdes:not(.cb-compact) :is(.cb-vaxes, .cb-vdraw) > button > i { font-size: 16px; }
+  #cabdes:not(.cb-compact) :is(.cb-vaxes, .cb-vdraw) > button > i svg { width: 16px; height: 16px; }
+}

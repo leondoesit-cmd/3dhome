@@ -1207,8 +1207,44 @@ html[data-ui="legacy"] #wallProps details.insp-more { display: contents; }
   background: transparent;
   box-shadow: none;
 }
+/* Two groups: the three ways to start a plan of your own on one row, then
+   the ready-made and file starts. Without a gap the groups' grids butted into
+   each other, and two columns left a hole after the third primary card. */
+.start-card { max-width: 720px; width: min(720px, 100%); margin: auto; flex-shrink: 0; }
+.start-screen { overflow-y: auto; overscroll-behavior: contain; }
+.start-actions:not(.start-secondary) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Buttons centre their content by default; a card with a shorter text then
+   floated lower than its row-mates. */
+.start-actions button { justify-content: flex-start; }
+.start-secondary {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+.start-secondary > button:last-child:nth-child(odd) { grid-column: 1 / -1; }
 @media (max-width: 640px) {
-  .start-actions { grid-template-columns: 1fr; }
+  .start-actions:not(.start-secondary) { grid-template-columns: 1fr; }
+}
+/* Phones list nine starts: the ready-made ones go two to a row as compact
+   tiles so the whole choice fits with little or no scrolling. */
+@media (max-width: 480px), (max-height: 700px) {
+  .start-actions.start-secondary button { min-height: 52px; padding: 10px 12px; justify-content: center; }
+  .start-actions.start-secondary button span { display: none; }
+  .start-actions:not(.start-secondary) button { padding: 12px 14px; }
+}
+/* The card sits between the compact top bar (z 100) and the bottom dock
+   (z 121). The scroller itself ends at both, so neither the heading nor the
+   last row can scroll underneath them. */
+body.compact-nav .start-screen {
+  top: var(--mobile-topbar-row, 48px);
+  bottom: calc(var(--mobile-nav-block, 0px) + var(--m-ctx-block, 0px));
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+/* Tablets and unfolded foldables float the dock above the bottom edge
+   instead of reserving a nav block for it. */
+body.compact-nav.dock-rail .start-screen {
+  bottom: calc(var(--ps-dock-h, 56px) + 10px + env(safe-area-inset-bottom, 0px));
 }
 
 html:not([data-ui="legacy"]) #cad-status .cad-target,
@@ -1228,3 +1264,17 @@ html:not([data-ui="legacy"])[data-tool="walloffset"] #cadTuneBtn {
 
 #legacyUiBtn.active-legacy { color: var(--accent); }
 
+/* Spanned across a vertical hinge (a dual-screen, or a fold in book
+   posture) the centred card ran its text across the seam. It keeps to the
+   first screen instead, laid out as on a phone of that width. */
+body.fold-span .start-screen { justify-content: flex-start; padding-inline: 12px; }
+body.fold-span .start-card {
+  box-sizing: border-box;
+  width: calc(env(viewport-segment-width 0 0, 50vw) - 24px);
+  max-width: none;
+  margin-inline: 0;
+  margin-left: max(0px, env(viewport-segment-left 0 0, 0px));
+}
+body.fold-span .start-actions:not(.start-secondary) { grid-template-columns: 1fr; }
+body.fold-span .start-actions.start-secondary button { min-height: 52px; padding: 10px 12px; justify-content: center; }
+body.fold-span .start-actions.start-secondary button span { display: none; }

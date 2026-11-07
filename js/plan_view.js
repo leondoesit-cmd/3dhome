@@ -99,6 +99,24 @@ export function fitPlanTransform(bb, W, H, under, pad) {
   tx.oy += u / 2 - u / 2 * Math.cos(a);
   return tx;
 }
+/* Is every corner of a world box inside a W×H canvas (default: the current
+   one) under the current view transform? plan2d.js asks it of the plan's
+   content to decide whether a resize should reframe. */
+export function boundsInCanvas(bb, W, H) {
+  if (!(S.SC > 0) || !isFinite(S.SC) || !(S.CW > 0) || !(S.CH > 0)) return false;
+  W = W || S.CW; H = H || S.CH;
+  if (!bb || ![bb.minx, bb.minz, bb.maxx, bb.maxz].every(isFinite)) return false;
+  var cw = S.CW, ch = S.CH;
+  S.CW = W; S.CH = H; // rotatePx turns about the centre of the canvas asked about
+  try {
+    return [[bb.minx, bb.minz], [bb.maxx, bb.minz], [bb.maxx, bb.maxz], [bb.minx, bb.maxz]].every(function (p) {
+      var q = rotatePx(sx(p[0]), sz(p[1]));
+      return q.x >= -2 && q.y >= -2 && q.x <= W + 2 && q.y <= H + 2;
+    });
+  } finally {
+    S.CW = cw; S.CH = ch;
+  }
+}
 export function isOnScreen(x, z, margin) {
   var m = margin == null ? 60 : margin;
   if (!(S.SC > 0) || !(S.CW > 0) || !(S.CH > 0)) return false;

@@ -386,7 +386,7 @@ function cardFacts(sel) {
     var at = detectRooms().find(function (r) { return r.pts && r.pts.length > 2 && inside({ x: ref.x, z: ref.z }, r.pts); });
     if (roomLabelOf(at)) sub.push(roomLabelOf(at));
   } else if (sel.kind === "opening") {
-    icon = ref.type === "window" ? "ph-frame-corners" : "ph-door";
+    icon = ref.type === "window" ? "ph-grid-four" : "ph-door";
     sub.push(t(ref.type === "window" ? "m_card_window" : ref.type === "door" ? "m_card_door" : "m_card_opening"));
     sub.push(t("m_card_on_wall", { id: partCode("wall", ref.wall) }));
   } else if (sel.kind === "room") {
@@ -525,7 +525,7 @@ function selActionList() {
     return [
       { icon: "ph-door", label: t("m_a_adddoor"), run: function () { run("addWallDoor"); } },
       finishBtn,
-      { icon: "ph-frame-corners", label: t("m_a_addwindow"), run: function () { run("addWallWindow"); } },
+      { icon: "ph-grid-four", label: t("m_a_addwindow"), run: function () { run("addWallWindow"); } },
       propsBtn,
       { icon: "ph-flip-horizontal", label: t("m_a_flipwall"), run: function () { run("reverseWallLayers"); } },
       delBtn,

@@ -188,11 +188,23 @@ function syncViewButtons() {
     });
     active = preset ? (preset.id === "right" ? "side" : preset.id) : null;
   }
+  var shown = null;
   root.querySelectorAll("[data-view]").forEach(function (button) {
     var selected = button.getAttribute("data-view") === active;
     button.classList.toggle("on", selected);
     button.setAttribute("aria-pressed", String(selected));
+    if (selected) shown = button;
   });
+  /* The rail's orientation button wears the current view's cube (or the
+     plain iso cube for a free orbit), so the rail still says where you look. */
+  var orient = root.querySelector("#mdViewOrient");
+  if (orient && orient.querySelector) {
+    var art = shown && shown.querySelector("svg"), mine = orient.querySelector("svg");
+    var want = art ? art.outerHTML : orient.dataset.isoIcon || (orient.dataset.isoIcon = mine ? mine.outerHTML : "");
+    if (mine && want && mine.outerHTML !== want) mine.outerHTML = want;
+    var name = shown && shown.querySelector("span") ? shown.querySelector("span").textContent : "";
+    orient.setAttribute("aria-label", orient.getAttribute("data-tip") + (name ? " · " + name : ""));
+  }
 }
 
 function syncTools() {

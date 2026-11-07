@@ -78,6 +78,7 @@ function wireRibbonToolsAndPanes() {
     orientModelToView(true);
     drawSketch();
   });
+  wireViewFlyout();
   root.querySelector("#mdPerspectiveView").addEventListener("click", function () {
     if(!E.pv)return;
     var mode=E.pv.getProjection()==='perspective'?'orthographic':'perspective';
@@ -566,3 +567,48 @@ function wireGuidancePropsAndPanels(autoDimBox, cons) {
 }
 
 export { wireGuidancePropsAndPanels, wireRibbonToolsAndPanes };
+
+/* The view-orientation button and its flyout (js/modeler/editor_markup.js):
+   opens beside the rail, closes on a pick, Escape, or a press elsewhere, and
+   moves focus in and back out for the keyboard. */
+function wireViewFlyout() {
+  var toggle = root.querySelector("#mdViewOrient"), fly = root.querySelector("#mdViewFlyout");
+  if (!toggle || !fly) return;
+  fly.querySelectorAll("button").forEach(function (b) { b.setAttribute("role", "menuitem"); });
+  function setOpen(open, refocus) {
+    fly.hidden = !open;
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toggle.classList.toggle("open", open);
+    if (open) {
+      /* fixed, beside the button: the rail scrolls on a short screen and
+         would clip a flyout positioned inside it */
+      // The classic rail blurs its backdrop, which makes it the box `fixed`
+      // measures from (and clips to); the editor root holds the flyout instead.
+      if (fly.parentElement !== root) root.appendChild(fly);
+      var r = toggle.getBoundingClientRect(), w = fly.offsetWidth, h = fly.offsetHeight;
+      var toLeft = r.left > window.innerWidth / 2;
+      var x = Math.round(toLeft ? r.left - 8 - w : r.right + 8);
+      var y = Math.round(Math.max(8, Math.min(r.top, window.innerHeight - h - 8)));
+      fly.style.left = x + "px";
+      fly.style.top = y + "px";
+      // and if the root itself is such a box, take its offset back out
+      var at = fly.getBoundingClientRect();
+      if (Math.abs(at.left - x) > 0.5) fly.style.left = Math.round(2 * x - at.left) + "px";
+      if (Math.abs(at.top - y) > 0.5) fly.style.top = Math.round(2 * y - at.top) + "px";
+      var current = fly.querySelector("button.on") || fly.querySelector("button");
+      if (current) current.focus({ preventScroll: true });
+    } else if (refocus) toggle.focus({ preventScroll: true });
+  }
+  toggle.addEventListener("click", function () { setOpen(fly.hidden, false); });
+  fly.addEventListener("click", function (e) { if (e.target.closest("button")) setOpen(false, true); });
+  fly.addEventListener("keydown", function (e) {
+    var items = Array.prototype.slice.call(fly.querySelectorAll("button"));
+    var i = items.indexOf(document.activeElement);
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setOpen(false, true); }
+    else if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (!fly.hidden && !fly.contains(e.target) && !toggle.contains(e.target)) setOpen(false, false);
+  }, true);
+}

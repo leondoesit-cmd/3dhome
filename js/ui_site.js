@@ -9,6 +9,7 @@ import { render2D, fitView } from "./plan2d.js";
 import { flash, openModal } from "./ui.js";
 import { buildIconSettingsPane, initIconSettings } from "./icon_settings.js";
 import { buildTouchPrecisionSettings } from "./touch_precision_ui.js";
+import { buildGridSettings } from "./plan_grid_ui.js";
 import { buildUnitSettingsPane } from "./unit_settings.js";
 import { updateCost } from "./ui_tree.js";
 import { applySite, setStreetViewCube } from "./view3d.js";
@@ -255,6 +256,11 @@ export function openSettings(initialPane) {
   touchTab.setAttribute("role", "tab");
   touchTab.setAttribute("aria-selected", "false");
   touchTab.innerHTML = '<i class="ph ph-hand-tap"></i><span>' + t("settings_touch_tab") + "</span>";
+  var gridTab = el("button");
+  gridTab.type = "button";
+  gridTab.setAttribute("role", "tab");
+  gridTab.setAttribute("aria-selected", "false");
+  gridTab.innerHTML = '<i class="ph ph-grid-four"></i><span>' + t("settings_grid_tab") + "</span>";
   var agentTab = el("button");
   agentTab.type = "button";
   agentTab.setAttribute("role", "tab");
@@ -262,6 +268,7 @@ export function openSettings(initialPane) {
   agentTab.innerHTML = '<i class="ph ph-robot"></i><span>' + t("settings_agent_tab") + "</span>";
   tabs.appendChild(generalTab);
   tabs.appendChild(unitsTab);
+  tabs.appendChild(gridTab);
   tabs.appendChild(agentTab);
   tabs.appendChild(touchTab);
   tabs.appendChild(iconsTab);
@@ -281,12 +288,17 @@ export function openSettings(initialPane) {
   touchPane.setAttribute("role", "tabpanel");
   touchPane.hidden = true;
   touchPane.appendChild(buildTouchPrecisionSettings());
+  var gridPane = el("section", "settings-pane settings-grid-pane");
+  gridPane.setAttribute("role", "tabpanel");
+  gridPane.hidden = true;
+  gridPane.appendChild(buildGridSettings());
   var agentPane = el("section", "settings-pane settings-agent-pane");
   agentPane.setAttribute("role", "tabpanel");
   agentPane.hidden = true;
   var agentSettingsLoading = null;
   panes.appendChild(generalPane);
   panes.appendChild(unitsPane);
+  panes.appendChild(gridPane);
   panes.appendChild(agentPane);
   panes.appendChild(touchPane);
   panes.appendChild(iconsPane);
@@ -303,29 +315,34 @@ export function openSettings(initialPane) {
       }).catch(function (error) { agentSettingsLoading = null; console.error('Agent settings failed to load', error); });
     }
     var showUnits = which === "units";
-    generalPane.hidden = showIcons || showTouch || showAgent || showUnits;
+    var showGrid = which === "grid";
+    generalPane.hidden = showIcons || showTouch || showAgent || showUnits || showGrid;
     unitsPane.hidden = !showUnits;
+    gridPane.hidden = !showGrid;
     agentPane.hidden = !showAgent;
     touchPane.hidden = !showTouch;
     iconsPane.hidden = !showIcons;
-    generalTab.classList.toggle("active", !showIcons && !showTouch && !showAgent && !showUnits);
+    generalTab.classList.toggle("active", !showIcons && !showTouch && !showAgent && !showUnits && !showGrid);
     unitsTab.classList.toggle("active", showUnits);
+    gridTab.classList.toggle("active", showGrid);
     agentTab.classList.toggle("active", showAgent);
     touchTab.classList.toggle("active", showTouch);
     iconsTab.classList.toggle("active", showIcons);
-    generalTab.setAttribute("aria-selected", showIcons || showTouch || showAgent || showUnits ? "false" : "true");
+    generalTab.setAttribute("aria-selected", showIcons || showTouch || showAgent || showUnits || showGrid ? "false" : "true");
     unitsTab.setAttribute("aria-selected", showUnits ? "true" : "false");
+    gridTab.setAttribute("aria-selected", showGrid ? "true" : "false");
     agentTab.setAttribute("aria-selected", showAgent ? "true" : "false");
     touchTab.setAttribute("aria-selected", showTouch ? "true" : "false");
     iconsTab.setAttribute("aria-selected", showIcons ? "true" : "false");
     m.modal.classList.toggle("showing-icon-settings", showIcons);
-    var activeTab = showUnits ? unitsTab : (showAgent ? agentTab : (showTouch ? touchTab : (showIcons ? iconsTab : generalTab)));
+    var activeTab = showGrid ? gridTab : showUnits ? unitsTab : (showAgent ? agentTab : (showTouch ? touchTab : (showIcons ? iconsTab : generalTab)));
     if (activeTab && typeof activeTab.scrollIntoView === "function") {
       activeTab.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     }
   }
   generalTab.onclick = function () { showPane("general"); };
   unitsTab.onclick = function () { showPane("units"); };
+  gridTab.onclick = function () { showPane("grid"); };
   agentTab.onclick = function () { showPane("agent"); };
   touchTab.onclick = function () { showPane("touch"); };
   iconsTab.onclick = function () { showPane("icons"); };

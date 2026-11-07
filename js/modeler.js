@@ -1669,18 +1669,18 @@ var SKETCH_ENTITY_TYPES = ["line", "circle", "arc", "ellipse", "spline", "point"
 
 /* ---- geometric constraints from the current selection ---- */
 var CONSTRAINT_DEFS = [
-  { id: "coincident", label: "cCoincident", icon: "ph-dot-outline", need: "2 points" },
+  { id: "coincident", label: "cCoincident", icon: "ph-circles-four", need: "2 points" },
   { id: "horizontal", label: "cHorizontal", icon: "ph-arrows-horizontal", need: "line(s) or 2 points" },
   { id: "vertical", label: "cVertical", icon: "ph-arrows-vertical", need: "line(s) or 2 points" },
-  { id: "parallel", label: "cParallel", icon: "ph-equals", need: "2 lines" },
-  { id: "perpendicular", label: "cPerpendicular", icon: "ph-angle", need: "2 lines" },
-  { id: "tangent", label: "cTangent", icon: "ph-circle-half", need: "line+circle or 2 circles" },
-  { id: "equal", label: "cEqual", icon: "ph-approximate-equals", need: "2 or more lines or circles" },
-  { id: "concentric", label: "cConcentric", icon: "ph-circles-three", need: "2 circles" },
-  { id: "midpoint", label: "cMidpoint", icon: "ph-align-center-horizontal", need: "point + line" },
-  { id: "pointOnLine", label: "cPointOnLine", icon: "ph-map-pin-simple", need: "point + entity" },
+  { id: "parallel", label: "cParallel", icon: "ph-parallelogram", need: "2 lines" },
+  { id: "perpendicular", label: "cPerpendicular", icon: "ph-arrow-elbow-down-right", need: "2 lines" },
+  { id: "tangent", label: "cTangent", icon: "ph-git-commit", need: "line+circle or 2 circles" },
+  { id: "equal", label: "cEqual", icon: "ph-equals", need: "2 or more lines or circles" },
+  { id: "concentric", label: "cConcentric", icon: "ph-target", need: "2 circles" },
+  { id: "midpoint", label: "cMidpoint", icon: "ph-arrows-in-line-horizontal", need: "point + line" },
+  { id: "pointOnLine", label: "cPointOnLine", icon: "ph-map-pin-line", need: "point + entity" },
   { id: "intersection", label: "cIntersection", icon: "ph-plus", need: "point + two lines or two model edges" },
-  { id: "symmetric", label: "cSymmetric", icon: "ph-flip-horizontal", need: "2 points + line" },
+  { id: "symmetric", label: "cSymmetric", icon: "ph-arrows-left-right", need: "2 points + line" },
   { id: "fixed", label: "cFixed", icon: "ph-lock-simple", need: "point(s)" },
 ];
 

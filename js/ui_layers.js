@@ -723,7 +723,8 @@ function buildRefRow() {
   refRow.className = "lchip lchip-x lchip-ref";
   refRow.innerHTML =
     '<span class="lchip-name"><i class="ph ph-stack" aria-hidden="true"></i><span class="lchip-t"></span></span>' +
-    '<button type="button" class="lchip-eye"><i class="ph"></i></button>';
+    // a real glyph from the start: syncRefRow leaves a hidden row (one floor) untouched
+    '<button type="button" class="lchip-eye"><i class="ph ph-eye-slash"></i></button>';
   refRow.querySelector(".lchip-eye").addEventListener("click", function () {
     var ws = S.workspace;
     if (!ws) return;
@@ -1021,9 +1022,9 @@ var TOOL_INFO = {
   rect: { icon: "ph-rectangle", key: "m_t_rect" },
   arcwall: { icon: "ph-bezier-curve", key: "m_t_arcwall" },
   door: { icon: "ph-door", key: "m_t_door" },
-  window: { icon: "ph-frame-corners", key: "m_t_window" },
-  passage: { icon: "ph-columns", key: "m_t_passage" },
-  slabvoid: { icon: "ph-stairs", key: "m_t_slabvoid" },
+  window: { icon: "ph-grid-four", key: "m_t_window" },
+  passage: { icon: "ph-door-open", key: "m_t_passage" },
+  slabvoid: { icon: "ph-exclude-square", key: "m_t_slabvoid" },
   point: { icon: "ph-crosshair", key: "m_t_point" },
   erase: { icon: "ph-eraser", key: "m_t_erase" },
 };

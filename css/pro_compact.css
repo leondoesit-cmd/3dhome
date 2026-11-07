@@ -423,6 +423,14 @@ body.pro-compact.dock-rail #modeler:has(#md-sheet.on) .md-head { margin-inline-e
 body.pro-compact.dock-rail #modeler.md-fold-open:has(#md-sheet.on) .md-head { margin-inline-end: min(420px, 44vw); }
 body.pro-compact.dock-rail.side-mirror #modeler:has(#md-sheet.on) .md-head { margin-inline: min(360px, 42vw) 0; }
 body.pro-compact.dock-rail.side-mirror #modeler.md-fold-open:has(#md-sheet.on) .md-head { margin-inline: min(420px, 44vw) 0; }
+/* The head made room for any open column, the body only for the fold rail's
+   tool column (css/pro_ribbon.css): Commands or Tree opened from the dock
+   covered the dock's end and left the docked tree a 90px canvas beside it.
+   Every column now gets what the rail's column gets: the body makes room and
+   the docked tree steps aside while it is open. */
+body.pro-compact.compact-nav.dock-rail #modeler:not(.md-fold-open):has(#md-sheet.on) .md-body { padding-inline-end: min(360px, 42vw); box-sizing: border-box; }
+body.pro-compact.compact-nav.dock-rail.side-mirror #modeler:not(.md-fold-open):has(#md-sheet.on) .md-body { padding-inline: min(360px, 42vw) 0; }
+body.pro-compact.compact-nav.dock-rail #modeler:not(.md-fold-open):has(#md-sheet.on) .md-left { display: none; }
 /* opened from the chip, the list shows even where the view had put it away (3D) */
 body.pro-skin.ps-layers-open .pt-panel > #layer-chips,
 body.pro-skin.ps-layers-open .pt-panel[data-panel="layers"] { display: flex !important; }
@@ -463,3 +471,41 @@ body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-ref .lchip-name { c
 body.pro-compact .walls-pop .walls-keys { display: none; }
 /* the lit row already says which layer is being edited; its name needs the room */
 body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag[data-kind="edit"] { display: none; }
+
+/* the model editor's head also carries three mode icons: at phone widths
+   they give back 9px, which is what "New model" was short of */
+@media (max-width: 420px) {
+  body.pro-compact #modeler .ps-head-view > #mdModes > button { width: 33px; min-width: 33px !important; }
+}
+/* Cover screens (a folded Fold is ~344px): the knob, the view pills and the
+   history buttons give back ~30px so the title shows a word, not "Hom…". */
+@media (max-width: 360px) {
+  body.pro-compact #topbar { padding: 0 4px; }
+  body.pro-compact .ps-head { gap: 2px; }
+  body.pro-compact .ps-edknob { width: 50px; }
+  body.pro-compact .ps-view > button { min-width: 30px; padding: 0 4px; }
+  body.pro-compact .ps-head .ps-hbtn { width: 30px !important; min-width: 30px !important; }
+  body.pro-compact .ps-title { padding: 0 2px; }
+  body.pro-compact .ps-title-main .ps-ph-name { font-size: 14px; }
+  body.pro-compact #modeler .ps-head-view > #mdModes > button { width: 30px; min-width: 30px !important; }
+}
+
+/* Five tabs share a phone's width (~75px each): spaced capitals cut
+   "STRUCTURE" to "STRUCT…". Sentence case fits every label, Hebrew included. */
+body.compact-nav #left-sidebar .left-tabs button > span {
+  text-transform: none; letter-spacing: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* The editor's command sheet chose its columns from the viewport (four above
+   480px), but on a fold it is a ~280px side column: four 63px tiles broke
+   "Rectangle" into "Rect/angle". Count columns from the sheet's own width. */
+#md-sheet { container-type: inline-size; container-name: mdsheet; }
+@container mdsheet (max-width: 440px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-items { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* icon over the words, as the planner's tool tiles: the words get the width */
+  #modeler .md-commandmanager.md-borrowed .md-command { flex-direction: column; justify-content: center; gap: 3px; text-align: center; }
+}
+@container mdsheet (max-width: 260px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+#modeler .md-commandmanager.md-borrowed .md-command > span { overflow-wrap: break-word; hyphens: auto; }

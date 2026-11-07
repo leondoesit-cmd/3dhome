@@ -22,7 +22,8 @@ import { markers } from "./markers.js";
 import { planIndex } from "./spatial_index.js";
 import { activeWarnings } from "./constraint_engine.js";
 import "./wall_constraints.js";
-import { sx, sz, planRotRad, toBasePx, fitTransform } from "./plan_view.js";
+import { sx, sz, planRotRad, boundsInCanvas, toBasePx, fitPlanTransform } from "./plan_view.js";
+import { canvasToneIsDark, getGridPrefs, gridPalette, onGridChange, paintGrid } from "./plan_grid.js";
 import { blueprintBounds, drawBlueprintUnderlay, drawBlueprintLinework } from "./blueprint_trace.js";
 import "./slab_openings.js";
 import "./swing_clearance.js";
@@ -53,6 +54,7 @@ import {
   drawWallProbe, drawWarnGlow, ensureAngleGuideAnim,
 } from "./plan2d/walls.js";
 import {
+  bottomReservedPx,
   drawAngleArc, drawFreeAnnotations, drawGhostWall, drawLen, drawMarkers,
   drawMeasureOverlay, drawOverallDims, drawPlanCursors, drawPreviewDims,
   drawRank, drawScale, drawSize, drawSlabOpenings, drawSnapMark,
@@ -209,9 +211,16 @@ export function sizeCanvas() {
      make render2D's grid loop run to Infinity. Keep the last live size. */
   if (!(W > 0) || !(H > 0)) return;
 
-  if (S.CW && S.CH) {
+  /* Keeping the pan is right for someone zoomed in on a detail. Someone who
+     was looking at the whole plan (just opened, or after Fit) and then halved
+     the pane (Split, a fold closing, a sidebar opening) was left with walls
+     cut off at both edges; for them the pane is reframed. */
+  var reframe = false;
+  if (S.CW && S.CH && (W !== S.CW || H !== S.CH)) {
+    var wasWhole = !fittingView && boundsInCanvas(contentBounds());
     S.OX += (W - S.CW) / 2;
     S.OY += (H - S.CH) / 2;
+    reframe = wasWhole && !boundsInCanvas(contentBounds(), W, H);
   }
 
   S.CW = W;
@@ -237,6 +246,7 @@ export function sizeCanvas() {
      canvas size is therefore also the recovery point. `fittingView` prevents
      the intentional sizeCanvas() call inside fitView() from recursing. */
   if (!fittingView && (!(S.SC > 0) || !isFinite(S.SC))) fitView();
+  else if (!fittingView && reframe) fitView();
 }
 export function fitView() {
   fittingView = true;
@@ -257,8 +267,11 @@ export function fitView() {
     }
     bb = { minx: minx, minz: minz, maxx: maxx, maxz: maxz, w: maxx - minx, d: maxz - minz };
   }
-  var tx = fitTransform({ minx: bb.minx, minz: bb.minz, maxx: bb.maxx, maxz: bb.maxz }, S.CW, S.CH,
-    { worldPad: pad, minSpan: 50 });
+  /* The touch layouts float their tool dock over the canvas (a phone on its
+     side, a tablet, an unfolded fold): framing the whole canvas put the
+     plan's last wall underneath it. Frame the part above it. */
+  var tx = fitPlanTransform({ minx: bb.minx, minz: bb.minz, maxx: bb.maxx, maxz: bb.maxz }, S.CW, S.CH,
+    bottomReservedPx(), { worldPad: pad, minSpan: 50 });
   if (!tx) return false;
   S.SC = tx.sc; S.OX = tx.ox; S.OY = tx.oy;
   return S.SC > 0 && isFinite(S.SC);
@@ -276,8 +289,9 @@ export function frameBounds(bb, pad) {
   var minx = Number(bb.minx), minz = Number(bb.minz),
     maxx = Number(bb.maxx), maxz = Number(bb.maxz);
   if (![minx, minz, maxx, maxz].every(isFinite)) return false;
-  var tx = fitTransform({ minx: minx, minz: minz, maxx: maxx, maxz: maxz }, S.CW, S.CH,
-    pad == null ? 72 : Math.max(0, Number(pad) || 0));
+  // above the touch dock and turned with the plan, as fitView frames
+  var tx = fitPlanTransform({ minx: minx, minz: minz, maxx: maxx, maxz: maxz }, S.CW, S.CH,
+    bottomReservedPx(), pad == null ? 72 : Math.max(0, Number(pad) || 0));
   if (!tx) return false;
   S.SC = tx.sc; S.OX = tx.ox; S.OY = tx.oy;
   return S.SC > 0 && isFinite(S.SC);
@@ -811,7 +825,14 @@ function renderModel() {
 // grid — extent = base-frame AABB of the (possibly rotated) canvas corners,
 // so lines still cover the visible area after the view is rotated
 function drawGrid(ext) {
-  pc.strokeStyle = "#e4dcc9";
+  var prefs = getGridPrefs();
+  if (prefs.style === "none") return;
+  if (prefs.style !== "lines") {
+    paintGrid(pc, { ext: ext, sc: S.SC, ox: S.OX, oy: S.OY, dark: canvasToneIsDark(plan), prefs: prefs });
+    return;
+  }
+  // "Classic": the original even 50/100 cm net, at the chosen opacity
+  pc.strokeStyle = gridPalette("lines", canvasToneIsDark(plan), prefs.opacity).major;
   pc.lineWidth = 1;
   var step = S.SC < 0.45 ? 100 : 50;
   var gx0 = Math.floor((ext.bxmin - S.OX) / S.SC / step) * step,
@@ -832,6 +853,8 @@ function drawGrid(ext) {
   }
   pc.stroke();
 }
+
+onGridChange(function () { render2D(); });
 
 /* The last room pass the model made. The HUD needs the same hidden-set maps to
    know whether the selected wall is on screen at all, and re-deriving them per

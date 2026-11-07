@@ -282,7 +282,7 @@ function buildEditorShellMarkup() {
       '<div class="md-dimension-actions"><button type="button" class="danger" data-dim-delete title="' + t("dimDelete") + '"><i class="ph ph-trash"></i></button><span></span><button type="button" data-dim-cancel>' + t("m_cancel") + '</button><button type="submit" class="accept" title="' + t("dimApply") + '"><i class="ph ph-check"></i><span>' + t("dimApply") + '</span></button></div>' +
     '</form>' +
     '<div id="md3dHost" class="md-3dhost"></div>' +
-    '<button type="button" id="mdToggleLeft" class="md-panel-toggle md-panel-toggle-left" aria-label="' + t("toggleTree") + '" title="' + t("toggleTree") + '" aria-pressed="true"><i class="ph ph-tree-structure"></i><span>' + t("tabTreeShort") + '</span></button>' +
+    '<button type="button" id="mdToggleLeft" class="md-panel-toggle md-panel-toggle-left" aria-label="' + t("toggleTree") + '" title="' + t("toggleTree") + '" aria-pressed="true"><i class="ph ph-sidebar-simple"></i><span>' + t("tabTreeShort") + '</span></button>' +
     '<button type="button" id="mdToggleRight" class="md-panel-toggle md-panel-toggle-right" aria-label="' + t("toggleInspector") + '" title="' + t("toggleInspector") + '" aria-pressed="true"><i class="ph ph-sidebar-simple"></i><span>' + t("tabShapeShort") + '</span></button>' +
     '<div class="md-modes" id="mdModes" role="tablist" aria-label="Editor modes">' +
     '<button data-mode="3d" class="on" role="tab" aria-selected="true" data-tip="3">' + cadIcon("mode3d") + ' ' + t("mode3d") + "</button>" +
@@ -335,16 +335,21 @@ function buildEditorShellMarkup() {
     '</div>' +
     '<aside class="md-sheet-panel" id="mdSheetPanel" hidden aria-label="' + t("sheetSetup") + '"></aside>' +
     '<div class="md-views" id="mdViews" role="toolbar" aria-label="' + t("displayStyle") + '">' +
-    '<div class="md-vgroup">' +
+    /* Six near-identical cubes stacked down the rail were the first thing on
+       it, and made it scroll on a 768px screen. One button shows the current
+       orientation and opens the six, Normal To included, with their names. */
+    '<div class="md-vgroup md-vorient">' +
+    '<button type="button" id="mdViewOrient" aria-haspopup="menu" aria-expanded="false" aria-controls="mdViewFlyout" data-tip="' + t("viewOrientation") + '">' + cadIcon("isoView") + '<span>' + t("viewOrientation") + '</span></button>' +
+    '<div class="md-view-flyout" id="mdViewFlyout" role="menu" aria-label="' + t("viewOrientation") + '" hidden>' +
     '<button data-view="top" data-tip="' + kt(t("view_top"), "4") + '">' + cadIcon("view_top") + '<span>' + (getLang()==="en"?"Top":"על") + ' · X·Z</span></button>' +
-    '<button data-view="bottom" data-tip="' + t("view_bottom") + '">' + cadIcon("view_top") + '<span>' + (getLang()==="en"?"Bottom":"תחתון") + ' · X·Z</span></button>' +
+    '<button data-view="bottom" data-tip="' + t("view_bottom") + '">' + cadIcon("view_bottom") + '<span>' + (getLang()==="en"?"Bottom":"תחתון") + ' · X·Z</span></button>' +
     '<button data-view="front" data-tip="' + kt(t("view_front"), "5") + '">' + cadIcon("view_front") + '<span>' + (getLang()==="en"?"Front":"חזית") + ' · X·Y</span></button>' +
+    '<button data-view="back" data-tip="' + t("view_back") + '">' + cadIcon("view_back") + '<span>' + (getLang()==="en"?"Back":"אחור") + ' · X·Y</span></button>' +
     '<button data-view="side" data-tip="' + kt(t("view_right"), "6") + '">' + cadIcon("view_right") + '<span>' + (getLang()==="en"?"Right":"ימין") + ' · Z·Y</span></button>' +
-    '<button data-view="back" data-tip="' + t("view_back") + '">' + cadIcon("view_front") + '<span>' + (getLang()==="en"?"Back":"אחור") + ' · X·Y</span></button>' +
-    '<button data-view="left" data-tip="' + t("view_left") + '">' + cadIcon("view_right") + '<span>' + (getLang()==="en"?"Left":"שמאל") + ' · Z·Y</span></button>' +
+    '<button data-view="left" data-tip="' + t("view_left") + '">' + cadIcon("view_left") + '<span>' + (getLang()==="en"?"Left":"שמאל") + ' · Z·Y</span></button>' +
     '<button type="button" id="mdNormalToView" data-tip="' + kt(t("normalTo"), "Ctrl+8") + '">' + cadIcon("normalTo") + "<span>" + t("normalTo") + "</span></button>" +
-    "</div>" +
-    '<div class="md-vgroup md-projection"><button type="button" id="mdPerspectiveView" aria-label="Perspective" aria-pressed="true" title="Toggle perspective / orthographic orbit projection"><span>Perspective</span></button><button type="button" id="mdNamedViews" aria-label="Named views"><span>Named views</span></button></div>' +
+    "</div></div>" +
+    '<div class="md-vgroup md-projection"><button type="button" id="mdPerspectiveView" aria-label="Perspective" aria-pressed="true" title="Toggle perspective / orthographic orbit projection"><i class="ph ph-perspective" aria-hidden="true"></i><span>Perspective</span></button><button type="button" id="mdNamedViews" aria-label="Named views" title="Named views"><i class="ph ph-bookmark-simple" aria-hidden="true"></i><span>Named views</span></button></div>' +
     '<div class="md-vgroup md-zoom">' +
     '<button data-zoom="in" data-tip="' + t("zoomIn") + '" aria-label="' + t("zoomIn") + '" title="' + t("zoomIn") + '">' + cadIcon("zoomIn") + '</button>' +
     '<button data-zoom="out" data-tip="' + t("zoomOut") + '" aria-label="' + t("zoomOut") + '" title="' + t("zoomOut") + '">' + cadIcon("zoomOut") + '</button>' +

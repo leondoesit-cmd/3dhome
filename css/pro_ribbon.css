@@ -1029,3 +1029,12 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
   font: 600 max(10px, var(--fs-floor, 0px))/1.5 "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted);
 }
 body.compact-nav #modeler .md-sketch-thumb { display: none; }
+/* Below 1280px the AI chip's sentence took ~200px of the status line and the
+   cabinet's figures were cut to "1…" and "3 sh…". The chip keeps its sparkle
+   (accent when on, muted when off, and its tooltip); the muted convention
+   note gives way before the figures do. */
+@media (max-width: 1279px) {
+  .ps-ai-status > span { display: none; }
+  #cabdes .cb-statusbar > .cb-status-muted { flex-shrink: 20; min-width: 0; }
+  #cabdes .cb-statusbar > span:not(.ps-ai-status):not(.cb-status-muted) { flex-shrink: 0; }
+}

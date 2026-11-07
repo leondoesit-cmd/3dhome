@@ -137,6 +137,7 @@ export var TXT = {
   view_back_short: ["אחור", "Back"],
   view_left_short: ["שמאל", "Left"],
   view_top: ["מבט על (X·Z)", "Top (X·Z)"],
+  viewOrientation: ["כיוון מבט", "View orientation"],
   view_bottom: ["מבט תחתון (X·Z)", "Bottom (X·Z)"],
   view_front: ["מבט חזית (X·Y)", "Front (X·Y)"],
   view_side: ["מבט צד (Z·Y)", "Side (Z·Y)"],

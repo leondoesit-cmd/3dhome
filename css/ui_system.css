@@ -38,7 +38,10 @@ body.pro-compact {
   --ui-fs: 13px;
   --ui-fs-sm: 12px;
   --ui-on-bg: var(--accent-soft);
-  --ui-on-fg: var(--accent);
+  /* Pure accent on its own soft tint measured 3.8-4.4:1 in the dark, mid and
+     chrome themes (AI, Library, Planner). Mixing in the text colour keeps
+     the hue and clears 4.5:1 in every theme, the command bar's AI included. */
+  --ui-on-fg: color-mix(in srgb, var(--accent) 55%, var(--text-main));
   --ui-on-ring: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
   --ui-track-bg: var(--btn-bg);
   --ui-track-ring: inset 0 0 0 1px var(--border-color);
@@ -89,7 +92,8 @@ html body:is(.pro-skin, .pro-compact) :is(
   border-radius: var(--ui-r-sm);
   background: transparent;
   box-shadow: none;
-  color: var(--text-muted);
+  /* muted on the track's own grey: 3.6:1 in the mid theme, 4.3:1 in chrome */
+  color: color-mix(in srgb, var(--text-muted) 70%, var(--text-main));
   font-size: var(--ui-fs);
   font-weight: 500;
   line-height: 1;
@@ -275,6 +279,12 @@ html body.pro-compact :is(#view-2d .plan-style-btn, #psLayersChip) {
   min-height: 36px;
 }
 html body.pro-compact #view-2d .plan-style-btn { width: 36px; }
+/* A tablet or an unfolded fold floats the dock 10px above the plan's bottom
+   edge, so the style chip's 54px corner put it 12px into the dock. */
+html body.pro-compact.dock-rail #view-2d > .plan-style-btn {
+  top: auto;
+  bottom: calc(var(--ps-dock-h, 56px) + 20px + env(safe-area-inset-bottom, 0px));
+}
 /* "All tools" opens a sheet; it is not a mode that is on. Solid accent made
    it look like the active one of the two left dock buttons. */
 html body.pro-compact .ps-dock > :is(.ps-dock-grid, .ps-dock-browse) {

@@ -2144,7 +2144,9 @@ body.workflow-more-space #inspectorPreview { display: none !important; }
 #view-2d.plan-tools-tight #layer-chips .lchip { flex: 0 0 auto; }
 #view-2d.plan-tools-tight #layer-chips .lchip-t { display: none; }
 #view-2d.plan-tools-tight #layer-chips .lchip-name { width: 24px !important; flex: 0 0 auto !important; }
-#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="floors"] {
+/* The classic plan strip only: the pro skin keeps its compass in this top-right
+   corner, and pinning Floors here put the two on top of each other. */
+body:not(.pro-skin) #view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="floors"] {
   position: absolute !important;
   top: 60px !important;
   left: auto !important;
@@ -2156,7 +2158,7 @@ body.workflow-more-space #inspectorPreview { display: none !important; }
   max-height: none !important;
   overflow: hidden;
 }
-#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="max"] {
+body:not(.pro-skin) #view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="max"] {
   position: absolute !important;
   top: 64px !important;
   left: auto !important;

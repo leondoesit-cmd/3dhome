@@ -14,6 +14,13 @@ import { openPage, findChrome } from "../tools/browser_harness.mjs";
 
 const chrome = await findChrome();
 
+/* A fresh profile opens on the first-run start dialog, which covers the
+   ribbon on purpose; what is measured here is the ribbon behind it. */
+const skipStart = (page) => page.eval(() => {
+  const start = document.getElementById("start-screen");
+  if (start) start.hidden = true;
+});
+
 /* In the page: walk every tab of one ribbon. Returns the problems found and
    how many tools were checked. */
 async function auditRibbon(selector, minTarget) {
@@ -98,6 +105,7 @@ for (const [width, height, lang, editors] of [
     const page = await openPage({ width, height, lang, mobile: false, touch: false });
     try {
       await page.waitForBoot();
+    await skipStart(page);
       assert.equal(await page.eval(() => document.body.classList.contains("pro-skin")), true, "the desktop layout");
       for (const ed of editors) {
         if (ed === "model") await openModel(page);
@@ -119,6 +127,7 @@ test("big touch screen 1366×1024: the desktop layout with finger-sized tabs and
   const page = await openPage({ width: 1366, height: 1024, lang: "en", mobile: false, touch: true });
   try {
     await page.waitForBoot();
+    await skipStart(page);
     const posture = await page.eval(() => ({ desk: document.body.classList.contains("pro-skin"), touch: document.body.classList.contains("touch-desk"), compact: document.body.classList.contains("compact-nav") }));
     assert.deepEqual(posture, { desk: true, touch: true, compact: false });
     const out = await page.eval(auditRibbon, "#pro-ribbon", 44);
@@ -135,6 +144,7 @@ for (const [width, height, lang] of [[375, 812, "en"], [390, 844, "he"], [717, 8
     const page = await openPage({ width, height, lang, mobile: true, touch: true });
     try {
       await page.waitForBoot();
+    await skipStart(page);
       await page.waitUntil(() => [...document.querySelectorAll(".ps-dock")].some((d) => d.getBoundingClientRect().height > 0), { what: "the dock" });
       // a frame for the dock's verb row to fit itself
       await page.eval(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));

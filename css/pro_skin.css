@@ -38,6 +38,15 @@ body.pro-compact { --fs-floor: 12px; }
 /* the games draw their own full-screen HUDs to a tight grid of their own:
    the layout's floor would push their counters into one another at 280px */
 #zHud, #rcHud { --fs-floor: 0px; }
+/* The legacy themes' --bg-panel is 94-95% opaque, which was fine for their
+   glass bars but let the plan's lines and the ribbon's labels read through
+   every sheet, drawer and dialog. These are each theme's panel colour laid
+   over its own --bg-app: the same colour, solid. */
+html[data-theme="classic"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #fefefe; }
+html[data-theme="dark"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #121620; }
+html[data-theme="soft"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #f7f3ec; }
+html[data-theme="mid"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #29313f; }
+html[data-theme="chrome"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #292a2d; }
 /* on a dark ground the chosen pill is the lighter one */
 html:is([data-theme="dark"], [data-theme="mid"], [data-theme="chrome"]) :is(body.pro-skin, body.pro-compact) { --pro-raised: var(--btn-bg-hover); }
 html[data-theme="light"] :is(body.pro-skin, body.pro-compact),
@@ -484,8 +493,10 @@ body.pro-skin #cabdes .cb-icons.cb-seg { margin: 0; }
 body.pro-skin .pr-groups { scrollbar-width: none; }
 body.pro-skin .pr-groups::-webkit-scrollbar { display: none; }
 
-body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share span { display: inline !important; }
-body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share { width: auto; min-width: 0; }
+/* The skin draws Share as a text pill with no icon, so the narrow-window rule
+   that drops its label (css/pro_ribbon.css) left an empty blue square. */
+body.pro-skin :is(#topbar, #modeler .md-head, #cabdes .cb-head-main) .ps-share span { display: inline !important; }
+body.pro-skin :is(#topbar, #modeler .md-head, #cabdes .cb-head-main) .ps-share { width: auto; min-width: 0; }
 body.pro-skin #cabdes .cb-right .cb-icons.cb-seg button { background: transparent; border: 0; color: var(--text-muted); box-shadow: none; }
 body.pro-skin #cabdes .cb-right .cb-icons.cb-seg button.on { background: var(--pro-raised); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
 
@@ -867,7 +878,7 @@ body.pro-skin #modeler .md-mid { container-type: inline-size; container-name: md
   }
 }
 /* the view list stops above the selection filters and scrolls */
-body.pro-skin:not(.compact-nav) #modeler .md-views { max-height: calc(100% - 190px); overflow-y: auto; scrollbar-width: thin; }
+body.pro-skin:not(.compact-nav) #modeler .md-views { max-height: calc(100% - 150px); overflow-y: auto; scrollbar-width: thin; }
 @media (max-width: 1100px) {
   body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSave, #mdClose, #cbClose) { font-size: 0; gap: 0; }
   body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSave, #mdClose, #cbClose) i { display: inline-block !important; font-size: 16px; }
@@ -913,7 +924,6 @@ body.pro-skin #modeler .md-views .md-vgroup > button {
 }
 body.pro-skin #modeler .md-views .md-vgroup > button > span { display: none; }
 body.pro-skin #modeler .md-views .md-vgroup > button :is(svg, i) { width: 17px; height: 17px; font-size: 17px; flex: none; color: inherit !important; }
-body.pro-skin #modeler .md-views .md-vgroup > button.on:not(#mdShowEdges) { background: var(--pro-ink); border-color: var(--pro-ink); color: var(--pro-on-ink); }
 body.pro-skin #modeler .md-views [data-tip]:hover::after { top: 50%; inset-inline-start: calc(100% + 8px); transform: translateY(-50%); }
 body.pro-skin #modeler .md-views .md-finish-plane > span { display: none; }
 /* the status line's AI chip is the last thing on it: it gives way first */
@@ -1072,7 +1082,7 @@ body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group {
 }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group > .cb-group-title { display: none; }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-scope-note { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
-body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-scope-note select { height: 28px; min-height: 0; font-size: 12px; }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-scope-note select { height: 28px; min-height: 0; padding-block: 0; font-size: 12px; line-height: 26px; }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-dims { display: flex; gap: 6px; }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-dims label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-number { display: inline-flex; align-items: center; height: 28px; }
@@ -1182,3 +1192,43 @@ body.pro-skin #cabdes .cb-context-bar > #cbTools > button { padding: 0 8px; }
 body.pro-skin #cabdes .cb-context-bar .cb-size-group .cb-dims { gap: 6px; }
 body.pro-skin #cabdes .cb-context-bar #cbOpen { width: 88px; }
 body.pro-skin #cabdes .cb-context-bar { column-gap: 10px; }
+
+/* A 58px tile broke a long word anywhere ("Perpendic/ular", "Symmetri/c",
+   "Paramete/rs"). The tile now grows to its longest word (the fold logic in
+   js/ribbon_fit.js measures real widths), and labels break between words. */
+body.pro-skin .pro-ribbon:not(.pr-editor-ribbon) .pr-tool { width: auto; min-width: 58px; max-width: 88px; padding-inline: 4px; box-sizing: border-box; }
+body.pro-skin .pro-ribbon.pr-dense:not(.pr-editor-ribbon) .pr-tool { width: auto; min-width: 54px; padding-inline: 3px; }
+body.pro-skin .pro-ribbon:not(.pr-editor-ribbon) .pr-tool span { overflow-wrap: normal; word-break: normal; hyphens: manual; -webkit-hyphens: manual; }
+
+/* ---- model editor rail: the orientation flyout, and calm "on" states ------
+   The six views live behind one button (js/modeler/editor_markup.js); the
+   flyout names them in pairs of opposites. Toggles that are merely on
+   (Perspective, Solid, Notes) used the solid ink of a primary action and
+   Edges a style of its own; all now share the app's soft "on". */
+#modeler .md-view-flyout {
+  position: fixed; z-index: 85; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;
+  min-width: 236px; padding: 6px; border-radius: 12px; background: var(--pro-surface, var(--bg-panel));
+  box-shadow: 0 12px 32px rgba(16, 21, 34, 0.22), 0 0 0 1px var(--border-color);
+}
+#modeler .md-view-flyout[hidden] { display: none; }
+#modeler .md-view-flyout > button {
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px; height: 36px; min-height: 0; padding: 0 10px; border: 0; border-radius: 8px;
+  background: transparent; box-shadow: none; color: var(--text-main); font-size: 13px; font-weight: 500; text-align: start; white-space: nowrap;
+}
+#modeler .md-view-flyout > button > span { display: inline; }
+#modeler .md-view-flyout > button :is(svg, i) { width: 20px; height: 20px; flex: none; }
+#modeler .md-view-flyout > button:hover, #modeler .md-view-flyout > button:focus-visible { background: var(--btn-bg); outline: none; }
+#modeler .md-view-flyout > button.on { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); font-weight: 600; }
+#modeler .md-view-flyout > #mdNormalToView { grid-column: 1 / -1; border-top: 1px solid var(--border-color); border-radius: 0 0 8px 8px; margin-top: 2px; }
+body.pro-skin #modeler .md-views .md-vgroup > button.on,
+body.pro-skin #modeler .md-views .md-vgroup > button#mdShowEdges.on,
+body.pro-skin #modeler .md-views .md-vgroup > #mdViewOrient.open {
+  background: var(--ui-on-bg, var(--accent-soft)); border-color: transparent; color: var(--ui-on-fg, var(--accent));
+  box-shadow: var(--ui-on-ring, inset 0 0 0 1px var(--accent));
+}
+/* The two panel toggles as a pair: icon-only, each drawing a panel on its own
+   side. The left one was a 120px "Tree" pill over a 36px rail, beside the
+   panel's own Tree tab; the right one drew a left-hand panel. */
+body.pro-skin:not(.compact-nav) #modeler .md-panel-toggle-left { width: 36px; min-width: 36px; padding: 5px; justify-content: center; gap: 0; }
+body.pro-skin:not(.compact-nav) #modeler .md-panel-toggle-left span { display: none; }
+body:not(.compact-nav) #modeler .md-panel-toggle-right i { transform: scaleX(-1); }

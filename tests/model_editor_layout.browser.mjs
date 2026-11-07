@@ -511,7 +511,13 @@ test("mobile Add sheet launches an interactive editor without inerting unknown i
     assert.match(add.label, /Model editor|עורך מודלים/);
 
     await page.eval(() => document.getElementById("openModelerBtn").click());
-    await page.eval(() => new Promise((r) => setTimeout(r, 650)));
+    /* js/modeler.js loads on first open, so a fixed sleep lost the race on a
+       busy machine. Wait for the editor and its nav, then for the open to settle. */
+    await page.waitUntil(() => {
+      const editor = document.getElementById("modeler"), nav = document.getElementById("md-nav");
+      return !!(editor && getComputedStyle(editor).display !== "none" && nav && nav.getBoundingClientRect().width > 0);
+    }, { ms: 20000, what: "the model editor to open from Add" }).catch(() => {});
+    await page.eval(() => new Promise((r) => setTimeout(r, 300)));
     const opened = await page.eval(() => {
       const editor = document.getElementById("modeler");
       const nav = document.getElementById("md-nav");

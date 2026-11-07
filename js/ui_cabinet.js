@@ -142,12 +142,12 @@ function buildDOM() {
     '<button data-mode="split" title="' + T("vSplitTip") + '"><i class="ph ph-columns"></i>' + T("vSplit") + "</button>" +
     "</div>" +
     '<div class="cb-vgroup cb-vaxes" id="cbAxes">' +
-    '<button data-ax="front" class="on"><i class="ph ph-square"></i>' + T("vFront") + "</button>" +
-    '<button data-ax="back"><i class="ph ph-square-half"></i>' + T("vBack") + "</button>" +
-    '<button data-ax="left"><i class="ph ph-arrow-line-left"></i>' + T("vLeft") + "</button>" +
-    '<button data-ax="right"><i class="ph ph-arrow-line-right"></i>' + T("vRight") + "</button>" +
-    '<button data-ax="top"><i class="ph ph-arrow-line-up"></i>' + T("vTop") + "</button>" +
-    '<button data-ax="bottom"><i class="ph ph-arrow-line-down"></i>' + T("vBottom") + "</button>" +
+    '<button data-ax="front" class="on" title="' + T("vFront") + '"><i class="ph ph-square"></i>' + T("vFront") + "</button>" +
+    '<button data-ax="back" title="' + T("vBack") + '"><i class="ph ph-square-half"></i>' + T("vBack") + "</button>" +
+    '<button data-ax="left" title="' + T("vLeft") + '"><i class="ph ph-arrow-line-left"></i>' + T("vLeft") + "</button>" +
+    '<button data-ax="right" title="' + T("vRight") + '"><i class="ph ph-arrow-line-right"></i>' + T("vRight") + "</button>" +
+    '<button data-ax="top" title="' + T("vTop") + '"><i class="ph ph-arrow-line-up"></i>' + T("vTop") + "</button>" +
+    '<button data-ax="bottom" title="' + T("vBottom") + '"><i class="ph ph-arrow-line-down"></i>' + T("vBottom") + "</button>" +
     '<div class="cb-v45">' +
     '<button data-ax="fl" title="45°">◤</button><button data-ax="fr" title="45°">◥</button>' +
     '<button data-ax="bl" title="45°">◣</button><button data-ax="br" title="45°">◢</button>' +

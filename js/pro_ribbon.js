@@ -318,9 +318,13 @@ function toolButton(tool) {
   b.setAttribute("aria-label", name);
   if (!tool.bind) { b.disabled = true; b.title = name + M("notYet"); }
   if (tool.bind && tool.bind.indexOf("planned:") === 0) { b.classList.add("planned"); b.title = name + M("plannedTip"); b.setAttribute("aria-description", M("plannedHelp")); }
-  b.innerHTML = '<i class="ph ' + tool.icon + '" aria-hidden="true"></i><span></span>' + (tool.key ? "<kbd></kbd>" : "");
+  /* The corner badge holds one key ("E", "7", "F3"). "Ctrl+D" and
+     "Ctrl+Shift+G" ran across the icon and into the next tile; such
+     combinations stay in the tooltip above. */
+  var badge = tool.key && keyLabel(tool.key).length <= 2 ? keyLabel(tool.key) : "";
+  b.innerHTML = '<i class="ph ' + tool.icon + '" aria-hidden="true"></i><span></span>' + (badge ? "<kbd></kbd>" : "");
   b.querySelector("span").textContent = name;
-  if (tool.key) b.querySelector("kbd").textContent = keyLabel(tool.key);
+  if (badge) b.querySelector("kbd").textContent = badge;
   b.addEventListener("click", function () { runProBinding(tool.bind, tool.label); syncActive(); });
   syncExplodeBinding(b);
   return b;
