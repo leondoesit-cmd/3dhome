@@ -1444,6 +1444,7 @@ export default {
   rs_menu: "סריקת חדר בנייד",
   rs_menu_t: "סריקת חדר ב-LiDAR / AR או ייבוא קובץ Apple RoomPlan",
   rs_face: "פינות שנמדדו",
+  bp_trace_straightened: "התמונה יושרה (תוקנו הטיה ופרספקטיבה). כיילו לפי מידה ארוכה ובדקו מידה נוספת בכיוון השני.",
   rs_face_centre: "קו מרכז הקיר",
   rs_face_inside: "פנים הקיר (הזחה החוצה)",
   rs_pick_edge: "לחצו על קיר בתצוגה כדי לבחור את זה שמדדתם",

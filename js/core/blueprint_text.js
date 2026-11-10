@@ -68,8 +68,49 @@ function roomSizePair(text,b,walls){
     .map(dim=>({...dim,unitAssumed:!/(cm|ס["״]?מ)/i.test(text),source:'ocr-room-size'}));
 }
 
+// Printed numbers whose dimension line cannot be followed (faint hairlines in
+// a photo, lines that continue through chained values) are paired with the
+// measured walls on either side of them along their reading direction; most
+// values inside a room are its wall-to-wall size. Every pairing votes for a
+// cm-per-pixel scale, and only numbers agreeing with the scale backed by the
+// most independent numbers become dimensions. A misread value or a number
+// beside the wrong walls loses the vote instead of skewing the scale.
+const PAIR_TOLERANCE=.04;
+export function wallPairDimensions(numbers,walls){
+  const verticalWalls=walls.filter(w=>Math.abs(w[0]-w[2])<1),horizontalWalls=walls.filter(w=>Math.abs(w[1]-w[3])<1);
+  const options=numbers.map(n=>{
+    const b=n.bbox,x=(b.x0+b.x1)/2,y=(b.y0+b.y1)/2,vertical=b.y1-b.y0>(b.x1-b.x0)*1.4;
+    // Text reads along its dimension: horizontal text measures between vertical walls.
+    const across=vertical?horizontalWalls:verticalWalls,pos=w=>vertical?w[1]:w[0];
+    const covers=w=>vertical?x>=Math.min(w[0],w[2])-2&&x<=Math.max(w[0],w[2])+2:y>=Math.min(w[1],w[3])-2&&y<=Math.max(w[1],w[3])+2;
+    const lo=vertical?b.y0:b.x0,hi=vertical?b.y1:b.x1;
+    const before=across.filter(w=>covers(w)&&pos(w)<lo).sort((p,q)=>pos(q)-pos(p))[0];
+    const after=across.filter(w=>covers(w)&&pos(w)>hi).sort((p,q)=>pos(p)-pos(q))[0];
+    if(!before||!after)return [];
+    // Interior (face to face) and centre-line readings are both conventions.
+    return [true,false].map(faces=>{
+      const a=pos(before)+(faces?before[4]/2:0),e=pos(after)-(faces?after[4]/2:0);
+      return {ratio:n.valueCm/(e-a),a,e,vertical,x,y,faces};
+    }).filter(o=>o.e-o.a>=20);
+  });
+  const agrees=(o,ratio)=>Math.abs(o.ratio/ratio-1)<=PAIR_TOLERANCE;
+  let best=null;
+  for(const list of options)for(const o of list){
+    const support=options.filter(l=>l.some(q=>agrees(q,o.ratio))).length;
+    const spread=options.reduce((sum,l)=>sum+Math.min(PAIR_TOLERANCE,...l.map(q=>Math.abs(q.ratio/o.ratio-1))),0);
+    if(!best||support>best.support||support===best.support&&spread<best.spread)best={ratio:o.ratio,support,spread};
+  }
+  if(!best||best.support<3)return [];
+  return numbers.flatMap((n,i)=>{
+    const o=options[i].filter(q=>agrees(q,best.ratio)).sort((p,q)=>Math.abs(p.ratio/best.ratio-1)-Math.abs(q.ratio/best.ratio-1))[0];
+    if(!o)return [];
+    const ends=o.vertical?{x1:o.x,y1:o.a,x2:o.x,y2:o.e}:{x1:o.a,y1:o.y,x2:o.e,y2:o.y};
+    return [{text:n.text,valueCm:n.valueCm,...ends,unitAssumed:n.assumed,source:'ocr-wall-pair'}];
+  });
+}
+
 export function blueprintTextFeatures(lines,image,walls=[]){
-  const rooms=[],dimensions=[],warnings=[],textBoxes=[];
+  const rooms=[],dimensions=[],warnings=[],textBoxes=[],unspanned=[];
   const bounds=walls.length?{x0:Math.min(...walls.flatMap(w=>[w[0],w[2]])),x1:Math.max(...walls.flatMap(w=>[w[0],w[2]])),
     y0:Math.min(...walls.flatMap(w=>[w[1],w[3]])),y1:Math.max(...walls.flatMap(w=>[w[1],w[3]]))}:{x0:0,y0:0,x1:image.width,y1:image.height};
   for(const line of [...lines].sort((a,b)=>b.confidence-a.confidence)){
@@ -82,6 +123,7 @@ export function blueprintTextFeatures(lines,image,walls=[]){
     if(length&&length.cm>=20&&length.cm<=10000){
       const span=spanFor(line,image);
       if(span){dimensions.push({text,valueCm:length.cm,...span,unitAssumed:length.assumed,source:'ocr'});continue;}
+      if(length.cm>=60&&line.confidence>=70)unspanned.push({text,valueCm:length.cm,bbox:b,assumed:length.assumed});
     }
     const x=(b.x0+b.x1)/2,y=(b.y0+b.y1)/2;
     if(line.rotated||x<bounds.x0||x>bounds.x1||y<bounds.y0||y>bounds.y1)continue;
@@ -92,6 +134,7 @@ export function blueprintTextFeatures(lines,image,walls=[]){
     if(rooms.some(r=>Math.abs(r.x-x)<Math.max(12,(b.x1-b.x0)*.3)&&Math.abs(r.y-y)<Math.max(8,(b.y1-b.y0)*.4)))continue;
     rooms.push({label:text,x,y,confidence:line.confidence,source:'ocr'});
   }
+  dimensions.push(...wallPairDimensions(unspanned,walls));
   if(dimensions.some(d=>d.unitAssumed))warnings.push('Some printed lengths have no unit suffix; centimeters were assumed. Verify the scale.');
   const uniqueDimensions=dimensions.filter((d,i)=>dimensions.findIndex(q=>q.valueCm===d.valueCm
     &&Math.hypot(q.x1-d.x1,q.y1-d.y1)+Math.hypot(q.x2-d.x2,q.y2-d.y2)<6)===i);

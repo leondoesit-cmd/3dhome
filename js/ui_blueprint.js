@@ -69,7 +69,9 @@ export function openBlueprintModal() {
   widthIn.value = "1000";
   widthIn.min = "300";
   widthIn.max = "4000";
-  widthIn.step = "10";
+  // Any value: printed dimensions like 807 are not multiples of 10, and a step
+  // mismatch made checkValidity() reject them as "out of range".
+  widthIn.step = "any";
   widthIn.style.width = "70px";
   widthLbl.appendChild(widthIn);
   row.appendChild(widthLbl);

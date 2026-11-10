@@ -1,10 +1,12 @@
 // Blueprint-to-draft parsers. Automatic analysis combines browser geometry/OCR
 // with the local vision service; the walls-only parser runs in the browser.
 import { blueprintSymbols } from './core/blueprint_symbols.js';
-import { recognizeRaster } from './core/blueprint_raster.js';
+import { recognizeRaster, rasterWorkingImage, WALL_MATERIAL_WARNING } from './core/blueprint_raster.js';
 import { readBlueprintText } from './blueprint_ocr.js';
 import { refineBlueprintFurniture } from './core/blueprint_furniture.js';
 import { refineBlueprintOpenings } from './core/blueprint_openings.js';
+import { straightenCanvas, STRAIGHTENED_WARNING } from './blueprint_straighten.js';
+export { STRAIGHTENED_WARNING };
 
 export const BP_ENDPOINT = "http://localhost:11434";
 // blueprint_cv.py --serve (tools/): classic-CV parser, no model inference
@@ -52,21 +54,31 @@ async function decodeBlueprint(file) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return canvas;
+    return straightenCanvas(canvas);
   } finally { URL.revokeObjectURL(url); }
+}
+
+// Phone photos are straightened before any recognition (blueprint_straighten.js);
+// the straightened image is also the reference overlay, so walls stay registered.
+function noteStraightened(canvas, result) {
+  if (canvas.straightened) result.warnings = [STRAIGHTENED_WARNING, ...(result.warnings || [])];
+  return result;
 }
 
 export async function parseBlueprintLocal(file, opts = {}) {
   const canvas=await decodeBlueprint(file);
   opts.onProgress?.('vision');
-  let wallCandidates=null,openingCandidates=[],geometryWarning=null;
+  let wallCandidates=null,wallMaterials=null,openingCandidates=[],geometryWarning=null;
   // Prefer actual measured strokes to asking a small vision model to invent a
   // coordinate grid. Complex/non-orthogonal images can use the full vision path.
   try{
-    const factor=Math.min(1,1000/Math.max(canvas.width,canvas.height));
-    const small=document.createElement('canvas');small.width=Math.round(canvas.width*factor);small.height=Math.round(canvas.height*factor);
-    const ctx=small.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0,small.width,small.height);
-    const raster=recognizeRaster(ctx.getImageData(0,0,small.width,small.height),{widthCm:opts.widthCm||1000});
+    // Our own bilinear downsize, not drawImage: the browser's smoothing bleaches
+    // thin coloured wall pieces (see rasterWorkingImage).
+    const {image:small,factor}=rasterWorkingImage(canvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,canvas.width,canvas.height));
+    // Measured walls are worth keeping even when no room closes (a cropped
+    // sheet whose living room runs off the photo): the vision step adds the rest.
+    const raster=recognizeRaster(small,{widthCm:opts.widthCm||1000,requireRooms:false});
+    wallMaterials=raster.wallMaterials;
     wallCandidates=raster.segments.map(s=>s.vertical?[s.c/factor,s.a/factor,s.c/factor,s.b/factor,s.thickness/factor]:[s.a/factor,s.c/factor,s.b/factor,s.c/factor,s.thickness/factor]);
     const px=raster.layout.w/(raster.bounds.x1-raster.bounds.x0);
     for(const type of ['door','window'])for(const o of raster.cad[type+'s']){
@@ -101,26 +113,29 @@ export async function parseBlueprintLocal(file, opts = {}) {
   opts.onProgress?.('vision');
   const sourceDataUrl=canvas.toDataURL('image/jpeg',.9);
   const response=await fetch('/api/blueprint',{method:'POST',headers:{'Content-Type':'application/json'},signal:opts.signal,
-    body:JSON.stringify({image:sourceDataUrl,width:canvas.width,height:canvas.height,wallCandidates,protectedWalls,symbols,symbolImage:symbolBatches[0]?.images[0]||canvas.toDataURL('image/jpeg',.9),symbolBatches,openingCandidates,ocr,widthCm:opts.widthCm||1000,usePrintedScale:opts.usePrintedScale!==false})});
+    body:JSON.stringify({image:sourceDataUrl,width:canvas.width,height:canvas.height,wallCandidates,wallMaterials,protectedWalls,symbols,symbolImage:symbolBatches[0]?.images[0]||canvas.toDataURL('image/jpeg',.9),symbolBatches,openingCandidates,ocr,widthCm:opts.widthCm||1000,usePrintedScale:opts.usePrintedScale!==false})});
   let result;
   try{result=await response.json();}catch{throw new Error('The app server does not support image analysis yet. Restart npm start, then retry.');}
   if(!response.ok)throw new Error(result.error||'Image analysis failed.');
   result.sourceDataUrl=sourceDataUrl;
   if(result.recognition&&symbols.length)result.recognition.symbolGeometry='measured';
   refineBlueprintOpenings(result,pixels);
-  return refineBlueprintFurniture(result,pixels);
+  if(wallMaterials?.some(Boolean)&&wallCandidates)result.warnings=[...(result.warnings||[]),WALL_MATERIAL_WARNING];
+  return noteStraightened(canvas,refineBlueprintFurniture(result,pixels));
 }
 
 export async function parseBlueprintRaster(file, opts = {}) {
   const source=await decodeBlueprint(file);
-  const factor=Math.min(1,1000/Math.max(source.width,source.height));
-  const canvas=document.createElement('canvas');canvas.width=Math.round(source.width*factor);canvas.height=Math.round(source.height*factor);
-  const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0,canvas.width,canvas.height);
+  // Recognize on our own bilinear downsize (see rasterWorkingImage); the
+  // browser-scaled canvas of the same size is only the reference overlay.
+  const {image:working}=rasterWorkingImage(source.getContext('2d',{willReadFrequently:true}).getImageData(0,0,source.width,source.height));
+  const canvas=document.createElement('canvas');canvas.width=working.width;canvas.height=working.height;
+  canvas.getContext('2d').drawImage(source,0,0,canvas.width,canvas.height);
   opts.onProgress?.('cv');
   await new Promise(resolve=>setTimeout(resolve,0));
-  const result=recognizeRaster(ctx.getImageData(0,0,canvas.width,canvas.height),opts);
+  const result=recognizeRaster(working,opts);
   result.sourceDataUrl=canvas.toDataURL('image/jpeg',.88);
-  return result;
+  return noteStraightened(source,result);
 }
 
 // Hard-coded "light training" module: system prompt + few-shot example.

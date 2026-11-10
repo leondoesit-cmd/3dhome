@@ -84,6 +84,15 @@ test('pixel-measured openings and OCR readings survive missed model features',as
   assert.equal(res.status,200);assert.equal(res.value.reconstruction.openings.length,2);
   assert.equal(res.value.reconstruction.rooms[0].name,'Living');assert.equal(res.value.recognition.scale,'printed');
 });
+test('model-guessed dimensions never calibrate the scale once local OCR ran',async t=>{
+  // The model "reads" 360 cm over 100 px (3.6 cm/px); OCR measured nothing.
+  const guessed={...data,dimensions:[{text:'360',valueCm:360,x1:20,y1:290,x2:120,y2:290},{text:'360',valueCm:360,x1:120,y1:290,x2:220,y2:290}]};
+  const f=await fixture(t,{choices:[{finish_reason:'stop',message:{content:JSON.stringify(guessed)}}]}),res=f.response();
+  await f.run(f.request('POST',{...payload,wallCandidates:data.walls,protectedWalls:[0,1,2,3],ocr:{rooms:[],dimensions:[]}}),res);
+  assert.equal(res.status,200);assert.equal(res.value.recognition.scale,'fallback');
+  assert.equal(res.value.recognition.cmPerPx,720/360);
+});
+
 test('bounded model output omits work already grounded by OCR and pixel walls',()=>{
   const schema=visionResponseSchema(payload,true,{rooms:[{}],dimensions:[{}]});
   assert.equal(schema.additionalProperties,false);

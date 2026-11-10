@@ -2168,6 +2168,7 @@ export default {
   rs_menu: "Mobile room scan",
   rs_menu_t: "Scan a room with LiDAR / AR or import an Apple RoomPlan capture",
   rs_face: "Corners measured at",
+  bp_trace_straightened: "The photo was straightened (tilt and perspective corrected). Calibrate on a long dimension and check a second one in the other direction.",
   rs_face_centre: "Wall centre-line",
   rs_face_inside: "Inside face (offset out)",
   rs_pick_edge: "Tap a wall in the preview to pick the one you measured",

@@ -298,6 +298,9 @@ export function createBlueprintVision({root,json,readJsonBody,allowedOrigin,fetc
         const protectedWalls=new Set(Array.isArray(payload.protectedWalls)?payload.protectedWalls.filter(Number.isInteger):[]);
         const ignored=new Set((Array.isArray(analysis.ignoredWalls)?analysis.ignoredWalls:[]).filter(n=>Number.isInteger(n)&&n>=0&&n<candidates.length&&!protectedWalls.has(n)));
         analysis.walls=candidates.map((w,i)=>ignored.has(i)?null:w);
+        // Measured fill colour per candidate (blue concrete / red block); anything else is dropped.
+        if(Array.isArray(payload.wallMaterials)&&payload.wallMaterials.length===candidates.length)
+          analysis.wallMaterials=payload.wallMaterials.map(m=>m==='concrete'||m==='block'?m:null);
         const measured=Array.isArray(payload.openingCandidates)?payload.openingCandidates.slice(0,300):[];
         // A model can classify a measured gap but cannot introduce a solid-wall
         // opening without corresponding image evidence.
@@ -324,7 +327,10 @@ export function createBlueprintVision({root,json,readJsonBody,allowedOrigin,fetc
         }
       }
       if(Array.isArray(payload.ocr?.rooms)&&payload.ocr.rooms.length)analysis.rooms=payload.ocr.rooms.slice(0,100);
-      if(Array.isArray(payload.ocr?.dimensions)&&payload.ocr.dimensions.length)analysis.dimensions=payload.ocr.dimensions.slice(0,200);
+      // Measured OCR dimensions are the only scale evidence when OCR ran: the
+      // model's own "dimensions" come with guessed endpoints, and calibrating
+      // on them produced confidently wrong sizes. No OCR spans → width fallback.
+      if(Array.isArray(payload.ocr?.dimensions))analysis.dimensions=payload.ocr.dimensions.slice(0,200);
       analysis.warnings=[...(Array.isArray(analysis.warnings)?analysis.warnings:[]),...(Array.isArray(payload.ocr?.warnings)?payload.ocr.warnings:[])];
       const result=compileVisionBlueprint(analysis,{width:payload.width,height:payload.height,widthCm:payload.widthCm,usePrintedScale:payload.usePrintedScale!==false});
       result.recognition.geometry=candidates?'raster':'vision';

@@ -91,7 +91,17 @@ export function compileVisionBlueprint(data, {width,height,widthCm=1000,usePrint
   const enclosedRegions=graph.walls.length-graph.nodes.length+components;
   if(enclosedRegions<1)throw new Error('The recognized walls do not enclose a floor. Try a clearer image or Trace floor plan.');
   if(components>1)warnings.push('The wall graph has '+components+' disconnected parts; verify their connections.');
-  graph.walls.forEach(w=>{w.layers=[{id:'vision-core',thickness:w.thickness,material:'generic-masonry',color:'#d8d3c8',role:'core',main:true,structural:true}];});
+  // Sheet colours measured by the raster pass (blue concrete carries load,
+  // red block is infill) pick the wall type; otherwise a generic core.
+  const materials=Array.isArray(data.wallMaterials)?data.wallMaterials:[];
+  graph.walls.forEach(w=>{
+    const fill=materials[Number(String(w.sourceLayer||'').replace('vision-',''))];
+    const core=fill==='concrete'?{material:'reinforced-concrete',color:'#aaa9a4',structural:true}
+      :fill==='block'?{material:'concrete-block',color:'#c5c1b6',structural:false}
+      :{material:'generic-masonry',color:'#d8d3c8',structural:true};
+    if(fill==='concrete'||fill==='block')w.wallTypeId=fill;
+    w.layers=[{id:'vision-core',thickness:w.thickness,...core,role:'core',main:true}];
+  });
   for(const type of ['door','window'])for(const raw of (Array.isArray(data[type+'s'])?data[type+'s']:[]).slice(0,300)){
     const o=openingRecord(raw);
     if(!point(o[1],o[2])||!finite(o[3])||o[3]<=0){rejected.openings++;continue;}

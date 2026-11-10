@@ -4,6 +4,7 @@
 // a project does not depend on the original local file still existing.
 import { S, fin } from "./state.js";
 import { t } from "./i18n.js";
+import { straightenCanvas } from "./blueprint_straighten.js";
 
 const PDF_MODULE = "../vendor/pdfjs/pdf.min.mjs";
 const PDF_WORKER = "../vendor/pdfjs/pdf.worker.min.mjs";
@@ -86,7 +87,11 @@ async function rasterizeImage(file, maxDimension) {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return jpegResult(canvas, { page: 1, pageCount: 1, sourceType: "image" });
+    // Phone photos come tilted/keystoned; trace over a straightened sheet so
+    // the calibration and the wall tool's right angles hold across the plan.
+    // PDFs are rendered straight and skip this.
+    var straight = straightenCanvas(canvas);
+    return jpegResult(straight, { page: 1, pageCount: 1, sourceType: "image", straightened: !!straight.straightened });
   } finally {
     URL.revokeObjectURL(url);
   }
