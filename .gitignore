@@ -25,6 +25,7 @@ tmp/
 bench/out/
 bench/plans/
 bench/datasets/
+bench/harvest/
 # disk copies of saved models (server/model_backup.mjs)
 .model-backups/
 # desktop shell build output (desktop/src-tauri)

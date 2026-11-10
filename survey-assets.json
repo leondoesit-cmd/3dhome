@@ -647,6 +647,7 @@
     "/js/plan_params.js",
     "/js/plan_patterns.js",
     "/js/plan_recog/dimensions.js",
+    "/js/plan_recog/fill_walls.js",
     "/js/plan_recog/pdf_primitives.js",
     "/js/plan_recog/room_scale.js",
     "/js/plan_recog/vector_plan.js",

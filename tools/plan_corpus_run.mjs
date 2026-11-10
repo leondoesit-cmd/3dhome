@@ -87,7 +87,7 @@ export async function runCorpus(options = {}) {
 }
 
 const mul = (p, s) => ({ x: p.x * s, y: p.y * s });
-function scalePrims(prims, s) {
+export function scalePrims(prims, s) {
   return {
     ...prims,
     width: prims.width * s, height: prims.height * s,
