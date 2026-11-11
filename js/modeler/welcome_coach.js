@@ -383,17 +383,20 @@ function syncEmptyStart() {
   chip.hidden = !(E.open && empty && idle && !E.welcomeOpen && !E.tour.active && E.mode !== "drawing");
 }
 
-/* Kept for the editor's other pieces; the tutorial engine owns both. */
-function goTourStep(delta) {
+/* Kept for the editor's other pieces; the tutorial engine owns both. Their
+   own names differ from sketch_guide.js's (they are exported under those):
+   the tests read the editor's pieces as one script (tests/helpers/
+   module_source.mjs), where a second top-level goTourStep is a SyntaxError. */
+function coachTourStep(delta) {
   stopSpeaking();
   stepGuide(delta);
 }
 
-function updateTourProgress() {
+function coachTourProgress() {
   syncGuide();
 }
 
 export {
-  closeWelcome, coachSuggestion, goTourStep, openWelcome,
-  startSketchOnDefaultPlane, syncCoach, updateTourProgress, welcomeGuideCards,
+  closeWelcome, coachSuggestion, coachTourStep as goTourStep, openWelcome,
+  startSketchOnDefaultPlane, syncCoach, coachTourProgress as updateTourProgress, welcomeGuideCards,
 };

@@ -6,7 +6,7 @@
    Text is { en, he }. Lengths in demos are centimetres (the document unit). */
 import { E } from "../modeler.js";
 import {
-  activeSketch, applyOpenForm, closedSketchProfile, dimensionCircle, dimensionRectangle, drawCircle, drawPolyline,
+  guideSketch, applyOpenForm, closedSketchProfile, dimensionCircle, dimensionRectangle, drawCircle, drawPolyline,
   drawRectangle, fillForm, featureBuilt, finishSketch, fixPoint, liveFeatures, runEditorCommand, runFeature,
   sketchCircles, sketchDimensions, sketchFullyDefined, sketching, sketchLines, sketchOnPlane,
   showResult, sketchOnTopFace, sketchesWith, standardPartCount,
@@ -15,7 +15,7 @@ import {
 function rectangleSketches() {
   return sketchesWith(function (sketch) { return sketchLines(sketch).length >= 4; });
 }
-function lastSketch() { return activeSketch(); }
+function lastSketch() { return guideSketch(); }
 
 /* ---- 1. first part: sketch, dimension, extrude ---------------------------- */
 function firstPartSteps() {

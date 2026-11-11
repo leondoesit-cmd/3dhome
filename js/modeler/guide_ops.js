@@ -53,7 +53,7 @@ function featureBuilt(type) {
   return E.docType === "part" && liveFeatures(type).length > 0 && !modelRebuildPending() && !rebuildErrors().length;
 }
 function sketching() { return !!(E.authoring && E.authoring.phase === "sketch"); }
-function activeSketch() { return E.def ? ensureSketch(E.def) : null; }
+function guideSketch() { return E.def ? ensureSketch(E.def) : null; }
 function sketchLines(sketch) {
   return ((sketch && sketch.entities) || []).filter(function (entity) { return entity.type === "line" && !entity.construction; });
 }
@@ -109,7 +109,7 @@ function planeReference(id) {
 function sketchOnPlane(planeId, tool) {
   var plane = planeReference(planeId);
   if (plane) chooseSketchReference(plane, tool || "select");
-  return activeSketch();
+  return guideSketch();
 }
 /* The top face of the newest solid, as a pick would hand it over. */
 function topFaceReference() {
@@ -131,13 +131,13 @@ function sketchOnTopFace(tool) {
   var face = topFaceReference();
   if (face) chooseSketchReference(face, tool || "select");
   if (!sketching()) sketchOnPlane("plane:top", tool);
-  return activeSketch();
+  return guideSketch();
 }
 function drawRectangle(u0, v0, u1, v1) {
   return addSketchRectangle({ u:u0, v:v0 }, { u:u1, v:v1 }) || [];
 }
 function dimensionLine(line, value) {
-  var sketch = activeSketch();
+  var sketch = guideSketch();
   if (!sketch || !line) return;
   sketch.constraints.push({ id:uid(), type:"distance", entity:line.id, value:value });
   resolveSketch(false);
@@ -148,7 +148,7 @@ function dimensionLine(line, value) {
    over-constrained and the next step never completes). Rectangle edges
    alternate horizontal, vertical, horizontal, vertical. */
 function dimensionRectangle(lines, width, height) {
-  var sketch = activeSketch();
+  var sketch = guideSketch();
   if (!sketch || lines.length < 4) return;
   var sized = function (i) {
     return (sketch.constraints || []).some(function (c) { return !c.suppressed && c.entity === lines[i].id && Number.isFinite(Number(c.value)); });
@@ -157,14 +157,14 @@ function dimensionRectangle(lines, width, height) {
   if (!sized(1) && !sized(3)) dimensionLine(lines[1], height);
 }
 function fixPoint(pointId) {
-  var sketch = activeSketch(), point = sketch && sketchPoint(sketch, pointId);
+  var sketch = guideSketch(), point = sketch && sketchPoint(sketch, pointId);
   if (!point) return;
   sketch.constraints.push({ id:uid(), type:"fixed", point:point.id, x:point.x, y:point.y });
   resolveSketch(false);
 }
 function drawCircle(u, v, r) { return addSketchCircle({ u:u, v:v }, { u:u + r, v:v }); }
 function dimensionCircle(circle, diameter) {
-  var sketch = activeSketch();
+  var sketch = guideSketch();
   if (!sketch || !circle) return;
   var mine = (sketch.constraints || []).filter(function (c) { return !c.suppressed; });
   if (!mine.some(function (c) { return c.entity === circle.id && (c.type === "diameter" || c.type === "radius"); })) {
@@ -174,7 +174,7 @@ function dimensionCircle(circle, diameter) {
 }
 /* An outline through the given points, closed back to the first one. */
 function drawPolyline(points) {
-  var sketch = activeSketch();
+  var sketch = guideSketch();
   var ids = points.map(function (q) { return newSketchPoint(sketch, { u:q[0], v:q[1] }); });
   var lines = ids.map(function (id, i) {
     return { id:uid(), type:"line", name:"Line", a:id, b:ids[(i + 1) % ids.length], construction:false };
@@ -302,7 +302,7 @@ function showResult() {
 }
 
 export {
-  activeSketch, addCoincidentMate, applyOpenForm, assemblySaved, closedSketchProfile, dimensionCircle,
+  guideSketch, addCoincidentMate, applyOpenForm, assemblySaved, closedSketchProfile, dimensionCircle,
   dimensionLine, dimensionRectangle, fillForm, drawCircle, drawPolyline, drawRectangle, ensurePracticeAssembly,
   featureBuilt, finishSketch, fixPoint, freshDocument, liveFeatures, liveMates,
   pickMateFaces, practiceBase, practiceCap, rebuildErrors, runEditorCommand, runFeature,

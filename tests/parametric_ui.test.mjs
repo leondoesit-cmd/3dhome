@@ -67,7 +67,8 @@ test("rebuild guidance is reachable without extra clicks and hides raw topology 
   assert.match(modelerSource, /id="mdCoachLabel"/);
   assert.match(modelerSource, /sug\.rebuild \? "coachActRebuild" : "coachNext"/);
   assert.match(modelerSource, /isCanonicalAuthoring\(\) && !sug\.rebuild/);
-  assert.match(modelerSource, /target:'#mdParts'/);
+  // the tutorial still points at the parts list (either quote style)
+  assert.match(modelerSource, /target:\s*["']#mdParts["']/);
   assert.match(styles, /#modeler \.md-diagnostic-help\[open\] \.md-diagnostic-explanation/);
   assert.match(styles, /#modeler \.md-diag-jump/);
 });
