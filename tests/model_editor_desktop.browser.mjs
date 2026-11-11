@@ -1350,7 +1350,7 @@ test("desktop model editor: section controls and collapsible side panels are ope
   assert.equal(sectionClosed, true, "section controls did not close");
 });
 
-test("desktop model editor: interactive tutorial opens SolidWorks CAD track and navigates steps", opts, async () => {
+test("desktop model editor: interactive tutorial opens the first-part track and navigates steps", opts, async () => {
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
   await page.eval(() => document.getElementById("mdGuide").click());
   await page.eval(() => new Promise((r) => setTimeout(r, 300)));
@@ -1364,10 +1364,10 @@ test("desktop model editor: interactive tutorial opens SolidWorks CAD track and 
     };
   });
   assert.equal(tourState.open, true, "tutorial layer did not open");
-  assert.ok(tourState.tracks.includes("solidworks"), "SolidWorks CAD track missing from tutorial tracks");
+  assert.deepEqual(tourState.tracks, ["first", "plate", "knob", "assembly", "screw"], "desktop tutorial tracks");
 
   await page.eval(() => {
-    const track = document.querySelector('[data-tour-track="solidworks"]');
+    const track = document.querySelector('[data-tour-track="first"]');
     if (track) track.click();
   });
   await page.eval(() => new Promise((r) => setTimeout(r, 300)));
@@ -1376,13 +1376,13 @@ test("desktop model editor: interactive tutorial opens SolidWorks CAD track and 
     const modeBtn = document.querySelector('[data-tour-mode="interactive"]') || document.querySelector('[data-tour-mode]');
     if (modeBtn) modeBtn.click();
   });
-  await page.eval(() => new Promise((r) => setTimeout(r, 300)));
+  await page.waitUntil(() => !document.getElementById("mdTourNext").disabled, { what: "the first tutorial step" });
 
   const step1 = await page.eval(() => ({
     count: document.getElementById("mdTourCount")?.textContent.trim(),
     hasNext: !document.getElementById("mdTourNext")?.disabled,
   }));
-  assert.match(step1.count, /1\s*(?:\/|of|מתוך)\s*16/);
+  assert.match(step1.count, /1\s*(?:\/|of|מתוך)\s*8/);
   assert.equal(step1.hasNext, true, "tutorial next button is disabled on step 1");
 
   await page.eval(() => document.getElementById("mdTourNext").click());
@@ -1391,7 +1391,11 @@ test("desktop model editor: interactive tutorial opens SolidWorks CAD track and 
   const step2 = await page.eval(() => ({
     count: document.getElementById("mdTourCount")?.textContent.trim(),
   }));
-  assert.match(step2.count, /2\s*(?:\/|of|מתוך)\s*16/);
+  assert.match(step2.count, /2\s*(?:\/|of|מתוך)\s*8/);
+  const step2Ring = await page.eval(() => document.querySelector(".md-tour-target")?.getAttribute("data-pro-bind"));
+  assert.equal(step2Ring, "mcmd:srect", "step 2 rings Rectangle on the ribbon");
+  const step2Next = await page.eval(() => document.getElementById("mdTourNext").disabled);
+  assert.equal(step2Next, true, "step 2 waits for the sketch before Next unlocks");
 
   await page.eval(() => document.getElementById("mdTourClose").click());
   await page.eval(() => new Promise((r) => setTimeout(r, 200)));

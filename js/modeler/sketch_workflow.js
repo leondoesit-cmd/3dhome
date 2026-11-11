@@ -666,7 +666,7 @@ function setTool(id, keepPlaneState) {
     }
     return;
   }
-  if(E.mode !== "drawing" && isCanonicalAuthoring() && !E.tour.active) {
+  if(E.mode !== "drawing" && isCanonicalAuthoring()) {
     if(SKETCH_TOOLS.includes(id) && E.authoring.phase!=="sketch") {
       // Trim, Dimension, Extend, Offset and the constraint tool edit geometry;
       // handing them a brand-new empty sketch is a dead end that looks like a

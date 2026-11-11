@@ -34,7 +34,7 @@ import { syncNotesAndMarkups, syncNotesToolbar, syncPaintToolbar, syncViewsToolb
 import { runCommand } from "./part_commands.js";
 import { applyConstraint, cancelDimensionEditor } from "./sketch_dimension_editor.js";
 import { bindPolygonSideControl, sizeSketch, syncHint, syncStatus, watchSketchSize } from "./sketch_entities.js";
-import { closeTour, installTourDragging, prepareTourStep, seekAutomaticTour, startTour, tourSteps } from "./sketch_guide.js";
+import { closeTour, installTourDragging, showMe, startTour } from "./sketch_guide.js";
 import { activateWorkflowStep, beginSketchWorkflow, cancelFacePick, cancelReferenceSelection, chooseSketchReference, finishSketchWorkflow, isCanonicalAuthoring, orientModelToView, setCommandTab, setModelLengthUnit, setSketchNormalTo, setTab, setTool, setView, showReferencePicker, syncNormalToControls, zoomBy } from "./sketch_workflow.js";
 import { applyDimensionEditor, deleteDimensionEditor, editSketchFromHistory } from "./tree_assembly.js";
 import { initPreview, layout3DHost, setModelDisplay, setPanelCollapsed, setSectionState, setShowModelEdges } from "./view_modes.js";
@@ -433,25 +433,9 @@ function wireGuidancePropsAndPanels(autoDimBox, cons) {
   });
   installTourDragging();
   root.querySelector("#mdTourBack").addEventListener("click", function () { goTourStep(-1); });
-  root.querySelector("#mdTourRestart").addEventListener("click", function () {
-    if (!E.tour.active || !E.tour.track) return;
-    E.tour.completed[E.tour.step] = false;
-    prepareTourStep();
-  });
-  root.querySelector("#mdTourSkip").addEventListener("click", function () { goTourStep(1, true); });
-  // `change`, not `input`: every seek replays the demo, and re-running it for
-  // each pixel of a slider drag locked the editor up for seconds at a time.
-  root.querySelector("#mdTourRange").addEventListener("change", function () { seekAutomaticTour(+this.value); });
-  root.querySelector("#mdTourRange").addEventListener("input", function () {
-    var value = +this.value, steps = tourSteps();
-    root.querySelector("#mdTourSliderValue").textContent = (value + 1) + " / " + steps.length;
-  });
+  root.querySelector("#mdTourSkip").addEventListener("click", showMe);
   root.querySelector("#mdTourKeep").addEventListener("click", function () { E.tour.keepResult = true; closeTour(); });
-  root.querySelector("#mdTourNext").addEventListener("click", function () {
-    if (E.tour.mode === "auto") { if(E.tour.step>=tourSteps().length-1)closeTour();else seekAutomaticTour(E.tour.step+1, true); return; }
-    if (E.tour.step >= tourSteps().length - 1) closeTour();
-    else goTourStep(1);
-  });
+  root.querySelector("#mdTourNext").addEventListener("click", function () { goTourStep(1); });
   root.querySelector("#mdWelcomeClose").addEventListener("click", closeWelcome);
   root.querySelector("#mdWelcome").addEventListener("pointerdown", function (e) { if (e.target === this) closeWelcome(); });
   root.querySelector("#mdWelcomeNever").addEventListener("change", function () {

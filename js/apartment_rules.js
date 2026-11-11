@@ -91,7 +91,7 @@ function roomBox(room) {
   return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
 }
 // The finished floor: room polygons follow wall centre lines.
-function interiorBox(room) {
+export function interiorBox(room) {
   let b = roomBox(room), t = WALL_T / 2;
   return { x0: b.x0 + t, x1: b.x1 - t, z0: b.z0 + t, z1: b.z1 - t };
 }
@@ -103,7 +103,7 @@ function boxInRoom(box, room, tol = 1) {
     [[box.x0, box.z0], [box.x1, box.z0], [box.x1, box.z1], [box.x0, box.z1]].every(([x, z]) =>
       pointInPoly(Math.min(Math.max(x, box.x0 + tol), box.x1 - tol), Math.min(Math.max(z, box.z0 + tol), box.z1 - tol), room.pts));
 }
-function polyArea(pts) {
+export function polyArea(pts) {
   let a = 0;
   for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) a += (pts[j].x + pts[i].x) * (pts[j].z - pts[i].z);
   return Math.abs(a / 2);
@@ -128,7 +128,7 @@ function roomAt(rooms, x, z) {
   return rooms.find(r => pointInPoly(x, z, r.pts)) || null;
 }
 // Which rooms (or "outside") an opening joins.
-function openingSides(op, walls, rooms) {
+export function openingSides(op, walls, rooms) {
   let geo = openingGeometry(op, walls);
   if (!geo) return null;
   let probe = WALL_T / 2 + 12;

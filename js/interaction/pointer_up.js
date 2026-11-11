@@ -29,6 +29,7 @@ import { releaseTouchPrecisionTrial, touchPrecisionTrialOwns } from "../touch_pr
 import { setConstraintHover, syncWarnHighlight } from "../ui_warn.js";
 import { fillProps, flash, placeFurnAt, refreshTree, select, setLockStruct, syncStairVoids } from "../ui.js";
 import { isWalk } from "../view3d.js";
+import { cancelFitCab, fitCabUp } from "../interaction/fit_cabinet_tool.js";
 import { solveWallCons } from "../wall_constraints.js";
 import {
   dropDragProxy, endSnapSession, interactionLocals, isElevation,
@@ -55,6 +56,7 @@ function wireLongPressAndPointerUp() {
     try {
     if (e?.type === "pointercancel") {
       const active = S.action;
+      if (active === "fitcab") cancelFitCab();
       (0, interactionLocals.cancelLongPress)(); (0, interactionLocals.stopAutoPan)(); dropDragProxy(); endSnapSession();
       S.wallPress = null;
       disarmHistoryGesture();
@@ -241,6 +243,7 @@ function wireLongPressAndPointerUp() {
     }
 
     if (S.action === "wallbite") commitWallBite();
+    if (S.action === "fitcab") fitCabUp();
     if (S.action === "mep") {
       fillProps(); // refresh readouts (length, position) after a drag
       refreshTree(); // connectivity flags may have changed

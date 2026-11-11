@@ -218,18 +218,20 @@ test("modeler: mobile tutorial track teaches touch CAD layout and bottom sheet w
   assert.match(mdMobile, /export function showModelerSheet/);
   assert.match(mdMobile, /export function closeModelerSheet/);
   assert.match(mdMobile, /grp\.classList\.add\("md-group-open"\)/);
-  assert.match(mdStrings, /guideSelectTipMobile/);
-  assert.match(mdStrings, /guidePairBodyMobile/);
-  assert.match(mdStrings, /assemblyPairBodyMobile/);
-  assert.match(css, /body\.compact-nav #modeler \.md-tour-card/);
-  assert.match(md, /target: '\[data-mdnav="cmd"\]'/);
+  assert.match(mdStrings, /guideMobileSelectTip/);
+  assert.match(mdStrings, /guideMobileExtrudeBody/);
+  // the pro-compact phone dock first, the older bottom nav as the fallback
+  assert.match(md, /target:\["#modeler \.ps-dock-grid", '\[data-mdnav="cmd"\]'\]/);
   assert.match(md, /target: '\[data-md-action="extrude"\]'/);
   assert.match(md, /autoCollapseMobile: true/);
+  assert.match(md, /bodyMobile:/);
   assert.match(mdStrings, /guideContinueEditing/);
-  assert.match(md, /id="mdTourRestart"/);
+  assert.match(md, /id="mdTourSkip" class="md-tour-showme"/);
   assert.match(mdMobile, /b\.dataset\.mdAction = spec\.action/);
   assert.match(css, /body\.compact-nav #modeler \.md-command kbd/);
-  const mobileTrack = md.slice(md.indexOf("function mobileTourSteps"), md.indexOf("function sketchTourSteps"));
+  const trackStart = md.indexOf("function mobileTourSteps");
+  const mobileTrack = md.slice(trackStart, md.indexOf("\n}\n", trackStart));
+  assert.ok(mobileTrack.length > 200, "the phone track source was not found");
   assert.doesNotMatch(mobileTrack, /#md-ctx|#md-selection-bar|touch slop|Sketch drawer/);
   assert.match(md, /guideMoreProjects/);
   assert.match(md, /class="md-tour-more"/);

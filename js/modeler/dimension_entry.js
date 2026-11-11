@@ -1460,7 +1460,10 @@ function onKey(e) {
     if (E.facePick) { e.preventDefault(); cancelFacePick(false); return; }
     var referencePicker = root && root.querySelector("#mdReferencePicker");
     if (referencePicker && !referencePicker.hidden) { e.preventDefault(); cancelReferenceSelection(); return; }
-    if (E.tour.active) { e.preventDefault(); closeTour(); return; }
+    /* Esc belongs to the editor while a tutorial track runs: it ends a line
+       chain or cancels a tool, which the steps ask for. It closes only the
+       hub and the mode chooser. */
+    if (E.tour.active && !E.tour.mode) { e.preventDefault(); closeTour(); return; }
     if (E.measure) { e.preventDefault(); closeEvalCard(); return; }
     if (dynHasEntry()) { E.dynInput = null; drawSketch(); return; }
     if (E.wallPts) { finishWallChain(true); return; }

@@ -352,6 +352,9 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
       "--disable-background-timer-throttling",
       "--disable-renderer-backgrounding",
       "--disable-backgrounding-occluded-windows",
+      // a real (GPU) window on Windows is still throttled to ~2 frames a second
+      // once another window covers it, unless native occlusion tracking is off
+      ...(process.env.MF_BROWSER_GPU==="1"?["--disable-features=CalculateNativeWinOcclusion"]:[]),
       /* No GPU and no SwiftShader: the editor's three.js preview throws on a
          null WebGL context here, which callers filter out (see NO_GL in
          tests/model_editor_layout.browser.mjs). Software GL would render it for

@@ -286,7 +286,8 @@ import {
 import {
   dedupeFinishRefs, topologyReferenceFromEntry,
 } from "./modeler_pick_geometry.js";
-import { closeTour, startTour, tourMaterial } from "./modeler/sketch_guide.js";
+import { closeTour, startTour } from "./modeler/sketch_guide.js";
+import { tourMaterial } from "./modeler/standard_parts.js";
 import { cancel2DPointerMoveGlobal, onKey } from "./modeler/dimension_entry.js";
 import {
   closeReport, closedSketchProfile, drawSketch, drawingSheet,

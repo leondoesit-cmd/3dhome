@@ -2,6 +2,7 @@
    initInteraction, split out of js/interaction.js. It shares the editor's state
    through live imports from ../interaction.js. */
 import { entryOpen } from "../cad_hud.js";
+import { fitCabHover, fitCabMove } from "../interaction/fit_cabinet_tool.js";
 import { canWeld, enforceLocks, hitWarning, snapshotNodes } from "../constraint_engine.js";
 import { elevDragItemTo, elevDragOpeningTo, elevDragTo, elevPick, elevationHit } from "../elevation.js";
 import { detectRooms, equalWallAngleTranslation, snapAdj, usedNodes, wallById, wallGeom, wallProject } from "../geometry.js";
@@ -102,6 +103,8 @@ function wirePlanMove() {
        the next wall. It is the question you are asking whenever the cursor is
        over a wall, and it used to need a measure-tool detour. */
     updateWallProbe(px, pz);
+    if (S.action === "fitcab") { fitCabMove(px, pz); return; }
+    if (S.tool === "fitcab" && !S.action) { fitCabHover(px, pz); return; }
     if (S.tool === "wall") {
       /* The four-way overlay and snap mark follow the cursor from the moment
          the tool is armed — not only after the first click — so you can read

@@ -584,12 +584,12 @@ function buildEditorShellMarkup() {
         '</div></div>' +
         '<div class="md-tour-progress" aria-hidden="true"><span id="mdTourProgress"></span></div>' +
         '<p id="mdTourBody"></p><div class="md-tour-demo" id="mdTourDemo" hidden aria-hidden="true"></div><div class="md-tour-tracks" id="mdTourTracks" hidden></div>' +
-        '<label class="md-tour-slider" id="mdTourSlider" hidden><span>' + t("guideAutoSlider") + '</span><output id="mdTourSliderValue"></output><input id="mdTourRange" type="range" min="0" value="0"></label>' +
         '<div class="md-tour-tip"><i class="ph ph-lightbulb"></i><span id="mdTourTip"></span></div>' +
         '<div class="md-tour-status" id="mdTourStatus" role="status"></div>' +
         '<div class="md-tour-actions"><button type="button" id="mdTourBack"><i class="ph ph-arrow-right"></i>' + t("guideBack") + '</button>' +
-        '<button type="button" id="mdTourRestart" class="md-tour-restart" aria-label="' + t("guideRestart") + '" title="' + t("guideRestart") + '"><i class="ph ph-arrow-counter-clockwise"></i><span>' + t("guideRestart") + '</span></button>' +
-        '<button type="button" id="mdTourSkip" class="md-tour-skip">' + t("guideSkip") + '</button>' +
+        /* "Show me" performs the step (it used to be Skip, which left the next
+           step pointing at a model that did not exist). */
+        '<button type="button" id="mdTourSkip" class="md-tour-showme"></button>' +
         '<button type="button" id="mdTourKeep" class="md-tour-skip" title="' + t("guideKeepResultTip") + '" hidden>' + t("guideKeepResult") + '</button>' +
         '<button type="button" id="mdTourNext" class="btn-accent">' + t("guideNext") + '<i class="ph ph-arrow-left"></i></button></div>' +
       '</section></div>';

@@ -15,7 +15,7 @@ import { flash } from "./drawing_sheet_touch.js";
 import { activeParts, loadLib } from "../modeler/library_store.js";
 import { runCommand } from "../modeler/part_commands.js";
 import { displayedCoreIssues, modelRebuildPending } from "../modeler/sketch_entities.js";
-import { assemblyTourSteps, dreidelTourSteps, flowerTourSteps, gearTourSteps, mobileTourSteps, patternTourSteps, prepareTourStep, renderTour, renderTourMode, restoreAutomaticTourOrigin, screwTourSteps, seekAutomaticTour, selectTourTrack, sketchTourSteps, solidworksCubeTourSteps, startTour, studBallTourSteps, tourStepDone, tourSteps } from "../modeler/sketch_guide.js";
+import { goTourStep as stepGuide, guideTracks, selectTourTrack, startTour, txt, updateTourProgress as syncGuide } from "../modeler/sketch_guide.js";
 import { assemblyWorkflowState, beginSketchWorkflow, chooseSketchReference, currentWorkflowStep, finishSketchWorkflow, isCanonicalAuthoring, referenceLabel, setCommandTab, setTab, setTool, showReferencePicker } from "../modeler/sketch_workflow.js";
 import { insertAssemblyComponent } from "../modeler/tree_assembly.js";
 import { ensureSketch } from "../sketch_solver.js";
@@ -31,21 +31,9 @@ import {
    choice: a blank document, a ready shape, or one of the guided projects
    (which are the interactive tour tracks under a friendlier roof). The
    "don't show again" checkbox and the Settings toggle write the same pref. */
+/* The welcome screen's guided projects are the tutorial tracks themselves. */
 function welcomeGuideCards() {
-  var mobile = { track:"mobile", art:"sketch", title:"guideMobileTrack", desc:"guideMobileTrackDesc", steps:mobileTourSteps, phonePrimary:true };
-  var sketch = { track:"sketch", art:"sketch", title:"guideSketchTrack", desc:"guideSketchTrackDesc", steps:sketchTourSteps, phonePrimary:true };
-  var rest = [
-    { track:"solidworks", art:"cube", title:"guideSolidworksTrack", desc:"guideSolidworksTrackDesc", steps:solidworksCubeTourSteps },
-    { track:"flower", art:"flower", title:"guideFlowerTrack", desc:"guideFlowerTrackDesc", steps:flowerTourSteps },
-    { track:"assembly", art:"mates", title:"guideAssemblyTrack", desc:"guideAssemblyTrackDesc", steps:assemblyTourSteps },
-    { track:"screw", art:"screw", title:"guideScrewTrack", desc:"guideScrewTrackDesc", steps:screwTourSteps },
-    { track:"gear", art:"gear", title:"guideGearTrack", desc:"guideGearTrackDesc", steps:gearTourSteps },
-    { track:"studball", art:"studball", title:"guideStudBallTrack", desc:"guideStudBallTrackDesc", steps:studBallTourSteps },
-    { track:"dreidel", art:"dreidel", title:"guideDreidelTrack", desc:"guideDreidelTrackDesc", steps:dreidelTourSteps },
-    { track:"pattern", art:"pattern", title:"guidePatternTrack", desc:"guidePatternTrackDesc", steps:patternTourSteps },
-  ];
-  if (document.body.classList.contains("compact-nav")) return [mobile, sketch].concat(rest);
-  return [sketch].concat(rest).concat([mobile]);
+  return guideTracks();
 }
 
 function renderWelcomeCards() {
@@ -63,9 +51,9 @@ function renderWelcomeCards() {
   if (guides) guides.innerHTML = welcomeGuideCards().map(function (card) {
     return '<button type="button" data-welcome-guide="' + card.track + '" class="md-welcome-tile">' +
       '<span class="md-welcome-art art-' + card.art + '" aria-hidden="true">' + welcomeGlyph(card.art) + '<em>' + t("welcomeGuided") + '</em></span>' +
-      '<span class="md-welcome-meta"><span class="md-welcome-titlerow"><b>' + t(card.title) + '</b>' +
+      '<span class="md-welcome-meta"><span class="md-welcome-titlerow"><b>' + txt(card.title) + '</b>' +
       '<span class="md-welcome-badge">' + card.steps().length + ' ' + t("welcomeSteps") + '</span></span>' +
-      '<small>' + t(card.desc) + '</small></span>' +
+      '<small>' + txt(card.desc) + '</small></span>' +
     '</button>';
   }).join("");
   if (start) start.querySelectorAll("[data-welcome-start]").forEach(function (tile) {
@@ -395,22 +383,14 @@ function syncEmptyStart() {
   chip.hidden = !(E.open && empty && idle && !E.welcomeOpen && !E.tour.active && E.mode !== "drawing");
 }
 
-function goTourStep(delta, skipped) {
+/* Kept for the editor's other pieces; the tutorial engine owns both. */
+function goTourStep(delta) {
   stopSpeaking();
-  if (!E.tour.active) return;
-  if (!E.tour.track) return;
-  if (E.tour.mode==="auto") { if(delta<0&&E.tour.step===0){restoreAutomaticTourOrigin();E.tour.autoOrigin=null;E.tour.mode=null;renderTourMode(E.tour.track);return;}seekAutomaticTour(E.tour.step+delta,delta===1);return; }
-  if (delta < 0 && E.tour.step === 0) { renderTourMode(E.tour.track);return; }
-  var steps = tourSteps(), step = steps[E.tour.step];
-  if (delta > 0 && !skipped && !tourStepDone(step, E.tour.step)) return;
-  if (skipped) E.tour.completed[E.tour.step] = true;
-  E.tour.step = Math.max(0, Math.min(steps.length - 1, E.tour.step + delta));
-  prepareTourStep();
+  stepGuide(delta);
 }
 
 function updateTourProgress() {
-  if (!E.tour.active || E.tour.preparing) return;
-  renderTour();
+  syncGuide();
 }
 
 export {

@@ -428,7 +428,7 @@ function syncInspectorCard() {
 
 /* ---- the contextual row ------------------------------------------------- */
 
-var DRAW_TOOLS = ["wall", "arcwall", "rect", "roomstamp", "door", "window", "passage", "slabvoid", "point", "erase"];
+var DRAW_TOOLS = ["wall", "arcwall", "rect", "roomstamp", "door", "window", "passage", "slabvoid", "point", "fitcab", "erase"];
 function drawing() {
   return DRAW_TOOLS.indexOf(S.tool) >= 0;
 }

@@ -49,7 +49,7 @@ const PLAN = [
     ["Solve", [T("Warnings & DOF", "ph-warning-circle", "reveal:#warnPanel"), T("Repin", "ph-target", "act:conRepin"), T("Flip", "ph-flip-vertical", "act:conFlip"), T("Parameters", "ph-function", "reveal:#paramSection")]],
   ]],
   ["Interior", [
-    ["Place", [T("Library", "ph-books", "left:library"), T("Real size", "ph-person", "act:prodSize"), T("Duplicate", "ph-copy", "act:dupSel", "⌘D"), T("Delete", "ph-trash", "act:deleteSel"), T("Variants", "ph-shuffle", "reveal:#i_variant_box"), T("Stack", "ph-stack", "pro:stack"), T("Kitchen run", "ph-rows", "pro:cabRun")]],
+    ["Place", [T("Library", "ph-books", "left:library"), T("Real size", "ph-person", "act:prodSize"), T("Duplicate", "ph-copy", "act:dupSel", "⌘D"), T("Delete", "ph-trash", "act:deleteSel"), T("Variants", "ph-shuffle", "reveal:#i_variant_box"), T("Stack", "ph-stack", "pro:stack"), T("Fit cabinet", "ph-arrows-in-line-horizontal", "tool:fitcab", "", ["wardrobe", "closet", "niche", "between walls"]), T("Kitchen run", "ph-rows", "pro:cabRun")]],
     ["Arrange", [T("Align left", "ph-align-left", "act:alLeft"), T("Align top", "ph-align-top", "act:alTop"), T("Distribute", "ph-distribute", "act:alDistX"), T("Face wall", "ph-arrow-bend-up-right", "act:faceAuto"), T("Group", "ph-selection-plus", "act:groupItems", "⌘G"), T("Ungroup", "ph-selection-inverse", "act:ungroupItems", "⇧⌘G"), T("Rotate 90°", "ph-arrow-clockwise", "act:rotR"), T("Auto layout", "ph-sparkle", "run:autoArrange")]],
     ["Finish", [T("Textures", "ph-paint-brush-broad", "act:openTextureGallery"), T("Floor texture", "ph-grid-nine", "act:uploadFloorTex"), T("Wall texture", "ph-paint-roller", "act:uploadWallTex"), T("Match floor", "ph-eyedropper", "act:matchFloor"), T("Seamless", "ph-infinity", "act:makeSeamless"), T("Room floor", "ph-checkerboard", "click:#r_floor_pick"), T("Lights", "ph-lightbulb", "lib:lighting")]],
   ]],
@@ -69,7 +69,7 @@ const PLAN = [
   ]],
   ["Analyze", [
     ["Quantities", [T("Cost export", "ph-currency-circle-dollar", "act:exportCost"), T("Wall take-off", "ph-list-numbers", "act:exportWallTakeoff"), T("Wall schedule", "ph-table", "act:exportWallSchedule"), T("Cut plan", "ph-bounding-box", "act:cutPlan"), T("Cost estimate", "ph-calculator", "reveal:#costList"), T("Area summary", "ph-chart-pie-slice", "pro:areaSummary")]],
-    ["Check", [T("Warnings", "ph-warning", "reveal:#warnPanel"), T("Tree", "ph-tree-structure", "left:tree"), T("Clearances", "ph-arrows-out", "pro:clearances"), T("Layout check", "ph-chart-bar", "pro:layoutCheck")]],
+    ["Check", [T("Warnings", "ph-warning", "reveal:#warnPanel"), T("Tree", "ph-tree-structure", "left:tree"), T("Clearances", "ph-arrows-out", "pro:clearances"), T("Layout check", "ph-chart-bar", "pro:layoutCheck"), T("Code check", "ph-scales", "pro:codeCheck", "", ["building code", "regulations", "IRC", "safe room", "mamad", "permit"])]],
   ]],
   ["View & render", [
     ["View", [T("Plan", "ph-blueprint", "act:viewPlan"), T("3D", "ph-cube", "act:view3d"), T("Split", "ph-columns", "act:viewSplit"), T("Dollhouse", "ph-house-line", "act:dollhouse"), T("Frame", "ph-corners-out", "act:frame", "F"), T("Walk", "ph-person-simple-walk", "act:walk", "W"), T("Part codes", "ph-hash", "pro:partCodes")]],
@@ -237,13 +237,13 @@ Object.assign(PRO_HE, {
   "Variants": "וריאנטים", "Stack": "ערימה", "Auto layout": "סידור אוטומטי", "Room floor": "רצפת חדר", "Lights": "תאורה",
   "Validate": "אימות", "Angle snap": "הצמדת זווית", "Fixtures": "אביזרים", "Map provider": "ספק מפה", "Site rotation": "סיבוב אתר", "GeoJSON": "GeoJSON",
   "Survey": "מדידת מצב קיים", "Note": "הערה", "Symbols": "סמלים", "Wall elevation": "חזית קיר", "Section": "חתך", "Sheet / PDF": "גיליון / PDF",
-  "Cost estimate": "אומדן עלות", "Area summary": "סיכום שטחים", "Clearances": "מרווחים", "Layout check": "בדיקת פריסה", "Sun & sky": "שמש ושמיים",
+  "Cost estimate": "אומדן עלות", "Area summary": "סיכום שטחים", "Code check": "בדיקת תקנות", "Clearances": "מרווחים", "Layout check": "בדיקת פריסה", "Sun & sky": "שמש ושמיים",
   "glTF / Blender": "glTF / Blender", "Walls guide": "מדריך קירות", "Planning guide": "מדריך תכנון",
   "Centreline": "קו עזר", "Midpoint": "נקודת אמצע", "Dimension": "מידה", "Print sheet": "הדפס גיליון", "Sheet SVG": "גיליון SVG", "IFC": "IFC", "Plan SVG": "תוכנית SVG", "Schedules CSV": "טבלאות CSV", "Text": "טקסט", "Intersection": "חיתוך", "Concentric": "משותף מרכז", "Fix": "קבע", "Equations": "משוואות", "Cone": "חרוט",
   "Ref point": "נקודת ייחוס", "Custom props": "מאפיינים מותאמים", "Custom properties": "מאפיינים מותאמים", "Variables": "משתנים", "Smart mates": "התאמות חכמות", "Material check": "בדיקת חומר",
   "Rebuild errors": "שגיאות בנייה", "Engineering": "הנדסה", "Sheet metal": "פח", "Stock size": "מידת גלם", "To walls": "המר לקירות",
   "Finish preview": "תצוגת גימור", "Use": "שימוש", "Save to library": "שמור לספרייה", "Model library": "ספריית מודלים", "Branch": "ענף", "Export GLB": "ייצוא GLB",
-  "Run": "שורת ארונות", "Kitchen run": "שורת מטבח", "Worktop": "משטח עבודה", "Part labels": "תוויות חלקים", "Send to shop": "שלח לנגרייה",
+  "Run": "שורת ארונות", "Kitchen run": "שורת מטבח", "Fit cabinet": "ארון בנישה", "Worktop": "משטח עבודה", "Part labels": "תוויות חלקים", "Send to shop": "שלח לנגרייה",
   "Import DXF": "ייבוא DXF",
 });
 

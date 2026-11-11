@@ -97,7 +97,7 @@ export function floorClearAreas(state, rooms) {
   entries.forEach((entry,index)=>{
     if(overlapping.has(index)){entry.area=null;entry.reason='overlap';}
     if(entry.area===null){unresolved++;return;}
-    if(['balcony','terrace'].includes(entry.type))outdoor+=entry.area;
+    if(['balcony','terrace','serviceBalcony'].includes(entry.type))outdoor+=entry.area;
     else if(entry.type)indoor+=entry.area;
     else unclassified+=entry.area;
   });

@@ -2,6 +2,7 @@
    of initInteraction, split out of js/interaction.js. It shares the editor's
    state through live imports from ../interaction.js. */
 import { executeCommand, openingPlaceCommand } from "../commands/index.js";
+import { fitCabDown } from "../interaction/fit_cabinet_tool.js";
 import { hitWarning } from "../constraint_engine.js";
 import { elevItemGrab, elevOpeningGrab, elevPick, elevWallAt, elevationHit } from "../elevation.js";
 import { hiddenSets, itemsInRoom, roomByKey, wallById, wallGeom, wallProject } from "../geometry.js";
@@ -146,6 +147,7 @@ function pointerDown(e) {
   var precisionPoint = (0, interactionLocals.planPrecisionPoint)(e, ox, oy, r, true);
   var px = wx(precisionPoint.x, precisionPoint.y),
     pz = wz(precisionPoint.x, precisionPoint.y);
+  if (S.tool === "fitcab" && !S.conPick) { fitCabDown(e, px, pz); return; }
 
   /* Picking the OTHER side of a new dimension. Armed from the wall
      inspector, it swallows exactly one click and then disarms — a modal

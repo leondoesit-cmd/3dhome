@@ -42,6 +42,6 @@ export function dispatchPlannerInput(phase, input) {
 export function cancelPlannerGesture() { controller?.cancel?.({type:'pointercancel'});gestureScale=null; }
 
 export const PLANNER_TOOL_COVERAGE = Object.freeze([
-  'select','wall','arcwall','rect','roomstamp','door','window','passage','slabvoid','point','erase',
+  'select','wall','arcwall','rect','roomstamp','door','window','passage','slabvoid','point','fitcab','erase',
   'walloffset','wallbreak','wallbite','walljoin','wallreverse','wallpaint','mepNode','mepRoute',
 ]);

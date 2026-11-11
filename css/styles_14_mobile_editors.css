@@ -440,7 +440,6 @@ body.compact-nav .planner-tour-layer {
 #modeler .md-tour-card.md-tour-min > p,
 #modeler .md-tour-card.md-tour-min .md-tour-demo,
 #modeler .md-tour-card.md-tour-min .md-tour-tip,
-#modeler .md-tour-card.md-tour-min .md-tour-slider,
 #modeler .md-tour-card.md-tour-min .md-tour-tracks,
 #modeler .md-tour-card.md-tour-min .md-tour-status { display: none; }
 #modeler .md-tour-card.md-tour-min { max-height: none; }
@@ -519,8 +518,7 @@ body.compact-nav .planner-tour-card {
 body.compact-nav #modeler .md-tour-card { border-color: color-mix(in srgb,var(--accent) 62%,var(--border-color)); }
 body.compact-nav #modeler .md-tour-card > p,
 body.compact-nav #modeler .md-tour-tip { color: color-mix(in srgb,var(--text-main) 78%,var(--bg-panel)); }
-body.compact-nav #modeler .md-tour-actions .md-tour-restart { width: 36px; min-width: 36px; padding-inline: 0; }
-body.compact-nav #modeler .md-tour-actions .md-tour-restart span { display: none; }
+body.compact-nav #modeler .md-tour-actions { flex-wrap: wrap; }
 body.compact-nav #modeler .md-command kbd,
 body.compact-nav #modeler .md-command-search-btn kbd,
 body.compact-nav #modeler .md-command-result kbd { display: none !important; }

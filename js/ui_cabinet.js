@@ -1,4 +1,5 @@
 import { captureCabinetSession, restoreCabinetSession } from "./cabinet_session.js";
+import { dockOnOpen, dockOnClose } from "./ui_cabinet_dock.js";
 // Cabinet designer overlay chrome: open/close, size, history, keyboard and wiring.
 // Elevation drawing lives in ui_cabinet_view.js; inspector panes in ui_cabinet_inspect.js.
 
@@ -659,7 +660,10 @@ function syncOpenUI(rawVal) {
 
 /* ================= open / close ================= */
 
-export function openCabinet(it) {
+/* opts.historyPushed: the caller already pushed the undo step this session
+   belongs to (the Fit cabinet tool creates the unit and opens it in one
+   gesture); a second identical push would be an undo that does nothing. */
+export function openCabinet(it, opts) {
   cancelRuntimePreview();
   if (E.host && E.lang !== getLang()) destroyDOM();
   if (!E.host) buildDOM();
@@ -669,7 +673,7 @@ export function openCabinet(it) {
     pushHistory();
     it.cab = makeSpec(defaultPreset(famOf(it)), it.w, it.h, it.d);
     if (it.type !== "cabsys") it.type = "cabsys";
-  } else pushHistory();
+  } else if (!(opts && opts.historyPushed)) pushHistory();
   E.it = it;
   E.host.querySelector("#cbEditScope").value = "instance";
   /* A Done/open round trip is only a change of workspace visibility. Preserve
@@ -723,6 +727,7 @@ export function openCabinet(it) {
     H.clear();
     H.seed();
   }
+  dockOnOpen(it);
 }
 
 export function closeCabinet() {
@@ -733,6 +738,7 @@ export function closeCabinet() {
   if (isKeysOpen()) showKeys(false);
   disposeCabinetMobile();
   E.open = false;
+  dockOnClose();
   E.host.style.display = "none";
   E.it = null;
   S.dirty3D = true;

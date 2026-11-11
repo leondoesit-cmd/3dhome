@@ -47,6 +47,10 @@ export const ROOM_PRESETS = [
   { id: "bedroom", i18n: "rp_bedroom", name: "Bedroom", cat: "sleeping", kind: "room", w: 350, d: 300, min: { w: 240, d: 220 }, floor: "wood", door: 80, window: { width: 120, height: 120, sill: 90 } },
   { id: "masterBedroom", i18n: "rp_masterBedroom", name: "Master bedroom", cat: "sleeping", kind: "room", w: 420, d: 360, min: { w: 300, d: 260 }, floor: "wood", door: 90, window: { width: 160, height: 140, sill: 80 } },
   { id: "kidsRoom", i18n: "rp_kidsRoom", name: "Child's room", cat: "sleeping", kind: "room", w: 300, d: 280, min: { w: 220, d: 200 }, floor: "wood", door: 80, window: { width: 120, height: 120, sill: 90 } },
+  { id: "halfRoom", i18n: "rp_halfRoom", name: "Half room", cat: "sleeping", kind: "room", w: 260, d: 240, min: { w: 200, d: 200 }, floor: "wood", door: 80, window: { width: 100, height: 120, sill: 90 } },
+  // Israeli protected space (ממ"ד): reinforced walls, blast door and window.
+  // The walls it is stamped with are ordinary; the code check flags them.
+  { id: "safeRoom", i18n: "rp_safeRoom", name: "Safe room", cat: "sleeping", kind: "room", w: 330, d: 280, min: { w: 160, d: 200 }, floor: "tiles", door: 80, window: { width: 100, height: 100, sill: 110 } },
   { id: "closet", i18n: "rp_closet", name: "Walk-in closet", cat: "sleeping", kind: "room", w: 220, d: 180, min: { w: 120, d: 100 }, floor: "wood", door: 70, window: null },
 
   { id: "bathroom", i18n: "rp_bathroom", name: "Bathroom", cat: "service", kind: "wet", w: 240, d: 200, min: { w: 150, d: 140 }, floor: "tiles", door: 70, window: { width: 60, height: 60, sill: 140 } },
@@ -60,6 +64,7 @@ export const ROOM_PRESETS = [
   { id: "landing", i18n: "rp_landing", name: "Stair landing", cat: "circulation", kind: "circulation", w: 260, d: 200, min: { w: 150, d: 150 }, floor: "wood", door: 110, window: null },
 
   { id: "balcony", i18n: "rp_balcony", name: "Balcony", cat: "outdoor", kind: "outdoor", w: 320, d: 150, min: { w: 120, d: 90 }, floor: "tiles", door: 80, window: null },
+  { id: "serviceBalcony", i18n: "rp_serviceBalcony", name: "Service balcony", cat: "outdoor", kind: "outdoor", w: 200, d: 140, min: { w: 120, d: 100 }, floor: "tiles", door: 80, window: null },
   { id: "terrace", i18n: "rp_terrace", name: "Terrace", cat: "outdoor", kind: "outdoor", w: 400, d: 300, min: { w: 200, d: 150 }, floor: "tiles", door: 90, window: null },
 ];
 

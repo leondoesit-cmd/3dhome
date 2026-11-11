@@ -42,7 +42,7 @@ import { activeParts, addPart } from "../modeler/library_store.js";
 import { invalidatePartMeshAfterEdit, queueExactMesh } from "../modeler/prefs_snap.js";
 import { mirrorSelection, patternCircularSelection, patternSelection, toggleDynamicMirror } from "../modeler/sketch_dimension_editor.js";
 import { isSketchObject, openCenterRectangle, openCenterSlot, openConvertEntities, openDimensionedCircle, openDimensionedPolygon, openFaceBoundary, openSketchFillet, resolveSketch, selEntities, sketchForView } from "../modeler/sketch_entities.js";
-import { insertISO4017Screw } from "../modeler/sketch_guide.js";
+import { insertISO4017Screw } from "../modeler/standard_parts.js";
 import { beginSketchWorkflow, finishSketchWorkflow, fitSketch, isCanonicalAuthoring, modelLengthText, modelLengthUnit, setTab, setTool } from "../modeler/sketch_workflow.js";
 import { openComponentPatternForm, projectPartEdges } from "../modeler/tree_assembly.js";
 import { fitPreview, setPanelCollapsed, toggleSectionView } from "../modeler/view_modes.js";

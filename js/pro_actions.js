@@ -386,6 +386,7 @@ export const PRO_ACTIONS = {
   refdim: () => window.__runAction?.("conRefDim"),
   areaSummary,
   layoutCheck,
+  codeCheck: () => import("./ui_code_check.js").then((m) => m.openCodeCheck()),
   sheetSvg: () => downloadText("home3d-construction-plan.svg", toConstructionSVG(), "image/svg+xml"),
   sheetPrint: () => printSheetSVG(toConstructionSVG(), t("sheet_floor_plan")),
   planSvg: () => downloadText("home3d-plan.svg", toSVG(), "image/svg+xml"),
