@@ -1,0 +1,1307 @@
+{
+  "version": 1,
+  "units": "cm",
+  "provenance": {
+    "kind": "reviewed-reconstruction",
+    "source": "images.jpg",
+    "sha256": "44deb8770349f976a0b51f91a3554ed4f0fbac311dac5528c53f41198168f8f3",
+    "method": "Manually traced against the supplied image, constrained by readable printed clear dimensions. Reused only for an exact source-file match.",
+    "estimates": [
+      "Wall thicknesses and 270 cm ceiling height are estimated; unprinted door/window sizes, sill heights and furniture dimensions are approximate.",
+      "Balcony glazing is represented by a fixed glazed panel and an adjacent sliding glass door. Printed 490 / 653 markings were not used because their endpoints are ambiguous."
+    ]
+  },
+  "imageSize": {
+    "width": 517,
+    "height": 593
+  },
+  "bounds": {
+    "x0": 19,
+    "y0": 12,
+    "x1": 425.6666666667,
+    "y1": 567.5555555556
+  },
+  "referenceCalibration": {
+    "cmPerPx": 2.25,
+    "originX": -42.75,
+    "originZ": -27
+  },
+  "walls": [
+    {
+      "id": "bed-top",
+      "a": {
+        "x": 349,
+        "z": 0
+      },
+      "b": {
+        "x": 786,
+        "z": 0
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bed-left-upper",
+      "a": {
+        "x": 349,
+        "z": 0
+      },
+      "b": {
+        "x": 349,
+        "z": 26
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bed-service-window",
+      "a": {
+        "x": 349,
+        "z": 26
+      },
+      "b": {
+        "x": 349,
+        "z": 170
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bed-left-lower",
+      "a": {
+        "x": 349,
+        "z": 170
+      },
+      "b": {
+        "x": 349,
+        "z": 285
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bath-door-wall",
+      "a": {
+        "x": 349,
+        "z": 285
+      },
+      "b": {
+        "x": 349,
+        "z": 390
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bed-bottom",
+      "a": {
+        "x": 349,
+        "z": 285
+      },
+      "b": {
+        "x": 786,
+        "z": 285
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bed-right",
+      "a": {
+        "x": 786,
+        "z": 0
+      },
+      "b": {
+        "x": 786,
+        "z": 285
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "entry",
+      "a": {
+        "x": 786,
+        "z": 285
+      },
+      "b": {
+        "x": 786,
+        "z": 420
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "entry-return",
+      "a": {
+        "x": 786,
+        "z": 420
+      },
+      "b": {
+        "x": 915,
+        "z": 420
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "kitchen-right",
+      "a": {
+        "x": 915,
+        "z": 420
+      },
+      "b": {
+        "x": 915,
+        "z": 958
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "balcony-right",
+      "a": {
+        "x": 915,
+        "z": 958
+      },
+      "b": {
+        "x": 915,
+        "z": 1132
+      },
+      "thickness": 20,
+      "height": 110,
+      "kind": "railing"
+    },
+    {
+      "id": "balcony-bottom",
+      "a": {
+        "x": 427,
+        "z": 1132
+      },
+      "b": {
+        "x": 915,
+        "z": 1132
+      },
+      "thickness": 20,
+      "height": 110,
+      "kind": "railing"
+    },
+    {
+      "id": "balcony-glazing",
+      "a": {
+        "x": 427,
+        "z": 958
+      },
+      "b": {
+        "x": 915,
+        "z": 958
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "safe-right-upper",
+      "a": {
+        "x": 427,
+        "z": 942
+      },
+      "b": {
+        "x": 427,
+        "z": 958
+      },
+      "thickness": 40,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "safe-right-shared",
+      "a": {
+        "x": 427,
+        "z": 958
+      },
+      "b": {
+        "x": 427,
+        "z": 1132
+      },
+      "thickness": 40,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "safe-right-lower",
+      "a": {
+        "x": 427,
+        "z": 1132
+      },
+      "b": {
+        "x": 427,
+        "z": 1240
+      },
+      "thickness": 40,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "safe-bottom",
+      "a": {
+        "x": 79,
+        "z": 1240
+      },
+      "b": {
+        "x": 427,
+        "z": 1240
+      },
+      "thickness": 40,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "safe-left",
+      "a": {
+        "x": 79,
+        "z": 842
+      },
+      "b": {
+        "x": 79,
+        "z": 1240
+      },
+      "thickness": 40,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "safe-door",
+      "a": {
+        "x": 285,
+        "z": 942
+      },
+      "b": {
+        "x": 427,
+        "z": 942
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "safe-notch",
+      "a": {
+        "x": 285,
+        "z": 842
+      },
+      "b": {
+        "x": 285,
+        "z": 942
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bed-notch",
+      "a": {
+        "x": 285,
+        "z": 817
+      },
+      "b": {
+        "x": 285,
+        "z": 842
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bed-bottom-notch",
+      "a": {
+        "x": 285,
+        "z": 817
+      },
+      "b": {
+        "x": 349,
+        "z": 817
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "middle-bed-right",
+      "a": {
+        "x": 349,
+        "z": 535
+      },
+      "b": {
+        "x": 349,
+        "z": 817
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "middle-bed-bottom-left",
+      "a": {
+        "x": 0,
+        "z": 842
+      },
+      "b": {
+        "x": 79,
+        "z": 842
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "middle-bed-bottom-safe",
+      "a": {
+        "x": 79,
+        "z": 842
+      },
+      "b": {
+        "x": 285,
+        "z": 842
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "middle-bed-left",
+      "a": {
+        "x": 0,
+        "z": 535
+      },
+      "b": {
+        "x": 0,
+        "z": 842
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "middle-bed-door",
+      "a": {
+        "x": 245,
+        "z": 535
+      },
+      "b": {
+        "x": 349,
+        "z": 535
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "shower-bottom",
+      "a": {
+        "x": 0,
+        "z": 535
+      },
+      "b": {
+        "x": 245,
+        "z": 535
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "shower-right",
+      "a": {
+        "x": 245,
+        "z": 390
+      },
+      "b": {
+        "x": 245,
+        "z": 535
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bath-bottom-left",
+      "a": {
+        "x": 0,
+        "z": 390
+      },
+      "b": {
+        "x": 245,
+        "z": 390
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bath-bottom-right",
+      "a": {
+        "x": 245,
+        "z": 390
+      },
+      "b": {
+        "x": 349,
+        "z": 390
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "shower-left",
+      "a": {
+        "x": 0,
+        "z": 390
+      },
+      "b": {
+        "x": 0,
+        "z": 535
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bath-left",
+      "a": {
+        "x": 0,
+        "z": 170
+      },
+      "b": {
+        "x": 0,
+        "z": 390
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bath-top-left",
+      "a": {
+        "x": 0,
+        "z": 170
+      },
+      "b": {
+        "x": 175,
+        "z": 170
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "bath-top-window",
+      "a": {
+        "x": 175,
+        "z": 170
+      },
+      "b": {
+        "x": 349,
+        "z": 170
+      },
+      "thickness": 20,
+      "height": 270,
+      "kind": "normal"
+    },
+    {
+      "id": "service-left",
+      "a": {
+        "x": 175,
+        "z": 26
+      },
+      "b": {
+        "x": 175,
+        "z": 170
+      },
+      "thickness": 12,
+      "height": 110,
+      "kind": "railing"
+    },
+    {
+      "id": "service-top",
+      "a": {
+        "x": 175,
+        "z": 26
+      },
+      "b": {
+        "x": 349,
+        "z": 26
+      },
+      "thickness": 12,
+      "height": 110,
+      "kind": "railing"
+    }
+  ],
+  "openings": [
+    {
+      "wall": "bed-bottom",
+      "type": "door",
+      "s": 55,
+      "width": 80,
+      "height": 205,
+      "sill": 0,
+      "swingDir": "L_IN"
+    },
+    {
+      "wall": "bath-door-wall",
+      "type": "door",
+      "s": 57.5,
+      "width": 75,
+      "height": 205,
+      "sill": 0,
+      "swingDir": "R_OUT"
+    },
+    {
+      "wall": "entry",
+      "type": "door",
+      "s": 72,
+      "width": 95,
+      "height": 205,
+      "sill": 0,
+      "swingDir": "R_OUT"
+    },
+    {
+      "wall": "shower-bottom",
+      "type": "door",
+      "s": 140,
+      "width": 75,
+      "height": 205,
+      "sill": 0,
+      "swingDir": "L_IN"
+    },
+    {
+      "wall": "middle-bed-door",
+      "type": "door",
+      "s": 54,
+      "width": 80,
+      "height": 205,
+      "sill": 0,
+      "swingDir": "R_OUT"
+    },
+    {
+      "wall": "safe-door",
+      "type": "door",
+      "s": 86,
+      "width": 90,
+      "height": 205,
+      "sill": 0,
+      "swingDir": "L_IN"
+    },
+    {
+      "wall": "bed-service-window",
+      "type": "window",
+      "s": 72,
+      "width": 115,
+      "height": 120,
+      "sill": 90
+    },
+    {
+      "wall": "bath-top-window",
+      "type": "window",
+      "s": 87,
+      "width": 100,
+      "height": 70,
+      "sill": 140
+    },
+    {
+      "wall": "shower-left",
+      "type": "window",
+      "s": 70,
+      "width": 70,
+      "height": 70,
+      "sill": 140
+    },
+    {
+      "wall": "middle-bed-left",
+      "type": "window",
+      "s": 130,
+      "width": 125,
+      "height": 120,
+      "sill": 90
+    },
+    {
+      "wall": "safe-left",
+      "type": "window",
+      "s": 207,
+      "width": 105,
+      "height": 120,
+      "sill": 90
+    },
+    {
+      "wall": "balcony-glazing",
+      "type": "window",
+      "s": 175,
+      "width": 300,
+      "height": 220,
+      "sill": 0,
+      "mullions": 2
+    },
+    {
+      "wall": "balcony-glazing",
+      "type": "door",
+      "s": 385,
+      "width": 110,
+      "height": 220,
+      "sill": 0,
+      "isSliding": true,
+      "mat": "glass",
+      "slideDir": "-1"
+    }
+  ],
+  "items": [
+    {
+      "type": "bed",
+      "x": 465,
+      "z": 64,
+      "w": 90,
+      "d": 200,
+      "h": 55,
+      "rot": 270,
+      "name": "מיטת יחיד"
+    },
+    {
+      "type": "bed",
+      "x": 675,
+      "z": 230,
+      "w": 90,
+      "d": 190,
+      "h": 55,
+      "rot": 90,
+      "name": "מיטת יחיד"
+    },
+    {
+      "type": "wardrobe",
+      "x": 700,
+      "z": 48,
+      "w": 150,
+      "d": 60,
+      "h": 230,
+      "rot": 0,
+      "name": "wardrobe"
+    },
+    {
+      "type": "vanity",
+      "x": 35,
+      "z": 273,
+      "w": 90,
+      "d": 45,
+      "h": 85,
+      "rot": 270,
+      "name": "vanity"
+    },
+    {
+      "type": "bathtub",
+      "x": 95,
+      "z": 347,
+      "w": 160,
+      "d": 65,
+      "h": 55,
+      "rot": 0,
+      "name": "bathtub"
+    },
+    {
+      "type": "toilet",
+      "x": 220,
+      "z": 340,
+      "w": 43,
+      "d": 65,
+      "h": 75,
+      "rot": 180,
+      "name": "toilet"
+    },
+    {
+      "type": "washer",
+      "x": 309,
+      "z": 217,
+      "w": 58,
+      "d": 58,
+      "h": 85,
+      "rot": 0,
+      "name": "washer"
+    },
+    {
+      "type": "toilet",
+      "x": 46,
+      "z": 470,
+      "w": 43,
+      "d": 65,
+      "h": 75,
+      "rot": 0,
+      "name": "toilet"
+    },
+    {
+      "type": "vanity",
+      "x": 130,
+      "z": 422,
+      "w": 50,
+      "d": 40,
+      "h": 85,
+      "rot": 0,
+      "name": "vanity"
+    },
+    {
+      "type": "shower",
+      "x": 198,
+      "z": 462,
+      "w": 70,
+      "d": 115,
+      "h": 200,
+      "rot": 0,
+      "name": "shower"
+    },
+    {
+      "type": "bed",
+      "x": 143,
+      "z": 733,
+      "w": 160,
+      "d": 195,
+      "h": 55,
+      "rot": 180,
+      "name": "מיטה זוגית"
+    },
+    {
+      "type": "nightstand",
+      "x": 40,
+      "z": 796,
+      "w": 40,
+      "d": 40,
+      "h": 48,
+      "rot": 0,
+      "name": "nightstand"
+    },
+    {
+      "type": "nightstand",
+      "x": 248,
+      "z": 796,
+      "w": 40,
+      "d": 40,
+      "h": 48,
+      "rot": 0,
+      "name": "nightstand"
+    },
+    {
+      "type": "wardrobe",
+      "x": 308,
+      "z": 714,
+      "w": 185,
+      "d": 60,
+      "h": 230,
+      "rot": 90,
+      "name": "wardrobe"
+    },
+    {
+      "type": "bed",
+      "x": 153,
+      "z": 1121,
+      "w": 90,
+      "d": 190,
+      "h": 55,
+      "rot": 180,
+      "name": "מיטה בחדר ממ״ד"
+    },
+    {
+      "type": "wardrobe",
+      "x": 187,
+      "z": 900,
+      "w": 155,
+      "d": 60,
+      "h": 220,
+      "rot": 0,
+      "name": "wardrobe"
+    },
+    {
+      "type": "desk",
+      "x": 363,
+      "z": 1168,
+      "w": 95,
+      "d": 50,
+      "h": 75,
+      "rot": 90,
+      "name": "desk"
+    },
+    {
+      "type": "officeChair",
+      "x": 304,
+      "z": 1168,
+      "w": 48,
+      "d": 48,
+      "h": 85,
+      "rot": 270,
+      "name": "officeChair"
+    },
+    {
+      "type": "rug",
+      "x": 548,
+      "z": 692,
+      "w": 285,
+      "d": 285,
+      "h": 1,
+      "rot": 0,
+      "name": "rug"
+    },
+    {
+      "type": "sofa",
+      "x": 407,
+      "z": 684,
+      "w": 225,
+      "d": 80,
+      "h": 80,
+      "rot": 270,
+      "name": "sofa"
+    },
+    {
+      "type": "armchair",
+      "x": 516,
+      "z": 850,
+      "w": 72,
+      "d": 72,
+      "h": 78,
+      "rot": 180,
+      "name": "armchair"
+    },
+    {
+      "type": "armchair",
+      "x": 610,
+      "z": 850,
+      "w": 72,
+      "d": 72,
+      "h": 78,
+      "rot": 180,
+      "name": "armchair"
+    },
+    {
+      "type": "roundTable",
+      "x": 538,
+      "z": 650,
+      "w": 86,
+      "d": 86,
+      "h": 40,
+      "rot": 0,
+      "name": "roundTable"
+    },
+    {
+      "type": "plant",
+      "x": 538,
+      "z": 650,
+      "w": 24,
+      "d": 24,
+      "h": 35,
+      "rot": 0,
+      "name": "plant",
+      "elev": 40
+    },
+    {
+      "type": "pouf",
+      "x": 585,
+      "z": 710,
+      "w": 42,
+      "d": 42,
+      "h": 39,
+      "rot": 0,
+      "name": "pouf"
+    },
+    {
+      "type": "tv",
+      "x": 718,
+      "z": 680,
+      "w": 190,
+      "d": 32,
+      "h": 100,
+      "rot": 90,
+      "name": "tv"
+    },
+    {
+      "type": "table",
+      "x": 546,
+      "z": 361,
+      "w": 145,
+      "d": 80,
+      "h": 76,
+      "rot": 0,
+      "name": "table"
+    },
+    {
+      "type": "chair",
+      "x": 498,
+      "z": 315,
+      "w": 37,
+      "d": 40,
+      "h": 86,
+      "rot": 0,
+      "name": "chair"
+    },
+    {
+      "type": "chair",
+      "x": 498,
+      "z": 417,
+      "w": 37,
+      "d": 40,
+      "h": 86,
+      "rot": 180,
+      "name": "chair"
+    },
+    {
+      "type": "chair",
+      "x": 546,
+      "z": 315,
+      "w": 37,
+      "d": 40,
+      "h": 86,
+      "rot": 0,
+      "name": "chair"
+    },
+    {
+      "type": "chair",
+      "x": 546,
+      "z": 417,
+      "w": 37,
+      "d": 40,
+      "h": 86,
+      "rot": 180,
+      "name": "chair"
+    },
+    {
+      "type": "chair",
+      "x": 594,
+      "z": 315,
+      "w": 37,
+      "d": 40,
+      "h": 86,
+      "rot": 0,
+      "name": "chair"
+    },
+    {
+      "type": "chair",
+      "x": 594,
+      "z": 417,
+      "w": 37,
+      "d": 40,
+      "h": 86,
+      "rot": 180,
+      "name": "chair"
+    },
+    {
+      "type": "plant",
+      "x": 546,
+      "z": 361,
+      "w": 24,
+      "d": 24,
+      "h": 35,
+      "rot": 0,
+      "name": "plant",
+      "elev": 76
+    },
+    {
+      "type": "fridge",
+      "x": 867,
+      "z": 482,
+      "w": 66,
+      "d": 65,
+      "h": 190,
+      "rot": 90,
+      "name": "fridge"
+    },
+    {
+      "type": "base",
+      "x": 867,
+      "z": 585,
+      "w": 140,
+      "d": 60,
+      "h": 90,
+      "rot": 90,
+      "name": "base"
+    },
+    {
+      "type": "sink",
+      "x": 867,
+      "z": 736,
+      "w": 72,
+      "d": 60,
+      "h": 90,
+      "rot": 90,
+      "name": "sink"
+    },
+    {
+      "type": "base",
+      "x": 867,
+      "z": 808,
+      "w": 72,
+      "d": 60,
+      "h": 90,
+      "rot": 90,
+      "name": "base"
+    },
+    {
+      "type": "cooktop",
+      "x": 867,
+      "z": 884,
+      "w": 72,
+      "d": 60,
+      "h": 90,
+      "rot": 90,
+      "name": "cooktop"
+    },
+    {
+      "type": "pouf",
+      "x": 596,
+      "z": 1047,
+      "w": 85,
+      "d": 85,
+      "h": 43,
+      "rot": 0,
+      "name": "pouf"
+    },
+    {
+      "type": "pouf",
+      "x": 755,
+      "z": 1047,
+      "w": 85,
+      "d": 85,
+      "h": 43,
+      "rot": 0,
+      "name": "pouf"
+    },
+    {
+      "type": "sideTable",
+      "x": 675,
+      "z": 1047,
+      "w": 55,
+      "d": 55,
+      "h": 45,
+      "rot": 0,
+      "name": "sideTable"
+    },
+    {
+      "type": "plant",
+      "x": 861,
+      "z": 1088,
+      "w": 65,
+      "d": 65,
+      "h": 105,
+      "rot": 0,
+      "name": "plant"
+    },
+    {
+      "type": "base",
+      "x": 867,
+      "z": 677.5,
+      "w": 45,
+      "d": 60,
+      "h": 90,
+      "rot": 90,
+      "name": "משטח מטבח"
+    }
+  ],
+  "rooms": [
+    {
+      "name": "ח. שינה",
+      "seed": {
+        "x": 540,
+        "z": 150
+      },
+      "floor": "wood"
+    },
+    {
+      "name": "ח. רחצה",
+      "seed": {
+        "x": 160,
+        "z": 250
+      },
+      "floor": "tile"
+    },
+    {
+      "name": "ח. רחצה",
+      "seed": {
+        "x": 130,
+        "z": 480
+      },
+      "floor": "tile"
+    },
+    {
+      "name": "ח. שינה",
+      "seed": {
+        "x": 155,
+        "z": 620
+      },
+      "floor": "wood"
+    },
+    {
+      "name": "ח. שינה ממ״ד",
+      "seed": {
+        "x": 260,
+        "z": 1090
+      },
+      "floor": "wood"
+    },
+    {
+      "name": "סלון",
+      "seed": {
+        "x": 610,
+        "z": 580
+      },
+      "floor": "tile"
+    },
+    {
+      "name": "מרפסת",
+      "seed": {
+        "x": 675,
+        "z": 1000
+      },
+      "floor": "wood"
+    },
+    {
+      "name": "מרפסת שירות",
+      "seed": {
+        "x": 260,
+        "z": 110
+      },
+      "floor": "tile"
+    }
+  ],
+  "annotations": [
+    {
+      "kind": "dimension",
+      "x": 359,
+      "z": 278,
+      "x2": 776,
+      "z2": 278,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 750,
+      "z": 10,
+      "x2": 750,
+      "z2": 275,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 10,
+      "z": 370,
+      "x2": 339,
+      "z2": 370,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 325,
+      "z": 180,
+      "x2": 325,
+      "z2": 380,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 10,
+      "z": 495,
+      "x2": 235,
+      "z2": 495,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 215,
+      "z": 400,
+      "x2": 215,
+      "z2": 525,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 10,
+      "z": 580,
+      "x2": 339,
+      "z2": 580,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 270,
+      "z": 545,
+      "x2": 270,
+      "z2": 832,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 99,
+      "z": 1075,
+      "x2": 407,
+      "z2": 1075,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 125,
+      "z": 852,
+      "x2": 125,
+      "z2": 1220,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 380,
+      "z": 952,
+      "x2": 380,
+      "z2": 1220,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 447,
+      "z": 1000,
+      "x2": 905,
+      "z2": 1000,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 810,
+      "z": 968,
+      "x2": 810,
+      "z2": 1122,
+      "unit": "cm"
+    },
+    {
+      "kind": "dimension",
+      "x": 359,
+      "z": 910,
+      "x2": 905,
+      "z2": 910,
+      "unit": "cm"
+    },
+    {
+      "kind": "note",
+      "x": 520,
+      "z": 445,
+      "text": "פ. אוכל"
+    },
+    {
+      "kind": "note",
+      "x": 800,
+      "z": 600,
+      "text": "מטבח"
+    },
+    {
+      "kind": "note",
+      "x": 800,
+      "z": 345,
+      "text": "כניסה"
+    }
+  ]
+}

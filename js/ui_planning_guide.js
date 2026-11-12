@@ -141,7 +141,8 @@ export function renderPlanningGuide() {
   const selected = S.sel?.kind === "room" ? S.sel.ref : null;
   const calibration = S.blueprintTrace?.calibration;
   const calibratedScale = calibration && calibrationScale(calibration.p1, calibration.p2, calibration.distanceCm);
-  const referenceStatus = calibratedScale && Math.abs(calibratedScale - S.blueprintTrace.cmPerPx) < 1e-6
+  // a DXF underlay is drawn in its own units, so its scale is exact
+  const referenceStatus = S.blueprintTrace?.scaleSource === "dxf" || (calibratedScale && Math.abs(calibratedScale - S.blueprintTrace.cmPerPx) < 1e-6)
     ? "guide_calibrated" : S.blueprintTrace ? "guide_unscaled" : "guide_calibration_hint";
   const next = JSON.stringify([guide, entries, areas, selected, t("guide_title"), referenceStatus, currentHistoryId(), selected ? [[S.roomMeta[selected]?.name,S.roomMeta[selected]?.roomType,S.roomMeta[selected]?.floor,S.roomMeta[selected]?.wall,!!S.roomMeta[selected]?.floorTex], S.nodes, S.walls.map(w => [w.id,w.thickness,w.datum,w.loc,w.dimSide,w.layers,w.layersReversed]), S.openings.map(o => [o.id,o.wall,o.width,o.s])] : null, S.walls.length, expanded.has("redesign") ? (S.workspace.baselines || []).filter(b => expanded.has("compare-" + b.id)).map(b => compareBaseline(b, S)) : null, S.sel?.kind === "wall" ? S.sel.ref.id : null, S.workspace.redesign, (S.workspace.baselines || []).map(b => b.id)]);
   if (next === signature) return;

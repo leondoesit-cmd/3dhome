@@ -4,7 +4,7 @@
    plan, the model or the cabinet. Loaded after css/pro_skin.css. */
 
 /* ---- what goes: the strip rows, the permanent command bar, the old grid --- */
-body.pro-compact { --m-editor-strip: 0px; --ps-dock-h: 52px; --mobile-nav-block: env(safe-area-inset-bottom, 0px); --m-ctx-block: var(--ps-dock-h); }
+body.pro-compact { --m-editor-strip: 0px; --ps-dock-h: 56px; --mobile-nav-block: env(safe-area-inset-bottom, 0px); --m-ctx-block: var(--ps-dock-h); }
 body.pro-compact.md-open { --m-ctx-block: var(--ps-dock-h); }
 /* a fold floats the toolbar on the drawing, as it did the bar: nothing to reserve */
 body.pro-compact.dock-rail, body.pro-compact.dock-rail.md-open { --mobile-nav-block: 0px; --m-ctx-block: 0px; }
@@ -27,8 +27,8 @@ body.pro-compact #modeler { --md-head-block: 48px; }
 body.pro-compact #modeler .md-head > :not(.ps-head),
 body.pro-compact #cabdes .cb-head-main > :not(.ps-head) { display: none !important; }
 
-/* the knob: Plan · Model · Cabinet on a small drum, the one in front readable,
-   its neighbours curving away above and below */
+/* The editor knob keeps its swipe/menu interaction. Only the active face is
+   visible so adjacent editor names cannot collide on narrow headers. */
 .ps-edknob {
   position: relative; flex: none; width: 62px; height: 40px; box-sizing: border-box; border-radius: 11px; overflow: hidden;
   background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color); perspective: 110px;
@@ -48,7 +48,7 @@ body.pro-compact #cabdes .cb-head-main > :not(.ps-head) { display: none !importa
   transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.34s;
   font-size: 12.5px; font-weight: 700; line-height: 1; color: var(--text-main); white-space: nowrap;
 }
-.ps-edknob-face[aria-selected="false"] { opacity: 0.5; font-weight: 600; }
+.ps-edknob-face[aria-selected="false"] { visibility: hidden; }
 .ps-edknob-face.ps-jump { transition: none; }
 @media (prefers-reduced-motion: reduce) { .ps-edknob-face { transition: none; } }
 .ps-edknob-menu {
@@ -158,6 +158,38 @@ body.pro-compact.zombies-on .ps-dock, body.pro-compact.lava-on .ps-dock { displa
 .ps-dock-ask .ps-ask-glyph { width: 25px; height: 25px; }
 body.ps-ask-open .ps-dock-ask { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--on-accent, #fff) 55%, transparent); }
 .ps-dock-slot { flex: 1 1 auto; min-width: 0; display: flex; border-inline: 1px solid var(--border-color); margin-inline: 2px; }
+/* the two browsers name themselves under their icons */
+.ps-dock > :is(.ps-dock-grid, .ps-dock-browse) { flex-direction: column; gap: 1px; width: 50px; font-size: 19px; }
+.ps-dock .ps-cap { font-size: max(11px, var(--fs-floor, 0px)); font-weight: 600; line-height: 1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-measuring, .ps-measuring * { transition: none !important; }
+/* the verbs that do not fit sit out (js/pro_compact.js fitDockRow) for More */
+/* (the class repeats to outrank the rows' own display: flex !important, whose
+   selector carries an id and five classes) */
+body.pro-compact .ps-dock .ps-ctx-over,
+html body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) > .ps-ctx-over.ps-ctx-over.ps-ctx-over.ps-ctx-over { display: none !important; }
+.ps-dock-more {
+  flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 50px; padding: 0 6px; border: 0; border-radius: 10px; background: transparent; color: var(--text-main);
+  font: inherit; font-size: 12px; font-weight: 600; line-height: 1.1; cursor: pointer;
+}
+.ps-dock-more[hidden] { display: none; }
+.ps-dock-more i { font-size: 19px; }
+.ps-dock-more[aria-expanded="true"] { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); }
+.ps-dock-menu {
+  position: fixed; z-index: 460; display: flex; flex-direction: column; min-width: 200px; max-width: calc(100vw - 12px);
+  max-height: 60vh; overflow-y: auto; padding: 4px; border-radius: var(--ui-r-lg, 12px);
+  background: var(--pro-surface, var(--bg-panel)); color: var(--text-main);
+  box-shadow: 0 0 0 1px var(--border-color), 0 10px 28px rgba(0, 0, 0, 0.24);
+}
+.ps-dock-menu > button {
+  display: flex; align-items: center; justify-content: flex-start; gap: 12px; width: 100%; min-height: 46px; padding: 0 12px; border: 0; border-radius: var(--ui-r, 8px);
+  background: transparent; color: inherit; font: inherit; font-size: 14px; font-weight: 500; text-align: start; cursor: pointer;
+}
+.ps-dock-menu > button :is(i, svg) { font-size: 20px; width: 20px; height: 20px; flex: none; }
+.ps-dock-menu > button:active, .ps-dock-menu > button:focus-visible { background: var(--btn-bg); outline: none; }
+.ps-dock-menu > button.on { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); }
+.ps-dock-menu > button.danger { color: var(--danger, #dc2626); }
+.ps-dock-menu > button:disabled { opacity: 0.45; }
 /* the editors' context rows, moved in whole: one row that scrolls sideways */
 body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) {
   position: static !important; display: flex !important; flex: 1 1 auto; flex-wrap: nowrap !important; align-items: stretch; align-content: stretch;
@@ -281,7 +313,7 @@ body.pro-compact.sheet-drawers #right-inspector > .ps-sheet-grip {
 }
 body.pro-compact.sheet-drawers #right-inspector > .ps-sheet-grip span { width: 40px; height: 4px; border-radius: 2px; background: var(--border-color); }
 body.pro-compact.sheet-drawers #right-inspector::before { display: none !important; }
-body.pro-compact.sheet-drawers:not(.dock-rail):not(.ps-insp-full) #right-inspector { max-height: min(46dvh, var(--mobile-sheet-cap, 68dvh)) !important; }
+body.pro-compact.sheet-drawers:not(.dock-rail):not(.side-inspector):not(.ps-insp-full) #right-inspector { max-height: min(46dvh, var(--mobile-sheet-cap, 68dvh)) !important; }
 /* the plan above it is what it edits: not dimmed (a tap on it still closes the sheet) */
 body.pro-compact.show-right #m-sheet-backdrop,
 body.pro-compact.show-left #m-sheet-backdrop { background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
@@ -391,8 +423,89 @@ body.pro-compact.dock-rail #modeler:has(#md-sheet.on) .md-head { margin-inline-e
 body.pro-compact.dock-rail #modeler.md-fold-open:has(#md-sheet.on) .md-head { margin-inline-end: min(420px, 44vw); }
 body.pro-compact.dock-rail.side-mirror #modeler:has(#md-sheet.on) .md-head { margin-inline: min(360px, 42vw) 0; }
 body.pro-compact.dock-rail.side-mirror #modeler.md-fold-open:has(#md-sheet.on) .md-head { margin-inline: min(420px, 44vw) 0; }
+/* The head made room for any open column, the body only for the fold rail's
+   tool column (css/pro_ribbon.css): Commands or Tree opened from the dock
+   covered the dock's end and left the docked tree a 90px canvas beside it.
+   Every column now gets what the rail's column gets: the body makes room and
+   the docked tree steps aside while it is open. */
+body.pro-compact.compact-nav.dock-rail #modeler:not(.md-fold-open):has(#md-sheet.on) .md-body { padding-inline-end: min(360px, 42vw); box-sizing: border-box; }
+body.pro-compact.compact-nav.dock-rail.side-mirror #modeler:not(.md-fold-open):has(#md-sheet.on) .md-body { padding-inline: min(360px, 42vw) 0; }
+body.pro-compact.compact-nav.dock-rail #modeler:not(.md-fold-open):has(#md-sheet.on) .md-left { display: none; }
 /* opened from the chip, the list shows even where the view had put it away (3D) */
 body.pro-skin.ps-layers-open .pt-panel > #layer-chips,
 body.pro-skin.ps-layers-open .pt-panel[data-panel="layers"] { display: flex !important; }
 /* in 3D the layers ride on the top edge's zone: a card, not a band across the view */
 body.pro-skin.ps-layers-open #view-3d .pt-panel[data-panel="layers"] { width: 240px !important; max-width: 240px !important; align-self: flex-start; border-radius: 12px; box-shadow: var(--shadow-md), 0 0 0 1px var(--border-color); }
+
+/* ---- More sheet: why a verb is greyed, and Reset all on its own ------------- */
+#m-sheet .m-list-note { margin: 2px 4px 6px; font-size: 12px; line-height: 1.35; color: var(--text-muted); }
+#m-sheet .m-more-danger { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+/* a verb that needs a selection reads as unavailable, not as a broken button */
+#m-sheet .m-list-btn:disabled { opacity: 0.42; cursor: default; }
+#m-sheet .m-list-btn.danger:disabled, #m-sheet .m-list-btn.danger:disabled i { color: var(--text-muted); }
+
+/* ---- the Layers drop-down: what the desktop Layers tab carries -------------
+   The editing line, the workspace buttons, the counts and state tags, the
+   floor-below row and the user's own layers (js/ui_layers.js). The help
+   sentence and the Page Up / Page Down hint are for a keyboard: left out. */
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip.lchip-x[hidden] { display: none !important; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-status {
+  display: block; margin-bottom: 2px; padding: 4px 8px 8px; border-bottom: 1px solid var(--border-color);
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-status-h { display: none; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-presets {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 4px 0 6px;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-presets button { min-height: 52px; font-size: 12px; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-count:not(:empty) {
+  display: inline-block; flex: none; min-width: 18px; margin-inline-end: 2px; color: var(--text-muted); font-size: 12px; text-align: end;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag:not(:empty) {
+  display: inline-block; flex: none; padding: 1px 7px; border-radius: 999px; background: var(--btn-bg); color: var(--text-muted); font-size: max(11px, var(--fs-floor, 0px)); font-weight: 600;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag[data-kind="edit"] { background: var(--accent-soft); color: var(--accent); }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-user {
+  display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color);
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-ref .lchip-name { cursor: default; }
+body.pro-compact .walls-pop .walls-keys { display: none; }
+/* the lit row already says which layer is being edited; its name needs the room */
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip-tag[data-kind="edit"] { display: none; }
+
+/* the model editor's head also carries three mode icons: at phone widths
+   they give back 9px, which is what "New model" was short of */
+@media (max-width: 420px) {
+  body.pro-compact #modeler .ps-head-view > #mdModes > button { width: 33px; min-width: 33px !important; }
+}
+/* Cover screens (a folded Fold is ~344px): the knob, the view pills and the
+   history buttons give back ~30px so the title shows a word, not "Hom…". */
+@media (max-width: 360px) {
+  body.pro-compact #topbar { padding: 0 4px; }
+  body.pro-compact .ps-head { gap: 2px; }
+  body.pro-compact .ps-edknob { width: 50px; }
+  body.pro-compact .ps-view > button { min-width: 30px; padding: 0 4px; }
+  body.pro-compact .ps-head .ps-hbtn { width: 30px !important; min-width: 30px !important; }
+  body.pro-compact .ps-title { padding: 0 2px; }
+  body.pro-compact .ps-title-main .ps-ph-name { font-size: 14px; }
+  body.pro-compact #modeler .ps-head-view > #mdModes > button { width: 30px; min-width: 30px !important; }
+}
+
+/* Five tabs share a phone's width (~75px each): spaced capitals cut
+   "STRUCTURE" to "STRUCT…". Sentence case fits every label, Hebrew included. */
+body.compact-nav #left-sidebar .left-tabs button > span {
+  text-transform: none; letter-spacing: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* The editor's command sheet chose its columns from the viewport (four above
+   480px), but on a fold it is a ~280px side column: four 63px tiles broke
+   "Rectangle" into "Rect/angle". Count columns from the sheet's own width. */
+#md-sheet { container-type: inline-size; container-name: mdsheet; }
+@container mdsheet (max-width: 440px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-items { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* icon over the words, as the planner's tool tiles: the words get the width */
+  #modeler .md-commandmanager.md-borrowed .md-command { flex-direction: column; justify-content: center; gap: 3px; text-align: center; }
+}
+@container mdsheet (max-width: 260px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+#modeler .md-commandmanager.md-borrowed .md-command > span { overflow-wrap: break-word; hyphens: auto; }

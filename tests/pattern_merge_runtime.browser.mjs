@@ -62,7 +62,7 @@ const ARC_DOC = {
 const runCurvePattern = (params) => page.eval(async (input) => {
   const { openModeler } = await import("/js/modeler.js");
   window.cadCloseFeatureForm();
-  openModeler(null, structuredClone(input.doc), null);
+  openModeler(null, structuredClone(input.doc), null, true);
   if (!window.cadOpenFeatureForm("pattern")) return { ok: false, bodies: [] };
   const ok = await window.cadPatternRun(input.params);
   window.cadCloseFeatureForm();
@@ -71,7 +71,7 @@ const runCurvePattern = (params) => page.eval(async (input) => {
 
 const runPattern = (params) => page.eval(async (input) => {
   const { openModeler } = await import("/js/modeler.js");
-  openModeler(null, structuredClone(input.doc), null);
+  openModeler(null, structuredClone(input.doc), null, true);
   const ok = await window.cadPatternRun(input.params);
   return { ok, bodies: window.cadBodySnapshot() };
 }, { doc: CUBE_DOC, params });
@@ -165,7 +165,7 @@ test("a circular cluster the seed is not in is stored in its host's frame", opts
   const run = await page.eval(async (input) => {
     const { openModeler } = await import("/js/modeler.js");
     window.cadCloseFeatureForm();
-    openModeler(null, structuredClone(input.doc), null);
+    openModeler(null, structuredClone(input.doc), null, true);
     const ok = await window.cadPatternRun(input.params);
     return { ok, bodies: window.cadBodySnapshot() };
   }, { doc: RING_DOC, params: RING_PARAMS });
@@ -210,7 +210,7 @@ test("the exact tree carries every circular copy's own turn", opts, async () => 
   const run = await page.eval(async (input) => {
     const { openModeler } = await import("/js/modeler.js");
     window.cadCloseFeatureForm();
-    openModeler(null, structuredClone(input.doc), null);
+    openModeler(null, structuredClone(input.doc), null, true);
     const ok = await window.cadPatternRun(input.params);
     return { ok, bodies:window.cadBodySnapshot(), features:window.cadFeatureTreeSnapshot() };
   }, { doc:CUBE_DOC, params });
@@ -250,7 +250,7 @@ const openPatternForm = (params) => page.eval(async (input) => {
   // a form left open by the previous case would draw its ghosts against the
   // document about to be loaded
   window.cadCloseFeatureForm();
-  openModeler(null, structuredClone(input.doc), null);
+  openModeler(null, structuredClone(input.doc), null, true);
   if (!window.cadOpenFeatureForm("pattern")) return null;
   if (!window.cadSetFeatureFormParams(input.params)) return null;
   return window.cadFinishPreviewSnapshot();

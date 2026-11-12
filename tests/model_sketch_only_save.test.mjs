@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -40,7 +41,7 @@ test("a sketch-only library record survives storage, export, import and document
 });
 
 test("the editor guard and library card use the sketch-only policy", async () => {
-  const source = await readFile(new URL("../js/modeler.js", import.meta.url),"utf8");
+  const source = modelerSource();
   const strings = await readFile(new URL("../js/modeler_strings.js", import.meta.url),"utf8");
   assert.match(source,/if \(!hasSaveableModelContent\(E\.def\)\)/);
   assert.match(source,/hasSaveableModelContent\(def\)[\s\S]{0,60}?delete FURN\[def\.key\]/);

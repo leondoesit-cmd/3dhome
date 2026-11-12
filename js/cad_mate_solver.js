@@ -47,6 +47,7 @@ import {captureRackPinionZero,seedRackPinion,rackPinionMateSpec} from './cad_rac
 import {captureRotationLimitZero,rotationLimitMateSpec,seedRotationLimit} from './cad_rotation_limit_mate.js';
 import { gaussNewtonStep, normOf, stableColumnRank } from "./core/least_squares.js";
 import { ASSEMBLY_ORIGIN_ID, assemblyOriginComponent } from "./core/assembly_structure.js";
+import { contextMateNetwork, contextSolveDocuments, contextDiagnostic, contextDocumentTopology, contextPlacement } from "./core/assembly_context.js";
 
 const POSE_KEYS = ["x", "y", "z", "rx", "ry", "rz"];
 const LEGACY_AXIS = { alignX: "x", alignY: "y", alignZ: "z", distanceX: "x" };
@@ -767,7 +768,44 @@ function solveCluster(cluster, resolvedFrame, settings) {
   return { run: final.run, dropped, freedom: analyzeFreedom(final.system, final.run) };
 }
 
-export function solveAssemblyMates(assembly, options = {}) {
+// A context component is a computed, grounded pose. Schedule it between the
+// native clusters that move its support and those that read its pose. Resolve
+// mate frames and capture mechanical zeroes only when their inputs are ready.
+function contextSteps(assembly, pending, byId, fixed) {
+  const valid = [], invalid = [];
+  for (const entry of pending) {
+    const {mate,legacy} = entry;
+    const a = byId.get(legacy ? mate.a : mate.a?.componentId);
+    const b = byId.get(legacy ? mate.b : mate.b?.componentId);
+    const c = mate.type === "symmetric" && byId.get(mate.c?.componentId);
+    if (!a || !b || (b.grounded && mate.type !== "lock") || (mate.type === "symmetric" && !c)) invalid.push(entry);
+    else valid.push({...entry,a,b,c});
+  }
+  const clusters = decompose(valid);
+  const producers = new Map(), dependencies = new Map();
+  for (const cluster of clusters) {
+    cluster.components = cluster.components.filter(component => !fixed.has(component.id));
+    for (const component of cluster.components) producers.set(component.id,cluster);
+  }
+  const contexts = assembly.components.filter(component => component.inContext);
+  for (const component of contexts) producers.set(component.id,component);
+  for (const component of contexts) {
+    const supportId = component.inContext.occurrencePath?.[0] ?? component.inContext.parentId;
+    const support = byId.get(supportId) || assembly.components.find(item=>String(item.id)===String(supportId));
+    dependencies.set(component,[producers.get(support?.id)].filter(Boolean));
+  }
+  for (const cluster of clusters) {
+    const reads = new Set();
+    for (const {a,b,c} of cluster.mates) for (const endpoint of [a,b,c]) {
+      const producer = producers.get(endpoint?.id);
+      if (producer && producer !== cluster) reads.add(producer);
+    }
+    dependencies.set(cluster,[...reads]);
+  }
+  return {dependencies, invalid};
+}
+
+export function solveAssemblyMates(assembly, options = {}, prefix = [], required = contextSolveDocuments(assembly)) {
   const settings = {
     tolerance: Number(options.tolerance) || 1e-11,
     maxIterations: Math.max(1, Math.round(Number(options.maxIterations) || 120)),
@@ -791,14 +829,11 @@ export function solveAssemblyMates(assembly, options = {}) {
      is enough and the hook is only a seed for the starting pose. */
   if (typeof options.beforePass === "function") options.beforePass();
 
-  const accepted = acceptMates(assembly, orderedMates(assembly), byId, resolvedFrame, sink.issues);
-  const clusters = decompose(accepted);
   const prescribed=new Set(options.fixedComponentIds||[]);
-  for(const cluster of clusters)cluster.components=cluster.components.filter(c=>!prescribed.has(c.id));
   const unsatisfied = [], reports = [];
   let settled = true, passes = 1;
-
-  for (const cluster of clusters) {
+  const accepted = [];
+  function runCluster(cluster) {
     const solved = solveCluster(cluster, resolvedFrame, settings);
     passes = Math.max(passes, solved.run.iterations + 1);
     reports.push(solved.freedom);
@@ -809,12 +844,83 @@ export function solveAssemblyMates(assembly, options = {}) {
         mate: loser.entry.id, code: loser.code, linear: residual.linear, angular: residual.angular,
       });
     }
+    return solved.run.converged;
+  }
+
+  let pending = orderedMates(assembly);
+  let invalidNested = new Set();
+  for (const component of components) {
+    if (!required.has(component.asm)) continue;
+    const childPrefix = [...prefix,component.id];
+    const nested = solveAssemblyMates(component.asm,{...options,beforePass:undefined,fixedComponentIds:[]},childPrefix,required);
+    for (const issue of nested.issues) sink.issues.push({componentPath:childPrefix,...issue});
+    for (const issue of nested.unsatisfied) unsatisfied.push({componentPath:childPrefix,...issue});
+    for (const binding of nested.rebindings) sink.rebindings.push({componentPath:childPrefix,...binding});
+    if (!nested.ok || !nested.settled) {
+      settled = false;
+      invalidNested.add(String(component.id));
+      if (nested.ok) sink.issues.push({componentPath:childPrefix,code:"non-convergent"});
+    }
+  }
+  if (invalidNested.size) {
+    // Dropping an invalid upstream mate cannot make its movable target a
+    // valid stationary support. Propagate through movable endpoints only.
+    const blocked = contextMateNetwork(components,pending,invalidNested);
+    invalidNested = blocked.bodyIds;
+    for (const entry of blocked.mates) sink.issues.push({mate:entry.id,code:"unresolved-context-dependency"});
+    pending = pending.filter(entry=>!blocked.mates.has(entry));
+  }
+  if (!components.some(component => component.inContext)) {
+    accepted.push(...acceptMates(assembly,pending,byId,resolvedFrame,sink.issues));
+    for (const cluster of decompose(accepted)) {
+      cluster.components = cluster.components.filter(component => !prescribed.has(component.id));
+      runCluster(cluster);
+    }
+  } else {
+    for (const component of components) if (component.inContext) component.grounded = true;
+    const {dependencies,invalid} = contextSteps(assembly,pending,byId,prescribed);
+    acceptMates(assembly,invalid,byId,resolvedFrame,sink.issues);
+    const entries = new Map(), active = new Set(), cyclic = new Set(), done = new Map();
+    function run(step) {
+      if (done.has(step)) return done.get(step);
+      if (active.has(step)) {
+        const stack = [...active];
+        for (const member of stack.slice(stack.indexOf(step))) cyclic.add(member);
+        return false;
+      }
+      active.add(step);
+      let ready = dependencies.get(step).every(run);
+      if (step.inContext) {
+        const reason = invalidNested.has(String(step.inContext.parentId)) ? "Invalid parent context" :
+          ready ? contextPlacement(assembly,step,options.partTopology || contextDocumentTopology,entries)
+          : cyclic.has(step) ? "Cyclic context/mate dependency" : "Unresolved context/mate dependency";
+        if (reason) sink.issues.push(contextDiagnostic(step,[...prefix,step.id],reason));
+        else delete step.contextIssue;
+        ready = !reason;
+      } else if (ready) {
+        const mates = acceptMates(assembly,step.mates,byId,resolvedFrame,sink.issues);
+        accepted.push(...mates);
+        const prior = unsatisfied.length;
+        const converged = !mates.length || runCluster({...step,mates});
+        ready = converged && mates.length === step.mates.length && prior === unsatisfied.length;
+        if (!converged && prior === unsatisfied.length) {
+          for (const mate of mates) sink.issues.push({mate:mate.id,code:"non-convergent"});
+        }
+      } else {
+        for (const entry of step.mates) sink.issues.push({mate:entry.id,
+          code:cyclic.has(step) ? "cyclic-context-dependency" : "unresolved-context-dependency"});
+      }
+      active.delete(step);
+      done.set(step,ready);
+      return ready;
+    }
+    for (const step of dependencies.keys()) if (!run(step)) settled = false;
   }
 
   /* Everything that survived is measured once more against the poses as they
      finally stand. A mate can be honoured by the solve and still be wrong here
      if another cluster's answer moved the component it reads. */
-  const dropped = new Set(unsatisfied.map((issue) => issue.mate));
+  const dropped = new Set(unsatisfied.filter(issue=>!issue.componentPath).map((issue) => issue.mate));
   for (const entry of accepted) {
     if (dropped.has(entry.id)) continue;
     const residual = measure(entry, resolvedFrame);

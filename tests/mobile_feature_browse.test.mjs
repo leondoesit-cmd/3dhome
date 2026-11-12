@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';
 import {featureBrowseNodes,featureTreeContext} from '../js/core/feature_browse.js';
 import {buildTreeModel} from '../js/core/tree_model.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function doc(){return {metadata:{authoringSystem:'parametric-v1'},references:[],sketches:[{id:'s',name:'Top circle',referenceId:'plane:top',entities:[]}],
  features:[{id:'a',name:'Shaft <custom>',type:'extrude',params:{depth:.8},references:{sketches:['s']}},{id:'b',name:'Socket',type:'extrudeCut',params:{depth:.4},inputs:['a']}],
  history:[{id:'hs',kind:'sketch',targetId:'s'},{id:'ha',kind:'feature',targetId:'a'},{id:'hb',kind:'feature',targetId:'b'}],

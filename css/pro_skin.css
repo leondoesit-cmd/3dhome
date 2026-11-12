@@ -38,6 +38,15 @@ body.pro-compact { --fs-floor: 12px; }
 /* the games draw their own full-screen HUDs to a tight grid of their own:
    the layout's floor would push their counters into one another at 280px */
 #zHud, #rcHud { --fs-floor: 0px; }
+/* The legacy themes' --bg-panel is 94-95% opaque, which was fine for their
+   glass bars but let the plan's lines and the ribbon's labels read through
+   every sheet, drawer and dialog. These are each theme's panel colour laid
+   over its own --bg-app: the same colour, solid. */
+html[data-theme="classic"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #fefefe; }
+html[data-theme="dark"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #121620; }
+html[data-theme="soft"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #f7f3ec; }
+html[data-theme="mid"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #29313f; }
+html[data-theme="chrome"] :is(body.pro-skin, body.pro-compact) { --pro-surface: #292a2d; }
 /* on a dark ground the chosen pill is the lighter one */
 html:is([data-theme="dark"], [data-theme="mid"], [data-theme="chrome"]) :is(body.pro-skin, body.pro-compact) { --pro-raised: var(--btn-bg-hover); }
 html[data-theme="light"] :is(body.pro-skin, body.pro-compact),
@@ -212,6 +221,10 @@ body.pro-skin .pr-tool:hover { background: var(--btn-bg); }
 body.pro-skin .pr-tool.on { background: var(--pro-ink); color: var(--pro-on-ink); }
 body.pro-skin .pr-tool.on kbd { color: color-mix(in srgb, var(--pro-on-ink) 70%, transparent); }
 body.pro-skin .pr-glabel { height: 16px; font-size: max(10px, var(--fs-floor, 0px)); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--pro-faint-text); }
+body.pro-skin .pro-ribbon.pr-dense:not(.pr-editor-ribbon) .pr-tool { width: 54px; padding-inline: 1px; }
+/* whole words: "Rectang-le" read as two */
+body.pro-skin .pro-ribbon.pr-dense:not(.pr-editor-ribbon) .pr-tool span { font-size: max(10px, var(--fs-floor, 0px)); letter-spacing: -0.01em; hyphens: manual; -webkit-hyphens: manual; }
+body.pro-skin :is(.pr-group.pr-g-folded > .pr-fold, .pr-items > .pr-fold-more) { height: 64px; padding-top: 4px; }
 
 /* ---- side panels ---------------------------------------------------------- */
 body.pro-skin #left-sidebar { width: 272px; min-width: 272px; background: var(--pro-surface); border-inline-end: 1px solid var(--border-color); box-shadow: none; }
@@ -480,8 +493,10 @@ body.pro-skin #cabdes .cb-icons.cb-seg { margin: 0; }
 body.pro-skin .pr-groups { scrollbar-width: none; }
 body.pro-skin .pr-groups::-webkit-scrollbar { display: none; }
 
-body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share span { display: inline !important; }
-body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share { width: auto; min-width: 0; }
+/* The skin draws Share as a text pill with no icon, so the narrow-window rule
+   that drops its label (css/pro_ribbon.css) left an empty blue square. */
+body.pro-skin :is(#topbar, #modeler .md-head, #cabdes .cb-head-main) .ps-share span { display: inline !important; }
+body.pro-skin :is(#topbar, #modeler .md-head, #cabdes .cb-head-main) .ps-share { width: auto; min-width: 0; }
 body.pro-skin #cabdes .cb-right .cb-icons.cb-seg button { background: transparent; border: 0; color: var(--text-muted); box-shadow: none; }
 body.pro-skin #cabdes .cb-right .cb-icons.cb-seg button.on { background: var(--pro-raised); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
 
@@ -520,7 +535,8 @@ body.pro-compact #m-sheet .m-grid-btn.on { background: var(--pro-ink); color: va
 body.pro-compact #m-sheet .m-grid-btn.danger { color: var(--danger, #dc2626); }
 body.pro-compact #m-sheet .m-sheet-head { font-size: 15px; font-weight: 700; }
 body.pro-compact #m-sheet .m-sheet-sec { font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--pro-faint-text); }
-body.pro-compact #m-sheet .pro-sheet-ask { display: none; }
+/* the sheet's field is its tool search now (the AI has the dock's Ask button) */
+body.pro-compact #m-sheet .pro-sheet-ask { display: flex; background: var(--btn-bg); box-shadow: none; }
 body.pro-compact #m-sheet .pro-chip { border: 0; border-radius: 16px; background: var(--btn-bg); color: var(--text-main); box-shadow: none; font-weight: 600; }
 body.pro-compact #m-sheet .pro-chip.on { background: var(--pro-ink); color: var(--pro-on-ink); }
 
@@ -596,6 +612,9 @@ body.pro-compact.m-sheet-open #modeler .md-tour-card { top: calc(var(--md-head-b
   background: var(--btn-bg); color: var(--text-main); font: inherit; font-size: 12px; text-align: start; cursor: pointer;
 }
 .pr-every-panel .pe-tools button:hover { background: var(--accent-soft); color: var(--accent); }
+.pr-every-panel .pe-tools button.pe-active { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); box-shadow: var(--ui-on-ring, none); }
+.pr-every-panel .pe-tools button small { flex: none; font-size: max(10.5px, var(--fs-floor, 0px)); color: var(--pro-faint-text); }
+.pr-every-panel .pe-recent { grid-column: 1 / -1; }
 .pr-every-panel .pe-tools button i { font-size: 15px; color: var(--text-muted); flex: none; }
 .pr-every-panel .pe-tools button span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pr-every-panel .pe-tools button kbd { font: max(10px, var(--fs-floor, 0px)) ui-monospace, Consolas, monospace; color: var(--pro-faint-text); background: none; border: 0; }
@@ -780,13 +799,14 @@ body.pro-skin .pr-editor-ribbon .pr-glabel { height: 16px; margin-top: 2px; line
 body.pro-skin .pr-editor-ribbon .pr-every-ed { display: none !important; }
 /* the bar's ground is a band of its own (not the status line's box), so the
    bar and the status line sit side by side without one covering the other */
+body.pro-skin:not(.compact-nav) #modeler:is(.md-is3d,.md-split):not(.md-model-sketching) .md-3dhost { bottom: 46px; }
 body.pro-skin #modeler .md-mid::after {
   content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 46px; z-index: 59; pointer-events: none;
   background: var(--pro-surface); border-top: 1px solid var(--border-color); box-sizing: border-box;
 }
 body.pro-skin:not(.compact-nav) #modeler.md-isdrawing { --md-drawing-feedback-footer: 46px; }
 body.pro-skin #modeler .md-mid > .md-status {
-  height: 46px; box-sizing: border-box; flex-wrap: nowrap; overflow: hidden; z-index: 60;
+  height: 46px; box-sizing: border-box; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; z-index: 60;
   inset-inline-start: calc(min(500px, 46%) + 16px); padding: 0 14px 0 4px; background: transparent;
 }
 body.pro-skin #modeler .md-mid > .ps-cmdbar {
@@ -813,11 +833,20 @@ body.pro-skin #modeler .md-rail-row { bottom: 54px; }
 body.pro-skin:not(.compact-nav) #modeler .md-rail-bottom { bottom: 96px; max-height: calc(50% - 98px); }
 body.pro-skin #modeler .md-mid > .md-status > * { white-space: nowrap; flex: none; }
 
-/* a narrower window: the tools take a third row before any fall off the end */
-body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-items { grid-template-rows: repeat(3, 27px); gap: 1px 2px; }
-body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-tool { height: 27px; }
-body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-tool i { font-size: 16px; }
-body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-tool span { font-size: 12px; }
+/* a narrower window (js/ribbon_fit.js): dense takes a third row before any
+   group folds into its drop-down button */
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-items { grid-template-rows: repeat(3, 27px); gap: 1px 2px; }
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-tool { height: 27px; }
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-tool i { font-size: 16px; }
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-tool span { font-size: 12px; }
+/* a folded group fills the rows its tools had */
+body.pro-skin .pr-editor-ribbon .pr-group.pr-g-folded > .pr-fold { flex: 1 1 auto; height: auto; min-height: 62px; min-width: 70px; }
+body.pro-skin .pr-editor-ribbon .pr-fold > span { font-size: 12.5px; }
+/* the "+N" of a split first group is one more cell of the tool grid */
+body.pro-skin .pr-editor-ribbon .pr-items > .pr-fold-more { flex-direction: row; gap: 4px; height: 30px; min-height: 0; min-width: 0; padding: 0 8px; }
+body.pro-skin .pr-editor-ribbon .pr-items > .pr-fold-more > i:first-child { font-size: 17px; }
+body.pro-skin .pr-editor-ribbon .pr-items > .pr-fold-more > span { font-size: 12.5px; }
+body.pro-skin .pr-editor-ribbon.pr-dense .pr-items > .pr-fold-more { height: 27px; }
 
 /* ---- narrow desktop windows (501–1100px) keep this layout ---------------- */
 /* the editors' headers: every piece at its own width, the switcher shortest */
@@ -837,6 +866,7 @@ body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSa
 body.pro-skin #modeler .md-mid { container-type: inline-size; container-name: mdmid; }
 @container mdmid (max-width: 760px) {
   body.pro-skin:not(.compact-nav) #modeler.md-isdrawing :is(#mdCanvas, #mdRailBottom) { --md-drawing-feedback-footer: 72px; }
+  body.pro-skin:not(.compact-nav) #modeler:is(.md-is3d,.md-split):not(.md-model-sketching) .md-3dhost { bottom: 72px; }
   body.pro-skin #modeler .md-mid::after { height: 72px; }
   body.pro-skin #modeler .md-mid > .md-status { inset-inline-start: 0; height: 30px; padding: 0 12px; }
   body.pro-skin #modeler .md-mid > .ps-cmdbar { bottom: 31px; width: calc(100% - 16px); }
@@ -848,7 +878,7 @@ body.pro-skin #modeler .md-mid { container-type: inline-size; container-name: md
   }
 }
 /* the view list stops above the selection filters and scrolls */
-body.pro-skin:not(.compact-nav) #modeler .md-views { max-height: calc(100% - 190px); overflow-y: auto; scrollbar-width: thin; }
+body.pro-skin:not(.compact-nav) #modeler .md-views { max-height: calc(100% - 150px); overflow-y: auto; scrollbar-width: thin; }
 @media (max-width: 1100px) {
   body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSave, #mdClose, #cbClose) { font-size: 0; gap: 0; }
   body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSave, #mdClose, #cbClose) i { display: inline-block !important; font-size: 16px; }
@@ -894,7 +924,6 @@ body.pro-skin #modeler .md-views .md-vgroup > button {
 }
 body.pro-skin #modeler .md-views .md-vgroup > button > span { display: none; }
 body.pro-skin #modeler .md-views .md-vgroup > button :is(svg, i) { width: 17px; height: 17px; font-size: 17px; flex: none; color: inherit !important; }
-body.pro-skin #modeler .md-views .md-vgroup > button.on:not(#mdShowEdges) { background: var(--pro-ink); border-color: var(--pro-ink); color: var(--pro-on-ink); }
 body.pro-skin #modeler .md-views [data-tip]:hover::after { top: 50%; inset-inline-start: calc(100% + 8px); transform: translateY(-50%); }
 body.pro-skin #modeler .md-views .md-finish-plane > span { display: none; }
 /* the status line's AI chip is the last thing on it: it gives way first */
@@ -1053,7 +1082,7 @@ body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group {
 }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group > .cb-group-title { display: none; }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-scope-note { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
-body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-scope-note select { height: 28px; min-height: 0; font-size: 12px; }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-scope-note select { height: 28px; min-height: 0; padding-block: 0; font-size: 12px; line-height: 26px; }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-dims { display: flex; gap: 6px; }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-dims label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
 body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-number { display: inline-flex; align-items: center; height: 28px; }
@@ -1151,7 +1180,7 @@ body.pro-skin #cabdes .cb-context-bar > .cb-preview-group { order: -1; }
 body.pro-skin #cabdes .cb-size-group .cb-scope-note select { width: auto !important; min-width: 118px; padding-inline: 8px 24px; }
 /* one line at a desktop width: the scope's caption becomes the select's own
    tooltip, the four preview stops show their marks only (each keeps its title) */
-body.pro-skin #cabdes .cb-context-bar .cb-scope-note { font-size: 0 !important; gap: 0; }
+body.pro-skin #cabdes .cb-context-bar .cb-scope-note { font-size: 0 !important; gap: 0; max-width: none; }
 body.pro-skin #cabdes .cb-context-bar .cb-scope-note select { font-size: 12px; }
 body.pro-skin #cabdes .cb-context-bar .cb-chip-stage {
   display: inline-block; width: 30px; padding: 0 0 0 7px !important; overflow: hidden; white-space: nowrap; text-align: start; font-size: 13px !important; line-height: 26px;
@@ -1163,3 +1192,43 @@ body.pro-skin #cabdes .cb-context-bar > #cbTools > button { padding: 0 8px; }
 body.pro-skin #cabdes .cb-context-bar .cb-size-group .cb-dims { gap: 6px; }
 body.pro-skin #cabdes .cb-context-bar #cbOpen { width: 88px; }
 body.pro-skin #cabdes .cb-context-bar { column-gap: 10px; }
+
+/* A 58px tile broke a long word anywhere ("Perpendic/ular", "Symmetri/c",
+   "Paramete/rs"). The tile now grows to its longest word (the fold logic in
+   js/ribbon_fit.js measures real widths), and labels break between words. */
+body.pro-skin .pro-ribbon:not(.pr-editor-ribbon) .pr-tool { width: auto; min-width: 58px; max-width: 88px; padding-inline: 4px; box-sizing: border-box; }
+body.pro-skin .pro-ribbon.pr-dense:not(.pr-editor-ribbon) .pr-tool { width: auto; min-width: 54px; padding-inline: 3px; }
+body.pro-skin .pro-ribbon:not(.pr-editor-ribbon) .pr-tool span { overflow-wrap: normal; word-break: normal; hyphens: manual; -webkit-hyphens: manual; }
+
+/* ---- model editor rail: the orientation flyout, and calm "on" states ------
+   The six views live behind one button (js/modeler/editor_markup.js); the
+   flyout names them in pairs of opposites. Toggles that are merely on
+   (Perspective, Solid, Notes) used the solid ink of a primary action and
+   Edges a style of its own; all now share the app's soft "on". */
+#modeler .md-view-flyout {
+  position: fixed; z-index: 85; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;
+  min-width: 236px; padding: 6px; border-radius: 12px; background: var(--pro-surface, var(--bg-panel));
+  box-shadow: 0 12px 32px rgba(16, 21, 34, 0.22), 0 0 0 1px var(--border-color);
+}
+#modeler .md-view-flyout[hidden] { display: none; }
+#modeler .md-view-flyout > button {
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px; height: 36px; min-height: 0; padding: 0 10px; border: 0; border-radius: 8px;
+  background: transparent; box-shadow: none; color: var(--text-main); font-size: 13px; font-weight: 500; text-align: start; white-space: nowrap;
+}
+#modeler .md-view-flyout > button > span { display: inline; }
+#modeler .md-view-flyout > button :is(svg, i) { width: 20px; height: 20px; flex: none; }
+#modeler .md-view-flyout > button:hover, #modeler .md-view-flyout > button:focus-visible { background: var(--btn-bg); outline: none; }
+#modeler .md-view-flyout > button.on { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); font-weight: 600; }
+#modeler .md-view-flyout > #mdNormalToView { grid-column: 1 / -1; border-top: 1px solid var(--border-color); border-radius: 0 0 8px 8px; margin-top: 2px; }
+body.pro-skin #modeler .md-views .md-vgroup > button.on,
+body.pro-skin #modeler .md-views .md-vgroup > button#mdShowEdges.on,
+body.pro-skin #modeler .md-views .md-vgroup > #mdViewOrient.open {
+  background: var(--ui-on-bg, var(--accent-soft)); border-color: transparent; color: var(--ui-on-fg, var(--accent));
+  box-shadow: var(--ui-on-ring, inset 0 0 0 1px var(--accent));
+}
+/* The two panel toggles as a pair: icon-only, each drawing a panel on its own
+   side. The left one was a 120px "Tree" pill over a 36px rail, beside the
+   panel's own Tree tab; the right one drew a left-hand panel. */
+body.pro-skin:not(.compact-nav) #modeler .md-panel-toggle-left { width: 36px; min-width: 36px; padding: 5px; justify-content: center; gap: 0; }
+body.pro-skin:not(.compact-nav) #modeler .md-panel-toggle-left span { display: none; }
+body:not(.compact-nav) #modeler .md-panel-toggle-right i { transform: scaleX(-1); }

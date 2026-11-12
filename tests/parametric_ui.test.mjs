@@ -1,8 +1,15 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { modelerSource as readModelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { createHistory } from "../js/edit_history.js";
+import { featureDefaults, featureSpec } from "../js/core/feature_catalog.js";
+import { featureField as featureFieldCore, renderFeatureParameterForm as renderFeatureParameterFormCore } from "../js/modeler_feature_form.js";
 
-let modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let modelerSource = readModelerSource();
 modelerSource = modelerSource.replace(/\r\n/g,"\n");
 /* The editor's [he, en] table, split out of js/modeler.js. */
 const stringsSource = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
@@ -16,11 +23,14 @@ const commandSource = await readFile(new URL("../js/modeler_commands.js", import
 const formSource = await readFile(new URL("../js/modeler_feature_form.js", import.meta.url), "utf8");
 const draftSource = await readFile(new URL("../js/modeler_draft.js", import.meta.url), "utf8");
 const workflowSource = await readFile(new URL("../js/modeler_workflow.js", import.meta.url), "utf8");
-const drawingSource = await readFile(new URL("../js/modeler_drawing.js", import.meta.url), "utf8");
+const drawingSource = moduleSource("js/modeler_drawing.js");
 const source = [modelerSource, stringsSource, meshGeometrySource, partGeometrySource, pickGeometrySource, commandSource, formSource, draftSource, workflowSource, drawingSource].join("\n");
 const editorViewSource = await readFile(new URL("../js/editor_view.js", import.meta.url), "utf8");
 const featureCatalogSource = await readFile(new URL("../js/core/feature_catalog.js", import.meta.url), "utf8");
-const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const styles = stylesSource();
+function loadModelerFunction(name, bindings = {}) {
+  return new Function(...Object.keys(bindings), `return (${sourceFunctionText(modelerSource, name)});`)(...Object.values(bindings));
+}
 
 test("the default Features surface exposes the canonical feature vocabulary", () => {
   for (const command of ["newsketch", "extrude", "extrudecut", "revolvefeature", "sweepfeature", "loftfeature", "filletfeature", "chamferfeature", "shellfeature", "patternfeature", "mirrorfeature", "booleanfeature", "holefeature", "helixfeature", "threadfeature", "knurlfeature", "insertfeature"])
@@ -57,7 +67,8 @@ test("rebuild guidance is reachable without extra clicks and hides raw topology 
   assert.match(modelerSource, /id="mdCoachLabel"/);
   assert.match(modelerSource, /sug\.rebuild \? "coachActRebuild" : "coachNext"/);
   assert.match(modelerSource, /isCanonicalAuthoring\(\) && !sug\.rebuild/);
-  assert.match(modelerSource, /target:'#mdParts'/);
+  // the tutorial still points at the parts list (either quote style)
+  assert.match(modelerSource, /target:\s*["']#mdParts["']/);
   assert.match(styles, /#modeler \.md-diagnostic-help\[open\] \.md-diagnostic-explanation/);
   assert.match(styles, /#modeler \.md-diag-jump/);
 });
@@ -113,18 +124,78 @@ test("feature parameters are grouped and drive every visual projection live", ()
   assert.match(source, /Live · sketch, 3D, orthographic and drawing views synced/);
   /* One live entry point for a feature edit: the feature itself, then its
      downstream chain, then the viewport patch. Apply and Cancel still refreshAll. */
-  assert.match(source, /pendingFrame=0;syncLiveFeatureEdit\(feature\);/);
-  const live = source.match(/function syncLiveFeatureEdit\(feature\)[\s\S]*?\n\}\n/)[0];
-  assert.match(live, /syncProjectionFromFeature\(feature\)/);
-  assert.match(live, /syncLiveDownstream\(feature\)/);
-  assert.match(live, /refreshLivePreview\(\)/);
-  assert.doesNotMatch(live, /refreshAll\(\)/);
+  const E={def:{},authoring:{featureEdit:{featureId:'base'}}},feature={id:'base'},events=[],frames=new Map();let frameId=0;
+  const live=loadModelerFunction('syncLiveFeatureEdit',{
+    E,syncProjectionFromFeature:actual=>{assert.equal(actual,feature);events.push('projection');},
+    syncLiveDownstream:actual=>{assert.equal(actual,feature);events.push('downstream');},
+    refreshLivePreview:()=>events.push('paint'),refreshAll:()=>assert.fail('a live edit must not rebuild the whole UI'),
+    requestAnimationFrame:callback=>{frames.set(++frameId,callback);return frameId;},cancelAnimationFrame:id=>frames.delete(id),
+  });
+  const paint=()=>{const pending=[...frames.values()];frames.clear();pending.forEach(callback=>callback());};
+  live(feature);live(feature);
+  assert.deepEqual(events,['projection','downstream','projection','downstream'],'geometry updates synchronously');
+  assert.equal(frames.size,1,'rapid edits share one viewport paint');paint();assert.equal(events.filter(e=>e==='paint').length,1);
+  live(feature);E.def={};paint();assert.equal(events.filter(e=>e==='paint').length,1,'a replaced document rejects the old paint');
+  live(feature);E.authoring.featureEdit={featureId:'other'};paint();
+  assert.equal(events.filter(e=>e==='paint').length,1,'a replacement feature form rejects the old paint');
   assert.match(source, /function cancelFeatureParameterEdit/);
   assert.match(source, /renderedParts\(E\.def\)/);
   // Preview, apply and rebuild all lay a copy through the one helper, so a
   // pattern layout cannot be right in the viewport and wrong on Apply.
   assert.match(source, /placePatternCopy\(copy,state\.params,placement,circularStep\)/);
   assert.match(source, /\["axisX",\s*"axisY",\s*"axisZ"\]/);
+});
+
+test("editing a rendered feature parameter invokes live synchronization", () => {
+  const nodes=[],events=[],frames=new Map();let frameId=0;
+  function el(tag,className="") {
+    const node=Object.assign(new EventTarget(),{
+      tagName:tag.toUpperCase(),className,dataset:{},children:[],value:"",
+      classList:{add(){},remove(){},contains:()=>false},
+      appendChild(child){this.children.push(child);return child;},
+      querySelector(selector){return this.children.find(child=>child.className.split(" ").includes(selector.slice(1))) || null;},
+      closest:()=>null,setAttribute(){},removeAttribute(){},setCustomValidity(){},
+    });
+    nodes.push(node);return node;
+  }
+  const host=el("div"),feature={id:"shell",name:"Shell",type:"shell",params:featureDefaults("shell"),references:{}},
+    E={def:{features:[feature]},authoring:{}};
+  const requestAnimationFrame=callback=>{frames.set(++frameId,callback);return frameId;},
+    cancelAnimationFrame=id=>frames.delete(id),
+    tick=()=>{const pending=[...frames.values()];frames.clear();pending.forEach(callback=>callback());};
+  const syncLiveFeatureEdit=loadModelerFunction("syncLiveFeatureEdit",{
+    E,requestAnimationFrame,cancelAnimationFrame,
+    syncProjectionFromFeature:actual=>{assert.equal(actual,feature);events.push(["projection",actual.params.thickness]);},
+    syncLiveDownstream:actual=>{assert.equal(actual,feature);events.push(["downstream",actual.params.thickness]);},
+    refreshLivePreview:()=>events.push(["paint",feature.params.thickness]),
+  });
+  const formBindings={E,el,modelLengthUnit:()=>"cm",t:key=>key,FEATURE_PATTERN_SEED_TYPES:[],featureReferenceOptions:()=>[],
+    featureFieldCore,renderFeatureParameterFormCore};
+  const open=loadModelerFunction("openFeatureEditor",{
+    ...formBindings,root:{querySelector:()=>host},featureSpec,
+    pushUndo(){},cloneData:structuredClone,currentHistoryNode:()=>0,
+    registerFeatureForm:()=>({content:host,form:{isCurrent:()=>true,rememberInputs(){}}}),
+    cadIcon:()=>"",tf:key=>key,highlightFeatureIssueBanner(){},
+    featureField:loadModelerFunction("featureField",formBindings),
+    renderFeatureParameterForm:loadModelerFunction("renderFeatureParameterForm",formBindings),
+    setFeatureReferencesFromForm:loadModelerFunction("setFeatureReferencesFromForm"),retargetSweepHelix(){},
+    addShellFaceThicknessControls:()=>null,btn:(_label,_callback,cls)=>el("button",cls),namedButton:button=>button,
+    syncAuthoringWorkflow(){},syncCommandManager(){},document:{body:el("body")},
+    syncLiveFeatureEdit,requestAnimationFrame,cancelAnimationFrame,setTimeout:()=>0,
+    refreshAll:()=>assert.fail("a parameter edit must not rebuild the whole UI"),
+  });
+  open(feature);
+  const input=nodes.find(node=>node.tagName==="INPUT" && node.dataset.parameter==="thickness");
+  assert.ok(input,"the real parameter form renders a thickness control");
+  for(const [eventType,value] of [["input",2.5],["change",3.5]]){
+    events.length=0;input.value=String(value);input.dispatchEvent(new Event(eventType));
+    assert.equal(feature.params.thickness,value,"the form stores the edited value");
+    // The form syncs geometry on its frame; the live helper paints on the next.
+    tick();
+    assert.deepEqual(events,[["projection",value],["downstream",value]],eventType+" must synchronize the edited feature and its dependents");
+    tick();
+    assert.deepEqual(events,[["projection",value],["downstream",value],["paint",value]],eventType+" must repaint the edited geometry");
+  }
 });
 
 test("linear pattern exposes independent X Y Z controls and skipped copies", () => {
@@ -207,8 +278,7 @@ test("model display starts solid with black edges, and can hide them", () => {
   assert.match(source, /setModelDisplay\("solid", false\)/);
   assert.match(source, /setShowModelEdges\(true, false\)/);
   assert.match(source, /function setShowModelEdges/);
-  const displaySource = source.slice(source.indexOf("function applyViewportDisplayStyle("), source.indexOf("var decoGroups ="));
-  const applyDisplay = new Function(displaySource + "; return applyViewportDisplayStyle;")();
+  const applyDisplay = loadModelerFunction('applyViewportDisplayStyle');
   const mesh = {material:{opacity:.25,transparent:true}};
   applyDisplay(mesh,"solid",false);
   assert.equal(mesh.material.opacity,.25,"solid view preserves the saved finish");
@@ -217,11 +287,25 @@ test("model display starts solid with black edges, and can hide them", () => {
   const opaque = {material:{opacity:1}};
   applyDisplay(opaque,"transparent",false);
   assert.equal(opaque.material.opacity,.3);
+  const button={classList:{toggle(_class,on){button.on=on;}},setAttribute(key,value){button[key]=value;}};
+  const E={showModelEdges:true};let repaints=0;
+  const showEdges=loadModelerFunction('setShowModelEdges',{E,root:{querySelector:()=>button},updatePreview:()=>repaints++});
+  showEdges(false);assert.equal(E.showModelEdges,false);assert.equal(button.on,false);assert.equal(button['aria-pressed'],'false');
+  showEdges(true,false);assert.equal(E.showModelEdges,true);assert.equal(button['aria-pressed'],'true');assert.equal(repaints,1);
   assert.match(source, /function overlayEntriesForPart/);
   assert.match(source, /meshFeatureEdges\(/);
   assert.match(source, /function holeAndCutEdges/);
   assert.match(source, /function promotePickedEdge/);
-  assert.match(source, /if \(!kernel\.length\)/);
+  const kernelEdge={kind:'edge',persistentId:'exact-rim'},rim={kind:'edge',persistentId:'hole-rim'},analyticEdge={kind:'edge',persistentId:'box-edge'};
+  let analyticCalls=0;
+  const topology=loadModelerFunction('topologyEntriesForPart',{
+    E:{docType:'part'},topologyMergeCache:new WeakMap(),savedExactTopologyForPart:()=>null,
+    meshCircleEntries:()=>[],holeAndCutEdges:()=>[rim],holeAndCutFaces:()=>[],meshFaceEntries:()=>[],
+    analyticPartTopology:()=>{analyticCalls++;return [analyticEdge];},mergeSmoothTopology:entries=>entries,
+  });
+  assert.deepEqual(topology({id:'exact',meshData:{topology:[kernelEdge]}}),[kernelEdge,rim]);
+  assert.equal(analyticCalls,0,'exact topology excludes obsolete primitive edges');
+  assert.deepEqual(topology({id:'primitive'}),[analyticEdge,rim],'a primitive still gets analytic pick edges');
   assert.match(source, /buildPart\(grp, p, E\.displayStyle\)/);
   assert.doesNotMatch(source, /p\.opacity = style === "transparent"/);
 });
@@ -236,16 +320,42 @@ test("Drawing mode exposes a two-point Smart Ruler that edits and saves the mode
 });
 
 test("Escape cancels tools and selection without closing the document", () => {
-  assert.match(source, /function markDocumentClean/);
-  // The dirty flag is the current undo-tree node measured against the one that
-  // was last saved; currentHistoryNode() is the single reader of that node.
-  assert.match(source, /function currentHistoryNode/);
-  assert.match(source, /node !== savedHistoryId/);
-  assert.match(source, /savedHistoryId = currentHistoryNode\(\)/);
   assert.match(source, /#mdClose"\)\.addEventListener\("click", requestCloseModeler\)/);
-  assert.match(source, /cancelReferenceSelection\(\); return/);
-  assert.match(source, /It does not close the document/);
-  assert.doesNotMatch(source, /if \(E\.sel\) \{ E\.sel = null; refreshAll\(\); return; \}\s*closeModeler\(\); return;/);
+  const def={},E={open:true,mode:'3d',docType:'part',def,modelPlaneActive:true,authoring:{phase:'sketch'},
+    tool:'rect',tour:{active:false},dimPick:[],ssel:[{id:'line'}],sel:{id:'line'},topologySelection:[]};
+  const referencePicker={hidden:true};let refreshes=0,cancelledReferences=0;
+  const key=loadModelerFunction('onKey',{
+    E,root:{querySelector:selector=>selector==='#mdReferencePicker'?referencePicker:null},document:{activeElement:null},
+    modelerDecisionOpen:()=>false,reportOpen:()=>false,handleSelectionFilterChord:()=>false,dynKey:()=>false,dynHasEntry:()=>false,
+    hidePickCycle(){},dismissProfileOffer(){},setTool:tool=>{E.tool=tool;},syncTools(){},syncHint(){},
+    refreshAll:()=>refreshes++,cancelReferenceSelection:()=>{cancelledReferences++;referencePicker.hidden=true;},
+    finishModelPlane:()=>assert.fail('Escape must keep the sketch surface active'),
+    closeModeler:()=>assert.fail('Escape must keep the document open'),requestCloseModeler:()=>assert.fail('Escape must not ask to close'),
+  });
+  const escape=()=>key({key:'Escape',preventDefault(){}});
+  escape();assert.equal(E.tool,'select');assert.equal(E.ssel.length,1,'first Escape drops the drawing tool');
+  escape();assert.equal(E.sel,null);assert.deepEqual(E.ssel,[]);assert.equal(refreshes,1);
+  escape();assert.equal(E.open,true);assert.equal(E.def,def);assert.equal(E.modelPlaneActive,true);
+  referencePicker.hidden=false;escape();assert.equal(cancelledReferences,1);assert.equal(E.open,true);
+  E.modelPlaneActive=false;E.authoring={phase:'model',featureSelection:['base']};E.topologySelection=[{kind:'edge'}];
+  escape();assert.deepEqual(E.topologySelection,[]);assert.deepEqual(E.authoring.featureSelection,[]);assert.equal(E.open,true);
+});
+
+test('saved revisions track resident Part and Assembly edits independently through undo and redo',()=>{
+  const E={docType:'part',def:{name:'Part'},assembly:{name:'Assembly'}};
+  const H=createHistory({get:()=>JSON.stringify({d:E.def,a:E.assembly}),set:raw=>{const snapshot=JSON.parse(raw);E.def=snapshot.d;E.assembly=snapshot.a;},editScope:()=>E.docType}).seed();
+  const bindings={E,H,partHistoryMarker:{savedEdit:0},assemblySaveSessions:new WeakMap(),syncDirty(){},syncDraftStatus(){},syncAssemblyWorkflow(){}};
+  const names=['assemblySaveSession','activeHistoryMarker','residentDirtyState','documentDirty','markDocumentClean'];
+  const api=new Function(...Object.keys(bindings),names.map(name=>sourceFunctionText(modelerSource,name)).join('\n')+';return {'+names.join(',')+'};')(...Object.values(bindings));
+  api.markDocumentClean();assert.equal(api.documentDirty(),false);
+  H.push('Rename Part');E.def.name='Edited Part';assert.equal(api.documentDirty(),true);
+  E.docType='assembly';assert.equal(api.documentDirty(),false,'Part edits do not dirty the resident Assembly');
+  H.push('Rename Assembly');E.assembly.name='Edited Assembly';api.markDocumentClean();assert.equal(api.documentDirty(),false);
+  E.docType='part';assert.equal(api.documentDirty(),true,'saving Assembly does not mark Part clean');
+  api.markDocumentClean();H.push('Rename Part again');E.def.name='Second Part edit';assert.equal(api.documentDirty(),true);
+  H.undo();assert.equal(api.documentDirty(),false);H.redo();assert.equal(api.documentDirty(),true);
+  api.markDocumentClean();assert.equal(api.documentDirty(),false);
+  E.contextEdit={componentId:'working-copy'};assert.equal(api.documentDirty(),true,'component edits require an explicit finish');
 });
 
 test("Ctrl+S saves in every mode and Ctrl+8 orients the camera", () => {

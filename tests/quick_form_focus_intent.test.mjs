@@ -1,12 +1,14 @@
+import {registerQuickForm} from '../js/modeler_quick_form.js';
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';import {featureField} from '../js/modeler_feature_form.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
  const frames=[],buttons=[],document={activeElement:null,body:{classList:{contains:()=>false}}};
  function node(tag,cls='',text=''){return {tagName:tag.toUpperCase(),className:cls,textContent:text,dataset:{},children:[],listeners:{},attrs:{},value:'',hidden:false,selected:0,focused:0,
   appendChild(n){this.children.push(n);n.parent=this;},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){(this.listeners[k] ||= []).push(fn);},dispatch(k){for(const fn of this.listeners[k] || [])fn();},
   focus(){this.focused++;document.activeElement=this;this.dispatch('focus');},select(){this.selected++;},classList:{contains:()=>false}};}
- const host=node('div'),E={authoring:{}},ctx={E,root:{querySelector:()=>host},motionPlaybackCancel:null,el:node,t:x=>x,namedButton:x=>x,
+ const host=node('div'),E={authoring:{}},ctx={registerQuickForm,E,root:{querySelector:()=>host},motionPlaybackCancel:null,el:node,t:x=>x,namedButton:x=>x,
   featureField:(body,f,value)=>featureField(body,f,value,{el:node,units:{length:'mm'}}),modelLengthUnit:()=> 'mm',
   btn:(label,callback,cls)=>{const b=node('button',cls);b.callback=callback;buttons.push(b);return b;},document,requestAnimationFrame:fn=>frames.push(fn),syncCommandManager(){},validateFeatureInputs:()=>true,closeFeaturePanel(){},refreshAll(){}};
  const open=new Function(...Object.keys(ctx),sourceFunctionText(source,'openQuickForm')+';return openQuickForm;')(...Object.values(ctx));

@@ -1,8 +1,9 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
 import * as THREE from '../vendor/three/three.module.js';
 import {normalToFrustum} from '../js/core/editor_projection.js';
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function listeners(E,extra={}){
  const start=source.indexOf('    var pinch = null;',source.indexOf('Two-finger pinch zoom')),end=source.indexOf('  })();',start),events={};
  const cv={addEventListener:(n,f)=>events[n]=f,getBoundingClientRect:()=>({left:10,top:20})};

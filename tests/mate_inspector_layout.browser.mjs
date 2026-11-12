@@ -1,16 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {modelerSource} from './helpers/modeler_source.mjs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
+import {stylesFiles} from './helpers/styles_source.mjs';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
 
-const chrome=await findChrome(),source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const chrome=await findChrome(),source=modelerSource();
 test('long component names and Screw/directed-hinge controls fit narrow Mates inspectors',chrome?{timeout:120000}:{skip:'Chrome unavailable'},async()=>{
  const page=await openPage({width:2560,height:1296,mobile:false,touch:false});
  try{
-  await page.eval(async rowSource=>{
+  await page.eval(async (rowSource,sheets)=>{
    document.body.className='pro-skin';document.body.innerHTML='<div id="modeler" style="display:flex"><div class="md-body"><div class="md-mid"></div><aside class="md-panel md-right"><div class="md-tabs"><div class="md-pane on"><div id="mdOps"></div></div></div></aside></div></div>';
-   if(!document.querySelector('link[href*="styles.css"]')){const sheet=document.createElement('link');sheet.rel='stylesheet';sheet.href='/css/styles.css';document.head.append(sheet);await new Promise(resolve=>sheet.onload=resolve);}
+   if(!document.querySelector('link[href*="styles_01_"]')){await Promise.all(sheets.map(href=>{const sheet=document.createElement('link');sheet.rel='stylesheet';sheet.href='/'+href;document.head.append(sheet);return new Promise(resolve=>sheet.onload=resolve);}));}
    const el=(tag,cls,html)=>{const node=document.createElement(tag);node.className=cls||'';if(html!=null)node.innerHTML=html;return node;},btn=(label,callback,cls)=>{const button=el('button',cls,label);button.addEventListener('click',callback);return button;};
    const row=new Function('el','btn','t',rowSource+';return mateRow;')(el,btn,key=>key),host=document.querySelector('#mdOps');
    const palette=el('div','md-ops');for(const name of ['Concentric axes','Directed rotation limit','Rack and pinion mate'])palette.appendChild(btn(name,()=>{}));host.appendChild(palette);
@@ -23,7 +24,7 @@ test('long component names and Screw/directed-hinge controls fit narrow Mates in
     }
     item.appendChild(btn('Replace references with selection',()=>{},'md-mate-align'));
    }
-  },sourceFunctionText(source,'mateRow'));
+  },sourceFunctionText(source,'mateRow'),stylesFiles());
   for(const width of [232,280,400]){
    const result=await page.eval(async width=>{
     const panel=document.querySelector('.md-right');panel.style.width=width+'px';await new Promise(requestAnimationFrame);

@@ -8,8 +8,9 @@ import { solveRoomCons } from "./room_cons.js";
 
 import { roomHidden } from "./geometry.js";
 import { pushHistory } from "./history.js";
-import { FURN, flabel, clabel, defaultScene } from "./furniture.js";
-import { init3D, has3D, frameView, setSize } from "./view3d.js";
+import { FURN, flabel, clabel } from "./furniture.js";
+import { defaultApartment } from "./demo_house.js";
+import { init3D, has3D, frameView, frameDollhouse, setSize } from "./view3d.js";
 import { fitView, render2D, sizeCanvas, initPlanGizmo } from "./plan2d.js";
 import {
   fillProps,
@@ -53,7 +54,7 @@ import { initLayers } from "./layers.js";
 import { initLayersUI } from "./ui_layers.js";
 import { initPlanToolsDock } from "./plan_tools_dock.js";
 import { initRoomPalette } from "./ui_rooms.js";
-import { initAgent } from "./ui_agent.js";
+import { initAgent } from "./agent_launch.js";
 import { initTutorRuntime } from "./tutor/runtime.js";
 import { initExternalAgentBridge } from "./agent_external_bridge.js";
 
@@ -67,10 +68,17 @@ initLayers();
 // apply static translations for the current language before anything renders
 applyStatic();
 
+// Ask the WebGPU adapter whether it is a software rasteriser now, while the
+// plan view boots, so the baked-material tier is settled before the first 3D
+// material asks for it (js/material_tier.js).
+primeGpuTier();
+
 import { addFurnItem } from "./ui.js";
 import { CATALOG } from "./furniture.js";
-import { modelThumb, hasThumb, clearThumbCache, loadThumbCache } from "./thumbs.js";
+import { SEARCH_ALIASES } from "./furniture_meta.js";
+import { modelThumb, thumbAsync, hasThumb, clearThumbCache, loadThumbCache } from "./thumbs.js";
 import { escapeHTML } from "./safe.js";
+import { primeGpuTier } from "./material_tier.js";
 
 /* Wire the plan-level constraint layers into every solve, here rather than
    inside wall_constraints.js: both of those modules read wallCons(), so
@@ -86,9 +94,9 @@ let searchQ = ""; // live library filter; non-empty overrides navPath with a fla
 
 // A model tile shows the model itself, rendered off-screen by thumbs.js. That
 // is real WebGL work, so the grid is painted FIRST and the pictures are filled
-// in afterwards, a time-slice per frame: a search that matches 60 pieces shows
-// its 60 labels on the keystroke instead of blocking it on 60 renders. Renders
-// are memoized by type, so a category you come back to fills in instantly.
+// in afterwards, asynchronously: a search that matches 60 pieces shows its 60
+// labels on the keystroke instead of blocking it on 60 renders. Renders are
+// memoized by type, so a category you come back to fills in instantly.
 function thumbTag(type) {
   if (hasThumb(type)) {
     const url = modelThumb(type);
@@ -124,19 +132,13 @@ async function hydrateThumbs(ui) {
   if (run !== _hydrateRun || !ui.isConnected) return;
   const pending = Array.from(ui.querySelectorAll("[data-thumb]"));
   if (!pending.length) return;
-  const queue = [];
-  let scheduled = false;
-  // setTimeout, not requestAnimationFrame: rAF is suspended while the page is
-  // occluded/backgrounded, which would leave a panel full of blank tiles that
-  // only fill in if the compositor happens to wake up.
-  const step = () => {
-    scheduled = false;
-    if (run !== _hydrateRun) return;
-    const t0 = performance.now();
-    while (queue.length && performance.now() - t0 < 8) {
-      const el = queue.shift(),
-        url = modelThumb(el.dataset.thumb);
-      if (!el.isConnected) continue;
+  // thumbAsync draws a picture the warm-up has not reached yet in short
+  // steps off the critical path (a stored one resolves at once), so asking
+  // for a whole screenful in one go never blocks the panel.
+  const enqueue = (el) => {
+    if (!el || !el.isConnected || !el.dataset.thumb) return;
+    thumbAsync(el.dataset.thumb).then((url) => {
+      if (!el.isConnected || !el.dataset.thumb) return;
       if (url) {
         const img = document.createElement("img");
         img.className = "furn-thumb";
@@ -146,19 +148,7 @@ async function hydrateThumbs(ui) {
       } else {
         el.removeAttribute("data-thumb");
       }
-    }
-    if (queue.length) {
-      scheduled = true;
-      setTimeout(step, 0);
-    }
-  };
-  const enqueue = (el) => {
-    if (!el || !el.isConnected || !el.dataset.thumb) return;
-    queue.push(el);
-    if (!scheduled) {
-      scheduled = true;
-      setTimeout(step, 0);
-    }
+    });
   };
   if (typeof IntersectionObserver === "function") {
     const observer = new IntersectionObserver(
@@ -186,25 +176,27 @@ function renderFurnUI() {
   let html = "";
 
   if (searchQ) {
-    // flat, deduped result grid across every category (matches the item's
-    // label in the active language and the Hebrew base label)
-    const seen = new Set();
-    const matches = [];
+    // flat, deduped result grid across every category. A piece matches when
+    // every word of the query is in its label (active language or the Hebrew
+    // base), its type id, the shelves it sits on ("bedroom", "kitchen") or its
+    // everyday names (SEARCH_ALIASES: "dining", "couch", "basin").
+    const words = searchQ.split(/\s+/).filter(Boolean);
+    const hay = new Map();
     CATALOG.forEach(cat =>
       (cat.sub || []).forEach(sub =>
         (sub.items || []).forEach(type => {
-          if (seen.has(type) || !FURN[type]) return;
-          seen.add(type);
-          const lbl = flabel(type) || "";
-          const base = FURN[type].label || "";
-          if (
-            lbl.toLowerCase().includes(searchQ) ||
-            base.toLowerCase().includes(searchQ)
-          )
-            matches.push(type);
+          if (!FURN[type]) return;
+          const shelf = [clabel(cat), cat.label, clabel(sub), sub.label].join(" ").toLowerCase();
+          if (hay.has(type)) { hay.set(type, hay.get(type) + " " + shelf); return; }
+          hay.set(type, [flabel(type), FURN[type].label, type.replace(/([a-z])([A-Z])/g, "$1 $2"),
+            SEARCH_ALIASES[type]].filter(Boolean).join(" ").toLowerCase() + " " + shelf);
         })
       )
     );
+    const matches = [];
+    hay.forEach((text, type) => {
+      if (words.every(w => text.includes(w))) matches.push(type);
+    });
     html += `<div class="furn-grid">`;
     matches.slice(0, 60).forEach(type => {
       const label = escapeHTML(flabel(type));
@@ -352,18 +344,11 @@ onLangChange(function () {
 });
 
 // scene data BEFORE the 3D render loop starts (its first frame runs synchronously)
-defaultScene();
+defaultApartment();
 rebuildProject(S, FURN);
-/* init3D() used to run HERE, which put three.js (3.5 MB) on the synchronous
-   boot path: nothing below could run until the renderer had been fetched,
-   parsed and evaluated. It is now started by maybeInit3D() once the 3D pane
-   actually has a size on screen — immediately after first layout on the
-   desktop split, and never at all in a phone session that stays on the plan.
-   Ordering that used to be expressed as "after init3D" is unaffected: every
-   view3d entry point no-ops while has3D() is false (see js/view3d.js), and the
-   one boot-order comment that named init3D (initFriends, below) only needs the
-   scene when a remote avatar arrives — players.ensurePlayer() already bails
-   out on a missing scene. */
+/* Keep renderer setup out of synchronous boot. maybeInit3D() handles explicit
+   view requests, and the post-boot idle task prepares the hidden shared scene.
+   Friends/players already tolerate a scene that has not been created yet. */
 initInteraction();
 initUI();
 initToolSearch();
@@ -419,33 +404,29 @@ if (localStorage.getItem("mf_uikit") === "1") {
     .catch(function (e) { console.warn("uikit did not start", e); });
 }
 
-/* Bring the 3D renderer up the first time its pane is really on screen.
-   Cheap and idempotent: init3D() returns its own in-flight promise, and a
-   zero-sized pane (phone on "plan", or either view maximized away) means the
-   user is not looking at 3D, so three is never even downloaded. */
+/* One initialization path for visible requests and post-paint background work.
+   init3D() itself also shares its in-flight promise with other callers. */
 var init3DQueued = false;
-function maybeInit3D() {
+var blueprintOverviewPending = false;
+var blueprintOverviewActive = false;
+function maybeInit3D(background = false) {
+  // Layout initializers can request 3D before the plan has painted.
+  if (!window.__home3dBooted) return;
   if (has3D() || init3DQueued) return;
   init3DQueued = true;
-  /* On the next TASK, not this one — and a timer rather than a frame, because
-     requestAnimationFrame does not fire at all in a hidden tab and a probe
-     that never runs would strand `init3DQueued` and leave 3D permanently dead.
-     The wait exists because boot lays the panes out in several passes:
-     setSplitDirection() runs long before applyPhoneView() decides that a phone
-     starts single-pane, so a size read taken mid-script says "the 3D pane is
-     658px wide" on a device that is about to hide it entirely. That one beat
-     of patience is what makes the phone case honest — a session that starts on
-     the plan never downloads the renderer at all. */
+  // Let the final pane layout settle before selecting the render-target size.
   setTimeout(function () {
-    init3DQueued = false;
-    if (has3D()) return;
+    if (has3D()) { init3DQueued = false; return; }
     var L = document.getElementById("view-3d");
-    if (!L || !L.clientWidth || !L.clientHeight) return;
+    if (!L || (!background && (!L.clientWidth || !L.clientHeight))) { init3DQueued = false; return; }
     init3D().then(function (ok) {
       if (!ok) return;
-      setSize(L.clientWidth, L.clientHeight);
-      frameView();
-    });
+      var workspace = document.getElementById("center-canvas") || L;
+      setSize(L.clientWidth || workspace.clientWidth || 1000, L.clientHeight || workspace.clientHeight || 650);
+      if (blueprintOverviewPending) { blueprintOverviewPending = false; frameDollhouse(); }
+      else frameView();
+    }).catch(function (error) { console.error("3D initialization failed", error); })
+      .finally(function () { init3DQueued = false; });
   }, 0);
 }
 
@@ -453,7 +434,10 @@ const resizeAll = throttle(() => {
   maybeInit3D();
   if (has3D()) {
     var L = document.getElementById("view-3d");
-    if (L) setSize(L.clientWidth, L.clientHeight);
+    if (L) {
+      setSize(L.clientWidth, L.clientHeight);
+      if (blueprintOverviewActive && L.clientWidth && L.clientHeight) frameDollhouse();
+    }
   }
   sizeCanvas();
   render2D();
@@ -479,6 +463,10 @@ if (window.ResizeObserver) {
 var resizer = document.getElementById("view-resizer");
 var view3d = document.getElementById("view-3d");
 var view2d = document.getElementById("view-2d");
+if (view3d) {
+  view3d.addEventListener("pointerdown", function () { blueprintOverviewActive = false; });
+  view3d.addEventListener("wheel", function () { blueprintOverviewActive = false; }, { passive: true });
+}
 
 /* The two "drag to orbit / drag item…" bubbles are first-run help, and they
    sit right where the model is. Once a view has actually been used the hint
@@ -687,6 +675,18 @@ function setViewMode(mode) {
   } catch (_) {}
 }
 window.__setViewMode = setViewMode;
+window.addEventListener('blueprint:converted', function () {
+  blueprintOverviewActive = true;
+  blueprintOverviewPending = true;
+  setViewMode('3d');
+  if (has3D()) requestAnimationFrame(function () {
+    var pane = document.getElementById('view-3d');
+    if (pane) setSize(pane.clientWidth, pane.clientHeight);
+    blueprintOverviewPending = false;
+    frameDollhouse();
+  });
+  else maybeInit3D();
+});
 window.addEventListener("blueprint:trace-walls", function () {
   // A trace command can be launched while 3D is maximized. Bring the calibrated
   // sheet into view instead of arming an invisible wall tool behind that pane.
@@ -709,7 +709,11 @@ var VIEWMODE_KEY = "home3d_mobile_view";
 function isCompactPhoneViewport() {
   return windowChromePosture().phone;
 }
-function applyPhoneView() {
+function applyPhoneView(preserveExisting = false) {
+  if (preserveExisting && centerCanvas) {
+    var current = centerCanvas.classList.contains('max-view-3d') ? '3d' : centerCanvas.classList.contains('max-view-2d') ? 'plan' : 'split';
+    if (current !== 'split') { setViewMode(current); return; }
+  }
   if (isCompactPhoneViewport()) {
     // Phone / Fold cover screen: stacked split is too cramped — go single-pane.
     var saved = sessionStorage.getItem(VIEWMODE_KEY);
@@ -726,7 +730,7 @@ var wasPhone = isCompactPhoneViewport();
 function checkPhoneCrossing() {
   if (isCompactPhoneViewport() === wasPhone) return;
   wasPhone = isCompactPhoneViewport();
-  applyPhoneView();
+  applyPhoneView(true);
 }
 window.addEventListener("resize", checkPhoneCrossing);
 window.addEventListener("mf-posture", checkPhoneCrossing);
@@ -911,4 +915,17 @@ if (has3D()) {
 // Reveal only after the final layout/plan pass and optional saved UI adoption.
 chromeCustomizationReady.then(function () {
   window.dispatchEvent(new CustomEvent("planner-boot-ready", { detail: "main" }));
+});
+
+// Warm the shared 3D/dollhouse scene after the completed plan has painted.
+// A visible 3D request can still initialize immediately through maybeInit3D.
+window.addEventListener("planner-boot-ready", function prepareBackground3D() {
+  if (!window.__home3dBooted) return;
+  window.removeEventListener("planner-boot-ready", prepareBackground3D);
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      if (window.requestIdleCallback) window.requestIdleCallback(() => maybeInit3D(true), { timeout: 2000 });
+      else setTimeout(() => maybeInit3D(true), 200);
+    });
+  });
 });

@@ -22,14 +22,13 @@ import { normalizeBaselines, normalizeRedesign, mergeBaselineArchives } from "./
 
 import { normalizePlanningGuide } from "./planning_guide.js";
 import { S } from "./state.js";
-import { NET, on, sendData, isHome, peerName } from "./net.js";
+import { NET, on, sendData, sendLarge, receiveLarge, isHome, peerName, roomOwner, acceptRemote, remoteContext, sameProject as projectMatches } from "./net.js";
 
 export const cursors = {}; // peerCode -> {x, z, name, at}
 
 var planRev = 0;
 var listening = false;
 var applyingRemote = false;
-var lastHello = 0;
 
 /* Fields a peer is allowed to set on an opening. The transport is
    JSON.parse (js/net.js), which creates `__proto__` as a real own enumerable
@@ -67,7 +66,7 @@ function plainCopy(value) {
 const WALL_FIELDS = [
   "thickness", "height", "tex", "wallTypeId", "layers", "layersReversed", "datum",
   "kind", "phase", "upperWallTypeId", "splitHeight", "profile", "railing", "join",
-  "layerOverrides", "dimSide", "loc", "geometry",
+  "layerOverrides", "dimSide", "loc", "geometry", "curve", "bulge", "radius", "cornerTreatment",
   "clearL", "lock", "lockL", "lockClearL", "lockAng",
 ];
 
@@ -129,16 +128,14 @@ function projectId() {
 /* A friend can be sitting in a completely different project. Applying their
    scene over yours because you share a relay room is data loss, not sync. */
 function sameProject(d) {
-  var mine = projectId(), theirs = d && d.projectId;
-  if (!mine || !theirs) return true;
-  return mine === theirs;
+  return projectMatches(projectId(), d && d.projectId);
 }
 
 function sceneGetter() {
   return import("./ui.js").then(function (ui) { return ui.sceneObject(true); });
 }
 
-function applyScene(scene) {
+function applyScene(scene, from) {
   return import("./ui.js").then(function (ui) {
     /* The guard has to span the WHOLE apply: applyData is asynchronous when it
        must fetch the model builder first, and dropping the flag at the end of
@@ -150,6 +147,7 @@ function applyScene(scene) {
        reaching peers for the rest of the session. */
     return Promise.resolve().then(function () {
       applyingRemote = true;
+      if (!acceptRemote("plan_sync", from, remoteContext())) return false;
       // Document metadata travels with the snapshot; access and display preferences stay local.
       const incoming = scene.workspace ? { ...scene, workspace: { ...scene.workspace, role: S.workspace?.role || "editor", quality: S.workspace?.quality || "auto" } } : scene;
       return ui.applyData(incoming);
@@ -368,12 +366,88 @@ function paint() {
   import("./plan2d.js").then(function (p) { p.render2D(); });
 }
 
-function requestResync() {
-  var now = Date.now();
-  if (now - lastHello < 1500) return; // a resync storm is worse than a stale plan
-  lastHello = now;
-  sendData({ k: "plan_hello", projectId: projectId() });
+// Snapshot application is asynchronous. Buffering spans both transport and apply,
+// so a host edit can never be written to the old scene and then overwritten.
+export function createPlanFollower({ applyScene, applyOp, sendHello, paint = () => {},
+  getRev, setRev, now = () => Date.now(), maxBuffered = 2000 }) {
+  let revision = 0, phase = null, waitingAt = 0, buffer = [], overflow = false, generation = 0;
+  getRev = getRev || function() { return revision; };
+  setRev = setRev || function(value) { revision = value; };
+  function clear() { phase = null; buffer = []; overflow = false; }
+  function expire() {
+    if (phase === "waiting" && now() - waitingAt >= 15000) clear();
+  }
+  function request() {
+    expire();
+    if (phase) return false;
+    phase = "waiting"; waitingAt = now(); buffer = []; overflow = false;
+    sendHello(); return true;
+  }
+  function apply(d, from, replay) {
+    const next = Number(d.rev);
+    if (replay && Number.isFinite(next) && next <= getRev()) return true;
+    if (Number.isFinite(next) && next !== getRev() + 1) return false;
+    try { if (!applyOp(d.op, from)) return false; } catch (_) { return false; }
+    if (Number.isFinite(next)) setRev(next);
+    return true;
+  }
+  return {
+    request,
+    get syncing() { expire(); return !!phase; },
+    get rev() { return getRev(); },
+    reset() { generation++; clear(); },
+    transfer(ev) {
+      if (ev.state === "start") { phase = "transfer"; }
+      else if (ev.state === "failed") { generation++; clear(); request(); }
+    },
+    op(d, from) {
+      expire();
+      if (phase) {
+        if (buffer.length < maxBuffered) buffer.push({ d, from }); else overflow = true;
+        return;
+      }
+      if (apply(d, from, false)) paint(); else request();
+    },
+    async snapshot(d, from) {
+      const current = ++generation;
+      phase = "applying";
+      let applied = false;
+      try { applied = await applyScene(d.scene, from); } catch (_) {}
+      if (current !== generation) return false;
+      if (!applied) { clear(); return false; }
+      setRev(Number(d.rev) || 0);
+      let gap = overflow;
+      if (!gap) for (const packet of buffer) {
+        if (!apply(packet.d, packet.from, true)) { gap = true; break; }
+      }
+      clear();
+      if (gap) request();
+      paint();
+      return true;
+    },
+  };
 }
+
+export function createPlanSyncTriggers({ guestRoom, owner, request, changed = () => {} }) {
+  let previous = null;
+  return {
+    room() {
+      const current = guestRoom();
+      if (current === previous) return;
+      previous = current; changed();
+      if (current !== null) request();
+    },
+    peerJoin(ev) { if (guestRoom() !== null && ev?.code === owner()) request(); },
+  };
+}
+
+const follower = createPlanFollower({ applyScene, applyOp: function(op, from) {
+  const applied = applyIncoming(op);
+  if (applied) requestSurveyPhotos(S.workspace?.survey, from, projectId(), sendData).catch(function() {});
+  return applied;
+}, sendHello: function() { sendData({ k: "plan_hello", projectId: projectId() }, roomOwner()); },
+  paint, getRev: function() { return planRev; }, setRev: function(value) { planRev = value; } });
+function requestResync() { return follower.request(); }
 
 function applyIncoming(op) {
   applyingRemote = true;
@@ -385,7 +459,8 @@ function onData(ev) {
   var from = ev.from, d = ev.data;
   if (!d || typeof d !== "object") return;
   if (!sameProject(d)) return;
-  if(d.k?.startsWith('survey_photo_')){handleSurveyPhoto(d,from,S.workspace?.survey,projectId(),sendData).catch(()=>{});return;}
+  if (!acceptRemote(d.k, from, remoteContext())) return;
+  if(d.k?.startsWith('survey_photo_')){handleSurveyPhoto(d,from,S.workspace?.survey,projectId(),sendData,remoteContext).catch(()=>{});return;}
 
   if (d.k === "plan_cursor") {
     if (from === NET.code) return;
@@ -397,15 +472,15 @@ function onData(ev) {
   if (d.k === "plan_hello") {
     if (!isHome()) return;
     sceneGetter().then(function (scene) {
-      sendData({ k: "plan_sync", projectId: projectId(), rev: planRev, scene: scene }, from);
+      if (!sameProject(d) || !acceptRemote(d.k, from, remoteContext())) return;
+      sendLarge({ k: "plan_sync", projectId: projectId(), rev: planRev, scene: scene }, from);
     });
     return;
   }
 
   if (d.k === "plan_sync") {
     if (!d.scene || isHome()) return; // the host never adopts someone else's scene
-    planRev = Number(d.rev) || 0;
-    applyScene(d.scene).then(function (applied) { if (applied) {paint();requestSurveyPhotos(S.workspace?.survey,from,projectId(),sendData).catch(()=>{});} });
+    follower.snapshot(d, from).then(function (applied) { if (applied) requestSurveyPhotos(S.workspace?.survey,from,projectId(),sendData).catch(()=>{}); });
     return;
   }
 
@@ -415,7 +490,8 @@ function onData(ev) {
     if (!applyIncoming(d.op)) {
       // the host could not apply it, so the guest is out of date — resync them
       sceneGetter().then(function (scene) {
-        sendData({ k: "plan_sync", projectId: projectId(), rev: planRev, scene: scene }, from);
+        if (!sameProject(d) || !acceptRemote(d.k, from, remoteContext())) return;
+        sendLarge({ k: "plan_sync", projectId: projectId(), rev: planRev, scene: scene }, from);
       });
       return;
     }
@@ -430,18 +506,7 @@ function onData(ev) {
      which is harmless: every op is an absolute set. */
   if (d.k === "plan_op") {
     if (isHome() || !d.op) return;
-    var next = Number(d.rev);
-    if (Number.isFinite(next) && next !== planRev + 1) {
-      requestResync();
-      return;
-    }
-    if (applyIncoming(d.op)) {
-      requestSurveyPhotos(S.workspace?.survey,from,projectId(),sendData).catch(()=>{});
-      if (Number.isFinite(next)) planRev = next;
-      paint();
-    } else {
-      requestResync();
-    }
+    follower.op(d, from);
   }
 }
 
@@ -456,18 +521,25 @@ export function initPlanSync() {
   let photoPeerIndex=0,photoRetryBusy=false;
   setInterval(async()=>{
     if(photoRetryBusy||!NET.connected||!S.workspace?.survey?.photos?.length)return;
-    const peers=Object.keys(NET.peers);if(!peers.length)return;
+    const peers=Object.keys(NET.peers).filter(code=>acceptRemote('survey_photo_chunk',code,remoteContext()));if(!peers.length)return;
     photoRetryBusy=true;
     try{await requestSurveyPhotos(S.workspace.survey,peers[photoPeerIndex++%peers.length],projectId(),sendData);}catch{/* Retry after connectivity or storage recovers. */}
     finally{photoRetryBusy=false;}
   },15000);
   on("data", onData);
+  receiveLarge("plan_sync", function(from, header) {
+    return sameProject(header) && acceptRemote("plan_sync", from, remoteContext());
+  });
+  on("transfer", function(ev) {
+    if (ev.kind === "plan_sync" && ev.from === roomOwner() && NET.joined && !isHome()) follower.transfer(ev);
+  });
+  const triggers = createPlanSyncTriggers({ guestRoom: function() { return NET.joined && !isHome() ? NET.room : null; },
+    owner: roomOwner, request: requestResync, changed: function() { follower.reset(); } });
+  on("room", triggers.room);
   /* Imported lazily, and only here: plan2d pulls in most of the planner, and
      this module is loaded by anything that touches a plan op. */
   import("./plan2d.js").then(function (p) { p.onAfterRender(syncStructureIfChanged); });
-  on("peer-join", function () {
-    if (!isHome()) requestResync();
-  });
+  on("peer-join", triggers.peerJoin);
   // a cursor that never prunes is a ghost collaborator on the plan
   on("peer-leave", function (ev) { forgetPeer(ev && (ev.code || ev.from)); });
 }
@@ -493,7 +565,7 @@ export function broadcastPlanOp(op) {
     planRev += 1;
     sendData({ k: "plan_op", projectId: projectId(), rev: planRev, op: op });
   } else {
-    sendData({ k: "plan_op_req", projectId: projectId(), op: op });
+    sendData({ k: "plan_op_req", projectId: projectId(), op: op }, roomOwner());
   }
 }
 

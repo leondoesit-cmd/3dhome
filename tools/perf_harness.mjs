@@ -26,6 +26,7 @@
  */
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, extname, normalize } from "node:path";
@@ -68,6 +69,14 @@ const MIME = {
   ".wasm": "application/wasm", ".glb": "model/gltf-binary", ".gz": "application/gzip",
 };
 
+/* The css/styles_NN_<area>.css pieces of the planner stylesheet, in the order
+   index.html links them (read from it, so the list cannot drift). */
+function stylesPieces() {
+  const html = readFileSync(join(ROOT, "index.html"), "utf8");
+  return [...html.matchAll(/<link\b[^>]*\bhref="(css\/styles_\d+_[a-z0-9_]+\.css)(?:\?[^"]*)?"/g)]
+    .map((m) => "/" + m[1]);
+}
+
 /* The assets deliverable (a) reports on. */
 const DELIVERY_ASSETS = [
   "/index.html",
@@ -76,7 +85,7 @@ const DELIVERY_ASSETS = [
   "/js/icon_theme_assets.js",
   "/js/i18n.js",
   "/js/view3d.js",
-  "/css/styles.css",
+  ...stylesPieces(),
 ];
 
 /* Modules that are lazily imported by the game/extra modes. Anything matching

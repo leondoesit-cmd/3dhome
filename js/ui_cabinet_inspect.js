@@ -13,6 +13,7 @@ import { BANDING, PROFILES, sheetsFor, sheetById, sheetPrice, bandById, bandPPM,
 import { cabinetPresets, saveCabinetPreset, deleteCabinetPreset } from "./cabinet_presets.js";
 import { cabinetProductionPreset } from "./cabinet_production_presets.js";
 import { api, E, T, isEn, el, btn, sp, row, numInput, select, checkbox, formatCm } from "./ui_cabinet_ctx.js";
+import { moveColumn, moveSection, evenColumnWidths, columnsEven, mirrorLayout, setExactSize } from "./cabinet_layout_ops.js";
 
 export function matches(str) {
   return !E.q || String(str || "").toLowerCase().indexOf(E.q) >= 0;
@@ -47,7 +48,10 @@ export function fillHits() {
     if (!matches(doorLabel(k)) || n > 11) return;
     var fit = doorFit(k, fc),
       b = btn('<i class="ph ph-door"></i><span>' + doorLabel(k) + "</span>", function () {
-        var c = sp().cols[E.sel.col];
+        var ci = E.sel && E.sel.col != null ? E.sel.col : 0,
+          c = sp()?.cols[ci];
+        if (!c) return;
+        api.act(T("door"));
         c.door = c.door || {};
         c.door.t = k;
         api.touch();
@@ -61,10 +65,12 @@ export function fillHits() {
 }
 
 export function applySecType(k) {
+  if (!sp() || !E.sel || E.sel.col == null || !SEC[k]) return;
   var col = sp().cols[E.sel.col],
-    s = col && col.secs[E.sel.sec];
+    s = col && col.secs?.[E.sel.sec];
   if (!s) return;
   var m = SEC[k];
+  api.act(T("secType"));
   s.t = k;
   delete s.n;
   delete s.heights;
@@ -154,16 +160,16 @@ export function startBlank() {
 }
 
 function presetPreview(p) {
-  var family = FAM[p.fam], same = sp().fam === p.fam;
+  var s = sp(), family = FAM[p.fam] || FAM.wardrobe, same = !!(s && s.fam === p.fam);
   var width = E.it.w, height = same ? E.it.h : family.h, depth = same ? E.it.d : family.d;
-  var spec = makeSpec(p.id, width, height, depth, JSON.parse(JSON.stringify(E.it.cab)));
+  var spec = makeSpec(p.id, width, height, depth, s ? JSON.parse(JSON.stringify(s)) : undefined);
   var x = 2, total = spec.cols.reduce(function (sum, column) { return sum + column.w; }, 0);
   var lines = '<rect x="2" y="2" width="76" height="66" rx="1"/>';
   spec.cols.forEach(function (column) {
-    var w = 76 * column.w / total, y = 68, sum = column.secs.reduce(function (n, section) { return n + section.h; }, 0);
+    var w = total > 0 ? 76 * column.w / total : 0, y = 68, sum = column.secs.reduce(function (n, section) { return n + section.h; }, 0);
     if (x > 2) lines += '<path d="M' + x + ' 2V68"/>';
     column.secs.forEach(function (section, index) {
-      y -= 66 * section.h / sum;
+      y -= sum > 0 ? 66 * section.h / sum : 0;
       if (index < column.secs.length - 1) lines += '<path d="M' + x + ' ' + y + 'h' + w + '"/>';
     });
     x += w;
@@ -185,9 +191,10 @@ export function fillPresetCards(wrap, fam) {
       '<div class="cb-p-fam">' + famLabel(p.fam) + "</div>" + presetPreview(p);
     card.addEventListener("click", function () {
       var it = E.it,
+        s = sp(),
         f = FAM[p.fam];
       // a preset from another family brings that family's proportions with it
-      if (sp().fam !== p.fam) {
+      if (s && f && s.fam !== p.fam) {
         it.d = f.d;
         it.h = f.h;
         api.syncDimInputs();
@@ -271,6 +278,16 @@ function withFocusPreserved(wrap, renderFn) {
 }
 
 /* ================= elevation ================= */
+// an icon-only reorder button: the label lives in its tooltip and aria-label
+function moveBtn(icon, key, keys, cb, disabled) {
+  var b = btn('<i class="ph ' + icon + '"></i>', cb, "cb-sm cb-move");
+  b.title = T(key) + " (" + keys + ")";
+  b.setAttribute("aria-label", T(key));
+  b.setAttribute("aria-keyshortcuts", keys.replace("←", "ArrowLeft").replace("→", "ArrowRight").replace("↑", "ArrowUp").replace("↓", "ArrowDown"));
+  b.disabled = !!disabled;
+  return b;
+}
+
 export function fillInspector() {
   // the history panel is scoped to the selection, so it follows every pick —
   // and the inspector is the one thing every pick refreshes
@@ -339,6 +356,7 @@ export function fillInspector() {
         // are behind "more options" until they are asked for
         if (o.rank > 0 && !E.allTypes && !cur) return;
         var b = btn('<i class="ph ' + m.icon + '"></i><span>' + secLabel(k) + "</span>", function () {
+          api.act(secLabel(s.t) + " → " + secLabel(k));
           s.t = k;
           delete s.n;
           delete s.heights;
@@ -369,25 +387,25 @@ export function fillInspector() {
       ));
     if (dimmed && E.allTypes) wrap.appendChild(el("div", "cb-note", T("fitNote")));
     wrap.appendChild(row(T("secH"), numInput(s.h, function (v) {
-      s.h = v;
-      s.fixed = true;
-      api.touch();
-      api.changed();
+      setSectionHeight(E.sel.col, E.sel.sec, v);
     }, 8)));
     if (s.t === "drawers")
       wrap.appendChild(row(T("count"), numInput(s.n || Math.max(1, Math.round(s.h / STD.drawerH)), function (v) {
+        api.act(secLabel(s.t) + " · " + T("count"));
         s.n = Math.max(1, Math.round(v));
         delete s.heights;
         api.touch();
         api.changed();
-      }, 1, 8)));
+      }, 1, 8, null)));
     if (s.t === "shelves" || s.t === "shoe") {
       wrap.appendChild(row(T("count"), numInput(s.n != null ? s.n : Math.max(0, Math.round(s.h / (s.space || STD.shelfSpace)) - 1), function (v) {
+        api.act(secLabel(s.t) + " · " + T("count"));
         s.n = Math.max(0, Math.round(v));
         api.touch();
         api.changed();
-      }, 0, 20)));
+      }, 0, 20, null)));
       wrap.appendChild(row(T("spacing"), numInput(s.space || (s.t === "shoe" ? STD.shoeSpace : STD.shelfSpace), function (v) {
+        api.act(T("spacing"));
         s.space = v;
         delete s.n;
         api.touch();
@@ -396,13 +414,18 @@ export function fillInspector() {
     }
     if (s.t === "pullout")
       wrap.appendChild(row(T("count"), numInput(s.n || Math.max(1, Math.round(s.h / 24)), function (v) {
+        api.act(secLabel(s.t) + " · " + T("count"));
         s.n = Math.max(1, Math.round(v));
         api.touch();
         api.changed();
-      }, 1, 8)));
-    var br = el("div", "cb-btnrow");
+      }, 1, 8, null)));
+    // wraps: the reorder arrows (and a long Hebrew label) must not run off the panel
+    var br = el("div", "cb-btnrow cb-wrap");
     br.appendChild(btn('<i class="ph ph-rows-plus-bottom"></i> ' + T("splitSec"), splitSection));
     br.appendChild(btn('<i class="ph ph-trash"></i> ' + T("delSec"), delSection, "btn-danger"));
+    // compartments are listed bottom-up, so "up" is the next index
+    br.appendChild(moveBtn("ph-arrow-up", "moveSecUp", "Alt+↑", function () { moveSectionBy(1); }, E.sel.sec >= col.secs.length - 1));
+    br.appendChild(moveBtn("ph-arrow-down", "moveSecDown", "Alt+↓", function () { moveSectionBy(-1); }, E.sel.sec <= 0));
     if (isCorner(sp())) br.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
     wrap.appendChild(br);
   } else {
@@ -413,10 +436,7 @@ export function fillInspector() {
   var head = el("h5", "cb-h5", T("column") + " " + (E.sel.col + 1));
   wrap.appendChild(head);
   wrap.appendChild(row(T("colW"), numInput(col.w, function (v) {
-    col.w = v;
-    col.fixed = true;
-    api.touch();
-    api.changed();
+    setColumnWidth(E.sel.col, v);
   }, 12)));
   // the same fit table drives every picker below
   var Lc = layoutCab(E.it),
@@ -424,6 +444,7 @@ export function fillInspector() {
   wrap.appendChild(row(T("colKind"), select(Object.keys(COLKIND).map(function (k) {
     return [k, kindLabel(k), kindFit(k, cfc)];
   }), col.kind || "normal", function (v) {
+    api.act(T("colKind") + " → " + kindLabel(v));
     col.kind = v === "normal" ? undefined : v;
     // a filler is a strip of board, not a cabinet — give it a sane width
     if (v === "filler" && col.w > 15) {
@@ -447,6 +468,7 @@ export function fillInspector() {
     .map(function (o) {
       return [o.k, doorLabel(o.k) + (o.rank === 1 ? " ·" : ""), o.fit];
     }), (col.door || {}).t || "none", function (v) {
+    api.act(T("door") + " → " + doorLabel(v));
     col.door = col.door || {};
     col.door.t = v;
     api.touch();
@@ -454,18 +476,20 @@ export function fillInspector() {
   })));
   if (plain && col.door && ["hinged", "glass", "mirror", "folding"].indexOf(col.door.t) >= 0) {
     // "auto" is the default: one leaf up to a comfortable width, a pair above
-    var laid = E.view && E.view.L.cols[E.sel.col],
+    var laid = E.view?.L?.cols?.[E.sel?.col],
       autoN = laid ? laid.doorLeaves : 1;
     wrap.appendChild(row(T("leaves"), select(
       [["", T("auto") + " (" + autoN + ")"], ["1", "1"], ["2", "2"]],
       col.door.leaves ? String(col.door.leaves) : "",
       function (v) {
+        api.act(T("leaves"));
         col.door.leaves = v ? +v : null;
         api.touch();
         api.changed();
       })));
     if ((col.door.leaves || autoN) === 1)
       wrap.appendChild(row(T("hinge"), select([["L", T("hingeL")], ["R", T("hingeR")]], col.door.hinge || "R", function (v) {
+        api.act(T("hinge") + " → " + T(v === "L" ? "hingeL" : "hingeR"));
         col.door.hinge = v;
         api.touch();
         api.changed();
@@ -489,12 +513,31 @@ export function fillInspector() {
     wrap.appendChild(el("div", "cb-note", T("fillCol")));
     wrap.appendChild(fill);
   }
-  var br2 = el("div", "cb-btnrow");
+  var br2 = el("div", "cb-btnrow cb-wrap");
   br2.appendChild(btn('<i class="ph ph-columns-plus-right"></i> ' + T("splitCol"), splitColumn, "cb-sm"));
   br2.appendChild(btn('<i class="ph ph-copy"></i> ' + T("dupCol"), dupColumn, "cb-sm"));
   br2.appendChild(btn('<i class="ph ph-trash"></i> ' + T("delCol"), delColumn, "cb-sm btn-danger"));
+  // the drawing reads left to right whatever the language, so do these
+  br2.appendChild(moveBtn("ph-arrow-left", "moveColL", "Alt+←", function () { moveColumnBy(-1); }, E.sel.col <= 0));
+  br2.appendChild(moveBtn("ph-arrow-right", "moveColR", "Alt+→", function () { moveColumnBy(1); }, E.sel.col >= sp().cols.length - 1));
   if (isCorner(sp())) br2.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
   wrap.appendChild(br2);
+  /* Whole-cabinet rearrangements that sit naturally next to the column tools:
+     share the width out evenly, or turn the design round for the other end
+     of the room. */
+  if (!isCorner(sp())) {
+    var br3 = el("div", "cb-btnrow");
+    var even = btn('<i class="ph ph-arrows-out-line-horizontal"></i> ' + T("evenCols"), evenWidths, "cb-sm");
+    if (columnsEven(sp())) {
+      even.disabled = true;
+      even.title = T("evenColsDone");
+    } else even.title = T("evenColsTip");
+    br3.appendChild(even);
+    var mir = btn('<i class="ph ph-flip-horizontal"></i> ' + T("mirror"), mirrorCabinet, "cb-sm");
+    mir.title = T("mirrorTip");
+    br3.appendChild(mir);
+    wrap.appendChild(br3);
+  }
 
   /* carcass block */
   var ch = el("h5", "cb-h5", T("carcass"));
@@ -504,6 +547,7 @@ export function fillInspector() {
   wrap.appendChild(row(T("carcassMode"), select(Object.keys(CARCASS).map(function (k) {
     return [k, carcassLabel(k), carcassFit(k, cfc)];
   }), sp().carcass || "full", function (v) {
+    api.act(T("carcassMode") + " → " + carcassLabel(v));
     var s2 = sp(),
       was = s2.carcass || "full",
       f2 = FAM[s2.fam] || FAM.wardrobe;
@@ -531,6 +575,7 @@ export function fillInspector() {
     api.changed(true);
   })));
   wrap.appendChild(row(T("elev"), numInput(sp().elev || 0, function (v) {
+    api.act(T("elev"));
     sp().elev = v;
     api.changed(true);
   }, 0, 250)));
@@ -547,16 +592,19 @@ export function fillInspector() {
    every column, which is how a full-width shelf is meant to be drawn. */
 
 export function refillColumn(col, mode) {
+  if (!col || !sp()) return;
+  var H = E.view && E.view.L ? E.view.L.yt - E.view.L.yb : (E.it?.h || 240) - (sp().plinth || 0);
   api.act(T("fillCol"));
   api.touch();
-  col.secs = columnFill(mode, E.view.L.yt - E.view.L.yb, sp().panel);
-  E.sel = { col: E.sel.col, sec: 0 };
+  col.secs = columnFill(mode, H, sp().panel);
+  E.sel = { col: E.sel?.col ?? sp().cols.indexOf(col), sec: 0 };
   api.changed();
 }
 export function splitSection() {
-  if (!sp() || isCorner(sp())) return;
-  var col = sp().cols[E.sel.col],
-    i = E.sel.sec,
+  if (!sp() || isCorner(sp()) || !E.sel || E.sel.sec == null) return;
+  var col = sp().cols[E.sel.col];
+  if (!col || !col.secs || !col.secs[E.sel.sec]) return;
+  var i = E.sel.sec,
     s = col.secs[i],
     half = (s.h - (sp().shelf || sp().panel)) / 2;
   if (half < 10) return;
@@ -568,48 +616,137 @@ export function splitSection() {
   api.changed();
 }
 export function delSection() {
+  if (!sp() || !E.sel || E.sel.sec == null) return;
+  var col = sp().cols[E.sel.col];
+  if (!col || !col.secs[E.sel.sec] || col.secs.length <= 1) return;
   api.act(T("delSec"));
   api.touch();
-  var col = sp().cols[E.sel.col];
-  if (!col || col.secs.length <= 1) return;
   col.secs.splice(E.sel.sec, 1);
   E.sel.sec = Math.min(E.sel.sec, col.secs.length - 1);
   api.changed();
 }
 export function splitColumn() {
-  if (!sp() || isCorner(sp())) return;
+  if (!sp() || isCorner(sp()) || !E.sel || E.sel.col == null) return;
   var cols = sp().cols,
     i = E.sel.col,
-    c = cols[i],
-    half = (c.w - (isFloat(sp()) ? 0 : sp().panel)) / 2;
+    c = cols[i];
+  if (!c) return;
+  var half = (c.w - (isFloat(sp()) ? 0 : sp().panel)) / 2;
   if (half < 15) return;
   api.act(T("splitCol"));
   api.touch();
   c.w = half;
   delete c.fixed;
   var copy = JSON.parse(JSON.stringify(c));
+  delete copy.hid;
+  if (copy.secs) copy.secs.forEach(function (s) { delete s.hid; });
   copy.w = half;
   cols.splice(i + 1, 0, copy);
   api.changed();
 }
 export function dupColumn() {
-  if (!sp() || isCorner(sp())) return;
+  if (!sp() || isCorner(sp()) || !E.sel || E.sel.col == null) return;
+  var cols = sp().cols;
+  if (!cols[E.sel.col]) return;
   api.act(T("dupCol"));
   api.touch();
-  var cols = sp().cols,
-    copy = JSON.parse(JSON.stringify(cols[E.sel.col]));
+  var copy = JSON.parse(JSON.stringify(cols[E.sel.col]));
   delete copy.fixed;
+  delete copy.hid;
+  if (copy.secs) copy.secs.forEach(function (s) { delete s.hid; });
   cols.splice(E.sel.col + 1, 0, copy);
   api.changed();
 }
 export function delColumn() {
+  if (!sp() || !E.sel || E.sel.col == null) return;
+  var cols = sp().cols;
+  if (!cols || cols.length <= 1 || !cols[E.sel.col]) return;
   api.act(T("delCol"));
   api.touch();
-  var cols = sp().cols;
-  if (cols.length <= 1) return;
   cols.splice(E.sel.col, 1);
   E.sel = { col: Math.max(0, E.sel.col - 1), sec: 0 };
   api.changed();
+}
+/* An exact size typed for a compartment or a column (the inspector field or
+   a double-click on the drawing): the neighbours give or take the difference,
+   so the figure typed is the figure built — see setExactSize. */
+function secMin(s) {
+  return Math.max(STD.minSec, (SEC[s.t] || SEC.shelves).min);
+}
+function applyExactSize(list, i, cm, opts, label) {
+  // Preview on shallow copies: an impossible edit must not create history or
+  // mark the layout hand-edited. The real mutation still follows api.act.
+  var preview = list.map(function (member) { return Object.assign({}, member); });
+  if (setExactSize(preview, i, cm, opts) === list[i][opts.key]) return;
+  api.act(T(label));
+  api.touch();
+  setExactSize(list, i, cm, opts);
+  api.changed();
+}
+export function setSectionHeight(ci, si, cm) {
+  var col = sp() && sp().cols[ci];
+  if (!col || !col.secs || !col.secs[si] || !(cm > 0)) return;
+  applyExactSize(col.secs, si, cm, {
+    key: "h",
+    minOf: secMin,
+    flexOf: function (s) { return !s.fixed && !!(SEC[s.t] || SEC.shelves).flex; },
+  }, "secH");
+}
+export function setColumnWidth(ci, cm) {
+  var cols = sp() && sp().cols;
+  if (!cols || !cols[ci] || !(cm > 0)) return;
+  // Fillers and blind corners are set-size strips: they neither give nor
+  // receive room when an ordinary column is resized.
+  applyExactSize(cols, ci, cm, {
+    key: "w",
+    minOf: function (c) { return !c.kind || c.kind === "normal" ? STD.minCol : c.w; },
+    canGrow: function (c) { return !c.kind || c.kind === "normal"; },
+  }, "colW");
+}
+
+/* Reordering: the selected column or compartment trades places with its
+   neighbour (Alt+arrows, or the arrow buttons in the inspector). The
+   selection follows it, so pressing again keeps moving the same thing. */
+export function moveColumnBy(dir) {
+  if (!sp() || isCorner(sp()) || !E.sel || E.sel.col == null) return false;
+  var to = sp().cols[E.sel.col + (dir < 0 ? -1 : 1)];
+  if (!to) return false;
+  api.act(T(dir < 0 ? "moveColL" : "moveColR"));
+  api.touch();
+  E.sel = { col: moveColumn(sp(), E.sel.col, dir), sec: E.sel.sec };
+  api.changed();
+  return true;
+}
+export function moveSectionBy(dir) {
+  if (!sp() || isCorner(sp()) || !E.sel || E.sel.col == null || E.sel.sec == null) return false;
+  var col = sp().cols[E.sel.col];
+  if (!col || !col.secs || !col.secs[E.sel.sec + (dir < 0 ? -1 : 1)]) return false;
+  api.act(T(dir < 0 ? "moveSecDown" : "moveSecUp"));
+  api.touch();
+  E.sel = { col: E.sel.col, sec: moveSection(sp(), E.sel.col, E.sel.sec, dir) };
+  api.changed();
+  return true;
+}
+export function evenWidths() {
+  if (!sp() || isCorner(sp()) || columnsEven(sp())) return false;
+  api.act(T("evenCols"));
+  api.touch();
+  evenColumnWidths(sp());
+  api.changed();
+  return true;
+}
+export function mirrorCabinet() {
+  // tried on a copy first: a single column with no handed door has no mirror
+  // image, and the real spec must not be marked hand-edited for nothing
+  if (!sp() || isCorner(sp()) || !mirrorLayout({ cols: JSON.parse(JSON.stringify(sp().cols)) })) return false;
+  var cols = sp().cols.length;
+  api.act(T("mirror"));
+  api.touch();
+  mirrorLayout(sp());
+  // the selection stays on the same column, now at the other end
+  if (E.sel && E.sel.col != null) E.sel = { col: cols - 1 - E.sel.col, sec: E.sel.sec };
+  api.changed();
+  return true;
 }
 
 /* ================= appearance ================= */
@@ -687,8 +824,11 @@ export function fillLook() {
           s.stock = s.stock || {};
           s.stock[r[0]] = v;
           if (sh) {
-            if (r[0] === "carcass") s.panel = sh.t;
-            else if (r[0] === "back" && s.back > 0) s.back = sh.t;
+            if (r[0] === "carcass") {
+              var oldPanel = s.panel;
+              s.panel = sh.t;
+              if (!s.shelf || s.shelf === oldPanel) s.shelf = sh.t;
+            } else if (r[0] === "back" && s.back > 0) s.back = sh.t;
             else if (r[0] === "top" && s.top > 0) s.top = sh.t;
           }
           api.changed(true);
@@ -773,7 +913,11 @@ export function fillTechnical() {
         var sheet = sheetById(value);
         s.stock = s.stock || {};
         s.stock[entry[0]] = value;
-        if (sheet && entry[0] === "carcass") { s.panel = sheet.t; s.shelf = sheet.t; }
+        if (sheet && entry[0] === "carcass") {
+          var oldPanel = s.panel;
+          s.panel = sheet.t;
+          if (!s.shelf || s.shelf === oldPanel) s.shelf = sheet.t;
+        }
         if (sheet && entry[0] === "back" && s.back > 0) s.back = sheet.t;
         api.act(T(entry[1])); api.changed(true);
       })));
@@ -881,11 +1025,14 @@ export function fillMine() {
       // size this cabinet is, and never re-planned behind the user's back
       var cab = JSON.parse(JSON.stringify(u.cab));
       cab.auto = false;
+      api.act(T("opPreset") + " · " + (u.name || ""));
       E.it.cab = cab;
       normalizeSpec(cab, E.it.w, E.it.h, E.it.d);
       E.sel = { col: 0, sec: 0 };
       fillPresets();
       fillFamilies();
+      api.touch();
+      api.setTool(null);
       api.changed(true);
     });
     wrap.appendChild(card);
@@ -898,6 +1045,7 @@ export function fillHardware() {
   var wrap = E.host.querySelector("#cbHw");
   if (!sp()) return;
   wrap.innerHTML = "";
+  sp().hw = sp().hw || {};
   var hw = sp().hw;
   function pick(key, group, label) {
     wrap.appendChild(row(label, select(Object.keys(HW[group]).map(function (k) {
@@ -939,8 +1087,8 @@ export function fillBOM() {
   var L = layoutCab(E.it),
     boards = cutList(E.it, L),
     hwl = hardwareList(E.it, L);
-  var manufacturing = S.parametric && S.parametric.definitions[E.it.definitionId];
-  if (manufacturing && manufacturing.metadata.manufacturingReviewRequired) wrap.appendChild(el("div", "cb-check cb-warn", T("manufacturingReview")));
+  var manufacturing = S.parametric?.definitions?.[E.it.definitionId];
+  if (manufacturing?.metadata?.manufacturingReviewRequired) wrap.appendChild(el("div", "cb-check cb-warn", T("manufacturingReview")));
   var tb = el("table", "cb-bom");
   tb.innerHTML = "<thead><tr><th>" + T("boards") + "</th><th>" + T("qty") + "</th></tr></thead>";
   var body = el("tbody");
@@ -988,8 +1136,8 @@ export function exportBOM() {
     isEn() ? "Sheet material" : "חומר גלם",
     isEn() ? "Banding (m each)" : "קנט (מ׳ ליחידה)",
   ]];
-  var manufacturing = S.parametric && S.parametric.definitions[E.it.definitionId];
-  if (manufacturing && manufacturing.metadata.manufacturingReviewRequired) rows.push([T("manufacturingReview")]);
+  var manufacturing = S.parametric?.definitions?.[E.it.definitionId];
+  if (manufacturing?.metadata?.manufacturingReviewRequired) rows.push([T("manufacturingReview")]);
   cutList(E.it).forEach(function (r) {
     var sh = r.sheet ? sheetById(r.sheet) : null;
     rows.push([
@@ -1047,3 +1195,9 @@ api.fillMine = fillMine;
 api.fillHardware = fillHardware;
 api.fillBOM = fillBOM;
 api.exportBOM = exportBOM;
+api.moveColumnBy = moveColumnBy;
+api.moveSectionBy = moveSectionBy;
+api.evenWidths = evenWidths;
+api.mirrorCabinet = mirrorCabinet;
+api.setSectionHeight = setSectionHeight;
+api.setColumnWidth = setColumnWidth;

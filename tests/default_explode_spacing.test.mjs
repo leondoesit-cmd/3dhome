@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -14,7 +15,7 @@ test('automatic explosion scales to widest placed body with clearance, including
 });
 
 test('configuration-cleared active pointer reuses the saved seven grouped steps without creating a sixteen-step default',()=>{
- const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  const assembly={components:Array.from({length:17},(_,i)=>({id:i+1,transform:{x:i,y:0,z:0}})),activeExplodedView:null,explodedViews:[{id:'book-groups',name:'Exploded View 1',steps:Array.from({length:7},(_,i)=>({id:'step'+i,components:[String(i*2+2),String(i*2+3)],direction:{x:0,y:i+1,z:0}}))}]};
  const groups=JSON.stringify(assembly.explodedViews),poses=JSON.stringify(assembly.components.map(c=>c.transform));let opens=0;
  const context={E:{docType:'assembly',assembly},assemblyHasExplodedOffsets,explodeTargets,applyExplodedView,pushUndo:()=>{},t:x=>x,refreshAll:()=>{},fitPreview:()=>{},flash:()=>{},openExplodedPlayback:()=>opens++,createExplodedView:()=>{throw Error('must reuse saved groups');}};
@@ -23,20 +24,19 @@ test('configuration-cleared active pointer reuses the saved seven grouped steps 
 });
 
 test('new empty assembly still creates its first default exploded view safely',()=>{
- const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),assembly={components:[]};let opened=0;
+ const source=modelerSource(),assembly={components:[]};let opened=0;
  const context={E:{docType:'assembly',assembly},assemblyHasExplodedOffsets,explodeTargets,applyExplodedView,defaultExplodeLayout,createExplodedView,addExplodeStep,flattenAssembly,occurrenceWorldBounds:()=>null,pushUndo:()=>{},t:x=>x,refreshAll:()=>{},fitPreview:()=>{},flash:()=>{},openExplodedPlayback:()=>opened++};
  vm.runInNewContext(sourceFunctionText(source,'createDefaultExplodedView')+';createDefaultExplodedView();',context);
  assert.equal(assembly.explodedViews.length,1);assert.equal(assembly.explodedViews[0].steps.length,0);assert.equal(assembly.activeExplodedView,assembly.explodedViews[0].id);assert.equal(opened,1);
 });
 test('default explode UI uses placed bounds and reopens saved custom steps without changing them',()=>{
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
-  const start=source.indexOf('function createDefaultExplodedView()'),end=source.indexOf('let explodedPlaybackStop',start);
+  const source=modelerSource();
   const assembly={components:Array.from({length:8},(_,i)=>({id:i}))};
   let boundsCalls=0,applied;
   const context={E:{docType:'assembly',assembly},assemblyHasExplodedOffsets,defaultExplodeLayout,createExplodedView,addExplodeStep,
     explodeTargets:a=>a.components.map(component=>({component})),flattenAssembly,occurrenceWorldBounds:(c,placement)=>{assert.ok(placement.origin);boundsCalls++;return {x0:-2.5,x1:2.5,z0:-1,z1:1};},
     applyExplodedView:(a,id)=>{applied=id;},pushUndo:()=>{},t:s=>s,refreshAll:()=>{},fitPreview:()=>{},flash:()=>{},openExplodedPlayback:()=>{}};
-  vm.runInNewContext(source.slice(start,end)+'\ncreateDefaultExplodedView();',context);
+  vm.runInNewContext(sourceFunctionText(source,'createDefaultExplodedView')+'\ncreateDefaultExplodedView();',context);
   assert.equal(boundsCalls,8);assert.ok(Math.abs(assembly.explodedViews[0].steps.at(-1).direction.x-5.6)<1e-8);
   assert.ok(Math.abs(assembly.explodedViews[0].steps.at(-1).direction.z-5.2)<1e-8);
   const saved=assembly.explodedViews[0];saved.steps[0].direction.x=2.25;const before=structuredClone(saved);
@@ -58,7 +58,7 @@ test('compact default rows fit a vice and its small fasteners proportionately wi
 });
 
 test('explode action labels and accessible pressed state show both main and Pro ribbon presentation state',()=>{
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const button=()=>({label:{},attributes:{},querySelector(){return this.label;},setAttribute(key,value){this.attributes[key]=value;}}),main=button(),pro=button();
   const E={docType:'assembly',assembly:{components:[{id:1,explodedOffset:null},{id:2,explodedOffset:{x:50,y:0,z:0}}]}};
   const context={E,assemblyHasExplodedOffsets,t:key=>key,root:{querySelectorAll:()=>[main],ownerDocument:{querySelectorAll:()=>[pro]}}};

@@ -25,27 +25,49 @@ test("main.js signals readiness after installing persistence and finishing its f
   assert.ok(main.indexOf("initPersistence") < main.indexOf('detail: "main"'));
 });
 
-function bootstrap() {
+function bootstrap(saved = {}) {
   const attributes = new Map();
   const listeners = new Map();
+  const preloads = [];
   const root = {
     setAttribute: (key, value) => attributes.set(key, value),
     removeAttribute: key => attributes.delete(key),
     appendChild() {},
   };
   const document = {
+    head: { appendChild: node => preloads.push(node) },
     documentElement: root,
     body: root,
     getElementById: () => null,
     createElement: () => ({ setAttribute() {} }),
   };
   const window = { addEventListener: (name, fn) => listeners.set(name, fn) };
-  runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], {
-    document, window, localStorage: { getItem: () => null },
+  for (const script of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) runInNewContext(script[1], {
+    document, window, localStorage: { getItem: key => saved[key] || null },
     location: { protocol: "http:" },
   });
-  return { attributes, listeners, window };
+  return { attributes, listeners, window, preloads };
 }
+
+test("boot preloads only the selected locale and normalized icon theme", () => {
+  for (const [saved, expected] of [
+    [{}, ["js/icon_themes/lucide.js", "js/i18n/en.js"]],
+    [{home3d_lang:"he", home3d_icon_theme:"technical"}, ["js/icon_themes/tabler.js", "js/i18n/he.js"]],
+    [{home3d_lang:"invalid", home3d_icon_theme:"invalid"}, ["js/icon_themes/lucide.js", "js/i18n/en.js"]],
+  ]) {
+    const {preloads} = bootstrap(saved);
+    assert.deepEqual(preloads.map(node => node.href), expected);
+    assert.ok(preloads.every(node => node.rel === "modulepreload"));
+  }
+});
+
+test("optional preload failure preserves loading and leaves fallback to the actual import", () => {
+  const {attributes, listeners} = bootstrap();
+  listeners.get("error")({target:{tagName:"LINK",rel:"modulepreload"}});
+  assert.equal(attributes.get("data-boot"), "loading");
+  listeners.get("error")({target:{tagName:"SCRIPT"}});
+  assert.equal(attributes.has("data-boot"), false);
+});
 
 test("startup withholds the editor until both layout entry points finish in either order", () => {
   for (const order of [["main", "chrome"], ["chrome", "main"]]) {

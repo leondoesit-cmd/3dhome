@@ -26,6 +26,14 @@ export function setDisplayUnitVars(vars) {
   unitVars = vars && typeof vars === "object" ? vars : unitVars;
 }
 
+/* Per-element overrides for applyStatic's {u}: js/display_units.js gives a
+   field's label its own input's unit domain. A hook rather than an import
+   because the unit modules import this one. */
+var staticVars = null;
+export function setStaticUnitVars(fn) {
+  staticVars = typeof fn === "function" ? fn : null;
+}
+
 var lang = "en";
 try {
   var s = localStorage.getItem("home3d_lang");
@@ -92,7 +100,7 @@ export function applyStatic() {
   document.title = t("title");
   var q = document.querySelectorAll("[data-i18n]");
   for (var i = 0; i < q.length; i++)
-    q[i].textContent = t(q[i].getAttribute("data-i18n"));
+    q[i].textContent = t(q[i].getAttribute("data-i18n"), staticVars ? staticVars(q[i]) : undefined);
   q = document.querySelectorAll("[data-i18n-title]");
   for (i = 0; i < q.length; i++)
     q[i].title = t(q[i].getAttribute("data-i18n-title"));

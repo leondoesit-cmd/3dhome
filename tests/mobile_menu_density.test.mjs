@@ -1,25 +1,32 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile as readRaw } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
 
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+// Git may check sources out with CRLF (core.autocrlf); the block patterns below
+// are written against LF, so read every source with its line endings normalized.
+const readFile = async (url, encoding) => (await readRaw(url, encoding)).replace(/\r\n/g, "\n");
+
+const css = stylesSource();
 const planner = await readFile(new URL("../js/mobile_shell.js", import.meta.url), "utf8");
 const modeler = await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8");
-const modelerCore = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerCore = modelerSource();
 const cabinet = await readFile(new URL("../js/ui_cabinet_mobile.js", import.meta.url), "utf8");
 const main = await readFile(new URL("../js/main.js", import.meta.url), "utf8");
-const props = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf8");
+const props = moduleSource("js/ui_props.js");
 const cadHud = await readFile(new URL("../js/cad_hud.js", import.meta.url), "utf8");
 const pages = await readFile(new URL("../js/mobile_pages.js", import.meta.url), "utf8");
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const i18n = await readI18nSource();
-const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const interaction = moduleSource("js/interaction.js");
 const openingCommand = await readFile(new URL("../js/commands/opening_place.js", import.meta.url), "utf8");
 const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
-const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
-const view3d = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+const ui = moduleSource("js/ui.js");
+const view3d = moduleSource("js/view3d.js");
 const uiRooms = await readFile(new URL("../js/ui_rooms.js", import.meta.url), "utf8");
 
 test("mobile shells reserve only one 48px nav and one 44px context row", () => {
@@ -200,9 +207,10 @@ test("phone planner chrome keeps readable nav labels and hides the 2D view cube"
   });
   assert.match(view3d, /compact \? 1\.05 : 0\.95/);
   assert.match(view3d, /clamp\(ceilingHeight\(\) \* 0\.78, 180, 230\)/);
-  assert.match(view3d, /framedInterior = compact/);
-  assert.match(view3d, /\(!!S\.edit3D \|\| framedInterior\)/);
-  assert.match(view3d, /if \(changed\) needsRender = true/);
+  assert.match(view3d, /(?:framedInterior = |set_framedInterior\()compact/);
+  // the phone's framed interior cuts the near walls whatever the Walls switch says
+  assert.match(view3d, /\(\(!!S\.edit3D && nearCutOn\(\)\) \|\| framedInterior\)/);
+  assert.match(view3d, /if \(changed\) (?:needsRender = true|set_needsRender\(true\))/);
   assert.match(view3d, /compact && effective === "performance"\) effective = "balanced"/);
 });
 
@@ -257,7 +265,9 @@ test("object snapping stays reachable while a phone draw tool is active", () => 
 test("touch instructions use explicit translation variants", () => {
   assert.match(i18n, /export function tTouch\(/);
   assert.match(i18n, /hint_tool_rect_touch:\s*"Tap the first corner/);
-  assert.match(chrome, /tTouch\("hint_tool_rect"\)/);
+  // first corner, then the opposite one: both hints have touch wording
+  assert.match(i18n, /hint_tool_rect_next_touch:\s*"Tap the opposite corner/);
+  assert.match(chrome, /tTouch\(S\.rectDraft \? "hint_tool_rect_next" : "hint_tool_rect"\)/);
   assert.match(cadHud, /tTouch\("hint_tool_slabvoid"\)/);
   assert.match(cadHud, /S\.placeType[\s\S]*?tTouch\("hint_tool_place"\)/);
   assert.match(cadHud, /S\.tool === "door"[\s\S]*?tTouch\("hint_tool_opening"\)/);

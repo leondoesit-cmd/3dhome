@@ -1,3 +1,6 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -215,7 +218,7 @@ test("paint applies the current drawing type without moving nodes", () => {
   assert.equal(wall.layersReversed, true);
 });
 
-const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const interaction = moduleSource("js/interaction.js");
 
 test("wall commits split hosts they draw through and close a loop back to the start", () => {
   assert.match(interaction, /splitCrossedByNewWall\(made\)/);
@@ -228,13 +231,13 @@ test("wall commits split hosts they draw through and close a loop back to the st
 test("curved walls stay armed so the next arc continues from the last end", () => {
   assert.match(interaction, /S\.arcDraft = \{ startNode: endNode, through: null \}/);
   assert.doesNotMatch(
-    interaction.slice(interaction.indexOf("export function arcWallPoint"), interaction.indexOf("export function wallPointPolar")),
+    sourceFunctionText(interaction, "arcWallPoint"),
     /select\(\{ kind: "wall"/,
   );
 });
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const css = stylesSource();
 
 test("wall palette docks beside the plan toolbar instead of overlapping it", () => {
   assert.match(html, /id="plan-tools"/);

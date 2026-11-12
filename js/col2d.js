@@ -129,15 +129,20 @@ export function buildSpatialIndex(col, cellSize, queryPadding) {
   return col.spatial;
 }
 
-function pushPoint(p, cx, cz, minR, soft, state) {
+// (fx, fz): unit direction to use when the centre sits exactly on the point
+// (a segment passes its normal); +x otherwise.
+function pushPoint(p, cx, cz, minR, soft, state, fx, fz) {
   var nx = p.x - cx,
     nz = p.z - cz,
     d = Math.hypot(nx, nz);
   if (d >= minR) return;
   if (d < 1e-6) {
-    nx = 1;
-    nz = 0;
+    // (nx, nz) must keep length d, since the push below scales it by pen / d —
+    // a unit vector here flung a body standing exactly on a wall line
+    // ~minR * 1e6 away.
     d = 1e-6;
+    nx = (fx != null ? fx : 1) * d;
+    nz = (fz != null ? fz : 0) * d;
   }
   var pen = minR - d;
   // clamp single push so a deep embed can't fling the body across the room
@@ -160,8 +165,9 @@ function pushSeg(s, p, r, soft, state) {
   var tt = clamp(((p.x - s.ax) * dx + (p.z - s.az) * dz) / L2, 0, 1);
   var cx = s.ax + dx * tt,
     cz = s.az + dz * tt;
-  var half = s.half || 0;
-  pushPoint(p, cx, cz, r + half, soft, state);
+  var half = s.half || 0,
+    L = Math.sqrt(L2);
+  pushPoint(p, cx, cz, r + half, soft, state, -dz / L, dx / L);
   // endpoint discs catch corners the capsule projection can miss when sliding
   if (tt <= 0.02) pushPoint(p, s.ax, s.az, r + half, soft, state);
   else if (tt >= 0.98) pushPoint(p, s.bx, s.bz, r + half, soft, state);
@@ -236,10 +242,16 @@ export function collideCircle(col, p, r, y, clear, step, opt) {
   state.hit = 0;
   state.hard = 0;
   for (var pass = 0; pass < passes; pass++) {
-    var before = state.hit;
+    // `hit` is a running MAX, so measure this pass on its own: comparing the
+    // max before and after stopped relaxing whenever a later pass pushed less
+    // than the first one, i.e. almost always after pass 2.
+    var prior = state.hit;
+    state.hit = 0;
     colPass(col, p, r, y, clear, step, opt, state);
+    var passHit = state.hit;
+    state.hit = Math.max(prior, passHit);
     // early out when stable
-    if (pass > 0 && state.hit - before < 0.02) break;
+    if (pass > 0 && passHit < 0.02) break;
   }
   if (opt.hardOut) opt.hardOut.value = state.hard;
   return state.hit;

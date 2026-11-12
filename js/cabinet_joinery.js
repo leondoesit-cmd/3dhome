@@ -83,7 +83,9 @@ export function createSavedCabinetJoinery(items, request, {id='joinery-'+Date.no
   const report = planCabinetJoinery(current);
   if (!report.operations.length) throw new Error(report.issues.map(issue=>issue.message).join(' '));
   if (typeof id!=='string'||!id.trim()||typeof reviewedAt!=='string'||!Number.isFinite(Date.parse(reviewedAt))) throw new Error('A plan ID and valid review timestamp are required.');
-  const manifest=cabinetProductionParts(items), ownerItemId=manifest.parts.find(p=>p.id===current.facePanel.id).itemId;
+  const manifest=cabinetProductionParts(items), facePart=manifest.parts.find(p=>p.id===current.facePanel.id);
+  if (!facePart) throw new Error('Face panel not found in production parts.');
+  const ownerItemId=facePart.itemId;
   return {schema:'modelforge-saved-joinery',version:1,id,ownerItemId,request:copy(current),binding:joineryBinding(manifest,current),reviewedAt};
 }
 export function cabinetSavedJoineryReport(items=[]) {

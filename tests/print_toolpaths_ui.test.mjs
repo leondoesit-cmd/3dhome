@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -9,7 +10,7 @@ import {prepareNativePrintPositions} from '../js/core/print_setup.js';
 import {printMeshFromPositions} from '../js/cad_3mf.js';
 import {stlMeshOptions} from '../js/cad_stl.js';
 import {proTools} from '../js/pro_catalog.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const handler=source.slice(source.indexOf('async function openFffSlicePreview()'),source.indexOf('async function openPrintSetupForm()'));
 function harness(change){
   const vertices=[[-.5,0,.5],[.5,0,.5],[.5,0,-.5],[-.5,0,-.5],[-.5,.1,.5],[.5,.1,.5],[.5,.1,-.5],[-.5,.1,-.5]],triangles=[[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];

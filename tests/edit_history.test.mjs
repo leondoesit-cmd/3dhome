@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -5,7 +6,7 @@ import { createHistory } from "../js/edit_history.js";
 
 test("plan undo cancels a continued-wall gesture before rendering restored nodes", async () => {
   const historySource = await readFile(new URL("../js/history.js", import.meta.url), "utf8");
-  const planSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
+  const planSource = moduleSource("js/plan2d.js");
   const stateSource = await readFile(new URL("../js/state.js", import.meta.url), "utf8");
 
   /* The list itself now lives in state.js, shared with the floor switch, which
@@ -209,4 +210,42 @@ test("the cap prunes abandoned branches before the path you are on", () => {
   assert.ok(H.length() <= 7, "the cap is honoured");
   assert.ok(labels.includes("more12"), "the newest step on the live branch survives");
   assert.ok(!labels.includes("main4"), "the abandoned branch withered first");
+});
+test("document revisions follow their own edits through coalescing, undo and tree replacement",()=>{
+  let scope="part", value="original";
+  const history=createHistory({get:()=>value,set:s=>{value=s;},editScope:()=>scope}).seed();
+  history.push("width","drag");value="first";const first=history.editRevision("part");
+  history.push("width","drag");value="second";const second=history.editRevision("part");
+  assert.notEqual(first,second,"editing the same node after Save still dirties the Part");
+  scope="assembly";history.push("placement","drag");value="placed";
+  const placement=history.editRevision("assembly");assert.equal(history.editRevision("part"),second);
+  history.undo();assert.equal(value,"second");assert.equal(history.editRevision("assembly"),0);
+  history.redo();assert.equal(value,"placed");assert.equal(history.editRevision("assembly"),placement);
+  history.clear().seed();assert.equal(history.editRevision("part"),second);
+  history.push("temporary");history.discard();assert.equal(history.editRevision("assembly"),placement);
+  history.begin("drag");const duringDrag=history.editRevision("assembly");value="moved after Save";history.commit();
+  assert.notEqual(history.editRevision("assembly"),duringDrag,"a save during a gesture cannot mark its later result clean");
+  history.undo();assert.equal(history.editRevision("assembly"),placement);
+});
+
+test("history generation distinguishes replacement trees that reuse node numbers",()=>{
+  let model="first";
+  const history=createHistory({get:()=>model,set:value=>{model=value;}}).seed();
+  history.push("edit");model="second";
+  const generation=history.generation,session=history.saveSession();
+  const node=()=>history.tree().find(entry=>entry.current)?.i;
+  const edited=node();
+  history.undo();history.redo();
+  assert.equal(node(),edited);
+  assert.equal(history.generation,generation);
+  history.clear();
+  const cleared=history.generation;
+  assert.notEqual(cleared,generation);
+  history.seed();history.push("different edit");
+  assert.equal(node(),edited);
+  const reseeded=history.generation;
+  assert.notEqual(reseeded,cleared);
+  history.loadSession(session);
+  assert.equal(node(),edited);
+  assert.notEqual(history.generation,reseeded);
 });

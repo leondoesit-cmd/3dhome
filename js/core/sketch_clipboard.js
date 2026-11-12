@@ -70,6 +70,8 @@ export function pasteSketchGeometry(clip, makeId) {
     return ids.get(id);
   };
   const points = clone(clip.points || []).map((point) => ({ ...point, id: fresh(point.id) }));
+  // Allocate the whole identity map before following any geometry references.
+  clip.entities.forEach(entity => fresh(entity.id));
   const remapObject = (object, keys) => {
     const copy = clone(object);
     keys.forEach((key) => { if (copy[key] != null && ids.has(copy[key])) copy[key] = ids.get(copy[key]); });
@@ -84,11 +86,17 @@ export function pasteSketchGeometry(clip, makeId) {
     return copy;
   });
   const relationKeys = ["point", "entity", "a", "b", "center", "line", "circle"];
+  const remapRelation = relation => {
+    const copy = remapObject(relation, relationKeys);
+    for (const key of ['pairs', 'spins', 'shapes']) if (Array.isArray(copy[key]))
+      copy[key] = copy[key].map(pair => pair.map(id => ids.get(id) ?? id));
+    return copy;
+  };
   const constraints = clone(clip.constraints || []).map((constraint) => {
-    const copy = remapObject(constraint, relationKeys);
+    const copy = remapRelation(constraint);
     copy.id = makeId();
     return copy;
   });
-  const dimensions = clone(clip.dimensions || []).map((dimension) => ({ ...remapObject(dimension, relationKeys), id: makeId() }));
+  const dimensions = clone(clip.dimensions || []).map((dimension) => ({ ...remapRelation(dimension), id: makeId() }));
   return { name: clip.name, points, entities, constraints, dimensions };
 }

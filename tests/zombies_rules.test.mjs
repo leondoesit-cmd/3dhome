@@ -1,3 +1,5 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { awardRunPoints, encounterCap, securedCount, reachableFloor, cameraPose } from '../js/zombies_rules.js';
@@ -55,9 +57,9 @@ test('camera motion is bounded, frame-rate independent, and comfort controls wor
 // Execute the actual gameplay boundaries with minimal world/audio adapters.
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
-const gameSource = readFileSync(new URL('../js/zombies_game.js', import.meta.url), 'utf8');
-function gameFunction(name, next, context) {
-  const source = gameSource.slice(gameSource.indexOf('function ' + name + '('), gameSource.indexOf('function ' + next + '('));
+const gameSource = moduleSource("js/zombies_game.js");
+function gameFunction(name, context) {
+  const source = sourceFunctionText(gameSource, name);
   return vm.runInNewContext('(' + source.trim() + ')', context);
 }
 test('normal spawn locks stronger weapons with no hidden ammunition; sandbox unlocks them', () => {
@@ -65,7 +67,7 @@ test('normal spawn locks stronger weapons with no hidden ammunition; sandbox unl
   const context = { interiorBounds:()=>null, liveRooms:()=>[], freeSpot:(x,z)=>({x,z}), P_RAD:24, MAX_HP:100,
     gameSettings:()=>({sandbox}), W_ORDER:['knife','pistol','shotgun'],
     W:{knife:{melee:true},pistol:{mag:12,reserve:72},shotgun:{mag:8,reserve:24}} };
-  const spawn = gameFunction('newPlayer','hurtPlayer', context);
+  const spawn = gameFunction('newPlayer', context);
   const p = spawn();
   assert.equal(p.owned.knife,true); assert.equal(p.owned.pistol,true);
   assert.equal(p.owned.shotgun,false); assert.equal(p.ammo.shotgun,0); assert.equal(p.reserve.shotgun,0);
@@ -75,7 +77,7 @@ test('normal spawn locks stronger weapons with no hidden ammunition; sandbox unl
 test('supply purchase spends credits once and does not award ammunition for locked guns', () => {
   const Z = {score:900,credits:350,wave:{state:'rest'},intermission:{chosen:false},
     p:{owned:{pistol:true},reserve:{pistol:0},frags:0},flash:{batt:0}};
-  const buy=gameFunction('buyIntermission','updateDirector',{
+  const buy=gameFunction('buyIntermission',{
     Z, INTERMISSION_OFFERS:{ammo:{cost:300}}, W_ORDER:['pistol','shotgun'], W:{pistol:{mag:12},shotgun:{mag:8}},
     FRAG:{maxCarry:6}, sndPerk(){},flashScreen(){},say(){},t:k=>k,hudDirty(){}
   });

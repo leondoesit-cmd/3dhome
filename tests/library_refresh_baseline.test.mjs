@@ -1,4 +1,6 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
+import { sourceFunctionText, withSetters } from "./helpers/source_function.mjs";
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
@@ -6,9 +8,7 @@ import {putModelLibraryRecord,loadModelLibrary,putAssemblyLibraryRecord} from '.
 import {compactAssemblyTopologySnapshots} from '../js/core/project_topology_budget.js';
 
 test('cross-tab saves refresh the assembly insertion catalogue without changing authored occurrences', async () => {
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
-  const start=source.indexOf('async function refreshLibraryFromOtherTab() {');
-  const end=source.indexOf('\nif(libraryChannel)',start);
+  const source=modelerSource();
   const saved={key:'fresh-holder',name:'Revised holder',parts:[{id:'body'}]};
   const assembly={key:'working-arm',components:[{id:'holder',modelKey:saved.key,
     transform:{x:8.5,y:8.3,z:0,ry:180},def:{name:'Existing occurrence snapshot'}}],mates:[{id:'hinge'}]};
@@ -22,7 +22,7 @@ test('cross-tab saves refresh the assembly insertion catalogue without changing 
     E:{open:true,docType:'assembly',assembly,sel:selected},registerCustomModel:()=>{},
     refreshCatalogSelect:()=>{},refreshLib:()=>{},
     refreshComponents:()=>{calls++;rendered=context.modelLibraryCache.map(model=>({key:model.key,name:model.name}));}};
-  runInNewContext(source.slice(start,end)+'\nthis.refresh=refreshLibraryFromOtherTab;',context);
+  runInNewContext(withSetters(sourceFunctionText(source,'refreshLibraryFromOtherTab'))+'\nthis.refresh=refreshLibraryFromOtherTab;',context);
   await context.refresh();
   assert.equal(calls,1,'the assembly chooser must receive the shared save');
   assert.deepEqual(rendered,[{key:saved.key,name:saved.name}]);
@@ -35,16 +35,13 @@ test('cross-tab saves refresh the assembly insertion catalogue without changing 
 });
 
 test('cross-tab catalogue registration leaves stored library baselines exact and preserves real conflict detection', async () => {
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
-  const start=source.indexOf('async function refreshLibraryFromOtherTab() {');
-  const end=source.indexOf('\nif(libraryChannel)',start);
-  assert.ok(start>=0 && end>start);
+  const source=modelerSource();
   const record={key:'refresh-baseline-regression',name:'Authored part',parts:[{kind:'kernel',meshData:{positions:[0,1,2]}}]};
   await putModelLibraryRecord(record);
   const context={modelLibraryCache:[],assemblyLibraryCache:[],loadModelLibrary,loadAssemblyLibrary:async()=>[],
     writeLibraryIndex:()=>{},writeAssemblyIndex:()=>{},cloneData:structuredClone,FURN:{},PRICE:{},root:null,
     registerCustomModel:model=>{model.parts[0].name='Catalogue default';model.w=1;}};
-  runInNewContext(source.slice(start,end)+'\nthis.refresh=refreshLibraryFromOtherTab;',context);
+  runInNewContext(withSetters(sourceFunctionText(source,'refreshLibraryFromOtherTab'))+'\nthis.refresh=refreshLibraryFromOtherTab;',context);
   await context.refresh();
   const baseline=context.modelLibraryCache.find(model=>model.key===record.key);
   assert.deepEqual(baseline,record,'normalization must not mutate the optimistic baseline');
@@ -54,7 +51,7 @@ test('cross-tab catalogue registration leaves stored library baselines exact and
 });
 
 test('opening a compacted assembly keeps the full stored optimistic baseline', async () => {
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('var occurrenceSnapshot=compactAssemblyTopologySnapshots(assembly);');
   const end=source.indexOf('S.idc = nextDocumentNumericId',start);
   assert.ok(start>=0 && end>start);
@@ -68,7 +65,7 @@ test('opening a compacted assembly keeps the full stored optimistic baseline', a
   await putAssemblyLibraryRecord(record);
   const context={assembly:record,E:{},assemblyOpenBaseline:null,cloneData:structuredClone,
     compactAssemblyTopologySnapshots:assembly=>compactAssemblyTopologySnapshots(assembly,100)};
-  runInNewContext(source.slice(start,end),context);
+  runInNewContext(withSetters(source.slice(start,end)),context);
   assert.deepEqual(Object.keys(context.E.assembly.components[0].def.exactTopologyCache),['final']);
   assert.deepEqual(context.assemblyOpenBaseline,record);
   context.E.assembly.mates.push({id:'shoulder',type:'distance',distance:.05});

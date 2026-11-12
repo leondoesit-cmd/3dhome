@@ -1,10 +1,13 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { sourceFunctionText } from './helpers/source_function.mjs';
 
-const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const css = stylesSource();
 const mdMobile = await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8");
-const md = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const md = modelerSource();
 /* The editor's [he, en] table, split out of js/modeler.js. */
 const mdStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 const mdTopologyPick = await readFile(new URL("../js/modeler_topology_pick.js", import.meta.url), "utf8");
@@ -154,14 +157,22 @@ test("modeler: touch selection has modifier-free parity", () => {
   assert.match(editorView, /e\.button === 0 \|\| e\.pointerType === "touch"/);
   assert.match(mdMobile, /touchAddSelection/);
   assert.match(mdMobile, /api\.clearSelection/);
-  assert.match(mdMobile, /api\.setSelFilter\(filters\[\(at \+ 1\)/);
+  let state={topologyCount:1,selFilter:'all'};
+  const controls=[],api={state:()=>state,setSelFilter:filter=>{state.selFilter=filter;}};
+  const render=Function('api','selectionBar','btn','t','return ('+sourceFunctionText(mdMobile,'renderSelectionBar')+')')(api,{appendChild:button=>controls.push(button)},spec=>spec,key=>key);
+  render();
+  const filter=controls.find(button=>button.ph==='ph-funnel');
+  state.selFilter='edge';filter.run();assert.equal(state.selFilter,'body');
+  state.selFilter='body';filter.run();assert.equal(state.selFilter,'all');
 });
 
 test("modeler: selected geometry keeps CAD verbs separate from selection management", () => {
   assert.match(mdMobile, /function renderSelectionBar\(/);
   assert.match(mdMobile, /selectionBar\.appendChild\(btn\(/);
   assert.match(mdMobile, /var sug = selected \|\| st\.closedSketch \? null : api\.coach\(\)/);
-  assert.match(mdMobile, /api\.contextItems\(\)\.forEach\(function \(item\) \{/);
+  const commands=[],api={state:()=>({mode:'3d',topologyCount:1}),contextItems:()=>[{id:'measure'}],chromeLabel:id=>id,runChrome:id=>commands.push(id)};
+  const actions=Function('api','CTX_MAX_ACTIONS','sync','return ('+sourceFunctionText(mdMobile,'ctxActions')+')')(api,3,()=>{})();
+  assert.deepEqual(actions.map(item=>item.action),['measure']);actions[0].run();assert.deepEqual(commands,['measure']);
   assert.match(mdMobile, /function push\(item\)/);
   assert.doesNotMatch(mdMobile, /if \(selected\) \{[\s\S]{0,800}return \[/);
   assert.match(css, /body\.compact-nav #md-selection-bar:not\(\[hidden\]\)/);
@@ -195,7 +206,7 @@ test("modeler: feature form on a phone borrows Tree, Extrude stays on the thumb 
 
 test("modeler: mobile command sheets expose height and remember disclosures", () => {
   assert.match(mdMobile, /class="m-sheet-x md-sheet-expand"/);
-  assert.match(mdMobile, /openCommandGroups\[head\.textContent\.trim\(\)\]/);
+  assert.match(mdMobile, /openCommandGroups\[head\.dataset\.groupLabel\]/);
   assert.match(mdMobile, /md-group-summary/);
   assert.match(css, /#modeler #md-sheet\.tall \.md-sheet-expand/);
 });
@@ -207,18 +218,20 @@ test("modeler: mobile tutorial track teaches touch CAD layout and bottom sheet w
   assert.match(mdMobile, /export function showModelerSheet/);
   assert.match(mdMobile, /export function closeModelerSheet/);
   assert.match(mdMobile, /grp\.classList\.add\("md-group-open"\)/);
-  assert.match(mdStrings, /guideSelectTipMobile/);
-  assert.match(mdStrings, /guidePairBodyMobile/);
-  assert.match(mdStrings, /assemblyPairBodyMobile/);
-  assert.match(css, /body\.compact-nav #modeler \.md-tour-card/);
-  assert.match(md, /target: '\[data-mdnav="cmd"\]'/);
+  assert.match(mdStrings, /guideMobileSelectTip/);
+  assert.match(mdStrings, /guideMobileExtrudeBody/);
+  // the pro-compact phone dock first, the older bottom nav as the fallback
+  assert.match(md, /target:\["#modeler \.ps-dock-grid", '\[data-mdnav="cmd"\]'\]/);
   assert.match(md, /target: '\[data-md-action="extrude"\]'/);
   assert.match(md, /autoCollapseMobile: true/);
+  assert.match(md, /bodyMobile:/);
   assert.match(mdStrings, /guideContinueEditing/);
-  assert.match(md, /id="mdTourRestart"/);
+  assert.match(md, /id="mdTourSkip" class="md-tour-showme"/);
   assert.match(mdMobile, /b\.dataset\.mdAction = spec\.action/);
   assert.match(css, /body\.compact-nav #modeler \.md-command kbd/);
-  const mobileTrack = md.slice(md.indexOf("function mobileTourSteps"), md.indexOf("function sketchTourSteps"));
+  const trackStart = md.indexOf("function mobileTourSteps");
+  const mobileTrack = md.slice(trackStart, md.indexOf("\n}\n", trackStart));
+  assert.ok(mobileTrack.length > 200, "the phone track source was not found");
   assert.doesNotMatch(mobileTrack, /#md-ctx|#md-selection-bar|touch slop|Sketch drawer/);
   assert.match(md, /guideMoreProjects/);
   assert.match(md, /class="md-tour-more"/);

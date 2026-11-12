@@ -61,6 +61,11 @@ async function writeAutoDB(snap) {
     tx.objectStore(RECOVERY_STORE).put(Object.assign({ id: "latest" }, snap));
     tx.oncomplete = function () { database.close(); resolve(); };
     tx.onerror = function () { database.close(); reject(tx.error); };
+    /* A quota failure at commit ABORTS the transaction without a request
+       error: without this the promise never settled, the localStorage
+       fallback never ran and the connection stayed open. close() and the
+       promise are idempotent, so error + abort both firing is harmless. */
+    tx.onabort = function () { database.close(); reject(tx.error || new Error("autosave aborted")); };
   });
 }
 async function readAutoDB() {
@@ -71,6 +76,7 @@ async function readAutoDB() {
     req.onsuccess = function () { resolve(req.result || null); };
     req.onerror = function () { reject(req.error); };
     tx.oncomplete = function () { database.close(); };
+    tx.onabort = function () { database.close(); reject(tx.error || new Error("read aborted")); };
   });
 }
 async function clearAutoDB() {
@@ -80,6 +86,7 @@ async function clearAutoDB() {
     tx.objectStore(RECOVERY_STORE).delete("latest");
     tx.oncomplete = function () { database.close(); resolve(); };
     tx.onerror = function () { database.close(); resolve(); };
+    tx.onabort = function () { database.close(); resolve(); };
   });
 }
 
@@ -134,8 +141,14 @@ function writeAuto() {
     catch (e) { warnQuota(); }
   }).catch(function () {
     // IndexedDB failed; a compact scene can still ride in localStorage.
-    try { localStorage.setItem(AUTO_KEY, JSON.stringify(json.length < 500000 ? snap : { at: snap.at, session: sessionId, indexedDB: false })); }
-    catch (e) { warnQuota(); }
+    var held = false;
+    try {
+      localStorage.setItem(AUTO_KEY, JSON.stringify(json.length < 500000 ? snap : { at: snap.at, session: sessionId, indexedDB: false }));
+      held = json.length < 500000;
+    } catch (e) { warnQuota(); }
+    // Nothing holds this payload when it was too big for the fallback or that
+    // failed too: let the next write try again instead of skipping it as written.
+    if (!held && lastWritten === json) lastWritten = null;
   });
 }
 function warnQuota() {

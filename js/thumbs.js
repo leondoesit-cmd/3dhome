@@ -3,13 +3,14 @@
 // The old tile art was a fake isometric box scaled to the entry's w/d/h, so a
 // sofa, a fridge and a rug all came out as the same slab in a different color —
 // nothing in the icon told you what the piece was. Here the piece is built with
-// its own build() into a small offscreen WebGL scene, lit and auto-framed, so
+// its own build() into a small offscreen 3D scene, lit and auto-framed, so
 // the icon IS the model. Same builder as the 3D view, so a model can never
 // disagree with its icon.
 import { THREE } from "./three_lazy.js";
-import { offscreenGL, offscreenPending, useRig } from "./offscreen_gl.js";
+import { offscreenGL, offscreenPending, offscreenIdle, useRig, shrinkAll, useSmallTextures, dropSmallTextures } from "./offscreen_gl.js";
 import { FURN, buildItem } from "./furniture.js";
 import { clearGroup } from "./primitives.js";
+import { quietPbrLoads, pbrLoading } from "./pbr_material.js";
 
 const SIZE = 192; // render resolution; tiles display it at ~48px
 // front-right three-quarter view (models face +z): reads depth without hiding
@@ -132,9 +133,18 @@ function frame(cam, box) {
   cam.updateProjectionMatrix();
 }
 
-function render(g, type) {
+/* Library materials are 2048 px bitmaps; a tile draws them with small copies
+   (shrinkAll / useSmallTextures in js/offscreen_gl.js) whose GPU textures are
+   freed right after the readback. */
+const TEX_PX = 256;
+
+// `rebuilds`: the caller builds again once the library bitmaps it asked for
+// have landed, so the procedural stand-ins for them can be skipped.
+function buildModel(parent, type, rebuilds) {
   const f = FURN[type];
-  buildItem(g.root, {
+  // Quiet: a library material this asks for must not rebuild the 3D view
+  // and re-bake the plan sprites when it lands (see quietPbrLoads).
+  quietPbrLoads(() => buildItem(parent, {
     // A thumbnail is not a project instance. Registering the synthetic
     // "thumb" item could replace a newer shared definition with the catalog
     // snapshot and populate the project's runtime cache while browsing.
@@ -145,15 +155,48 @@ function render(g, type) {
     d: f.d,
     h: f.h,
     rot: 0,
-  });
-  if (!g.root.children.length) return "";
-  const box = new THREE.Box3().setFromObject(g.root);
-  if (box.isEmpty() || !isFinite(box.min.x) || !isFinite(box.max.x)) return "";
-  frame(g.cam, box);
+  }), rebuilds);
+}
+function boundsOf(root) {
+  if (!root.children.length) return null;
+  const box = new THREE.Box3().setFromObject(root);
+  return box.isEmpty() || !isFinite(box.min.x) || !isFinite(box.max.x) ? null : box;
+}
+/* Sizes the shared canvas for a tile, only when it is not already: assigning
+   canvas.width reallocates the drawing buffer even at the same size (30-60 ms
+   on the WebGL2 fallback), and the plan sprites leave it at their own size.
+   True when it had to resize. */
+function fitSize(g) {
+  const cv = g.r.domElement;
+  if (cv.width === SIZE && cv.height === SIZE) return false;
   g.r.setSize(SIZE, SIZE, false);
+  return true;
+}
+// The picture itself, synchronous from the draw to the readback: the model
+// must already be under g.root and carry its small textures.
+function snap(g, box) {
+  frame(g.cam, box);
+  fitSize(g);
   useRig(g, "thumb");
   g.r.render(g.scene, g.cam);
   return g.r.domElement.toDataURL();
+}
+
+function render(g, type) {
+  buildModel(g.root, type);
+  const box = boundsOf(g.root);
+  if (!box) return "";
+  const proxies = useSmallTextures(g.root, TEX_PX);
+  try {
+    return snap(g, box);
+  } finally {
+    proxies.forEach((p) => p.dispose());
+  }
+}
+
+function remember(key, url) {
+  cache.set(key, url);
+  persistThumb(key, url).catch(() => {});
 }
 
 // Rendered icon for a catalog type, or "" if it cannot be drawn. Memoized:
@@ -176,9 +219,70 @@ export function modelThumb(type) {
     }
     clearGroup(g.root); // the model is one-shot: free its GPU buffers now
   }
-  cache.set(key, url);
-  persistThumb(key, url).catch(() => {});
+  remember(key, url);
   return url;
+}
+
+/* The warm-up's way to the same picture, spread over many short tasks: the
+   model is built off-scene, its library textures are allowed to arrive and
+   are shrunk off the main thread, its pipelines are compiled with
+   compileAsync (which yields between objects), and the GPU is let drain —
+   only then is it put under g.root for one short draw and the same-task
+   readback. Nothing waits while the model sits in the shared scene, so the
+   plan sprites and a tile's synchronous modelThumb() can use the renderer in
+   any of the gaps. `slot` is how it waits for its turn between steps: an
+   idle moment for the warm-up, a prompt yield for a tile on screen. */
+async function warmOne(type, slot = idleSlot) {
+  const key = keyOf(type);
+  if (cache.has(key) || !FURN[type]) return;
+  const model = new THREE.Group();
+  let proxies = [];
+  try {
+    buildModel(model, type, true);
+    // A library material it uses still loading means the build fell back to
+    // the material's old preset; wait for the bitmaps and build again (the
+    // last time keeping the stand-ins, should something still be loading).
+    for (let i = 0; i < 2; i++) {
+      const loading = pbrLoading();
+      if (!loading) break;
+      await Promise.race([loading, wait(10000)]);
+      if (cache.has(key) || !FURN[type] || keyOf(type) !== key) return;
+      clearGroup(model);
+      buildModel(model, type, i === 0);
+    }
+    const box = boundsOf(model);
+    if (!box) return remember(key, "");
+    await shrinkAll(model, TEX_PX, false);
+    await slot();
+    let g = gl();
+    if (!g || cache.has(key)) return;
+    if (fitSize(g)) {
+      await slot(); // a resize is a task of its own
+      g = gl();
+      if (!g || cache.has(key)) return;
+    }
+    proxies = useSmallTextures(model, TEX_PX);
+    frame(g.cam, box);
+    useRig(g, "thumb");
+    await g.r.compileAsync(model, g.cam, g.scene);
+    await offscreenIdle(g);
+    await slot();
+    g = gl();
+    if (!g || cache.has(key)) return;
+    g.root.add(model);
+    let url = "";
+    try {
+      url = snap(g, box);
+    } catch (e) {
+      url = "";
+    } finally {
+      g.root.remove(model);
+    }
+    remember(key, url);
+  } finally {
+    clearGroup(model);
+    proxies.forEach((p) => p.dispose());
+  }
 }
 
 export function hasThumb(type) {
@@ -194,32 +298,64 @@ export function clearThumbCache() {
 
 /* ---- the warm-up --------------------------------------------------------
    Every library picture is made ahead of time, in the background, once the
-   page has loaded: a few at a time in idle moments, never in the middle of a
-   frame someone is waiting on, and stored (IndexedDB above), so the library,
+   page has loaded: one model at a time (warmOne), each in many short steps
+   taken in idle moments, never in the middle of a frame someone is waiting
+   on, and stored (IndexedDB above), so the library,
    the model editor's saved models and the pickers open with their pictures
    already there. Pieces added later (a model saved in the editor, a project
    bringing its own) are picked up the same way. */
 let warmQueue = [], warming = false, warmAsked = false;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const idle = typeof requestIdleCallback === "function"
-  ? (fn) => requestIdleCallback(fn, { timeout: 1500 })
+  ? (fn, timeout) => requestIdleCallback(fn, timeout ? { timeout } : undefined)
   : (fn) => setTimeout(() => fn({ timeRemaining: () => 10, didTimeout: false }), 60);
-function warmStep(deadline) {
-  if (!warmQueue.length) { warming = false; return; }
-  const g = gl();
-  if (!g) {
-    // the renderer is still coming up (it announces "thumbsReady"), or there is no GPU
+/* Someone is using the app right now: a drag, a wheel turn, typing. The
+   warm-up keeps out of the way until it has been quiet for a moment. */
+let lastInput = -Infinity;
+const INPUT_QUIET_MS = 700;
+if (typeof window !== "undefined") {
+  const touch = () => { lastInput = performance.now(); };
+  ["pointerdown", "wheel", "keydown", "touchstart"].forEach((ev) => window.addEventListener(ev, touch, { capture: true, passive: true }));
+  window.addEventListener("pointermove", (e) => { if (e.buttons) touch(); }, { capture: true, passive: true });
+}
+/* Resolves in a genuinely idle moment: no recent input and a browser idle
+   period with room left in it. No timeout on purpose — while the 3D view, an
+   editor or a drag keeps every frame busy there is no idle time, and the
+   warm-up simply pauses until there is. */
+function idleSlot() {
+  return new Promise((resolve) => {
+    const ask = () => idle((deadline) => {
+      const quietFor = performance.now() - lastInput;
+      if (quietFor < INPUT_QUIET_MS) setTimeout(ask, INPUT_QUIET_MS - quietFor);
+      else if (!deadline.didTimeout && deadline.timeRemaining() < 8) ask();
+      else resolve();
+    });
+    ask();
+  });
+}
+async function warmLoop() {
+  try {
+    while (warmQueue.length) {
+      await idleSlot();
+      if (!gl()) {
+        // the renderer is still coming up (it announces "thumbsReady"), or there is no GPU
+        if (offscreenPending()) warmAsked = true;
+        return;
+      }
+      // tiles on screen asked for their pictures (thumbAsync): those go first
+      while (asking) await asked;
+      const type = warmQueue.shift();
+      if (!type || !FURN[type] || hasThumb(type)) continue;
+      try {
+        await warmOne(type);
+      } catch (e) {
+        // a model that cannot be drawn keeps its flat art; the next pass retries it
+      }
+    }
+    if (!asking) dropSmallTextures(); // the small copies were only for the warm-up
+  } finally {
     warming = false;
-    if (offscreenPending()) warmAsked = true;
-    return;
   }
-  const t0 = performance.now();
-  // one piece at least per slice, more while the browser says it is idle
-  do {
-    const type = warmQueue.shift();
-    if (type && FURN[type] && !hasThumb(type)) modelThumb(type);
-  } while (warmQueue.length && performance.now() - t0 < 12 && (deadline.didTimeout || deadline.timeRemaining() > 8));
-  if (warmQueue.length) idle(warmStep);
-  else warming = false;
 }
 export function prewarmThumbs() {
   if (typeof document === "undefined") return;
@@ -227,8 +363,88 @@ export function prewarmThumbs() {
     warmQueue = Object.keys(FURN).filter((type) => !hasThumb(type));
     if (!warmQueue.length || warming) return;
     warming = true;
-    idle(warmStep);
+    warmLoop();
   });
+}
+
+/* ---- pictures a tile on screen is waiting for ----------------------------
+   A catalog grid opened before the warm-up has reached its models asks here
+   instead of drawing them synchronously (modelThumb(): a first-seen model's
+   build, texture shrink and pipeline compile in one task, up to a quarter of
+   a second each). Same steps as the warm-up, one model at a time, but ahead
+   of its queue and without waiting for the user to stop moving: a short
+   idle-or-timeout yield between steps keeps every task small. */
+const jobs = new Map(); // cache key -> { type, key, promise, resolve }
+let urgent = [], batchAt = 0, batchOpen = false;
+let asking = false, asked = Promise.resolve(); // `asked` settles when the queue is drained
+const soon = () => new Promise((resolve) => idle(resolve, 120));
+
+// Promise of the picture for a catalog type ("" if it cannot be drawn).
+// Deduplicated per picture; a stored or already-made picture resolves at once.
+export function thumbAsync(type) {
+  const key = keyOf(type), hit = cache.get(key);
+  if (hit !== undefined) return Promise.resolve(hit);
+  if (!FURN[type] || typeof document === "undefined") return Promise.resolve("");
+  let job = jobs.get(key);
+  if (job) {
+    const at = urgent.indexOf(job);
+    if (at === -1) return job.promise; // being drawn right now
+    urgent.splice(at, 1);
+    if (at < batchAt) batchAt--;
+  } else {
+    job = { type, key };
+    job.promise = new Promise((resolve) => { job.resolve = resolve; });
+    jobs.set(key, job);
+  }
+  // The newest grid first, in its own order: the requests made in one go
+  // (one grid's tiles) form a batch that goes ahead of older ones, so a
+  // category you have already left does not hold up the one on screen.
+  if (!batchOpen) {
+    batchOpen = true;
+    batchAt = 0;
+    queueMicrotask(() => { batchOpen = false; });
+  }
+  urgent.splice(batchAt++, 0, job);
+  if (!asking) drainAsked();
+  return job.promise;
+}
+async function drainAsked() {
+  asking = true;
+  let done;
+  asked = new Promise((resolve) => { done = resolve; });
+  try {
+    await persistentReady;
+    while (urgent.length) {
+      const job = urgent.shift();
+      if (batchAt > 0) batchAt--;
+      let url = "";
+      // a task of its own: the last picture's draw and readback and the
+      // next model's build must not add up to one long task
+      await soon();
+      try { url = await drawSoon(job); } catch (e) { url = ""; }
+      jobs.delete(job.key);
+      job.resolve(url);
+    }
+  } finally {
+    asking = false;
+    done();
+    if (!warming) dropSmallTextures();
+  }
+}
+async function drawSoon({ type, key }) {
+  for (let tries = 0; tries < 3; ) {
+    const hit = cache.get(key);
+    if (hit !== undefined) return hit;
+    if (!FURN[type] || keyOf(type) !== key) return "";
+    if (!gl()) {
+      if (!offscreenPending()) return ""; // no GPU: the tile keeps its flat art
+      await wait(200); // the renderer is still coming up
+      continue;
+    }
+    tries++;
+    await warmOne(type, soon);
+  }
+  return cache.get(key) || "";
 }
 if (typeof window !== "undefined") {
   window.addEventListener("thumbsReady", () => { if (warmAsked) { warmAsked = false; prewarmThumbs(); } });

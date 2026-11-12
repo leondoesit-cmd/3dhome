@@ -263,6 +263,7 @@ export function defaultLayout() {
     plannerDockVersion: 3,
     precisionSketchRibbonVersion: 1,
     precisionPolygonRibbonVersion: 1,
+    convertEntitiesRibbonVersion: 1,
     variants: {
       base: { root: "n:app", patch: {} },
       compact: { root: "n:app", patch: {} },
@@ -402,6 +403,18 @@ export function migrateSavedLayout(saved) {
       placed.add(id);
     }
     doc.precisionPolygonRibbonVersion=1;
+  }
+
+  // Convert Entities joined the sketch group beside Copy face boundary.
+  if (doc.convertEntitiesRibbonVersion !== 1) {
+    const group=doc.nodes["md:grpSketch"], id="cmd:grpSketch:convertentities";
+    if (group && Array.isArray(group.children) && !doc.nodes[id] && !placed.has(id)) {
+      const at=group.children.indexOf("cmd:grpSketch:faceboundary");
+      group.children.splice(at<0 ? group.children.length : at+1,0,id);
+      doc.nodes[id]=ribbonLayoutNodes()[id];
+      placed.add(id);
+    }
+    doc.convertEntitiesRibbonVersion=1;
   }
 
   const MENU_DEFAULTS = {

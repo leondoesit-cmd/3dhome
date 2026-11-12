@@ -1,7 +1,8 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const css=fs.readFileSync(new URL('../css/styles.css',import.meta.url),'utf8');
+const css=stylesSource();
 function declarations(selector) {
  const matches=[...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(match=>match[1].trim().split(',').map(x=>x.trim()).includes(selector));
  return Object.assign({},...matches.map(match=>Object.fromEntries(match[2].split(';').map(x=>x.trim()).filter(Boolean).map(x=>{const i=x.indexOf(':');return [x.slice(0,i).trim(),x.slice(i+1).trim()];}))));

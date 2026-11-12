@@ -1,6 +1,7 @@
 import {shapePoints,shapeBoundarySignature} from '../room_shapes.js';
 import {stampClosedLoop,pointOnSegment,segmentCross} from '../room_graph.js';
 import {polygonBooleanArea} from '../polygon_area.js';
+import {wallCurveGeom,projectToWall} from '../wall_curves.js';
 import {roomPreset} from '../room_presets.js';
 const fail=reason=>({ok:false,reason});
 export const roomShapeCommand=Object.freeze({
@@ -8,14 +9,23 @@ export const roomShapeCommand=Object.freeze({
  prepare(params,env){
   const state=env.state;
   if(state.workspace?.role==='viewer'||state.structLocked||state.layers?.structure?.locked)return fail('ROOM_LOCKED');
-  const points=shapePoints(params.type,params);if(!points)return fail('INVALID_SHAPE');
+  const dimensions={width:params.width===undefined?400:params.width,depth:params.depth===undefined?400:params.depth,arm:params.arm===undefined?150:params.arm};
+  const points=shapePoints(params.type,{...params,...dimensions});if(!points)return fail('INVALID_SHAPE');
   if(!roomPreset(params.roomType))return fail('INVALID_ROOM_TYPE');
   const rooms=env.services.detectRooms();
   if(rooms.some(r=>polygonBooleanArea([[points],[r.pts]],s=>s[0]&&s[1])>.01))return fail('ROOM_OVERLAPS');
   // Shared geometry is reused unchanged. Reject cuts through hosted objects or
   // constraints until their richer graph adapters can participate in this command.
   for(const wall of state.walls){
-   if(wall.geometry?.type==='arc')return fail('UNSUPPORTED_SHAPE_NEIGHBOUR');
+   const geometry=wallCurveGeom(wall,state.nodes);
+   if(geometry?.kind==='arc'){
+    const {center:c,radius:r}=geometry;
+    const samples=[geometry.a,geometry.b,...[[r,0],[-r,0],[0,r],[0,-r]].map(([dx,dz])=>projectToWall(wall,c.x+dx,c.z+dz,state.nodes))];
+    const margin=(wall.thickness||10)/2+(params.spec?.thickness||10)/2;
+    if(Math.min(...samples.map(p=>p.x))-margin<=Math.max(...points.map(p=>p.x))&&Math.max(...samples.map(p=>p.x))+margin>=Math.min(...points.map(p=>p.x))&&
+       Math.min(...samples.map(p=>p.z))-margin<=Math.max(...points.map(p=>p.z))&&Math.max(...samples.map(p=>p.z))+margin>=Math.min(...points.map(p=>p.z)))return fail('UNSUPPORTED_SHAPE_NEIGHBOUR');
+    continue;
+   }
    const a=state.nodes[wall.a],b=state.nodes[wall.b];
    const cuts=points.filter(p=>pointOnSegment(p,a,b,1e-6)?.interior);
    for(let i=0;i<points.length;i++){const hit=segmentCross(points[i],points[(i+1)%points.length],a,b,1e-6);if(hit)cuts.push(hit);}
@@ -25,7 +35,7 @@ export const roomShapeCommand=Object.freeze({
   const spec=params.spec||{thickness:10,height:270};
   if(!(spec.thickness>0&&spec.height>0))return fail('INVALID_SHAPE');
   return {ok:true,plan:{command:'room.shape',params:{type:params.type,points,roomType:params.roomType,name:params.name||'',spec,
-   dimensions:params.type==='custom'?{}:{width:params.width,depth:params.depth,arm:params.arm}}}};
+   dimensions:params.type==='custom'?{}:dimensions}}};
  },
  apply(plan,env){
   const p=plan.params,state=env.state,before=new Map(state.walls.map(w=>[w.id,[w.a,w.b]])),result=stampClosedLoop(state,p.points,p.spec,{tol:1e-6});

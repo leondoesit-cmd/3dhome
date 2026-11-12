@@ -1,4 +1,5 @@
 import { createHistoryValuePool } from "./core/history_value_pool.js";
+import { historyPoolRoots, retainHistoryPool } from './core/history_pool_roots.js';
 import { mergeBaselineArchives } from "./redesign.js";
 // Undo/redo via JSON snapshots of the model (walls/rooms/openings/furniture/MEP).
 // Display/environment settings (time, north, floor, wall color) are intentionally NOT tracked.
@@ -22,7 +23,7 @@ import { t } from "./i18n.js";
 import { roomByKey, roomName, pointInPoly } from "./geometry.js";
 import { select } from "./ui_props.js";
 import {
-  exportParametricProject,
+  ensureParametricProject,
   importParametricProject,
   rebuildProject,
 } from "./core/project.js";
@@ -40,9 +41,8 @@ const definitionPool = createHistoryValuePool();
    plan with one 29 KB texture already cost ~9 MB across the 80-entry cap, and
    a real apartment scales that by an order of magnitude.
    So snapshots store a short token instead, and the bytes live once in a pool.
-   The pool is never evicted: a texture the user removed must still be there if
-   they undo back to it. It is bounded by the number of DISTINCT textures
-   uploaded in a session, not by the number of edits. */
+   Collection retains tokens referenced by every available history branch and
+   the live document. Independent checkpoints carry their own pool entries. */
 const TEX_TOKEN = "@tex:";
 var texById = new Map(), texKeyFor = new Map(), texSeq = 0;
 function texPack(key, value) {
@@ -74,19 +74,52 @@ function texUnpack(key, value) {
    entry, as `spatial` — so it is dropped here and re-captured on the way back
    in. And an INACTIVE floor's scene is not touched at all between edits, so it
    can be shared by reference: captureFloor() replaces the active floor's scene
-   object, which is the only one that ever needs a new token. Same bargain as
-   the texture pool above, and bounded the same way — by the number of distinct
-   storey scenes in a session, not by the number of edits. */
-const baselinePool = new Map(), baselineTokens = new WeakMap();
+   object, and cross-storey edits must also replace the scene they change.
+   Each replacement receives a new token. Same bargain as
+   the texture pool above, and collected against the same retained snapshots. */
+const baselinePool = new Map();
+let baselineTokens = new WeakMap();
 let baselineSeq = 0, rollingBackBaseline = false;
 const FLOOR_TOKEN = "@floor:";
 var floorById = new Map(), floorTokenFor = new WeakMap(), floorSeq = 0;
+const vectorById = new Map();
+let vectorTokenFor = new WeakMap(), vectorSeq = 0;
+function blueprintPack(reference) {
+  const vector = reference?.vector;
+  if (!vector || typeof vector !== "object") return reference;
+  let token = vectorTokenFor.get(vector);
+  if (!token || !vectorById.has(token)) {
+    token = "@vector:" + ++vectorSeq;
+    vectorTokenFor.set(vector, token);
+    /* A vector normalizeBlueprintReference has checked is frozen through and
+       through, so the pool can share it; anything else is copied so a later
+       edit of the original cannot reach back into history. */
+    vectorById.set(token, Object.isFrozen(vector) ? vector : structuredClone(vector));
+  }
+  return { ...reference, vector: token };
+}
+/* Every undo hands back the same frozen vector: normalization returns a
+   checked one as it is, and blueprint_trace keys its Path2D cache on that
+   identity (a copy per undo rebuilt every path). */
+function blueprintUnpack(reference) {
+  const token = reference?.vector;
+  const pooled = vectorById.has(token);
+  if (pooled) reference.vector = vectorById.get(token);
+  const restored = normalizeBlueprintReference(reference);
+  // Normalization may replace an unchecked vector (one from a portable
+  // checkpoint): from then on the pool holds the checked, frozen copy.
+  if (restored?.vector && pooled) {
+    vectorById.set(token, restored.vector);
+    vectorTokenFor.set(restored.vector, token);
+  }
+  return restored;
+}
 function floorPack(workspace) {
   if (!workspace || !Array.isArray(workspace.floors)) return workspace || null;
   var out = Object.assign({}, workspace);
   if (Array.isArray(workspace.baselines)) {
     let token = baselineTokens.get(workspace.baselines);
-    if (!token) { token = "@baseline:" + ++baselineSeq; baselineTokens.set(workspace.baselines, token); baselinePool.set(token, workspace.baselines); }
+    if (!token || !baselinePool.has(token)) { token = "@baseline:" + ++baselineSeq; baselineTokens.set(workspace.baselines, token); baselinePool.set(token, workspace.baselines); }
     out.baselines = token;
   }
   out.floors = workspace.floors.map(function (f) {
@@ -98,7 +131,7 @@ function floorPack(workspace) {
     }
     if (!f.scene || typeof f.scene !== "object") return copy;
     var token = floorTokenFor.get(f.scene);
-    if (!token) {
+    if (!token || !floorById.has(token)) {
       token = FLOOR_TOKEN + ++floorSeq;
       floorTokenFor.set(f.scene, token);
       floorById.set(token, f.scene);
@@ -140,16 +173,17 @@ export function onAfterRestore(fn) {
 
 function snap() {
   var m = S.mep;
+  const project = ensureParametricProject(S);
   return JSON.stringify({
-    spatial: exportSpatialProject(S),
+    spatial: exportSpatialProject(S, { detached: false }),
     workspace: floorPack(S.workspace),
     // acknowledged constraint warnings: "ignore this one" is an edit like any
     // other, so Ctrl+Z brings the glow back
     ignoredWarnings: S.ignoredWarnings || {},
-    blueprintTrace: S.blueprintTrace,
+    blueprintTrace: blueprintPack(S.blueprintTrace),
     roof: S.roof,
     idc: S.idc,
-    parametric: exportParametricProject(S),
+    parametric: { schemaVersion: project.schemaVersion, definitions: project.definitions, revision: project.revision },
     // MEP geometry is part of the model, so it belongs in the snapshot. ui_mep
     // always pushes history before mutating; while this was missing, every MEP
     // edit pushed a snapshot identical to the current geometry, so the first
@@ -179,7 +213,7 @@ function apply(str) {
   if (s.spatial) importSpatialProject(S,s.spatial);
   else { S.nodes=s.nodes || [];S.walls=s.walls || [];S.openings=s.openings || [];S.items=s.items || [];S.markers=s.markers || [];S.slabOpenings=s.slabOpenings || [];S.annotations=s.annotations || [];S.roomMeta=s.roomMeta || {}; }
   S.ignoredWarnings = s.ignoredWarnings || {};
-  S.blueprintTrace = normalizeBlueprintReference(s.blueprintTrace);
+  S.blueprintTrace = blueprintUnpack(s.blueprintTrace);
   S.roof = s.roof || null;
   syncBlueprintTraceControls();
   S.warnHover = S.warnSel = null;
@@ -515,6 +549,19 @@ function pick(id) {
   refreshHistoryPanel();
 }
 
+var poolCollectionTimer = null;
+function schedulePoolCollection() {
+  clearTimeout(poolCollectionTimer);
+  poolCollectionTimer = setTimeout(function () {
+    poolCollectionTimer = null;
+    const roots = historyPoolRoots(H.retainedSnapshots().concat(snap()));
+    retainHistoryPool(texById, roots, function (token, value) { if (texKeyFor.get(value) === token) texKeyFor.delete(value); });
+    retainHistoryPool(floorById, roots);
+    retainHistoryPool(baselinePool, roots);
+    retainHistoryPool(vectorById, roots);
+    definitionPool.retain(roots);
+  }, 1500);
+}
 const H = createHistory({
   get: snap,
   set: apply,
@@ -524,6 +571,7 @@ const H = createHistory({
   onChange: function () {
     markDirty();
     refreshHistoryPanel();
+    schedulePoolCollection();
   },
 });
 
@@ -543,7 +591,8 @@ function requireTransaction(token) {
 }
 
 export function beginHistoryTransaction(label) {
-  if (activeTransaction || H.isPending()) throw new Error("A history transaction is already active");
+  if (activeTransaction || H.isPending() || gestureBegin) throw new Error("A history transaction is already active");
+  prepareHistoryGesture();
   var token = Object.freeze({ id: ++transactionSeq });
   H.begin(label || "");
   if (!H.isPending()) throw new Error("Could not begin history transaction");
@@ -666,12 +715,31 @@ export function refreshHistoryPanel() {
 // one entry, for edits that fire repeatedly (a dimension typed digit by digit).
 export function pushHistory(label, tag) {
   requireNoCommandTransaction("push history");
+  prepareHistoryGesture();
   H.push(label, tag);
 }
 // drag pattern: capture on pointerdown, commit only if a move actually happens
 export function beginHistory() {
   requireNoCommandTransaction("begin history");
+  if (gestureCapture && !H.isPending()) { gestureBegin = true; return; }
   H.begin();
+}
+// Arm without reading the model or changing the history tree. Drag begin is
+// deferred until commitPending (which callers invoke BEFORE changing geometry).
+let gestureCapture = null, gestureBegin = false;
+export function armHistoryGesture(capture) {
+  gestureCapture = capture;
+  gestureBegin = false;
+}
+export function disarmHistoryGesture() {
+  gestureCapture = null;
+  gestureBegin = false;
+}
+export function prepareHistoryGesture() {
+  const capture = gestureCapture;
+  gestureCapture = null; // captureHistorySession itself reads/synchronizes H
+  if (capture) capture();
+  if (gestureBegin) { gestureBegin = false; H.begin(); }
 }
 /* Every drag in the plan goes through one commit, and the gesture already
    knows what it is (S.action). Naming the step here is what saves sprinkling a
@@ -691,10 +759,13 @@ const DRAG_LABEL = {
 };
 export function commitPending(label) {
   requireNoCommandTransaction("commit pending history");
+  prepareHistoryGesture();
   H.commit(label || (DRAG_LABEL[S.action] ? t(DRAG_LABEL[S.action]) : ""));
 }
 export function cancelPending() {
   requireNoCommandTransaction("cancel pending history");
+  if (gestureBegin) { gestureBegin = false; return; }
+  if (H.isPending()) prepareHistoryGesture();
   H.cancel();
 }
 
@@ -721,15 +792,29 @@ export function canRedo() {
 export function captureHistorySession(portable=false) {
   requireNoCommandTransaction("capture session");
   const model=snap(),history=H.saveSession();
-  return {model,history,...(portable?{pools:{tex:[...texById],floors:[...floorById],baselines:[...baselinePool],texSeq,floorSeq,baselineSeq}}:{})};
+  // All checkpoints own their reachable pool entries, including in-memory
+  // gesture checkpoints. Cleanup of the active tree cannot invalidate them.
+  const roots=historyPoolRoots([model,history.lastFull,...[...history.nodes.values()].map(node=>node.snap)]);
+  const select=pool=>[...pool].filter(([token])=>roots.has(token));
+  const pools={tex:select(texById),floors:select(floorById),baselines:select(baselinePool),vectors:select(vectorById),definitions:definitionPool.entries(roots),texSeq,floorSeq,baselineSeq,vectorSeq};
+  return {model,history,pools:portable?structuredClone(pools):pools};
 }
 export function restoreHistorySession(saved) {
   requireNoCommandTransaction("restore session");
   if (!saved) return false;
   if(saved.pools){
+    definitionPool.restore(saved.pools.definitions);
     for(const [k,v] of saved.pools.tex){texById.set(k,v);texKeyFor.set(v,k);}
     for(const [k,v] of saved.pools.floors)floorById.set(k,v);
     for(const [k,v] of saved.pools.baselines)baselinePool.set(k,v);
+    for(const [k,v] of saved.pools.vectors || [])vectorById.set(k,v);
+    // Portable checkpoints from another app session can reuse token numbers.
+    // Rebuild reverse indexes so an overwritten token cannot alias old data.
+    texKeyFor = new Map([...texById].map(([token,value])=>[value,token]));
+    floorTokenFor = new WeakMap([...floorById].map(([token,value])=>[value,token]));
+    baselineTokens = new WeakMap([...baselinePool].map(([token,value])=>[value,token]));
+    vectorTokenFor = new WeakMap([...vectorById].map(([token,value])=>[value,token]));
+    vectorSeq=Math.max(vectorSeq,saved.pools.vectorSeq || 0);
     texSeq=Math.max(texSeq,saved.pools.texSeq);floorSeq=Math.max(floorSeq,saved.pools.floorSeq);baselineSeq=Math.max(baselineSeq,saved.pools.baselineSeq);
   }
   rollingBackBaseline = true;

@@ -1,0 +1,11 @@
+# LF everywhere, whatever core.autocrlf says: the source-regex tests and
+# the relay expect \n, and Windows checkouts used to get CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+# byte-exact: saved models, vendored libraries, recognition fixtures
+*.mforge -text
+vendor/** -text
+fixtures/** -text
+assets/materials/** filter=lfs diff=lfs merge=lfs -text

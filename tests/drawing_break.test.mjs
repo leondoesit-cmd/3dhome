@@ -113,6 +113,56 @@ test('aligned principal Break shares physical coordinates, reverses Back and lea
   }
 });
 
+test('aligned Break members share the saved assembly pose through export and reload', () => {
+  const doc = createSheetDoc({scale:'1:1',views:[]});
+  doc.views = ['front','top','back'].map(dir => createView(dir,{id:dir,scale:'1:1',
+    primary:dir==='front',assemblyState:dir==='top'?'explode-A':'assembled'}));
+  const [front,top,back] = doc.views;
+  const bodies = tessellateParts([{kind:'box',x0:0,x1:20,y0:0,y1:3,z0:0,z1:3}]);
+  const raw = createProjector(doc,bodies);
+  const projections = new Map(doc.views.map(v=>[v.id,raw(v)]));
+  const plan = alignedBreakPlan(doc,front,modifier,projections,10,'1:1');
+  assert.deepEqual([...plan.keys()],[front.id,back.id]);
+  for (const view of doc.views) view.breakView = plan.get(view.id) || null;
+  const render = d => buildSheetScene(d,{projection:createProjector(d,bodies)});
+  const cold = JSON.parse(JSON.stringify(doc));
+  assert.deepEqual(render(cold).views.map(p=>!!p.projection.breakMap),[true,false,true]);
+  assert.equal(sceneToSvg(render(doc)),sceneToSvg(render(cold)));
+  assert.deepEqual(render(cold).views[1].projection.bounds,projections.get(top.id).bounds);
+  cold.views[2].assemblyState='explode-B';
+  assert.ok(render(cold).views[0].projection.breakError);
+  assert.ok(render(cold).views[2].projection.breakError);
+  // Even if every former member changes together, the saved cut belongs to
+  // the pose it was made against.
+  cold.views[0].assemblyState='explode-B';
+  assert.ok(render(cold).views[0].projection.breakError);
+});
+
+test('an unrelated orphan Detail leaves saved Breaks intact; losing a linked member invalidates its cluster',()=>{
+  const bodies=tessellateParts([{kind:'box',x0:0,x1:20,y0:0,y1:4,z0:0,z1:3}]);
+  for (const dirs of [['front'],['front','top']]) {
+    const doc=createSheetDoc({views:[],scale:'1:1'});
+    doc.views=dirs.map((dir,i)=>createView(dir,{id:dir,primary:i===0,scale:'1:1'}));
+    const project=createProjector(doc,bodies);
+    const projections=new Map(doc.views.map(view=>[view.id,project(view)]));
+    const plan=alignedBreakPlan(doc,doc.views[0],modifier,projections,10,'1:1');
+    for(const view of doc.views)view.breakView=plan.get(view.id);
+    doc.views.push(createView('iso',{id:'lost',detail:{from:'absent',u:0,v:0,radius:1}}));
+    const cold=JSON.parse(JSON.stringify(doc));
+    const render=()=>buildSheetScene(cold,{projection:createProjector(cold,bodies)});
+    const scene=render();
+    for(const id of dirs){
+      const p=scene.views.find(v=>v.id===id).projection;
+      assert.ok(p.breakMap && p.visible.length,id+' still shows its shortened geometry');
+    }
+    assert.deepEqual(scene.diagnostics.filter(d=>d.severity==='error').map(d=>d.viewId),['lost']);
+    if(dirs.length>1){
+      cold.views[1].detail={from:'absent',u:0,v:0,radius:1};
+      assert.ok(render().views.find(v=>v.id==='front').projection.breakError,'a saved member cannot silently drop out');
+    }
+  }
+});
+
 test('shared physical datum aligns asymmetric projected extents with conservative layout envelopes',()=>{
   const doc=createSheetDoc({scale:'1:1',views:[]});doc.views=['front','top'].map((dir,i)=>createView(dir,{id:dir,primary:i===0}));
   const projections=new Map([['front',{bounds:{u0:0,u1:20,v0:-1,v1:1},visible:[edge],hidden:[],circles:[]}],['top',{bounds:{u0:1,u1:18,v0:-1,v1:1},visible:[{a:{u:1,v:0},b:{u:18,v:0}}],hidden:[],circles:[]}]]);
@@ -143,7 +193,7 @@ test('actual controller applies and removes an aligned cluster atomically and re
 test('aligned Break rejects mismatched scale/configuration, derived parents and missing retained ends before mutation',()=>{
   const doc=createSheetDoc({scale:'1:1',views:[]});doc.views=['front','top'].map((dir,i)=>createView(dir,{id:dir,primary:i===0}));
   const projections=new Map(doc.views.map(v=>[v.id,{bounds,visible:[edge],hidden:[],circles:[]}]));
-  for(const change of [{scale:'1:2'},{configurationId:'other'},{auxiliary:{}},{cropSketch:{}},{displayStyle:'shadedEdges'}]) {
+  for(const change of [{scale:'1:2'},{configurationId:'other'},{auxiliary:{from:'front'}},{cropSketch:{}},{displayStyle:'shadedEdges'}]) {
     Object.assign(doc.views[1],change);const bytes=JSON.stringify(doc);
     assert.throws(()=>alignedBreakPlan(doc,doc.views[0],modifier,projections,10,'1:1'));
     assert.equal(JSON.stringify(doc),bytes);
@@ -176,4 +226,63 @@ test('actual normalized host retains aligned Break apply/edit/remove across recr
   const warm=sceneToSvg(controller.scene());def.drawing=JSON.parse(JSON.stringify(def.drawing));
   assert.equal(sceneToSvg(controller.scene()),warm);
   assert.equal(JSON.stringify(def.parts),source);
+});
+
+function measureBreakMoves(body, cold) {
+  const doc=createSheetDoc({views:['front'],scale:[1,4]});
+  const view=doc.views[0];
+  view.breakView={...modifier};
+  let projections=0;
+  const controller=createDrawingController({doc:()=>doc,bodies:()=>[body],bodiesToken:()=>0,
+    bodiesForView:(_view,bodies)=>{projections++;return bodies;}});
+  const initial=controller.scene().views[0];
+  assert.ok(initial.projection.breakMap);
+  const samples=[];
+  let lastX=initial.x;
+  for(let step=1;step<=3;step++) {
+    view.x=initial.x+step*5;view.y=initial.y+step*2;
+    const start=performance.now();
+    if(cold)controller.invalidate();
+    const place=controller.scene().views[0];
+    samples.push(performance.now()-start);
+    assert.notEqual(place.x,lastX);
+    lastX=place.x;
+    if(!cold)assert.equal(place.projection,initial.projection);
+  }
+  assert.equal(projections,cold?4:1);
+  return {samples,svg:controller.svg()};
+}
+
+test('three paper moves reuse the broken projection and match a cold sheet',()=>{
+  const [body]=tessellateParts([{kind:'box',x0:0,x1:20,y0:0,y1:2,z0:0,z1:2}]);
+  assert.equal(measureBreakMoves(body,false).svg,measureBreakMoves(body,true).svg);
+});
+
+test('boss plate Break paper moves', {skip:!process.env.DRAWING_BENCH}, async()=>{
+  const {bossPlate}=await import('./helpers/boss_plate.mjs');
+  const body=bossPlate();
+  const cold=measureBreakMoves(body,true),warm=measureBreakMoves(body,false);
+  assert.equal(warm.svg,cold.svg);
+  console.log('Break paper moves (ms)',{reproject:cold.samples.map(Math.round),reuse:warm.samples.map(Math.round)});
+});
+
+test('warm Break still checks its current view scale and source cluster after a paper move',()=>{
+  const doc=createSheetDoc({views:['front'],scale:'1:1'});
+  const [view]=doc.views;
+  view.breakView={...modifier};
+  const bodies=tessellateParts([{kind:'box',x0:0,x1:20,y0:0,y1:2,z0:0,z1:2}]);
+  const project=createProjector(doc,bodies);
+  const original=project(view);
+  view.x=91;view.y=87;
+  doc.views.push(createView('top',{source:{kind:'part',key:'other'}}));
+  assert.equal(project(view),original);
+  doc.views[1].source=null;
+  assert.match(project(view).breakError,/projected cluster/);
+  doc.views.pop();
+  view.scale={n:1,d:2};
+  assert.equal(project(view).breakMap.gap,original.breakMap.gap*2);
+  view.scale.d=3;
+  assert.ok(Math.abs(project(view).breakMap.gap-original.breakMap.gap*3)<1e-9);
+  view.exploded=true;
+  assert.match(project(view).breakError,/ordinary orthographic/);
 });

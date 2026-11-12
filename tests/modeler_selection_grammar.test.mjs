@@ -8,6 +8,8 @@
    branch, assigning a sketch entity to the slot that holds the selected solid.
    js/modeler.js cannot be imported under Node (bare `three` specifiers), so
    these are read off the source in the style of the other modeler suites. */
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -16,7 +18,7 @@ import { selectionFilterAllows, cycleOverlappingHits, SELECTION_FILTERS } from "
 import { vertexEntriesFrom, vertexKey } from "../js/core/topology_selection.js";
 import { topologyForFeature } from "../js/core/topology.js";
 
-let source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+let source = modelerSource();
 source = source.replace(/\r\n/g,"\n");
 /* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
 const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
@@ -24,7 +26,7 @@ const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", im
 const strings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 /* Pick-to-reference and reference-to-screen geometry, split out of js/modeler.js. */
 const pickGeometry = await readFile(new URL("../js/modeler_pick_geometry.js", import.meta.url), "utf8");
-const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+const styles = stylesSource();
 
 function body(name, from) {
   const text = from || source;
@@ -207,8 +209,8 @@ test("highlights are sized in pixels and re-baked only when the zoom moves", () 
      refreshDecorations(): the preview rebuild also builds decorations, and
      recording it on only one of those paths left the stamp at zero — which
      reads as "nothing to compare" and stopped the re-bake ever firing. */
-  assert.match(source, /if \(perPixel > 0\) decoratedWorldPerPixel = perPixel/);
-  assert.doesNotMatch(body("refreshDecorations"), /decoratedWorldPerPixel =/);
+  assert.match(source, /if \(perPixel > 0\) (?:decoratedWorldPerPixel = |set_decoratedWorldPerPixel\()perPixel/);
+  assert.doesNotMatch(body("refreshDecorations"), /(?:decoratedWorldPerPixel =|set_decoratedWorldPerPixel\()/);
   // Zero means unknown, and must not be treated as a ratio.
   assert.match(body("decorationScaleStale"), /!\(now > 0\) \|\| !\(decoratedWorldPerPixel > 0\)\) return false/);
 });

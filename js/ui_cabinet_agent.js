@@ -45,7 +45,10 @@ function state() {
         }),
       };
     }),
-    selected: E.sel ? { column: E.sel.col + 1, compartment: E.sel.sec + 1 } : null,
+    selected: E.sel ? {
+      column: E.sel.col != null ? E.sel.col + 1 : null,
+      compartment: E.sel.sec != null ? E.sel.sec + 1 : null,
+    } : null,
     compartmentTypes: Object.keys(SEC).map(function (k) { return k + " (" + SEC[k].en + ")"; }),
     doorTypes: Object.keys(DOORS),
   };

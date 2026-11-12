@@ -1,3 +1,5 @@
+import { moduleSource } from "./helpers/module_source.mjs";
+import { stylesSource } from "./helpers/styles_source.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -12,7 +14,7 @@ const readRC = async () =>
       read("js/rc.js"),
       read("js/rc_state.js"),
       read("js/rc_world.js"),
-      read("js/rc_game.js"),
+      moduleSource("js/rc_game.js"),
     ])
   ).join("\n");
 // drive.js and rc_editor.js are split the same way — scan the whole module set.
@@ -149,7 +151,7 @@ test("online drives share one coordinate frame and clean up peers", async () => 
 });
 
 test("multiplayer standings ride the pose packet already being sent", async () => {
-  const [drive, css] = await Promise.all([readDrive(), read("css/styles.css")]);
+  const [drive, css] = await Promise.all([readDrive(), stylesSource()]);
   assert.match(drive, /export function boardTick/);
   // progress fields on the same 11 Hz car packet — no extra traffic
   assert.match(drive, /p: D\.ses\.cpIndex \|\| 0/);
@@ -163,7 +165,7 @@ test("multiplayer standings ride the pose packet already being sent", async () =
 
 test("the drive camera has four rigs and a director that cuts between shots", async () => {
   const [drive, css, i18n] = await Promise.all([
-    readDrive(), read("css/styles.css"), readI18nSource(),
+    readDrive(), stylesSource(), readI18nSource(),
   ]);
   assert.match(drive, /export const CAM_MODES = \["chase", "hood", "bumper", "cinema"\]/);
   assert.match(drive, /e\.code === "KeyC"/);
@@ -250,7 +252,7 @@ test("traffic drives the streamed network instead of parking on it", async () =>
 
 test("drive mode is playable without a keyboard", async () => {
   const [drive, css, i18n] = await Promise.all([
-    readDrive(), read("css/styles.css"), readI18nSource(),
+    readDrive(), stylesSource(), readI18nSource(),
   ]);
   // analog axes sit alongside the boolean keys, never replacing them
   assert.match(drive, /axis: \{ steer: 0, throttle: 0, brake: 0 \}/);
@@ -343,7 +345,7 @@ test("the sky is painted, because raw GLSL does not survive WebGPU", async () =>
   // an equirect canvas painted once per preset, not an fbm per pixel per frame
   assert.match(sky, /export function paintSky/);
   assert.match(sky, /function paintClouds/);
-  assert.match(sky, /gradient, sun, stars and clouds are all baked per preset/);
+  assert.match(sky, /^\s*paintSky\(\);/m, "the preset change repaints the baked sky");
   // sun placed to match three's sphere UVs, drawn across the seam
   assert.match(sky, /function sunUV/);
   assert.match(sky, /Math\.atan2\(d\.z, -d\.x\)/);
@@ -363,6 +365,13 @@ test("tyre marks fade through a node material", async () => {
   assert.match(traffic, /uniform\(0\), uLife: uniform\(SKID_LIFE\)/);
 });
 
+test("a time-of-day switch refills the cars' environment instead of replacing it", async () => {
+  const sky = await read("js/drive_sky.js");
+  // a new PMREM target re-keyed every car material (prefilterInto: tests/sky_model.test.mjs)
+  assert.match(sky, /const rt = prefilterInto\(D\.pmrem, D\.envTex, D\.envRT\);\s*if \(rt === D\.envRT\) return;/);
+  assert.doesNotMatch(sky, /D\.pmrem\.fromEquirectangular\(D\.envTex\)/);
+});
+
 test("a retired environment map waits for the frames that used it", async () => {
   const [sky, drive] = await Promise.all([read("js/drive_sky.js"), read("js/drive.js")]);
   assert.match(sky, /ENV_RETIRE_FRAMES/);
@@ -371,7 +380,7 @@ test("a retired environment map waits for the frames that used it", async () => 
 });
 
 test("miniature RC supports touch and analog gamepad driving", async () => {
-  const [rc, css] = await Promise.all([readRC(), read("css/styles.css")]);
+  const [rc, css] = await Promise.all([readRC(), stylesSource()]);
   assert.match(rc, /navigator\.getGamepads/);
   assert.match(rc, /data-hold="fwd"/);
   assert.match(rc, /input\.steerAxis/);
@@ -381,7 +390,7 @@ test("miniature RC supports touch and analog gamepad driving", async () => {
 
 test("miniature RC samples the exact continuous rendered road surface", async () => {
   const [rc, track, helperSource] = await Promise.all([
-    readRC(), read("js/track.js"), read("js/road_surface.js"),
+    readRC(), trackSource(), read("js/road_surface.js"),
   ]);
   const helper = await import(`data:text/javascript,${encodeURIComponent(helperSource)}`);
   const triA = {
@@ -440,12 +449,20 @@ test("miniature RC samples the exact continuous rendered road surface", async ()
   assert.doesNotMatch(rc, /function recoverUnderRoad\(/);
 });
 
+// js/track.js as one module. moduleSource drops the pieces' imports and relies on
+// the main file importing what they use; track.js now imports only what it uses
+// itself (the rest are bare `import "./x.js";`, which a data: URL cannot resolve),
+// so the two names the pieces take from outside are imported here.
+const trackSource = () =>
+  'import { pointInPoly } from "./geometry.js";\nimport { STEP_UP } from "./road_surface.js";\n' +
+  moduleSource("js/track.js").replace(/^import "\.[^"]*";\n/gm, "");
+
 // Build a real road (js/track.js against the vendored three) on a synthetic flat
 // whose route doubles back through a branch, exactly like routeAllRooms does, and
 // measure the deck a truck would actually drive on.
 async function buildTestRoad(customAnchors) {
   const root = new URL("../", import.meta.url);
-  const src = (await read("js/track.js"))
+  const src = trackSource()
     .replace('from "three"', `from "${new URL("vendor/three/three.module.js", root).href}"`)
     .replace('from "./state.js"', `from "${new URL("js/state.js", root).href}"`)
     .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`)
@@ -492,7 +509,7 @@ async function buildTestRoad(customAnchors) {
 // in the walls, round what it cannot climb, up a ramp onto what it can.
 async function buildHomeRoad(extra, customAnchors, extraEnv) {
   const root = new URL("../", import.meta.url);
-  const src = (await read("js/track.js"))
+  const src = trackSource()
     .replace('from "three"', `from "${new URL("vendor/three/three.module.js", root).href}"`)
     .replace('from "./state.js"', `from "${new URL("js/state.js", root).href}"`)
     .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`)
@@ -763,7 +780,7 @@ test("the generated RC circuit holds a driveable radius and lays two lanes, not 
 });
 
 test("RC track safety keeps obstacle checks stable and respects the jump switch", async () => {
-  const [rc, track] = await Promise.all([readRC(), read("js/track.js")]);
+  const [rc, track] = await Promise.all([readRC(), trackSource()]);
   // Checking one furniture item must not replace the requested flyover height
   // with a boolean for every item that follows it.
   assert.match(track, /highBlocked = r\.y0 < \(high \|\| 0\) \+ 7/);
@@ -923,7 +940,7 @@ test("the live RC track editor defers rebuilds and edits from both views", async
   assert.match(ed, /id="rcEdKey"/);
   assert.match(ed, /function noteUserEdit\(/);
   assert.match(ed, /if \(a\.surf === "road" \|\| a\.surf === "home"\) out\.surf = a\.surf/);
-  const trackSrc = await read("js/track.js");
+  const trackSrc = trackSource();
   assert.match(trackSrc, /env\.followAnchors/);
   assert.match(trackSrc, /function applyUserSurf\(/);
   assert.match(trackSrc, /if \(attract === false\) return/);
@@ -1006,7 +1023,7 @@ test("the RC pass-by tool edits intent and keeps rule and points together", asyn
   assert.match(ed, /import \{ canRide, rideSpot \} from "\.\/track\.js"/);
   // ...and track.js exports exactly that, rather than the editor keeping its own
   // copy of the rule (which would drift the first time RIDE_MAX moved).
-  const track = await read("js/track.js");
+  const track = trackSource();
   assert.match(track, /export function canRide\(r, tops\)/);
   assert.match(track, /export function rideSpot\(r, tops\)/);
 
@@ -1193,7 +1210,7 @@ test("RC audio has continuous scrub and rumble voices plus a per-truck garage", 
 test("RC race craft drafts, passes, looks back and shows live rival gaps", async () => {
   const [rc, css, i18n] = await Promise.all([
     readRC(),
-    read("css/styles.css"),
+    stylesSource(),
     readI18nSource(),
   ]);
   // Sitting in a rival's wake is extra top speed, not just a visual.
@@ -1316,7 +1333,7 @@ test("a wedged truck is told about the rescue key", async () => {
 
 test("RC mode has a top-level keyboard shortcut like walk and photo", async () => {
   const [ui, html, i18n] = await Promise.all([
-    read("js/ui.js"), read("index.html"), readI18nSource(),
+    moduleSource("js/ui.js"), read("index.html"), readI18nSource(),
   ]);
   assert.match(ui, /e\.key === "c" \|\| e\.key === "C"[\s\S]*?runAction\("rc"\)/);
   assert.match(ui, /\["C", "k_rc"\]/);
@@ -1334,10 +1351,13 @@ test("waypoint checks survive an empty or rebuilt track", async () => {
 
 test("one step-height constant drives physics, road builder and editor", async () => {
   const [surface, track, rc, edState] = await Promise.all([
-    read("js/road_surface.js"), read("js/track.js"), readRC(), read("js/rc_editor_state.js"),
+    read("js/road_surface.js"), trackSource(), readRC(), read("js/rc_editor_state.js"),
   ]);
   assert.match(surface, /export const STEP_UP = 2\.2;/);
-  assert.match(track, /import \{ STEP_UP \} from "\.\/road_surface\.js";/);
+  // track.js is split: course_plan.js and routes.js (the pieces that use it) import it
+  for (const f of ["js/track/course_plan.js", "js/track/routes.js"]) {
+    assert.match(await read(f), /import \{ STEP_UP \} from "\.\.\/road_surface\.js";/);
+  }
   assert.doesNotMatch(track, /STEP_UP = 2\.2,/, "track.js keeps no private copy");
   assert.match(rc, /export const STEP_H = STEP_UP;/);
   assert.match(edState, /export const STEP_UP = SHARED_STEP_UP;/);

@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -5,7 +6,7 @@ import vm from 'node:vm';
 import { lengthFromDocument, lengthToDocument } from '../js/core/document_length_units.js';
 import { parseSketchDimensionEntry } from '../js/core/sketch_dimension_entry.js';
 
-const source = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const source = modelerSource();
 function functionSource(name) {
   const start = source.indexOf(`function ${name}(`);
   assert.ok(start >= 0, `${name} missing`);

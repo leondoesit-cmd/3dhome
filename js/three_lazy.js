@@ -59,7 +59,6 @@ export function loadThree() {
     import("three/addons/tsl/display/GTAONode.js"),
     import("three/addons/tsl/display/TRAANode.js"),
     import("three/addons/geometries/RoundedBoxGeometry.js"),
-    import("../vendor/three/three.module.js"),
   ]).then(function (mods) {
     // Object.assign copies the namespace's own value bindings. three exports
     // classes and frozen constants, none of which are reassigned after load,
@@ -70,9 +69,6 @@ export function loadThree() {
     ADDONS.ao = mods[2].ao;
     ADDONS.traa = mods[3].traa;
     ADDONS.RoundedBoxGeometry = mods[4].RoundedBoxGeometry;
-    // Both renderer entry points share three.core.js and the same scene classes.
-    // CAD previews use the classic GLSL renderer, avoiding node graph builds.
-    THREE.WebGLRenderer = mods[5].WebGLRenderer;
     loaded = true;
     return true;
   });

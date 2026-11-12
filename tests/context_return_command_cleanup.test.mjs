@@ -1,12 +1,13 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {createNestedComponentEdit,nestedComponentOccurrence,nestedEditStillCurrent,commitNestedComponentEdit} from '../js/core/nested_component_edit.js';
 import {createHistory} from '../js/edit_history.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
  const original={features:[{id:'pattern',params:{countX:3}}],parts:[{id:'body'}]},component={id:1,def:structuredClone(original),transform:{x:1,y:2,z:3}},assembly={key:'independent',components:[component],topologyMates:[{id:'mate'}]};
  const edit=createNestedComponentEdit(assembly,[1]);edit.previousDef={name:'previous'};const working=edit.working;delete edit.working;working.features[0].params.countX=2;
- const E={assembly,contextEdit:edit,def:working,docType:'part',tool:'pattern',quickAction:'pattern',quickFormInstance:{},collectingFeature:true,authoring:{phase:'feature',featureType:'pattern',featureEdit:{featureId:'pattern',snapshot:original}}};
+ const E={assembly,contextEdit:edit,def:working,docType:'part',tool:'pattern',quickAction:'pattern',quickFormInstance:{hasPendingEdits:()=>false,dismiss(){E.quickFormInstance=null;}},collectingFeature:true,authoring:{phase:'feature',featureType:'pattern',featureEdit:{featureId:'pattern',snapshot:original}}};
  const host={hidden:false,innerHTML:'Old Pattern form'},seedCommands=[];let current=1,native=true;
  const H=createHistory({get:()=>JSON.stringify(E.assembly),set:s=>E.assembly=JSON.parse(s)}).seed(),oldSeed=H.seed;H.seed=function(){seedCommands.push({action:E.quickAction,type:E.authoring.featureType,tool:E.tool});return oldSeed.call(H);};
  const ctx={E,root:{querySelector:()=>host},H,nestedComponentOccurrence,nestedEditStillCurrent,commitNestedComponentEdit,currentHistoryNode:()=>current,

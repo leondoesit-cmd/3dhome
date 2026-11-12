@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {sourceFunctionText} from './helpers/source_function.mjs';
+import {sourceFunctionText, withSetters} from './helpers/source_function.mjs';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
   const document={parts:[{id:1,exactPending:true}]},oldBody={userData:{cadPartRoot:1},geometry:{version:'complete'}};
   oldBody.traverse=fn=>fn(oldBody);
@@ -19,7 +20,7 @@ function fixture(){
     cancelledExactPreview:null};
   E.pv.rebuild=callback=>{rebuilds++;const grp={children:[],add(child){this.children.push(child);}};callback(grp);E.pv.grp=grp;};
   const names=['retainingExactPreview','retainExactPreview','setCommittedPartVisible','syncReplacedBodyVisibility','updatePreview','resolveTopologyPick','hitInstant3d','cancelExactModelRebuild'];
-  const api=new Function(...Object.keys(scope),names.map(name=>sourceFunctionText(source,name)).join('\n')+';return {'+names.join(',')+'};')(...Object.values(scope));
+  const api=new Function(...Object.keys(scope),withSetters(names.map(name=>sourceFunctionText(source,name)).join('\n'))+';return {'+names.join(',')+'};')(...Object.values(scope));
   return {E,oldBody,live,api,get rebuilds(){return rebuilds;},get labels(){return labels;}};
 }
 

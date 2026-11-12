@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 const source=readFileSync(new URL('../js/pro_ribbon.js',import.meta.url),'utf8');
 test('Cmd resolves canonical Custom properties, legacy caption and Hebrew to the actual modeler command',()=>{
   let opened=0,closed=0;
-  const modeler=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const modeler=modelerSource();
   const runCommand=new Function('commandUnavailableReason','DIRECT_COMMAND_TOOLS','openCustomProperties','closeCommandSearch',sourceFunctionText(modeler,'runCommand')+';return runCommand;')
     (()=>null,{},()=>opened++,()=>closed++);
   const api=new Function('proTools','proLabel','L','runProBinding','syncActive',

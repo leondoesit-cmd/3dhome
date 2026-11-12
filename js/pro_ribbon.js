@@ -6,9 +6,10 @@
  * control, action or command that already does the work, and runProBinding()
  * only reaches it — so the ribbon, the rail, the phone sheet, search and the
  * AI helper can never disagree about what a tool does. */
-import { PRO_CATALOG, PRO_EDITORS, parseBinding, proTools, proLabel } from "./pro_catalog.js";
+import { PRO_CATALOG, PRO_EDITORS, parseBinding, proTools, proLabel, matchTools } from "./pro_catalog.js";
+import { pushRecent } from "./compact_head.js";
 import { getLang, onLangChange } from "./i18n.js";
-import { askAgent } from "./ui_agent.js";
+import { askAgent } from "./agent_launch.js";
 import { PRO_ACTIONS } from "./pro_actions.js";
 import { addToolSearchEntries } from "./tool_search.js";
 import { openCabinetForSelection, isCabinetOpen } from "./ui_cabinet.js";
@@ -22,6 +23,7 @@ import { partCodeAnswer, partCodeToast } from "./part_code_labels.js";
 import "./editor_agent_ui.js"; // the AI card of the model editor's and cabinet designer's bars
 import { relocate, layoutCompact, placeLayersChip } from "./pro_compact.js";
 import { placeLeft } from "./pro_left.js";
+import { planRibbonFit } from "./ribbon_fit.js";
 
 var LS_TAB = "mf.proRibbon.tab";
 function he() { return getLang() === "he"; }
@@ -66,10 +68,19 @@ var MSG = {
   everyAsk: ["No tool by that name. Press Enter to ask the AI.", "אין כלי בשם הזה. Enter שולח את השאלה ל־AI."],
   everyNone: ["No tool called “{0}”.", "אין כלי בשם „{0}”."],
   close: ["Close", "סגירה"],
+  recent: ["Recent", "אחרונים"],
+  findPh: ["Find a tool in any editor, or ask", "חפשו כלי בכל עורך, או שאלו"],
+  found: ["Matching tools · {0}", "כלים תואמים · {0}"],
+  findNone: ["No tool called “{0}”. Enter asks the AI helper.", "אין כלי בשם „{0}”. Enter שולח לעוזר ה־AI."],
   phTree: ["Feature tree", "עץ התכונות"],
   phDesign: ["Design", "עיצוב"],
   phProps: ["Properties", "מאפיינים"],
   everyTip: ["Search every tool of all three editors (Ctrl+K)", "חיפוש בכל הכלים של שלושת העורכים (Ctrl+K)"],
+  foldTip: ["{0} · {1} tools", "{0} · {1} כלים"],
+  moreN: ["+{0}", "+{0}"],
+  moreTip: ["{0} more {1} tools", "עוד {0} כלי {1}"],
+  scrollPrev: ["Earlier tools", "כלים קודמים"],
+  scrollNext: ["More tools", "כלים נוספים"],
 };
 function M(key) { return MSG[key][he() ? 1 : 0]; }
 var LS_COLLAPSED = "mf.proRibbon.collapsed";
@@ -120,10 +131,28 @@ function reveal(el) {
   setTimeout(function () { el.classList.remove("tool-search-located"); }, 2500);
 }
 
+/* The tools you last ran, from any surface (ribbon, rail, sheet, search),
+   most recent first: the Every command panel and the phone tool search open
+   on them. Select is not a pick worth remembering. */
+var LS_RECENT = "mf.proRecent";
+export function recentTools() {
+  var binds = [];
+  try { binds = JSON.parse(store(LS_RECENT) || "[]"); } catch (e) { binds = []; }
+  if (!Array.isArray(binds)) return [];
+  var all = proTools();
+  return binds.map(function (bind) { return all.find(function (t) { return t.bind === bind; }); }).filter(Boolean);
+}
+function rememberTool(bind) {
+  if (!bind || bind === "tool:select") return;
+  var binds = recentTools().map(function (t) { return t.bind; });
+  store(LS_RECENT, JSON.stringify(pushRecent(binds, bind, 8)));
+}
+
 export function runProBinding(bind, label) {
   var b = parseBinding(bind);
   if (!b) { toast(M("na")); return false; }
   if (b.kind === "planned") { toast(M("planned").replace("{0}", L(label || b.value))); return false; }
+  rememberTool(bind);
   if (b.kind === "pro") {
     var fn = PRO_ACTIONS[b.value];
     if (!fn) return false;
@@ -289,9 +318,13 @@ function toolButton(tool) {
   b.setAttribute("aria-label", name);
   if (!tool.bind) { b.disabled = true; b.title = name + M("notYet"); }
   if (tool.bind && tool.bind.indexOf("planned:") === 0) { b.classList.add("planned"); b.title = name + M("plannedTip"); b.setAttribute("aria-description", M("plannedHelp")); }
-  b.innerHTML = '<i class="ph ' + tool.icon + '" aria-hidden="true"></i><span></span>' + (tool.key ? "<kbd></kbd>" : "");
+  /* The corner badge holds one key ("E", "7", "F3"). "Ctrl+D" and
+     "Ctrl+Shift+G" ran across the icon and into the next tile; such
+     combinations stay in the tooltip above. */
+  var badge = tool.key && keyLabel(tool.key).length <= 2 ? keyLabel(tool.key) : "";
+  b.innerHTML = '<i class="ph ' + tool.icon + '" aria-hidden="true"></i><span></span>' + (badge ? "<kbd></kbd>" : "");
   b.querySelector("span").textContent = name;
-  if (tool.key) b.querySelector("kbd").textContent = keyLabel(tool.key);
+  if (badge) b.querySelector("kbd").textContent = badge;
   b.addEventListener("click", function () { runProBinding(tool.bind, tool.label); syncActive(); });
   syncExplodeBinding(b);
   return b;
@@ -338,15 +371,18 @@ function fillRibbon(host, editor, tabIndex, key) {
   body.setAttribute("aria-labelledby", "pr-tab-" + editor + "-" + i);
   body.setAttribute("aria-label", L(tabs[i][0]));
   body.innerHTML = "";
+  closeFoldMenu();
   tabs[i][1].forEach(function (group) {
     var g = document.createElement("div");
     g.className = "pr-group";
+    g._proGroup = group;
     var items = document.createElement("div");
     items.className = "pr-items";
     group[1].forEach(function (tool) { items.appendChild(toolButton(tool)); });
     var lab = document.createElement("span");
     lab.className = "pr-glabel";
     lab.textContent = L(group[0]);
+    g.appendChild(foldButton(g, group));
     g.appendChild(items);
     g.appendChild(lab);
     body.appendChild(g);
@@ -354,15 +390,265 @@ function fillRibbon(host, editor, tabIndex, key) {
   store(key, String(i));
   host.querySelector(".pr-tab.on").scrollIntoView({ block: "nearest", inline: "nearest" });
   syncActive();
-  if (host.classList.contains("pr-editor-ribbon")) fitEditorRows(host);
+  fitRibbon(host);
 }
-/* The editors' ribbons stack their tools in two rows; when a narrower window
-   would push tools off the end, a third row takes them instead. */
-function fitEditorRows(el) {
-  var body = el.querySelector(".pr-groups");
-  if (!body || !body.clientWidth) return;
-  if (el.classList.contains("pr-rows3")) el.classList.remove("pr-rows3");
-  if (body.scrollWidth > body.clientWidth + 1) el.classList.add("pr-rows3");
+
+/* ---- fitting a tab to its window (js/ribbon_fit.js decides) ----
+   Full size; else dense (the editors' ribbons take a third row); else the
+   last groups fold, each into ONE button named after its group that drops its
+   tools down. A folded group keeps its tool buttons in place, hidden, so the
+   armed-tool sync, the tests and the tour still find them; the drop-down is a
+   fresh menu of the same tools. Only a window too narrow even for that scrolls,
+   and then with visible ‹ › buttons rather than a hidden scrollbar. */
+function fitRibbon(host) {
+  var body = host && host.querySelector(".pr-groups");
+  if (!body || !body.clientWidth) return; // collapsed, or a compact layout hides it
+  var groups = Array.from(body.querySelectorAll(":scope > .pr-group"));
+  var wasFolded = groups.filter(function (g) { return g.classList.contains("pr-g-folded"); }).length;
+  var wasDense = host.classList.contains("pr-dense");
+  // tools ease their size changes (a button-wide transition): measured
+  // mid-ease, every state would read as the one it is leaving
+  host.classList.add("pr-measuring");
+  host.classList.remove("pr-dense", "pr-overflow");
+  groups.forEach(function (g) { g.classList.remove("pr-g-folded"); });
+  // a split first group shows all its tools again while widths are measured
+  body.querySelectorAll(".pr-t-over").forEach(function (t) { t.classList.remove("pr-t-over"); });
+  body.querySelectorAll(".pr-fold-more").forEach(function (b) { b.hidden = true; });
+  var cs = getComputedStyle(body);
+  var available = body.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+  var widths = groups.map(function (g) { return { full: g.getBoundingClientRect().width }; });
+  host.classList.add("pr-dense");
+  groups.forEach(function (g, j) { widths[j].dense = g.getBoundingClientRect().width; });
+  groups.forEach(function (g) { g.classList.add("pr-g-folded"); });
+  groups.forEach(function (g, j) { widths[j].folded = g.getBoundingClientRect().width; });
+  groups.forEach(function (g) { g.classList.remove("pr-g-folded"); });
+  var plan = planRibbonFit(widths, available);
+  host.classList.toggle("pr-dense", plan.dense);
+  groups.forEach(function (g, j) { g.classList.toggle("pr-g-folded", j >= groups.length - plan.fold); });
+  var wasSplit = splitFirstGroup(body, groups[0], plan.overflow);
+  host.classList.toggle("pr-overflow", body.scrollWidth > body.clientWidth + 1);
+  void body.offsetWidth; // settle the final state before easing comes back
+  host.classList.remove("pr-measuring");
+  if (plan.fold !== wasFolded || plan.dense !== wasDense || wasSplit) closeFoldMenu();
+  syncFolds(host);
+  syncScrollButtons(host);
+}
+/* The first group never folds, but it can be wider than the window on its own
+   (the model editor's Draw group is ~30 tools). Then it keeps as many tools
+   as fit and the rest drop down from a "+N" button at its end — found by a
+   binary search over how many stay, a handful of layouts. Returns whether the
+   split changed. */
+function splitFirstGroup(body, g, need) {
+  if (!g) return false;
+  var tools = Array.from(g.querySelectorAll(":scope > .pr-items > .pr-tool"));
+  var more = g.querySelector(":scope > .pr-items > .pr-fold-more");
+  var before = more && !more.hidden ? +more.dataset.from : tools.length;
+  var show = function (k) {
+    tools.forEach(function (t, j) { t.classList.toggle("pr-t-over", j >= k); });
+    if (!more) {
+      more = document.createElement("button");
+      more.type = "button";
+      more.className = "pr-fold-more";
+      more.setAttribute("aria-haspopup", "menu");
+      more.setAttribute("aria-expanded", "false");
+      more.innerHTML = '<i class="ph ph-dots-three" aria-hidden="true"></i><span></span><i class="ph ph-caret-down pr-fold-caret" aria-hidden="true"></i>';
+      more.addEventListener("click", function () {
+        if (foldMenu && foldMenu._button === more) closeFoldMenu(true);
+        else openFoldMenu(g, more, false, +more.dataset.from);
+      });
+      more.addEventListener("keydown", function (e) {
+        if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+        e.preventDefault();
+        openFoldMenu(g, more, e.key === "ArrowUp" ? "last" : "first", +more.dataset.from);
+      });
+      g.querySelector(":scope > .pr-items").appendChild(more);
+    }
+    more.hidden = k >= tools.length;
+    more.dataset.from = String(k);
+    var n = tools.length - k;
+    more.querySelector("span").textContent = M("moreN").replace("{0}", String(n));
+    more.title = M("moreTip").replace("{0}", String(n)).replace("{1}", L(g._proGroup[0]));
+    more.setAttribute("aria-label", more.title);
+  };
+  var fits = function () { return body.scrollWidth <= body.clientWidth + 1; };
+  show(tools.length);
+  if (!need || fits()) return before !== tools.length;
+  // the most tools that still fit beside the "+N" button (at least one stays)
+  var lo = 1, hi = tools.length - 1, best = 1;
+  while (lo <= hi) {
+    var mid = (lo + hi) >> 1;
+    show(mid);
+    if (fits()) { best = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  show(best);
+  return before !== best;
+}
+function watchRibbonFit(host) {
+  var body = host.querySelector(".pr-groups");
+  if (!body || host._prFitWatch) return;
+  var queued = false;
+  var refit = function () {
+    if (queued) return;
+    queued = true;
+    // next frame: changing the ribbon's size inside the observer's own
+    // callback is a "ResizeObserver loop" error, which the app reports
+    requestAnimationFrame(function () { queued = false; fitRibbon(host); });
+  };
+  host._prFitWatch = true;
+  if (typeof ResizeObserver === "function") {
+    var lastW = -1;
+    // the groups row: it also goes from 0 to its width when a collapsed ribbon opens
+    new ResizeObserver(function () {
+      if (body.clientWidth === lastW) return;
+      lastW = body.clientWidth;
+      refit();
+    }).observe(body);
+  } else window.addEventListener("resize", refit);
+  // webfonts change every label's width after the first fit
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+  body.addEventListener("scroll", function () { syncScrollButtons(host); }, { passive: true });
+  var step = function (dir) {
+    var rtl = getComputedStyle(body).direction === "rtl";
+    body.scrollBy({ left: dir * (rtl ? -1 : 1) * Math.max(120, body.clientWidth * 0.6), behavior: "smooth" });
+  };
+  [["prev", -1], ["next", 1]].forEach(function (s) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "pr-scroll pr-scroll-" + s[0];
+    b.tabIndex = -1; // the keyboard path is Tab through the tools, which scrolls them into view
+    b.setAttribute("aria-label", M(s[0] === "prev" ? "scrollPrev" : "scrollNext"));
+    b.innerHTML = '<i class="ph ' + (s[0] === "prev" ? "ph-caret-left" : "ph-caret-right") + '" aria-hidden="true"></i>';
+    b.addEventListener("click", function () { step(s[1]); });
+    host.appendChild(b);
+  });
+}
+function syncScrollButtons(host) {
+  var body = host.querySelector(".pr-groups");
+  if (!body) return;
+  var max = body.scrollWidth - body.clientWidth;
+  var at = Math.abs(body.scrollLeft); // negative in RTL
+  var over = max > 1;
+  if (over) host.style.setProperty("--pr-groups-h", body.offsetHeight + "px");
+  host.classList.toggle("pr-can-prev", over && at > 1);
+  host.classList.toggle("pr-can-next", over && at < max - 1);
+}
+
+/* A folded group's button: the group's name over a caret, and its first
+   tool's icon; on while the armed tool is one of its tools. */
+function foldButton(g, group) {
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "pr-fold";
+  b.setAttribute("aria-haspopup", "menu");
+  b.setAttribute("aria-expanded", "false");
+  var name = L(group[0]);
+  b.title = M("foldTip").replace("{0}", name).replace("{1}", String(group[1].length));
+  b.innerHTML = '<i class="ph ' + ((group[1][0] && group[1][0].icon) || "ph-squares-four") + '" aria-hidden="true"></i><span></span><i class="ph ph-caret-down pr-fold-caret" aria-hidden="true"></i>';
+  b.querySelector("span").textContent = name;
+  b.addEventListener("click", function () {
+    if (foldMenu && foldMenu._button === b) closeFoldMenu(true);
+    else openFoldMenu(g, b, false);
+  });
+  b.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    openFoldMenu(g, b, e.key === "ArrowUp" ? "last" : "first");
+  });
+  return b;
+}
+function syncFolds(root) {
+  (root || document).querySelectorAll(".pr-group > .pr-fold").forEach(function (b) {
+    var g = b.parentElement;
+    var on = g.classList.contains("pr-g-folded") && !!g.querySelector(".pr-items .pr-tool.on");
+    b.classList.toggle("on", on);
+  });
+  (root || document).querySelectorAll(".pr-items > .pr-fold-more").forEach(function (b) {
+    b.classList.toggle("on", !b.hidden && !!b.parentElement.querySelector(".pr-tool.pr-t-over.on"));
+  });
+}
+
+var foldMenu = null;
+function closeFoldMenu(focusButton) {
+  if (!foldMenu) return;
+  var m = foldMenu;
+  foldMenu = null;
+  m.remove();
+  m._button.setAttribute("aria-expanded", "false");
+  document.removeEventListener("pointerdown", foldOutside, true);
+  window.removeEventListener("resize", closeFoldMenuQuiet);
+  document.removeEventListener("scroll", closeFoldMenuQuiet, true);
+  if (focusButton && m._button.isConnected) m._button.focus();
+}
+function closeFoldMenuQuiet(e) {
+  // scrolling inside the menu itself is not a reason to close it
+  if (e && e.type === "scroll" && foldMenu && foldMenu.contains(e.target)) return;
+  closeFoldMenu(false);
+}
+function foldOutside(e) {
+  if (foldMenu && !foldMenu.contains(e.target) && !foldMenu._button.contains(e.target)) closeFoldMenu(false);
+}
+/* The drop-down lives on <body> (position: fixed): inside the groups row it
+   would be clipped by that row's own sideways scrolling. */
+function openFoldMenu(g, button, focus, from) {
+  closeFoldMenu(false);
+  var group = g._proGroup;
+  if (!group) return;
+  from = Math.max(0, from || 0);
+  var m = document.createElement("div");
+  m.className = "pr-fold-menu";
+  m.setAttribute("role", "menu");
+  m.setAttribute("aria-label", L(group[0]));
+  m.dir = getComputedStyle(button).direction;
+  if (document.body.classList.contains("pro-skin")) m.classList.add("pr-fold-menu-skin");
+  var items = [];
+  group[1].forEach(function (tool, j) {
+    if (j < from) return;
+    var src = g.querySelectorAll(".pr-items > .pr-tool")[j];
+    var b = toolButton(tool);
+    b.className = "pr-menu-item";
+    b.setAttribute("role", "menuitem");
+    b.tabIndex = -1;
+    if (src && src.classList.contains("on")) b.classList.add("on");
+    if (src && src.disabled) b.disabled = true;
+    // the tool runs on the button's own listener; then the menu goes
+    b.addEventListener("click", function () { closeFoldMenu(false); });
+    m.appendChild(b);
+    items.push(b);
+  });
+  m.addEventListener("keydown", function (e) {
+    var live = items.filter(function (b) { return !b.disabled; });
+    var at = live.indexOf(document.activeElement);
+    var next = -1;
+    if (e.key === "ArrowDown") next = (at + 1) % live.length;
+    else if (e.key === "ArrowUp") next = (at - 1 + live.length) % live.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = live.length - 1;
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFoldMenu(true); return; }
+    else if (e.key === "Tab") { closeFoldMenu(true); return; }
+    else return;
+    e.preventDefault();
+    e.stopPropagation(); // arrows here must not nudge the plan's selection
+    if (live[next]) live[next].focus();
+  });
+  document.body.appendChild(m);
+  m._button = button;
+  foldMenu = m;
+  button.setAttribute("aria-expanded", "true");
+  var r = button.getBoundingClientRect();
+  var w = m.offsetWidth, h = m.offsetHeight;
+  var rtl = m.dir === "rtl";
+  var left = rtl ? r.right - w : r.left;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  var top = r.bottom + 4;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - h - 8);
+  m.style.left = Math.round(left) + "px";
+  m.style.top = Math.round(top) + "px";
+  document.addEventListener("pointerdown", foldOutside, true);
+  window.addEventListener("resize", closeFoldMenuQuiet);
+  document.addEventListener("scroll", closeFoldMenuQuiet, true);
+  var live = items.filter(function (b) { return !b.disabled; });
+  if (focus && live.length) (focus === "last" ? live[live.length - 1] : live[0]).focus();
+  else if (live.length) live[0].focus({ preventScroll: true });
 }
 
 /* The model editor's and cabinet designer's ribbon in the Round-6 layout:
@@ -398,16 +684,7 @@ function mountEditorRibbon(editor, root) {
     else { var q = root.querySelector("#cbSearch"); if (q) q.focus(); }
   });
   fillRibbon(el, editor, +(store(key) || 0), key);
-  if (typeof ResizeObserver === "function") {
-    var lastW = 0;
-    new ResizeObserver(function () {
-      if (el.clientWidth === lastW) return;
-      lastW = el.clientWidth;
-      // next frame: changing the ribbon's height inside the observer's own
-      // callback is a "ResizeObserver loop" error, which the app reports
-      requestAnimationFrame(function () { fitEditorRows(el); });
-    }).observe(el);
-  }
+  watchRibbonFit(el);
   placeEditorChrome(proDesk());
   watchEditorCommandState(root);
 }
@@ -452,6 +729,7 @@ function syncActive() {
     b.classList.toggle("on", railBindActive(b.dataset.proBind, active));
   });
   document.querySelectorAll('[data-pro-bind="mcmd:explode"]').forEach(syncExplodeBinding);
+  syncFolds(document);
 }
 function railBindActive(bind, plannerActive) {
   if (!bind) return false;
@@ -516,6 +794,7 @@ function buildRibbon() {
   ribbon.querySelector(".pr-every").addEventListener("click", openToolSearch);
   renderGroups(+(store(LS_TAB) || 0));
   setCollapsed(store(LS_COLLAPSED) === "1");
+  watchRibbonFit(ribbon);
   document.body.classList.add("pro-ribbon-on");
 }
 
@@ -524,23 +803,99 @@ function buildRibbon() {
 var sheetState = { editor: "plan", tab: 0 };
 
 function appendToolsSheet(body, close) {
+  /* The search field heads the sheet: what you type narrows ALL three
+     editors' tools at once (js/pro_catalog.js matchTools, the ranking the
+     Ctrl+K panel uses), and the rest of the sheet steps aside while you do.
+     Enter runs the best match; with no match it is a request for the AI
+     helper, as this field always was. Empty, the sheet opens on the tools
+     you used last. */
+  var search = document.createElement("div");
+  search.className = "pro-sheet-search";
+  var ask = document.createElement("label");
+  ask.className = "pr-ask pro-sheet-ask";
+  ask.innerHTML = '<i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" enterkeyhint="go" autocomplete="off" spellcheck="false" dir="auto"><button type="button" class="pr-mic"><i class="ph ph-microphone" aria-hidden="true"></i></button>';
+  search.appendChild(ask);
+  var recentBox = document.createElement("div");
+  recentBox.className = "pro-sheet-recent";
+  search.appendChild(recentBox);
+  body.insertBefore(search, body.firstChild);
+  var input = ask.querySelector("input");
+  var results = [];
+  // ahead of wireAsk's own Enter: a match runs here and the AI never hears it
+  input.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" || !input.value.trim()) return;
+    if (results.length) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      var t = results[0];
+      close();
+      runProBinding(t.bind, t.label);
+      return;
+    }
+    // no tool by that name: wireAsk sends it on, then the sheet goes
+    setTimeout(close, 0);
+  });
+  wireAsk(ask);
+  input.placeholder = M("findPh");
+  input.setAttribute("aria-label", M("findPh"));
+  input.addEventListener("input", function () { draw(); });
   var wrap = document.createElement("div");
   wrap.className = "pro-sheet";
   body.appendChild(wrap);
+  function tile(tool, sub) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "m-grid-btn";
+    b.disabled = !tool.bind;
+    var name = L(tool.label);
+    b.dataset.proTool = tool.label; // the catalog's own name, whatever the language
+    b.setAttribute("aria-label", sub ? name + " · " + sub : name);
+    b.title = name;
+    b.innerHTML = '<i class="ph ' + tool.icon + '" aria-hidden="true"></i><span></span>' + (sub ? "<small></small>" : "");
+    b.querySelector("span").textContent = name;
+    if (sub) b.querySelector("small").textContent = sub;
+    if (tool.bind && tool.bind.indexOf("planned:") === 0) b.classList.add("planned");
+    b.addEventListener("click", function () { close(); runProBinding(tool.bind, tool.label); });
+    return b;
+  }
+  function where(t) { return L(EVERY_NAMES[t.editor]) + " · " + L(t.tab); }
   function draw() {
+    var q = input.value.trim();
+    body.classList.toggle("pro-sheet-searching", !!q);
+    wrap.innerHTML = "";
+    recentBox.innerHTML = "";
+    if (q) {
+      results = matchTools(q);
+      var h = document.createElement("h5");
+      h.className = "m-sheet-sec";
+      h.textContent = results.length ? M("found").replace("{0}", String(results.length)) : M("findNone").replace("{0}", q);
+      wrap.appendChild(h);
+      if (results.length) {
+        var grid = document.createElement("div");
+        grid.className = "m-grid m-icon-grid pro-sheet-results";
+        results.slice(0, 48).forEach(function (t) { grid.appendChild(tile(t, where(t))); });
+        wrap.appendChild(grid);
+      }
+      return;
+    }
+    results = [];
+    var recent = recentTools();
+    if (recent.length) {
+      var rh = document.createElement("h5");
+      rh.className = "m-sheet-sec";
+      rh.textContent = M("recent");
+      recentBox.appendChild(rh);
+      var rg = document.createElement("div");
+      rg.className = "m-grid m-icon-grid";
+      recent.forEach(function (t) { rg.appendChild(tile(t, t.editor !== "plan" ? L(EVERY_NAMES[t.editor]) : "")); });
+      recentBox.appendChild(rg);
+    }
     var cat = PRO_CATALOG[sheetState.editor];
     var tab = cat.tabs[Math.min(sheetState.tab, cat.tabs.length - 1)];
-    wrap.innerHTML = "";
-    var h = document.createElement("h5");
-    h.className = "m-sheet-sec";
-    h.textContent = M("all") + " · " + proTools().length;
-    wrap.appendChild(h);
-    var ask = document.createElement("label");
-    ask.className = "pr-ask pro-sheet-ask";
-    ask.innerHTML = '<i class="ph ph-sparkle" aria-hidden="true"></i><input type="text" enterkeyhint="send" autocomplete="off" dir="auto"><button type="button" class="pr-mic"><i class="ph ph-microphone" aria-hidden="true"></i></button>';
-    wrap.appendChild(ask);
-    wireAsk(ask);
-    ask.querySelector("input").addEventListener("keydown", function (e) { if (e.key === "Enter") close(); });
+    var head = document.createElement("h5");
+    head.className = "m-sheet-sec";
+    head.textContent = M("all") + " · " + proTools().length;
+    wrap.appendChild(head);
     var eds = document.createElement("div");
     eds.className = "pro-sheet-chips";
     [["plan", "Planner"], ["model", "Model editor"], ["cab", "Cabinet designer"]].forEach(function (e) {
@@ -570,24 +925,12 @@ function appendToolsSheet(body, close) {
       wrap.appendChild(gh);
       var grid = document.createElement("div");
       grid.className = "m-grid m-icon-grid";
-      group[1].forEach(function (tool) {
-        var b = document.createElement("button");
-        b.type = "button";
-        b.className = "m-grid-btn";
-        b.disabled = !tool.bind;
-        var name = L(tool.label);
-        b.setAttribute("aria-label", name);
-        b.title = name;
-        b.innerHTML = '<i class="ph ' + tool.icon + '"></i><span></span>';
-        b.querySelector("span").textContent = name;
-        if (tool.bind && tool.bind.indexOf("planned:") === 0) b.classList.add("planned");
-        b.addEventListener("click", function () { close(); runProBinding(tool.bind, tool.label); });
-        grid.appendChild(b);
-      });
+      group[1].forEach(function (tool) { grid.appendChild(tile(tool, "")); });
       wrap.appendChild(grid);
     });
   }
   draw();
+  return input;
 }
 
 window.__proAppendToolsSheet = appendToolsSheet;
@@ -753,11 +1096,13 @@ function openToolSearch() {
 
 /* "Every command" (screen v6-*-all): the whole catalog of one editor at once —
    every tab a card, every group under its name, every tool with its key — and
-   a field that narrows it as you type. Enter runs the first match; with no
-   match and the AI on, the planner sends the text to the AI helper, as its bar
-   would. The Planner / Model / Cabinet pills show another editor's catalog
-   (its tools open that editor, as the command bar's do). Desktop only; phones
-   have the tools sheet. */
+   a field that narrows it as you type, ranked by js/pro_catalog.js matchTools.
+   The best match is highlighted, ↑/↓ move the highlight and Enter runs it;
+   with no match and the AI on, the planner sends the text to the AI helper,
+   as its bar would. Empty, it opens on the tools you used last. The Planner /
+   Model / Cabinet pills show another editor's catalog (its tools open that
+   editor, as the command bar's do). Desktop only; phones and folds have the
+   tools sheet's search, which ranks the same way. */
 var everyPanel = null;
 var EVERY_NAMES = { plan: "Planner", model: "Model", cab: "Cabinet" };
 function closeEveryPanel() {
@@ -813,8 +1158,27 @@ function openEveryPanel(editor) {
     runProBinding(tool.bind, tool.label);
     syncActive();
   }
+  var buttons = [], active = -1;
+  function setActive(i, scroll) {
+    if (!buttons.length) { active = -1; return; }
+    active = (i + buttons.length) % buttons.length;
+    buttons.forEach(function (b, j) { b.classList.toggle("pe-active", j === active); });
+    if (scroll) buttons[active].scrollIntoView({ block: "nearest" });
+  }
+  function toolButtonFor(t, note) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = '<i class="ph ' + t.icon + '" aria-hidden="true"></i><span></span>' + (note ? '<small></small>' : "") + (t.key ? "<kbd></kbd>" : "");
+    b.querySelector("span").textContent = L(t.label);
+    if (note) b.querySelector("small").textContent = note;
+    if (t.key) b.querySelector("kbd").textContent = keyLabel(t.key);
+    b.addEventListener("click", function () { run(t); });
+    b.addEventListener("pointermove", function () { var j = buttons.indexOf(b); if (j !== active) setActive(j, false); });
+    buttons.push(b);
+    return b;
+  }
   function render() {
-    var q = input.value.trim().toLowerCase(), first = null, count = 0;
+    var q = input.value.trim(), count = 0;
     eds.querySelectorAll("button").forEach(function (b) {
       var on = b.dataset.editor === current;
       b.classList.toggle("on", on);
@@ -825,6 +1189,32 @@ function openEveryPanel(editor) {
     el.querySelector(".pe-title span").textContent = M("everySub");
     input.placeholder = M("everyPh");
     body.textContent = "";
+    buttons = [];
+    // ranked matches (js/pro_catalog.js matchTools), shown in their tabs; the
+    // best one is highlighted, so Enter runs what the ranking put first
+    var ranked = q ? matchTools(q, [current]) : null;
+    var rankOf = function (t) {
+      if (!ranked) return 0;
+      for (var r = 0; r < ranked.length; r++) if (ranked[r].bind === t.bind && ranked[r].label === t.label) return r;
+      return -1;
+    };
+    var best = null, bestRank = Infinity;
+    if (!q) {
+      var recent = recentTools();
+      if (recent.length) {
+        var rc = document.createElement("section");
+        rc.className = "pe-card pe-recent";
+        var rh = document.createElement("h4");
+        rh.innerHTML = "<b></b>";
+        rh.querySelector("b").textContent = M("recent");
+        rc.appendChild(rh);
+        var rl = document.createElement("div");
+        rl.className = "pe-tools";
+        recent.forEach(function (t) { rl.appendChild(toolButtonFor(t, t.editor !== current ? L(EVERY_NAMES[t.editor]) : "")); });
+        rc.appendChild(rl);
+        body.appendChild(rc);
+      }
+    }
     PRO_CATALOG[current].tabs.forEach(function (tab) {
       var card = document.createElement("section");
       card.className = "pe-card";
@@ -832,11 +1222,7 @@ function openEveryPanel(editor) {
       var head = document.createElement("h4");
       card.appendChild(head);
       tab[1].forEach(function (group) {
-        var tools = group[1].filter(function (t) {
-          if (!t.bind) return false;
-          if (!q) return true;
-          return t.label.toLowerCase().indexOf(q) >= 0 || proLabel(t.label, "he").indexOf(q) >= 0 || group[0].toLowerCase().indexOf(q) >= 0;
-        });
+        var tools = group[1].filter(function (t) { return t.bind && rankOf(t) >= 0; });
         if (!tools.length) return;
         var g = document.createElement("div");
         g.className = "pe-group";
@@ -846,14 +1232,10 @@ function openEveryPanel(editor) {
         var list = document.createElement("div");
         list.className = "pe-tools";
         tools.forEach(function (t) {
-          var b = document.createElement("button");
-          b.type = "button";
-          b.innerHTML = '<i class="ph ' + t.icon + '" aria-hidden="true"></i><span></span>' + (t.key ? "<kbd></kbd>" : "");
-          b.querySelector("span").textContent = L(t.label);
-          if (t.key) b.querySelector("kbd").textContent = keyLabel(t.key);
-          b.addEventListener("click", function () { run(t); });
+          var b = toolButtonFor(t, "");
           list.appendChild(b);
-          if (!first) first = t;
+          var r = rankOf(t);
+          if (r < bestRank) { bestRank = r; best = b; }
           tabCount++;
         });
         g.appendChild(list);
@@ -872,13 +1254,20 @@ function openEveryPanel(editor) {
       none.textContent = aiOn() && current === "plan" ? M("everyAsk") : M("everyNone").replace("{0}", input.value.trim());
       body.appendChild(none);
     }
-    el._first = first;
+    // nothing typed: no highlight until an arrow key asks for one
+    if (q && best) setActive(buttons.indexOf(best), true);
+    else active = -1;
   }
   input.addEventListener("input", render);
   input.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (buttons.length) setActive(active < 0 ? (e.key === "ArrowDown" ? 0 : buttons.length - 1) : active + (e.key === "ArrowDown" ? 1 : -1), true);
+      return;
+    }
     if (e.key !== "Enter") return;
     e.preventDefault();
-    if (el._first) run(el._first);
+    if (active >= 0 && buttons[active]) buttons[active].click();
     else if (input.value.trim() && aiOn() && current === "plan") {
       var text = input.value.trim();
       closeEveryPanel();
@@ -891,6 +1280,13 @@ function openEveryPanel(editor) {
 // Cmd K / Ctrl K opens it in the Round-6 layout, ahead of the older search's own shortcut
 window.addEventListener("keydown", function (e) {
   if (!(e.metaKey || e.ctrlKey) || e.altKey || String(e.key).toLowerCase() !== "k") return;
+  // a phone or fold with a keyboard: the planner's tools sheet, on its search
+  if (document.body.classList.contains("pro-compact") && activeEditor() === "plan" && typeof window.__mobileFindTool === "function") {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    window.__mobileFindTool();
+    return;
+  }
   if (!document.body.classList.contains("pro-skin")) return;
   e.preventDefault();
   e.stopImmediatePropagation();

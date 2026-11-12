@@ -117,28 +117,238 @@ var FORCE_WEBGL =
 
 /**
  * @param {object} opts  WebGPURenderer options (canvas, antialias, alpha, ...).
- * @param {boolean} [opts.preferWebGL]  Use the WebGL2 backend even when WebGPU
- *   is available. Worth it for small offscreen/preview canvases: WebGPU buys
- *   them nothing, its init is slower, and its readback (toDataURL) is async.
- * @param {boolean} [opts.classicWebGL] Use the GLSL WebGLRenderer directly.
- *   Editor previews use this to avoid node graph conversion of CAD materials.
+ *
+ * Every 3D canvas in the app comes through here, so every one gets the same
+ * backend policy. Each renderer keeps its own GPUDevice on purpose: three's
+ * GPU resource caches are per renderer whether or not the device is shared,
+ * and a renderer that created its device destroys it on dispose(), which
+ * would take every other view down with the one that closed.
  */
-export function createRenderer(opts) {
-  opts = Object.assign({}, opts || {});
-  var classicWebGL = !!opts.classicWebGL;
-  delete opts.classicWebGL;
-  var preferWebGL = !!opts.preferWebGL;
-  delete opts.preferWebGL;
-  if (classicWebGL) {
-    var classic = new THREE.WebGLRenderer(opts);
-    classic.initialized = true;
-    classic._readyPromise = Promise.resolve(classic);
-    return classic;
+/* three r185: when a light stops casting (castShadow -> false), the next
+   shader build for ANY object disposes that light's shadow node — its map
+   included — while every shader built before still references it, and
+   cached ones are re-used if the light casts again. The next frame then
+   throws in ShadowNode.updateShadow (shadowMap is null), and the planner
+   falls back to a bare render with no AO or anti-aliasing. Lights here
+   switch shadows on and off as a matter of course (the sun at dusk, the
+   shadow budget handing maps between windows and lamps), so the node is
+   kept instead: idle while the light does not cast, and the very same node
+   (and map) when it casts again. Disposing the light still frees it. */
+function keepShadowNodes() {
+  var A = THREE.AnalyticLightNode && THREE.AnalyticLightNode.prototype;
+  if (A && A.__keepsShadowNode) return;
+  /* This leans on three's internals (tests/three_shadow_patch_guard pins them
+     against the vendored copy). Say so if an upgrade moved them, rather than
+     quietly losing the AO/TRAA pipeline the first time a light stops casting. */
+  if (!A || typeof A.setup !== "function" || String(A.setup).indexOf("shadowNode") < 0) {
+    if (!keepShadowNodes.warned) console.warn("gpu.js: three's AnalyticLightNode changed; the keep-shadow-node patch is off (re-check it against this three)");
+    keepShadowNodes.warned = true;
+    return;
   }
-  opts.forceWebGL = FORCE_WEBGL || preferWebGL;
+  var setup = A.setup;
+  A.setup = function (builder) {
+    if (this.light && !this.light.castShadow && this.shadowNode !== null) {
+      var keep = this.shadowNode;
+      this.shadowNode = null; // so setup() takes its no-shadow path without disposing
+      try { return setup.call(this, builder); } finally { this.shadowNode = keep; }
+    }
+    return setup.call(this, builder);
+  };
+  A.__keepsShadowNode = true;
+}
+
+/* three r185 makes a shadow map's render target when a shader first uses the
+   light's shadow, but sizes and creates its GPU textures only when the map is
+   first drawn. A material bound before that draw — and with shadow redraws
+   paced one light per frame, a lamp that starts casting at dusk waits a few
+   frames — gets a placeholder depth texture, which that first draw destroys
+   and replaces. A pass still holding the placeholder then fails to submit
+   ("Destroyed texture used in a submit"), and the planner drops to a bare
+   render without AO or anti-aliasing. So the target is created at its own
+   size the moment three makes it: the first draw finds it current and
+   replaces nothing. Leans on three's internals (tests/three_shadow_patch_guard
+   pins them). classes: three's ShadowNode and PointShadowNode by default. */
+export function sizeShadowMapsAtOnce(classes) {
+  var own = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
+  (classes || [THREE.ShadowNode, THREE.PointShadowNode]).forEach(function (C) {
+    var P = C && C.prototype;
+    // own flag: PointShadowNode inherits ShadowNode's, but has its own method
+    if (!P || own(P, "__sizesAtOnce") || !own(P, "setupRenderTarget")) return;
+    var setupRenderTarget = P.setupRenderTarget;
+    P.setupRenderTarget = function (shadow, builder) {
+      var made = setupRenderTarget.call(this, shadow, builder);
+      var textures = builder && builder.renderer && builder.renderer._textures;
+      if (made && made.shadowMap && textures && typeof textures.updateRenderTarget === "function") {
+        textures.updateRenderTarget(made.shadowMap);
+      } else if (!sizeShadowMapsAtOnce.warned) {
+        console.warn("gpu.js: three's shadow render targets changed; sizeShadowMapsAtOnce is off (re-check it against this three)");
+        sizeShadowMapsAtOnce.warned = true;
+      }
+      return made;
+    };
+    P.__sizesAtOnce = true;
+  });
+}
+
+/* three r185 draws a transparent DoubleSide material in two passes: renderObject
+   sets material.side to BackSide, then FrontSide, then back to DoubleSide. In
+   compileAsync each pass is only queued (with the material itself) and built
+   after renderObject has put DoubleSide back, so the warm-up builds a cull-none
+   pipeline no frame uses, and the two a frame does use are built on the spot:
+   a table lamp's shade cost ~0.8 s when dusk handed the shadows to the ceiling
+   lamps. Each queued pass now keeps the side it was queued at: if the material
+   is no longer at that side when the queue is built, the build sees a stand-in
+   that differs from the material only in `side` (cached per material and side,
+   so repeated warm-ups add nothing). Its shader and pipeline keys are the ones
+   the real pass computes, so the frame finds them built. Leans on three's
+   internals (tests/compile_sides_patch pins them). R: three's Renderer
+   (WebGPURenderer extends it) by default. */
+var sideStandIns = new WeakMap();
+function sideStandIn(material, side) {
+  var bySide = sideStandIns.get(material);
+  if (!bySide) sideStandIns.set(material, (bySide = {}));
+  if (!bySide[side]) {
+    var standIn = Object.create(material);
+    standIn.side = side;
+    bySide[side] = standIn;
+  }
+  return bySide[side];
+}
+export function compileSidesAsDrawn(R) {
+  var P = (R || THREE.Renderer || {}).prototype;
+  if (!P || P.__compilesSidesAsDrawn) return;
+  if (typeof P._createObjectPipeline !== "function" || String(P._createObjectPipeline).indexOf("_compilationPromises.push") < 0) {
+    if (!compileSidesAsDrawn.warned) console.warn("gpu.js: three's compile queue changed; compileSidesAsDrawn is off (re-check it against this three)");
+    compileSidesAsDrawn.warned = true;
+    return;
+  }
+  var create = P._createObjectPipeline;
+  P._createObjectPipeline = function (object, material) {
+    var queue = this._compilationPromises, before = queue ? queue.length : 0;
+    var result = create.apply(this, arguments);
+    if (queue && queue.length === before + 1 && material && material.transparent === true) {
+      var item = queue[before], side = material.side;
+      Object.defineProperty(item, "material", {
+        configurable: true, enumerable: true,
+        get: function () { return material.side === side ? material : sideStandIn(material, side); },
+      });
+    }
+    return result;
+  };
+  P.__compilesSidesAsDrawn = true;
+}
+
+/* three r185 frees a shader the moment no object uses it: NodeManager.delete
+   drops the node-builder state, Pipelines._releasePipeline/_releaseProgram
+   the pipeline and its programs. A change that re-keys every material — a
+   light starting or stopping to cast, which three hashes into every lit
+   material — then rebuilds all of them, and changing back rebuilds them
+   again. The planner does exactly that twice an evening (the shadow budget
+   hands the maps from the sun and windows to the ceiling lamps, then the sun
+   sets) and once a morning: ~0.8 s each on a large flat, every time.
+   Retire instead of free: a released entry stays where three looks for it,
+   so the next request for that key is an ordinary cache hit, and only the
+   `cap` least recently released are really freed. Leans on three's
+   internals (tests/shader_retain.test.mjs pins them). */
+export function retainShaderCaches(r, cap) {
+  var nodes = r && r._nodes, pipes = r && r._pipelines;
+  if (!nodes || !(nodes.nodeBuilderCache instanceof Map) || !pipes ||
+      typeof pipes._releasePipeline !== "function" || typeof pipes._releaseProgram !== "function") {
+    if (!retainShaderCaches.warned) console.warn("gpu.js: three's shader caches changed; retainShaderCaches is off (re-check it against this three)");
+    retainShaderCaches.warned = true;
+    return false;
+  }
+  if (pipes.__retainsShaders) return true;
+  cap = cap || 256;
+  var retired = new Map(); // entry -> really free it; oldest release first
+  function retire(entry, free) {
+    retired.delete(entry);
+    retired.set(entry, free);
+    while (retired.size > cap) {
+      var old = retired.keys().next().value, freeOld = retired.get(old);
+      retired.delete(old);
+      if (old.usedTimes === 0) freeOld(); // a revived entry is simply in use again
+    }
+  }
+  var cache = nodes.nodeBuilderCache, drop = cache.delete;
+  cache.delete = function (key) {
+    var state = cache.get(key);
+    if (state === undefined) return false;
+    retire(state, function () { if (cache.get(key) === state) drop.call(cache, key); });
+    return true;
+  };
+  var releasePipeline = pipes._releasePipeline, releaseProgram = pipes._releaseProgram;
+  pipes._releasePipeline = function (pipeline) {
+    var self = this;
+    retire(pipeline, function () { if (self.caches.get(pipeline.cacheKey) === pipeline) releasePipeline.call(self, pipeline); });
+  };
+  pipes._releaseProgram = function (program) {
+    var self = this;
+    retire(program, function () { if (self.programs[program.stage].get(program.code) === program) releaseProgram.call(self, program); });
+  };
+  pipes.__retainsShaders = true;
+  return true;
+}
+
+/* three caches each scene's lights + environment shader key per draw-call
+   count (Nodes.callHashCache against renderer.info.calls), so a light that
+   starts or stops casting with no draw since is keyed as it was before.
+   Forget the cached keys after changing which lights cast without drawing
+   (view3d's shadow-set prewarm). Leans on three's internals
+   (tests/shader_retain.test.mjs pins them). */
+export function forgetLightKeys(r) {
+  var nodes = r && r._nodes;
+  if (!nodes || !nodes.callHashCache || typeof nodes.callHashCache.constructor !== "function") {
+    if (!forgetLightKeys.warned) console.warn("gpu.js: three's light key cache changed; forgetLightKeys is off (re-check it against this three)");
+    forgetLightKeys.warned = true;
+    return false;
+  }
+  nodes.callHashCache = new nodes.callHashCache.constructor();
+  return true;
+}
+
+// Three's renderer.dispose() skips uninitialized renderers. An init failure
+// can nevertheless leave an owned device, GL context or canvas listener.
+function releaseFailedBackend(backend) {
+  if (!backend) return;
+  try {
+    if (backend.isWebGLBackend) {
+      if (backend._onContextLost) backend.renderer.domElement.removeEventListener('webglcontextlost', backend._onContextLost);
+      try {
+        backend.textureUtils?.dispose();
+      } finally {
+        if (backend.parameters.context === undefined) backend.gl?.getExtension('WEBGL_lose_context')?.loseContext();
+      }
+    } else if (backend.isWebGPUBackend && backend.device) {
+      backend.dispose(); // Three destroys the device only when it owns it.
+    }
+  } catch (error) {
+    console.warn('Failed to release partially initialized GPU backend:', error);
+  }
+}
+
+export function createRenderer(opts) {
+  keepShadowNodes();
+  sizeShadowMapsAtOnce();
+  compileSidesAsDrawn();
+  opts = Object.assign({}, opts || {});
+  opts.forceWebGL = FORCE_WEBGL;
+  // a custom lighting manager (js/light_loop.js) must be in place before
+  // init(), which hands it to the render lists
+  var lighting = opts.lighting;
+  delete opts.lighting;
   var r = new THREE.WebGPURenderer(opts);
+  if (lighting) r.lighting = lighting;
   // Kick init immediately so it overlaps with the caller's scene building.
-  r._readyPromise = r.init().then(function () { return r; });
+  const initialBackend = r.backend;
+  r._readyPromise = r.init().then(function () {
+    if (r.backend !== initialBackend) releaseFailedBackend(initialBackend);
+    return r;
+  }, function (error) {
+    if (r.backend !== initialBackend) releaseFailedBackend(initialBackend);
+    releaseFailedBackend(r.backend);
+    throw error;
+  });
   r._readyPromise.catch(function (e) {
     if (window.console && console.error) console.error("GPU backend init failed:", e);
   });

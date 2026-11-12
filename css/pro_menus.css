@@ -110,6 +110,14 @@ dialog.pro-dialog {
   box-shadow: 0 24px 60px rgba(16, 21, 34, 0.24), 0 0 0 1px var(--border-color);
 }
 dialog.pro-dialog::backdrop { background: rgba(16, 21, 34, 0.32); }
+#mdDesignTable { width: fit-content; max-width: 94vw; }
+#mdDesignTable .md-table-scroll { overflow: auto; max-height: 52vh; }
+#mdDesignTable table { border-collapse: separate; border-spacing: 0; font-size: 13px; }
+#mdDesignTable :is(td, th) { text-align: start; padding: 5px 8px; border-bottom: 1px solid var(--border-color); }
+#mdDesignTable th { position: sticky; background: var(--pro-surface, var(--bg-panel)); }
+#mdDesignTable thead th { top: 0; z-index: 1; }
+#mdDesignTable tbody th { inset-inline-start: 0; }
+#mdDesignTable input { width: 10em; }
 dialog.pro-dialog h2 { margin: 0 0 8px; font-size: 17px; font-weight: 700; }
 dialog.pro-dialog label { font-size: 13px; color: var(--text-muted); }
 dialog.pro-dialog :is(input:not([type="checkbox"]):not([type="radio"]), select) {
@@ -121,6 +129,26 @@ dialog.pro-dialog button[type="submit"] { background: var(--accent); color: var(
 dialog.pro-dialog [role="status"]:not(:empty) { color: var(--danger, #dc2626); font-size: 13px; }
 body.pro-compact dialog.pro-dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 20px 20px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 
+/* Import DXF (js/ui_dxf_import.js): units, a preview of the ticked layers
+   over the rest, the layer list, then the options */
+dialog.dxf-dialog { width: min(40rem, 94vw); }
+.dxf-dialog .dxf-summary { margin: 0 0 10px; color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
+.dxf-dialog .dxf-units { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.dxf-dialog .dxf-units small { font-size: 12px; color: var(--text-muted); }
+.dxf-dialog .dxf-preview { display: block; width: 100%; height: 200px; margin: 12px 0; border: 1px solid var(--border-color); border-radius: 10px; background: #fbfbf8; }
+.dxf-dialog .dxf-layers-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; font-size: 13px; }
+.dxf-dialog button.dxf-link { min-height: 28px; margin: 0 0 0 4px; padding: 0 8px; background: none; color: var(--accent); font-size: 13px; }
+.dxf-dialog .dxf-layers { max-height: 30vh; overflow: auto; margin: 6px 0 4px; border: 1px solid var(--border-color); border-radius: 10px; }
+.dxf-dialog .dxf-layer { display: grid; grid-template-columns: auto 12px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 36px; padding: 2px 10px; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
+.dxf-dialog .dxf-layer:last-child { border-bottom: 0; }
+.dxf-dialog .dxf-layer small { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.dxf-dialog .dxf-layer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+/* a dot, so the layer's colour never reads as a second checkbox */
+.dxf-dialog .dxf-swatch { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1px var(--border-color); }
+.dxf-dialog .dxf-hint, .dxf-dialog .dxf-note:not(:empty) { margin: 4px 0 8px; font-size: 12px; color: var(--text-muted); }
+.dxf-dialog .dxf-check { display: flex; align-items: center; gap: 8px; min-height: 32px; color: var(--text-main); }
+.dxf-dialog .dxf-modes { display: flex; flex-wrap: wrap; gap: 0 18px; }
+
 /* ---- desktop: space the editors were leaving empty ------------------------- */
 /* the model editor kept 14px gutters round its panels; the cabinet has none */
 body.pro-skin #modeler .md-body { padding: 0; gap: 0; }
@@ -128,3 +156,40 @@ body.pro-skin #modeler .md-left { border-inline-end: 1px solid var(--border-colo
 body.pro-skin #modeler .md-right { border-inline-start: 1px solid var(--border-color); border-radius: 0; }
 /* the library grid stopped at 400px in a full-height panel */
 body.pro-skin #left-sidebar .furn-grid { max-height: none; }
+
+/* ---- Settings → Grid (js/plan_grid_ui.js) ------------------------------------ */
+.settings-grid-pane { box-sizing: border-box; height: 100%; overflow-y: auto; padding: 14px 2px; }
+.grid-settings { display: grid; gap: 12px; max-width: 760px; color: var(--text-main); }
+.grid-style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.grid-style-card {
+  position: relative; display: flex; flex-direction: column; gap: 8px; padding: 8px; cursor: pointer;
+  border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-panel);
+}
+.grid-style-card:hover { border-color: var(--accent); }
+.grid-style-card.active {
+  border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+/* the card is the control; the radio stays for keyboard and screen readers */
+.grid-style-card > input { position: absolute; opacity: 0; pointer-events: none; }
+.grid-style-card:has(> input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.grid-style-swatch {
+  display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--border-color);
+}
+/* dialog labels are one-line by default (white-space: nowrap); these wrap */
+.settings-grid-pane .grid-style-card { white-space: normal; min-width: 0; }
+.grid-style-copy { display: grid; gap: 2px; min-width: 0; padding: 0 2px 2px; overflow-wrap: break-word; }
+.grid-style-copy strong { font-size: 13px; }
+.grid-style-copy small { color: var(--text-muted); font-size: max(11px, var(--fs-floor, 0px)); line-height: 1.35; }
+.grid-opacity-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) 3.5em auto; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 11px; background: var(--bg-panel);
+}
+.grid-opacity-row > label { font-weight: 600; font-size: 13px; }
+.grid-opacity-row > input[type="range"] { width: 100%; min-width: 0; accent-color: var(--accent); }
+.grid-opacity-value { font-variant-numeric: tabular-nums; text-align: end; color: var(--text-muted); font-size: 13px; }
+.grid-opacity-row.is-off > :is(label, output) { opacity: 0.5; }
+body.pro-compact .grid-style-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body.pro-compact .grid-opacity-row { grid-template-columns: auto minmax(0, 1fr) 3.5em; }
+body.pro-compact .grid-opacity-row > .grid-reset { grid-column: 1 / -1; min-height: 40px; }

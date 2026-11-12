@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {inferTangentCircle} from '../js/modeler_inference.js';
 import {sketchGeometryBounds,planeBoundsFit} from '../js/core/sketch_view_fit.js';
 import {sketchFitViewport} from '../js/core/sketch_fit_viewport.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function load(name,context){const start=source.indexOf('function '+name+'('),open=source.indexOf('{',start);let depth=1,end=open+1;while(depth){const char=source[end++];if(char==='{')depth++;if(char==='}')depth--;}
   runInNewContext(source.slice(start,end)+'\nthis.run='+name+';',context);return context.run;}
 test('paperclip outer legs cannot infer tangency to a remote arc or to the undrawn half of a nearby arc',()=>{

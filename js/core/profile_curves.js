@@ -52,15 +52,25 @@ function arcData(entity, points) {
    sketch_profiles.js does the same thing to produce points; it cannot hand us
    the ordering because a profile is stored as a bare point array. */
 function orderChain(entities, points, tolerance, open=false) {
-  const remaining = entities.slice(), first = remaining.shift();
+  const remaining = entities.slice();
   const ends = (entity) => {
     const a = points.get(entity.a), b = points.get(entity.b);
     return a && b ? { a: at(a), b: at(b) } : null;
   };
-  const head = ends(first);
+  // Kernel edge directions and pick order need not run along an open profile.
+  // Start at a free end so the chain can be walked in either direction.
+  let startIndex = 0, forward = true;
+  if (open && remaining.length > 1) {
+    const pairs = remaining.map(ends);
+    if (pairs.some(pair => !pair)) return null;
+    const free = (p, i) => pairs.every((pair, j) => i === j || (!near(p, pair.a, tolerance) && !near(p, pair.b, tolerance)));
+    const i = pairs.findIndex((pair, j) => free(pair.a, j) || free(pair.b, j));
+    if (i >= 0) { startIndex = i; forward = free(pairs[i].a, i); }
+  }
+  const first = remaining.splice(startIndex, 1)[0], head = ends(first);
   if (!head) return null;
-  const steps = [{ entity: first, forward: true }];
-  let tail = head.b;
+  const steps = [{ entity: first, forward }];
+  let tail = forward ? head.b : head.a;
   while (remaining.length) {
     const index = remaining.findIndex((entity) => {
       const p = ends(entity);
@@ -217,6 +227,7 @@ export function pathFrames(points) {
       length += Math.hypot(path[i].x - previous.x, path[i].y - previous.y, path[i].z - previous.z);
       const t = tangents[i], projected = { x: normal.x - t.x * dot(normal, t), y: normal.y - t.y * dot(normal, t), z: normal.z - t.z * dot(normal, t) };
       if (Math.hypot(projected.x, projected.y, projected.z) > 1e-9) normal = norm(projected);
+      else normal = norm(cross(frames[i - 1].binormal, t));
     }
     frames.push({ origin: path[i], tangent: tangents[i], normal, binormal: norm(cross(tangents[i], normal)), distance: length });
   }

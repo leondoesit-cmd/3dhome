@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -8,7 +9,7 @@ import {printMeshFromPositions} from '../js/cad_3mf.js';
 import {stlMeshOptions} from '../js/cad_stl.js';
 import {proTools} from '../js/pro_catalog.js';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const handler=source.slice(source.indexOf('async function openPrintLayerAnalysis()'),source.indexOf('async function openPrintSetupForm()'));
 test('visible pro ribbon and global tool search expose the actual layer-analysis dispatcher',()=>{
   const tools=proTools('model').filter(tool=>tool.bind==='mcmd:layeranalysis');

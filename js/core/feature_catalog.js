@@ -14,6 +14,7 @@
 
 import { TOOLBOX_FAMILIES } from "../toolbox/catalog.js";
 import { TOOLBOX_FINISHES, TOOLBOX_MATERIALS } from "../toolbox/schema.js";
+import { assertStandaloneRevolve, isStandaloneSketchAxisRevolve } from "./revolve_geometry.js";
 import { isUpToFace } from "./extrude_extent.js";
 import {normalizeHelixRegions} from '../cad_helix.js';
 import {shellFaceThicknesses} from './planar_shell_overrides.js';
@@ -1035,7 +1036,13 @@ export function validateFeatureDefinition(feature) {
   if (!feature?.id) issues.push({ severity: "error", code: "feature-id", message: "Feature has no stable id" });
   if (!spec) return issues.concat({ severity: "error", code: "feature-type", message: "Unsupported feature type: " + (feature?.type || "missing") });
   const references = feature.references || {};
+  const standaloneRevolve=feature.type==="revolve" && !references.sketches?.length && isStandaloneSketchAxisRevolve(feature.params);
+  if(standaloneRevolve){
+    try{assertStandaloneRevolve(feature.params);}
+    catch(error){issues.push({severity:"error",code:"invalid-revolve-recipe",featureId:feature.id,message:error.message});}
+  }
   Object.entries(spec.selection || {}).forEach(([role, rule]) => {
+    if(standaloneRevolve && (role==="sketches" || role==="references"))rule={...rule,min:0};
     /* A SolidWorks-style sweep can use one profile sketch plus a reference
        helix/spiral.  The helix is carried as a reference in the feature
        parameters, so the sketch selection count is one even though the

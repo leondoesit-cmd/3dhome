@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -108,7 +109,7 @@ test("without a previous report an over-constrained result is refused as before"
 
 /* --- the editor wiring ---------------------------------------------------- */
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 
 test("resolveSketch rolls back an over-constrained edit only when it is a repeat of what was already set", () => {
   const body = modeler.slice(modeler.indexOf("function resolveSketch("), modeler.indexOf("function syncSketchDrivenParts("));

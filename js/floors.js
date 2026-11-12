@@ -410,6 +410,25 @@ export function floorAbove(workspace = S.workspace) {
   return best;
 }
 
+// The storey directly under the active one (the mirror of floorAbove), or null.
+export function floorBelow(workspace = S.workspace) {
+  const floors = Array.isArray(workspace && workspace.floors) ? workspace.floors : [];
+  const activeIndex = floors.findIndex((f) => f.id === (workspace && workspace.activeFloor));
+  if (activeIndex < 0) return null;
+  const activeElev = Number(floors[activeIndex].elevation) || 0;
+  let best = null, bestElev = -Infinity, bestIndex = -Infinity;
+  floors.forEach((f, i) => {
+    if (i === activeIndex) return;
+    const elev = Number(f.elevation) || 0;
+    const lower = elev < activeElev || (elev === activeElev && i < activeIndex);
+    if (!lower) return;
+    if (elev > bestElev || (elev === bestElev && i > bestIndex)) {
+      best = f; bestElev = elev; bestIndex = i;
+    }
+  });
+  return best;
+}
+
 /* Write a slab void into another storey's stored scene. The active storey is
    captured first, or the next captureFloor() would overwrite this edit. */
 export function addSlabOpeningToFloor(floorId, opening) {
@@ -418,14 +437,15 @@ export function addSlabOpeningToFloor(floorId, opening) {
   captureFloor();
   const floor = floorById(floorId);
   if (!floor) return null;
-  if (!floor.scene || typeof floor.scene !== "object") floor.scene = {};
-  const scene = floor.scene;
+  // History interns inactive scenes by identity. Never edit a pooled scene.
+  const scene = floor.scene && typeof floor.scene === "object" ? clone(floor.scene) : {};
   if (scene.spatial && typeof scene.spatial === "object") {
     if (!Array.isArray(scene.spatial.slabOpenings)) scene.spatial.slabOpenings = [];
     scene.spatial.slabOpenings.push(clone(opening));
   }
   if (!Array.isArray(scene.slabOpenings)) scene.slabOpenings = [];
   scene.slabOpenings.push(clone(opening));
+  floor.scene = scene;
   return floor;
 }
 
@@ -437,9 +457,13 @@ export function updateStairVoidsOnFloors(stairs, apply) {
   let changed = false;
   floors.forEach((floor) => {
     if (!floor || floor.id === S.workspace.activeFloor || !floor.scene) return;
-    const scene = floor.scene;
-    if (apply(scene.slabOpenings, stairs)) changed = true;
-    if (scene.spatial && apply(scene.spatial.slabOpenings, stairs)) changed = true;
+    const scene = clone(floor.scene);
+    let floorChanged = !!apply(scene.slabOpenings, stairs);
+    if (scene.spatial && apply(scene.spatial.slabOpenings, stairs)) floorChanged = true;
+    if (floorChanged) {
+      floor.scene = scene;
+      changed = true;
+    }
   });
   return changed;
 }

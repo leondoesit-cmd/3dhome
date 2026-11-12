@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {inferLineRelations,constraintAlreadyPresent} from '../js/modeler_inference.js';
 import {pruneImpliedRelations} from '../js/sketch_solver.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const start=source.indexOf('function makeWallSegment('),end=source.indexOf('\nfunction finishWallChain(',start);
 test('typed small CAD lines preserve their intended endpoint instead of a stale origin snap',()=>{
  const sketch={points:[],entities:[],constraints:[]};let next=0;

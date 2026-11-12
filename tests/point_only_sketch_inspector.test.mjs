@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {solveSketch} from '../js/sketch_solver.js';
 import {createHistory} from '../js/edit_history.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function node(tag,cls,text){return {tag,cls,text,children:[],dataset:{},events:{},style:{},appendChild(child){this.children.push(child);},addEventListener(type,fn){this.events[type]=fn;},setAttribute(key,value){this[key]=value;},closest(){return null;}};}
 const walk=n=>[n,...n.children.flatMap(walk)];
 
@@ -31,6 +32,7 @@ test('actual point-only Hole positioning sketch renders geometry and edits coord
  const start=source.indexOf('      host.appendChild(btn("Set point coordinates"'),end=source.indexOf('      host.appendChild(btn("Pierce curve"',start);
  const editorContext={...context,host,sketch,selPoints:()=>E.ssel,openQuickForm:form=>{quick=form;},pushUndo:label=>H.push(label),cloneData:structuredClone,uid:()=> 'new-fixed',
   resolveSketch:()=>{const result=solveSketch(sketch);return result.status==='fully-constrained';},refreshAll:()=>refreshes++,H};
+ editorContext.openSketchPointCoordinates=new Function(...Object.keys(editorContext),sourceFunctionText(source,'openSketchPointCoordinates')+';return openSketchPointCoordinates;')(...Object.values(editorContext));
  new Function(...Object.keys(editorContext),source.slice(start,end))(...Object.values(editorContext));
  host.children.at(-1).click();assert.equal(quick.title,'Point coordinates');
  const before=JSON.stringify(sketch);assert.equal(quick.onApply({x:NaN,y:0}),false);assert.equal(JSON.stringify(sketch),before);

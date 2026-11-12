@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {occurrenceDependencyId} from '../js/core/dependency_visualization.js';
 import {nestedComponentOccurrence,createNestedComponentEdit,nestedEditStillCurrent,commitNestedComponentEdit,assemblyWithoutNestedOccurrence} from '../js/core/nested_component_edit.js';
 import {setDocumentProperty,assemblyPartNumber,documentDescription} from '../js/core/custom_properties.js';
-import {assemblyDrawingBOM} from '../js/core/assembly_drawing_bom.js';import {createHistory} from '../js/edit_history.js';import {sourceFunctionText} from './helpers/source_function.mjs';
+import {assemblyDrawingBOM} from '../js/core/assembly_drawing_bom.js';import {createHistory} from '../js/edit_history.js';import {createHistorySnapshotCodec} from '../js/core/history_value_pool.js';import {sourceFunctionText, documentHistoryText, withSetters} from './helpers/source_function.mjs';
 import {currentNativeFixtureProof} from './helpers/current_native_proof.mjs';import {compileKernelFeatureTree} from '../js/core/kernel_feature_adapter.js';import {verifiedFinalTopology} from '../js/core/exact_topology_cache.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),clone=x=>structuredClone(x);
+const source=modelerSource(),clone=x=>structuredClone(x);
 function fixture(){const leaf=id=>({id,name:'Leaf',modelKey:'library-original',transform:{x:1,y:2,z:3,rx:0,ry:0,rz:0},def:{key:'library-original',name:'Leaf',parts:[],features:[{id:'f',params:{depth:2}}],history:[{kind:'feature',targetId:'f'}]}});return {key:'root',components:[{id:'left',kind:'assembly',transform:{x:10,y:0,z:0,rx:0,ry:0,rz:90},asm:{components:[{id:'inner',kind:'assembly',transform:{x:0,y:5,z:0,rx:0,ry:0,rz:0},asm:{components:[leaf(7)],topologyMates:[{id:'inner-mate'}]}}],topologyMates:[{id:'left-mate'}]}},{id:'right',kind:'assembly',asm:{components:[leaf(7)]}}],topologyMates:[{id:'root-mate',a:{componentId:'left',persistentId:'inner/7/f:face'}}],explodedViews:[{id:'explode'}]};}
 test('two-level paths distinguish duplicate IDs and preserve source/library/mates through commit Undo and cold',()=>{
  let a=fixture(),before=JSON.stringify(a);const path=['left','inner',7],target=nestedComponentOccurrence(a,path),other=nestedComponentOccurrence(a,['right',7]);assert.notEqual(target.component,other.component);assert.ok(Math.abs(target.placement.origin.x-3)<1e-12&&Math.abs(target.placement.origin.y-1)<1e-12&&Math.abs(target.placement.origin.z-3)<1e-12);
@@ -50,9 +51,9 @@ test('tree nested leaf supports Enter edit yet ordinary selection remains rigid 
 });
 test('actual local Undo path identity cannot cross between duplicate child IDs or replace parent',()=>{
  const assembly=fixture(),edit=createNestedComponentEdit(assembly,['left','inner',7]),E={docType:'part',assembly,contextEdit:edit,def:{name:'Current left working copy'}};
- const start=source.indexOf('const H = createHistory('),end=source.indexOf('\n/* ---- what is inside a document',start),noop=()=>{};
- const dependencies={E,createHistory:options=>options,closeEvalCard:noop,invalidateDrawing:noop,invalidateInterference:noop,resolveSketch:noop,refreshAll:noop,syncSheetPanel:noop,scanDoc:noop,docSubtree:noop,syncUndoButtons:noop,syncHead:noop,flash:noop};
- const restore=new Function(...Object.keys(dependencies),'function snapDoc(){return null;}'+source.slice(start,end)+';return H.set;')(...Object.values(dependencies));
+ const noop=()=>{};
+ const dependencies={E,createHistory:options=>options,closeEvalCard:noop,invalidateDrawing:noop,invalidateInterference:noop,resolveSketch:noop,refreshAll:noop,syncSheetPanel:noop,scanDoc:noop,docSubtree:noop,syncUndoButtons:noop,syncHead:noop,flash:noop,historySnapshots:createHistorySnapshotCodec(["meshData","exactTopologyCache"])};
+ const restore=new Function(...Object.keys(dependencies),withSetters('function snapDoc(){return null;}'+documentHistoryText(source))+';return H.set;')(...Object.values(dependencies));
  restore(JSON.stringify({d:{name:'Foreign right copy'},contextComponentId:7,contextComponentPath:['right',7]}));assert.equal(E.def.name,'Current left working copy');assert.equal(E.assembly,assembly);
  restore(JSON.stringify({d:{name:'Left Undo restored'},contextComponentId:7,contextComponentPath:['left','inner',7]}));assert.equal(E.def.name,'Left Undo restored');assert.equal(E.assembly,assembly);
 });

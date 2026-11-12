@@ -2,6 +2,14 @@
 // leaves the last prepared application usable, including after worker restart.
 const PREFIX='modelforge-survey-',LEGACY=PREFIX+'v1',META=PREFIX+'manifest';
 let preparation=null;
+// Keep this worker a classic script; tests can evaluate the predicate in a VM.
+function cacheableAsset(path,response){
+  if(!response.ok||response.type!=='basic'||response.status===206)return false;
+  const kind=path.split(/[?#]/)[0].match(/\.(m?js|css|html|json)$/i)?.[1].toLowerCase();
+  const expected={js:['text/javascript','application/javascript'],mjs:['text/javascript','application/javascript'],css:['text/css'],html:['text/html'],json:['application/json']};
+  const mime=(response.headers.get('Content-Type')||'').split(';')[0].trim().toLowerCase();
+  return !expected[kind]||expected[kind].includes(mime);
+}
 async function activeCache(){
   const record=await (await caches.open(META)).match('/active-survey-cache');
   return record?await record.text():LEGACY;
@@ -9,11 +17,11 @@ async function activeCache(){
 async function cacheAsset(cache,path){
   let response,body;
   for(let attempt=0;attempt<2;attempt++){
-    try{response=await fetch(path,{cache:'reload'});if(response.ok&&response.status!==206)body=await response.arrayBuffer();}
+    try{response=await fetch(path,{cache:'reload'});if(cacheableAsset(path,response))body=await response.arrayBuffer();}
     catch(error){if(!attempt)continue;throw new Error('Could not download '+path+': '+error.message);}
-    if(response.ok&&response.status!==206)break;
+    if(cacheableAsset(path,response))break;
     if(!attempt&&[502,503,504].includes(response.status))continue;
-    throw new Error('Could not download '+path+' (HTTP '+response.status+')');
+    throw new Error('Could not download '+path+' (HTTP '+response.status+', unexpected response type or Content-Type)');
   }
   // Storage errors are not network retries. Publish only after every write
   // finishes, so failure cleanup cannot race another write in this batch.
@@ -26,7 +34,7 @@ async function prepare(){
   const name=PREFIX+'assets-'+Date.now()+'-'+Math.random().toString(36).slice(2);
   try{
     const response=await fetch('/survey-assets.json',{cache:'no-store'});
-    if(!response.ok)throw new Error('Asset list unavailable');
+    if(!cacheableAsset('/survey-assets.json',response))throw new Error('Asset list unavailable');
     const {assets}=await response.json();
     if(!Array.isArray(assets)||!assets.length||assets.some(path=>typeof path!=='string'||!path.startsWith('/')||path.startsWith('//')||path.startsWith('/api/')||/[?#]/.test(path)))throw new Error('Invalid asset list');
     const cache=await caches.open(name);
@@ -49,7 +57,8 @@ self.addEventListener('message',event=>{
 });
 self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
-  if(event.request.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/')||!(url.pathname==='/'||/\.(html|js|mjs|css|wasm|gz|woff2?|ttf|json|svg|png|webp|jpg)$/.test(url.pathname)))return;
+  // Baked material maps are large and never precached: leave them to the browser (no 4 s abort).
+  if(event.request.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/')||url.pathname.startsWith('/assets/materials/')||!(url.pathname==='/'||/\.(html|js|mjs|css|wasm|gz|woff2?|ttf|json|svg|png|webp|jpg)$/.test(url.pathname)))return;
   event.respondWith((async()=>{
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4000);
     try{const response=await fetch(event.request,{signal:controller.signal});if(response.ok)return response;

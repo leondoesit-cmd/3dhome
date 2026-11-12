@@ -1,6 +1,8 @@
+import { bindLegacyHingeSources } from '../cad_sheet_hinge.js';
+import { savedLoftSources } from './swept_sources.js';
 import {resolveOffsetPlanes} from './offset_planes.js';
 import {supportReferenceResolutionRevision} from './support_reference_lookup.js';
-import { revolveRecipe } from "./revolve_geometry.js";
+import { revolvePreviewAxis, revolveRecipe } from "./revolve_geometry.js";
 // Integration boundary between authoring intent and the existing exact kernel
 // feature executor.  No UI module should translate gestures directly into
 // OpenCascade calls; it produces canonical features and this adapter lowers
@@ -139,8 +141,10 @@ function lowerExtrudeParams(feature, document) {
 }
 
 function revolveToolParams(feature) {
+  const reference=(feature.references?.references || []).map(idOf).find(id=>id?.startsWith("axis:"));
   return {
     ...cloneDomain(feature.params),
+    ...(reference?{axis:revolvePreviewAxis(feature.params,{axis:reference})}:{}),
     sketchId: sketchInput(feature),
     profileEntityIds: cloneDomain(feature.params?.profileEntityIds || feature.references?.profileEntityIds || []),
   };
@@ -154,7 +158,7 @@ function loweredFeature(feature, document) {
     if (target && params.mergeResult !== false && params.operation !== "new-body") {
       const toolId = feature.id + ":tool";
       return [
-        { ...base, id: toolId, type: "extrude", inputs: [], params },
+        { ...base, id: toolId, type: "extrude", inputs: params.sheetHingeSource ? [params.sheetHingeSource.baseId] : [], params },
         { ...base, type: "union", inputs: [target, toolId], params: {} },
       ];
     }
@@ -181,6 +185,7 @@ function loweredFeature(feature, document) {
   if (feature.type === "sweep" || feature.type === "loft") {
     const params=cloneDomain(feature.params);
     if(feature.type==="loft" && !params.sketchSources && feature.references?.sketches?.length>=2)params.sketchSources={kind:"loft",sections:feature.references.sketches.map(sketchId=>({sketchId,entityIds:(document.sketches.find(s=>s.id===sketchId)?.entities || []).filter(e=>!e.construction).map(e=>e.id)}))};
+    if (params.sketchSources) params.sketchSources = savedLoftSources(params.sketchSources, params.sectionSegments);
     if(feature.type==='loft' && params.operation==='subtract'){
       if(params.solid===false)throw new Error('Loft Cut requires solid sections');
       const target=feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
@@ -349,6 +354,7 @@ function lowerHoleFeature(feature, document, base, target) {
 
 export function compileKernelFeatureTree(source) {
   const document = ensureParametricDocument(cloneDomain(source));
+  bindLegacyHingeSources(document);
   const planeRun=resolveOffsetPlanes(document);
   const analysis = analyzeParametricHistory(document);
   const featuresById = new Map((document.features || []).map((feature) => [feature.id, feature]));

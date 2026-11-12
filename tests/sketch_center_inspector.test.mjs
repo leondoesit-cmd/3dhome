@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,7 +7,7 @@ import {solveSketch} from '../js/sketch_solver.js';
 import {addDimensionedCircle} from '../js/sketch_dimensioned_circle.js';
 import {lengthFromDocument,lengthToDocument} from '../js/core/document_length_units.js';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture({fixCenter=true,linked=false}={}) {
   let serial=0,discarded=0;
   const sketch={plane:'right',offset:1.6,points:[],entities:[],constraints:[]};

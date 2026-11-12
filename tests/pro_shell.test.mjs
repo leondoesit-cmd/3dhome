@@ -1,12 +1,15 @@
 // The shared editor switcher (js/pro_shell.js): Planner · Model · Cabinet in the
 // planner ribbon, the model editor header and the cabinet designer header.
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerEditor, switchEditor, activeEditor, editorSwitchHTML } from "../js/pro_shell.js";
 import { PRO_HE } from "../js/pro_catalog.js";
 
-const src = (f) => readFileSync(new URL("../js/" + f, import.meta.url), "utf8");
+const src = (f) => (f === "modeler.js" ? modelerSource() : f === "ui.js" ? moduleSource("js/ui.js") : readFileSync(new URL("../js/" + f, import.meta.url), "utf8"));
 
 // proToast needs just enough of a document to append its status line.
 const toasts = [];
@@ -113,7 +116,7 @@ test("the phone planner carries the switcher and the panes in a strip under the 
   // Panes go through setView, which also drops a half-armed drawing tool and resets elevations.
   assert.match(shell, /setView\(b\.dataset\.mPane\)/);
   assert.match(shell, /top\.parentNode\.insertBefore\(strip, top\.nextSibling\)/);
-  const css = readFileSync(new URL("../css/styles.css", import.meta.url), "utf8");
+  const css = stylesSource();
   // Fixed drawers read the block, so it must include the strip; the bar itself keeps one row.
   assert.match(css, /--mobile-topbar-block: calc\(var\(--mobile-topbar-row\) \+ var\(--m-editor-strip\)\)/);
   assert.match(css, /body\.compact-nav #topbar \{[^}]*height: var\(--mobile-topbar-row\)/);

@@ -1,3 +1,4 @@
+import {createMateTrial} from './core/assembly_context.js';
 // Continuous gear ratios act on angle increments from the saved zero pose.
 // They prescribe kinematics; they do not position shafts or simulate contact.
 import {rotationOf} from './cad_mate_model.js';
@@ -7,8 +8,8 @@ import {solveAssemblyMates} from './cad_mate_solver.js';
 // Existing timeline motors keep their settings but restart at this zero pose.
 export function setGearMatePhase(assembly,mateId,degrees){
   if(!Number.isFinite(degrees))return {ok:false,issues:[{code:'invalid-gear-phase'}]};
-  const trial={...assembly,components:(assembly.components||[]).map(c=>({...c,transform:structuredClone(c.transform||{})})),
-    mates:structuredClone(assembly.mates||[]),topologyMates:structuredClone(assembly.topologyMates||[]),motionStudies:structuredClone(assembly.motionStudies||[])};
+  const trial=createMateTrial(assembly);
+  trial.motionStudies=structuredClone(assembly.motionStudies||[]);
   const mate=trial.topologyMates.find(m=>m.id===mateId&&m.type==='gear');
   if(!mate||!Number.isFinite(mate.rollB0))return {ok:false,issues:[{code:'missing-gear-phase-baseline'}]};
   mate.rollB0+=(degrees-(Number(mate.followerPhaseDeg)||0))*Math.PI/180;

@@ -1,28 +1,27 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
+import { sourceFunctionText, withSetters } from "./helpers/source_function.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {evaluateMassProperties} from '../js/cad_mass_properties.js';
 
 function deferred(){let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};}
 const result=y=>({volumeCm3:2,massKg:.0146,density:7.3,accuracy:'exact',centerOfMass:{x:4.223753,y,z:0},bodies:[]});
 function fixture(){
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
-  const start=source.indexOf('var massDisplayUnits = "si";'),end=source.indexOf('\n/* ---- Measure ----',start);
-  assert.ok(start>=0 && end>start);
-  let node=1;const E={def:{parts:[{id:'rib-body'}]},docType:'part',evalCard:null},jobs=[],painted=[];
+  const source=modelerSource();
+  const massCard=withSetters(['var massDisplayUnits = "si";','var massCoordinateSystemId = "";',...['massEvaluationChanged','syncMassPropertiesEvaluation','showMassProperties'].map(name=>sourceFunctionText(source,name))].join('\n'));
+  let node=1;const E={def:{parts:[{id:'rib-body'}]},docType:'part',evalCard:null},jobs=[],painted=[],historyCalls=[];
   const body={isConnected:true,rows:[],children:[],appendChild(item){this.children.push(item);},set textContent(value){this.rows=[];this.children=[];this.text=value;}};
-  const context={E,Map,Math,Number,H:{push(){}},scheduleModelerDraft(){},currentHistoryNode:()=>node,
+  const context={E,Map,Math,Number,H:{push(...args){historyCalls.push(args);}},scheduleModelerDraft(){},currentHistoryNode:()=>node,
     cloneData:structuredClone,activeParts:doc=>doc.parts,t:key=>key,
     openEvalCard:owner=>{E.evalCard=owner;body.textContent='';return body;},
     el:()=>({children:[],appendChild(item){this.children.push(item);},setAttribute(){}}),btn:(label,action)=>({label,action,setAttribute(){}}),
     massDisplaySystem:()=>({mass:1,volume:1,density:1,length:1,massUnit:'kg',volumeUnit:'cm3',densityUnit:'g/cm3',lengthUnit:'cm'}),
     evalRow:(_body,label,value)=>{body.rows.push({label,value});painted.push({label,value});},
     evaluateMassProperties:snapshot=>{const pending=deferred();jobs.push({...pending,snapshot});return pending.promise;}};
-  runInNewContext(source.slice(start,end)+'\nthis.show=showMassProperties;this.sync=syncMassPropertiesEvaluation;',context);
-  const undo=source.match(/function pushUndo\(label, tag\) \{[^\n]+\}/);
-  assert.ok(undo);runInNewContext(undo[0]+'\nthis.push=pushUndo;',context);
-  return {context,E,body,jobs,painted,setNode:value=>{node=value;}};
+  runInNewContext(massCard+'\nthis.show=showMassProperties;this.sync=syncMassPropertiesEvaluation;',context);
+  runInNewContext(sourceFunctionText(source,'pushUndo')+'\nthis.push=pushUndo;',context);
+  return {context,E,body,jobs,painted,historyCalls,setNode:value=>{node=value;}};
 }
 
 test('translating a sketch in the same document immediately replaces old mass values and refreshes the new history node once',async()=>{
@@ -45,7 +44,11 @@ test('an old async mass calculation cannot overwrite a newer geometry result',as
 
 test('coalesced property edits invalidate mass even when the undo node stays the same; a closed card stays closed',async()=>{
   const f=fixture(),first=f.context.show();f.jobs[0].resolve(result(0));await first;
-  f.context.push('Offset','prop:offset');f.context.sync();assert.equal(f.jobs.length,2);
+  const scope={parts:['rib-body']};
+  f.context.push('Offset','prop:offset',scope);f.context.sync();assert.equal(f.jobs.length,2);
+  assert.deepEqual(f.historyCalls,[['Offset','prop:offset',scope]],'the edit scope reaches history');
+  assert.equal(f.E.massEvaluation.node,1,'coalescing keeps the same undo node');
+  assert.equal(f.E.massEditRevision,1,'the mass revision still advances');
   f.E.evalCard=null;f.jobs[1].resolve(result(3.9));await new Promise(resolve=>setImmediate(resolve));
   assert.equal(f.E.evalCard,null);assert.ok(!f.painted.some(row=>row.label==='massCentre' && /Y 3\.9/.test(row.value)));
 });

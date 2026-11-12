@@ -15,6 +15,8 @@ test("AI helper has connection settings, projected context, and a separate dock"
       await new Promise((resolve) => setTimeout(resolve, 30));
       const tabs = [...document.querySelectorAll(".settings-tabs button")];
       tabs.find((button) => button.textContent.includes("AI agent")).click();
+      for (let i = 0; i < 500 && !document.querySelector('.agent-settings-intro'); i++)
+        await new Promise(resolve => setTimeout(resolve, 10));
       const settings = {
         provider: !!document.querySelector(".settings-agent-pane select"),
         endpoint: [...document.querySelectorAll(".settings-agent-pane input")].some((input) => input.placeholder.includes("localhost")),
@@ -22,6 +24,8 @@ test("AI helper has connection settings, projected context, and a separate dock"
       };
       document.querySelector(".modal .modal-close, .modal button[aria-label='Close']")?.click();
       document.getElementById("agentBtn").click();
+      for (let i = 0; i < 500 && !document.querySelector('#agent-dock.on'); i++)
+        await new Promise(resolve => setTimeout(resolve, 10));
       const bridge = window.ModelForgeAgent;
       const registered = [];
       document.modelContext = { registerTool(definition) { registered.push(definition); } };
@@ -60,6 +64,8 @@ test("helper settings opens the agent tab and LM Studio streams visible progress
       const agentConfig = await import("/js/agent_config.js");
       agentConfig.saveAgentConfig({ provider: "lmstudio", endpoint: "http://localhost:1234/v1", model: "local" });
       document.getElementById("agentBtn").click();
+      for (let i = 0; i < 500 && !document.querySelector('#agent-dock.on'); i++)
+        await new Promise(resolve => setTimeout(resolve, 10));
       document.getElementById("agentSettings").click();
       await new Promise((resolve) => setTimeout(resolve, 30));
       const settingsOpened = !!document.querySelector(".settings-agent-pane:not([hidden])");
@@ -77,6 +83,7 @@ test("helper settings opens the agent tab and LM Studio streams visible progress
         }) };
       };
       try {
+        (await import('/js/ui_agent.js')).openAgent();
         const input = document.getElementById("agentInput");
         input.value = "hello";
         document.getElementById("agentSend").click();
@@ -304,6 +311,7 @@ test("a successful LM Studio connection test saves an available model for chat",
         for (let i = 0; i < 100 && !pane.querySelector(".agent-test-result").textContent.includes("Connected"); i++)
           await new Promise((resolve) => setTimeout(resolve, 10));
         const savedAfterTest = agentConfig.loadAgentConfig();
+        (await import('/js/ui_agent.js')).openAgent();
         const input = document.getElementById("agentInput");
         input.value = "hello";
         document.getElementById("agentSend").click();
@@ -370,6 +378,7 @@ test("LM Studio chat repairs an older saved configuration with no model", opts, 
         }) };
       };
       try {
+        (await import('/js/ui_agent.js')).openAgent();
         const input = document.getElementById("agentInput");
         input.value = "hello";
         document.getElementById("agentSend").click();
@@ -603,6 +612,9 @@ test("wall snap without facing offers A keep / B face into the room with fridge 
     const result = await page.eval(async () => {
       const runtime = await import("/js/agent_runtime.js");
       const state = await import("/js/state.js");
+      // This scenario needs a 400 cm room with a top-wall kitchen run,
+      // independently of whichever apartment the startup demo currently uses.
+      (await import("/js/furniture_api.js")).defaultScene();
       const tv = state.S.items.find((item) => item.type === "tv");
       const fridge = state.S.items.find((item) => item.type === "fridge");
       const cooktop = state.S.items.find((item) => item.type === "cooktop");
@@ -619,7 +631,8 @@ test("wall snap without facing offers A keep / B face into the room with fridge 
         { fetch: fake },
       );
       window.dispatchEvent(new CustomEvent("agent-external-proposal", { detail: turn.proposal }));
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      for (let i = 0; i < 500 && !document.querySelector('.agent-choice-proposal'); i++)
+        await new Promise(resolve => setTimeout(resolve, 10));
       const card = document.querySelector(".agent-choice-proposal");
       const labels = [...card.querySelectorAll(".agent-cand .agent-cand-name")].map((name) => name.textContent.trim());
       [...card.querySelectorAll(".agent-cand")].find((button) => button.querySelector(".agent-letter").textContent === "B").click();
@@ -745,6 +758,7 @@ test("joint-conflict Cancel dismisses local choices without drafting a chat mess
         ] } }],
       } : { choices: [{ message: { role: "assistant", content: "" } }] } });
       try {
+        (await import('/js/ui_agent.js')).openAgent();
         const input = document.getElementById("agentInput");
         input.value = "move both chairs to the right wall";
         document.getElementById("agentSend").click();

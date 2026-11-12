@@ -1,5 +1,5 @@
 import { newDocumentKey } from "./redesign.js";
-import { showcaseHouse } from "./demo_house.js";
+import { showcaseHouse, defaultApartment } from "./demo_house.js";
 import { initPlannerWorkflow } from "./planner_workflow.js";
 import { normalizePlanningGuide } from "./planning_guide.js";
 import { initPlanningGuide, openPlanningGuide } from "./ui_planning_guide.js";
@@ -18,11 +18,11 @@ import {
   syncPlanStyleUI,
   syncCutawayUI,
 } from "./ui.js";
-import { defaultScene, emptyScene, FURN } from "./furniture.js";
+import { emptyScene, FURN } from "./furniture.js";
 import { rebuildProject } from "./core/project.js";
 import { setTool } from "./interaction.js";
 import { resetLayers, saveLayers } from "./layers.js";
-import { render2D, fitView, wx, wz, dropPoint } from "./plan2d.js";
+import { render2D, fitView, wx, wz, dropPoint, onAfterRender } from "./plan2d.js";
 import { loadMEP } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
 import { withoutRoomPrompts } from "./ui_tree.js";
@@ -259,7 +259,7 @@ function updateToolHint() {
   var msg = "";
   if (S.placeType) msg = tTouch("hint_tool_place");
   else if (S.tool === "wall") msg = tTouch("hint_tool_wall");
-  else if (S.tool === "rect") msg = tTouch("hint_tool_rect");
+  else if (S.tool === "rect") msg = tTouch(S.rectDraft ? "hint_tool_rect_next" : "hint_tool_rect");
   else if (S.tool === "walloffset") msg = tTouch("hint_tool_offset");
   else if (S.tool === "wallbreak") msg = tTouch("hint_tool_break");
   else if (S.tool === "wallbite") msg = tTouch("hint_tool_wallbite");
@@ -269,8 +269,9 @@ function updateToolHint() {
   else if (S.tool === "erase") msg = tTouch("hint_tool_erase");
   else if (S.tool === "door" || S.tool === "window" || S.tool === "passage")
     msg = tTouch("hint_tool_opening");
-  el.textContent = msg;
-  el.hidden = !msg || currentUi() === "legacy";
+  if (el.textContent !== msg) el.textContent = msg;
+  var hide = !msg || currentUi() === "legacy";
+  if (el.hidden !== hide) el.hidden = hide;
 }
 
 function refreshAfterScene() {
@@ -280,7 +281,7 @@ function refreshAfterScene() {
      rebuildProject's own garbage collection is what removes them. The three
      in-home game modes build their courses from that map, so a skipped rebuild
      left them climbing furniture that is no longer in the plan. main.js
-     already does this after its own defaultScene() call at boot. */
+     already does this after its own defaultApartment() call at boot. */
   rebuildProject(S, FURN);
   loadMEP(S.mep || null);
   refreshMEPPanel();
@@ -318,6 +319,10 @@ function applyStart(kind) {
   if (fresh) S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {} };
   if (fresh) {
     resetLayers();
+    /* A drawing start arms the rectangle tool below; starting on its layer
+       spares a "Now editing Structure · Stay on Furniture" toast about a
+       plan that has no furniture yet. */
+    if (intention && intention !== "explore") S.workSet = "structure";
     saveLayers();
     window.dispatchEvent(new CustomEvent("layers:changed"));
   }
@@ -331,7 +336,7 @@ function applyStart(kind) {
     loadMEP(null);
     setTool(intention === "explore" ? "select" : "rect");
   } else if (kind === "demo") {
-    defaultScene();
+    defaultApartment();
     S.workspace.guidance = normalizePlanningGuide(null);
     loadMEP(null);
     setTool("select");
@@ -453,6 +458,68 @@ function bindLibraryDrag() {
   if (view2) view2.addEventListener("dragleave", function (e) {
     if (!e.relatedTarget || !view2.contains(e.relatedTarget)) hideDropGhost();
   });
+
+  /* Touch has no HTML5 drag-and-drop, so on a phone a library piece could only
+     be tap-armed and then tapped onto the plan. Holding one now lifts it
+     (~0.35 s, a short buzz) and it drags onto the plan with the same drop
+     ghost and the same placement as a mouse drop. A quick tap still arms
+     placement (mobile_shell.js); moving before the hold completes is a list
+     scroll, exactly as before. */
+  var touchLift = null, swallowClickUntil = 0;
+  ui.addEventListener("pointerdown", function (e) {
+    if (e.pointerType !== "touch") return;
+    var item = e.target.closest(".furn-item[data-type]");
+    if (!item || !FURN[item.dataset.type]) return;
+    var d = { id: e.pointerId, x: e.clientX, y: e.clientY, type: item.dataset.type, item: item, live: false };
+    d.timer = setTimeout(function () {
+      d.live = true;
+      dragType = d.type;
+      item.classList.add("touch-lifted");
+      try { if (navigator.vibrate) navigator.vibrate(10); } catch (_) {}
+    }, 350);
+    touchLift = d;
+  });
+  // once lifted, the finger drags the piece, not the list
+  ui.addEventListener("touchmove", function (e) {
+    if (touchLift && touchLift.live) e.preventDefault();
+  }, { passive: false });
+  function overPlan(x, y) {
+    var el = document.elementFromPoint(x, y);
+    return !!el && !!plan && (el === plan || (!!view2 && view2.contains(el)));
+  }
+  window.addEventListener("pointermove", function (e) {
+    var d = touchLift;
+    if (!d || e.pointerId !== d.id) return;
+    if (!d.live) {
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) { clearTimeout(d.timer); touchLift = null; }
+      return;
+    }
+    if (overPlan(e.clientX, e.clientY)) showDropGhost(e);
+    else hideDropGhost();
+  });
+  function endLift(e, drop) {
+    var d = touchLift;
+    if (!d || e.pointerId !== d.id) return;
+    clearTimeout(d.timer);
+    touchLift = null;
+    d.item.classList.remove("touch-lifted");
+    if (!d.live) return;
+    swallowClickUntil = Date.now() + 500; // the lift is not also a tap-to-arm
+    hideDropGhost();
+    dragType = null;
+    if (drop && overPlan(e.clientX, e.clientY)) {
+      var rect = plan.getBoundingClientRect();
+      placeFurnAt(d.type, wx(e.clientX - rect.left, e.clientY - rect.top), wz(e.clientX - rect.left, e.clientY - rect.top));
+    }
+  }
+  window.addEventListener("pointerup", function (e) { endLift(e, true); });
+  window.addEventListener("pointercancel", function (e) { endLift(e, false); });
+  ui.addEventListener("click", function (e) {
+    if (Date.now() < swallowClickUntil && e.target.closest(".furn-item[data-type]")) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true);
 }
 
 function updateCostChip() {
@@ -507,6 +574,8 @@ function initPlannerChrome() {
   });
   window.addEventListener("planner-tool", updateToolHint);
   window.addEventListener("planner-place", updateToolHint);
+  // the rectangle hint changes with its first corner, which fires no tool event
+  onAfterRender(updateToolHint);
   var cc = $("center-canvas");
   if (cc && window.MutationObserver) {
     new MutationObserver(syncViewPills).observe(cc, { attributes: true, attributeFilter: ["class"] });

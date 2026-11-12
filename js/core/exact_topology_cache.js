@@ -12,9 +12,16 @@ function normalizedStamp(value) {
     return item;
   };
   value=normalizeFrames(value);
-  for(const feature of value.features || [])if(feature.params?.sketchSources){
-    const derived=feature.type==='loft'?['sections','sectionSegments']:feature.type==='sweep'?['profile','profileSegments','path','pathSegments']:[];
-    derived.forEach(key=>delete feature.params[key]);
+  for(const feature of value.features || []){
+    if(feature.params?.sketchSources){
+      const derived=feature.type==='loft'?['sections','sectionSegments']:feature.type==='sweep'?['profile','profileSegments','path','pathSegments']:[];
+      derived.forEach(key=>delete feature.params[key]);
+    }
+    // Hole tools began stamping holeOffsetNormal, which only moves a reversed
+    // cut off a support face (alignExtrusionToSupport). Anywhere else it is
+    // the same geometry as none and must not expire Holes saved before it.
+    const params=feature.params;
+    if(params?.holeOffsetNormal && !(Number(params.baseOffset) && params.direction==='reverse'))delete params.holeOffsetNormal;
   }
   // Frame resolution can leave signed zero and round-off at the origin after
   // a JSON reopen. This threshold is far below the kernel modeling tolerance;

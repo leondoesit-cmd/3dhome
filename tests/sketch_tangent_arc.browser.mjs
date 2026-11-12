@@ -22,6 +22,12 @@ test("Tangent Arc starts on a line endpoint and adds a tangent relation", chrome
     await page.eval(async () => {
       const { openModeler } = await import("/js/modeler.js");
       openModeler(null, { key: "tangent_arc", name: "Tangent arc", parts: [] }, null);
+    });
+    if (process.env.MF_BROWSER_GPU === '1') {
+      await page.waitUntil(() => !!window.cadPreviewView?.rr, {what:'model preview renderer'});
+      await page.eval(async () => { await (await import('/js/gpu.js')).ready(window.cadPreviewView.rr); });
+    }
+    await page.eval(() => {
       document.querySelector('#mdModes [data-mode="2d"]').click();
       document.querySelector("#modeler [data-command=\"wall\"]").click();
     });
@@ -29,6 +35,7 @@ test("Tangent Arc starts on a line endpoint and adds a tangent relation", chrome
       const picker = document.querySelector("#mdReferencePicker");
       if (picker && !picker.hidden) picker.querySelector("button.md-reference-option")?.click();
     });
+    await page.eval(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
 
     await clickCanvas(page, [[0.40, 0.55], [0.70, 0.55]]);
     await page.eval(() => document.querySelector("#modeler [data-command=\"select\"]").click());
@@ -39,7 +46,7 @@ test("Tangent Arc starts on a line endpoint and adds a tangent relation", chrome
     const armed = await page.eval(() => window.cadSketchSnapshot());
     assert.equal(armed.arcMode, "tangent", JSON.stringify(armed));
 
-    const left = drawn.screenPoints.reduce((best, point) => point.x < best.x ? point : best);
+    const left = armed.screenPoints.reduce((best, point) => point.x < best.x ? point : best);
     const canvas = await page.eval(() => {
       const rect = document.querySelector("#mdCanvas").getBoundingClientRect();
       return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };

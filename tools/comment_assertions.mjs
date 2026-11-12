@@ -32,12 +32,29 @@ const raw = new Map(), code = new Map();
    read it would silently drop out of this check. */
 const I18N = "js/i18n.js + js/i18n/*.js";
 const I18N_PARTS = ["js/i18n.js", "js/i18n/he.js", "js/i18n/en.js"];
+/* stylesSource() (tests/helpers/styles_source.mjs) is the planner stylesheet,
+   split into css/styles_NN_*.css, joined in index.html link order. */
+const STYLES = "css/styles_*.css";
+/* moduleSource("js/x.js") and modelerSource() (tests/helpers/module_source.mjs)
+   hand a test js/x.js followed by the js/x/*.js pieces split out of it, with the
+   pieces' import blocks and export lists left out. Resolve them to that same
+   text, keyed "module:js/x.js", so a split does not drop its assertions here. */
+const MODULE = "module:";
 
 async function source(rel) {
   if (!raw.has(rel)) {
     if (rel === I18N) {
       const parts = await Promise.all(I18N_PARTS.map((p) => source(p)));
       raw.set(rel, parts.every(Boolean) ? parts.join("\n") : null);
+    } else if (rel === STYLES) {
+      const { stylesFiles } = await import("../tests/helpers/styles_source.mjs");
+      const parts = await Promise.all(stylesFiles().map((p) => source(p)));
+      raw.set(rel, parts.length && parts.every((p) => p != null) ? parts.join("") : null);
+    } else if (rel.startsWith(MODULE)) {
+      const { moduleSource } = await import("../tests/helpers/module_source.mjs");
+      let text = null;
+      try { text = moduleSource(rel.slice(MODULE.length)); } catch {}
+      raw.set(rel, text);
     } else {
       try { raw.set(rel, await readFile(ROOT + rel, "utf8")); } catch { raw.set(rel, null); }
     }
@@ -83,6 +100,16 @@ for (const file of files) {
     owner.set(m[1], m[2]);
   for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?readI18nSource\(/g))
     owner.set(m[1], I18N);
+  for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?stylesSource\(/g))
+    owner.set(m[1], STYLES);
+  // a test's own path reader, `const x = read("js/y.js")` / `src("css/z.css")`:
+  // the literal names the file (moduleSource/modelerSource are mapped elsewhere)
+  for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?(\w+)\(\s*["']((?:js|css|server|tools)\/[\w\/.-]+\.(?:m?js|css))["']\s*\)/g))
+    if (!owner.has(m[1]) && m[2] !== "moduleSource" && m[2] !== "modelerSource") owner.set(m[1], m[3]);
+  for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?moduleSource\(\s*(["'])([^"']+)\2\s*\)/g))
+    owner.set(m[1], MODULE + m[3]);
+  for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?modelerSource\(\s*\)/g))
+    owner.set(m[1], MODULE + "js/modeler.js");
   // a slice of a known source is still that source's text
   for (const m of text.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*(\w+)\s*\.slice\(/g))
     if (owner.has(m[2])) owner.set(m[1], owner.get(m[2]));

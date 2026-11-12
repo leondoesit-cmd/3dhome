@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,7 +8,7 @@ import {analyzeSketchProfiles,analyzeSketchChains} from '../js/sketch_profiles.j
 import {surfaceSketchWorldPolyline,surfacePoint} from '../js/core/surface_uv.js';
 import {isHoleWizardSketch} from '../js/core/hole_wizard_sketches.js';
 
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const consumed=new Function(sourceFunctionText(source,'consumedSketchIds')+';return consumedSketchIds;')();
 const standard=new Function('fin',sourceFunctionText(source,'standardPlaneFrame')+';return standardPlaneFrame;')(Number.isFinite);
 function overlays(def,extra={}) {

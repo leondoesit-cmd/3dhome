@@ -70,6 +70,7 @@ export function prepareItemPlace(params, env) {
         x: snap2(x),
         z: snap2(z),
         rot: rot,
+        rotationSpecified: params.rot != null,
         w: w,
         d: d,
         h: h,
@@ -118,7 +119,8 @@ export function applyItemPlace(plan, env) {
   if (!item || item.id == null || !finite(Number(item.x)) || !finite(Number(item.z)))
     return fail("ITEM_CREATE_FAILED");
 
-  if (typeof services.applyAutoFace === "function")
+  if (params.rotationSpecified) { item.rot=params.rot; item.rotUser=true; }
+  if (typeof services.applyAutoFace === "function" && !params.rotationSpecified)
     services.applyAutoFace(item, params.x, params.z, {});
   state.items.push(item);
   return {

@@ -1,19 +1,21 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sourceFunctionText } from './helpers/source_function.mjs';
 import * as THREE from '../vendor/three/three.core.js';
 import { KEY_TOOL, KEY_VIEW } from '../js/modeler_commands.js';
-const source = name => readFileSync(new URL('../js/' + name + '.js', import.meta.url), 'utf8');
+const source = name => name === 'modeler' ? modelerSource() : moduleSource('js/' + name + '.js');
 function extract(file, name, bindings = {}) {
   const text = sourceFunctionText(source(file), name);
   return Function(...Object.keys(bindings), 'return (' + text + ')')(...Object.values(bindings));
 }
 function keyboard(E, extra = {}) {
   return extract('modeler', 'onKey', {
-    E, root:null, document:{activeElement:null}, modelerDecisionOpen:()=>false,
+    E, root:null, document:{activeElement:null}, modelerDecisionOpen:()=>false, reportOpen:()=>false,
     handleSelectionFilterChord:()=>false, dynKey:()=>false, dynHasEntry:()=>false,
-    KEY_TOOL, KEY_VIEW, isSketchObject:()=>false, ...extra,
+    KEY_TOOL, KEY_VIEW, isSketchObject:()=>false, isCanonicalAuthoring:()=>false, ...extra,
   });
 }
 const editor = () => ({open:true, mode:'3d', docType:'part', def:{parts:[]}});
@@ -41,6 +43,22 @@ test('Delete still removes a selected document body', () => {
 test('B selects Box while P selects Paint', () => {
   const tools=[]; const key=keyboard(editor(),{setTool:t=>tools.push(t)});
   key({key:'b'}); key({key:'p'}); assert.deepEqual(tools,['rect','paint']);
+});
+test('an open report blocks the Box shortcut until Escape closes it', () => {
+  const tools = [];
+  let open = true, prevented = false;
+  const key = keyboard(editor(), {
+    reportOpen: () => open,
+    closeReport: () => { open = false; },
+    setTool: tool => tools.push(tool),
+  });
+  key({key:'b'});
+  assert.deepEqual(tools, []);
+  key({key:'Escape', preventDefault:() => { prevented = true; }});
+  assert.equal(prevented, true);
+  assert.equal(open, false);
+  key({key:'b'});
+  assert.deepEqual(tools, ['rect']);
 });
 test('drawing letter shortcuts ignore modifiers', () => {
   const selected=[];
@@ -100,9 +118,20 @@ test('exact meshes smooth supplied facet normals while preserving sharp corners'
   smooth(box); assert.ok(box.attributes.normal.array.every((n,i)=>Math.abs(n-before[i])<1e-6));
 });
 
+test('the exact mesh renders the same indexed triangles used by host drawings', () => {
+  const build=extract('modeler_mesh_geometry','buildExactMesh',{
+    THREE,smoothTessellationNormals:g=>g,fin:Number.isFinite,hexNum:()=>0xffffff,
+  });
+  const meshData={positions:[0,0,0,11.43,0,0,11.43,2,0,0,2,0],indices:[0,1,2,0,2,3]};
+  const {geometry}=build(new THREE.Group(),{meshData});
+  assert.deepEqual(Array.from(geometry.index.array),meshData.indices);
+  assert.equal(geometry.attributes.position.getX(1),Math.fround(11.43));
+});
+
 const partBoundsForTest=extract('modeler_part_geometry','basePartBounds',{isKernelBody:()=>false,framePoint});
 const mirrorForTest=extract('modeler_part_geometry','mirrorProjectionPart',{
   isKernelBody:q=>q.kind==='kernel',basePartBounds:partBoundsForTest,cloneData:structuredClone,
+  mirrorExtrusionSpan:extract('modeler_part_geometry','mirrorExtrusionSpan',{}),
   reflectProjectionMesh:extract('modeler_part_geometry','reflectProjectionMesh',{clearMeshProjectionCache:()=>{},clearTopologyCache:()=>{}}),
 });
 import { frameFromPlane, framePoint, frameCross, frameDot } from '../js/core/frame.js';
@@ -117,7 +146,8 @@ test('framed mirrors reflect every profile point and retain a right-handed frame
     const copy=mirrorForTest(structuredClone(seed),'plane:'+plane);
     assert.equal(copy.support,undefined);
     assert.ok(Math.abs(frameDot(frameCross(copy.frame.xAxis,copy.frame.yAxis),copy.frame.normal)-1)<1e-8);
-    for(const p of seed.pts)for(const [before,after] of [[seed.from,copy.from],[seed.to,copy.to]]){
+    assert.ok(copy.from < copy.to);
+    for(const p of seed.pts)for(const [before,after] of [[seed.from,copy.to],[seed.to,copy.from]]){
       const expected=framePoint(seed.frame,p.u,p.v,before);expected[axis]*=-1;
       const actual=framePoint(copy.frame,p.u,p.v,after);
       for(const key of ['x','y','z'])assert.ok(Math.abs(actual[key]-expected[key])<1e-8);

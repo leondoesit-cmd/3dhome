@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -167,7 +168,7 @@ test("copied standalone points and spline handles reference fresh destination po
 
 /* --- the editor wiring ---------------------------------------------------- */
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 const tree = readFileSync(new URL("../js/cad_feature_tree.js", import.meta.url), "utf8");
 const relationSources = readFileSync(new URL("../js/core/sketch_relation_sources.js", import.meta.url), "utf8");
 const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url), "utf8");

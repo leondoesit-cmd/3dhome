@@ -1,6 +1,9 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { sourceFunctionText } from './helpers/source_function.mjs';
 import { explainSketchConflict, solveSketch } from '../js/sketch_solver.js';
 
 /* A sketch that cannot be satisfied used to name every relation left carrying
@@ -120,8 +123,8 @@ test('a sketch that solves has nothing to explain', () => {
 });
 
 test('the dimension editor explains a refused value and names the dimension', () => {
-  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
-  const apply = src.slice(src.indexOf('function applyDimensionEditor()'), src.indexOf('function deleteDimensionEditor()'));
+  const src = modelerSource();
+  const apply = sourceFunctionText(src, 'applyDimensionEditor');
   assert.match(apply, /explainSketchConflict\(state\.sketch, \{ keep: \[constraint\.id\] \}\)/);
   assert.match(apply, /mdDimError/);
 });
@@ -145,12 +148,12 @@ test('a relation added in several copies at once keeps every copy in the explana
 });
 
 test('the relations toolbar explains a refused relation and paints what it fought', () => {
-  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
-  const apply = src.slice(src.indexOf('function applyConstraint(type)'), src.indexOf('/* ---- mirror & pattern'));
+  const src = modelerSource();
+  const apply = sourceFunctionText(src, 'applyConstraint');
   assert.match(apply, /explainSketchConflict\(sketch, \{ keep: ids \}\)/);
   assert.match(apply, /showRelationRefusal\(sketch, added, why\)/);
   assert.doesNotMatch(apply, /flash\(t\("overDefined"\)\)/);
-  const draw = src.slice(src.indexOf('function drawSketch()'), src.indexOf('function drawSketch()') + 20000);
+  const draw = sourceFunctionText(src, 'drawSketch');
   assert.match(draw, /var refused = refusalHint\(sketch\);/);
   assert.match(src, /var refusedHint = refusalHint\(sketch\);/);
 });
@@ -175,10 +178,10 @@ test('parallel lines asked to be perpendicular turn, and a real conflict names w
 });
 
 test('a refusal from the toolbar holds the hint long enough to read, and lets it wrap', () => {
-  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  const src = modelerSource();
   assert.match(src, /showSketchRefusal\(sketch, names\.join\(", "\), added\.map\(function \(c\) \{ return c\.id; \}\), why\)/);
   assert.match(src, /flash\(refusalMessage\(sketch, subject, keepIds, why\), RELATION_REFUSAL_MS\)/);
   assert.match(src, /hint\.classList\.toggle\("wrap", !!holdMs\)/);
-  const css = readFileSync(new URL('../css/styles.css', import.meta.url), 'utf8');
+  const css = stylesSource();
   assert.match(css, /#modeler \.md-hint\.flash\.wrap \{ white-space: normal;/);
 });

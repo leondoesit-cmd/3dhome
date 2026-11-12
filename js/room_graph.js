@@ -98,7 +98,8 @@ export function wallBetween(state, a, b) {
 function straight(state, w) {
   // arcs are left alone entirely: a room rectangle never needs to cut one, and
   // guessing where to split a curve is how you corrupt somebody's bay window
-  if (w.geometry && w.geometry.type === "arc") return null;
+  if ((w.geometry && w.geometry.type === "arc") || (w.curve && w.curve.type === "arc") ||
+      (w.bulge != null && Math.abs(w.bulge) > 1e-6)) return null;
   const a = nodePoint(state, w.a), b = nodePoint(state, w.b);
   return a && b ? { a, b } : null;
 }

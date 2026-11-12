@@ -357,6 +357,20 @@ function layoutCheck() {
   reportDialog("Layout check", lines.length ? lines : ["No enclosed rooms to analyze."]);
 }
 
+/* Import DXF. The file picker opens here, inside the click (a browser only
+   shows a file dialog for a user gesture); the importer and the plan
+   recognizer it runs load once a file is chosen. */
+function openDxfImport() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".dxf,application/dxf,image/vnd.dxf,image/x-dxf";
+  input.addEventListener("change", () => {
+    const file = input.files && input.files[0];
+    if (file) import("./ui_dxf_import.js").then((m) => m.importDxfFile(file));
+  }, { once: true });
+  input.click();
+}
+
 export const PRO_ACTIONS = {
   dimension: () => openAnnotation("dimension"),
   note: () => openAnnotation("note"),
@@ -365,12 +379,14 @@ export const PRO_ACTIONS = {
   stack: openStack,
   roof: openRoof,
   stairs: openStairs,
+  dxfImport: openDxfImport,
   cabRun: openCabRun,
   cabWorktop: openCabWorktop,
   cabSend: openCabSend,
   refdim: () => window.__runAction?.("conRefDim"),
   areaSummary,
   layoutCheck,
+  codeCheck: () => import("./ui_code_check.js").then((m) => m.openCodeCheck()),
   sheetSvg: () => downloadText("home3d-construction-plan.svg", toConstructionSVG(), "image/svg+xml"),
   sheetPrint: () => printSheetSVG(toConstructionSVG(), t("sheet_floor_plan")),
   planSvg: () => downloadText("home3d-plan.svg", toSVG(), "image/svg+xml"),

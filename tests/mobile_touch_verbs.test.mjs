@@ -1,3 +1,6 @@
+import { stylesSource } from "./helpers/styles_source.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -6,13 +9,13 @@ import { readFile } from "node:fs/promises";
 const read = (name) => readFile(new URL("../" + name, import.meta.url), "utf8");
 const [shell, interaction, ui, i18n, pick, primitives, html, css] = await Promise.all([
   read("js/mobile_shell.js"),
-  read("js/interaction.js"),
-  read("js/ui.js"),
+  moduleSource("js/interaction.js"),
+  moduleSource("js/ui.js"),
   readI18nSource(),
   read("js/ui_floorpick.js"),
   read("js/primitives.js"),
   read("index.html"),
-  read("css/styles.css"),
+  stylesSource(),
 ]);
 
 /* The i18n table is one object literal per language, so the block between
@@ -31,16 +34,35 @@ test("selection verbs follow the KIND, so no row offers an action that kind cann
   // Copy button that did nothing at all when pressed.
   assert.match(interaction, /export function dupSel\(\)\s*\{\s*if \(S\.sel && S\.sel\.kind === "item"\)/);
   assert.match(shell, /function selActions\(\)/);
-  assert.match(shell, /if \(kind === "item" \|\| kind === "items"\)[\s\S]*?rotSel90[\s\S]*?dupBtn/);
+  assert.match(shell, /if \(kind === "item"\)[\s\S]*?rotSel90[\s\S]*?finishBtn[\s\S]*?dupBtn/);
+  assert.match(shell, /if \(kind === "items"\)[\s\S]*?rotSel90[\s\S]*?dupBtn/);
   assert.match(shell, /if \(kind === "wall"\)[\s\S]*?addWallDoor[\s\S]*?reverseWallLayers/);
   assert.match(shell, /if \(kind === "node"\)[\s\S]*?ndSquare/);
   assert.match(shell, /if \(kind === "marker"\)[\s\S]*?mkPlace/);
   assert.match(shell, /if \(kind === "room"\)[\s\S]*?roomFloor/);
   // autoArrange tidies EVERY room, so it must not sit on one room's row.
   assert.doesNotMatch(shell, /run\("autoArrange"\)/);
-  // dupBtn is declared once and only reached from the two kinds that can copy.
+  // dupBtn is declared once and only reached from the two kinds that can copy
+  // (a single piece and a multi-selection).
   const dupUses = shell.match(/dupBtn/g) || [];
-  assert.equal(dupUses.length, 2, "Copy is declared once and used by items only");
+  assert.equal(dupUses.length, 3, "Copy is declared once and used by item and items only");
+});
+
+test("the context row never holds more than four verbs; the rest go behind More", () => {
+  assert.match(shell, /export var CTX_MAX = 4;/);
+  // the labelled Round-6 toolbar shares its row with tools/library/ask
+  assert.match(shell, /export var CTX_MAX_LABELLED = 3;/);
+  assert.match(shell, /max = max \|\| \(proCompact\(\) && !document\.body\.classList\.contains\("dock-rail"\) \? CTX_MAX_LABELLED : CTX_MAX\)/);
+  assert.match(shell, /function selActions\(\) \{\s*return capActions\(selActionList\(\), moreBtn\);/);
+  // 3D gets the same cap (its navigation buttons plus Frame and Photo)
+  assert.match(shell, /viewMode\(\) === "3d"[\s\S]*?capActions\(navActions\(\)/);
+  assert.match(shell, /key === "overflow"\) buildOverflowSheet\(\)/);
+});
+
+test("Finish opens the material library on rooms, walls and pieces", () => {
+  assert.match(shell, /finishBtn = \{[^}]*run\("openTextureGallery"\)/);
+  for (const kind of ["item", "wall", "room"])
+    assert.match(shell, new RegExp('if \\(kind === "' + kind + '"\\)[\\s\\S]*?finishBtn'), kind);
 });
 
 test("a hinged door offers Flip swing and a sliding one does not", () => {
@@ -55,8 +77,13 @@ test("a hinged door offers Flip swing and a sliding one does not", () => {
 test("the quarter turn ignores the 15/45/90 step control the phone cannot see", () => {
   assert.match(ui, /act === "rotSel90"/);
   assert.match(ui, /turnItem\(it, \(\(\(it\.rot \|\| 0\) \+ 90\) % 360 \+ 360\) % 360\)/);
+  // the rotSel90 branch alone; runAction dispatches it to runSelectionAction
+  const actions = sourceFunctionText(ui, "runSelectionAction");
+  const rotStart = actions.indexOf('act === "rotSel90"');
+  assert.ok(rotStart >= 0, "the rotSel90 branch is in runSelectionAction");
+  const rotEnd = actions.indexOf('act === "', rotStart + 1);
   assert.doesNotMatch(
-    ui.slice(ui.indexOf('act === "rotSel90"'), ui.indexOf('act === "flipSwing"')),
+    actions.slice(rotStart, rotEnd < 0 ? undefined : rotEnd),
     /rotStep\(\)/,
     "the one-tap rotate must not obey a step the user cannot see while pressing it",
   );
@@ -76,12 +103,12 @@ test("View is a switcher on tap and a menu on hold", () => {
 });
 
 test("two fingers undo and three redo through one detector", () => {
-  assert.match(interaction, /if \(twoTap\) \{[\s\S]*?twoTap\.n = Math\.max\(twoTap\.n, ids\.length\);\s*return;/);
-  assert.match(interaction, /var fingers = twoTap\.n;[\s\S]*?if \(fingers >= 3\) redo\(\);\s*else undo\(\);/);
+  assert.match(interaction, /if \((?:interactionLocals\.)?twoTap\) \{[\s\S]*?(?:interactionLocals\.)?twoTap\.n = Math\.max\((?:interactionLocals\.)?twoTap\.n, ids\.length\);\s*return;/);
+  assert.match(interaction, /var fingers = (?:interactionLocals\.)?twoTap\.n;[\s\S]*?if \(fingers >= 3\) redo\(\);\s*else undo\(\);/);
 });
 
 test("double-click acts on what it landed on, not on the standing selection", () => {
-  const block = interaction.slice(interaction.indexOf('function doubleClick('));
+  const block = sourceFunctionText(interaction, 'doubleClick');
   assert.match(block, /var op = hitOpening\(px, pz\);[\s\S]*?flipSwing/);
   assert.match(block, /var it = hitItem\(px, pz\);[\s\S]*?rotSel90/);
   assert.match(block, /if \(S\.tool && S\.tool !== "select"\) return;/);
@@ -98,7 +125,10 @@ test("closing your own loop gets the touch reach that picking already had", () =
 });
 
 test("the tool finder gets a door in the thumb zone", () => {
-  assert.match(shell, /m_more_find[\s\S]*?toolSearchInput[\s\S]*?input\.focus\(\)/);
+  // More → Find a tool opens the tools sheet on its search, the same ranked
+  // search of all three editors as the sheet's own field and Ctrl+K
+  assert.match(shell, /m_more_find[\s\S]*?setTimeout\(findTool/);
+  assert.match(shell, /function findTool\(\) \{[\s\S]*?showSheet\("tools"\)[\s\S]*?\.pro-sheet-search input[\s\S]*?input\.focus\(\)/);
 });
 
 test("every new mobile label is translated in both languages", () => {
@@ -154,7 +184,7 @@ test("every route to a floor goes through one setter that drops the custom image
 });
 
 test("the plan's biggest target is double-tapped last", () => {
-  const block = interaction.slice(interaction.indexOf('function doubleClick('));
+  const block = sourceFunctionText(interaction, 'doubleClick');
   const opening = block.indexOf("hitOpening");
   const item = block.indexOf("hitItem");
   const room = block.indexOf("hitRoom");

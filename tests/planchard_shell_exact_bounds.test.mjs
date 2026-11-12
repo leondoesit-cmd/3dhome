@@ -1,3 +1,5 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -7,8 +9,8 @@ import { makeBrepPrimitive, extractBrepTopology, shellBrep, shapeMassProperties,
 // 111.145 x 111.145 x 177.81 mm for a body that is 111.125 x 111.125 x 177.8 mm.
 // The reported box had been padded by the offset faces' shape tolerances.
 test('mass properties report tolerance-free bounds', () => {
-  const src = readFileSync(new URL('../js/cad_kernel.js', import.meta.url), 'utf8');
-  const body = src.slice(src.indexOf('export async function shapeMassProperties'), src.indexOf('export async function makeBrepHoleTool'));
+  const src = moduleSource("js/cad_kernel.js");
+  const body = sourceFunctionText(src, 'shapeMassProperties');
   assert.match(body, /bounds:shapeBounds\(oc, brep\.shape, false\)/);
   assert.match(src, /function shapeBounds\(oc, shape, useShapeTolerance = true\)/, 'geometry checks keep the padded default');
 });

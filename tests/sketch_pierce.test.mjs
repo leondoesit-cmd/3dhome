@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {pierceSketchToHelix} from '../js/core/sketch_pierce.js';
@@ -9,7 +10,7 @@ test('Pierce picker exposes crossing circles and their target follows a driving 
  const sketch={id:'profile',plane:'top',points:[],entities:[],constraints:[]};
  const circle={id:7,type:'circle',c:8,r:5};
  const path={id:'path',name:'Front path',plane:'front',points:[{id:8,x:0,y:0}],entities:[circle,{id:9,type:'circle',c:8,r:1,construction:true}]};
- const text=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const text=modelerSource();
  const begin=text.indexOf('var sketchCurves=[];'),end=text.indexOf('if(!anchor ||',begin);
  const candidates=Function('E','sketch','bindPierceTargets','sketchWorldPoint',text.slice(begin,end)+'return sketchCurves;')({def:{sketches:[sketch,path]}},sketch,bindPierceTargets,sketchWorldPoint);
  assert.deepEqual(candidates.map(c=>c.entityId),[7]);

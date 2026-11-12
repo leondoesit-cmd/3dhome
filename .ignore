@@ -1,0 +1,34 @@
+# Search scope for ripgrep-based tools (coding agents' Grep/Glob). Git does
+# not read this file. These paths are generated output, vendored code or data
+# blobs: a search hit in them is noise. Read a file here by its path, or pass
+# --no-ignore, when you really need it.
+
+# generated / scratch output
+mf-harness-*/
+scratch/
+tmp/
+bench/
+output/
+dataset/
+.model-backups/
+desktop/web/
+desktop/src-tauri/target/
+
+# vendored third-party code
+vendor/
+
+# data blobs (one hit is a multi-KB line)
+js/icon_themes/
+js/iso286_data.js
+package-lock.json
+perf-*.json
+survey-assets.json
+
+# reference data the tests compare against; the .md notes stay searchable
+artifacts/**/*.json
+artifacts/**/*.step
+artifacts/**/*.svg
+artifacts/**/*.png
+artifacts/**/*.jpg
+artifacts/**/*.gcode
+artifacts/**/*.mforge

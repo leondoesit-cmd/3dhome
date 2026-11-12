@@ -9,14 +9,20 @@ import { contentBounds } from "./geometry.js";
 import { wrapPlanSVG } from "./sheet_print.js";
 
 function esc(value) { return String(value == null ? "" : value).replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
-function csv(value) { const s = String(value == null ? "" : value); return /[\",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function csv(value) {
+  let s = String(value == null ? "" : value);
+  if (typeof value !== "number" && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[\",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
 function step(value) { return String(value == null ? "" : value).replace(/'/g, "''").replace(/[\r\n]/g, " "); }
 function ifcGuid(value) {
   const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$";
   let seed = 2166136261;
   for (const char of String(value)) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619) >>> 0;
   let out = "";
-  for (let i = 0; i < 22; i++) { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; out += alphabet[seed & 63]; }
+  // 22 base-64 digits carry 128 bits, so the leading digit holds only the top
+  // two: IfcGloballyUniqueId must start with 0-3 or readers reject the file.
+  for (let i = 0; i < 22; i++) { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; out += alphabet[seed & (i ? 63 : 3)]; }
   return out;
 }
 export function downloadText(name, text, type) {

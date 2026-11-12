@@ -185,11 +185,15 @@ export function reseatHeldItems() {
       nz = g.ux;
     // recorded when the hold was made — see holdToWall
     var side = it.hold.side === -1 ? -1 : 1;
-    var h = halfSpan(it),
-      off =
-        (Number(w.thickness) || 0) / 2 +
-        (h.hx * Math.abs(nx) + h.hz * Math.abs(nz)) +
-        (Number(it.hold.gap) || 0);
+    /* The piece's reach toward the wall is its OWN footprint projected on the
+       normal. halfSpan's axis-aligned box projected instead put a 200×90 sofa
+       turned 45° against a 45° wall 145 cm out, not 45. */
+    var a = ((Number(it.rot) || 0) * Math.PI) / 180,
+      ca = Math.cos(a),
+      sa = Math.sin(a),
+      reach = ((Number(it.w) || 0) / 2) * Math.abs(ca * nx + sa * nz) +
+        ((Number(it.d) || 0) / 2) * Math.abs(-sa * nx + ca * nz),
+      off = (Number(w.thickness) || 0) / 2 + reach + (Number(it.hold.gap) || 0);
     var wantX = g.a.x + g.ux * along + nx * side * off,
       wantZ = g.a.z + g.uz * along + nz * side * off;
     if (Math.hypot(wantX - it.x, wantZ - it.z) < 1e-6) return;

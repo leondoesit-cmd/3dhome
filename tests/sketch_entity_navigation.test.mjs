@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -35,7 +36,7 @@ test('completed feature action does not hide actual face-sketch navigator',()=>{
   let formOpen=false;
   const root={querySelector:selector=>selector==='#mdEntityNav'?strip:formOpen?node():null};
   const bindings={E,root,getLang:()=> 'en',selEntities:()=>[],el:node,btn:node,sketchEntityStep,sketchEntitySwipe,selectedSketchNavigationEntity,sketchNavigationTarget};
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const sync=new Function(...Object.keys(bindings),sourceFunctionText(source,'syncSketchEntityNavigator')+';return syncSketchEntityNavigator;')(...Object.values(bindings));
   sync();assert.equal(strip.hidden,false);
   formOpen=true;sync();assert.equal(strip.hidden,true);
@@ -51,7 +52,7 @@ test('native Next selects standalone point record, enables Parameters and applie
  const root={querySelector:s=>s==='#mdEntityNav'?strip:null};
  const bindings={E,root,getLang:()=> 'en',el:()=>make(),btn:(text,run)=>make(text,run),sketchEntityStep,sketchEntitySwipe,selectedSketchNavigationEntity,sketchNavigationTarget,
   selectSketch:p=>E.ssel=[p],refreshSelection:()=>sync(),ensureSketch:()=>sketch,openQuickForm:f=>form=f,surfaceUVGuide:()=>'',cloneData:v=>JSON.parse(JSON.stringify(v)),pushUndo:()=>history++,uid:()=> 'fixed-p',resolveSketch:()=>{solveSketch(sketch);return true;},refreshAll:()=>refreshes++};
- const src=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const src=modelerSource();
  const sync=new Function(...Object.keys(bindings),sourceFunctionText(src,'openSketchPointCoordinates')+sourceFunctionText(src,'syncSketchEntityNavigator')+';return syncSketchEntityNavigator;')(...Object.values(bindings));
  sync();strip.children.find(n=>n['aria-label']==='Next sketch entity').run();
  assert.equal(E.ssel[0],point);assert.ok(strip.children.some(n=>n.textContent==='Hole position · 1 / 1'));

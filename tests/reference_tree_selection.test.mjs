@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 test('selecting a datum row replaces a previous model face pick before sketch creation',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const code=source.slice(source.indexOf('function selectTreeNode('),source.indexOf('function editTreeNode('));
   const state={topologySelection:[{kind:'face',persistentId:'old-face'}],sel:{id:'body'},ssel:[1]};
   const select=new Function('E','refreshAll',code+';return selectTreeNode;')(state,()=>{});

@@ -1,7 +1,7 @@
 // Furniture runtime API: build, vertical spans, item factory, default scene.
 import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
 import { S, uid, fin, MOUNTH, WALL_H, WALL_T } from "./state.js";
-import { setSkin } from "./primitives.js";
+import { setSkin, clearGroup } from "./primitives.js";
 import { FURN, variantOf } from "./furniture_models.js";
 import { ensureItemDefinition, rebuildItem } from "./core/project.js";
 
@@ -85,14 +85,16 @@ var vSpanCache = new Map();
 export function clearVSpanCache() {
   vSpanCache.clear();
 }
+// variant is part of the key: a wall-hung toilet or a four-poster bed
+// occupies a different vertical span than the model's default shape
+function vSpanKey(it) {
+  return it.type + ":" + it.w + "x" + it.d + "x" + it.h + ":" + (it.variant || "");
+}
 // The span the piece's own geometry occupies, before any per-item offset.
 function baseVSpan(it) {
   var f = it && FURN[it.type];
   if (!f) return { lo: 0, hi: (it && it.h) || 0 };
-  // variant is part of the key: a wall-hung toilet or a four-poster bed
-  // occupies a different vertical span than the model's default shape
-  var key =
-    it.type + ":" + it.w + "x" + it.d + "x" + it.h + ":" + (it.variant || "");
+  var key = vSpanKey(it);
   var hit = vSpanCache.get(key);
   if (hit) return hit;
   /* three is late-bound, and this probe is on the 2D path (stack labels,
@@ -108,9 +110,10 @@ function baseVSpan(it) {
     }, function () {});
     return { lo: 0, hi: (it && it.h) || 0 };
   }
-  var span = null;
+  var span = null,
+    g = null;
   try {
-    var g = new THREE.Group();
+    g = new THREE.Group();
     buildItem(g, it);
     g.updateMatrixWorld(true);
     var bb = new THREE.Box3().setFromObject(g);
@@ -118,6 +121,12 @@ function baseVSpan(it) {
       span = { lo: bb.min.y, hi: bb.max.y };
   } catch (e) {
     // a builder that needs more than a bare group — fall back to floor-standing
+  } finally {
+    // The probe is one-shot, as a thumbnail build is: dispose its materials,
+    // which also releases their counted shares of the shared texture repeats
+    // (pbr_material.js) — an abandoned probe held them, and an evicted
+    // repeat's GPU copy, for good. Textures themselves stay (shared caches).
+    if (g) clearGroup(g);
   }
   if (!span) span = { lo: 0, hi: it.h };
   vSpanCache.set(key, span);
@@ -136,6 +145,43 @@ export function itemVSpan(it) {
   var b = baseVSpan(it);
   var off = elevOffset(it);
   return off ? { lo: b.lo + off, hi: b.hi + off } : b;
+}
+
+/* For paint paths, where measuring is too slow to do inline: a first paint
+   of a generated home would build every distinct piece (~90 ms of one task)
+   just to learn which ones hang above the plan cut. knownVSpan() answers
+   only from the cache (null when the piece has not been measured yet), and
+   measureVSpanSoon() measures it in idle moments, a few pieces per slice,
+   then dispatches "vspan:ready" once so the plan repaints. */
+export function knownVSpan(it) {
+  if (!it || !FURN[it.type]) return itemVSpan(it);
+  return vSpanCache.has(vSpanKey(it)) ? itemVSpan(it) : null;
+}
+var toMeasure = new Map(), measureAsked = false;
+export function measureVSpanSoon(it) {
+  if (!it || !FURN[it.type]) return;
+  var key = vSpanKey(it);
+  if (vSpanCache.has(key) || toMeasure.has(key)) return;
+  toMeasure.set(key, it);
+  if (measureAsked) return;
+  measureAsked = true;
+  var idle = typeof requestIdleCallback === "function"
+    ? function (fn) { requestIdleCallback(fn, { timeout: 200 }); }
+    : function (fn) { setTimeout(function () { fn({ timeRemaining: function () { return 8; } }); }, 16); };
+  var slice = function (deadline) {
+    var t0 = Date.now();
+    toMeasure.forEach(function (piece, k) {
+      // budget: what the idle period has left, at least a few ms when it timed out
+      if (Date.now() - t0 > Math.max(4, deadline.timeRemaining() - 2)) return;
+      toMeasure.delete(k);
+      try { baseVSpan(piece); } catch (e) { /* measured as floor-standing on the next ask */ }
+    });
+    if (toMeasure.size && threeLoaded()) return void idle(slice);
+    toMeasure.clear();
+    measureAsked = false;
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("vspan:ready"));
+  };
+  idle(slice);
 }
 
 export function isLamp(it) {

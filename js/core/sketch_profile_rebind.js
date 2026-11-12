@@ -45,7 +45,7 @@ export function rebindReplacedSketchProfiles(document, sketchId = null) {
         part.profileError = false;
         delete part.meshData;
       }
-      for (const cut of part.cuts3d || []) {
+      for (const cut of [...(part.cuts3d || []),...(part.merges3d || [])]) {
         if (cut.featureId !== feature.id) continue;
         cut.loop = structuredClone(profile.points);
         const segments = sketchProfileSegments(sketch, profile.entityIds);

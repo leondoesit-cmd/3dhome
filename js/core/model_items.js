@@ -73,7 +73,7 @@ function roundLeaderAngle(edge, view) {
 }
 
 function seen(doc, planned, candidate) {
-  const prior = (doc.dims || []).concat(planned);
+  const prior = (doc.dims || []).concat(planned).filter(dim=>!dim.modelItem || dim.modelItem===candidate.modelItem);
   if (prior.some(dim => dim.modelItem === candidate.modelItem)) return true;
   if(candidate.coneAngle)return prior.some(dim=>dim.coneAngle?.faceId===candidate.coneAngle.faceId);
   /* A manual terminal callout already tells the reader the same size. Keep
@@ -81,8 +81,10 @@ function seen(doc, planned, candidate) {
   if (["diameter", "radius"].includes(candidate.type))
     return prior.some(dim => dim.type === candidate.type && close(number(dim.radius), number(candidate.radius))
       && (!(dim.refs || []).some(ref=>ref.pid) || (dim.refs || []).some(ref=>(candidate.refs || []).some(next=>next.pid===ref.pid))));
+  const sameAnchor=(a,b)=>a && b && (a.pid && b.pid ? a.pid===b.pid && (a.at||'centre')===(b.at||'centre') : close(a.u,b.u) && close(a.v,b.v));
   return prior.some(dim => dim.type === candidate.type && close(measureDim(dim), measureDim(candidate))
-    && dim.viewId === candidate.viewId);
+    && dim.viewId === candidate.viewId && dim.refs?.length===candidate.refs?.length
+    && (dim.refs.every((a,i)=>sameAnchor(a,candidate.refs[i])) || dim.refs.every((a,i)=>sameAnchor(a,candidate.refs[candidate.refs.length-1-i]))));
 }
 
 /** Plan only dimensions that can bind to named final-model topology. */

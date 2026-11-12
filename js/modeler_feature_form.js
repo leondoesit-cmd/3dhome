@@ -2,6 +2,7 @@ import { evaluateExpression, expandUnitLiterals } from "./sketch_equations.js";
 // Feature property manager: grouped parameter forms with live callbacks.
 // The editor supplies DOM helpers, document units, and reference options.
 
+import { isSketchAxis, isStandaloneSketchAxisRevolve } from "./core/revolve_geometry.js";
 import { featureEditorGroups } from "./core/feature_catalog.js";
 import { endConditionHidesDepth, isUpToFace } from "./core/extrude_extent.js";
 import { linearPatternAxisDefinitions, linearPatternDirection, patternAxisEnabled } from "./core/pattern_geometry.js";
@@ -65,6 +66,10 @@ export function featureReferenceValue(feature, type) {
     return type === "axis-reference" ? /^axis[:_]/.test(String(id || "")) : /^plane[:_]/.test(String(id || ""));
   });
   if (found) return typeof found === "string" ? found : found.id;
+  if (type==="axis-reference" && feature?.params?.axis) {
+    if (isSketchAxis(feature.params.axis)) return feature.params.axis;
+    if (["x","y","z"].includes(feature.params.axis)) return "axis:"+feature.params.axis;
+  }
   return type === "axis-reference" ? "axis:y" : "plane:right";
 }
 
@@ -92,6 +97,41 @@ export function readFeatureParameterForm(controls, baseParams) {
 }
 
 var expressionFieldId = 0;
+
+export function renderLoftSectionPicker(host, sketches, selected, {el, title, hint, onChange}) {
+  const picker = el("fieldset", "md-contour-picker");
+  picker.appendChild(el("legend", "", title));
+  const description = el("small", "", hint);
+  description.id = "mdLoftSectionHint";
+  picker.setAttribute("aria-describedby", description.id);
+  picker.appendChild(description);
+  const choices = sketches.map(sketch => {
+    const row = el("label", "md-feature-seed-row");
+    const check = el("input");
+    check.type = "checkbox";
+    check.value = sketch.id;
+    const name = el("span");
+    row.append(check, name);
+    picker.appendChild(row);
+    check.addEventListener("change", () => {
+      const next = selected.filter(id => id !== sketch.id);
+      if (check.checked) next.push(sketch.id);
+      onChange(next);
+    });
+    return {sketch, check, name};
+  });
+  function sync(ids) {
+    selected = ids;
+    for (const {sketch, check, name} of choices) {
+      const position = selected.indexOf(sketch.id);
+      check.checked = position >= 0;
+      name.textContent = (check.checked ? (position + 1) + ". " : "") + (sketch.name || sketch.id);
+    }
+  }
+  sync(selected);
+  host.appendChild(picker);
+  return sync;
+}
 
 export function featureField(host, field, value, options) {
   options = options || {};
@@ -125,7 +165,8 @@ export function featureField(host, field, value, options) {
     input = el("select");
     var choices = field.choices || (options.referenceOptions && options.referenceOptions(field.type)) || [];
     choices.forEach(function (choice) {
-      var option = el("option", "", choice.label);
+      var option = el("option");
+      option.textContent = choice.label;
       option.value = choice.value;
       if (String(choice.value) === String(value)) option.selected = true;
       input.appendChild(option);
@@ -201,6 +242,14 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     });
   }
   function syncConditionalFields(changedKey) {
+    if(type==="revolve" || type==="revolveCut"){
+      const reference=controls.find(item=>item.field.key==="$axisReference")?.input.value;
+      const plane=controls.find(item=>item.field.key==="useSketchPlane")?.input;
+      if(plane){
+        plane.disabled=isSketchAxis(reference);
+        if(plane.disabled)plane.checked=true;
+      }
+    }
     if(type==='mirror'){
       var mirrorScope=controls.find(function(item){return item.field.key==='scope';});
       controls.filter(function(item){return ['seedFeatureId','seedFeatureIds'].includes(item.field.key);}).forEach(function(item){
@@ -208,9 +257,15 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       });
     }
     var thinControl=controls.find(function(item){return item.field.key==='thinFeature';});
-    if(thinControl)controls.filter(function(item){return ['thickness','thinMode'].includes(item.field.key);}).forEach(function(item){
-      var wrap=item.input.closest('.md-quick-field');if(wrap)wrap.classList.toggle('parameter-inactive',!thinControl.input.checked);
-    });
+    if(thinControl){
+      const storedSection=type==="revolve" && isStandaloneSketchAxisRevolve(state.params);
+      thinControl.input.disabled=storedSection;
+      if(storedSection)thinControl.input.checked=false;
+      controls.filter(item=>['thickness','thinMode'].includes(item.field.key)).forEach(item=>{
+        item.input.disabled=storedSection;
+        item.input.closest('.md-quick-field')?.classList.toggle('parameter-inactive',!thinControl.input.checked);
+      });
+    }
     if(type==='helix'){
       const variable=controls.find(item=>item.field.key==='pitchMode')?.input.value==='variable';
       controls.forEach(item=>{

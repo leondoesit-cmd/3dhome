@@ -21,6 +21,8 @@ for(const walk of [false,true])for(const [tool,points,wallCount]of cases)test(`r
   const {S}=await import('/js/state.js'),{applyData}=await import('/js/ui.js'),{setTool,armRoomStamp}=await import('/js/interaction.js'),{dispatchPlannerInput}=await import('/js/planner_input.js');
   await applyData({nodes:[{x:0,z:0},{x:400,z:0},{x:400,z:300},{x:0,z:300}],walls:[{id:1,a:0,b:1},{id:2,a:1,b:2},{id:3,a:2,b:3},{id:4,a:3,b:0}].map(w=>({...w,height:270,thickness:10,lock:false})),items:[],openings:[],markers:[],roomMeta:{},idc:100});
   S.wallDrawDefaults={typeId:'generic',height:270,thickness:10};S.structLocked=false;S.gsnap=false;S.snap=false;S.snapGrid=false;S.mep.nodes=[];S.mep.runs=[];S.mep.route=null;S.drawFrom=null;S.drawing=false;
+  // Wall-surface tools require visible walls, rather than the default near-wall cutaway.
+  (await import('/js/wall_view.js')).setNearCut(false);
   if(tool==='walljoin'){setTool('wallbreak');for(const phase of ['down','up'])dispatchPlannerInput(phase,{point:{x:200,z:0},scale:1,width:1000,height:800,event:{pointerId:1}});}
   if(tool==='wallpaint')S.wallDrawDefaults={typeId:'exterior',height:300};
   setTool(tool);if(tool==='roomstamp')armRoomStamp('bedroom');if(tool.startsWith('mep')){S.mep.place={sys:'power',kind:tool==='mepNode'?'outlet':'circuit'};S.mep.wallRoute=false;}

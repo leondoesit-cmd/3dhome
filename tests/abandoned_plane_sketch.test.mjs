@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -48,7 +49,7 @@ test("the only sketch is never removed", () => {
 });
 
 test("the editor prunes after a view swaps the sketch and before saving", () => {
-  const src = fs.readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const src = modelerSource();
   assert.match(src, /adoptSketchForView\(\);\r?\n  if \(swapped\) pruneAbandonedSketches\(E\.def\);/);
   assert.match(src, /pruneAbandonedSketches\(E\.def\);\r?\n  if\(canonical\)rebindReplacedSketchProfiles\(E\.def\);\r?\n  var def = JSON\.parse\(JSON\.stringify\(E\.def\)\);/);
 });

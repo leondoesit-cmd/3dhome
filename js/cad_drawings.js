@@ -12,15 +12,18 @@
  */
 
 import {
-  buildSheetScene, createProjector, createSheetDoc, createView, ensureSheetDoc, sceneToSvg,
+  buildSheetScene, createProjector, createSheetDoc, createView, effectiveViewSource, viewSourceOwner, ensureSheetDoc, sceneToSvg,
   sheetFrame, titleBlockBox, TEXT_SIZES,
 } from "./cad_sheet.js";
+import { assemblyDrawingBOM } from "./core/assembly_drawing_bom.js";
+import { assemblyHasExplodedOffsets, drawingAssemblyPose } from "./cad_exploded_view.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 import { calloutText, calloutTextById, holeCallouts, holeLeaderForViews } from "./core/hole_callout.js";
 import { sheetTitleText } from "./core/custom_properties.js";
 import { drawingMaterialName } from "./cad_appearances.js";
-import { configuredBodiesForView } from "./cad_configured_drawing.js";
+import { assemblySourceBodies, configuredBodiesForView, partSourceBodies } from "./cad_configured_drawing.js";
+import { readLibrarySource } from "./core/model_library_store.js";
 import {nativeConfiguredEligibility,configuredViewId} from "./core/native_configured_drawing.js";
 
 /* The title block's TITLE is the Description property, as a SOLIDWORKS sheet
@@ -106,11 +109,11 @@ function autoOverallDims(doc, project) {
   const bounds = projectionBounds(project(primary));
   if (!bounds) return;
   doc.dims.push({
-    id: uid("d"), auto: true, viewId: primary.id, type: "horizontal",
+    id: uid("d"), auto: effectiveViewSource(doc,primary) ? "extent" : true, viewId: primary.id, type: "horizontal",
     refs: [{ u: bounds.u0, v: bounds.v0 }, { u: bounds.u1, v: bounds.v0 }], offset: -12,
   });
   doc.dims.push({
-    id: uid("d"), auto: true, viewId: primary.id, type: "vertical",
+    id: uid("d"), auto: effectiveViewSource(doc,primary) ? "extent" : true, viewId: primary.id, type: "vertical",
     refs: [{ u: bounds.u1, v: bounds.v0 }, { u: bounds.u1, v: bounds.v1 }], offset: 12,
   });
 }
@@ -118,10 +121,10 @@ function autoOverallDims(doc, project) {
 /* Hole callouts attach to a face-on view of the entry axis. A drawing without
    such a view receives the callout text without a misleading leader. */
 function calloutNotes(doc, callouts) {
-  const primary = doc.views.find((view) => view.primary) || doc.views[0];
-  if (!primary) return;
+  const views = doc.views.filter(view => !effectiveViewSource(doc, view));
+  if (!views.length) return;
   callouts.forEach((row, index) => {
-    const leader=holeLeaderForViews(row,doc.views);
+    const leader=holeLeaderForViews(row,views);
     doc.notes.push({
       id: uid("n"),
       x: 30 + index * 4, y: 34 + index * 8,
@@ -137,7 +140,8 @@ function calloutNotes(doc, callouts) {
 /* Item balloons for an assembly sheet: each numbered target point is projected
    into the pictorial view and gets a leader that ends on it. */
 function balloonNotes(doc, targets) {
-  const view = doc.views.find((item) => /^iso/.test(item.dir || item.view?.dir || "")) || doc.views[doc.views.length - 1];
+  const views = doc.views.filter(view => !effectiveViewSource(doc, view));
+  const view = views.find((item) => /^iso/.test(item.dir || item.view?.dir || "")) || views.at(-1);
   if (!view) return;
   const basis = viewBasis(view.dir || view.view?.dir);
   const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
@@ -180,7 +184,47 @@ export function buildDrawingScene(def, options = {}) {
   const namedNative=doc.views.some(view=>nativeConfiguredEligibility(def,configuredViewId(def,view)).eligible);
   if(namedNative && (doc.dims||[]).some(d=>d.modelItem||d.coneAngle||d.refs?.some(r=>r.pid||r.pid2)))throw new Error("Native configuration geometry requires per-view topology for associative dimensions");
   const topology=namedNative?null:options.topology || (def?.parts || []).map(part=>part.meshData?.topology || []);
+  const sourceIssues = new Map();
+  const sourceBodies = new Map(), geometryByView = new Map();
+  const hostBOM = Array.isArray(def?.components) ? assemblyDrawingBOM(def,def.drawingSettings?.bomScope) : null;
+  const needsTargets = doc.notes?.some(note => note.componentBalloon);
+  const foreignSource = view => {
+    const source = effectiveViewSource(doc,view);
+    return source && !(hostBOM && source.kind === 'assembly' && source.key === def.key) ? source : null;
+  };
+  let followLines;
   const provider=view=>{
+    const source = foreignSource(view);
+    if (source || hostBOM) {
+      const isAssembly = source ? source.kind === 'assembly' : true;
+      const state = isAssembly && viewSourceOwner(doc,view)?.assemblyState;
+      const key = JSON.stringify([source?.kind, source?.key, state]);
+      if (!sourceBodies.has(key)) {
+        const record = source ? readLibrarySource(source) : def;
+        try {
+          if (isAssembly && record) {
+            const pose = drawingAssemblyPose(record,state);
+            if (!pose) throw new Error('Saved exploded view is missing');
+            const exploded = (!!state || !source) && assemblyHasExplodedOffsets(pose);
+            const lines = state || (!source && exploded && !options.explodeLines) ? [] : undefined;
+            const targets = !source && needsTargets ? [] : undefined;
+            const bodies = assemblySourceBodies(pose,{includeOffsets:!!state || !source, lines,
+              viewportPrecision:!source,
+              balloonTargets:targets, itemByPath:hostBOM?.itemByPath});
+            // Follow routes unbound lines to the first eligible iso, just as
+            // the live sheet does. Explicit poses own their lines per view.
+            if (!source && !state) followLines = lines;
+            sourceBodies.set(key, {bodies,lines:state ? lines : undefined,targets,exploded});
+          } else sourceBodies.set(key, {bodies:record ? partSourceBodies(record) : []});
+        } catch (error) {
+          sourceBodies.set(key, { bodies: [], error: error.message });
+        }
+      }
+      const resolved = sourceBodies.get(key);
+      geometryByView.set(view.id,resolved);
+      if (!resolved.bodies.length) sourceIssues.set(view.id, "Source geometry unavailable: " + (source?.name || source?.key || def.name) + (resolved.error ? " · " + resolved.error : ""));
+      return resolved.bodies;
+    }
     if(options.configuredBodiesForView)return options.configuredBodiesForView(view,bodies);
     const id=configuredViewId(def,view);
     const eligible=nativeConfiguredEligibility(def,id);
@@ -190,22 +234,28 @@ export function buildDrawingScene(def, options = {}) {
     }
     return configuredBodiesForView(def,view,bodies);
   };
-  const project = createProjector(doc, bodies, { bodiesForView: provider,topology });
+  const project = createProjector(doc, bodies, { bodiesForView: provider,topology,sourceToken:options.sourceToken,
+    isExplodedView:view => geometryByView.get(view.id)?.exploded });
   if (options.overallDimensions !== false && !doc.dims?.length) autoOverallDims(doc, project);
   if (options.holeCallouts !== false && !doc.notes?.length) calloutNotes(doc, collectHoleCallouts(def,doc));
   sheetNotes(doc,options.notes);
   if (options.balloonTargets?.length) balloonNotes(doc, options.balloonTargets);
   const balloons = Array.isArray(options.balloons) ? options.balloons
     : options.balloons === false ? []
-      : (options.balloons === true || def?.kind === "assembly" ? collectBalloons(def) : []);
+      : hostBOM ? hostBOM.rows.map(row => ({...row,qty:row.quantity}))
+        : (options.balloons === true || def?.kind === "assembly" ? collectBalloons(def) : []);
   return buildSheetScene(doc, {
     projection: project,
     model: def,
     topology,
+    foreignSource,
+    sourceIssue:view=>sourceIssues.get(view.id),
     callouts: calloutTextById(def,doc),
     meta: { title: options.title || sheetTitle(def, doc) },
     properties: def?.customProperties || {},
-    explodeLines: options.explodeLines,
+    get explodeLines() { return options.explodeLines ?? followLines; },
+    explodeLinesForView: view => geometryByView.get(view.id)?.lines,
+    componentBalloonsForView: view => geometryByView.get(view?.id)?.targets,
     bom: balloons.map((row) => ({ item: row.item, qty: row.qty, name: row.name, description: row.description, partNumber: row.partNumber, material: row.material })),
   });
 }

@@ -566,7 +566,7 @@ export function showPlannerTutorial(startTopic) {
             '<button type="button" class="tool" data-sim-tool="wall"><i class="ph ph-wall"></i><kbd>2</kbd></button>' +
             '<button type="button" class="tool" data-sim-tool="rect"><i class="ph ph-rectangle"></i><kbd>8</kbd></button>' +
             '<button type="button" class="tool" data-sim-tool="door"><i class="ph ph-door"></i><kbd>3</kbd></button>' +
-            '<button type="button" class="tool" data-sim-tool="window"><i class="ph ph-frame-corners"></i><kbd>4</kbd></button>' +
+            '<button type="button" class="tool" data-sim-tool="window"><i class="ph ph-grid-four"></i><kbd>4</kbd></button>' +
           '</div>' +
           '<div class="planner-sim-cad-entry" style="display:none;">' +
             '<i class="ph ph-brackets-square"></i>' +

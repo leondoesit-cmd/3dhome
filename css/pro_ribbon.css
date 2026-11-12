@@ -178,6 +178,123 @@
 .pr-tool.on kbd { color: rgba(255, 255, 255, 0.75); }
 .pr-tool:disabled { opacity: 0.4; cursor: default; }
 
+/* ---- a tab too wide for its window (js/ribbon_fit.js) ----
+   dense: tighter tiles; then the last groups fold, each into one button that
+   drops its tools down; a window too narrow even for that gets ‹ › buttons. */
+.pro-ribbon.pr-dense:not(.pr-editor-ribbon) .pr-group { padding: 0 3px; }
+.pro-ribbon.pr-dense:not(.pr-editor-ribbon) .pr-tool { width: 54px; }
+/* js/pro_ribbon.js fitRibbon measures with easing off */
+.pr-measuring, .pr-measuring * { transition: none !important; }
+.pr-fold { display: none; }
+.pr-group.pr-g-folded > .pr-items { display: none !important; }
+.pr-group.pr-g-folded > .pr-glabel { visibility: hidden; }
+.pr-items > .pr-tool.pr-t-over, .pr-fold-more[hidden] { display: none !important; }
+.pr-group.pr-g-folded > .pr-fold,
+.pr-items > .pr-fold-more {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 64px;
+  height: 56px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--ui-r, 8px);
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  cursor: pointer;
+}
+.pr-items > .pr-fold-more { min-width: 46px; flex-shrink: 0; }
+:is(.pr-fold, .pr-fold-more) > i:first-child { font-size: 20px; }
+:is(.pr-fold, .pr-fold-more) > span {
+  font-size: max(10.5px, var(--fs-floor, 0px));
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.pr-fold-caret { font-size: max(11px, var(--fs-floor, 0px)); color: var(--text-muted); line-height: 1; }
+:is(.pr-fold, .pr-fold-more):hover, :is(.pr-fold, .pr-fold-more)[aria-expanded="true"] { background: var(--btn-bg-hover, var(--accent-soft)); }
+:is(.pr-fold, .pr-fold-more):focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+:is(.pr-fold, .pr-fold-more).on {
+  background: var(--ui-on-bg, var(--accent-soft));
+  color: var(--ui-on-fg, var(--accent));
+  box-shadow: var(--ui-on-ring, none);
+}
+:is(.pr-fold, .pr-fold-more).on .pr-fold-caret { color: inherit; }
+
+.pr-fold-menu {
+  position: fixed;
+  z-index: 450; /* over the editors (300/305) and the Every command panel (400) */
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  max-width: min(320px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: var(--ui-r-lg, 12px);
+  background: var(--bg-panel);
+  box-shadow: 0 0 0 1px var(--border-color), 0 10px 28px rgba(0, 0, 0, 0.22);
+  color: var(--text-main);
+  font-family: "Inter", "Rubik", system-ui, sans-serif;
+}
+.pr-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ui-r, 8px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--ui-fs, 13px);
+  text-align: start;
+  cursor: pointer;
+}
+.pr-menu-item i { font-size: 18px; flex: none; }
+.pr-menu-item span { flex: 1; min-width: 0; white-space: normal; }
+.pr-menu-item kbd {
+  flex: none;
+  margin-inline-start: 12px;
+  font-family: var(--pro-mono, inherit);
+  font-size: max(11px, var(--fs-floor, 0px));
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.pr-menu-item:hover, .pr-menu-item:focus { background: var(--btn-bg-hover, var(--accent-soft)); outline: none; }
+.pr-menu-item:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.pr-menu-item.on { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); }
+.pr-menu-item:disabled { opacity: 0.45; cursor: default; }
+.pr-menu-item.planned { opacity: 0.6; }
+
+.pr-scroll {
+  display: none;
+  position: absolute;
+  bottom: 0;
+  z-index: 2;
+  width: 28px;
+  height: var(--pr-groups-h, 76px);
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  cursor: pointer;
+}
+.pr-scroll-prev { inset-inline-start: 0; box-shadow: 8px 0 10px -6px rgba(0, 0, 0, 0.25); }
+.pr-scroll-next { inset-inline-end: 0; box-shadow: -8px 0 10px -6px rgba(0, 0, 0, 0.25); }
+.pro-ribbon.pr-can-prev:not(.collapsed) > .pr-scroll-prev,
+.pro-ribbon.pr-can-next:not(.collapsed) > .pr-scroll-next { display: flex; }
+.pr-scroll:hover { background: var(--accent-soft); }
+.pr-scroll:dir(rtl) i { transform: scaleX(-1); }
+
 /* Phones, foldables in compact posture and narrow windows use the Tools sheet. */
 /* a narrow classic window keeps its own rows; the Round-6 layout (pro-skin,
    every mouse window over 500px) keeps the ribbon */
@@ -266,6 +383,21 @@ body.compact-nav .pro-toast { bottom: calc(96px + env(safe-area-inset-bottom, 0p
 .pro-sheet-ask { width: auto; height: 44px; border-radius: 22px; padding: 0 5px 0 14px; }
 .pro-sheet-ask input { font-size: 15px; }
 .pro-sheet-ask .pr-mic { width: 36px; height: 36px; border-radius: 18px; }
+/* the tools sheet's search heads the sheet and stays in reach as it scrolls */
+.pro-sheet-search {
+  position: sticky; top: 0; z-index: 2; display: flex; flex-direction: column; gap: 6px;
+  margin: 0 0 6px; padding: 2px 0 6px; background: var(--pro-surface, var(--bg-panel));
+}
+.pro-sheet-search .pro-sheet-ask input { min-width: 0; flex: 1; }
+.pro-sheet-search .pro-sheet-ask input::-webkit-search-cancel-button { cursor: pointer; }
+.pro-sheet-recent:empty { display: none; }
+/* while it narrows, everything else in the sheet steps aside for the matches */
+.pro-sheet-searching > :not(.pro-sheet-search):not(.pro-sheet),
+#m-sheet .m-sheet-body.pro-sheet-searching > :not(.pro-sheet-search):not(.pro-sheet) { display: none !important; }
+.pro-sheet .m-grid-btn small, .pro-sheet-recent .m-grid-btn small {
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: max(10.5px, var(--fs-floor, 0px)); font-weight: 500; color: var(--text-muted);
+}
 
 /* Planned tools: part of the final layout, visibly not built yet. */
 .pr-tool.planned, .m-grid-btn.planned { opacity: 0.55; }
@@ -816,7 +948,6 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
 #modeler.md-split #mdCanvas { left: 0; right: 50%; width: 50%; }
 #modeler.md-split .md-3dhost { display: flex; left: 50%; border-left: 1px solid var(--border-color); background: color-mix(in srgb, var(--bg-canvas-3d) 88%, #111827); }
 #modeler.md-split .md-3dhost .md-prev-wrap { flex: 1; min-width: 0; max-width: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; }
-#modeler.md-split .md-3dhost .md-context-toggle { top: auto; bottom: 12px; inset-inline-end: 12px; }
 #modeler.md-split .md-3dhost #mdPrev { width: 100%; height: 100%; max-width: 100%; border-radius: 0; background: transparent; }
 #modeler.md-assembly #mdModeSplit, body.compact-nav #modeler #mdModeSplit { display: none; }
 
@@ -869,7 +1000,10 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
 #cabdes .cb-idcard-text b { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #cabdes .cb-idcard-text span { font-size: max(11.5px, var(--fs-floor, 0px)); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #cabdes .cb-idcard-code { flex: none; padding: 1px 7px; border-radius: 6px; background: var(--text-main); color: var(--bg-panel); font: 700 max(11px, var(--fs-floor, 0px))/1.6 "JetBrains Mono", ui-monospace, Consolas, monospace; }
-#cabdes .cb-prodstats { position: sticky; bottom: 0; z-index: 3; margin-top: auto; background: var(--bg-panel); flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px 10px 10px; border-top: 1px solid var(--separator); }
+/* --bg-panel is translucent in most themes, so on its own it let the inspector
+   scrolling underneath read through the strip; laid over the app background it
+   is opaque, and the shadow says there is more above it */
+#cabdes .cb-prodstats { position: sticky; bottom: 0; z-index: 3; margin-top: auto; background: linear-gradient(var(--bg-panel), var(--bg-panel)), var(--bg-app); box-shadow: 0 -8px 12px -10px rgba(0, 0, 0, 0.45); flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px 10px 10px; border-top: 1px solid var(--separator); }
 #cabdes .cb-prodstats[hidden] { display: none; }
 #cabdes .cb-prodstat { padding: 6px 8px; border-radius: 8px; background: var(--btn-bg); display: flex; flex-direction: column; font: max(11px, var(--fs-floor, 0px))/1.3 "JetBrains Mono", ui-monospace, Consolas, monospace; }
 #cabdes .cb-prodstat span { color: var(--text-muted); }
@@ -895,3 +1029,12 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
   font: 600 max(10px, var(--fs-floor, 0px))/1.5 "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted);
 }
 body.compact-nav #modeler .md-sketch-thumb { display: none; }
+/* Below 1280px the AI chip's sentence took ~200px of the status line and the
+   cabinet's figures were cut to "1…" and "3 sh…". The chip keeps its sparkle
+   (accent when on, muted when off, and its tooltip); the muted convention
+   note gives way before the figures do. */
+@media (max-width: 1279px) {
+  .ps-ai-status > span { display: none; }
+  #cabdes .cb-statusbar > .cb-status-muted { flex-shrink: 20; min-width: 0; }
+  #cabdes .cb-statusbar > span:not(.ps-ai-status):not(.cb-status-muted) { flex-shrink: 0; }
+}

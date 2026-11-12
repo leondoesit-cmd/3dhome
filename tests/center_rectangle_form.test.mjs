@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {solveSketch} from '../js/sketch_solver.js';
 import {analyzeSketchProfiles} from '../js/sketch_profiles.js';
 import {featureField,featureControlValue} from '../js/modeler_feature_form.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function node(){return {children:[],dataset:{},classList:{add(){}},value:'',appendChild(child){this.children.push(child);},addEventListener(){},setAttribute(){},removeAttribute(){},setCustomValidity(){}};}
 for(const [unit,values] of [['mm',{width:'20',height:'8',x:'40',y:'-10'}],['in',{width:'20mm',height:'8mm',x:'40mm',y:'-10mm'}]])test('existing Center rectangle form authors exact driving dimensions in '+unit+' on its current datum',()=>{
   const sketch={id:'KT-rectangle',referenceId:'plane:front',plane:'front',offset:1.6,points:[],entities:[],constraints:[]};

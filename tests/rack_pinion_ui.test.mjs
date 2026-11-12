@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ import {addRackPinionMate,setRackPinionMateSettings,setRackPinionMateDrive,setRa
 import {createMotionStudy,addRackPinionMotor,evaluateMotionStudy} from '../js/cad_motion_study.js';
 import {lengthFromDocument,lengthToDocument} from '../js/core/document_length_units.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const p=(x=0,y=0,z=0)=>({x,y,z});
 const axis=(id,name,direction,origin=p())=>topologyReference(id,'axis',name,{surface:'axis',origin,axis:direction});
 const plane=(id,name,normal)=>topologyReference(id,'face',name,{surface:'plane',origin:p(),normal});

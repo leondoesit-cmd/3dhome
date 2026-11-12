@@ -33,7 +33,10 @@ export function roofMeshTriangles(roof) {
   for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < zs.length - 1; j++) {
     const a = vertex(xs[i], zs[j]), b = vertex(xs[i + 1], zs[j]);
     const c = vertex(xs[i + 1], zs[j + 1]), d = vertex(xs[i], zs[j + 1]);
-    triangles.push([a, b, c], [a, c, d]);
+    const center=vertex((a.x+c.x)/2,(a.z+c.z)/2);
+    if(Math.abs((b.y+d.y)/2-center.y)<Math.abs((a.y+c.y)/2-center.y)-1e-9)
+      triangles.push([a,b,d],[b,c,d]);
+    else triangles.push([a,b,c],[a,c,d]);
   }
   return triangles;
 }

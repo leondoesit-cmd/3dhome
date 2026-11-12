@@ -88,11 +88,22 @@ export function wallSchedule(state, options = {}) {
   return { rows, groups: Object.values(totals) };
 }
 
+/* One quoted CSV cell. Wall-type and material names are typed by the user (or
+   arrive inside a shared project), and a spreadsheet runs a cell that starts
+   with = + - @ as a formula — "=HYPERLINK(...)" in a type name executed when
+   the schedule was opened. Such text is prefixed with ' so it stays text;
+   numbers are written as they are, so a negative quantity keeps its sign. */
+export function csvCell(value) {
+  let text = typeof value === "number" ? String(value) : String(value == null ? "" : value);
+  if (typeof value !== "number" && /^[=+\-@\t\r]/.test(text)) text = "'" + text;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 export function wallScheduleCSV(schedule) {
   const rows = [["Wall", "Type", "Kind", "Phase", "Length (m)", "Height (m)", "Thickness (cm)", "Net area (m²)"]];
   (schedule.rows || []).forEach((r) => rows.push([
     r.id, r.typeName, r.kind, r.phase, (r.lengthCm / 100).toFixed(2),
     (r.heightCm / 100).toFixed(2), r.thicknessCm.toFixed(1), r.netAreaM2.toFixed(2),
   ]));
-  return rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  return rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
 }

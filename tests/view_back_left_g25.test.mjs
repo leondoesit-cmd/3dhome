@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -26,7 +27,7 @@ test("Back, Left and Bottom are opposite standard view presets", () => {
   assert.equal(VIEW_PRESETS[0].id, "front", "Front stays first");
 });
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 const strings = readFileSync(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 
 test("the view panel has Back, Left and Bottom buttons", () => {

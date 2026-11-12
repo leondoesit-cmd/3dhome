@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -12,7 +13,7 @@ import { leavesInputStanding } from '../js/core/rebuild.js';
    union — under "fully parametric · Rebuild succeeded". Bodies come only from
    steps that built, and a kernel failure is a failed rebuild. */
 
-const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+const src = modelerSource();
 const fnSource = (name) => {
   const start = src.indexOf(name + '(');
   assert.ok(start >= 0, name + ' exists in modeler.js');

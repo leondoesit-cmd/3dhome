@@ -1,7 +1,8 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const body=source.slice(source.indexOf('async function refreshComponentMateReferences('),source.indexOf('\nfunction assemblyMateInspector()',source.indexOf('async function refreshComponentMateReferences(')));
 function setup({rebuild=async()=>({ok:true,results:new Map()}),leaves}={}){
   const doc={metadata:{authoringSystem:'parametric-v1'},features:[{id:'final'}],exactTopologyCache:{old:{topology:[]}},parts:[{id:1}]};

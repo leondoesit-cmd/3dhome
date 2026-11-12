@@ -1,3 +1,5 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -73,7 +75,9 @@ test('normalized actual controller applies/edits/removes only presentation metad
 });
 
 test('actual assembly drawing mesh identities distinguish repeated nested occurrences and match standalone export',()=>{
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8'),start=source.indexOf('function drawingBodies()'),end=source.indexOf('\nfunction ',start+1),code=source.slice(start,end);
+  const source=modelerSource();
+  const module=fs.readFileSync(new URL('../js/modeler/drawing_sheet.js',import.meta.url),'utf8');
+  const code=sourceFunctionText(module,'drawingBodies');
   const root={userData:{}},top={userData:{cadComponent:10},parent:root},nested={userData:{cadSubComponent:20},parent:top};
   const mesh=path=>({isMesh:true,userData:{cadPart:'arm'},parent:path,matrixWorld:{elements:[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]}});
   const objects=[mesh(nested),mesh({userData:{cadComponent:11},parent:root})];
@@ -85,7 +89,7 @@ test('actual assembly drawing mesh identities distinguish repeated nested occurr
 });
 
 test('actual drawing owner persists assembly overlays and stored SVG export uses that same sheet',()=>{
-  const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const helper=source.slice(source.indexOf('function drawingDocument()'),source.indexOf('function drawingSheet()'));
   const svgCode=source.slice(source.indexOf('function drawingSvgContent()'),source.indexOf('function drawingSvgFilename()'));
   const E={docType:'assembly',assembly:{name:'Native repeated assembly',components:[{id:10},{id:11}]},def:{name:'Unrelated part',parts:[]}},partBefore=JSON.stringify(E.def);

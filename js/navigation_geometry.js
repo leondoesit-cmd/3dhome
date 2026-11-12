@@ -9,7 +9,7 @@ function boxDistance(o,p){const q=local(o,p);return Math.hypot(Math.max(0,Math.a
 export function stairSupport(state,point,profile){
  const p=normalizeNavigationProfile(profile);
  const active=state.workspace?.floors?.find(f=>f.id===state.workspace.activeFloor),items=[...(state.items||[])];
- for(const floor of state.workspace?.floors||[]){if(floor.id===active?.id)continue;const scene=floor.scene?.spatial||floor.scene;for(const it of scene?.instances||scene?.items||[]){if(it.type==='stairs')items.push({...it,elev:(it.elev||0)+floor.elevation-(active?.elevation||0)});}}
+ for(const floor of state.workspace?.floors||[]){if(floor.id===active?.id)continue;const scene=floor.scene?.spatial||floor.scene;for(const it of scene?.instances||scene?.items||[]){if(it.type==='stairs'){const elev=(it.elev||0)+(floor.elevation||0)-(active?.elevation||0);if(elev<=2&&elev+it.h>=-2)items.push({...it,elev});}}}
  for(const it of items){
   if(it.type!=='stairs')continue;const q=local(it,point);
   if(Math.abs(q.x)>it.w/2-p.radius||Math.abs(q.z)>it.d/2+p.radius)continue;
@@ -87,7 +87,9 @@ export function navigationFloorTransition(state, point, rawProfile) {
  if(!floor)return null;
  const scene=floor.scene||{},spatial=scene.spatial||scene;
  const destination={...scene,nodes:scene.nodes||spatial.nodes||[],walls:scene.walls||spatial.walls||[],
-  items:scene.items||spatial.instances||[],workspace:{...state.workspace,activeFloor:floor.id,
+  items:scene.items||spatial.instances||[],openings:scene.openings||spatial.openings||[],
+  slabOpenings:scene.slabOpenings||spatial.slabOpenings||[],surveyFeatures:scene.surveyFeatures||spatial.surveyFeatures||[],
+  roomMeta:scene.roomMeta||spatial.rooms||{},workspace:{...state.workspace,activeFloor:floor.id,
    floors:floors.map(f=>f.id===active.id?{...f,scene:{items:state.items||[]}}:f)}};
  const position={x:point.x,y:worldY-(floor.elevation||0),z:point.z};
  if(!navigationPosition(destination,position,rawProfile).clear)return null;

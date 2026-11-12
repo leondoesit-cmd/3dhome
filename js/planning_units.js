@@ -26,18 +26,22 @@ export function parseLength(text,defaultUnit){
   const raw=String(text==null?"":text).trim();
   if(!raw)return NaN;
   const fallback=PLANNING_UNITS[defaultUnit]?defaultUnit:"cm";
-  const feetInches=raw.match(/^(-?\d+(?:\.\d+)?)\s*(?:'|ft|foot|feet)\s*-?\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in|inch|inches)?)?$/i);
+  const feetInches=raw.match(/^(-?(?:\d+(?:\.\d*)?|\.\d+))\s*(?:'|ft|foot|feet)\s*-?\s*(?:((?:\d+(?:\.\d*)?|\.\d+))\s*(?:"|in|inch|inches)?)?$/i);
   if(feetInches){
     const feet=finiteNumber(feetInches[1]);
     const inches=feetInches[2]==null?0:finiteNumber(feetInches[2]);
     if(!Number.isFinite(feet)||!Number.isFinite(inches))return NaN;
-    return feet*PLANNING_UNITS.ft+inches*PLANNING_UNITS.in;
+    // The sign belongs to the whole length: -5'-6" is -(5'6"), as formatLength
+    // writes it, not -5' + 6".
+    const sign=raw.startsWith("-")?-1:1;
+    return sign*(Math.abs(feet)*PLANNING_UNITS.ft+inches*PLANNING_UNITS.in);
   }
-  const unitValue=raw.match(/^(-?\d+(?:\.\d+)?)\s*([A-Za-z'"]+)?$/);
+  const unitValue=raw.match(/^(-?(?:\d+(?:\.\d*)?|\.\d+))\s*([A-Za-z'"]+)?$/);
   if(!unitValue)return NaN;
   const amount=finiteNumber(unitValue[1]);
   if(!Number.isFinite(amount))return NaN;
-  const unit=aliasUnit(unitValue[2])||fallback;
+  const unit=unitValue[2]?aliasUnit(unitValue[2]):fallback;
+  if(!unit)return NaN;
   return fromDisplayLength(amount,unit);
 }
 
@@ -79,7 +83,7 @@ export function parseArea(text,defaultUnit){
   if(!raw)return NaN;
   const fallback=PLANNING_UNITS[defaultUnit]?defaultUnit:(defaultUnit==="sqft"||defaultUnit==="sq_ft"?"ft":"cm");
   const imperial=fallback==="ft"||fallback==="in";
-  const labeled=raw.match(/^(-?\d+(?:\.\d+)?)\s*(sq\.?\s*ft|sqft|ft²|ft2|sq\.?\s*m|m²|m2)?$/i);
+  const labeled=raw.match(/^(-?(?:\d+(?:\.\d*)?|\.\d+))\s*(sq\.?\s*ft|sqft|ft²|ft2|sq\.?\s*m|m²|m2)?$/i);
   if(!labeled)return NaN;
   const amount=finiteNumber(labeled[1]);
   if(!Number.isFinite(amount))return NaN;

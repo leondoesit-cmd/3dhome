@@ -79,6 +79,44 @@ export function fitTransform(bb, width, height, pad) {
     oy: (H - rawD * sc) / 2 - minz * sc,
   };
 }
+/* fitTransform for the plan as it is drawn: turned by the plan rotation about
+   the canvas centre, and framed in the canvas above a bottom strip `under`
+   px tall that the touch dock floats over. fitTransform alone fits the
+   unrotated box and centres it in W×(H−under); rotated about the FULL canvas
+   centre that put a south-up plan under the dock and cut a turned oblong. */
+export function fitPlanTransform(bb, W, H, under, pad) {
+  var u = Math.max(0, Math.min(H * 0.4, Number(under) || 0)), a = planRotRad();
+  var minx = Number(bb.minx), minz = Number(bb.minz), maxx = Number(bb.maxx), maxz = Number(bb.maxz);
+  if (![minx, minz, maxx, maxz].every(isFinite)) return null;
+  var c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a)),
+    w = maxx - minx, d = maxz - minz, cx = (minx + maxx) / 2, cz = (minz + maxz) / 2,
+    rw = w * c + d * s, rd = w * s + d * c;
+  var tx = fitTransform({ minx: cx - rw / 2, minz: cz - rd / 2, maxx: cx + rw / 2, maxz: cz + rd / 2 }, W, H - u, pad);
+  if (!tx || !a) return tx;
+  // the centre sits at base (W/2, H/2 − u/2); it must land there on SCREEN,
+  // i.e. at base centre + R(−a)·(0, −u/2)
+  tx.ox += -u / 2 * Math.sin(a);
+  tx.oy += u / 2 - u / 2 * Math.cos(a);
+  return tx;
+}
+/* Is every corner of a world box inside a W×H canvas (default: the current
+   one) under the current view transform? plan2d.js asks it of the plan's
+   content to decide whether a resize should reframe. */
+export function boundsInCanvas(bb, W, H) {
+  if (!(S.SC > 0) || !isFinite(S.SC) || !(S.CW > 0) || !(S.CH > 0)) return false;
+  W = W || S.CW; H = H || S.CH;
+  if (!bb || ![bb.minx, bb.minz, bb.maxx, bb.maxz].every(isFinite)) return false;
+  var cw = S.CW, ch = S.CH;
+  S.CW = W; S.CH = H; // rotatePx turns about the centre of the canvas asked about
+  try {
+    return [[bb.minx, bb.minz], [bb.maxx, bb.minz], [bb.maxx, bb.maxz], [bb.minx, bb.maxz]].every(function (p) {
+      var q = rotatePx(sx(p[0]), sz(p[1]));
+      return q.x >= -2 && q.y >= -2 && q.x <= W + 2 && q.y <= H + 2;
+    });
+  } finally {
+    S.CW = cw; S.CH = ch;
+  }
+}
 export function isOnScreen(x, z, margin) {
   var m = margin == null ? 60 : margin;
   if (!(S.SC > 0) || !(S.CW > 0) || !(S.CH > 0)) return false;

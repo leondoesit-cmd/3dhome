@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -62,7 +63,7 @@ test('ordinary controller refuses configured-row topology tools and excludes Mod
 });
 import {sourceFunctionText} from './helpers/source_function.mjs';
 test('actual modeler export preflight waits, invalidates only after success and rejects changed history',async()=>{
- const text=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const text=modelerSource();
  const doc=fresh();doc.drawing={views:[{id:'v',configurationId:doc.configurations[1].id}],dims:[]};
  const E={docType:'part',def:doc};let history=1,resolve,invalidations=0;
  const cache={prepare:async(owner,views,{assertCurrent})=>{assertCurrent();await new Promise(r=>resolve=r);assertCurrent();}};

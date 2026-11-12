@@ -47,7 +47,7 @@ export function bomTableRows(rows, components) {
   var byKey = new Map();
   (components || []).forEach(function (component) {
     if (!component) return;
-    var key = component.modelKey || component.name || "Unknown";
+    var key = component.modelKey || component.assemblyKey || component.name || "Unknown";
     if (!byKey.has(key)) byKey.set(key, component);
   });
   return (rows || []).map(function (row, index) {
@@ -67,9 +67,11 @@ export function bomCsv(rows, headers, withMaterial) {
   var columns = withMaterial ? 4 : 3;
   var cell = function (value) {
     var text = value == null ? "" : String(value);
-    return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    // a part name starting = + - @ would run as a spreadsheet formula (csvCell in wall_schedule.js)
+    if (typeof value !== "number" && /^[=+\-@\t\r]/.test(text)) text = "'" + text;
+    return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
   };
-  var lines = [(headers || []).slice(0, columns).map(cell).join(",")];
+  var lines = headers && headers.length ? [headers.slice(0, columns).map(cell).join(",")] : [];
   (rows || []).forEach(function (row) {
     var cells = [row.item, row.quantity, row.name];
     if (withMaterial) cells.push(row.material);
@@ -87,7 +89,8 @@ export function buildCommandCatalog(ctx) {
   var assemblyDoc = function () { return E.docType === "assembly"; };
   var solids = function () { return !!(E.def && activeParts(E.def).length); };
   var closed = function () { return !!closedSketchProfile(); };
-  var revolvable = function () { return closed() || !!ctx.openSketchChain?.(); };
+  var hasProfile = function () { return closed() || !!ctx.openSketchChain?.(); };
+  var revolvable = function () { return hasProfile() || !!ctx.selectedAxisProfile?.(); };
   var needPart = function () { return t("cmdNeedPartDoc"); };
   var needSketch = function () { return partDoc() ? t("cmdNeedClosedSketch") : t("cmdNeedPartDoc"); };
   var needSolid = function () { return partDoc() ? t("cmdNeedSolid") : t("cmdNeedPartDoc"); };
@@ -109,6 +112,7 @@ export function buildCommandCatalog(ctx) {
     { id:"dimensionedcircle", icon:"ph-circle", label:"Dimensioned circle", group:t("cmdSketch"), terms:"precise circle center centre diameter dimension fully defined", available:partDoc, reason:needPart },
     { id:"dimensionedpolygon", icon:"ph-hexagon", label:"Dimensioned polygon", group:t("cmdSketch"), terms:"precise hexagon polygon center centre circumscribed diameter rotation fully defined", available:partDoc, reason:needPart },
     { id:"faceboundary", icon:"ph-copy-simple", label:t("faceBoundary"), group:t("cmdSketch"), terms:"convert entities offset face boundary copy inset", available:function(){return partDoc() && solids();}, reason:needSolid },
+    { id:"convertentities", icon:"convertentities", label:t("convertEntities"), group:t("cmdSketch"), terms:"convert entities edges use edge project selected model edge line arc circle ellipse", available:function(){return partDoc() && solids();}, reason:needSolid },
     { id:"scirc", icon:"ph-circle-dashed", label:t("tool_scirc"), group:t("cmdSketch"), shortcut:"G", terms:"circle", available:function(){ return partDoc(); }, reason:needPart },
     { id:"sarc", icon:"sarc", label:t("centerpointArc"), group:t("cmdSketch"), shortcut:"A", terms:"centerpoint centre center start end arc", available:function(){ return partDoc(); }, reason:needPart },
     { id:"arc3point", icon:"arc3point", label:t("arcThreePoint"), group:t("cmdSketch"), terms:"three point arc", available:function(){ return partDoc(); }, reason:needPart },
@@ -125,36 +129,36 @@ export function buildCommandCatalog(ctx) {
     { id:"mirror", icon:"ph-flip-horizontal", label:t("sketchMirror"), group:t("cmdSketch"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"pattern", icon:"ph-dots-nine", label:t("sketchPattern"), group:t("cmdSketch"), terms:"linear array", available:function(){ return partDoc(); }, reason:needPart },
     { id:"circpattern", icon:"ph-circles-three", label:t("sketchCircPattern"), group:t("cmdSketch"), terms:"circular polar array bolt circle", available:function(){ return partDoc(); }, reason:needPart },
-    { id:"project", icon:"ph-projector-screen", label:t("projectEdges"), group:t("cmdSketch"), available:function(){ return partDoc(); }, reason:needPart },
+    { id:"project", icon:"ph-projector-screen", label:t("projectEdges"), group:t("cmdSketch"), terms:"project silhouette outline construction selected edges", available:function(){ return partDoc(); }, reason:needPart },
     { id:"directbox", icon:"ph-cube", label:t("tool_rect"), group:t("grpDirect"), shortcut:"B", terms:"box rectangle primitive direct", available:directOk, reason:needDirect },
     { id:"directcyl", icon:"ph-cylinder", label:t("tool_circle"), group:t("grpDirect"), shortcut:"C", terms:"cylinder circle primitive direct", available:directOk, reason:needDirect },
     { id:"directcone", icon:"ph-triangle", label:"Cone", group:t("grpDirect"), terms:"cone frustum tapered primitive", available:partDoc, reason:needPart },
-    { id:"refpoint", icon:"ph-dot-outline", label:"Reference point", group:t("cmdFeatures"), terms:"datum point vertex reference", available:partDoc, reason:needPart },
-    { id:"sketchpoint", icon:"ph-dot-outline", label:"Sketch point", group:t("cmdSketch"), terms:"place standalone sketch point", available:partDoc, reason:needPart },
-    { id:"sketchtext", icon:"ph-text-t", label:"Sketch text", group:t("cmdSketch"), terms:"letters engrave emboss extrude cut", available:partDoc, reason:needPart },
+    { id:"refpoint", icon:"refpoint", label:"Reference point", group:t("cmdFeatures"), terms:"datum point vertex reference", available:partDoc, reason:needPart },
+    { id:"sketchpoint", icon:"sketchpoint", label:"Sketch point", group:t("cmdSketch"), terms:"place standalone sketch point", available:partDoc, reason:needPart },
+    { id:"sketchtext", icon:"sketchtext", label:"Sketch text", group:t("cmdSketch"), terms:"letters engrave emboss extrude cut", available:partDoc, reason:needPart },
     { id:"stocksize", icon:"ph-ruler", label:"Stock size", group:t("cmdEvaluate"), terms:"raw stock envelope dimensions material", available:function(){return partDoc() && solids();}, reason:needSolid },
-    { id:"towalls", icon:"ph-wall", label:"To planner walls", group:t("cmdEvaluate"), terms:"convert sketch outline to architectural walls", available:partDoc, reason:needPart },
+    { id:"towalls", icon:"towalls", label:"To planner walls", group:t("cmdEvaluate"), terms:"convert sketch outline to architectural walls", available:partDoc, reason:needPart },
     { id:"finishpreview", icon:"ph-eye", label:"Finish preview", group:t("cmdFeatures"), terms:"fillet chamfer shell live preview", available:function(){return partDoc() && solids();}, reason:needSolid },
     { id:"exportglb", icon:"ph-cube", label:"Export GLB", group:t("cmdEvaluate"), terms:"model only glb gltf binary", available:partDoc, reason:needPart },
-    { id:"equations", icon:"ph-function", label:"Equations", group:t("cmdSketch"), terms:"variables named dimensions equations", available:partDoc, reason:needPart },
-    { id:"customprops", icon:"ph-list-bullets", label:"Custom properties", group:t("cmdEvaluate"), terms:"document metadata description property" },
-    { id:"smartmates", icon:"ph-magnet", label:"Smart mates", group:t("cmdEvaluate"), terms:"assembly infer mate drag", available:assemblyDoc, reason:needAsm },
-    { id:"sheetmetal", icon:"ph-fold", label:"Sheet metal", group:t("cmdFeatures"), terms:"base flange edge flange unfold", available:partDoc, reason:needPart },
-    { id:"branch", icon:"ph-git-branch", label:"Branch", group:t("cmdEvaluate"), terms:"undo history tree alternate branch" },
-    { id:"directsph", icon:"ph-sphere", label:t("tool_sph"), group:t("grpDirect"), shortcut:"S", terms:"sphere primitive center centre diameter parametric precise", available:partDoc, reason:needPart },
+    { id:"equations", icon:"equations", label:"Equations", group:t("cmdSketch"), terms:"variables named dimensions equations", available:partDoc, reason:needPart },
+    { id:"customprops", icon:"customprops", label:"Custom properties", group:t("cmdEvaluate"), terms:"document metadata description property" },
+    { id:"smartmates", icon:"smartmates", label:"Smart mates", group:t("cmdEvaluate"), terms:"assembly infer mate drag", available:assemblyDoc, reason:needAsm },
+    { id:"sheetmetal", icon:"sheetmetal", label:"Sheet metal", group:t("cmdFeatures"), terms:"base flange edge flange unfold", available:partDoc, reason:needPart },
+    { id:"branch", icon:"branch", label:"Branch", group:t("cmdEvaluate"), terms:"undo history tree alternate branch" },
+    { id:"directsph", icon:"ph-sphere", label:t("tool_sph"), group:t("grpDirect"), terms:"sphere primitive center centre diameter parametric precise", available:partDoc, reason:needPart },
     { id:"directpoly", icon:"ph-polygon", label:t("tool_poly"), group:t("grpDirect"), shortcut:"P", terms:"polygon extrude direct", available:directOk, reason:needDirect },
     { id:"directrev", icon:"ph-spiral", label:t("tool_rev"), group:t("grpDirect"), terms:"revolve profile sketch direct", available:directOk, reason:needDirect },
     { id:"newsketch", icon:"ph-pencil-line", label:t("createSketch"), group:t("cmdFeatures"), terms:"reference plane face profile", available:function(){ return partDoc(); }, reason:needPart },
     { id:"dynamicmirror", icon:"ph-flip-horizontal", label:"Dynamic mirror", group:t("cmdSketch"), terms:"live symmetric line centerline", available:function(){return partDoc() && E.authoring?.phase==="sketch";}, reason:needPart },
     { id:"finishsketch", icon:"ph-check", label:t("finishSketch"), group:t("cmdSketch"), terms:"exit plane done finish", available:function(){ return partDoc() && E.authoring && E.authoring.phase==="sketch"; }, reason:function(){ return t("cmdNeedOpenSketch"); } },
-    { id:"extrude", icon:"ph-cube", label:t("opExtrude"), group:t("cmdFeatures"), available:function(){ return partDoc() && revolvable(); }, reason:function(){ return revolvable() ? needPart() : needSketch(); } },
-    { id:"extrudecut", icon:"ph-scissors", label:t("extrudeCut"), group:t("cmdFeatures"), available:function(){return partDoc()&&revolvable()&&solids();}, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
+    { id:"extrude", icon:"ph-cube", label:t("opExtrude"), group:t("cmdFeatures"), available:function(){ return partDoc() && hasProfile(); }, reason:function(){ return hasProfile() ? needPart() : needSketch(); } },
+    { id:"extrudecut", icon:"ph-scissors", label:t("extrudeCut"), group:t("cmdFeatures"), available:function(){return partDoc()&&hasProfile()&&solids();}, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
     { id:"revolvefeature", icon:"ph-arrow-counter-clockwise", label:t("opRevolve"), group:t("cmdFeatures"), shortcut:"R", available:function(){ return partDoc() && revolvable(); }, reason:needSketch },
     { id:"revolvecutfeature", icon:"revolvecutfeature", label:t("opRevolveCut"), group:t("cmdFeatures"), terms:"revolve cut lathe groove subtract", available:function(){ return partDoc() && revolvable() && solids(); }, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
     { id:"sweepfeature", icon:"ph-path", label:t("opSweep"), group:t("cmdFeatures"), available:function(){ return partDoc() && sketchCount() >= 1; }, reason:needSketches },
     { id:"sweepcutfeature", icon:"sweepcutfeature", label:t("opSweepCut"), group:t("cmdFeatures"), terms:"sweep cut channel slot subtract path", available:function(){ return partDoc() && sketchCount() >= 2 && solids(); }, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : sketchCount() < 2 ? t("cmdNeedTwoSketches") : t("cmdNeedSolid"); } },
     { id:"loftfeature", icon:"ph-stack", label:t("loftOp"), group:t("cmdFeatures"), available:function(){ return partDoc() && sketchCount() >= 2; }, reason:needSketches },
-    { id:"repeatlast", icon:"ph-arrow-clockwise", label:t("repeatOperation"), group:t("cmdFeatures"), terms:"repeat last again", available:function(){ return partDoc() && !!E.lastOperation; }, reason:function(){ return t("repeatUnavailable"); } },
+    { id:"repeatlast", icon:"repeatlast", label:t("repeatOperation"), group:t("cmdFeatures"), terms:"repeat last again", available:function(){ return partDoc() && !!E.lastOperation; }, reason:function(){ return t("repeatUnavailable"); } },
     { id:"filletfeature", icon:"ph-corners-out", label:t("quickFillet"), group:t("cmdFeatures"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"chamferfeature", icon:"ph-corners-in", label:t("quickChamfer"), group:t("cmdFeatures"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"shellfeature", icon:"ph-bowl-food", label:t("shellOp"), group:t("cmdFeatures"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
@@ -182,7 +186,7 @@ export function buildCommandCatalog(ctx) {
     /* cad_drawings.js has drawn assembly sheets with BOM balloons all along;
        only this gate kept them out of reach. */
     { id:"drawing", icon:"ph-file-svg", label:t("drawingExport"), group:t("cmdEvaluate"),
-      available:function(){ return partDoc() || (assemblyDoc() && E.assembly && E.assembly.components.length); },
+      available:function(){ return partDoc() || (assemblyDoc() && components()); },
       reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needPart(); } },
     { id:"mass", icon:"ph-scales", label:t("massProps"), group:t("cmdEvaluate"),
       available:function(){ return partDoc()?solids():assemblyDoc()&&components(); },
@@ -193,8 +197,8 @@ export function buildCommandCatalog(ctx) {
       available:function(){ return partDoc() ? solids() : components(); },
       reason:function(){ return partDoc() ? t("cmdNeedSolid") : t("cmdNeedOneComponent"); } },
     { id:"section", icon:"ph-selection-background", label:t("sectionView"), group:t("cmdEvaluate"), terms:"clip clipping slice cross section interior", available:function(){ return partDoc() ? solids() : components(); }, reason:function(){ return partDoc() ? t("cmdNeedSolid") : t("cmdNeedOneComponent"); } },
-    { id:"paint", icon:"ph-paint-brush", label:t("tool_paint"), group:t("cmdEvaluate"), shortcut:"P", terms:"paint color appearance face material finish brush", available:function(){ return partDoc(); }, reason:needPart },
-    { id:"note", icon:"ph-note-pencil", label:t("tool_note"), group:t("cmdEvaluate"), shortcut:"N", terms:"note annotation callout markup draw ink comment redline", available:function(){ return partDoc(); }, reason:needPart },
+    { id:"paint", icon:"ph-paint-brush", label:t("tool_paint"), group:t("cmdEvaluate"), terms:"paint color appearance face material finish brush", available:function(){ return partDoc(); }, reason:needPart },
+    { id:"note", icon:"ph-note-pencil", label:t("tool_note"), group:t("cmdEvaluate"), terms:"note annotation callout markup draw ink comment redline", available:function(){ return partDoc(); }, reason:needPart },
     { id:"standards", icon:"ph-seal-check", label:t("standardsAudit"), group:t("cmdEvaluate"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"stdscrew", icon:"ph-screwdriver", label:t("stdScrewCommand"), group:t("cmdFeatures"), available:function(){return partDoc();}, reason:needPart },
     { id:"stdgear", icon:"ph-gear-six", label:t("stdGearCommand"), group:t("cmdFeatures"), available:function(){return partDoc();}, reason:needPart },
@@ -204,17 +208,17 @@ export function buildCommandCatalog(ctx) {
     { id:"stepout", icon:"ph-file-step", label:t("stepExport"), group:"STEP", available:function(){ return partDoc() ? solids() : assemblyDoc() && E.assembly && E.assembly.components.length; }, reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needSolid(); } },
     { id:"igesout", icon:"ph-file-arrow-down", label:t("exportIges"), group:"STEP", available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"stlout", icon:"ph-file-arrow-down", label:t("exportStl"), group:t("cmdEvaluate"), terms:"binary stl fine mesh millimeters 3d print assembly layout", available:function(){ return partDoc()?solids():assemblyDoc()&&components(); }, reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
-    { id:"3mfout", icon:"ph-printer", label:"Export 3MF", group:t("cmdEvaluate"), terms:"3mf additive manufacturing millimeters 3d print assembly layout", available:function(){ return partDoc()?solids():assemblyDoc()&&components(); }, reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
-    { id:"amfout", icon:"ph-printer", label:"Export AMF", group:t("cmdEvaluate"), terms:"amf additive manufacturing millimeters 3d print assembly layout", available:function(){ return partDoc()?solids():assemblyDoc()&&components(); }, reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
-    { id:"printsetup", icon:"ph-printer", label:"Print setup", group:t("cmdEvaluate"), terms:"printer bed build volume orientation 3d print assembly layout", available:function(){ return partDoc()?solids():assemblyDoc()&&components(); }, reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
-    { id:"layeranalysis", icon:"ph-printer", label:"Layer analysis", group:t("cmdEvaluate"), terms:"print geometric layers contour cross section layer height", available:function(){ return partDoc()?solids():assemblyDoc()&&components(); }, reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
+    { id:"3mfout", icon:"3mfout", label:"Export 3MF", group:t("cmdEvaluate"), terms:"3mf additive manufacturing millimeters 3d print assembly layout", available:function(){ return partDoc()?solids():assemblyDoc()&&components(); }, reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
+    { id:"amfout", icon:"amfout", label:"Export AMF", group:t("cmdEvaluate"), terms:"amf additive manufacturing millimeters 3d print assembly layout", available:function(){ return partDoc()?solids():assemblyDoc()&&components(); }, reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
+    { id:"printsetup", icon:"printsetup", label:"Print setup", group:t("cmdEvaluate"), terms:"printer bed build volume orientation 3d print assembly layout", available:function(){ return partDoc()?solids():assemblyDoc()&&components(); }, reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
+    { id:"layeranalysis", icon:"layeranalysis", label:"Layer analysis", group:t("cmdEvaluate"), terms:"print geometric layers contour cross section layer height", available:function(){ return partDoc()?solids():assemblyDoc()&&components(); }, reason:function(){return assemblyDoc()?t("cmdNeedOneComponent"):needSolid();} },
     { id:"assembly", icon:"ph-stack", label:t("docAssembly"), group:t("cmdAssembly") },
     { id:"components", icon:"ph-cube", label:t("components"), group:t("cmdAssembly") },
     {id:'formsubassembly',icon:'formsubassembly',label:t('formSubassembly'),group:t('cmdAssembly'),terms:'form group selected components rigid subassembly sub assembly',available:function(){return assemblyDoc()&&(E.componentSel||[]).filter(component=>E.assembly?.components?.includes(component)).length>=2;},reason:function(){return assemblyDoc()?t('formSubassemblySelection'):needAsm();}},
     { id:"mates", icon:"ph-link", label:t("mate"), group:t("cmdAssembly") },
     { id:"screwmate", icon:"threadfeature", label:t("screwMate"), group:t("cmdAssembly"), terms:"screw thread pitch mate", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"gearmate", icon:"ph-gear", label:t("gearMate"), group:t("cmdAssembly"), terms:"gear ratio teeth rotation mate mechanical", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
-    { id:"beltmate", icon:"ph-circles-three-plus", label:t("beltMate"), group:t("cmdAssembly"), terms:"belt pulley diameter open crossed rotation coupling", available:function(){return assemblyDoc() && E.assembly && E.assembly.components.length>1;}, reason:function(){return assemblyDoc()?t("cmdNeedComponents"):needAsm();} },
+    { id:"beltmate", icon:"beltmate", label:t("beltMate"), group:t("cmdAssembly"), terms:"belt pulley diameter open crossed rotation coupling", available:function(){return assemblyDoc() && E.assembly && E.assembly.components.length>1;}, reason:function(){return assemblyDoc()?t("cmdNeedComponents"):needAsm();} },
     {id:"rackpinionmate",icon:"rackpinionmate",label:t("rackPinionMate"),group:t("cmdAssembly"),terms:"rack pinion rotary linear pitch radius travel mechanical mate",available:function(){return assemblyDoc() && E.assembly && E.assembly.components.length>1;},reason:function(){return assemblyDoc()?t("cmdNeedComponents"):needAsm();}},
     {id:"rotationlimitmate",icon:"rotationlimitmate",label:t("rotationLimitMate"),group:t("cmdAssembly"),terms:"directed signed hinge rotational angular limit stop clapper",available:function(){return assemblyDoc() && E.assembly && E.assembly.components.length>1;},reason:function(){return assemblyDoc()?t("cmdNeedComponents"):needAsm();}},
     { id:"symmetricmate", icon:"ph-flip-horizontal", label:t("symmetricMate"), group:t("cmdAssembly"), terms:"symmetric mirror plane mate advanced", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },

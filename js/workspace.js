@@ -345,7 +345,7 @@ export async function openWorkspace(tab) {
     box.append(row(role, comment, send, present));
     S.workspace.comments.slice().reverse().forEach((c) => {
       const text = document.createElement("span"); text.textContent = (c.resolved ? "✓ " : "") + c.text;
-      const meta = document.createElement("small"); meta.textContent = c.author + " · " + c.target.kind + " · " + new Date(c.at).toLocaleString();
+      const meta = document.createElement("small"); meta.textContent = (c.author || "") + " · " + ((c.target && c.target.kind) || "project") + " · " + new Date(c.at).toLocaleString();
       const resolve = button(c.resolved ? "Reopen" : "Resolve", () => { toggleResolved(c.id); draw(); }); resolve.disabled = !editable();
       box.append(row(text, meta, resolve));
     }); content.append(box);

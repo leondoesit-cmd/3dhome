@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {sketchStartMode,shouldResumeSketchSession,shouldSkipReferencePicker} fro
 import {createPartDocument,recordSketchInHistory} from '../js/core/parametric_document.js';
 import {ensureSketch,addSketch} from '../js/sketch_solver.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function load(name,context){return new Function(...Object.keys(context),sourceFunctionText(source,name)+';return '+name+';')(...Object.values(context));}
 test('explicit New sketch on a blank part picks Right before recording exactly one sketch, with cancellation leaving geometry/history unchanged',()=>{
  const def=createPartDocument({name:'Blank plane choice'}),E={docType:'part',mode:'3d',def,authoring:{phase:'model'},topologySelection:[],sketchNormalTo:false};

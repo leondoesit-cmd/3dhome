@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {solveSketch,circleData} from '../js/sketch_solver.js';
 import {createHistory} from '../js/edit_history.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function fixture(){
  let serial=0;const uid=()=>++serial,sketch={id:'q1',plane:'front',offset:0,points:[],entities:[],constraints:[]};
  addDimensionedPolygon(sketch,{sides:4,diameter:3.414213562373095*2.54,x:0,y:0,rotation:0,fixCenter:true,fixRotation:true},uid);

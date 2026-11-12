@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -23,12 +24,12 @@ test('architectural length entry accepts feet-inches and metric suffixes',()=>{
 });
 test('HUD and inspector follow the project display unit, including a mid-entry switch', async () => {
  const hud = await readFile(new URL('../js/cad_hud.js', import.meta.url), 'utf8');
- const props = await readFile(new URL('../js/ui_props.js', import.meta.url), 'utf8');
- const ui = await readFile(new URL('../js/ui.js', import.meta.url), 'utf8');
+ const props = moduleSource("js/ui_props.js");
+ const ui = moduleSource("js/ui.js");
  assert.match(hud, /window\.addEventListener\("planner-units", applyLangLabels\)/);
  assert.match(hud, /inLen\.value = hudFmt\(shown, \{ suffix: false \}\)/);
  assert.match(props, /function writeInspectorLen\(/);
  assert.match(ui, /function bindLength\(/);
- const plan = await readFile(new URL('../js/plan2d.js', import.meta.url), 'utf8');
+ const plan = moduleSource("js/plan2d.js");
  assert.match(plan, /planLen\(wallClearLength\(w\), \{ suffix: false \}\)/);
 });

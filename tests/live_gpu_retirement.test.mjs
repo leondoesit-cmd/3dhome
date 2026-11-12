@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from '../vendor/three/three.module.js';
 import {withRetiredGpuChildren} from '../js/core/gpu_child_retirement.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const primitiveSource=fs.readFileSync(new URL('../js/primitives.js',import.meta.url),'utf8');
 const clearGroup=new Function(sourceFunctionText(primitiveSource,'clearGroup')+';return clearGroup;')();
 const fn=(name,context)=>new Function(...Object.keys(context),sourceFunctionText(source,name)+';return '+name)(...Object.values(context));

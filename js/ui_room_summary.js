@@ -10,7 +10,7 @@ import { ROOM_PRESETS } from './room_presets.js';
 import { roomTypeOf } from './room_types.js';
 import { select } from './ui_props.js';
 import { disarmRoomStamp, setTool } from './interaction.js';
-import {fmtLen,parseLen,unitLabel} from './display_units.js';
+import {fmtLen,parseLen,unitLabel,writeLen} from './display_units.js';
 
 export function selectedRoomSection(room, helpers, edit, resize, area) {
   const {el,field,button,choices,section}=helpers;
@@ -24,7 +24,7 @@ export function selectedRoomSection(room, helpers, edit, resize, area) {
   const type=choices(types,roomTypeOf(meta)||'',value=>{if(value)edit({roomKey:key,roomType:value});});
   type.options[0].disabled=true;
   node.append(field('guide_name',name),field('guide_type',type));
-  const label=unitLabel('rooms'),unitText=key=>t(key).replace(t('guide_cm'),label);
+  const label=unitLabel('rooms'),unitText=key=>t(key,{u:label}).replace(t('guide_cm'),label);
   const measurement=roomMeasurements(S,room),fmt=n=>fmtLen(n,{domain:'rooms',suffix:false});
   if(measurement?.interior)node.append(el('p',unitText('guide_inner_dimensions').replace('{w}',fmt(measurement.interior.width)).replace('{d}',fmt(measurement.interior.depth))));
   else node.append(el('p',t('guide_inner_unavailable'),'guide-note'));
@@ -35,7 +35,7 @@ export function selectedRoomSection(room, helpers, edit, resize, area) {
     const form=el('div','','guide-actions');
     const width=el('input'),depth=el('input');
     for(const [input,value] of [[width,measurement.interior.width],[depth,measurement.interior.depth]]){
-      input.type='text';input.inputMode='decimal';input.value=fmtLen(value,{domain:'rooms',suffix:false});
+      input.type='text';input.inputMode='decimal';writeLen(input,value,{domain:'rooms'});
     }
     form.append(field('guide_resize_width',width),field('guide_resize_depth',depth));
     width.parentElement.firstChild.textContent=unitText('guide_resize_width');depth.parentElement.firstChild.textContent=unitText('guide_resize_depth');

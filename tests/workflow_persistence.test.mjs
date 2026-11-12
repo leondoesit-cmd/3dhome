@@ -1,3 +1,5 @@
+import { sourceFunctionText } from "./helpers/source_function.mjs";
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -15,7 +17,7 @@ test('an asynchronous save cannot mark a newer edit clean', () => {
   assert.equal(isDirty(), false);
 });
 
-const source = readFileSync(new URL('../js/ui.js', import.meta.url), 'utf8');
+const source = moduleSource("js/ui.js");
 
 test('the browser load mapper preserves an authored wall assembly after JSON export', () => {
   const state = { nodes: [{x:0,z:0},{x:542.29,z:0}], walls: [{id:1,a:0,b:1,height:270,
@@ -23,7 +25,8 @@ test('the browser load mapper preserves an authored wall assembly after JSON exp
   ensureWallTypes(state);
   const data = JSON.parse(JSON.stringify({spatial:exportSpatialProject(state)}));
   // Exercise the browser's actual sanitizing mapper without booting WebGL.
-  const mapping = source.slice(source.indexOf('  S.walls = (d.walls || [])'), source.indexOf('  S.openings = (d.openings || [])'));
+  const apply = sourceFunctionText(source, 'applyDataRequest');
+  const mapping = apply.slice(apply.indexOf('  S.walls = (d.walls || [])'), apply.indexOf('  S.openings = (d.openings || [])'));
   const loaded = {nodes:data.spatial.nodes,wallTypes:data.spatial.wallTypes};
   new Function('S','d','fin','uid',mapping)(loaded,data.spatial,Number.isFinite,()=>99);
   ensureWallTypes(loaded);
@@ -33,7 +36,8 @@ test('the browser load mapper preserves an authored wall assembly after JSON exp
 });
 
 test('browser load restores saved dimensional relationships and clears stale ones', () => {
-  const mapping = source.slice(source.indexOf('  S.wallCons = Array.isArray(d.wallCons)'),source.indexOf('  S.ignoredWarnings ='));
+  const applyData = sourceFunctionText(source, 'applyDataRequest');
+  const mapping = applyData.slice(applyData.indexOf('  S.wallCons = Array.isArray(d.wallCons)'),applyData.indexOf('  S.ignoredWarnings ='));
   const apply = new Function('S','d',mapping);
   const data={wallCons:[{id:2,type:'opening-center',opening:9}],roomCons:[{id:3,value:500}],planVars:[{id:4,value:250}]};
   const state={};apply(state,data);

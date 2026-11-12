@@ -18,7 +18,8 @@ import {
   STD,
 } from "./cabinet.js";
 import { api, E, T, isEn, AXES, sp, formatCm } from "./ui_cabinet_ctx.js";
-import { displayUnit, toDisp, fromDisp } from "./display_units.js";
+import { displayUnit, toDisp, fromDisp, fmtLen, parseLen } from "./display_units.js";
+import { sizeEntryChanged } from "./cabinet_layout_ops.js";
 
 /* Persistent pan & zoom state for the 2D elevation. The base scale `k` auto-
    fits the cabinet to the viewport; these overlay it so a pinch gesture can
@@ -587,8 +588,8 @@ export function drawProjected(ax) {
     if (!v.hDim) return;
     var hv = it[v.hDim],
       vv2 = it[v.vDim];
-    dimTick(c, ox + minU * k, ox + maxU * k, oy - minV * k + 30, Math.round(hv), muted, true);
-    dimTickV(c, oy - maxV * k, oy - minV * k, ox + minU * k - 30, Math.round(vv2), muted, true);
+    dimTick(c, ox + minU * k, ox + maxU * k, oy - minV * k + 30, dimLen(hv, true), muted, true);
+    dimTickV(c, oy - maxV * k, oy - minV * k, ox + minU * k - 30, dimLen(vv2, true), muted, true);
   }
 }
 
@@ -705,7 +706,7 @@ export function draw() {
         c.fillText(kindLabel(col.kind), 0, 0);
         c.restore();
       }
-      dimTick(c, X(col.x0), X(col.x1), Y(it.h) - 26, Math.round(col.w), muted);
+      dimTick(c, X(col.x0), X(col.x1), Y(it.h) - 26, dimLen(col.w), muted);
       return;
     }
     col.secs.forEach(function (cell, si) {
@@ -740,7 +741,7 @@ export function draw() {
         c.fillText(secLabel(cell.ref.t), x + w / 2, y + h / 2 - 7);
         c.fillStyle = muted;
         c.font = "500 10px Inter, Rubik, sans-serif";
-        c.fillText(Math.round(toDisp(cell.y1 - cell.y0, "furniture")) + " " + displayUnit("furniture"), x + w / 2, y + h / 2 + 7);
+        c.fillText(dimLen(cell.y1 - cell.y0, true), x + w / 2, y + h / 2 + 7);
         c.font = "600 11px Inter, Rubik, sans-serif";
       }
     });
@@ -755,7 +756,7 @@ export function draw() {
       c.strokeRect(X(col.x0), Y(it.h), (col.x1 - col.x0) * k, L.t * k);
     }
     if (E.showDoors) drawDoor(c, L, col, X, Y, k, accent);
-    dimTick(c, X(col.x0), X(col.x1), Y(it.h) - 26, Math.round(col.w), muted);
+    dimTick(c, X(col.x0), X(col.x1), Y(it.h) - 26, dimLen(col.w), muted);
     // column selection band
     var selCol = E.sel && E.sel.col === ci && E.sel.sec == null;
     c.fillStyle = selCol ? accent : "rgba(128,128,128,0.35)";
@@ -769,15 +770,15 @@ export function draw() {
     // of the drawing itself
     var dx = X(it.w / 2) + 20;
     selCol2.secs.forEach(function (cell) {
-      dimTickV(c, Y(cell.y1), Y(cell.y0), dx, Math.round(cell.y1 - cell.y0), accent);
+      dimTickV(c, Y(cell.y1), Y(cell.y0), dx, dimLen(cell.y1 - cell.y0), accent);
     });
   }
 
   // overall dimensions
-  dimTick(c, X(-it.w / 2), X(it.w / 2), Y(0) + 26, Math.round(it.w), muted, true);
-  dimTickV(c, Y(it.h), Y(0), X(-it.w / 2) - 26, Math.round(it.h), muted, true);
+  dimTick(c, X(-it.w / 2), X(it.w / 2), Y(0) + 26, dimLen(it.w, true), muted, true);
+  dimTickV(c, Y(it.h), Y(0), X(-it.w / 2) - 26, dimLen(it.h, true), muted, true);
   if (L.sp.elev)
-    dimTickV(c, Y(0), Y(0) + L.sp.elev * k, X(-it.w / 2) - 26, Math.round(L.sp.elev), muted, true);
+    dimTickV(c, Y(0), Y(0) + L.sp.elev * k, X(-it.w / 2) - 26, dimLen(L.sp.elev, true), muted, true);
 
   // the partition about to be drawn, with the two zone sizes it would leave
   var g = E.ghost;
@@ -823,13 +824,106 @@ export function draw() {
     c.textAlign = "center";
     // free sizes are shown to the millimetre, or the readout would lie
     var fmt = function (n) {
-      return E.snap ? Math.round(n) : Math.round(n * 10) / 10;
+      return dimLen(E.snap ? Math.round(n) : n);
     },
       lab = fmt(g.a) + " | " + fmt(g.b) + (g.snap ? "  " + T("snap_" + g.snap) : "");
     if (g.kind === "vwall") c.fillText(lab, X(g.x), Y(0) - 10);
     else c.fillText(lab, X(L.cols[g.col].x1) + 30, Y(g.y) - 4);
     c.restore();
   }
+}
+
+/* What a typed size means, in cm: a bare number is in the project's furniture
+   unit, a number with a unit ("60cm", "0.6 m", "24in") is taken at its word.
+   NaN for anything that is not a length or is not above `min`. */
+export function parseSizeEntry(text, min) {
+  var v = parseLen(String(text || "").trim(), "furniture");
+  return Number.isFinite(v) && v > (min || 0) ? v : NaN;
+}
+
+/* The exact-size field a double-click opens, on the drawing where the click
+   was. Enter or leaving the field applies it, Esc puts it away. Enter on a
+   figure that is not a usable size keeps the field open and marked, rather
+   than dropping it silently the way the old prompt() did. */
+export function openSizeEdit(what, ev, apply) {
+  closeSizeEdit();
+  var host = E.cv && E.cv.parentElement;
+  if (!host) return;
+  var box = document.createElement("div"),
+    cap = document.createElement("span"),
+    input = document.createElement("input"),
+    r = host.getBoundingClientRect();
+  box.className = "cb-size-edit";
+  box.setAttribute("role", "dialog");
+  cap.textContent = what.label + " (" + displayUnit("furniture") + ")";
+  input.type = "text";
+  input.inputMode = "decimal";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.value = dimLen(what.cm);
+  var initialText = input.value;
+  input.title = T("sizeEditTip");
+  input.setAttribute("aria-label", what.label);
+  box.append(cap, input);
+  host.appendChild(box);
+  var x = (ev && ev.clientX != null ? ev.clientX - r.left : r.width / 2) + 10,
+    y = (ev && ev.clientY != null ? ev.clientY - r.top : r.height / 2) - 18;
+  box.style.left = Math.max(8, Math.min(x, r.width - box.offsetWidth - 8)) + "px";
+  box.style.top = Math.max(8, Math.min(y, r.height - box.offsetHeight - 8)) + "px";
+  var done = false;
+  function finish(commit) {
+    if (done) return true;
+    if (commit && sizeEntryChanged(initialText, input.value)) {
+      var v = parseSizeEntry(input.value, what.min);
+      if (!Number.isFinite(v)) {
+        input.classList.add("cb-bad");
+        input.setAttribute("aria-invalid", "true");
+        return false;
+      }
+      done = true;
+      box.remove();
+      E.sizeEdit = null;
+      if (Math.abs(v - what.cm) > 0.01) apply(v);
+      return true;
+    }
+    done = true;
+    box.remove();
+    E.sizeEdit = null;
+    return true;
+  }
+  input.addEventListener("keydown", function (e) {
+    // the designer closes on Escape and edits on Delete/arrows: none of that
+    // may reach it while a figure is being typed
+    e.stopPropagation();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (finish(true) && E.cv) E.cv.focus && E.cv.focus();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      finish(false);
+    }
+  });
+  input.addEventListener("input", function () {
+    input.classList.remove("cb-bad");
+    input.removeAttribute("aria-invalid");
+  });
+  input.addEventListener("blur", function () {
+    if (!finish(true)) finish(false);
+  });
+  E.sizeEdit = { close: function () { finish(false); } };
+  input.focus();
+  input.select();
+}
+export function closeSizeEdit() {
+  if (E.sizeEdit) E.sizeEdit.close();
+}
+
+/* A length as the drawing writes it: in the project's furniture unit (mm by
+   default), like the size fields and the compartment labels, rather than in the
+   centimetres the geometry is kept in. The overall dimensions carry the unit;
+   the chains inside them do not, as on a shop drawing. */
+export function dimLen(cm, withUnit) {
+  return fmtLen(cm, { domain: "furniture", suffix: !!withUnit });
 }
 
 /* Dimension lines the way a shop drawing carries them: a run between two
@@ -1116,8 +1210,9 @@ function hit(p) {
     if (p.x < c2.x0 - L.t || p.x > c2.x1 + L.t) continue;
     // dividers before cells: the top edge of a compartment is also the bottom
     // of the shelf above it, and grabbing the shelf has to win
+    var st = L.st || L.t;
     for (var si = 1; si < c2.secs.length; si++)
-      if (Math.abs(p.y - c2.secs[si].y0 + L.t / 2) < tol + L.t / 2) return { kind: "secDiv", col: ci, i: si };
+      if (Math.abs(p.y - c2.secs[si].y0 + st / 2) < tol + st / 2) return { kind: "secDiv", col: ci, i: si };
     for (var sj = 0; sj < c2.secs.length; sj++) {
       var s = c2.secs[sj];
       if (p.y >= s.y0 && p.y <= s.y1) return { kind: "cell", col: ci, sec: sj };
@@ -1138,7 +1233,6 @@ export function wireCanvas() {
     if (!live()) return;
     var p = toModel(e);
     if (E.tool) {
-      api.act(T(E.tool === "erase" ? "opErase" : "opDraw"));
       if (E.tool === "erase") eraseAt(p);
       else if (E.tool === "vwall") drawVWall(ghostAt(p));
       else drawHWall(ghostAt(p), e.shiftKey);
@@ -1188,7 +1282,7 @@ export function wireCanvas() {
       if (a >= 12 && b >= 12) {
         cols[i - 1].w = a;
         cols[i].w = b;
-        cols[i - 1].fixed = cols[i].fixed = false;
+        cols[i - 1].fixed = cols[i].fixed = true;
       }
     } else {
       var c2 = cols[d.h.col],
@@ -1218,37 +1312,25 @@ export function wireCanvas() {
   });
   cv.addEventListener("pointerup", endDrag);
   cv.addEventListener("pointercancel", endDrag);
+  /* Double-click a compartment or a column for an exact size. The figure is
+     typed into a small field on the drawing itself (openSizeEdit) — it takes
+     the project's unit or any unit written after the number. */
   cv.addEventListener("dblclick", function (e) {
     if (!live()) return;
     var h = hit(toModel(e));
     if (!h) return;
     if (h.kind === "cell") {
-      var u = displayUnit("furniture");
-      var s = sp().cols[h.col].secs[h.sec],
-        v = prompt(T("secH") + ' (' + u + ')', Math.round(toDisp(s.h, "furniture")));
-      if (v != null && fin(+v)) {
-        var parsedH = fromDisp(+v, "furniture");
-        if (parsedH > 5) {
-          s.h = parsedH;
-          s.fixed = true;
-          api.touch();
-          api.changed();
-        }
-      }
+      var s = sp().cols[h.col].secs[h.sec];
+      openSizeEdit({ label: T("secH"), cm: s.h, min: 5 }, e, function (v) {
+        api.setSectionHeight(h.col, h.sec, v);
+      });
     } else if (h.kind === "col" || h.kind === "colDiv") {
-      var u = displayUnit("furniture");
-      var ci = h.col != null ? h.col : h.i,
-        c2 = sp().cols[ci],
-        v2 = prompt(T("colW") + ' (' + u + ')', Math.round(toDisp(c2.w, "furniture")));
-      if (v2 != null && fin(+v2)) {
-        var parsedW = fromDisp(+v2, "furniture");
-        if (parsedW > 10) {
-          c2.w = parsedW;
-          c2.fixed = true;
-          api.touch();
-          api.changed();
-        }
-      }
+      var ci = h.col != null ? h.col : (h.kind === "colDiv" ? h.i - 1 : h.i),
+        c2 = sp().cols[ci];
+      if (!c2) return;
+      openSizeEdit({ label: T("colW"), cm: c2.w, min: 10 }, e, function (v) {
+        api.setColumnWidth(ci, v);
+      });
     }
   });
 
@@ -1382,7 +1464,7 @@ function ghostAt(p) {
           });
         });
         hc.push({ v: (s.y0 + s.y1) / 2, why: "mid" });
-        hc = hc.concat(roundCands(0, s.y0 + 5, s.y1 - 5, "round"));
+        hc = hc.concat(roundCands(s.y0, 5, (s.y1 - s.y0) - 5, "round"));
         var sn2 = pickSnap(p.y, hc, tol),
           ha = sn2.v - s.y0 - t2 / 2,
           hb = s.y1 - sn2.v - t2 / 2;
@@ -1399,6 +1481,7 @@ function ghostAt(p) {
 
 function drawVWall(g) {
   if (!g || !g.ok) return api.flashHint(T("tooSmall"));
+  api.act(T("opDraw"));
   api.touch();
   var cols = sp().cols,
     c = cols[g.col],
@@ -1407,6 +1490,8 @@ function drawVWall(g) {
   copy.w = g.b;
   delete c.fixed;
   delete copy.fixed;
+  delete copy.hid;
+  if (copy.secs) copy.secs.forEach(function (s) { delete s.hid; });
   cols.splice(g.col + 1, 0, copy);
   E.sel = { col: g.col + 1, sec: 0 };
   api.changed();
@@ -1423,7 +1508,6 @@ function drawHWall(g, all) {
     t = sp().shelf || sp().panel,
     targets = all ? L.cols.map(function (_, i) { return i; }) : [g.col],
     done = 0;
-  api.touch();
   targets.forEach(function (ci) {
     var lc = L.cols[ci],
       col = sp().cols[ci];
@@ -1435,10 +1519,28 @@ function drawHWall(g, all) {
       if (a < 8 || b < 8) return;
       var s = col.secs[j],
         copy = JSON.parse(JSON.stringify(s));
+      if (!done) {
+        api.act(T("opDraw"));
+        api.touch();
+      }
       s.h = a;
       copy.h = b;
       delete s.fixed;
       delete copy.fixed;
+      delete copy.hid;
+      // Divide counted fittings rather than installing the full set twice.
+      if (s.t === "drawers" || s.t === "pullout") {
+        var count = s.n != null ? s.n : Math.max(1, Math.round((ls.y1 - ls.y0) / (s.t === "drawers" ? STD.drawerH + (sp().gap || 0) : 24))),
+          lower = Math.min(count, Math.max(1, Math.round(count * a / (a + b))));
+        s.n = lower;
+        copy.n = count - lower;
+        delete s.heights;
+        delete copy.heights;
+        if (copy.n <= 0) copy = { t: "shelves", h: b, n: 0 };
+      } else if (!["shelves", "shoe", "open", "box"].includes(s.t)) {
+        // An appliance or other single fitting stays in the original zone.
+        copy = { t: "shelves", h: b, n: 0 };
+      }
       col.secs.splice(j + 1, 0, copy);
       done++;
       return;
@@ -1452,6 +1554,15 @@ function drawHWall(g, all) {
   api.changed();
 }
 
+function sectionContent(s) {
+  return s.t && s.t !== "shelves" ? 1 : 0;
+}
+function columnContent(c) {
+  return c.secs.reduce(function (sum, s) { return sum + sectionContent(s); }, 0) +
+    (c.door && c.door.t && c.door.t !== "none" ? 1 : 0) +
+    (c.kind && c.kind !== "normal" ? 1 : 0);
+}
+
 // Erase: click a partition and the two zones it separated become one.
 function eraseAt(p) {
   var h = hit(p);
@@ -1459,13 +1570,15 @@ function eraseAt(p) {
   if (h.kind === "colDiv") {
     var cols = sp().cols;
     if (cols.length <= 1) return;
+    api.act(T("opErase"));
     api.touch();
     /* Two bays become one, and one of the two interiors has to go. Losing the
        plainer one is nearly always what was meant — you rub out a divider to
        let the good side spread, not to keep the empty side. */
     var a = cols[h.i - 1],
       b = cols[h.i],
-      keep = b.secs.length > a.secs.length ? b : a;
+      richness = columnContent(b) - columnContent(a),
+      keep = richness > 0 || (richness === 0 && b.secs.length > a.secs.length) ? b : a;
     keep.w = a.w + b.w + (isFloat(sp()) ? 0 : sp().panel);
     delete keep.fixed;
     cols.splice(h.i - 1, 2, keep);
@@ -1474,10 +1587,12 @@ function eraseAt(p) {
   } else if (h.kind === "secDiv") {
     var col2 = sp().cols[h.col];
     if (!col2 || col2.secs.length <= 1) return;
+    api.act(T("opErase"));
     api.touch();
     var sa = col2.secs[h.i - 1],
       sb = col2.secs[h.i],
-      keepS = sb.h > sa.h ? sb : sa;
+      content = sectionContent(sb) - sectionContent(sa),
+      keepS = content > 0 || (content === 0 && sb.h > sa.h) ? sb : sa;
     keepS.h = sa.h + sb.h + (sp().shelf || sp().panel);
     delete keepS.fixed;
     col2.secs.splice(h.i - 1, 2, keepS);
@@ -1513,7 +1628,9 @@ export function exportPNG() {
   c.font = "500 14px Inter, Rubik, sans-serif";
   c.fillStyle = "#5b636b";
   c.fillText(
-    Math.round(E.it.w) + "×" + Math.round(E.it.d) + "×" + Math.round(E.it.h) +
+    (/^(mm|cm|m)$/.test(displayUnit("furniture"))
+      ? dimLen(E.it.w) + "×" + dimLen(E.it.d) + "×" + dimLen(E.it.h) + " " + displayUnit("furniture")
+      : [E.it.w, E.it.d, E.it.h].map(function (v) { return dimLen(v, true); }).join(" × ")) +
       "  ·  " + cabSummary(E.it) + "  ·  " + frontLabel(sp().front) + "  ·  ₪" + cabPrice(E.it).toLocaleString("en-US"),
     x, pad + 38,
   );
@@ -1524,10 +1641,9 @@ export function exportPNG() {
   a.href = out.toDataURL("image/png");
   a.download = "cabinet-elevation.png";
   a.click();
-  E.axis = restoreAxis;
-  if (restoreMode === "split") { setMode("split"); if (restoreAxis !== "front") setAxis(restoreAxis); }
+  if (restoreAxis !== "front") setAxis(restoreAxis);
+  if (restoreMode === "split") setMode("split");
   else if (restoreMode === "3d") setMode("3d");
-  else if (restoreAxis !== "front") setAxis(restoreAxis);
 }
 
 /* The elevation as a shop drawing: white background, a title block with the

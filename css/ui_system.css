@@ -1,0 +1,569 @@
+/* ==========================================================================
+   PLANNER UI SYSTEM (ui_system.css) — loaded last
+   --------------------------------------------------------------------------
+   The planner's controls were added over many rounds, each with its own
+   sizes: one desktop screen measured 90 controls in 34 distinct styles —
+   11 heights, 11 corner radii (0-18px), 10 type variants and three ways of
+   saying "this is on" (solid accent, soft accent, grey fill). This file is
+   the one place that decides how a planner control looks. It does not add
+   or remove any control; it maps every control FAMILY onto one small set of
+   tokens:
+
+     radius   --ui-r-sm 6  (segment items, chips)
+              --ui-r    8  (buttons, icon buttons, floating canvas controls)
+              --ui-r-lg 12 (big touch tiles, cards)
+     height   --ui-h-sm  segment items / chips      (26 desktop, 32 touch)
+              --ui-h     buttons / bars             (30 desktop, 40 touch)
+     type     13px / 500 controls, 600 when on; 12px / 600 small chips.
+              Monospace stays for numbers only (fields, readouts).
+     states   ON (selected tab, armed tool, toggled aid, locked)
+                → soft accent fill + accent text + thin accent ring
+              PRIMARY (the one thing to do: Share, Ask, Apply)
+                → solid accent
+              Nothing else is solid accent, so solid always means "do".
+
+   Scope: the modern planner only — body.pro-skin (desktop) and
+   body.pro-compact (touch). The classic layout (html[data-ui="legacy"])
+   keeps its own look on purpose. Colours come from the theme tokens in
+   css/styles.css / css/pro_skin.css, so every theme follows.
+   ========================================================================== */
+
+body.pro-skin,
+body.pro-compact {
+  --ui-r-sm: 6px;
+  --ui-r: 8px;
+  --ui-r-lg: 12px;
+  --ui-h-sm: 26px;
+  --ui-h: 30px;
+  --ui-fs: 13px;
+  --ui-fs-sm: 12px;
+  --ui-on-bg: var(--accent-soft);
+  /* Pure accent on its own soft tint measured 3.8-4.4:1 in the dark, mid and
+     chrome themes (AI, Library, Planner). Mixing in the text colour keeps
+     the hue and clears 4.5:1 in every theme, the command bar's AI included. */
+  --ui-on-fg: color-mix(in srgb, var(--accent) 55%, var(--text-main));
+  --ui-on-ring: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
+  --ui-track-bg: var(--btn-bg);
+  --ui-track-ring: inset 0 0 0 1px var(--border-color);
+  --ui-float-bg: var(--hud-bg, var(--bg-panel));
+  --ui-float-ring: 0 0 0 1px var(--border-color), 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+body.pro-compact {
+  --ui-h-sm: 32px;
+  --ui-h: 40px;
+}
+
+/* ---- 1. segmented controls ------------------------------------------------
+   Six of them, six designs before: the editor switch, Plan/3D/Split, the
+   phone's 2D/3D, the left panel's Parts/Layers/Library/History, the wall
+   inspector's Size/Assembly/… tabs, the floor tabs, and the command bar's
+   AI/Cmd. One track, one item, one "on". */
+html body:is(.pro-skin, .pro-compact) :is(
+  #topbar .pr-editors,
+  #viewModePill,
+  #topbar .ps-view,
+  #left-sidebar .ps-left-tabs,
+  #right-inspector .wi-tabs,
+  #floor-tabs,
+  #psPlanBar .ps-modes
+) {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--ui-r);
+  background: var(--ui-track-bg);
+  box-shadow: var(--ui-track-ring);
+  border: 0;
+}
+html body:is(.pro-skin, .pro-compact) :is(
+  #topbar .pr-editors,
+  #viewModePill,
+  #topbar .ps-view,
+  #left-sidebar .ps-left-tabs,
+  #right-inspector .wi-tabs,
+  #floor-tabs,
+  #psPlanBar .ps-modes
+) > button {
+  height: var(--ui-h-sm);
+  min-height: var(--ui-h-sm);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ui-r-sm);
+  background: transparent;
+  box-shadow: none;
+  /* muted on the track's own grey: 3.6:1 in the mid theme, 4.3:1 in chrome */
+  color: color-mix(in srgb, var(--text-muted) 70%, var(--text-main));
+  font-size: var(--ui-fs);
+  font-weight: 500;
+  line-height: 1;
+}
+html body:is(.pro-skin, .pro-compact) :is(
+  #topbar .pr-editors,
+  #viewModePill,
+  #topbar .ps-view,
+  #left-sidebar .ps-left-tabs,
+  #right-inspector .wi-tabs,
+  #floor-tabs,
+  #psPlanBar .ps-modes
+) > button:hover {
+  color: var(--text-main);
+  background: var(--btn-bg-hover);
+}
+html body:is(.pro-skin, .pro-compact) :is(
+  #topbar .pr-editors,
+  #viewModePill,
+  #topbar .ps-view,
+  #left-sidebar .ps-left-tabs,
+  #right-inspector .wi-tabs,
+  #floor-tabs,
+  #psPlanBar .ps-modes
+) > button:is(.on, .active, [aria-pressed="true"], [aria-selected="true"]) {
+  background: var(--ui-on-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring);
+  font-weight: 600;
+}
+/* the left panel's "more panels" glyph and the floor "+" are segment-sized
+   icon buttons inside their tracks */
+html body:is(.pro-skin, .pro-compact) :is(#left-sidebar .ps-left-tabs > .ps-left-more, #floor-tabs > .floor-add) {
+  font-size: 15px;
+  padding: 0 8px;
+}
+
+/* ---- 2. plain buttons -------------------------------------------------------
+   Header actions (undo/redo, File/Edit/Export, More, project), inspector
+   actions, the library's "Edit selected model". Same height, radius and type. */
+html body.pro-skin #topbar :is(.dropdown-trigger, .tb-start > button, .tb-end > button, .ps-project-btn, #workspaceBtn) {
+  height: var(--ui-h);
+  min-height: var(--ui-h);
+  border-radius: var(--ui-r);
+  font-size: var(--ui-fs);
+  font-weight: 500;
+}
+html body.pro-skin #topbar .ps-project-btn { font-weight: 600; }
+html body:is(.pro-skin, .pro-compact) #right-inspector .wi-act {
+  height: 28px;
+  min-width: 28px;
+  border-radius: var(--ui-r);
+  border: 0;
+  background: var(--btn-bg);
+  box-shadow: var(--ui-track-ring);
+  font-size: var(--ui-fs);
+}
+html body:is(.pro-skin, .pro-compact) #right-inspector .wi-act:hover { background: var(--btn-bg-hover); }
+html body:is(.pro-skin, .pro-compact) #right-inspector .wi-act-danger:hover {
+  color: var(--danger, #ef4444);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger, #ef4444) 45%, transparent);
+}
+html body:is(.pro-skin, .pro-compact) #right-inspector :is(.wi-act, .wi-switch).active {
+  background: var(--ui-on-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring);
+  border: 0;
+}
+html body:is(.pro-skin, .pro-compact) #right-inspector .wi-switch {
+  border-radius: var(--ui-r);
+  font-size: var(--ui-fs-sm);
+  font-weight: 600;
+}
+html body:is(.pro-skin, .pro-compact) #left-sidebar #editModelBtn {
+  height: 32px;
+  border-radius: var(--ui-r);
+  border: 0;
+  background: var(--btn-bg);
+  box-shadow: var(--ui-track-ring);
+  font-size: var(--ui-fs);
+  font-weight: 500;
+}
+html body:is(.pro-skin, .pro-compact) #left-sidebar #editModelBtn:hover { background: var(--btn-bg-hover); }
+
+/* ---- 3. primary actions: the only solid accent ------------------------------ */
+html body.pro-skin #topbar .ps-share {
+  height: var(--ui-h);
+  border-radius: var(--ui-r);
+  font-size: var(--ui-fs);
+  font-weight: 600;
+}
+
+/* ---- 4. the ribbon -----------------------------------------------------------
+   Tabs stay a tab row (underline), only their type is aligned. The armed tool
+   was solid accent — the same paint as Share — so "Select" read as a button
+   to press rather than the tool in hand. It is ON now, like every other
+   selected thing. */
+html body.pro-skin #pro-ribbon .pr-tab { font-size: var(--ui-fs); }
+html body.pro-skin #pro-ribbon .pr-tool { border-radius: var(--ui-r); }
+html body.pro-skin #pro-ribbon .pr-tool.on {
+  background: var(--ui-on-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring);
+}
+html body.pro-skin #pro-ribbon .pr-tool.on :is(i, svg, span) { color: inherit; }
+
+/* ---- 5. drafting aids (OSNAP / ORTHO / GRID) ----------------------------------
+   11px monospace, solid when on — they were the only toggles in another
+   typeface. Same chip as everything else; the F-key hint stays, quieter. */
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip {
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--ui-r-sm);
+  background: transparent;
+  box-shadow: var(--ui-track-ring);
+  color: var(--text-muted);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: var(--ui-fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip :is(.t, kbd) {
+  font-family: Inter, system-ui, sans-serif;
+}
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip .t {
+  color: inherit !important;
+  font-size: var(--ui-fs-sm);
+  font-weight: 600;
+}
+/* styles.css paints .cad-chip.on (and its .t / kbd) solid with !important */
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip.on {
+  background: var(--ui-on-bg) !important;
+  border-color: transparent !important;
+  color: var(--ui-on-fg) !important;
+  box-shadow: var(--ui-on-ring);
+}
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip.on .t { color: var(--ui-on-fg) !important; }
+html body:is(.pro-skin, .pro-compact) #cadToggles .cad-chip.on kbd {
+  background: color-mix(in srgb, var(--accent) 16%, transparent) !important;
+  color: var(--ui-on-fg) !important;
+}
+
+/* ---- 6. controls floating over the canvas -------------------------------------
+   The layers chip was a pill, the style button a rounded square with a
+   border, the workflow column a bare stack, the floor tabs another pill.
+   One floating surface: HUD fill, hairline ring, soft shadow, radius 8. */
+html body:is(.pro-skin, .pro-compact) :is(#view-2d .plan-style-btn, #psLayersChip, #view-2d .view-max-btn, #right-inspector .inspector-preview-reset) {
+  height: 32px;
+  min-height: 32px;
+  border: 0;
+  border-radius: var(--ui-r);
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+  font-size: var(--ui-fs);
+  font-weight: 600;
+}
+html body:is(.pro-skin, .pro-compact) :is(#view-2d .plan-style-btn, #view-2d .view-max-btn) { width: 32px; padding: 0; }
+html body:is(.pro-skin, .pro-compact) #right-inspector .inspector-preview-reset { height: 28px; min-height: 28px; font-size: var(--ui-fs-sm); }
+html body:is(.pro-skin, .pro-compact) #floor-tabs {
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+}
+html body.pro-skin #planner-workflow {
+  padding: 3px;
+  gap: 2px;
+  border: 0;
+  border-radius: var(--ui-r);
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+}
+html body.pro-skin #planner-workflow > button {
+  width: var(--ui-h);
+  height: var(--ui-h);
+  min-height: var(--ui-h);
+  border-radius: var(--ui-r-sm);
+}
+
+/* ---- 7. touch layout (phones, tablets, folds) ---------------------------------- */
+html body.pro-compact :is(.ps-head .ps-hbtn, .ps-head .ps-title) { border-radius: var(--ui-r); }
+html body.pro-compact :is(#view-2d .plan-style-btn, #psLayersChip) {
+  height: 36px;
+  min-height: 36px;
+}
+html body.pro-compact #view-2d .plan-style-btn { width: 36px; }
+/* A tablet or an unfolded fold floats the dock 10px above the plan's bottom
+   edge, so the style chip's 54px corner put it 12px into the dock. */
+html body.pro-compact.dock-rail #view-2d > .plan-style-btn {
+  top: auto;
+  bottom: calc(var(--ps-dock-h, 56px) + 20px + env(safe-area-inset-bottom, 0px));
+}
+/* "All tools" opens a sheet; it is not a mode that is on. Solid accent made
+   it look like the active one of the two left dock buttons. */
+html body.pro-compact .ps-dock > :is(.ps-dock-grid, .ps-dock-browse) {
+  background: var(--btn-bg);
+  color: var(--text-main);
+  box-shadow: var(--ui-track-ring);
+  border-radius: var(--ui-r-lg);
+}
+html body.pro-compact .ps-dock > :is(.ps-dock-grid, .ps-dock-browse)[aria-expanded="true"],
+html body.pro-compact .ps-dock > :is(.ps-dock-grid, .ps-dock-browse).on {
+  background: var(--ui-on-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring);
+}
+html body.pro-compact .ps-dock > .ps-dock-ask { border-radius: var(--ui-r-lg); }
+html body.pro-compact #m-ctx .mctx-btn { border-radius: var(--ui-r); }
+html body.pro-compact #m-ctx .mctx-btn.on {
+  background: var(--ui-on-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring);
+}
+html body.pro-compact #m-fold-rail button { border-radius: var(--ui-r); }
+html body.pro-compact :is(.ps-more-item, #m-sheet .m-grid-btn) {
+  border-radius: var(--ui-r);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ---- 8. the 3D view's own controls ---------------------------------------------
+   Two rows of differently drawn buttons were stacked in the top-right corner:
+   Drawing overlay / Dollhouse (bordered, solid accent on hover) and under them
+   Walk / Look / First-third person / Invisible roof (bordered, outlined when
+   on). What you SEE stays top-right as floating controls; how you MOVE is one
+   toolbar at the foot of the view, the way 3D viewers put it, with icons and
+   the shared on-state. Third person only shows while walking (planner_3d.js). */
+html body.pro-skin #view-3d > :is(.view-edit-btn, .view-max-btn) {
+  height: 32px;
+  min-height: 32px;
+  border: 0;
+  border-radius: var(--ui-r);
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+  color: var(--text-main);
+  font-size: var(--ui-fs);
+  font-weight: 600;
+  gap: 6px;
+}
+html body.pro-skin #view-3d > .view-max-btn { width: 32px; padding: 0; }
+html body.pro-skin #view-3d > .view-edit-btn i { font-size: 16px; }
+html body.pro-skin #view-3d > :is(.view-edit-btn, .view-max-btn):hover {
+  background: linear-gradient(var(--btn-bg-hover), var(--btn-bg-hover)), var(--ui-float-bg);
+  color: var(--text-main);
+}
+html body.pro-skin #view-3d > .view-edit-btn:is(.active, [aria-pressed="true"]) {
+  background: linear-gradient(var(--ui-on-bg), var(--ui-on-bg)), var(--ui-float-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring), var(--ui-float-ring);
+}
+
+html body.pro-skin #view-3d > .planner-navigation {
+  top: auto;
+  bottom: 12px;
+  /* centred in the room left of the 86px compass (styles.css does the same) */
+  left: calc(50% - 51px);
+  right: auto;
+  inset-inline-end: auto;
+  transform: translateX(-50%);
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px;
+  /* positioned from the middle, shrink-to-fit would size it to the half of
+     the pane right of `left` and squeeze the buttons out of their own bar */
+  width: max-content;
+  max-width: calc(100% - 220px);
+  border: 0;
+  border-radius: calc(var(--ui-r) + 2px);
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+  backdrop-filter: none;
+}
+html body.pro-skin #view-3d > .planner-navigation > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--ui-h);
+  min-height: var(--ui-h);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ui-r-sm);
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-main);
+  font-size: var(--ui-fs);
+  font-weight: 500;
+  line-height: 1;
+}
+html body.pro-skin #view-3d > .planner-navigation > button[hidden] { display: none; }
+html body.pro-skin #view-3d > .planner-navigation > button i { font-size: 16px; color: var(--text-muted); }
+html body.pro-skin #view-3d > .planner-navigation > button:hover { background: var(--btn-bg-hover); border: 0; }
+html body.pro-skin #view-3d > .planner-navigation > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+html body.pro-skin #view-3d > .planner-navigation > button[aria-pressed="true"] {
+  background: var(--ui-on-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring);
+  font-weight: 600;
+}
+html body.pro-skin #view-3d > .planner-navigation > button[aria-pressed="true"] i { color: inherit; }
+/* camera (walk, third person) | input (look) | light (roof). The DOM order is
+   walk, look, person, roof — the phone's toolbar reads it — so the person
+   toggle is moved next to Walk visually only. */
+html body.pro-skin #view-3d > .planner-navigation > .pn-walk { order: 0; }
+html body.pro-skin #view-3d > .planner-navigation > .pn-person { order: 1; }
+html body.pro-skin #view-3d > .planner-navigation > .pn-look { order: 2; }
+html body.pro-skin #view-3d > .planner-navigation > .pn-roof { order: 3; }
+html body.pro-skin #view-3d > .planner-navigation > .pn-walls { order: 4; }
+html body.pro-skin #view-3d > .planner-navigation > :is(.pn-look, .pn-roof) {
+  position: relative;
+  margin-inline-start: 7px;
+}
+html body.pro-skin #view-3d > .planner-navigation > :is(.pn-look, .pn-roof)::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -5px;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: var(--border-color);
+  pointer-events: none;
+}
+/* a 3D pane too narrow for the names (js/planner_3d.js measures it) */
+html body.pro-skin #view-3d > .planner-navigation.pn-icons > button { width: var(--ui-h); padding: 0; justify-content: center; }
+html body.pro-skin #view-3d > .planner-navigation.pn-icons > button span { display: none; }
+/* narrow desktops: icons only, the names stay on the tooltips */
+@media (max-width: 1180px) {
+  html body.pro-skin #view-3d > .planner-navigation > button { width: var(--ui-h); padding: 0; justify-content: center; }
+  html body.pro-skin #view-3d > .planner-navigation > button span { display: none; }
+}
+/* the first-use hint stands above the toolbar */
+html body.pro-skin.ps-plan-docked #center-canvas.max-view-3d #view-3d > .hint { bottom: 62px; }
+
+/* ---- 9. the bottom bar's pointer readout -------------------------------------------
+   With no pointer over the plan (and always in 3D) it printed a lone "—". It
+   keeps its width so the drafting aids do not jump when the pointer arrives. */
+html body:is(.pro-skin, .pro-compact) #cad-status #cadCoord.is-empty { visibility: hidden; }
+
+/* ---- 10. the plan's floating controls ----------------------------------------------
+   2D now wears the 3D view's corners: top-left says WHERE you are (floor
+   track, layers chip under it); top-right is how you SEE it (plan style,
+   maximise, the orientation gizmo under them); the right edge is the
+   workflow column. Before, the style button sat alone in the bottom-left
+   (styles.css parks it there for a plan tool strip pro-skin never shows),
+   the maximise button and gizmo each sat on a square dock card, and
+   pro_skin.css drew the floor track as a radius-16 pill and the column as a
+   radius-12 card with !important or stronger selectors than section 6. */
+/* floors: the same track in 2D and 3D. styles.css forces 38px in 3D. */
+html body.pro-skin #center-canvas #plan-tools .pt-panel[data-panel="floors"] {
+  height: auto !important;
+  min-height: 0 !important;
+}
+html body.pro-skin #center-canvas #floor-tabs {
+  height: 32px !important;
+  min-height: 0 !important;
+  padding: 3px !important;
+  border-radius: var(--ui-r) !important;
+  background: var(--ui-float-bg) !important;
+  box-shadow: var(--ui-float-ring) !important;
+}
+/* the maximise button and the gizmo draw their own shapes (a square, a
+   disc); the free dock card behind them showed as a second outline */
+html body.pro-skin #view-2d #plan-tools .pt-panel.pt-free:is([data-panel="max"], [data-panel="gizmo"]) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* the plan gizmo has no disc of its own: it gets the 3D gizmo's round shape */
+html body.pro-skin #view-2d #plan-tools .pt-panel.pt-free[data-panel="gizmo"] {
+  border-radius: 50%;
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+}
+/* plan style: back beside maximise, its twin, as styles.css first had it */
+html body.pro-skin #view-2d > .plan-style-btn,
+html body.pro-skin #view-2d.plan-tools-compact > .plan-style-btn {
+  top: calc(12px + var(--plan-corner-lift, 0px));
+  bottom: auto;
+  inset-inline-start: auto;
+  inset-inline-end: 52px;
+}
+html body.pro-skin #view-2d :is(.plan-style-btn, .view-max-btn) {
+  color: var(--text-main);
+  backdrop-filter: none;
+}
+/* hover was solid accent and so was "presentation on": the shared states */
+html body.pro-skin #view-2d :is(.plan-style-btn, .view-max-btn):hover {
+  background: linear-gradient(var(--btn-bg-hover), var(--btn-bg-hover)), var(--ui-float-bg);
+  color: var(--text-main);
+}
+html body.pro-skin #view-2d .plan-style-btn[aria-pressed="true"] {
+  background: linear-gradient(var(--ui-on-bg), var(--ui-on-bg)), var(--ui-float-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring), var(--ui-float-ring);
+}
+/* the workflow column: units | fit, layers, drawing space | done. Its top
+   is pinned rather than centred, so Done and the opening fields appearing
+   grow it downward instead of sliding the buttons under the pointer. */
+html body.pro-skin #center-canvas > #planner-workflow {
+  top: calc(50% - 68px);
+  transform: none;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--ui-r);
+  background: var(--ui-float-bg);
+  box-shadow: var(--ui-float-ring);
+}
+html body.pro-skin #center-canvas > #planner-workflow > button {
+  width: var(--ui-h);
+  height: var(--ui-h);
+  min-height: var(--ui-h);
+  border-radius: var(--ui-r-sm);
+  color: var(--text-main);
+}
+html body.pro-skin #center-canvas > #planner-workflow > button:hover { background: var(--btn-bg-hover); }
+html body.pro-skin #center-canvas > #planner-workflow > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+html body.pro-skin #center-canvas > #planner-workflow > button[aria-pressed="true"] {
+  background: var(--ui-on-bg);
+  color: var(--ui-on-fg);
+  box-shadow: var(--ui-on-ring);
+}
+html body.pro-skin #center-canvas > #planner-workflow > :is(#workflowFit, #workflowDone) {
+  position: relative;
+  margin-top: 5px;
+}
+html body.pro-skin #center-canvas > #planner-workflow > :is(#workflowFit, #workflowDone)::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 6px;
+  right: 6px;
+  height: 1px;
+  background: var(--border-color);
+  pointer-events: none;
+}
+/* "Done placing" only exists while a tool is armed: a greyed check on an
+   icon-only column read as a broken button. When it shows it is the one
+   thing to do, so it is the primary. */
+html body.pro-skin #center-canvas > #planner-workflow > #workflowDone:disabled { display: none; }
+html body.pro-skin #center-canvas > #planner-workflow > #workflowDone:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+html body.pro-skin #center-canvas > #planner-workflow > #workflowDone:not(:disabled):hover {
+  background: color-mix(in srgb, var(--accent) 86%, #000);
+}
+
+/* ---- 11. big touch screens: the desktop layout, finger-sized -----------------
+   An iPad Pro in landscape (1366x1024) or a Surface is too big for the
+   compact chrome, so it keeps the ribbon and the panels (js/chrome_posture.js
+   touchDesk). It used to keep their mouse sizes too: 30px buttons, 26px tabs
+   and menu rows. Same layout, the compact layouts' token heights, and every
+   menu row and tab at least 44px. The pane hints already switch to their touch
+   wording off the pointer (js/mobile_shell.js applyTouchHints). */
+html body.touch-desk:is(.pro-skin, .pro-compact) {
+  --ui-h-sm: 32px;
+  --ui-h: 40px;
+}
+html body.touch-desk .pr-bar { height: 44px; }
+html body.touch-desk .pr-tab { min-height: 44px; }
+html body.touch-desk.pro-skin .pr-editor-ribbon .pr-items,
+html body.touch-desk.pro-skin .pr-editor-ribbon.pr-dense .pr-items { grid-template-rows: repeat(2, 40px); gap: 3px; }
+html body.touch-desk.pro-skin .pr-editor-ribbon .pr-tool,
+html body.touch-desk.pro-skin .pr-editor-ribbon.pr-dense .pr-tool,
+html body.touch-desk.pro-skin .pr-editor-ribbon .pr-items > .pr-fold-more { height: 40px; }
+html body.touch-desk .pr-menu-item,
+html body.touch-desk .dropdown-menu :is(button, [role="menuitem"]),
+html body.touch-desk .pr-every-panel .pe-tools button { min-height: 44px; }
+html body.touch-desk .pr-every-panel .pe-editors button,
+html body.touch-desk .pr-every-panel .pe-x { min-height: 40px; min-width: 40px; }
+html body.touch-desk #topbar :is(button, .dd-btn) { min-height: 40px; }

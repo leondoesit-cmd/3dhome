@@ -16,13 +16,14 @@
  * These assertions are the only thing standing between that and a quiet
  * reversal, so they are deliberately about SHAPE, not behaviour.
  */
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 
 const read = (p) => readFile(new URL("../" + p, import.meta.url), "utf8");
 const main = await read("js/main.js");
-const ui = await read("js/ui.js");
+const ui = moduleSource("js/ui.js");
 const relay = await read("server/relay.mjs");
 const i18n = await read("js/i18n.js");
 const iconIndex = await read("js/icon_theme_assets.js");
@@ -45,8 +46,12 @@ test("the CAD editor is not on the boot graph", async () => {
 });
 
 test("three.js is not statically imported outside game modules", async () => {
-  const files = (await readdir(new URL("../js", import.meta.url)))
-    .filter((f) => f.endsWith(".js") && !GAME.test(f) && f !== "three_lazy.js");
+  // recursive: split modules keep their pieces in js/<name>/; a game module's
+  // pieces are game code too, so GAME tests the first path segment. js/physics/
+  // is reached only through physics_facade.js's dynamic import("./physics.js").
+  const files = (await readdir(new URL("../js", import.meta.url), { recursive: true }))
+    .map((f) => f.replaceAll("\\", "/"))
+    .filter((f) => f.endsWith(".js") && !GAME.test(f.split("/")[0]) && !f.startsWith("physics/") && f !== "three_lazy.js");
   const offenders = [];
   for (const f of files) {
     const src = await read("js/" + f);

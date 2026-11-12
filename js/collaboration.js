@@ -2,6 +2,23 @@ import { S } from "./state.js";
 
 let network = null, listening = false;
 function commentId() { return "comment-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+/* A peer's comment is data from the network: keep only the fields the review
+   panel reads, in the types it reads them as. One without a target used to
+   stop the whole panel rendering, and it was saved with the project. */
+export function cleanRemoteComment(c) {
+  if (!c || typeof c !== "object" || typeof c.id !== "string" || !c.id || c.id.length > 80) return null;
+  const text = typeof c.text === "string" ? c.text.trim().slice(0, 500) : "";
+  if (!text) return null;
+  const t = c.target && typeof c.target === "object" ? c.target : {};
+  return {
+    id: c.id,
+    text,
+    author: typeof c.author === "string" ? c.author.slice(0, 48) : "",
+    at: Number.isFinite(c.at) ? c.at : Date.now(),
+    target: { kind: typeof t.kind === "string" ? t.kind.slice(0, 24) : "project", id: typeof t.id === "string" || Number.isFinite(t.id) ? t.id : null },
+    resolved: c.resolved === true,
+  };
+}
 function targetForSelection() {
   if (!S.sel) return { kind: "project", id: S.workspace.id };
   if (S.sel.ref && S.sel.ref.id != null) return { kind: S.sel.kind, id: S.sel.ref.id };
@@ -13,11 +30,15 @@ export async function initCollaboration(onUpdate) {
   if (!listening) {
     listening = true;
     network.on("data", ({ from, data }) => {
-      if (!data || data.projectId !== S.workspace.id) return;
-      if (data.k === "project_comment" && data.comment && !S.workspace.comments.some((c) => c.id === data.comment.id)) {
-        S.workspace.comments.push(data.comment); onUpdate?.();
+      if (!data || !network.sameProject(S.workspace.id, data.projectId) ||
+          !network.acceptRemote(data.k, from, network.remoteContext())) return;
+      const comment = data.k === "project_comment" ? cleanRemoteComment(data.comment) : null;
+      if (comment && !S.workspace.comments.some((c) => c.id === comment.id)) {
+        S.workspace.comments.push(comment); onUpdate?.();
       } else if (data.k === "project_present" && data.scene && S.workspace.role === "viewer") {
         import("./ui.js").then((ui) => {
+          if (!network.sameProject(S.workspace.id, data.projectId) ||
+              !network.acceptRemote(data.k, from, network.remoteContext())) return;
           try {
             Promise.resolve(ui.applyData(data.scene)).catch(function (err) {
               // A malformed present payload is expected and ignorable, but a

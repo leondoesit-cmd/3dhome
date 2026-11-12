@@ -1,3 +1,4 @@
+import { moduleSource } from "./helpers/module_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -37,7 +38,7 @@ test("a direct dimension reconciliation cannot resize another free wall", () => 
 });
 
 test("wall inspector commits length and angle atomically", async () => {
-  const source = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+  const source = moduleSource("js/ui.js");
   assert.match(source, /bindLength\("w_len",[\s\S]*?null, "change"\);/);
   assert.match(source, /bindNum\("w_ang",[\s\S]*?null, "change"\);/);
   assert.match(source, /bindLength\("w_th",[\s\S]*?null, "change"\);/);

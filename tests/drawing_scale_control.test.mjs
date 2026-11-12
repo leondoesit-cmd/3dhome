@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {drawingViewScaleControl} from '../js/core/drawing_scale_control.js';
 import {createSheetDoc,createView,ensureSheetDoc,scaleValue,scaleLabel} from '../js/cad_sheet.js';
 import {createDrawingController} from '../js/modeler_drawing.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 test('numeric placement scales, ratio arrays/objects and inherited scales stay represented without mutation',()=>{
   for(const scale of [2,.5,.73,[2,1],{n:3,d:2},null]) {
@@ -26,16 +27,19 @@ test('actual syncSheetPanel handles numeric Auxiliary scale when dimension tool 
   const start=source.indexOf('function syncSheetPanel() {'),end=source.indexOf('/* What the hint bar says',start);
   assert.ok(start>=0&&end>start);
   const doc=createSheetDoc({views:[]});doc.views=[createView('front',{id:'p',primary:true}),createView('auxiliary',{id:'a',scale:2})];
-  const before=JSON.stringify(doc),attrs=new Map();let builds=0,selection={kind:'view',id:'a'};
+  const before=JSON.stringify(doc),attrs=new Map();let builds=0,libraryRevision=0,selection={kind:'view',id:'a'};
   const host={getAttribute:k=>attrs.get(k),setAttribute:(k,v)=>attrs.set(k,v),querySelector:()=>null,querySelectorAll:()=>[]};
   const context={root:{querySelector:id=>id==='#mdSheetPanel'?host:null},E:{mode:'drawing'},drawingDocument:()=>doc,
-    drawingSheet:()=>({selection:()=>selection}),configuredDrawingStatus:()=>null,scaleLabel,drawingViewScaleControl,buildSheetPanel:()=>builds++,document:{activeElement:null},syncDanglingDims:()=>{}};
+    drawingSheet:()=>({selection:()=>selection}),configuredDrawingStatus:()=>null,drawingViewSourceToken:()=>'',
+    modelLibraryRevision:()=>libraryRevision,scaleLabel,drawingViewScaleControl,buildSheetPanel:()=>builds++,document:{activeElement:null},syncDanglingDims:()=>{}};
   vm.createContext(context);vm.runInContext(source.slice(start,end),context);
   assert.doesNotThrow(()=>context.syncSheetPanel());assert.equal(builds,1);
   assert.doesNotThrow(()=>context.syncSheetPanel());assert.equal(builds,1,'unchanged panel reuses signature');
   selection=null;assert.doesNotThrow(()=>context.syncSheetPanel());assert.equal(builds,2);
   doc.views[1].scale=.73;assert.doesNotThrow(()=>context.syncSheetPanel());assert.equal(builds,3);
   doc.views[1].scale=2;assert.equal(JSON.stringify(doc),before,'refresh never rewrites authored scale');
+  selection={kind:'view',id:'a'};context.syncSheetPanel();const beforeLibraryChange=builds;
+  libraryRevision++;context.syncSheetPanel();assert.equal(builds,beforeLibraryChange+1,'saved library choices refresh for the same selected view');
 });
 
 test('actual selected-view dropdown retains nonstandard numeric Auxiliary scale and accepts explicit user ratio',()=>{

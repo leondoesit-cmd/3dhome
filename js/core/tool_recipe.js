@@ -14,7 +14,14 @@ export function toolFeatureRecipe(merge, bodyBounds) {
      recipe is the body itself, because the copy is a copy of the whole body —
      holes, 3D cuts and finish operations included — and not of a profile. */
   if (merge.kind === "placed") return { type:"placedBody", params:{ part:clone(merge.part), placements:clone(merge.placements || []) } };
-  if (merge.kind === "revolve") return { type:"revolve", params:{ ...(merge.radialProfile?{radialProfile:true,symmetric:!!merge.symmetric}:{}), axis:merge.axis || "y", angle:Number(merge.angle)||360, direction:merge.direction, points:clone(merge.loop || []) } };
+  if (merge.kind === "revolve") return { type:"revolve", params:{
+    ...(merge.radialProfile?{radialProfile:true}:{}), symmetric:!!merge.symmetric,
+    x:Number(merge.x)||0,y:Number(merge.y)||0,z:Number(merge.z)||0,
+    ...(merge.profileFrame?{profileFrame:clone(merge.profileFrame)}:{}),
+    ...(merge.axisBasis?{axisBasis:clone(merge.axisBasis),sketchAxisCoordinates:true}:{}),
+    ...(merge.segments?{segments:clone(merge.segments)}:{}),
+    axis:merge.axis || "y", angle:Number(merge.angle)||360, direction:merge.direction, points:clone(merge.loop || [])
+  } };
   if (merge.kind === "sweep") return { type:"sweep", params:{ profile:clone(merge.profile || []), path:clone(merge.path || []), ...(merge.pathSegments?{pathSegments:clone(merge.pathSegments)}:{}), ...(merge.profileSegments?{profileSegments:clone(merge.profileSegments)}:{}), ...(merge.sketchSources?{sketchSources:clone(merge.sketchSources)}:{}), orientation:merge.orientation, twistAngle:merge.twistAngle, scale:merge.scale, solid:true } };
   if (merge.kind === "loft") return { type:"loft", params:{ sections:clone(merge.sections || []), ...(merge.sketchSources?{sketchSources:clone(merge.sketchSources)}:{}), ...(merge.sectionSegments?{sectionSegments:clone(merge.sectionSegments)}:{}), solid:merge.solid !== false, ruled:!!merge.ruled, matchProfiles:merge.matchProfiles !== false, continuity:merge.continuity, tolerance:merge.tolerance } };
   if (merge.kind) return null;
@@ -34,12 +41,18 @@ export function translateToolRecord(tool, dx, dy, dz) {
     return tool;
   }
   if(tool.frame?.origin){
+    // Old in-memory hinge arrays may share their sketch or a sibling's frame.
+    if (tool.sheetHinge) tool.frame = structuredClone(tool.frame);
     tool.frame.origin.x+=dx;tool.frame.origin.y+=dy;tool.frame.origin.z+=dz;
   } else if(!tool.kind && ["x","y","z"].includes(tool.axis)) {
     const du=tool.axis==="x"?dz:dx, dv=tool.axis==="y"?dz:dy, dw=tool.axis==="x"?dx:tool.axis==="y"?dy:dz;
-    (tool.loop || []).forEach(point=>{point.u+=du;point.v+=dv;});
-    const curvePoints=new Set();
-    for(const segment of tool.segments || []) {
+    const curvePoints=new Set(tool.loop || []);
+    const segments=[...(tool.segments || [])];
+    for(const hole of tool.holes || []){
+      for(const point of Array.isArray(hole)?hole:hole.points || hole.loop || [])curvePoints.add(point);
+      segments.push(...(hole.segments || []));
+    }
+    for(const segment of segments) {
       for(const key of ['from','to','mid','center'])if(segment[key])curvePoints.add(segment[key]);
       for(const point of [...(segment.points || []),...(segment.controls || [])])curvePoints.add(point);
     }
@@ -47,10 +60,11 @@ export function translateToolRecord(tool, dx, dy, dz) {
     for(const key of ["from","to","draftBase"])if(Number.isFinite(tool[key]))tool[key]+=dw;
   } else if(tool.kind==="sweep" || tool.kind==="loft") {
     const points=tool.kind==="sweep"?(tool.profile || []).concat(tool.path || []):(tool.sections || []).flat();
-    for(const segments of [tool.pathSegments,tool.profileSegments])for(const segment of segments||[]){for(const key of ["from","to","mid","center"])if(segment[key])points.push(segment[key]);points.push(...(segment.controls||[]),...(segment.points||[]));}
+    for(const segments of [tool.pathSegments,tool.profileSegments,...(tool.sectionSegments || [])])for(const segment of segments||[]){for(const key of ["from","to","mid","center"])if(segment[key])points.push(segment[key]);points.push(...(segment.controls||[]),...(segment.points||[]));}
     new Set(points).forEach(point=>{point.x+=dx;point.y+=dy;point.z+=dz;});
+  } else if(tool.kind==='revolve' && (tool.radialProfile || tool.axisBasis || tool.profileFrame)){
+    tool.x=(Number(tool.x)||0)+dx;tool.y=(Number(tool.y)||0)+dy;tool.z=(Number(tool.z)||0)+dz;
   }
-  // Placed bodies are translated in their host's frame by movePart. A revolve
-  // needs a transformed axis as well as a profile, so it is not a point shift.
+  // Placed bodies are translated in their host's frame by movePart.
   return tool;
 }

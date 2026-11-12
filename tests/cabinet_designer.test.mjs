@@ -1,3 +1,5 @@
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -10,10 +12,10 @@ const inspect = await readFile(new URL("../js/ui_cabinet_inspect.js", import.met
 const ctx = await readFile(new URL("../js/ui_cabinet_ctx.js", import.meta.url), "utf8");
 const ui = [chrome, view, inspect, ctx].join("\n");
 const adapter = await readFile(new URL("../js/parametric_cabinet.js", import.meta.url), "utf8");
-const planner = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const planner = moduleSource("js/ui.js");
 const i18n = await readI18nSource();
 const presets = await readFile(new URL("../js/cabinet_presets.js", import.meta.url), "utf8");
-const engine = await readFile(new URL("../js/cabinet.js", import.meta.url), "utf8");
+const engine = moduleSource("js/cabinet.js");
 
 test("cabinet modules export the symbols chrome imports, not comment-trapped ones", async () => {
   const { formatCm, row, AXES } = await import("../js/ui_cabinet_ctx.js");
@@ -126,9 +128,9 @@ test("paste re-tags duplicate hid values in normalizeSpec rather than skipping t
   /* normalizeSpec is where every paste lands, so that is where the re-tagging
      has to happen — asserted on the code, since the comment saying so would
      satisfy a text match all by itself. */
-  const spec = stripComments(engine).slice(engine.indexOf("export function normalizeSpec"));
+  const spec = stripComments(sourceFunctionText(engine, "normalizeSpec"));
   assert.match(spec, /tagParts\(sp\);/, "every normalize re-tags");
-  const tag = stripComments(engine).slice(engine.indexOf("function tagParts"), engine.indexOf("export function normalizeSpec"));
+  const tag = stripComments(sourceFunctionText(engine, "tagParts"));
   assert.doesNotMatch(tag, /splice\(|\.filter\(/, "a duplicate is re-tagged, never dropped");
   assert.match(tag, /dup\.push\(o\)/);
   assert.match(tag, /o\.hid = id/);

@@ -11,6 +11,7 @@
    list projected from them, exactly as the editor's own
    rebuildFeatureTreeFromDocument() writes it; that mirror is what lets the
    legacy engine measure the same model the canonical one is asked to. */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -292,7 +293,7 @@ test("a tapered legacy cylinder is now measured by both engines and passes", () 
 });
 
 test("the editor's projection has the two branches the gate depends on", () => {
-  const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const modeler = modelerSource();
   assert.match(modeler, /\} else if \(part\.kind === "cyl"\) \{/);
   assert.match(modeler, /type:"cone", name:part\.name \|\| "Cone", params:\{x:part\.x,y:part\.y,z:part\.z,r1:part\.r,r2:part\.r2,h:part\.h\}/);
   assert.match(modeler, /\} else if \(part\.kind === "sph"\) \{/);

@@ -13,6 +13,8 @@
  * canvas is exercised for real.
  */
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
@@ -23,9 +25,7 @@ import { hitMEP, addNode, ensureMEP } from "../js/mep.js";
 import { addSlabOpening, hitSlabOpening } from "../js/slab_openings.js";
 import { hitWarning } from "../js/constraint_engine.js";
 
-const interaction = stripComments(
-  await readFile(new URL("../js/interaction.js", import.meta.url), "utf8"),
-);
+const interaction = stripComments(moduleSource("js/interaction.js"));
 const elevationSource = stripComments(
   await readFile(new URL("../js/elevation.js", import.meta.url), "utf8"),
 );
@@ -33,7 +33,7 @@ const markerSource = stripComments(
   await readFile(new URL("../js/markers.js", import.meta.url), "utf8"),
 );
 const mepSource = stripComments(
-  await readFile(new URL("../js/mep.js", import.meta.url), "utf8"),
+  moduleSource("js/mep.js"),
 );
 const slabSource = stripComments(
   await readFile(new URL("../js/slab_openings.js", import.meta.url), "utf8"),
@@ -113,10 +113,7 @@ test("the elevation hit family ranks the same layers the plan does", () => {
 });
 
 test("pickErase inherits its gates from the hit tests it chains", () => {
-  const erase = interaction.slice(
-    interaction.indexOf("function pickErase(px, pz, ox, oy)"),
-    interaction.indexOf("function eraseKey(hit)"),
-  );
+  const erase = sourceFunctionText(interaction, "pickErase");
   // it calls the gated functions and adds no unguarded scan of its own
   ["hitMEP", "hitMarker", "hitOpening", "hitItem", "hitSlabOpening", "hitWall"].forEach((fn) => {
     assert.ok(erase.includes(fn + "("), "pickErase still goes through " + fn);
@@ -226,10 +223,7 @@ test("a refused band still selects, so the inspector fills for a rank-1 hit", ()
 });
 
 test("begin3DItemDrag answers to canDrag, so both views agree", () => {
-  const drag = interaction.slice(
-    interaction.indexOf("export function begin3DItemDrag(it)"),
-    interaction.indexOf("export function drag3DItemTo"),
-  );
+  const drag = sourceFunctionText(interaction, "begin3DItemDrag");
   assert.match(drag, /if \(!canDrag\(sel\)\) \{/);
   assert.match(drag, /blockedDrag\(sel\);/);
   assert.doesNotMatch(drag, /it\.locked/, "the piece's own flag is canDrag's business now");
@@ -247,16 +241,14 @@ test("the elevation pointerdown asks canDrag before arming its three gestures", 
 /* ---- 4. targetLocked ---- */
 
 test("targetLocked understands layers, rooms, groups and any locked object", () => {
-  const fn = interaction.slice(
-    interaction.indexOf("function targetLocked(sel)"),
-    interaction.indexOf("function blockedDrag(sel)"),
-  );
+  const fn = sourceFunctionText(interaction, "targetLocked");
   assert.match(fn, /var id = layerOf\(sel\.kind\);\s*if \(id && isLayerLocked\(id\)\) return true;/);
   assert.match(fn, /if \(sel\.kind === "room"\)/, "a room's flag lives in S.roomMeta, not on the ref");
   assert.match(fn, /S\.roomMeta\[sel\.ref\]/);
   assert.match(fn, /Array\.isArray\(sel\.refs\)/);
   assert.match(fn, /sel\.refs\.every\(/, "a multi-selection is locked only when every ref is");
-  assert.match(fn, /return !!\(sel\.ref && sel\.ref\.locked\);/,
+  // refLocked (js/user_layers.js): the object's own pin or its user layer's padlock
+  assert.match(fn, /return refLocked\(sel\.ref\);/,
     "the object test is generic, so it reaches walls, openings and MEP nodes");
   // rank is deliberately NOT part of it: refusing to DELETE an off-work-set
   // object is a harsher policy than refusing to drag one, and only canDrag
@@ -284,14 +276,11 @@ test("select-tool idle hover lights focused layers only", () => {
 /* ---- 6. the refused-drag signal ---- */
 
 test("a refused drag is announced on the window, with the gate that failed", () => {
-  const fn = interaction.slice(
-    interaction.indexOf("function blockedDrag(sel)"),
-    interaction.indexOf("function applyRemove(sel)"),
-  );
+  const fn = sourceFunctionText(interaction, "blockedDrag");
   assert.match(fn, /new CustomEvent\("layers:blocked-drag"/);
   /* `where` distinguishes the pane so one pill serves both; js/view3d.js
      emits the same four fields with where: "3d". */
-  assert.match(fn, /detail: \{ sel: sel, layer: id, reason: reason, where: inputIs3D\(\)\?"3d":"2d" \}/);
+  assert.match(fn, /detail: \{ sel: sel, layer: id, reason: reason, ulayer: ul, where: inputIs3D\(\)\?"3d":"2d" \}/);
   // the three reasons, in the order canDrag tests them
   assert.match(fn, /reason = "object"/);
   assert.match(fn, /layerRank\(id\) !== 0\) reason = "rank"/);

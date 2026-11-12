@@ -59,6 +59,13 @@ var MSG = {
   wallsLive: ["Walls can be moved: Structure is unlocked", "אפשר להזיז קירות: שכבת המבנה פתוחה"],
   sheetMore: ["Show all properties", "הצגת כל המאפיינים"],
   sheetLess: ["Show more of the plan", "הצגת יותר מהתוכנית"],
+  // the dock's captions: a word each, under the icon
+  cap_tools: ["Tools", "כלים"],
+  cap_library: ["Library", "ספרייה"],
+  cap_tree: ["Tree", "עץ"],
+  cap_design: ["Designs", "עיצובים"],
+  ctxMore: ["More", "עוד"],
+  ctxMoreTip: ["{0} more actions", "עוד {0} פעולות"],
 };
 function he() { return getLang() === "he"; }
 function M(key) { return MSG[key][he() ? 1 : 0]; }
@@ -162,11 +169,8 @@ function buildKnob() {
     var dy = e.clientY - start.y;
     start = null;
     if (Math.abs(dy) > 12) { turn(k, dy < 0 ? 1 : -1); return; }
-    // a tap: on the neighbour peeking above or below turns to it, the front opens the list
-    var r = k.getBoundingClientRect(), y = e.clientY - r.top;
-    if (y < r.height * 0.28) turn(k, -1);
-    else if (y > r.height * 0.72) turn(k, 1);
-    else openKnobMenu(k);
+    // Every tap opens the visible choices; swiping still changes editors.
+    openKnobMenu(k);
   });
   k.addEventListener("pointercancel", function () { clearTimeout(held); start = null; });
   k.addEventListener("keydown", function (e) {
@@ -261,6 +265,10 @@ function labelIcons(root) {
   root.querySelectorAll("[data-label]").forEach(function (b) {
     var text = M(b.dataset.label);
     if (b.getAttribute("aria-label") !== text) { b.setAttribute("aria-label", text); b.title = text; }
+    // a dock button names itself under its icon: an unlabelled grid glyph and
+    // book glyph were two guesses a thumb had to make
+    var cap = b.querySelector(":scope > .ps-cap"), key = "cap_" + b.dataset.label;
+    if (cap && MSG[key] && cap.textContent !== M(key)) cap.textContent = M(key);
   });
 }
 function pressUndo(which) {
@@ -431,8 +439,21 @@ function buildDock(ed) {
   dock.setAttribute("role", "toolbar");
   var grid = iconButton("ps-dock-grid", "ph-squares-four", "tools", function () { spec.press(spec.keys.grid); });
   var browse = iconButton("ps-dock-browse", spec.browse[1], spec.browse[0], function () { spec.press(spec.keys.browse); });
+  [grid, browse].forEach(function (b) { var cap = document.createElement("span"); cap.className = "ps-cap"; b.appendChild(cap); });
   var slot = document.createElement("div");
   slot.className = "ps-dock-slot";
+  var more = document.createElement("button");
+  more.type = "button";
+  more.className = "ps-dock-more";
+  more.hidden = true;
+  more.setAttribute("aria-haspopup", "menu");
+  more.setAttribute("aria-expanded", "false");
+  more.innerHTML = '<i class="ph ph-dots-three-outline" aria-hidden="true"></i><span></span>';
+  more.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (dockMenu && dockMenu._button === more) closeDockMenu(); else openDockMenu(more, spec.row());
+  });
+  slot.appendChild(more);
   var ask = document.createElement("button");
   ask.type = "button";
   ask.className = "ps-dock-ask";
@@ -459,11 +480,134 @@ function placeDock(ed) {
   var dock = host.querySelector(":scope > .ps-dock");
   if (!dock) { dock = buildDock(ed); host.appendChild(dock); }
   labelIcons(dock);
-  relocate(spec.row(), dock.querySelector(".ps-dock-slot"));
+  var slot = dock.querySelector(".ps-dock-slot"), row = spec.row();
+  relocate(row, slot);
+  // the row goes before the More button that takes its overflow
+  var more = slot.querySelector(":scope > .ps-dock-more");
+  if (row && more && row.parentElement === slot && row.nextElementSibling !== more) slot.insertBefore(row, more);
+  watchDockRow(slot, row);
+  fitDockRow(slot, row);
 }
 function releaseDock(ed) {
   var row = EDITORS[ed].row();
-  if (row && row.closest(".ps-dock")) relocate(row, null);
+  if (row && row.closest(".ps-dock")) {
+    // home without the dock's marks: its own layout shows every verb
+    row.querySelectorAll(".ps-ctx-over").forEach(function (c) { c.classList.remove("ps-ctx-over"); });
+    row._psFitWatch = null;
+    if (dockMenu) closeDockMenu();
+    relocate(row, null);
+  }
+}
+
+/* ---- the context row never scrolls sideways under a hidden scrollbar ------
+   On a 375px phone the planner's row held Wall · Rectangle · Door · Fit in
+   214px: Fit was cut off at the Ask button and finding the rest meant swiping
+   a row that did not look swipeable. Now the verbs that do not fit leave the
+   row, last first, for a captioned More button whose menu presses the same
+   buttons. The row's own module keeps rebuilding it; this only marks which
+   of its children sit out (a class, which the watcher below ignores). */
+function rowItems(row) {
+  return Array.prototype.filter.call(row.children, function (c) {
+    return c.classList.contains("ps-ctx-over") || (!c.hidden && getComputedStyle(c).display !== "none");
+  });
+}
+function fitDockRow(slot, row) {
+  var more = slot && slot.querySelector(":scope > .ps-dock-more");
+  if (!more) return;
+  if (!row || row.parentElement !== slot) { more.hidden = true; return; }
+  var items = rowItems(row);
+  // no easing while measuring: mid-transition sizes are the old ones
+  slot.classList.add("ps-measuring");
+  items.forEach(function (c) { c.classList.remove("ps-ctx-over"); });
+  more.hidden = true;
+  if (!row.clientWidth || row.scrollWidth <= row.clientWidth + 1) {
+    slot.classList.remove("ps-measuring");
+    if (dockMenu && dockMenu._button === more) closeDockMenu();
+    return;
+  }
+  more.hidden = false;
+  for (var i = items.length - 1; i > 0 && row.scrollWidth > row.clientWidth + 1; i--) items[i].classList.add("ps-ctx-over");
+  void row.offsetWidth;
+  slot.classList.remove("ps-measuring");
+  var n = row.querySelectorAll(":scope > .ps-ctx-over").length;
+  more.querySelector("span").textContent = M("ctxMore");
+  more.setAttribute("aria-label", M("ctxMoreTip").replace("{0}", String(n)));
+  more.title = more.getAttribute("aria-label");
+}
+function watchDockRow(slot, row) {
+  if (!row || row._psFitWatch === slot) return;
+  row._psFitWatch = slot;
+  var queued = false;
+  var refit = function () {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; if (row._psFitWatch === slot) fitDockRow(slot, row); });
+  };
+  if (!row._psFitObserved) {
+    row._psFitObserved = true;
+    // not "class": fitDockRow's own marks are a class
+    if (window.MutationObserver) new MutationObserver(refit).observe(row, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden", "style", "disabled"] });
+  }
+  if (typeof ResizeObserver === "function" && !slot._psFitObserved) {
+    slot._psFitObserved = true;
+    new ResizeObserver(refit).observe(slot);
+  }
+}
+
+var dockMenu = null;
+function closeDockMenu() {
+  if (!dockMenu) return;
+  dockMenu._button.setAttribute("aria-expanded", "false");
+  dockMenu.remove();
+  dockMenu = null;
+  document.removeEventListener("pointerdown", dockMenuOutside, true);
+}
+function dockMenuOutside(e) {
+  if (dockMenu && !dockMenu.contains(e.target) && !dockMenu._button.contains(e.target)) closeDockMenu();
+}
+/* The verbs that sat out, as a menu over the dock: each entry presses the
+   row's own button, so its state and its handler stay the row's. */
+function openDockMenu(button, row) {
+  closeDockMenu();
+  if (!row) return;
+  var m = document.createElement("div");
+  m.className = "ps-dock-menu";
+  m.setAttribute("role", "menu");
+  m.setAttribute("aria-label", button.getAttribute("aria-label") || "");
+  row.querySelectorAll(":scope > .ps-ctx-over").forEach(function (c) {
+    var srcs = c.matches("button") ? [c] : Array.prototype.slice.call(c.querySelectorAll("button"));
+    srcs.forEach(function (src) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("role", "menuitem");
+      var icon = src.querySelector("i, svg");
+      var name = (src.getAttribute("aria-label") || src.textContent || src.title || "").trim().replace(/\s+/g, " ");
+      b.innerHTML = (icon ? icon.outerHTML : "") + "<span></span>";
+      b.querySelector("span").textContent = name;
+      b.disabled = src.disabled;
+      ["on", "primary", "danger"].forEach(function (k) { if (src.classList.contains(k)) b.classList.add(k); });
+      if (src.getAttribute("aria-pressed") === "true") b.classList.add("on");
+      b.addEventListener("click", function () { closeDockMenu(); src.click(); });
+      m.appendChild(b);
+    });
+  });
+  var dockEl = button.closest(".ps-dock"), host = dockEl.parentElement;
+  host.appendChild(m);
+  dockMenu = m;
+  m._button = button;
+  button.setAttribute("aria-expanded", "true");
+  // fixed, over the dock and lined up with the button (the editors' roots
+  // fill the viewport, so their own containing block is the viewport too)
+  var r = button.getBoundingClientRect(), dr = dockEl.getBoundingClientRect();
+  m.style.bottom = Math.round(window.innerHeight - dr.top + 6) + "px";
+  if (getComputedStyle(button).direction === "rtl") m.style.left = Math.max(6, Math.round(r.left)) + "px";
+  else m.style.right = Math.max(6, Math.round(window.innerWidth - r.right)) + "px";
+  setTimeout(function () { document.addEventListener("pointerdown", dockMenuOutside, true); }, 0);
+  m.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeDockMenu(); button.focus(); }
+  });
+  var first = m.querySelector("button:not(:disabled)");
+  if (first) first.focus({ preventScroll: true });
 }
 
 /* ---- the ask panel ------------------------------------------------------- */

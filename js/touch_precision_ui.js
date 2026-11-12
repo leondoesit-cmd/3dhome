@@ -257,10 +257,11 @@ export function startTouchPrecisionTrial(options) {
 
   function rect() { return options.canvas.getBoundingClientRect(); }
   function modelPoint() { return options.screenToModel ? options.screenToModel({x:state.x,y:state.y}) : {x:state.x,y:state.y}; }
+  var shownA = '', shownB = '';
   function syncInputs() {
     var point = state.exactModel || modelPoint();
-    if (document.activeElement !== inputA) inputA.value = isFinite(point.x) ? String(state.exactModel ? point.x : Math.round(point.x * 10) / 10) : "";
-    if (document.activeElement !== inputB) inputB.value = isFinite(point.y) ? String(state.exactModel ? point.y : Math.round(point.y * 10) / 10) : "";
+    if (document.activeElement !== inputA) shownA = inputA.value = isFinite(point.x) ? String(state.exactModel ? point.x : Math.round(point.x * 10) / 10) : "";
+    if (document.activeElement !== inputB) shownB = inputB.value = isFinite(point.y) ? String(state.exactModel ? point.y : Math.round(point.y * 10) / 10) : "";
   }
   function sync() {
     var r=rect(), clientX=r.left+state.x, clientY=r.top+state.y;
@@ -283,7 +284,8 @@ export function startTouchPrecisionTrial(options) {
     state.x=x;state.y=y;sync(); if(emit&&options.onMove)options.onMove({x:x,y:y});
   }
   function applyInputs() {
-    if(!state.coordinatesEdited && !state.exactModel)return;
+    if(!state.coordinatesEdited && !state.exactModel && inputA.value===shownA && inputB.value===shownB)return;
+    if(!inputA.value.trim() || !inputB.value.trim())return;
     if(!options.modelToScreen)return; var a=Number(inputA.value),b=Number(inputB.value); if(!isFinite(a)||!isFinite(b))return;
     var model={x:a,y:b},point=options.modelToScreen(model); if(point)setTarget(point.x,point.y,true,model);
   }

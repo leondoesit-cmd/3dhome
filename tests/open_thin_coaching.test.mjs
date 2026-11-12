@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {analyzeSketchChains,analyzeSketchProfiles} from '../js/sketch_profiles.j
 import {ribSketchReady} from '../js/core/rib_profile.js';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const load=(name,bindings)=>new Function(...Object.keys(bindings),sourceFunctionText(source,name)+';return '+name+';')(...Object.values(bindings));
 const sketch=()=>({id:'guide',points:[{id:'a',x:0,y:0},{id:'b',x:3,y:0}],entities:[{id:'line',type:'line',a:'a',b:'b'}],constraints:[]});
 const thin={thinFeature:true,thickness:.38,thinMode:'reverse'};

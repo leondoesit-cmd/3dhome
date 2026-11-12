@@ -1,8 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
-const wrapper=source.slice(source.indexOf('var pendingCutController=null;'),source.indexOf('async function applyCutChecked('));
+import { sourceFunctionText, withSetters } from "./helpers/source_function.mjs";
+const source=modelerSource();
+const wrapper=withSetters("var pendingCutController=null;\n"+sourceFunctionText(source,"applyCut"));
 test('pending exact cut keeps Cancel interactive and rejects duplicate acceptance',async()=>{
   let resolve,observedSignal;const E={},attributes=new Map(),root={inert:false,setAttribute:(k,v)=>attributes.set(k,v),removeAttribute:k=>attributes.delete(k)};
   const api=new Function('E','root','AbortController','applyCutChecked',wrapper+';return {apply:applyCut,abort:()=>pendingCutController.abort()};')(

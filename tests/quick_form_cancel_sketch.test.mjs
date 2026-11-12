@@ -1,9 +1,10 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 test('Cancel dismisses a quick form before interpreting the active sketch confirmation corner',()=>{
-  const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+  const source=modelerSource();
   const start=source.indexOf('function cancelActiveCommand()'),end=source.indexOf('\nfunction featureSelectionReady()',start);
   const E={quickAction:'point-coordinates',authoring:{phase:'sketch',sketchId:'s'}},actions={hidden:true};
   let cancelled=0;

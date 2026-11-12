@@ -58,3 +58,17 @@ export function skyPixels(w, h, sun, p) {
 export function srgbToLinear(v) {
   return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
 }
+
+/* Prefilter `src` with a three PMREMGenerator, into `current` when it is the
+   size the generator would allocate for this source (three r185: a cube face
+   of 2^floor(log2(width / 4)), packed 3 faces wide with at least 112 px per
+   face column, 4 tall). Returns the target that now holds the sky.
+
+   The point is identity, not memory: three keys every lit material on the
+   scene.environment TEXTURE OBJECT, so a new target per sky rebuilds every
+   shader in the house on the next frame. */
+export function prefilterInto(pmrem, src, current) {
+  var cs = Math.pow(2, Math.floor(Math.log2(src.image.width / 4)));
+  var fits = !!current && current.width === 3 * Math.max(cs, 16 * 7) && current.height === 4 * cs;
+  return pmrem.fromEquirectangular(src, fits ? current : null);
+}

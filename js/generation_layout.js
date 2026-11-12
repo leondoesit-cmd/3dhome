@@ -38,7 +38,7 @@ const LAYOUTS = {
       { name: "Study", roomType: "office", x0: 1400, z0: 520, x1: 1680, z1: 1000, floor: "parquet" }
     ],
     doors: [
-      { from: "Hall", to: "Living Room", width: 120, s: 60, isPassage: true },
+      { from: "Hall", to: "Dining", width: 120, s: 60, isPassage: true },
       { from: "Living Room", to: "Dining", width: 200, s: 160, isPassage: true },
       { from: "Dining", to: "Kitchen", width: 220, s: 150, isPassage: true },
       { from: "Hall", to: "Master Bedroom", width: 90, s: 40 },
@@ -129,7 +129,7 @@ function randomLayout(seed) {
   const kx = ri(w * 0.3, w * 0.42, random);        // kitchen / living split
   const zSplit = ri(Math.max(400, d * 0.42), d * 0.5, random); // enough depth for usable bedrooms/bath
   const bx1 = kx + ri(230, 260, random);           // service core wide enough for real fixtures
-  const corridorDepth = ri(100, 130, random);      // usable circulation without wasting bedroom area
+  const corridorDepth = ri(120, 140, random);      // fits an 80cm bedroom door plus its frame returns
   const corrZ = zSplit - corridorDepth;
   return {
     w, d,
@@ -177,7 +177,7 @@ export function generationPlan(size, replace, state, seed, constraints={}) {
   if (size === "random") {
     layout = randomLayout(seed);
   } else {
-    layout = LAYOUTS[size] || LAYOUTS["small"];
+    layout = LAYOUTS[size] || LAYOUTS["large"];
     // Clone layout because we might shift it
     layout = JSON.parse(JSON.stringify(layout));
   }

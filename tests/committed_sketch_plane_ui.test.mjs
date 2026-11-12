@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,7 +7,7 @@ import {sourceFunctionText} from './helpers/source_function.mjs';
 import {defaultSketchPlane} from '../js/modeler_workflow.js';
 import {reassignSketchPlane} from '../js/core/sketch_plane_edit.js';
 import {synchronizeSketchExtrusionFrames} from '../js/core/extrusion_projection.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 function load(name,bindings){return new Function(...Object.keys(bindings),sourceFunctionText(source,name)+';return '+name+';')(...Object.values(bindings));}
 
 test('empty-part Start sketch Top action overrides last-used Right while ordinary default retains it',()=>{

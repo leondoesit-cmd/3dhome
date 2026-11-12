@@ -45,23 +45,30 @@ export function projectAlignedSection(bodies,view,doc) {
     const ray=frame.rays[leg],normal=cross(frame.depth,ray);
     const cut=sectionBodies(bodies,{normal,origin:frame.hinge});
     const project=p=>({u:dot(p,frame.depth),v:dot({x:p.x-frame.hinge.x,y:p.y-frame.hinge.y,z:p.z-frame.hinge.z},ray)});
-    const keys=new Set(),edges=[];
-    for(const e of cut.cuts) {
-      const a=project(e.a),b=project(e.b),key=p=>Math.round(p.u/epsilon)+','+Math.round(p.v/epsilon),k=[key(a),key(b)].sort().join('|');
-      if(!keys.has(k)){keys.add(k);edges.push({a,b});}
+    const edgesByBody=new Map();
+    const pointKey=p=>Math.round(p.u/epsilon)+','+Math.round(p.v/epsilon);
+    for(const edge of cut.cuts) {
+      const bodyIndex=edge.bodyIndex??0, a=project(edge.a), b=project(edge.b);
+      if(!edgesByBody.has(bodyIndex))edgesByBody.set(bodyIndex,new Map());
+      const edges=edgesByBody.get(bodyIndex), key=[pointKey(a),pointKey(b)].sort().join('|');
+      if(!edges.has(key))edges.set(key,{a,b});
     }
-    const boundary=analyzeSectionBoundaries(edges,epsilon);
-    if(!boundary.ok||!boundary.loops.length)throw new Error('Aligned Section leg '+(leg+1)+' has no unambiguous closed material section');
-    const loops=boundary.loops.map(loop=>positiveHalf(loop,epsilon)).filter(Boolean).map(loop=>loop.map(p=>({u:p.u,v:(leg===0?-1:1)*p.v})));
-    if(!loops.length)throw new Error('Aligned Section leg '+(leg+1)+' does not intersect material beyond the hinge');
-    regions.push({leg,loops});
-    for(const loop of loops)for(let i=0;i<loop.length;i++) {
-      const a=loop[i],b=loop[(i+1)%loop.length];
-      // These hinge closures exist only to delimit hatch regions; unfolding
-      // does not invent a visible seam inside continuous source material.
-      if(Math.abs(a.v)<=epsilon&&Math.abs(b.v)<=epsilon)continue;
-      visible.push({a,b});
+    const legStart=regions.length;
+    for(const [bodyIndex,edges] of edgesByBody) {
+      const boundary=analyzeSectionBoundaries(edges.values(),epsilon);
+      if(!boundary.ok||!boundary.loops.length)throw new Error('Aligned Section leg '+(leg+1)+' has no unambiguous closed material section');
+      const loops=boundary.loops.map(loop=>positiveHalf(loop,epsilon)).filter(Boolean).map(loop=>loop.map(p=>({u:p.u,v:(leg===0?-1:1)*p.v})));
+      if(!loops.length)continue;
+      regions.push({leg,bodyIndex,loops});
+      for(const loop of loops)for(let i=0;i<loop.length;i++) {
+        const a=loop[i],b=loop[(i+1)%loop.length];
+        // These hinge closures exist only to delimit hatch regions; unfolding
+        // does not invent a visible seam inside continuous source material.
+        if(Math.abs(a.v)<=epsilon&&Math.abs(b.v)<=epsilon)continue;
+        visible.push({a,b});
+      }
     }
+    if(regions.length===legStart)throw new Error('Aligned Section leg '+(leg+1)+' does not intersect material beyond the hinge');
   }
   const points=regions.flatMap(r=>r.loops.flat()),bounds={u0:Infinity,u1:-Infinity,v0:Infinity,v1:-Infinity};
   for(const p of points){bounds.u0=Math.min(bounds.u0,p.u);bounds.u1=Math.max(bounds.u1,p.u);bounds.v0=Math.min(bounds.v0,p.v);bounds.v1=Math.max(bounds.v1,p.v);}

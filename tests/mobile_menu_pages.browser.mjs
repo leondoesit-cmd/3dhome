@@ -182,7 +182,10 @@ test("Planner placement guidance and dynamic labels stay visible and localized",
       };
     });
     assert.equal(cancelled.placeType, null, "Cancel left furniture placement armed");
-    assert.equal(cancelled.actions.includes("Edit"), true, "selection actions did not return after cancelling placement");
+    // the item's own verbs come back (on a phone the labelled row holds three,
+    // so Edit may sit behind More; Rotate always leads an item's row)
+    assert.equal(cancelled.actions.includes("Rotate 90°"), true, "selection actions did not return after cancelling placement");
+    assert.equal(cancelled.actions.includes("Cancel"), false, "placement Cancel stayed on the row");
   } finally {
     await page.close();
   }
@@ -273,7 +276,15 @@ test("Planner Properties is a clipped-free page deck across common phone and Fol
         props.disabled = false;
         props.click();
       });
-      await page.eval(() => new Promise((resolve) => setTimeout(resolve, 420)));
+      await page.eval(async () => {
+        // Measure the open sheet, not an intermediate compositor frame. A
+        // fixed delay can expire before the transition paints under GPU load.
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        const panel = document.getElementById("right-inspector");
+        await Promise.all(panel.getAnimations().map((animation) => animation.finished));
+        await new Promise(requestAnimationFrame);
+      });
 
       const layout = await page.eval(() => {
         const panel = document.getElementById("right-inspector");
@@ -299,6 +310,17 @@ test("Planner Properties is a clipped-free page deck across common phone and Fol
           ctxReserve: getComputedStyle(document.body).getPropertyValue("--m-ctx-reserve"),
           activeFits: active.length === 1 && active[0].scrollHeight <= active[0].clientHeight + 2,
           firstCount: document.querySelector("#openProps .mobile-page-count")?.textContent,
+          panelLeft: pr.left,
+          panelRight: pr.right,
+          panelWidth: pr.width,
+          panelScrolls: panel.scrollHeight > panel.clientHeight,
+          viewportWidth: innerWidth,
+          // nothing between the panel and its cards may clip what the column scrolls to
+          chainFits: [...panel.querySelectorAll(":scope > .panel-section, #openProps, #openProps .mobile-page-shell, #openProps .mobile-page-deck")]
+            .every((node) => node.scrollHeight <= node.clientHeight + 2),
+          workspacePad: parseFloat(getComputedStyle(document.getElementById("workspace")).paddingInlineEnd) || 0,
+          gripShown: [...panel.querySelectorAll(":scope > .m-panel-grip, :scope > .ps-sheet-grip")]
+            .some((node) => getComputedStyle(node).display !== "none"),
         };
       });
 
@@ -310,6 +332,19 @@ test("Planner Properties is a clipped-free page deck across common phone and Fol
       if (name === "Fold inner") {
         assert.match(layout.body, /dock-rail/, name + ": dock-rail posture");
         assert.equal(layout.panelOverflow, "auto", name + ": dock-rail panel is a docked scrollable column");
+      } else if (name === "phone landscape") {
+        /* 390px tall leaves a bottom sheet ~80px for cards whose rows are
+           180-220px each, so a phone on its side docks Properties the way a
+           fold does: a scrolling column beside the plan, above the thumb rows. */
+        assert.match(layout.body, /side-inspector/, name + ": side-inspector posture");
+        assert.doesNotMatch(layout.body, /dock-rail/, name + ": the rest of the phone chrome stays sheets");
+        assert.equal(layout.panelOverflow, "auto", name + ": the docked column scrolls " + JSON.stringify(layout));
+        assert.ok(Math.abs(layout.panelRight - layout.viewportWidth) <= 1, name + ": column stands at the inline end");
+        assert.ok(layout.panelWidth < layout.viewportWidth / 2, name + ": the plan keeps most of the width");
+        assert.ok(Math.abs(layout.workspacePad - layout.panelWidth) <= 1, name + ": the plan makes room instead of being covered");
+        assert.ok(layout.panelBottom <= layout.controlsTop + 1, name + ": column ends above thumb controls " + JSON.stringify(layout));
+        assert.ok(layout.panelScrolls && layout.chainFits, name + ": the column, not a clipped card, takes the overflow " + JSON.stringify(layout));
+        assert.equal(layout.gripShown, false, name + ": a docked column has no sheet grip");
       } else {
         assert.ok(layout.panelBottom <= layout.controlsTop + 1, name + ": panel ends above thumb controls " + JSON.stringify(layout));
         assert.equal(layout.panelOverflow, "hidden", name + ": panel is not a continuous scroll");

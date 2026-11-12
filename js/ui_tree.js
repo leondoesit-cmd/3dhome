@@ -9,6 +9,7 @@ import {
   itemsInRoom,
 } from "./geometry.js";
 import { openModal, flash } from "./ui.js";
+import { csvCell } from "./wall_schedule.js";
 import { weldCoincidentNodes } from "./interaction.js";
 import { deleteRoom } from "./interaction.js";
 import { PRICE, itemPrice, flabel } from "./furniture.js";
@@ -216,11 +217,8 @@ export function exportCostCSV() {
   rows.push(["", "", t("cost_total"), Math.round(total)]);
   var csv = rows
     .map(function (r) {
-      return r
-        .map(function (c) {
-          return '"' + String(c).replace(/"/g, '""') + '"';
-        })
-        .join(",");
+      // csvCell: a custom piece's name starting = + - @ must not run as a formula
+      return r.map(csvCell).join(",");
     })
     .join("\r\n");
   var blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });

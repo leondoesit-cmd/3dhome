@@ -1,3 +1,4 @@
+import {resolveHingeSection} from './cad_sheet_hinge.js';
 import {pierceSketchToHelix} from './core/sketch_pierce.js';
 import {shapeToMeshData} from './cad_kernel.js';
 import {isWorkerCacheBody} from './core/worker_body_cache.js';
@@ -9,8 +10,9 @@ import {lookupSupportReference} from './core/support_reference_lookup.js';
 import {linkedEdgeLookup,updateSilhouetteSketch} from './core/cone_silhouette.js';
 import {relationSourceSketchIds,resolveSketchRelationSources} from './core/sketch_relation_sources.js';
 import {revolveThinProfile,thinSketchProfile} from './core/thin_profile.js';
+import {assertStandaloneRevolve, isSketchAxis, isStandaloneSketchAxisRevolve, resolveSketchAxis} from './core/revolve_geometry.js';
 import {resolveAssociativeBoundary,updateCircularBoundarySketch,updateTrimmedBoundarySketch} from './cad_associative_boundary.js';
-import {resolveSketchSources,sketchWorldPoint} from "./core/swept_sources.js";
+import {resolveSketchSources,savedLoftSources,sketchWorldPoint} from "./core/swept_sources.js";
 import { buildDependencyGraph, featureDependencies, datumReferenceIds } from "./core/dependency_graph.js";
 import { booleanBrep, brepFaceLineIntersections, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, rayHitsBrepFace, rayHitsExtendedBrepFace, resolveBrepSubshape, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
 import {resolveProfilePoints, solveSketch} from "./sketch_solver.js";
@@ -151,6 +153,17 @@ export async function regenerateFeatures(def, options = {}) {
       if (sketchId) effectiveParams.sketchId = sketchId;
       const sketchIndex=executionDef.sketches.findIndex(s=>s.id===sketchId);
       let linkedSketch=executionDef.sketches[sketchIndex];
+      if (effectiveParams.sheetHingeSource) {
+        const source = effectiveParams.sheetHingeSource;
+        const base = graph.byId.get(source.baseId);
+        const params = base?.type==="box" ? materialize(base.params) : resolvedExtrusions.get(source.baseId);
+        if (!linkedSketch || !params) throw new Error("Rolled hinge base or profile is unavailable.");
+        linkedSketch = resolveHingeSection(base.type,params,source,effectiveParams.from,effectiveParams.to,linkedSketch);
+        executionDef.sketches[sketchIndex] = linkedSketch;
+        effectiveParams.frame = linkedSketch.frame;
+        effectiveParams.hingeGauge = linkedSketch.sheetHingeThickness;
+        boundaryUpdates.set(sketchId,{sketch:linkedSketch,oldEntityIds:[],newEntityIds:[]});
+      }
       const topologyLookup=ref=>{
         if(!ref)return null;
         const topology=results.get(ref.ownerFeatureId)?.topology || [];
@@ -257,7 +270,12 @@ export async function regenerateFeatures(def, options = {}) {
         result = await makeBrepSweep(helixPath ? { ...effectiveParams, ...helixPath } : effectiveParams);
       }
       else if (feature.type === "loft") {
-        if(effectiveParams.sketchSources){const resolved=resolveSketchSources(executionDef,effectiveParams.sketchSources,resolveProfilePoints);if(!resolved)throw new Error("Loft source sketch is missing or invalid");effectiveParams={...effectiveParams,...resolved};}
+        if (effectiveParams.sketchSources) {
+          const sources = savedLoftSources(effectiveParams.sketchSources, effectiveParams.sectionSegments);
+          const resolved = resolveSketchSources(executionDef, sources, resolveProfilePoints);
+          if (!resolved) throw new Error("Loft source sketch is missing or invalid");
+          effectiveParams = {...effectiveParams, ...resolved};
+        }
         result = await makeBrepLoft(effectiveParams);
       }
       else if (feature.type === "cone") result = await makeBrepCone(effectiveParams);
@@ -594,13 +612,23 @@ function withProfileSegments(params, sketch, entityIds) {
 }
 
 export function resolveSketchProfile(def,params) {
-  if (!params?.profileEntityIds?.length) return params;
-  const sketches=Array.isArray(def.sketches)?def.sketches:[],sketch=(params.sketchId&&sketches.find((item)=>item.id===params.sketchId))||def.sketch||sketches[0];
+  const lineAxis=isSketchAxis(params?.axis);
+  if(lineAxis && !params.axisBasis && !params.profileEntityIds?.length)throw new Error("Sketch-line revolve requires a profile in the axis sketch");
+  if (!params?.profileEntityIds?.length) {
+    if(isStandaloneSketchAxisRevolve(params))assertStandaloneRevolve(params);
+    return params;
+  }
+  const sketches=Array.isArray(def.sketches)?def.sketches:[];
+  const named=sketches.find(item=>item && item.id===params.sketchId) || (def.sketch?.id===params.sketchId && def.sketch);
+  const sketch=named || (!lineAxis && (def.sketch||sketches[0]));
   if(!sketch)throw new Error("Feature profile is missing its sketch");
-  const thin=params.thinFeature ? revolveThinProfile(sketch,params.profileEntityIds,params.thickness,params.thinMode,params.axis) : null;
+  const axisBasis=resolveSketchAxis(sketch,params.axis);
+  const thin=params.thinFeature ? revolveThinProfile(sketch,params.profileEntityIds,params.thickness,params.thinMode,axisBasis || params.axis) : null;
   const points=thin?.points || resolveProfilePoints(sketch,params.profileEntityIds);
   if(!points)throw new Error("Feature profile is missing, open or unsupported");
-  if(params.useSketchPlane){
+  if(axisBasis){
+    params={...params,axisBasis,sketchAxisCoordinates:true};
+  } else if(params.useSketchPlane){
     const origin=sketchWorldPoint(sketch,0,0),u=sketchWorldPoint(sketch,1,0),v=sketchWorldPoint(sketch,0,1);
     const xAxis={x:u.x-origin.x,y:u.y-origin.y,z:u.z-origin.z},yAxis={x:v.x-origin.x,y:v.y-origin.y,z:v.z-origin.z};
     params={...params,radialProfile:false,profileFrame:{origin,xAxis,yAxis,normal:{x:xAxis.y*yAxis.z-xAxis.z*yAxis.y,y:xAxis.z*yAxis.x-xAxis.x*yAxis.z,z:xAxis.x*yAxis.y-xAxis.y*yAxis.x}}};

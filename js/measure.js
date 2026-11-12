@@ -75,10 +75,18 @@ export function measure4(ox, oz, ownCs, skip, options) {
     S.walls.forEach(function (w) {
       if (target === "object") return;
       if (target === "manual" && (!wallIds || wallIds.indexOf(w.id) === -1)) return;
+      /* The ray against the wall's own thick footprint, end faces included.
+         Hitting the centreline and taking off t/2 was right only square-on
+         (4 cm short of the truth for a 20 cm wall at 45°) and missed a wall
+         whose end, not its line, stands in the way. */
       var gm = wallGeom(w);
-      var tt = rayIntersect(ox, oz, d.dx, d.dz, gm.a.x, gm.a.z, gm.b.x, gm.b.z);
-      if (tt === null) return;
-      var face = tt - (w.thickness || 0) / 2;
+      if (!(gm.L > 0)) return;
+      var h = (w.thickness || 0) / 2, nx = -gm.uz * h, nz = gm.ux * h;
+      var face = rayToCorners(ox, oz, d.dx, d.dz, [
+        { x: gm.a.x + nx, z: gm.a.z + nz }, { x: gm.b.x + nx, z: gm.b.z + nz },
+        { x: gm.b.x - nx, z: gm.b.z - nz }, { x: gm.a.x - nx, z: gm.a.z - nz },
+      ]);
+      if (face === null) return;
       if (face > ownT + 0.5 && (wallT === null || face < wallT)) wallT = face;
     });
     // other items (skip the origin + lamps: they're point/ceiling fixtures)

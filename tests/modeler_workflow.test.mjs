@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -138,7 +139,7 @@ test("assembly bar and coach share one Insert → Ground → Mate → Check → 
 });
 
 test("assembly UI consumes the shared state and ends in Save", () => {
-  const source = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const source = modelerSource();
   assert.match(source, /var ASSEMBLY_WORKFLOW = \["wfInsert", "wfGround", "wfMate", "wfCheck", "wfSave"\]/);
   assert.match(source, /function coachAssemblySuggestion\(\) \{\s*var state = assemblyWorkflowState\(\);\s*var phase = state\.phase;/);
   assert.match(source, /history: function \(\) \{ saveCurrentDocument\(\); \}/);

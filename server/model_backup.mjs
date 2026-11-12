@@ -21,8 +21,12 @@ export const MODEL_BACKUP_KEEP = 20;
 
 // Library keys look like "cm_mu32mylp". Anything that could climb out of the
 // folder or hide a file (leading dot, separators) is refused.
+// Windows also maps device names (nul, con, com1…, with or without an
+// extension) to devices and drops a trailing dot ("abc." is "abc"), so those
+// are refused too: such a key could not hold, or would alias, a folder.
 export function validBackupKey(key) {
-  return typeof key === "string" && /^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,119}$/.test(key);
+  return typeof key === "string" && /^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,119}$/.test(key) &&
+    !key.endsWith(".") && !/^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\.|$)/i.test(key);
 }
 
 async function writeAtomic(file, text) {

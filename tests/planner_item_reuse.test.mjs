@@ -1,10 +1,11 @@
 import test from 'node:test';
+import { moduleSource } from "./helpers/module_source.mjs";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { sourceFunctionText } from './helpers/source_function.mjs';
 
-const source = readFileSync(new URL('../js/view3d.js', import.meta.url), 'utf8');
+const source = moduleSource("js/view3d.js");
 test('item signatures retain canonical definition dependencies and nested geometry at full precision', () => {
   const definition = { revision: 1, features: [{ x: 1, z: 2 }] };
   const item = { id: 'cab', definitionId: 'def', x: 4, z: 5, rot: 8, custom: { x: 2, z: 3 } };
@@ -26,7 +27,14 @@ function fixture() {
     buildAndCache() { work.builds++; return {}; },
     updateCabinetRuntimeMesh() { work.runtime++; return true; },
     isLayerGhosted: () => false, ghostSwap() { work.ghosts++; }, isPhysicsEnabled: () => false,
-    shadowsDirty: false, needsRender: false };
+    // shadows: only the region a piece left and landed in is redrawn
+    THREE: { Box3: class { union() { return this; } setFromObject() { return this; } } },
+    FURN: {}, fitPracticalLights() { work.lampFits = (work.lampFits || 0) + 1; },
+    markShadowRegion(box) { context.shadowRegion = box; },
+    // an edit asks for the other shadow sets' shaders again, once idle
+    schedulePrewarm() { context.prewarms = (context.prewarms || 0) + 1; },
+    shadowsDirty: false, needsRender: false,
+    set_needsRender(value) { return context.needsRender = value; } };
   vm.createContext(context); vm.runInContext(sourceFunctionText(source, 'applyItemOps'), context);
   return { context, item, group, work };
 }
@@ -35,7 +43,8 @@ test('unchanged item build requests retain geometry and update the live placemen
   context.S.items = [{ ...item }]; context.S.items3D.set('cab', 'build'); context.applyItemOps();
   assert.equal(work.builds, 0); assert.equal(work.runtime, 0); assert.equal(work.moves, 1);
   assert.equal(group.live, context.S.items[0]); assert.equal(context.S.dirty3D, false);
-  assert.equal(context.shadowsDirty, true); assert.equal(context.needsRender, true);
+  assert.ok(context.shadowRegion, 'the moved region is marked'); assert.equal(context.shadowsDirty, false);
+  assert.equal(context.needsRender, true);
 });
 test('cabinet runtime reuse updates the signature and skips unrelated scene geometry', () => {
   const { context, item, work } = fixture();

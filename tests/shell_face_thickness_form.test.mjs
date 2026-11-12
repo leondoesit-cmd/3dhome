@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -48,7 +49,7 @@ test('duplicate, removed, curved, thinner and outward rows reject; uniform legac
  assert.ok(validateFeatureDefinition(feature).some(issue=>issue.parameter==='faceThicknesses'));
 });
 test('creation/edit share rows and validate before Apply; retained IDs use native upstream face refresh without persisted callbacks',()=>{
- const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+ const source=modelerSource();
  assert.match(sourceFunctionText(source,'openParametricFeature'),/state\.params\.faceThicknesses=shellEditor\.read\(\)/);
  assert.match(sourceFunctionText(source,'openFeatureEditor'),/feature\.params\.faceThicknesses=shellEditor\.read\(\)/);
  assert.match(sourceFunctionText(source,'addShellFaceThicknessControls'),/topologyInCadWorker\(stage\.document,stage\.head/);

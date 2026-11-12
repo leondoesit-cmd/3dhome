@@ -5,6 +5,8 @@
 
    Each test pins the user-visible symptom, not the implementation. */
 import test from "node:test";
+import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import assert from "node:assert/strict";
 import { S } from "../js/state.js";
 import { detectRooms, wallClearLength, wallGeom } from "../js/geometry.js";
@@ -159,13 +161,16 @@ test("a terrace of dimensioned rooms still solves in the time an edit has", () =
   ensureNodeIds();
   addFixed(nodeAnchor(0));
   for (let i = 0; i < 8; i++) addDistance(nodeAnchor(i * 2), nodeAnchor(i * 2 + 2), 400 + i);
-  const started = Date.now();
+  /* CPU time, not wall clock: npm test runs files in parallel, and a busy
+     machine stretched ~1 s of work past 8 s of wall time. The regression this
+     guards against is ~190 s of CPU, which this still catches. */
+  const started = process.cpuUsage();
   for (let k = 0; k < 10; k++) {
     S.wallCons[1].value = 400 + (k % 5) * 20; // something actually moves each time
     solveWallCons();
   }
-  const ms = Date.now() - started;
-  assert.ok(ms < 8000, "ten solves of a 46 wall plan took " + ms + "ms");
+  const used = process.cpuUsage(started), ms = Math.round((used.user + used.system) / 1000);
+  assert.ok(ms < 8000, "ten solves of a 46 wall plan took " + ms + "ms of CPU");
 });
 
 test("a corner dropped on a wall is committed once, at the end of the gesture", async () => {
@@ -174,8 +179,10 @@ test("a corner dropped on a wall is committed once, at the end of the gesture", 
      chain of stubs, a pile of coincident corners and a shape that no longer
      closed. The live drag now only remembers the host. */
   const { readFile } = await import("node:fs/promises");
-  const src = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
-  const move = src.slice(src.indexOf('if (S.action === "node" && S.nodeDrag) {'));
+  const src = moduleSource("js/interaction.js");
+  // the pointermove handler lives in wirePlanMove; armDragProxy has a look-alike elsewhere
+  const inits = sourceFunctionText(src, "wirePlanMove");
+  const move = inits.slice(inits.indexOf('if (S.action === "node" && S.nodeDrag) {'));
   const live = move.slice(0, move.indexOf('S.action === "wall" && S.wallDrag'));
   assert.doesNotMatch(live, /splitWallAt\(p\.wall/, "the live drag no longer splits");
   assert.match(live, /S\.nodeDrag\.landOn = p\.wall\.id/, "it remembers the host instead");
@@ -185,8 +192,8 @@ test("a corner dropped on a wall is committed once, at the end of the gesture", 
 
 test("one drawn partition owns one undo snapshot", async () => {
   const { readFile } = await import("node:fs/promises");
-  const src = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
-  const wallPoint = src.slice(src.indexOf("export function wallPoint(p)"), src.indexOf("function splitCrossedByNewWall"));
+  const src = moduleSource("js/interaction.js");
+  const wallPoint = sourceFunctionText(src, "wallPoint");
   assert.match(wallPoint, /if \(!S\.drawing \|\| \(S\.drawWalls \|\| \[\]\)\.length\) pushHistory\(\);/,
     "the initial host split and first visible segment share their snapshot");
   assert.doesNotMatch(wallPoint, /\n\s*pushHistory\(\);\s*\n\s*if \(!S\.drawing\)/,

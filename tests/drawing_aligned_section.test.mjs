@@ -20,6 +20,54 @@ test('two distinct real cut planes unfold at a common hinge without changing sou
   const frame=alignedSectionFrame(doc.views[1],doc);assert.deepEqual(frame.basis.right,{x:0,y:0,z:1});
 });
 
+test('touching boxes produce separate material regions and hatch on both aligned legs',()=>{
+  const doc=docFor(), bodies=tessellateParts([0,1].map(z=>({
+    id:'box'+z,kind:'box',x0:-2,x1:2,y0:-2,y1:2,z0:z,z1:z+1,
+  })));
+  const sceneFor=source=>buildSheetScene(doc,{projection:createProjector(doc,source)});
+  for(const body of bodies) assert.ok(sceneFor([body]).items.some(i=>i.viewId==='a'&&i.style==='hatch'));
+  const scene=sceneFor(bodies),placed=scene.views.find(v=>v.id==='a');
+  assert.deepEqual(scene.diagnostics,[]);
+  const regions=placed.projection.sectionRegions;
+  assert.equal(regions.length,4);
+  for(const leg of [0,1]) for(const bodyIndex of [0,1]) {
+    const region=regions.find(r=>r.leg===leg&&r.bodyIndex===bodyIndex);
+    assert.ok(region);
+    assert.equal(region.loops.length,1);
+    near(area(region.loops[0]),2);
+    const hatches=scene.items.filter(i=>i.style==='hatch'&&i.alignedSectionLeg===leg);
+    const spans=hatches.map(i=>[placed.toModel({x:i.x1,y:i.y1}).u,placed.toModel({x:i.x2,y:i.y2}).u]);
+    assert.ok(spans.some(points=>points.every(u=>u>=bodyIndex-1e-8&&u<=bodyIndex+1+1e-8)));
+    assert.ok(spans.every(points=>Math.min(...points)>=1-1e-8||Math.max(...points)<=1+1e-8),'no stroke crosses the contact face');
+  }
+});
+
+test('a body behind the hinge contributes only to the leg that cuts its material',()=>{
+  const doc=docFor(), bodies=[...box(),...tessellateParts([{
+    kind:'box',x0:-2,x1:1,y0:-3,y1:-1,z0:3,z1:4,
+  }])];
+  // This box crosses the first full plane behind the hinge and misses the second.
+  let projection=projectAlignedSection(bodies,doc.views[1],doc);
+  assert.deepEqual(projection.sectionRegions.map(r=>[r.leg,r.bodyIndex]),[[0,0],[1,0]]);
+  for(let i=1;i<bodies[1].positions.length;i+=3)bodies[1].positions[i]+=4;
+  projection=projectAlignedSection(bodies,doc.views[1],doc);
+  assert.deepEqual(projection.sectionRegions.filter(r=>r.bodyIndex===1).map(r=>r.leg),[0]);
+});
+
+test('aligned section rejects a box split into open end caps and lateral faces',()=>{
+  const doc=docFor(), [{positions}]=box(), caps=[], sides=[];
+  for(let i=0;i<positions.length;i+=9) {
+    const tri=positions.slice(i,i+9);
+    (tri[2]===tri[5]&&tri[5]===tri[8]?caps:sides).push(...tri);
+  }
+  const bodies=[{positions:caps},{positions:sides}];
+  for(const source of [[bodies[0]],[bodies[1]],bodies]) {
+    const scene=buildSheetScene(doc,{projection:createProjector(doc,source)});
+    assert.ok(scene.diagnostics.some(d=>d.code==='invalid-aligned-section'));
+    assert.ok(!scene.items.some(i=>i.viewId==='a'&&i.style==='hatch'));
+  }
+});
+
 test('six principal parents and non-right-angle radial cut unfold true radial lengths',()=>{
   const bodies=tessellateParts([{id:'b',kind:'box',x0:-2,x1:2,y0:-2,y1:2,z0:-2,z1:2}]);
   for(const dir of ['front','back','top','bottom','left','right']) {

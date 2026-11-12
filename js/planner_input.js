@@ -30,7 +30,9 @@ export function dispatchPlannerInput(phase, input) {
   const x = input.point.x * scale, y = input.point.z * scale;
   const event = { type:phase === 'down' ? 'pointerdown' : phase === 'up' ? 'pointerup' : phase === 'cancel' ? 'pointercancel' : 'pointermove',
     clientX:x, clientY:y, offsetX:x, offsetY:y, pointerId:raw.pointerId || 1,
-    pointerType:'mouse', isTrusted:false, button:0, buttons:raw.buttons || 0,
+    // touch only for the select tool (wider pick slop, long-press menu): the
+    // drawing tools' touch loupe is a 2D-plan overlay with no 3D meaning
+    pointerType:raw.pointerType==='touch'&&S.tool==='select'?'touch':'mouse', isTrusted:false, button:0, buttons:raw.buttons || 0,
     shiftKey:!!raw.shiftKey, altKey:!!raw.altKey, ctrlKey:!!raw.ctrlKey, metaKey:!!raw.metaKey,
     preventDefault() {}, stopPropagation() {} };
   controller[phase](event);
@@ -40,6 +42,6 @@ export function dispatchPlannerInput(phase, input) {
 export function cancelPlannerGesture() { controller?.cancel?.({type:'pointercancel'});gestureScale=null; }
 
 export const PLANNER_TOOL_COVERAGE = Object.freeze([
-  'select','wall','arcwall','rect','roomstamp','door','window','passage','slabvoid','point','erase',
+  'select','wall','arcwall','rect','roomstamp','door','window','passage','slabvoid','point','fitcab','erase',
   'walloffset','wallbreak','wallbite','walljoin','wallreverse','wallpaint','mepNode','mepRoute',
 ]);

@@ -1,6 +1,7 @@
 /* HOUSING tools for Planchard 2A-6: through-vertex plane, pattern seed only
    of a rib, two-direction layout, and feature Mirror. Geometry is measured
    on a test body — the book HOUSING itself is 2A-7. */
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -13,7 +14,7 @@ import { topologyForFeature } from "../js/core/topology.js";
 import { mainReferences } from "../js/core/schema.js";
 import { shapeMassProperties } from "../js/cad_kernel.js";
 
-const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modeler = modelerSource();
 const catalog = readFileSync(new URL("../js/core/feature_catalog.js", import.meta.url), "utf8");
 
 test("pattern seed only includes a rib and the plane form offers through-vertex", () => {

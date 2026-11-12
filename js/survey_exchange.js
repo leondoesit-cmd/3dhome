@@ -31,6 +31,7 @@ function geometry(raw,scale){
     for(const p of Array.isArray(w.profile)?w.profile:[]){number(p,'s');number(p,'height');}
     if(w.geometry?.through){number(w.geometry.through,'x',true);number(w.geometry.through,'z',true);}
   }
+  for(const meta of Object.values(g.roomMeta))for(const key of ['ceilH'])number(meta,key);
   for(const type of g.wallTypes)for(const layer of type.layers||[])number(layer,'thickness');
   for(const o of g.openings){if(!g.walls.some(w=>String(w.id)===String(o.wall)))bad();for(const k of ['s','width','height'])number(o,k,true);number(o,'sill');if(o.frame)for(const k of ['jamb','head','sillW','depth'])number(o.frame,k);if(o.width<=0||o.height<=0||o.s<0)bad();}
   for(const o of [...g.items,...g.markers,...g.slabOpenings])for(const k of ['x','y','z','w','d','h','elev'])number(o,k);

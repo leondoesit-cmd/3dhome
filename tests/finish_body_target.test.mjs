@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ import {featureField} from '../js/modeler_feature_form.js';
 import {compileKernelFeatureTree} from '../js/core/kernel_feature_adapter.js';
 import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js';
 import {shapeMassProperties} from '../js/cad_kernel.js';
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const dependencyReferenceId=new Function(sourceFunctionText(source,'dependencyReferenceId')+';return dependencyReferenceId;')();
 function el(tag,cls='',text=''){
  const node={tagName:tag.toUpperCase(),children:[],dataset:{},listeners:{},classList:{add(){},remove(){}},textContent:text,

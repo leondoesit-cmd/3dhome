@@ -1,3 +1,4 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {defaultTopologyMateAlignment} from '../js/cad_mate_reference_choices.js'
 import {solveTopologyMates,topologyReference} from '../js/cad_mates.js';
 import {validLimitMateBounds} from '../js/cad_mate_model.js';
 
-const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 const point=(x=0,y=0,z=0)=>({x,y,z});
 const plane=(component,id,origin,normal)=>topologyReference(component,'face',id,{surface:'plane',origin,normal});
 function manager(canAngle,add){

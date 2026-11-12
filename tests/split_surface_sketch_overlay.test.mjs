@@ -1,10 +1,11 @@
+import { modelerSource } from "./helpers/modeler_source.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFunctionText} from './helpers/source_function.mjs';
 import {framePoint} from '../js/core/frame.js';
 import {surfaceSketchWorldPolyline} from '../js/core/surface_uv.js';
-const source=fs.readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
+const source=modelerSource();
 
 test('Split view draws cylindrical UV sketches on their surface and updates changed seam placement',()=>{
  const descriptor={surface:'cylinder',radius:5,axis:{x:0,y:1,z:0},origin:{x:10,y:20,z:30}};
