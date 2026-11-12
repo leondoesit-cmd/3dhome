@@ -8,11 +8,12 @@ ModelForge (repo `3dhome`) is a **local-first, browser-based parametric CAD / ho
 ### Run / test / lint (standard commands; see `package.json`)
 - Run the app: `npm start` → serves the app + relay on `http://localhost:8765` (port overridable: `node server/relay.mjs <port>`). Open that URL in a real browser.
 - Tests: `npm test` → `node --test --test-timeout=600000 tests/*.test.mjs uikit/tests/*.test.mjs` (pure-Node unit/integration tests; 11–19 min locally). The 10-minute per-test timeout turns a stuck CAD-kernel run into a failure instead of a stuck run. `planchard_housing_shell` is the genuinely slow one: its custom exact shell runs for several minutes on its own, so it can time out when parallel files starve it of CPU.
-- Gates (run all four before assuming a change worked; CI runs them too): `npm run check`
+- Gates (run all five before assuming a change worked; CI runs them too): `npm run check`
   - `node tools/module_check.mjs` — free-identifier walk of `js/`, `server/`, and `tools/` (including `js/core` and `js/physics`). Reports names a file uses but never declares, imports, or gets from a global. Exit 0 on a clean tree.
   - `node tools/link_check.mjs` — follows the `index.html` module graph and checks that every named import exists as an export of the target. This is the silent-boot failure (`npm test` cannot load `js/main.js` because of bare `three` specifiers).
   - `node tools/comment_assertions.mjs` — re-tests every source-text regex assertion against the module with its comments blanked, so an assertion cannot pass on a comment alone (mark a line `prose-ok` when pinning the comment is the point).
   - `node tools/size_check.mjs` — no source file over 1,500 lines, no function over 300; the older ones listed in `tools/size_baseline.json` are frozen at their size (small slack) and may only shrink. See "Keeping the structure".
+  - `node tools/duplicate_names_check.mjs` — no two files of one split module (`js/<name>.js` + `js/<name>/*.js`, the families `moduleFiles` joins; `js/physics/`'s independent modules excluded) may declare the same top-level name. As ES modules that is legal, but the tests read a split as ONE script (`moduleSource`), where it is a `SyntaxError` that fails every test evaluating that module. Rename one of the two.
 
 ### Keeping the structure (every agent, every model)
 The code was cut into small pieces so an agent can read only what it needs. Keep it that way:
