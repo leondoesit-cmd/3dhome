@@ -251,7 +251,7 @@ function wirePlanMove() {
     if (S.action === "mep" && S.mepDrag) {
       commitPending();
       dragMEP(px, pz);
-      S.dirty3D = true;
+      S.mep3D = true; // a device or run moved: only the conduits change in 3D
       render2D();
       return;
     }

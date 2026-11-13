@@ -7,7 +7,7 @@
 // the icon IS the model. Same builder as the 3D view, so a model can never
 // disagree with its icon.
 import { THREE } from "./three_lazy.js";
-import { offscreenGL, offscreenPending, offscreenIdle, useRig, shrinkAll, useSmallTextures, dropSmallTextures } from "./offscreen_gl.js";
+import { offscreenGL, offscreenPending, offscreenIdle, useRig, shrinkAll, useSmallTextures, dropSmallTextures, spritesFirst } from "./offscreen_gl.js";
 import { FURN, buildItem } from "./furniture.js";
 import { clearGroup } from "./primitives.js";
 import { quietPbrLoads, pbrLoading } from "./pbr_material.js";
@@ -267,6 +267,15 @@ async function warmOne(type, slot = idleSlot) {
     await g.r.compileAsync(model, g.cam, g.scene);
     await offscreenIdle(g);
     await slot();
+    /* The warm-up's readback (snap) waits for the whole GPU: right after the
+       plan's pictures were drawn that was a ~200 ms frozen task. While they
+       are queued it waits for them, then for the GPU to drain. Tiles a grid
+       on screen asked for (slot !== idleSlot) do not wait. */
+    if (slot === idleSlot) {
+      await spritesFirst();
+      const drained = gl();
+      if (drained) await offscreenIdle(drained);
+    }
     g = gl();
     if (!g || cache.has(key)) return;
     g.root.add(model);
@@ -342,8 +351,10 @@ async function warmLoop() {
         if (offscreenPending()) warmAsked = true;
         return;
       }
-      // tiles on screen asked for their pictures (thumbAsync): those go first
+      // tiles on screen asked for their pictures (thumbAsync): those go first,
+      // and so do the plan's pictures while the presentation plan waits for them
       while (asking) await asked;
+      await spritesFirst();
       const type = warmQueue.shift();
       if (!type || !FURN[type] || hasThumb(type)) continue;
       try {

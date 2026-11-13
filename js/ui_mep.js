@@ -404,7 +404,7 @@ export function renderPanel() {
   var mcb = document.createElement("input");
   mcb.type = "checkbox";
   mcb.checked = m.show;
-  mcb.onchange = function () { m.show = mcb.checked; S.dirty3D = true; render2D(); };
+  mcb.onchange = function () { m.show = mcb.checked; S.mep3D = true; render2D(); };
   master.appendChild(mcb);
   var msp = document.createElement("span");
   msp.textContent = t("mep_show");
@@ -450,7 +450,7 @@ export function renderPanel() {
     eye.appendChild(eyeIcon);
     eye.onclick = function () {
       m.vis[sys] = hidden;
-      S.dirty3D = true;
+      S.mep3D = true; // only the conduits change in 3D
       renderPanel();
       render2D();
     };
@@ -603,7 +603,7 @@ export function renderPanel() {
   fixtures.onclick = function () { document.getElementById("mepFixturePalette")?.scrollIntoView({ block: "center", behavior: "smooth" }); };
   opts.appendChild(fixtures);
   opts.appendChild(optCheck(t("mep_animate"), m.animate !== false, function (v) { m.animate = v; }));
-  opts.appendChild(optCheck(t("mep_3d"), m.show3D, function (v) { m.show3D = v; S.dirty3D = true; }));
+  opts.appendChild(optCheck(t("mep_3d"), m.show3D, function (v) { m.show3D = v; S.mep3D = true; }));
 
   var planeGrp = document.createElement("div");
   planeGrp.className = "mep-xray-group mep-plane-filters";
@@ -616,7 +616,7 @@ export function renderPanel() {
   ["wall", "ceiling", "floor"].forEach(function(layer) {
     planeBoxes.appendChild(optCheck(t("mep_" + layer), m.layerVis[layer] !== false, function(v) {
       m.layerVis[layer] = v;
-      S.dirty3D = true;
+      S.mep3D = true;
       render2D();
     }));
   });

@@ -189,7 +189,7 @@ test("the other shadow sets are built ahead, in the scene pass's own context", (
   // nothing is drawn, rebuilt or relit while a shader is being built from the lights
   const loop = between("var live = doorsMoving || humansLive || physicsLive || extLive;", "if (needsRender || live || settle > 0) {");
   assert.match(loop, /if \(prewarmHolds\(\)\) return;/);
-  assert.match(src, /if \(prewarmRun && \(S\.dirty3D \|\| S\.items3D\.size\)\) \{\s*prewarmRun\.stop = true;\s*if \(!finishPrewarm\(\)\) return;/);
+  assert.match(src, /if \(prewarmRun && \(S\.dirty3D \|\| S\.items3D\.size \|\| S\.mep3D\)\) \{\s*prewarmRun\.stop = true;\s*if \(!finishPrewarm\(\)\) return;/);
   assert.match(fn("applyEnv").split("shadowsDirty = true;")[0], /prewarmRun\.envPending = true;\s*return;/);
   assert.match(fn("finishPrewarm"), /if \(run\.envPending\) applyEnv\(\);/);
 });

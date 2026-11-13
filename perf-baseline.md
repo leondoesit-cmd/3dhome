@@ -109,3 +109,83 @@ Headless Chrome; if `backend` is not "webgpu" the numbers came through a softwar
 | selectCanonical | 0 | 1 | 2 | 2 | 1 | 1 | 0 | 0 | 192.4 |
 
 Model editor CAD gesture baseline: teardowns, part builds, edge scans, disposals, rebuilds.
+
+## Planner probes — baseline
+
+Generated 2026-11-13T13:22:27.342Z by `node tools/perf_planner.mjs` · webgpu · real GPU Chrome · scene {"walls":18,"items":44,"mepNodes":71,"mepRuns":71} · tiled scene {"walls":54,"items":132,"mepNodes":71,"mepRuns":71}
+
+| scenario | first picture ms | all exact ms | longest task ms | long tasks | bakes | on disk at switch | cached before |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| sprites_cold | 3485 | 8135 | 157 | 5 | 32 | 0/44 | 0 |
+| sprites_warm | 252 | 252 | 0 | 0 | 0 | 36/44 | 0 |
+| sprites_zoom (0.573→2.415) | — | 2941 | 0 | 0 | 32 | — | — |
+
+pres_paint (132 items): technical model 8.23 ms / paint, presentation model 6.45 ms (drawItemPresentation 1.29 ms); pan: 1.05 model paints / move, 7.72 ms model / move.
+
+mep_2d_idle: 29.5 HUD paints/s, 1.493 ms HUD/paint (drawMEP 1.3, signature 0.145), rAF 116.5 fps, main thread busy 63 %.
+
+| drag (mep_2d_drag) | grabbed | frame p50 ms | clashes ms/move | status ms/move | signature ms/move | model ms/move | panel ms/move | clashes calls | status calls | makeRouter | panel renders |
+|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| wall | wall | 13 | 1.42 | 0.12 | 0.18 | 0.43 | 0 | 8 | 8 | 0 | 0 |
+| device | mepNode | 13.8 | 0.35 | 0.03 | 0.16 | 4.46 | 0 | 2 | 2 | 0 | 0 |
+| bed | items | 10.7 | 3.58 | 0.4 | 0.16 | 0.3 | 0 | 30 | 30 | 0 | 0 |
+
+drag main-thread busy: 1283.5 ms over all three gestures (3 × 30 moves).
+
+mep_route: started true; frame p50 13.9 ms; makeRouter 23 calls (0.03 ms/move), wallPath 0.06 ms/move, routeResolve 0.07 ms/move; busy 660.5 ms / 30 moves.
+
+mep_3d (power): draw calls with MEP 1218 vs without 793; MEP meshes 425 (+0 instanced) of 1263; rebuild3D 32.9 ms (buildMEP3D 10.8); toggle off 157 ms, on 184 ms (rebuild3D calls 1).
+
+| planner_rebuild | items | rebuild3D ms | structure | items | MEP | itemSig n / ms | meshes | item meshes | pipelines |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| apartment | 44 | 27.1 | 16.2 | 3.1 | 7.7 | 46 / 1.6 | 1263 | 672 | 51 |
+| tiled ×copies | 132 | 66.2 | 45.1 | 13.5 | 7.6 | 141 / 5.3 | 2982 | 2016 | 67 |
+
+## Planner probes — debug
+
+Generated 2026-11-13T16:52:31.041Z by `node tools/perf_planner.mjs` · webgpu · real GPU Chrome · scene {"walls":18,"items":44,"mepNodes":71,"mepRuns":71}
+
+| scenario | first picture ms | all exact ms | longest task ms | long tasks | bakes | on disk at switch | cached before |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| sprites_cold | 3265 | 5300 | 218 | 1 | 35 | 0/44 | 0 |
+| sprites_zoom (0.573→2.415) | — | 2124 | 0 | 0 | 40 | — | — |
+
+## Planner probes — after C+D
+
+Generated 2026-11-13T16:41:46.539Z by `node tools/perf_planner.mjs` · webgpu · real GPU Chrome · scene {"walls":18,"items":44,"mepNodes":71,"mepRuns":71} · tiled scene {"walls":54,"items":132,"mepNodes":71,"mepRuns":71}
+
+| scenario | first picture ms | all exact ms | longest task ms | long tasks | bakes | on disk at switch | cached before |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| sprites_cold | 3463 | 5465 | 230 | 1 | 36 | 0/44 | 0 |
+| sprites_warm | 1 | 1 | 0 | 0 | 0 | 36/44 | 32 |
+| sprites_zoom (0.573→2.415) | — | 2213 | 288 | 1 | 44 | — | — |
+
+pres_paint (132 items): technical model 7.87 ms / paint, presentation model 6.56 ms (drawItemPresentation 1.35 ms); pan: 1.05 model paints / move, 7.8 ms model / move.
+
+mep_2d_idle: 29.5 HUD paints/s, 1.525 ms HUD/paint (drawMEP 1.308, signature 0.165), rAF 116.1 fps, main thread busy 67 %.
+
+| drag (mep_2d_drag) | grabbed | frame p50 ms | clashes ms/move | status ms/move | signature ms/move | model ms/move | panel ms/move | clashes calls | status calls | makeRouter | panel renders |
+|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| wall | wall | 14.1 | 0.11 | 0.12 | 0.18 | 0.45 | 0 | 8 | 8 | 0 | 0 |
+| device | mepNode | 15.3 | 0.02 | 0.03 | 0.14 | 4.62 | 0 | 2 | 2 | 0 | 0 |
+| bed | items | 11.9 | 0.28 | 0.38 | 0.15 | 0.29 | 0 | 30 | 30 | 0 | 0 |
+
+drag main-thread busy: 1132.1 ms over all three gestures (4 × 30 moves).
+
+mep_route: started true; frame p50 14.2 ms; makeRouter 23 calls (0.04 ms/move), wallPath 0.08 ms/move, routeResolve 0.07 ms/move; busy 628.8 ms / 30 moves.
+
+mep_3d (power): draw calls with MEP 847 (under-floor x-ray off: 800) vs without 788; MEP meshes 59 (+0 instanced) of 897; rebuild3D 31.9 ms (buildMEP3D 7.3); toggle a system (panel eye) until the new frame is drawn: off 32 ms, on 38 ms (with 2 settle frames + GPU drain: 76 / 85 ms; full rebuild3D calls 0).
+
+| planner_rebuild | items | rebuild3D ms | structure | items | MEP | itemSig n / ms | meshes | item meshes | pipelines |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| apartment | 44 | 31.5 | 18.8 | 3.4 | 7.3 | 46 / 1.4 | 897 | 672 | 52 |
+| tiled ×copies | 132 | 68.5 | 47 | 11.4 | 9.3 | 141 / 4.5 | 2616 | 2016 | 67 |
+
+## Planner probes — after C+D, switch after 10 s
+
+Generated 2026-11-13T16:47:46.417Z by `node tools/perf_planner.mjs` · webgpu · real GPU Chrome · scene {"walls":18,"items":44,"mepNodes":71,"mepRuns":71}
+
+| scenario | first picture ms | all exact ms | longest task ms | long tasks | bakes | on disk at switch | cached before |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| sprites_cold | 1 | 1 | 0 | 0 | 0 | 0/44 | 48 |
+

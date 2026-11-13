@@ -7,6 +7,7 @@ import { t } from "../i18n.js";
 import { roomLabelFont, roomLabelLines } from "../plan_labels.js";
 import { spriteMode } from "../plan_sprite_key.js";
 import { itemSprite } from "../plan_sprites.js";
+import "../plan_sprite_prewarm.js";
 import { isPresentation, planTheme } from "../plan_style.js";
 import { symbolPrims } from "../plan_symbols.js";
 import { planRotRad, rotatePx, sx, sz } from "../plan_view.js";
@@ -186,6 +187,9 @@ function drawItemPresentation(it, w, d, isSel) {
     try { vspan = knownVSpan(it); } catch (e) { vspan = null; }
     if (!vspan) {
       measureVSpanSoon(it);
+      // and queue its picture now: the bake measures the height as it
+      // builds, so both arrive together instead of one after the other
+      itemSprite(it, S.SC, canvasDpr());
       return false;
     }
     mode = spriteMode(it, { lamp: false, vspan: vspan });

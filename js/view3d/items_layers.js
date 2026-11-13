@@ -11,6 +11,7 @@ import { contentBounds, detectRooms, hiddenSets, roomByKey, roomFloor, roomHidde
 import { legacyIntensity } from "../gpu.js";
 import { isLayerGhosted, isLayerVisible, layerRank } from "../layers.js";
 import { buildMEP3D } from "../mep.js";
+import { mergeMEPMeshes } from "../mep/merge3d.js";
 import { legacyFloorKey, legacyTextureUrl, materialById, pbrEntryFor, textureMisses } from "../pbr_material.js";
 import { clearPhysics, isPhysicsEnabled } from "../physics_facade.js";
 import { box, floorTexture, groundTexture, polyMesh, worldUVs } from "../primitives.js";
@@ -404,6 +405,7 @@ export function rebuild3D() {
   set_shadowsFromRebuild(true);
   set_needsRender(true);
   S.items3D.clear(); // a full rebuild subsumes every queued per-item update
+  S.mep3D = false; // and the infrastructure-only one
   clearPhysics();
   if (!itemsRoot) set_itemsRoot(new THREE.Group());
   /* Hand the ghosted materials back before anything is disposed. clearGroup
@@ -930,6 +932,9 @@ export function rebuild3D() {
   // as filters ON TOP of the mep layer, which owns the root's visibility.
   dyn.add(mepRoot);
   buildMEP3D(mepRoot, THREE);
+  // a few draw calls instead of one per segment (js/mep/merge3d.js); physics
+  // wants one body per pipe, and turning it on rebuilds without the merge
+  if (!isPhysicsEnabled()) mergeMEPMeshes(mepRoot, THREE);
   buildSurveyGeometry(structureRoot,THREE,S.surveyFeatures);
   if(isLayerVisible("underlay"))buildBlueprintUnderlay3D(dyn,THREE,S.blueprintTrace);
 
@@ -952,6 +957,32 @@ export function rebuild3D() {
   applyLayers3D(); // the roots are brand new too: re-apply hide/ghost to them
   // external modes (RC race) rebuild their collision snapshot off this event
   window.dispatchEvent(new Event("scene3d:rebuilt"));
+}
+
+/* The infrastructure changed and nothing else did (a system shown or hidden,
+   3D conduits on/off, a routing plane's visibility, a device dragged on the
+   plan): swap the contents of mepRoot instead of rebuilding the house. What
+   else the full rebuild derives from MEP state — the ground and slabs under
+   the x-ray, the wall materials — depends only on the x-ray settings, which
+   still ask for S.dirty3D. Returns false when it could not (no scene yet,
+   physics on: one rigid body per mesh) and asked for the full rebuild. */
+export function rebuildMEP3D() {
+  if (!ready3D || !mepRoot || !dyn || mepRoot.parent !== dyn) {
+    S.dirty3D = true;
+    return false;
+  }
+  if (isPhysicsEnabled()) {
+    S.dirty3D = true;
+    return false;
+  }
+  ghostRoot(mepRoot, false); // hand ghost clones back before the old meshes go
+  retireGroup(mepRoot);
+  buildMEP3D(mepRoot, THREE);
+  mergeMEPMeshes(mepRoot, THREE);
+  applyLayers3D();
+  set_needsRender(true);
+  window.dispatchEvent(new Event("scene3d:rebuilt"));
+  return true;
 }
 
 export { applyItemOps, ghostSwap, layerRoots, pickableRoots, selected3DBox };

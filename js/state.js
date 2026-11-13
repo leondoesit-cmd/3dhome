@@ -383,6 +383,10 @@ export const S = {
   // falls back to a full rebuild for anything it can't do piecewise.
   // S.dirty3D always wins over this.
   items3D: new Map(),
+  // transient: only the infrastructure (MEP) changed — the 3D loop swaps the
+  // conduits and device markers instead of rebuilding the house
+  // (view3d/items_layers.js rebuildMEP3D). S.dirty3D always wins over this.
+  mep3D: false,
   // real-world site / mapping overlay (see js/site.js). null image caches are
   // rebuilt at runtime — only the params below are persisted.
   site: {

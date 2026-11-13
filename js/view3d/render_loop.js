@@ -7,7 +7,7 @@ import { isPhysicsBusy, syncPhysicsToThree } from "../physics_facade.js";
 import { safeDeltaMilliseconds } from "../physics_runtime.js";
 import { S, clamp } from "../state.js";
 import { applyEnv, buildViewGizmo, updateViewGizmo } from "../view3d/gizmo_env.js";
-import { applyItemOps, rebuild3D } from "../view3d/items_layers.js";
+import { applyItemOps, rebuild3D, rebuildMEP3D } from "../view3d/items_layers.js";
 import { finishPrewarm, prewarmHolds, schedulePrewarm, startPrewarm } from "../view3d/lighting.js";
 import { editMove, editUp, focusAt, navTick } from "../view3d/navigation_edit.js";
 import { cP, panPixels, stepSeeFades, upd, zoomBy } from "../view3d/see_through.js";
@@ -220,7 +220,7 @@ function wireRenderLoopAndGestures() {
   document.addEventListener("visibilitychange", function () { if (document.hidden) releaseAllPointers(); });
   window.addEventListener("keydown", noteEditInput, { capture: true, passive: true });
   var holdHiddenRebuild = function (time) {
-    if (!(S.dirty3D || S.items3D.size)) return false;
+    if (!(S.dirty3D || S.items3D.size || S.mep3D)) return false;
     if (!editPointers.size && time - editInputT >= HIDDEN_EDIT_IDLE_MS) return false;
     var el = renderer && renderer.domElement;
     if (el && el.getClientRects().length === 0) return true; // display:none up the tree
@@ -270,7 +270,7 @@ function wireRenderLoopAndGestures() {
     // per-item path first: it may escalate to S.dirty3D, and a full rebuild
     // already covers everything it would have done
     // a rebuild or an edit replaces what a shader in flight is built from
-    if (prewarmRun && (S.dirty3D || S.items3D.size)) {
+    if (prewarmRun && (S.dirty3D || S.items3D.size || S.mep3D)) {
       prewarmRun.stop = true;
       if (!finishPrewarm()) return;
     }
@@ -278,6 +278,10 @@ function wireRenderLoopAndGestures() {
     // which views mirroring this scene (the inspector preview) refresh from.
     var heldNow = holdHiddenRebuild(time);
     if (S.items3D.size && !S.dirty3D && !heldNow) applyItemOps();
+    if (S.mep3D && !S.dirty3D && !heldNow) {
+      S.mep3D = false;
+      rebuildMEP3D(); // asks for the full rebuild itself when it cannot
+    }
     if (S.dirty3D && !heldNow) {
       S.dirty3D = false;
       try {

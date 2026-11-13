@@ -1,0 +1,1816 @@
+{
+  "label": "after C+D",
+  "date": "2026-11-13T16:41:46.539Z",
+  "backend": "webgpu",
+  "copies": 3,
+  "results": {
+    "sprites_cold": {
+      "waitMs": 3000,
+      "before": {
+        "cache": 0,
+        "queue": 33,
+        "ahead": 33,
+        "baking": false,
+        "persisted": 0,
+        "toPersist": 0,
+        "failed": 0,
+        "vspanPending": 0,
+        "cacheMB": 0,
+        "queued": [
+          "sofa",
+          "tv",
+          "table",
+          "chair",
+          "chair",
+          "chair",
+          "coffee",
+          "rug",
+          "armchair",
+          "art",
+          "bed",
+          "nightstand",
+          "rug",
+          "art",
+          "wardrobe",
+          "dresser",
+          "wallMirror",
+          "fridge",
+          "base",
+          "sink",
+          "dishwasher",
+          "base",
+          "cooktop",
+          "oven",
+          "bunk",
+          "desk",
+          "officeChair",
+          "laptop",
+          "wardrobe",
+          "bookshelf",
+          "shower",
+          "toilet",
+          "vanity",
+          "sofa",
+          "tv",
+          "table",
+          "chair",
+          "chair",
+          "chair",
+          "coffee",
+          "rug",
+          "armchair",
+          "art",
+          "bed",
+          "nightstand",
+          "rug",
+          "art",
+          "wardrobe",
+          "dresser",
+          "wallMirror",
+          "fridge",
+          "base",
+          "sink",
+          "dishwasher",
+          "base",
+          "cooktop",
+          "oven",
+          "bunk",
+          "desk",
+          "officeChair",
+          "laptop",
+          "wardrobe",
+          "bookshelf",
+          "shower",
+          "toilet",
+          "vanity"
+        ]
+      },
+      "persistedAtSwitch": 0,
+      "itemsAtSwitch": 44,
+      "firstPictureMs": 3463,
+      "allPicturesMs": 5465,
+      "timedOut": false,
+      "lastPaint": {
+        "t": 10071.70000000298,
+        "calls": 36,
+        "pics": 36,
+        "exact": 36,
+        "missing": 0
+      },
+      "paints": 9,
+      "after": {
+        "cache": 32,
+        "queue": 0,
+        "ahead": 36,
+        "baking": false,
+        "persisted": 0,
+        "toPersist": 32,
+        "failed": 0,
+        "vspanPending": 0,
+        "cacheMB": 0.6
+      },
+      "long": {
+        "count": 1,
+        "longestMs": 230,
+        "totalMs": 230
+      },
+      "counters": {
+        "itemSprite": {
+          "n": 335,
+          "ms": 6.1,
+          "max": 0.3
+        },
+        "baseVSpan": {
+          "n": 639,
+          "ms": 119,
+          "max": 21.8
+        },
+        "drawItemPresentation": {
+          "n": 324,
+          "ms": 10.5,
+          "max": 0.3
+        },
+        "renderModel": {
+          "n": 9,
+          "ms": 62.3,
+          "max": 25.3
+        },
+        "mepSignature": {
+          "n": 85,
+          "ms": 12.7,
+          "max": 0.3
+        },
+        "getMEPState": {
+          "n": 85,
+          "ms": 12.9,
+          "max": 0.3
+        },
+        "drawMEP": {
+          "n": 85,
+          "ms": 111.2,
+          "max": 2.5
+        },
+        "renderHUD": {
+          "n": 85,
+          "ms": 130.8,
+          "max": 2.9
+        },
+        "drawPrepared": {
+          "n": 36,
+          "ms": 227.8,
+          "max": 35.2
+        },
+        "bakeBatch": {
+          "n": 9,
+          "ms": 2921,
+          "max": 993.7
+        }
+      },
+      "firstPaints": [
+        {
+          "t": 6896.9000000059605,
+          "calls": 36,
+          "pics": 0,
+          "exact": 0,
+          "missing": 36,
+          "notExact": [
+            "rug",
+            "rug",
+            "sofa",
+            "tv",
+            "table",
+            "chair",
+            "chair",
+            "chair",
+            "coffee",
+            "armchair",
+            "art",
+            "bed",
+            "nightstand",
+            "art",
+            "wardrobe",
+            "dresser",
+            "wallMirror",
+            "fridge",
+            "base",
+            "sink",
+            "dishwasher",
+            "base",
+            "cooktop",
+            "oven",
+            "bunk",
+            "desk",
+            "officeChair",
+            "laptop",
+            "wardrobe",
+            "bookshelf",
+            "shower",
+            "toilet",
+            "vanity",
+            "floorLamp",
+            "tableLamp",
+            "tableLamp"
+          ],
+          "missingTypes": [
+            "rug(no vspan)",
+            "rug(no vspan)",
+            "sofa(no vspan)",
+            "tv(no vspan)",
+            "table(no vspan)",
+            "chair(no vspan)",
+            "chair(no vspan)",
+            "chair(no vspan)",
+            "coffee(no vspan)",
+            "armchair(no vspan)",
+            "art(no vspan)",
+            "bed(no vspan)",
+            "nightstand(no vspan)",
+            "art(no vspan)",
+            "wardrobe(no vspan)",
+            "dresser(no vspan)",
+            "wallMirror(no vspan)",
+            "fridge(no vspan)",
+            "base(no vspan)",
+            "sink(no vspan)",
+            "dishwasher(no vspan)",
+            "base(no vspan)",
+            "cooktop(no vspan)",
+            "oven(no vspan)",
+            "bunk(no vspan)",
+            "desk(no vspan)",
+            "officeChair(no vspan)",
+            "laptop(no vspan)",
+            "wardrobe(no vspan)",
+            "bookshelf(no vspan)",
+            "shower(no vspan)",
+            "toilet(no vspan)",
+            "vanity(no vspan)",
+            "floorLamp",
+            "tableLamp",
+            "tableLamp"
+          ]
+        },
+        {
+          "t": 7586.4000000059605,
+          "calls": 36,
+          "pics": 0,
+          "exact": 0,
+          "missing": 36,
+          "notExact": [
+            "rug",
+            "rug",
+            "sofa",
+            "tv",
+            "table",
+            "chair",
+            "chair",
+            "chair",
+            "coffee",
+            "armchair",
+            "art",
+            "bed",
+            "nightstand",
+            "art",
+            "wardrobe",
+            "dresser",
+            "wallMirror",
+            "fridge",
+            "base",
+            "sink",
+            "dishwasher",
+            "base",
+            "cooktop",
+            "oven",
+            "bunk",
+            "desk",
+            "officeChair",
+            "laptop",
+            "wardrobe",
+            "bookshelf",
+            "shower",
+            "toilet",
+            "vanity",
+            "floorLamp",
+            "tableLamp",
+            "tableLamp"
+          ],
+          "missingTypes": [
+            "rug",
+            "rug",
+            "sofa",
+            "tv",
+            "table",
+            "chair",
+            "chair",
+            "chair",
+            "coffee",
+            "armchair",
+            "art",
+            "bed",
+            "nightstand",
+            "art",
+            "wardrobe",
+            "dresser",
+            "wallMirror",
+            "fridge",
+            "base",
+            "sink",
+            "dishwasher",
+            "base",
+            "cooktop",
+            "oven",
+            "bunk",
+            "desk",
+            "officeChair",
+            "laptop",
+            "wardrobe",
+            "bookshelf",
+            "shower",
+            "toilet",
+            "vanity",
+            "floorLamp",
+            "tableLamp",
+            "tableLamp"
+          ]
+        },
+        {
+          "t": 8069.0999999940395,
+          "calls": 36,
+          "pics": 4,
+          "exact": 4,
+          "missing": 32,
+          "notExact": [
+            "tv",
+            "table",
+            "chair",
+            "chair",
+            "chair",
+            "coffee",
+            "armchair",
+            "art",
+            "nightstand",
+            "art",
+            "wardrobe",
+            "dresser",
+            "wallMirror",
+            "fridge",
+            "base",
+            "sink",
+            "dishwasher",
+            "base",
+            "cooktop",
+            "oven",
+            "bunk",
+            "desk",
+            "officeChair",
+            "laptop",
+            "wardrobe",
+            "bookshelf",
+            "shower",
+            "toilet",
+            "vanity",
+            "floorLamp",
+            "tableLamp",
+            "tableLamp"
+          ],
+          "missingTypes": [
+            "tv",
+            "table",
+            "chair",
+            "chair",
+            "chair",
+            "coffee",
+            "armchair",
+            "art",
+            "nightstand",
+            "art",
+            "wardrobe",
+            "dresser",
+            "wallMirror",
+            "fridge",
+            "base",
+            "sink",
+            "dishwasher",
+            "base",
+            "cooktop",
+            "oven",
+            "bunk",
+            "desk",
+            "officeChair",
+            "laptop",
+            "wardrobe",
+            "bookshelf",
+            "shower",
+            "toilet",
+            "vanity",
+            "floorLamp",
+            "tableLamp",
+            "tableLamp"
+          ]
+        }
+      ],
+      "trace": [
+        "2323:36,false,false,true,0",
+        "2449:36,false,true,false,0",
+        "2781:32,true,true,false,0",
+        "2988:36,true,true,false,0",
+        "3470:36,true,true,false,4",
+        "3486:28,true,true,false,4",
+        "3771:28,true,true,false,8",
+        "3791:24,true,true,false,8",
+        "4071:24,true,true,false,11",
+        "4085:20,true,true,false,11",
+        "4453:20,true,true,false,15",
+        "4472:16,true,true,false,15",
+        "4591:16,true,true,false,19",
+        "4602:12,true,true,false,19",
+        "4763:12,true,true,false,22",
+        "4767:8,true,true,false,22",
+        "4996:8,true,true,false,26",
+        "5000:4,true,true,false,26",
+        "5141:4,true,true,false,28",
+        "5152:0,false,true,false,28",
+        "5471:0,false,true,false,32"
+      ],
+      "bakes": [
+        [
+          "sofa",
+          3413,
+          3419
+        ],
+        [
+          "rug",
+          3423,
+          3424
+        ],
+        [
+          "bed",
+          3429,
+          3436
+        ],
+        [
+          "rug",
+          3456,
+          3457
+        ],
+        [
+          "bunk",
+          3705,
+          3740
+        ],
+        [
+          "tv",
+          3740,
+          3742
+        ],
+        [
+          "table",
+          3749,
+          3753
+        ],
+        [
+          "desk",
+          3755,
+          3760
+        ],
+        [
+          "wardrobe",
+          4030,
+          4035
+        ],
+        [
+          "dresser",
+          4038,
+          4046
+        ],
+        [
+          "wardrobe",
+          4049,
+          4052
+        ],
+        [
+          "coffee",
+          4055,
+          4058
+        ],
+        [
+          "armchair",
+          4405,
+          4410
+        ],
+        [
+          "shower",
+          4414,
+          4416
+        ],
+        [
+          "sink",
+          4424,
+          4437
+        ],
+        [
+          "bookshelf",
+          4438,
+          4445
+        ],
+        [
+          "art",
+          4558,
+          4560
+        ],
+        [
+          "art",
+          4564,
+          4565
+        ],
+        [
+          "fridge",
+          4572,
+          4579
+        ],
+        [
+          "toilet",
+          4581,
+          4583
+        ],
+        [
+          "wallMirror",
+          4714,
+          4716
+        ],
+        [
+          "base",
+          4724,
+          4729
+        ],
+        [
+          "dishwasher",
+          4731,
+          4748
+        ],
+        [
+          "base",
+          4748,
+          4752
+        ],
+        [
+          "cooktop",
+          4951,
+          4956
+        ],
+        [
+          "oven",
+          4959,
+          4965
+        ],
+        [
+          "officeChair",
+          4966,
+          4968
+        ],
+        [
+          "vanity",
+          4973,
+          4987
+        ],
+        [
+          "chair",
+          5108,
+          5115
+        ],
+        [
+          "chair",
+          5115,
+          5121
+        ],
+        [
+          "chair",
+          5123,
+          5128
+        ],
+        [
+          "nightstand",
+          5131,
+          5137
+        ],
+        [
+          "floorLamp",
+          5390,
+          5414
+        ],
+        [
+          "laptop",
+          5442,
+          5444
+        ],
+        [
+          "tableLamp",
+          5450,
+          5452
+        ],
+        [
+          "tableLamp",
+          5457,
+          5458
+        ]
+      ],
+      "longestStretch": {
+        "ms": 1277.3,
+        "byAppFrame": [
+          [
+            "renderScene js/view3d.js:1167",
+            1063.9
+          ],
+          [
+            "prefilterInto js/sky_model.js:70",
+            48.3
+          ],
+          [
+            "(no app frame)",
+            48.1
+          ],
+          [
+            "box js/primitives.js:271",
+            32.4
+          ],
+          [
+            "packPlanMap js/room_bounce.js:217",
+            7.1
+          ],
+          [
+            "precompilePmrem js/offscreen_gl.js:56",
+            6.4
+          ]
+        ],
+        "bySelf": [
+          [
+            "_copyImageToTexture vendor/three/three.webgpu.js:77184",
+            91.1
+          ],
+          [
+            "build vendor/three/three.webgpu.js:2212",
+            81.4
+          ],
+          [
+            "getDataFromNode vendor/three/three.webgpu.js:52303",
+            47.4
+          ],
+          [
+            "(garbage collector) :0",
+            39.9
+          ],
+          [
+            "_getChildren vendor/three/three.webgpu.js:1737",
+            37.3
+          ],
+          [
+            "createBuffer :0",
+            27.7
+          ]
+        ]
+      },
+      "profile": {
+        "busyMs": 4232,
+        "idleMs": 4422.5,
+        "top": [
+          [
+            "build vendor/three/three.webgpu.js:2212",
+            223.1
+          ],
+          [
+            "(garbage collector) :0",
+            153.9
+          ],
+          [
+            "getDataFromNode vendor/three/three.webgpu.js:52303",
+            132.2
+          ],
+          [
+            "_getChildren vendor/three/three.webgpu.js:1737",
+            108.5
+          ],
+          [
+            "_copyImageToTexture vendor/three/three.webgpu.js:77184",
+            93.6
+          ],
+          [
+            "angleTo vendor/three/three.core.js:5713",
+            90
+          ],
+          [
+            "getUv vendor/three/addons/geometries/RoundedBoxGeometry.js:8",
+            89.9
+          ],
+          [
+            "createImageBitmap :0",
+            78.5
+          ],
+          [
+            "getChildren vendor/three/three.webgpu.js:1686",
+            59.5
+          ],
+          [
+            "analyze vendor/three/three.webgpu.js:2097",
+            58
+          ]
+        ]
+      }
+    },
+    "sprites_zoom": {
+      "scFrom": 0.573,
+      "scTo": 2.415,
+      "zoomGestureMs": 182,
+      "allExactAfterZoomMs": 2213,
+      "timedOut": false,
+      "after": {
+        "cache": 78,
+        "queue": 0,
+        "ahead": 32,
+        "baking": false,
+        "persisted": 0,
+        "toPersist": 78,
+        "failed": 0,
+        "vspanPending": 0,
+        "cacheMB": 12.1
+      },
+      "long": {
+        "count": 1,
+        "longestMs": 288,
+        "totalMs": 288
+      },
+      "counters": {
+        "baseVSpan": {
+          "n": 738,
+          "ms": 0.3,
+          "max": 0.1
+        },
+        "itemSprite": {
+          "n": 540,
+          "ms": 8.1,
+          "max": 0.2
+        },
+        "drawItemPresentation": {
+          "n": 540,
+          "ms": 16,
+          "max": 0.2
+        },
+        "renderModel": {
+          "n": 15,
+          "ms": 80.2,
+          "max": 13.1
+        },
+        "mepSignature": {
+          "n": 67,
+          "ms": 8.5,
+          "max": 0.3
+        },
+        "getMEPState": {
+          "n": 67,
+          "ms": 8.8,
+          "max": 0.3
+        },
+        "drawMEP": {
+          "n": 67,
+          "ms": 75.2,
+          "max": 1.9
+        },
+        "renderHUD": {
+          "n": 67,
+          "ms": 92.2,
+          "max": 4.3
+        },
+        "drawPrepared": {
+          "n": 44,
+          "ms": 315,
+          "max": 33
+        },
+        "bakeBatch": {
+          "n": 11,
+          "ms": 2500.3,
+          "max": 580.4
+        }
+      },
+      "longestStretch": {
+        "ms": 317,
+        "byAppFrame": [
+          [
+            "snap js/thumbs.js:177",
+            284.3
+          ],
+          [
+            "(no app frame)",
+            13.6
+          ],
+          [
+            "bakeBatch__p js/plan_sprites.js:480",
+            5.7
+          ],
+          [
+            "box js/primitives.js:271",
+            3.9
+          ],
+          [
+            "smallBadge js/mep/clashes.js:454",
+            1.2
+          ],
+          [
+            "prepare js/plan_sprites.js:409",
+            1.1
+          ]
+        ],
+        "bySelf": [
+          [
+            "toDataURL :0",
+            237.6
+          ],
+          [
+            "build vendor/three/three.webgpu.js:2212",
+            10.9
+          ],
+          [
+            "_getChildren vendor/three/three.webgpu.js:1737",
+            4.3
+          ],
+          [
+            "getDataFromNode vendor/three/three.webgpu.js:52303",
+            4.2
+          ],
+          [
+            "(garbage collector) :0",
+            3.9
+          ],
+          [
+            "getNodeFromHash vendor/three/three.webgpu.js:51418",
+            2.3
+          ]
+        ]
+      },
+      "profile": {
+        "busyMs": 1716.3,
+        "idleMs": 878.5,
+        "top": [
+          [
+            "toDataURL :0",
+            237.6
+          ],
+          [
+            "build vendor/three/three.webgpu.js:2212",
+            105.6
+          ],
+          [
+            "getDataFromNode vendor/three/three.webgpu.js:52303",
+            68.8
+          ],
+          [
+            "(garbage collector) :0",
+            63.3
+          ],
+          [
+            "createImageBitmap :0",
+            61.1
+          ],
+          [
+            "_getChildren vendor/three/three.webgpu.js:1737",
+            39.2
+          ],
+          [
+            "build vendor/three/three.webgpu.js:2816",
+            24
+          ],
+          [
+            "analyze vendor/three/three.webgpu.js:2097",
+            23.3
+          ],
+          [
+            "build vendor/three/three.webgpu.js:8958",
+            23.2
+          ],
+          [
+            "querySelector :0",
+            23.2
+          ]
+        ]
+      }
+    },
+    "sprites_warm": {
+      "waitMs": 3000,
+      "before": {
+        "cache": 32,
+        "queue": 0,
+        "ahead": 13,
+        "baking": false,
+        "persisted": 99,
+        "toPersist": 0,
+        "failed": 0,
+        "vspanPending": 0,
+        "cacheMB": 0.6,
+        "queued": [
+          "fridge",
+          "base",
+          "sink",
+          "dishwasher",
+          "base",
+          "cooktop",
+          "oven",
+          "officeChair",
+          "wardrobe",
+          "bookshelf",
+          "shower",
+          "toilet",
+          "vanity"
+        ]
+      },
+      "persistedAtSwitch": 36,
+      "itemsAtSwitch": 44,
+      "firstPictureMs": 1,
+      "allPicturesMs": 1,
+      "timedOut": false,
+      "lastPaint": {
+        "t": 6219.5,
+        "calls": 36,
+        "pics": 36,
+        "exact": 36,
+        "missing": 0
+      },
+      "paints": 1,
+      "after": {
+        "cache": 32,
+        "queue": 0,
+        "ahead": 13,
+        "baking": false,
+        "persisted": 99,
+        "toPersist": 0,
+        "failed": 0,
+        "vspanPending": 0,
+        "cacheMB": 0.6
+      },
+      "long": {
+        "count": 0,
+        "longestMs": 0,
+        "totalMs": 0
+      },
+      "counters": {
+        "baseVSpan": {
+          "n": 47,
+          "ms": 0,
+          "max": 0
+        },
+        "itemSprite": {
+          "n": 36,
+          "ms": 0.4,
+          "max": 0.1
+        },
+        "drawItemPresentation": {
+          "n": 36,
+          "ms": 1.8,
+          "max": 0.2
+        },
+        "renderModel": {
+          "n": 1,
+          "ms": 24.2,
+          "max": 24.2
+        },
+        "mepSignature": {
+          "n": 3,
+          "ms": 0.4,
+          "max": 0.2
+        },
+        "getMEPState": {
+          "n": 3,
+          "ms": 0.4,
+          "max": 0.2
+        },
+        "drawMEP": {
+          "n": 3,
+          "ms": 3.6,
+          "max": 1.5
+        },
+        "renderHUD": {
+          "n": 3,
+          "ms": 4.2,
+          "max": 1.7
+        }
+      },
+      "firstPaints": [
+        {
+          "t": 6219.5,
+          "calls": 36,
+          "pics": 36,
+          "exact": 36,
+          "missing": 0
+        }
+      ],
+      "trace": [
+        "43:0,false,true,false,32"
+      ],
+      "bakes": []
+    },
+    "mep_2d_idle": {
+      "seconds": 3.02,
+      "rafFps": 116.1,
+      "hudPaintsPerSec": 29.5,
+      "hudMsPerPaint": 1.525,
+      "drawMEPMsPerPaint": 1.308,
+      "sigMsPerPaint": 0.165,
+      "modelPaints": 0,
+      "counters": {
+        "mepSignature": {
+          "n": 89,
+          "ms": 14.7,
+          "max": 0.4
+        },
+        "getMEPState": {
+          "n": 89,
+          "ms": 14.8,
+          "max": 0.4
+        },
+        "drawMEP": {
+          "n": 89,
+          "ms": 116.4,
+          "max": 2.5
+        },
+        "renderHUD": {
+          "n": 89,
+          "ms": 135.7,
+          "max": 2.9
+        },
+        "baseVSpan": {
+          "n": 44,
+          "ms": 0,
+          "max": 0
+        },
+        "itemSprite": {
+          "n": 144,
+          "ms": 1.2,
+          "max": 0.1
+        }
+      },
+      "long": {
+        "count": 0,
+        "longestMs": 0,
+        "totalMs": 0
+      },
+      "longestStretch": {
+        "ms": 138.6,
+        "byAppFrame": [
+          [
+            "drawPrepared__p js/plan_sprites.js:458",
+            96.2
+          ],
+          [
+            "(no app frame)",
+            28.3
+          ],
+          [
+            "drawNode js/mep/drawing.js:159",
+            2.3
+          ],
+          [
+            "gameActive js/planner_3d.js:83",
+            1.6
+          ],
+          [
+            "smallBadge js/mep/clashes.js:454",
+            1.1
+          ],
+          [
+            "inkOutline js/plan_sprites.js:529",
+            0.6
+          ]
+        ],
+        "bySelf": [
+          [
+            "build vendor/three/three.webgpu.js:2212",
+            16.6
+          ],
+          [
+            "getDataFromNode vendor/three/three.webgpu.js:52303",
+            14.8
+          ],
+          [
+            "getChildren vendor/three/three.webgpu.js:1686",
+            6.3
+          ],
+          [
+            "_getChildren vendor/three/three.webgpu.js:1737",
+            5.1
+          ],
+          [
+            "(garbage collector) :0",
+            3.9
+          ],
+          [
+            "getShared vendor/three/three.webgpu.js:2007",
+            3.5
+          ]
+        ]
+      },
+      "profile": {
+        "busyMs": 2023.7,
+        "idleMs": 2830.4,
+        "top": [
+          [
+            "build vendor/three/three.webgpu.js:2212",
+            185.5
+          ],
+          [
+            "getDataFromNode vendor/three/three.webgpu.js:52303",
+            130.1
+          ],
+          [
+            "toBlob :0",
+            90.1
+          ],
+          [
+            "(garbage collector) :0",
+            88.2
+          ],
+          [
+            "_getChildren vendor/three/three.webgpu.js:1737",
+            65.7
+          ],
+          [
+            "querySelector :0",
+            55.6
+          ],
+          [
+            "analyze vendor/three/three.webgpu.js:2097",
+            48.3
+          ],
+          [
+            "toDataURL :0",
+            44.8
+          ],
+          [
+            "getChildren vendor/three/three.webgpu.js:1686",
+            44.4
+          ],
+          [
+            "build vendor/three/three.webgpu.js:8958",
+            43.1
+          ]
+        ]
+      }
+    },
+    "mep_2d_drag": {
+      "wall": {
+        "grabbed": "wall",
+        "moves": 30,
+        "moveFrameMs": {
+          "n": 30,
+          "mean": 20.98,
+          "p50": 14.1,
+          "p95": 88.7,
+          "max": 108.4
+        },
+        "calls": {
+          "computeMEPClashes": 8,
+          "computeMEPStatus": 8,
+          "computeMEPFlow": 8,
+          "makeRouter": 0,
+          "mepSignature": 34,
+          "renderPanel": 0,
+          "renderModel": 2
+        },
+        "msPerMove": {
+          "clashes": 0.11,
+          "status": 0.12,
+          "signature": 0.18,
+          "drawMEP": 1.74,
+          "model": 0.45,
+          "hud": 2.7,
+          "panel": 0
+        },
+        "long": {
+          "count": 0,
+          "longestMs": 0,
+          "totalMs": 0
+        }
+      },
+      "device": {
+        "grabbed": "mepNode",
+        "moves": 30,
+        "moveFrameMs": {
+          "n": 30,
+          "mean": 15.99,
+          "p50": 15.3,
+          "p95": 41.1,
+          "max": 44
+        },
+        "calls": {
+          "computeMEPClashes": 2,
+          "computeMEPStatus": 2,
+          "computeMEPFlow": 2,
+          "makeRouter": 0,
+          "mepSignature": 34,
+          "renderPanel": 0,
+          "renderModel": 31
+        },
+        "msPerMove": {
+          "clashes": 0.02,
+          "status": 0.03,
+          "signature": 0.14,
+          "drawMEP": 1.45,
+          "model": 4.62,
+          "hud": 1.62,
+          "panel": 0
+        },
+        "long": {
+          "count": 0,
+          "longestMs": 0,
+          "totalMs": 0
+        }
+      },
+      "bed": {
+        "grabbed": "items",
+        "moves": 30,
+        "moveFrameMs": {
+          "n": 30,
+          "mean": 13.24,
+          "p50": 11.9,
+          "p95": 29.2,
+          "max": 42.3
+        },
+        "calls": {
+          "computeMEPClashes": 30,
+          "computeMEPStatus": 30,
+          "computeMEPFlow": 30,
+          "makeRouter": 0,
+          "mepSignature": 32,
+          "renderPanel": 0,
+          "renderModel": 2
+        },
+        "msPerMove": {
+          "clashes": 0.28,
+          "status": 0.38,
+          "signature": 0.15,
+          "drawMEP": 2.58,
+          "model": 0.29,
+          "hud": 2.82,
+          "panel": 0
+        },
+        "long": {
+          "count": 0,
+          "longestMs": 0,
+          "totalMs": 0
+        }
+      },
+      "longestStretch": {
+        "ms": 88,
+        "byAppFrame": [
+          [
+            "(no app frame)",
+            8.1
+          ],
+          [
+            "sketchDiagnostics js/core/rebuild.js:82",
+            6.6
+          ],
+          [
+            "cloneDomain js/core/schema.js:14",
+            6.1
+          ],
+          [
+            "pack js/core/history_value_pool.js:14",
+            2.8
+          ],
+          [
+            "apply js/history.js:197",
+            2.8
+          ],
+          [
+            "holdHiddenRebuild js/view3d/render_loop.js:222",
+            2.2
+          ]
+        ],
+        "bySelf": [
+          [
+            "getBoundingClientRect :0",
+            8.1
+          ],
+          [
+            "sketchDiagnostics js/core/rebuild.js:82",
+            6.6
+          ],
+          [
+            "cloneDomain js/core/schema.js:14",
+            5
+          ],
+          [
+            "pack js/core/history_value_pool.js:14",
+            2.8
+          ],
+          [
+            "apply js/history.js:197",
+            2.8
+          ],
+          [
+            "querySelector :0",
+            2.3
+          ]
+        ]
+      },
+      "profile": {
+        "busyMs": 1132.1,
+        "idleMs": 1653.5,
+        "top": [
+          [
+            "querySelector :0",
+            56.9
+          ],
+          [
+            "build vendor/three/three.webgpu.js:2212",
+            35.2
+          ],
+          [
+            "(garbage collector) :0",
+            27.8
+          ],
+          [
+            "(anon) js/wall_types.js:165",
+            23.5
+          ],
+          [
+            "stroke :0",
+            20.6
+          ],
+          [
+            "getClientRects :0",
+            19.9
+          ],
+          [
+            "getBoundingClientRect :0",
+            17.7
+          ],
+          [
+            "paintPlanner3D js/planner_3d.js:236",
+            16.6
+          ],
+          [
+            "fill :0",
+            16.2
+          ],
+          [
+            "getDataFromNode vendor/three/three.webgpu.js:52303",
+            15.8
+          ]
+        ]
+      }
+    },
+    "mep_route": {
+      "started": true,
+      "moves": 30,
+      "moveFrameMs": {
+        "n": 30,
+        "mean": 17.34,
+        "p50": 14.2,
+        "p95": 46.9,
+        "max": 75.2
+      },
+      "calls": {
+        "makeRouter": 23,
+        "wallPath": 23,
+        "routeResolve": 30,
+        "renderModel": 29
+      },
+      "msPerMove": {
+        "makeRouter": 0.04,
+        "wallPath": 0.08,
+        "routeResolve": 0.07,
+        "model": 4.18,
+        "hud": 1.44
+      },
+      "long": {
+        "count": 0,
+        "longestMs": 0,
+        "totalMs": 0
+      },
+      "longestStretch": {
+        "ms": 296.9,
+        "byAppFrame": [
+          [
+            "box js/primitives.js:271",
+            83.6
+          ],
+          [
+            "(no app frame)",
+            78.1
+          ],
+          [
+            "tagItemPhysicsRole js/view3d/lighting.js:297",
+            11.4
+          ],
+          [
+            "crownGeometry js/primitives.js:253",
+            7.6
+          ],
+          [
+            "cyl js/primitives.js:350",
+            6.5
+          ],
+          [
+            "segCylinder js/mep/drawing.js:446",
+            5.5
+          ]
+        ],
+        "bySelf": [
+          [
+            "getUv vendor/three/addons/geometries/RoundedBoxGeometry.js:8",
+            48.1
+          ],
+          [
+            "RoundedBoxGeometry vendor/three/addons/geometries/RoundedBoxGeometry.js:65",
+            16.4
+          ],
+          [
+            "setFromBufferAttribute vendor/three/three.core.js:15803",
+            9.7
+          ],
+          [
+            "convertBufferAttribute vendor/three/three.core.js:19299",
+            9.3
+          ],
+          [
+            "getDataFromNode vendor/three/three.webgpu.js:52303",
+            7.1
+          ],
+          [
+            "build vendor/three/three.webgpu.js:2212",
+            6.7
+          ]
+        ]
+      },
+      "profile": {
+        "busyMs": 628.8,
+        "idleMs": 381,
+        "top": [
+          [
+            "getUv vendor/three/addons/geometries/RoundedBoxGeometry.js:8",
+            49.2
+          ],
+          [
+            "(garbage collector) :0",
+            33.2
+          ],
+          [
+            "(anon) js/wall_types.js:165",
+            19.4
+          ],
+          [
+            "RoundedBoxGeometry vendor/three/addons/geometries/RoundedBoxGeometry.js:65",
+            18
+          ],
+          [
+            "build vendor/three/three.webgpu.js:2212",
+            14.6
+          ],
+          [
+            "getDataFromNode vendor/three/three.webgpu.js:52303",
+            14.6
+          ],
+          [
+            "roomMeasurements js/room_summary.js:6",
+            14.5
+          ],
+          [
+            "querySelector :0",
+            12.1
+          ],
+          [
+            "convertBufferAttribute vendor/three/three.core.js:19299",
+            11.4
+          ],
+          [
+            "setFromBufferAttribute vendor/three/three.core.js:15803",
+            11.3
+          ]
+        ]
+      }
+    },
+    "mep_3d": {
+      "system": "power",
+      "withMEP": {
+        "drawCalls": 847,
+        "renders": 78
+      },
+      "withMEPNoXray": {
+        "drawCalls": 800,
+        "renders": 90
+      },
+      "withoutMEP": {
+        "drawCalls": 788,
+        "renders": 90
+      },
+      "mepMeshes": {
+        "meshes": 59,
+        "instanced": 0,
+        "kinds": {
+          "opaque-merged/ro0": 12,
+          "transparent/ro20": 47
+        },
+        "xray": {
+          "walls": false,
+          "floor": true,
+          "ceiling": false
+        }
+      },
+      "allMeshes": {
+        "meshes": 897,
+        "instanced": 0
+      },
+      "rebuild": {
+        "itemSig": {
+          "n": 46,
+          "ms": 1.9,
+          "max": 0.1
+        },
+        "syncItems": {
+          "n": 1,
+          "ms": 3.5,
+          "max": 3.5
+        },
+        "buildMEP3D": {
+          "n": 1,
+          "ms": 7.3,
+          "max": 7.3
+        },
+        "rebuild3D": {
+          "n": 1,
+          "ms": 31.9,
+          "max": 31.9
+        }
+      },
+      "toggleOff": {
+        "via": "button",
+        "ms": 76,
+        "drawnMs": 32,
+        "frames": 1,
+        "renders": [
+          12.2,
+          12.3,
+          0.1,
+          0.1,
+          12.5,
+          12.7,
+          5.1,
+          5.2
+        ],
+        "counters": {
+          "mepSignature": {
+            "n": 7,
+            "ms": 1.2,
+            "max": 0.3
+          },
+          "getMEPState": {
+            "n": 7,
+            "ms": 1.2,
+            "max": 0.3
+          },
+          "renderPanel": {
+            "n": 2,
+            "ms": 3.2,
+            "max": 1.7
+          },
+          "buildMEP3D": {
+            "n": 1,
+            "ms": 3.9,
+            "max": 3.9
+          },
+          "rebuildMEP3D": {
+            "n": 1,
+            "ms": 5.8,
+            "max": 5.8
+          },
+          "drawMEP": {
+            "n": 1,
+            "ms": 0.7,
+            "max": 0.7
+          },
+          "renderModel": {
+            "n": 1,
+            "ms": 5.5,
+            "max": 5.5
+          },
+          "renderHUD": {
+            "n": 1,
+            "ms": 0.3,
+            "max": 0.3
+          }
+        }
+      },
+      "toggleOn": {
+        "via": "button",
+        "ms": 85,
+        "drawnMs": 38,
+        "frames": 1,
+        "renders": [
+          8.5,
+          8.7,
+          0.1,
+          0.1,
+          8.8,
+          8.8,
+          4.1,
+          4.1
+        ],
+        "counters": {
+          "mepSignature": {
+            "n": 7,
+            "ms": 0.7,
+            "max": 0.2
+          },
+          "getMEPState": {
+            "n": 7,
+            "ms": 0.8,
+            "max": 0.2
+          },
+          "renderPanel": {
+            "n": 2,
+            "ms": 2.1,
+            "max": 1.2
+          },
+          "buildMEP3D": {
+            "n": 1,
+            "ms": 7.9,
+            "max": 7.9
+          },
+          "rebuildMEP3D": {
+            "n": 1,
+            "ms": 11.7,
+            "max": 11.7
+          },
+          "drawMEP": {
+            "n": 1,
+            "ms": 1.4,
+            "max": 1.4
+          },
+          "renderModel": {
+            "n": 1,
+            "ms": 6,
+            "max": 6
+          },
+          "renderHUD": {
+            "n": 1,
+            "ms": 0.2,
+            "max": 0.2
+          }
+        }
+      }
+    },
+    "planner_rebuild": {
+      "items": 44,
+      "pipelinesAfterFirstCompile": {
+        "createShaderModule": 67,
+        "createRenderPipeline": 37,
+        "createRenderPipelineAsync": 15
+      },
+      "meshes": {
+        "meshes": 897,
+        "instanced": 0
+      },
+      "itemMeshes": {
+        "meshes": 672,
+        "instanced": 0
+      },
+      "runs": [
+        {
+          "rebuild3D": 31.5,
+          "items": 3.3,
+          "mep": 7.3,
+          "structure": 20.9,
+          "itemSig": {
+            "n": 46,
+            "ms": 1.6,
+            "max": 0.2
+          }
+        },
+        {
+          "rebuild3D": 31.7,
+          "items": 3.4,
+          "mep": 9.5,
+          "structure": 18.8,
+          "itemSig": {
+            "n": 46,
+            "ms": 1.6,
+            "max": 0.1
+          }
+        },
+        {
+          "rebuild3D": 29.9,
+          "items": 4.7,
+          "mep": 7.1,
+          "structure": 18.1,
+          "itemSig": {
+            "n": 46,
+            "ms": 1.4,
+            "max": 0.1
+          }
+        }
+      ],
+      "big": {
+        "items": 132,
+        "pipelinesAfterFirstCompile": {
+          "createShaderModule": 83,
+          "createRenderPipeline": 52,
+          "createRenderPipelineAsync": 15
+        },
+        "meshes": {
+          "meshes": 2616,
+          "instanced": 0
+        },
+        "itemMeshes": {
+          "meshes": 2016,
+          "instanced": 0
+        },
+        "runs": [
+          {
+            "rebuild3D": 299.1,
+            "items": 236.5,
+            "mep": 8.6,
+            "structure": 54,
+            "itemSig": {
+              "n": 234,
+              "ms": 9.8,
+              "max": 0.2
+            }
+          },
+          {
+            "rebuild3D": 68.5,
+            "items": 11.4,
+            "mep": 10.1,
+            "structure": 47,
+            "itemSig": {
+              "n": 141,
+              "ms": 5.1,
+              "max": 0.1
+            }
+          },
+          {
+            "rebuild3D": 65.4,
+            "items": 10.5,
+            "mep": 9.3,
+            "structure": 45.6,
+            "itemSig": {
+              "n": 141,
+              "ms": 4.5,
+              "max": 0.2
+            }
+          }
+        ]
+      }
+    },
+    "pres_paint": {
+      "items": 132,
+      "technical": {
+        "fullPaintMs": 9.35,
+        "modelMs": 7.87,
+        "hudMs": 1.09,
+        "drawItemPresentationMs": 0
+      },
+      "presentation": {
+        "fullPaintMs": 8,
+        "modelMs": 6.56,
+        "hudMs": 1.06,
+        "drawItemPresentationMs": 1.35
+      },
+      "pan": {
+        "moves": 20,
+        "modelPaints": 21,
+        "modelPerMove": 1.05,
+        "modelMsPerMove": 7.8,
+        "wallMs": 406
+      },
+      "long": {
+        "count": 0,
+        "longestMs": 0,
+        "totalMs": 0
+      }
+    }
+  },
+  "errors": [],
+  "scene": {
+    "walls": 18,
+    "items": 44,
+    "mepNodes": 71,
+    "mepRuns": 71
+  },
+  "flush": {
+    "waitedMs": 15967,
+    "cache": 99,
+    "queue": 0,
+    "ahead": 0,
+    "baking": false,
+    "persisted": 99,
+    "toPersist": 0,
+    "failed": 0,
+    "vspanPending": 0,
+    "cacheMB": 24.7
+  },
+  "bigScene": {
+    "walls": 54,
+    "items": 132,
+    "mepNodes": 71,
+    "mepRuns": 71
+  },
+  "pageErrors": []
+}

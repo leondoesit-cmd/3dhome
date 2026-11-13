@@ -166,6 +166,21 @@ export function useRig(g, name) {
   g.r.toneMappingExposure = RIG_EXPOSURE[name] != null ? RIG_EXPOSURE[name] : 1;
 }
 
+/* One renderer, two background users: the presentation plan's pictures and
+   the library tiles' warm-up. The plan's pictures go first: while it is
+   baking (js/plan_sprites.js sets this), the warm-up waits between models
+   and before its readback (spritesFirst()).
+   Tiles a grid on screen asks for are not held — they are someone's view. */
+let spritesUrgent = false;
+let spriteWaiters = [];
+export function setSpritesUrgent(on) {
+  spritesUrgent = !!on;
+  if (!spritesUrgent && spriteWaiters.length) spriteWaiters.splice(0).forEach(function (resolve) { resolve(); });
+}
+export function spritesFirst() {
+  return spritesUrgent ? new Promise(function (resolve) { spriteWaiters.push(resolve); }) : Promise.resolve();
+}
+
 /* Resolves once the GPU has drained everything submitted so far (texture
    uploads, mipmaps, a compile's work), so a same-task readback that follows
    waits on its own frame only. */

@@ -17,8 +17,11 @@ test("a provisional sprite baked across a texture load is re-queued, not cached"
   assert.match(src, /export function invalidateTexturedSprites\(\) \{\s*texGen\+\+;/);
   const pump = src.match(/async function pump\(\)[\s\S]*?\n}\n/);
   assert.ok(pump, "pump exists");
-  assert.match(pump[0], /const gen = texGen;\s*const sp = await bake\(/);
-  assert.match(pump[0], /if \(sp && sp\.prov && gen !== texGen\) \{[\s\S]*?queue\.set\(bestId, best\);[\s\S]*?\} else if \(sp\) \{\s*store\(/);
+  // pieces bake in batches (bakeBatch): the generation is read before the
+  // batch, and each piece of it that came back provisional across a load is
+  // put back in the queue instead of the cache
+  assert.match(pump[0], /const gen = texGen;\s*const sps = await bakeBatch\(/);
+  assert.match(pump[0], /if \(sp && sp\.prov && gen !== texGen\) \{[\s\S]*?queue\.set\(b\.id, best\);[\s\S]*?\} else if \(sp\) \{\s*store\(/);
 });
 
 test("RC body disposal leaves textures shared with planner materials alone", () => {

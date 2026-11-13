@@ -133,6 +133,34 @@ function baseVSpan(it) {
   vSpanCache.set(key, span);
   return span;
 }
+// baseVSpan()'s rule for turning a built piece's Box3 into its span
+export function spanOfBox(box, it) {
+  return box && box.min && box.max && fin(box.min.y) && fin(box.max.y) && box.max.y > box.min.y
+    ? { lo: box.min.y, hi: box.max.y } : { lo: 0, hi: (it && it.h) || 0 };
+}
+/* A caller that has just built the piece anyway (the presentation-plan
+   picture bake, js/plan_sprites.js) hands its bounding box over, so the
+   piece is not built a second time only to learn its height. `box` is the
+   Box3 of buildItem(group, it) — the same build baseVSpan() measures.
+   Returns true when it was new. */
+export function rememberVSpan(it, box) {
+  if (!it || !FURN[it.type] || !box || !threeLoaded()) return false;
+  return seedVSpan(vSpanKey(it), spanOfBox(box, it));
+}
+/* The cache key of a piece's span, and a span learnt elsewhere under it:
+   the presentation plan keeps each picture's span with the picture on disk,
+   so a reloaded plan knows which pieces hang above the cut without building
+   them. Skipped before three has loaded (baseVSpan() clears the cache when
+   it lands). */
+export function vSpanKeyOf(it) {
+  return it && FURN[it.type] ? vSpanKey(it) : null;
+}
+export function seedVSpan(key, span) {
+  if (!key || !span || !fin(span.lo) || !fin(span.hi) || vSpanCache.has(key) || !threeLoaded()) return false;
+  vSpanCache.set(key, { lo: span.lo, hi: span.hi });
+  toMeasure.delete(key);
+  return true;
+}
 /* `it.elev` re-hangs a piece at a chosen height: it is the world Y of the
    piece's BOTTOM, whatever its builder baked in. Expressing it as an offset
    from the built span (rather than replacing the span with `elev..elev+h`)

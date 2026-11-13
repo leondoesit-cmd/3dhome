@@ -126,6 +126,39 @@ function segSegApproach3D(a0, a1, b0, b1) {
   return { d: Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z), x: (p.x + q.x) / 2,
     y: (p.y + q.y) / 2, yA: p.y, yB: q.y, z: (p.z + q.z) / 2 };
 }
+/* Every pair of runs of different systems, segment against segment, for the
+   closest 3D approach under their clearance. Per run, its 3D vertices, kind
+   and bounding box are worked out once (they used to be rebuilt for every
+   pair and every segment), and a pair or segment pair whose boxes are
+   already farther apart than the clearance is skipped: no segment inside
+   them can come closer than the boxes do, so the answer is the same, in the
+   same order, at a fraction of the work. This runs on every move of a wall,
+   device or bed drag while the MEP layer is shown. */
+function clashRunData(r) {
+  if (!r.pts || r.pts.length < 2) return null;
+  var ys = runPointY(r), pts = [], box = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
+  for (var i = 0; i < r.pts.length; i++) {
+    var p = { x: r.pts[i].x, y: ys[i], z: r.pts[i].z };
+    pts.push(p);
+    if (p.x < box.x0) box.x0 = p.x; if (p.x > box.x1) box.x1 = p.x;
+    if (p.y < box.y0) box.y0 = p.y; if (p.y > box.y1) box.y1 = p.y;
+    if (p.z < box.z0) box.z0 = p.z; if (p.z > box.z1) box.z1 = p.z;
+  }
+  return { r: r, pts: pts, box: box, kind: runKindDef(r.sys, r.k) };
+}
+// Euclidean distance between two axis-aligned boxes (0 when they touch)
+function clashBoxGap(a, b) {
+  var dx = Math.max(0, a.x0 - b.x1, b.x0 - a.x1),
+    dy = Math.max(0, a.y0 - b.y1, b.y0 - a.y1),
+    dz = Math.max(0, a.z0 - b.z1, b.z0 - a.z1);
+  return Math.hypot(dx, dy, dz);
+}
+function clashSegBox(p, q) {
+  return { x0: Math.min(p.x, q.x), x1: Math.max(p.x, q.x), y0: Math.min(p.y, q.y), y1: Math.max(p.y, q.y),
+    z0: Math.min(p.z, q.z), z1: Math.max(p.z, q.z) };
+}
+// a box gap this close to the clearance is left to the exact test
+var CLASH_BOX_SLACK = 1e-3;
 export function computeMEPClashes() {
   var m = ensureMEP(), out = [];
   function clearance(a, b) {
@@ -135,30 +168,39 @@ export function computeMEPClashes() {
     var kind = runKindDef(r.sys, r.k);
     return kind && kind.rect ? r.dia * (kind.hRatio || 0.6) / 2 : r.dia / 2;
   }
+  var data = m.runs.map(clashRunData);
+  var segBoxes = data.map(function (d) {
+    if (!d) return null;
+    var b = [];
+    for (var k = 1; k < d.pts.length; k++) b.push(clashSegBox(d.pts[k - 1], d.pts[k]));
+    return b;
+  });
   for (var i = 0; i < m.runs.length; i++) {
-    var A = m.runs[i];
-    if (!A.pts || A.pts.length < 2) continue;
+    var A = m.runs[i], DA = data[i];
+    if (!DA) continue;
     for (var j = i + 1; j < m.runs.length; j++) {
-      var B = m.runs[j];
-      if (A.sys === B.sys || !B.pts || B.pts.length < 2) continue;
+      var B = m.runs[j], DB = data[j];
+      if (A.sys === B.sys || !DB) continue;
       var gap = clearance(A, B), best = null;
-      var ay = runPointY(A), by = runPointY(B);
-      for (var ia = 1; ia < A.pts.length; ia++) {
-        for (var ib = 1; ib < B.pts.length; ib++) {
-          var a0 = { x: A.pts[ia - 1].x, y: ay[ia - 1], z: A.pts[ia - 1].z };
-          var a1 = { x: A.pts[ia].x, y: ay[ia], z: A.pts[ia].z };
-          var b0 = { x: B.pts[ib - 1].x, y: by[ib - 1], z: B.pts[ib - 1].z };
-          var b1 = { x: B.pts[ib].x, y: by[ib], z: B.pts[ib].z };
+      if (clashBoxGap(DA.box, DB.box) > gap + CLASH_BOX_SLACK) continue;
+      var kindA = DA.kind, kindB = DB.kind, rectPair = (kindA && kindA.rect) || (kindB && kindB.rect);
+      var bothHalf = rectPair ? halfHeight(A) + halfHeight(B) + 2 : 0;
+      for (var ia = 1; ia < DA.pts.length; ia++) {
+        var a0 = DA.pts[ia - 1], a1 = DA.pts[ia], sa = segBoxes[i][ia - 1];
+        if (clashBoxGap(sa, DB.box) > gap + CLASH_BOX_SLACK) continue;
+        for (var ib = 1; ib < DB.pts.length; ib++) {
+          if (clashBoxGap(sa, segBoxes[j][ib - 1]) > gap + CLASH_BOX_SLACK) continue;
+          var b0 = DB.pts[ib - 1], b1 = DB.pts[ib];
           var hit = segSegApproach3D(a0, a1, b0, b1);
           // Ducts are rectangular. Their plan width is not their vertical
           // radius; a cable above a duct can clear its top even when the
           // centre distance is less than half the duct width.
-          var kindA = runKindDef(A.sys, A.k), kindB = runKindDef(B.sys, B.k);
-          var verticalGap = Math.max(0,
-            Math.min(a0.y, a1.y) - Math.max(b0.y, b1.y),
-            Math.min(b0.y, b1.y) - Math.max(a0.y, a1.y));
-          if (hit && ((kindA && kindA.rect) || (kindB && kindB.rect)) &&
-            verticalGap >= halfHeight(A) + halfHeight(B) + 2) continue;
+          if (hit && rectPair) {
+            var verticalGap = Math.max(0,
+              Math.min(a0.y, a1.y) - Math.max(b0.y, b1.y),
+              Math.min(b0.y, b1.y) - Math.max(a0.y, a1.y));
+            if (verticalGap >= bothHalf) continue;
+          }
           if (hit && hit.d < gap && (!best || hit.d < best.d)) best = hit;
         }
       }
