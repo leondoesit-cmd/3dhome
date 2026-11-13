@@ -65,7 +65,7 @@ const PLAN = [
   ["Annotate", [
     ["Mark", [T("Place marker", "ph-map-pin-plus", "act:mkPlace"), T("Duplicate marker", "ph-map-pin-simple-line", "act:mkDup"), T("Reference point", "ph-crosshair", "tool:point"), T("Dimension", "ph-arrows-out-line-horizontal", "pro:dimension"), T("Note", "ph-note-pencil", "pro:note"), T("Symbols", "ph-shapes", "pro:symbols")]],
     ["Style", [T("Plan style", "ph-paint-brush", "act:togglePlanStyle"), T("Layers", "ph-stack-simple", "reveal:#layer-chips"), T("Tool names", "ph-text-aa", "act:toggleToolNames")]],
-    ["Drawings", [T("Drawing 3D", "ph-pencil-ruler", "act:drawing3d"), T("Wall types", "ph-sliders", "act:wallTypeEditor"), T("Wall elevation", "ph-square-split-vertical", "reveal:#w_elev"), T("Section", "ph-knife", "pro:section"), T("Print sheet", "ph-printer", "pro:sheetPrint"), T("Sheet SVG", "ph-file-text", "pro:sheetSvg")]],
+    ["Drawings", [T("Drawing 3D", "ph-pencil-ruler", "act:drawing3d"), T("Wall types", "ph-sliders", "act:wallTypeEditor"), T("Wall elevation", "ph-square-split-vertical", "reveal:#w_elev"), T("Section", "ph-knife", "pro:section"), T("Professional drawing", "ph-certificate", "pro:proDrawing", "", ["drawing sheet", "working drawing", "permit drawing", "DIN", "regional standard"]), T("Print sheet", "ph-printer", "pro:sheetPrint"), T("Sheet SVG", "ph-file-text", "pro:sheetSvg")]],
   ]],
   ["Analyze", [
     ["Quantities", [T("Cost export", "ph-currency-circle-dollar", "act:exportCost"), T("Wall take-off", "ph-list-numbers", "act:exportWallTakeoff"), T("Wall schedule", "ph-table", "act:exportWallSchedule"), T("Cut plan", "ph-bounding-box", "act:cutPlan"), T("Cost estimate", "ph-calculator", "reveal:#costList"), T("Area summary", "ph-chart-pie-slice", "pro:areaSummary")]],
@@ -239,7 +239,7 @@ Object.assign(PRO_HE, {
   "Survey": "מדידת מצב קיים", "Note": "הערה", "Symbols": "סמלים", "Wall elevation": "חזית קיר", "Section": "חתך", "Sheet / PDF": "גיליון / PDF",
   "Cost estimate": "אומדן עלות", "Area summary": "סיכום שטחים", "Code check": "בדיקת תקנות", "Clearances": "מרווחים", "Layout check": "בדיקת פריסה", "Sun & sky": "שמש ושמיים",
   "glTF / Blender": "glTF / Blender", "Walls guide": "מדריך קירות", "Planning guide": "מדריך תכנון",
-  "Centreline": "קו עזר", "Midpoint": "נקודת אמצע", "Dimension": "מידה", "Print sheet": "הדפס גיליון", "Sheet SVG": "גיליון SVG", "IFC": "IFC", "Plan SVG": "תוכנית SVG", "Schedules CSV": "טבלאות CSV", "Text": "טקסט", "Intersection": "חיתוך", "Concentric": "משותף מרכז", "Fix": "קבע", "Equations": "משוואות", "Cone": "חרוט",
+  "Centreline": "קו עזר", "Midpoint": "נקודת אמצע", "Dimension": "מידה", "Print sheet": "הדפס גיליון", "Professional drawing": "שרטוט מקצועי", "Sheet SVG": "גיליון SVG", "IFC": "IFC", "Plan SVG": "תוכנית SVG", "Schedules CSV": "טבלאות CSV", "Text": "טקסט", "Intersection": "חיתוך", "Concentric": "משותף מרכז", "Fix": "קבע", "Equations": "משוואות", "Cone": "חרוט",
   "Ref point": "נקודת ייחוס", "Custom props": "מאפיינים מותאמים", "Custom properties": "מאפיינים מותאמים", "Variables": "משתנים", "Smart mates": "התאמות חכמות", "Material check": "בדיקת חומר",
   "Rebuild errors": "שגיאות בנייה", "Engineering": "הנדסה", "Sheet metal": "פח", "Stock size": "מידת גלם", "To walls": "המר לקירות",
   "Finish preview": "תצוגת גימור", "Use": "שימוש", "Save to library": "שמור לספרייה", "Model library": "ספריית מודלים", "Branch": "ענף", "Export GLB": "ייצוא GLB",

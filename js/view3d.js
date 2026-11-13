@@ -1183,7 +1183,8 @@ function renderScene() {
         var a = S.nodes[w.a], b = S.nodes[w.b];
         if (a && b) segs.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z });
       });
-      drawingOverlay.setPlan(segs, function (cm) { return fmtLen(cm); });
+      // Same text as the plan sheet's wall chains: the drawing unit, no suffix.
+      drawingOverlay.setPlan(segs, function (cm) { return fmtLen(cm, { domain: "plan", suffix: false }); });
       drawingOverlay.setOccluders([structureRoot]);
       drawingOverlay.setOptions(drawingPrefs);
       if (drawingHoverObj && !drawingHoverObj.parent) drawingHoverObj = null;

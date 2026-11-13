@@ -1,9 +1,7 @@
 /* Project display units. Geometry stays in centimetres; every planner readout
    and length field goes through here so a US sheet in feet does not require
    mental conversion on the HUD, the inspector, the project guide, or the plan. */
-import { S } from "./state.js";
 import { t, setDisplayUnitVars, setStaticUnitVars, applyStatic, onLangChange } from "./i18n.js";
-import { planningDisplayUnit } from "./planning_guide.js";
 import { parseLength, formatLength, formatArea, parseArea, toDisplayLength, fromDisplayLength, PLANNING_UNITS } from "./planning_units.js";
 import { getDomainUnit, getDomainDigits, inferDomainFromElementId, loadUnitSettings } from "./unit_settings.js";
 
@@ -18,10 +16,10 @@ function withDisplayOptions(opts) {
 }
 
 export function displayUnit(domain) {
-  if (domain) return getDomainUnit(domain);
-  var gUnit = S && S.workspace && S.workspace.guidance && S.workspace.guidance.details && S.workspace.guidance.details.displayUnit;
-  if (gUnit && gUnit !== "cm") return gUnit;
-  return getDomainUnit("plan");
+  /* The Units settings are the one source. The planning guide's stored
+     displayUnit used to win here, and its Auto choice stored "m", so every
+     readout without a domain spoke metres while the plan spoke cm or mm. */
+  return getDomainUnit(domain || "plan");
 }
 
 export function unitLabel(domain) {

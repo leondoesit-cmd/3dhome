@@ -12,6 +12,7 @@ export const UNIT_DOMAINS = [
   { id: "rooms", icon: "ph-wall", key: "unit_domain_rooms", descKey: "unit_domain_rooms_desc", sampleCm: 380, allowed: ["auto", "m", "cm", "mm", "ft", "in"] },
   { id: "openings", icon: "ph-door", key: "unit_domain_openings", descKey: "unit_domain_openings_desc", sampleCm: 80, sampleExtraCm: 210, allowed: ["auto", "mm", "cm", "m", "in", "ft"] },
   { id: "furniture", icon: "ph-armchair", key: "unit_domain_furniture", descKey: "unit_domain_furniture_desc", sampleCm: 160, sampleExtraCm: 200, allowed: ["auto", "mm", "cm", "m", "in", "ft"] },
+  { id: "cabinet", icon: "ph-hammer", key: "unit_domain_cabinet", descKey: "unit_domain_cabinet_desc", sampleCm: 60, sampleExtraCm: 72, allowed: ["auto", "mm", "cm", "m", "in", "ft"] },
   { id: "mep", icon: "ph-pipe", key: "unit_domain_mep", descKey: "unit_domain_mep_desc", sampleCm: 5, allowed: ["auto", "mm", "cm", "m", "in"] },
   { id: "details", icon: "ph-ruler", key: "unit_domain_details", descKey: "unit_domain_details_desc", sampleCm: 10, allowed: ["auto", "mm", "cm", "m", "in"] },
   { id: "site", icon: "ph-map-pin", key: "unit_domain_site", descKey: "unit_domain_site_desc", sampleCm: 2500, allowed: ["auto", "m", "cm", "ft", "in"] },
@@ -181,28 +182,67 @@ export function detectLocationUnitSystem(settings) {
   };
 }
 
+/* Metric drawings put every building length in ONE unit, the one the local
+   drafting convention dimensions plans in: centimetres in Israel (permit and
+   working drawings: walls 400, partitions 10, doors 90/210), continental
+   Europe and Latin America; millimetres in the UK, Ireland, the Nordics, the
+   Netherlands, Australia/NZ and most of Asia (ISO 129 practice). The old
+   default mixed them - the wall field read "4" (metres) while the plan beside
+   it read 4000 (mm) and the door read 900 (mm) - which no drawing does.
+   Pipes are always mm (DN/Ø), the site is m, areas are m². */
+var CM_DRAFTING_REGIONS = new Set(["IL", "FR", "BE", "LU", "MC", "IT", "SM", "VA", "ES", "AD", "PT", "DE", "AT", "CH", "LI",
+  "PL", "CZ", "SK", "HU", "RO", "GR", "CY", "TR", "BR", "AR", "UY", "PY", "MX", "CL", "CO", "PE", "EC", "VE", "BO"]);
+var CM_DRAFTING_ZONE = /^(?:Asia\/(?:Jerusalem|Tel_Aviv)|Europe\/(?:Paris|Brussels|Luxembourg|Monaco|Rome|San_Marino|Vatican|Madrid|Andorra|Lisbon|Berlin|Busingen|Vienna|Zurich|Vaduz|Warsaw|Prague|Bratislava|Budapest|Bucharest|Athens|Istanbul)|Asia\/(?:Nicosia|Famagusta|Istanbul)|Atlantic\/(?:Canary|Madeira|Azores)|Africa\/Ceuta|America\/(?:Sao_Paulo|Recife|Fortaleza|Bahia|Belem|Maceio|Araguaina|Manaus|Cuiaba|Campo_Grande|Porto_Velho|Boa_Vista|Rio_Branco|Santarem|Noronha|Argentina\/\w+|Buenos_Aires|Montevideo|Asuncion|Mexico_City|Monterrey|Merida|Cancun|Matamoros|Chihuahua|Ciudad_Juarez|Ojinaga|Hermosillo|Mazatlan|Bahia_Banderas|Tijuana|Santiago|Punta_Arenas|Bogota|Lima|Guayaquil|Caracas|La_Paz))$/;
+var CM_DRAFTING_PLACE = /\b(?:israel|france|belgium|luxembourg|italy|spain|portugal|germany|austria|switzerland|poland|czechia|czech republic|slovakia|hungary|romania|greece|cyprus|turkey|t[uü]rkiye|brazil|argentina|uruguay|paraguay|mexico|chile|colombia|peru|ecuador|venezuela|bolivia)\b|ישראל/i;
+var LANGUAGE_REGION = { he: "IL", iw: "IL", fr: "FR", it: "IT", es: "ES", pt: "PT", de: "DE", pl: "PL", cs: "CZ", sk: "SK", hu: "HU", ro: "RO", el: "GR", tr: "TR" };
+
+/**
+ * Which length unit metric drawings are dimensioned in here: "cm" or "mm".
+ * Site label/coordinates first, then the time zone, then the locale; an
+ * unknown place gets ISO's millimetres.
+ */
+export function detectDraftingConvention() {
+  if (S.site && S.site.enabled) {
+    if (S.site.label && CM_DRAFTING_PLACE.test(String(S.site.label))) return "cm";
+    var lat = Number(S.site.lat), lon = Number(S.site.lon);
+    // Israel's land area: the one site box worth hard-coding for this app.
+    if (S.site.lat != null && S.site.lon != null && Number.isFinite(lat) && Number.isFinite(lon) &&
+        lat >= 29.4 && lat <= 33.4 && lon >= 34.2 && lon <= 35.95) return "cm";
+  }
+  var tz = detectTimezoneUnitSystem();
+  if (tz && tz.detail && tz.detail !== "UTC" && tz.detail !== "Etc/UTC") {
+    return CM_DRAFTING_ZONE.test(tz.detail) ? "cm" : "mm";
+  }
+  var nav = typeof navigator !== "undefined" ? navigator : null;
+  var lang = String((nav && (nav.language || (nav.languages && nav.languages[0]))) || "");
+  var m = lang.match(/^([a-z]{2,3})(?:[-_](?:[A-Za-z]{4}[-_])?([A-Za-z]{2}))?/);
+  if (m) {
+    var region = m[2] ? m[2].toUpperCase() : LANGUAGE_REGION[m[1].toLowerCase()];
+    if (region) return CM_DRAFTING_REGIONS.has(region) ? "cm" : "mm";
+  }
+  return "mm";
+}
+
 /**
  * Smart defaults that best suit each menu/part of the app.
- * Metric:
- *   Rooms/Structure: meters (m, 2 decimals)
- *   Openings (doors/windows): millimeters (mm, 0 decimals)
- *   Furniture/Objects: millimeters (mm, 0 decimals)
- *   MEP (plumbing, conduits): millimeters (mm, 0 decimals)
- *   Details (wall thickness, profiles): millimeters (mm, 0 decimals)
- *   Site/Terrain: meters (m, 2 decimals)
- *   Plan 2D & HUD: millimeters (mm, 0 decimals)
- *   Area: square meters (m²)
+ * Metric ("cm" or "mm" drafting convention, see detectDraftingConvention):
+ *   Rooms, plan, openings, furniture, details: the convention's unit
+ *   Cabinet designer (shop drawings, cut lists): millimetres
+ *   MEP (pipe sizes): millimetres
+ *   Site/Terrain: metres (m, 2 decimals)
+ *   Area: square metres (m²)
  * Imperial:
  *   Rooms/Site/Plan: feet (ft)
  *   Openings/Furniture/MEP/Details: inches (in)
  *   Area: square feet (sqft)
  */
-export function getSmartDefaults(system) {
+export function getSmartDefaults(system, convention) {
   if (system === "imperial") {
     return {
       rooms: { unit: "ft", digits: 1 },
       openings: { unit: "in", digits: 1 },
       furniture: { unit: "in", digits: 1 },
+      cabinet: { unit: "in", digits: 2 },
       mep: { unit: "in", digits: 2 },
       details: { unit: "in", digits: 2 },
       site: { unit: "ft", digits: 1 },
@@ -210,14 +250,20 @@ export function getSmartDefaults(system) {
       area: { unit: "sqft", digits: 1 },
     };
   }
+  var u = convention === "mm" ? "mm" : "cm";
+  // Centimetre drawings write half-centimetres (plaster 1.5, a 2.5 joint).
+  var d = u === "cm" ? 1 : 0;
   return {
-    rooms: { unit: "m", digits: 2 },
-    openings: { unit: "mm", digits: 0 },
-    furniture: { unit: "mm", digits: 0 },
+    rooms: { unit: u, digits: d },
+    openings: { unit: u, digits: d },
+    furniture: { unit: u, digits: d },
+    // Cabinet shop drawings and cut lists are millimetres in every metric
+    // country, Israel's carpentry shops included; the planner's sheet is not.
+    cabinet: { unit: "mm", digits: 0 },
     mep: { unit: "mm", digits: 0 },
-    details: { unit: "mm", digits: 0 },
+    details: { unit: u, digits: d },
     site: { unit: "m", digits: 2 },
-    plan: { unit: "mm", digits: 0 },
+    plan: { unit: u, digits: d },
     area: { unit: "m2", digits: 2 },
   };
 }
@@ -233,6 +279,7 @@ export function defaultUnitSettings() {
       rooms: { unit: "auto", digits: "auto" },
       openings: { unit: "auto", digits: "auto" },
       furniture: { unit: "auto", digits: "auto" },
+      cabinet: { unit: "auto", digits: "auto" },
       mep: { unit: "auto", digits: "auto" },
       details: { unit: "auto", digits: "auto" },
       site: { unit: "auto", digits: "auto" },
@@ -351,7 +398,7 @@ export function resetAllUnitSettings() {
 export function getDomainConfig(domain) {
   var settings = loadUnitSettings();
   var detected = detectLocationUnitSystem(settings);
-  var smart = getSmartDefaults(detected.system);
+  var smart = getSmartDefaults(detected.system, detected.system === "metric" ? detectDraftingConvention() : null);
   var dom = domain || "plan";
 
   var preset = settings.preset || "auto";
@@ -370,7 +417,8 @@ export function getDomainConfig(domain) {
     unit = ov.unit !== "auto" ? ov.unit : def.unit;
     digits = ov.digits !== "auto" ? ov.digits : def.digits;
   } else if (effectivePreset === "metric_arch") {
-    var archDefaults = getSmartDefaults("metric");
+    // Architectural metric is the centimetre plan convention.
+    var archDefaults = getSmartDefaults("metric", "cm");
     var aDef = archDefaults[dom] || { unit: "cm", digits: 0 };
     unit = ov.unit !== "auto" ? ov.unit : aDef.unit;
     digits = ov.digits !== "auto" ? ov.digits : aDef.digits;
@@ -424,7 +472,8 @@ export function inferDomainFromElementId(id) {
   if (/^w_(?:th|bulge|corner_value)/.test(id)) return "details";
   if (/^(?:mdDim|mdGrid|mdDepth|mdBase|mdWallWidth)/.test(id)) return "details";
   if (/^(?:w_(?:len|h|top_|base_)|r_(?:w|d)|sv_)/.test(id)) return "rooms";
-  if (/^(?:i_(?:w|d|h|elev)|mk_|cb[WDH]|cb_)/.test(id)) return "furniture";
+  if (/^(?:cb[WDH]|cb_)/.test(id)) return "cabinet";
+  if (/^(?:i_(?:w|d|h|elev)|mk_)/.test(id)) return "furniture";
   if (/^mep_/.test(id)) return "mep";
   if (/^site_/.test(id)) return "site";
   if (/^(?:inLen|inOff|cadLen|cadOff|cadAng|nd_|dim_|measure_|con_value)/.test(id)) return "plan";

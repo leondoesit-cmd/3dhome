@@ -8,6 +8,7 @@ import {roomMeasurements} from './room_summary.js';
 import {FURN,vspec} from './furniture.js';
 import {spriteMode} from './plan_sprite_key.js';
 import {activeFloorArea} from './area_snapshot.js';
+import {roomClearArea} from './room_area.js';
 export function drawingSnapshot(){
  const catalog=JSON.parse(JSON.stringify({wallTypes:S.wallTypes||[],walls:[]}));
  const bandsFor=wall=>wallLayerBands(JSON.parse(JSON.stringify(wall)),catalog);
@@ -33,12 +34,20 @@ export function drawingSnapshot(){
 export function sheetSnapshot(){
  const base=drawingSnapshot();
  const typed=S.openings.map((o,i)=>({o,i})).filter(({o})=>S.walls.some(w=>w.id===o.wall));
- const openings=typed.map(({o},k)=>({type:o.type,poly:base.openings[k]})).filter(x=>x.poly&&x.poly.length);
+ const openings=typed.map(({o},k)=>({type:o.type,poly:base.openings[k],width:+o.width||0,height:+o.height||0,sill:+o.sill||0})).filter(x=>x.poly&&x.poly.length);
  const items=S.items.filter(it=>it.w>0&&it.d>0&&FURN[it.type]&&!FURN[it.type].lamp&&spriteMode(it,{lamp:false})==='sprite')
   .map(it=>({type:it.type,x:it.x,z:it.z,w:it.w,d:it.d,rot:it.rot||0,steps:it.steps,shape:vspec(it).shape,configuration:it.configuration?JSON.parse(JSON.stringify(it.configuration)):undefined}));
  let area=null;
  try{const r=activeFloorArea();const m2=(r.indoor||0)+(r.unclassified||0);area={m2:r.unresolved&&!m2?null:m2};}catch(e){area=null;}
  if(area&&area.m2==null)area.m2=detectRooms().reduce((a,r)=>a+r.area/10000,0);
- const floor=S.workspace&&Array.isArray(S.workspace.floors)?S.workspace.floors.find(f=>f.id===S.workspace.activeFloor):null;
- return {wallPolys:base.walls,openings,swings:base.swings,items,rooms:base.rooms,area,floorName:floor?floor.name:''};
+ const floors=S.workspace&&Array.isArray(S.workspace.floors)?S.workspace.floors:[];
+ const floor=floors.find(f=>f.id===S.workspace.activeFloor)||null;
+ // the regional sheet's labels: each room's clear area (m², the reference
+ // polygon where walls do not close a clear rectangle), the storey's level in
+ // cm and its number counted up from the lowest storey (US room numbers 101…)
+ const detected=detectRooms();
+ const rooms=base.rooms.map((r,i)=>{const room=detected[i];let m2=null;try{m2=room?roomClearArea(S,room).area:null;}catch(e){m2=null;}return {...r,area:m2!=null?m2:room?room.area/10000:0};});
+ const order=floors.slice().sort((a,b)=>(+a.elevation||0)-(+b.elevation||0));
+ const floorNumber=floor?order.indexOf(floor)+1:1;
+ return {wallPolys:base.walls,openings,swings:base.swings,items,rooms,area,floorName:floor?floor.name:'',level:floor?+floor.elevation||0:0,floorNumber};
 }

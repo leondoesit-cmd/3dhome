@@ -13,6 +13,7 @@ import { roomTypeOf } from "./room_types.js";
 import { interiorBox, openingSides, polyArea } from "./apartment_rules.js";
 import { activeFloorArea } from "./area_snapshot.js";
 import { normalizeWallKind } from "./wall_curves.js";
+import { stairCodeReport, stairLayout, stairVariantShape } from "./stair_layout.js";
 
 function roomWallIds(room) {
   return (room.wallIds || String(room.key).split(",")).map(String);
@@ -70,14 +71,16 @@ export function planForCodeCheck(state = S) {
   });
 
   const stairs = items.filter((it) => it.type === "stairs").map((it) => {
-    const steps = Number(it.configuration && it.configuration.stepCount) || Number(it.steps) || 10;
-    const shape = (it.configuration && it.configuration.shape) || "straight";
+    // one layout for the plan, the model and this check (js/stair_layout.js);
+    // a legacy flight is measured only when it is straight, a designed one
+    // always (its smallest going, winders at the walking line)
+    const lay = stairLayout(it, stairVariantShape(it.variant));
+    const going = lay.designed ? (stairCodeReport(lay, { minTread: 0 }).find((r) => r.rule === "stairMinTread") || {}).value : null;
     return {
       id: it.id,
-      riser: Number(it.riserHeight) || it.h / steps,
-      // a riser block carries one tread, so a straight flight's going is its
-      // depth over the step count; winders and spirals are not measured here
-      tread: shape === "straight" ? (Number(it.treadDepth) || it.d / steps) : null,
+      riser: Number(it.riserHeight) || lay.riser,
+      tread: lay.designed ? (going > 0 ? going : null)
+        : lay.shape === "straight" ? (Number(it.treadDepth) || lay.going) : null,
     };
   });
   const guards = walls.filter((w) => normalizeWallKind(w) === "railing")

@@ -226,7 +226,7 @@ function drawItemPresentation(it, w, d, isSel) {
     pc.save();
     pc.strokeStyle = "rgba(38,35,31,.85)";
     drawSymbolPrims(symbolPrims("stairs", it.w, it.d, sit).filter(function (p) {
-      return p.k === "text" || (p.k === "line" && p.weight === "heavy");
+      return p.k === "text" || p.walk;
     }), S.SC, it);
     pc.restore();
   }

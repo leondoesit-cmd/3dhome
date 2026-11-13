@@ -818,3 +818,30 @@
 .sh-auto-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .sh-auto-row .sh-auto { flex: 1; }
 
+
+/* ---- stair designer (js/ui_props/stairs.js) ---- */
+.stair-design { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; padding: 8px; border: 1px solid var(--separator); border-radius: 8px; }
+.stair-design .stair-title { font-weight: 600; }
+.stair-design .stair-sub { font-size: max(0.74em, var(--fs-floor, 0px)); color: var(--text-muted); margin-top: 2px; }
+.stair-seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.stair-seg-btn { flex: 1; min-width: 0; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--btn-border); background: var(--btn-bg); cursor: pointer; }
+.stair-seg-btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.stair-seg-btn:disabled { opacity: 0.5; cursor: default; }
+.stair-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.stair-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stair-field input { width: 100%; min-width: 0; }
+.stair-runs { display: flex; flex-direction: column; gap: 4px; }
+.stair-run-row { display: flex; align-items: center; gap: 6px; }
+.stair-run-row input { width: 4.5em; }
+.stair-run-name { min-width: 4.5em; }
+.stair-run-x { padding: 0 8px; border-radius: 6px; border: 1px solid var(--separator); background: var(--btn-bg); cursor: pointer; }
+.stair-turn-row { padding-inline-start: 1.2em; }
+.stair-add { align-self: flex-start; }
+.stair-code { display: flex; flex-direction: column; gap: 3px; padding-top: 4px; border-top: 1px solid var(--separator); }
+.stair-code-title { font-weight: 600; font-size: max(0.8em, var(--fs-floor, 0px)); }
+.stair-code-row { display: grid; grid-template-columns: 1.2em 1fr auto; gap: 4px; align-items: baseline; font-size: max(0.78em, var(--fs-floor, 0px)); }
+.stair-code-row.ok .stair-code-mark { color: var(--success); }
+.stair-code-row.fail { color: var(--danger); }
+.stair-fit.warn { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.stair-code-note { font-size: max(0.7em, var(--fs-floor, 0px)); }
+.stair-bound { flex-direction: column; align-items: stretch; }

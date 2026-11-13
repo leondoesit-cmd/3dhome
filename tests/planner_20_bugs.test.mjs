@@ -68,7 +68,7 @@ test('Bug 1: bulk delete preserves individually pinned and user-layer locked ite
   S.items=[layerLocked,pinned,free,unselected];
   const messages=[];
   const remove=loadFunction('js/interaction.js','applyRemove',{
-    S,refLocked,orphanChildren:()=>{},flash:message=>messages.push(message),t:(_key,params)=>params.n,
+    S,refLocked,orphanChildren:()=>{},removeStairVoids:()=>false,flash:message=>messages.push(message),t:(_key,params)=>params.n,
   });
   assert.equal(remove({kind:'items',refs:[layerLocked,pinned,free]}),true);
   assert.deepEqual(ids(S.items),[1,2,4]);

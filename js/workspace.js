@@ -17,13 +17,13 @@ import {
 import { addConstraint, removeConstraint, applyConstraints } from "./constraints.js";
 import { validateDesign, validationSummary } from "./validator.js";
 import { generateLayouts, applyLayout } from "./layouts.js";
-import { downloadText, toSVG, toDXF, toIFC, toScheduleCSV, toConstructionSVG } from "./exports_pro.js";
-import { printSheetSVG } from "./sheet_print.js";
+import { downloadText, toSVG, toDXF, toIFC, toScheduleCSV } from "./exports_pro.js";
 import { setQualityPreset } from "./view3d.js";
 import { wallCons, conSatisfied, removeCon, setConSuppressed, solveWallCons } from "./wall_constraints.js";
 import { initCollaboration, addComment, toggleResolved, presentScene, setRole } from "./collaboration.js";
 import { NET } from "./net.js";
 import { currentPlanRev } from "./plan_sync.js";
+import { draftText } from "./drafting_strings.js";
 import { t } from "./i18n.js";
 
 configureFloorIO({ sceneObject, applyData });
@@ -44,6 +44,10 @@ function openProjectData(raw) {
 
 let activeTab = "project";
 const editable = () => S.workspace.role !== "viewer";
+// a pro-ribbon command (js/pro_actions.js), loaded on use so this dialog never
+// pulls the ribbon's whole command set into its own import graph
+const proAction = (name) => import("./pro_actions.js").then((m) => m.PRO_ACTIONS[name]());
+
 function button(label, fn, cls) {
   const b = document.createElement("button"); b.type = "button"; b.textContent = label;
   if (cls) b.className = cls; b.onclick = fn; return b;
@@ -303,9 +307,11 @@ export async function openWorkspace(tab) {
   function drawExport() {
     const box = section(t("handoff_title"));
     box.append(row(
-      // the one detailed drawing: dimension strings, fixtures, area line
-      button(t("sheet_export_svg"), () => downloadText("home3d-construction-plan.svg", toConstructionSVG(), "image/svg+xml")),
-      button(t("sheet_print"), () => printSheetSVG(toConstructionSVG(), t("sheet_floor_plan"))),
+      // the one detailed drawing (dimension strings, fixtures, area line) to the
+      // project's drafting standard: the same commands the pro ribbon runs
+      button(draftText("pro_drawing"), () => proAction("proDrawing"), "btn-accent"),
+      button(t("sheet_export_svg"), () => proAction("sheetSvg")),
+      button(t("sheet_print"), () => proAction("sheetPrint")),
       // the marketing plan: textured floors, model pictures, room titles —
       // exported in the presentation style whatever the editor is showing
       button(t("handoff_presentation_png"), async () => {

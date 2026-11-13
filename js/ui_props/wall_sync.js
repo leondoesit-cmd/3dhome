@@ -10,6 +10,8 @@ import { squarableArm } from "../joint_square.js";
 import { markerInfo, markerLabel } from "../markers.js";
 import { render2D } from "../plan2d.js";
 import { S } from "../state.js";
+import { voidDisplayName } from "../stair_strings.js";
+import { fillBoundVoid } from "../ui_props/stairs.js";
 import { syncPinBtn } from "../ui_props/cons.js";
 import { angleSectorAtNode } from "../wall_constraints.js";
 import { select, showPanel, writeInspectorLen } from "../ui_props.js";
@@ -207,13 +209,14 @@ function fillMarker(m) {
 
 function fillSlabVoid(o) {
   showPanel("slabvoid");
-  document.getElementById("selname_sv").textContent = o.name || t("sv_title");
-  document.getElementById("sv_name").value = o.name || "";
+  document.getElementById("selname_sv").textContent = voidDisplayName(o) || t("sv_title");
+  document.getElementById("sv_name").value = voidDisplayName(o);
   writeInspectorLen("sv_x", o.x);
   writeInspectorLen("sv_z", o.z);
   writeInspectorLen("sv_w", o.w);
   writeInspectorLen("sv_d", o.d);
   document.getElementById("sv_rot").value = Math.round(o.rot || 0);
+  fillBoundVoid(o); // a stairwell bound to its flight: where it is, and a way there
 }
 
 /* The corner inspector. A joint had no panel at all — selecting one showed

@@ -2,7 +2,11 @@ import {drawingSnapshot, sheetSnapshot} from "./drawing_snapshot.js";
 import { constructionSheetSVG, sheetBounds } from "./drawing_sheet.js";
 import { sheetLayout } from "./sheet_print.js";
 import { fmtLen, fmtAreaM2, displayUnit } from "./display_units.js";
-import { t } from "./i18n.js";
+import { draftText } from "./drafting_strings.js";
+import { t, getLang } from "./i18n.js";
+import { resolveDraftingStandard, draftingStandard, formatArea } from "./drafting_standards.js";
+import { detectDraftingConvention } from "./unit_settings.js";
+import { openingScheduleSVG } from "./drawing_sheet/schedule.js";
 import {drawingSVG,drawingDXF,drawingBounds} from "./drawing_export.js";
 import { S } from "./state.js";
 import { contentBounds } from "./geometry.js";
@@ -38,30 +42,59 @@ export function toSVG(opts) {
   return wrapPlanSVG(drawingSVG(snapshot,bounds,opts),bounds,Object.assign({name:S.workspace?.name||"Untitled"},opts||{}));
 }
 
+/* The drafting standard this project's sheets are drawn to: the user's pick
+   (S.workspace.draftingStandard), else the one the building-code
+   jurisdiction implies, else the detected drafting unit and UI language. */
+export function currentDraftingStandard(state) {
+  const st = state || S;
+  const ws = st.workspace || {};
+  let convention = null;
+  try { convention = detectDraftingConvention(); } catch (e) { convention = null; }
+  return resolveDraftingStandard({ codeProfileId: ws.codeProfile, convention, lang: getLang(), override: ws.draftingStandard });
+}
+
 /* The construction floor plan (js/drawing_sheet.js) on paper. The paper
    scale decides how many model centimetres a millimetre of margin is, and
-   the margins decide the scale, so the layout is settled in two passes. */
+   the margins decide the scale, so the layout is settled in two passes.
+
+   `opts.standard` (a profile or its id) draws it to a regional drafting
+   standard; left out, the project's resolved standard is used; `null` gives
+   the universal sheet in the editor's display units. `opts.paper` and
+   `opts.scale` (the denominator) pin the sheet and the scale. */
 export function toConstructionSVG(opts) {
-  const o = opts || {};
+  const o = Object.assign({}, opts || {});
+  const std = o.standard === undefined ? currentDraftingStandard()
+    : typeof o.standard === "string" ? draftingStandard(o.standard) : o.standard;
+  if (std) o.standard = std; else delete o.standard;
   const snap = sheetSnapshot();
+  const lang = getLang();
   if (snap.area && snap.area.m2 != null)
-    snap.area.text = t("sheet_living_area", { floor: snap.floorName || t("floor_ground_name"), area: fmtAreaM2(snap.area.m2, { digits: 0 }) });
+    snap.area.text = t("sheet_living_area", { floor: snap.floorName || t("floor_ground_name"), area: std ? formatArea(std, snap.area.m2, lang) : fmtAreaM2(snap.area.m2, { digits: 0 }) });
+  const aside = std && std.openings === "tags" ? openingScheduleSVG(snap.openings, std, {
+    door: draftText("sheet_door_schedule"), window: draftText("sheet_window_schedule"), mark: draftText("sheet_col_mark"),
+    width: draftText("sheet_col_width"), height: draftText("sheet_col_height"), sill: draftText("sheet_col_sill"),
+  }, 30) : null;
+  if (aside) o.aside = aside;
   let k = 5, bounds = null;
   for (let pass = 0; pass < 3; pass++) {
     bounds = sheetBounds(snap, k);
     if (!bounds) break;
-    const next = sheetLayout(bounds, o).cmPerMm;
+    const next = sheetLayout(bounds, aside ? Object.assign({}, o, { asideMm: aside }) : o).cmPerMm;
     if (next === k) break;
     k = next;
   }
   if (!bounds) return wrapPlanSVG("", contentBounds(), o);
-  const fmt = (cm) => fmtLen(cm, { domain: "plan", suffix: false });
-  const inner = constructionSheetSVG(snap, { cmPerMm: k, bounds, fmt, t });
+  const fmt = std ? undefined : (cm) => fmtLen(cm, { domain: "plan", suffix: false });
+  const inner = constructionSheetSVG(snap, { cmPerMm: k, bounds, fmt, t, standard: std || undefined, lang });
+  const unit = std ? draftText("drafting_unit_" + std.units.replace("-", "_")) : t("guide_unit_" + displayUnit("plan"));
   return wrapPlanSVG(inner, bounds, Object.assign({
     name: (S.workspace && S.workspace.name ? S.workspace.name + " — " : "") + t("sheet_floor_plan"),
-    sheet: "A-101",
-    note: t("sheet_note", { unit: t("guide_unit_" + displayUnit("plan")) }),
-  }, o));
+    sheet: std ? std.sheetNumber : "A-101",
+    note: t("sheet_note", { unit }),
+  }, std ? {
+    rtl: !!(std.rtlTitle && lang === "he"),
+    labels: { scale: draftText("sheet_tb_scale"), date: draftText("sheet_tb_date"), sheet: draftText("sheet_tb_sheet") },
+  } : {}, o));
 }
 
 export function toDXF(opts) {

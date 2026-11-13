@@ -1100,7 +1100,7 @@ export function fillBOM() {
     tr.innerHTML =
       "<td>" + roleLabel(r.role) +
       ' <span class="cb-dim">' + Math.round(r.l * 10) + "×" + Math.round(r.w * 10) + "×" + Math.round(r.t * 10) +
-      (r.bandEach ? " · " + T("bandTotal") + " " + r.bandEach.toFixed(2) + "m" : "") +
+      (r.bandEach ? " · " + T("bandTotal") + " " + r.bandEach.toFixed(2) + " m" : "") +
       (sh ? "<br>" + sheetLabel(sh, isEn()) : "") +
       "</span></td><td>" + r.qty + "</td>";
     body.appendChild(tr);
@@ -1152,7 +1152,7 @@ export function exportBOM() {
   });
   rows.push([]);
   var band = bandById(sp().band);
-  rows.push([T("bandTotal") + (band ? " · " + bandLabel(band, isEn()) : ""), "", "", "", bandMeters(E.it) + " m"]);
+  rows.push([T("bandTotal") + (band ? " · " + bandLabel(band, isEn()) : ""), "", "", "", Number(bandMeters(E.it)).toFixed(2) + " m"]);
   rows.push([T("total"), "", "", "", cabPrice(E.it)]);
   var csv = rows
     .map(function (r) {

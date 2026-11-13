@@ -183,6 +183,18 @@ test("a locked turn keeps +90 when the cursor drifts into the opposite quadrant"
   assert.ok(Math.abs(ang - Math.PI / 2) < 0.2, "kept +90°, got " + ((ang * 180) / Math.PI));
 });
 
+test("a locked bearing follows the cursor once it is clear of the corner", () => {
+  resetPlan();
+  resetDrawDirLock();
+  const from = { x: 0, z: 0 };
+  applyDrawDirLock(from, { x: 0, z: 80 });
+  // 30° off the started bearing, well away from the corner: the aim wins
+  const p = { x: 40, z: 69.28 };
+  const steered = applyDrawDirLock(from, p);
+  assert.equal(steered.x, p.x);
+  assert.equal(steered.z, p.z);
+});
+
 test("a locked turn yields when the cursor clearly enters the opposite half-plane", () => {
   resetPlan();
   resetDrawDirLock();

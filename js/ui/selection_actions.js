@@ -3,7 +3,6 @@
    shares the editor's state through live imports from ../ui.js and
    ./ui_locals.js. */
 import { executeCommand } from "../commands/index.js";
-import { addSlabOpeningToFloor, floorAbove } from "../floors.js";
 import { itemsInRoom, roomByKey, roomFloor } from "../geometry.js";
 import { currentHistoryId, pushHistory } from "../history.js";
 import { t } from "../i18n.js";
@@ -12,7 +11,8 @@ import { alignItems, distributeItems, matchRotation } from "../item_align.js";
 import { refaceItem, rotStep } from "../item_orient.js";
 import { saveLayers } from "../layers.js";
 import { fitView, render2D } from "../plan2d.js";
-import { stairVoidFields } from "../slab_openings.js";
+import { cutStairVoidAbove } from "../stair_floors.js";
+import { stairText } from "../stair_strings.js";
 import { findSupport, rotateWith } from "../stack.js";
 import { S, touchItem3D, uid } from "../state.js";
 import { renderPanel as refreshMEPPanel } from "../ui_mep.js";
@@ -46,15 +46,13 @@ async function runSelectionAction(act, ev) {
        above — putting it on the stairs' own storey punched a hole at the
        bottom of the flight. With no storey above there is nothing to cut, so
        say so rather than silently making a hole in this floor. */
-    var above = floorAbove();
-    var vo = stairVoidFields(S.sel.ref);
-    if (!vo) return;
-    if (above) {
-      addSlabOpeningToFloor(above.id, vo);
+    // a second press re-seats the void the flight already has (js/stair_floors.js)
+    var cut = cutStairVoidAbove(S.sel.ref);
+    if (cut) {
       S.dirty3D = true;
       render2D();
       refreshTree();
-      flash(t("sv_on_floor", { floor: above.name }), "success");
+      flash(cut.reseated ? stairText("voidReseated", { floor: cut.floor.name }) : t("sv_on_floor", { floor: cut.floor.name }), "success");
     } else {
       flash(t("sv_need_floor_above"), "error");
     }

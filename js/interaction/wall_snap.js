@@ -19,6 +19,14 @@ function snapMul() {
   var m = S.snapStrength;
   return fin(m) ? clamp(m, 0.25, 2) : 1;
 }
+// free (un-gated) aim steps in whole degrees; see the angle snap below
+var FREE_ANGLE_STEP = Math.PI / 180;
+/* ORTHO as the angle snap sees it: the F8 setting, flipped while Shift is
+   held (S.orthoHold, kept by js/cad_hud.js) — the CAD one-hand override, so a
+   square run can be drawn without toggling the setting and back. */
+function orthoActive() {
+  return !!S.ortho !== !!S.orthoHold;
+}
 /* Wall-to-wall connections get a wider capture band than ordinary object
    snaps. At overview zoom a 10 cm wall face plus furniture drawn over it can
    sit well beyond the generic 14 px cursor radius, but ending a wall there is
@@ -380,7 +388,7 @@ export function snapPoint(px, pz, fromIdx) {
         bestDiff = 1e9,
         angLocked = false,
         chosenKind = "free";
-      if (S.ortho) {
+      if (orthoActive()) {
         var oAng = Math.round(raw / (Math.PI / 2)) * (Math.PI / 2);
         // blocked quarter turn -> take the nearest one that is free rather
         // than silently drawing the overlap
@@ -459,6 +467,13 @@ export function snapPoint(px, pz, fromIdx) {
           bestDiff = wallDiff;
           angLocked = true;
           chosenKind = wallKind;
+        } else if (S.gsnap !== false) {
+          /* Between the gates the aim still steps in whole degrees, the way
+             the length steps on SNAP_GRID: a raw pointer angle (37.43°) can be
+             neither read off the arc dimension nor repeated, which is what
+             made drawing without ORTHO feel uncontrolled. Grid snap off keeps
+             the truly free aim. */
+          ang = Math.round(raw / FREE_ANGLE_STEP) * FREE_ANGLE_STEP;
         }
       }
       /* Free aim is still not allowed to fold the wall back onto its
@@ -552,7 +567,7 @@ export function snapPoint(px, pz, fromIdx) {
         wall: null,
         d: bestDiff,
         ang: ang,
-        kind: S.ortho ? "ortho" : guides.length ? "align" : angLocked ? chosenKind : "free",
+        kind: orthoActive() ? "ortho" : guides.length ? "align" : angLocked ? chosenKind : "free",
         guides: guides,
       };
       if (!pick || cand.d < pick.d) pick = cand;

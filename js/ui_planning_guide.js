@@ -30,7 +30,7 @@ import { refreshTree, flash, sceneObject } from "./ui.js";
 import { withoutRoomPrompts } from "./ui_tree.js";
 import { switchFloor } from "./floors.js";
 import { displayUnit } from "./display_units.js";
-import { loadUnitSettings, saveUnitSettings, detectLocationUnitSystem } from "./unit_settings.js";
+import { loadUnitSettings, saveUnitSettings, detectLocationUnitSystem, getDomainUnit } from "./unit_settings.js";
 
 let signature = "", scheduled = false, lastSelectedRoom = null;
 const expanded = new Set();
@@ -168,7 +168,7 @@ export function renderPlanningGuide() {
     (intention) => editPlanningGuide({ action: "settings", intention, enabled: true }))));
   const curSettings = loadUnitSettings();
   const currentChoice = curSettings.preset === 'auto' ? 'auto' :
-    curSettings.preset === 'metric_arch' ? 'm' :
+    curSettings.preset === 'metric_m' ? 'm' :
     curSettings.preset === 'metric_mm' ? 'mm' :
     curSettings.preset === 'metric_cm' ? 'cm' :
     curSettings.preset === 'imperial' ? 'ft' :
@@ -187,6 +187,7 @@ export function renderPlanningGuide() {
       rooms: { unit: 'auto', digits: 'auto' },
       openings: { unit: 'auto', digits: 'auto' },
       furniture: { unit: 'auto', digits: 'auto' },
+      cabinet: { unit: 'auto', digits: 'auto' },
       mep: { unit: 'auto', digits: 'auto' },
       details: { unit: 'auto', digits: 'auto' },
       site: { unit: 'auto', digits: 'auto' },
@@ -195,10 +196,12 @@ export function renderPlanningGuide() {
     };
     let effectiveUnit = unit;
     if (unit === 'auto') {
-      effectiveUnit = detectLocationUnitSystem().system === 'imperial' ? 'ft' : 'm';
       saveUnitSettings({ ...current, preset: 'auto', overrides: emptyOverrides });
+      // The plan's own unit, not "m": a stored "m" made every unlabelled
+      // readout metres while the plan beside it said cm or mm.
+      effectiveUnit = detectLocationUnitSystem().system === 'imperial' ? 'ft' : getDomainUnit('plan');
     } else if (unit === 'm') {
-      saveUnitSettings({ ...current, preset: 'metric_arch', overrides: emptyOverrides });
+      saveUnitSettings({ ...current, preset: 'metric_m', overrides: emptyOverrides });
     } else if (unit === 'mm') {
       saveUnitSettings({ ...current, preset: 'metric_mm', overrides: emptyOverrides });
     } else if (unit === 'cm') {

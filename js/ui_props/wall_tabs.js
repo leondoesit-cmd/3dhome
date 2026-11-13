@@ -322,7 +322,7 @@ function fillWallOpenings(w) {
 }
 
 function fmtCm(v) {
-  return fmtLen(v);
+  return fmtLen(v, { domain: "details" });
 }
 
 /* Layer materials are authored as slugs ("concrete-block"). Translate the ones

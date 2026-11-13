@@ -1103,7 +1103,7 @@ function applySketchFilletFromSelection(values) {
       Object.assign(sketch, before);
       resolveSketch(false);
       H.discard();
-      showSketchRefusal(sketch, t("sketchFillet") + " R " + Number(spec.radius.toFixed(3)) + " cm", filletIds, filletWhy);
+      showSketchRefusal(sketch, t("sketchFillet") + " R " + modelLengthText(spec.radius,6) + " " + modelLengthUnit(), filletIds, filletWhy);
       return false;
     }
     E.ssel = made.arc ? [made.arc] : [];

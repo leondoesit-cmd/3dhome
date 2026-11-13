@@ -31,7 +31,7 @@ import { render2D, onAfterRender } from "./plan2d.js";
 import { select } from "./ui_props.js";
 import { hiddenSets } from "./geometry.js";
 import { markDirty } from "./persist.js";
-import { floorBelow, floorAbove, floorById, setReferenceFloor } from "./floors.js";
+import { floorBelow, floorById, referenceShown, referenceTarget, toggleReferenceFloor, followReferenceFloor } from "./floors.js";
 import { setWallMode } from "./ui_wall_view.js";
 import { wallMode } from "./wall_view.js";
 import {
@@ -715,7 +715,7 @@ function selectLayer(id) {
 var refRow = null;
 
 function refTarget() {
-  return floorBelow() || floorAbove();
+  return referenceTarget();
 }
 
 function buildRefRow() {
@@ -726,15 +726,8 @@ function buildRefRow() {
     // a real glyph from the start: syncRefRow leaves a hidden row (one floor) untouched
     '<button type="button" class="lchip-eye"><i class="ph ph-eye-slash"></i></button>';
   refRow.querySelector(".lchip-eye").addEventListener("click", function () {
-    var ws = S.workspace;
-    if (!ws) return;
-    if (refShown()) ws.showReferenceFloor = false;
-    else {
-      var f = refTarget();
-      if (!f) return;
-      setReferenceFloor(f.id, true);
-      ws.referenceFollows = true;
-    }
+    // the same toggle as the floor strip's button (js/floors.js)
+    if (!toggleReferenceFloor()) return;
     markDirty();
     render2D();
     syncRefRow();
@@ -743,8 +736,7 @@ function buildRefRow() {
 }
 
 function refShown() {
-  var ws = S.workspace;
-  return !!(ws && ws.showReferenceFloor && ws.referenceFloor && ws.referenceFloor !== ws.activeFloor);
+  return referenceShown();
 }
 
 function syncRefRow() {
@@ -770,11 +762,7 @@ function syncRefRow() {
 
 // After a storey switch, a following reference moves to the new floor below.
 function followReference() {
-  var ws = S.workspace;
-  if (!ws || !ws.showReferenceFloor || !ws.referenceFollows) return;
-  var want = refTarget();
-  if (!want || want.id === ws.referenceFloor) return;
-  setReferenceFloor(want.id, true);
+  if (!followReferenceFloor()) return;
   requestAnimationFrame(function () {
     render2D();
   });

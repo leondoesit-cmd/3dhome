@@ -19,6 +19,7 @@ import { addNode, ensureMEP, hitMEP, snapMEPPoint, wallPath } from "../mep.js";
 import { openingDrawDefaults } from "../opening_draw_defaults.js";
 import { dropPoint, plan, render2D } from "../plan2d.js";
 import { inputBounds, inputIs3D, inputScale, wx, wz } from "../planner_input.js";
+import { itemRotateDown } from "../interaction/item_rotate.js";
 import { hitSlabOpening } from "../slab_openings.js";
 import { S, WALL_H, clamp, fin, uid } from "../state.js";
 import { planTouchPrecisionKind } from "../touch_precision.js";
@@ -819,6 +820,7 @@ function pointerDown(e) {
      each `S.action = ` — the passes hand back true only after they have set
      S.action and filled the matching drag record, which is exactly when the
      proxy can read what it is lifting. */
+  if (itemRotateDown(e, px, pz)) return; // the selected item's rotate grip outranks every pick
   if (runRoomEdgePass()) return void armDragProxy();
   if (runSelectPass(0)) return void armDragProxy();
   if (runSelectPass(1)) return void armDragProxy();

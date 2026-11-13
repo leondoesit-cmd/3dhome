@@ -19,7 +19,7 @@ import { uiLocals } from "./ui_locals.js";
 export const RUN_PANEL_ACTIONS = new Set([
   "toggleToolNames", "workspace", "openModeler", "uikitCustomize", "plannerTutorial", "agent",
   "friends", "toggleLegacy", "lang", "tree", "rc", "zombies", "lava", "openTextureGallery",
-  "shortcuts",
+  "shortcuts", "coachTips",
 ]);
 
 // split out of runAction()
@@ -29,6 +29,7 @@ async function runPanelAction(act, ev) {
   else if (act === "openModeler") (await import("../modeler.js")).openModeler();
   else if (act === "uikitCustomize") (await import("../uikit_host/index.js")).openCustomize();
   else if (act === "plannerTutorial") (await import("../planner_tutorial.js")).showPlannerHub();
+  else if (act === "coachTips") (await import("../coach.js")).openCoach();
   else if (act === "agent") (await import("../ui_agent.js")).openAgent();
   else if (act === "friends") {
     var fb = document.getElementById("friendsBtn");

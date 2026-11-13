@@ -300,14 +300,43 @@ export function updateWallProbe(px, pz) {
     c = wallCuts(w),
     projected = wallProject(w, px, pz),
     s = projected ? projected.s : 0,
-    point = wallPointAt(w, s);
+    point = wallPointAt(w, s),
+    /* Corner to corner by default; split at doors and windows only once this
+       wall is selected — choosing the wall is how you say "I'm working on its
+       pieces now", and a plain hover keeps the wall's own whole length. */
+    picked = S.sel && ((S.sel.kind === "wall" && S.sel.ref === w) ||
+      (S.sel.kind === "walls" && S.sel.refs && S.sel.refs.indexOf(w) !== -1)),
+    span = picked ? probeSpan(w, s, c.a, gm.L - c.b) : { lo: c.a, hi: gm.L - c.b };
   S.wallProbe = {
     wall: w,
     x: point.x,
     z: point.z,
-    fromA: Math.max(0, s - c.a),
-    toB: Math.max(0, gm.L - c.b - s),
+    lo: span.lo,
+    hi: span.hi,
+    fromA: Math.max(0, s - span.lo),
+    toB: Math.max(0, span.hi - s),
   };
+}
+/* The stretch of a SELECTED wall the cursor is on. A door or window cuts a wall into
+   pieces you build and furnish separately, so "how far along" is measured
+   within the piece: from its corner (or the jamb before it) to the jamb (or
+   corner) after it. Over an opening itself, the stretch is the opening, and
+   the two numbers are the distances to its jambs. */
+function probeSpan(w, s, lo, hi) {
+  var cuts = [];
+  (S.openings || []).forEach(function (o) {
+    if (o.wall !== w.id || !(o.width > 0)) return;
+    var j0 = Math.max(lo, o.s - o.width / 2), j1 = Math.min(hi, o.s + o.width / 2);
+    if (j1 > j0) cuts.push([j0, j1]);
+  });
+  var a = lo, b = hi;
+  for (var i = 0; i < cuts.length; i++) {
+    var j0 = cuts[i][0], j1 = cuts[i][1];
+    if (s >= j0 && s <= j1) return { lo: j0, hi: j1 };
+    if (j1 <= s && j1 > a) a = j1;
+    if (j0 >= s && j0 < b) b = j0;
+  }
+  return { lo: a, hi: b };
 }
 function hitRoom(px, pz) {
   if (layerRank("structure") === Infinity) return null;

@@ -11,6 +11,7 @@ import { captureExactTopology } from "../core/exact_topology_cache.js";
 import { KERNEL_BODY_KIND, isKernelBody, kernelBodyMeshData, kernelBodySpec, meshDataBounds } from "../core/kernel_body.js";
 import { compileKernelFeatureTree } from "../core/kernel_feature_adapter.js";
 import { ensureParametricDocument } from "../core/parametric_document.js";
+import { detectLocationUnitSystem } from "../unit_settings.js";
 import { inferOrthoSnap, onCurveTargets, pickSnap, sketchSnapTargets } from "../modeler_inference.js";
 import { clearTopologyCache, holeLoop } from "../modeler_mesh_geometry.js";
 import { boxToExt, cloneData, cutFootprint, cutRangeForAxis, exactBrepForPart, exactCutIntersection, partBounds, partNeedsExactMesh, partSupportsExactMesh } from "../modeler_part_geometry.js";
@@ -75,6 +76,11 @@ function newDef() {
     sketches: [], activeSketch: null, variables: [],
     features: [], history:[], referenceGeometry: [], metadata:{authoringSystem:"parametric-v1"},
     notes: [], markups: [], appearances: [],
+    // Part drawings are millimetres (ISO) in metric countries, inches in the
+    // US; the planner's centimetres are an architectural convention only.
+    // A saved part keeps the unit it was authored in.
+    context: { kind: "part", units: detectLocationUnitSystem().system === "imperial"
+      ? { length: "in", precision: 3 } : { length: "mm", precision: 2 } },
   });
   def.notes = [];
   def.markups = [];

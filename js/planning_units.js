@@ -60,8 +60,15 @@ export function formatLength(cm,unit,options){
     return sign+feet+"'-"+String(inches).replace(/\.0$/, "")+'"';
   }
   const digits=opts.digits!=null?opts.digits:(use==="m"?2:use==="mm"?0:use==="in"?2:2);
-  const shown=Number(value.toFixed(digits));
-  return opts.suffix===false?String(shown):shown+" "+use;
+  let shown=String(Number(value.toFixed(digits)));
+  // Metres keep their centimetres: a drawing writes 4.00 and 3.50, never 4
+  // or 3.5, so a bare "4" cannot be misread as 4 cm. Extra precision stays.
+  if(use==="m"&&digits>=2){
+    const dot=shown.indexOf(".");
+    const have=dot<0?0:shown.length-dot-1;
+    if(have<2)shown=(dot<0?shown+".":shown)+"0".repeat(2-have);
+  }
+  return opts.suffix===false?shown:shown+" "+use;
 }
 
 export function formatArea(cm2,unit,options){

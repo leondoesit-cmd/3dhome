@@ -1,13 +1,13 @@
 // 2D top-down floor plan: view transform + canvas rendering of rooms, walls, openings, items, overlays.
 import { S } from "./state.js";
 import {
-  detectRooms, roomName, roomHidden, hiddenSets, wallBounds, wallGeom, wallById,
-  contentBounds, wallPointAt, roomEdgeHandles, roomByKey,
+  detectRooms, hiddenSets, wallBounds, wallGeom, wallById, contentBounds,
+  wallPointAt, roomEdgeHandles, roomByKey,
 } from "./geometry.js";
 import "./wall_types.js";
 import { offsetGhost, touchDrawing } from "./wall_draw.js";
 import { pointAtWall, makeArcFromThreePoints } from "./wall_curves.js";
-import "./floors.js";
+import { planFrameBounds } from "./plan2d/reference_floor.js";
 import { FURN, itemVSpan, vspec } from "./furniture.js";
 import "./smarthome.js";
 import { planCab } from "./cabinet.js";
@@ -30,8 +30,8 @@ import "./swing_clearance.js";
 import "./plan_sync.js";
 import { isLayerVisible, isLayerGhosted, isLayerHidden } from "./layers.js";
 import "./user_layers.js";
-import { roomClearArea } from "./room_area.js";
-import { fmtAreaM2 } from "./display_units.js";
+import "./room_area.js";
+import "./display_units.js";
 import "./unit_settings.js";
 import { isPresentation } from "./plan_style.js";
 import "./plan_patterns.js";
@@ -43,7 +43,10 @@ import "./plan_labels.js";
 import { symbolPrims, stairShape } from "./plan_symbols.js";
 import "./room_summary.js";
 import "./state.js";
-import { conHitTargets, label, pickCon } from "./plan2d/constraints.js";
+import { beginPlanLabels, conHitTargets, keepModelPlanLabels, label, pickCon } from "./plan2d/constraints.js";
+import { drawLiveJointAngles } from "./plan2d/joint_angles.js";
+import { OVERALL_DIM_PX, drawDimChains, refreshDimChains } from "./plan2d/dim_chains.js";
+import { drawRoomLabels } from "./plan2d/room_labels.js";
 import {
   doorsGlyph, drawCabinetPlanSwings, drawItem, drawPresentationRoomLabels,
   drawStairsUp, drawSymbolPrims, drawWallCons, gCirc, gStroke, warnLabel,
@@ -254,7 +257,7 @@ export function fitView() {
   fittingView = false;
   // A hidden/not-yet-laid-out pane must not overwrite a usable transform.
   if (!(S.CW > 0) || !(S.CH > 0)) return false;
-  var bb = contentBounds(),
+  var bb = planFrameBounds(),
     bp = blueprintBounds(),
     pad = 40;
   if (bp && S.blueprintTrace && S.blueprintTrace.visible !== false) {
@@ -271,7 +274,8 @@ export function fitView() {
      side, a tablet, an unfolded fold): framing the whole canvas put the
      plan's last wall underneath it. Frame the part above it. */
   var tx = fitPlanTransform({ minx: bb.minx, minz: bb.minz, maxx: bb.maxx, maxz: bb.maxz }, S.CW, S.CH,
-    bottomReservedPx(), { worldPad: pad, minSpan: 50 });
+    // ...and a screen margin for the dimension chain and overall size outside it
+    bottomReservedPx(), { worldPad: pad, minSpan: 50, pixelPad: S.showDims ? OVERALL_DIM_PX + 14 : 0 });
   if (!tx) return false;
   S.SC = tx.sc; S.OX = tx.ox; S.OY = tx.oy;
   return S.SC > 0 && isFinite(S.SC);
@@ -732,6 +736,7 @@ function renderModel() {
     return;
   }
   chromeOn = false;
+  beginPlanLabels(false);
   var rotated = pushPlan(); // rotate the whole plan view (CAD N/E/S/W-up)
   var bb = contentBounds(), ext = viewExtents();
   band("underlay", function () {
@@ -761,6 +766,7 @@ function renderModel() {
   }
   lastRoomPass = roomPass;
   var hid = roomPass.hid;
+  refreshDimChains(hid, roomPass.rooms); // before drawWall, which leaves off what a chain or room size states
   // items: rugs/island first, lamps on top
   band("furniture", function () {
     S.items
@@ -796,28 +802,13 @@ function renderModel() {
     drawWallCons();
     // room name + area labels
     if (isPresentation()) drawPresentationRoomLabels(roomPass.rooms);
-    else roomPass.rooms.forEach(function (r) {
-      var nm = roomName(r.key),
-        clearArea = roomClearArea(S, r),
-        areaText = clearArea.area == null
-          ? t("room_area_reference_short", { area: fmtAreaM2(r.area / 10000) })
-          : t("room_area_usable_short", { area: fmtAreaM2(clearArea.area) }),
-        isHid = roomHidden(r.key);
-      if (nm) label(r.cx, r.cz - 9, nm, isHid ? "#9a9289" : "#33312c", true);
-      if (S.showDims)
-        label(
-          r.cx,
-          r.cz + (nm ? 9 : 0),
-          areaText,
-          isHid ? "#a49c93" : "#46504f",
-          !nm,
-        );
-    });
+    else drawRoomLabels(roomPass.rooms);
     if (S.showDims) {
       var wb = wallBounds();
-      if (wb) drawOverallDims(wb);
+      if (wb) { drawDimChains(wb); drawOverallDims(wb); }
     }
   });
+  keepModelPlanLabels();
   if (rotated) pc.restore(); // end plan rotation
   pc.restore(); // end screen-space clip
 }
@@ -915,6 +906,7 @@ function renderHUD() {
     return;
   }
   chromeOn = true;
+  beginPlanLabels(true);
   pc.save();
   pc.beginPath();
   pc.rect(0, 0, S.CW, S.CH);
@@ -1027,6 +1019,7 @@ function renderHUD() {
   }
   drawWallAngleGuide();
   ensureAngleGuideAnim();
+  drawLiveJointAngles();
 
   // drafting guides while drawing/dragging a wall corner: a dashed run from the
   // corner being aligned WITH to the point being placed, and a ring marking
@@ -1872,7 +1865,7 @@ var GLYPH = {
     // L-shaped and curved flights: the drafting symbol, the same line-work
     // the construction sheet prints (js/plan_symbols.js)
     var sit = { steps: it.steps, configuration: it.configuration, shape: vspec(it).shape };
-    if (stairShape(sit) !== "straight") {
+    if (stairShape(sit) !== "straight" || (it.configuration && it.configuration.stair)) {
       drawSymbolPrims(symbolPrims("stairs", it.w, it.d, sit), S.SC, it);
       return;
     }

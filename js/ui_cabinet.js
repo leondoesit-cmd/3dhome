@@ -87,9 +87,9 @@ function buildDOM() {
     '<div class="cb-context-bar">' +
     '<div class="cb-control-group cb-size-group"><span class="cb-group-title">' + T("cabinetSize") + '</span>' +
     '<label class="cb-scope-note">' + T("editScope") + '<select id="cbEditScope" title="' + T("editScope") + '"><option value="instance">' + T("scopeInstance") + '</option><option value="linked">' + T("scopeLinked") + '</option></select></label><div class="cb-dims">' +
-    '<label><span>' + T("width") + '</span><span class="cb-number"><input id="cbW" type="number" inputmode="decimal"><em>' + displayUnit("furniture") + '</em></span></label>' +
-    '<label><span>' + T("depth") + '</span><span class="cb-number"><input id="cbD" type="number" inputmode="decimal"><em>' + displayUnit("furniture") + '</em></span></label>' +
-    '<label><span>' + T("height") + '</span><span class="cb-number"><input id="cbH" type="number" inputmode="decimal"><em>' + displayUnit("furniture") + '</em></span></label>' +
+    '<label><span>' + T("width") + '</span><span class="cb-number"><input id="cbW" type="number" inputmode="decimal"><em>' + displayUnit("cabinet") + '</em></span></label>' +
+    '<label><span>' + T("depth") + '</span><span class="cb-number"><input id="cbD" type="number" inputmode="decimal"><em>' + displayUnit("cabinet") + '</em></span></label>' +
+    '<label><span>' + T("height") + '</span><span class="cb-number"><input id="cbH" type="number" inputmode="decimal"><em>' + displayUnit("cabinet") + '</em></span></label>' +
     '</div></div>' +
     '<div class="cb-context-sep"></div>' +
     '<div class="cb-control-group cb-preview-group"><span class="cb-group-title">' + T("preview") + '</span><div class="cb-preview-controls">' +
@@ -234,14 +234,14 @@ function buildDOM() {
     onPick: specPick,
   });
   E.host.querySelector("#cbHist").appendChild(E.histPanel.el);
-  var u = displayUnit("furniture");
+  var u = displayUnit("cabinet");
   ["W", "D", "H"].forEach(function (k) {
     var dim = E.host.querySelector("#cb" + k);
     dim.type = "text";
     dim.inputMode = "text";
     var limit = CAB_LIMITS[k === "W" ? "width" : k === "D" ? "depth" : "height"];
-    dim.min = toDisp(limit.min, "furniture");
-    dim.max = toDisp(limit.max, "furniture");
+    dim.min = toDisp(limit.min, "cabinet");
+    dim.max = toDisp(limit.max, "cabinet");
     dim.step = u === "mm" ? "1" : "0.1";
     dim.title = T(k === "W" ? "width" : k === "D" ? "depth" : "height") + " (" + u + ")";
     dim.addEventListener("change", function () {
@@ -451,11 +451,11 @@ function buildDOM() {
 }
 function syncDimInputs() {
   if (!E.host || !E.it) return;
-  var u = displayUnit("furniture");
+  var u = displayUnit("cabinet");
   E.host.querySelectorAll(".cb-dims em").forEach(function (em) { em.textContent = u; });
-  E.host.querySelector("#cbW").value = formatCabinetDimension(E.it.w, displayUnit("furniture"));
-  E.host.querySelector("#cbD").value = formatCabinetDimension(E.it.d, displayUnit("furniture"));
-  E.host.querySelector("#cbH").value = formatCabinetDimension(E.it.h, displayUnit("furniture"));
+  E.host.querySelector("#cbW").value = formatCabinetDimension(E.it.w, displayUnit("cabinet"));
+  E.host.querySelector("#cbD").value = formatCabinetDimension(E.it.d, displayUnit("cabinet"));
+  E.host.querySelector("#cbH").value = formatCabinetDimension(E.it.h, displayUnit("cabinet"));
 }
 
 function setLevel(level) {
@@ -603,7 +603,7 @@ function applyOverallSize(dimension, input) {
   if (!E.it) return;
   var limit = CAB_LIMITS[dimension];
   var value;
-  try { value = parseCabinetDimension(input.value, displayUnit("furniture")); }
+  try { value = parseCabinetDimension(input.value, displayUnit("cabinet")); }
   catch (error) { flashHint(error.message); syncDimInputs(); return; }
   if (!limit || !Number.isFinite(value) || Math.abs(value - E.it[limit.field]) < 0.0001) {
     syncDimInputs();
@@ -1043,7 +1043,7 @@ function fillStatusBar() {
   var s = specOf(E.it), parts = [];
   var preset = cabinetProductionPreset(s.productionConvention && s.productionConvention.presetId);
   parts.push(preset ? (isEn() ? preset.label : preset.labelHe) : T("statusNoConvention"));
-  parts.push(displayUnit("furniture"));
+  parts.push(displayUnit("cabinet"));
   if (s.panel > 0) parts.push(T("statusStock").replace("{t}", formatStockMm(s.panel)));
   var stats = null;
   try {
@@ -1093,7 +1093,7 @@ function fillIdCard() {
   box.innerHTML = "";
   var icon = el("span", "cb-idcard-icon", '<i class="ph ph-cube" aria-hidden="true"></i>');
   var text = el("div", "cb-idcard-text");
-  text.appendChild(el("b", null, famLabel(s.fam) + " " + formatCabinetDimension(E.it.w, displayUnit("furniture")) + " " + displayUnit("furniture")));
+  text.appendChild(el("b", null, famLabel(s.fam) + " " + formatCabinetDimension(E.it.w, displayUnit("cabinet")) + " " + displayUnit("cabinet")));
   text.appendChild(el("span", null, cabSummary(E.it)));
   box.appendChild(icon);
   box.appendChild(text);
@@ -1108,7 +1108,7 @@ function fillIdCard() {
    picked on the elevation, else the cabinet, each with its size. */
 window.__cabinetHeadState = function () {
   if (!E.it || !E.host) return null;
-  var s = sp(), unit = displayUnit("furniture");
+  var s = sp(), unit = displayUnit("cabinet");
   var col = E.sel && s.cols && s.cols[E.sel.col];
   var sec = col && E.sel.sec != null ? col.secs[E.sel.sec] : null;
   return {

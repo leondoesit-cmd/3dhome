@@ -157,6 +157,8 @@ function conLabel(wxc, wzc, txt, col, dy) {
     return;
   }
   scr.y += oy;
+  // dimension and readout labels drawn after this step around it
+  planLabelBoxes.push({ x: scr.x, y: scr.y, w: wpx, h: 16 });
   var base = unrotatePx(scr.x, scr.y),
     x = base.x,
     y = base.y,
@@ -180,25 +182,130 @@ function conLabel(wxc, wzc, txt, col, dy) {
   pc.restore();
 }
 
+/* Every boxed number on the plan registers its true-screen box here, and the
+   next one steps off any box it would cover. Wall lengths, the overall
+   dimensions, the live draw readout and the cursor's measuring leaders used to
+   land on the same few pixels (a corner is where all of them meet), so the plan
+   showed "2000" printed through "2050". The model pass and the HUD pass paint
+   two canvases at different rates: the HUD starts from the model pass's boxes,
+   so a live readout steps around the static dimension under it. */
+var planLabelBoxes = [], planModelLabelBoxes = [];
+function beginPlanLabels(hud) {
+  planLabelBoxes = hud ? planModelLabelBoxes.slice() : [];
+}
+function keepModelPlanLabels() {
+  planModelLabelBoxes = planLabelBoxes.map(function (b) {
+    return { x: b.x, y: b.y, w: b.w, h: b.h, model: true };
+  });
+}
+/* A model-pass box centred exactly where a HUD label wants to go is that same
+   label's own copy under it (the HUD repaints a selected wall's dimension on
+   top of the model's): the repaint covers it, so it is not an obstacle.
+   Without this the selected copy was pushed aside and both showed. */
+function planLabelFree(x, y, w, h) {
+  for (var i = 0; i < planLabelBoxes.length; i++) {
+    var b = planLabelBoxes[i];
+    if (b.model && Math.abs(x - b.x) < 1.5 && Math.abs(y - b.y) < 1.5) continue;
+    if (Math.abs(x - b.x) < (w + b.w) / 2 + 2 && Math.abs(y - b.y) < (h + b.h) / 2 + 1)
+      return false;
+  }
+  return true;
+}
+/* Try the spot asked for, then each nudge in `steps` (screen-pixel offsets);
+   the first free one wins and is reserved. Nothing free: the label keeps its
+   own spot — a number that wanders far from what it measures is worse than one
+   that overlaps. */
+function placePlanLabel(x, y, w, h, steps) {
+  var pick = { x: x, y: y };
+  for (var i = -1; i < steps.length; i++) {
+    var cx = i < 0 ? x : x + steps[i][0], cy = i < 0 ? y : y + steps[i][1];
+    if (planLabelFree(cx, cy, w, h)) { pick = { x: cx, y: cy }; break; }
+  }
+  planLabelBoxes.push({ x: pick.x, y: pick.y, w: w, h: h });
+  return pick;
+}
+
+var PLAN_LABEL_FONT = "'Inter', system-ui, 'Segoe UI', sans-serif";
+
+function planPill(x, y, w, h, color, strong) {
+  pc.beginPath();
+  if (pc.roundRect) pc.roundRect(x - w / 2, y - h / 2, w, h, h / 2);
+  else pc.rect(x - w / 2, y - h / 2, w, h);
+  pc.fillStyle = strong ? "rgba(255,255,255,.96)" : "rgba(255,255,255,.92)";
+  pc.shadowColor = "rgba(15,23,32,.28)";
+  pc.shadowBlur = 3;
+  pc.shadowOffsetY = 1;
+  pc.fill();
+  pc.shadowColor = "transparent";
+  pc.shadowBlur = 0;
+  pc.shadowOffsetY = 0;
+  pc.globalAlpha = strong ? 0.75 : 0.4;
+  pc.strokeStyle = color;
+  pc.lineWidth = 1;
+  pc.stroke();
+  pc.globalAlpha = 1;
+}
+
 function label(wx_, wz_, txt, color, big) {
-  var x = sx(wx_),
-    y = sz(wz_);
-  var a = planRotRad();
+  txt = String(txt);
+  var a = planRotRad(),
+    scr = rotatePx(sx(wx_), sz(wz_));
   pc.save();
-  if (a) { pc.translate(x, y); pc.rotate(-a); pc.translate(-x, -y); } // keep text upright
-  pc.font = big ? "bold 12px Arial" : "10px Arial";
+  pc.font = (big ? "700 13px " : "600 12px ") + PLAN_LABEL_FONT;
   pc.textAlign = "center";
   pc.textBaseline = "middle";
-  var tw = pc.measureText(txt).width,
-    h = big ? 17 : 14;
-  pc.fillStyle = "rgba(255,255,255," + (big ? ".8" : ".75") + ")";
-  pc.fillRect(x - tw / 2 - 4, y - h / 2, tw + 8, h);
-  pc.fillStyle = color || "#33312c";
-  pc.fillText(txt, x, y);
+  var w = Math.ceil(pc.measureText(txt).width) + (big ? 14 : 12),
+    h = big ? 22 : 20,
+    dy = h + 3, dx = w + 4;
+  var at = placePlanLabel(scr.x, scr.y, w, h,
+    [[0, -dy], [0, dy], [dx, 0], [-dx, 0], [0, -2 * dy], [0, 2 * dy]]);
+  var base = unrotatePx(at.x, at.y), x = base.x, y = base.y;
+  if (a) { pc.translate(x, y); pc.rotate(-a); pc.translate(-x, -y); } // keep text upright
+  color = color || "#33312c";
+  planPill(x, y, w, h, color, big);
+  pc.fillStyle = color;
+  pc.fillText(txt, x, y + 0.5);
+  pc.restore();
+}
+
+/* A dimension's number set ALONG its line, the drafting convention: text
+   parallel to what it measures, turned so it never reads upside down. `ang` is
+   the line's direction on the plan (radians, plan frame). Nudges slide along
+   the line first, so a crowded number stays on its own dimension. */
+function alignedLabel(wx_, wz_, txt, color, ang, strong) {
+  txt = String(txt);
+  var a = planRotRad(),
+    scr = rotatePx(sx(wx_), sz(wz_)),
+    t = ang + a;
+  // [-90°, 90°): a vertical dimension reads bottom-to-top, from the right
+  // edge of the sheet (ISO 129 / ASME aligned dimensioning)
+  while (t >= Math.PI / 2 - 1e-6) t -= Math.PI;
+  while (t < -Math.PI / 2 - 1e-6) t += Math.PI;
+  pc.save();
+  pc.font = (strong ? "700 12px " : "600 12px ") + PLAN_LABEL_FONT;
+  pc.textAlign = "center";
+  pc.textBaseline = "middle";
+  var W = Math.ceil(pc.measureText(txt).width) + 12, H = 20,
+    c = Math.abs(Math.cos(t)), s = Math.abs(Math.sin(t)),
+    bw = c * W + s * H, bh = s * W + c * H,
+    ux = Math.cos(t), uy = Math.sin(t), step = W + 6,
+    nx = -uy, ny = ux, nstep = H + 3;
+  var at = placePlanLabel(scr.x, scr.y, bw, bh, [
+    [ux * step, uy * step], [-ux * step, -uy * step],
+    [ux * 2 * step, uy * 2 * step], [-ux * 2 * step, -uy * 2 * step],
+    [nx * nstep, ny * nstep], [-nx * nstep, -ny * nstep],
+  ]);
+  var base = unrotatePx(at.x, at.y), x = base.x, y = base.y;
+  pc.translate(x, y);
+  pc.rotate(t - a);
+  color = color || "#33312c";
+  planPill(0, 0, W, H, color, strong);
+  pc.fillStyle = color;
+  pc.fillText(txt, 0, 0.5);
   pc.restore();
 }
 
 export {
-  conAngleOf, conLabel, drawAngleConstraint, drawConTargetHighlight, fmtDeg,
-  label,
+  alignedLabel, beginPlanLabels, conAngleOf, conLabel, drawAngleConstraint,
+  drawConTargetHighlight, fmtDeg, keepModelPlanLabels, label,
 };

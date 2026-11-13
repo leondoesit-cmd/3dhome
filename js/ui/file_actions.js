@@ -35,11 +35,14 @@ export const RUN_FILE_ACTIONS = new Set([
   "exportWallSchedule", "newPlan", "photo", "reset", "save", "load", "exportjson", "importjson",
   "importBlueprint", "importBlueprintTrace", "roomScan", "png2d", "png3d", "exportgltf",
   "cutPlan", "exportCost", "uploadFloorTex", "uploadWallTex", "clearWallTex", "exportWallTakeoff",
+  "proDrawing",
 ]);
 
 // split out of runAction()
 async function runFileAction(act, ev) {
   if (act === "exportWallSchedule") exportWallScheduleFile();
+  // the construction sheet to the regional drafting standard (js/ui_pro_drawing.js)
+  else if (act === "proDrawing") (await import("../ui_pro_drawing.js")).openProDrawing();
   else if (act === "newPlan") {
     if (window.__plannerChrome) window.__plannerChrome.openStartScreen();
   } else if (act === "photo") {

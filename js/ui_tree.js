@@ -14,6 +14,7 @@ import { weldCoincidentNodes } from "./interaction.js";
 import { deleteRoom } from "./interaction.js";
 import { PRICE, itemPrice, flabel } from "./furniture.js";
 import { t } from "./i18n.js";
+import { voidDisplayName } from "./stair_strings.js";
 import { partCode } from "./part_codes.js";
 import { fmtLen, fmtAreaM2 } from "./display_units.js";
 import { render2D, frameBounds } from "./plan2d.js";
@@ -660,7 +661,7 @@ function appendVoidsGroup(body) {
       "trItem" + (S.sel && S.sel.kind === "slabvoid" && S.sel.ref === o ? " sel" : "");
     var lbl = document.createElement("span");
     lbl.className = "trName";
-    lbl.textContent = (o.name || t("sv_void")) + " · " + Math.round(o.w) + "×" + Math.round(o.d);
+    lbl.textContent = (voidDisplayName(o) || t("sv_void")) + " · " + Math.round(o.w) + "×" + Math.round(o.d);
     row.appendChild(lbl);
     var del = document.createElement("span");
     del.className = "trDel";

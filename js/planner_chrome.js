@@ -32,7 +32,25 @@ import {
   ensureFloors,
   addFloor,
   switchFloor,
+  floorBelow,
+  floorAbove,
+  floorById,
+  floorsByElevation,
+  setReferenceFloor,
+  nextFloorElevation,
+  nextFloorName,
+  cutStairwellVoids,
+  referenceShown,
+  referenceTarget,
+  toggleReferenceFloor,
+  followReferenceFloor,
 } from "./floors.js";
+import { floorText, floorDisplayName } from "./floor_strings.js";
+import { fmtLen } from "./display_units.js";
+import { slabOpenings, stairVoidFields } from "./slab_openings.js";
+import { planFrameOnScreen } from "./plan2d/reference_floor.js";
+import { markDirty } from "./persist.js";
+import { initCoach, coachEvaluate } from "./coach.js";
 
 configureFloorIO({ sceneObject: sceneObject, applyData: applyData });
 
@@ -155,14 +173,15 @@ export function renderFloorTabs() {
   }
   host.hidden = false;
   host.innerHTML = "";
-  floors.forEach(function (floor, i) {
+  // lowest storey first, each tooltip carrying its level
+  floorsByElevation(S.workspace).forEach(function (floor) {
+    var i = floors.indexOf(floor);
     var b = document.createElement("button");
     b.type = "button";
-    var name = (floor.id === "floor-1" && (!floor.name || floor.name === "Ground floor" || floor.name === "קומת קרקע"))
-      ? t("floor_ground_name")
-      : (floor.name || t("floor_ground") + " " + (i + 1));
+    var name = floorDisplayName(floor, i);
+    var elev = Number(floor.elevation) || 0;
     b.textContent = name;
-    b.title = t("floor_rename_tip");
+    b.title = floorText("elevTip", { elev: (elev > 0 ? "+" : "") + fmtLen(elev) }) + " · " + t("floor_rename_tip");
     b.classList.toggle("active", floor.id === S.workspace.activeFloor);
     var hold = 0;
     var held = false;
@@ -183,13 +202,17 @@ export function renderFloorTabs() {
       if (e.detail >= 2) { renameFloorInline(b, floor, name); return; }
       // Re-clicking the current floor must not rebuild the strip or refit the view.
       if (floor.id === S.workspace.activeFloor) return;
+      // two storeys with content stay registered on screen: keep the view
+      var hadContent = S.walls.length > 0 || S.items.length > 0;
       switchFloor(floor.id);
+      followReferenceFloor(S.workspace);
       S.dirty3D = true;
+      if (!hadContent || !planFrameOnScreen()) fitView();
       render2D();
       refreshTree();
       fillProps();
-      fitView();
       renderFloorTabs();
+      coachEvaluate();
     });
     host.appendChild(b);
   });
@@ -200,6 +223,52 @@ export function renderFloorTabs() {
   add.title = t("floor_add");
   add.addEventListener("click", addFloorFromUI);
   host.appendChild(add);
+  if (floors.length > 1) {
+    var ref = document.createElement("button");
+    ref.type = "button";
+    ref.className = "floor-ref";
+    ref.innerHTML = '<i class="ph ph-stack" aria-hidden="true"></i>';
+    ref.addEventListener("click", toggleReferenceFromStrip);
+    host.appendChild(ref);
+    var note = document.createElement("span");
+    note.className = "floor-ref-note";
+    host.appendChild(note);
+  }
+  syncFloorRefToggle();
+}
+
+/* The strip's "show the floor below" button: the same state as the Layers
+   row (js/floors.js toggleReferenceFloor), so the two cannot disagree. */
+function toggleReferenceFromStrip() {
+  if (!toggleReferenceFloor(S.workspace)) return;
+  markDirty();
+  render2D();
+  syncFloorRefToggle();
+}
+
+function syncFloorRefToggle() {
+  var host = $("floor-tabs");
+  var btn = host && host.querySelector(".floor-ref");
+  if (!btn) return;
+  var ws = S.workspace;
+  var on = referenceShown(ws);
+  var ref = on ? floorById(ws.referenceFloor, ws) : referenceTarget(ws);
+  var below = floorBelow(ws), above = floorAbove(ws);
+  var isAbove = !!(ref && above && ref.id === above.id && !(below && below.id === ref.id));
+  var label = floorText(isAbove ? (on ? "hideAbove" : "showAbove") : (on ? "hideBelow" : "showBelow"));
+  if (btn.title !== label) {
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+  }
+  var pressed = on ? "true" : "false";
+  if (btn.getAttribute("aria-pressed") !== pressed) btn.setAttribute("aria-pressed", pressed);
+  btn.classList.toggle("active", on);
+  var note = host.querySelector(".floor-ref-note");
+  if (note) {
+    var text = on && ref ? floorText(isAbove ? "under" : "over", { name: floorDisplayName(ref, (ws.floors || []).indexOf(ref)) }) : "";
+    if (note.textContent !== text) note.textContent = text;
+    if (note.hidden !== !text) note.hidden = !text;
+  }
 }
 
 /* A floor's name edits in place: the pill becomes a field, Enter keeps the new
@@ -242,15 +311,28 @@ function renameFloorInline(button, floor, shown) {
 // layout until a second floor exists.
 export function addFloorFromUI() {
   ensureFloors();
-  var floors = (S.workspace && S.workspace.floors) || [];
+  // on top of the highest storey, named "Floor 1", "Floor 2"…
+  var elevation = nextFloorElevation(S.workspace, S);
+  var name = nextFloorName(S.workspace, function (n) { return floorText("floorN", { n: n }); });
   pushHistory();
-  addFloor(t("floor_add"), floors.length * 300, false);
+  addFloor(name, elevation, false);
+  // same undo step: show the storey below under it, and cut the stairwells
+  // of any stairs that come up from it
+  var below = floorBelow(S.workspace);
+  if (below) {
+    setReferenceFloor(below.id, true);
+    S.workspace.referenceFollows = true;
+    var rise = elevation - (Number(below.elevation) || 0);
+    var cut = cutStairwellVoids(below.scene, rise, slabOpenings(), stairVoidFields);
+    if (cut) flash(floorText("stairwellCut", { name: floorDisplayName(below, S.workspace.floors.indexOf(below)) }), "success");
+  }
   S.dirty3D = true;
   render2D();
   refreshTree();
   fillProps();
   fitView();
   renderFloorTabs();
+  coachEvaluate();
 }
 
 function updateToolHint() {
@@ -538,6 +620,8 @@ function initPlannerChrome() {
      this module is its own entry point in index.html, outside main.js's graph,
      so nothing there can import it. */
   onAfterRestore(renderFloorTabs);
+  // the Layers row can flip the same overlay; keep the strip's button in step
+  onAfterRender(syncFloorRefToggle);
   document.body.classList.toggle("legacy-ui", currentUi() === "legacy");
 
   document.querySelectorAll("#leftTabs [data-left-tab]").forEach(function (b) {
@@ -595,6 +679,7 @@ function initPlannerChrome() {
   }
 
   maybeShowStart();
+  initCoach();
   window.dispatchEvent(new CustomEvent("planner-boot-ready", { detail: "chrome" }));
 }
 

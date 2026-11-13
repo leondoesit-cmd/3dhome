@@ -130,7 +130,7 @@ function apply(p) {
     p.changes.forEach(function (c) {
       var input = E.host && E.host.querySelector("#cb" + (c.dim === "width" ? "W" : c.dim === "depth" ? "D" : "H"));
       if (!input || asked) return;
-      input.value = formatCabinetDimension(c.cm, displayUnit("furniture"));
+      input.value = formatCabinetDimension(c.cm, displayUnit("cabinet"));
       api.act("AI: " + c.dim);
       api.applyOverallSize(c.dim, input);
       // applied now, or the designer asked how to re-plan (its dialog decides)

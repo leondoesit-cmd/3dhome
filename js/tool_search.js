@@ -34,6 +34,7 @@ var TXT = {
     modeler: "Model editor ribbon",
     cabinet: "Cabinet designer",
     ribbon: "Tool ribbon",
+    cmdbar: "Bottom command bar › light bulb",
   },
   he: {
     placeholder: "חיפוש כלי או פעולה שרוצים לבצע…",
@@ -64,6 +65,7 @@ var TXT = {
     modeler: "סרגל עורך המודלים",
     cabinet: "מעצב הארונות",
     ribbon: "סרגל הכלים",
+    cmdbar: "סרגל הפקודות התחתון › נורה",
   },
 };
 
@@ -133,9 +135,15 @@ export var TOOL_SEARCH_ENTRIES = [
   { id: "walk", label: bi("Walk through the design", "סיור בתוך התכנון"), icon: "ph-person-simple-walk", action: "walk", selector: '[data-act="walk"]', location: "more",
     keywords: "first person walkthrough explore visit wasd move tour walk סיור הליכה גוף ראשון תנועה",
     help: bi("Start Walk mode, then use WASD or arrow keys to move and drag to look around. Esc exits.", "הפעילו מצב סיור, השתמשו ב־WASD או בחצים לתנועה וגררו כדי להביט סביב. Esc יוצא.") },
+  { id: "proDrawing", label: bi("Professional drawing sheet", "גיליון שרטוט מקצועי"), icon: "ph-certificate", action: "proDrawing", location: "ribbon",
+    keywords: "professional drawing sheet working drawing permit print construction plan DIN NCS standard dimensions title block שרטוט מקצועי גיליון תוכנית עבודה היתר הדפסה תוכנית ביצוע מידות",
+    help: bi("Draws the floor plan as a working drawing to your region's drafting standard (dimensions, opening labels, levels, title block), with a preview, then Print or Download SVG.", "משרטט את תוכנית הקומה כתוכנית עבודה לפי תקן השרטוט של האזור (מידות, סימון פתחים, מפלסים, טבלת זיהוי), עם תצוגה מקדימה, ואז הדפסה או הורדת SVG.") },
   { id: "photo", label: bi("Create a photorealistic image", "צור תמונה פוטוריאליסטית"), icon: "ph-camera", action: "photo", selector: '[data-act="photo"]', location: "more",
     keywords: "render photo lighting path trace realistic image camera רינדור צילום תאורה מציאותי תמונה מצלמה",
     help: bi("Frame the 3D view first, then open Photo rendering and choose quality and lighting settings.", "מסגרו תחילה את תצוגת ה־3D, פתחו רינדור פוטו ובחרו הגדרות איכות ותאורה.") },
+  { id: "coach", label: bi("What can I do here?", "מה אפשר לעשות כאן?"), icon: "ph-lightbulb", action: "coachTips", selector: ".ps-coach", location: "cmdbar",
+    keywords: "help tips what to do hint next step stuck explain light bulb עזרה טיפים מה לעשות רמז הסבר נורה",
+    help: bi("Opens a short tip for what is on screen now — an empty upper floor, selected stairs or a new plan — with buttons that do the next step.", "פותח טיפ קצר על מה שמוצג עכשיו — קומה עליונה ריקה, מדרגות שנבחרו או תוכנית חדשה — עם כפתורים שמבצעים את הצעד הבא.") },
   { id: "guide", label: bi("Planner wall guide", "מדריך קירות ותכנון"), icon: "ph-graduation-cap", action: "plannerTutorial", selector: "#plannerTutorialBtn", location: "top",
     keywords: "tutorial learn help guide how walls practice instructions מדריך עזרה לימוד תרגול הוראות קירות",
     help: bi("Open the interactive guide for short lessons on walls, openings, constraints and common planning workflows.", "פתחו את המדריך האינטראקטיבי לשיעורים קצרים על קירות, פתחים, אילוצים ותהליכי תכנון נפוצים.") },

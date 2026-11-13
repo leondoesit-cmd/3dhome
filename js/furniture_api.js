@@ -4,6 +4,7 @@ import { S, uid, fin, MOUNTH, WALL_H, WALL_T } from "./state.js";
 import { setSkin, clearGroup } from "./primitives.js";
 import { FURN, variantOf } from "./furniture_models.js";
 import { ensureItemDefinition, rebuildItem } from "./core/project.js";
+import { designNewStairs } from "./stair_floors.js";
 
 // build a piece into `g` with its variant finish applied. Every caller that
 // renders furniture (3D scene, vertical-span probe, modeler import) goes
@@ -193,6 +194,9 @@ export function lampColor(it) {
 
 export function mkItem(type, x, z, rot) {
   var f = FURN[type] || { w: 60, d: 60, h: 80 };
+  // a new flight of stairs starts with a design fitted to the code and the
+  // floor above (js/stair_floors.js), inside the same undo step as the place
+  if (type === "stairs") return designNewStairs({ id: uid(), type: type, x: x, z: z, w: f.w, d: f.d, h: f.h, rot: rot || 0 });
   return {
     id: uid(),
     type: type,

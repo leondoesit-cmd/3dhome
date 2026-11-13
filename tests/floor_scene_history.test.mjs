@@ -51,7 +51,11 @@ for (const format of ['legacy', 'spatial', 'both']) {
     history.push('Slab from stairs');
     addSlabOpeningToFloor('upper', opening);
     const after = clone(S.workspace.floors[1].scene);
-    assert.equal(after.slabOpenings.length, 1);
+    assert.equal((after.spatial || after).slabOpenings.length, 1);
+    if (format !== 'legacy') assert.equal(after.spatial.slabOpenings.length, 1);
+    if (format !== 'spatial') assert.equal(after.slabOpenings.length, 1);
+    // a spatial scene must not grow a second, partial flat list beside it
+    else assert.equal(after.slabOpenings, undefined);
     history.undo();
     assert.deepEqual(S.workspace.floors[1].scene, sceneWith([]));
     history.redo();

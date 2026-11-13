@@ -270,7 +270,7 @@ export function paintPlanner3D() {
     for(const id of [con.wall,con.ref,con.w1,con.w2,...(con.walls||[])]){const w=wallByKey.get(String(id));if(w){const g=wallGeom(w);if(g)points.push(wallPointAt(w,g.L/2));}}
     for(const id of [con.opening,...(con.openings||[])]){const o=openingByKey.get(String(id)),w=o&&wallById.get(o.wall);if(w)points.push(wallPointAt(w,o.s));}
     if(!points.length)continue;const at={x:points.reduce((v,p)=>v+p.x,0)/points.length,y:35,z:points.reduce((v,p)=>v+p.z,0)/points.length};
-    path(points,conSatisfied(con)?'#709fee':'#f17c6b');const text=con.value!=null?String(Math.round(con.value*100)/100):({parallel:'∥',perpendicular:'⊥',fixed:'●',coincident:'○',equalLength:'='})[con.type]||'↔';
+    path(points,conSatisfied(con)?'#709fee':'#f17c6b');const text=con.value!=null?(/angle/i.test(con.type)?Math.round(con.value*10)/10+'°':fmtLen(con.value,{domain:'plan',suffix:false})):({parallel:'∥',perpendicular:'⊥',fixed:'●',coincident:'○',equalLength:'='})[con.type]||'↔';
     const q=project(at);if(q){label(at,text);constraintHits.push({con,x:q.x,y:q.y-5,w:Math.max(28,c.measureText(text).width+14)});}
   }
   vertexHits=[];

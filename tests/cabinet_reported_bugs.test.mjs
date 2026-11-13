@@ -368,7 +368,7 @@ test('#20 dimension inputs convert furniture units and bounds while counts stay 
   globalThis.document = { createElement: tag => new Node(tag) };
   try {
     for (const [unit, factor] of [['mm', 10], ['cm', 1], ['in', 1 / 2.54], ['ft', 1 / 30.48]]) {
-      saveUnitSettings({ overrides: { furniture: { unit } } });
+      saveUnitSettings({ overrides: { cabinet: { unit } } });
       let result;
       const input = numInput(60, value => { result = value; }, 10, 100);
       assert.ok(Math.abs(+input.value - 60 * factor) < 1e-6);

@@ -11,6 +11,7 @@ import { cancelPending, disarmHistoryGesture, pushHistory, redo, restoreHistoryS
 import { t } from "../i18n.js";
 import { hitItem, hitOpening, hitRoom } from "../interaction/hit_test.js";
 import { finalizeItemPlacement, rotateRoom } from "../interaction/layout_drag.js";
+import { itemRotateUp } from "../interaction/item_rotate.js";
 import { commitRoute, commitWallBite, finishDraw, setTool, syncElevationTools, wallPoint } from "../interaction/mep_tools.js";
 import { arcWallPoint, armRoomStamp, buildDragCorridor, connectFusedWalls, cycleRoomStampConnMode, disarmRoomStamp, flipRoomStampDoorWall, fuseDroppedRoom, rehomeDraggedRoom, resizeRoomStamp, rotateRoomStamp } from "../interaction/room_tools.js";
 import { rotateItems } from "../interaction/view3d_edit.js";
@@ -250,6 +251,7 @@ function wireLongPressAndPointerUp() {
     }
     // An object dragged clear of the point it was standing on frees that point.
     // Room drags carry their contents, so those count too.
+    if (S.action === "itemRotate") itemRotateUp();
     if (S.action === "item" && S.sel) {
       /* A piece dropped flush against a wall is held to it from now on. Only
          when the flush snap actually engaged during THIS drag — inferring it
@@ -416,12 +418,13 @@ function wireLongPressAndPointerUp() {
       !S.rectDraft &&
       (S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect" || S.tool === "slabvoid");
     if (S.hoverItem || S.hoverPt || S.markerPreview || S.wallHoverHalf ||
-        S.warnHover || S.conHover || S.wallProbe || S.hoverMarker || S.hoverNode != null ||
+        S.warnHover || S.conHover || S.wallProbe || S.hoverMarker || S.hoverNode != null || S.hoverWall ||
         S.eraseHover || draftHover) {
       S.hoverItem = null;
       S.hoverPt = null;
       S.hoverMarker = null;
       S.hoverNode = null;
+      S.hoverWall = null;
       S.wallHoverHalf = null;
       S.wallProbe = null;
       S.markerPreview = null;

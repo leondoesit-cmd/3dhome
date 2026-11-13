@@ -987,6 +987,38 @@ html:not([data-ui="legacy"]) #left-sidebar[data-left="tree"] > [data-left-pane="
   background: var(--accent);
   color: var(--on-accent);
 }
+/* "show the floor below" (js/planner_chrome.js): an icon toggle after the +,
+   then a short "over Ground floor" while it is on */
+#floor-tabs .floor-ref {
+  width: 26px;
+  padding: 0;
+  margin-inline-start: 2px;
+  font-size: 15px;
+}
+#floor-tabs .floor-ref.active,
+#floor-tabs .floor-ref[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+#floor-tabs .floor-ref-note {
+  padding-inline: 2px 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+#floor-tabs .floor-ref-note[hidden] {
+  display: none;
+}
+/* A phone has no room for the note (the toggle's pressed state says the same
+   thing), and the strip's desktop cap left the toggle scrolled out of sight:
+   let it use the free corner on its end side instead. */
+body.compact-nav #floor-tabs .floor-ref-note {
+  display: none;
+}
+body.compact-nav #floor-tabs {
+  inset-inline-end: 8px;
+  max-width: calc(100% - 112px);
+}
 
 .plan-hint {
   position: absolute;

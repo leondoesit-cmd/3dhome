@@ -153,9 +153,17 @@ export function roomsWithOpenings() {
   });
 }
 
+/* One void per flight: a "cut stairwell" pressed twice used to stack a second
+   void on the first, so later duplicates sharing a `stairsId` are dropped. */
 export function normalizeSlabOpenings(list) {
+  var bound = new Set();
   return (Array.isArray(list) ? list : []).filter(function (o) {
-    return o && fin(o.x) && fin(o.z) && Number(o.w) >= 40 && Number(o.d) >= 40;
+    if (!(o && fin(o.x) && fin(o.z) && Number(o.w) >= 40 && Number(o.d) >= 40)) return false;
+    if (o.stairsId == null) return true;
+    var k = String(o.stairsId);
+    if (bound.has(k)) return false;
+    bound.add(k);
+    return true;
   }).map(function (o) {
     return {
       id: o.id != null ? o.id : uid(),

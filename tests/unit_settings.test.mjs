@@ -5,6 +5,7 @@ import {
   isLocationInUS,
   detectLocationUnitSystem,
   getSmartDefaults,
+  detectDraftingConvention,
   getDomainConfig,
   getDomainUnit,
   getDomainDigits,
@@ -108,16 +109,16 @@ test("manual locationMode override overrides geographic and locale detection", (
   S.site = { enabled: false, lat: null, lon: null };
 });
 
-test("smart defaults match professional CAD standards (m for rooms/site, mm for plan/openings/furniture/MEP/details)", () => {
-  const metric = getSmartDefaults("metric");
-  assert.equal(metric.rooms.unit, "m", "rooms suited to meters");
-  assert.equal(metric.openings.unit, "mm", "doors/windows suited to mm");
-  assert.equal(metric.furniture.unit, "mm", "furniture suited to mm");
-  assert.equal(metric.mep.unit, "mm", "MEP pipes/conduits suited to mm");
-  assert.equal(metric.details.unit, "mm", "thicknesses/profiles suited to mm");
-  assert.equal(metric.site.unit, "m", "site boundaries suited to meters");
-  assert.equal(metric.plan.unit, "mm", "plan CAD annotations suited to millimeters");
-  assert.equal(metric.area.unit, "m2", "area suited to square meters");
+test("smart defaults put a metric drawing in ONE unit: the region's cm or mm, pipes mm, site m", () => {
+  for (const conv of ["cm", "mm"]) {
+    const metric = getSmartDefaults("metric", conv);
+    for (const dom of ["rooms", "plan", "openings", "furniture", "details"]) {
+      assert.equal(metric[dom].unit, conv, dom + " follows the " + conv + " drafting convention");
+    }
+    assert.equal(metric.mep.unit, "mm", "pipe sizes are always mm");
+    assert.equal(metric.site.unit, "m", "site boundaries suited to meters");
+    assert.equal(metric.area.unit, "m2", "area suited to square meters");
+  }
 
   const imperial = getSmartDefaults("imperial");
   assert.equal(imperial.rooms.unit, "ft");
@@ -130,14 +131,31 @@ test("smart defaults match professional CAD standards (m for rooms/site, mm for 
   assert.equal(imperial.area.unit, "sqft");
 });
 
+test("an Israeli site is dimensioned in centimetres, a UK one in millimetres", () => {
+  S.site = { enabled: true, lat: 32.0853, lon: 34.7818, label: "" };
+  assert.equal(detectDraftingConvention(), "cm", "Tel Aviv coordinates");
+  S.site = { enabled: true, lat: 0, lon: 0, label: "Haifa, Israel" };
+  assert.equal(detectDraftingConvention(), "cm", "Israel label");
+  S.site = { enabled: true, lat: 0, lon: 0, label: "Lyon, France" };
+  assert.equal(detectDraftingConvention(), "cm");
+  saveUnitSettings({ preset: "auto", locationMode: "auto", overrides: {} });
+  S.site = { enabled: true, lat: 32.0853, lon: 34.7818, label: "Tel Aviv, Israel" };
+  assert.equal(getDomainUnit("rooms"), "cm");
+  assert.equal(getDomainUnit("plan"), "cm");
+  assert.equal(getDomainUnit("openings"), "cm");
+  assert.equal(writeLenValue("w_len", 400), "400", "a 400 cm wall reads 400, not 4");
+  S.site = { enabled: false, lat: null, lon: null };
+});
+
 test("presets configure expected domain units across the application", () => {
-  // 1. Architectural Metric Preset
+  // 1. Architectural Metric Preset: the centimetre plan convention
   saveUnitSettings({ preset: "metric_arch", overrides: {} });
-  assert.equal(getDomainUnit("rooms"), "m");
-  assert.equal(getDomainUnit("openings"), "mm");
-  assert.equal(getDomainUnit("furniture"), "mm");
+  assert.equal(getDomainUnit("rooms"), "cm");
+  assert.equal(getDomainUnit("plan"), "cm");
+  assert.equal(getDomainUnit("openings"), "cm");
+  assert.equal(getDomainUnit("furniture"), "cm");
   assert.equal(getDomainUnit("mep"), "mm");
-  assert.equal(getDomainUnit("details"), "mm");
+  assert.equal(getDomainUnit("details"), "cm");
   assert.equal(getDomainUnit("site"), "m");
 
   // 2. Engineering (all mm) Preset
@@ -202,8 +220,8 @@ test("inferDomainFromElementId and inferDomainFromTool accurately map drafting t
   assert.equal(inferDomainFromElementId("mk_x"), "furniture");
   assert.equal(inferDomainFromElementId("mep_run"), "mep");
   assert.equal(inferDomainFromElementId("site_offX"), "site");
-  assert.equal(inferDomainFromElementId("cbW"), "furniture");
-  assert.equal(inferDomainFromElementId("cbH"), "furniture");
+  assert.equal(inferDomainFromElementId("cbW"), "cabinet");
+  assert.equal(inferDomainFromElementId("cbH"), "cabinet");
   assert.equal(inferDomainFromElementId("mdDimValue"), "details");
   assert.equal(inferDomainFromElementId("mdDepth"), "details");
   assert.equal(inferDomainFromElementId("inLen"), "plan");
@@ -227,70 +245,54 @@ test("inferDomainFromElementId and inferDomainFromTool accurately map drafting t
 
 test("domain-aware fmtLen formats numbers using each menu's active unit", () => {
   saveUnitSettings({ preset: "metric_arch", overrides: {} });
-
-  // 350 cm wall length in rooms domain -> 3.5 m
-  assert.equal(fmtLen(350, { domain: "rooms" }), "3.5 m");
-
-  // 80 cm door in openings domain -> 800 mm
-  assert.equal(fmtLen(80, { domain: "openings" }), "800 mm");
-
-  // 160 cm bed in furniture domain -> 1600 mm
-  assert.equal(fmtLen(160, { domain: "furniture" }), "1600 mm");
-
-  // 10 cm wall thickness in details domain -> 100 mm
-  assert.equal(fmtLen(10, { domain: "details" }), "100 mm");
-
-  // 5 cm pipe in mep domain -> 50 mm
+  assert.equal(fmtLen(350, { domain: "rooms" }), "350 cm");
+  assert.equal(fmtLen(80, { domain: "openings" }), "80 cm");
+  assert.equal(fmtLen(160, { domain: "furniture" }), "160 cm");
+  assert.equal(fmtLen(1.5, { domain: "details" }), "1.5 cm", "half centimetres survive");
   assert.equal(fmtLen(5, { domain: "mep" }), "50 mm");
+  assert.equal(fmtLen(2500, { domain: "site" }), "25.00 m", "metres keep two decimals");
 
-  // 2500 cm lot in site domain -> 25 m
-  assert.equal(fmtLen(2500, { domain: "site" }), "25 m");
+  saveUnitSettings({ preset: "metric_m", overrides: {} });
+  assert.equal(fmtLen(400, { domain: "rooms" }), "4.00 m", "a 4 m wall reads 4.00, never a bare 4");
+  assert.equal(fmtLen(365.5, { domain: "rooms", digits: 3 }), "3.655 m");
 });
 
 test("domain-aware parseLen interprets bare numbers according to the menu unit, while honoring typed suffixes", () => {
   saveUnitSettings({ preset: "metric_arch", overrides: {} });
-
-  // In rooms domain (unit is 'm'):
-  assert.equal(parseLen("4.2", "rooms"), 420, "4.2 without suffix in rooms is 4.2m = 420cm");
-  // Explicit suffixes work anywhere
-  assert.equal(parseLen("420cm", "rooms"), 420);
+  assert.equal(parseLen("420", "rooms"), 420, "420 in rooms is 420 cm");
+  assert.equal(parseLen("4.2m", "rooms"), 420);
   assert.equal(parseLen("4200mm", "rooms"), 420);
   assert.equal(parseLen("10ft", "rooms"), 10 * 30.48);
-
-  // In openings domain (unit is 'mm'):
-  assert.equal(parseLen("800", "openings"), 80, "800 without suffix in openings is 800mm = 80cm");
-  assert.equal(parseLen("0.8m", "openings"), 80);
-  assert.equal(parseLen("80cm", "openings"), 80);
-  assert.equal(parseLen("800mm", "openings"), 80);
-
-  // In details domain (unit is 'mm'):
-  assert.equal(parseLen("150", "details"), 15, "150 without suffix in details is 150mm = 15cm");
-  assert.equal(parseLen("15cm", "details"), 15);
-  assert.equal(parseLen("0.15m", "details"), 15);
-
-  // In mep domain (unit is 'mm'):
+  assert.equal(parseLen("90", "openings"), 90);
+  assert.equal(parseLen("900mm", "openings"), 90);
   assert.equal(parseLen("50", "mep"), 5, "50 without suffix in mep is 50mm = 5cm");
+
+  saveUnitSettings({ preset: "metric_mm", overrides: {} });
+  assert.equal(parseLen("800", "openings"), 80, "800 in mm openings is 80 cm");
+  assert.equal(parseLen("150", "details"), 15);
 });
 
 test("writeLen writes correct domain values and digits into elements", () => {
   saveUnitSettings({ preset: "metric_arch", overrides: {} });
+  assert.equal(writeLenValue("w_len", 350), "350");
+  assert.equal(writeLenValue("w_th", 20), "20");
+  assert.equal(writeLenValue("o_w", 90), "90");
+  assert.equal(writeLenValue("i_w", 160), "160");
 
-  const dummyWLen = { id: "w_len", value: "" };
-  writeLen(dummyWLen, 350);
-  assert.equal(dummyWLen.value, "3.5", "350 cm wall is written as 3.5 in w_len");
+  saveUnitSettings({ preset: "metric_mm", overrides: {} });
+  assert.equal(writeLenValue("w_len", 350), "3500");
+  assert.equal(writeLenValue("w_th", 10), "100");
 
-  const dummyWTh = { id: "w_th", value: "" };
-  writeLen(dummyWTh, 10);
-  assert.equal(dummyWTh.value, "100", "10 cm thickness is written as 100 in w_th");
-
-  const dummyOW = { id: "o_w", value: "" };
-  writeLen(dummyOW, 80);
-  assert.equal(dummyOW.value, "800", "80 cm opening is written as 800 in o_w");
-
-  const dummyIW = { id: "i_w", value: "" };
-  writeLen(dummyIW, 160);
-  assert.equal(dummyIW.value, "1600", "160 cm furniture is written as 1600 in i_w");
+  saveUnitSettings({ preset: "metric_m", overrides: {} });
+  assert.equal(writeLenValue("w_len", 400), "4.00", "a metre field keeps its centimetres");
+  assert.equal(writeLenValue("w_len", 365.5), "3.655");
 });
+
+function writeLenValue(id, cm) {
+  const el = { id, value: "" };
+  writeLen(el, cm);
+  return el.value;
+}
 
 test("area formatting supports metric m² and imperial sqft", () => {
   saveUnitSettings({ preset: "metric_arch", overrides: {} });

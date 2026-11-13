@@ -17,6 +17,7 @@ import { fillJoint, fillMarker, fillSlabVoid, fillVariants, syncWallEnd, syncWal
 import { bindWallTabs, fillWallFlip, fillWallHead, fillWallOpenings } from "../ui_props/wall_tabs.js";
 import { fillRoomBoundaries } from "../ui_room_boundaries.js";
 import { fillItemSmart } from "../ui_smarthome.js";
+import { fillStairDesign } from "../ui_props/stairs.js";
 import { refreshTree } from "../ui_tree.js";
 import { frameSpec } from "../view3d.js";
 import { CON_TOL_A, CON_TOL_L, angleSectorAtNode, conCurrent, conDrivable, conError, conLabelText, conSatisfied, conUnit, pinnedNodes, wallCons } from "../wall_constraints.js";
@@ -351,6 +352,7 @@ export function fillProps() {
     fillItemSmart(it);
     var slabRow = document.getElementById("i_slabvoid_row");
     if (slabRow) slabRow.hidden = it.type !== "stairs";
+    fillStairDesign(it); // the stair designer; W/D/H are its outputs for a designed flight
     document.getElementById("lockItemSpan").textContent = it.locked ? t("lockItemOn") : t("lockItem");
     document.getElementById("lockItemBtn").querySelector("i").className = it.locked ? "ph ph-lock-key" : "ph ph-lock-key-open";
     if (isLamp(it)) {

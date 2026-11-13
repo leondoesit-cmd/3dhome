@@ -9,6 +9,7 @@ import { detectRooms, equalWallAngleTranslation, snapAdj, usedNodes, wallById, w
 import { commitPending } from "../history.js";
 import { hitItem, hitNode, hitWall, planPickSurface, tolCm, updateWallProbe } from "../interaction/hit_test.js";
 import { auditDragProxy, moveItemTo, weldNodes } from "../interaction/layout_drag.js";
+import { itemRotateMove } from "../interaction/item_rotate.js";
 import { dragMEP } from "../interaction/mep_tools.js";
 import { roomOwnWalls, updateRoomGhost } from "../interaction/room_tools.js";
 import { pickErase, resolveLanding, splitIntersectionWalls, wallHalfAt } from "../interaction/wall_edit.js";
@@ -32,8 +33,28 @@ import {
   dropDragProxy, interactionLocals, isElevation, pickCon,
 } from "../interaction.js";
 
+/* Shift flips ORTHO the moment it goes down or up, not at the next mouse move:
+   the last pointer position is replayed through planMove, so the rubber band
+   and its angle arc jump to the constrained (or freed) aim with the mouse
+   still. The window losing focus releases it. */
+var lastMovePtr = null;
+function replayOrthoHold(on) {
+  if (S.orthoHold === on) return;
+  S.orthoHold = on;
+  var live = S.drawing || S.action === "node" || S.action === "wall";
+  if (live && lastMovePtr && interactionLocals.planMove)
+    interactionLocals.planMove({ offsetX: lastMovePtr.x, offsetY: lastMovePtr.y, pointerType: "mouse", shiftKey: on });
+}
+function wireOrthoHoldKeys() {
+  if (typeof window === "undefined") return;
+  window.addEventListener("keydown", function (e) { if (e.key === "Shift") replayOrthoHold(true); });
+  window.addEventListener("keyup", function (e) { if (e.key === "Shift") replayOrthoHold(false); });
+  window.addEventListener("blur", function () { replayOrthoHold(false); });
+}
+
 // lifted out of initInteraction()
 function wirePlanMove() {
+  wireOrthoHoldKeys();
   interactionLocals.planMove = function (e) {
     if (isElevation()) {
       // items, openings and points are live in the two elevation axes
@@ -88,6 +109,12 @@ function wirePlanMove() {
        Read per move rather than latched at pointerdown, so the key can be
        taken and released mid-drag. */
     S.conOverride = !!(e && e.altKey);
+    /* Hold Shift to flip ORTHO for this stretch of the gesture (snapPoint's
+       orthoActive), read per move for the same reason as Alt above. A replayed
+       move without key state (auto-pan) leaves it as the key listener set it. */
+    if (e && "shiftKey" in e) S.orthoHold = !!e.shiftKey;
+    if (e && e.pointerType !== "touch" && fin(e.offsetX) && fin(e.offsetY))
+      lastMovePtr = { x: e.offsetX, y: e.offsetY };
     (0, interactionLocals.trackLongPress)(e);
     if (S.action === "pinch") {
       (0, interactionLocals.updatePinch)();
@@ -251,6 +278,13 @@ function wirePlanMove() {
       // ...and a corner under it reads out the same way, so "what meets here,
       // at what angle" is answerable without clicking anything
       S.hoverNode = focus.structure && S.hoverMarker == null ? hitNode(px, pz) : null;
+      // ...and a wall under it lights its own numbers in the dimension chains
+      // outside the plan, so which of those numbers is this wall is never a
+      // matter of counting walls (js/plan2d/dim_chains.js). Any clickable wall,
+      // not only a focused one: lighting a number outside the plan opens no
+      // card, so it cannot get in the way of what is being aimed at
+      S.hoverWall = !S.hoverItem && S.hoverMarker == null && S.hoverNode == null
+        ? hitWall(px, pz) : null;
       // Constraint labels are real pick targets, so hovering one must reveal
       // the same relation that a click would select (and the same row in the
       // side panel). Screen coordinates are used because pickCon records the
@@ -305,6 +339,7 @@ function wirePlanMove() {
       render2D();
       return;
     }
+    if (S.action === "itemRotate") return void itemRotateMove(e, px, pz);
     if (S.action === "item" && S.sel && (S.sel.kind === "item" || S.sel.kind === "items")) {
       commitPending();
       /* Alt suspends the automatic facing for THIS drag only (endAction clears

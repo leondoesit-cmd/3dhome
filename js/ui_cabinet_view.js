@@ -837,7 +837,7 @@ export function draw() {
    unit, a number with a unit ("60cm", "0.6 m", "24in") is taken at its word.
    NaN for anything that is not a length or is not above `min`. */
 export function parseSizeEntry(text, min) {
-  var v = parseLen(String(text || "").trim(), "furniture");
+  var v = parseLen(String(text || "").trim(), "cabinet");
   return Number.isFinite(v) && v > (min || 0) ? v : NaN;
 }
 
@@ -855,7 +855,7 @@ export function openSizeEdit(what, ev, apply) {
     r = host.getBoundingClientRect();
   box.className = "cb-size-edit";
   box.setAttribute("role", "dialog");
-  cap.textContent = what.label + " (" + displayUnit("furniture") + ")";
+  cap.textContent = what.label + " (" + displayUnit("cabinet") + ")";
   input.type = "text";
   input.inputMode = "decimal";
   input.autocomplete = "off";
@@ -918,12 +918,12 @@ export function closeSizeEdit() {
   if (E.sizeEdit) E.sizeEdit.close();
 }
 
-/* A length as the drawing writes it: in the project's furniture unit (mm by
+/* A length as the drawing writes it: in the cabinet unit (mm by
    default), like the size fields and the compartment labels, rather than in the
    centimetres the geometry is kept in. The overall dimensions carry the unit;
    the chains inside them do not, as on a shop drawing. */
 export function dimLen(cm, withUnit) {
-  return fmtLen(cm, { domain: "furniture", suffix: !!withUnit });
+  return fmtLen(cm, { domain: "cabinet", suffix: !!withUnit });
 }
 
 /* Dimension lines the way a shop drawing carries them: a run between two
@@ -1628,8 +1628,8 @@ export function exportPNG() {
   c.font = "500 14px Inter, Rubik, sans-serif";
   c.fillStyle = "#5b636b";
   c.fillText(
-    (/^(mm|cm|m)$/.test(displayUnit("furniture"))
-      ? dimLen(E.it.w) + "×" + dimLen(E.it.d) + "×" + dimLen(E.it.h) + " " + displayUnit("furniture")
+    (/^(mm|cm|m)$/.test(displayUnit("cabinet"))
+      ? dimLen(E.it.w) + "×" + dimLen(E.it.d) + "×" + dimLen(E.it.h) + " " + displayUnit("cabinet")
       : [E.it.w, E.it.d, E.it.h].map(function (v) { return dimLen(v, true); }).join(" × ")) +
       "  ·  " + cabSummary(E.it) + "  ·  " + frontLabel(sp().front) + "  ·  ₪" + cabPrice(E.it).toLocaleString("en-US"),
     x, pad + 38,

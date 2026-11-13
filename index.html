@@ -194,6 +194,7 @@
     <link rel="stylesheet" href="css/pro_skin.css" />
     <link rel="stylesheet" href="css/pro_compact.css" />
     <link rel="stylesheet" href="css/pro_menus.css" />
+    <link rel="stylesheet" href="css/coach.css" />
     <!-- one design system for planner controls; loaded last on purpose -->
     <link rel="stylesheet" href="css/ui_system.css" />
   </head>
@@ -1539,6 +1540,8 @@
                   <span data-i18n="face_auto">כוון לפי הסביבה</span>
                 </button>
               </div>
+              <!-- the stair designer (js/ui_props/stairs.js builds its controls) -->
+              <div id="i_stair_design" class="stair-design" hidden></div>
               <div class="btn-row" id="i_slabvoid_row" hidden>
                 <button data-act="slabFromStairs" class="w-full">
                   <i class="ph ph-stairs"></i>
@@ -1929,6 +1932,8 @@
                 ><input id="sv_rot" type="number" inputmode="numeric"
               /></label>
               <span class="t" data-i18n="sv_hint">החלל נחתך בלוח של הקומה הנוכחית. במדרגות, חתכו את הקומה שמעל.</span>
+              <!-- a stairwell bound to its flight (js/ui_props/stairs.js) -->
+              <div id="sv_bound" class="btn-row stair-bound" hidden></div>
               <div class="btn-row">
                 <button data-act="deleteSel" class="btn-danger">
                   <i class="ph ph-trash"></i>

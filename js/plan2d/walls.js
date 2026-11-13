@@ -3,7 +3,6 @@
    editor's state through live imports from ../plan2d.js. */
 import { activeWarnings } from "../constraint_engine.js";
 import { isElevation } from "../elevation.js";
-import { referenceFloorScene } from "../floors.js";
 import { detectRooms, hiddenSets, roomFloor, roomHidden, roomsTopologyKey, wallBandOutline, wallById, wallGeom, wallOutline, wallPointAt, wallTangentAt } from "../geometry.js";
 import { t } from "../i18n.js";
 import { itemCorners } from "../measure.js";
@@ -12,13 +11,14 @@ import { patternFill } from "../plan_patterns.js";
 import { isPresentation, planStyle, planTheme } from "../plan_style.js";
 import { sx, sz } from "../plan_view.js";
 import { label } from "../plan2d/constraints.js";
+import { drawRefFloorOverlay } from "../plan2d/reference_floor.js";
 import { warnLabel } from "../plan2d/items.js";
 import { eraseHover } from "../plan2d/overlays.js";
 import { floorMeanColor, floorPaintCanvas, groundPaintCanvas } from "../primitives.js";
-import { FILL2D, S, TILE, clamp } from "../state.js";
+import { FILL2D, S, TILE, clamp, fin } from "../state.js";
 import { openingHasSwingConflict } from "../swing_clearance.js";
 import { userLayerKey } from "../user_layers.js";
-import { curvedWallOutline, normalizeWallKind } from "../wall_curves.js";
+import { normalizeWallKind } from "../wall_curves.js";
 import { normalizeWall } from "../wall_types.js";
 import {
   LAWN_MARGIN, PAVE_CM, WARN_COL, angleGuideAnimOn, angleGuideLastFrame,
@@ -288,24 +288,9 @@ function drawCachedRooms() {
   return { rooms: rooms, hid: hid };
 }
 
+// the other storey, faintly (js/plan2d/reference_floor.js)
 function drawReferenceFloor() {
-  var scene = referenceFloorScene(S.workspace);
-  if (!scene) return;
-  var spatial = scene.spatial || scene,
-    nodes = spatial.nodes || [], walls = spatial.walls || [];
-  pc.save();
-  pc.globalAlpha = .42;
-  pc.strokeStyle = "#6b67a8";
-  pc.fillStyle = "rgba(107,103,168,.10)";
-  pc.setLineDash([7, 5]);
-  walls.forEach(function (w) {
-    var poly = curvedWallOutline(w, w.thickness || 10, nodes, 20);
-    if (!poly.length) return;
-    pc.beginPath();
-    poly.forEach(function (p, i) { if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z)); });
-    pc.closePath(); pc.fill(); pc.stroke();
-  });
-  pc.restore();
+  drawRefFloorOverlay();
 }
 
 function drawSnapFlash() {
@@ -519,17 +504,20 @@ function drawWallProbe() {
   pc.stroke();
   pc.setLineDash([]);
   pc.restore();
-  // each number sits on its own half, offset off the wall so it never covers it
-  var off = 16 / (S.SC || 1);
+  // each number sits on its own half of the stretch measured (corner or jamb
+  // to here, here to jamb or corner), offset off the wall so it never covers it
+  var off = 16 / (S.SC || 1),
+    pA = fin(wp.lo) ? wallPointAt(w, wp.lo) : gm.a,
+    pB = fin(wp.hi) ? wallPointAt(w, wp.hi) : gm.b;
   label(
-    (gm.a.x + wp.x) / 2 - gm.uz * off,
-    (gm.a.z + wp.z) / 2 + gm.ux * off,
+    (pA.x + wp.x) / 2 - gm.uz * off,
+    (pA.z + wp.z) / 2 + gm.ux * off,
     Math.round(wp.fromA) + "",
     "#b35f19",
   );
   label(
-    (wp.x + gm.b.x) / 2 - gm.uz * off,
-    (wp.z + gm.b.z) / 2 + gm.ux * off,
+    (wp.x + pB.x) / 2 - gm.uz * off,
+    (wp.z + pB.z) / 2 + gm.ux * off,
     Math.round(wp.toB) + "",
     "#b35f19",
   );

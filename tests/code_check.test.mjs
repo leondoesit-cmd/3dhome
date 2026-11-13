@@ -241,3 +241,25 @@ test("a generated apartment reads into the check with typed, measured rooms", ()
   });
   assert.equal(run.status, 0, run.stderr || run.stdout);
 });
+
+test("stairs read into the check from their layout (js/stair_layout.js)", async () => {
+  const { S } = await import("../js/state.js");
+  const { planForCodeCheck } = await import("../js/code_check_plan.js");
+  const saved = { items: S.items, walls: S.walls, nodes: S.nodes, openings: S.openings };
+  try {
+    S.walls = []; S.nodes = []; S.openings = [];
+    // no step count: the 14 the model and the plan draw, not the old 10
+    S.items = [{ id: 1, type: "stairs", x: 0, z: 0, w: 100, d: 280, h: 280 }];
+    assert.deepEqual(planForCodeCheck(S).stairs, [{ id: 1, riser: 20, tread: 20 }]);
+    // a designed L flight has its going checked (the legacy L never was)
+    S.items = [{ id: 2, type: "stairs", x: 0, z: 0, w: 250, d: 250, h: 270,
+      configuration: { stair: { width: 90, going: 24, runs: [7, 7], turns: ["R"], turnType: "landing" } } }];
+    const [s] = planForCodeCheck(S).stairs;
+    assert.equal(s.tread, 24);
+    assert.equal(s.riser, 18);
+    // 18 cm is under the IRC's 7¾" riser, 24 cm short of its 10" tread
+    assert.deepEqual(rules(checkCode({ rooms: [], stairs: [s] }, "us-irc-2021")), ["stairMinTread:error"]);
+  } finally {
+    Object.assign(S, saved);
+  }
+});

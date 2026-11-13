@@ -107,7 +107,11 @@ test("all three editors mount the same switcher and register how they are left",
 test("the workspace prints sheets through the shared helper, not its own copy", () => {
   const ws = src("workspace.js");
   assert.doesNotMatch(ws, /function printSheet\(/);
-  assert.match(ws, /printSheetSVG\(toConstructionSVG\(\), t\("sheet_floor_plan"\)\)/);
+  // the sheet buttons run the pro ribbon's own commands (js/pro_actions.js)
+  assert.doesNotMatch(ws, /printSheetSVG\(/);
+  assert.match(ws, /proAction\("sheetPrint"\)/);
+  assert.match(ws, /proAction\("proDrawing"\)/);
+  assert.match(ws, /import\("\.\/pro_actions\.js"\)\.then\(\(m\) => m\.PRO_ACTIONS\[name\]\(\)\)/);
 });
 
 test("the phone planner carries the switcher and the panes in a strip under the top bar", () => {

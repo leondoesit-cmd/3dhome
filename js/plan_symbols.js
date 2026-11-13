@@ -10,6 +10,8 @@
      {k:"poly", pts:[{x,z}], closed}  {k:"text", x, z, s, size}
    `weight` on any primitive: "heavy" | "light" (default "light"). */
 
+import { stairLayout, stairEdges } from "./stair_layout.js";
+
 function rect(x, z, w, d, r) { return { k: "rect", x: x, z: z, w: w, d: d, r: r || 0 }; }
 function line(x1, z1, x2, z2) { return { k: "line", x1: x1, z1: z1, x2: x2, z2: z2 }; }
 function circle(x, z, r) { return { k: "circle", x: x, z: z, r: r }; }
@@ -99,42 +101,56 @@ var SYMBOLS = {
   },
   rug: function (w, d) { return [Object.assign(rect(-w / 2, -d / 2, w, d), { dash: true })]; },
   stairs: function (w, d, it) {
-    var steps = Math.max(2, Math.min(100, Math.round((it && it.configuration && it.configuration.stepCount) || (it && it.steps) || 14)));
-    var shape = stairShape(it), out = outline(w, d), up = { k: "text", s: "UP", size: Math.max(8, Math.min(16, w * 0.14)), upLabel: true };
-    var hw = w / 2, hd = d / 2;
+    /* One layout (js/stair_layout.js) for the plan, the 3D model and the
+       code check. `it.shape` is the catalogue variant's shape. */
+    var lay = stairLayout(Object.assign({}, it || {}, { w: w, d: d }), it && it.shape);
+    var out = lay.designed ? [] : outline(w, d), up = { k: "text", s: "UP", size: Math.max(8, Math.min(16, w * 0.14)), upLabel: true };
+    var hw = w / 2, hd = d / 2, shape = lay.shape, LG = lay.legacy, steps = LG ? LG.n : lay.risers;
+    // the walking line (heavy, tagged `walk`) with its arrow head at the top
     function arrow(pts) {
-      for (var i = 0; i + 1 < pts.length; i++) out.push(Object.assign(line(pts[i].x, pts[i].z, pts[i + 1].x, pts[i + 1].z), { weight: "heavy" }));
+      for (var i = 0; i + 1 < pts.length; i++) out.push(Object.assign(line(pts[i].x, pts[i].z, pts[i + 1].x, pts[i + 1].z), { weight: "heavy", walk: true }));
       var a = pts[pts.length - 2], b = pts[pts.length - 1], L = Math.hypot(b.x - a.x, b.z - a.z) || 1,
         ux = (b.x - a.x) / L, uz = (b.z - a.z) / L;
-      out.push(Object.assign(line(b.x, b.z, b.x - ux * 9 - uz * 5, b.z - uz * 9 + ux * 5), { weight: "heavy" }));
-      out.push(Object.assign(line(b.x, b.z, b.x - ux * 9 + uz * 5, b.z - uz * 9 - ux * 5), { weight: "heavy" }));
+      out.push(Object.assign(line(b.x, b.z, b.x - ux * 9 - uz * 5, b.z - uz * 9 + ux * 5), { weight: "heavy", walk: true }));
+      out.push(Object.assign(line(b.x, b.z, b.x - ux * 9 + uz * 5, b.z - uz * 9 - ux * 5), { weight: "heavy", walk: true }));
+    }
+    if (lay.designed) {
+      // tread lines and landing edges light, the stair's outline heavy
+      var ed = stairEdges(lay);
+      ed.inner.forEach(function (e) { out.push(line(e.a.x, e.a.z, e.b.x, e.b.z)); });
+      ed.outer.forEach(function (e) { out.push(Object.assign(line(e.a.x, e.a.z, e.b.x, e.b.z), { weight: "heavy" })); });
+      var wk = lay.walk, w0 = wk[0], w1 = wk[1] || w0, wl = Math.hypot(w1.x - w0.x, w1.z - w0.z) || 1;
+      // start the line just inside the bottom tread, the UP label above its foot
+      var inset = Math.min(8, wl / 3), ux0 = (w1.x - w0.x) / wl, uz0 = (w1.z - w0.z) / wl;
+      arrow([{ x: w0.x + ux0 * inset, z: w0.z + uz0 * inset }].concat(wk.slice(1)));
+      out.push(Object.assign(up, { size: Math.max(8, Math.min(16, lay.width * 0.14)), x: w0.x + ux0 * Math.min(18, wl / 2), z: w0.z + uz0 * Math.min(18, wl / 2) }));
+      return out;
     }
     if (shape === "L") {
       // up the left side to a quarter landing, then across the back
-      var fw = Math.min(w * 0.45, 100), n1 = Math.max(1, Math.round(steps * 0.55)), n2 = Math.max(1, steps - n1 - 1),
-        len1 = d - fw, len2 = w - fw;
+      var fw = LG.fw, n1 = LG.n1, n2 = Math.max(1, LG.n2), len1 = LG.len1, len2 = LG.len2;
       out.push(rect(-hw, -hd, fw, fw));
       for (var i = 1; i < n1; i++) out.push(line(-hw, hd - (i * len1) / n1, -hw + fw, hd - (i * len1) / n1));
       for (var j = 1; j < n2; j++) out.push(line(-hw + fw + (j * len2) / n2, -hd, -hw + fw + (j * len2) / n2, -hd + fw));
       out.push(line(-hw + fw, -hd + fw, -hw + fw, hd));
       out.push(line(-hw + fw, -hd + fw, hw, -hd + fw));
-      arrow([{ x: -hw + fw / 2, z: hd - 8 }, { x: -hw + fw / 2, z: -hd + fw / 2 }, { x: hw - 6, z: -hd + fw / 2 }]);
+      arrow(lay.walk);
       out.push(Object.assign(up, { x: -hw + fw / 2, z: hd - 18 }));
       return out;
     }
     if (shape === "U") {
-      var fwU = Math.min(w * 0.45, 100), landingU = Math.min(fwU, d * 0.35), flightU = d - landingU;
-      var firstU = Math.max(1, Math.floor((steps - 1) / 2)), secondU = Math.max(1, steps - firstU - 1);
+      var fwU = LG.flightW, landingU = LG.landingD, flightU = LG.flightD;
+      var firstU = LG.first, secondU = LG.second;
       for (var u1 = 1; u1 < firstU; u1++) out.push(line(-hw, hd - u1 * flightU / firstU, -hw + fwU, hd - u1 * flightU / firstU));
       for (var u2 = 1; u2 < secondU; u2++) out.push(line(hw - fwU, -hd + landingU + u2 * flightU / secondU, hw, -hd + landingU + u2 * flightU / secondU));
       out.push(line(-hw, -hd + landingU, hw, -hd + landingU));
-      arrow([{ x: -hw + fwU / 2, z: hd - 8 }, { x: -hw + fwU / 2, z: -hd + landingU / 2 }, { x: hw - fwU / 2, z: -hd + landingU / 2 }, { x: hw - fwU / 2, z: hd - 8 }]);
+      arrow(lay.walk);
       out.push(Object.assign(up, { x: hw - fwU / 2, z: hd - 16 }));
       return out;
     }
     if (shape === "curved") {
       // a quarter-turn fan about the back-left corner
-      var ro = Math.min(w, d) - 2, ri = Math.max(12, ro * 0.18), cx = -hw, cz = -hd, arc = [], inner = [];
+      var ro = LG.ro, ri = LG.ri, cx = LG.cx, cz = LG.cz, arc = [], inner = [];
       for (var k = 0; k <= steps; k++) {
         var a = (k / steps) * (Math.PI / 2), sx = Math.sin(a), cs = Math.cos(a);
         out.push(line(cx + sx * ri, cz + cs * ri, cx + sx * ro, cz + cs * ro));
@@ -143,17 +159,13 @@ var SYMBOLS = {
       }
       out.push({ k: "poly", pts: arc, closed: false, weight: "heavy" });
       out.push({ k: "poly", pts: inner, closed: false });
-      var rm = (ri + ro) / 2, path = [];
-      for (var q = 0; q <= 8; q++) {
-        var aa = 0.08 + (q / 8) * (Math.PI / 2 - 0.2);
-        path.push({ x: cx + Math.sin(aa) * rm, z: cz + Math.cos(aa) * rm });
-      }
-      arrow(path);
+      var rm = (ri + ro) / 2;
+      arrow(lay.walk);
       out.push(Object.assign(up, { x: cx + Math.sin(0.12) * rm + 10, z: cz + Math.cos(0.12) * rm - 6 }));
       return out;
     }
     for (var s2 = 1; s2 < steps; s2++) out.push(line(-hw, -hd + (s2 * d) / steps, hw, -hd + (s2 * d) / steps));
-    arrow([{ x: 0, z: hd - 8 }, { x: 0, z: -hd + 6 }]);
+    arrow(lay.walk);
     out.push(Object.assign(up, { x: 0, z: hd - 16 }));
     return out;
   },

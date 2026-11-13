@@ -16,6 +16,7 @@ import { wallPointPolar, rectPointTyped } from "./interaction.js";
 import { wallClearLength, pendingCuts, roomName } from "./geometry.js";
 import { flabel } from "./furniture_meta.js";
 import { t, tTouch } from "./i18n.js";
+import { voidDisplayName } from "./stair_strings.js";
 import { previousRunAngle, resolveWallDrawDefaults, previewMetrics, touchDrawing, currentDrawDirLock } from "./wall_draw.js";
 import { displayUnit, fmtLen, parseLen } from "./display_units.js";
 import { inferDomainFromTool } from "./unit_settings.js";
@@ -501,7 +502,7 @@ export function updateCadHud() {
   } else if (S.tool === "erase") {
     main = tTouch("hint_tool_erase");
   } else if (S.sel && S.sel.kind === "slabvoid" && S.sel.ref) {
-    selectionName = S.sel.ref.name || t("sv_title");
+    selectionName = voidDisplayName(S.sel.ref) || t("sv_title");
     selectionDetail = hudFmt(S.sel.ref.w, { domain: "rooms" }) + " × " + hudFmt(S.sel.ref.d, { domain: "rooms" });
   } else if (S.sel && S.sel.kind === "wall") {
     selectionName = t("wallId", { id: S.sel.ref.id });

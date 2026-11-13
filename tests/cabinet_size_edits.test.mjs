@@ -56,7 +56,7 @@ function popup() {
 
 test("inch popup leaves rounded text unchanged on Enter and blur, with whitespace ignored", () => {
   const settings = structuredClone(loadUnitSettings());
-  saveUnitSettings({ overrides: { furniture: { unit: "in", digits: 1 } } });
+  saveUnitSettings({ overrides: { cabinet: { unit: "in", digits: 1 } } });
   try {
     for (const event of ["blur", "Enter"]) {
       for (const whitespace of [false, true]) {
@@ -75,7 +75,7 @@ test("inch popup leaves rounded text unchanged on Enter and blur, with whitespac
 
 test("inch popup parses changed entries, keeps the numeric threshold, and Escape cancels", () => {
   const settings = structuredClone(loadUnitSettings());
-  saveUnitSettings({ overrides: { furniture: { unit: "in", digits: 1 } } });
+  saveUnitSettings({ overrides: { cabinet: { unit: "in", digits: 1 } } });
   try {
     for (const [text, expected] of [["24", [60.96]], ["23.30", [59.182]], ["59.3cm", []], ["59.305cm", []]]) {
       const p = popup();

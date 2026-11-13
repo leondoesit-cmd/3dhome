@@ -5,6 +5,7 @@ import {
 } from "./state.js";
 import { box, cyl, sph, lathe, tube, torus, drape } from "./primitives.js";
 import { buildCab } from "./cabinet_mesh.js";
+import { buildStairs } from "./stair_model.js";
 import { getLang } from "./i18n.js";
 import {
   handleBar, upholstered, legsUnder, slabWithHoles, basin, gooseneck,
@@ -1607,79 +1608,9 @@ export const FURN = {
     h: 260,
     col: "#b09a76",
     build: function (g, it) {
-      /* Staircase, three plans (variant or it.configuration.shape):
-           straight — one flight up from the front (+z) to the back;
-           L        — up the left side to a quarter landing, then across the back;
-           curved   — a quarter-turn winder fanning round the back-left corner.
-         Treads have a nosing over each riser, closed stringers carry them, and
-         the open side gets a sloped handrail on balusters. */
-      var V = vspec(it), hw = it.w / 2, hd = it.d / 2, H = it.h, TR = 0xb09a76,
-        n = Math.max(2, Math.min(100, Math.round((it.configuration && it.configuration.stepCount) || it.steps || 14))),
-        shape = V.shape || (it.configuration && it.configuration.shape) || "straight", rise = H / n,
-        rail = { metal: 0.8, rough: 0.3 };
-      function step(x0, x1, z0, z1, k) {
-        // solid riser block with a 2 cm nosing tread on top
-        var y = (k + 1) * rise;
-        box(g, x0, x1, k * rise, y - 3, z0, z1, TR, { rough: 0.7, sharp: true });
-        box(g, x0, x1, y - 3, y, z0, z1, TR, { rough: 0.6, radius: 0.5 });
-      }
-      function railRun(x, z0, y0, z1, y1) {
-        var L = Math.hypot(z1 - z0, y1 - y0), r = cyl(g, x, (y0 + y1) / 2 + 90, (z0 + z1) / 2, 2.2, L, WOOD, { rough: 0.45, seg: 12 });
-        // tilt the cylinder's y axis onto the rise: up the flight, toward -z
-        if (r) r.rotation.x = Math.atan2(z1 - z0, y1 - y0);
-      }
-      if (shape === "L") {
-        var fw = Math.min(it.w * 0.45, 100), n1 = Math.max(1, Math.round(n * 0.55)), n2 = n - n1 - 1,
-          len1 = it.d - fw, len2 = it.w - fw;
-        for (var i = 0; i < n1; i++) step(-hw, -hw + fw, hd - ((i + 1) * len1) / n1, hd - (i * len1) / n1, i);
-        step(-hw, -hw + fw, -hd, -hd + fw, n1); // landing
-        for (var j = 0; j < n2; j++) step(-hw + fw + (j * len2) / n2, -hw + fw + ((j + 1) * len2) / n2, -hd, -hd + fw, n1 + 1 + j);
-        box(g, -hw + fw, -hw + fw + 3, 0, n1 * rise + 6, -hd + fw, hd, TR, { rough: 0.7, sharp: true }); // open stringer
-        railRun(-hw + fw + 1.5, hd, 0, -hd + fw, n1 * rise);
-        for (var b = 0; b < n1; b++) cyl(g, -hw + fw + 1.5, (b + 1) * rise + 45, hd - ((b + 0.5) * len1) / n1, 0.9, 90, 0x2b2e31, { metal: 0.6, rough: 0.4, seg: 8 });
-        return;
-      }
-      if (shape === "U") {
-        var flightW = Math.min(it.w * 0.45, 100), landingD = Math.min(flightW, it.d * 0.35);
-        var flightD = it.d - landingD, first = Math.max(1, Math.floor((n - 1) / 2)), second = Math.max(1, n - first - 1);
-        for (var u1 = 0; u1 < first; u1++)
-          step(-hw, -hw + flightW, hd - (u1 + 1) * flightD / first, hd - u1 * flightD / first, u1);
-        step(-hw, hw, -hd, -hd + landingD, first);
-        for (var u2 = 0; u2 < second; u2++)
-          step(hw - flightW, hw, -hd + landingD + u2 * flightD / second, -hd + landingD + (u2 + 1) * flightD / second, first + 1 + u2);
-        box(g, -hw + flightW - 3, -hw + flightW, 0, first * rise + 6, -hd + landingD, hd, TR, { rough: 0.7, sharp: true });
-        box(g, hw - flightW, hw - flightW + 3, first * rise, H, -hd + landingD, hd, TR, { rough: 0.7, sharp: true });
-        return;
-      }
-      if (shape === "curved") {
-        // treads fan round the back-left corner through a quarter turn
-        var ro = Math.min(it.w, it.d) - 2, ri = Math.max(12, ro * 0.18), cx = -hw, cz = -hd;
-        for (var k = 0; k < n; k++) {
-          var a0 = (k / n) * (Math.PI / 2), a1 = ((k + 1) / n) * (Math.PI / 2), am = (a0 + a1) / 2,
-            rm = (ri + ro) / 2, wdt = (a1 - a0) * ro + 4, y = (k + 1) * rise;
-          // a = 0 points toward the front (+z), a = π/2 toward the right (+x)
-          var tread = box(g, -(ro - ri) / 2, (ro - ri) / 2, y - 3, y, -wdt / 2, wdt / 2, TR, { rough: 0.6, radius: 0.5 });
-          var riser = box(g, -(ro - ri) / 2, (ro - ri) / 2, 0, y - 3, -wdt / 2 + 1, wdt / 2 - 1, TR, { rough: 0.7, sharp: true });
-          [tread, riser].forEach(function (m) {
-            if (!m) return;
-            m.position.x = cx + Math.sin(am) * rm;
-            m.position.z = cz + Math.cos(am) * rm;
-            m.rotation.y = Math.PI / 2 - am;
-          });
-          var bx = cx + Math.sin(am) * (ro - 2), bz = cz + Math.cos(am) * (ro - 2);
-          cyl(g, bx, y + 45, bz, 0.9, 90, 0x2b2e31, { metal: 0.6, rough: 0.4, seg: 8 });
-        }
-        cyl(g, cx + 0.1, H / 2, cz + 0.1, ri * 0.7, H, TR, { rough: 0.6, seg: 20 }); // newel column
-        return;
-      }
-      for (var s = 0; s < n; s++) step(-hw, hw, hd - ((s + 1) * it.d) / n, hd - (s * it.d) / n, s);
-      [-1, 1].forEach(function (sd) {
-        // closed stringers either side, following the pitch
-        box(g, sd * hw - (sd > 0 ? 3 : 0), sd * hw + (sd > 0 ? 0 : 3), 0, 12, -hd, hd, TR, { rough: 0.7, sharp: true });
-      });
-      railRun(hw - 3, hd, 0, -hd, H);
-      for (var b2 = 0; b2 < n; b2++) cyl(g, hw - 3, (b2 + 1) * rise + 45, hd - ((b2 + 0.5) * it.d) / n, 0.9, 90, 0x2b2e31, { metal: 0.6, rough: 0.4, seg: 8 });
-      cyl(g, hw - 3, 50, hd - 3, 3, 100, WOOD, { rough: 0.45, seg: 12 }); // newel
+      /* Staircase: a designed flight (configuration.stair) or one of the
+         catalogue plans — js/stair_model.js, laid out by js/stair_layout.js. */
+      buildStairs(g, it, vspec(it));
     },
   },
   fireplace: {

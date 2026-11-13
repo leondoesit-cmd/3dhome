@@ -384,7 +384,7 @@ export function row(label, node) {
   return r;
 }
 // Counts opt out of length conversion with a null domain.
-export function numInput(val, cb, min, max, domain = "furniture") {
+export function numInput(val, cb, min, max, domain = "cabinet") {
   var i = el("input");
   i.type = "number";
   i.inputMode = "decimal";

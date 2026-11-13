@@ -11,6 +11,7 @@ import { cancelPending, commitPending, pushHistory } from "../history.js";
 import { t } from "../i18n.js";
 import { applyCabinetDimension, requestCabinetDimension } from "../parametric_cabinet.js";
 import { setStrength } from "../physics_facade.js";
+import { applyStairVariant } from "../stair_floors.js";
 import { render2D } from "../plan2d.js";
 import { roomMeasurements } from "../room_summary.js";
 import { S, fin, touchItem3D } from "../state.js";
@@ -440,10 +441,12 @@ function wireItemAndRoomInputs(runAction) {
     if (!S.sel || S.sel.kind !== "item") return;
     pushHistory();
     S.sel.ref.variant = this.value;
+    var stairReshaped = applyStairVariant(S.sel.ref, this.value); // L / curved reshape a flight
     clearVSpanCache(); // a shape variant changes how high the piece reaches
     restack(S.sel.ref);
     touchItem3D(S.sel.ref, "build");
     render2D();
+    if (stairReshaped) fillProps();
   });
   function syncPaired(firstOp) {
     if (!firstOp.paired) return;

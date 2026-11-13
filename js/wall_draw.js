@@ -237,12 +237,14 @@ function wrapPi(d) {
   return d;
 }
 
-/* Once a rubber band has a clear bearing, keep that quadrant while the cursor
-   drifts back toward the last corner (reaching for the keyboard) or nicks the
-   previous wall's continuation. Object snaps still win. */
+/* Once a rubber band has a clear bearing, keep it while the cursor drifts back
+   toward the last corner (reaching for the keyboard), where a few pixels swing
+   the bearing anywhere. Only there: the lock used to hold the bearing for any
+   aim within 90° of it at ANY length, so once a wall had started at -90° it
+   stayed at -90° until the cursor was swung past the perpendicular — without
+   ORTHO the angle simply could not be steered. Object snaps still win. */
 var drawDirLock = null;
 var DIR_LOCK_MIN = 24;
-var DIR_LOCK_HOLD = Math.PI / 2;
 
 export function resetDrawDirLock() {
   drawDirLock = null;
@@ -259,7 +261,7 @@ export function applyDrawDirLock(from, point) {
   if (!(len > 0) || !fin(len)) return point;
   var ang = Math.atan2(dz, dx);
   if (!fin(ang)) return point;
-  if (drawDirLock != null && (len < DIR_LOCK_MIN || Math.abs(wrapPi(ang - drawDirLock)) <= DIR_LOCK_HOLD)) {
+  if (drawDirLock != null && len < DIR_LOCK_MIN) {
     var next = {};
     for (var k in point) if (Object.prototype.hasOwnProperty.call(point, k)) next[k] = point[k];
     next.x = from.x + Math.cos(drawDirLock) * len;

@@ -9,7 +9,7 @@ import { cancelCadWorkerWork } from "../core/cad_worker_client.js";
 import { documentDescription } from "../core/custom_properties.js";
 import { nextDocumentNumericId } from "../core/document_ids.js";
 import { fetchDiskBackup, listDiskBackups, missingFromLibrary, modelBackupStatus } from "../core/model_backup_client.js";
-import { formatModelLength } from "../core/model_dimensions.js";
+import { formatDocumentLength } from "../core/document_length_units.js";
 import { claimLegacyModelerDraftRecord, collidingLibraryKeys, importKeptLibraryBundle, libraryBundle, listModelerDraftRecords, loadAssemblyLibrary, loadModelLibrary, loadModelerDraftRecord, parseLibraryBundle, resolvedLibraryAssembly } from "../core/model_library_store.js";
 import { drawingOnlyContentSummary } from "../core/model_save_policy.js";
 import { rigidTransformIsIdentity } from "../core/pattern_geometry.js";
@@ -623,7 +623,7 @@ function refreshLib() {
     card.appendChild(top);
     card.appendChild(el("div", "md-card-note", (m.parts || []).length
       ? m.parts.length + " " + t("partCount") +
-        (fin(m.w) ? " · " + [m.w,m.d,m.h].map(formatModelLength).join("×") + " cm" : "")
+        (fin(m.w) ? " · " + [m.w,m.d,m.h].map(function(v){return formatDocumentLength(v,m.context?.units?.length||"cm",6);}).join("×") + " " + (m.context?.units?.length||"cm") : "")
       : (function(){
           var drawing=drawingOnlyContentSummary(m);
           if(drawing)return t("drawingOnly")+" · "+drawing.annotations+" "+t(drawing.annotations===1?"paperAnnotation":"paperAnnotations")+" · "+drawing.notes+" "+t(drawing.notes===1?"drawingNote":"drawingNotes");

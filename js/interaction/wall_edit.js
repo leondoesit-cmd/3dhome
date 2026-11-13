@@ -22,6 +22,7 @@ import { inputIs3D, inputScale, wx, wz } from "../planner_input.js";
 import { captureProtectedStructure, generatedChangePermission, validateProtectedStructure } from "../redesign.js";
 import { hitSlabOpening, removeSlabOpening } from "../slab_openings.js";
 import { findSupport, orphanChildren } from "../stack.js";
+import { removeStairVoids } from "../stair_floors.js";
 import { S, clamp, fin, uid } from "../state.js";
 import { renderWarnPanel } from "../ui_warn.js";
 import { fillProps, flash, refreshTree, select } from "../ui.js";
@@ -725,6 +726,7 @@ function applyRemove(sel) {
   if (!sel) return false;
   if (sel.kind === "item") {
     S.items = S.items.filter(function (i) { return i !== sel.ref; });
+    removeStairVoids([sel.ref]); // a deleted flight takes its stairwell with it
     orphanChildren(null);
   } else if (sel.kind === "items") {
     var lockedSkipped = sel.refs.filter(function (i) { return refLocked(i); }).length;
@@ -732,6 +734,7 @@ function applyRemove(sel) {
       return sel.refs.indexOf(i) === -1 || refLocked(i);
     });
     if (lockedSkipped) flash(t("f_someLockedSkipped", { n: lockedSkipped }));
+    removeStairVoids(sel.refs.filter(function (i) { return !refLocked(i); }));
     orphanChildren(null);
   } else if (sel.kind === "opening") {
     S.openings = S.openings.filter(function (o) { return o !== sel.ref; });
