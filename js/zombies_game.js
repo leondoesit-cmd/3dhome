@@ -33,6 +33,7 @@ import {
 import "./physics_runtime.js";
 import "./physics_facade.js";
 import { initCritters, clearCritters } from "./zombies_critters.js";
+import { resetNav } from "./zombies_world/nav.js";
 import {
   bindEvents, pauseGame, tick, unbindEvents, unlockPointer, wantsTouchControls,
 } from "./zombies_game/input.js";
@@ -568,6 +569,7 @@ function clearWorld() {
   clearEnv();
   clearCritters();
   clearAcidClouds();
+  resetNav();
   if (Z.grp) {
     var scene = getMainScene();
     Z.grp.traverse(function (o) {

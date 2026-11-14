@@ -959,6 +959,7 @@
     "/js/zombies_world/atmosphere.js",
     "/js/zombies_world/fx_gore.js",
     "/js/zombies_world/hazards.js",
+    "/js/zombies_world/nav.js",
     "/js/zombies_world/textures.js",
     "/js/zombies_world/zombie_build.js",
     "/js/zombies_world/zombie_damage_anim.js",

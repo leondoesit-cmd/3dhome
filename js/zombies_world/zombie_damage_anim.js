@@ -9,10 +9,11 @@ import { awardRunPoints } from "../zombies_rules.js";
 import { GRAV, STEP, Z, hooks, pick, rnd, rr } from "../zombies_state.js";
 import { bloodBurst, boneBurst, decal, explodeBody, severPart, shake, sparkBurst, spawnFleshChunk } from "../zombies_world/fx_gore.js";
 import { removeZed, screamerCall, spawnAcidCloud, stepBurn } from "../zombies_world/hazards.js";
+import { steerZed, stepVault } from "../zombies_world/nav.js";
 import { organicDecalGeometry } from "../zombies_world/textures.js";
 import {
-  HIT_SURFACE_MAT, NO_RAYCAST, TEX, _zedMovePoint, blockedAt, groundAt,
-  interiorBounds, losClear, moveCircle, nsQuality,
+  HIT_SURFACE_MAT, NO_RAYCAST, TEX, _zedMovePoint, groundAt, interiorBounds,
+  losClear, moveCircle, nsQuality,
 } from "../zombies_world.js";
 
 export function killZed(zd, dir, gib, style) {
@@ -824,6 +825,7 @@ export function stepZed(zd, dt, deferVisuals) {
     if (!deferVisuals) stepZedVisuals(zd, dt);
     return;
   }
+  if (stepVault(zd, dt)) return;
   var dx = Z.p.x - zd.x,
     dz = Z.p.z - zd.z,
     dist = Math.hypot(dx, dz);
@@ -987,35 +989,8 @@ export function stepZed(zd, dt, deferVisuals) {
     tz = zd.wander.z;
     if (Math.hypot(tx - zd.x, tz - zd.z) < 40 && rnd() < dt * 2) zd.state = "idle";
   }
-  var ang = Math.atan2(tx - zd.x, tz - zd.z);
-  // wall feelers: probe left/right and slide along obstacles (crude but it
-  // gets them through doorways, which is all a house needs)
-  zd.feel += dt;
-  if (zd.feel > 0.1) {
-    zd.feel = 0;
-    var probe = zd.type === "brute" ? 78 : 64,
-      best = ang,
-      found = false;
-    for (var o = 0; o <= 6 && !found; o++) {
-      for (var sgn = -1; sgn <= 1; sgn += 2) {
-        var a2 = ang + sgn * o * 0.32;
-        if (
-          !blockedAt(
-            zd.x + Math.sin(a2) * probe,
-            zd.z + Math.cos(a2) * probe,
-            20, zd.y, zd.crawler ? 60 : 160, STEP
-          )
-        ) {
-          best = a2;
-          found = true;
-          break;
-        }
-        if (o === 0) break;
-      }
-    }
-    zd.steer = best;
-  }
-  var mv = zd.steer != null ? zd.steer : ang;
+  var mv = steerZed(zd, tx, tz, dt);
+  if (zd.vault) return; // the waypoint was a window: the climb owns the body now
   var spd = zd.spd * (zd.stagger > 0 ? 0.12 : 1) * (zd.state === "attack" ? 0.18 : 1);
   if (zd.state === "tease") spd *= 0.08; // almost still while posing
   if (zd.windup > 0) spd *= 0.25;

@@ -83,7 +83,7 @@
   "js/view3d/sky_walk.js#setupSkyAndWalkControls": 374,
   "js/weapons.js#createWeapons": 537,
   "js/zombies_world/zombie_build.js#buildZombie": 394,
-  "js/zombies_world/zombie_damage_anim.js#stepZed": 332,
+  "js/zombies_world/zombie_damage_anim.js#stepZed": 306,
   "tools/split_module.mjs#run": 372,
   "uikit/editor/designer.js#createDesigner": 1393,
   "uikit/editor/inspector.js#createInspector": 1016,

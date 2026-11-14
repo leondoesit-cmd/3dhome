@@ -85,3 +85,68 @@ test('supply purchase spends credits once and does not award ammunition for lock
   assert.equal(Z.score,900); assert.equal(Z.credits,50); assert.equal(Z.p.reserve.pistol,36);
   assert.equal(Z.p.reserve.shotgun,undefined); assert.equal(Z.p.frags,2);
 });
+
+// ---- navigation flow field -------------------------------------------------
+import { navGrid, navFillRows, navFlow, navStep, navLink } from '../js/zombies_rules.js';
+
+function walk(grid, dist, from, max = 200) {
+  let p = { ...from }; const path = [p];
+  for (let i = 0; i < max; i++) {
+    const s = navStep(grid, dist, p.x, p.z, 1);
+    if (!s) break;
+    if (s.link) { p = { x: s.x, z: s.z, via: s.link }; path.push(p); continue; }
+    p = { x: s.x, z: s.z }; path.push(p);
+  }
+  return path;
+}
+
+test('zombies route round a wall through the doorway instead of pressing into it', () => {
+  // wall along x=100 with a doorway at z 150..230
+  const blocked = (x, z) => x >= 75 && x <= 125 && !(z >= 150 && z <= 230);
+  const g = navGrid({ minx: 0, maxx: 300, minz: 0, maxz: 300 }, 20, 0);
+  while (!navFillRows(g, blocked, 3));
+  const dist = navFlow(g, 260, 20);
+  const path = walk(g, dist, { x: 20, z: 20 });
+  const end = path[path.length - 1];
+  assert.ok(Math.hypot(end.x - 260, end.z - 20) < 21, 'reaches the player');
+  assert.ok(path.every(p => !blocked(p.x, p.z)), 'never steps into the wall');
+  assert.ok(path.some(p => p.x >= 75 && p.x <= 125), 'crosses at the doorway');
+});
+
+test('a sealed room is unreachable on foot, but a window link lets them climb in', () => {
+  // closed box x,z in [100,200] (walls 10 thick) — player inside, zombie outside
+  const blocked = (x, z) => {
+    const inX = x >= 85 && x <= 215, inZ = z >= 85 && z <= 215;
+    const core = x > 115 && x < 185 && z > 115 && z < 185;
+    return inX && inZ && !core;
+  };
+  const g = navGrid({ minx: 0, maxx: 300, minz: 0, maxz: 300 }, 20, 0);
+  while (!navFillRows(g, blocked, 3));
+  let dist = navFlow(g, 150, 150);
+  assert.equal(navStep(g, dist, 20, 20, 2), null, 'no path without a way in');
+  assert.ok(navLink(g, 150, 60, 150, 140, 6, { ox: 150, oz: 140 }));
+  dist = navFlow(g, 150, 150);
+  const path = walk(g, dist, { x: 20, z: 20 });
+  assert.ok(path.some(p => p.via), 'climbs through the window');
+  const end = path[path.length - 1];
+  assert.ok(Math.hypot(end.x - 150, end.z - 150) < 21, 'reaches the player inside');
+});
+
+test('a window costs more than a short walk round to an open door', () => {
+  // wall x=100 with a doorway near the zombie's row; a window right in front
+  const blocked = (x, z) => x >= 75 && x <= 125 && !(z >= 0 && z <= 60);
+  const g = navGrid({ minx: 0, maxx: 300, minz: 0, maxz: 300 }, 20, 0);
+  while (!navFillRows(g, blocked, 3));
+  navLink(g, 60, 120, 140, 120, 6, { ox: 140, oz: 120 });
+  const dist = navFlow(g, 260, 40);
+  const path = walk(g, dist, { x: 40, z: 60 });
+  assert.ok(!path.some(p => p.via), 'takes the door, not the window');
+});
+
+test('stepZed steers through the shared navigation piece and plays window climbs', () => {
+  const zed = sourceFunctionText(moduleSource('js/zombies_world.js'), 'stepZed');
+  assert.match(zed, /steerZed\(zd, tx, tz, dt\)/);
+  assert.match(zed, /stepVault\(zd, dt\)/);
+  const input = sourceFunctionText(moduleSource('js/zombies_game.js'), 'tick');
+  assert.match(input, /stepNav\(dt\);\s*forEachPhysicsStep/);
+});

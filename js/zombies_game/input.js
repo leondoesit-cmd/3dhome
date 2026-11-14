@@ -7,6 +7,7 @@ import { clamp } from "../state.js";
 import { stepCritters } from "../zombies_critters.js";
 import { stepDestruct } from "../zombies_destruct.js";
 import { stepEnv } from "../zombies_env.js";
+import { stepNav } from "../zombies_world/nav.js";
 import { sndClick, sndFlesh, sndWhoosh, stepHorrorAmbience } from "../zombies_game/audio.js";
 import { hudDirty, hudSync, say, stepGrain, stepPlayer } from "../zombies_game/hud.js";
 import { cycleWeapon, fire, reload, stepFrags, stepPickups, stepViewModel, tmpVec } from "../zombies_game/weapons.js";
@@ -472,6 +473,7 @@ function tick(deltaMs) {
       buildCol();
     });
   }
+  stepNav(dt);
   forEachPhysicsStep(dt, function (stepDt) {
     stepPlayer(stepDt);
     for (var i = Z.zeds.length - 1; i >= 0; i--) stepZed(Z.zeds[i], stepDt, true);
