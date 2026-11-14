@@ -7,6 +7,7 @@ import { t, getLang } from "./i18n.js";
 import { resolveDraftingStandard, draftingStandard, formatArea } from "./drafting_standards.js";
 import { detectDraftingConvention } from "./unit_settings.js";
 import { openingScheduleSVG } from "./drawing_sheet/schedule.js";
+import { proPlanParts } from "./drawing_sheet/pro_plan.js";
 import {drawingSVG,drawingDXF,drawingBounds} from "./drawing_export.js";
 import { S } from "./state.js";
 import { contentBounds } from "./geometry.js";
@@ -85,7 +86,9 @@ export function toConstructionSVG(opts) {
   }
   if (!bounds) return wrapPlanSVG("", contentBounds(), o);
   const fmt = std ? undefined : (cm) => fmtLen(cm, { domain: "plan", suffix: false });
-  const inner = constructionSheetSVG(snap, { cmPerMm: k, bounds, fmt, t, standard: std || undefined, lang });
+  // to a standard: the working drawing, and the hatch kinds it drew for the legend
+  const parts = std ? proPlanParts(snap, { cmPerMm: k, bounds, t, standard: std, lang, furniture: !!o.furniture }) : null;
+  const inner = parts ? parts.svg : constructionSheetSVG(snap, { cmPerMm: k, bounds, fmt, t, lang });
   const unit = std ? draftText("drafting_unit_" + std.units.replace("-", "_")) : t("guide_unit_" + displayUnit("plan"));
   return wrapPlanSVG(inner, bounds, Object.assign({
     name: (S.workspace && S.workspace.name ? S.workspace.name + " — " : "") + t("sheet_floor_plan"),
@@ -93,8 +96,29 @@ export function toConstructionSVG(opts) {
     note: t("sheet_note", { unit }),
   }, std ? {
     rtl: !!(std.rtlTitle && lang === "he"),
-    labels: { scale: draftText("sheet_tb_scale"), date: draftText("sheet_tb_date"), sheet: draftText("sheet_tb_sheet") },
+    labels: sheetFrameLabels(),
+    info: sheetInfo(snap),
+    kinds: parts.kinds,
+    northDeg: Number(S.northAngle) || 0,
   } : {}, o));
+}
+
+/* The title block's captions and legend words, in the UI language. */
+export function sheetFrameLabels() {
+  const L = {};
+  ["scale", "date", "sheet", "project", "address", "client", "designer", "title", "rev", "rev_desc", "approval"].forEach((k) => { L[k] = draftText("sheet_tb_" + k); });
+  ["concrete", "masonry", "partition", "insulation", "membrane", "finish", "door_tag", "window_tag", "opening", "level", "dim"].forEach((k) => { L["legend_" + k] = draftText("legend_" + k); });
+  L.legend = draftText("sheet_legend");
+  return L;
+}
+
+/* The title block's fields: what the user typed (S.workspace.sheetInfo),
+   else the project name and a drawing title from the floor. */
+export function sheetInfo(snap) {
+  const saved = (S.workspace && S.workspace.sheetInfo) || {};
+  const title = t("sheet_floor_plan") + (snap && snap.floorName ? " — " + snap.floorName : "");
+  return Object.assign({ project: (S.workspace && S.workspace.name) || "", title }, saved,
+    { project: saved.project || (S.workspace && S.workspace.name) || "", title: saved.title || title, revisions: Array.isArray(saved.revisions) ? saved.revisions : [] });
 }
 
 export function toDXF(opts) {

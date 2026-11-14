@@ -26,6 +26,7 @@
 
 import { S } from "./state.js";
 import { t, onLangChange } from "./i18n.js";
+import { VIEW_MODES, currentViewMode, viewModeSelect, syncViewModeGroup } from "./view_modes.js";
 import { setTool } from "./interaction.js";
 import { undo, redo, canUndo, canRedo } from "./history.js";
 import { toggleAid, openEntry } from "./cad_hud.js";
@@ -123,6 +124,7 @@ function run(act) {
 function viewMode() {
   var cc = $("center-canvas");
   if (!cc) return "split";
+  if (cc.classList.contains("sheet-view")) return "drawing";
   if (S.viewAxis && S.viewAxis !== "top") return S.viewAxis;
   return cc.classList.contains("max-view-2d")
     ? "plan"
@@ -134,6 +136,8 @@ var VIEW_ICONS = {
   plan: "ph-blueprint",
   "3d": "ph-cube",
   split: "ph-rows",
+  dollhouse: "ph-house-line",
+  drawing: "ph-certificate",
   front: "ph-arrow-up",
   back: "ph-arrow-down",
   left: "ph-arrow-left",
@@ -148,6 +152,12 @@ var VIEW_LABELS = {
   left: "elev_left",
   right: "elev_right",
 };
+// the group's own label where the nav has no short one (Dollhouse, Drawing)
+function viewLabel(k) {
+  if (VIEW_LABELS[k]) return t(VIEW_LABELS[k]);
+  var m = VIEW_MODES.find(function (v) { return v.id === k; });
+  return m ? m.label() : k;
+}
 
 /* Plan means the top-down plan. An elevation can remain selected while the 3D
    pane is showing, so merely switching panes would otherwise bring the user
@@ -162,7 +172,11 @@ function setView(k) {
     render2D();
     updatePlanGizmo();
   }
-  if (window.__setViewMode) window.__setViewMode(k);
+  // 3D, Dollhouse and Drawing run the top bar's own actions (cutaway on/off,
+  // the drawing sheet), so both chromes switch views the same way
+  var m = k !== "plan" && k !== "split" && VIEW_MODES.find(function (v) { return v.id === k; });
+  if (m && window.__runAction) window.__runAction(m.act);
+  else if (window.__setViewMode) window.__setViewMode(k);
 }
 
 /* ---- editor strip ------------------------------------------------------- */
@@ -175,11 +189,7 @@ function setView(k) {
    The strip is static in #app's column, so the workspace shrinks under it, and
    css adds its height to --mobile-topbar-block for everything fixed below. */
 var strip = null;
-var STRIP_VIEWS = [
-  ["plan", "2D"],
-  ["3d", "3D"],
-  ["split", null, VIEW_ICONS.split],
-];
+var STRIP_TEXT = { plan: "2D", "3d": "3D" };
 function buildStrip() {
   var top = $("topbar");
   if (!top) return;
@@ -201,12 +211,14 @@ function buildStrip() {
   strip.innerHTML =
     editorSwitchHTML("plan", "m-editors") +
     '<div class="pr-editors m-panes" role="group" aria-label="' + t("m_panes_aria") + '">' +
-    STRIP_VIEWS.map(function (v) {
-      var label = t(VIEW_LABELS[v[0]]);
-      return '<button type="button" data-m-pane="' + v[0] + '" aria-label="' + label + '" title="' + label + '">' +
-        (v[2] ? '<i class="ph ' + v[2] + '" aria-hidden="true"></i>' : v[1]) + "</button>";
+    VIEW_MODES.map(function (v) {
+      var label = viewLabel(v.id);
+      return '<button type="button" data-m-pane="' + v.id + '" data-view-mode="' + v.id + '" aria-label="' + label + '" title="' + label + '">' +
+        (STRIP_TEXT[v.id] || '<i class="ph ' + v.icon + '" aria-hidden="true"></i>') + "</button>";
     }).join("") +
     "</div>";
+  // the same group as a dropdown, which css shows where the buttons do not fit
+  strip.querySelector(".m-panes").appendChild(viewModeSelect("m-view-select"));
   wireEditorSwitch(strip);
   syncStrip();
 }
@@ -214,13 +226,7 @@ function buildStrip() {
    pane, and 2D here returns it to the top-down plan like the nav's Plan. */
 function syncStrip() {
   if (!strip) return;
-  var cc = $("center-canvas");
-  var pane = !cc ? "split" : cc.classList.contains("max-view-2d") ? "plan" : cc.classList.contains("max-view-3d") ? "3d" : "split";
-  strip.querySelectorAll("[data-m-pane]").forEach(function (b) {
-    var on = b.dataset.mPane === pane;
-    b.classList.toggle("on", on);
-    b.setAttribute("aria-pressed", on ? "true" : "false");
-  });
+  syncViewModeGroup(strip, "on");
 }
 
 /* ---- fold rail ---------------------------------------------------------- */
@@ -1133,14 +1139,15 @@ function buildToolsSheet() {
 function buildViewSheet() {
   var grid = document.createElement("div");
   grid.className = "m-grid m-grid-3 m-icon-grid";
-  ["plan", "3d", "split"].forEach(function (k) {
+  VIEW_MODES.forEach(function (v) {
+    var k = v.id;
     var b = document.createElement("button");
     b.type = "button";
-    b.className = "m-grid-btn" + (viewMode() === k ? " on" : "");
-    var label = t(VIEW_LABELS[k]);
+    b.className = "m-grid-btn" + (currentViewMode() === k ? " on" : "");
+    var label = viewLabel(k);
     b.setAttribute("aria-label", label);
     b.title = label;
-    b.innerHTML = '<i class="ph ' + VIEW_ICONS[k] + '"></i><span>' + label + "</span>";
+    b.innerHTML = '<i class="ph ' + v.icon + '"></i><span>' + label + "</span>";
     b.addEventListener("click", function () {
       setView(k);
       closeSheet();
@@ -1433,7 +1440,7 @@ function syncNav() {
       var i = b.querySelector("i"),
         s = b.querySelector("span");
       if (i) i.className = "ph " + VIEW_ICONS[mode];
-      if (s) s.textContent = t(VIEW_LABELS[mode]);
+      if (s) s.textContent = viewLabel(mode);
       b.title = t("m_view_hold");
     } else if (k === "tools") {
       var ti = b.querySelector("i"),

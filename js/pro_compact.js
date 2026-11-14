@@ -33,6 +33,7 @@ import { S } from "./state.js";
 import { wallGeom, wallPointAt } from "./geometry.js";
 import { sx, sz, rotatePx, planRotRad } from "./plan_view.js";
 import { render2D } from "./plan2d.js";
+import { VIEW_MODES, currentViewMode, viewModeSelect } from "./view_modes.js";
 
 var MSG = {
   plan: ["Plan", "תוכנית"],
@@ -330,24 +331,26 @@ function titleOf(ed) {
 }
 
 /* The planner's view switch mirrors the strip's (mobile_shell.js), which stays
-   in the page, hidden, and still does the switching. */
-var VIEWS = [["plan", "2D"], ["3d", "3D"], ["split", null, "ph-rows"]];
+   in the page, hidden, and still does the switching: the five views of
+   js/view_modes.js, and the same group as a dropdown where they do not fit. */
+var VIEW_TEXT = { plan: "2D", "3d": "3D" };
 function buildPlanView() {
   var g = document.createElement("div");
   g.className = "ps-view";
   g.setAttribute("role", "group");
-  VIEWS.forEach(function (v) {
+  VIEW_MODES.forEach(function (v) {
     var b = document.createElement("button");
     b.type = "button";
-    b.dataset.view = v[0];
-    b.innerHTML = v[2] ? '<i class="ph ' + v[2] + '" aria-hidden="true"></i>' : v[1];
+    b.dataset.view = v.id;
+    b.innerHTML = VIEW_TEXT[v.id] || '<i class="ph ' + v.icon + '" aria-hidden="true"></i>';
     b.addEventListener("click", function () {
-      var src = q('#m-editor-strip [data-m-pane="' + v[0] + '"]');
+      var src = q('#m-editor-strip [data-m-pane="' + v.id + '"]');
       if (src) src.click();
       syncPlanView(g);
     });
     g.appendChild(b);
   });
+  g.appendChild(viewModeSelect("ps-view-select"));
   holdToView(g, "plan");
   return g;
 }
@@ -362,6 +365,8 @@ function syncPlanView(g) {
     b.setAttribute("aria-pressed", on ? "true" : "false");
     if (src) { var label = src.getAttribute("aria-label"); if (label && b.getAttribute("aria-label") !== label) b.setAttribute("aria-label", label); }
   });
+  var sel = g.querySelector("select.view-mode-select");
+  if (sel) sel.value = currentViewMode();
 }
 
 function planHead() {

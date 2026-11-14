@@ -194,6 +194,7 @@
     <link rel="stylesheet" href="css/pro_skin.css" />
     <link rel="stylesheet" href="css/pro_compact.css" />
     <link rel="stylesheet" href="css/pro_menus.css" />
+    <link rel="stylesheet" href="css/drawing_view.css" />
     <link rel="stylesheet" href="css/coach.css" />
     <!-- one design system for planner controls; loaded last on purpose -->
     <link rel="stylesheet" href="css/ui_system.css" />
@@ -431,18 +432,27 @@
               <div class="tool-search-foot"></div>
             </div>
           </div>
-          <div class="tb-pill modern-chrome" id="viewModePill">
-            <button data-act="viewPlan" id="viewPlanBtn" data-i18n-title="view_plan" title="תוכנית">
+          <!-- the views as one group (js/view_modes.js); a dropdown where it does not fit -->
+          <div class="tb-pill modern-chrome" id="viewModePill" role="group">
+            <button data-act="viewPlan" id="viewPlanBtn" data-view-mode="plan" data-i18n-title="view_plan" title="תוכנית">
               <i class="ph ph-blueprint"></i>
               <span data-i18n="view_plan">תוכנית</span>
             </button>
-            <button data-act="view3d" id="view3dBtn" data-i18n-title="view_3d" title="תלת-ממד">
+            <button data-act="view3d" id="view3dBtn" data-view-mode="3d" data-i18n-title="view_3d" title="תלת-ממד">
               <i class="ph ph-cube"></i>
               <span data-i18n="view_3d">תלת-ממד</span>
             </button>
-            <button data-act="viewSplit" id="viewSplitBtn" data-i18n-title="view_split" title="מפוצל">
+            <button data-act="viewDollhouse" id="viewDollhouseBtn" data-view-mode="dollhouse" data-i18n-title="view_dollhouse" title="Dollhouse">
+              <i class="ph ph-house-line"></i>
+              <span data-i18n="view_dollhouse">Dollhouse</span>
+            </button>
+            <button data-act="viewSplit" id="viewSplitBtn" data-view-mode="split" data-i18n-title="view_split" title="מפוצל">
               <i class="ph ph-rows"></i>
               <span data-i18n="view_split">מפוצל</span>
+            </button>
+            <button data-act="viewDrawing" id="viewDrawingBtn" data-view-mode="drawing" title="Drawing">
+              <i class="ph ph-certificate"></i>
+              <span>Drawing</span>
             </button>
             <button
               type="button"

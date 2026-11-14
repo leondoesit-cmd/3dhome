@@ -94,7 +94,7 @@ test("a US sheet goes on Arch paper at an imperial scale with the title down the
 test("title blocks: bottom strip, right-edge strip and the mirrored Hebrew one", () => {
   const right = wrapPlanSVG("<line/>", { w: 1800, d: 1200 }, { standard: std("us"), name: "Villa", sheet: "A-101" });
   assert.match(right, /class="title-strip"/);
-  assert.match(right, /1\/[48]&quot; = 1'-0&quot;/);
+  assert.match(right, /1\/[48]&quot; = 1(?:'|&apos;)-0&quot;/);
   assert.match(right, /data-standard="us"/);
   const rtl = titleBlockSVG({ name: "בית Villa", rtl: true, labels: { scale: "קנה מידה", date: "תאריך", sheet: "גיליון" } });
   assert.match(rtl, /class="title-rtl"/);

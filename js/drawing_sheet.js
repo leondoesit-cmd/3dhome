@@ -14,6 +14,7 @@ import { planDimensionChains } from "./planner_drawing.js";
 import { symbolPrims, localToWorld } from "./plan_symbols.js";
 import { dimensionFormatter, formatLevel } from "./drafting_standards.js";
 import { openingLabelsSVG, standardRoomLabelsSVG } from "./drawing_sheet/annotations.js";
+import { proPlanParts } from "./drawing_sheet/pro_plan.js";
 
 const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]);
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -61,6 +62,8 @@ export function constructionSheetSVG(snap, opts) {
   const t = o.t || ((key) => key);
   const b = o.bounds || sheetBounds(snap, k);
   if (!b) return "";
+  // to a standard: the architect's working drawing (js/drawing_sheet/pro_plan.js)
+  if (std) return proPlanParts(snap, Object.assign({}, o, { cmPerMm: k, bounds: b, fmt: o.fmt })).svg;
   const X = (x) => r2(x - b.minx), Y = (z) => r2(z - b.minz);
   const mm = (v) => r2(v * k);
   const pts = (poly) => poly.map((p) => X(p.x) + "," + Y(p.z)).join(" ");

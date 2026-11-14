@@ -88,7 +88,7 @@ async function runPanelAction(act, ev) {
 }
 
 export const RUN_VIEW_ACTIONS = new Set([
-  "edit3d", "dollhouse", "togglePlanStyle", "drawing3d", "viewPlan", "view3d", "viewSplit",
+  "edit3d", "dollhouse", "togglePlanStyle", "drawing3d", "viewPlan", "view3d", "viewSplit", "viewDollhouse", "viewDrawing",
   "frameReset", "walk", "walkview", "freemove", "physics", "hitmode", "clearDebris", "frame",
 ]);
 
@@ -110,9 +110,16 @@ async function runViewAction(act, ev) {
   } else if (act === "viewPlan") {
     if (typeof window.__setViewMode === "function") window.__setViewMode("plan");
     try { localStorage.setItem("home3d_viewmode", "plan"); } catch (_) {}
-  } else if (act === "view3d") {
+  } else if (act === "view3d" || act === "viewDollhouse") {
+    // 3D and Dollhouse are one pane, the cutaway off or on (js/view_modes.js)
+    var wantCut = act === "viewDollhouse";
+    if (!!(S.cutaway && S.cutaway.on) !== wantCut) setCutaway({ on: wantCut });
     if (typeof window.__setViewMode === "function") window.__setViewMode("3d");
     try { localStorage.setItem("home3d_viewmode", "3d"); } catch (_) {}
+  } else if (act === "viewDrawing") {
+    // the professional drawing sheet, full page (js/ui_pro_drawing.js); not
+    // remembered as the start view, which would build a sheet on every boot
+    if (typeof window.__setViewMode === "function") window.__setViewMode("drawing");
   } else if (act === "viewSplit") {
     if (typeof window.__setViewMode === "function") window.__setViewMode("split");
     try { localStorage.setItem("home3d_viewmode", "split"); } catch (_) {}

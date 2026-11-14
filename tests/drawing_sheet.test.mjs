@@ -122,13 +122,15 @@ test("each standard writes its own dimension strings, opening labels and room la
   for (const id of draftingStandardIds()) {
     const svg = sheet(id), all = texts(svg);
     for (const s of want[id].dims.concat(want[id].labels, want[id].room)) assert.ok(all.includes(s), `${id}: ${s} in ${all.join(" | ")}`);
-    assert.ok(svg.includes('id="opening-labels"'), id);
+    assert.ok(svg.includes('id="labels"') && svg.includes('class="opening-label"') || id === "us", id);
     assert.ok(!all.some((s) => / x /.test(s)), `${id} drops the width x depth line`);
   }
   // US tags: a circle for the door, a hexagon for the window
   const us = sheet("us");
-  assert.equal((us.match(/class="opening-tag"><circle/g) || []).length, 1);
-  assert.equal((us.match(/class="opening-tag"><polygon/g) || []).length, 1);
+  const frames = /<g class="label-frames"[^>]*>([\s\S]*?)<\/g>/.exec(us)[1];
+  assert.equal((frames.match(/<circle/g) || []).length, 1);
+  assert.equal((frames.match(/<polygon/g) || []).length, 1);
+  assert.equal((us.match(/class="opening-tag"/g) || []).length, 2);
   // Hebrew sheet: the sill word and the area unit in Hebrew, isolated
   const il = texts(sheet("il", "he"));
   assert.ok(il.includes("120/140  ⁧אדן 90⁩"), il.join(" | "));

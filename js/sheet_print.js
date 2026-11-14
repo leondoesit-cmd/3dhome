@@ -12,6 +12,7 @@
    scale from the paper and then deriving every dimension from it. */
 
 import { IMPERIAL_SCALE_LABELS } from "./drafting_standards.js";
+import { FRAME, sheetFrameSVG } from "./drawing_sheet/sheet_frame.js";
 
 // Landscape millimetres. ISO A plus the US Arch sizes contractors ask for.
 export const PAPER_SIZES = {
@@ -67,8 +68,10 @@ export function sheetLayout(bounds, opts) {
   const papers = o.paper && PAPER_SIZES[o.paper] ? [o.paper] : order;
   const margin = MARGIN_MM;
   const right = !!(std && std.titleBlock === "right");
-  const block = right ? 0 : BLOCK_MM;
-  const blockW = right ? BLOCK_RIGHT_MM : 0;
+  // a standard's sheet carries the full frame: the bottom band (legend, scale
+  // bar, title block) or the US strip (js/drawing_sheet/sheet_frame.js)
+  const block = right ? 0 : std ? FRAME.band : BLOCK_MM;
+  const blockW = right ? (std ? FRAME.strip : BLOCK_RIGHT_MM) : 0;
   const aside = o.asideMm && o.asideMm.w > 0 ? o.asideMm : null;
   const asideW = aside ? aside.w + ASIDE_GAP_MM : 0;
   const fits = (paper, denom) => wCm * 10 / denom <= paper.w - margin * 2 - blockW - asideW &&
@@ -85,6 +88,8 @@ export function sheetLayout(bounds, opts) {
       const name = papers[papers.length - 1];
       chosen = { name, paper: PAPER_SIZES[name], denom: Number(o.scale) > 0 ? Number(o.scale) : SCALES[SCALES.length - 1] };
     }
+    chosen.why = layoutWhy({ std, o, chosen, papers, fits, wCm, dCm, margin, block, blockW, asideW });
+    if (chosen.why.finer) chosen.denom = chosen.why.finer;
   } else {
     for (const name of papers) {
       const paper = PAPER_SIZES[name];
@@ -120,8 +125,31 @@ export function sheetLayout(bounds, opts) {
     viewW: chosen.paper.w * cmPerMm,
     viewH: chosen.paper.h * cmPerMm,
   };
-  if (std) Object.assign(out, { titleBlock: right ? "right" : "bottom", blockWidthMm: blockW, asideMm: aside ? asideW : 0 });
+  if (std) Object.assign(out, { titleBlock: right ? "right" : "bottom", blockWidthMm: blockW, asideMm: aside ? asideW : 0, why: chosen.why || null });
   return out;
+}
+
+/* Why a standard's sheet got its paper and scale, for the Drawing view's
+   tooltip: the standard's own scale on the smallest sheet it fits (and which
+   smaller sheet was too small), or the user's pin. A plan filling under 40 %
+   of the drawing field takes the next FINER scale the standard lists, if one
+   fits on the same sheet; a coarser one would only shrink it further. */
+function layoutWhy(a) {
+  const { o, chosen, papers, fits, wCm, dCm } = a;
+  const field = (p) => ({ w: p.w - a.margin * 2 - a.blockW - a.asideW, h: p.h - a.margin * 2 - a.block });
+  const need = (d) => ({ w: (wCm * 10) / d, h: (dCm * 10) / d });
+  const f = field(chosen.paper), n = need(chosen.denom);
+  const why = { code: Number(o.scale) > 0 || o.paper ? "pinned" : "smallest-fit", fill: (n.w * n.h) / (f.w * f.h), need: n, field: f };
+  if (why.code === "smallest-fit" && why.fill < 0.4) {
+    const finer = (a.std.scales || []).filter((d) => d < chosen.denom).sort((x, y) => y - x).find((d) => fits(chosen.paper, d));
+    if (finer) {
+      const n2 = need(finer);
+      Object.assign(why, { code: "finer", finer, need: n2, fill: (n2.w * n2.h) / (f.w * f.h) });
+    }
+  }
+  const idx = papers.indexOf(chosen.name);
+  if (idx > 0) why.smaller = { name: papers[idx - 1], field: field(PAPER_SIZES[papers[idx - 1]]) };
+  return why;
 }
 
 /* Kept as a plain string because the UI just wants the caption.
@@ -283,6 +311,14 @@ export function wrapPlanSVG(planInner, bounds, meta) {
 </svg>`;
 }
 
+// the layout reason as data-* attributes the Drawing view reads for its tooltip
+function whyAttrs(w) {
+  if (!w) return "";
+  const mm = (v) => Math.round(v);
+  return ` data-why="${w.code}" data-fill="${w.fill.toFixed(2)}" data-need="${mm(w.need.w)}x${mm(w.need.h)}"` +
+    (w.smaller ? ` data-smaller="${esc(w.smaller.name)}:${mm(w.smaller.field.w)}x${mm(w.smaller.field.h)}"` : "");
+}
+
 function wrapStandardSVG(planInner, bounds, o) {
   const aside = o.aside && o.aside.svg ? o.aside : null;
   const L = sheetLayout(bounds, Object.assign({}, o, { asideMm: aside ? { w: aside.w, h: aside.h } : null }));
@@ -296,30 +332,31 @@ function wrapStandardSVG(planInner, bounds, o) {
   const fieldH = L.viewH - marginU * 2 - blockU;
   const ox = marginU + Math.max(0, (fieldW - wCm) / 2);
   const oy = marginU + Math.max(0, (fieldH - dCm) / 2);
-  const common = { name: o.name, note: o.note, scale: L.label, paper: L.paperName, sheet: o.sheet, date: o.date, labels: o.labels };
-  const block = right
-    ? titleBlockSVG(Object.assign(common, {
-      layout: "right", width: L.blockWidthMm, height: L.heightMm - L.marginMm * 2,
-      x: L.viewW - marginU - stripU, y: marginU, placeWidth: stripU, placeHeight: L.viewH - marginU * 2,
-    }))
-    : titleBlockSVG(Object.assign(common, {
-      rtl: !!o.rtl, width: L.widthMm - L.marginMm * 2, height: L.blockMm,
-      x: marginU, y: L.viewH - marginU - blockU, placeWidth: L.viewW - marginU * 2, placeHeight: blockU,
-    }));
+  const labels = o.labels || {};
+  const frame = sheetFrameSVG({
+    W: L.widthMm, H: L.heightMm, m: L.marginMm, std: o.standard, L: Object.assign({
+      project: "PROJECT", address: "ADDRESS", client: "CLIENT", designer: "DESIGNER", title: "DRAWING", scale: "SCALE", date: "DATE", sheet: "SHEET",
+      rev: "REV", rev_desc: "DESCRIPTION", approval: "APPROVAL / STAMP", legend: "LEGEND",
+    }, labels), info: Object.assign({ project: o.name }, o.info || {}), kinds: o.kinds, scaleLabel: L.label, paper: L.paperName,
+    denom: L.denom, date: o.date || today(), sheet: o.sheet, rtl: !!o.rtl, northDeg: o.northDeg || 0,
+    bandMm: right ? 0 : L.blockMm, stripMm: right ? L.blockWidthMm : 0, grid: L.widthMm >= 559,
+  });
   // the table keeps half the reserved gap clear of the title strip
   const asideX = aside ? L.viewW - marginU - stripU - (aside.w + ASIDE_GAP_MM / 2) * k : 0;
   const asideSvg = aside ? `<g class="sheet-aside" transform="translate(${asideX.toFixed(2)} ${marginU.toFixed(2)}) scale(${k})">${aside.svg}</g>` : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L.viewW.toFixed(2)} ${L.viewH.toFixed(2)}" width="${L.widthMm}mm" height="${L.heightMm}mm" data-standard="${esc(o.standard.id)}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L.viewW.toFixed(2)} ${L.viewH.toFixed(2)}" width="${L.widthMm}mm" height="${L.heightMm}mm" data-standard="${esc(o.standard.id)}" data-scale="${L.denom}" data-paper="${esc(L.paperName)}"${whyAttrs(L.why)}>
   <rect width="100%" height="100%" fill="white"/>
-  <g transform="translate(${ox.toFixed(2)} ${oy.toFixed(2)})">${planInner}</g>
+  <g class="sheet-plan" transform="translate(${ox.toFixed(2)} ${oy.toFixed(2)})">${planInner}</g>
   ${asideSvg}
-  ${block}
+  <svg x="0" y="0" width="${L.viewW.toFixed(2)}" height="${L.viewH.toFixed(2)}" viewBox="0 0 ${L.widthMm} ${L.heightMm}" overflow="visible">${frame}</svg>
 </svg>`;
 }
 
 /* Print one sheet on its own paper size: the SVG goes into a hidden frame
    whose page is exactly that sheet, so the app chrome never prints.
    (The Workspace dialog keeps an identical local copy for now.) */
+/* (The page box is the body, overflow hidden: a sheet exactly the paper's
+   size rounded up a hair and printed a blank second page.) */
 export function printSheetSVG(svg, title) {
   const frame = document.createElement("iframe");
   frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
@@ -328,7 +365,7 @@ export function printSheetSVG(svg, title) {
   const m = /width="([\d.]+)mm" height="([\d.]+)mm"/.exec(svg);
   const page = m ? m[1] + "mm " + m[2] + "mm" : "landscape";
   doc.open();
-  doc.write('<!doctype html><title>' + String(title || "Sheet").replace(/</g, "&lt;") + '</title><style>@page{size:' + page + ';margin:0}html,body{margin:0}svg{display:block;width:100%;height:auto}</style>' + svg);
+  doc.write('<!doctype html><title>' + String(title || "Sheet").replace(/</g, "&lt;") + '</title><style>@page{size:' + page + ';margin:0}html,body{margin:0;width:100%;height:100%;overflow:hidden}svg{display:block;width:100%;height:100%}</style>' + svg);
   doc.close();
   setTimeout(() => {
     try { frame.contentWindow.focus(); frame.contentWindow.print(); } finally { setTimeout(() => frame.remove(), 1000); }

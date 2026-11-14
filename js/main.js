@@ -660,8 +660,24 @@ function syncMobileNav() {
 }
 // Bottom-nav view switching (mobile). Idempotent: setMaximized toggles, so we
 // only call it when the target state differs from the current one.
+var wantDrawingView = false;
 function setViewMode(mode) {
   if (!centerCanvas) return;
+  // Drawing = the professional sheet (js/ui_pro_drawing.js) over the maximized
+  // plan; every other view takes it down first.
+  var drawingView = mode === "drawing";
+  wantDrawingView = drawingView;
+  if (drawingView) mode = "plan";
+  else if (centerCanvas.classList.contains("sheet-view")) {
+    centerCanvas.classList.remove("sheet-view");
+    window.dispatchEvent(new CustomEvent("drawing-view:leave"));
+  }
+  if (drawingView) import("./ui_pro_drawing.js").then(function (m) {
+    if (!wantDrawingView) return; // another view was picked while it loaded
+    centerCanvas.classList.add("sheet-view");
+    m.showDrawingView(centerCanvas);
+    syncMobileNav();
+  });
   var is2 = centerCanvas.classList.contains("max-view-2d");
   var is3 = centerCanvas.classList.contains("max-view-3d");
   if (mode === "plan" && !is2) setMaximized("view-2d");

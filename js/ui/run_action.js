@@ -56,7 +56,7 @@ import { RUN_OPENING_ACTIONS, runOpeningAction } from "./opening_actions.js";
 // lifted out of initUI()
 async function runAction(act, ev) {
   if (S.workspace && S.workspace.role === "viewer") {
-    var readOnlyActions = ["workspace", "frame", "togglePlanStyle", "dollhouse", "drawing3d", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan", "toggleToolNames"];
+    var readOnlyActions = ["workspace", "frame", "togglePlanStyle", "dollhouse", "drawing3d", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "viewDollhouse", "viewDrawing", "proDrawing", "openModeler", "friends", "toggleLegacy", "newPlan", "toggleToolNames"];
     if (readOnlyActions.indexOf(act) < 0) {
       flash("Viewer access is read-only", "error");
       return;

@@ -47,6 +47,7 @@ import {
 } from "./floors.js";
 import { floorText, floorDisplayName } from "./floor_strings.js";
 import { fmtLen } from "./display_units.js";
+import { viewModeSelect, fillViewModeSelect, labelViewButtons, syncViewModeGroup } from "./view_modes.js";
 import { slabOpenings, stairVoidFields } from "./slab_openings.js";
 import { planFrameOnScreen } from "./plan2d/reference_floor.js";
 import { markDirty } from "./persist.js";
@@ -135,19 +136,11 @@ function setLeftTab(id, persist) {
 function syncViewPills() {
   var cc = $("center-canvas");
   if (!cc) return;
-  var mode = cc.classList.contains("max-view-2d")
-    ? "plan"
-    : cc.classList.contains("max-view-3d")
-      ? "3d"
-      : "split";
-  var map = { plan: "viewPlanBtn", "3d": "view3dBtn", split: "viewSplitBtn" };
-  Object.keys(map).forEach(function (k) {
-    var b = $(map[k]);
-    if (b) {
-      b.classList.toggle("active", k === mode);
-      b.setAttribute("aria-pressed", String(k === mode));
-    }
-  });
+  var pill = $("viewModePill");
+  // the dropdown form of the same group, shown by css where the buttons do not fit
+  if (pill && !pill.querySelector("select.view-mode-select")) pill.appendChild(viewModeSelect());
+  syncViewModeGroup(pill);
+  var mode = cc.classList.contains("max-view-2d") ? "plan" : cc.classList.contains("max-view-3d") ? "3d" : "split";
   // The strip belongs to a visible pane; keeping it under 3D hides floor
   // navigation whenever the user maximizes the plan.
   var host = $("floor-tabs");
@@ -664,6 +657,14 @@ function initPlannerChrome() {
   if (cc && window.MutationObserver) {
     new MutationObserver(syncViewPills).observe(cc, { attributes: true, attributeFilter: ["class"] });
   }
+  // Dollhouse is 3D with the cutaway on: its chip in the 3D pane moves the highlight too
+  window.addEventListener("walls3d:changed", syncViewPills);
+  labelViewButtons($("viewModePill"));
+  onLangChange(function () {
+    labelViewButtons($("viewModePill"));
+    var sel = $("viewModePill") && $("viewModePill").querySelector("select.view-mode-select");
+    if (sel) fillViewModeSelect(sel);
+  });
   var tot = $("costTotal");
   if (tot && window.MutationObserver) {
     new MutationObserver(updateCostChip).observe(tot, { childList: true, characterData: true, subtree: true });
