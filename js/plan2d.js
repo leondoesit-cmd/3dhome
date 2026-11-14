@@ -715,6 +715,10 @@ export function clearDragProxy() {
 function mepOnHud() {
   return mepAnimOn && mepShouldAnimate();
 }
+// for an MEP drag (js/interaction/plan_move.js): nothing it moves is on the model canvas
+export function mepOverlayOnHud() {
+  return mepOnHud();
+}
 
 /* ---- the model pass ---- */
 function renderModel() {

@@ -9,12 +9,19 @@
    queue itself (js/plan_sprites.js) bakes these in quiet moments only and
    stops for input; the height of each piece comes from the same build.
 
+   A pass repeats only when something it reads changed (the items, the zoom,
+   the pixel ratio, the view, what the picture cache knows): the plan paints
+   every animation frame of the infrastructure flow, and re-asking for 100+
+   unchanged pictures each time re-serialised every item for nothing.
+
    How much is done ahead of time comes from js/device_budget.js (nothing on a
-   software GPU). It changes no pixel: the presentation plan draws exactly the
+   software GPU; on a "low" or touch-first device only once the presentation
+   plan has been used). It changes no pixel: the presentation plan draws exactly the
    pictures it would have baked itself, just earlier. */
 import { FURN, isLamp, knownVSpan, measureVSpanSoon } from "./furniture.js";
 import { SPRITE_BUCKETS, spriteBucket, spriteMode } from "./plan_sprite_key.js";
-import { itemSprite, prebakeSprite } from "./plan_sprites.js";
+import { itemSprite, prebakeSprite, spriteGeneration } from "./plan_sprites.js";
+import { fingerprint } from "./plan_sprite_batch.js";
 import { isPresentation } from "./plan_style.js";
 import { wx, wz } from "./plan_view.js";
 import { onAfterRender } from "./plan2d/overlays.js";
@@ -30,6 +37,7 @@ const IN_VIEW = 1e6; // priority bonus: above any bucket size
    in the background (a ceiling fitting is never pictured). */
 export function prewarmOrder(items, view) {
   const out = [];
+  out.pending = 0; // lights still being measured: the next pass must look again
   (items || []).forEach(function (it) {
     if (!it || !FURN[it.type] || !(it.w > 0) || !(it.d > 0)) return;
     if (spriteMode(it, { lamp: false }) !== "sprite") return;
@@ -40,6 +48,7 @@ export function prewarmOrder(items, view) {
       try { vs = knownVSpan(it); } catch (e) { vs = null; }
       if (!vs) {
         measureVSpanSoon(it);
+        out.pending++;
         // a picture kept on disk is decoded now, nothing is baked
         itemSprite(it, S.SC, canvasDpr(), { noQueue: true });
         return;
@@ -50,7 +59,8 @@ export function prewarmOrder(items, view) {
     const inView = !view || (it.x + r >= view.x0 && it.x - r <= view.x1 && it.z + r >= view.z0 && it.z - r <= view.z1);
     out.push({ it: it, boost: inView ? IN_VIEW : 0 });
   });
-  return out.sort(function (a, b) { return b.boost - a.boost; });
+  out.sort(function (a, b) { return b.boost - a.boost; });
+  return out;
 }
 
 function viewRect() {
@@ -64,14 +74,40 @@ function viewRect() {
   return { x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs), z0: Math.min.apply(null, zs), z1: Math.max.apply(null, zs) };
 }
 
+/* Has the presentation plan ever been shown on this device? Remembered, so a
+   "low" or touch-first device that uses it gets its pictures early from then
+   on, and one that never does pays nothing. */
+const USED_KEY = "home3d_presentationUsed";
+let usedOnce = null;
+function presentationUsed() {
+  if (usedOnce) return true;
+  if (isPresentation()) {
+    usedOnce = true;
+    try { localStorage.setItem(USED_KEY, "1"); } catch (e) { /* storage blocked: remembered for this page */ }
+    return true;
+  }
+  if (usedOnce === null) {
+    try { usedOnce = localStorage.getItem(USED_KEY) === "1"; } catch (e) { usedOnce = false; }
+  }
+  return usedOnce;
+}
+
 /* `ahead`: only the next zoom step's pictures (the presentation plan asks
    for the current ones itself while it is shown). */
+let lastPass = null;
 export function prewarmPlanSprites(ahead) {
   const budget = deviceBudget();
   if (!budget.prewarmSprites) return 0;
+  if (budget.prewarmOnFirstUse && !presentationUsed()) return 0;
   const SC = S.SC, dpr = canvasDpr();
   if (!(SC > 0)) return 0;
-  const list = prewarmOrder(S.items, viewRect());
+  const view = viewRect();
+  // the view only orders the pass (in view first): a few cm of pan is no reason to repeat it
+  const sig = fingerprint([S.items, SC, dpr, !!ahead, budget.prebakeNextBucket, spriteGeneration(),
+    view ? [Math.round(view.x0 / 50), Math.round(view.z0 / 50), Math.round(view.x1 / 50), Math.round(view.z1 / 50)] : null]);
+  if (sig === lastPass) return 0;
+  const list = prewarmOrder(S.items, view);
+  lastPass = list.pending ? null : sig;
   if (!ahead) list.forEach(function (e) { itemSprite(e.it, SC, dpr, { boost: e.boost }); });
   if (budget.prebakeNextBucket) {
     list.forEach(function (e) {

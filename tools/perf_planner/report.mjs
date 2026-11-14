@@ -7,7 +7,7 @@ const v = (x) => (x == null ? "—" : String(x));
 
 function spritesRows(r) {
   const rows = [];
-  for (const k of ["sprites_cold", "sprites_warm"]) {
+  for (const k of ["sprites_cold", "sprites_warm", "sprites_warm_now"]) {
     const s = r[k];
     if (!s) continue;
     const bake = s.counters && (s.counters.drawPrepared || s.counters.bake);
@@ -58,7 +58,8 @@ function mepRows(r) {
       ` vs without ${v(m.withoutMEP.drawCalls)}; MEP meshes ${m.mepMeshes.meshes} ` +
       `(+${m.mepMeshes.instanced} instanced) of ${m.allMeshes.meshes}; rebuild3D ${v(reb.rebuild3D && reb.rebuild3D.ms)} ms (buildMEP3D ${v(reb.buildMEP3D && reb.buildMEP3D.ms)}); ` +
       `toggle a system (panel eye) until the new frame is drawn: off ${v(m.toggleOff.drawnMs)} ms, on ${v(m.toggleOn.drawnMs)} ms ` +
-      `(with 2 settle frames + GPU drain: ${m.toggleOff.ms} / ${m.toggleOn.ms} ms; full rebuild3D calls ${m.toggleOff.counters.rebuild3D ? m.toggleOff.counters.rebuild3D.n : 0}).`, "");
+      `(with 2 settle frames + GPU drain: ${m.toggleOff.ms} / ${m.toggleOn.ms} ms; full rebuild3D calls ${m.toggleOff.counters.rebuild3D ? m.toggleOff.counters.rebuild3D.n : 0})` +
+      (m.inspector && m.inspector.drawnMs != null ? `; inspector diameter edit until drawn ${m.inspector.drawnMs} ms (full rebuild3D calls ${m.inspector.counters.rebuild3D ? m.inspector.counters.rebuild3D.n : 0})` : "") + ".", "");
   }
   return out;
 }
@@ -78,13 +79,25 @@ function rebuildRows(r) {
   return [...rows, ""];
 }
 
+function firstOpenRows(f) {
+  if (!f) return [];
+  const top = f.longestStretch ? f.longestStretch.byAppFrame.slice(0, 3).map(([k, ms]) => k.split(" ")[0] + " " + ms).join(", ") : "—";
+  return [`first_open (${f.salted ? "cold, salted shaders" : "driver cache warm"}, ${f.waitMs} ms after generating): ${f.firstOpenMs} ms to the first drawn frame ` +
+    `(rebuild3D ${f.rebuild3D} ms, syncItems ${f.syncItems} ms; longest task ${f.long.longestMs} ms; main thread busy ${f.profile ? f.profile.busyMs : "?"} ms). ` +
+    `${f.meshes.meshes} meshes (${f.itemMeshes.meshes} furniture), ${f.materials} materials, ${f.geometries} geometries, ${v(f.pipelines)} pipelines, ` +
+    `${v(f.shaderModules)} shader modules. Longest stretch by app frame: ${top}.`, ""];
+}
+
 export function renderSection(out) {
   const r = {};
   for (const [k, x] of Object.entries(out.results)) if (x && !x.error) r[k] = x;
   const lines = [`## Planner probes — ${out.label}`, "",
     `Generated ${out.date} by \`node tools/perf_planner.mjs\` · ${out.backend} · real GPU Chrome · scene ${JSON.stringify(out.scene || {})}` +
-    (out.bigScene ? ` · tiled scene ${JSON.stringify(out.bigScene)}` : ""), ""];
-  lines.push(...spritesRows(r), ...presRows(r.pres_paint), ...mepRows(r), ...rebuildRows(r));
+    (out.bigScene ? ` · tiled scene ${JSON.stringify(out.bigScene)}` : "") +
+    (out.mepScene ? ` · MEP scene ${JSON.stringify(out.mepScene)}` : "") +
+    (out.cpuThrottle > 1 ? ` · CPU throttled ${out.cpuThrottle}x` : "") +
+    (out.threeAtSwitch != null ? ` · three loaded at reload: ${out.threeAtSwitch}` : ""), ""];
+  lines.push(...firstOpenRows(r.first_open), ...spritesRows(r), ...presRows(r.pres_paint), ...mepRows(r), ...rebuildRows(r));
   const failed = Object.entries(out.results).filter(([, x]) => x && x.error).map(([k, x]) => k + ": " + x.error.split(String.fromCharCode(10))[0]);
   if (failed.length) lines.push("Failed: " + failed.join("; "), "");
   if (out.errors.length) lines.push("Errors: " + out.errors.join("; "), "");

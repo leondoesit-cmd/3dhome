@@ -28,14 +28,15 @@ import { THREE } from "./three_lazy.js";
 import { offscreenGL, offscreenDead, offscreenIdle, useRig, shrinkAll, useSmallTextures, setSpritesUrgent } from "./offscreen_gl.js";
 import { FURN, buildItem, itemVSpan } from "./furniture.js";
 import { rememberVSpan, seedVSpan, spanOfBox, vSpanKeyOf } from "./furniture_api.js";
-import { deviceBudget, noteBakeMs, noteBackgroundLongTask } from "./device_budget.js";
+import { deviceBudget, noteBakeMs, adaptBatch } from "./device_budget.js";
+import { pickBatch, storeCounted, quietStep } from "./plan_sprite_batch.js";
 import { clearGroup } from "./primitives.js";
 import { pbrLoading } from "./pbr_material.js";
 import { S } from "./state.js";
 import { isPresentation } from "./plan_style.js";
 import { spriteKey, spriteBucket, SPRITE_BUCKETS, SPRITE_VERSION } from "./plan_sprite_key.js";
 
-// cache size from the shared device budget (js/device_budget.js): ~64-380 MB
+// cache size from the shared device budget (js/device_budget.js): ~64-190 MB
 // of RGBA at most, usually far less
 function pixelBudget() {
   return deviceBudget().spritePixelBudget;
@@ -75,6 +76,9 @@ const lastById = new Map(); // item id -> its most recent sprite, any key
 const queue = new Map(); // item id -> {key, it, bucket, pri}
 const failed = new Set(); // keys whose model would not render: never retried
 let pixels = 0,
+  // pieces per bake batch, adapted per slice (pump()), at most the budget's
+  batchSize = 0,
+  sliceLongMs = 0,
   scheduled = false,
   baking = false,
   // bumped by every texture load (invalidateTexturedSprites): a provisional
@@ -85,19 +89,21 @@ function now() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
 }
 
+/* Bumped whenever an earlier answer of itemSprite() may have changed without
+   any item changing: the kept pictures' index loaded, a texture landed, the
+   catalogue changed, the renderer came up. The prewarm pass
+   (js/plan_sprite_prewarm.js) repeats only when this or its inputs moved. */
+let generation = 0;
+export function spriteGeneration() {
+  return generation;
+}
+
 function remember(key, sp) {
   if (cache.has(key)) cache.delete(key);
   cache.set(key, sp);
 }
 function store(key, sp) {
-  remember(key, sp);
-  pixels += sp.px;
-  const budget = pixelBudget();
-  while (pixels > budget && cache.size > 1) {
-    const oldest = cache.keys().next().value;
-    pixels -= cache.get(oldest).px;
-    cache.delete(oldest);
-  }
+  pixels = storeCounted(cache, key, sp, pixels, pixelBudget());
 }
 
 /* The picture for `it` at the current zoom, or the best stand-in, or null.
@@ -182,7 +188,6 @@ function urgentWork() {
   return isPresentation() && (typeof document === "undefined" || document.visibilityState !== "hidden");
 }
 let lastInput = -Infinity;
-const INPUT_QUIET_MS = 700;
 if (typeof window !== "undefined") {
   const touch = function () { lastInput = now(); };
   ["pointerdown", "wheel", "keydown", "touchstart"].forEach(function (ev) {
@@ -205,9 +210,10 @@ function quietSlot() {
     quietWake = finish;
     const ask = function () {
       if (done) return;
-      if (urgentWork()) return void finish(); // the user switched to the presentation plan meanwhile
-      const quietFor = now() - lastInput;
-      if (quietFor < INPUT_QUIET_MS) return void setTimeout(ask, INPUT_QUIET_MS - quietFor);
+      // urgent: the user switched to the presentation plan meanwhile
+      const step = quietStep({ urgent: urgentWork(), now: now(), lastInput: lastInput });
+      if (step.go) return void finish();
+      if (step.waitMs) return void setTimeout(ask, step.waitMs);
       if (typeof requestIdleCallback !== "function") return void setTimeout(finish, 50);
       requestIdleCallback(function (deadline) {
         if (deadline.timeRemaining() < 8) ask();
@@ -252,41 +258,41 @@ async function pump() {
   try {
     while (queue.size && !offscreenDead()) {
       const urgent = urgentWork() && waitedFor();
-      // the plan's pictures go before the library tiles' warm-up, even those
-      // made ahead of time: a closed panel's tiles are what nobody is about to
-      // look at, and the warm-up's readback stalls on the GPU work of a bake
-      // (a 200+ ms task when the two met)
-      setSpritesUrgent(true);
       if (!urgent) {
+        // parked: the library tiles' warm-up may use the renderer meanwhile
+        setSpritesUrgent(false);
         await quietSlot();
         if (!queue.size || offscreenDead()) break;
       }
-      // the best few requests (highest priority first), batch size from the
-      // shared device budget
-      const n = Math.max(1, deviceBudget().bakesPerSlice), batch = [];
-      while (batch.length < n && queue.size) {
-        let bestId = null,
-          best = null;
-        queue.forEach(function (req, id) {
-          if (!best || req.pri > best.pri) { best = req; bestId = id; }
-        });
-        queue.delete(bestId);
-        if (!cache.has(best.key)) batch.push({ id: bestId, req: best });
-      }
+      // the plan's pictures go before the library tiles' warm-up, even those
+      // made ahead of time: a closed panel's tiles are what nobody is about to
+      // look at, and the warm-up's readback stalls on the GPU work of a bake
+      // (a 200+ ms task when the two met). Held only while a batch bakes.
+      setSpritesUrgent(true);
+      // the best few requests (highest priority first), one bake per picture
+      const top = Math.max(1, deviceBudget().bakesPerSlice);
+      batchSize = Math.min(batchSize || top, top);
+      const batch = pickBatch(queue, batchSize, function (key) { return cache.has(key); });
       if (!batch.length) continue;
+      sliceLongMs = 0;
       const gen = texGen;
       const sps = await bakeBatch(batch.map(function (b) { return b.req; }));
+      // a long task this slice caused halves the next batch, a clean one grows it back
+      batchSize = adaptBatch(batchSize, { longTaskMs: sliceLongMs }, top);
       batch.forEach(function (b, i) {
         const sp = sps[i], best = b.req;
+        const show = function (req) { if (req.it.id != null) lastById.set(req.it.id, sp); };
         if (sp && sp.prov && gen !== texGen) {
           // a texture landed while this one was baking: its invalidation ran
           // before the picture existed, so caching it would keep the fallback
           // look for good. Show it as the stand-in and bake it again.
-          if (best.it.id != null) lastById.set(best.it.id, sp);
+          show(best);
+          b.also.forEach(show);
           if (!queue.has(b.id)) queue.set(b.id, best);
         } else if (sp) {
           store(best.key, sp);
-          if (best.it.id != null) lastById.set(best.it.id, sp);
+          show(best);
+          b.also.forEach(show); // equal pieces share the one picture
           if (persistable(best.it, sp)) persist(best.key, sp);
           made++;
         } else if (!offscreenDead()) failed.add(best.key);
@@ -471,7 +477,8 @@ function drawPrepared(g, p) {
     g.root.remove(p.model);
     const drawMs = now() - t;
     noteBakeMs(p.syncMs + drawMs);
-    if (!urgentWork() && Math.max(drawMs, p.syncMs) > 50) noteBackgroundLongTask(Math.max(drawMs, p.syncMs));
+    // the longest background step of this slice: pump() sizes the next batch by it
+    if (!urgentWork()) sliceLongMs = Math.max(sliceLongMs, drawMs, p.syncMs);
     g.r.setViewport(0, 0, CANVAS_PX, CANVAS_PX); // the next user of the canvas gets all of it
   }
 }
@@ -667,6 +674,7 @@ function hydrate() {
     };
     tx.oncomplete = function () {
       db.close();
+      generation++;
       if (persisted.size && typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
     };
     tx.onerror = function () { db.close(); };
@@ -678,6 +686,7 @@ function hydrate() {
    lastById until the new picture lands). Every other picture is still right. */
 export function invalidateTexturedSprites() {
   texGen++;
+  generation++;
   cache.forEach(function (sp, key) {
     if (!sp.prov) return;
     cache.delete(key);
@@ -689,6 +698,7 @@ export function invalidateTexturedSprites() {
 /* The catalogue changed (a model added or edited in the modeler): custom
    definitions are re-hashed, so an edited model's pictures simply miss. */
 export function invalidateSprites() {
+  generation++;
   defSigs.clear();
   failed.clear();
   if (typeof window !== "undefined") window.dispatchEvent(new Event("planSpritesReady"));
@@ -698,9 +708,15 @@ if (typeof window !== "undefined") {
   window.addEventListener("catalogUpdated", invalidateSprites);
   window.addEventListener("customTextureLoaded", invalidateTexturedSprites);
   // the renderer came up: work queued while it was pending can run now
-  window.addEventListener("thumbsReady", schedule);
-  // leaving the page (tab hidden, closed): keep what was made this session
-  // now, rather than one picture per quiet moment that may never come
+  window.addEventListener("thumbsReady", function () {
+    generation++;
+    schedule();
+  });
+  // leaving the page (tab hidden, closed): start writing what was made this
+  // session now, rather than one picture per quiet moment that may never
+  // come. Best effort only: toBlob and the IndexedDB writes are asynchronous
+  // and a page that is frozen or unloaded first loses the rest (those pieces
+  // are simply baked again next session).
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState !== "hidden") return;
     toPersist.forEach(function (sp, key) { encode(key, sp); });

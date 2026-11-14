@@ -177,6 +177,10 @@ export function setSpritesUrgent(on) {
   spritesUrgent = !!on;
   if (!spritesUrgent && spriteWaiters.length) spriteWaiters.splice(0).forEach(function (resolve) { resolve(); });
 }
+// whether the plan's pictures hold the renderer right now (a batch is baking)
+export function spritesBusy() {
+  return spritesUrgent;
+}
 export function spritesFirst() {
   return spritesUrgent ? new Promise(function (resolve) { spriteWaiters.push(resolve); }) : Promise.resolve();
 }

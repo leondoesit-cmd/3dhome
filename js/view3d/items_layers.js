@@ -259,7 +259,8 @@ function syncItems(hid) {
     if (hid.items[it.id]) return;
     live[it.id] = 1;
     var c = itemCache.get(it.id);
-    if (c && c.sig != null && c.sig === itemSig(it)) {
+    // a piece merged for drawing is rebuilt whole for the physics sandbox, and back
+    if (c && c.sig != null && c.sig === itemSig(it) && !!c.g.userData.partsMerged === !isPhysicsEnabled()) {
       placeItem(c.g, it);
       syncUserGhost(c.g);
       return;

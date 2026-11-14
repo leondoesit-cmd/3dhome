@@ -130,7 +130,7 @@ export async function pageHelpers() {
   };
   /* The test house: the large generated apartment (seed 3) with its
      auto-generated infrastructure, optionally tiled `copies` times. */
-  H.setupScene = async (copies) => {
+  H.setupScene = async (copies, opts) => {
     const g = await import("/js/generator.js"), { executeCommand } = await import("/js/commands/executor.js");
     try {
       (await import("/js/smarthome.js")).ensureSmartHome().automations.forEach((a) => { a.enabled = false; });
@@ -156,12 +156,21 @@ export async function pageHelpers() {
         base.items.forEach((it) => S.items.push(Object.assign(JSON.parse(JSON.stringify(it)), { id: st.uid(), x: it.x + ox, z: it.z + oz })));
       }
     }
+    // --mep-copies: the tiled plan gets its own auto-generated infrastructure
+    // (the panel's "auto-generate", timed), so the network grows with it
+    let mepAutoMs = null;
+    if (copies > 1 && opts && opts.mep) {
+      const auto = await import("/js/mep_auto.js");
+      const t0 = performance.now();
+      auto.autoInfrastructure();
+      mepAutoMs = Math.round(performance.now() - t0);
+    }
     S.planStyle = "technical";
     S.dirty3D = true;
     plan2d.fitView();
     plan2d.render2D();
     const m = S.mep || {};
-    return { walls: S.walls.length, items: S.items.length, mepNodes: (m.nodes || []).length, mepRuns: (m.runs || []).length };
+    return { walls: S.walls.length, items: S.items.length, mepNodes: (m.nodes || []).length, mepRuns: (m.runs || []).length, mepAutoMs };
   };
 }
 
@@ -520,12 +529,34 @@ export async function mep3d(opts) {
     } finally { delete r0.render; }
   };
   const off = await toggle(false), on = await toggle(true);
+  // an inspector edit (a run's diameter), through the panel's own input
+  const inspectorEdit = async () => {
+    const run = S.mep.runs.find((q) => q.pts && q.pts.length >= 2 && S.mep.vis[q.sys] !== false && !(q.sys === "hvac"));
+    if (!run) return null;
+    const ui = await import("/js/ui_mep.js");
+    S.sel = { kind: "mepRun", ref: run };
+    ui.fillMEP();
+    const input = document.querySelector("#mepProps input[type=text]");
+    if (!input) return { error: "no inspector input" };
+    window.__ppReset();
+    const t0 = performance.now();
+    input.value = String(Math.round((run.dia || 2) + 1));
+    input.dispatchEvent(new Event("change"));
+    const r0 = v.getRenderer(), calls0 = r0.info.render.calls;
+    let frames = 0;
+    for (let i = 0; i < 600 && (S.dirty3D || S.mep3D || r0.info.render.calls === calls0); i++) { await H.raf(); frames++; }
+    const drawnMs = Math.round(performance.now() - t0);
+    await H.settle3D(v);
+    S.sel = null;
+    return { drawnMs, ms: Math.round(performance.now() - t0), frames, counters: window.__ppSnap() };
+  };
+  const inspector = await inspectorEdit();
   S.mep.show3D = false; S.dirty3D = true;
   v = await H.view3dReady(); await H.settle3D(v);
   const withoutMEP = await frameCalls();
   S.mep.show3D = true; S.dirty3D = true;
   window.__setViewMode("plan");
-  return { system: sys, withMEP, withMEPNoXray, withoutMEP, mepMeshes, allMeshes, rebuild, toggleOff: off, toggleOn: on };
+  return { system: sys, withMEP, withMEPNoXray, withoutMEP, mepMeshes, allMeshes, rebuild, toggleOff: off, toggleOn: on, inspector };
 }
 
 /* rebuild3D() split into items / MEP / the rest (structure), and pipelines. */
@@ -548,4 +579,67 @@ export async function plannerRebuild(opts) {
   window.__setViewMode("plan");
   return { items: S.items.length, pipelinesAfterFirstCompile: pipelines, meshes: H.countMeshes(scene),
     itemMeshes: H.countMeshes(H.findRoot(scene, "furniture")), runs };
+}
+
+/* --salt: a per-page salt in every WGSL/GLSL program that changes the compiled
+   code, so neither Chrome's blob cache nor the GPU driver's shader cache (which
+   survives fresh profiles) answers: a cold first compile on every run. */
+export function saltPrelude() {
+  const SALT = (Math.random() * 1e6 + 1).toFixed(3);
+  window.__salt = SALT;
+  window.__compile = { modules: 0, bytes: 0 };
+  if (window.GPUDevice) {
+    const csm = window.GPUDevice.prototype.createShaderModule;
+    window.GPUDevice.prototype.createShaderModule = function (d) {
+      if (d && typeof d.code === "string" && d.code.includes("output.m0")) {
+        const at = d.code.lastIndexOf("\n\treturn output;");
+        if (at > 0) d = Object.assign({}, d, { code: d.code.slice(0, at) + "\n\tif ( output.m0.x == " + SALT + " ) { output.m0.y += 1e-7; }" + d.code.slice(at) });
+      } else if (d && typeof d.code === "string" && d.code.includes("@vertex") && d.code.includes("varyings.builtinClipSpace")) {
+        const at = d.code.lastIndexOf("\n\treturn varyings;");
+        if (at > 0) d = Object.assign({}, d, { code: d.code.slice(0, at) + "\n\tif ( varyings.builtinClipSpace.x == " + SALT + " ) { varyings.builtinClipSpace.y += 1e-7; }" + d.code.slice(at) });
+      }
+      window.__compile.modules++;
+      window.__compile.bytes += d && d.code ? d.code.length : 0;
+      return csm.call(this, d);
+    };
+  }
+  if (window.WebGL2RenderingContext) {
+    const ss = window.WebGL2RenderingContext.prototype.shaderSource;
+    window.WebGL2RenderingContext.prototype.shaderSource = function (sh, src) {
+      const at = src.lastIndexOf("}");
+      if (at > 0 && /void main\s*\(/.test(src)) src = src.slice(0, at) + (src.includes("gl_Position") ? "\n\tif ( gl_Position.x == " + SALT + " ) gl_Position.y += 1e-7;\n" : "\n\tif ( gl_FragCoord.x == " + SALT + " ) discard;\n") + src.slice(at);
+      return ss.call(this, sh, src);
+    };
+  }
+}
+
+/* The user's first 3D open: the apartment is made in the plan, `waitMs` pass,
+   then 3D is opened; timed until the preparing overlay is down and a frame is
+   drawn and finished on the GPU. Also counts what the first frame had to build. */
+export async function firstOpen(opts) {
+  const H = window.__H, S = H.st.S, v = await import("/js/view3d.js");
+  const scene0 = await H.setupScene(1);
+  await H.sleep(opts.waitMs);
+  window.__ppReset();
+  const prepShown = () => { const p = document.getElementById("v3dPrep"); return !!p && p.style.display !== "none" && getComputedStyle(p).display !== "none"; };
+  const t0 = performance.now();
+  window.__setViewMode("3d");
+  let r = null, calls0 = 0, rebuiltAt = null;
+  for (let i = 0; i < 3000; i++) {
+    r = v.getRenderer();
+    if (rebuiltAt == null && !S.dirty3D) rebuiltAt = Math.round(performance.now() - t0);
+    if (r && r.initialized && !calls0) calls0 = r.info.render.calls || 0;
+    if (r && r.initialized && !S.dirty3D && !prepShown() && (r.info.render.calls || 0) > calls0) break;
+    await H.raf();
+  }
+  if (r && r.backend && r.backend.device) await r.backend.device.queue.onSubmittedWorkDone();
+  const t1 = performance.now();
+  const c = window.__ppSnap(), ms = (k) => (c[k] ? +c[k].ms.toFixed(1) : 0);
+  const scene = v.getMainScene(), mats = new Set(), geos = new Set();
+  scene.traverse((o) => { if (o.isMesh) { [].concat(o.material).forEach((m) => mats.add(m)); geos.add(o.geometry); } });
+  const P = r && r._pipelines;
+  return { scene: scene0, waitMs: opts.waitMs, firstOpenMs: Math.round(t1 - t0), rebuiltAt, long: H.longIn(t0, t1),
+    rebuild3D: ms("rebuild3D"), syncItems: ms("syncItems"), meshes: H.countMeshes(scene), itemMeshes: H.countMeshes(H.findRoot(scene, "furniture")),
+    materials: mats.size, geometries: geos.size, pipelines: P ? P.caches.size : null,
+    shaderModules: window.__compile ? window.__compile.modules : null, salted: !!window.__salt };
 }

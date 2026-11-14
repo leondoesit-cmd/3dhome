@@ -7,6 +7,8 @@ import { tJoinStep, wallBandOutline, wallGeom, wallPointAt, wallSolidAtNode, wal
 import { legacyIntensity } from "../gpu.js";
 import { GLASS, MAT_PROPS, S, WALLC, WOOD, clamp, fin } from "../state.js";
 import { THREE } from "../three_lazy.js";
+import { isPhysicsEnabled } from "../physics_facade.js";
+import { mergeItemMeshes } from "../view3d/item_merge.js";
 import { tagItemPhysicsRole } from "../view3d/lighting.js";
 import { addWallCaps, buildStraightWall, clipBelow, cutH, frameSpec, localBox } from "../view3d/site_cutaway.js";
 import { mepXray } from "../view3d/walk_mode.js";
@@ -446,6 +448,9 @@ function buildItem(it) {
   placeItem(g, it);
   itemsRoot.add(g);
   buildFurn(g, it);
+  // a few draw calls per piece; the sandbox breaks a piece into its meshes
+  g.userData.partsMerged = !isPhysicsEnabled();
+  if (g.userData.partsMerged) mergeItemMeshes(g, THREE);
   tagItemPhysicsRole(g, it);
   if (f.lamp) {
     var L = f.lamp,

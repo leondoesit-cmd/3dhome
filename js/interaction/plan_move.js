@@ -18,7 +18,7 @@ import { layerRank } from "../layers.js";
 import { hitMarker, markerItem, moveMarker } from "../markers.js";
 import { ensureMEP, routeResolve, wallPath } from "../mep.js";
 import { sendPlanCursor } from "../plan_sync.js";
-import { plan, render2D } from "../plan2d.js";
+import { mepOverlayOnHud, plan, render2D, requestRenderHUD } from "../plan2d.js";
 import { inputBounds, inputScale, planRotRad, wx, wz } from "../planner_input.js";
 import { corridorRect, solveDock, translateRect } from "../room_dock.js";
 import { detachRoomSeam } from "../room_graph.js";
@@ -252,7 +252,8 @@ function wirePlanMove() {
       commitPending();
       dragMEP(px, pz);
       S.mep3D = true; // a device or run moved: only the conduits change in 3D
-      render2D();
+      // flow animating: the overlay is on the HUD, the model canvas did not change
+      if (mepOverlayOnHud()) requestRenderHUD(); else render2D();
       return;
     }
     // always-on distance overlay: track the cursor + the item under it while

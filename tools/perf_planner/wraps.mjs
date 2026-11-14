@@ -18,6 +18,8 @@ export const WRAPS = {
       "pixels: () => pixels };",
   },
   "js/plan2d/items.js": { fns: ["drawItemPresentation"] },
+  "js/device_budget.js": { fns: ["noteBakeMs"] },
+  "js/plan_sprite_prewarm.js": { fns: ["prewarmPlanSprites", "prewarmOrder"] },
   "js/furniture_api.js": {
     fns: ["baseVSpan"],
     append: "globalThis.__vspan = { cache: vSpanCache, toMeasure };",

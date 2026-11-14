@@ -6,7 +6,7 @@ import { layerRank } from "../layers.js";
 import { makeRouter } from "../mep_route.js";
 import { drawNode, drawRoutePreview, drawRun } from "../mep/drawing.js";
 import { computeMEPFlow, computeMEPStatus } from "../mep/routing.js";
-import { nodePos, runLength } from "../mep/topology.js";
+import { nodePos, runLength, withNodePosMemo } from "../mep/topology.js";
 import { S, clamp, fin } from "../state.js";
 import {
   _aliveCount, _mepRot, _sig, _state, ensureMEP, mepLayerVisible, mepVisible,
@@ -393,6 +393,13 @@ export function mepAliveCount() { return _aliveCount; }
 export function drawMEP(pc, sx, sz, label, phase, rot) {
   var m = ensureMEP();
   if (!m.show) return;
+  withNodePosMemo(function () { drawMEPNow(m, pc, sx, sz, label, phase, rot); });
+}
+function drawMEPNow(m, pc, sx, sz, label, phase, rot) {
+  // mepVisible()/mepLayerVisible() with this paint's one ensureMEP(): asked
+  // per run, device and clash, each call re-made the visibility objects
+  var sysOn = function (sys) { return m.vis[sys] !== false; };
+  var layerOn = function (layer) { return m.layerVis[layer || "wall"] !== false; };
   set__mepRot(rot || 0);
   var state = getMEPState();
   var status = state.status, flow = state.flow;
@@ -400,22 +407,22 @@ export function drawMEP(pc, sx, sz, label, phase, rot) {
   var alive = 0;
   // runs first, devices on top
   m.runs.forEach(function (r) {
-    if (!mepVisible(r.sys) || !mepLayerVisible(r.layer)) return;
+    if (!sysOn(r.sys) || !layerOn(r.layer)) return;
     var f = flow[r.id];
     if (f && f.alive && f.flow !== "signal" && f.flow !== "vent") alive++;
     drawRun(pc, sx, sz, r, status.run[r.id], f, animate ? phase || 0 : null);
   });
   set__aliveCount(alive);
   m.nodes.forEach(function (n) {
-    if (!mepVisible(n.sys) || !mepLayerVisible(n.layer)) return;
+    if (!sysOn(n.sys) || !layerOn(n.layer)) return;
     drawNode(pc, sx, sz, n, status.node[n.id]);
   });
   var clashSeen = {};
   (state.clashes || []).forEach(function (c) {
-    if (!mepVisible(c.sysA) || !mepVisible(c.sysB)) return;
+    if (!sysOn(c.sysA) || !sysOn(c.sysB)) return;
     // A floor-only drawing must not retain warnings for hidden wall/ceiling
     // routes; those markers otherwise look like unexplained defects on pipes.
-    if (!mepLayerVisible(c.layerA) || !mepLayerVisible(c.layerB)) return;
+    if (!layerOn(c.layerA) || !layerOn(c.layerB)) return;
     var key = Math.round(c.x) + ":" + Math.round(c.z);
     if (clashSeen[key]) return;
     clashSeen[key] = 1;

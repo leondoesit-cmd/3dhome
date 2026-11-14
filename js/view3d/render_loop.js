@@ -1,6 +1,7 @@
 /* The 3D view's animation loop (doors, idle painting, hidden-pane handling) and
    its pointer gestures, lifted out of build3D, split out of js/view3d.js. It
    shares the editor's state through live imports from ../view3d.js. */
+import { holdRebuild } from "./rebuild_hold.js";
 import { createSceneRegistry } from "../core/scene_registry.js";
 import { HumanFactory } from "../human.js";
 import { isPhysicsBusy, syncPhysicsToThree } from "../physics_facade.js";
@@ -186,9 +187,9 @@ function wireRenderLoopAndGestures() {
   /* A hidden 3D pane (Plan view) is kept current for the next switch, but not
      on every pointer move of a drag: each rebuild there redid and re-keyed the
      whole house, ~180 ms a move on a large flat with nothing on screen to show
-     for it. While a gesture is in progress (a button held, or input within
-     HIDDEN_EDIT_IDLE_MS) pending rebuilds wait; the first quiet frame after it
-     runs them once, so the pane is still ready when it is opened. */
+     for it. Pending rebuilds wait for a real pause in the user's work
+     (js/view3d/rebuild_hold.js: when, and why 1.5 s); opening the pane runs
+     whatever is still pending on its first frame. */
   /* Pressed pointers by id (two fingers are two gestures' worth). A release
      can be missed (it happened outside the window, or focus went elsewhere
      mid-drag), so a move that reports no buttons, a blur and a hidden page
@@ -198,7 +199,6 @@ function wireRenderLoopAndGestures() {
      paid inside the plan's own frame, so the plan dragged at ~12 fps. The 3D
      view lags a little during the drag and is exact once it ends. A gesture in
      the 3D view itself is never throttled. */
-  var HIDDEN_EDIT_IDLE_MS = 300, VISIBLE_PLAN_DRAG_REBUILD_MS = 120;
   var editInputT = 0, editPointers = new Set(), editOnPlan = false;
   var noteEditInput = function () { editInputT = performance.now(); };
   var releaseAllPointers = function () { if (editPointers.size) { editPointers.clear(); noteEditInput(); } };
@@ -219,17 +219,21 @@ function wireRenderLoopAndGestures() {
   window.addEventListener("blur", releaseAllPointers);
   document.addEventListener("visibilitychange", function () { if (document.hidden) releaseAllPointers(); });
   window.addEventListener("keydown", noteEditInput, { capture: true, passive: true });
+  // panning or zooming the plan is work in progress too (the hidden pane waits)
+  window.addEventListener("wheel", noteEditInput, { capture: true, passive: true });
   var holdHiddenRebuild = function (time) {
-    if (!(S.dirty3D || S.items3D.size || S.mep3D)) return false;
-    if (!editPointers.size && time - editInputT >= HIDDEN_EDIT_IDLE_MS) return false;
+    var pending = !!(S.dirty3D || S.items3D.size || S.mep3D);
+    if (!pending) return false;
     var el = renderer && renderer.domElement;
-    if (el && el.getClientRects().length === 0) return true; // display:none up the tree
-    /* A slow rebuild stretches the interval: on a ~200-wall plan one takes
-       ~600 ms, and at a fixed 120 ms nearly every move paid it. Only this
-       gesture's rebuilds count, and only slow ones, so a small plan keeps
-       the 120 ms pace. */
-    var interval = gestureRebuildMs > 100 ? 3 * gestureRebuildMs : VISIBLE_PLAN_DRAG_REBUILD_MS;
-    return editOnPlan && editPointers.size > 0 && time - lastRebuildT < interval;
+    return holdRebuild({
+      pending: pending,
+      hidden: !!el && el.getClientRects().length === 0, // display:none up the tree
+      pressed: editPointers.size > 0,
+      sinceInput: time - editInputT,
+      onPlan: editOnPlan,
+      sinceRebuild: time - lastRebuildT,
+      gestureRebuildMs: gestureRebuildMs,
+    });
   };
   /* A hidden pane (display:none up the tree: the Plan view, or a phone that
      stays on the plan, where main.js now brings 3D up in the background) is

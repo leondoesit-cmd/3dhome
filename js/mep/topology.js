@@ -240,8 +240,26 @@ export function deleteMEP(sel) {
 
 // World position of a node — a wall-attached node is resolved from its wall so
 // it tracks the wall when the wall is edited/moved.
+/* One paint of the overlay asks for every device's position twice (the
+   state signature, then the drawing), and a wall-attached one walks the wall
+   geometry each time. withNodePosMemo() answers repeats from a memo for the
+   duration of one call, when nothing can move. */
+var posMemo = null;
+export function withNodePosMemo(fn) {
+  if (posMemo) return fn();
+  posMemo = new Map();
+  try { return fn(); } finally { posMemo = null; }
+}
 export function nodePos(n) {
   if (!n) return { x: 0, z: 0 };
+  if (posMemo) {
+    var hit = posMemo.get(n);
+    if (!hit) posMemo.set(n, (hit = nodePosNow(n)));
+    return { x: hit.x, z: hit.z };
+  }
+  return nodePosNow(n);
+}
+function nodePosNow(n) {
   // Only a wall-plane device tracks its host. A stale wall id on a ceiling
   // or floor device, or a wall id whose station was lost, must not pull the
   // marker to the wall origin (s null used to multiply through as 0).
@@ -343,3 +361,17 @@ export function linkRunEndpoints(run) {
 }
 
 export { emitMEP, nodeTouchesRun };
+
+/* After an edit of the infrastructure alone, only the conduits change in 3D:
+   S.mep3D swaps them without rebuilding the house (rebuildMEP3D in
+   js/view3d/items_layers.js; buildMEP3D reads only the MEP state and the
+   walls). An x-ray setting that moved with the edit (a run put under the
+   floor turns the floor x-ray on) re-materials walls, slabs and ground, so
+   then the whole scene rebuilds. `xrayBefore` is mepXrayKey() from before. */
+export function mepXrayKey() {
+  return JSON.stringify((S.mep && S.mep.xray) || null);
+}
+export function conduitsChanged(xrayBefore) {
+  if (xrayBefore !== undefined && mepXrayKey() !== xrayBefore) S.dirty3D = true;
+  else S.mep3D = true;
+}

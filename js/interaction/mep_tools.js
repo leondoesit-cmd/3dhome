@@ -11,7 +11,7 @@ import { weldNodes } from "../interaction/layout_drag.js";
 import { adoptMergedRoomMeta } from "../interaction/room_tools.js";
 import { applyRemove, getOrMakeNode, healDrawnWallEnds, materializePlannerWall, resolveLanding, splitWallAt } from "../interaction/wall_edit.js";
 import { isLayerLocked } from "../layers.js";
-import { cancelMEP, cancelRoute, ensureMEP, finishRoute, nodePos, runCrossesOpening, snapMEPPoint } from "../mep.js";
+import { cancelMEP, cancelRoute, conduitsChanged, ensureMEP, finishRoute, mepXrayKey, nodePos, runCrossesOpening, snapMEPPoint } from "../mep.js";
 import { plan, render2D } from "../plan2d.js";
 import { wallSeparates } from "../room_graph.js";
 import { roomPreset } from "../room_presets.js";
@@ -101,6 +101,7 @@ export function syncElevationTools() {
 function commitRoute() {
   var m = ensureMEP();
   if (!m.route) return;
+  var xray0 = mepXrayKey();
   if (m.route.pts.length >= 2) {
     if (runCrossesOpening(m.route)) {
       flash(t("mep_doorBlocked"), "error");
@@ -113,7 +114,7 @@ function commitRoute() {
   } else {
     cancelRoute();
   }
-  S.dirty3D = true;
+  conduitsChanged(xray0);
   render2D();
   refreshTree();
 }

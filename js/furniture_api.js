@@ -101,12 +101,13 @@ function baseVSpan(it) {
   /* three is late-bound, and this probe is on the 2D path (stack labels,
      elevations, marker clearances) — it can be asked before anything has
      wanted a scene. Answer with the floor-standing fallback WITHOUT caching
-     it, fetch three, and drop the cache when it lands so the next paint gets
-     the real bounding box. Caching the fallback would pin a wall-hung toilet
-     to the floor for the rest of the session. */
+     it, fetch three, and repaint when it lands so the next paint gets the
+     real bounding box. Caching the fallback would pin a wall-hung toilet to
+     the floor for the rest of the session. (Nothing measured is cached before
+     three lands, so there is nothing to drop then: the only entries are spans
+     seeded from pictures kept on disk, which are real measurements.) */
   if (!threeLoaded()) {
     loadThree().then(function () {
-      clearVSpanCache();
       window.dispatchEvent(new CustomEvent("vspan:ready"));
     }, function () {});
     return { lo: 0, hi: (it && it.h) || 0 };
@@ -150,13 +151,14 @@ export function rememberVSpan(it, box) {
 /* The cache key of a piece's span, and a span learnt elsewhere under it:
    the presentation plan keeps each picture's span with the picture on disk,
    so a reloaded plan knows which pieces hang above the cut without building
-   them. Skipped before three has loaded (baseVSpan() clears the cache when
-   it lands). */
+   them. Works before three has loaded: the kept pictures' index is read at
+   boot, and a switch to the presentation plan right after a reload must not
+   wait for every piece to be built again to learn its height. */
 export function vSpanKeyOf(it) {
   return it && FURN[it.type] ? vSpanKey(it) : null;
 }
 export function seedVSpan(key, span) {
-  if (!key || !span || !fin(span.lo) || !fin(span.hi) || vSpanCache.has(key) || !threeLoaded()) return false;
+  if (!key || !span || !fin(span.lo) || !fin(span.hi) || vSpanCache.has(key)) return false;
   vSpanCache.set(key, { lo: span.lo, hi: span.hi });
   toMeasure.delete(key);
   return true;

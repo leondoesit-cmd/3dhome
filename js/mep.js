@@ -35,8 +35,9 @@ import {
   addNode, addRun, cancelMEP, cancelRoute, deleteMEP, detachNodesFromWalls,
   emitMEP, finishRoute, isNodeConnected, linkRunEndpoints, migrateMEPTopology,
   nodeById, nodePos, onMEPChange, runCrossesOpening, runLength, setMEPLayer,
-  setNodeKind, setRunKind, unconnectedNodes,
+  setNodeKind, setRunKind, unconnectedNodes, conduitsChanged, mepXrayKey,
 } from "./mep/topology.js";
+export { conduitsChanged, mepXrayKey };
 export { addNode, addRun, cancelMEP, cancelRoute, deleteMEP, detachNodesFromWalls, finishRoute, isNodeConnected, linkRunEndpoints, migrateMEPTopology, nodeById, nodePos, onMEPChange, runCrossesOpening, runLength, setMEPLayer, setNodeKind, setRunKind, unconnectedNodes };
 export { applyRoutingPolicies, autoConnectAll, computeMEPFlow, computeMEPStatus, connectMissingMEP, effectiveRunLayers, gasThroughBedroom, generationLayer, gravityUphill, policyLayerFor, roomIsBedroom, routingPolicy, setRoutingPolicy };
 export { computeMEPClashes, drawMEP, getMEPState, hitMEP, mepAliveCount, mepBOM, routeResolve, snapMEPPoint, wallPath };

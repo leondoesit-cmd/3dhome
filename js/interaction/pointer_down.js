@@ -15,7 +15,7 @@ import { agentCommandEnvironment, blockedDrag, endConPick, finishConPick, pickEr
 import { snapPoint, snapWallPoint } from "../interaction/wall_snap.js";
 import { canDrag, layerRank } from "../layers.js";
 import { addMarker, hitMarker } from "../markers.js";
-import { addNode, ensureMEP, hitMEP, snapMEPPoint, wallPath } from "../mep.js";
+import { addNode, conduitsChanged, ensureMEP, hitMEP, mepXrayKey, snapMEPPoint, wallPath } from "../mep.js";
 import { openingDrawDefaults } from "../opening_draw_defaults.js";
 import { dropPoint, plan, render2D } from "../plan2d.js";
 import { inputBounds, inputIs3D, inputScale, wx, wz } from "../planner_input.js";
@@ -379,11 +379,12 @@ function pointerDown(e) {
     if (!m0.place) return;
     if (e.button === 2) { setTool("select"); render2D(); return; }
     pushHistory();
+    var xray0 = mepXrayKey();
     var sp = snapMEPPoint(px, pz);
     var nn = addNode(m0.place.sys, m0.place.kind, sp.x, sp.z,
       sp.wall != null ? sp.wall : null, sp.s != null ? sp.s : null, m0.layer);
     select({ kind: "mepNode", ref: nn });
-    S.dirty3D = true;
+    conduitsChanged(xray0); // a device is part of the infrastructure's 3D only
     render2D();
     refreshTree();
     return; // tool stays armed for rapid placement (Esc / select to stop)

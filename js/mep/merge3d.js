@@ -30,7 +30,7 @@ function mepMergeKey(o) {
 }
 
 // one geometry from several, each moved by its mesh's own transform
-function mepBakeGeometries(meshes, THREE) {
+export function mepBakeGeometries(meshes, THREE) {
   var names = ["position", "normal", "uv"].filter(function (n) {
     return meshes.every(function (o) { return !!o.geometry.attributes[n]; });
   });

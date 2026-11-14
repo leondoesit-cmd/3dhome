@@ -11,6 +11,8 @@
    pickMaterialTier() is pure (tested in Node); materialTier() reads the
    browser and the user override (localStorage home3d_matTier = "2k" | "1k"). */
 
+import { noteSoftwareGPU } from "./device_budget.js";
+
 export const MATERIAL_TIER_KEY = "home3d_matTier";
 
 /**
@@ -45,6 +47,7 @@ export function materialTier() {
   } catch (e) { /* no matchMedia */ }
   try { env.deviceMemory = navigator.deviceMemory; } catch (e) { /* not exposed */ }
   env.software = software = softwareRenderer();
+  noteSoftwareGPU(software); // the background-work budget skips work ahead on a CPU rasteriser
   try { env.minScreen = Math.min(screen.width, screen.height); } catch (e) { /* no screen */ }
   try { env.override = localStorage.getItem(MATERIAL_TIER_KEY) || undefined; } catch (e) { /* storage blocked */ }
   cached = pickMaterialTier(env);
@@ -94,6 +97,11 @@ export function primeGpuTier() {
       const adapter = await navigator.gpu.requestAdapter();
       if (adapter) adapterSoftware = isSoftwareAdapter(adapter);
     } catch (e) { /* no adapter: the WebGL probe answers */ }
+    finally {
+      // js/device_budget.js: no presentation pictures are made ahead of time
+      // on a CPU rasteriser (the adapter's answer, else the WebGL probe's)
+      try { noteSoftwareGPU(softwareRenderer()); } catch (e) { /* budget stays on its static signals */ }
+    }
   })();
   return priming;
 }

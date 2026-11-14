@@ -7,7 +7,7 @@
 // the icon IS the model. Same builder as the 3D view, so a model can never
 // disagree with its icon.
 import { THREE } from "./three_lazy.js";
-import { offscreenGL, offscreenPending, offscreenIdle, useRig, shrinkAll, useSmallTextures, dropSmallTextures, spritesFirst } from "./offscreen_gl.js";
+import { offscreenGL, offscreenPending, offscreenIdle, useRig, shrinkAll, useSmallTextures, dropSmallTextures, spritesFirst, spritesBusy } from "./offscreen_gl.js";
 import { FURN, buildItem } from "./furniture.js";
 import { clearGroup } from "./primitives.js";
 import { quietPbrLoads, pbrLoading } from "./pbr_material.js";
@@ -272,9 +272,15 @@ async function warmOne(type, slot = idleSlot) {
        are queued it waits for them, then for the GPU to drain. Tiles a grid
        on screen asked for (slot !== idleSlot) do not wait. */
     if (slot === idleSlot) {
-      await spritesFirst();
-      const drained = gl();
-      if (drained) await offscreenIdle(drained);
+      // a bake that started while we waited for the drain put new work on
+      // the GPU: wait for that too. The last check and the snap below run in
+      // one task, so nothing can start between them.
+      for (let tries = 0; tries < 20; tries++) {
+        await spritesFirst();
+        const drained = gl();
+        if (drained) await offscreenIdle(drained);
+        if (!spritesBusy()) break;
+      }
     }
     g = gl();
     if (!g || cache.has(key)) return;

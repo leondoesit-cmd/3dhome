@@ -35,3 +35,42 @@ test("the 3D loop drains S.mep3D after the item path and never before a full reb
   assert.match(only, /if \(isPhysicsEnabled\(\)\) \{\s*S\.dirty3D = true;\s*return false;/, "physics keeps one body per pipe");
   assert.match(only, /ghostRoot\(mepRoot, false\);\s*retireGroup\(mepRoot\);\s*buildMEP3D\(mepRoot, THREE\);\s*mergeMEPMeshes\(mepRoot, THREE\);\s*applyLayers3D\(\);/);
 });
+
+test("an infrastructure-only edit swaps the conduits; one that moves an x-ray setting rebuilds", async () => {
+  const { conduitsChanged, mepXrayKey, ensureMEP } = await import("../js/mep.js");
+  S.mep = null;
+  const m = ensureMEP();
+  S.dirty3D = false; S.mep3D = false;
+  conduitsChanged();
+  assert.deepEqual([S.dirty3D, S.mep3D], [false, true]);
+  S.mep3D = false;
+  const before = mepXrayKey();
+  conduitsChanged(before);
+  assert.deepEqual([S.dirty3D, S.mep3D], [false, true], "x-ray unchanged");
+  S.mep3D = false;
+  m.xray.floor = !m.xray.floor; // e.g. a run put under the floor
+  conduitsChanged(before);
+  assert.deepEqual([S.dirty3D, S.mep3D], [true, false], "walls, slabs and ground change material");
+  S.dirty3D = false;
+});
+
+test("inspector edits, adding a device and finishing a route use the MEP-only path", () => {
+  const ui = read("js/ui_mep.js");
+  assert.match(ui, /e\.elev = v; conduitsChanged\(\); render2D\(\);/);
+  assert.match(ui, /e\.dia = Math\.max\(0\.5, v\); conduitsChanged\(\);/);
+  assert.match(ui, /e\.exposed = v; conduitsChanged\(\);/);
+  assert.match(ui, /e\.fall = Math\.max\(0, v\);\s*conduitsChanged\(\);/);
+  assert.match(ui, /setMEPLayer\(e, lysel\.value\);\s*conduitsChanged\(xray0\);/);
+  assert.match(ui, /deleteMEP\(sel\);\s*select\(null\);\s*conduitsChanged\(\);/);
+  // x-ray settings and the layer-revealing actions keep the full rebuild
+  assert.match(ui, /m\.xray\.walls = v;\s*S\.dirty3D = true;/);
+  assert.match(sourceFunctionText(read("js/interaction/mep_tools.js"), "commitRoute"), /conduitsChanged\(xray0\);/);
+  assert.match(read("js/interaction/pointer_down.js"), /select\(\{ kind: "mepNode", ref: nn \}\);\s*conduitsChanged\(xray0\);/);
+});
+
+test("an MEP drag repaints only the HUD while the overlay is there", () => {
+  const move = stripComments(moduleSource("js/interaction.js"));
+  assert.match(move, /dragMEP\(px, pz\);\s*S\.mep3D = true;\s*if \(mepOverlayOnHud\(\)\) requestRenderHUD\(\); else render2D\(\);/);
+  // the same predicate that puts the overlay on the HUD while the flow animates
+  assert.match(stripComments(moduleSource("js/plan2d.js")), /export function mepOverlayOnHud\(\) \{\s*return mepOnHud\(\);\s*\}/);
+});

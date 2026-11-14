@@ -35,7 +35,7 @@ const arg = (name, dflt) => {
   return hit ? hit.slice(name.length + 3) : dflt;
 };
 const flag = (name) => argv.includes("--" + name);
-const ALL = ["sprites_cold", "sprites_warm", "sprites_zoom", "pres_paint", "mep_2d_idle", "mep_2d_drag", "mep_route", "mep_3d", "planner_rebuild"];
+const ALL = ["first_open", "sprites_cold", "sprites_warm", "sprites_warm_now", "sprites_zoom", "pres_paint", "mep_2d_idle", "mep_2d_drag", "mep_route", "mep_3d", "planner_rebuild"];
 const ONLY = new Set(arg("only", ALL.join(",")).split(","));
 const COPIES = Math.max(1, parseInt(arg("copies", "3"), 10) || 3);
 const WAIT_TECH = parseInt(arg("wait-tech", "3000"), 10);
@@ -50,11 +50,26 @@ const COMPARE = arg("compare", "");
 // --no-thumbs: the library tiles' background warm-up never starts (an A/B
 // of plan pictures, without its timing on the shared renderer)
 const NO_THUMBS = flag("no-thumbs");
+// --salt: cold shader compiles (see SC.saltPrelude); --eval=f.js: after boot,
+// evaluate the file's expression in the page and print its JSON (ad-hoc probes)
+const SALT = flag("salt");
+const EVAL = arg("eval", "");
+const FIRST_WAIT = parseInt(arg("first-open-wait", "1000"), 10);
+// --cpu-throttle=N: CDP CPU throttling (N x slower) once booted;
+// --mep-copies=N: the MEP scenarios run on the apartment tiled N times with
+// its own auto-generated infrastructure (docs/perf_review_fixes.md 5.2)
+const CPU_THROTTLE = parseFloat(arg("cpu-throttle", "1")) || 1;
+const MEP_COPIES = Math.max(1, parseInt(arg("mep-copies", "1"), 10) || 1);
+const NO_MERGE = flag("no-merge");
+const EXTRA_FILES = [...(NO_THUMBS ? ["js/thumbs.js", "js/offscreen_gl.js"] : []), ...(NO_MERGE ? ["js/mep/merge3d.js", "js/view3d/item_merge.js"] : [])];
 function extraPatch(path, body) {
   if (NO_THUMBS && path === "js/thumbs.js") return body.replace("const start = () => setTimeout(prewarmThumbs, 1200);", "const start = () => {};");
   // and nobody drops the shared small texture copies mid-bake (a dropped copy
   // is re-made with a different resampler: a picture that depends on timing)
   if (NO_THUMBS && path === "js/offscreen_gl.js") return body.replace("export function dropSmallTextures() {", "export function dropSmallTextures() { return;");
+  // --no-merge: the 3D view without the MEP and furniture mesh merges (a pixel A/B of both merges on one backend)
+  if (NO_MERGE && path === "js/mep/merge3d.js") return body.replace("export function mergeMEPMeshes(group, THREE) {", "export function mergeMEPMeshes(group, THREE) { return 0;");
+  if (NO_MERGE && path === "js/view3d/item_merge.js") return body.replace("export function mergeItemMeshes(g, THREE) {", "export function mergeItemMeshes(g, THREE) { return 0;");
   return body;
 }
 function headSources() {
@@ -123,18 +138,24 @@ async function openPage(wsUrl) {
   await cdp("Runtime.enable");
   await cdp("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await cdp("Page.addScriptToEvaluateOnNewDocument", { source: `(${SC.pagePrelude})();` });
+  if (SALT) await cdp("Page.addScriptToEvaluateOnNewDocument", { source: `(${SC.saltPrelude})();` });
   const head = HEAD ? headSources() : null;
-  const files = head ? [...head.keys()] : Object.keys(WRAPS);
-  if (NO_THUMBS) for (const f of ["js/thumbs.js", "js/offscreen_gl.js"]) if (!files.includes(f)) files.push(f);
+  // --head-counters: the committed sources WITH the counters (a timing A/B)
+  const HEAD_COUNTERS = head && flag("head-counters");
+  const files = head ? [...new Set([...head.keys(), ...(HEAD_COUNTERS ? Object.keys(WRAPS) : [])])] : Object.keys(WRAPS);
+  for (const f of EXTRA_FILES) if (!files.includes(f)) files.push(f);
   if (files.length) await cdp("Fetch.enable", { patterns: files.map((f) => ({ urlPattern: "*/" + f + "*", requestStage: "Request" })) });
   handlers.push((m) => {
     if (m.method !== "Fetch.requestPaused") return;
     const path = new URL(m.params.request.url).pathname.replace(/^\//, "");
-    const listed = head ? head.has(path) : !!WRAPS[path];
-    if (!listed && !(NO_THUMBS && (path === "js/thumbs.js" || path === "js/offscreen_gl.js"))) return void cdp("Fetch.continueRequest", { requestId: m.params.requestId });
+    const listed = head ? head.has(path) || (HEAD_COUNTERS && !!WRAPS[path]) : !!WRAPS[path];
+    if (!listed && !EXTRA_FILES.includes(path)) return void cdp("Fetch.continueRequest", { requestId: m.params.requestId });
     let body;
     if (!listed) body = readFileSync(join(ROOT, path), "utf8");
-    else if (head) body = head.get(path);
+    else if (head) {
+      body = head.has(path) ? head.get(path) : readFileSync(join(ROOT, path), "utf8");
+      if (HEAD_COUNTERS) try { body = patchSource(path, body); } catch (e) { logs.push(String(e.message)); }
+    }
     else try { body = patchSource(path, readFileSync(join(ROOT, path), "utf8")); } catch (e) { logs.push(String(e.message)); body = readFileSync(join(ROOT, path), "utf8"); }
     body = extraPatch(path, body);
     cdp("Fetch.fulfillRequest", { requestId: m.params.requestId, responseCode: 200,
@@ -214,11 +235,20 @@ async function profiled(p, run) {
         const f = byId.get(sid).callFrame, sk = f.functionName + " " + (f.url || "").replace(/^[a-z]+:\/\/[^/]+\//, "") + ":" + (f.lineNumber + 1);
         self.set(sk, (self.get(sk) || 0) + dt);
       });
-      const top = (m) => [...m].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => [k, +v.toFixed(1)]);
-      res.longestStretch = { ms: +best.ms.toFixed(1), byAppFrame: top(agg), bySelf: top(self) };
+      // inclusive: every distinct frame on the sample's stack gets the sample
+      const incl = new Map();
+      best.ids.forEach(([sid, dt]) => {
+        const seen = new Set();
+        for (let id = sid; id != null; id = parentOf.get(id)) {
+          const f = byId.get(id).callFrame, k = f.functionName + " " + (f.url || "").replace(/^[a-z]+:\/\/[^/]+\//, "") + ":" + (f.lineNumber + 1);
+          if (!seen.has(k)) { seen.add(k); incl.set(k, (incl.get(k) || 0) + dt); }
+        }
+      });
+      const top = (m, n = 6) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => [k, +v.toFixed(1)]);
+      res.longestStretch = { ms: +best.ms.toFixed(1), byAppFrame: top(agg), bySelf: top(self), inclusive: top(incl, 40) };
     }
     res.profile = { busyMs: +busy.toFixed(1), idleMs: +idle.toFixed(1),
-      top: [...byFn].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, v]) => [k, +v.toFixed(1)]) };
+      top: [...byFn].sort((a, b) => b[1] - a[1]).slice(0, flag("profile") ? 30 : 10).map(([k, v]) => [k, +v.toFixed(1)]) };
   }
   return res;
 }
@@ -233,6 +263,17 @@ async function main() {
     try { out.results[name] = await run(); console.log(JSON.stringify(out.results[name]).slice(0, 300)); }
     catch (e) { out.errors.push(name + ": " + e.message); console.log("ERROR " + e.message); }
   };
+  if (EVAL) {
+    try {
+      await boot(p, relay.origin);
+      if (CPU_THROTTLE > 1) await p.cdp("Emulation.setCPUThrottlingRate", { rate: CPU_THROTTLE });
+      // --profile: the same, under the CPU profiler (self time by function)
+      const src = readFileSync(EVAL, "utf8");
+      const res = flag("profile") ? await profiled(p, async () => ({ value: await p.evaluate(src, 600000) })) : await p.evaluate(src, 600000);
+      console.log(JSON.stringify(res, null, 1));
+    } finally { p.close(); chrome.close(); relay.close(); }
+    return;
+  }
   if (CAPTURE || COMPARE) {
     try {
       await boot(p, relay.origin);
@@ -252,6 +293,10 @@ async function main() {
   }
   try {
     await boot(p, relay.origin);
+    if (CPU_THROTTLE > 1) await p.cdp("Emulation.setCPUThrottlingRate", { rate: CPU_THROTTLE });
+    out.cpuThrottle = CPU_THROTTLE;
+    out.mepCopies = MEP_COPIES;
+    await step("first_open", () => profiled(p, () => p.call(SC.firstOpen, { waitMs: FIRST_WAIT }, 300000)));
     out.scene = await p.evaluate("window.__H.setupScene(1)");
     console.log("scene", JSON.stringify(out.scene));
     await step("sprites_cold", () => profiled(p, () => p.call(SC.spritesSwitch, { waitMs: WAIT_TECH, timeoutMs: 120000 }, 200000)));
@@ -261,6 +306,20 @@ async function main() {
       await boot(p, relay.origin);
       await p.evaluate("window.__H.setupScene(1)");
       await step("sprites_warm", () => p.call(SC.spritesSwitch, { waitMs: WAIT_TECH, timeoutMs: 120000 }, 200000));
+    }
+    if (ONLY.has("sprites_warm_now")) {
+      // reload, then switch at once: the kept pictures' heights must be
+      // known before three has loaded (review 4.2)
+      if (!out.flush) out.flush = await p.call(SC.spritesFlush, { timeoutMs: 90000 }, 120000);
+      await boot(p, relay.origin);
+      if (CPU_THROTTLE > 1) await p.cdp("Emulation.setCPUThrottlingRate", { rate: CPU_THROTTLE });
+      out.threeAtSwitch = await p.evaluate("(async () => (await import('/js/three_lazy.js')).threeLoaded())()");
+      await p.evaluate("window.__H.setupScene(1)");
+      await step("sprites_warm_now", () => p.call(SC.spritesSwitch, { waitMs: 0, timeoutMs: 120000 }, 200000));
+    }
+    if (MEP_COPIES > 1 && [...ONLY].some((k) => k.startsWith("mep_"))) {
+      out.mepScene = await p.evaluate(`window.__H.setupScene(${MEP_COPIES}, { mep: true })`, 600000);
+      console.log("mep scene", JSON.stringify(out.mepScene));
     }
     await step("mep_2d_idle", () => profiled(p, () => p.call(SC.mepIdle, { ms: 3000 })));
     await step("mep_2d_drag", () => profiled(p, () => p.call(SC.mepDrag, { moves: 30 })));

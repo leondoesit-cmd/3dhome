@@ -8,7 +8,7 @@ import {
   deleteMEP, runLength, mepVisible, getMEPState, connectMissingMEP, onMEPChange, nodePos, runPointY,
   allowedLayersFor, defaultLayerFor, runCrossesOpening,
   routingPolicy, setRoutingPolicy, policyLayerFor, effectiveRunLayers,
-  setNodeKind, setRunKind, setMEPLayer, decideAutoGenerate,
+  setNodeKind, setRunKind, setMEPLayer, decideAutoGenerate, conduitsChanged, mepXrayKey,
 } from "./mep.js";
 import { autoInfrastructure } from "./mep_auto.js";
 import { setTool } from "./interaction.js";
@@ -223,9 +223,10 @@ function syncHealth() {
       healthRepairEl.type = "button";
       healthRepairEl.onclick = function () {
         pushHistory();
+        var xray0 = mepXrayKey();
         connectMissingMEP();
         if (ensureMEP().runs.some(function (r) { return r.layer === "floor"; })) ensureMEP().xray.floor = true;
-        S.dirty3D = true;
+        conduitsChanged(xray0);
         render2D();
         refreshTree();
       };
@@ -571,8 +572,9 @@ export function renderPanel() {
     });
     function updatePolicy() {
       pushHistory();
+      var xray0 = mepXrayKey();
       setRoutingPolicy(sys, d.k, modeSel.value, layerSel.value);
-      S.dirty3D = true;
+      conduitsChanged(xray0);
       render2D();
       refreshTree();
     }
@@ -763,9 +765,10 @@ export function fillMEP() {
   });
   ksel.onchange = function () {
     pushHistory();
+    var xray0 = mepXrayKey();
     if (isNode) setNodeKind(e, ksel.value);
     else setRunKind(e, ksel.value);
-    S.dirty3D = true;
+    conduitsChanged(xray0);
     fillMEP();
     render2D();
     refreshTree();
@@ -785,8 +788,9 @@ export function fillMEP() {
   });
   lysel.onchange = function () {
     pushHistory();
-    setMEPLayer(e, lysel.value);
-    S.dirty3D = true;
+    var xray0 = mepXrayKey();
+    setMEPLayer(e, lysel.value); // under the floor turns the floor x-ray on: then a full rebuild
+    conduitsChanged(xray0);
     fillMEP();
     render2D();
     refreshTree();
@@ -797,7 +801,7 @@ export function fillMEP() {
   if (isNode) {
     // mounting height
     var hrow = labeledRow(t("mep_elev"));
-    var hin = numInput(e.elev, function (v) { pushHistory(); e.elev = v; S.dirty3D = true; render2D(); });
+    var hin = numInput(e.elev, function (v) { pushHistory(); e.elev = v; conduitsChanged(); render2D(); });
     hrow.appendChild(hin);
     host.appendChild(hrow);
     // free label
@@ -825,7 +829,7 @@ export function fillMEP() {
   } else {
     // diameter
     var drow = labeledRow(t("mep_dia"));
-    var din = numInput(e.dia, function (v) { pushHistory(); e.dia = Math.max(0.5, v); S.dirty3D = true; render2D(); });
+    var din = numInput(e.dia, function (v) { pushHistory(); e.dia = Math.max(0.5, v); conduitsChanged(); render2D(); });
     drow.appendChild(din);
     host.appendChild(drow);
     // Centreline height is measured from finished floor; negative values are
@@ -833,7 +837,7 @@ export function fillMEP() {
     var erow = labeledRow(t("mep_runElev"));
     var elevation = runPointY(e);
     var ein = numInput(e.elev == null ? elevation[elevation.length - 1] : e.elev, function (v) {
-      pushHistory(); e.elev = v; S.dirty3D = true; fillMEP(); renderPanel(); render2D();
+      pushHistory(); e.elev = v; conduitsChanged(); fillMEP(); renderPanel(); render2D();
     }, "cm");
     erow.appendChild(ein);
     host.appendChild(erow);
@@ -850,7 +854,7 @@ export function fillMEP() {
       var fin2 = numInput(e.fall || 0, function (v) {
         pushHistory();
         e.fall = Math.max(0, v);
-        S.dirty3D = true;
+        conduitsChanged();
         render2D();
       });
       frow.appendChild(fin2);
@@ -858,7 +862,7 @@ export function fillMEP() {
     }
     if (e.sys === "hvac" && (e.k === "duct" || e.k === "branch" || e.k === "flex" || e.k === "refrig")) {
       host.appendChild(optCheck(t("mep_exposed"), e.exposed !== false, function (v) {
-        pushHistory(); e.exposed = v; S.dirty3D = true;
+        pushHistory(); e.exposed = v; conduitsChanged();
       }));
     }
   }
@@ -872,7 +876,7 @@ export function fillMEP() {
     pushHistory();
     deleteMEP(sel);
     select(null);
-    S.dirty3D = true;
+    conduitsChanged();
     render2D();
     refreshTree();
   };
