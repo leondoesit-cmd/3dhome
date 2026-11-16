@@ -51,6 +51,8 @@ import { viewModeSelect, fillViewModeSelect, labelViewButtons, syncViewModeGroup
 import { slabOpenings, stairVoidFields } from "./slab_openings.js";
 import { planFrameOnScreen } from "./plan2d/reference_floor.js";
 import { markDirty } from "./persist.js";
+import { toggleWholeHouse, wholeHouseOn } from "./floor_stack.js";
+import { syncFloorStack } from "./view3d/floor_stack.js";
 import { initCoach, coachEvaluate } from "./coach.js";
 
 configureFloorIO({ sceneObject: sceneObject, applyData: applyData });
@@ -225,8 +227,60 @@ export function renderFloorTabs() {
     ref.innerHTML = '<i class="ph ph-stack" aria-hidden="true"></i><span class="floor-ref-note" hidden></span>';
     ref.addEventListener("click", toggleReferenceFromStrip);
     host.appendChild(ref);
+    var all = document.createElement("button");
+    all.type = "button";
+    all.className = "floor-all";
+    all.innerHTML = '<i class="ph ph-buildings" aria-hidden="true"></i><span class="floor-all-label"></span>';
+    all.addEventListener("click", toggleWholeHouseFromStrip);
+    host.appendChild(all);
   }
   syncFloorRefToggle();
+  syncWholeHouseToggle();
+}
+
+/* "Whole house": the 3D pane stacks every storey at its level around the one
+   being edited (js/floor_stack.js, js/view3d/floor_stack.js). */
+function toggleWholeHouseFromStrip() {
+  toggleWholeHouse(S.workspace);
+  markDirty();
+  syncFloorStack();
+  syncWholeHouseToggle();
+}
+
+function syncWholeHouseToggle() {
+  var host = $("floor-tabs");
+  var btn = host && host.querySelector(".floor-all");
+  if (!btn) return;
+  var on = wholeHouseOn(S.workspace);
+  var tip = floorText(on ? "wholeHouseOff" : "wholeHouseOn");
+  btn.title = tip;
+  btn.setAttribute("aria-label", tip);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.classList.toggle("active", on);
+  var label = btn.querySelector(".floor-all-label");
+  if (label) label.textContent = floorText("wholeHouse");
+  fitWholeHouseLabel();
+}
+
+/* The strip is capped narrow in the 3D pane (it shares the top edge with the
+   view's own buttons): the label shows wherever it fits on the strip's one
+   row and drops to the icon (its tooltip says the rest) where it does not. */
+var wholeHouseFitWatch = null;
+function fitWholeHouseLabel() {
+  var host = $("floor-tabs");
+  var btn = host && host.querySelector(".floor-all");
+  if (!btn) return;
+  btn.classList.remove("tight");
+  var first = host.firstElementChild;
+  if (host.offsetParent && first && (btn.offsetTop > first.offsetTop + 4 || host.scrollWidth > host.clientWidth + 1))
+    btn.classList.add("tight");
+  if (!wholeHouseFitWatch && typeof ResizeObserver === "function") {
+    var area = document.getElementById("center-canvas") || document.body;
+    wholeHouseFitWatch = new ResizeObserver(function () { fitWholeHouseLabel(); });
+    wholeHouseFitWatch.observe(area);
+    // a 2D/3D/split switch moves the strip between panes without resizing the canvas
+    host.parentElement && wholeHouseFitWatch.observe(host.parentElement.parentElement || host.parentElement);
+  }
 }
 
 /* The strip's "show the floor below" button: the same state as the Layers

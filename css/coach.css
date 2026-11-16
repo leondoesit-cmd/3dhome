@@ -73,7 +73,8 @@ body.compact-nav .ps-coach-float .ps-coach-dot {
 .ps-coach.has-tip .ps-coach-dot { opacity: 1; }
 
 /* the floor strip's reference toggle reads as pressed in the pro skin too */
-body.pro-skin #floor-tabs > button.floor-ref[aria-pressed="true"] {
+body.pro-skin #floor-tabs > button.floor-ref[aria-pressed="true"],
+body.pro-skin #floor-tabs > button.floor-all[aria-pressed="true"] {
   background: var(--accent-soft);
   color: var(--accent);
 }

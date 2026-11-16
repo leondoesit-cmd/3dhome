@@ -1005,6 +1005,34 @@ html:not([data-ui="legacy"]) #left-sidebar[data-left="tree"] > [data-left-pane="
   background: var(--accent-soft);
   color: var(--accent);
 }
+/* "Whole house" (js/planner_chrome.js): every storey stacked in 3D. Labelled,
+   not icon-only, so the way to see the building as one is findable. */
+#floor-tabs > button.floor-all {
+  width: auto;
+  gap: 4px;
+  padding-inline: 6px 8px;
+  margin-inline-start: 2px;
+}
+#floor-tabs .floor-all > i {
+  font-size: 15px;
+}
+#floor-tabs .floor-all-label {
+  font-size: 12px;
+  white-space: nowrap;
+}
+#floor-tabs .floor-all[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+body.compact-nav #floor-tabs .floor-all-label,
+#floor-tabs .floor-all.tight .floor-all-label {
+  display: none;
+}
+#floor-tabs > button.floor-all.tight,
+body.compact-nav #floor-tabs > button.floor-all {
+  width: 26px;
+  padding: 0;
+}
 #floor-tabs .floor-ref-note {
   font-size: 12px;
   white-space: nowrap;
