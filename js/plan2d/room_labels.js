@@ -8,8 +8,10 @@ import { pointInPoly, roomHidden, roomName } from "../geometry.js";
 import { t } from "../i18n.js";
 import { roomClearArea } from "../room_area.js";
 import { S } from "../state.js";
-import { label } from "../plan2d/constraints.js";
+import { label, labelSize } from "../plan2d/constraints.js";
 import { roomInteriorSize } from "../plan2d/dim_chains.js";
+import { mepStampObstacles, roomScreenPoly, stampSlot, STAMP_FAINT } from "../plan2d/stamp_slots.js";
+import { rotatePx, sx, sz } from "../plan_view.js";
 
 /* The plan points the user is focused on right now. */
 function labelFocusPoints() {
@@ -39,8 +41,28 @@ function roomLabelFocused(r, pts, keys) {
   return false;
 }
 
+/* With services as the work set a stamp steps out from under the device
+   badges (js/plan2d/stamp_slots.js): the shift label() is drawn with, or
+   undefined when nothing covers it. */
+function stampShift(r, nm, areaText, half, badges) {
+  var boxes = [];
+  if (nm) {
+    var a = labelSize(nm, true), pa = rotatePx(sx(r.cx), sz(r.cz - half));
+    boxes.push({ x: pa.x, y: pa.y, w: a.w, h: a.h });
+  }
+  if (S.showDims) {
+    var b = labelSize(areaText, !nm), pb = rotatePx(sx(r.cx), sz(r.cz + (nm ? half : 0)));
+    boxes.push({ x: pb.x, y: pb.y, w: b.w, h: b.h });
+  }
+  if (!boxes.length) return undefined;
+  var off = stampSlot(boxes, badges, roomScreenPoly(r));
+  if (!off) return { dx: 0, dy: 0, alpha: STAMP_FAINT };
+  return off[0] || off[1] ? { dx: off[0], dy: off[1] } : undefined;
+}
+
 function drawRoomLabels(rooms) {
   var pts = labelFocusPoints(), keys = selectedRoomKeys();
+  var badges = mepStampObstacles();
   rooms.forEach(function (r) {
     if (roomLabelFocused(r, pts, keys)) return;
     var nm = roomName(r.key),
@@ -58,9 +80,10 @@ function drawRoomLabels(rooms) {
     if (size)
       areaText = fmtLen(size.width, { domain: "plan", suffix: false }) + " × " +
         fmtLen(size.depth, { domain: "plan", suffix: false }) + "  ·  " + areaText;
-    if (nm) label(r.cx, r.cz - half, nm, isHid ? "#9a9289" : "#33312c", true);
+    var shift = badges ? stampShift(r, nm, areaText, half, badges) : undefined;
+    if (nm) label(r.cx, r.cz - half, nm, isHid ? "#9a9289" : "#33312c", true, shift);
     if (S.showDims)
-      label(r.cx, r.cz + (nm ? half : 0), areaText, isHid ? "#a49c93" : "#46504f", !nm);
+      label(r.cx, r.cz + (nm ? half : 0), areaText, isHid ? "#a49c93" : "#46504f", !nm, shift);
   });
 }
 

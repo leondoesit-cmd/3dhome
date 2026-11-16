@@ -30,10 +30,10 @@ test("the 3D loop drains S.mep3D after the item path and never before a full reb
   assert.match(src, /if \(S\.mep3D && !S\.dirty3D && !heldNow\) \{\s*S\.mep3D = false;\s*rebuildMEP3D\(\);/);
   const rebuild = sourceFunctionText(src, "rebuild3D");
   assert.match(rebuild, /S\.mep3D = false;/, "a full rebuild covers the MEP-only one");
-  assert.match(rebuild, /buildMEP3D\(mepRoot, THREE\);\s*if \(!isPhysicsEnabled\(\)\) mergeMEPMeshes\(mepRoot, THREE\);/);
+  assert.match(rebuild, /buildMEP3D\(mepRoot, THREE, cutH\(\)\);\s*if \(!isPhysicsEnabled\(\)\) mergeMEPMeshes\(mepRoot, THREE\);/);
   const only = sourceFunctionText(src, "rebuildMEP3D");
   assert.match(only, /if \(isPhysicsEnabled\(\)\) \{\s*S\.dirty3D = true;\s*return false;/, "physics keeps one body per pipe");
-  assert.match(only, /ghostRoot\(mepRoot, false\);\s*retireGroup\(mepRoot\);\s*buildMEP3D\(mepRoot, THREE\);\s*mergeMEPMeshes\(mepRoot, THREE\);\s*applyLayers3D\(\);/);
+  assert.match(only, /ghostRoot\(mepRoot, false\);\s*retireGroup\(mepRoot\);\s*buildMEP3D\(mepRoot, THREE, cutH\(\)\);\s*mergeMEPMeshes\(mepRoot, THREE\);\s*applyLayers3D\(\);/);
 });
 
 test("an infrastructure-only edit swaps the conduits; one that moves an x-ray setting rebuilds", async () => {

@@ -12,6 +12,7 @@ import { legacyIntensity } from "../gpu.js";
 import { isLayerGhosted, isLayerVisible, layerRank } from "../layers.js";
 import { buildMEP3D } from "../mep.js";
 import { mergeMEPMeshes } from "../mep/merge3d.js";
+import { builtMepCut, mepCutHeight } from "../mep/wall_clip.js";
 import { legacyFloorKey, legacyTextureUrl, materialById, pbrEntryFor, textureMisses } from "../pbr_material.js";
 import { clearPhysics, isPhysicsEnabled } from "../physics_facade.js";
 import { box, floorTexture, groundTexture, polyMesh, worldUVs } from "../primitives.js";
@@ -932,7 +933,7 @@ export function rebuild3D() {
   // parent, and returns early on its own m.show / m.show3D flags — those stay
   // as filters ON TOP of the mep layer, which owns the root's visibility.
   dyn.add(mepRoot);
-  buildMEP3D(mepRoot, THREE);
+  buildMEP3D(mepRoot, THREE, cutH());
   // a few draw calls instead of one per segment (js/mep/merge3d.js); physics
   // wants one body per pipe, and turning it on rebuilds without the merge
   if (!isPhysicsEnabled()) mergeMEPMeshes(mepRoot, THREE);
@@ -978,12 +979,22 @@ export function rebuildMEP3D() {
   }
   ghostRoot(mepRoot, false); // hand ghost clones back before the old meshes go
   retireGroup(mepRoot);
-  buildMEP3D(mepRoot, THREE);
+  buildMEP3D(mepRoot, THREE, cutH());
   mergeMEPMeshes(mepRoot, THREE);
   applyLayers3D();
   set_needsRender(true);
   window.dispatchEvent(new Event("scene3d:rebuilt"));
   return true;
 }
+
+/* MEP is cut with the walls unless services are the work set
+   (js/mep/wall_clip.js): a work-set switch, or a walls switch that does not
+   rebuild the house, swaps the conduits when the cut they need changed. */
+if (typeof window !== "undefined")
+  ["walls3d:changed", "layers:changed"].forEach(function (type) {
+    window.addEventListener(type, function () {
+      if (ready3D && mepCutHeight(cutH(), S.workSet) !== builtMepCut()) S.mep3D = true;
+    });
+  });
 
 export { applyItemOps, ghostSwap, layerRoots, pickableRoots, selected3DBox };

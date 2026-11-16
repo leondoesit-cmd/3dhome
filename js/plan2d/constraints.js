@@ -246,11 +246,24 @@ function planPill(x, y, w, h, color, strong) {
   pc.globalAlpha = 1;
 }
 
-function label(wx_, wz_, txt, color, big) {
+/* A label's pill size in pixels, as label() draws it. */
+function labelSize(txt, big) {
+  pc.save();
+  pc.font = (big ? "700 13px " : "600 12px ") + PLAN_LABEL_FONT;
+  var w = Math.ceil(pc.measureText(String(txt)).width) + (big ? 14 : 12);
+  pc.restore();
+  return { w: w, h: big ? 22 : 20 };
+}
+
+// `shift` (optional): { dx, dy } screen pixels to move it by and an `alpha`
+// (a room stamp moved off, or left faint under, an MEP badge).
+function label(wx_, wz_, txt, color, big, shift) {
   txt = String(txt);
   var a = planRotRad(),
     scr = rotatePx(sx(wx_), sz(wz_));
+  if (shift) { scr.x += shift.dx || 0; scr.y += shift.dy || 0; }
   pc.save();
+  if (shift && shift.alpha != null) pc.globalAlpha *= shift.alpha;
   pc.font = (big ? "700 13px " : "600 12px ") + PLAN_LABEL_FONT;
   pc.textAlign = "center";
   pc.textBaseline = "middle";
@@ -308,5 +321,5 @@ function alignedLabel(wx_, wz_, txt, color, ang, strong) {
 
 export {
   alignedLabel, beginPlanLabels, conAngleOf, conLabel, drawAngleConstraint,
-  drawConTargetHighlight, fmtDeg, keepModelPlanLabels, label,
+  drawConTargetHighlight, fmtDeg, keepModelPlanLabels, label, labelSize,
 };

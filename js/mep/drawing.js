@@ -5,6 +5,7 @@ import { detectRooms, pointInPoly, wallGeom } from "../geometry.js";
 import { t } from "../i18n.js";
 import { layerBadge, runMidpoint, smallBadge, warnBadge } from "../mep/clashes.js";
 import { nodePos, runLength } from "../mep/topology.js";
+import { clipSegmentAtCut, keptUnderCut, mepCutHeight, noteMepCut } from "../mep/wall_clip.js";
 import { S, clamp } from "../state.js";
 import {
   MEP_LAYER_TAG, MEP_SYS, _mepRot, ceilingY, ensureMEP, layerNodeY,
@@ -285,8 +286,12 @@ function roundRect(pc, x, y, w, h, r) {
 /* ---- 3D building --------------------------------------------------------- */
 // Called from rebuild3D(). Adds thin colored tubes for runs (at each system's
 // conduit height) and small markers for devices to the dynamic group.
-export function buildMEP3D(group, THREE) {
+// `wallCut` is the height the walls are built to (Infinity when they are up);
+// MEP is cut there too unless services are the work set (js/mep/wall_clip.js).
+export function buildMEP3D(group, THREE, wallCut) {
   var m = ensureMEP();
+  var cut = mepCutHeight(wallCut, S.workSet);
+  noteMepCut(cut);
   if (!m.show || !m.show3D) return;
   var matCache = {};
   function matFor(hex, underFloor) {
@@ -324,9 +329,12 @@ export function buildMEP3D(group, THREE) {
     var kd = runKindDef(r.sys, r.k);
     for (var i = 1; i < r.pts.length; i++) {
       var A = r.pts[i - 1], B = r.pts[i];
+      var kept = clipSegmentAtCut({ x: A.x, y: ys[i - 1], z: A.z }, { x: B.x, y: ys[i], z: B.z }, cut);
+      if (!kept) continue;
+      var P0 = kept[0], P1 = kept[1];
       var seg = kd && kd.rect
-        ? segBox(THREE, r.exposed ? exposedDuctMat : matFor(hex, r.layer === "floor"), A.x, ys[i - 1], A.z, B.x, ys[i], B.z, r.dia, kd.hRatio || 0.6)
-        : segCylinder(THREE, matFor(hex, r.layer === "floor"), A.x, ys[i - 1], A.z, B.x, ys[i], B.z, rad);
+        ? segBox(THREE, r.exposed ? exposedDuctMat : matFor(hex, r.layer === "floor"), P0.x, P0.y, P0.z, P1.x, P1.y, P1.z, r.dia, kd.hRatio || 0.6)
+        : segCylinder(THREE, matFor(hex, r.layer === "floor"), P0.x, P0.y, P0.z, P1.x, P1.y, P1.z, rad);
       if (seg) {
         // Transparent slab and furniture render before these inspection
         // guides, so an under-floor route cannot disappear into the finish.
@@ -338,7 +346,7 @@ export function buildMEP3D(group, THREE) {
         // hanger connects each exposed segment back to the ceiling slab.
         [i - 1, i].forEach(function (vi) {
           var P = r.pts[vi], key = Math.round(P.x) + "_" + Math.round(P.z) + "_" + Math.round(ys[vi]);
-          if (jointSeen[key]) return;
+          if (jointSeen[key] || !keptUnderCut(ys[vi], cut)) return;
           jointSeen[key] = 1;
           var collar = new THREE.Mesh(
             new THREE.BoxGeometry(r.dia + 2, Math.max(6, r.dia * (kd.hRatio || 0.6) + 2), 4),
@@ -351,7 +359,8 @@ export function buildMEP3D(group, THREE) {
         var mx = (A.x + B.x) / 2, mz = (A.z + B.z) / 2;
         var top = ys[i - 1] + Math.max(4, r.dia * (kd.hRatio || 0.6) / 2);
         var slab = ceilingY() - 2;
-        var hanger = segCylinder(THREE, hangerMat, mx, top, mz, mx, slab, mz, 0.65);
+        var hk = clipSegmentAtCut({ x: mx, y: top, z: mz }, { x: mx, y: slab, z: mz }, cut);
+        var hanger = hk && segCylinder(THREE, hangerMat, mx, hk[0].y, mz, mx, hk[1].y, mz, 0.65);
         if (hanger) group.add(hanger);
       }
     }
@@ -359,6 +368,7 @@ export function buildMEP3D(group, THREE) {
   // devices → small boxes (hubs bigger) at their layer height
   m.nodes.forEach(function (n) {
     if (!mepVisible(n.sys) || !mepLayerVisible(n.layer)) return;
+    if (!keptUnderCut(layerNodeY(n), cut)) return;
     var def = nodeKindDef(n.sys, n.k) || {};
     var p = nodePos(n);
     var hex = new THREE.Color(MEP_SYS[n.sys].color).getHex();
@@ -410,7 +420,8 @@ export function buildMEP3D(group, THREE) {
       if (riserSeen[key]) continue;
       riserSeen[key] = 1;
       var hex2 = new THREE.Color(MEP_SYS[A2.sys].color).getHex();
-      var rr = segCylinder(THREE, matFor(hex2), x, A2.y, z, x, B2.y, z, 1.4);
+      var rk = clipSegmentAtCut({ x: x, y: A2.y, z: z }, { x: x, y: B2.y, z: z }, cut);
+      var rr = rk && segCylinder(THREE, matFor(hex2), x, rk[0].y, z, x, rk[1].y, z, 1.4);
       if (rr) group.add(rr);
     }
 }

@@ -93,7 +93,7 @@ test("targetOf skips unreachable items and locked openings", () => {
 });
 
 test("MEP is built into its own root, not into dyn", () => {
-  assert.match(view3d, /dyn\.add\(mepRoot\);\s*\n\s*buildMEP3D\(mepRoot, THREE\);/);
+  assert.match(view3d, /dyn\.add\(mepRoot\);\s*\n\s*buildMEP3D\(mepRoot, THREE, cutH\(\)\);/);
   assert.doesNotMatch(view3d, /buildMEP3D\(dyn/);
 });
 

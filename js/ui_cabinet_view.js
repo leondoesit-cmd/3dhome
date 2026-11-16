@@ -5,6 +5,7 @@ import { buildItem } from "./furniture.js";
 import { updateCabinetRuntimeMesh } from "./cabinet_mesh.js";
 import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
 import { createEditorView, createViewportSwap } from "./editor_view.js";
+import { frameCabinetPreview, resetCabinetPreview, watchCabinetPreview } from "./cabinet/preview_fit.js";
 import {
   layoutCab, isFloat, isCorner,
   secLabel,
@@ -99,6 +100,7 @@ export function setMode(m) {
   E.host.classList.toggle("cb-is3d", m === "3d");
   E.host.classList.toggle("cb-split", split);
   E.swapView(m === "3d" || split, E.pv);
+  frameCabinetPreview(E.pv, E.it, true);
   if (split !== wasSplit) sizeCanvas();
   E.host.querySelectorAll(".cb-vmodes button[data-mode]").forEach(function (b) {
     var selected = b.getAttribute("data-mode") === (split ? "split" : m);
@@ -1672,12 +1674,9 @@ export function initPreview() {
     az: 0.55, el: 0.28, dist: 420,
     minEl: -0.2, maxEl: 1.3, minDist: 60, maxDist: 2500,
     pad: 24, ratio: 0.82, fitContainerHeight: function () { return E.host && !E.host.classList.contains("cb-compact"); },
-    // the big view is framed with room for an open door to swing into, and
-    // pulled back further when split leaves it a tall, narrow half
-    bigZoom: function () {
-      var r = E.split && E.host && E.host.querySelector("#cb3dHost").getBoundingClientRect();
-      return r && r.width > 0 ? 1.3 * Math.max(1, 1.2 * r.height / r.width) : 1.3;
-    },
+    // the big view is fitted to the piece and the pane (js/cabinet/preview_fit.js)
+    bigZoom: 1,
+    doubleClick: function () { resetCabinetPreview(E.pv, E.it); },
     // centre on where the piece actually is — a wall unit hangs at 145
     center: function () {
       return (sp() && sp().elev ? sp().elev : 0) + (E.it ? E.it.h / 2 : 0);
@@ -1686,12 +1685,13 @@ export function initPreview() {
       return E.open && !!E.it;
     },
   });
+  watchCabinetPreview(E.pv, E.host.querySelector("#cbPrev"), E.host.querySelector("#cb3dHost"), function () { return E.open ? E.it : null; });
 }
 
 export function updatePreview(options = {}) {
   if (!E.pv || !E.it) return;
   // frame the piece for the size it now is
-  E.pv.frame(Math.hypot(E.it.w, E.it.h, E.it.d) * 1.5);
+  frameCabinetPreview(E.pv, E.it, false);
   // buildItem, not build(): it sets the item's style variant and clears it
   // again, which is the only correct way to render a piece
   if (options.runtime && updateCabinetRuntimeMesh(E.pv.grp, E.it)) {
