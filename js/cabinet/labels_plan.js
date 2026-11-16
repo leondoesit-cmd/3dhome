@@ -114,11 +114,15 @@ export function cabSummary(it) {
       if (s.rails) rails += s.rails;
     });
   });
+  // "1 door", not "1 doors": [Hebrew one, Hebrew many, English one, English many]
+  function count(n, w) {
+    return n + " " + (n === 1 ? he(w[0], w[2]) : he(w[1], w[3]));
+  }
   var p = [];
-  p.push(L.cols.length + " " + he("עמודות", "columns"));
-  if (dcount) p.push(dcount + " " + he("דלתות", "doors"));
-  if (dr) p.push(dr + " " + he("מגירות", "drawers"));
-  if (sh) p.push(sh + " " + he("מדפים", "shelves"));
-  if (rails) p.push(rails + " " + he("מוטות", "rails"));
+  p.push(count(L.cols.length, ["עמודה", "עמודות", "column", "columns"]));
+  if (dcount) p.push(count(dcount, ["דלת", "דלתות", "door", "doors"]));
+  if (dr) p.push(count(dr, ["מגירה", "מגירות", "drawer", "drawers"]));
+  if (sh) p.push(count(sh, ["מדף", "מדפים", "shelf", "shelves"]));
+  if (rails) p.push(count(rails, ["מוט", "מוטות", "rail", "rails"]));
   return p.join(" · ");
 }

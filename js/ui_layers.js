@@ -26,7 +26,16 @@
    cycle — the padlock button syncs through the `layers:changed` event instead
    of through a direct call. */
 import { S } from "./state.js";
-import { LAYER_IDS, layerState, isLayerLocked, layerRank, saveLayers } from "./layers.js";
+import {
+  LAYER_IDS,
+  layerState,
+  isLayerLocked,
+  layerRank,
+  saveLayers,
+  applyAutoLock,
+  setWorkLayer,
+  selectionAfterHide,
+} from "./layers.js";
 import { render2D, onAfterRender } from "./plan2d.js";
 import { select } from "./ui_props.js";
 import { hiddenSets } from "./geometry.js";
@@ -108,26 +117,18 @@ function labelOf(id) {
    to miss a change: it reads S, so it runs first and the notifications follow. */
 function commit() {
   saveLayers();
+  /* A layer that just went hidden (preset, eye, visibility row) takes its
+     part of the selection with it; a faded one keeps it. select() is the
+     ordinary deselect, so the Inspector and the readout follow. */
+  if (S.sel && selectionAfterHide(S.sel) !== S.sel) select(null);
   window.dispatchEvent(new CustomEvent("layers:changed"));
   render2D();
 }
 
-/* `autoLock` is the only field in the layer record that js/layers.js stores
-   but never reads — it is a UI policy, not a permission, so it is applied
-   here: a layer that opted in is locked exactly while it is not the work set.
-   Run on every work-set change, including the ones the tool triggers. */
-function applyAutoLock() {
-  LAYER_IDS.forEach(function (id) {
-    var L = layerState(id);
-    if (!L || !L.autoLock) return;
-    L.locked = !(S.workSet === id || S.workSet === "all");
-  });
-}
-
+// applyAutoLock (js/layers.js): the opt-in lock follows the work set.
 function setWorkSet(id, announce) {
   if (!id || S.workSet === id) return;
-  S.workSet = id;
-  applyAutoLock();
+  setWorkLayer(id); // shows the layer if it was hidden; faded stays faded
   commit();
   if (announce) flash(t("lay_ws_now", { name: labelOf(id) }));
 }
@@ -636,6 +637,8 @@ function applyPreset(id) {
   setWallMode(p.walls);
   commit();
   flash(t("lay_preset_on", { name: t("lay_preset_" + id) }));
+  // the planner ribbon may bring the preset's own tab forward (js/pro_ribbon.js)
+  window.dispatchEvent(new CustomEvent("layers:preset", { detail: { id: id } }));
 }
 
 function syncPresets() {

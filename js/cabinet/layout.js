@@ -6,7 +6,7 @@ import { defaultPreset, makeSpec, normalizeSpec, presetById } from "../cabinet/p
 import { applyCabinetLayoutEdits } from "../core/cabinet_parts.js";
 import { S, fin } from "../state.js";
 import {
-  OPEN_SEC, STD, cabRun, cornerCut, cornerPoly, isCorner, isFloat, sec,
+  OPEN_SEC, STD, cabRun, cornerCut, cornerPoly, defaultShelfCount, isCorner, isFloat, sec,
 } from "../cabinet.js";
 
 /* The spec of an item, creating a default one on first use.
@@ -349,7 +349,7 @@ function layoutCorner(L, part) {
   var s = sp.cols[0].secs[0] || sec("shelves", yt - yb),
     cell = { i: 0, y0: yb, y1: yt, ref: s, col: col, covered: hasDoor };
   col.secs.push(cell);
-  var n = s.n != null ? s.n : Math.max(0, Math.round((yt - yb) / (s.space || STD.shelfSpace)) - 1);
+  var n = defaultShelfCount(s, yt - yb);
   cell.shelves = n;
   for (var i = 1; i <= n; i++) {
     var sy = yb + ((yt - yb) * i) / (n + 1);
@@ -454,9 +454,9 @@ function fillSection(L, col, cell, s) {
     shelfBack = zb + 1,
     shelfFront = zc - 2;
 
-  function shelfRun(space, tilt) {
+  function shelfRun(tilt) {
     if (x1 - x0 <= 0.4 || H <= 0.001) { cell.shelves = 0; return; }
-    var n = s.n != null ? Math.max(0, s.n) : Math.max(0, Math.round(H / (space || sp.space || STD.shelfSpace)) - 1);
+    var n = defaultShelfCount(s, H, sp.space);
     cell.shelves = n;
     if (n === 0) return;
     for (var i = 1; i <= n; i++) {
@@ -489,10 +489,10 @@ function fillSection(L, col, cell, s) {
 
   switch (s.t) {
     case "shelves":
-      shelfRun(s.space);
+      shelfRun();
       break;
     case "shoe":
-      shelfRun(s.space || STD.shoeSpace, -0.22);
+      shelfRun(-0.22);
       break;
     case "hang":
     case "hangS":

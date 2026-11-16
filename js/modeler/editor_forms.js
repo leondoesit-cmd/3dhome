@@ -18,6 +18,7 @@ import { componentTopology } from "../core/assembly_structure.js";
 import { cadWorkerActivity, cadWorkerAvailable, subscribeCadWorkerActivity, topologyInCadWorker } from "../core/cad_worker_client.js";
 import { setDocumentDescription } from "../core/custom_properties.js";
 import { lengthFromDocument, lengthToDocument } from "../core/document_length_units.js";
+import { cabinetParameterCm, cabinetParameterStep, cabinetParameterValue, cabinetParametersHeading } from "../modeler/cabinet_parameter_units.js";
 import { documentFromPreset } from "../core/document_presets.js";
 import { draftFaceChoices } from "../core/draft_face_choices.js";
 import { drawingFromTemplate } from "../core/drawing_presets.js";
@@ -33,7 +34,6 @@ import { publishRebuildStatus, rebuildParametricDocument } from "../core/paramet
 import { assertStandaloneRevolve, isSketchAxis, isStandaloneSketchAxisRevolve, revolvePreviewAxis } from "../core/revolve_geometry.js";
 import { reattachFeatureSketchSupport, sketchSupportNeedsUpdate } from "../core/sketch_support_edit.js";
 import { rebindTopologyMate } from "../core/topology_mate_rebind.js";
-import { getLang } from "../i18n.js";
 import { readFeatureParameterForm, validateFeatureInputs } from "../modeler_feature_form.js";
 import { cadIcon } from "../modeler_icons.js";
 import { bindMateNumericCommit } from "../modeler_mate_numeric_commit.js";
@@ -844,12 +844,15 @@ function assemblyMateInspectorBody() {
 
 function fillCabinetParameters(host) {
   if (!E.def.metadata || E.def.metadata.adapter !== "cabinet") return;
-  host.appendChild(el("h5", "md-h5", getLang() === "en" ? "Cabinet parameters (cm)" : "פרמטרי ארון (ס״מ)"));
+  // stored in cm, shown and typed in the model's own length unit
+  var unit = modelLengthUnit();
+  host.appendChild(el("h5", "md-h5", cabinetParametersHeading(unit)));
   var grid = el("div", "md-prop-grid md-cab-parameters");
   Object.entries(E.def.parameters || {}).forEach(function (entry) {
     var key = entry[0], parameter = entry[1];
     if (typeof parameter.value !== "number") return;
-    numRow(grid, parameter.label || key, function () { return parameter.value; }, function (value) {
+    numRow(grid, parameter.label || key, function () { return cabinetParameterValue(parameter.value, unit); }, function (typed) {
+      var value = cabinetParameterCm(typed, unit);
       if (value < parameter.min || value > parameter.max) return;
       var previousValue = parameter.value;
       parameter.value = value;
@@ -857,7 +860,7 @@ function fillCabinetParameters(host) {
       if (!run.ok) { parameter.value = previousValue; flash(run.issues.filter(function (issue) { return issue.severity === "error"; }).map(function (issue) { return issue.message; }).join(" · ")); return; }
       publishRebuildStatus(E.def, run);
       E.sel = null; set_coreRunFresh(false);
-    }, 0.1);
+    }, cabinetParameterStep(unit));
   });
   host.appendChild(grid);
 }

@@ -6,7 +6,7 @@ import {
   cutList, hardwareList, cabPrice, bandMeters, famOf, secLabel, doorLabel, famLabel, presetLabel, presetNote, hwLabel,
   famShort, FRONTS, FINISH, COLKIND, CARCASS, frontLabel, finishLabel, kindLabel, carcassLabel,
   checkCab, presetById, roleLabelHe, secFit, doorFit, kindFit, carcassFit, frontFit, fitCtx,
-  secRelevant, doorRelevant, isCorner, isFloat,
+  secRelevant, doorRelevant, isCorner, isFloat, defaultShelfCount,
 } from "./cabinet.js";
 import { ceilingHeight } from "./elevation.js";
 import { BANDING, PROFILES, sheetsFor, sheetById, sheetPrice, bandById, bandPPM, profilePPM, sheetLabel, bandLabel, profileLabel } from "./stock.js";
@@ -398,7 +398,10 @@ export function fillInspector() {
         api.changed();
       }, 1, 8, null)));
     if (s.t === "shelves" || s.t === "shoe") {
-      wrap.appendChild(row(T("count"), numInput(s.n != null ? s.n : Math.max(0, Math.round(s.h / (s.space || STD.shelfSpace)) - 1), function (v) {
+      // a corner unit builds its one compartment over the whole clear height, not s.h
+      var cornerCell = isCorner(sp()) ? layoutCab(E.it).cols[0].secs[0] : null;
+      var shelfCount = cornerCell ? defaultShelfCount(s, cornerCell.y1 - cornerCell.y0) : defaultShelfCount(s, s.h, (sp() || {}).space);
+      wrap.appendChild(row(T("count"), numInput(shelfCount, function (v) {
         api.act(secLabel(s.t) + " · " + T("count"));
         s.n = Math.max(0, Math.round(v));
         api.touch();
@@ -858,6 +861,14 @@ export function fillLook() {
     )));
 }
 
+/* The production setup (shop convention, stock, nesting) is the Review &
+   export strip's Production button; the Technical tab and the status bar's
+   convention segment both open it through that one control. */
+export function openProductionSetup() {
+  var launch = E.host && E.host.querySelector('.cb-icons button[data-act="nest"]');
+  if (launch) launch.click();
+}
+
 export function fillTechnical() {
   var wrap = E.host && E.host.querySelector("#cbTechnical");
   if (!wrap || !sp()) return;
@@ -868,10 +879,7 @@ export function fillTechnical() {
     var recorded = cabinetProductionPreset(s.productionConvention && s.productionConvention.presetId),
       convention = el("div", "cb-production-convention");
     convention.appendChild(el("div", "cb-production-convention-copy", "<b>" + T("productionConvention") + "</b><span>" + (recorded ? (isEn() ? recorded.label : recorded.labelHe) : T("productionConventionNone")) + "</span>"));
-    convention.appendChild(btn('<i class="ph ph-factory"></i> ' + T("openProductionSetup"), function () {
-      var launch = E.host.querySelector('.cb-icons button[data-act="nest"]');
-      if (launch) launch.click();
-    }, "cb-more"));
+    convention.appendChild(btn('<i class="ph ph-factory"></i> ' + T("openProductionSetup"), openProductionSetup, "cb-more"));
     wrap.appendChild(convention);
     wrap.appendChild(row(T("panel"), numInput(s.panel, function (v) {
       api.act(T("panel")); s.panel = v; api.changed(true);

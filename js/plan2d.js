@@ -47,6 +47,7 @@ import { beginPlanLabels, conHitTargets, keepModelPlanLabels, label, pickCon } f
 import { drawLiveJointAngles } from "./plan2d/joint_angles.js";
 import { OVERALL_DIM_PX, drawDimChains, refreshDimChains } from "./plan2d/dim_chains.js";
 import { drawRoomLabels } from "./plan2d/room_labels.js";
+import { drawPlanWalls } from "./plan2d/wall_ink_draw.js";
 import {
   doorsGlyph, drawCabinetPlanSwings, drawItem, drawPresentationRoomLabels,
   drawStairsUp, drawSymbolPrims, drawWallCons, gCirc, gStroke, warnLabel,
@@ -787,9 +788,9 @@ function renderModel() {
       drawPresentationWalls(S.walls.filter(function (w) {
         return !hid.walls[w.id] && !proxied("wall", w);
       }));
-    S.walls.forEach(function (w) {
-      if (!hid.walls[w.id] && !proxied("wall", w)) drawWall(w);
-    });
+    drawPlanWalls(S.walls.filter(function (w) {
+      return !hid.walls[w.id] && !proxied("wall", w);
+    }), S.walls.filter(function (w) { return !hid.walls[w.id]; }));
     S.openings.forEach(function (o) {
       if (!hid.walls[o.wall] && !proxied("opening", o)) drawOpening(o);
     });

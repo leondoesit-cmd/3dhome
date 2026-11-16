@@ -11,6 +11,7 @@ import { beginHistory, commitPending } from "../history.js";
 import { onAfterRender, planHud, planViewReady, render2D, rotatePx, sx, sz } from "../plan2d.js";
 import { inputIs3D } from "../planner_input.js";
 import { broadcastPlanOp, itemMovePlanOps } from "../plan_sync.js";
+import { settleKept } from "../item_keep_edit.js";
 import { gripAngle, gripHitPx, rotateGrip } from "../rotate_grip.js";
 import { S, touchItem3D } from "../state.js";
 import { fillProps, refreshTree, turnItem } from "../ui.js";
@@ -62,6 +63,7 @@ export function itemRotateUp() {
   var it = rotDrag.it, moved = (it.rot || 0) !== rotDrag.start;
   rotDrag = null;
   if (!moved) return;
+  settleKept(it);
   itemMovePlanOps([it], S.items).forEach(broadcastPlanOp);
   fillProps();
   refreshTree();

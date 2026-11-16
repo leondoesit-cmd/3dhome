@@ -32,6 +32,8 @@ import {
 } from "./interaction.js";
 import { t } from "./i18n.js";
 import { applyStatic, onLangChange } from "./i18n.js";
+import { onWallByType } from "./item_orient.js";
+import { wallPlaneText } from "./wall_plane_strings.js";
 import { initModeler, ensureModelLibrary } from "./modeler_launch.js";
 import { refreshCatalogSelect } from "./model_catalog.js";
 import { initCabinetUI } from "./ui_cabinet.js";
@@ -798,6 +800,14 @@ function ctxItems() {
           render2D();
         },
       });
+      // hang it on the nearest wall / back to the floor (types that always hang have no choice)
+      if (!onWallByType(it.type)) {
+        var onW = !!(it.hold && it.hold.onWall);
+        items.push({
+          label: wallPlaneText(onW ? "offWall" : "onWall"), icon: onW ? "ph ph-arrow-line-down" : "ph ph-frame-corners",
+          run: function () { if (window.__runAction) window.__runAction("itemOnWall"); },
+        });
+      }
     }
     items.push({ key: "ctx_delete", icon: "ph ph-trash", danger: true, run: deleteSel });
   } else if (kind === "opening") {
@@ -859,7 +869,8 @@ function showCtxMenu(clientX, clientY) {
   items.forEach(function (a) {
     var b = document.createElement("button");
     if (a.danger) b.className = "danger";
-    b.innerHTML = '<i class="' + a.icon + '"></i><span>' + t(a.key) + "</span>";
+    b.innerHTML = '<i class="' + a.icon + '"></i><span></span>';
+    b.querySelector("span").textContent = a.label || t(a.key);
     b.addEventListener("click", function () {
       hideCtxMenu();
       a.run();

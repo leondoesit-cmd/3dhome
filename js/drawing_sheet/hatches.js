@@ -14,18 +14,17 @@
      finish     plaster, render, boards, glass: left white, outlined fine
    Model centimetres in, sizes on paper via `mm()` as in the rest of the sheet. */
 import { PEN_INK, PENS } from "./pens.js";
+import { layerMaterialKind } from "../wall_junctions.js";
 
 const hr2 = (n) => Math.round(n * 100) / 100;
 
-/* What a layer band is, for drawing: one of the HATCH_KINDS keys. */
+/* What a layer band is, for drawing: one of the HATCH_KINDS keys. The
+   material class is the one the wall junction rule ranks walls by
+   (layerMaterialKind, js/wall_junctions.js); masonry is split here into an
+   interior non-structural partition and masonry proper. */
 export function bandKind(band, wall) {
-  const m = String((band && band.material) || "").toLowerCase(), role = String((band && band.role) || "");
-  if (role === "glazing" || /glass/.test(m)) return "finish";
-  if (role === "insulation" || /insulat|mineral-wool|wool|eps|xps|pir/.test(m)) return "insulation";
-  if (/membrane|waterproof/.test(m)) return "membrane";
-  if (role.indexOf("finish") === 0 || /plaster|render|gypsum|board|tile|paint|cladding/.test(m)) return "finish";
-  if (/stud|cavity|air/.test(m)) return "finish";
-  if (/concrete/.test(m) && !/block/.test(m)) return "concrete";
+  const kind = layerMaterialKind(band && band.material, band && band.role);
+  if (kind !== "masonry") return kind;
   const partition = wall && !wall.exterior && !(band && band.structural);
   return partition ? "partition" : "masonry";
 }
@@ -79,7 +78,19 @@ function bandAngle(poly) {
   return ((Math.round(ang / 5) * 5) % 180 + 180) % 180;
 }
 
-/* walls: [{outline, exterior, bands:[{poly, material, role, structural}]}].
+// polylines [{pts, closed}] or segments [[p, q]] as one SVG path
+function linesPath(lines, pts) {
+  return lines.map((l) => {
+    const p = Array.isArray(l) ? l : l.pts;
+    return "M" + p.map((q) => pts([q])).join("L") + (l.closed ? "Z" : "");
+  }).join("");
+}
+
+/* walls: [{outline, exterior, bands:[{poly, material, role, structural}],
+   ink?, layerLines?}]. With `ink` (js/wall_ink.js polylines) the cut line is
+   those pieces only, so walls of one material read as one area, and
+   `layerLines` are the joints between layers; without them each closed
+   outline and band is drawn.
    Returns {defs, svg, kinds} — `kinds` the set of band kinds drawn (the
    legend lists them). The caller wraps `svg` in the openings mask. */
 export function wallsSVG(walls, std, ctx) {
@@ -91,15 +102,25 @@ export function wallsSVG(walls, std, ctx) {
       if (!b.poly || b.poly.length < 3) return;
       const kind = bandKind(b, w), fill = hatchFor(kind, std), angle = fill === "batt" ? bandAngle(b.poly) : 0;
       kinds.add(kind); fills.add(fill); if (fill === "batt") angles.add(angle);
-      body.push(`<polygon points="${pts(b.poly)}" ${fillAttr(fill, angle)}/>`);
-      if (w.bands.length > 1) joints.push(`<polygon points="${pts(b.poly)}"/>`);
+      // two flat fills meeting on a joint that is not inked (a wrap corner's
+      // diagonal, a split wall) would show an antialiased hairline: close it
+      // with a fine stroke in the fill's own colour
+      const seam = fill === "solid" ? ` stroke="${PEN_INK}"` : fill === "grey" ? ` stroke="#c8c8c8"` : "";
+      body.push(`<polygon points="${pts(b.poly)}" ${fillAttr(fill, angle)}${seam && seam + ` stroke-width="${mm(PENS.fine)}"`}/>`);
+      if (w.bands.length > 1 && !w.layerLines) joints.push(`<polygon points="${pts(b.poly)}"/>`);
     });
+    if (w.layerLines && w.layerLines.length) joints.push(`<path d="${linesPath(w.layerLines, pts)}"/>`);
+    const pen = `stroke-width="${mm(w.exterior ? PENS.cutOuter : PENS.cutInner)}"`;
+    if (w.ink) {
+      if (w.ink.length) outlines.push(`<path d="${linesPath(w.ink, pts)}" ${pen}/>`);
+      return;
+    }
     const ring = w.outline && w.outline.length > 2 ? w.outline : (w.bands && w.bands.length === 1 ? w.bands[0].poly : null);
-    if (ring) outlines.push(`<polygon points="${pts(ring)}" stroke-width="${mm(w.exterior ? PENS.cutOuter : PENS.cutInner)}"/>`);
+    if (ring) outlines.push(`<polygon points="${pts(ring)}" ${pen}/>`);
   });
   const svg = `<g class="wall-fill" stroke="none">${body.join("")}</g>` +
     (joints.length ? `<g class="wall-joints" fill="none" stroke="${PEN_INK}" stroke-width="${mm(PENS.fine)}">${joints.join("")}</g>` : "") +
-    `<g class="wall-cut" fill="none" stroke="${PEN_INK}" stroke-linejoin="miter">${outlines.join("")}</g>`;
+    `<g class="wall-cut" fill="none" stroke="${PEN_INK}" stroke-linejoin="miter" stroke-linecap="square">${outlines.join("")}</g>`;
   return { defs: hatchDefsSVG(fills, mm, angles), svg, kinds };
 }
 

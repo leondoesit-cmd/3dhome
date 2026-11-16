@@ -3,13 +3,14 @@
 import { stylesSource } from "./helpers/styles_source.mjs";
 import { modelerSource } from "./helpers/modeler_source.mjs";
 import { moduleSource } from "./helpers/module_source.mjs";
+import { sourceFunctionText } from "./helpers/source_function.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerEditor, switchEditor, activeEditor, editorSwitchHTML } from "../js/pro_shell.js";
 import { PRO_HE } from "../js/pro_catalog.js";
 
-const src = (f) => (f === "modeler.js" ? modelerSource() : f === "ui.js" ? moduleSource("js/ui.js") : readFileSync(new URL("../js/" + f, import.meta.url), "utf8"));
+const src = (f) => (f === "modeler.js" ? modelerSource() : f === "ui.js" ? moduleSource("js/ui.js") : f === "mobile_shell.js" ? moduleSource("js/mobile_shell.js") : readFileSync(new URL("../js/" + f, import.meta.url), "utf8"));
 
 // proToast needs just enough of a document to append its status line.
 const toasts = [];
@@ -142,14 +143,38 @@ test("every tool a Cmd example names is a real tool of that editor, in both lang
     const cmdAt = shellSrc.indexOf("cmd: [", at);
     assert.ok(at > 0 && cmdAt > at, editor + " has a Cmd example");
     const line = shellSrc.slice(cmdAt + "cmd: ".length, shellSrc.indexOf("\n", cmdAt)).replace(/,\s*$/, "");
-    const [en, heText] = JSON.parse(line);
+    const [en, heText, enShort, heShort] = JSON.parse(line);
     const names = (s) => [...s.matchAll(/[“„]([^”]+)”/g)].map((m) => m[1]);
     const labels = new Set(proTools(editor).map((t) => t.label));
     const heLabels = new Set(proTools(editor).map((t) => PRO_HE[t.label] || t.label));
     assert.ok(names(en).length >= 2, editor);
-    for (const n of names(en)) assert.ok(labels.has(n), editor + ": no tool “" + n + "”");
-    for (const n of names(heText)) assert.ok(heLabels.has(n), editor + ": no Hebrew tool „" + n + "”");
+    // the short variant (a narrow input) names one of them
+    assert.equal(names(enShort).length, 1, editor);
+    assert.equal(names(heShort).length, 1, editor);
+    for (const n of names(en).concat(names(enShort))) assert.ok(labels.has(n), editor + ": no tool “" + n + "”");
+    for (const n of names(heText).concat(names(heShort))) assert.ok(heLabels.has(n), editor + ": no Hebrew tool „" + n + "”");
   }
+});
+
+test("a narrow command bar shows the short example, the tooltip keeps the full one", () => {
+  const row = ["Type a tool: “Wall”, “Door”, “Dimension”, “Section”…", "הקלידו כלי: „קיר”, „דלת”, „מידה”, „חתך”…", "Type a tool: “Wall”…", "הקלידו כלי: „קיר”…"];
+  assert.equal(shellMod.placeholderFor(row, "en", 190), "Type a tool: “Wall”…");
+  assert.equal(shellMod.placeholderFor(row, "he", 190), "הקלידו כלי: „קיר”…");
+  assert.equal(shellMod.placeholderFor(row, "en", 600), row[0]);
+  assert.equal(shellMod.placeholderFor(row, "en", 0), row[0], "an unmeasured input keeps the full text");
+  assert.equal(shellMod.placeholderFor(row.slice(0, 2), "en", 100), row[0], "no short form: the full one");
+  // every short English example fits the 190px input of the three studios
+  const shellSrc = src("pro_shell.js");
+  const table = shellSrc.slice(shellSrc.indexOf("var PLACEHOLDER"), shellSrc.indexOf(String.fromCharCode(10) + "};", shellSrc.indexOf("var PLACEHOLDER")));
+  const rows = [...table.matchAll(/(?:ai|cmd): (\[.*\]),/g)].map((m) => JSON.parse(m[1]));
+  assert.equal(rows.length, 6);
+  for (const r of rows) {
+    assert.ok(r[2].length <= 28, r[2]);
+    assert.equal(shellMod.placeholderFor(r, "en", 190), r[2]);
+  }
+  // re-picked on every sync (the shell's slow poll), and the full text is the tooltip
+  assert.match(sourceFunctionText(shellSrc, "syncShell"), /forEach\(fitPlaceholder\)/);
+  assert.match(sourceFunctionText(shellSrc, "fitPlaceholder"), /input\.title = full/);
 });
 
 test("the AI switch defaults on, is remembered, and off never reaches the AI helper", () => {
@@ -315,7 +340,8 @@ test("the bar slides beside a side panel, climbs over a full-width strip, and st
 test("the cabinet designer's status bar reports real production numbers and nothing invented", () => {
   const cab = src("ui_cabinet.js");
   // Refreshed by every edit, and placed under the body, not inside its columns.
-  assert.match(cab, /if \(sub\) sub\.textContent = cabSummary\(E\.it\);\s*fillIdCard\(\);\s*fillStatusBar\(\);/);
+  // (the subtitle is ellipsised, so its tooltip carries the same text)
+  assert.match(cab, /if \(sub\) sub\.textContent = sub\.title = cabSummary\(E\.it\);[^\n]*\s*fillIdCard\(\);\s*fillStatusBar\(\);/);
   assert.match(cab, /if \(statusBar && bodyEl\) bodyEl\.after\(statusBar\);/);
   // Sheets, yield and parts come from the real nesting run over the real parts.
   assert.match(cab, /var panels = panelsOf\(\[E\.it\]\), q = nest\(panels\);/);
@@ -323,8 +349,15 @@ test("the cabinet designer's status bar reports real production numbers and noth
   // The recorded shop convention, or an honest "none"; no revision without a job.
   assert.match(cab, /cabinetProductionPreset\(s\.productionConvention && s\.productionConvention\.presetId\)/);
   assert.doesNotMatch(cab, /Rev [A-Z]/);
-  for (const k of ["statusNoConvention", "statusStock", "statusSheets", "statusYield", "statusParts", "statusNestFailed"])
+  for (const k of ["statusNoConvention", "statusUnits", "statusStock", "statusSheets", "statusYield", "statusParts", "statusNestFailed"])
     assert.ok(src("ui_cabinet_ctx.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
+  // The units segment says what it is; the convention segment is a button
+  // that opens the same production setup as the Technical tab.
+  assert.match(cab, /parts\.push\(T\("statusUnits"\)\.replace\("\{u\}", displayUnit\("cabinet"\)\)\)/);
+  assert.match(cab, /span\.addEventListener\("click", openProductionSetup\)/);
+  assert.match(src("ui_cabinet_inspect.js"), /T\("openProductionSetup"\), openProductionSetup,/);
+  // Its priority follows the bar's own width (a docked, half-width designer too).
+  assert.match(readFileSync(new URL("../css/pro_ribbon.css", import.meta.url), "utf8"), /@container cb-status \(max-width: 720px\)/);
 });
 
 test("the cabinet designer's split view keeps the drawing editable beside the live model", () => {
@@ -453,4 +486,17 @@ test("left-handed layout: a Touch setting, off by default, that mirrors only the
   assert.match(skin, /body\.dock-rail\.side-mirror #modeler\.md-fold-open \.md-body \{ padding-inline: min\(420px, 44vw\) 0; \}/);
   for (const f of ["en", "he"]) for (const k of ["touch_side_title", "touch_side_right", "touch_side_left", "touch_side_hint"])
     assert.ok(src("i18n/" + f + ".js").includes(String.fromCharCode(10) + "  " + k + ": "), f + " " + k);
+});
+
+test("leaveEditorsOf: an editor open on a piece being deleted leaves first, others stay", async () => {
+  const { leaveEditorsOf } = await import("../js/pro_shell.js");
+  const cab = { id: "c1" }, other = { id: "o1" };
+  let open = true, left = 0;
+  registerEditor("cab", { isOpen: () => open, editing: () => cab, leave: () => { left++; open = false; return true; } });
+  leaveEditorsOf([other]);
+  assert.equal(left, 0);
+  leaveEditorsOf([other, cab]);
+  assert.equal(left, 1);
+  leaveEditorsOf([cab]); // already closed: nothing more
+  assert.equal(left, 1);
 });

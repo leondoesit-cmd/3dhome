@@ -2,6 +2,7 @@ import {wallLayerBands} from "./wall_types.js";
 import {S} from './state.js';
 import {wallOutline,wallBandOutline,wallPointAt,wallTangentAt,detectRooms,pointInPoly} from './geometry.js';
 import {doorSwingPolys} from './swing_clearance.js';
+import {wallInkAll} from './wall_ink.js';
 import {openingCorners} from './slab_openings.js';
 import {footprint} from './layout_analysis.js';
 import {roomMeasurements} from './room_summary.js';
@@ -22,7 +23,7 @@ export function drawingSnapshot(){
   }
   return [...left,...right.reverse()];
  }).filter(p=>p.length);
- return {surveyFeatures:JSON.parse(JSON.stringify(S.surveyFeatures||[])),walls:S.walls.flatMap(w=>w.geometry?.type==='arc'?[wallOutline(w)]:bandsFor(w).map(b=>{const p=wallBandOutline(w,b.start,b.end);return p?[p.a0,p.b0,p.b1,p.a1]:null;})).filter(Boolean),openings,
+ return {surveyFeatures:JSON.parse(JSON.stringify(S.surveyFeatures||[])),walls:S.walls.flatMap(w=>w.geometry?.type==='arc'?[wallOutline(w)]:bandsFor(w).map(b=>{const p=wallBandOutline(w,b.start,b.end,undefined,true);return p?[p.a0,p.b0,p.b1,p.a1]:null;})).filter(Boolean),openings,
   swings:S.openings.flatMap(o=>doorSwingPolys(o)),voids:(S.slabOpenings||[]).map(openingCorners),items:S.items.map(i=>footprint(i)),
   rooms:detectRooms().map(room=>({points:room.pts,cx:room.cx,cz:room.cz,name:S.roomMeta[room.key]?.name||'',...roomMeasurements(S,room)?.interior}))};
 }
@@ -53,11 +54,15 @@ export function sheetSnapshot(){
 }
 
 /* The regional sheet's walls (js/drawing_sheet/hatches.js): each wall's
-   outline for the cut line, its layer bands with their material for the
-   hatch, and whether it is exterior: a point just off either face that lies
-   in no room means the wall faces outside. */
+   outline, the pieces of it that are inked (js/wall_ink.js: no line between
+   two walls of one material) and its along-wall layer lines, its layer bands
+   with their material for the hatch, and whether it is exterior: a point just
+   off either face that lies in no room means the wall faces outside. The
+   snapshot's wallPolys (the plain sheet and every dimension chain) stay on the
+   face meeting points, so no dimension depends on how a corner is built. */
 function sheetWalls(rooms){
  const catalog=JSON.parse(JSON.stringify({wallTypes:S.wallTypes||[],walls:[]}));
+ const inks=wallInkAll(S.walls);
  const inRoom=(x,z)=>rooms.some(r=>r.pts&&pointInPoly(x,z,r.pts));
  return S.walls.map(w=>{
   let bands=[];try{bands=wallLayerBands(JSON.parse(JSON.stringify(w)),catalog);}catch(e){bands=[];}
@@ -69,6 +74,7 @@ function sheetWalls(rooms){
   const main=bands.find(b=>b.main)||bands[0]||{};
   const polys=arc||!bands.length?[{poly:outline,material:main.material||'generic-masonry',role:main.role,structural:main.structural!==false}]
    :bands.map(b=>{const q=wallBandOutline(w,b.start,b.end);return q?{poly:[q.a0,q.b0,q.b1,q.a1],material:b.material,role:b.role,structural:!!b.structural}:null;}).filter(Boolean);
-  return {id:w.id,outline:outline&&outline.length>2?outline:null,exterior,bands:polys.filter(b=>b.poly&&b.poly.length>2)};
+  const ink=inks.get(w),inked=ink&&!ink.arc;
+  return {id:w.id,outline:outline&&outline.length>2?outline:null,exterior,bands:polys.filter(b=>b.poly&&b.poly.length>2),ink:inked?ink.paths:null,layerLines:inked?ink.layers:null};
  });
 }

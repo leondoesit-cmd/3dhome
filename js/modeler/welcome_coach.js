@@ -256,6 +256,8 @@ function coachAssemblySuggestion() {
   return null;
 }
 function coachSuggestion() {
+  // the face-pick prompt is the one instruction while it is up (syncFacePrompt re-syncs the coach)
+  if (E.facePick) return null;
   if (E.docType === "assembly") return coachAssemblySuggestion();
   if (!isCanonicalAuthoring()) return null;
   var step = currentWorkflowStep(), sketch = ensureSketch(E.def);

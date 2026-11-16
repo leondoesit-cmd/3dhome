@@ -9,6 +9,9 @@ import { t } from "../i18n.js";
 import { addSpace, autoArrangeAll, deleteSel, dupSel, rotateRoom } from "../interaction.js";
 import { alignItems, distributeItems, matchRotation } from "../item_align.js";
 import { refaceItem, rotStep } from "../item_orient.js";
+import { onWallToggleOutcome, toggleOnWall } from "../interaction/wall_plane_drag.js";
+import { broadcastPlanOp, itemMovePlanOps } from "../plan_sync.js";
+import { wallPlaneText } from "../wall_plane_strings.js";
 import { saveLayers } from "../layers.js";
 import { fitView, render2D } from "../plan2d.js";
 import { cutStairVoidAbove } from "../stair_floors.js";
@@ -28,8 +31,31 @@ export const RUN_SELECTION_ACTIONS = new Set([
   "pvAdd", "rcArea", "rcMinDim", "rcRect", "alLeft", "alRight", "alCenterX", "alTop", "alBottom",
   "alCenterZ", "alDistX", "alDistZ", "alSameRot", "groupItems", "ungroupItems", "autoGenerate",
   "autoArrange", "addroom", "addcorr", "makeSeamless", "matchFloor", "rotL", "rotR", "rotSel90",
-  "faceAuto", "roomRotL", "roomRotR", "lockItem", "lockRoom", "lockRoomItems",
+  "faceAuto", "roomRotL", "roomRotR", "lockItem", "lockRoom", "lockRoomItems", "itemOnWall",
 ]);
+
+/* "On wall" for the selected piece (js/interaction/wall_plane_drag.js
+   toggleOnWall): hang it flush on the nearest wall at its height, so it is
+   dragged across that wall from now on; again, back to the floor. */
+function itemOnWallAction() {
+  var it = S.sel && S.sel.kind === "item" ? S.sel.ref : null;
+  if (!it || it.locked) return;
+  // nothing would change (a hung type, no wall in reach): no history step
+  var done = onWallToggleOutcome(it);
+  if (done === "on" || done === "off") {
+    pushHistory();
+    done = toggleOnWall(it);
+  }
+  if (done === "always" || done === "nowall") {
+    flash(wallPlaneText(done === "always" ? "alwaysOnWall" : "noWall"));
+    return;
+  }
+  itemMovePlanOps([it], S.items).forEach(broadcastPlanOp);
+  S.dirty3D = true;
+  fillProps();
+  render2D();
+  flash(wallPlaneText(done === "on" ? "putOnWall" : "putOnFloor"), "success");
+}
 
 // split out of runAction()
 async function runSelectionAction(act, ev) {
@@ -336,6 +362,7 @@ async function runSelectionAction(act, ev) {
     flash(turned ? t("f_faced") : t("f_faceSame"));
   } else if (act === "roomRotL") rotateRoom(-rotStep());
   else if (act === "roomRotR") rotateRoom(rotStep());
+  else if (act === "itemOnWall") itemOnWallAction();
   else if (act === "lockItem" && S.sel && S.sel.kind === "item") {
     pushHistory();
     S.sel.ref.locked = !S.sel.ref.locked;

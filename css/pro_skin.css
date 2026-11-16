@@ -1178,9 +1178,10 @@ body.pro-skin #cabdes .cb-context-bar > #cbTools { order: -3; }
 body.pro-skin #cabdes .cb-context-bar > .cb-size-group { order: -2; margin-inline-start: 0; padding: 0; height: 36px; }
 body.pro-skin #cabdes .cb-context-bar > .cb-preview-group { order: -1; }
 body.pro-skin #cabdes .cb-size-group .cb-scope-note select { width: auto !important; min-width: 118px; padding-inline: 8px 24px; }
-/* one line at a desktop width: the scope's caption becomes the select's own
-   tooltip, the four preview stops show their marks only (each keeps its title) */
-body.pro-skin #cabdes .cb-context-bar .cb-scope-note { font-size: 0 !important; gap: 0; max-width: none; }
+/* one line at a desktop width: the scope keeps a short visible caption ("Apply
+   to"; the full one is the select's tooltip), the four preview stops show their
+   marks only (each keeps its title) */
+body.pro-skin #cabdes .cb-context-bar .cb-scope-note { font-size: 12px !important; gap: 4px; max-width: none; white-space: nowrap; }
 body.pro-skin #cabdes .cb-context-bar .cb-scope-note select { font-size: 12px; }
 body.pro-skin #cabdes .cb-context-bar .cb-chip-stage {
   display: inline-block; width: 30px; padding: 0 0 0 7px !important; overflow: hidden; white-space: nowrap; text-align: start; font-size: 13px !important; line-height: 26px;

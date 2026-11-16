@@ -390,6 +390,12 @@ body.pro-skin .ps-layers-chip span { min-width: 0; overflow: hidden; text-overfl
 body.pro-skin .ps-layers-chip i { font-size: 16px; flex: none; }
 body.pro-skin .ps-layers-chip .ps-layers-caret { font-size: 12px; color: var(--text-muted); }
 body.pro-skin.ps-layers-open .ps-layers-chip .ps-layers-caret { transform: rotate(180deg); }
+/* While the left panel's Layers tab is open on a desktop the rows are right
+   there: the chip would only repeat them. It stays with any other tab (Library…)
+   and on the compact layouts, where the panel is a drawer. */
+@media (min-width: 1025px) {
+  body.pro-skin:not(.compact-nav):not(.pro-compact):has(#left-sidebar[data-ps-left="layers"]) .ps-layers-chip { display: none; }
+}
 /* the desktop's layer card shows only when asked for, under the chip */
 body.pro-skin:not(.ps-layers-open) .pt-panel:has(> #layer-chips) { display: none !important; }
 /* in 3D the floor pill holds the top-left corner: the chip stands under it */
@@ -509,3 +515,21 @@ body.compact-nav #left-sidebar .left-tabs button > span {
   #modeler .md-commandmanager.md-borrowed .md-command-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 #modeler .md-commandmanager.md-borrowed .md-command > span { overflow-wrap: break-word; hyphens: auto; }
+
+/* ---- building in the 3D view on a phone or a fold (js/build3d_ui.js) --------
+   The navigation bar rides in the toolbar here, so the chain strip and the
+   Preview popover stand on the pane's own bottom edge (a phone: the toolbar
+   is under the pane) or above the floating toolbar (a fold), and the hint
+   chip carries the Preview button (js/build3d_ui.js shows it there). */
+html body.pro-compact #center-canvas #view-3d { --b3d-bottom: calc(12px + var(--b3d-dock, 0px)); }
+html body.pro-compact.dock-rail #center-canvas #view-3d { --b3d-bottom: calc(var(--ps-dock-h, 56px) + 22px + env(safe-area-inset-bottom, 0px)); }
+body.pro-compact #view-3d > .b3d-hint { padding-inline-end: 3px; }
+/* across a vertical hinge the controls keep to the second screen, off the seam */
+body.fold-span #view-3d > :is(.b3d-chain, .b3d-preview-pop, .b3d-hint) { left: auto; right: 12px; transform: none; }
+body.fold-span #view-3d > .b3d-hint { max-width: min(calc(100% - 24px), calc(env(viewport-segment-width 1 0, 50vw) - 24px)); }
+/* a cover screen (~344px): the strip keeps its icons, the names stay on the tooltips */
+@media (max-width: 400px) {
+  #view-3d > .b3d-chain > button span { display: none; }
+  #view-3d > .b3d-chain > button { padding: 0; }
+  #view-3d > .b3d-preview-pop .b3d-mode span { display: none; }
+}

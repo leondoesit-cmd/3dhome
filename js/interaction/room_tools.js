@@ -2,8 +2,8 @@
    js/interaction.js. It shares the editor's state through live imports from
    ../interaction.js. */
 import { executePrepared, prepareCommand, roomStampCommand } from "../commands/index.js";
-import { captureClear, captureLock } from "../constraint_engine.js";
-import { detectRooms, pendingCuts, reconcileRoomMeta, roomByKey, roomEdgeHandles, usedNodes, wallById, wallClearLength, wallGeom, wallProject } from "../geometry.js";
+import { captureClear, captureLock, settleNewWalls } from "../constraint_engine.js";
+import { detectRooms, pendingCuts, reconcileRoomMeta, roomByKey, roomEdgeHandles, usedNodes, wallById, wallGeom, wallProject } from "../geometry.js";
 import { pushHistory } from "../history.js";
 import { t, tTouch } from "../i18n.js";
 import { pointInPolyR } from "../interaction/hit_test.js";
@@ -237,13 +237,9 @@ export function commitRoomStamp() {
     .map(function (entry) { return entry.id; });
   // every wall the stamp built records its clear span, the same way a wall
   // drawn by hand does — otherwise the first dimension edit on one of them
-  // has nothing to hold
-  madeWallIds.forEach(function (id) {
-    var w = wallById(id);
-    if (!w) return;
-    var clear = wallClearLength(w);
-    if (clear > 0) w.clearL = clear;
-  });
+  // has nothing to hold — and an existing wall it docked onto re-reads its
+  // own if the stamp really cut its face; nothing that was there moves
+  settleNewWalls(madeWallIds, false);
   var walls = S.walls.filter(function (w) { return madeWallIds.indexOf(w.id) >= 0; });
   reconcileRoomMeta();
   render2D();
@@ -375,12 +371,7 @@ function buildDragCorridor(drag) {
     if (!wallById(id)) return;
     if (cutOpening(S, id, connectionForWall(S, id, live))) opened++;
   });
-  built.created.forEach(function (id) {
-    var w = wallById(id);
-    if (!w) return;
-    var clear = wallClearLength(w);
-    if (clear > 0) w.clearL = clear;
-  });
+  settleNewWalls(built.created, false); // as a stamped room: re-read, never moved
   S.dirty3D = true;
   reconcileRoomMeta();
   refreshTree();
@@ -711,6 +702,7 @@ export function arcWallPoint(p) {
     });
     S.walls.push(made);
     captureLock(made); captureClear(made);
+    settleNewWalls([made.id], false);
   }
   S.arcDraft = { startNode: endNode, through: null };
   S.previewPt = { x: S.nodes[endNode].x, z: S.nodes[endNode].z };

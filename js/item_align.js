@@ -153,7 +153,11 @@ export function holdToWall(it, wall, gap) {
   var side = g && isFinite(g.L) && g.L > 0
     ? ((it.x - g.a.x) * -g.uz + (it.z - g.a.z) * g.ux >= 0 ? 1 : -1)
     : 1;
+  // "on the wall" (dragged on the wall plane, js/item_orient.js isOnWall) is
+  // the user's choice about the piece, not about this wall: it survives a new hold
+  var onWall = it.hold && it.hold.onWall ? 1 : 0;
   it.hold = { wall: wall.id, gap: Number(gap) || 0, side: side };
+  if (onWall) it.hold.onWall = 1;
   return true;
 }
 export function releaseHold(it) {

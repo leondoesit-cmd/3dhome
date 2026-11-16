@@ -228,6 +228,226 @@ export function gapCoord(gap, p) {
   return toLocal(gap.frame, p).s;
 }
 
+/* ---- an area drawn by the user (floor marquee or a rectangle on a wall) --- */
+
+export const AREA_DEFAULTS = Object.freeze({
+  pull: 15, // cm: a floor box edge this close to a wall face is pulled flush to it
+  floorTol: 10, // cm: a wall box this close to the floor / ceiling reaches it
+  depth: 60, // a floor-standing unit on a wall
+  hungDepth: 35, // a hung unit
+  minWidth: 30, // CAB_LIMITS.width.min (STD.minCol)
+  maxWidth: 600, // CAB_LIMITS.width.max
+  minDepth: 20, maxDepth: 120, // CAB_LIMITS.depth
+  minHeight: 30, maxHeight: 350, // CAB_LIMITS.height
+  minNiche: 25,
+  ceiling: 240, // height when no wall says otherwise
+});
+
+var EPS = 0.05;
+
+function swapSQ(poly) { return poly.map(function (p) { return { s: p.q, q: p.s }; }); }
+
+/* Floor box frame: U along `axis`, V = U turned +90° (same handedness as a wall
+   frame's u -> n). Points as { s: U, q: V } so clipQ / bandExtent apply. */
+function uvBasis(axis) {
+  var ux = 1, uz = 0;
+  if (axis && Number.isFinite(axis.x) && Number.isFinite(axis.z) && Math.hypot(axis.x, axis.z) > 1e-9) {
+    var L = Math.hypot(axis.x, axis.z); ux = axis.x / L; uz = axis.z / L;
+  }
+  return {
+    ux: ux, uz: uz, vx: -uz, vz: ux,
+    uv: function (p) { return { s: p.x * ux + p.z * uz, q: p.x * -uz + p.z * ux }; },
+    world: function (U, V) { return { x: U * ux - V * uz, z: U * uz + V * ux }; },
+  };
+}
+
+// keep the box on the start's side of every wall that cuts into it
+function clipAreaByWalls(box, segs, B, start) {
+  for (var pass = 0; pass < 3; pass++) {
+    var changed = false;
+    segs.forEach(function (g) {
+      var quad = [
+        { x: g.w.a.x - g.uz * g.t / 2, z: g.w.a.z + g.ux * g.t / 2 }, { x: g.w.b.x - g.uz * g.t / 2, z: g.w.b.z + g.ux * g.t / 2 },
+        { x: g.w.b.x + g.uz * g.t / 2, z: g.w.b.z - g.ux * g.t / 2 }, { x: g.w.a.x + g.uz * g.t / 2, z: g.w.a.z - g.ux * g.t / 2 },
+      ].map(B.uv);
+      var ext = bandExtent(quad, box.v0 + EPS, box.v1 - EPS);
+      if (!ext || ext.hi <= box.u0 + EPS || ext.lo >= box.u1 - EPS) return;
+      // which side of this wall the drag started on (the box centre when the start is inside it)
+      var nU = -(g.ux * B.vx + g.uz * B.vz), nV = g.ux * B.ux + g.uz * B.uz; // wall normal in UV
+      var a = B.uv(g.w.a), side = (start.s - a.s) * nU + (start.q - a.q) * nV;
+      if (Math.abs(side) <= g.t / 2) side = ((box.u0 + box.u1) / 2 - a.s) * nU + ((box.v0 + box.v1) / 2 - a.q) * nV;
+      var sg = side < 0 ? -1 : 1;
+      if (Math.abs(nU) >= Math.abs(nV)) {
+        if (nU * sg > 0) box.u0 = Math.max(box.u0, ext.hi); else box.u1 = Math.min(box.u1, ext.lo);
+      } else {
+        var ev = bandExtent(swapSQ(quad), box.u0 + EPS, box.u1 - EPS);
+        if (!ev) return;
+        if (nV * sg > 0) box.v0 = Math.max(box.v0, ev.hi); else box.v1 = Math.min(box.v1, ev.lo);
+      }
+      changed = true;
+    });
+    if (!changed || box.u1 <= box.u0 || box.v1 <= box.v0) break;
+  }
+  return box;
+}
+
+/* Pull the edges near a wall face flush to it, and list the faces the box
+   then touches: [{ g, edge:"u0"|"u1"|"v0"|"v1", length }]. Only walls square
+   to the box take part. */
+function pullAreaToWalls(box, segs, B, pull) {
+  var faces = [];
+  segs.forEach(function (g) {
+    var dU = g.ux * B.ux + g.uz * B.uz, dV = g.ux * B.vx + g.uz * B.vz;
+    var a = B.uv(g.w.a), b = B.uv(g.w.b);
+    if (Math.abs(dU) < PARALLEL) { // runs along V: a face at constant U
+      var cu = (a.s + b.s) / 2, inside = (box.u0 + box.u1) / 2 > cu;
+      faces.push({ g: g, edge: inside ? "u0" : "u1", at: cu + (inside ? 1 : -1) * g.t / 2, lo: Math.min(a.q, b.q), hi: Math.max(a.q, b.q), other: "v" });
+    } else if (Math.abs(dV) < PARALLEL) { // runs along U: a face at constant V
+      var cv = (a.q + b.q) / 2, above = (box.v0 + box.v1) / 2 > cv;
+      faces.push({ g: g, edge: above ? "v0" : "v1", at: cv + (above ? 1 : -1) * g.t / 2, lo: Math.min(a.s, b.s), hi: Math.max(a.s, b.s), other: "u" });
+    }
+  });
+  function overlap(f) {
+    var lo = f.other === "v" ? box.v0 : box.u0, hi = f.other === "v" ? box.v1 : box.u1;
+    return Math.min(hi, f.hi) - Math.max(lo, f.lo);
+  }
+  faces.forEach(function (f) {
+    if (overlap(f) > EPS && Math.abs(box[f.edge] - f.at) <= pull) box[f.edge] = f.at;
+  });
+  return faces.filter(function (f) { return Math.abs(box[f.edge] - f.at) < 0.01 && overlap(f) > 0.5; })
+    .map(function (f) { return { g: f.g, edge: f.edge, length: overlap(f) }; });
+}
+
+var EDGE_N = { u0: [1, 0], u1: [-1, 0], v0: [0, 1], v1: [0, -1] }; // into the box, in (U, V)
+
+function fitFloorArea(rect, walls, o) {
+  var p0 = rect && (rect.a || rect[0]), p1 = rect && (rect.b || rect[1]);
+  if (!p0 || !p1 || ![p0.x, p0.z, p1.x, p1.z].every(Number.isFinite)) return { ok: false, reason: "no-area" };
+  var B = uvBasis(o.axis), A = B.uv(p0), C = B.uv(p1), segs = (walls || []).map(segOf).filter(Boolean);
+  var box = { u0: Math.min(A.s, C.s), u1: Math.max(A.s, C.s), v0: Math.min(A.q, C.q), v1: Math.max(A.q, C.q) };
+  clipAreaByWalls(box, segs, B, A);
+  if (box.u1 <= box.u0 || box.v1 <= box.v0) return { ok: false, reason: "too-narrow" };
+  var contacts = pullAreaToWalls(box, segs, B, o.pull);
+  var back = null;
+  contacts.forEach(function (c) { if (!back || c.length > back.length + 1e-6) back = c; });
+  var nUV;
+  if (back) nUV = EDGE_N[back.edge];
+  else {
+    // no wall: the front faces `facing` (the camera, or the drag's start side)
+    var fc = o.facing && Number.isFinite(o.facing.x) && Number.isFinite(o.facing.z) ? B.uv(o.facing)
+      : { s: A.s - (box.u0 + box.u1) / 2, q: A.q - (box.v0 + box.v1) / 2 };
+    /* The longer side is the width: the front is the long-side normal nearer
+       the hint (a tie: the drag-start side). Only a near-square box lets the
+       hint alone choose the axis. n = the way the front looks. */
+    var du = box.u1 - box.u0, dv = box.v1 - box.v0, ms = (box.u0 + box.u1) / 2, mq = (box.v0 + box.v1) / 2;
+    function sgn(h, start) { return Math.abs(h) > 1e-9 ? (h < 0 ? -1 : 1) : (start < 0 ? -1 : 1); }
+    if (Math.abs(du - dv) <= 0.1 * Math.max(du, dv))
+      nUV = Math.abs(fc.s) >= Math.abs(fc.q) ? [sgn(fc.s, A.s - ms), 0] : [0, sgn(fc.q, A.q - mq)];
+    else nUV = du > dv ? [0, sgn(fc.q, A.q - mq)] : [sgn(fc.s, A.s - ms), 0];
+  }
+  var alongU = nUV[1] !== 0; // the back runs along U
+  var w = alongU ? box.u1 - box.u0 : box.v1 - box.v0, d = alongU ? box.v1 - box.v0 : box.u1 - box.u0;
+  // over the limits: keep the back, and the end the drag started from
+  if (d > o.maxDepth) {
+    if (nUV[0] > 0) box.u1 = box.u0 + o.maxDepth; else if (nUV[0] < 0) box.u0 = box.u1 - o.maxDepth;
+    else if (nUV[1] > 0) box.v1 = box.v0 + o.maxDepth; else box.v0 = box.v1 - o.maxDepth;
+    d = o.maxDepth;
+  }
+  if (w > o.maxWidth) {
+    if (alongU) { if (A.s <= (box.u0 + box.u1) / 2) box.u1 = box.u0 + o.maxWidth; else box.u0 = box.u1 - o.maxWidth; }
+    else if (A.q <= (box.v0 + box.v1) / 2) box.v1 = box.v0 + o.maxWidth; else box.v0 = box.v1 - o.maxWidth;
+    w = o.maxWidth;
+  }
+  if (w < o.minWidth) return { ok: false, reason: "too-narrow", width: Math.max(0, w) };
+  if (d < o.minDepth) return { ok: false, reason: "too-shallow", depth: Math.max(0, d) };
+  var wallH = back ? num(back.g.w.h, null) : null;
+  var h = Math.min(o.maxHeight, Math.max(1, num(o.height, wallH != null ? wallH : o.ceiling)));
+  if (h < o.minHeight) return { ok: false, reason: "too-short" };
+  var c = B.world((box.u0 + box.u1) / 2, (box.v0 + box.v1) / 2);
+  var nW = B.world(nUV[0], nUV[1]); // unit, into the room from the back
+  var backMid = { x: c.x - nW.x * d / 2, z: c.z - nW.z * d / 2 };
+  var frame = { ox: backMid.x, oz: backMid.z, ux: nW.z, uz: -nW.x, nx: nW.x, nz: nW.z };
+  return {
+    ok: true, mount: "floor", x: r1(c.x), z: r1(c.z), w: r1(w), d: r1(d), h: r1(h), rot: rotFacing(nW.x, nW.z), elev: 0,
+    wall: back ? back.g.w.id : null, frame: frame, s1: -w / 2, s2: w / 2,
+    flush: contacts.map(function (k) { return k.g.w.id; }),
+  };
+}
+
+function openingHead(o) {
+  var type = String(o.type || "door"), sill = num(o.sill, type === "window" ? 90 : 0);
+  return Number.isFinite(Number(o.height)) ? sill + Number(o.height) : Infinity;
+}
+
+function fitWallArea(rect, walls, openings, o) {
+  var segs = (walls || []).map(segOf).filter(Boolean);
+  var g = rect && segs.find(function (k) { return String(k.w.id) === String(rect.wallId); });
+  if (!g) return { ok: false, reason: "no-wall" };
+  var nx = -g.uz, nz = g.ux, sign = 1;
+  if (rect.side && rect.side.x * nx + rect.side.z * nz < 0) sign = -1;
+  else if (!rect.side && rect.pick && (rect.pick.x - g.w.a.x) * nx + (rect.pick.z - g.w.a.z) * nz < 0) sign = -1;
+  nx *= sign; nz *= sign;
+  var sBase = rect.pick ? Math.max(0, Math.min(g.L, (rect.pick.x - g.w.a.x) * g.ux + (rect.pick.z - g.w.a.z) * g.uz)) : 0;
+  var H = num(g.w.h, o.ceiling), y0 = num(rect.y0, 0), y1 = num(rect.y1, 0);
+  var lo = Math.max(0, Math.min(y0, y1)), hi = Math.min(H, Math.max(y0, y1));
+  var onFloor = lo <= o.floorTol, toTop = hi >= H - o.floorTol;
+  var elev = onFloor ? 0 : lo, top = toTop ? H : hi;
+  var mount = onFloor && toTop ? "full" : onFloor ? "floor" : "hung";
+  var h = Math.min(o.maxHeight, top - elev);
+  if (!(h >= o.minHeight)) return { ok: false, reason: "too-short", height: Math.max(0, h) };
+  top = elev + h;
+  var s0 = num(rect.s0, 0), s1 = num(rect.s1, 0);
+  if (Math.abs(s1 - s0) < o.minWidth) return { ok: false, reason: "too-narrow", width: Math.abs(s1 - s0) };
+  // measure the run from the middle of the rectangle, in wall s-units from a
+  var mid = Math.max(0, Math.min(g.L, sBase + (s0 + s1) / 2)), shift = mid - sBase;
+  var pick = { x: g.w.a.x + g.ux * mid + nx * (g.t / 2 + 1), z: g.w.a.z + g.uz * mid + nz * (g.t / 2 + 1) };
+  // only openings level with the unit stop it (a hung unit clears a window below it)
+  var level = (openings || []).filter(function (op) {
+    if (!op) return false;
+    var sill = num(op.sill, String(op.type || "door") === "window" ? 90 : 0);
+    return sill < top - 1 && openingHead(op) > elev + 1;
+  });
+  var depth = mount === "hung" ? o.hungDepth : o.depth;
+  var gap = findWallGap(pick, walls, level, {
+    wallId: g.w.id, side: { x: nx, z: nz }, depth: depth, height: top, minWidth: o.minWidth,
+  });
+  if (!gap.ok) return { ok: false, reason: gap.reason, wall: g.w.id };
+  var from = Math.max(gap.left, Math.min(gap.right, s0 - shift)), to = Math.max(gap.left, Math.min(gap.right, s1 - shift));
+  if (Math.abs(to - from) < o.minWidth) return { ok: false, reason: "too-narrow", width: Math.abs(to - from) };
+  var box = fitCabinetBox(gap, {
+    from: from, to: to, depth: depth, height: h, maxWidth: o.maxWidth, minWidth: o.minWidth,
+    minNiche: o.minNiche, maxHeight: o.maxHeight,
+  });
+  return {
+    ok: true, mount: mount, x: box.x, z: box.z, w: box.w, d: box.d, h: box.h, rot: box.rot, elev: elev,
+    wall: gap.wall, frame: gap.frame, s1: box.s1, s2: box.s2, gap: gap,
+  };
+}
+
+/* A cabinet for an area the user drew.
+   kind "floor": rect = { a:{x,z}, b:{x,z} } (or [a, b]) opposite plan corners, a = where
+     the drag started; opts.axis {x,z} turns the box (default plan-axis aligned);
+     opts.facing {x,z} = where the front looks when no wall is near (default: toward a).
+     The box is clipped so it never crosses a wall (it stays on a's side), its edges
+     within `pull` of a square wall face go flush, the back goes to the face with the
+     longest contact. Height: opts.height, else the back wall's h, else opts.ceiling.
+   kind "wall": rect = { wallId, side:{x,z} (face normal hint), pick?:{x,z}, s0, s1, y0, y1 };
+     s0/s1 in gapCoord units of findWallGap(pick) (origin = pick projected on the wall;
+     no pick: s measured from the wall's `a` end), y0/y1 heights above the floor.
+     Bottom within floorTol of the floor stands on it, top within floorTol of the wall
+     top reaches it; otherwise hung at elev = bottom. Depth: opts.depth (60), or
+     opts.hungDepth (35) hung; a shallower niche wins (fitCabinetBox's rule).
+   -> { ok:true, mount:"floor"|"full"|"hung", x, z, w, d, h, rot, elev, wall (id|null),
+        frame, s1, s2, flush?:[ids], gap? }  — x,z the footprint centre, rot as fitCabinetBox;
+        frame/s1/s2 make it a `gap` for fitFootprint(result, result).
+   or  { ok:false, reason: "no-area"|"no-wall"|"opening"|"too-narrow"|"too-shallow"|"too-short" } */
+export function fitAreaBox(kind, rect, walls, openings, opts) {
+  var o = Object.assign({}, AREA_DEFAULTS, opts || {});
+  if (kind === "floor") return fitFloorArea(rect, walls, o);
+  if (kind === "wall") return fitWallArea(rect, walls, openings, o);
+  return { ok: false, reason: "no-area" };
+}
+
 /* ---- the docked designer (js/ui_cabinet_dock.js) ------------------------ */
 
 /* Landscape screens dock to the side; portrait ones (a phone, a tablet held

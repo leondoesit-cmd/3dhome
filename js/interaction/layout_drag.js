@@ -2,20 +2,27 @@
    js/interaction.js. It shares the editor's state through live imports from
    ../interaction.js. */
 import { executeCommand, openingPlaceCommand, roomCreateCommand } from "../commands/index.js";
-import { canWeld, captureClear, captureLock } from "../constraint_engine.js";
+import { canWeld, captureClear, captureLock, settleNewWalls } from "../constraint_engine.js";
 import { detectRooms, itemsInRoom, roomByKey, usedNodes, wallById, wallGeom } from "../geometry.js";
 import { pushHistory } from "../history.js";
 import { t } from "../i18n.js";
-import { alignItem } from "../interaction/hit_test.js";
+import { alignItem, flashSnap } from "../interaction/hit_test.js";
+import { snapMul } from "../interaction/wall_snap.js";
+import { wallPlaneDrag, wallPlaneDrop } from "../interaction/wall_plane_drag.js";
+import "../interaction/wall_plane_guides.js";
+import "../distance_edit.js";
+import { settleKept } from "../item_keep_edit.js";
 import { setTool } from "../interaction/mep_tools.js";
 import { agentCommandEnvironment, currentPlacementScene, startNodeConPick } from "../interaction/wall_edit.js";
 import { holdToWall } from "../item_align.js";
-import { applyAutoFace, markManualRot } from "../item_orient.js";
+import { applyAutoFace, markManualRot, orientMode, wallSnapSegments } from "../item_orient.js";
+import { footReach, resolveItemDrag } from "../item_wall_snap.js";
 import { canDrag } from "../layers.js";
 import { releaseIfMoved } from "../markers.js";
 import { detachNodesFromWalls } from "../mep.js";
 import { placementBatchFitsScene } from "../placement_resolver.js";
 import { dropPoint, render2D } from "../plan2d.js";
+import { inputIs3D, plannerInputView } from "../planner_input.js";
 import { attach as stackAttach, carryChildren, descendantsOf, detach as stackDetach, findSupport, hostOf, orphanChildren, reseat as stackReseat, rotateWith, topOf, wouldCycle } from "../stack.js";
 import { S, WALL_T, touchItem3D } from "../state.js";
 import { renderWarnPanel } from "../ui_warn.js";
@@ -356,8 +363,10 @@ export function addSpace(w, d, label, isCorridor) {
     name: label, isCorridor: !!isCorridor,
   }, agentCommandEnvironment(), { label: t("f_added", { label: label }) });
   if (!result.ok) { flash(t("f_placeFail"), "error"); return; }
-  var key = result.created.filter(function (entry) { return entry.kind === "wall"; })
-    .map(function (entry) { return entry.id; }).sort(function (a, b) { return a - b; }).join(",");
+  var made = result.created.filter(function (entry) { return entry.kind === "wall"; })
+    .map(function (entry) { return entry.id; });
+  settleNewWalls(made, false); // each side states what it measures; nothing old moves
+  var key = made.slice().sort(function (a, b) { return a - b; }).join(",");
   setTool("select");
   select({ kind: "room", ref: key });
   render2D();
@@ -519,12 +528,15 @@ function applyResolvedItemTranslation(it, x, z, options) {
 function finalizeItemPlacement(it, options) {
   options = options || {};
   if (!it) return;
+  // dropped snapped onto a free wall point: held by it (wall_plane_drag.js)
+  wallPlaneDrop(it);
   if (options.releaseMarker !== false) releaseIfMoved(it);
   if (options.holdWallId != null) {
     var wall = wallById(options.holdWallId);
     if (wall && !it.locked) holdToWall(it, wall, 0);
   }
   if (options.markRotationUser) markManualRot(it);
+  settleKept(it); // its kept distances apply again (Alt: left alone); pieces kept to it follow
 }
 
 /* One-shot exact-pose commit used by planner commands. Resolution has already
@@ -639,18 +651,85 @@ function validatePlacementRelations(summary) {
   return { ok: true };
 }
 
+/* The wall this drag went flush to last frame (resolveItemDrag's hysteresis).
+   Read only while S.itemSnapWall still names it, so it dies with the drag:
+   endAction / the 3D edit clear S.itemSnapWall when a gesture ends. */
+var wallSnapMemo = null;
+function wallSnapPrev(it) {
+  var m = wallSnapMemo;
+  return m && S.itemSnapWall != null && m.id === it.id && String(m.wallId) === String(S.itemSnapWall) ? m : null;
+}
+/* The wall face under the cursor in the 3D pane (planner_3d.js puts it on the
+   input view during an item drag as `drag.aim`); absent in 2D or before the
+   3D side provides it. */
+function dragAim() {
+  if (!inputIs3D()) return null;
+  var v = plannerInputView(), aim = v && v.drag && v.drag.aim;
+  if (!aim || aim.wallId == null) return null;
+  return [aim.nx, aim.nz, aim.x, aim.z].every(function (n) { return Number.isFinite(Number(n)); }) ? aim : null;
+}
+
 export function moveItemTo(it, nx, nz) {
+  // a piece that lives on a wall is dragged across it (js/interaction/wall_plane_drag.js)
+  if (wallPlaneDrag(it, nx, nz, { apply: applyResolvedItemTranslation, flash: flashSnap })) return void (wallSnapMemo = null);
   var tx = Math.round(nx / 2) * 2,
     tz = Math.round(nz / 2) * 2;
   /* Which way it faces is settled BEFORE the position snap, not after: turning
      a piece changes its footprint, and the flush-to-wall snap below measures
      that footprint. Deciding afterwards left a bed snapped flush by its side
      and then turned, i.e. standing half inside the wall. (js/item_orient.js) */
-  var faced = applyAutoFace(it, tx, tz, { host: findSupport(it, tx, tz) });
+  var host = findSupport(it, tx, tz);
+  var faced = applyAutoFace(it, tx, tz, { host: host });
   // a piece standing on this one turns with it, exactly as a manual rotation
   if (faced) rotateWith(it, faced, new Set([it]));
-  var a = alignItem(tx, tz, it);
-  applyResolvedItemTranslation(it, a.x, a.z, { trackDragState: true, touch3D: true });
+  /* Walls (js/item_wall_snap.js): flush to the aimed or nearest wall first,
+     then item/corner alignment only along that wall, then the collision pass
+     on the aligned point. Alt (S.orientHold) frees the whole gesture;
+     S.snapObj === false drops the magnetic pull but walls still block. A piece
+     standing on a host is not pulled to a wall. */
+  var free = !!S.orientHold,
+    // the aim point less the grab offset (nx, nz = cursor - S.dragOff): an
+    // off-centre grab keeps its place along the wall instead of jumping
+    aim0 = dragAim(), aim = aim0 && Object.assign({}, aim0, { x: nx, z: nz }),
+    env = { item: it, walls: wallSnapSegments(), mode: orientMode(it.type), aim: aim,
+      prev: wallSnapPrev(it), free: free, mul: snapMul() };
+  var w = resolveItemDrag(Object.assign({}, env, {
+    target: { x: tx, z: tz }, collide: false,
+    snap: S.snapObj !== false && !(host && host !== it),
+  }));
+  var a = free || w.corner != null
+    ? { x: w.x, z: w.z, key: null }
+    : alignItem(w.x, w.z, it, { flash: false, tangent: w.flush ? w.tangent : null });
+  var c = resolveItemDrag(Object.assign({}, env, {
+    target: { x: a.x, z: a.z }, snap: false, keep: w.flush ? { wallId: w.wallId, side: w.side } : null,
+  }));
+  var flushTo = w.flush ? w : c.flush ? c : null;
+  S.itemSnapWall = flushTo ? flushTo.wallId : null;
+  wallSnapMemo = flushTo ? { id: it.id, wallId: flushTo.wallId, side: flushTo.side, corner: w.corner } : null;
+  flashSnap(it, flushTo ? "wall:" + flushTo.wallId : a.key);
+  applyResolvedItemTranslation(it, c.x, c.z, { trackDragState: true, touch3D: true });
+}
+
+/* A multi-selection drag: walls block the group's bounding footprint (no
+   magnetic pull; Alt frees it). `orig` is S.dragOrig ({ it, x, z } per piece
+   at the drag's start); (dx, dz) the wanted move from there. Returns the move
+   that keeps the group out of the walls. */
+export function groupWallMove(orig, dx, dz) {
+  if (!orig || !orig.length || S.orientHold) return { dx: dx, dz: dz };
+  var x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  orig.forEach(function (o) {
+    var hx = footReach(o.it, 1, 0), hz = footReach(o.it, 0, 1);
+    x0 = Math.min(x0, o.x - hx); x1 = Math.max(x1, o.x + hx);
+    z0 = Math.min(z0, o.z - hz); z1 = Math.max(z1, o.z + hz);
+  });
+  if (!(x1 > x0 && z1 > z0)) return { dx: dx, dz: dz };
+  var cx = (x0 + x1) / 2, cz = (z0 + z1) / 2,
+    ox = Number(orig[0].it.x) - orig[0].x, oz = Number(orig[0].it.z) - orig[0].z;
+  var r = resolveItemDrag({
+    item: { w: x1 - x0, d: z1 - z0, rot: 0, x: cx + (ox || 0), z: cz + (oz || 0) },
+    target: { x: cx + dx, z: cz + dz }, walls: wallSnapSegments(), mode: "free", snap: false,
+  });
+  return { dx: r.x - cx, dz: r.z - cz };
 }
 
 export {

@@ -9,9 +9,13 @@
 // numbers: plan2d draws them as dashed leaders on the canvas, and the inspector
 // prints them for a selected placeholder point. Computing them twice would let
 // the two drift.
-import { S } from "./state.js";
+import { S, WALL_H } from "./state.js";
 import { wallGeom, rayIntersect } from "./geometry.js";
-import { isLamp } from "./furniture.js";
+import { isLamp, itemVSpan, knownVSpan, measureVSpanSoon } from "./furniture.js";
+import { hostOf } from "./stack.js";
+import { floorClearances, sideDirs, verticalClearances } from "./clearance.js";
+import { isRoundItem, itemOutline } from "./item_outline.js";
+import { openingSideHits, openingSillHit } from "./opening_clearance.js";
 
 // +x is east / +z is south in world cm (canvas x→right, z→down)
 export const DIRS4 = [
@@ -129,6 +133,122 @@ export function markerOrigin(m, held) {
 export function markerClearMap(m, held) {
   var o = markerOrigin(m, held);
   return measure4Map(o.ox, o.oz, o.cs, o.skip);
+}
+
+/* A piece's live distances from its REAL outline (js/item_outline.js), in its
+   own four directions (a round piece: the nearest wall's), as
+   js/clearance.js floorClearances defines them. measure4 above stays the
+   Point tool's compass readout; this is the one for a piece being placed.
+   `pose` {x, z, rot} overrides the piece's own. Plan walls only (arcs as
+   their chords); lamps and the piece's riders are not obstacles.
+   `target` filters like measure4's: "wall" (walls only), "object" (pieces
+   only), "manual" (only the walls in `wallIds`), else everything.
+   `near` / `nearCount` (200 cm, 4): the closest-points lines to the nearest
+   pieces no side reports (floorClearances). */
+export function measureSides(it, options) {
+  options = options || {};
+  if (!it) return [];
+  var poly = itemOutline(it, options.pose);
+  var target = options.target || "nearest", walls = planWalls(target, options.wallIds || []);
+  var others = target === "wall" || target === "manual" ? [] : (S.items || []).filter(function (o) {
+    return o && sideObstacle(it, o, options.skip);
+  }).map(function (o) { return { id: o.id, poly: itemOutline(o) }; });
+  var rot = options.pose && options.pose.rot != null ? options.pose.rot : it.rot;
+  var dirs = sideDirs(rot, isRoundItem(it), walls, poly);
+  var hits = floorClearances({
+    poly: poly, dirs: dirs, walls: walls, others: others,
+    max: options.max, near: options.near, nearCount: options.nearCount,
+  });
+  // doors and windows in the walls it stands against (js/opening_clearance.js)
+  if (!walls.length || !(S.openings && S.openings.length)) return hits;
+  return openingSideHits({ poly: poly, span: ownSpan(it), dirs: dirs, walls: walls, openings: planOpenings(), held: heldWalls(it), hits: hits });
+}
+
+/* The plan walls a piece measures to: physical ones (arcs as their chords,
+   marked `arc`), filtered by `target` as measureSides documents. */
+function planWalls(target, wallIds) {
+  var walls = [];
+  (S.walls || []).forEach(function (w) {
+    if (w.physical === false || target === "object") return;
+    if (target === "manual" && wallIds.indexOf(w.id) === -1) return;
+    var gm = wallGeom(w);
+    if (!gm || !(gm.L > 0)) return;
+    walls.push({ id: w.id, a: gm.a, b: gm.b, t: w.thickness || 0, arc: !!(gm.kind && gm.kind !== "line") });
+  });
+  return walls;
+}
+// S.openings as js/opening_clearance.js reads them (s along the wall, sill / head heights)
+function planOpenings() {
+  return (S.openings || []).filter(Boolean).map(function (o) {
+    var sill = Math.max(0, Number(o.sill) || 0);
+    return { id: o.id, wall: o.wall, kind: String(o.type || "opening"), s: Number(o.s) || 0,
+      w: Math.max(0, Number(o.width) || 0), sill: sill, head: sill + Math.max(0, Number(o.height) || 0) };
+  });
+}
+function ownSpan(it) {
+  var span = itemVSpan(it), elev = Number(it.elev) || 0;
+  return span && Number.isFinite(span.hi) ? span : { lo: elev, hi: elev + (Number(it.h) || 0) };
+}
+function heldWalls(it) {
+  return it.hold && it.hold.wall != null ? [it.hold.wall] : [];
+}
+
+/* A floor piece's vertical clearances (js/clearance.js verticalClearances):
+   up from its top to the lowest piece over it in plan (lamps, wall cabinets,
+   shelves and hung pieces count here), else the ceiling (`options.ceiling`,
+   the callers pass elevation.js ceilingHeight(); WALL_H when absent); down
+   only for a piece in the air on no host. Its own stack is left out (a vase
+   standing on it is not "over" it). A piece whose span is not measured yet is
+   skipped and measured soon. `target` "wall" / "manual" keep the ceiling and
+   floor only. */
+export function measureVertical(it, options) {
+  options = options || {};
+  if (!it) return [];
+  var span = itemVSpan(it), elev = Number(it.elev) || 0;
+  if (!span || !Number.isFinite(span.hi)) span = { lo: elev, hi: elev + (Number(it.h) || 0) };
+  var target = options.target || "nearest";
+  var others = target === "wall" || target === "manual" ? [] : (S.items || []).filter(function (o) {
+    return o && o !== it && !inStack(it, o) && !FLAT_TYPES[o.type];
+  }).map(function (o) {
+    var s = knownVSpan(o);
+    if (!s) measureVSpanSoon(o);
+    return { id: o.id, poly: s ? itemOutline(o) : null, span: s };
+  });
+  var poly = itemOutline(it, options.pose);
+  var out = verticalClearances({
+    poly: poly, span: span, others: others,
+    ceiling: options.ceiling != null ? options.ceiling : WALL_H,
+    down: it.on == null && span.lo >= 0.5,
+  });
+  // under a window in the wall it stands against: up to the sill too
+  if (target === "object" || !(S.openings && S.openings.length)) return out;
+  var sill = openingSillHit({ poly: poly, span: span, walls: planWalls(target, options.wallIds || []), openings: planOpenings(),
+    held: heldWalls(it), up: out.filter(function (h) { return h.dir === "up"; })[0] || null });
+  if (sill) out.push(sill);
+  return out;
+}
+
+// is `o` what `it` stands on (down its host chain) or something riding on it?
+function inStack(it, o) {
+  for (var h = hostOf(it), n = 0; h && n < 32; h = hostOf(h), n++) if (h === o) return true;
+  for (var a = o, k = 0; a && a.on != null && k < 32; k++) { a = hostOf(a); if (a === it) return true; }
+  return false;
+}
+
+/* Is `o` in the way of `it` on the floor? Not lamps, not flat pieces (a
+   rug), not the piece's own stack (what it stands on, what rides on it), and
+   not a piece whose height band misses this one's (wall art over a sofa, a
+   pendant over a table). A span still unmeasured counts as in the way and is
+   measured soon (the plan repaints on "vspan:ready"). */
+var FLAT_TYPES = { rug: true };
+function sideObstacle(it, o, skip) {
+  if (o === it || (skip && skip.has(o)) || isLamp(o) || FLAT_TYPES[o.type]) return false;
+  for (var h = hostOf(it), n = 0; h && n < 32; h = hostOf(h), n++) if (h === o) return false;
+  for (var a = o, k = 0; a && a.on != null && k < 32; k++) { a = hostOf(a); if (a === it) return false; }
+  var mine = itemVSpan(it), span = knownVSpan(o);
+  if (!span) { measureVSpanSoon(o); return true; }
+  if (span.hi - span.lo < 3) return false;
+  return !mine || (span.lo < mine.hi - 0.5 && mine.lo < span.hi - 0.5);
 }
 
 // the same four numbers keyed by compass letter, for text readouts.

@@ -1773,8 +1773,9 @@ body.rc-playing #view-3d .view-dollhouse-btn { display: none; }
 .view-drawing-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .planner-drawing-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 .planner-drawing-overlay[hidden] { display: none; }
-/* Drawing overlay settings: a compact card in the free corner above the view
-   gizmo — the top edge is claimed by the plan chrome and the floor tabs. */
+/* Drawing overlay settings: a compact card. Opened from its button it is placed
+   by that button (js/anchored_card.js sets left/top); the corner above the view
+   gizmo below is where it sits when the button is not on screen. */
 .drawing3d-panel {
   position: absolute;
   bottom: 136px;

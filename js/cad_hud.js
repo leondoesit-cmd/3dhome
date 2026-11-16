@@ -13,10 +13,9 @@
 import { S, fin } from "./state.js";
 import { plan, wx, wz, render2D, segBearing, onAfterRender } from "./plan2d.js";
 import { wallPointPolar, rectPointTyped } from "./interaction.js";
-import { wallClearLength, pendingCuts, roomName } from "./geometry.js";
-import { flabel } from "./furniture_meta.js";
+import { wallClearLength, pendingCuts } from "./geometry.js";
 import { t, tTouch } from "./i18n.js";
-import { voidDisplayName } from "./stair_strings.js";
+import { selectionReadout } from "./cad_hud_readout.js";
 import { previousRunAngle, resolveWallDrawDefaults, previewMetrics, touchDrawing, currentDrawDirLock } from "./wall_draw.js";
 import { displayUnit, fmtLen, parseLen } from "./display_units.js";
 import { inferDomainFromTool } from "./unit_settings.js";
@@ -234,6 +233,8 @@ export function initCadHud() {
   // disagree (interaction's own pointermove is throttled)
   onAfterRender(updateCadHud);
   window.addEventListener("planner-selection", updateCadHud);
+  // an Inspector edit (size, name…) in any view, 3D and Dollhouse included
+  window.addEventListener("planner-props", updateCadHud);
   window.addEventListener("planner-place", updateCadHud);
   window.addEventListener("planner-units", applyLangLabels);
 
@@ -501,27 +502,10 @@ export function updateCadHud() {
     main = tTouch("hint_tool_paint");
   } else if (S.tool === "erase") {
     main = tTouch("hint_tool_erase");
-  } else if (S.sel && S.sel.kind === "slabvoid" && S.sel.ref) {
-    selectionName = voidDisplayName(S.sel.ref) || t("sv_title");
-    selectionDetail = hudFmt(S.sel.ref.w, { domain: "rooms" }) + " × " + hudFmt(S.sel.ref.d, { domain: "rooms" });
-  } else if (S.sel && S.sel.kind === "wall") {
-    selectionName = t("wallId", { id: S.sel.ref.id });
-    selectionDetail = hudFmt(wallLen(S.sel.ref), { domain: "rooms" });
-  } else if (S.sel && S.sel.kind === "item" && S.sel.ref) {
-    selectionName = S.sel.ref.name || flabel(S.sel.ref.type);
-    selectionDetail = hudFmt(S.sel.ref.w, { domain: "furniture" }) + " × " + hudFmt(S.sel.ref.d, { domain: "furniture" });
-  } else if (S.sel && S.sel.kind === "opening" && S.sel.ref) {
-    selectionName = S.sel.ref.name || t(S.sel.ref.type === "door" ? "door" : S.sel.ref.type === "passage" ? "passage" : "window");
-    selectionDetail = hudFmt(S.sel.ref.w || S.sel.ref.width || 0, { domain: "openings" }) + " × " +
-      hudFmt(S.sel.ref.h || S.sel.ref.height || 0, { domain: "openings" });
-  } else if (S.sel && S.sel.kind === "room") {
-    selectionName = roomName(S.sel.ref) || t("room");
-  } else if (S.sel && S.sel.kind === "marker" && S.sel.ref) {
-    selectionName = S.sel.ref.name || t("mk_points");
-  } else if (S.sel && S.sel.kind === "node") {
-    selectionName = t("nd_title");
-  } else if (S.sel && S.sel.kind === "items") {
-    selectionName = t("cad_nsel", { n: S.sel.refs.length });
+  } else if (S.sel) {
+    var ro = selectionReadout(S.sel, function (cm, domain) { return hudFmt(cm, { domain: domain }); }, wallLen);
+    selectionName = ro.name;
+    selectionDetail = ro.detail;
   }
   main = selectionName ? selectionName + (selectionDetail ? " · " + selectionDetail : "") : main;
   lastMain = setText(elName, selectionName || main, lastMain);

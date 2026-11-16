@@ -207,6 +207,10 @@ function applyPlanOpTo(op, st) {
       if (op.hold != null) it.hold = JSON.parse(JSON.stringify(op.hold));
       else delete it.hold;
     }
+    if (Object.prototype.hasOwnProperty.call(op, "keep")) {
+      if (Array.isArray(op.keep) && op.keep.length) it.keep = JSON.parse(JSON.stringify(op.keep.slice(0, 3)));
+      else delete it.keep;
+    }
     if (Object.prototype.hasOwnProperty.call(op, "rotUser")) {
       if (op.rotUser != null) it.rotUser = op.rotUser;
       else delete it.rotUser;
@@ -336,6 +340,7 @@ export function itemMovePlanOp(item) {
     elev: item.elev == null ? null : item.elev,
     on: item.on == null ? null : item.on,
     hold: item.hold == null ? null : JSON.parse(JSON.stringify(item.hold)),
+    keep: Array.isArray(item.keep) && item.keep.length ? JSON.parse(JSON.stringify(item.keep)) : null,
     rotUser: item.rotUser == null ? null : item.rotUser };
 }
 

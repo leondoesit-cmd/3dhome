@@ -6,7 +6,7 @@
  * control, action or command that already does the work, and runProBinding()
  * only reaches it — so the ribbon, the rail, the phone sheet, search and the
  * AI helper can never disagree about what a tool does. */
-import { PRO_CATALOG, PRO_EDITORS, parseBinding, proTools, proLabel, matchTools } from "./pro_catalog.js";
+import { PRO_CATALOG, PRO_EDITORS, parseBinding, proTools, proLabel, matchTools, groupOnRibbon, ribbonTabForPreset } from "./pro_catalog.js";
 import { pushRecent } from "./compact_head.js";
 import { getLang, onLangChange } from "./i18n.js";
 import { askAgent } from "./agent_launch.js";
@@ -372,7 +372,7 @@ function fillRibbon(host, editor, tabIndex, key) {
   body.setAttribute("aria-label", L(tabs[i][0]));
   body.innerHTML = "";
   closeFoldMenu();
-  tabs[i][1].forEach(function (group) {
+  tabs[i][1].filter(groupOnRibbon).forEach(function (group) {
     var g = document.createElement("div");
     g.className = "pr-group";
     g._proGroup = group;
@@ -793,6 +793,13 @@ function buildRibbon() {
   ribbon.querySelector(".pr-collapse").addEventListener("click", function () { setCollapsed(!ribbon.classList.contains("collapsed")); });
   ribbon.querySelector(".pr-every").addEventListener("click", openToolSearch);
   renderGroups(+(store(LS_TAB) || 0));
+  // a layer preset brings its own tab forward (js/pro_catalog.js ribbonTabForPreset)
+  window.addEventListener("layers:preset", function (e) {
+    var on = ribbon && ribbon.querySelector(".pr-tab.on"), cur = on ? tabs[+on.dataset.proTab] : null;
+    var next = ribbonTabForPreset(e.detail && e.detail.id, cur && cur[0]);
+    var i = next ? tabs.findIndex(function (t) { return t[0] === next; }) : -1;
+    if (i >= 0) renderGroups(i);
+  });
   setCollapsed(store(LS_COLLAPSED) === "1");
   watchRibbonFit(ribbon);
   document.body.classList.add("pro-ribbon-on");

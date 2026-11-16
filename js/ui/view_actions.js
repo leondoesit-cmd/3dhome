@@ -12,6 +12,7 @@ import { S } from "../state.js";
 import { openLibraryPicker } from "../ui_libpick.js";
 import { fillProps, select } from "../ui_props.js";
 import { refreshTree } from "../ui_tree.js";
+import { placeCardBy, followTrigger } from "../anchored_card.js";
 import { addFurnItem, flash, initDrawingPanel, lavaModule, loadLavaModule, loadRCModule, loadZombieModule, rcModule, setCutaway, setEdit3D, setPlanStyle, syncWalkView, zombieModule } from "../ui.js";
 import { frameView, rebuild3D, toggleDrawing3D, toggleFreeMove, toggleWalk, toggleWalkView } from "../view3d.js";
 import { uiLocals } from "./ui_locals.js";
@@ -106,7 +107,10 @@ async function runViewAction(act, ev) {
     button.classList.toggle("active", on);
     button.setAttribute("aria-pressed", String(on));
     initDrawingPanel();
-    document.getElementById("drawing3dPanel").hidden = !on;
+    const panel = document.getElementById("drawing3dPanel");
+    panel.hidden = !on;
+    // the card opens by its button, clamped to the 3D view, and follows a resize
+    if (on) { placeCardBy(panel, button); followTrigger(panel, button); }
   } else if (act === "viewPlan") {
     if (typeof window.__setViewMode === "function") window.__setViewMode("plan");
     try { localStorage.setItem("home3d_viewmode", "plan"); } catch (_) {}

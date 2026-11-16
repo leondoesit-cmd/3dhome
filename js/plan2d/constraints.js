@@ -266,6 +266,7 @@ function label(wx_, wz_, txt, color, big) {
   pc.fillStyle = color;
   pc.fillText(txt, x, y + 0.5);
   pc.restore();
+  return { x: at.x, y: at.y, w: w, h: h }; // its true-screen box (clickable pills, js/keep_paint.js)
 }
 
 /* A dimension's number set ALONG its line, the drafting convention: text

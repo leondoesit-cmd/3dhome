@@ -18,6 +18,7 @@ import {
   STD,
 } from "./cabinet.js";
 import { api, E, T, isEn, AXES, sp, formatCm } from "./ui_cabinet_ctx.js";
+import { legibleInk } from "./core/color_science.js";
 import { displayUnit, toDisp, fromDisp, fmtLen, parseLen } from "./display_units.js";
 import { sizeEntryChanged } from "./cabinet_layout_ops.js";
 
@@ -139,7 +140,7 @@ export function syncHint() {
     E.mode === "3d" ? T(cmp ? "hint3dT" : "hint3d")
       : E.axis !== "front" ? T("hintRO")
       : E.tool ? T(E.tool === "vwall" ? "hintV" : E.tool === "hwall" ? (cmp ? "hintHT" : "hintH") : "hintErase")
-      : T(cmp ? "hintT" : "hint");
+      : T(cmp ? "hintT" : E.split ? "hintSplit" : "hint");
 }
 
 export function syncViewPreferences() {
@@ -638,7 +639,7 @@ export function draw() {
   var line = css("--border-color", "#c9ced4"),
     txt = css("--text-main", "#20242a"),
     muted = css("--text-muted", "#7b838c"),
-    accent = css("--accent", "#3b82f6");
+    accent = css("--accent", "#3b82f6"), paper = css("--bg-canvas-2d", "#ffffff");
 
   // carcass body — a floating run has none, so its extent is only indicated
   var floating = L.sp.carcass === "float";
@@ -739,9 +740,10 @@ export function draw() {
       if (h > 22 && w > 44) {
         c.fillStyle = txt;
         c.fillText(secLabel(cell.ref.t), x + w / 2, y + h / 2 - 7);
-        c.fillStyle = muted;
+        // the height sub-label: none on the thumbnail (neighbours ran together), an ink that reads on its fill
+        c.fillStyle = legibleInk([paper, "rgba(140,120,90,0.10)", cell.floatShelf ? null : m.col + "8c"], [muted, txt]);
         c.font = "500 10px Inter, Rubik, sans-serif";
-        c.fillText(dimLen(cell.y1 - cell.y0, true), x + w / 2, y + h / 2 + 7);
+        if (!E.thumbPass) c.fillText(dimLen(cell.y1 - cell.y0, true), x + w / 2, y + h / 2 + 7);
         c.font = "600 11px Inter, Rubik, sans-serif";
       }
     });

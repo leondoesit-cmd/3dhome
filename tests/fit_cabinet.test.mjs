@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { dockSide, findWallGap, fitCabinetBox, fitFootprint, frameCabinetOrbit, gapCoord, rotFacing } from "../js/fit_cabinet.js";
+import { dockSide, findWallGap, fitAreaBox, fitCabinetBox, fitFootprint, frameCabinetOrbit, gapCoord, rotFacing } from "../js/fit_cabinet.js";
 
 // A 400 x 300 room (inner faces at 5/395 and 5/295 with 10 cm walls on the axes).
 function room() {
@@ -198,4 +198,108 @@ test("a wall half a degree off square: the unit's back stays on the face", funct
     var q = (p.x - gap.frame.ox) * gap.frame.nx + (p.z - gap.frame.oz) * gap.frame.nz;
     near(q, 0, 0.1, "back corner off the face by");
   });
+});
+
+// ---- fitAreaBox: an area drawn on the floor or on a wall --------------------
+
+test("area on the floor, away from every wall: the box as drawn, front toward `facing`", function () {
+  var r = fitAreaBox("floor", { a: { x: 150, z: 100 }, b: { x: 250, z: 160 } }, room(), [], { facing: { x: 0, z: 1 } });
+  assert.equal(r.ok, true); assert.equal(r.wall, null); assert.equal(r.mount, "floor");
+  near(r.x, 200); near(r.z, 130); near(r.w, 100); near(r.d, 60); near(r.h, 240); assert.equal(r.elev, 0);
+  assert.equal(r.rot, 0);
+  // a hint square to the long side no longer turns the unit (it used to give
+  // w 60 / d 100): the long side stays the width, the tie goes to the drag start
+  var side = fitAreaBox("floor", { a: { x: 150, z: 100 }, b: { x: 250, z: 160 } }, room(), [], { facing: { x: -1, z: 0 } });
+  assert.equal(side.rot, 180); near(side.w, 100); near(side.d, 60);
+  // near-square: the hint alone picks the axis
+  var sq = fitAreaBox("floor", { a: { x: 150, z: 100 }, b: { x: 210, z: 158 } }, room(), [], { facing: { x: -1, z: 0 } });
+  assert.equal(sq.rot, 90); near(sq.w, 58); near(sq.d, 60);
+});
+
+test("free-standing floor box: the longer side is the width, the front toward the hint", function () {
+  var r = fitAreaBox("floor", { a: { x: 0, z: 0 }, b: { x: 160, z: 55 } }, [], [], {});
+  assert.equal(r.ok, true); near(r.w, 160); near(r.d, 55); assert.equal(r.rot, 180); // toward the drag start
+  var toward = fitAreaBox("floor", { a: { x: 0, z: 0 }, b: { x: 160, z: 55 } }, [], [], { facing: { x: 0.3, z: 1 } });
+  near(toward.w, 160); near(toward.d, 55); assert.equal(toward.rot, 0);
+  var tallBox = fitAreaBox("floor", { a: { x: 0, z: 0 }, b: { x: 55, z: 160 } }, [], [], { facing: { x: 1, z: 0.2 } });
+  near(tallBox.w, 160); near(tallBox.d, 55); assert.equal(tallBox.rot, 270);
+});
+
+test("area on the floor near one wall: pulled flush, back to that wall, as tall as it", function () {
+  var r = fitAreaBox("floor", { a: { x: 110, z: 15 }, b: { x: 250, z: 70 } }, room(), [], {});
+  assert.equal(r.ok, true); assert.equal(r.wall, "w0");
+  near(r.w, 140); near(r.d, 65); near(r.x, 180); near(r.z, 37.5); near(r.h, 260);
+  assert.equal(r.rot, 0); // front faces into the room (+z)
+  var foot = fitFootprint(r, r); // the result doubles as a gap for the previews
+  near(foot[0].z, 5); near(foot[1].z, 5); near(foot[2].z, 70);
+});
+
+test("area on the floor in a corner: flush to both, back to the longer contact", function () {
+  var r = fitAreaBox("floor", { a: { x: 15, z: 12 }, b: { x: 200, z: 70 } }, room(), [], {});
+  assert.equal(r.ok, true); assert.equal(r.wall, "w0");
+  assert.deepEqual(r.flush.slice().sort(), ["w0", "w3"]);
+  near(r.w, 195); near(r.d, 65); near(r.x, 102.5); near(r.z, 37.5);
+  var tall = fitAreaBox("floor", { a: { x: 12, z: 15 }, b: { x: 70, z: 200 } }, room(), [], {});
+  assert.equal(tall.wall, "w3"); assert.equal(tall.rot, 270); // back on x = 5, front toward +x
+  near(tall.w, 195); near(tall.d, 65);
+});
+
+test("area on the floor drawn across a wall is clipped on the side it started", function () {
+  var walls = room();
+  walls.push({ id: "mid", a: { x: 200, z: 0 }, b: { x: 200, z: 300 }, t: 10, h: 250 });
+  var r = fitAreaBox("floor", { a: { x: 100, z: 100 }, b: { x: 300, z: 160 } }, walls, [], {});
+  assert.equal(r.ok, true); assert.equal(r.wall, "mid");
+  assert.equal(r.rot, 90); // back on the partition's west face, front toward -x
+  near(r.w, 60); near(r.d, 95); near(r.x, 147.5); near(r.z, 130); near(r.h, 250);
+  var east = fitAreaBox("floor", { a: { x: 300, z: 100 }, b: { x: 100, z: 160 } }, walls, [], {});
+  near(east.x, 252.5); assert.equal(east.rot, 270);
+});
+
+test("area on the floor too small is refused; over the maximum it is cut to the limits", function () {
+  var small = fitAreaBox("floor", { a: { x: 100, z: 100 }, b: { x: 120, z: 121 } }, room(), [], { facing: { x: 0, z: 1 } });
+  assert.deepEqual([small.ok, small.reason], [false, "too-narrow"]);
+  var shallow = fitAreaBox("floor", { a: { x: 100, z: 100 }, b: { x: 200, z: 110 } }, room(), [], { facing: { x: 0, z: 1 } });
+  assert.deepEqual([shallow.ok, shallow.reason], [false, "too-shallow"]);
+  var long = fitAreaBox("floor", { a: { x: 0, z: 0 }, b: { x: 800, z: 50 } }, [], [], { facing: { x: 0, z: 1 } });
+  assert.equal(long.ok, true); near(long.w, 600); near(long.x, 300); // kept from where the drag started
+  // (was a 100 x 200 box: its long side is now the width, so it is not too deep)
+  var deep = fitAreaBox("floor", { a: { x: 0, z: 0 }, b: { x: 300, z: 200 } }, [], [], { facing: { x: 0, z: 1 } });
+  near(deep.d, 120); near(deep.z, 60); near(deep.w, 300); // the back (z = 0) kept, the front cut
+});
+
+test("area on a wall from the floor: a floor-standing unit, 60 deep", function () {
+  var r = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, s0: 100, s1: 200, y0: 3, y1: 90 }, room(), [], {});
+  assert.equal(r.ok, true); assert.equal(r.mount, "floor"); assert.equal(r.wall, "w0");
+  near(r.x, 150); near(r.z, 35); near(r.w, 100); near(r.d, 60); near(r.h, 90); assert.equal(r.elev, 0);
+  assert.equal(r.rot, 0);
+});
+
+test("area on a wall from floor to ceiling: a full-height unit", function () {
+  var r = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, s0: 200, s1: 100, y0: 255, y1: 0 }, room(), [], {});
+  assert.equal(r.mount, "full"); near(r.h, 260); assert.equal(r.elev, 0); near(r.w, 100);
+  // s measured from the press point when one is given (gapCoord units)
+  var picked = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, pick: { x: 150, z: 40 }, s0: -50, s1: 50, y0: 0, y1: 255 }, room(), [], {});
+  near(picked.x, 150); near(picked.w, 100);
+});
+
+test("area on a wall in the air: a hung unit at its bottom, 35 deep", function () {
+  var r = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, s0: 100, s1: 200, y0: 140, y1: 210 }, room(), [], {});
+  assert.equal(r.mount, "hung"); assert.equal(r.elev, 140); near(r.h, 70); near(r.d, 35); near(r.z, 22.5);
+  var tooLow = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, s0: 100, s1: 200, y0: 140, y1: 150 }, room(), [], {});
+  assert.deepEqual([tooLow.ok, tooLow.reason], [false, "too-short"]);
+  var narrow = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, s0: 100, s1: 115, y0: 0, y1: 200 }, room(), [], {});
+  assert.deepEqual([narrow.ok, narrow.reason], [false, "too-narrow"]);
+});
+
+test("area on a wall over a window: a hung unit above it fits, a tall one in front of it does not", function () {
+  var win = [{ wall: "w0", s: 200, width: 100, sill: 90, height: 120, type: "window" }]; // 150..250, 90..210
+  var above = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, s0: 150, s1: 250, y0: 215, y1: 255 }, room(), win, {});
+  assert.equal(above.ok, true); assert.equal(above.mount, "hung"); assert.equal(above.elev, 215); near(above.h, 45); near(above.w, 100);
+  var below = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, s0: 150, s1: 250, y0: 0, y1: 80 }, room(), win, {});
+  assert.equal(below.ok, true); near(below.w, 100);
+  var tall = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, s0: 150, s1: 250, y0: 0, y1: 200 }, room(), win, {});
+  assert.deepEqual([tall.ok, tall.reason], [false, "opening"]);
+  // a tall box beside the window stops at its edge
+  var beside = fitAreaBox("wall", { wallId: "w0", side: { x: 0, z: 1 }, s0: 60, s1: 180, y0: 0, y1: 200 }, room(), win, {});
+  assert.equal(beside.ok, true); near(beside.w, 90); near(beside.x, 105);
 });

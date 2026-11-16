@@ -18,6 +18,7 @@ import { rotateItems } from "../interaction/view3d_edit.js";
 import { agentCommandEnvironment, deleteSel, endConPick } from "../interaction/wall_edit.js";
 import { snapWallPoint } from "../interaction/wall_snap.js";
 import { reseatHeldItems } from "../item_align.js";
+import { reseatKeptItems } from "../item_keep_edit.js";
 import { markManualRot, rotStep } from "../item_orient.js";
 import { markerItem, moveMarker, releaseIfMoved } from "../markers.js";
 import { cancelRoute, ensureMEP } from "../mep.js";
@@ -35,6 +36,41 @@ import { solveWallCons } from "../wall_constraints.js";
 import {
   dropDragProxy, endSnapSession, interactionLocals, isElevation,
 } from "../interaction.js";
+
+/* What Escape does to the plan: end or drop the draft in hand, else put the
+   tool down. Exported so the 3D pane's Cancel button (js/build3d_ui.js) runs
+   exactly the keyboard's path. */
+export function escapePlanDraft() {
+  // Esc during a live drag abandons the gesture's selection while the
+  // pointer is still down; the proxy is keyed on objects rather than the
+  // selection, so it would otherwise stay up with nothing driving it.
+  dropDragProxy();
+  var cancelledTutorDraft = !!(S.drawing || S.offsetDraft || S.joinPick || S.arcDraft || S.rectDraft);
+  S.freshWall = null; // "I'm done" ends the just-drawn run too
+  if (S.conPick) endConPick(null);
+  else if (S.drawing) finishDraw();
+  else if (S.offsetDraft) { S.offsetDraft = null; S.previewPt = null; render2D(); }
+  else if (S.joinPick) { S.joinPick = null; render2D(); }
+  else if (S.arcDraft) { S.arcDraft = null; S.previewPt = null; render2D(); }
+  else if (S.rectDraft) { S.rectDraft = null; S.previewPt = null; setTool("select"); }
+  else if (S.roomStamp) { disarmRoomStamp(); S.previewPt = null; setTool("select"); }
+  else if (S.placeType) {
+    S.placeType = null;
+    S.previewPt = null;
+    window.dispatchEvent(new CustomEvent("planner-place"));
+  }
+  else if (S.tool === "mepRoute" && ensureMEP().route) cancelRoute();
+  else if (S.tool && S.tool.indexOf("mep") === 0) setTool("select");
+  else if (S.tool === "point" || S.tool === "slabvoid") setTool("select");
+  else {
+    // Esc always lands you back on the select tool, not just deselected —
+    // "I'm done with this" means done with the tool too.
+    select(null);
+    if (S.tool !== "select") setTool("select");
+  }
+  render2D();
+  if (cancelledTutorDraft) window.dispatchEvent(new CustomEvent("planner-draft-cancel"));
+}
 
 // lifted out of initInteraction()
 function wireLongPressAndPointerUp() {
@@ -352,7 +388,7 @@ function wireLongPressAndPointerUp() {
       /* Held pieces follow the walls they are held against, and they follow
          AFTER the dimensions have settled — re-seating against a wall that is
          still about to move would just have to be redone. */
-      if (reseatHeldItems()) S.dirty3D = true;
+      if (reseatHeldItems() + reseatKeptItems().length) S.dirty3D = true; // held, then kept (js/item_keep_edit.js)
       if (settle.unresolved) flash(t("wc_unresolved", { n: settle.unresolved }), "error");
     }
     S.conOverride = false;
@@ -546,35 +582,7 @@ function wirePlanListeners() {
     if (hudKeydown(e)) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return; // Ctrl-combos handled in ui.js
     if (e.key === "Escape") {
-      // Esc during a live drag abandons the gesture's selection while the
-      // pointer is still down; the proxy is keyed on objects rather than the
-      // selection, so it would otherwise stay up with nothing driving it.
-      dropDragProxy();
-      var cancelledTutorDraft = !!(S.drawing || S.offsetDraft || S.joinPick || S.arcDraft || S.rectDraft);
-      S.freshWall = null; // "I'm done" ends the just-drawn run too
-      if (S.conPick) endConPick(null);
-      else if (S.drawing) finishDraw();
-      else if (S.offsetDraft) { S.offsetDraft = null; S.previewPt = null; render2D(); }
-      else if (S.joinPick) { S.joinPick = null; render2D(); }
-      else if (S.arcDraft) { S.arcDraft = null; S.previewPt = null; render2D(); }
-      else if (S.rectDraft) { S.rectDraft = null; S.previewPt = null; setTool("select"); }
-      else if (S.roomStamp) { disarmRoomStamp(); S.previewPt = null; setTool("select"); }
-      else if (S.placeType) {
-        S.placeType = null;
-        S.previewPt = null;
-        window.dispatchEvent(new CustomEvent("planner-place"));
-      }
-      else if (S.tool === "mepRoute" && ensureMEP().route) cancelRoute();
-      else if (S.tool && S.tool.indexOf("mep") === 0) setTool("select");
-      else if (S.tool === "point" || S.tool === "slabvoid") setTool("select");
-      else {
-        // Esc always lands you back on the select tool, not just deselected —
-        // "I'm done with this" means done with the tool too.
-        select(null);
-        if (S.tool !== "select") setTool("select");
-      }
-      render2D();
-      if (cancelledTutorDraft) window.dispatchEvent(new CustomEvent("planner-draft-cancel"));
+      escapePlanDraft();
     } else if (e.key === "Enter" && S.tool === "mepRoute") {
       commitRoute();
     } else if (e.key === "Delete" || e.key === "Backspace") {

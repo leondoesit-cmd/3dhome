@@ -42,7 +42,7 @@ import {
   fillHits, applySearch, fillFamilies, fillPresets, startBlank, fillInspector,
   splitSection, delSection, splitColumn, dupColumn, delColumn, fillLook, fillTechnical,
   fillChecks, saveUserPreset, fillMine, fillHardware, fillBOM, exportBOM,
-  moveColumnBy, moveSectionBy,
+  moveColumnBy, moveSectionBy, openProductionSetup,
 } from "./ui_cabinet_inspect.js";
 import { neighbourSelection } from "./cabinet_layout_ops.js";
 
@@ -86,7 +86,7 @@ function buildDOM() {
     "</div></div>" +
     '<div class="cb-context-bar">' +
     '<div class="cb-control-group cb-size-group"><span class="cb-group-title">' + T("cabinetSize") + '</span>' +
-    '<label class="cb-scope-note">' + T("editScope") + '<select id="cbEditScope" title="' + T("editScope") + '"><option value="instance">' + T("scopeInstance") + '</option><option value="linked">' + T("scopeLinked") + '</option></select></label><div class="cb-dims">' +
+    '<label class="cb-scope-note"><span class="cb-scope-cap">' + T("editScopeShort") + '</span><select id="cbEditScope" title="' + T("editScope") + '" aria-label="' + T("editScope") + '"><option value="instance">' + T("scopeInstance") + '</option><option value="linked">' + T("scopeLinked") + '</option></select></label><div class="cb-dims">' +
     '<label><span>' + T("width") + '</span><span class="cb-number"><input id="cbW" type="number" inputmode="decimal"><em>' + displayUnit("cabinet") + '</em></span></label>' +
     '<label><span>' + T("depth") + '</span><span class="cb-number"><input id="cbD" type="number" inputmode="decimal"><em>' + displayUnit("cabinet") + '</em></span></label>' +
     '<label><span>' + T("height") + '</span><span class="cb-number"><input id="cbH" type="number" inputmode="decimal"><em>' + displayUnit("cabinet") + '</em></span></label>' +
@@ -1020,7 +1020,7 @@ function changed(refit, propagate) {
   fillChecks();
   fillBOM();
   var sub = E.host.querySelector("#cbSub");
-  if (sub) sub.textContent = cabSummary(E.it);
+  if (sub) sub.textContent = sub.title = cabSummary(E.it); // ellipsised: the tooltip has it whole
   fillIdCard();
   fillStatusBar();
   syncSessionStatus();
@@ -1043,7 +1043,7 @@ function fillStatusBar() {
   var s = specOf(E.it), parts = [];
   var preset = cabinetProductionPreset(s.productionConvention && s.productionConvention.presetId);
   parts.push(preset ? (isEn() ? preset.label : preset.labelHe) : T("statusNoConvention"));
-  parts.push(displayUnit("cabinet"));
+  parts.push(T("statusUnits").replace("{u}", displayUnit("cabinet")));
   if (s.panel > 0) parts.push(T("statusStock").replace("{t}", formatStockMm(s.panel)));
   var stats = null;
   try {
@@ -1059,9 +1059,16 @@ function fillStatusBar() {
   fillProdStats(stats);
   bar.innerHTML = "";
   parts.forEach(function (text, i) {
-    var span = document.createElement("span");
+    var span = document.createElement(i === 0 ? "button" : "span");
     span.textContent = text;
-    if (i === 0 && !preset) span.className = "cb-status-muted";
+    if (i === 0) {
+      // the convention (or its absence) opens the production setup, as the
+      // Technical tab's "Production setup" button does
+      span.type = "button";
+      span.className = "cb-status-conv" + (preset ? "" : " cb-status-muted");
+      span.title = T("openProductionSetup");
+      span.addEventListener("click", openProductionSetup);
+    }
     bar.appendChild(span);
   });
   bar.insertAdjacentHTML("beforeend", aiStatusHTML());
@@ -1094,7 +1101,8 @@ function fillIdCard() {
   var icon = el("span", "cb-idcard-icon", '<i class="ph ph-cube" aria-hidden="true"></i>');
   var text = el("div", "cb-idcard-text");
   text.appendChild(el("b", null, famLabel(s.fam) + " " + formatCabinetDimension(E.it.w, displayUnit("cabinet")) + " " + displayUnit("cabinet")));
-  text.appendChild(el("span", null, cabSummary(E.it)));
+  var summary = text.appendChild(el("span", null, cabSummary(E.it)));
+  summary.title = summary.textContent; // ellipsised in the narrow inspector
   box.appendChild(icon);
   box.appendChild(text);
   if (code) {
@@ -1311,6 +1319,7 @@ registerEditor("cab", {
     else openBlankCabinet();
   },
   isOpen: isCabinetOpen,
+  editing: function () { return E.it; }, // deleting this piece closes the designer first
   leave: function () { closeCabinet(); return true; },
   canOpen: function () { return true; },
   why: function () { return T("switchNeedSel"); },

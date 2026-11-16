@@ -107,6 +107,46 @@ export function isLayerLocked(id) {
   return !!L && !!L.locked;
 }
 
+/* `autoLock` is the only field in the layer record that this module stores
+   but never reads — it is a UI policy, not a permission: a layer that opted in
+   is locked exactly while it is not the work set. Run on every work-set change,
+   including the ones the tool triggers. */
+export function applyAutoLock() {
+  LAYER_IDS.forEach(function (id) {
+    var L = layerState(id);
+    if (!L || !L.autoLock) return;
+    L.locked = !(S.workSet === id || S.workSet === "all");
+  });
+}
+
+/* Make `id` the work set. A hidden layer is shown on the way: editing a layer
+   you cannot see is never what was meant. A faded one stays faded — that is a
+   look the user chose, and faded layers still draw. */
+export function setWorkLayer(id) {
+  S.workSet = id;
+  var L = layerState(id);
+  if (L && L.vis === "hide") L.vis = "show";
+  applyAutoLock();
+}
+
+/* A new, empty storey starts with its walls: the pin is cleared and Structure
+   becomes the work set, whatever the last storey was being worked on. */
+export function workSetForNewFloor() {
+  S.workSetPinned = false;
+  setWorkLayer("structure");
+  saveLayers();
+}
+
+/* What is left of a selection once its layer may have been hidden: null when
+   it lives on a hidden layer, the selection itself otherwise. Only "hide"
+   drops it; a faded layer stays selectable by design. A multi-selection is one
+   kind, so it is on one layer. */
+export function selectionAfterHide(sel) {
+  if (!sel) return sel;
+  var id = layerOf(sel.kind);
+  return id && isLayerHidden(id) ? null : sel;
+}
+
 /* 0 focused / 1 visible-but-not-focused / Infinity unreachable.
 
    `pickOverride` is checked before anything else, in both directions: it is

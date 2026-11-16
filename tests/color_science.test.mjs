@@ -23,6 +23,7 @@ import {
   rgbToLab,
   deltaE76,
   simulateCVD,
+  legibleInk,
 } from "../js/core/color_science.js";
 
 test("color parsing & formatting: handles hex, rgb, rgba, hsl, hsla, and named colors", () => {
@@ -231,4 +232,27 @@ test("CSS theme system tokens meet WCAG 2.1 AA contrast requirements across all 
       `Theme [${theme}] danger and success are perceptually distinct`
     );
   }
+});
+
+test("legibleInk: the cabinet front's height sub-label picks an ink that reads on its fill", () => {
+  const dark = { paper: "#1b1f24", muted: "#8b939c", main: "#e8ebee" };
+  const light = { paper: "#ffffff", muted: "#7b838c", main: "#20242a" };
+  // a translucent safe-grey fill on the light theme: muted fails, the main ink reads
+  const onLight = legibleInk([light.paper, "rgba(140,120,90,0.10)", "#8d9298" + "8c"], [light.muted, light.main]);
+  assert.equal(onLight, light.main);
+  // a pale fill over the dark canvas: whichever ink reaches 4.5:1
+  const layers = [dark.paper, "rgba(140,120,90,0.10)", "#dda06a8c"];
+  const ink = legibleInk(layers, [dark.muted, dark.main]);
+  const bg = compositeStack(layers.map((c) => parseColor(c)));
+  assert.ok(contrastRatio(ink, bg) >= 4.5 || ink === "#000000" || ink === "#ffffff");
+  // the first ink that passes wins; when none does, black or white
+  assert.equal(legibleInk(["#ffffff"], ["#111111", "#222222"]), "#111111");
+  assert.equal(legibleInk(["#808080"], ["#7f7f7f"]), "#000000");
+  assert.equal(legibleInk(["#202020"], ["#252525"]), "#ffffff");
+});
+
+test("the cabinet thumbnail draws no height sub-labels; the main view inks them by contrast", () => {
+  const view = fs.readFileSync(new URL("../js/ui_cabinet_view.js", import.meta.url), "utf8");
+  assert.match(view, /c\.fillStyle = legibleInk\(\[paper, "rgba\(140,120,90,0\.10\)", cell\.floatShelf \? null : m\.col \+ "8c"\], \[muted, txt\]\);/);
+  assert.match(view, /if \(!E\.thumbPass\) c\.fillText\(dimLen\(cell\.y1 - cell\.y0, true\)/);
 });

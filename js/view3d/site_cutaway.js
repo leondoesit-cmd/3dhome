@@ -1,7 +1,7 @@
 /* The 3D view's geometry helpers for the garden/site dressing, the dollhouse
    cutaway and shadow-only walls, split out of js/view3d.js. It shares the
    editor's state through live imports from ../view3d.js. */
-import { faceShiftAt, straightThroughAt, tJoinStep, wallGeom, wallJoinRole, wallSolidAtNode } from "../geometry.js";
+import { faceShiftAt, straightThroughAt, tJoinStep, wallGeom, wallSolidAtNode } from "../geometry.js";
 import { legacyTextureUrl, pbrEntryFor, sharedRepeat } from "../pbr_material.js";
 import { box } from "../primitives.js";
 import { GLASS, HANDLE, MAT_PROPS, S, WALLC, WOOD, clamp } from "../state.js";
@@ -213,21 +213,12 @@ function buildStraightWall(w, col, tex) {
     // This prevents the "vanishing walls" bug where parallel/near walls get incorrectly 
     // truncated by the distance threshold.
     var nodeId = isStart ? w.a : w.b;
-    var mt = 0,
-      endWalls = [w];
-    S.walls.forEach(function (ow) {
-      if (ow === w || !wallSolidAtNode(ow, nodeId)) return;
-      if (ow.a === nodeId || ow.b === nodeId) {
-        mt = Math.max(mt, ow.thickness);
-        endWalls.push(ow);
-      }
+    var joined = S.walls.some(function (ow) {
+      return ow !== w && (ow.a === nodeId || ow.b === nodeId) && wallSolidAtNode(ow, nodeId);
     });
     // free end: nothing joins here, or what does has an opening across the joint
     // and so was never built there (see wallSolidAtNode)
-    if (mt === 0) return isStart ? 0 : L;
-    var manualJoin = w.join && w.join[isStart ? "a" : "b"];
-    if (manualJoin === "through") return isStart ? -mt / 2 - 0.1 : L + mt / 2 + 0.1;
-    if (manualJoin === "butt") return isStart ? mt / 2 - 0.1 : L - mt / 2 + 0.1;
+    if (!joined) return isStart ? 0 : L;
     /* Anything running straight back out of this node is one physical straight
        run stored as two walls, not a corner: a wall split by a newly landed
        branch, or simply two walls drawn end to end. There is no mitre for these
@@ -242,27 +233,21 @@ function buildStraightWall(w, col, tex) {
        opened the same mismatch out into a triangular spike. */
     if (straightThroughAt(nodeId, isStart ? gm.ux : -gm.ux, isStart ? gm.uz : -gm.uz, w))
       return isStart ? 0 : L;
-    /* A T-branch must stop at the through-run's NEAR face, not at half the
-       neighbour's thickness. After the run is hung on its interior that face
-       sits on the shared node, so mt/2 left a one-thickness gap of daylight
-       between the branch and the wall it is welded to. */
-    if (wallJoinRole(w, nodeId) === "branch") {
-      var bx = isStart ? gm.ux : -gm.ux,
-        bz = isStart ? gm.uz : -gm.uz,
-        bh = T / 2,
-        btp = faceShiftAt(nodeId, bx, bz, isStart ? 1 : -1, w, bh),
-        btm = faceShiftAt(nodeId, bx, bz, isStart ? -1 : 1, w, bh),
-        bNear = Math.min(btp, btm);
-      return isStart ? bNear - 0.1 : L - bNear + 0.1;
-    }
-    // At a corner, pick one deterministic "through" wall to span it (lowest id).
-    endWalls.sort(function (a, b) { return a.id - b.id; });
-    var throughWall = endWalls[0];
-    var isThrough = throughWall.id === w.id;
-
-    // add 0.1 (1mm) overlap to all connections to perfectly seal MSAA rasterization cracks
-    if (isStart) return isThrough ? -mt / 2 - 0.1 : mt / 2 - 0.1;
-    else return isThrough ? L + mt / 2 + 0.1 : L - mt / 2 + 0.1;
+    /* Every other end is cut where the plan outline cuts it (faceShiftAt):
+       a T-branch at the through-run's NEAR face (not half the neighbour's
+       thickness, which left daylight once the run hangs on its interior), a
+       two-wall corner by the junction rule (js/wall_junctions.js: the owner
+       spans it, the other wall butts, the same assembly wraps), so plan and
+       3D agree. The extrusion runs to the face reaching furthest; endMitre
+       below shears the end onto the cut line. 0.1 (1 mm) of overlap seals
+       MSAA cracks. */
+    var bx = isStart ? gm.ux : -gm.ux,
+      bz = isStart ? gm.uz : -gm.uz,
+      bh = T / 2,
+      btp = faceShiftAt(nodeId, bx, bz, isStart ? 1 : -1, w, bh),
+      btm = faceShiftAt(nodeId, bx, bz, isStart ? -1 : 1, w, bh),
+      bNear = Math.min(btp, btm);
+    return isStart ? bNear - 0.1 : L - bNear + 0.1;
   }
 
   var startCursor = getCursor(true);

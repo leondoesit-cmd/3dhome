@@ -33,6 +33,18 @@ export function currentViewMode() {
   return viewModeOf(cc && cc.classList, !!(S.cutaway && S.cutaway.on));
 }
 
+/* The tab title names the view: "<brand> · <view>"; the brand alone when no
+   view label is known. */
+export function pageTitle(brand, viewLabel) {
+  return viewLabel ? brand + " · " + viewLabel : brand;
+}
+
+export function syncPageTitle() {
+  const mode = VIEW_MODES.find((m) => m.id === currentViewMode());
+  const next = pageTitle(t("brand"), mode ? mode.label() : "");
+  if (document.title !== next) document.title = next;
+}
+
 function runView(act) {
   if (typeof window.__runAction === "function") window.__runAction(act);
 }

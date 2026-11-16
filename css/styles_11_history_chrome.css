@@ -987,13 +987,18 @@ html:not([data-ui="legacy"]) #left-sidebar[data-left="tree"] > [data-left-pane="
   background: var(--accent);
   color: var(--on-accent);
 }
-/* "show the floor below" (js/planner_chrome.js): an icon toggle after the +,
-   then a short "over Ground floor" while it is on */
+/* "show the floor below" (js/planner_chrome.js): an icon toggle after the +;
+   while it is on the same button also says "over Ground floor" */
 #floor-tabs .floor-ref {
   width: 26px;
   padding: 0;
   margin-inline-start: 2px;
   font-size: 15px;
+}
+#floor-tabs > button.floor-ref.with-note {
+  width: auto;
+  gap: 4px;
+  padding-inline: 6px 8px;
 }
 #floor-tabs .floor-ref.active,
 #floor-tabs .floor-ref[aria-pressed="true"] {
@@ -1001,9 +1006,7 @@ html:not([data-ui="legacy"]) #left-sidebar[data-left="tree"] > [data-left-pane="
   color: var(--accent);
 }
 #floor-tabs .floor-ref-note {
-  padding-inline: 2px 6px;
   font-size: 12px;
-  color: var(--text-muted);
   white-space: nowrap;
 }
 #floor-tabs .floor-ref-note[hidden] {
@@ -1014,6 +1017,10 @@ html:not([data-ui="legacy"]) #left-sidebar[data-left="tree"] > [data-left-pane="
    let it use the free corner on its end side instead. */
 body.compact-nav #floor-tabs .floor-ref-note {
   display: none;
+}
+body.compact-nav #floor-tabs > button.floor-ref.with-note {
+  width: 26px;
+  padding: 0;
 }
 body.compact-nav #floor-tabs {
   inset-inline-end: 8px;
@@ -1043,6 +1050,18 @@ body.compact-nav #floor-tabs {
   text-overflow: ellipsis;
 }
 .plan-hint[hidden] { display: none !important; }
+/* the Draw cabinet tool's hint and family chooser in the plan
+   (js/interaction/fit_cabinet_chooser.js), where #plan-hint stands */
+#view-2d > .fitcab-plan {
+  position: absolute; left: 50%; bottom: calc(38px + var(--plan-hint-lift, 0px)); transform: translateX(-50%); z-index: 12;
+  display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px); box-sizing: border-box;
+  padding: 4px 6px 4px 12px; border-radius: 999px; background: var(--bg-panel); border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md); font-size: 12px; font-weight: 600; color: var(--text-main);
+}
+#view-2d > .fitcab-plan[hidden] { display: none !important; }
+#view-2d > .fitcab-plan .fitcab-plan-hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-2d > .fitcab-plan .fitcab-family { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+#view-2d.plan-narrow > .fitcab-plan .fitcab-plan-hint { display: none; }
 
 .empty-next {
   display: flex;

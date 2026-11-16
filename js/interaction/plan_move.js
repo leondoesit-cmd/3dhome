@@ -8,7 +8,7 @@ import { elevDragItemTo, elevDragOpeningTo, elevDragTo, elevPick, elevationHit }
 import { detectRooms, equalWallAngleTranslation, snapAdj, usedNodes, wallById, wallGeom, wallProject } from "../geometry.js";
 import { commitPending } from "../history.js";
 import { hitItem, hitNode, hitWall, planPickSurface, tolCm, updateWallProbe } from "../interaction/hit_test.js";
-import { auditDragProxy, moveItemTo, weldNodes } from "../interaction/layout_drag.js";
+import { auditDragProxy, groupWallMove, moveItemTo, weldNodes } from "../interaction/layout_drag.js";
 import { itemRotateMove } from "../interaction/item_rotate.js";
 import { dragMEP } from "../interaction/mep_tools.js";
 import { roomOwnWalls, updateRoomGhost } from "../interaction/room_tools.js";
@@ -354,6 +354,7 @@ function wirePlanMove() {
         S.dragOrig.forEach(function(o) { cx += o.x; cz += o.z; });
         cx /= S.dragOrig.length; cz /= S.dragOrig.length;
         var mdx = tarX - cx, mdz = tarZ - cz;
+        var gm = groupWallMove(S.dragOrig, mdx, mdz); mdx = gm.dx; mdz = gm.dz;
         // pieces standing on a dragged piece travel with it — but only once, so
         // a selection holding both a table and the lamp on it stays put
         var movedSet = new Set();

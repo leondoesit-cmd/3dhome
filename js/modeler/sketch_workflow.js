@@ -324,9 +324,12 @@ function beginFacePick(preferredTool) {
 }
 function syncFacePrompt() {
   var prompt=root && root.querySelector("#mdFacePrompt");
+  var shown=!!(prompt && !prompt.hidden);
   if(prompt)prompt.hidden=!E.facePick;
   var canvas=root && root.querySelector("#mdPrev");
   if(canvas)canvas.style.cursor=E.facePick ? "crosshair" : "";
+  // the coach bar stands aside while the prompt is up and comes back after it
+  if(prompt && shown!==!!E.facePick)syncCoach();
 }
 function cancelFacePick(openPicker) {
   var tool=E.facePick && E.facePick.tool || null;

@@ -308,3 +308,15 @@ test("a storey scene never contains the storey list", async () => {
   assert.equal(saved.includes("xxxxx"), false, "no storey scene rode along in the document");
   assert.ok(saved.length < 1000, "an empty plan exports as an empty plan (" + saved.length + " bytes)");
 });
+
+test("the reference-floor note is part of its toggle, not a span beside it", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
+  const tabs = sourceFunctionText(chrome, "renderFloorTabs");
+  assert.match(tabs, /ref\.innerHTML = '<i class="ph ph-stack" aria-hidden="true"><\/i><span class="floor-ref-note" hidden><\/span>';/);
+  assert.doesNotMatch(tabs, /note\.className = "floor-ref-note"/);
+  const sync = sourceFunctionText(chrome, "syncFloorRefToggle");
+  assert.match(sync, /var note = btn\.querySelector\("\.floor-ref-note"\);/);
+  assert.match(sync, /btn\.setAttribute\("aria-pressed", pressed\)/);
+  assert.match(sync, /btn\.classList\.toggle\("with-note", !!text\);/);
+});

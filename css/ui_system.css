@@ -427,6 +427,137 @@ html body.pro-skin #view-3d > .planner-navigation.pn-icons > button span { displ
 /* the first-use hint stands above the toolbar */
 html body.pro-skin.ps-plan-docked #center-canvas.max-view-3d #view-3d > .hint { bottom: 62px; }
 
+/* ---- 8b. building in the 3D view (js/build3d_ui.js) ------------------------------
+   One stack, centred over the navigation bar: the chain strip (Finish / Undo
+   point / Cancel, or Design) just above the bar, the hint chip (the tool and
+   its next step) above the strip, the Preview popover above the strip as
+   well. --b3d-bottom is the bar's top edge in each layout and --b3d-step one
+   strip's height, so none of them covers another. The chip says what the
+   plan's own #plan-hint says (plus the tool's name), so that one stands down
+   in 3D while the chip is up. */
+#view-3d { --b3d-bottom: 86px; --b3d-step: 48px; }
+#center-canvas:not(.max-view-2d):not(.max-view-3d) #view-3d { --b3d-bottom: 54px; }
+html body.pro-skin #view-3d { --b3d-bottom: calc(12px + var(--ui-h) + 14px); }
+body.compact-nav #view-3d { --b3d-bottom: calc(var(--mobile-nav-block, 48px) + var(--m-ctx-reserve, 44px) + 60px); }
+#view-3d > :is(.b3d-chain, .b3d-hint, .b3d-preview-pop)[hidden] { display: none; }
+#view-3d > .b3d-chain {
+  position: absolute;
+  z-index: 16;
+  left: 50%;
+  bottom: var(--b3d-bottom);
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: calc(var(--ui-r, 8px) + 2px);
+  background: var(--ui-float-bg, var(--bg-panel));
+  box-shadow: var(--ui-float-ring, var(--shadow-md));
+}
+#view-3d > .b3d-chain > button,
+#view-3d > .b3d-preview-pop .b3d-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: var(--ui-h, 32px);
+  height: var(--ui-h, 32px);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ui-r-sm, 6px);
+  background: transparent;
+  color: var(--text-main);
+  font-size: var(--ui-fs, 13px);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+#view-3d > .b3d-chain > button[hidden] { display: none; }
+#view-3d > .b3d-chain > button i,
+#view-3d > .b3d-preview-pop .b3d-mode i { font-size: 16px; }
+#view-3d > .b3d-chain > button:hover,
+#view-3d > .b3d-preview-pop .b3d-mode:hover { background: var(--btn-bg-hover); }
+#view-3d > .b3d-chain > :is(.b3d-finish, .b3d-design) { background: var(--accent); color: var(--on-accent, #fff); }
+#view-3d > .b3d-chain > :is(.b3d-finish, .b3d-design):hover { background: var(--accent); filter: brightness(1.08); }
+#view-3d > .b3d-chain > button:focus-visible,
+#view-3d > .b3d-preview-pop :is(button, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#view-3d > .b3d-hint {
+  position: absolute;
+  z-index: 16;
+  left: 50%;
+  bottom: var(--b3d-bottom);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  max-width: min(560px, calc(100% - 24px));
+  min-height: 32px;
+  padding: 3px 12px;
+  border-radius: 16px;
+  background: var(--ui-float-bg, var(--bg-panel));
+  box-shadow: var(--ui-float-ring, var(--shadow-md));
+  color: var(--text-main);
+  font-size: 13px;
+  line-height: 1.3;
+  pointer-events: none;
+}
+#view-3d:has(> .b3d-chain:not([hidden])) > :is(.b3d-hint, .b3d-preview-pop),
+#view-3d:has(> .b3d-hint:not([hidden])) > .b3d-preview-pop { bottom: calc(var(--b3d-bottom) + var(--b3d-step)); }
+#view-3d:has(> .b3d-chain:not([hidden])):has(> .b3d-hint:not([hidden])) > .b3d-preview-pop { bottom: calc(var(--b3d-bottom) + 2 * var(--b3d-step)); }
+#view-3d:has(> .b3d-hint:not([hidden])) #plan-hint { display: none !important; }
+/* the first-use navigation bubble stands in the same strip; building has begun */
+#view-3d:has(> :is(.b3d-chain, .b3d-hint):not([hidden])) > .hint { display: none !important; }
+#view-3d > .b3d-hint .b3d-hint-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-3d > .b3d-hint > button { pointer-events: auto; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-main); cursor: pointer; }
+#view-3d > .b3d-hint > button[hidden] { display: none !important; }
+#view-3d > .b3d-hint > button span { display: none; }
+#view-3d > .b3d-preview-pop {
+  position: absolute;
+  z-index: 17;
+  left: 50%;
+  bottom: var(--b3d-bottom);
+  max-width: calc(100% - 24px);
+  box-sizing: border-box;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--ui-r-lg, 12px);
+  background: var(--ui-float-bg, var(--bg-panel));
+  box-shadow: var(--ui-float-ring, var(--shadow-md)), 0 8px 24px rgba(16, 21, 34, 0.16);
+}
+#view-3d > .b3d-preview-pop .b3d-seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--ui-r, 8px); background: var(--btn-bg); }
+#view-3d > .b3d-preview-pop .b3d-mode[aria-pressed="true"] { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); box-shadow: var(--ui-on-ring, none); font-weight: 600; }
+#view-3d > .b3d-preview-pop .b3d-opacity { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+#view-3d > .b3d-preview-pop .b3d-opacity[hidden] { display: none; }
+#view-3d > .b3d-preview-pop .b3d-opacity input { flex: 1 1 auto; min-width: 120px; accent-color: var(--accent); }
+#view-3d > .b3d-preview-pop .b3d-opacity output { min-width: 3.2em; text-align: end; font-variant-numeric: tabular-nums; color: var(--text-main); }
+html body.pro-skin #view-3d > .planner-navigation > .pn-preview { order: 5; }
+/* fingers: every control here at least 44px */
+:is(body.pro-compact, body.touch-desk, body.compact-nav) #view-3d > .b3d-chain > button,
+:is(body.pro-compact, body.touch-desk, body.compact-nav) #view-3d > .b3d-preview-pop :is(.b3d-mode, input),
+:is(body.pro-compact, body.touch-desk, body.compact-nav) #view-3d > .b3d-hint .b3d-hint-preview { min-width: 44px; height: 44px; min-height: 44px; }
+:is(body.pro-compact, body.touch-desk, body.compact-nav) #view-3d { --b3d-step: 58px; }
+/* the selection bar (js/build3d_selection.js): the verbs around one selected
+   piece, and a note that a drag moves it */
+#view-3d > .b3d-chain > .b3d-sel-del { color: var(--danger, #dc2626); }
+#view-3d > .b3d-chain > .b3d-sel-onWall[aria-pressed="true"] { background: var(--ui-on-bg, var(--accent-soft)); color: var(--ui-on-fg, var(--accent)); }
+#view-3d > .b3d-chain > .b3d-sel-note { align-self: center; padding: 0 8px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+#view-3d > .b3d-chain > .b3d-sel-note[hidden] { display: none; }
+/* the Draw cabinet family chooser in the hint chip (js/interaction/fit_cabinet_chooser.js) */
+#view-3d > .b3d-hint > .fitcab-family { pointer-events: auto; display: inline-flex; align-items: center; gap: 4px; flex: none; }
+#view-3d > .b3d-hint > .fitcab-family[hidden] { display: none; }
+.fitcab-family select { max-width: 11em; height: 26px; padding: 0 6px; border: 1px solid var(--btn-border, var(--border-color)); border-radius: var(--ui-r-sm, 6px); background: var(--btn-bg, var(--bg-panel)); color: var(--text-main); font: inherit; font-size: 12px; }
+:is(body.pro-compact, body.touch-desk, body.compact-nav) .fitcab-family select { height: 44px; min-height: 44px; font-size: 14px; }
+/* the cabinet designer docked beside the room covers part of this pane:
+   the stack stands over the part left open (js/build3d_selection.js) */
+body.cab-docked #view-3d > :is(.b3d-chain, .b3d-hint, .b3d-preview-pop) { left: var(--b3d-cx, 50%); }
+@media (max-width: 400px) { #view-3d > .b3d-chain > .b3d-sel-note { display: none; } }
+body.zombies-on #view-3d > :is(.b3d-chain, .b3d-hint, .b3d-preview-pop),
+body.lava-on #view-3d > :is(.b3d-chain, .b3d-hint, .b3d-preview-pop),
+body.rc-on #view-3d > :is(.b3d-chain, .b3d-hint, .b3d-preview-pop) { display: none; }
+@media print { #view-3d > :is(.b3d-chain, .b3d-hint, .b3d-preview-pop) { display: none !important; } }
+
 /* ---- 9. the bottom bar's pointer readout -------------------------------------------
    With no pointer over the plan (and always in 3D) it printed a lone "—". It
    keeps its width so the drafting aids do not jump when the pointer arrives. */
@@ -567,3 +698,49 @@ html body.touch-desk .pr-every-panel .pe-tools button { min-height: 44px; }
 html body.touch-desk .pr-every-panel .pe-editors button,
 html body.touch-desk .pr-every-panel .pe-x { min-height: 40px; min-width: 40px; }
 html body.touch-desk #topbar :is(button, .dd-btn) { min-height: 40px; }
+
+/* ---- distance editor (js/distance_edit.js) and kept distances ------------
+   A click on a live distance pill of the selected piece opens a small editor
+   at the pill; the inspector lists the piece's kept distances
+   (js/ui_props/keeps.js). Numbers stay LTR inside Hebrew text. */
+body.dist-pill-hover #plan,
+body.dist-pill-hover #v3d { cursor: pointer !important; }
+.dist-pill-ring {
+  position: fixed; z-index: 60; pointer-events: none; box-sizing: border-box;
+  border: 2px solid var(--accent, #4338ca); border-radius: 8px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #4338ca) 22%, transparent);
+}
+.dist-pop {
+  position: fixed; z-index: 61; direction: ltr; min-width: 190px; max-width: min(280px, calc(100vw - 16px));
+  display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  background: var(--panel, #fff); color: var(--text, #1d2433);
+  border: 1px solid color-mix(in srgb, var(--text, #1d2433) 18%, transparent); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 32, .22); font-size: 13px;
+}
+.dist-pop-row { display: flex; align-items: center; gap: 6px; }
+.dist-pop-input {
+  flex: 1 1 auto; min-width: 0; width: 90px; height: 30px; padding: 0 8px; box-sizing: border-box;
+  font: 600 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; direction: ltr; text-align: right;
+  border: 1px solid color-mix(in srgb, var(--text, #1d2433) 25%, transparent); border-radius: 6px;
+  background: var(--bg-input, var(--panel, #fff)); color: inherit;
+}
+.dist-pop-unit { opacity: .75; font-size: 12px; }
+.dist-pop-ok, .dist-pop-unlock {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px;
+  border-radius: 6px; border: 0; cursor: pointer; font: inherit;
+}
+.dist-pop-ok { background: var(--accent, #4338ca); color: #fff; }
+.dist-pop-unlock { align-self: flex-start; padding: 0 8px; background: color-mix(in srgb, #f17c6b 16%, transparent); color: inherit; }
+.dist-pop-lock { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.dist-pop-msg { display: none; color: #c2410c; font-size: 12px; }
+.dist-pop.has-msg .dist-pop-msg { display: block; }
+body.compact-nav .dist-pop-input, body.compact-nav .dist-pop-ok, body.compact-nav .dist-pop-unlock { height: 44px; min-width: 44px; }
+body.compact-nav .dist-pop-lock { min-height: 44px; }
+.item-keeps { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.item-keeps[hidden] { display: none; }
+.item-keeps-head { font-size: 12px; font-weight: 600; opacity: .8; }
+.item-keeps-row { display: flex; align-items: center; gap: 6px; padding-inline-start: 6px; border-inline-start: 3px solid var(--keep-col, #709fee); }
+.item-keeps-what { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-keeps-val { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; direction: ltr; unicode-bidi: isolate; }
+.item-keeps-unlock { height: 26px; min-width: 26px; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.item-keeps-unlock:hover { background: color-mix(in srgb, #f17c6b 16%, transparent); }

@@ -5,16 +5,22 @@
 import { fmtLen, unitLabel } from "../display_units.js";
 import { ceilingHeight } from "../elevation.js";
 import { flabel, isLamp } from "../furniture.js";
-import { jointInfo, pendingCuts, wallById, wallClearLength, wallCuts, wallDimSide, wallGeom, wallOutline, wallPointAt, wallTangentAt } from "../geometry.js";
+import { jointInfo, pendingCuts, wallById, wallClearLength, wallCuts, wallDimSide, wallGeom, wallPointAt, wallTangentAt } from "../geometry.js";
 import { t } from "../i18n.js";
 import { hitMarker, markerInfo, markerItem, markerLabel, markers } from "../markers.js";
 import { itemCorners, measure4 } from "../measure.js";
+import { liveClearances } from "../measure_cache.js";
+import { beginPaint, pillLabel2D } from "../keep_paint.js";
+import { reachName } from "../wall_plane_strings.js";
+import { labelSpots } from "../clearance.js";
+import { isOnWall } from "../item_orient.js";
 import { isPresentation, planTheme } from "../plan_style.js";
 import { cursors, pruneCursors } from "../plan_sync.js";
 import { niceScaleCm, planRotRad, sx, sz, wx, wz } from "../plan_view.js";
 import { alignedLabel, label } from "../plan2d/constraints.js";
 import { OVERALL_DIM_PX, chainCoveredWall } from "../plan2d/dim_chains.js";
-import { clipOutsideOpenings, traceWallCentre, wallBandPolygon, wallPath } from "../plan2d/walls.js";
+import { clipOutsideOpenings, traceWallCentre, wallPath } from "../plan2d/walls.js";
+import { fillWallBands, inkWall } from "../plan2d/wall_ink_draw.js";
 import { openingCorners, slabOpenings } from "../slab_openings.js";
 import { canvasToneIsDark } from "../plan_grid.js";
 import { voidDisplayName } from "../stair_strings.js";
@@ -539,12 +545,13 @@ function drawOverallDims(bb) {
 // repaint (drawn last), so it's always visible: it follows the cursor over empty
 // floor (point origin) and snaps to an item's clearances when over/selecting one.
 function drawMeasureOverlay() {
+  beginPaint("2d"); // the clickable distance pills of this paint (js/distance_pills.js)
   if (S.action === "pan" || S.action === "pinch") return;
   if (!(S.SC > 0) || !isFinite(S.SC)) return;
   var origins = [],
     seen = [];
-  function add(it, pt, skip) {
-    origins.push({ it: it, pt: pt, skip: skip || it || null });
+  function add(it, pt, skip, sides) {
+    origins.push({ it: it, pt: pt, skip: skip || it || null, sides: !!sides });
     if (it) seen.push(it);
   }
   // Wall / arc / rectangle tools keep the four-axis overlay on the live
@@ -570,7 +577,7 @@ function drawMeasureOverlay() {
     }
   }
   // a selected item always shows its clearances (even mid-drag)
-  if (S.sel && S.sel.kind === "item") add(S.sel.ref, null);
+  if (S.sel && S.sel.kind === "item") add(S.sel.ref, null, null, true);
   /* Placeholder points are placed precisely so their clearances can be read,
      so they carry the overlay permanently rather than only while hovered —
      that IS the point of a point. `showDims` is the switch for anyone who
@@ -590,7 +597,7 @@ function drawMeasureOverlay() {
   // over empty floor -> distances from the cursor point itself
   if (!S.action && S.tool === "select") {
     if (S.hoverItem) {
-      if (seen.indexOf(S.hoverItem) === -1) add(S.hoverItem, null);
+      if (seen.indexOf(S.hoverItem) === -1) add(S.hoverItem, null, null, true);
     } else if (S.hoverPt && !hitMarker(S.hoverPt.x, S.hoverPt.z) && !S.wallProbe) {
       // resting the cursor ON a point would draw a second, nearly identical set
       // of leaders over the point's own — and the point's is the better one
@@ -602,7 +609,8 @@ function drawMeasureOverlay() {
     }
   }
   origins.forEach(function (o) {
-    if (o.it) drawMeasureFrom(o.it.x, o.it.z, itemCorners(o.it), o.skip);
+    if (o.sides) drawItemSides(o.it);
+    else if (o.it) drawMeasureFrom(o.it.x, o.it.z, itemCorners(o.it), o.skip);
     else drawMeasureFrom(o.pt.x, o.pt.z, null, o.skip);
   });
 }
@@ -736,6 +744,39 @@ function drawMeasureFrom(ox, oz, ownCs, skip) {
   labels.forEach(function (l) {
     label(l.x, l.z, l.txt, l.color, false);
   });
+}
+
+/* A selected or hovered piece measures from its REAL outline in its own
+   front / back / left / right (js/measure.js measureSides), the numbers the 3D
+   pane paints: leaders between the contact points (square to a wall), plus
+   the closest-points lines to the near pieces. A piece on a wall measures along
+   the wall instead (js/interaction/wall_plane_guides.js), so none here. */
+function drawItemSides(it) {
+  if (isOnWall(it)) return;
+  // measured once per pose and scene, shared with the 3D pane (js/measure_cache.js)
+  var live = liveClearances(it), hits = live.hits;
+  pc.save();
+  pc.lineWidth = 1.5;
+  pc.setLineDash([4, 4]);
+  hits.forEach(function (h) {
+    pc.strokeStyle = h.kind === "wall" ? "rgba(63, 107, 120, 0.7)" : h.kind === "opening" ? "rgba(13, 128, 96, 0.8)" : "rgba(180, 83, 9, 0.75)";
+    pc.beginPath(); pc.moveTo(sx(h.from.x), sz(h.from.z)); pc.lineTo(sx(h.to.x), sz(h.to.z)); pc.stroke();
+  });
+  pc.restore();
+  // crossing lines (several near pieces): a label slides along its own line
+  var at = labelSpots(hits, function (p) { return { x: sx(p.x), y: sz(p.z) }; });
+  hits.forEach(function (h, i) {
+    // a door / window reached, or faced, is named (js/wall_plane_strings.js)
+    var what = h.kind === "opening" ? h.what : h.facing, txt = String(Math.round(h.gap)) + (what ? " " + reachName(what) : "");
+    pillLabel2D(it, h, at[i].x, at[i].z, txt, h.kind === "wall" ? "#3f6b78" : h.kind === "opening" ? "#0d8060" : "#b45309");
+  });
+  // the plan cannot draw a vertical: the selected piece's up / down clearance as one pill by it
+  if (!(S.sel && S.sel.kind === "item" && S.sel.ref === it)) return;
+  var v = live.up;
+  var up = v.filter(function (h) { return h.dir === "up" && h.kind !== "opening"; })[0], dn = v.filter(function (h) { return h.dir === "down"; })[0],
+    sill = v.filter(function (h) { return h.kind === "opening"; })[0];
+  var txt = [up && "↑ " + Math.round(up.gap), sill && "↑ " + Math.round(sill.gap) + " " + reachName(sill.what), dn && "↓ " + Math.round(dn.gap)].filter(Boolean).join("  ");
+  if (txt) pillLabel2D(it, [dn, sill, up], it.x, it.z, txt, "#3f6b78");
 }
 
 function markerGlyph(X, Y, filled, isSel) {
@@ -1134,7 +1175,10 @@ function markCol(isSel, isErase, idle) {
   return isSel ? "#3f6b78" : isErase ? ERASE_COL : idle;
 }
 
-function drawWall(w) {
+/* `pass`: the plan fills every wall ("fill") before it inks any ("ink", with
+   that wall's result from planWallInk), so no fill covers a neighbour's line;
+   with no pass (the HUD redrawing a selected wall) both, in that order. */
+function drawWall(w, pass, ink) {
   if (!w || !S.nodes[w.a] || !S.nodes[w.b]) return;
   normalizeWall(w, S);
   var gm = wallGeom(w),
@@ -1147,7 +1191,13 @@ function drawWall(w) {
   var col = markCol(isSel, isErase, "#7a7060"),
     kind = normalizeWallKind(w),
     phase = w.phase || "new",
-    th = w.thickness || 0;
+    th = w.thickness || 0,
+    demolish = phase === "demolition" || phase === "demolish";
+  if (pass === "fill") {
+    if (kind !== "roomDivider" && !(isPresentation() && !demolish) && !(th * S.SC < 3))
+      fillWallBands(w, wallLayerBands(w, S), demolish, col);
+    return;
+  }
   if (kind === "roomDivider") {
     pc.save();
     pc.strokeStyle = markCol(isSel, isErase, "rgba(91,122,134,.72)");
@@ -1158,7 +1208,6 @@ function drawWall(w) {
     pc.restore();
     return;
   }
-  var demolish = phase === "demolition" || phase === "demolish";
   if (isPresentation() && !demolish) {
     /* The model pass filled every wall at once, shadow and all
        (drawPresentationWalls). The HUD redraws a selected wall on top of that
@@ -1186,31 +1235,10 @@ function drawWall(w) {
     pc.stroke();
   } else {
     var bands = wallLayerBands(w, S);
-    bands.forEach(function (band) {
-      var out = wallBandPolygon(w, band.start, band.end);
-      pc.fillStyle = phase === "demolition" || phase === "demolish"
-        ? "rgba(194,76,67,.25)"
-        : (band.color || col);
-      pc.beginPath();
-      out.forEach(function (p, i) {
-        if (i) pc.lineTo(sx(p.x), sz(p.z));
-        else pc.moveTo(sx(p.x), sz(p.z));
-      });
-      pc.closePath(); pc.fill();
-      pc.strokeStyle = "rgba(80,73,64,.35)"; pc.lineWidth = .65; pc.stroke();
-    });
-    {
-      // A stronger perimeter distinguishes the wall from its internal layers.
-      var outline = wallOutline(w);
-      pc.save();
-      pc.strokeStyle = isSel ? "#3f6b78" : isErase ? ERASE_COL :
-        phase === "demolition" || phase === "demolish" ? "#b43d35" : "#635b50";
-      pc.lineWidth = isSel || isErase ? 2.3 : 1.1;
-      if (phase === "demolition" || phase === "demolish") pc.setLineDash([8, 5]);
-      pc.beginPath();
-      outline.forEach(function (p, i) { if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z)); });
-      pc.closePath(); pc.stroke(); pc.restore();
-    }
+    if (pass !== "ink") fillWallBands(w, bands, demolish, col);
+    // layer lines and the inked perimeter (js/wall_ink.js); a selected or
+    // erase-hovered wall keeps its whole closed outline
+    inkWall(w, ink, bands, demolish, isSel ? "#3f6b78" : isErase ? ERASE_COL : null);
   }
   // the half a typed length/angle edit will move: locked pick (solid) or the
   // half merely under the cursor (dashed preview)

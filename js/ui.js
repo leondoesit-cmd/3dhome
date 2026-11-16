@@ -22,13 +22,13 @@ import "./smarthome_connect.js";
 import { render2D, fitView, dropPoint, updatePlanGizmo } from "./plan2d.js";
 import { saveLayers } from "./layers.js";
 import {
-  snapshotNodes, enforceLocks, captureLock, isLocked, syncLocks, captureClear,
-  syncClears, fitWallClearLength, settleWallDim,
+  snapshotNodes, enforceLocks, captureLock, isLocked, loadClears, captureClear,
+  CLEAR_RULE, fitWallClearLength, settleWallDim,
 } from "./constraint_engine.js";
 import { renderWarnPanel } from "./ui_warn.js";
-import "./item_align.js";
+import "./item_align.js"; import { keptOnLoad } from "./item_keep_plan.js";
 import {
-  applyAutoFace, flushToWall, markManualRot, rotStep,
+  markManualRot, rotStep, seatNewPiece,
 } from "./item_orient.js";
 import "./ui_params.js";
 import {
@@ -299,6 +299,7 @@ export function sceneObject(includeWorkspace) {
     roof: S.roof,
     showDims: S.showDims,
     interiorDims: S.interiorDims,
+    clearRule: CLEAR_RULE, // the rule its clearL values were measured under
     planStyle: S.planStyle,
     cutaway: S.cutaway,
     // acknowledged constraint warnings (js/constraint_engine.js) — an
@@ -554,14 +555,14 @@ function applyDataRequest(d, requestGeneration) {
           ? {
               wall: it.hold.wall,
               gap: Number(it.hold.gap) || 0,
-              side: it.hold.side === -1 ? -1 : 1,
+              side: it.hold.side === -1 ? -1 : 1, onWall: it.hold.onWall ? 1 : undefined,
             }
           : undefined,
         /* The angle was set by hand, so the automatic facing must keep its
            hands off it — a fact about the design, not about this session.
            (This mapper is a whitelist: without the line the flag is lost and
            a reopened plan starts re-turning pieces the user had aimed.) */
-        rotUser: it.rotUser ? 1 : undefined,
+        rotUser: it.rotUser ? 1 : undefined, keep: keptOnLoad(it.keep), // kept distances (js/item_keep.js), cleaned
         locked: !!it.locked,
         groupId: it.groupId,
         // the piece's style variant (see furniture.js) — a plain id
@@ -659,8 +660,7 @@ function applyDataRequest(d, requestGeneration) {
   S.warnHover = S.warnSel = null;
   S.conHover = null;
   // an older file has no captured measurements — hold what it was saved with
-  syncLocks();
-  syncClears(); // ...and holds the interior spans it was drawn with
+  loadClears(d); // ...and its interior spans, re-read if saved under an older rule
   if (fin(d.hour)) S.hour = d.hour;
   if (fin(d.northAngle)) S.northAngle = d.northAngle;
   S.planRot = fin(d.planRot) ? d.planRot : 0;
@@ -1011,13 +1011,8 @@ export function placeFurnAt(type, x, z) {
     services: {
       createItem: mkItem,
       applyAutoFace: function (it, px, pz) {
-        var ctx = { host: findSupport(it, px, pz) };
-        applyAutoFace(it, px, pz, ctx);
-        var flush = flushToWall(it, px, pz, ctx);
-        if (flush) {
-          it.x = Math.round(flush.x * 10) / 10;
-          it.z = Math.round(flush.z * 10) / 10;
-        }
+        // facing, flush nudge and wall resolver, as the 3D preview (build3d_pose.js)
+        seatNewPiece(it, px, pz, { host: findSupport(it, px, pz) });
       },
     },
   }, { label: t("f_itemPlaced") });

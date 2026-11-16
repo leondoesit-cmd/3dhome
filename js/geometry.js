@@ -11,6 +11,10 @@ import {
   normalizeWallKind,
   HALF_WALL_HEIGHT,
 } from "./wall_curves.js";
+import { faceClearShift, faceShiftAt } from "./wall_junctions.js";
+export { faceShiftAt };
+// for js/wall_junctions.js (live bindings: it sees every reassignment)
+export { jointContext };
 
 var roomCycleCache = { sig: "", rooms: [] };
 var contentBoundsCache = { sig: "", value: null };
@@ -507,117 +511,6 @@ export function straightRunNodes(w) {
   return out;
 }
 
-/* How far the face on `side` of a segment leaving `nodeId` in direction
-   (ux,uz) starts AFTER the node (positive) or BEFORE it (negative), given the
-   other walls standing at that corner. Half the neighbour's thickness, divided
-   by sin of the angle between them (a shallow joint eats more), signed by
-   whether the neighbour leans toward that face or away from it. Walls running
-   straight on (a split wall) are not corners and are skipped.
-   Multiple neighbours: the one that eats most wins, as with the old rule. */
-export function faceShiftAt(nodeId, ux, uz, side, except, myHalf, atHeight, context) {
-  if (!side) return 0;
-  context ||= jointContext([nodeId]);
-  var nx = -uz * side,
-    nz = ux * side,
-    hm = myHalf || 0,
-    best = null,
-    /* Both walls' lines used to pass through the shared node, so the joint was
-       decided by thicknesses and the angle alone. With location lines they no
-       longer do, and every intersection below picks up ONE extra term: the
-       lateral gap between the two lines, seen along the neighbour's direction.
-       At `loc: "center"` this is 0 and the arithmetic is bit-identical. */
-    vMe = wallOffsetVec(except);
-  var endKey = except && except.a === nodeId ? "a" : except && except.b === nodeId ? "b" : null,
-    manualJoin = endKey && except.join && except.join[endKey];
-  if (manualJoin === "through") {
-    var throughExtension = 0;
-    (context.arms.get(nodeId) || []).forEach(function (ow) {
-      if (ow === except || !wallSolidAtNode(ow, nodeId, atHeight, context)) return;
-      var other = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
-      if (other == null || !S.nodes[nodeId] || !S.nodes[other]) return;
-      var tp = S.nodes[nodeId], tq = S.nodes[other], tdx = tq.x - tp.x, tdz = tq.z - tp.z,
-        tl = Math.hypot(tdx, tdz);
-      if (tl < 1) return;
-      tdx /= tl; tdz /= tl;
-      var crossAbs = Math.abs(ux * tdz - uz * tdx);
-      if (crossAbs < 0.08) return;
-      throughExtension = Math.max(
-        throughExtension,
-        ((ow.thickness || 0) / 2 + Math.abs(lineGap(vMe, ow, tdx, tdz))) / crossAbs,
-      );
-    });
-    return -throughExtension;
-  }
-  /* A manual butt join gives this wall a square end at the nearest face of
-     the adjoining wall. Both of this wall's faces receive the same shift, so
-     the cut stays perpendicular instead of becoming a mitre. */
-  if (manualJoin === "butt") {
-    var butt = null;
-    (context.arms.get(nodeId) || []).forEach(function (ow) {
-      if (ow === except || !wallSolidAtNode(ow, nodeId, atHeight, context)) return;
-      var other = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
-      if (other == null || !S.nodes[nodeId] || !S.nodes[other]) return;
-      var bp = S.nodes[nodeId], bq = S.nodes[other], bdx = bq.x - bp.x, bdz = bq.z - bp.z,
-        bl = Math.hypot(bdx, bdz);
-      if (bl < 1) return;
-      bdx /= bl; bdz /= bl;
-      var crossAbs = Math.abs(ux * bdz - uz * bdx);
-      if (crossAbs < 0.08) return;
-      var bgap = lineGap(vMe, ow, bdx, bdz),
-        shift = Math.min(
-          Math.abs(bgap - (ow.thickness || 0) / 2),
-          Math.abs(bgap + (ow.thickness || 0) / 2),
-        ) / crossAbs;
-      if (butt == null || shift < butt) butt = shift;
-    });
-    return butt || 0;
-  }
-  /* A branch meeting a straight-through run is a T, not two separate mitred
-     elbows.  Keep the through wall square at the shared centre node and let
-     the branch butt into its outside face.  Without this ownership rule each
-     half of the through wall chased a different face of the branch, producing
-     the long triangular spike visible at the left side of a T-junction. */
-  if (manualJoin !== "miter" && manualJoin !== "mitre" && straightThroughAt(nodeId, ux, uz, except, atHeight, context)) return 0;
-  (context.arms.get(nodeId) || []).forEach(function (ow) {
-    if (ow === except || !wallSolidAtNode(ow, nodeId, atHeight, context)) return;
-    var o = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
-    if (o == null) return;
-    var p = S.nodes[nodeId],
-      q = S.nodes[o];
-    if (!p || !q) return;
-    var dx = q.x - p.x,
-      dz = q.z - p.z,
-      L = Math.hypot(dx, dz) || 1;
-    dx /= L;
-    dz /= L;
-    var cross = ux * dz - uz * dx;
-    if (Math.abs(cross) < 0.08) return; // in line with us: a split wall, not a corner
-    /* Where our face line meets the neighbour's. Both of the neighbour's face
-       lines are candidates; the corner picks the far one on the convex side
-       (the face runs PAST the node) and the near one on the concave side (it
-       stops short). At a right angle the cos term drops out and this is the
-       old +/- half-a-thickness; the difference is entirely the oblique case,
-       where the shift also depends on OUR half-thickness. */
-    var ho = (ow.thickness || 0) / 2,
-      cos = ux * dx + uz * dz,
-      gap = lineGap(vMe, ow, dx, dz),
-      t1 = (gap - ho + hm * side * cos) / cross,
-      t2 = (gap + ho + hm * side * cos) / cross,
-      concave = dx * nx + dz * nz > 0,
-      shift = concave ? Math.max(t1, t2) : Math.min(t1, t2);
-    if (best === null || shift > best) best = shift;
-  });
-  return best || 0;
-}
-/* (neighbour's line - mine) x (neighbour's direction): how far apart the two
-   walls' own lines run at the shared node, in the units the intersections
-   above are solved in. Zero unless a location line is in play. */
-function lineGap(vMe, ow, dx, dz) {
-  var vo = wallOffsetVec(ow);
-  if (!vo.x && !vo.z && !vMe.x && !vMe.z) return 0;
-  return (vo.x - vMe.x) * dz - (vo.z - vMe.z) * dx;
-}
-
 /* ---- equal-angle snap for a translated cut-corner wall -----------------
 
    A chamfer/cut-corner wall has exactly one neighbouring wall at each end.
@@ -814,9 +707,11 @@ export function wallOutline(w, atHeight) {
    Built from the step-free base corners: a T-step inserts extra joints into
    wallOutline's polygon, so indexing THAT array assumes a length it no
    longer has (a b-end step shifted every later slot by two). */
-export function wallBandOutline(w, offset0, offset1, atHeight) {
+// `measure`: every corner as the face meeting point (the mitre), for dimensions
+export function wallBandOutline(w, offset0, offset1, atHeight, measure) {
   if (!w) return null;
-  var base = wallBaseCorners(w, atHeight),
+  var ctx = measure ? Object.assign(jointContext([w.a, w.b]), { measure: true }) : undefined,
+    base = wallBaseCorners(w, atHeight, ctx),
     h = (w.thickness || 0) / 2;
   if (!base) return null;
   function at(minus, plus, offset) {
@@ -860,8 +755,8 @@ export function wallCuts(w) {
     tb = g.kind === "arc" ? wallTangentAt(w, g.L) : { x: g.ux, z: g.uz },
     context = jointContext([w.a, w.b]);
   return {
-    a: clampShift(faceShiftAt(w.a, ta.x, ta.z, s, w, h, undefined, context), lim),
-    b: clampShift(faceShiftAt(w.b, -tb.x, -tb.z, -s, w, h, undefined, context), lim),
+    a: clampShift(faceClearShift(w.a, ta.x, ta.z, s, w, h, undefined, context), lim),
+    b: clampShift(faceClearShift(w.b, -tb.x, -tb.z, -s, w, h, undefined, context), lim),
   };
 }
 /* The wall's length as measured along its reference face — the number the plan
@@ -901,10 +796,10 @@ export function pendingCuts(fromNode, pt) {
   var ux = dx / L,
     uz = dz / L,
     side = pendingSide(fromNode, ux, uz);
-  var cut = faceShiftAt(fromNode, ux, uz, side, null);
+  var cut = faceClearShift(fromNode, ux, uz, side, null);
   var hit = nodeAtPoint(pt);
   if (hit != null && hit !== fromNode)
-    cut += faceShiftAt(hit, -ux, -uz, -side, null);
+    cut += faceClearShift(hit, -ux, -uz, -side, null);
   return cut;
 }
 function pendingSide(nodeId, ux, uz) {

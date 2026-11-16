@@ -36,7 +36,8 @@ import {
 function pointerDown(e) {
   interactionLocals.gestureSession = null;
   armHistoryGesture(() => { interactionLocals.gestureSession = captureHistorySession(); });
-  setPickSlop(e.pointerType);
+  // a finger from the 3D pane arrives as a "mouse" (no 2D loupe) marked coarse
+  setPickSlop(e.coarse ? "touch" : e.pointerType);
   /* Open a snap session for the gesture. It pins which layers may contribute
      candidates (see beginSnapSession) so a panel toggled mid-drag cannot
      change what the drag snaps to, and it gives the index one build to serve

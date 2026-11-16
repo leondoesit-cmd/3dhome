@@ -21,6 +21,7 @@ import { refreshTree, updateCost } from "../ui_tree.js";
 import { renderWarnPanel } from "../ui_warn.js";
 import { afterWallDim, applyRoomFloor, bindLength, bindNum, editEnd, flash, openModal, parseFieldLength, pinDimSide, restack, syncWalkView, turnItem, writeFieldLength } from "../ui.js";
 import { normalizeWallKind, normalizeWallProfile, setWallKind } from "../wall_curves.js";
+import { settleKept } from "../item_keep_edit.js";
 import { normalizeWall, setWallPhase, setWallType, wallLayers } from "../wall_types.js";
 
 // lifted out of initUI()
@@ -405,7 +406,7 @@ function wireItemAndRoomInputs(runAction) {
       var result = it.cab
         ? requestCabinetDimension(it, dimension, value, ceilingHeight())
         : requestItemDimension(S, it, dimension, value, FURN[it.type] || {});
-      if (result.status === "applied") applySmartChoice(it, dimension, result, null, null);
+      if (result.status === "applied") { applySmartChoice(it, dimension, result, null, null); settleKept(it); }
       else if (live) return;
       else if (result.status === "proposal") showSmartProposal(it, dimension, result, this);
       else {
@@ -426,13 +427,13 @@ function wireItemAndRoomInputs(runAction) {
   // rotation is pure transform -> nothing is regenerated at all
   bindNum("i_rot", function (v) {
     if (S.sel.kind === "item") {
-      turnItem(S.sel.ref, ((v % 360) + 360) % 360);
+      turnItem(S.sel.ref, ((v % 360) + 360) % 360); settleKept(S.sel.ref);
       document.getElementById("i_rot_range").value = S.sel.ref.rot;
     }
   }, "move");
   bindNum("i_rot_range", function (v) {
     if (S.sel.kind === "item") {
-      turnItem(S.sel.ref, ((v % 360) + 360) % 360);
+      turnItem(S.sel.ref, ((v % 360) + 360) % 360); settleKept(S.sel.ref);
       document.getElementById("i_rot").value = S.sel.ref.rot;
     }
   }, "move");

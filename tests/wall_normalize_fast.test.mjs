@@ -200,7 +200,11 @@ test('joint calculations match the baseline after in-place opening, topology and
   const saved = { nodes: S.nodes, walls: S.walls, openings: S.openings };
   const rand = random(913), pick = n => Math.floor(rand() * n);
   S.nodes = [{ x: 0, z: 0 }, { x: 300, z: 0 }, { x: 600, z: 0 }, { x: 300, z: 250 }, { x: 500, z: -180 }];
-  S.walls = [[0, 1], [1, 2], [1, 3], [4, 1]].map(([a, b], id) => ({ id, a, b, height: 270, thickness: 10 + id * 5 }));
+  // The baseline mitred every two-wall corner; these walls differ in thickness,
+  // which the junction rule now butts (WALL_JUNCTIONS_PLAN.md R3). An explicit
+  // miter at every end asks for the old corner, so the comparison still tests
+  // the joint caches against the same arithmetic.
+  S.walls = [[0, 1], [1, 2], [1, 3], [4, 1]].map(([a, b], id) => ({ id, a, b, height: 270, thickness: 10 + id * 5, join: { a: "miter", b: "miter" } }));
   S.openings = [{ wall: 0, s: 280, width: 80, height: 270, sill: 0 }, { wall: 2, s: 0, width: 60, height: 270, sill: 0 }];
   try {
     for (let step = 0; step < 80; step++) {

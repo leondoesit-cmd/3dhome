@@ -21,7 +21,7 @@ import {
 import { emptyScene, FURN } from "./furniture.js";
 import { rebuildProject } from "./core/project.js";
 import { setTool } from "./interaction.js";
-import { resetLayers, saveLayers } from "./layers.js";
+import { resetLayers, saveLayers, workSetForNewFloor } from "./layers.js";
 import { render2D, fitView, wx, wz, dropPoint, onAfterRender } from "./plan2d.js";
 import { loadMEP } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
@@ -47,7 +47,7 @@ import {
 } from "./floors.js";
 import { floorText, floorDisplayName } from "./floor_strings.js";
 import { fmtLen } from "./display_units.js";
-import { viewModeSelect, fillViewModeSelect, labelViewButtons, syncViewModeGroup } from "./view_modes.js";
+import { viewModeSelect, fillViewModeSelect, labelViewButtons, syncViewModeGroup, syncPageTitle } from "./view_modes.js";
 import { slabOpenings, stairVoidFields } from "./slab_openings.js";
 import { planFrameOnScreen } from "./plan2d/reference_floor.js";
 import { markDirty } from "./persist.js";
@@ -140,7 +140,8 @@ function syncViewPills() {
   // the dropdown form of the same group, shown by css where the buttons do not fit
   if (pill && !pill.querySelector("select.view-mode-select")) pill.appendChild(viewModeSelect());
   syncViewModeGroup(pill);
-  var mode = cc.classList.contains("max-view-2d") ? "plan" : cc.classList.contains("max-view-3d") ? "3d" : "split";
+  syncPageTitle();
+  var mode =cc.classList.contains("max-view-2d") ? "plan" : cc.classList.contains("max-view-3d") ? "3d" : "split";
   // The strip belongs to a visible pane; keeping it under 3D hides floor
   // navigation whenever the user maximizes the plan.
   var host = $("floor-tabs");
@@ -220,12 +221,10 @@ export function renderFloorTabs() {
     var ref = document.createElement("button");
     ref.type = "button";
     ref.className = "floor-ref";
-    ref.innerHTML = '<i class="ph ph-stack" aria-hidden="true"></i>';
+    // the "over Ground floor" text is part of the toggle, so it is clickable too
+    ref.innerHTML = '<i class="ph ph-stack" aria-hidden="true"></i><span class="floor-ref-note" hidden></span>';
     ref.addEventListener("click", toggleReferenceFromStrip);
     host.appendChild(ref);
-    var note = document.createElement("span");
-    note.className = "floor-ref-note";
-    host.appendChild(note);
   }
   syncFloorRefToggle();
 }
@@ -256,11 +255,12 @@ function syncFloorRefToggle() {
   var pressed = on ? "true" : "false";
   if (btn.getAttribute("aria-pressed") !== pressed) btn.setAttribute("aria-pressed", pressed);
   btn.classList.toggle("active", on);
-  var note = host.querySelector(".floor-ref-note");
+  var note = btn.querySelector(".floor-ref-note");
   if (note) {
     var text = on && ref ? floorText(isAbove ? "under" : "over", { name: floorDisplayName(ref, (ws.floors || []).indexOf(ref)) }) : "";
     if (note.textContent !== text) note.textContent = text;
     if (note.hidden !== !text) note.hidden = !text;
+    btn.classList.toggle("with-note", !!text);
   }
 }
 
@@ -319,6 +319,9 @@ export function addFloorFromUI() {
     var cut = cutStairwellVoids(below.scene, rise, slabOpenings(), stairVoidFields);
     if (cut) flash(floorText("stairwellCut", { name: floorDisplayName(below, S.workspace.floors.indexOf(below)) }), "success");
   }
+  // a new storey starts with its walls: no pin, Structure is the work set
+  workSetForNewFloor();
+  window.dispatchEvent(new CustomEvent("layers:changed"));
   S.dirty3D = true;
   render2D();
   refreshTree();
@@ -664,6 +667,8 @@ function initPlannerChrome() {
     labelViewButtons($("viewModePill"));
     var sel = $("viewModePill") && $("viewModePill").querySelector("select.view-mode-select");
     if (sel) fillViewModeSelect(sel);
+    // applyStatic reset the tab title to the static one; name the view again
+    syncPageTitle();
   });
   var tot = $("costTotal");
   if (tot && window.MutationObserver) {

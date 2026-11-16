@@ -28,6 +28,8 @@ test('coach names the remembered sketch plane and starts on that same plane',()=
    startSketchOnDefaultPlane:(tool,id)=>selected={tool,id}});
   const tip=suggest();assert.match(tip.phrase,/Right plane/);assert.doesNotMatch(tip.phrase,/Top plane/);
   tip.run();assert.deepEqual(selected,{tool:'srect',id:'plane:right'});
+  // while the face-pick prompt is up it is the only instruction on screen
+  E.facePick={tool:null};assert.equal(suggest(),null);delete E.facePick;assert.ok(suggest());
  }
 });
 

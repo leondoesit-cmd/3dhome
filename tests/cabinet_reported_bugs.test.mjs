@@ -677,7 +677,7 @@ test('#37 technical carcass stock preserves custom shelf thickness and updates m
   for (const [shelf, expected] of [[undefined, 2.5], [1.8, 2.5], [3.8, 3.8]]) {
     const f = fixture(), selections = [];
     f.sp().shelf = shelf; f.E.host = { querySelector: () => new Node() };
-    functions('ui_cabinet_inspect', ['fillTechnical'], {
+    functions('ui_cabinet_inspect', ['fillTechnical', 'openProductionSetup'], {
       ...f, el, btn, withFocusPreserved: (_, cb) => cb(), row: (_, node) => node,
       select: (options, _, cb) => { selections.push({ options, cb }); return new Node(); },
       numInput: () => new Node(), cabinetProductionPreset: () => null, cabPrice: () => 0,

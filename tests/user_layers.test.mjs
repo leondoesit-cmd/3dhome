@@ -133,7 +133,7 @@ test("every new string exists in both locales", () => {
 });
 
 test("the phone gets the same: Walls in the 3D toolbar, the new Layers parts in its drop-down", async () => {
-  const shell = await readFile(new URL("../js/mobile_shell.js", import.meta.url), "utf8");
+  const shell = moduleSource("js/mobile_shell.js");
   assert.match(shell, /run: openWallsMenu/);
   assert.match(shell, /addEventListener\("walls3d:changed"/);
   const css = (await readFile(new URL("../css/pro_compact.css", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
@@ -141,4 +141,13 @@ test("the phone gets the same: Walls in the 3D toolbar, the new Layers parts in 
     "the drop-down's own .lchip rule must not resurrect a hidden floor-reference row");
   for (const part of ["lchip-status", "lchip-presets", "lchip-count", "lchip-user"])
     assert.match(css, new RegExp("ps-layers-open #view-2d #layer-chips \." + part));
+});
+
+test("the desktop's floating layer chip steps aside only while the Layers tab is open", async () => {
+  const css = (await readFile(new URL("../css/pro_compact.css", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
+  // keyed on the Layers tab exactly (Library and the rest keep the chip), desktop only
+  assert.match(css, /@media \(min-width: 1025px\) \{\n  body\.pro-skin:not\(\.compact-nav\):not\(\.pro-compact\):has\(#left-sidebar\[data-ps-left="layers"\]\) \.ps-layers-chip \{ display: none; \}\n\}/);
+  // the tab that opens it is the one pro_left.js marks
+  const left = await readFile(new URL("../js/pro_left.js", import.meta.url), "utf8");
+  assert.match(left, /if \(tab\.own\) side\.setAttribute\("data-ps-left", id\);/);
 });

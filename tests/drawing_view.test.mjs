@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { VIEW_MODES, viewModeOf } from "../js/view_modes.js";
+import { VIEW_MODES, viewModeOf, pageTitle } from "../js/view_modes.js";
 import { zoomAbout, fitPage, sheetPageMm, MIN_ZOOM, MAX_ZOOM } from "../js/sheet_viewer.js";
 import { wrapPlanSVG } from "../js/sheet_print.js";
 import { draftingStandard } from "../js/drafting_standards.js";
@@ -24,6 +24,17 @@ test("the views are one group: Plan, 3D, Dollhouse, Split, Drawing", () => {
     assert.match(actions, new RegExp(`"${m.act}"`), m.act);
     assert.match(actions, new RegExp(`act === "${m.act}"`), m.act);
   }
+});
+
+test("the page title names the brand and the current view", () => {
+  assert.equal(pageTitle("Home Planner", "Plan"), "Home Planner · Plan");
+  assert.equal(pageTitle("Home Planner", "Dollhouse"), "Home Planner · Dollhouse");
+  assert.equal(pageTitle("מתכנן בית", "תלת־ממד"), "מתכנן בית · תלת־ממד");
+  assert.equal(pageTitle("Home Planner", ""), "Home Planner");
+  // set where the view changes and again after a language change
+  const chrome = read("js/planner_chrome.js");
+  assert.match(sourceFunctionText(chrome, "syncViewPills"), /syncPageTitle\(\)/);
+  assert.match(chrome, /onLangChange\(function \(\) \{\s*labelViewButtons[\s\S]*?syncPageTitle\(\);\s*\}\);/);
 });
 
 test("which view the work area is showing", () => {

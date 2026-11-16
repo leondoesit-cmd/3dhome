@@ -2,7 +2,7 @@
    It shares the editor's state through live imports from ../interaction.js. */
 import { onDrawEnded, updateCadHud } from "../cad_hud.js";
 import { executeCommand, roomCreateCommand, wallDrawCommand } from "../commands/index.js";
-import { captureClear, captureLock, preserveClear } from "../constraint_engine.js";
+import { captureClear, captureLock, settleNewWalls } from "../constraint_engine.js";
 import { detectRooms, normalizeStructure, pendingCuts, wallById, wallClearLength, wallGeom, wallPointAt, wallProject } from "../geometry.js";
 import { beginHistory, currentHistoryId, pushHistory } from "../history.js";
 import { t, tTouch } from "../i18n.js";
@@ -167,6 +167,7 @@ function dragMEP(px, pz) {
 }
 export function finishDraw() {
   healDrawnWallEnds();
+  settleNewWalls(S.drawWalls || [], false); // the run states what it measures; nothing moves
   S.drawing = false;
   S.drawFrom = null;
   S.drawStart = null;
@@ -277,7 +278,8 @@ export function wallPoint(p) {
      and typed polar input create identical topology. */
   if (made) {
     if (drawn > 0) made.clearL = drawn;
-    if (cleanEnds) preserveClear([made.a, made.b]);
+    // only this run's EARLIER corners may move: the clicked ends stay put
+    settleNewWalls(S.drawWalls, cleanEnds, [made.a, made.b]);
     splitCrossedByNewWall(made);
   }
   S.drawFrom = nb;
@@ -364,6 +366,7 @@ function commitOffsetWall() {
   captureLock(made); captureClear(made);
   S.drawWalls = [made.id];
   healDrawnWallEnds();
+  settleNewWalls(S.drawWalls, false); // nothing that was there moves
   S.drawWalls = [];
   S.offsetDraft = null;
   S.wallDrawDefaults = Object.assign({}, S.wallDrawDefaults || {}, { offsetDist: d.dist });
@@ -522,6 +525,7 @@ function commitRectFromTo(a, b) {
   }
   var wallIds = result.created.filter(function (entry) { return entry.kind === "wall"; })
     .map(function (entry) { return entry.id; });
+  settleNewWalls(wallIds, false); // each side states what it measures; nothing old moves
   var walls = S.walls.filter(function (wall) { return wallIds.indexOf(wall.id) >= 0; });
   S.dirty3D = true;
   render2D();

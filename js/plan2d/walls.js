@@ -20,6 +20,7 @@ import { openingHasSwingConflict } from "../swing_clearance.js";
 import { userLayerKey } from "../user_layers.js";
 import { normalizeWallKind } from "../wall_curves.js";
 import { normalizeWall } from "../wall_types.js";
+import { wallInkAll } from "../wall_ink.js";
 import {
   LAWN_MARGIN, PAVE_CM, WARN_COL, angleGuideAnimOn, angleGuideLastFrame,
   chromeOn, pc, plan, proxied, render2D, requestRenderHUD, roomLayer,
@@ -102,9 +103,21 @@ function drawPresentationWalls(walls) {
   pc.fillStyle = th.wallFill;
   pc.fill(mass, "nonzero");
   pc.shadowColor = "transparent";
+  // the inked lines only (js/wall_ink.js): no seam between walls of one material
+  var inks = wallInkAll(list, { pool: list }), lines = new Path2D();
+  list.forEach(function (w) {
+    var ink = inks.get(w);
+    (ink ? ink.paths : []).forEach(function (path) {
+      path.pts.forEach(function (p, i) {
+        if (i) lines.lineTo(sx(p.x), sz(p.z)); else lines.moveTo(sx(p.x), sz(p.z));
+      });
+      if (path.closed) lines.closePath();
+    });
+  });
   pc.strokeStyle = th.wallStroke;
   pc.lineWidth = 0.8;
-  pc.stroke(mass);
+  pc.lineCap = "square";
+  pc.stroke(lines);
   pc.restore();
 }
 

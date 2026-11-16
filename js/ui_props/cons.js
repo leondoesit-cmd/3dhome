@@ -23,6 +23,7 @@ import { frameSpec } from "../view3d.js";
 import { CON_TOL_A, CON_TOL_L, angleSectorAtNode, conCurrent, conDrivable, conError, conLabelText, conSatisfied, conUnit, pinnedNodes, wallCons } from "../wall_constraints.js";
 import { normalizeWallGeometry, normalizeWallKind, normalizeWallProfile, wallProfileHeight } from "../wall_curves.js";
 import { normalizeWall, wallPhase, wallThickness } from "../wall_types.js";
+import { fillKeeps } from "./keeps.js";
 import {
   baseProfileEnds, conCanFlip, datumForControl, fillHoldRow, fillStackRow,
   fillWallCons, fillWallEndActions, fillWallLock, fillWallTypeSelect, select,
@@ -203,6 +204,11 @@ function fillWallMulti(walls) {
 }
 
 export function fillProps() {
+  /* Every committed Inspector edit and every selection ends here. Say so, so
+     the status readout (js/cad_hud.js) follows in any view, not only after a
+     2D paint. */
+  if (typeof window !== "undefined" && typeof CustomEvent === "function")
+    window.dispatchEvent(new CustomEvent("planner-props"));
   document.getElementById("lightProps")?.classList.remove("on");
   var shCtl = document.getElementById("smartItemControls");
   if (shCtl) { shCtl.style.display = "none"; shCtl.innerHTML = ""; }
@@ -336,7 +342,7 @@ export function fillProps() {
     S.segPreview = { s: op, width: ow, height: oh };
   } else if (S.sel.kind === "item") {
     var it = S.sel.ref;
-    showPanel("item");
+    showPanel("item"); fillKeeps(it); // its kept distances (js/ui_props/keeps.js)
     var stairVoidAction = document.querySelector('[data-act="slabFromStairs"]');
     if (stairVoidAction) stairVoidAction.hidden = it.type !== "stairs";
     writeInspectorLen("i_w", it.w);

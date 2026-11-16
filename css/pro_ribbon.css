@@ -909,9 +909,26 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-#cabdes .cb-statusbar > span:not(.ps-ai-status) { overflow: hidden; text-overflow: ellipsis; }
-#cabdes .cb-statusbar > span + span:not(.ps-ai-status)::before { content: ""; display: inline-block; width: 1px; height: 11px; margin-inline-end: 16px; background: var(--border-color); vertical-align: -1px; }
+#cabdes .cb-statusbar > :is(span, .cb-status-conv):not(.ps-ai-status) { overflow: hidden; text-overflow: ellipsis; }
+#cabdes .cb-statusbar > :is(span, .cb-status-conv) + span:not(.ps-ai-status)::before { content: ""; display: inline-block; width: 1px; height: 11px; margin-inline-end: 16px; background: var(--border-color); vertical-align: -1px; }
+/* the convention segment is a button (it opens the production setup) that
+   reads as the status text it replaces */
+#cabdes .cb-statusbar > .cb-status-conv {
+  min-width: 0; min-height: 0; height: auto; padding: 0; border: 0; background: transparent; color: inherit; font: inherit;
+  white-space: nowrap; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px;
+}
+#cabdes .cb-statusbar > .cb-status-conv:hover { color: var(--accent); }
 #cabdes .cb-statusbar .cb-status-muted { color: var(--text-muted); }
+/* Priority by the bar's own width, not the window's: a cabinet designer docked
+   beside the room (or any half-width pane) gets it too. The AI chip's sentence
+   goes first, then the convention segment shrinks; stock, sheets and parts stay
+   whole. */
+#cabdes .cb-statusbar { container: cb-status / inline-size; }
+@container cb-status (max-width: 720px) {
+  #cabdes .cb-statusbar .ps-ai-status > span { display: none; }
+  #cabdes .cb-statusbar > .cb-status-conv { flex-shrink: 20; }
+  #cabdes .cb-statusbar > span:not(.ps-ai-status) { flex-shrink: 0; }
+}
 #cabdes.cb-compact .cb-statusbar { display: none; }
 
 /* Cabinet split view: the drawing on the left half, the model on the right.
@@ -1032,9 +1049,8 @@ body.compact-nav #modeler .md-sketch-thumb { display: none; }
 /* Below 1280px the AI chip's sentence took ~200px of the status line and the
    cabinet's figures were cut to "1…" and "3 sh…". The chip keeps its sparkle
    (accent when on, muted when off, and its tooltip); the muted convention
-   note gives way before the figures do. */
+   note gives way before the figures do. The cabinet bar keys the same order on
+   its own width (@container cb-status, above). */
 @media (max-width: 1279px) {
   .ps-ai-status > span { display: none; }
-  #cabdes .cb-statusbar > .cb-status-muted { flex-shrink: 20; min-width: 0; }
-  #cabdes .cb-statusbar > span:not(.ps-ai-status):not(.cb-status-muted) { flex-shrink: 0; }
 }

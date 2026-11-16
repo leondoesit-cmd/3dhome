@@ -26,7 +26,8 @@
    again, and Alt held during a drag suspends the whole thing for that gesture.
    `S.autoFace = false` turns it off for good. */
 import { S } from "./state.js";
-import { wallProject, wallTangentAt, wallGeom } from "./geometry.js";
+import { wallProject, wallTangentAt, wallGeom, wallPointAt } from "./geometry.js";
+import { resolveItemDrag } from "./item_wall_snap.js";
 
 function norm(deg) {
   return ((deg % 360) + 360) % 360;
@@ -76,6 +77,26 @@ export var HUNG_TYPES = {
   whiteboard: 1, wallShelf: 1, wallLamp: 1, ac: 1, towelRail: 1,
   waterHeater: 1, radiator: 1, soundbar: 1, monitor: 1,
 };
+
+/* Wall cabinets: built at a height on a wall (js/furniture_models.js builds
+   `upper` at 145 cm and `hood` at 150 cm) but faced as members of a kitchen
+   run, so they are not HUNG_TYPES. (`wallShelf`, built at 150 cm, is hung.) */
+export var WALL_CABINET_TYPES = { upper: 1, hood: 1 };
+
+/* A piece that lives ON a wall: it is dragged across the wall's face
+   (js/interaction/wall_plane_drag.js), not over the floor. Hung types and wall
+   cabinets always; any other piece once the user puts it on a wall
+   (`hold.onWall`, the planner action itemOnWall). A hung type standing on a
+   host (a monitor on a desk) is on that host, not on a wall. */
+export function onWallByType(type) {
+  return !!(type && (HUNG_TYPES[type] || WALL_CABINET_TYPES[type]));
+}
+export function isOnWall(it) {
+  if (!it) return false;
+  if (it.hold && it.hold.onWall) return true;
+  if (it.on != null) return false;
+  return onWallByType(it.type);
+}
 
 /* How far a piece's back may be from a wall face and still be understood as
    "against that wall" (cm). Deliberately generous compared to the flush snap
@@ -323,4 +344,49 @@ export function refaceItem(it, ctx) {
   var delta = applyAutoFace(it, it.x, it.z, ctx);
   S.orientHold = hold;
   return delta;
+}
+
+/* ---- walls for js/item_wall_snap.js -------------------------------------
+   The plan's walls as the plain segments resolveItemDrag takes: a straight
+   wall on its own line (wallGeom, so a face-located wall is where it is
+   drawn), an arc as its chords. */
+export function wallSnapSegments() {
+  var out = [];
+  (S.walls || []).forEach(function (w) {
+    var g = wallGeom(w);
+    if (!g || !isFinite(g.L) || g.L <= 0) return;
+    var t = num(w.thickness), phys = w.physical !== false;
+    if (!g.kind || g.kind === "line") {
+      out.push({ id: w.id, a: { x: g.a.x, z: g.a.z }, b: { x: g.b.x, z: g.b.z }, t: t, physical: phys });
+      return;
+    }
+    var steps = Math.max(4, Math.min(48, Math.ceil(g.L / 40))), last = null;
+    for (var i = 0; i <= steps; i++) {
+      var p = wallPointAt(w, (g.L * i) / steps);
+      if (!p) continue;
+      if (last) out.push({ id: w.id, a: last, b: { x: p.x, z: p.z }, t: t, physical: phys });
+      last = { x: p.x, z: p.z };
+    }
+  });
+  return out;
+}
+
+/* A new library piece dropped at (x, z) — the click (js/ui.js placeFurnAt)
+   and its 3D preview (js/build3d_pose.js) both come here, so they agree:
+   facing, the click's flush-to-wall nudge, then the drag's wall resolver
+   (a hung piece lands on its wall; nothing is placed inside a wall). A piece
+   standing on a host is not pulled to a wall, only kept out of it. */
+export function seatNewPiece(it, x, z, ctx) {
+  if (!it) return null;
+  applyAutoFace(it, x, z, ctx);
+  var p = flushToWall(it, x, z, ctx) || { x: x, z: z };
+  var onHost = !!(ctx && ctx.host && ctx.host !== it);
+  var r = resolveItemDrag({
+    item: { type: it.type, w: it.w, d: it.d, rot: it.rot, x: p.x, z: p.z },
+    target: p, walls: wallSnapSegments(), mode: orientMode(it.type),
+    free: !!S.orientHold, snap: S.snapObj !== false && !onHost && !it.locked,
+  });
+  it.x = Math.round(r.x * 10) / 10;
+  it.z = Math.round(r.z * 10) / 10;
+  return r;
 }

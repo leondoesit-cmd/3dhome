@@ -3,9 +3,19 @@ import { anchorPos, conSatisfied } from './wall_constraints.js';
 import { wallPointAt } from './geometry.js';
 import { pushHistory } from './history.js';
 import { makeArcFromThreePoints, pointAtWall } from './wall_curves.js';
-import { offsetGhost } from './wall_draw.js';
+import { offsetGhost, resolveWallDrawDefaults } from './wall_draw.js';
+import { ghostLabels, ghostSpecs } from './build3d_ghost.js';
+import { hideBuildGhost, syncBuildGhost } from './view3d/build_ghost.js';
+import { build3dPrefs } from './build3d_prefs.js';
+import { placementPose } from './build3d_pose.js';
+import { groundSampleOk, isCabinetItem, planBounds, touchCommitsOnRelease, aimCounts, dragPlanPoint, dragSamplePlan, itemDragGrabY, viewScale } from './build3d_input.js';
+import { dragProbe3D } from './view3d/drag_probe.js';
+import { initBuild3DUI, openDesigner, updateBuild3DUI } from './build3d_ui.js';
+import { openingDrawDefaults } from './opening_draw_defaults.js';
+import { fitCabDraftView } from './interaction/fit_cabinet_tool.js';
+import { ensureMEP, layerNodeY, layerRunY, nodeKindDef, snapMEPPoint } from './mep.js';
 import { footprint } from './layout_analysis.js';
-import { FURN } from './furniture.js';
+import { FURN, knownVSpan } from './furniture.js';
 import { S, SNAP_GRID } from './state.js';
 import { THREE } from './three_lazy.js';
 import { getMainCamera, has3D, plannerPointer3D, plannerPlanePoint3D, requestRender, toggleWalk, isWalk, toggleWalkView, walkViewMode, setPlannerRenderHook, setLegacyTouchEdit } from './view3d.js';
@@ -98,8 +108,41 @@ function activate() {
   S.edit3D=true;
   setPlannerInputView({id:'3d',scale:lastInput?.scale||1,width:pane?.clientWidth||1,height:pane?.clientHeight||1});
 }
+/* A finger on a tool whose press would commit previews while it is down and
+   commits where it is lifted (build3d_input.js touchCommitsOnRelease): the
+   moves go out with no buttons held, as a hover. */
+let holdCommit=false,touchDown=null,lastTouchTap=null;
+const hover=e=>({clientX:e.clientX,clientY:e.clientY,pointerId:e.pointerId,pointerType:e.pointerType,buttons:0});
+/* A double-click / double-tap on a cabinet opens the cabinet designer. */
+function cabinetAt(e){
+  if((S.tool&&S.tool!=='select')||S.placeType||S.workspace?.role==='viewer')return null;
+  const hit=plannerPointer3D(e.clientX,e.clientY)?.hit;
+  return hit?.kind==='item'&&isCabinetItem(hit.ref)&&!hit.ref.locked?hit.ref:null;
+}
+/* A piece drag samples the ray against the horizontal plane through the
+   grabbed point (dragGrab = its height, set by a press that started a
+   one-piece drag) and carries the ray and the aimed wall face as `drag`; the
+   fit-cabinet tool gets `drag` with its usual point (build3d_input.js). */
+let dragGrab=null;
+function dragInput(e,plan){
+  const base=plan.plane?null:plannerPointer3D(e.clientX,e.clientY);
+  const probe=dragProbe3D(e.clientX,e.clientY,plan.plane&&S.sel?.ref?[S.sel.ref]:[]);
+  if(!probe)return base;
+  const {ray,wall}=probe,flat=plannerPlanePoint3D(e.clientX,e.clientY,{x:0,y:plan.grabY,z:0},{x:0,y:1,z:0});
+  const aim=wall&&aimCounts(flat,ray.o,wall)?{wallId:wall.id,nx:wall.nx,nz:wall.nz,x:wall.point.x,y:wall.point.y,z:wall.point.z}:null;
+  const drag={ray,aim,grabY:plan.grabY};
+  if(!plan.plane)return base?{...base,drag}:null;
+  const point=dragPlanPoint(flat,aim,planBounds(S));
+  if(!point)return null;
+  const r=canvas.getBoundingClientRect(),y=aim?aim.y:plan.grabY;
+  const scale=viewScale(r.height,getMainCamera()?.fov,Math.hypot(point.x-ray.o.x,y-ray.o.y,point.z-ray.o.z));
+  return {point,hit:null,scale,width:r.width,height:r.height,drag};
+}
 function sample(e) {
-  const input=plannerPointer3D(e.clientX,e.clientY);
+  const plan=dragSamplePlan(S,dragGrab);
+  const input=plan?dragInput(e,plan):plannerPointer3D(e.clientX,e.clientY);
+  // a ray near the horizon meets the ground far past the plan: keep the last good sample
+  if(input&&!input.hit&&!groundSampleOk(input.point,planBounds(S)))return null;
   const r=pane.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
   const constraint=constraintHits.find(h=>Math.abs(h.x-x)<=h.w/2&&Math.abs(h.y-y)<=14)?.con||null;
   return input ? {...input,event:e,constraint} : null;
@@ -107,9 +150,10 @@ function sample(e) {
 function send(phase,e) {
   if(vertexInput(phase,e))return true;
   const input=sample(e) || ((phase==='up'||phase==='cancel') && lastInput ? {...lastInput,event:e} : null);
-  if(!input)return false;
+  if(!input){if(phase!=='move')dragGrab=null;return false;}
   lastInput=input;
   const sent=dispatchPlannerInput(phase,input);
+  dragGrab=phase==='down'?itemDragGrabY(S,input.hit):phase==='move'?dragGrab:null;
   requestRender(); paintPlanner3D(); return sent;
 }
 /* Each button is a toggle with a fixed name and an on-state. The names used to
@@ -135,7 +179,7 @@ function labels() {
 }
 export function syncPlannerViewport(mode) {
   if(!pane)return;
-  cancelVertex();cancelPlannerGesture(); dragId=null;
+  cancelVertex();cancelPlannerGesture(); dragId=null; dragGrab=null;
   if(mode==='3d') activate();
   else { set3DChrome(false); movePlanToolsTo('view-2d'); setPlannerInputView(null); document.documentElement.dataset.plannerViewport='plan'; }
   labels(); requestRender();
@@ -159,6 +203,9 @@ export function initPlanner3D() {
   roofButton.onclick=()=>{S.invisibleRoof=!S.invisibleRoof;S.dirty3D=true;const cb=document.getElementById('cb_invisible_roof');if(cb)cb.checked=S.invisibleRoof;window.dispatchEvent(new Event('planner-navigation-restored'));labels();requestRender();};
   // Walls: Up / Cutaway / Down and how a cut wall looks (js/ui_wall_view.js)
   bar.append(modeButton,lookButton,person,roofButton,wallsButton());pane.append(bar);
+  // Preview (Transparent / Solid / Outline), the chain strip and the hint chip
+  initBuild3DUI(pane,bar);
+  window.addEventListener('build3d:prefs',()=>{requestRender();paintPlanner3D();});
   // a pane too narrow for the names keeps the icons; the names stay on the tooltips
   const fit=()=>{bar.classList.remove('pn-icons');if(bar.scrollWidth>bar.clientWidth+1)bar.classList.add('pn-icons');};
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(fit).observe(pane);
@@ -178,31 +225,51 @@ export function initPlanner3D() {
       touchIds.add(e.pointerId);
       if(touchIds.size>1){
         // second finger: abandon any edit so the pinch/pan below gets both
-        if(dragId!=null){send('cancel',e);if(canvas.hasPointerCapture(dragId))canvas.releasePointerCapture(dragId);dragId=null;}
-        touchTap=null;return;
+        // (a held preview committed nothing yet, so there is nothing to cancel)
+        if(dragId!=null){if(!holdCommit)send('cancel',e);if(canvas.hasPointerCapture(dragId))canvas.releasePointerCapture(dragId);dragId=null;}
+        holdCommit=false;touchTap=null;touchDown=null;dragGrab=null;return;
       }
+      touchDown={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};
+      const twice=lastTouchTap&&isTouchTap(lastTouchTap,{x:e.clientX,y:e.clientY},touchDown.t,24,350);
+      const cab=twice&&cabinetAt(e);
+      if(cab){lastTouchTap=null;touchDown=null;openDesigner(cab);e.preventDefault();e.stopImmediatePropagation();return;}
       const input=sample(e);
       if(!touchClaims3D(S.tool,input&&input.hit,S.sel)){touchTap={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};return;}
+      if(touchCommitsOnRelease(S)){
+        holdCommit=true;dragId=e.pointerId;canvas.setPointerCapture(e.pointerId);send('move',hover(e));
+        e.preventDefault();e.stopImmediatePropagation();return;
+      }
     }
     if(send('down',e)){dragId=e.pointerId;canvas.setPointerCapture(e.pointerId);e.preventDefault();e.stopImmediatePropagation();}
   },true);
   canvas.addEventListener('pointermove',e=>{
     if(!has3D()||gameActive()||look)return;
     if(touchTap&&touchTap.id===e.pointerId&&Math.hypot(e.clientX-touchTap.x,e.clientY-touchTap.y)>TAP_SLOP)touchTap=null;
-    if(dragId===e.pointerId||(!e.buttons&&e.pointerType!=='touch'&&document.documentElement.dataset.plannerViewport==='3d'))send('move',e);
+    if(dragId===e.pointerId&&holdCommit)send('move',hover(e));
+    else if(dragId===e.pointerId||(!e.buttons&&e.pointerType!=='touch'&&document.documentElement.dataset.plannerViewport==='3d'))send('move',e);
   });
   for(const type of ['pointerup','pointercancel'])canvas.addEventListener(type,e=>{
     if(e.pointerType==='touch'){
       touchIds.delete(e.pointerId);
+      const now=performance.now(),down=touchDown;touchDown=null;
+      // remembered for a double-tap (a cabinet opens in the designer)
+      lastTouchTap=type==='pointerup'&&down&&down.id===e.pointerId&&isTouchTap(down,{x:e.clientX,y:e.clientY},now,TAP_SLOP,TAP_MS)?{x:e.clientX,y:e.clientY,t:now}:null;
       // a still, short touch that did not orbit is a tap: select what is under it
       const tap=touchTap;touchTap=null;
       if(type==='pointerup'&&tap&&tap.id===e.pointerId&&dragId==null&&!touchIds.size&&
-        isTouchTap(tap,{x:e.clientX,y:e.clientY},performance.now(),TAP_SLOP,TAP_MS)){
+        isTouchTap(tap,{x:e.clientX,y:e.clientY},now,TAP_SLOP,TAP_MS)){
         if(send('down',e))send('up',e);
         return;
       }
     }
     if(dragId!==e.pointerId)return;
+    if(holdCommit){
+      // the held preview commits where the finger lifts; a cancelled touch commits nothing
+      holdCommit=false;dragId=null;
+      if(type==='pointerup'&&send('down',e))send('up',e);
+      if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
+      e.preventDefault();e.stopImmediatePropagation();return;
+    }
     send(type==='pointerup'?'up':'cancel',e);dragId=null;
     if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
     e.preventDefault();e.stopImmediatePropagation();
@@ -216,7 +283,12 @@ export function initPlanner3D() {
     if(gameActive()||look)return;
     if(type.startsWith('touch')?dragId!=null:e.button===0){e.preventDefault();e.stopImmediatePropagation();}
   },{capture:true,passive:false});
-  canvas.addEventListener('dblclick',e=>{if(!look&&!gameActive()){send('double',e);e.preventDefault();e.stopImmediatePropagation();}},true);
+  canvas.addEventListener('dblclick',e=>{if(!look&&!gameActive()){
+    // a cabinet opens in the designer (the plan's double-click turns a piece instead)
+    const cab=cabinetAt(e);
+    if(cab)openDesigner(cab);else send('double',e);
+    e.preventDefault();e.stopImmediatePropagation();
+  }},true);
   /* A 2D paint only has to redraw this pane's overlay canvas. Asking for a 3D
      frame on each one kept the post-processed view from ever going idle: the
      warning glow alone paints the HUD every 45 ms. Model edits reach the 3D
@@ -233,8 +305,19 @@ function selectionChanged(){
   seenSel=s;seenKind=s?s.kind:undefined;seenRef=s?s.ref:undefined;seenRefs=refs;seenCount=count;
   return true;
 }
+/* What each 3D-pane ghost needs from modules Node tests cannot load cheaply
+   (js/build3d_ghost.js takes them as deps). The pointer's plan point only
+   counts while the 3D pane is the input surface; in Split, a draft drawn on
+   the plan is previewed from its own state. */
+function ghostDeps(){
+  const in3D=document.documentElement.dataset.plannerViewport==='3d'&&lastInput?.point;
+  return {wallDefaults:resolveWallDrawDefaults(),openingDefaults:openingDrawDefaults,catalog:FURN,placePose:placementPose,
+    fitCabDraft:fitCabDraftView,cursor:in3D?{x:lastInput.point.x,z:lastInput.point.z}:null,itemSpan:it=>knownVSpan(it),
+    mepRunY:r=>layerRunY(r.sys,r.layer),
+    mepNodeAt:(x,z)=>{const m=ensureMEP(),p=m.place&&snapMEPPoint(x,z),k=p&&nodeKindDef(m.place.sys,m.place.kind);return p?{x:p.x,z:p.z,y:layerNodeY({layer:m.layer,elev:k?k.elev:30})}:null;}};
+}
 export function paintPlanner3D() {
-  if(!hud||!has3D()||gameActive()||!pane.clientWidth||!pane.clientHeight)return;
+  if(!hud||!has3D()||gameActive()||!pane.clientWidth||!pane.clientHeight){hideBuildGhost();updateBuild3DUI(true);return;}
   const w=pane.clientWidth,h=pane.clientHeight,dpr=Math.min(devicePixelRatio||1,2);
   if(hud.width!==Math.round(w*dpr)||hud.height!==Math.round(h*dpr)){hud.width=Math.round(w*dpr);hud.height=Math.round(h*dpr);}
   const c=hud.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
@@ -243,17 +326,26 @@ export function paintPlanner3D() {
   const project=p=>{const v=new THREE.Vector3(p.x,p.y??2,p.z).project(camera);return v.z>=-1&&v.z<=1?{x:(v.x+1)*w/2,y:(1-v.y)*h/2}:null;};
   function path(points,color='#26b99a',closed=false){const ps=points.map(project);if(ps.some(p=>!p))return;c.strokeStyle=color;c.lineWidth=2;c.beginPath();ps.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));if(closed)c.closePath();c.stroke();}
   function label(p,text){const q=project(p);if(!q)return;c.font='12px system-ui';const tw=c.measureText(text).width;c.fillStyle='#10212ded';c.fillRect(q.x-tw/2-5,q.y-16,tw+10,22);c.fillStyle='#fff';c.textAlign='center';c.fillText(text,q.x,q.y);}
+  /* The volumes (js/view3d/build_ghost.js) show what each tool will build;
+     in Outline mode, and while walking, the thin lines below do it alone. */
+  const prefs=build3dPrefs(),deps=ghostDeps(),wire=prefs.mode==='outline'||isWalk();
+  syncBuildGhost(wire?[]:ghostSpecs(S,deps),prefs);
+  updateBuild3DUI(isWalk());
+  const wallH=deps.wallDefaults.height;
   const end=S.previewPt;
   if(end){const p=project(end);if(p){c.strokeStyle='#26b99a';c.beginPath();c.arc(p.x,p.y,5,0,Math.PI*2);c.stroke();}}
   const start=S.nodes[S.drawFrom];
-  if(start&&end&&S.drawing){path([start,end]);path([{...start,y:270},{...end,y:270}]);path([end,{...end,y:270}]);label({x:(start.x+end.x)/2,z:(start.z+end.z)/2},fmtLen(Math.hypot(end.x-start.x,end.z-start.z)));}
-  if(S.rectDraft&&end)path([S.rectDraft,{x:end.x,z:S.rectDraft.z},end,{x:S.rectDraft.x,z:end.z}],undefined,true);
-  if(S.roomGhost){const r=S.roomGhost.rect;path([{x:r.x0,z:r.z0},{x:r.x1,z:r.z0},{x:r.x1,z:r.z1},{x:r.x0,z:r.z1}],S.roomGhost.blocked?'#ed705a':'#26b99a',true);}
-  if(S.arcDraft&&end){const a=S.nodes[S.arcDraft.startNode]||S.arcDraft.startPoint,arc=a&&S.arcDraft.through?makeArcFromThreePoints(a,S.arcDraft.through,end):null;if(arc){const n=Math.max(12,Math.ceil(arc.L/20));path(Array.from({length:n+1},(_,i)=>pointAtWall(arc,arc.L*i/n)));}else if(a)path([a,end]);}
-  if(S.offsetDraft){const w=S.walls.find(w=>w.id===S.offsetDraft.hostId),g=w&&offsetGhost(w,S.offsetDraft.dist,S.offsetDraft.side||1);if(g){path([g.a,g.b],'#faac38');label(g.b,fmtLen(g.dist));}}
-  if(S.placeType&&end&&FURN[S.placeType])path(footprint({...FURN[S.placeType],...end,rot:0}),'#26b99a',true);
+  if(start&&end&&S.drawing){if(wire){path([start,end]);path([{...start,y:wallH},{...end,y:wallH}]);path([end,{...end,y:wallH}]);}label({x:(start.x+end.x)/2,z:(start.z+end.z)/2},fmtLen(Math.hypot(end.x-start.x,end.z-start.z)));}
+  if(wire&&S.rectDraft&&end)path([S.rectDraft,{x:end.x,z:S.rectDraft.z},end,{x:S.rectDraft.x,z:end.z}],undefined,true);
+  if(wire&&S.roomGhost){const r=S.roomGhost.rect;path([{x:r.x0,z:r.z0},{x:r.x1,z:r.z0},{x:r.x1,z:r.z1},{x:r.x0,z:r.z1}],S.roomGhost.blocked?'#ed705a':'#26b99a',true);}
+  if(wire&&S.arcDraft&&end){const a=S.nodes[S.arcDraft.startNode]||S.arcDraft.startPoint,arc=a&&S.arcDraft.through?makeArcFromThreePoints(a,S.arcDraft.through,end):null;if(arc){const n=Math.max(12,Math.ceil(arc.L/20));path(Array.from({length:n+1},(_,i)=>pointAtWall(arc,arc.L*i/n)));}else if(a)path([a,end]);}
+  if(S.offsetDraft){const w=S.walls.find(w=>w.id===S.offsetDraft.hostId),g=w&&offsetGhost(w,S.offsetDraft.dist,S.offsetDraft.side||1);if(g){if(wire)path([g.a,g.b],'#faac38');label(g.b,fmtLen(g.dist));}}
+  // the outline stands where the click would put the piece, turned the way it would face
+  if(wire&&S.placeType&&end&&FURN[S.placeType]){const at=deps.cursor||end,pose=placementPose(S.placeType,at.x,at.z);if(pose)path(footprint({...FURN[S.placeType],...pose}),'#26b99a',true);}
   if(S.markerPreview)label(S.markerPreview,'+');
-  if(S.mep?.route){const r=S.mep.route;path([...r.pts,...(r.preview?[r.preview]:[])],'#faac38');}
+  if(wire&&S.mep?.route){const r=S.mep.route;path([...r.pts,...(r.preview?[r.preview]:[])],'#faac38');}
+  // sizes the plan prints on the same drafts: a rectangle / room's width × depth, an opening's width and its distance to the nearer wall end
+  for(const l of ghostLabels(S,deps))label(l,l.lens.map(v=>fmtLen(v)).join(' × ')+(l.gap!=null?'  ↔ '+fmtLen(l.gap):''));
   if(S.sel?.kind==='wall'){const g=wallGeom(S.sel.ref);if(g){path([g.a,g.b],'#f8be49');label({x:(g.a.x+g.b.x)/2,z:(g.a.z+g.b.z)/2,y:30},fmtLen(g.L));}}
   if(S.sel?.kind==='room'){const r=detectRooms().find(r=>r.key===S.sel.ref);if(r)path(r.pts,'#f8be49',true);}
   const cons=Number.isFinite(layerRank('annotations'))?S.wallCons||[]:[];
@@ -284,5 +376,5 @@ export function paintPlanner3D() {
     }
     if(vertexDrag?.id===f.id){const p=f.points[vertexDrag.index];label(p,`${fmtLen(p.x, { suffix: false })}, ${fmtLen(p.y, { suffix: false })}, ${fmtLen(p.z)}`);}
   }
-  window.dispatchEvent(new CustomEvent('planner-overlay-3d',{detail:{context:c,project,path,label,width:w,height:h}}));
+  window.dispatchEvent(new CustomEvent('planner-overlay-3d',{detail:{context:c,project,path,label,width:w,height:h,wire}}));
 }

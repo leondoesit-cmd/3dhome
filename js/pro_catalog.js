@@ -49,7 +49,7 @@ const PLAN = [
     ["Solve", [T("Warnings & DOF", "ph-warning-circle", "reveal:#warnPanel"), T("Repin", "ph-target", "act:conRepin"), T("Flip", "ph-flip-vertical", "act:conFlip"), T("Parameters", "ph-function", "reveal:#paramSection")]],
   ]],
   ["Interior", [
-    ["Place", [T("Library", "ph-books", "left:library"), T("Real size", "ph-person", "act:prodSize"), T("Duplicate", "ph-copy", "act:dupSel", "⌘D"), T("Delete", "ph-trash", "act:deleteSel"), T("Variants", "ph-shuffle", "reveal:#i_variant_box"), T("Stack", "ph-stack", "pro:stack"), T("Fit cabinet", "ph-arrows-in-line-horizontal", "tool:fitcab", "", ["wardrobe", "closet", "niche", "between walls"]), T("Kitchen run", "ph-rows", "pro:cabRun")]],
+    ["Place", [T("Library", "ph-books", "left:library"), T("Real size", "ph-person", "act:prodSize"), T("Duplicate", "ph-copy", "act:dupSel", "⌘D"), T("Delete", "ph-trash", "act:deleteSel"), T("Variants", "ph-shuffle", "reveal:#i_variant_box"), T("Stack", "ph-stack", "pro:stack"), T("Draw cabinet", "ph-arrows-in-line-horizontal", "tool:fitcab", "", ["fit cabinet", "wardrobe", "closet", "niche", "between walls", "draw box", "marquee"]), T("Kitchen run", "ph-rows", "pro:cabRun")]],
     ["Arrange", [T("Align left", "ph-align-left", "act:alLeft"), T("Align top", "ph-align-top", "act:alTop"), T("Distribute", "ph-distribute", "act:alDistX"), T("Face wall", "ph-arrow-bend-up-right", "act:faceAuto"), T("Group", "ph-selection-plus", "act:groupItems", "⌘G"), T("Ungroup", "ph-selection-inverse", "act:ungroupItems", "⇧⌘G"), T("Rotate 90°", "ph-arrow-clockwise", "act:rotR"), T("Auto layout", "ph-sparkle", "run:autoArrange")]],
     ["Finish", [T("Textures", "ph-paint-brush-broad", "act:openTextureGallery"), T("Floor texture", "ph-grid-nine", "act:uploadFloorTex"), T("Wall texture", "ph-paint-roller", "act:uploadWallTex"), T("Match floor", "ph-eyedropper", "act:matchFloor"), T("Seamless", "ph-infinity", "act:makeSeamless"), T("Room floor", "ph-checkerboard", "click:#r_floor_pick"), T("Lights", "ph-lightbulb", "lib:lighting")]],
   ]],
@@ -112,7 +112,7 @@ const MODEL = [
     ["Standard parts", [T("Std screw", "ph-screwdriver", "mcmd:stdscrew"), T("Std gear", "ph-gear-six", "mcmd:stdgear"), T("Fastener", "ph-nut", "mcmd:toolboxfastener")]],
     ["Engineering", [T("Sheet metal", "ph-folder-simple", "mcmd:sheetmetal"), T("Stock size", "ph-bounding-box", "mcmd:stocksize"), T("To walls", "ph-wall", "mcmd:towalls")]],
   ]],
-  ["Drawing", [
+  ["Detailing", [
     ["Sheet", [T("Drawing", "ph-file-text", "mcmd:drawing"), T("BOM", "ph-list-numbers", "mcmd:bom"), T("Note", "ph-note-pencil", "mcmd:note")]],
   ]],
   ["Appearance", [
@@ -127,13 +127,14 @@ const MODEL = [
 const CAB = [
   ["Design", [
     ["Start", [T("Families", "ph-squares-four", "cab:tab:fams"), T("Presets", "ph-cards-three", "cab:tab:presets"), T("Blank carcass", "ph-selection-plus", "cab:act:blank")]],
-    ["Interior", [T("Horizontal partition", "ph-minus", "cab:tool:hwall"), T("Vertical partition", "ph-line-vertical", "cab:tool:vwall"), T("Erase partition", "ph-eraser", "cab:tool:erase")]],
+    ["Interior", [T("Horizontal partition", "ph-minus", "cab:tool:hwall"), T("Vertical partition", "ph-line-vertical", "cab:tool:vwall"), T("Remove partition", "ph-eraser", "cab:tool:erase", "", ["Erase partition", "erase"])]],
     ["Edit", [T("Inspector", "ph-cursor-click", "cab:tab:insp"), T("Fronts & look", "ph-paint-brush", "cab:tab:look"), T("Hardware", "ph-nut", "cab:tab:hw"), T("History", "ph-clock-counter-clockwise", "cab:tab:hist")]],
     ["Run", [T("Kitchen run", "ph-rows", "pro:cabRun"), T("Worktop", "ph-table", "pro:cabWorktop")]],
     ["My presets", [T("Save preset", "ph-floppy-disk", "cab:act:save"), T("Load preset", "ph-folder-open", "cab:tab:mine")]],
   ]],
   ["View", [
-    ["Mode", [T("2D", "ph-square", "cab:mode:2d"), T("3D", "ph-cube", "cab:mode:3d"), T("Split", "ph-columns", "cab:mode:split")]],
+    // the header carries 2D | 3D | Split: kept for search and the command bar, not drawn twice
+    ["Mode", [T("2D", "ph-square", "cab:mode:2d"), T("3D", "ph-cube", "cab:mode:3d"), T("Split", "ph-columns", "cab:mode:split")], { ribbon: false }],
     ["Level", [T("Compose", "ph-layout", "cab:level:composition"), T("Technical", "ph-sliders-horizontal", "cab:level:technical"), T("Model editor", "ph-pencil-ruler", "cab:level:advanced")]],
   ]],
   ["Review", [
@@ -151,6 +152,24 @@ export const PRO_CATALOG = {
   model: { name: "Model editor", tabs: MODEL },
   cab: { name: "Cabinet designer", tabs: CAB },
 };
+
+/* A group may carry a third element, { ribbon: false }: its tools stay in
+   search, the command bar and the phone sheet, but the desktop ribbon does not
+   draw the group (its controls already sit elsewhere on screen). */
+export function groupOnRibbon(group) {
+  return !(group && group[2] && group[2].ribbon === false);
+}
+
+/* A layer workflow preset (js/ui_layers.js) brings its own planner tab
+   forward: Build, Interior or MEP. One way only, and only from one of those
+   three tabs, so it never pulls the user out of Annotate, Output and the rest.
+   Returns the tab to select, or null to leave the ribbon alone. */
+var PRESET_TABS = { build: "Build", furnish: "Interior", services: "MEP" };
+export function ribbonTabForPreset(presetId, currentTab) {
+  var target = Object.prototype.hasOwnProperty.call(PRESET_TABS, presetId) ? PRESET_TABS[presetId] : null;
+  if (!target || target === currentTab) return null;
+  return Object.keys(PRESET_TABS).some(function (k) { return PRESET_TABS[k] === currentTab; }) ? target : null;
+}
 
 /* Flat list, one row per tool, for search and tests. */
 export function proTools(editor) {
@@ -221,11 +240,11 @@ export const PRO_HE = {
   "Study": "ניתוח תנועה", "Exploded view": "מבט מפורק", "Explode step": "שלב פירוק", "Motion study": "סימולציית תנועה", "Interference": "התנגשויות", "Isolate": "בודד",
   "Evaluate": "הערכה", "Measure": "מדידה", "Mass props": "תכונות מסה", "Section view": "מבט חתך", "Fit check": "בדיקת התאמה", "Fit view": "התאם תצוגה",
   "Toolbox": "ארגז כלים", "Standard parts": "חלקים תקניים", "Std screw": "בורג תקני", "Std gear": "גלגל שיניים תקני",
-  "Drawing": "שרטוט", "Sheet": "גיליון", "BOM": "רשימת חלקים", "Note": "הערה", "Appearance": "מראה", "Look": "מראה", "Paint": "צביעה",
+  "Drawing": "שרטוט", "Detailing": "שרטוט", "Sheet": "גיליון", "BOM": "רשימת חלקים", "Note": "הערה", "Appearance": "מראה", "Look": "מראה", "Paint": "צביעה",
   "Print setup": "הגדרות הדפסה", "Layer analysis": "ניתוח שכבות", "Export 3MF": "ייצוא 3MF", "Export AMF": "ייצוא AMF",
   "Exchange": "החלפת קבצים", "Project bundle": "חבילת פרויקט", "Open bundle": "פתח חבילה", "Import STEP": "ייבוא STEP", "Export STEP": "ייצוא STEP", "Export IGES": "ייצוא IGES", "Export STL": "ייצוא STL",
   "Design": "עיצוב", "Start": "התחלה", "Families": "משפחות", "Presets": "תבניות", "Blank carcass": "גוף ריק",
-  "Horizontal partition": "מחיצה אופקית", "Vertical partition": "מחיצה אנכית", "Erase partition": "מחק מחיצה",
+  "Horizontal partition": "מחיצה אופקית", "Vertical partition": "מחיצה אנכית", "Remove partition": "מחיקת מחיצה",
   "Inspector": "מאפיינים", "Fronts & look": "חזיתות ומראה", "Hardware": "פרזול", "History": "היסטוריה",
   "My presets": "התבניות שלי", "Save preset": "שמור תבנית", "Load preset": "טען תבנית", "Mode": "מצב", "2D": "דו־ממד",
   "Review": "בקרה", "Checks": "בדיקות", "Summary": "סיכום", "Production": "ייצור", "Make": "ייצור", "Cut plan & production": "תוכנית ניסור וייצור", "PNG export": "ייצוא PNG",
@@ -243,7 +262,7 @@ Object.assign(PRO_HE, {
   "Ref point": "נקודת ייחוס", "Custom props": "מאפיינים מותאמים", "Custom properties": "מאפיינים מותאמים", "Variables": "משתנים", "Smart mates": "התאמות חכמות", "Material check": "בדיקת חומר",
   "Rebuild errors": "שגיאות בנייה", "Engineering": "הנדסה", "Sheet metal": "פח", "Stock size": "מידת גלם", "To walls": "המר לקירות",
   "Finish preview": "תצוגת גימור", "Use": "שימוש", "Save to library": "שמור לספרייה", "Model library": "ספריית מודלים", "Branch": "ענף", "Export GLB": "ייצוא GLB",
-  "Run": "שורת ארונות", "Kitchen run": "שורת מטבח", "Fit cabinet": "ארון בנישה", "Worktop": "משטח עבודה", "Part labels": "תוויות חלקים", "Send to shop": "שלח לנגרייה",
+  "Run": "שורת ארונות", "Kitchen run": "שורת מטבח", "Draw cabinet": "צייר ארון", "Worktop": "משטח עבודה", "Part labels": "תוויות חלקים", "Send to shop": "שלח לנגרייה",
   "Import DXF": "ייבוא DXF",
 });
 

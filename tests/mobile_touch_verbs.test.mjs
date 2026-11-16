@@ -8,7 +8,7 @@ import { readFile } from "node:fs/promises";
 
 const read = (name) => readFile(new URL("../" + name, import.meta.url), "utf8");
 const [shell, interaction, ui, i18n, pick, primitives, html, css] = await Promise.all([
-  read("js/mobile_shell.js"),
+  moduleSource("js/mobile_shell.js"),
   moduleSource("js/interaction.js"),
   moduleSource("js/ui.js"),
   readI18nSource(),
@@ -46,6 +46,33 @@ test("selection verbs follow the KIND, so no row offers an action that kind cann
   // (a single piece and a multi-selection).
   const dupUses = shell.match(/dupBtn/g) || [];
   assert.equal(dupUses.length, 3, "Copy is declared once and used by item and items only");
+});
+
+test("a single piece gets On wall: pressed while it hangs, pressed and disabled for a type that always hangs", () => {
+  const ran = [];
+  const make = (sel, hung) => Function(
+    "S", "t", "run", "selKind", "showSheet", "fitText", "wallPlaneText", "onWallByType",
+    sourceFunctionText(shell, "onWallVerb") + "\n" + sourceFunctionText(shell, "selActionList") + "\nreturn selActionList;",
+  )(
+    { sel }, (k) => k, (a) => ran.push(a), () => sel && sel.kind, () => {},
+    (k) => "fit:" + k, (k) => "wp:" + k, (type) => type === hung,
+  );
+  const verb = (list) => list.find((a) => a.icon === "ph-frame-corners");
+  const sofa = { type: "sofa" };
+  const free = verb(make({ kind: "item", ref: sofa })());
+  assert.equal(free.label, "fit:onWall", "the 3D strip's own words");
+  assert.equal(free.pressed, false); assert.ok(!free.disabled);
+  free.run();
+  assert.deepEqual(ran, ["itemOnWall"]);
+  const hung = verb(make({ kind: "item", ref: { type: "sofa", hold: { onWall: true } } })());
+  assert.equal(hung.pressed, true); assert.ok(!hung.disabled);
+  const art = verb(make({ kind: "item", ref: { type: "art" } }, "art")());
+  assert.equal(art.pressed, true); assert.equal(art.disabled, true); assert.equal(art.title, "wp:alwaysOnWall");
+  assert.equal(verb(make({ kind: "item", ref: { type: "sofa", locked: true } })()), undefined, "a locked piece: no On wall");
+  assert.equal(verb(make({ kind: "items", ref: [sofa] })()), undefined, "only for one piece");
+  // the row's buttons carry the pressed / disabled state (44 px .mctx-btn like the rest)
+  assert.match(sourceFunctionText(shell, "btn"), /if \(spec\.pressed != null\) b\.setAttribute\("aria-pressed"/);
+  assert.match(sourceFunctionText(shell, "buildOverflowSheet"), /if \(a\.disabled\) b\.disabled = true;/);
 });
 
 test("the context row never holds more than four verbs; the rest go behind More", () => {

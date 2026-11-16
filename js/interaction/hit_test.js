@@ -10,7 +10,7 @@ import { planIndex } from "../spatial_index.js";
 import { S, clamp, fin } from "../state.js";
 import { itemUserUnpickable } from "../user_layers.js";
 import {
-  KIND_CACHE, PICK_SLOP, SNAP_FLASH_MS, WALL_SNAP_GAP, snapSession,
+  KIND_CACHE, PICK_SLOP, SNAP_FLASH_MS, snapSession,
 } from "../interaction.js";
 
 // Screen px of tolerance -> world cm, slop applied. Guards the degenerate
@@ -438,10 +438,17 @@ function flashSnap(it, key) {
      once per frame. */
   if (key && S.touchDrag && navigator.vibrate) navigator.vibrate(8);
 }
-function alignItem(nx, nz, it) {
+/* Item/corner alignment for a dragged piece. Flush-to-wall is no longer done
+   here: js/item_wall_snap.js resolves the walls first (moveItemTo), and a piece
+   it left flush passes `opts.tangent` (the wall's unit direction) so it lines
+   up with its neighbours ALONG the wall without being pulled off it: the snap
+   on the axis nearer the wall's direction is reached by sliding along the
+   wall, the other axis is left alone. `opts.flash === false` leaves the snap
+   blink to the caller (it also knows about the wall); the key is returned. */
+function alignItem(nx, nz, it, opts) {
   S.alignX = null;
   S.alignZ = null;
-  if (S.snapObj === false) return { x: nx, z: nz };
+  if (S.snapObj === false) return { x: nx, z: nz, key: null };
 
   var mul = snapMul(),
     thr = (8 * mul) / inputScale(),
@@ -450,7 +457,8 @@ function alignItem(nx, nz, it) {
     itemsZ = [],
     nodesX = [],
     nodesZ = [],
-    u = usedNodes();
+    u = usedNodes(),
+    tan = opts && opts.tangent;
   for (var k in u) {
     nodesX.push(S.nodes[k].x);
     nodesZ.push(S.nodes[k].z);
@@ -462,59 +470,27 @@ function alignItem(nx, nz, it) {
     itemsZ.push(o.z, o.z - oe.hz, o.z + oe.hz);
   });
   var bx = snapAxis(nx, he.hx, itemsX, nodesX, thr),
-    bz = snapAxis(nz, he.hz, itemsZ, nodesZ, thr);
-
-  if (bx == null && bz == null && it) {
-    /* Snap flush to a wall — but only from CLOSE UP. The gate used to be
-       `thr + max(w,d)`, i.e. the piece's own size, so a 2 m sofa was captured
-       from two metres away and there was no way to stand one just off a wall.
-       Now it is the GAP between the piece's face and the wall's face that has
-       to be small, which is the distance the eye is judging anyway. */
-    var snapP = null,
-      bestGap = WALL_SNAP_GAP * mul,
-      snapW = null;
-    S.walls.forEach(function (w) {
-      var gm = wallGeom(w);
-      var dx = gm.b.x - gm.a.x, dz = gm.b.z - gm.a.z;
-      var l2 = dx * dx + dz * dz;
-      if (l2 < 1) return;
-      var t = clamp(((nx - gm.a.x) * dx + (nz - gm.a.z) * dz) / l2, 0, 1);
-      var px = gm.a.x + t * dx, pz = gm.a.z + t * dz;
-      var dist = Math.hypot(nx - px, nz - pz);
-      var nx_dir = nx - px, nz_dir = nz - pz;
-      if (dist > 0.001) { nx_dir /= dist; nz_dir /= dist; }
-      else { nx_dir = -gm.uz; nz_dir = gm.ux; }
-      // Distance from wall to the item CENTER so its (possibly rotated) footprint
-      // sits flush against the inner face: project the rotation-aware half-extents
-      // onto the wall normal (nx_dir,nz_dir is that unit normal), then add half the
-      // wall thickness (nodes lie on the centerline, not the inner face).
-      var td =
-        he.hx * Math.abs(nx_dir) +
-        he.hz * Math.abs(nz_dir) +
-        (w.thickness || 0) / 2;
-      var gap = Math.abs(dist - td); // how far the piece's face is off the wall's
-      if (gap < bestGap) {
-        bestGap = gap;
-        snapW = w;
-        snapP = { x: px + nx_dir * td, z: pz + nz_dir * td };
-      }
-    });
-    if (snapP) {
-      flashSnap(it, "wall:" + snapW.id);
-      /* Remember what it went flush against. endAction turns this into a
-         standing hold, so a sofa pushed against a wall STAYS against it when
-         the wall is later moved or the room resized — which is what the user
-         meant by pushing it there, and what used to quietly come undone. */
-      S.itemSnapWall = snapW.id;
-      return snapP;
+    bz = snapAxis(nz, he.hz, itemsZ, nodesZ, thr),
+    out = { x: nx, z: nz };
+  if (tan) {
+    // along the wall only: one axis, reached by sliding on the wall's line
+    if (Math.abs(tan.ux) >= Math.abs(tan.uz)) bz = null;
+    else bx = null;
+    if (bx) {
+      out = { x: bx.center, z: nz + (tan.uz * (bx.center - nx)) / tan.ux };
+    } else if (bz) {
+      out = { x: nx + (tan.ux * (bz.center - nz)) / tan.uz, z: bz.center };
     }
-    S.itemSnapWall = null;
+  } else {
+    out = { x: bx != null ? bx.center : nx, z: bz != null ? bz.center : nz };
   }
-  flashSnap(it, bx || bz ? "align:" + (bx ? bx.line : "-") + "," + (bz ? bz.line : "-") : null);
+  var key = bx || bz ? "align:" + (bx ? bx.line : "-") + "," + (bz ? bz.line : "-") : null;
+  if (!opts || opts.flash !== false) flashSnap(it, key);
 
   S.alignX = bx != null ? bx.line : null;
   S.alignZ = bz != null ? bz.line : null;
-  return { x: bx != null ? bx.center : nx, z: bz != null ? bz.center : nz };
+  out.key = key;
+  return out;
 }
 
 /* A plan click resolved to a point spec for addMarker.
@@ -554,6 +530,6 @@ function planPickSurface(p, cx, cz) {
 }
 
 export {
-  alignItem, exteriorDoorSwing, hitItem, hitNode, hitOpening, hitRoom,
+  alignItem, exteriorDoorSwing, flashSnap, hitItem, hitNode, hitOpening, hitRoom,
   hitWall, nearRecs, planIndexRecords, planPickSurface, pointInPolyR, tolCm,
 };

@@ -37,7 +37,8 @@ export function prepareItemDuplicate(params, env) {
     return !finite(Number(item.x)) || !finite(Number(item.z));
   })) return fail("INVALID_ITEM_POSITION");
   var copies;
-  try { copies = snapshot(sources); }
+  // a copy keeps no distances: the original's keeps name it by id (a copy kept to it would cycle or double)
+  try { copies = snapshot(sources); copies.forEach(function(copy) { delete copy.keep; }); }
   catch (_) { return fail("ITEM_DUPLICATE_FAILED"); }
   return { ok: true, plan: {
     command: "item.duplicate",

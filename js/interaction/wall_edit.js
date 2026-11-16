@@ -17,6 +17,8 @@ import { deleteMarker, hitMarker } from "../markers.js";
 import { deleteMEP, detachNodesFromWalls, hitMEP } from "../mep.js";
 import { canonicalPlacementItem, canonicalPlacementWall, placementWallFingerprint } from "../placement_resolver.js";
 import { broadcastPlanOp, itemMovePlanOp } from "../plan_sync.js";
+import { pruneKeptRefs } from "../item_keep_edit.js";
+import { leaveEditorsOf } from "../pro_shell.js";
 import { render2D } from "../plan2d.js";
 import { inputIs3D, inputScale, wx, wz } from "../planner_input.js";
 import { captureProtectedStructure, generatedChangePermission, validateProtectedStructure } from "../redesign.js";
@@ -724,6 +726,9 @@ function blockedDrag(sel) {
 
 function applyRemove(sel) {
   if (!sel) return false;
+  // an editor open on a piece being deleted (the cabinet designer) closes first
+  if (sel.kind === "item") leaveEditorsOf([sel.ref]);
+  else if (sel.kind === "items") leaveEditorsOf(sel.refs.filter(function (i) { return !refLocked(i); }));
   if (sel.kind === "item") {
     S.items = S.items.filter(function (i) { return i !== sel.ref; });
     removeStairVoids([sel.ref]); // a deleted flight takes its stairwell with it
@@ -773,6 +778,7 @@ function applyRemove(sel) {
 
 function finishRemove() {
   pruneCons();
+  pruneKeptRefs(); // kept distances to what was removed go with it
   select(null);
   S.dirty3D = true;
   render2D();

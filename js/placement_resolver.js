@@ -101,14 +101,14 @@ function pointInPoly(x, z, pts) {
   }
   return inside;
 }
-function itemCorners(item, x, z, rotation) {
+export function itemCorners(item, x, z, rotation) {
   var a = normRot(rotation) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
   var hw = num(item.w) / 2, hd = num(item.d) / 2;
   return [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(function(pair) {
     return { x: x + pair[0] * ca - pair[1] * sa, z: z + pair[0] * sa + pair[1] * ca };
   });
 }
-function polygonsOverlap(a, b) {
+export function polygonsOverlap(a, b) {
   var polys = [a, b];
   for (var p = 0; p < polys.length; p++) for (var i = 0; i < polys[p].length; i++) {
     var q = polys[p], next = q[(i + 1) % q.length], edge = { x: next.x - q[i].x, z: next.z - q[i].z };

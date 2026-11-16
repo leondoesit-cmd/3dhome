@@ -12,7 +12,7 @@ import { stripComments } from "./source.mjs";
 const readFile = async (url, encoding) => (await readRaw(url, encoding)).replace(/\r\n/g, "\n");
 
 const css = stylesSource();
-const planner = await readFile(new URL("../js/mobile_shell.js", import.meta.url), "utf8");
+const planner = moduleSource("js/mobile_shell.js");
 const modeler = await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8");
 const modelerCore = modelerSource();
 const cabinet = await readFile(new URL("../js/ui_cabinet_mobile.js", import.meta.url), "utf8");
@@ -128,8 +128,8 @@ test("compact menus use a translucent glass layer with stronger controls", () =>
 
 test("mobile selection card names the object and adds a second Properties entry point", () => {
   assert.match(cadHud, /cad-selection-props/);
-  assert.match(cadHud, /selectionName = t\("wallId", \{ id: S\.sel\.ref\.id \}\)/);
-  assert.match(cadHud, /selectionName = S\.sel\.ref\.name \|\| flabel\(S\.sel\.ref\.type\)/);
+  // the name itself comes from js/cad_hud_readout.js (tests/cad_hud_readout.test.mjs)
+  assert.match(cadHud, /selectionName = ro\.name;/);
   assert.match(cadHud, /#mobile-nav \[data-mnav="props"\]/);
   assert.match(cadHud, /addEventListener\("planner-selection", updateCadHud\)/);
   assert.match(css, /#cad-status \.cad-main\.is-selection[\s\S]*?flex-direction:\s*column/);

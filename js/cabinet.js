@@ -596,6 +596,17 @@ function evenCols(inner, n, panel) {
 function sec(t, h, extra) {
   return Object.assign({ t: t, h: h }, extra || {});
 }
+
+/* How many shelves a shelf or shoe compartment gets: its own count when one
+   was typed, else one fewer than the spacings that fit, rounded. The spacing
+   is the section's own, else the type's (shoe 19, shelves the cabinet's
+   `specSpace` or 36). The layout and the Inspector's Count field both ask
+   here, so the field shows what gets built. */
+export function defaultShelfCount(s, clearHeight, specSpace) {
+  if (s && s.n != null) return Math.max(0, s.n);
+  var spacing = (s && s.space) || (s && s.t === "shoe" ? STD.shoeSpace : specSpace || STD.shelfSpace);
+  return Math.max(0, Math.round(clearHeight / spacing) - 1);
+}
 /* `leaves: null` means "as many as the column width calls for" — so widening
    a cabinet turns an over-wide single door into a pair by itself. The designer
    writes a number here only when the user picks one explicitly. */

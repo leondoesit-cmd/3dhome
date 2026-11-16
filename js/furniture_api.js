@@ -89,7 +89,9 @@ export function clearVSpanCache() {
 // variant is part of the key: a wall-hung toilet or a four-poster bed
 // occupies a different vertical span than the model's default shape
 function vSpanKey(it) {
-  return it.type + ":" + it.w + "x" + it.d + "x" + it.h + ":" + (it.variant || "");
+  // a modular cabinet builds at its spec's own elevation (a wall unit hangs): that is part of its span
+  var cabElev = it.cab && Number(it.cab.elev) ? ":e" + Number(it.cab.elev) : "";
+  return it.type + ":" + it.w + "x" + it.d + "x" + it.h + ":" + (it.variant || "") + cabElev;
 }
 // The span the piece's own geometry occupies, before any per-item offset.
 function baseVSpan(it) {
@@ -188,29 +190,48 @@ export function knownVSpan(it) {
   if (!it || !FURN[it.type]) return itemVSpan(it);
   return vSpanCache.has(vSpanKey(it)) ? itemVSpan(it) : null;
 }
-var toMeasure = new Map(), measureAsked = false;
+/* Before three has loaded nothing can be measured: a span asked for then waits
+   in `awaitingThree` (not queued again on every paint) until three lands, and
+   a slice that measured nothing new announces nothing. Announcing anyway made
+   a loop: "vspan:ready" -> repaint -> the painter asks again -> another empty
+   slice -> "vspan:ready", once per idle slice until three loaded, and for
+   good when it never did. */
+var toMeasure = new Map(), measureAsked = false, awaitingThree = new Set(), threeHooked = false;
+function whenThree() {
+  if (threeHooked) return;
+  threeHooked = true;
+  loadThree().then(function () {
+    awaitingThree.clear();
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("vspan:ready"));
+  }, function () { /* three never came: what waits stays unmeasured, quietly */ });
+}
 export function measureVSpanSoon(it) {
   if (!it || !FURN[it.type]) return;
   var key = vSpanKey(it);
-  if (vSpanCache.has(key) || toMeasure.has(key)) return;
+  if (vSpanCache.has(key) || toMeasure.has(key) || awaitingThree.has(key)) return;
   toMeasure.set(key, it);
   if (measureAsked) return;
   measureAsked = true;
   var idle = typeof requestIdleCallback === "function"
     ? function (fn) { requestIdleCallback(fn, { timeout: 200 }); }
     : function (fn) { setTimeout(function () { fn({ timeRemaining: function () { return 8; } }); }, 16); };
+  var measured = 0;
   var slice = function (deadline) {
     var t0 = Date.now();
     toMeasure.forEach(function (piece, k) {
       // budget: what the idle period has left, at least a few ms when it timed out
       if (Date.now() - t0 > Math.max(4, deadline.timeRemaining() - 2)) return;
       toMeasure.delete(k);
+      if (!threeLoaded()) { awaitingThree.add(k); whenThree(); return; }
       try { baseVSpan(piece); } catch (e) { /* measured as floor-standing on the next ask */ }
+      if (vSpanCache.has(k)) measured++;
     });
     if (toMeasure.size && threeLoaded()) return void idle(slice);
+    toMeasure.forEach(function (_, k) { awaitingThree.add(k); });
+    if (toMeasure.size) whenThree();
     toMeasure.clear();
     measureAsked = false;
-    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("vspan:ready"));
+    if (measured && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("vspan:ready"));
   };
   idle(slice);
 }

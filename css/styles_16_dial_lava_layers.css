@@ -1419,7 +1419,13 @@ body.rc-playing:has(#rcEd) #rcActions { display: none; }
 
 /* Cabinet dimensions remain legible in the narrow model inspector. */
 #modeler .md-prop-grid.md-cab-parameters { grid-template-columns: minmax(0, 1fr); }
-#modeler .md-cab-parameters .md-grid-cell .t { white-space: normal; overflow: visible; text-overflow: clip; }
+#modeler .md-cab-parameters .md-grid-cell { min-inline-size: 0; }
+/* The label takes the free width and wraps; the number keeps a fixed slot at the row end. */
+#modeler .md-cab-parameters .md-grid-cell .t {
+  flex: 1 1 auto; min-inline-size: 0; max-inline-size: none;
+  text-align: start; white-space: normal; overflow-wrap: break-word; overflow: visible; text-overflow: clip;
+}
+#modeler .md-cab-parameters .md-grid-cell input[type="number"] { flex: none; inline-size: 72px; min-inline-size: 72px; }
 
 .cb-p-preview { width: 44px; height: 40px; float: inline-end; margin-inline-start: 8px; opacity: .7; }
 

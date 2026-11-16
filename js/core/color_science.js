@@ -254,6 +254,17 @@ export function contrastRatio(color1, color2) {
 }
 
 /**
+ * The first of `inks` that reads at `minRatio` on the colour made by stacking
+ * `layers` (bottom to top: CSS strings, #rrggbbaa for a translucent fill, or
+ * {r,g,b,a}); when none does, black or white, whichever contrasts more.
+ */
+export function legibleInk(layers, inks, minRatio = 4.5) {
+  const bg = compositeStack((layers || []).map((c) => (typeof c === "string" ? parseColor(c) : c)));
+  for (const ink of inks || []) if (ink && contrastRatio(ink, bg) >= minRatio) return ink;
+  return contrastRatio("#000000", bg) >= contrastRatio("#ffffff", bg) ? "#000000" : "#ffffff";
+}
+
+/**
  * Determine WCAG 2.1 compliance level for text or UI components:
  * - normal text (<18pt or <14pt bold): AA >= 4.5, AAA >= 7.0
  * - large text (>=18pt or >=14pt bold): AA >= 3.0, AAA >= 4.5

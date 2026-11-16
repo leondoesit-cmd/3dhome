@@ -25,14 +25,17 @@ export function dispatchPlannerInput(phase, input) {
   const scale = phase==='down' ? Number(input.scale) : gestureScale || Number(input.scale);
   if(phase==='down')gestureScale=scale;
   if (!(scale > 0) || !Number.isFinite(scale)) return false;
-  setPlannerInputView({ id:'3d', scale, width:input.width, height:input.height, hit:input.hit || null, constraint:input.constraint||null });
+  setPlannerInputView({ id:'3d', scale, width:input.width, height:input.height, hit:input.hit || null, drag:input.drag || null, constraint:input.constraint||null });
   const raw = input.event || {};
   const x = input.point.x * scale, y = input.point.z * scale;
   const event = { type:phase === 'down' ? 'pointerdown' : phase === 'up' ? 'pointerup' : phase === 'cancel' ? 'pointercancel' : 'pointermove',
     clientX:x, clientY:y, offsetX:x, offsetY:y, pointerId:raw.pointerId || 1,
-    // touch only for the select tool (wider pick slop, long-press menu): the
-    // drawing tools' touch loupe is a 2D-plan overlay with no 3D meaning
-    pointerType:raw.pointerType==='touch'&&S.tool==='select'?'touch':'mouse', isTrusted:false, button:0, buttons:raw.buttons || 0,
+    // touch only for the select tool (long-press menu): the drawing tools'
+    // touch loupe is a 2D-plan overlay with no 3D meaning, and so is it for a
+    // library piece being placed (S.placeType rides on the select tool).
+    // `coarse` still gives every finger the wide pick slop (pointer_down.js).
+    pointerType:raw.pointerType==='touch'&&S.tool==='select'&&!S.placeType?'touch':'mouse', coarse:raw.pointerType==='touch',
+    isTrusted:false, button:0, buttons:raw.buttons || 0,
     shiftKey:!!raw.shiftKey, altKey:!!raw.altKey, ctrlKey:!!raw.ctrlKey, metaKey:!!raw.metaKey,
     preventDefault() {}, stopPropagation() {} };
   controller[phase](event);

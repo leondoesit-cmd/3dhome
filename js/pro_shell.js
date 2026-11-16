@@ -48,20 +48,22 @@ var MSG = {
   listening: ["Listening…", "מקשיב…"],
   suggest: ["Matching tools", "כלים מתאימים"],
 };
-/* Example requests per editor. Every tool named in a Cmd example is a real
-   entry of js/pro_catalog.js (tests/pro_shell.test.mjs checks it). */
+/* Example requests per editor: [English, Hebrew, short English, short Hebrew].
+   The short pair (one example) is shown when the input is too narrow for the
+   full text, which stays in the input's tooltip. Every tool named in a Cmd
+   example is a real entry of js/pro_catalog.js (tests/pro_shell.test.mjs checks it). */
 var PLACEHOLDER = {
   plan: {
-    ai: ["Ask or command: “make this wall 200 thick”, “add a window here”, “Wall”", "שאלו או פקדו: „קיר בעובי 200”, „הוסף חלון כאן”, „קיר”"],
-    cmd: ["Type a tool: “Wall”, “Door”, “Dimension”, “Section”…", "הקלידו כלי: „קיר”, „דלת”, „מידה”, „חתך”…"],
+    ai: ["Ask or command: “make this wall 200 thick”, “add a window here”, “Wall”", "שאלו או פקדו: „קיר בעובי 200”, „הוסף חלון כאן”, „קיר”", "Ask: “add a window here”", "שאלו: „הוסף חלון כאן”"],
+    cmd: ["Type a tool: “Wall”, “Door”, “Dimension”, “Section”…", "הקלידו כלי: „קיר”, „דלת”, „מידה”, „חתך”…", "Type a tool: “Wall”…", "הקלידו כלי: „קיר”…"],
   },
   model: {
-    ai: ["Ask: “set height to 430mm”, “round the top edges”, “add a hole for a cable”", "שאלו: „גובה 430 מ״מ”, „עגלו את הקצוות העליונים”, „חור לכבל”"],
-    cmd: ["Type a command: “Extrude”, “Fillet”, “Hole wizard”…", "הקלידו פקודה: „שליפה”, „עיגול פינה”, „אשף חורים”…"],
+    ai: ["Ask: “set height to 430”, “round the top edges”, “add a hole for a cable”", "שאלו: „גובה 430”, „עגלו את הקצוות העליונים”, „חור לכבל”", "Ask: “round the top edges”", "שאלו: „עגלו את הקצוות”"],
+    cmd: ["Type a command: “Extrude”, “Fillet”, “Hole wizard”…", "הקלידו פקודה: „שליפה”, „עיגול פינה”, „אשף חורים”…", "Type a command: “Extrude”…", "הקלידו פקודה: „שליפה”…"],
   },
   cab: {
-    ai: ["Ask: “make it 800 wide”, “3 drawers in the left column”, “glass doors”", "שאלו: „רוחב 800”, „3 מגירות בעמודה השמאלית”, „דלתות זכוכית”"],
-    cmd: ["Type a tool: “Presets”, “Vertical partition”, “Kitchen run”…", "הקלידו כלי: „תבניות”, „מחיצה אנכית”, „שורת מטבח”…"],
+    ai: ["Ask: “make it 800 wide”, “3 drawers in the left column”, “glass doors”", "שאלו: „רוחב 800”, „3 מגירות בעמודה השמאלית”, „דלתות זכוכית”", "Ask: “glass doors”", "שאלו: „דלתות זכוכית”"],
+    cmd: ["Type a tool: “Presets”, “Vertical partition”, “Kitchen run”…", "הקלידו כלי: „תבניות”, „מחיצה אנכית”, „שורת מטבח”…", "Type a tool: “Presets”…", "הקלידו כלי: „תבניות”…"],
   },
 };
 function he() { return getLang() === "he"; }
@@ -73,6 +75,16 @@ var editors = {};
 /** Register (or extend) an editor's open/isOpen/leave/canOpen/why hooks. */
 export function registerEditor(id, hooks) {
   editors[id] = Object.assign(editors[id] || {}, hooks);
+}
+
+/** Before `items` are deleted: an editor open on one of them (its `editing`
+ *  hook) leaves through its own `leave` first, rather than editing a piece
+ *  that is no longer in the plan. */
+export function leaveEditorsOf(items) {
+  Object.keys(editors).forEach(function (id) {
+    var e = editors[id], it = e.editing && e.isOpen && e.isOpen() ? e.editing() : null;
+    if (it && items.indexOf(it) !== -1 && e.leave) e.leave();
+  });
 }
 
 /** The editor whose overlay is showing, else the planner underneath them. */
@@ -153,9 +165,29 @@ function store(key, value) {
   } catch (e) { /* private mode or no storage: the shell simply forgets */ }
   return null;
 }
+function placeholderRow(editor, mode) {
+  return (PLACEHOLDER[editor] || PLACEHOLDER.plan)[mode] || PLACEHOLDER.plan.cmd;
+}
 function P(editor, mode) {
-  var row = (PLACEHOLDER[editor] || PLACEHOLDER.plan)[mode] || PLACEHOLDER.plan.cmd;
-  return row[he() ? 1 : 0];
+  return placeholderRow(editor, mode)[he() ? 1 : 0];
+}
+/* The full example when it fits the input's measured width (about 6.6px a
+   character at the bar's 13px), else the short one. An unmeasured (hidden)
+   input keeps the full text. */
+export function placeholderFor(row, lang, inputWidth, charPx) {
+  var i = lang === "he" ? 1 : 0;
+  var full = row[i], short = row[2 + i] || full;
+  if (!(inputWidth > 0)) return full;
+  return full.length * (charPx || 6.6) <= inputWidth ? full : short;
+}
+function fitPlaceholder(bar) {
+  var input = bar.querySelector(".ps-cmd-input");
+  if (!input || bar.classList.contains("listening")) return;
+  var row = placeholderRow(bar.dataset.psBar, bar.dataset.mode || barMode(bar.dataset.psBar));
+  var lang = he() ? "he" : "en";
+  var text = placeholderFor(row, lang, input.clientWidth), full = placeholderFor(row, lang, 0);
+  if (input.placeholder !== text) input.placeholder = text;
+  if (input.title !== full) input.title = full;
 }
 
 /* AI on is the default; off means fully manual — the bar never reaches the
@@ -268,6 +300,8 @@ export function syncShell() {
       if (b.title !== tip) b.title = tip;
       if (b.getAttribute("aria-label") !== name + " — " + tip) b.setAttribute("aria-label", name + " — " + tip);
     });
+    // the bar's width changes with the window and the panels: re-pick the example
+    root.querySelectorAll(".ps-cmdbar").forEach(fitPlaceholder);
     if (root._psAi === on) return; // the rest only changes with the AI switch or language
     root._psAi = on;
     root.querySelectorAll('[data-ps="ai"]').forEach(function (b) {
@@ -298,7 +332,7 @@ function syncBar(bar) {
     else b.removeAttribute("title");
   });
   var input = bar.querySelector(".ps-cmd-input");
-  if (!bar.classList.contains("listening")) input.placeholder = P(editor, mode);
+  fitPlaceholder(bar);
   input.setAttribute("aria-label", P(editor, mode));
   if (mode !== "cmd") hideSuggest(bar);
 }
@@ -414,7 +448,7 @@ function wireBar(bar, editor) {
       if (items.length) { items = []; render(); } else input.blur();
     }
   });
-  wireVoice(input, bar.querySelector(".ps-mic"), bar, submit, function () { return P(editor, bar.dataset.mode); });
+  wireVoice(input, bar.querySelector(".ps-mic"), bar, submit, function () { return placeholderFor(placeholderRow(editor, bar.dataset.mode), he() ? "he" : "en", input.clientWidth); });
 }
 function hideSuggest(bar) {
   var list = bar.querySelector(".ps-suggest"), input = bar.querySelector(".ps-cmd-input");

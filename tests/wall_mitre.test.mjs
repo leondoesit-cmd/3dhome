@@ -380,6 +380,9 @@ test("an end cut can never eat more than the wall it is measured on", () => {
     const stub = S.walls[0],
       L = 30;
     stub.dimSide = side;
+    // 10 and 34 are different assemblies, which butt by default; the measured
+    // face only matches the drawn one at a mitre, so ask for that here
+    stub.join = { b: "miter" };
     const g = wallGeom(stub),
       raw = faceShiftAt(stub.b, -g.ux, -g.uz, -side, stub, 5),
       cut = wallCuts(stub).b;
@@ -439,7 +442,12 @@ test("a full wall above a half-wall cap is not mitred by the half wall", () => {
     high.filter((p) => Math.abs(p.x - 200) < 0.01).length === 2,
     "above the cap the full wall ends square at the shared node",
   );
-  assert.equal(jointClosed(low, wallOutline(half)), 2, "the overlapping height still shares both corners");
+  // a full wall and a half wall are different assemblies: one owns the corner,
+  // the other butts square against it, so they share one corner and a face
+  var halfO = wallOutline(half);
+  assert.equal(jointClosed(low, halfO), 1, "the overlapping height shares the owner's corner");
+  assert.ok(halfO.filter((p) => Math.abs(p.z - 10) < 0.01 && p.x > 189.99 && p.x < 210.01).length === 2,
+    "the half wall's end lies on the full wall's face, no gap and no overlap");
 });
 
 test("a 90° branch still meets a face-located through-run of mixed thickness", () => {
@@ -500,8 +508,9 @@ test("a 90° branch hung against an interior-face through-run has no gap", () =>
 
 test("3D T-branch ends use the through-run's near face, not half its thickness", async () => {
   const src = moduleSource("js/view3d.js");
-  assert.match(src, /wallJoinRole\(w, nodeId\) === "branch"/,
-    "a T-branch is cut with the join role, not the L-corner fallback");
+  // every joined end (T-branch and corner alike) is cut by faceShiftAt, which
+  // carries the junction rule; the lowest-id corner fallback is gone
+  assert.doesNotMatch(src, /endWalls\.sort/, "no lowest-id corner fallback");
   assert.match(src, /faceShiftAt\(nodeId, bx, bz/,
     "the cut is the adjoining face, so hanging the run on its interior cannot open a gap");
 });

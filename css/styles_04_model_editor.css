@@ -2154,6 +2154,19 @@ body.pro-skin #modeler .md-mid > .md-status > .md-exact-activity { display:inlin
   border-end-start-radius: 5px;
 }
 #modeler .md-tree-unified .md-tree-row .nm { display: flex; flex-direction: column; justify-content: center; gap: 1px; white-space: normal; }
+/* While a row's action buttons show (hover, focus, selected) they float over its
+   end (.md-history-actions, absolutely placed). They are sized from these
+   properties, and the name reserves exactly that room from the same ones — the
+   inset, the fade before the buttons, and per button (--md-tree-acts, set by
+   js/modeler_tree.js) its fixed width plus a gap — so it ellipsises before the
+   actions' start edge instead of running underneath. 24px fits the widest
+   button (the rollback icon: 17px + 2 × 3px padding). */
+#modeler .md-tree-unified .md-tree-row { --md-act-inset: 4px; --md-act-fade: 22px; --md-act-btn: 24px; --md-act-gap: 1px; }
+#modeler .md-tree-unified .md-tree-row > .md-history-actions { inset-inline-end: var(--md-act-inset); padding-inline-start: var(--md-act-fade); gap: var(--md-act-gap); }
+#modeler .md-tree-unified .md-tree-row > .md-history-actions > .md-part-x { box-sizing: border-box; width: var(--md-act-btn); justify-content: center; }
+#modeler .md-tree-unified .md-tree-row:is(:hover, :focus-within, .on) > .nm {
+  padding-inline-end: calc(var(--md-act-inset) + var(--md-act-fade) + var(--md-tree-acts, 0) * (var(--md-act-btn) + var(--md-act-gap)));
+}
 #modeler .md-tree-unified .md-tree-row .nm b { overflow: hidden; color: inherit; font-size: max(10.5px, var(--fs-floor, 0px)); text-overflow: ellipsis; white-space: nowrap; }
 #modeler .md-tree-unified .md-tree-row .nm small { overflow: hidden; color: var(--text-muted); font-size: max(8.5px, var(--fs-floor, 0px)); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 #modeler .md-tree-unified .md-history-index { flex: none; width: 17px; color: var(--text-muted); font: 700 max(8.5px, var(--fs-floor, 0px))/1 ui-monospace,monospace; text-align: center; }
