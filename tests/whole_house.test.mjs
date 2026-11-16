@@ -67,3 +67,24 @@ test("boxes become one triangle list whose faces point outwards", () => {
     assert.ok(cross[0] * n[0] + cross[1] * n[1] + cross[2] * n[2] > 0, "face " + f + " winds against its normal");
   }
 });
+
+test("a storey sits exactly on the one below: walls reach the next level, the slab fills the rest", async () => {
+  const { activeRise, carriedTop, riseAbove, slabDepth } = await import("../js/floor_stack.js");
+  const w = ws();
+  w.showAllFloors = true;
+  // floor-to-floor heights: a -> b (active, 0) is 300, active -> c is 300, c is the top
+  assert.deepEqual(stackedFloors(w).map((e) => [e.floor.id, e.rise]), [["a", 300], ["c", null]]);
+  assert.equal(activeRise(w), 300);
+  assert.equal(activeRise(w, { hideAbove: true }), null, "nothing shown above under the dollhouse cut");
+  assert.equal(riseAbove([-300, 0, 300], -300), 300);
+  // a 270 wall under a storey 300 up runs to 300; a 320 one is cut to 300
+  assert.equal(carriedTop("normal", 270, 300), 300);
+  assert.equal(carriedTop("normal", 320, 300), 300);
+  assert.equal(carriedTop("half", 110, 300), 110, "a half wall carries nothing");
+  assert.equal(carriedTop("normal", 270, null), 270, "the top storey keeps its walls");
+  // the slab is floor-to-floor height minus the ceiling below it
+  assert.equal(slabDepth(300, 270), 30);
+  assert.equal(slabDepth(300, 300), 0);
+  assert.equal(slabDepth(300, 320), 0);
+  assert.equal(slabDepth(null, 270), 0);
+});

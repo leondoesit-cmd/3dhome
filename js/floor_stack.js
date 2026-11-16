@@ -26,11 +26,46 @@ export function stackedFloors(workspace, options = {}) {
   if (!wholeHouseOn(workspace)) return [];
   const active = workspace.floors.find((f) => f.id === workspace.activeFloor);
   const base = active ? Number(active.elevation) || 0 : 0;
-  return workspace.floors
+  const list = workspace.floors
     .filter((f) => f && f.id !== workspace.activeFloor && f.scene)
     .map((f) => ({ floor: f, dy: (Number(f.elevation) || 0) - base }))
     .filter((e) => !(options.hideAbove && e.dy > 0))
     .sort((a, b) => a.dy - b.dy);
+  const levels = list.map((e) => e.dy).concat(0);
+  list.forEach((e) => { e.rise = riseAbove(levels, e.dy); });
+  return list;
+}
+
+/* Floor-to-floor height from a storey at `dy` to the next storey shown above
+   it (levels: every shown storey's dy, the active one's 0 included), or null
+   for the top one. A storey stands exactly on the one below: the walls below
+   run up to this level and the slab fills what they do not. */
+export function riseAbove(levels, dy) {
+  let next = null;
+  levels.forEach((y) => { if (y > dy + 0.01 && (next == null || y < next)) next = y; });
+  return next == null ? null : next - dy;
+}
+
+/* The active storey's rise to the storey shown above it (null: none shown). */
+export function activeRise(workspace, options = {}) {
+  return riseAbove(stackedFloors(workspace, options).map((e) => e.dy).concat(0), 0);
+}
+
+/* A full-height wall carries the storey above, so it runs from its own base
+   to that storey's level: up past its own top when the walls are lower than
+   the floor-to-floor height (the band the slab sits in), cut down when they
+   are taller. Half walls, railings and dividers keep their own height. */
+export function carriedTop(kind, ownTop, rise) {
+  if (rise == null || !(rise > 0) || (kind && kind !== "normal")) return ownTop;
+  return rise;
+}
+
+/* The slab under a storey: from its floor down to the ceiling of the storey
+   below (the tallest full wall there), i.e. floor-to-floor height minus that
+   storey's wall height. 0 when the walls already reach the level. */
+export function slabDepth(rise, belowWallTop) {
+  if (rise == null || !(belowWallTop > 0)) return 0;
+  return Math.max(0, rise - belowWallTop);
 }
 
 /* A stored storey's spatial document, in the shape state.spatial has (the

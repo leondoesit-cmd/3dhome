@@ -23,12 +23,11 @@ import { floorTexture, polyMesh } from "../primitives.js";
 import { FURN, buildItem as buildFurn, elevOffset } from "../furniture.js";
 import { mergeItemMeshes } from "../view3d/item_merge.js";
 import { cutH } from "../view3d/site_cutaway.js";
-import { boxArrays, openingCut, stackedFloors, wallSolidPieces, withFloorScene } from "../floor_stack.js";
+import { boxArrays, carriedTop, openingCut, riseAbove, slabDepth, stackedFloors, wallSolidPieces, withFloorScene } from "../floor_stack.js";
 
 var fsGroup = null;
 var fsEntries = new Map(); // floor id -> { scene, dy, key, group }
 var fsMats = new Map(); // material key -> material, reused across rebuilds (never disposed)
-var SLAB_T = 20;
 
 function fsMat(key, make) {
   var m = fsMats.get(key);
@@ -51,17 +50,28 @@ function slabMat() {
   });
 }
 
-// Wall boxes for the live state (which withFloorScene has pointed at a stored storey).
-function storeyWallBoxes() {
+/* Wall boxes for the live state (which withFloorScene may have pointed at a
+   stored storey). rise: the floor-to-floor height to the storey shown above,
+   which full walls run up to exactly (carriedTop). bandOnly: just the part of
+   each wall above its own top — the live storey's walls are rebuild3D's, so
+   for it only the band up to the storey above is drawn here. */
+function storeyWallBoxes(rise, bandOnly) {
   var boxes = [];
   (S.walls || []).forEach(function (w) {
     try {
-      if (normalizeWallKind(w) === "roomDivider") return;
+      var kind = normalizeWallKind(w);
+      if (kind === "roomDivider") return;
       var gm = wallGeom(w);
       if (!gm || !(gm.L > 1)) return;
       var span = wallElevationSpan(w), T = wallThickness(w, S) || 12;
-      var cuts = (S.openings || []).filter(function (o) { return String(o.wall) === String(w.id); }).map(function (o) { return openingCut(o, span.top); });
-      wallSolidPieces(gm.L, span.bottom, span.top, cuts).forEach(function (p) {
+      var top = carriedTop(kind, span.top, rise);
+      var pieces;
+      if (bandOnly) pieces = top > span.top + 0.01 ? wallSolidPieces(gm.L, span.top, top, []) : [];
+      else {
+        var cuts = (S.openings || []).filter(function (o) { return String(o.wall) === String(w.id); }).map(function (o) { return openingCut(o, span.top); });
+        pieces = wallSolidPieces(gm.L, span.bottom, top, cuts);
+      }
+      pieces.forEach(function (p) {
         // a curved wall is followed in short chords; a straight one is one box
         var n = gm.curve ? Math.max(1, Math.ceil((p.s1 - p.s0) / 40)) : 1;
         for (var i = 0; i < n; i++) {
@@ -76,33 +86,59 @@ function storeyWallBoxes() {
   return boxes;
 }
 
-function buildStorey(floor) {
+// The tallest full-height wall of the live state: the ceiling of that storey.
+function storeyWallTop() {
+  var top = 0;
+  (S.walls || []).forEach(function (w) {
+    try {
+      if (normalizeWallKind(w) !== "normal") return;
+      top = Math.max(top, wallElevationSpan(w).top);
+    } catch (e) { /* skip */ }
+  });
+  return top;
+}
+
+function addWallMesh(g, boxes, color) {
+  var arrays = boxArrays(boxes);
+  if (!arrays.indices.length) return;
+  var geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(arrays.positions, 3));
+  geo.setAttribute("normal", new THREE.BufferAttribute(arrays.normals, 3));
+  geo.setIndex(new THREE.BufferAttribute(arrays.indices, 1));
+  geo.computeBoundingSphere();
+  var walls = new THREE.Mesh(geo, wallMat(color != null ? color : WALLC));
+  walls.castShadow = walls.receiveShadow = true;
+  walls.userData.ownGeometry = true;
+  g.add(walls);
+}
+
+/* The slab under each room: its underside `depth` below the floor, down to
+   the ceiling of the storey below. Its top is the room's floor itself. */
+function addSlabUndersides(g, rooms, depth) {
+  if (!(depth > 0.01)) return;
+  rooms.forEach(function (r) {
+    var under = polyMesh(r.pts, -depth, 240, slabMat(), holesForRoom(r.pts));
+    if (under) { under.castShadow = true; under.userData.ownGeometry = true; g.add(under); }
+  });
+}
+
+function liveRooms() {
+  try { return detectRooms(); } catch (e) { return []; }
+}
+
+function buildStorey(floor, rise, depth) {
   var g = new THREE.Group();
   g.name = "floorStack:" + floor.id;
   var scene = floor.scene;
   withFloorScene(S, scene, function () {
-    var arrays = boxArrays(storeyWallBoxes());
-    if (arrays.indices.length) {
-      var geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.BufferAttribute(arrays.positions, 3));
-      geo.setAttribute("normal", new THREE.BufferAttribute(arrays.normals, 3));
-      geo.setIndex(new THREE.BufferAttribute(arrays.indices, 1));
-      geo.computeBoundingSphere();
-      var walls = new THREE.Mesh(geo, wallMat(scene.wallColor != null ? scene.wallColor : WALLC));
-      walls.castShadow = walls.receiveShadow = true;
-      walls.userData.ownGeometry = true;
-      g.add(walls);
-    }
-    var rooms = [];
-    try { rooms = detectRooms(); } catch (e) { rooms = []; }
+    addWallMesh(g, storeyWallBoxes(rise, false), scene.wallColor);
+    var rooms = liveRooms();
     rooms.forEach(function (r) {
       var holes = holesForRoom(r.pts), t = roomFloor(r.key);
       var top = polyMesh(r.pts, 0, TILE[t] || 240, floorMat(t), holes);
       if (top) { top.receiveShadow = true; top.userData.ownGeometry = true; g.add(top); }
-      // the slab's underside, so a storey above reads as a floor, not a sheet
-      var under = polyMesh(r.pts, -SLAB_T, 240, slabMat(), holes);
-      if (under) { under.castShadow = true; under.userData.ownGeometry = true; g.add(under); }
     });
+    addSlabUndersides(g, rooms, depth);
     (S.items || []).forEach(function (it) {
       if (!it || !FURN[it.type]) return;
       try {
@@ -137,13 +173,21 @@ function disposeStorey(g) {
   });
 }
 
+var fsActive = null; // the live storey's band and slab (rebuilt every sync)
+var fsTops = new WeakMap(); // stored scene -> its tallest full wall
+
+function storedWallTop(scene) {
+  if (!fsTops.has(scene)) fsTops.set(scene, withFloorScene(S, scene, storeyWallTop));
+  return fsTops.get(scene);
+}
+
 export function syncFloorStack() {
   if (!has3D() || !THREE || !THREE.Group) return;
   var main = getMainScene();
   if (!main) return;
   var cut = isFinite(cutH());
   var wanted = stackedFloors(S.workspace, { hideAbove: cut });
-  if (!wanted.length && !fsEntries.size) return;
+  if (!wanted.length && !fsEntries.size && !fsActive) return;
   if (!fsGroup) {
     fsGroup = new THREE.Group();
     fsGroup.name = "floorStack";
@@ -152,18 +196,31 @@ export function syncFloorStack() {
   }
   if (fsGroup.parent !== main) main.add(fsGroup);
   var changed = false, keep = new Set();
+  /* Each shown storey's ceiling (its tallest full wall), the live one's
+     included: the slab over it is floor-to-floor height minus that. */
+  var activeTop = storeyWallTop();
+  var tops = wanted.map(function (e) { return storedWallTop(e.floor.scene); });
+  function depthUnder(dy) {
+    var belowDy = null, belowTop = 0;
+    if (dy > 0) { belowDy = 0; belowTop = activeTop; }
+    wanted.forEach(function (o, i) {
+      if (o.dy < dy - 0.01 && (belowDy == null || o.dy > belowDy)) { belowDy = o.dy; belowTop = tops[i]; }
+    });
+    return belowDy == null ? 0 : slabDepth(dy - belowDy, belowTop);
+  }
   wanted.forEach(function (e) {
     keep.add(e.floor.id);
+    var depth = depthUnder(e.dy);
     var entry = fsEntries.get(e.floor.id);
-    if (entry && entry.scene === e.floor.scene) {
+    if (entry && entry.scene === e.floor.scene && entry.rise === e.rise && entry.depth === depth) {
       if (entry.group.position.y !== e.dy) { entry.group.position.y = e.dy; changed = true; }
       return;
     }
     if (entry) disposeStorey(entry.group);
-    var group = buildStorey(e.floor);
+    var group = buildStorey(e.floor, e.rise, depth);
     group.position.y = e.dy;
     fsGroup.add(group);
-    fsEntries.set(e.floor.id, { scene: e.floor.scene, group: group });
+    fsEntries.set(e.floor.id, { scene: e.floor.scene, rise: e.rise, depth: depth, group: group });
     changed = true;
   });
   fsEntries.forEach(function (entry, id) {
@@ -172,6 +229,20 @@ export function syncFloorStack() {
     fsEntries.delete(id);
     changed = true;
   });
+  /* The live storey's share, redone on every rebuild since it is the one
+     being edited: its full walls run up to the storey shown above, and its
+     floor gets the slab down to the ceiling of the storey shown below. */
+  if (fsActive) { disposeStorey(fsActive); fsActive = null; changed = true; }
+  var rise = wanted.length ? riseAbove(wanted.map(function (e) { return e.dy; }).concat(0), 0) : null;
+  var activeDepth = wanted.length ? depthUnder(0) : 0;
+  if (rise != null || activeDepth > 0) {
+    fsActive = new THREE.Group();
+    fsActive.name = "floorStack:active";
+    if (rise != null) addWallMesh(fsActive, storeyWallBoxes(rise, true), S.wallColor);
+    addSlabUndersides(fsActive, liveRooms(), activeDepth);
+    fsGroup.add(fsActive);
+    changed = true;
+  }
   /* The lawn, the site dressing and the studio floor sit at the active
      storey's level; storeys below it would be buried. They step down to the
      lowest storey shown. */
