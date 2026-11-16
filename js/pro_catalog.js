@@ -171,6 +171,18 @@ export function ribbonTabForPreset(presetId, currentTab) {
   return Object.keys(PRESET_TABS).some(function (k) { return PRESET_TABS[k] === currentTab; }) ? target : null;
 }
 
+/* The work set (js/layers.js S.workSet) brings its tab forward the same way:
+   picking a wall tool shows Build, arming a sofa shows Interior, an MEP tool
+   shows MEP, a point shows Annotate. Called only when the work set CHANGES, so
+   choosing a tab by hand is never snapped back. It moves only between those
+   four work tabs: a tool run from Output or View & render leaves you there. */
+var WORKSET_TABS = { structure: "Build", furniture: "Interior", mep: "MEP", annotations: "Annotate" };
+export function ribbonTabForWorkSet(workSet, currentTab) {
+  var target = Object.prototype.hasOwnProperty.call(WORKSET_TABS, workSet) ? WORKSET_TABS[workSet] : null;
+  if (!target || target === currentTab) return null;
+  return Object.keys(WORKSET_TABS).some(function (k) { return WORKSET_TABS[k] === currentTab; }) ? target : null;
+}
+
 /* Flat list, one row per tool, for search and tests. */
 export function proTools(editor) {
   var eds = editor ? [editor] : PRO_EDITORS;

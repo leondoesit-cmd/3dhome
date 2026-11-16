@@ -21,6 +21,7 @@ import { snapshotSmart, loadSmart, ensureSmartHome } from "./smarthome.js";
 import "./smarthome_connect.js";
 import { render2D, fitView, dropPoint, updatePlanGizmo } from "./plan2d.js";
 import { saveLayers } from "./layers.js";
+import { syncBackdropUI } from "./ui/backdrop_controls.js";
 import {
   snapshotNodes, enforceLocks, captureLock, isLocked, loadClears, captureClear,
   CLEAR_RULE, fitWallClearLength, settleWallDim,
@@ -1079,6 +1080,7 @@ export function syncEnvUI() {
   document.getElementById("hourval").textContent = fmtHour(S.hour);
   document.getElementById("north").value = S.northAngle;
   document.getElementById("northval").textContent = compass(S.northAngle);
+  syncBackdropUI();
 }
 
 // show/hide + label the first/third-person + free-move toggle buttons

@@ -2,6 +2,7 @@
    site and street-view cube, and resizing, split out of js/view3d.js. It shares
    the editor's state through live imports from ../view3d.js. */
 import { contentBounds } from "../geometry.js";
+import { backdropLook, backdropMode, softLightOn, studioFloor } from "./backdrop.js";
 import { LUX } from "../gpu.js";
 import { SITE, llToLocalCm } from "../site.js";
 import { prefilterInto, skyPixels } from "../sky_model.js";
@@ -320,15 +321,17 @@ export function applyEnv() {
   var dk = on ? clamp(se / 0.85, 0, 1) : 0;
   S.dayK = dk;
   var lowK = on ? 1 - clamp(E / 0.7, 0, 1) : 1;
+  // Studio backdrop / soft light (./backdrop.js): scales of 1 in the default look
+  var look = backdropLook(backdropMode(S.workspace), softLightOn(S.workspace), on);
   // LUX: physical lights divide irradiance by PI, so every pre-r185 intensity
   // literal in this rig is PI too dim as written. See gpu.js.
   // The sun is the key light and the sky is fill. With the sky map at full
   // strength the two came out nearly equal, so interiors read flat and white
   // walls clipped; a stronger, warmer sun over a dimmer sky gives shadows
   // that actually model the rooms. The penumbra widens as the sun drops.
-  sun.intensity = LUX * (on ? 0.45 + 1.4 * dk : 0);
+  sun.intensity = LUX * (on ? 0.45 + 1.4 * dk : 0) * look.sunScale;
   sun.color.copy(lerpC(0xfff1db, 0xff7a36, lowK));
-  sun.shadow.radius = 3 + 6 * lowK;
+  sun.shadow.radius = 3 + 6 * lowK + look.shadowSoften;
   // a sun below the horizon still cost a 4096² pass and a texture in every shader
   sun.castShadow = on;
   /* Light in the order nature has it: the sun's patch through a window is
@@ -336,15 +339,15 @@ export function applyEnv() {
      brighter than the bounce that fills the rest of the room. The window
      sky light used to put twice the sun's illuminance on the floor beside the
      glass, so a sun patch vanished into it. */
-  scene.environmentIntensity = on ? 0.53 + 0.21 * lowK : 0.55;
+  scene.environmentIntensity = (on ? 0.53 + 0.21 * lowK : 0.55) * look.envScale;
   hemi.intensity = LUX * (0.02 + 0.05 * dk); // env map now supplies most sky ambient
   // gradient sky: zenith->horizon colors, shared with the path tracer via envPT
-  var zen = on ? lerpC(0x5f93c8, 0xb46a4a, lowK) : new THREE.Color(0x070b14);
-  var hor = on ? lerpC(0xd8e6f2, 0xf0a35c, lowK) : new THREE.Color(0x182233);
+  var zen = look.zenith != null ? new THREE.Color(look.zenith) : on ? lerpC(0x5f93c8, 0xb46a4a, lowK) : new THREE.Color(0x070b14);
+  var hor = look.horizon != null ? new THREE.Color(look.horizon) : on ? lerpC(0xd8e6f2, 0xf0a35c, lowK) : new THREE.Color(0x182233);
   set_envPT({
     zenith: [zen.r, zen.g, zen.b],
     horizon: [hor.r, hor.g, hor.b],
-    ground: [0.3, 0.34, 0.24],
+    ground: look.ptGround || [0.3, 0.34, 0.24],
     night: on ? 0 : 1,
   });
   var skyGround = hor.clone().multiplyScalar(0.75).getHexString();
@@ -360,17 +363,17 @@ export function applyEnv() {
     sx.fillRect(0, 0, skyCanvas.width, skyCanvas.height);
     skyTex.needsUpdate = true;
   }
-  var bg = on ? lerpC(0xbfd6ec, 0xe8975a, lowK) : new THREE.Color(0x0d1320);
+  var bg = look.background != null ? new THREE.Color(look.background) : on ? lerpC(0xbfd6ec, 0xe8975a, lowK) : new THREE.Color(0x0d1320);
   scene.background = bg;
   if (!scene.fog) scene.fog = new THREE.Fog(hor.getHex(), 2600, 9500);
-  else scene.fog.color.copy(hor);
-  if (stars) stars.visible = !on;
+  else scene.fog.color.copy(look.studio ? bg : hor);
+  if (stars) stars.visible = !on && look.sky;
   // refresh image-based lighting to match the new sky (ground tone darkens at night)
-  updateEnvMap(zen, hor, on ? "3a3d30" : "0a0d14",
+  updateEnvMap(zen, hor, look.envGround || (on ? "3a3d30" : "0a0d14"),
     new THREE.Vector3(dx, dy, dz).normalize(), sun.color, on ? dk : 0);
   // a dollhouse view keeps its ceilings and full-height walls as shadow
   // casters (see shadowRoot), so its rooms are lit like rooms seen from inside
-  renderer.toneMappingExposure = on ? 1.28 : 0.95;
+  renderer.toneMappingExposure = (on ? 1.28 : 0.95) * look.exposureScale;
   S.artK = on ? 0.12 + 0.55 * (1 - dk) : 1.0;
   dyn.traverse(function (o) {
     if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) {
@@ -501,12 +504,15 @@ export function applySite() {
   // Hide the green ground plane in Street View mode (only room + SV ground)
   // and when the apartment is on an upper floor with the aerial lowered —
   // otherwise the procedural ground at y=0 hides the real surroundings below.
+  // The studio backdrop (./backdrop.js) swaps grass and sky for a plain floor.
+  var studio = backdropMode(S.workspace) === "studio" && !showSV;
   if (groundPlaneRef) {
-    groundPlaneRef.visible = !showSV && !mepXray("floor") && !(showAerial && floorCm > 0);
+    groundPlaneRef.visible = !studio && !showSV && !mepXray("floor") && !(showAerial && floorCm > 0);
     if (siteDressRef) siteDressRef.visible = groundPlaneRef.visible && !showAerial;
   }
+  studioFloor(THREE, scene, studio && !mepXray("floor") && !(showAerial && floorCm > 0));
 
-  if (skyDome) skyDome.visible = !showSV;
+  if (skyDome) skyDome.visible = !showSV && !studio;
   // repaint only — NEVER set S.dirty3D here: rebuild3D() and applyEnv() both
   // call applySite(), so flagging a rebuild from inside it made every edit
   // kick off an infinite full-rebuild loop (rebuild → applySite → dirty3D →

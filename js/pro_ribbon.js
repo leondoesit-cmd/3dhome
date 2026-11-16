@@ -6,7 +6,7 @@
  * control, action or command that already does the work, and runProBinding()
  * only reaches it — so the ribbon, the rail, the phone sheet, search and the
  * AI helper can never disagree about what a tool does. */
-import { PRO_CATALOG, PRO_EDITORS, parseBinding, proTools, proLabel, matchTools, groupOnRibbon, ribbonTabForPreset } from "./pro_catalog.js";
+import { PRO_CATALOG, PRO_EDITORS, parseBinding, proTools, proLabel, matchTools, groupOnRibbon, ribbonTabForPreset, ribbonTabForWorkSet } from "./pro_catalog.js";
 import { pushRecent } from "./compact_head.js";
 import { getLang, onLangChange } from "./i18n.js";
 import { askAgent } from "./agent_launch.js";
@@ -801,6 +801,18 @@ function buildRibbon() {
     var i = next ? tabs.findIndex(function (t) { return t[0] === next; }) : -1;
     if (i >= 0) renderGroups(i);
   });
+  // ...and so does the work set when it follows the tool (ribbonTabForWorkSet)
+  var seenWorkSet = null;
+  function followWorkSet() {
+    if (!ribbon || S.workSet === seenWorkSet) return;
+    seenWorkSet = S.workSet;
+    var on = ribbon.querySelector(".pr-tab.on"), cur = on ? tabs[+on.dataset.proTab] : null;
+    var next = ribbonTabForWorkSet(S.workSet, cur && cur[0]);
+    var i = next ? tabs.findIndex(function (t) { return t[0] === next; }) : -1;
+    if (i >= 0) renderGroups(i);
+  }
+  window.addEventListener("layers:changed", followWorkSet);
+  followWorkSet();
   setCollapsed(store(LS_COLLAPSED) === "1");
   watchRibbonFit(ribbon);
   document.body.classList.add("pro-ribbon-on");

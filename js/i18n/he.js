@@ -2422,6 +2422,10 @@ export default {
   wallcol_l: "צבע קירות",
   hour_l: "שעה:",
   north_l: "צפון:",
+  backdrop_l: "רקע תלת-ממד",
+  backdrop_site: "אתר (דשא ושמיים)",
+  backdrop_studio: "סטודיו (רקע ניטרלי)",
+  softlight_l: "אור רך",
 
   emptyProps: "בחר פריט, קיר או חדר כדי לערוך · כלי הציור צפים על התוכנית.",
   emptyProps_modern: "בחרו קיר, חדר או פריט כדי לערוך אותו כאן.",

@@ -18,6 +18,7 @@ import { refreshTree } from "../ui_tree.js";
 import { renderWarnPanel } from "../ui_warn.js";
 import { addFurnItem, bindLength, bindNum, compass, flash, fmtHour, setCutaway, setPlanStyle, syncCutawayUI, syncPlanStyleUI, syncRotStepUI } from "../ui.js";
 import { applyEnv } from "../view3d.js";
+import { wireBackdropControls } from "./backdrop_controls.js";
 import { conUnit, setConReport, setConSuppressed, setConValue, solveWallCons } from "../wall_constraints.js";
 import { activeWallPresetId, isWallDrawTool, setWallDrawFrom, setWallDrawPreset } from "../wall_draw.js";
 
@@ -537,6 +538,7 @@ function wireDisplayAndPointInspector() {
     applyEnv();
     render2D();
   });
+  wireBackdropControls(); // 3D backdrop (Site / Studio) and Soft light
 
   // placeholder-point inspector: position (carries the object standing on it)
   // and a free-text name for the plan label

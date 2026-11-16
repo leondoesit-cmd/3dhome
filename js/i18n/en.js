@@ -2422,6 +2422,10 @@ export default {
   wallcol_l: "Wall color",
   hour_l: "Hour:",
   north_l: "North:",
+  backdrop_l: "3D backdrop",
+  backdrop_site: "Site (grass & sky)",
+  backdrop_studio: "Studio (neutral)",
+  softlight_l: "Soft light",
 
   emptyProps:
     "Select an item, wall or room to edit · drawing tools float over the plan.",

@@ -2,7 +2,7 @@
 // (Ctrl+K), the phone/fold tool search and the More sheet's "Find a tool".
 import test from "node:test";
 import assert from "node:assert/strict";
-import { matchTools, proTools, PRO_CATALOG, groupOnRibbon, ribbonTabForPreset } from "../js/pro_catalog.js";
+import { matchTools, proTools, PRO_CATALOG, groupOnRibbon, ribbonTabForPreset, ribbonTabForWorkSet } from "../js/pro_catalog.js";
 
 const names = (q, eds) => matchTools(q, eds).map((t) => t.editor + ":" + t.label);
 
@@ -121,4 +121,23 @@ test("a layer preset selects its planner tab, only from Build / Interior / MEP",
   assert.match(read("ui_layers.js"), /window\.dispatchEvent\(new CustomEvent\("layers:preset", \{ detail: \{ id: id \} \}\)\);/);
   assert.doesNotMatch(read("ui_layers.js"), /from "\.\/pro_ribbon\.js"/);
   assert.match(read("pro_ribbon.js"), /window\.addEventListener\("layers:preset", function \(e\) \{[\s\S]*?ribbonTabForPreset\(e\.detail && e\.detail\.id, cur && cur\[0\]\)/);
+});
+
+test("the work set that follows the tool selects its planner tab, only among the work tabs", async () => {
+  assert.equal(ribbonTabForWorkSet("furniture", "Build"), "Interior", "Furniture work set leaves Build for Interior");
+  assert.equal(ribbonTabForWorkSet("structure", "Interior"), "Build");
+  assert.equal(ribbonTabForWorkSet("mep", "Build"), "MEP");
+  assert.equal(ribbonTabForWorkSet("annotations", "Interior"), "Annotate");
+  assert.equal(ribbonTabForWorkSet("structure", "Annotate"), "Build");
+  assert.equal(ribbonTabForWorkSet("furniture", "Interior"), null, "already there");
+  for (const tab of ["Output", "Analyze", "Constrain", "View & render", "Site & scan", undefined])
+    assert.equal(ribbonTabForWorkSet("structure", tab), null, "never pulled out of " + tab);
+  assert.equal(ribbonTabForWorkSet("all", "Build"), null, "All layers selects nothing");
+  assert.equal(ribbonTabForWorkSet("toString", "Build"), null);
+  const planTabs = PRO_CATALOG.plan.tabs.map((t) => t[0]);
+  for (const t of ["Build", "Interior", "MEP", "Annotate"]) assert.ok(planTabs.includes(t), t);
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../js/pro_ribbon.js", import.meta.url), "utf8");
+  assert.match(src, /window\.addEventListener\("layers:changed", followWorkSet\)/);
+  assert.match(src, /S\.workSet === seenWorkSet\) return;[\s\S]*?ribbonTabForWorkSet\(S\.workSet, cur && cur\[0\]\)/);
 });
