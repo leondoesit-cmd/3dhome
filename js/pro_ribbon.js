@@ -24,6 +24,7 @@ import "./editor_agent_ui.js"; // the AI card of the model editor's and cabinet 
 import { relocate, layoutCompact, placeLayersChip } from "./pro_compact.js";
 import { placeLeft } from "./pro_left.js";
 import { planRibbonFit } from "./ribbon_fit.js";
+import { dockSplit3D, inspectorFacts } from "./split_dock.js";
 
 var LS_TAB = "mf.proRibbon.tab";
 function he() { return getLang() === "he"; }
@@ -1404,6 +1405,8 @@ function mountPlannerShell() {
     setInterval(function () { syncShell(); placeDesk(); }, 1500);
     if (DESK && DESK.addEventListener) DESK.addEventListener("change", placeDesk);
     if (window.MutationObserver) new MutationObserver(placeDesk).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    // the inspector turns into a drawer at 1024px: Split's 3D follows it across
+    window.addEventListener("resize", function () { placeSplit3D(proDesk()); });
   }
 }
 /* ---- the Round-6 header (desktop) ----
@@ -1584,7 +1587,9 @@ function addAllCommands(bar, editor) {
 function placeSplit3D(desk) {
   var canvas = document.getElementById("center-canvas"), v3 = document.getElementById("view-3d"), insp = document.getElementById("right-inspector");
   if (!canvas || !v3 || !insp) return;
-  var split = desk && !canvas.classList.contains("max-view-2d") && !canvas.classList.contains("max-view-3d");
+  // docked only while the right column is on screen as a column (js/split_dock.js)
+  var f = inspectorFacts(insp, window.getComputedStyle);
+  var split = dockSplit3D({ desk: desk, max2d: canvas.classList.contains("max-view-2d"), max3d: canvas.classList.contains("max-view-3d"), inspectorShown: f.inspectorShown, inspectorOverlay: f.inspectorOverlay });
   if (document.body.classList.contains("ps-split3d") !== split) document.body.classList.toggle("ps-split3d", split);
   var moved = false;
   if (split && v3.parentNode !== insp) {

@@ -828,6 +828,7 @@
     "/js/smarthome_connect.js",
     "/js/spatial_index.js",
     "/js/speech.js",
+    "/js/split_dock.js",
     "/js/stack.js",
     "/js/stair_floors.js",
     "/js/stair_layout.js",
